@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.06.15
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026-08-12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20260717 CL/NTR Guard the API-key insert/update blocks so an existing but
 //                  incomplete .ht_keys.txt can't silently write an empty var_value.
 // 20260728 CL/SZ Moved the Bilagsmatch pool_files.norm_amount/pg_trgm setup here from
+// 20260801 MJ SD-532 manglede omdoebning af ansatte.fax til ansatte.mobile (kun adresser blev rettet)
 //                  includes/opdat_4.3.php's opdat_to('4.3.0', ...) gate: that gate had
 //                  already run on tenants (including the reviewer's test DB) before this
 //                  code was added to it, so opdat_to() skipped the whole closure and
@@ -36,50 +37,64 @@
 //                  a nonexistent column, pg_query() failed, and the endpoint silently
 //                  returned zero rows regardless of any actual match. All statements below
 //                  are idempotent (existence/flag-checked), matching this file's pattern.
+// 20260803 MJ Guard pool_files block against tenants that don't have the table yet (ALTER TABLE
+//                  on non-existent table crashed db_modify, blocking all subsequent migrations).
+// 20260803 MJ Replace db_modify("CREATE EXTENSION pg_trgm") with raw @pg_query so a
+//                  permission failure on managed hosting can't crash the entire script.
+// 20260830 CDX/MJ Restrict hvem-to-performed_by migration to initial column creation
 
 
 
 // Bilagsmatch scoring engine: pool_files.amount is a free-form string ("1.234,56",
 // "1,234.56", etc). Add a real NUMERIC column so matching can join on it directly
 // instead of re-parsing the string with a regex on every query.
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='norm_amount'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE pool_files ADD COLUMN norm_amount NUMERIC(15,3)", __FILE__ . " linje " . __LINE__);
-}
-$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files(norm_amount)", __FILE__ . " linje " . __LINE__);
-}
-
-// One-time backfill of norm_amount for rows written before this column existed.
-$already_backfilled = db_fetch_array(db_select(
-	"SELECT var_value FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled' AND var_grp = 'system'",
+// Guard: tenants that haven't run opdat_4.1/4.2/4.3 yet won't have pool_files; attempting
+// ALTER TABLE on a non-existent table would crash db_modify and block all subsequent migrations.
+$_pool_files_exists = db_fetch_array(db_select(
+	"SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='pool_files' LIMIT 1",
 	__FILE__ . " linje " . __LINE__
 ));
-if (!$already_backfilled) {
-	include_once(__DIR__ . "/docsIncludes/poolAmountNormalizer.php");
-	$q_backfill = db_select("SELECT id, amount FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
-	while ($r_backfill = db_fetch_array($q_backfill)) {
-		$normalized = normalizePoolAmount($r_backfill['amount']);
-		if ($normalized !== null) {
-			db_modify(
-				"UPDATE pool_files SET norm_amount = " . db_escape_string((string) $normalized) . " WHERE id = " . (int) $r_backfill['id'],
-				__FILE__ . " linje " . __LINE__
-			);
-		}
+if ($_pool_files_exists) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='norm_amount'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE pool_files ADD COLUMN norm_amount NUMERIC(15,3)", __FILE__ . " linje " . __LINE__);
 	}
-	db_modify(
-		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
-		VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'One-time backfill of pool_files.norm_amount from the legacy amount text column')",
+	$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files(norm_amount)", __FILE__ . " linje " . __LINE__);
+	}
+
+	// One-time backfill of norm_amount for rows written before this column existed.
+	$already_backfilled = db_fetch_array(db_select(
+		"SELECT var_value FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled' AND var_grp = 'system'",
 		__FILE__ . " linje " . __LINE__
-	);
+	));
+	if (!$already_backfilled) {
+		include_once(__DIR__ . "/docsIncludes/poolAmountNormalizer.php");
+		$q_backfill = db_select("SELECT id, amount FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
+		while ($r_backfill = db_fetch_array($q_backfill)) {
+			$normalized = normalizePoolAmount($r_backfill['amount']);
+			if ($normalized !== null) {
+				db_modify(
+					"UPDATE pool_files SET norm_amount = " . db_escape_string((string) $normalized) . " WHERE id = " . (int) $r_backfill['id'],
+					__FILE__ . " linje " . __LINE__
+				);
+			}
+		}
+		db_modify(
+			"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+			VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'One-time backfill of pool_files.norm_amount from the legacy amount text column')",
+			__FILE__ . " linje " . __LINE__
+		);
+	}
 }
 
 // Bilagsmatch text-similarity scoring uses pg_trgm when available; on tenants where
 // CREATE EXTENSION isn't permitted (managed hosting without superuser), fetchbilagsmatch.php
 // falls back to ILIKE/position() matching instead - this must never block the migration.
-// Attempted only once (flag below) so a tenant that lacks the privilege doesn't retry
-// (and re-email the error) on every future migration run.
+// Attempted only once (flag below) so a tenant that lacks the privilege doesn't retry.
+// Use raw @pg_query (not db_modify) so a permission failure cannot crash the script
+// with the "Uforudset haendelse" alert and prevent all subsequent migrations from running.
 $trgm_attempted = db_fetch_array(db_select(
 	"SELECT var_value FROM settings WHERE var_name = 'pg_trgm_extension_attempted' AND var_grp = 'system'",
 	__FILE__ . " linje " . __LINE__
@@ -87,7 +102,8 @@ $trgm_attempted = db_fetch_array(db_select(
 if (!$trgm_attempted) {
 	$qtxt = "SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("CREATE EXTENSION IF NOT EXISTS pg_trgm", __FILE__ . " linje " . __LINE__);
+		global $connection;
+		@pg_query($connection, "CREATE EXTENSION IF NOT EXISTS pg_trgm");
 	}
 	db_modify(
 		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
@@ -127,6 +143,19 @@ db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kont
 # primary key, so every item forced a full table scan of kostpriser to find its latest price -
 # on a large item report this is the same "no index on the hot per-row lookup" issue as above.
 db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
+
+// 20260801 MJ SD-532 omdoebte ansatte_save.php til at bruge kolonnen 'mobile', men DB-omdoebningen
+// daekkede kun adresser-tabellen. Paa aeldre databaser hedder kolonnen stadig 'fax', og INSERT fejler.
+// 20260802 MJ SD-532 tilfoejede tjek for at 'mobile' ikke allerede eksisterer (undgaar fejl hvis begge kolonner findes)
+// 20260812 MJ Haandter tilfaelde hvor begge kolonner eksisterer: kopier fax-data til mobile, ryd fax
+$_has_fax    = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'ansatte' AND column_name = 'fax'", __FILE__ . " linje " . __LINE__));
+$_has_mobile = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'ansatte' AND column_name = 'mobile'", __FILE__ . " linje " . __LINE__));
+if ($_has_fax && !$_has_mobile) {
+    db_modify("ALTER TABLE ansatte RENAME COLUMN fax TO mobile", __FILE__ . " linje " . __LINE__);
+} elseif ($_has_fax && $_has_mobile) {
+    db_modify("UPDATE ansatte SET mobile = fax WHERE (mobile IS NULL OR mobile = '') AND fax != ''", __FILE__ . " linje " . __LINE__);
+    db_modify("ALTER TABLE ansatte DROP COLUMN fax", __FILE__ . " linje " . __LINE__);
+}
 
 #####
 
@@ -303,6 +332,53 @@ moms_periode_luk_ensure_schema();
 $qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='moms_periode_luk' AND column_name='note' LIMIT 1";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER TABLE moms_periode_luk ADD COLUMN note TEXT", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260802 MJ SD-533 delivery_addresses tabel mangler paa aeldre databaser hvis opdat_4.3.php-gaten
+// allerede var passeret foer tabellen blev tilfojet. debitor/ordre.php linje 2452 koerer en UPDATE mod
+// delivery_addresses for ALLE knaptryk (ogsaa Udskriv), saa en manglende tabel giver "Uforudset haendelse"
+// baaede ved tilfoejelse af lagervarer og ved udskrift af eksisterende ordre.
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_addresses'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE delivery_addresses (id SERIAL NOT NULL, account_id integer NOT NULL,";
+	$qtxt.= " is_primary boolean NOT NULL DEFAULT false, sort_order smallint NOT NULL DEFAULT 0,";
+	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
+	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
+	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
+	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
+	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
+	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'delivery_addresses' AND indexname = 'idx_delivery_addresses_account_id'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses(account_id)", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260803 MJ Ordrelås-tabel — forhindrer samtidige redigeringer af bilag
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='record_locks'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE TABLE record_locks (
+		id SERIAL PRIMARY KEY,
+		tabel VARCHAR(50) NOT NULL DEFAULT 'ordrer',
+		record_id INTEGER NOT NULL,
+		brugernavn VARCHAR(100) NOT NULL DEFAULT '',
+		session_id VARCHAR(100) NOT NULL DEFAULT '',
+		locked_at BIGINT NOT NULL DEFAULT 0,
+		CONSTRAINT record_locks_unique UNIQUE (tabel, record_id)
+	)", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260810 MJ Ny kolonne performed_by i ordrer — erstatter fejlaglig brug af hvem-feltet til Udfoert af
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE ordrer ADD COLUMN performed_by varchar(255) NOT NULL DEFAULT ''", __FILE__ . " linje " . __LINE__);
+	// Existing values used hvem as "Udført af" before the fields were separated.
+	$_has_hvem = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='hvem'", __FILE__ . " linje " . __LINE__));
+	if ($_has_hvem) {
+		db_modify("UPDATE ordrer SET performed_by = hvem WHERE hvem != '' AND performed_by = ''", __FILE__ . " linje " . __LINE__);
+		db_modify("UPDATE ordrer SET hvem = '' WHERE hvem != '' AND performed_by != ''", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 // 20260807 CL/LH Stripe subscriptions: four tables + indexes for the native Stripe

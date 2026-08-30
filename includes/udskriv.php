@@ -77,9 +77,6 @@ if ($art == 'R' && $id) {
 	$returside = "../debitor/rykker.php?rykker_id=" . (int)$id;
 }
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
-	
-	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
-	elseif (!$returside) $returside = '../debitor/ordreliste.php';
     if (!$pdftk || !file_exists($pdftk)) {
         error_log("ERROR: pdftk is not installed. Please install pdftk first.");
         
@@ -436,9 +433,9 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 					if($art == 'DO'){
 						if($value == 'faktura'){
 							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=$returside";
-
 						}else{
-							$href = "../debitor/ordreliste.php";
+							// 20260803 MJ gaa tilbage til specifik ordre (tilbud/ordre), ikke listesiden
+							$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
 						}
 					}else{
 					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-07-28---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-08-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,7 @@
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
 // 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
+// 20260812 MJ Tjek ordrelaas foer POST-skrivninger — samme moenster som debitor/ordre.php
 // 20260827 Sawaneh create supplier: before insert the kontonr is re-checked across all arts, and a
 //                 number taken meanwhile (stale prefill or a debtor holding it) is replaced with a
 //                 fresh one from get_next_number, so no cross-art duplicate can be created (SST-753)
@@ -103,6 +104,19 @@ $valg=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+
+// 20260812 MJ Tjek ordrelaas foer ethvert form-POST paa eksisterende ordrer
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	$_pre_id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+	if ($_pre_id > 0 && !empty($brugernavn)) {
+		include_once('../includes/record_lock.php');
+		$_pre_conflict = order_lock_check_acquire('ordrer', $_pre_id, $brugernavn, session_id());
+		if ($_pre_conflict) {
+			header('Location: ordre.php?id=' . $_pre_id);
+			exit;
+		}
+	}
+}
 
 $returside = if_isset($_GET,NULL,'returside');
 ########
@@ -1208,6 +1222,13 @@ function ordreside($id) {
 	print "<form name='ordre' action='ordre.php' method='post'>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
+	// 20260803 MJ Tjek og optag ordrelås for at advare ved samtidige redigeringer
+	$order_lock_conflict = null;
+	if ($id > 0) {
+		include_once('../includes/record_lock.php');
+		$order_lock_conflict = order_lock_check_acquire('ordrer', $id, $brugernavn, session_id());
+	}
+
 	if ($id) {
 		$q = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
@@ -1322,6 +1343,34 @@ function ordreside($id) {
 		sidehoved($id, "$returside", "", "", "Leverand&oslash;rordre $ordrenr (krediteret p&aring; KN nr: $krediteret)");
 	}	else {
 		sidehoved($id, "$returside", "", "", "Leverand&oslash;rordre $ordrenr");
+	}
+	// -- Ordrelås: spær adgang hvis en anden bruger har bilaget åbent — 20260803 MJ
+	if ($order_lock_conflict) {
+		$lock_mins = (int)((time() - (int)$order_lock_conflict['locked_at']) / 60);
+		$lock_who  = htmlspecialchars($order_lock_conflict['brugernavn'], ENT_QUOTES, 'UTF-8');
+		$lock_ago  = $lock_mins <= 1 ? 'for et &oslash;jeblik siden' : "for $lock_mins minutter siden";
+		$txt = "Denne ordre er &aring;ben af <b>$lock_who</b> ($lock_ago) og kan ikke &aelig;ndres nu &mdash; pr&oslash;v igen n&aring;r $lock_who er f&aelig;rdig.";
+		print tekstboks($txt);
+		print "<meta http-equiv=\"refresh\" content=\"4;URL=$returside\">";
+		exit;
+	}
+	// -- Frigiv ordrelås ved navigering væk; heartbeat hvert 5. min — 20260803 MJ / 20260810 MJ
+	if ($id > 0) {
+		print "<script type=\"text/javascript\">"
+			. "(function(){"
+			. "var _lid=" . (int)$id . ",_saving=false;"
+			. "document.addEventListener('submit',function(){_saving=true;},true);"
+			. "window.addEventListener('beforeunload',function(){"
+			. "if(_saving)return;"
+			. "var d=new FormData();d.append('tabel','ordrer');d.append('record_id',_lid);"
+			. "navigator.sendBeacon('../includes/lock_release.php',d);"
+			. "});"
+			. "setInterval(function(){"
+			. "var d=new FormData();d.append('tabel','ordrer');d.append('record_id',_lid);"
+			. "navigator.sendBeacon('../includes/lock_heartbeat.php',d);"
+			. "},300000);"
+			. "})();"
+			. "</script>\n";
 	}
 	if (!$status) $status=0;
 	print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";
