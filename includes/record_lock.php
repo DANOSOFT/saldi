@@ -10,6 +10,7 @@
 // 20260803 MJ Ordrelås — forhindrer at to brugere redigerer samme bilag samtidigt
 // 20260810 MJ Atomisk erhvervelse via ON CONFLICT; session-bundet frigivelse; heartbeat-funktion
 // 20260812 MJ Ret table_schema-tjek til at virke med baade MySQL og PostgreSQL
+// 20260830 CDX/MJ Synchronize order locks with the legacy ordrer.hvem field
 
 // Locks expire after 10 minutes of inactivity (heartbeat fires every 5 min, so max 10 min after crash)
 define('RECORD_LOCK_TTL', 600);
@@ -94,6 +95,12 @@ function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) 
             . " WHERE tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc' AND session_id='$sess_esc'",
             __FILE__ . " linje " . __LINE__
         );
+        if ($tabel === 'ordrer') {
+            db_modify(
+                "UPDATE ordrer SET hvem='$brug_esc', tidspkt=$now WHERE id=$rid",
+                __FILE__ . " linje " . __LINE__
+            );
+        }
         return null;
     }
 
@@ -119,6 +126,17 @@ function order_lock_refresh($tabel, $record_id, $brugernavn, $session_id) {
         . " AND brugernavn='$brug_esc' AND session_id='$sess_esc'",
         __FILE__ . " linje " . __LINE__
     );
+
+    $r = db_fetch_array(db_select(
+        "SELECT * FROM record_locks WHERE tabel='$tabel_esc' AND record_id=$rid",
+        __FILE__ . " linje " . __LINE__
+    ));
+    if ($tabel === 'ordrer' && $r && $r['brugernavn'] === $brugernavn && $r['session_id'] === $session_id) {
+        db_modify(
+            "UPDATE ordrer SET hvem='$brug_esc', tidspkt=$now WHERE id=$rid",
+            __FILE__ . " linje " . __LINE__
+        );
+    }
 }
 
 // Release the lock held by this user+session for a specific record.
@@ -137,8 +155,21 @@ function order_lock_release($tabel, $record_id, $brugernavn, $session_id = null)
         $where   .= " AND session_id='$sess_esc'";
     }
 
+    $r = db_fetch_array(db_select(
+        "SELECT * FROM record_locks WHERE tabel='$tabel_esc' AND record_id=$rid",
+        __FILE__ . " linje " . __LINE__
+    ));
+    $owns_lock = $r && $r['brugernavn'] === $brugernavn
+        && ($session_id === null || $r['session_id'] === $session_id);
+
     db_modify(
         "DELETE FROM record_locks WHERE $where",
         __FILE__ . " linje " . __LINE__
     );
+    if ($tabel === 'ordrer' && $owns_lock) {
+        db_modify(
+            "UPDATE ordrer SET hvem='' WHERE id=$rid AND hvem='$brug_esc'",
+            __FILE__ . " linje " . __LINE__
+        );
+    }
 }

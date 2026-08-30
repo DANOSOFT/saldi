@@ -99,6 +99,8 @@
 //                expanded one just before navigating away; toggling still works normally
 //                within the same page view, it just no longer survives a reload
 // 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
+// 20260820 Sawaneh Save no longer rewrites kontakt_emails/adresser.email when the POST lacks the
+//                kontakt_email fields, so partial or stale submits cannot wipe stored email addresses
 @session_start();
 $s_id = session_id();
 
@@ -278,6 +280,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		update_settings_value("auto_lookup_cvr", "ordrer", $auto_lookup_cvr, "If CVR-nr. should be looked up automatically when 8 digits are entered", $bruger_id);
 
 		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
+		$stripe_fravalg = db_escape_string(if_isset($_POST['stripe_fravalg'], NULL));
 		$enduser_type = db_escape_string(if_isset($_POST['enduser_type'], ''));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
@@ -575,14 +578,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$qtxt .= "art,gruppe,kontoansvarlig,oprettet,bank_reg,bank_konto,swift,pbs_nr,pbs,kontotype,";
 			$qtxt .= "fornavn,efternavn,lev_firmanavn,lev_fornavn,lev_efternavn,lev_addr1,lev_addr2,lev_postnr,";
 			$qtxt .= "lev_bynavn,lev_land,lev_kontakt,lev_tlf,lev_email,felt_1,felt_2,felt_3,felt_4,felt_5,";
-			$qtxt .= "vis_lev_addr,lukket,kategori,rabatgruppe,status,productlimit)";
+			$qtxt .= "vis_lev_addr,lukket,stripe_fravalg,kategori,rabatgruppe,status,productlimit)";
 			$qtxt .= " values ";
 			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email',";
 			$qtxt .= "'$mailfakt','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$ean','$institution','$notes','D',";
 			$qtxt .= "'$gruppe','$kontoansvarlig','$oprettet','$bank_reg','$bank_konto','$swift','$pbs_nr','$pbs','$kontotype',";
 			$qtxt .= "'$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr',";
 			$qtxt .= "'$lev_bynavn','$lev_land','$lev_kontakt','$lev_tlf','$lev_email','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5',";
-			$qtxt .= "'$vis_lev_addr','$lukket','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
+			$qtxt .= "'$vis_lev_addr','$lukket','$stripe_fravalg','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array($q);
@@ -700,7 +703,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			if (!$gl_kontotype || ($kontotype == $gl_kontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
 				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
-				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
+				$qtxt .= "mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
 				$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
 				$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
 				$qtxt .= "kontoansvarlig='$kontoansvarlig',bank_reg='$bank_reg',bank_konto='$bank_konto',swift='$swift',";
@@ -709,15 +712,18 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$qtxt .= "lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
 				$qtxt .= "lev_land='$lev_land',lev_kontakt='$lev_kontakt',lev_tlf='$lev_tlf',lev_email='$lev_email',";
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
-				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
+				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',stripe_fravalg='$stripe_fravalg',kategori='$katString',";
 				$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
 				if ($packagingModuleEnabled) $qtxt .= ", enduser_type='$enduser_type' ";
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-				// Process primary email (index 1) from form fields
+				// Only rewrite kontakt_emails and adresser.email when the form actually posted
+				// the email fields; a POST without them (stale tab, partial form) must leave
+				// the stored addresses untouched.
 				if (isset($_POST['kontakt_email_val'][1])) {
+					// Process primary email (index 1) from form fields
 					$ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
 					$ke_val = db_escape_string(trim($_POST['kontakt_email_val'][1]));
 					$ke_type = isset($_POST['kontakt_email_type'][1]) ? db_escape_string(trim($_POST['kontakt_email_type'][1])) : 'hoved';
@@ -730,45 +736,45 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						$r_new_ke = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kontakt_emails', 'id')) AS id", __FILE__ . " linje " . __LINE__));
 						$primary_ke_id = $r_new_ke ? intval($r_new_ke['id']) : 0;
 					}
-				}
 
-				// Process extra emails from JSON hidden field
-				$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : (isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0);
-				$existing_extra_ids = array();
-				$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
-				while ($r_ex = db_fetch_array($q_ex)) {
-					$existing_extra_ids[] = intval($r_ex['id']);
-				}
+					// Process extra emails from JSON hidden field
+					$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : $ke_id;
+					if (isset($_POST['kontakt_emails_json'])) {
+						$existing_extra_ids = array();
+						$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
+						while ($r_ex = db_fetch_array($q_ex)) {
+							$existing_extra_ids[] = intval($r_ex['id']);
+						}
 
-				$posted_ids = array();
-				if (isset($_POST['kontakt_emails_json']) && $_POST['kontakt_emails_json']) {
-					$json_emails = json_decode($_POST['kontakt_emails_json'], true);
-					if (is_array($json_emails)) {
-						foreach ($json_emails as $je) {
-							$je_id = intval($je['id']);
-							$je_val = db_escape_string(trim($je['email']));
-							$je_type = db_escape_string(trim($je['type']));
-							if ($je_id && $je_val) {
-								db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-								$posted_ids[] = $je_id;
-							} elseif (!$je_id && $je_val) {
-								db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+						$posted_ids = array();
+						$json_emails = json_decode($_POST['kontakt_emails_json'], true);
+						if (is_array($json_emails)) {
+							foreach ($json_emails as $je) {
+								$je_id = intval($je['id']);
+								$je_val = db_escape_string(trim($je['email']));
+								$je_type = db_escape_string(trim($je['type']));
+								if ($je_id && $je_val) {
+									db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+									$posted_ids[] = $je_id;
+								} elseif (!$je_id && $je_val) {
+									db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+								}
+							}
+						}
+
+						// Delete extras that were removed
+						foreach ($existing_extra_ids as $old_id) {
+							if (!in_array($old_id, $posted_ids)) {
+								db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 							}
 						}
 					}
-				}
 
-				// Delete extras that were removed
-				foreach ($existing_extra_ids as $old_id) {
-					if (!in_array($old_id, $posted_ids)) {
-						db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-					}
+					// Sync primary email back to adresser.email for backward compatibility
+					$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
+					$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
+					db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 				}
-
-				// Sync primary email back to adresser.email for backward compatibility
-				$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
-				$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
-				db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 
 				
 				//####
@@ -1123,6 +1129,7 @@ if ($id > 0) {
 	$felt_4 = htmlentities(trim($r['felt_4']), ENT_COMPAT, $charset);
 	$felt_5 = htmlentities(trim($r['felt_5']), ENT_COMPAT, $charset);
 	($r['lukket']) ? $lukket = 'checked' : $lukket = '';
+	(isset($r['stripe_fravalg']) && $r['stripe_fravalg']) ? $stripe_fravalg = 'checked' : $stripe_fravalg = '';
 
 	// Load kontakt_emails for this customer
 	$kontakt_email_ids = array();
@@ -1260,6 +1267,15 @@ if (!isset($efternavn)) $efternavn = null;
 if (!isset($firmanavn)) $firmanavn = null;
 if (!isset($lev_fornavn)) $lev_fornavn = null;
 if (!isset($lev_efternavn)) $lev_efternavn = null;
+if (!isset($lev_firmanavn)) $lev_firmanavn = null;
+if (!isset($lev_addr1)) $lev_addr1 = null;
+if (!isset($lev_addr2)) $lev_addr2 = null;
+if (!isset($lev_postnr)) $lev_postnr = null;
+if (!isset($lev_bynavn)) $lev_bynavn = null;
+if (!isset($lev_land)) $lev_land = null;
+if (!isset($lev_tlf)) $lev_tlf = null;
+if (!isset($lev_email)) $lev_email = null;
+if (!isset($lev_kontakt)) $lev_kontakt = null;
 
 if ($kontotype == "privat") {
 	if (!$fornavn && !$efternavn && $firmanavn) {
@@ -1472,14 +1488,7 @@ if (!isset($bank_reg)) $bank_reg = NULL;
 if (!isset($bank_konto)) $bank_konto = NULL;
 if (!isset($swift)) $swift = NULL;
 if (!isset($lukket)) $lukket = NULL;
-if (!isset($lev_firmanavn)) $lev_firmanavn = NULL;
-if (!isset($lev_addr1)) $lev_addr1 = NULL;
-if (!isset($lev_addr2)) $lev_addr2 = NULL;
-if (!isset($lev_postnr)) $lev_postnr = NULL;
-if (!isset($lev_land)) $lev_land = NULL;
-if (!isset($lev_kontakt)) $lev_kontakt = NULL;
-if (!isset($lev_bynavn)) $lev_bynavn = NULL;
-if (!isset($lev_tlf)) $lev_tlf = NULL;
+if (!isset($stripe_fravalg)) $stripe_fravalg = NULL;
 if (!isset($notes)) $notes = NULL;
 
 if ($kontotype == 'privat') {
@@ -1914,6 +1923,7 @@ if ($new_status) {
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
+print "<tr bgcolor=$bg><td title=\"Tilbyd aldrig kortbetaling til denne debitor: abonnementslinket i fakturamails bliver tomt, og allerede udsendte links parkerer venligt. Stopper IKKE et abonnement der allerede er aktivt.\">Ingen kortbetaling</td><td><input class='inputbox' type=checkbox name=stripe_fravalg $stripe_fravalg></td></tr>\n";
 if ($packagingModuleEnabled) {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	$eu = isset($enduser_type) ? $enduser_type : '';

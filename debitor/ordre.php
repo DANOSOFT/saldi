@@ -102,7 +102,7 @@
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
 // 20260715 PHR Valuta was omittet when copying order
-// 20260731 MJ Rettet "Performed by"-label til findtekst('3367|Udført af') i visning og redigering
+// 20260731 MJ Rettet "Performed by"-label til findtekst for 'Udført af' i visning og redigering
 // 20260802 MJ Auto-udfyld 'Udfoert af' med indlogget medarbejder paa nye ordrer
 // 20260803 MJ ordrer.vis_lev_addr er varchar(2); 'off' (3 tegn) sprængte kolonnen og udløste db_modify-fejl efter varen var gemt
 // 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
@@ -110,6 +110,10 @@
 // 20260810 MJ Erstat hvem med performed_by til Udfoert af — hvem er reserveret til bilagslaasning
 // 20260812 MJ Laastjek daekker nu alle POST-kald inkl. clear_delivery; leveringsadresse-gemning
 //             atomisk (promote-foerst); performed_by fra POST valideres som skaert streng
+// 20260818 Sawaneh Credit notes: only cap the quantity when the line points the wrong way or more
+//                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
+//                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
+// 20260830 CDX/MJ Keep performed_by separate while restoring hvem lock ownership
 
 @session_start();
 $s_id = session_id();
@@ -302,7 +306,7 @@ if (isset($_POST['create_debtor'])) {
 	$email = if_isset($_POST['email']);
 	$phone = if_isset($_POST['phone']);
 	if (substr($email, 0, 11) == "debitoripad") {
-		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
 		$phone = $r["phone"];
@@ -338,7 +342,7 @@ if (isset($_POST['create_debtor'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_active_pricelist_file'])) {
-	$selectedId = $_POST['change_active_pricelist_file'];
+	$selectedId = (int)$_POST['change_active_pricelist_file']; // SD-639: was raw request input in SQL
 	db_modify("UPDATE grupper SET box4 = '' WHERE art = 'PL'", __FILE__ . " linje " . __LINE__);
 	db_modify("UPDATE grupper SET box4 = 'Yes' WHERE id = '" . $selectedId . "'", __FILE__ . " linje " . __LINE__);
 	error_log("Updated successfully for ID: " . htmlspecialchars($selectedId));
@@ -515,9 +519,9 @@ if (isset($_GET['vis_lev_addr']) && $id) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 if (($kontakt = if_isset($_GET, NULL, 'kontakt')) && ($id)) {
-	db_modify("update ordrer set kontakt='$kontakt' where id='$id'", __FILE__ . " linje " . __LINE__);
+	db_modify("update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
 	if (isset($_GET['email']) && $_GET['email']) {
-		db_modify("update ordrer set email='$_GET[email]' where id='$id'", __FILE__ . " linje " . __LINE__);
+		db_modify("update ordrer set email='" . db_escape_string($_GET['email']) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
 	}
 }
 
@@ -907,9 +911,8 @@ elseif (isset($_POST['send']) && $_POST['send']) $b_submit = 'Send';
 else $b_submit  = if_isset($_POST, NULL, 'b_submit');
 if ($b_submit == 'Credit') $b_submit = 'Krediter';
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
-	$id = $_POST['id'];
+	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
 	$sum = if_isset($_POST, NULL, 'sum');
-	file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." === NEW REQUEST === b_submit=$b_submit id=$id status=".if_isset($_POST,0,'status')." linjeantal=".if_isset($_POST,0,'linjeantal')."\n", FILE_APPEND);
 
 	$phone = trim($_POST['phone']);
 	$phone = str_replace(' ', '', $phone);
@@ -919,7 +922,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$email = str_replace(' ', '', $email);
 	$email = db_escape_string($email);
 	if (substr($email, 0, 11) == "debitoripad") {
-		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
 		$phone = $r["phone"];
@@ -937,7 +940,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		alert("" . findtekst('1825|telefonummer må maks være på 15 cifre', $sprog_id) . "");
 		$phone = substr($phone, 0, 15);
 	}
-	$udskriv_til = $_POST['udskriv_til'];
+	$udskriv_til = db_escape_string($_POST['udskriv_til']); // SD-639: reaches an UPDATE ordrer statement below unescaped
 	if ($udskriv_til == 'localPrint') {
 		setcookie('localPrint', 'on', time() + 10000000000, '/', 'saldi.dk');
 		$localPrint = 'on';
@@ -946,7 +949,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		setcookie('localPrint', 'off', time() + 10, '/', 'saldi.dk');
 		$localPrint = NULL;
 	}
-	$formularsprog = if_isset($_POST, ($current_user_sprog ? $current_user_sprog : 'Dansk'), 'sprog'); # 2022113 Tilføjet 'sprog
+	$formularsprog = db_escape_string(if_isset($_POST, ($current_user_sprog ? $current_user_sprog : 'Dansk'), 'sprog')); # 2022113 Tilføjet 'sprog # SD-639: reaches an UPDATE ordrer statement below unescaped
 	$mail_bilag = if_isset($_POST, NULL, 'mail_bilag'); # 20131122 Tilføjet 'mail_bilag'
 	$genfakt = if_isset($_POST, NULL, 'genfakt');
 	if ($genfakt == '') $genfakt = '-';
@@ -979,6 +982,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	if (strlen((string)$pbs) > 2)        $pbs        = substr((string)$pbs, 0, 2);
 	if (strlen((string)$mail_fakt) > 2)  $mail_fakt  = substr((string)$mail_fakt, 0, 2);
 	if (strlen((string)$mail_bilag) > 2) $mail_bilag = substr((string)$mail_bilag, 0, 2);
+	$mail_bilag = db_escape_string($mail_bilag); // SD-639: raw request input, was reaching the UPDATE below unescaped - escaped AFTER the clamp above so a truncation can never land mid-escape-sequence
 	$qtxt = "update ordrer set sprog = '$formularsprog', email='$email',mail_fakt='$mail_fakt',phone='$phone',pbs='$pbs',";
 	$qtxt .= "udskriv_til='$udskriv_til',  mail_bilag='$mail_bilag',ean='$ean' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -989,7 +993,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	}
 }
 if (isset($_POST['opdat_mailtext'])) {
-	$id = $_POST['id'];
+	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
 	$mail_subj = db_escape_string(if_isset($_POST['mail_subj']));
 	$mail_text = db_escape_string(str_replace("\n", "<br>", if_isset($_POST['mail_text'])));
 	db_modify("update ordrer set mail_subj='$mail_subj',mail_text='$mail_text' where id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1043,7 +1047,7 @@ if ($b_submit) {
 	$ordrenr = $_POST['ordrenr'];
 	$kred_ord_id = $_POST['kred_ord_id'];
 	$art = $_POST['art'];
-	$kontonr = if_isset($_POST, 0, 'kontonr'); //don't cast to int, until tables are all updated such that no values like; 002343, 0048322, etc. which are currently valid, but would be changed if cast to int.
+	$kontonr = db_escape_string(if_isset($_POST, 0, 'kontonr')); //don't cast to int, until tables are all updated such that no values like; 002343, 0048322, etc. which are currently valid, but would be changed if cast to int. # SD-639: was raw request input reaching the SQL below unescaped
 	$rb = if_isset($_POST, 0, 'konto_id');
 	$konto_id = (int)$rb; #20210719
 	if ($id && $kontonr && !$konto_id) { #20150222
@@ -1073,7 +1077,7 @@ if ($b_submit) {
 		$phone = substr($phone, 0, 15);
 	}
 	if (substr($email, 0, 11) == "debitoripad") {
-		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
 		$phone = $r["phone"];
@@ -1220,7 +1224,6 @@ if ($b_submit) {
 	}
 	if (!isset($momsfri[0])) $momsfri[0] = '';
 	if (strstr($b_submit, "Kred") && $status < 3) {
-		file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1015: Kred+status<3 => doInvoice (status=$status)\n", FILE_APPEND);
 		$b_submit = "doInvoice";
 	}
 	if (strstr($b_submit, 'Modtag')) $b_submit = "Lever";
@@ -1825,10 +1828,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		}
 	} elseif ($id && ($kontonr) && ($status < 3)) {
 		$sum = 0;
-		$db_lines = db_fetch_array(db_select("select count(*) as cnt from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
-		file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1581: SAVE LOOP start id=$id art=$art linjeantal=$linjeantal db_lines=".$db_lines['cnt']." b_submit=$b_submit\n", FILE_APPEND);
 		for ($x = 1; $x <= $linjeantal; $x++) {
-			file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1583: x=$x varenr=$varenr[$x] vare_id=$vare_id[$x] antal=$antal[$x] saet=$saet[$x] samlevare=$samlevare[$x] linje_id=$linje_id[$x]\n", FILE_APPEND);
 			#      $antal[$x]*=1;
 			$vare_id[$x] = (int)$vare_id[$x];
 			if ($lagerantal > 1) {
@@ -1849,21 +1849,21 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			}
 			elseif ($vare_id[$x] || isset($_GET['varenr'])) { #20241229
 				if ($art == 'DK') { # DK = Kreditnota
-					#          if ($antal[$x]>0) {
-					#            $antal[$x]=$antal[$x]*-1;
-					#            print "<BODY onLoad=\"javascript:alert('Der kan ikke krediteres et negativt antal. Antal reguleret (Varenr: $varenr[$x])')\">\n";
-					#          }
-
 					$kred_linje_id[$x] *= 1;
 					if (!$folgevare[$x] || $folgevare[$x] > 0) {
 						$qtxt = "select antal from ordrelinjer where id = '$kred_linje_id[$x]' and (vare_id='$vare_id[$x]' or vare_id='0')"; #Vare_id er med for ikke at taelle delvarer med v. samlevarer.
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						if ($antal[$x] + $r['antal'] > 0) { #20260521
-							$antal[$x] = $r['antal'] * -1;
-							$alert = findtekst('1832|Der kan højst krediteres', $sprog_id);
-							$alert1 = findtekst('1833|Antal reguleret', $sprog_id);
-							$alert2 = findtekst('917|Varenr.', $sprog_id);
-							print "<BODY onLoad=\"javascript:alert('$alert " . dkdecimal($row['antal'], 2) . ". $alert1 ($alert2: $varenr[$x])')\">\n";
+
+						if ($kred_linje_id[$x] > 0 && $r) {
+							$forkert_fortegn = ($antal[$x] * $r['antal'] > 0);
+							$krediteret_for_meget = (($antal[$x] + $r['antal']) * $r['antal'] < 0);
+							if ($forkert_fortegn || $krediteret_for_meget) {
+								$antal[$x] = $r['antal'] * -1;
+								$alert = findtekst('1832|Der kan højst krediteres', $sprog_id);
+								$alert1 = findtekst('1833|Antal reguleret', $sprog_id);
+								$alert2 = findtekst('917|Varenr.', $sprog_id);
+								print "<BODY onLoad=\"javascript:alert('$alert " . dkdecimal($r['antal'], 2) . ". $alert1 ($alert2: $varenr[$x])')\">\n";
+							}
 						}
 					}
 					if ($antaldiff[$x]) db_modify("update ordrelinjer set antal=$antal[$x] where id=$linje_id[$x]", __FILE__ . " linje " . __LINE__);
@@ -3155,8 +3155,6 @@ if ($b_submit == 'del_ordre') {
 }
 ########################## FAKTURER   - SKAL VAERE PLACERET EFTER "del_ordre" ################################
 if ($b_submit == 'doInvoice' && $status < 3) {
-	$db_lines2 = db_fetch_array(db_select("select count(*) as cnt from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
-	file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L2697: doInvoice id=$id art=$art linjeantal=$linjeantal db_lines=".$db_lines2['cnt']." hurtigfakt=$hurtigfakt\n", FILE_APPEND);
 	if (!$fakturadate) {
 		$fakturadate = date("Y-m-d");
 		db_modify("update ordrer set fakturadate='$fakturadate' where id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -4103,7 +4101,7 @@ function ordreside($id, $regnskab)
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td></tr>\n";
-		if (trim($performed_by ?? '') != '') print "<tr class='tableTexting2'><td><b>" . findtekst('3367|Udført af', $sprog_id) . "</b></td><td>" . htmlspecialchars($performed_by, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
+		if (trim($performed_by ?? '') != '') print "<tr class='tableTexting2'><td><b>" . findtekst('5059|Udført af', $sprog_id) . "</b></td><td>" . htmlspecialchars($performed_by, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td><td>$fakturanr</td></tr>\n";
 		$tmp = dkdecimal($valutakurs, 2);
 		if ($valuta) print "<tr class='tableTexting2'><td><b>" . findtekst('552|Valuta / Kurs', $sprog_id) . "</b></td><td>$valuta / $tmp</td></tr>\n";
@@ -5185,7 +5183,7 @@ function ordreside($id, $regnskab)
 			print "<INPUT TYPE = 'hidden' NAME = 'oldperformed_by' VALUE = \"" . htmlspecialchars($performed_by ?? '', ENT_QUOTES, 'UTF-8') . "\">";
 			for ($x=0;$x<count($ansat);$x++) {
 				if (!$x) {
-				print "<tr><td>" . findtekst('3367|Udført af', $sprog_id) . "</td>\n";
+				print "<tr><td>" . findtekst('5059|Udført af', $sprog_id) . "</td>\n";
 				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"performed_by\" $disabled>\n";
 				print "<option>" . htmlspecialchars($performed_by ?? '', ENT_QUOTES, 'UTF-8') . "</option>\n";
 				if (trim($performed_by) != '') print "<option value=\"\"></option>\n";
@@ -5308,7 +5306,7 @@ function ordreside($id, $regnskab)
 			<label style="white-space:nowrap;cursor:pointer;"><?= htmlspecialchars(findtekst('355|Vis leveringsadresse', $sprog_id)) ?>
 			<input type="checkbox" id="vis_lev_addr" name="vis_lev_addr" value="on" <?= $vis_addr == 'on' ? 'checked' : '' ?> onchange="document.getElementById('submit').click();"></label>
 		<?php } else { ?>
-			<input type='hidden' id='vis_lev_addr' name='vis_lev_addr' value='<?= $vis_addr ?? 'on' ?>'><input type="button" onclick="
+			<input type='hidden' id='vis_lev_addr' name='vis_lev_addr' value='<?= ($vis_addr ?? '') == 'on' ? 'on' : '' ?>'><input type="button" onclick="
 			var field = document.getElementById('vis_lev_addr');
 			field.value = field.value === 'on' ? '' : 'on';
 			document.getElementById('submit').click();"
@@ -6859,7 +6857,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 				// Check if ordered quantity exceeds available stock
 				if (in_array($gruppe, $stockGrp) && ($antal - $leveret) > $stockQty) { ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
 					$txtColor = 'red';
-					$qtyTitle = "Obs!! Antal (" . dkdecimal($antal - $leveret, 0) . ") overstiger beholdning (" . dkdecimal($$stockQty, 0) . ")"; ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
+					$qtyTitle = "Obs!! Antal (" . dkdecimal($antal - $leveret, 0) . ") overstiger beholdning (" . dkdecimal($stockQty, 0) . ")"; ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
 				} elseif (in_array($gruppe, $stockGrp) && $min_lager > 0 && $stockQty < $min_lager) {
 					$txtColor = 'red';
 					$qtyTitle = "Obs!! Beholdning (" . dkdecimal($stockQty, 0) . ") mindre end " . dkdecimal($min_lager, 0);

@@ -60,6 +60,7 @@
 // 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 // 20260731 MJ Rettet 'Performed by'-label til 'Udført af' i formular-feltvaelger
+// 20260830 CDX/MJ Move Udført af label to unique translation ID 5059
 @session_start();
 $s_id=session_id();
 
@@ -810,7 +811,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_tlf'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                         #Ordre tlf
 	}
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
-		print "<option value = 'ordre_hvem'>" . findtekst('3367|Udført af', $sprog_id) . "</option>";
+		print "<option value = 'ordre_hvem'>" . findtekst('5059|Udført af', $sprog_id) . "</option>";
 		print "<option value = 'ordre_ean'>".findtekst('605|Ordre', $sprog_id)." EAN</option>";                                                                                    #Ordre EAN
 		print "<option value = 'ordre_felt_1'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 1</option>";                                  #Ordre felt 1
 		print "<option value = 'ordre_felt_2'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 2</option>";                                  #Ordre felt 2

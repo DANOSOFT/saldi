@@ -41,6 +41,7 @@
 //                  on non-existent table crashed db_modify, blocking all subsequent migrations).
 // 20260803 MJ Replace db_modify("CREATE EXTENSION pg_trgm") with raw @pg_query so a
 //                  permission failure on managed hosting can't crash the entire script.
+// 20260830 CDX/MJ Restrict hvem-to-performed_by migration to initial column creation
 
 
 
@@ -319,44 +320,13 @@ if ($mp_client_id) {
 	}
 }
 
-// R5 moms periodelaasning — opret tabel, funktion og trigger een gang ved login.
-// Kontrollen sker paa trigger-eksistens; er triggeren der, springes hele blokken over.
-$qtxt = "SELECT 1 FROM pg_trigger WHERE tgname='tr_check_moms_periode_luk' LIMIT 1";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-    db_modify("CREATE TABLE IF NOT EXISTS moms_periode_luk (
-        id               SERIAL PRIMARY KEY,
-        kalender_aar     INTEGER NOT NULL,
-        kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
-        status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
-        lukket_af        VARCHAR(100),
-        lukket_dato      TIMESTAMP,
-        aabnet_af        VARCHAR(100),
-        aabnet_dato      TIMESTAMP,
-        UNIQUE (kalender_aar, kalender_maaned)
-    )", __FILE__ . " linje " . __LINE__);
-    // pg_query() bruges her for at omgaa injecttjek(): PL/pgSQL-kroppen indeholder
-    // semikolon uden for enkeltcitater, som injecttjek() ville fejlfortolke som injection.
-    $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
-    $fn .= "RETURNS TRIGGER AS \$\$ ";
-    $fn .= "BEGIN ";
-    $fn .= "    IF EXISTS ( ";
-    $fn .= "        SELECT 1 FROM moms_periode_luk ";
-    $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
-    $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
-    $fn .= "          AND status = 'closed' ";
-    $fn .= "    ) THEN ";
-    $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
-    $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
-    $fn .= "    END IF; ";
-    $fn .= "    RETURN NEW; ";
-    $fn .= "END; ";
-    $fn .= "\$\$ LANGUAGE plpgsql";
-    pg_query($connection, $fn);
-    pg_query($connection,
-        "CREATE TRIGGER tr_check_moms_periode_luk "
-        . "BEFORE INSERT OR UPDATE ON transaktioner "
-        . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()");
-}
+// R5 moms periodelaasning — opret/reparer tabel, funktion og trigger ved login.
+// SD-646: moms_periode_luk_ensure_schema() (includes/std_func.php) checker og
+// reparerer hvert af de tre objekter uafhaengigt (tabel/funktion/trigger), saa
+// en delvis installation - fx tabellen oprettet men funktion/trigger fejlede
+// stille - selvhelbreder ved dette login i stedet for kun at blive opdaget naar
+// selve triggeren mangler.
+moms_periode_luk_ensure_schema();
 
 // Add note column to moms_periode_luk if not present (idempotent guard).
 $qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='moms_periode_luk' AND column_name='note' LIMIT 1";
@@ -403,12 +373,140 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE ordrer ADD COLUMN performed_by varchar(255) NOT NULL DEFAULT ''", __FILE__ . " linje " . __LINE__);
+	// Existing values used hvem as "Udført af" before the fields were separated.
+	$_has_hvem = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='hvem'", __FILE__ . " linje " . __LINE__));
+	if ($_has_hvem) {
+		db_modify("UPDATE ordrer SET performed_by = hvem WHERE hvem != '' AND performed_by = ''", __FILE__ . " linje " . __LINE__);
+		db_modify("UPDATE ordrer SET hvem = '' WHERE hvem != '' AND performed_by != ''", __FILE__ . " linje " . __LINE__);
+	}
 }
-// Idempotent: kopier hvem til performed_by og nulstil hvem — kun hvis hvem-kolonnen eksisterer
-$_has_hvem = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='hvem'", __FILE__ . " linje " . __LINE__));
-if ($_has_hvem) {
-	db_modify("UPDATE ordrer SET performed_by = hvem WHERE hvem != '' AND performed_by = ''", __FILE__ . " linje " . __LINE__);
-	db_modify("UPDATE ordrer SET hvem = '' WHERE hvem != '' AND performed_by != ''", __FILE__ . " linje " . __LINE__);
+
+// 20260807 CL/LH Stripe subscriptions: four tables + indexes for the native Stripe
+// integration (doc/stripe/INTERFACE_CONTRACT.md). Placed HERE and in admin/opret.php,
+// deliberately NOT in opdat_4.3.php - its opdat_to('4.3.0') gate has already run on
+// existing tenants, so anything added there is silently skipped (see the 20260728 note
+// at the top of this file). All statements are idempotent. Indexes exist only here:
+// the partial unique index is PostgreSQL-only syntax.
+// NB: column is billing_interval, not "interval" - INTERVAL is a reserved word in
+// PostgreSQL/MySQL. No stripe code may ever read or write ordrer.nextfakt.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_catalog'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE stripe_catalog (
+		id SERIAL PRIMARY KEY,
+		varenr text,
+		stripe_price_id varchar(255),
+		stripe_product_id varchar(255),
+		unit_ore integer,
+		billing_interval varchar(10) NOT NULL DEFAULT 'month',
+		interval_count integer NOT NULL DEFAULT 1,
+		currency varchar(3) NOT NULL DEFAULT 'DKK',
+		active boolean NOT NULL DEFAULT true,
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_events'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE stripe_events (
+		id SERIAL PRIMARY KEY,
+		event_id varchar(255) NOT NULL,
+		event_type varchar(100),
+		payload text,
+		status varchar(30) NOT NULL DEFAULT 'received',
+		saldi_order_id integer,
+		invoice_number varchar(30),
+		error text,
+		received_at timestamp DEFAULT CURRENT_TIMESTAMP,
+		processed_at timestamp)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE stripe_customers (
+		id SERIAL PRIMARY KEY,
+		stripe_customer_id varchar(255) NOT NULL,
+		stripe_subscription_id varchar(255),
+		konto_id integer,
+		kontonr varchar(30),
+		order_id integer,
+		status varchar(30) NOT NULL DEFAULT 'active',
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+		updated_at timestamp)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_import_failures'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE stripe_import_failures (
+		id SERIAL PRIMARY KEY,
+		event_id varchar(255),
+		stripe_invoice_id varchar(255),
+		reason varchar(50),
+		http_code integer,
+		message text,
+		payload_json text,
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+		resolved_at timestamp)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// Indexes: replay-safety (unique event), one active mapping per varenr (partial
+// unique - PostgreSQL only), and the webhook's two customer lookups.
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_events' AND indexname = 'stripe_events_event_id_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE UNIQUE INDEX stripe_events_event_id_uidx ON stripe_events (event_id)", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_catalog' AND indexname = 'stripe_catalog_varenr_active_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE UNIQUE INDEX stripe_catalog_varenr_active_uidx ON stripe_catalog (varenr) WHERE active", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_customers' AND indexname = 'idx_stripe_customers_customer_id'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE INDEX idx_stripe_customers_customer_id ON stripe_customers (stripe_customer_id)", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_customers' AND indexname = 'idx_stripe_customers_konto_id'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE INDEX idx_stripe_customers_konto_id ON stripe_customers (konto_id)", __FILE__ . " linje " . __LINE__);
+}
+// 20260819 CL/LH Per-debtor opt-out for kortbetaling ("Ingen kortbetaling" on the
+// debitorkort): overrides templates and catalog - the link helper renders '' and
+// subscribe.php parks. Does NOT touch already-running subscriptions.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='stripe_fravalg'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE adresser ADD stripe_fravalg varchar(2)", __FILE__ . " linje " . __LINE__);
+}
+
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ansatte' and column_name = 'mobile'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# IF NOT EXISTS because betweenUpdates.php runs at login: two concurrent logins can both
+	# get past the check above, and one of the two ALTER statements would then fail.
+	$qtxt = "ALTER TABLE ansatte ADD COLUMN IF NOT EXISTS mobile text";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+
+// 20260827 NTR Tekst 351: ' - not changed' suffix added in all three languages. Delete rows still
+// holding the old text so findtekst() re-seeds them from tekster.csv. Guarded on the old values
+// because betweenUpdates.php runs at every login and customer-edited texts must not be wiped.
+$gamle_351 = array('Kontonummer findes allerede', 'not changed', 'Kontonummer eksisterer allerede');
+foreach ($gamle_351 as $gammel) {
+	db_modify("delete from tekster where tekst_id = '351' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
+}
+
+$cvr_gamle_tekster = array(
+	'Auto-opslag','Auto lookup','Auto-oppslag',
+	'CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.',
+	'The VAT lookup could not be completed. Please fill in the fields manually.',
+	'Oppslaget kunne ikke gjennomføres. Fyll ut feltene manuelt.',
+	'Kvoten for CVR-opslag er opbrugt.','The quota for VAT lookups has been used up.','Kvoten for oppslag er brukt opp.',
+	'CVR-nummeret blev ikke fundet.','The VAT number was not found.','Organisasjonsnummeret ble ikke funnet.',
+	'CVR-nummeret er ikke gyldigt.','The VAT number is not valid.','Organisasjonsnummeret er ikke gyldig.',
+	'Søger...','Searching...','Søker...'
+);
+foreach ($cvr_gamle_tekster as $cvr_tekst) {
+	$cvr_tekst = db_escape_string($cvr_tekst);
+	db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst = '$cvr_tekst'", __FILE__ . " linje " . __LINE__);
+}
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast CVR-nr. efterfulgt%'", __FILE__ . " linje " . __LINE__);
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Enter the VAT no. followed%'", __FILE__ . " linje " . __LINE__);
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast inn org.nr. etterfulgt%'", __FILE__ . " linje " . __LINE__);
 
 ?>
