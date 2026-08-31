@@ -13,18 +13,19 @@ $s_id=session_id();
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
 //
-// En dansk oversaettelse af licensen kan laeses her:
+// En dansk oversaettelse af licensen kan laeses her: 
 // http://www.fundanemt.com/gpl_da.html
 //
 // Copyright (c) 2004-2006 DanOSoft ApS
 // ----------------------------------------------------------------------
+//20260729 LOE this file is almost not used anymore..since it wasn't added to the ones to be deleted, it is kept for now, but it should be removed in the future.
 ini_set('max_execution_time', '300');
 $modulnr=12;
 $title="&Aring;benpostudligning";
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/dkdecimal.php");
+include("../includes/stdFunc/dkDecimal.php");
 include("../includes/dkdato.php");
 include("../includes/usdate.php");
 include("../includes/forfaldsdag.php");
@@ -47,9 +48,24 @@ if ($_POST['submit']) {
 	$konto_til=$_GET['konto_til']; 
 }
 
-$query = db_select("select * from openpost where id='$post_id[0]'");
+if($post_id[0]=="" || $regnaar=="" || $maaned_fra=="" || $maaned_til=="" || $konto_fra=="" || $konto_til=="") {
+    $params = array(
+        'rapportart' => 'Kontokort',
+        'regnaar'    => $regnaar,
+        'maaned_fra' => $maaned_fra,
+        'maaned_til' => $maaned_til,
+        'konto_fra'  => $konto_fra,
+        'konto_til'  => $konto_til,
+        'submit'     => 'ok'
+    );
+    $url = 'rapport.php?' . http_build_query($params);
+    header("Location: $url");
+    exit;
+}
+
+$query = db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__);
 if ($row = db_fetch_array($query)) {
-	$konto_id[0]=$row[konto_id];
+	$konto_id[0]=$row['konto_id'];
 	$refnr[0]=$row['refnr'];
 	$amount[0]=$row['amount'];
 	$transdate[0]=$row['transdate'];
@@ -63,10 +79,10 @@ if ($row = db_fetch_array($query)) {
 
 $udlign_date="$transdate[0]";
 $x=0;
-$query = db_select("select * from openpost where id!='$post_id[0]' and konto_id=$konto_id[0] and udlignet != '1'");
+$query = db_select("select * from openpost where id!='$post_id[0]' and konto_id=$konto_id[0] and udlignet != '1'",__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)){
 	$x++;
-	$post_id[$x]=$row[id];
+	$post_id[$x]=$row['id'];
 	$refnr[$x]=$row['refnr'];
 	$amount[$x]=$row['amount'];
 	$transdate[$x]=$row['transdate'];
