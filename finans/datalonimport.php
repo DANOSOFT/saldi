@@ -29,6 +29,7 @@
 // 20260831 Sawaneh Removed duplicate fclose() in flyt_data - fatal TypeError on PHP 8
 // 20260831 Sawaneh Restrict $filnavn from POST to the user's own upload - path traversal in fopen/unlink
 // 20260831 Sawaneh Convert $linje before branch selection so the non-preSetNo path also gets UTF-8
+// 20260831 Sawaneh Cast date parts with (int) instead of *=1 - fatal TypeError on non-numeric header row
 
 @session_start();
 $s_id=session_id();
@@ -117,7 +118,7 @@ function vis_data($kladde_id, $filnavn, $bilag){
 				$amount[$y]=usdecimal($belob[$y])*1;
 				if (!$amount[$y]) $skriv_linje[$y]=0;
 				list($dag,$maaned,$aar)=explode(".",$dato[$y]);
-				$maaned*=1; $dag*=1; $aar*=1;
+				$maaned=(int)$maaned; $dag=(int)$dag; $aar=(int)$aar;
 				if (checkdate($maaned,$dag,$aar)) $date[$y]=usdate($dato[$y]);
 				else $skriv_linje[$y]=0;
 			}
@@ -194,7 +195,7 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 				$dato[$y]   = str_replace("/","-",$dato[$y]);
 				if (!$amount[$y]) $skriv_linje[$y]=0;
 				list($dag,$maaned,$aar)=explode("-",$dato[$y]);
-				$maaned*=1; $dag*=1; $aar*=1;
+				$maaned=(int)$maaned; $dag=(int)$dag; $aar=(int)$aar;
 				if (checkdate($maaned,$dag,$aar)) $date[$y]=usdate($dato[$y]);
 				else $skriv_linje[$y]=0;
 			}
