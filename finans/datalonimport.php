@@ -28,6 +28,7 @@
 // 20260831 Sawaneh Corrected misplaced parenthesis in mb_convert_encoding calls from 20250130
 // 20260831 Sawaneh Removed duplicate fclose() in flyt_data - fatal TypeError on PHP 8
 // 20260831 Sawaneh Restrict $filnavn from POST to the user's own upload - path traversal in fopen/unlink
+// 20260831 Sawaneh Convert $linje before branch selection so the non-preSetNo path also gets UTF-8
 
 @session_start();
 $s_id=session_id();
@@ -106,7 +107,8 @@ function vis_data($kladde_id, $filnavn, $bilag){
 						while(!is_numeric(substr($linje,0,1)) && $linje) $linje=substr($linje,1);	
 					}
 				}
-				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1'));
+				$linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",$linje);
 				else list($dato[$y],$kontonr[$y],$beskrivelse[$y],$belob[$y])=explode(";",$linje);
 				if (!is_numeric($kontonr[$y]) && is_numeric($beskrivelse[$y])) {
 					list($dato[$y],$beskrivelse[$y],$kontonr[$y],$belob[$y])=explode(";",$linje);
@@ -177,7 +179,8 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 						while(!is_numeric(substr($linje,0,1)) && $linje) $linje=substr($linje,1);	
 					}
 				}
-				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1'));
+				$linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",$linje);
 				else {
 					list($dato[$y],$kontonr[$y],$beskrivelse[$y],$belob[$y])=explode(";",$linje);
 					if (!is_numeric($kontonr[$y]) && is_numeric($beskrivelse[$y])) {
