@@ -73,6 +73,9 @@
 //                  numeric kontoplan.kontonr query; input is now checked with is_account_number() first.
 // 20260827 Sawaneh Array-valued request fields (name[]) reached trim() in the VAT lookups and threw a
 //                  TypeError on PHP 8; non-scalar input is now rejected by scalar_input_text().
+// 20260831 Sawaneh Action buttons were clipped and unreachable at 125% Windows scaling (SST-747):
+//                  replaced the guessed 130/150px viewport calc with a flex column layout, removed the
+//                  unconditional html/body overflow-y:hidden and let the button bar wrap on narrow windows.
 
 ob_start(); //Starter output buffering  
 
@@ -2127,16 +2130,6 @@ if ($kontrolkonto) {
 ###############################
 print '<style>
 
-    /* Sticky footer for action buttons */
-    .kassekladde-footer {
-        position: sticky;
-        bottom: 0;
-        background-color: #f1f1f1;
-        z-index: 9;
-        padding: 8px 0 16px;
-        border-top: 1px solid #ccc;
-    }
-
     /* Border radius for buttons #20260513-2*/
     input[type="submit"],
     input[type="button"],
@@ -2562,6 +2555,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		});
 		</script>";
 
+		$kk_editable_view = true;
 		print "<div class='kassekladde-scroll-container'>";
 		print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
 
@@ -3446,7 +3440,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 	print "</tbody></table></center></div>";   # Tabel 1.3 <- Kladdelinjer
 	print "</td></tr>\n";
-	print "<tr class='kassekladde-footer'><td align='center'>";
+	print "<div class='kassekladde-footer'>";
 	if ($menu == 'T') {
 		print "<table width='900px' border='0' cellspacing='0' cellpadding='1'><tbody><tr>"; # Tabel 1.4 -> Knapper
 	} else {
@@ -3531,7 +3525,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		print "</form>";
 	}
-	print "</tbody></table></td></tr>\n"; # Tabel 1.4 <- Knapper
+	print "</tbody></table></div>\n"; # Tabel 1.4 <- Knapper
 	#if ($udskriv) print "<tr><td width=\"100%\" height=\"100%\">zz</td></tr>";
 	print "</tbody></table>"; # Tabel 1 <-
 	if ($udskriv) {
@@ -4475,13 +4469,45 @@ body {
     padding: 8px !important;
 }
 
+<?php if (!empty($kk_editable_view)) { ?>
+/* SST-747: flex column layout — the bars above and below take their natural
+   height and only the grid scrolls, so there is no viewport constant to guess
+   wrong. If an outer wrapper keeps the chain from being height-constrained
+   (old top-menu design), the page simply scrolls instead of clipping. */
+@media screen {
+    html, body {
+        height: 100%;
+    }
+    body {
+        box-sizing: border-box;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    body > * {
+        flex: 0 0 auto;
+    }
+    body > form#kassekladde {
+        flex: 1 1 auto;
+    }
+    form#kassekladde {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    form#kassekladde > * {
+        flex: 0 0 auto;
+    }
+    form#kassekladde > .kassekladde-scroll-container {
+        flex: 1 1 auto;
+    }
+}
+<?php } ?>
+
 /*scrollable container for the editable form */
 .kassekladde-scroll-container {
-    /* 98px only covered the header row; it didn't leave room for the
-       .kassekladde-footer row below (padding+border+margin+button row is
-       ~70-80px on its own), so the footer's tail was clipped once html/body
-       stopped allowing page-level scroll. */
-    height: calc(100vh - 150px);
+    min-height: 0;
     overflow-y: auto;
     border: 1px solid #ddd;
     margin-bottom: 10px;
@@ -4499,15 +4525,34 @@ body {
 	background-color: <?= $bgcolor; ?> !important;
 }
 
-/* Sticky footer outside the scroll container */
+/* Sticky footer with the action buttons (single definition — was duplicated) */
 .kassekladde-footer {
     position: sticky;
     bottom: 0;
     background-color: #f1f1f1;
     z-index: 10;
-    padding: 10px 0 18px;
-    border-top: 2px solid #ccc;
+    padding: 8px 0 12px;
+    border-top: 1px solid #ccc;
     margin-top: 10px;
+}
+
+/* SST-747: let the button bar wrap on narrow windows instead of clipping.
+   The bar is a fixed-width table in the markup; render it as a wrapping
+   flex row so every button stays reachable. */
+.kassekladde-footer table {
+    width: auto !important;
+    max-width: 100%;
+}
+.kassekladde-footer table,
+.kassekladde-footer tbody,
+.kassekladde-footer td {
+    display: block;
+}
+.kassekladde-footer tr {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
 }
 
 /* Ensure proper table display */
@@ -4524,10 +4569,6 @@ body {
     position: sticky;
     top: 0;
 }
- html, body {
-			overflow-y: hidden !important;
-		}
-
 
 .duplicate-line-btn,
 .delete-line-btn {
