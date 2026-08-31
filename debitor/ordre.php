@@ -107,6 +107,7 @@
 // 20260818 Sawaneh Credit notes: only cap the quantity when the line points the wrong way or more
 //                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
 //                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
+// 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 // 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
 // 20260908 CL/Sawaneh SST-763: PBS button on posted PBS invoices opens debitor/pbs_gensend.php
 //                     (attempt history + resend after a Nets rejection).
@@ -1649,7 +1650,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
 				$levdate = date("Y-m-d");
 			} else $levdate = $ordredate;;
-		} elseif ($levdate < $ordredate) {
+		} elseif (delivery_date_before_order_date($art, $levdate, $ordredate)) {
 			$alert1 = findtekst('1679|Leveringsdato er før ordredato', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
 			$status = 0;

@@ -125,7 +125,21 @@
 //             out-of-balance order BEFORE any transaktioner/openpost rows are written (previously the
 //             imbalance was detected after posting, with no rollback for callers outside bogfor).
 //             Also guarded the vatAccount rounding loops against infinite loop on empty SM account list
+// 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 // 20260908 CL/Sawaneh SST-763: duplicate pbsfakt() removed; includes/pbsfunc.php is included instead.
+
+/**
+ * Check whether a delivery date invalidly precedes its order date.
+ *
+ * Customer credit notes use levdate as the return date, so their date is not
+ * ordered relative to the date on which the credit note was created.
+ *
+ * @return bool True when the delivery date is invalid for this order type.
+ */
+function delivery_date_before_order_date($art, $levdate, $ordredate)
+{
+	return !$levdate || ($art !== 'DK' && $levdate < $ordredate);
+}
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -244,14 +258,14 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 		$ordredate = $fakturadate;
 	}
 	$r = db_fetch_array(db_select("select * from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-	if ($fakturadate && !$r['levdate']) {
+	if (!$r['levdate']) {
 		if ($webservice)
 			return ('Manglende leveringsdato');
 		else
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato SKAL udfyldes')\">";
 		exit;
 	} else {
-		if (!$hurtigfakt && $r['levdate'] < $r['ordredate']) {
+		if (!$hurtigfakt && delivery_date_before_order_date($art, $r['levdate'], $r['ordredate'])) {
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato $r[levdate]<$r[ordredate]')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 			exit;
@@ -1429,7 +1443,7 @@ function bogfor($id, $webservice=false)
 		else
 			return ("Leveringsdato SKAL udfyldes");
 	}
-	if ($levdate < $ordredate) {
+	if (delivery_date_before_order_date($art, $levdate, $ordredate)) {
 		transaktion('rollback');
 		if ($webservice)
 			return ("Deliverydate prior to orderdate");

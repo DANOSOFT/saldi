@@ -16,6 +16,7 @@
 //
 // Copyright (c) 2004-2010 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 
 @session_start();
 $s_id=session_id();
@@ -382,7 +383,7 @@ if (isset($_POST['submit'])) {
 				$levdate=date("Y-m-d");
 			} else $levdate=$ordredate;;
 		}
-		elseif ($levdate<$ordredate) {
+		elseif (delivery_date_before_order_date($art, $levdate, $ordredate)) {
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato')\">";
 			$status=0;
 		}
