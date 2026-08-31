@@ -2530,10 +2530,10 @@ Pris $pris<br>
 			print "<h3>Rå HTML Editor</h3>";
 			print "<p style='color: #666; font-size: 12px;'>".findtekst('5057|Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$minbeskrivelse, \$minpris, \$img, osv. \$minbeskrivelse og \$minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. \$beskrivelse og \$pris henter altid varens egen.', $sprog_id)."<!--tekst 5056--></p>";
 			if (!empty($forcedRawHTML)) {
-				print "<p style='color: #a94442; background-color: #f2dede; padding: 6px; font-size: 12px;'>".findtekst('5059|Denne label indeholder formatering, som den visuelle editor ikke forstår, og kan derfor kun redigeres her som rå HTML - at gemme via den visuelle editor ville slette den formatering, den ikke kan vise. For at få adgang til den visuelle editor igen skal den rå HTML tømmes og gemmes.', $sprog_id)."</p>";
+				print "<p style='color: #a94442; background-color: #f2dede; padding: 6px; font-size: 12px;'>".findtekst('5078|Denne label indeholder formatering, som den visuelle editor ikke forstår, og kan derfor kun redigeres her som rå HTML - at gemme via den visuelle editor ville slette den formatering, den ikke kan vise. For at få adgang til den visuelle editor igen skal den rå HTML tømmes og gemmes.', $sprog_id)."</p>";
 			}
 			if (!empty($saveLabelRefused)) {
-				print "<p style='color: #a94442; background-color: #f2dede; padding: 6px; font-size: 12px;'>".findtekst('5060|Din ændring blev ikke gemt - denne labels skabelon er ændret siden siden blev indlæst (fx i en anden fane), og kan nu kun redigeres som rå HTML. Genindlæs siden og prøv igen.', $sprog_id)."</p>";
+				print "<p style='color: #a94442; background-color: #f2dede; padding: 6px; font-size: 12px;'>".findtekst('5079|Din ændring blev ikke gemt - denne labels skabelon er ændret siden siden blev indlæst (fx i en anden fane), og kan nu kun redigeres som rå HTML. Genindlæs siden og prøv igen.', $sprog_id)."</p>";
 			}
 			print "</div>";
 			print "<textarea name='rawHTML' style='width: 100%; height: 400px; font-family: monospace; font-size: 12px;'>" . htmlspecialchars($labelText) . "</textarea>";
