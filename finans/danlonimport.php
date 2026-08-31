@@ -18,6 +18,7 @@
 //
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260831 Sawaneh Corrected misplaced parenthesis in mb_convert_encoding calls from 20250130
+// 20260831 Sawaneh Removed duplicate fclose() in flyt_data - fatal TypeError on PHP 8
 // ----------------------------------------------------------------------
 
 @session_start();
@@ -169,7 +170,6 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 			db_modify("insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id) values ('$bilag','$date[$x]','$beskrivelse[$x]','F','$debet[$x]','F','$kredit[$x]','$amount[$x]', '$kladde_id')",__FILE__ . " linje " . __LINE__);
 		}
 	}	
-	fclose($fp);
 	unlink($filnavn); # sletter filen.
 #	transaktion('commit');
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
