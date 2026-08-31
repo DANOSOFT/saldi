@@ -27,6 +27,7 @@ $s_id=session_id();
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2015.12.23 Rettet addslashes til db_escape_string
 // 2026.08.14 Sawaneh SST-726 Int-cast id and whitelist doktype from request
+// 2026.08.28 CL MB-22: valideringsfejl-mailadresse rettet fra oio@saldi.dk til Support@danosoft.dk
 
 #$testdok="Tester"; # Skal slettes naar test er faerdig
 $css="../css/standard.css";
@@ -140,7 +141,7 @@ if ($r['box8']) {
 	print "<p>Hvis du vil teste OIOUBL-filen kan validering af filen ske med \n";
 	print "<a href=\"https://oioubl-demo.nemhandel.dk/validation\" title=\"ITST - OIOUBL Online Validator\" target=\"blank\">OIOUBL Validator</a>.</p>\n";
 	print "<p>Hvis OIOUBL-filen ikke validerer, s&aring; send filen vedlagt en e-mail til \n";
-	print "<a href=\"mailto:oio@saldi.dk\">oio@saldi.dk</a>, s&aring; vi kan finde &aring;rsagen. P&aring; forh&aring;nd tak.</p>\n\n";  
+	print "<a href=\"mailto:Support@danosoft.dk\">Support@danosoft.dk</a>, s&aring; vi kan finde &aring;rsagen. P&aring; forh&aring;nd tak.</p>\n\n";  
 
 }
 

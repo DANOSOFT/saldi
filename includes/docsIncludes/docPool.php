@@ -34,6 +34,16 @@
 // 20260326 LOE Handle malformed numbers like 1.234.56 to 1.234,56 
 // 20260423 LOE Added GET parameters for handling journal line not already saved to db.
 // 20260515 LOE Added a feature to allow users to extract pool lines to visible journal line for easier matching.
+// 20260810 CL/SZ pool_files.norm_amount was only ever populated by extractInvoiceHandler.php's
+//                 save action - every write here (pulje-folder sync, and the rename/metadata-edit
+//                 path in docPool()) left norm_amount NULL/stale, so Bilagsmatch's amount_score
+//                 always scored 0 for files that entered the pool through this file.
+// 20260813 CL/SZ - Both CREATE TABLE IF NOT EXISTS pool_files fallbacks in this file (used
+//                 only when the table doesn't exist yet at all) were missing norm_amount,
+//                 which the very next INSERT/UPDATE in each of those code paths already
+//                 references - a brand-new tenant's first pool file would fail with
+//                 "column norm_amount does not exist". Added the column to both.
+include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -111,6 +121,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			subject text,
 			account varchar(50),
 			amount varchar(50),
+			norm_amount numeric(15,3),
 			file_date varchar(50),
 			invoice_number varchar(100),
 			description text,
@@ -190,11 +201,14 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
 
 			// Insert into database
-			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+			$syncNormAmount = normalizePoolAmount($amount);
+			$syncNormAmountSql = ($syncNormAmount === null) ? 'NULL' : db_escape_string((string) $syncNormAmount);
+			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
 				'" . db_escape_string($file) . "',
 				'" . db_escape_string($subject) . "',
 				'" . db_escape_string($account) . "',
 				'" . db_escape_string($amount) . "',
+				$syncNormAmountSql,
 				'" . db_escape_string($fileDate) . "',
 				'" . db_escape_string($invoiceNumber) . "',
 				'" . db_escape_string($description) . "'
@@ -825,6 +839,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								subject text,
 								account varchar(50),
 								amount varchar(50),
+								norm_amount numeric(15,3),
 								file_date varchar(50),
 								invoice_number varchar(100),
 								description text,
@@ -841,26 +856,33 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						
 						if ($existing) {
 							// Update filename and metadata of existing record
-							$qtxt = "UPDATE pool_files SET 
+							$qtxt = "UPDATE pool_files SET
 								filename = '" . db_escape_string($newFilename) . "',
 								subject = '" . db_escape_string($newSubject ?: $newBase) . "',
 								updated = CURRENT_TIMESTAMP";
-								
+
 							if ($newAccount) $qtxt .= ", account = '" . db_escape_string($newAccount) . "'";
-							if ($newAmount) $qtxt .= ", amount = '" . db_escape_string($newAmount) . "'";
+							if ($newAmount) {
+								$editNormAmount = normalizePoolAmount($newAmount);
+								$editNormAmountSql = ($editNormAmount === null) ? 'NULL' : db_escape_string((string) $editNormAmount);
+								$qtxt .= ", amount = '" . db_escape_string($newAmount) . "', norm_amount = $editNormAmountSql";
+							}
 							if ($newDate) $qtxt .= ", file_date = '" . db_escape_string($newDate) . "'";
 							if ($newInvoiceNumber) $qtxt .= ", invoice_number = '" . db_escape_string($newInvoiceNumber) . "'";
 							if ($newInvoiceDescription) $qtxt .= ", description = '" . db_escape_string($newInvoiceDescription) . "'";
-							
+
 							$qtxt .= " WHERE id = '" . $existing['id'] . "'";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 						} else {
 							// Insert new record if old didn't exist
-							$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+							$newAmountNorm = normalizePoolAmount($newAmount ?: '');
+							$newAmountNormSql = ($newAmountNorm === null) ? 'NULL' : db_escape_string((string) $newAmountNorm);
+							$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
 								'" . db_escape_string($newFilename) . "',
 								'" . db_escape_string($newSubject ?: $newBase) . "',
 								'" . db_escape_string($newAccount ?: '') . "',
 								'" . db_escape_string($newAmount ?: '') . "',
+								$newAmountNormSql,
 								'" . db_escape_string($newDate ?: '') . "',
 								'" . db_escape_string($newInvoiceNumber ?: '') . "',
 								'" . db_escape_string($newInvoiceDescription ?: '') . "'
