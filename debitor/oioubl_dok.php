@@ -26,6 +26,7 @@ $s_id=session_id();
 
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2015.12.23 Rettet addslashes til db_escape_string
+// 2026.08.14 Sawaneh SST-726 Int-cast id and whitelist doktype from request
 // 2026.08.28 CL MB-22: valideringsfejl-mailadresse rettet fra oio@saldi.dk til Support@danosoft.dk
 
 #$testdok="Tester"; # Skal slettes naar test er faerdig
@@ -40,9 +41,13 @@ include("../includes/oioublfunk.php");
 include("../includes/var2str.php");
 include("../includes/topline_settings.php");
 
-$id        = if_isset($_GET['id']);
-$doktype   = if_isset($_GET['doktype']);
-$returside = if_isset($_GET['returside']);
+$id        = (int)if_isset($_GET, 0,['id']);
+$doktype   = strtolower(if_isset($_GET, '', ['doktype']));
+if ($doktype != "faktura" && $doktype != "kreditnota") {
+	$doktype = "";
+}
+// overriden immediately after by the next line, so this is redundant
+//$returside = if_isset($_GET, null, ['returside']);
 if ($popup) $returside = "../includes/luk.php";
 else $returside = "ordre.php?id=$id";
 

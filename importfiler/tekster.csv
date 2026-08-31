@@ -5056,3 +5056,23 @@
 5056	For at anvende CRM-systemet kræves det, at der er tilføjet ansatte under Stamdata i Indstillinger.<br>Gå til: System → Indstillinger → Stamdata for at tilføje ansatte.	Using the CRM system requires adding employees under Master Data in Settings.<br>Go to: System → Settings → Master Data to add employees.	For å bruke CRM-systemet må ansatte være lagt til under Stamdata i Innstillinger.<br>Gå til: System → Innstillinger → Stamdata for å legge til ansatte.
 5057	Du kan redigere den komplette HTML skabelon her. Brug variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. $beskrivelse og $pris henter altid varens egen.	You can edit the complete HTML template here. Use variables such as $varenr, $minbeskrivelse, $minpris, $img, etc. $minbeskrivelse and $minpris show the customer's own text and price from Mit salg and fall back to the item's own when printing without an account. $beskrivelse and $pris always take the item's own.	Du kan redigere hele HTML-malen her. Bruk variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mitt salg og faller tilbake til varens egen når det skrives ut uten konto. $beskrivelse og $pris henter alltid varens egen.
 5058	Salg pr. Postnr	Sales by postcode	Salg pr. postnr
+5059	Datointerval:	Date range:	Datointervall:
+5060	dage omkring bilagsdatoen	days around the voucher date	dager rundt bilagsdatoen
+5061	Beløbstolerance:	Amount tolerance:	Beløpstoleranse:
+5062	Tillad afvigelse på 0,5 %	Allow deviation of 0.5 %	Tillat avvik på 0,5 %
+5063	Medtag allerede bogførte bilag	Include already posted vouchers	Ta med allerede bokførte bilag
+5064	Match	Match	Treff
+5065	100 % match	100 % match	100 % treff
+5066	Dato matcher	Date matches	Dato stemmer
+5067	Beløb matcher	Amount matches	Beløp stemmer
+5068	Viser $m resultater	Showing $m results	Viser $m resultater
+5069	Match valgte	Match selected	Match valgte
+5070	Nogle af de valgte matches er ikke 100 % sikre. Vil du fortsætte?	Some of the selected matches are not 100 % certain. Do you want to continue?	Noen av de valgte treffene er ikke 100 % sikre. Vil du fortsette?
+5071	Klik for at se bilaget	Click to see attachment	Klikk for å se vedlegget
+5072	Zoom ud	Zoom out	Zoom ut
+5073	Zoom ind	Zoom in	Zoom inn
+5074	Tilpas til bredde	Fit to width	Tilpass til bredde
+5075	Åbn i ny fane	Open in new tab	Åpne i ny fane
+5076	Formatet kan ikke forhåndsvises	This format cannot be previewed	Formatet kan ikke forhåndsvises
+5077	Kunne ikke indlæse dokumentet	Could not load the document	Kunne ikke laste dokumentet
+
