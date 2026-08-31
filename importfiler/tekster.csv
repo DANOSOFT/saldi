@@ -3359,11 +3359,11 @@
 3359	Finansrapporter	Financial reports	Finansrapporter
 3360	Salg pr. postnummer	Sales by postal code	Salg per postnummer
 3361	Varerapporter	Item reports	Varerapporter		
-3362			
-3363			
-3364			
-3365			
-3366			
+3362	Posteringer pr. momskode.	Entried pr. VAT code	Posteringer per MVA-kode.
+3363	Momsrubrikker	VAT categories	Momsrubrikker
+3364	Momsafstemning	VAT reconciliation	MVA-avstemming
+3365	OSS B2C EU-salg	B2C EU Sales	OSS B2C EU-salg
+3366	Momsperioder	Vat periods	MVA-perioder		
 3367			
 3368			
 3369			
@@ -5029,3 +5029,28 @@
 5029	Vis/Skjul	Show/Hide	Vis/Skjul
 5030	Klik for at vise/skjule	Click to show/hide	Klikk for å vise/skjule
 5031	Fakturaer	Invoices	Fakturaer
+5032	Anvend GS1 stregkodefortolkning	Use GS1 barcode parsing	Bruk GS1 strekkodetolkning
+5033	Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)	Enables GS1 barcode parsing when searching for items on order lines (supports GTIN, expiry date, serial number etc.)	Aktiverer GS1-strekkodetolkning ved varesøk på ordrelinjer (støtter GTIN, utløpsdato, serienummer m.m.)
+5034	Vælg en anden vare, hvis lageret på 'Vores ref.' er tomt	If 'Our ref's stock is empty choose another	Velg en annen vare hvis lageret på 'Vår ref.' er tomt
+5035	Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.	If this field is checked, the stock on the order is updated from 'Our ref.' when the field is changed. It is off by default, so other databases are not affected.	Hvis dette feltet avmerkes, oppdateres lageret på ordren ut fra 'Vår ref.' når feltet endres. Det er slått av som standard, slik at andre databaser ikke påvirkes.
+5036	Advar ved salg af udsolgte varer (popup + begrundelse)	Warn when selling out-of-stock items (popup + reason)	Varsle ved salg av utsolgte varer (popup + begrunnelse)
+5037	Aktiverer popup-advarsel og krav om begrundelse ved salg af udsolgte varer i både POS og Debitor/Ordre. Godkendelsen logges på ordren.	Shows a popup and requires an approval note when an out-of-stock item is added to a POS or Debtor order. The approval is logged on the order.	Aktiverer popup-varsel og krav om begrunnelse ved salg av utsolgte varer i både POS og Debitor/Ordre. Godkjenningen logges på ordren.
+5038	Vis både leveringsadresse og ekstrafelter på åbne ordrer	Show both delivery address and Extra fields on open orders	Vis både leveringsadresse og ekstrafelter på åpne ordrer
+5039	Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer	Show both the delivery address and Extra fields at the same time on open orders	Vis både leveringsadresse og ekstrafelter samtidig på åpne ordrer
+5040	Konto	Account	Konto
+5041	Modkonto	Contra account	Motkonto
+5042	Valuta	Currency	Valuta
+5043	Præcision	Precision	Presisjon
+5044	Annullér	Cancel	Avbryt
+5045	$n match valgt · $m fundet	$n matches selected · $m found	$n treff valgt · $m funnet
+5046	0 fundet	0 found	0 funnet
+5047	Ingen forslag til match fundet for denne kladde.	No suggested matches found for this journal.	Ingen forslag til treff funnet for denne posteringen.
+5048	Type	Type	Type
+5049	Klik for at forhåndsvise/åbne dokumentet	Click to preview/open the document	Klikk for å forhåndsvise/åpne dokumentet
+5050	Slå konto op	Look up account	Slå opp konto
+5051	Bilagsmatch	Voucher match	Bilagsmatch
+5052	Dato	Date	Dato
+5053	Bilag	Voucher no.	Bilag
+5054	Tekst	Text	Tekst
+5055	Beløb	Amount	Beløp
+

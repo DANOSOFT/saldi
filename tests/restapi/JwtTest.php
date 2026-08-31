@@ -3,14 +3,11 @@
 //
 // Unit tests for restapi/core/JWT.php (SD-602). Pure — no DB, no HTTP.
 //
-// NOTE on the default secret: JWT.php currently falls back to a derived
-// default when setSecret() was never called. That fallback is the subject of
-// SD-587 (deterministic-secret fix, Nicolai) and is deliberately NOT pinned
-// here — these tests always set an explicit secret, so they hold before and
-// after that fix.
-//
 // History:
 // 20260723 CL/LH SD-602: created.
+// 20260727 CL/SZ SD-587: cover the fail-closed behavior when no secret is
+//                configured (JWT.php no longer falls back to a derived
+//                default).
 
 use PHPUnit\Framework\TestCase;
 
@@ -73,5 +70,28 @@ final class JwtTest extends TestCase
         $this->assertNull(JWT::decode('not-a-jwt'));
         $this->assertNull(JWT::decode('a.b'));
         $this->assertNull(JWT::decode('a.b.c.d'));
+    }
+
+    public function test_encode_throws_when_no_secret_configured(): void
+    {
+        JWT::setSecret(null);
+
+        $this->expectException(\RuntimeException::class);
+        JWT::encode(['user_id' => 1, 'type' => 'access']);
+    }
+
+    public function test_decode_rejects_when_no_secret_configured(): void
+    {
+        JWT::setSecret('unit-test-secret-a');
+        $token = JWT::encode(['user_id' => 1, 'type' => 'access'], 3600);
+
+        JWT::setSecret(null);
+        $this->assertNull(JWT::decode($token), 'a valid token must not decode once the secret is unset');
+    }
+
+    public function test_decode_rejects_when_secret_is_empty_string(): void
+    {
+        JWT::setSecret('');
+        $this->assertNull(JWT::decode('a.b.c'));
     }
 }

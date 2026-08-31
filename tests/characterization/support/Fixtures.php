@@ -17,6 +17,8 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20260805 CL/SZ SD-600: added sag() and apiAccess() for order-creation characterization.
+// 20260814 CL/SZ SD-600: sag() no longer writes a nonexistent sager.kontonr column.
 
 require_once __DIR__ . '/CharacterizationEnv.php';
 
@@ -204,7 +206,11 @@ final class Fixtures
                 (float)($overrides['kreditmax'] ?? 0),
             ]
         );
-        return ['id' => (int)$row['id'], 'kontonr' => (string)$row['kontonr']];
+        return [
+            'id' => (int)$row['id'],
+            'kontonr' => (string)$row['kontonr'],
+            'gruppe' => $gruppe ? (int)$gruppe['kodenr'] : 1,
+        ];
     }
 
     /**
@@ -459,6 +465,71 @@ final class Fixtures
             [$debtor['id'], $debtor['kontonr'], $faktnr, $amount, self::TAG . ' faktura ' . $faktnr, $due]
         );
         return (int)$row['id'];
+    }
+
+    // --------------------------------------------------------------- webservice
+
+    /**
+     * Seeds the api-webservice access-control row (grupper art='API'
+     * kodenr='1') that api/rest_api.php::access_check() checks whenever the
+     * requested db name contains an underscore, i.e. any multi-shop
+     * sub-account (api/rest_api.php:1099-1134): box1 is the shared secret
+     * compared against $_GET['key'], box2 is a comma-separated allowed-IP
+     * list ('*' allows any IP).
+     *
+     * @return array{key:string} the key to pass as $_GET['key']
+     */
+    public function apiAccess(string $ip = '*'): array
+    {
+        $key = self::TAG . '-apikey';
+        CharacterizationEnv::rows($this->conn, "DELETE FROM grupper WHERE art = 'API' AND kodenr = '1'");
+        CharacterizationEnv::rows(
+            $this->conn,
+            "INSERT INTO grupper (beskrivelse, kode, kodenr, art, box1, box2) VALUES ($1, '1', '1', 'API', $2, $3)",
+            [self::TAG . ' api access', $key, $ip]
+        );
+        return ['key' => $key];
+    }
+
+    // ------------------------------------------------------------------- sager
+
+    /**
+     * A case ("sag") tied to a debtor, the way the classic UI order-creation
+     * path expects it (SD-600).
+     *
+     * sager/sager.php:2106/2108 is the ONLY production caller of
+     * includes/ordrefunc.php::opret_ordre() (via debitor/ordre.php
+     * ?funktion=opret_ordre&sag_id=..&konto_id=..) - there is no plain
+     * "new order without a case" trigger of that function. It always passes
+     * the case's own konto_id as both sag_id and konto_id, so that is what
+     * this fixture mirrors.
+     *
+     * `sagsnr` must be a bare integer: opret_ordre() scopes tilbudnr as
+     * max(tilbudnr)+1 filtered by sagsnr (ordrefunc.php, SD-600), and
+     * ordrer.sagsnr is numeric(15,0) - a non-numeric sagsnr wouldn't insert.
+     *
+     * @param array{id:int,kontonr:string} $debtor
+     * @param array<string,mixed> $overrides
+     * @return array{id:int, sagsnr:string, konto_id:int}
+     */
+    public function sag(array $debtor, array $overrides = []): array
+    {
+        $n = self::nextSeq();
+        $sagsnr = (string)($overrides['sagsnr'] ?? (90000 + $n));
+        $row = CharacterizationEnv::one(
+            $this->conn,
+            "INSERT INTO sager (sagsnr, konto_id, firmanavn, addr1, addr2, postnr, bynavn, kontakt, status, tidspkt, hvem, oprettet_af)
+             VALUES ($1, $2, $3, 'Testvej 1', '', '8000', 'Aarhus', '', '0', $4, $5, $5)
+             RETURNING id, sagsnr",
+            [
+                $sagsnr,
+                $debtor['id'],
+                $overrides['firmanavn'] ?? self::TAG . ' sag ' . $n,
+                (string)time(),
+                self::TAG,
+            ]
+        );
+        return ['id' => (int)$row['id'], 'sagsnr' => (string)$row['sagsnr'], 'konto_id' => $debtor['id']];
     }
 
     // -------------------------------------------------------------- kassekladde

@@ -28,8 +28,73 @@
 // genuinely new statements below (not present in opdat_4.3.php) were pulled in from production.
 // 20260717 CL/NTR Guard the API-key insert/update blocks so an existing but
 //                  incomplete .ht_keys.txt can't silently write an empty var_value.
+// 20260728 CL/SZ Moved the Bilagsmatch pool_files.norm_amount/pg_trgm setup here from
+//                  includes/opdat_4.3.php's opdat_to('4.3.0', ...) gate: that gate had
+//                  already run on tenants (including the reviewer's test DB) before this
+//                  code was added to it, so opdat_to() skipped the whole closure and
+//                  norm_amount was never created there. fetchbilagsmatch.php then queried
+//                  a nonexistent column, pg_query() failed, and the endpoint silently
+//                  returned zero rows regardless of any actual match. All statements below
+//                  are idempotent (existence/flag-checked), matching this file's pattern.
 
 
+
+// Bilagsmatch scoring engine: pool_files.amount is a free-form string ("1.234,56",
+// "1,234.56", etc). Add a real NUMERIC column so matching can join on it directly
+// instead of re-parsing the string with a regex on every query.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='norm_amount'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE pool_files ADD COLUMN norm_amount NUMERIC(15,3)", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files(norm_amount)", __FILE__ . " linje " . __LINE__);
+}
+
+// One-time backfill of norm_amount for rows written before this column existed.
+$already_backfilled = db_fetch_array(db_select(
+	"SELECT var_value FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled' AND var_grp = 'system'",
+	__FILE__ . " linje " . __LINE__
+));
+if (!$already_backfilled) {
+	include_once(__DIR__ . "/docsIncludes/poolAmountNormalizer.php");
+	$q_backfill = db_select("SELECT id, amount FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
+	while ($r_backfill = db_fetch_array($q_backfill)) {
+		$normalized = normalizePoolAmount($r_backfill['amount']);
+		if ($normalized !== null) {
+			db_modify(
+				"UPDATE pool_files SET norm_amount = " . db_escape_string((string) $normalized) . " WHERE id = " . (int) $r_backfill['id'],
+				__FILE__ . " linje " . __LINE__
+			);
+		}
+	}
+	db_modify(
+		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+		VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'One-time backfill of pool_files.norm_amount from the legacy amount text column')",
+		__FILE__ . " linje " . __LINE__
+	);
+}
+
+// Bilagsmatch text-similarity scoring uses pg_trgm when available; on tenants where
+// CREATE EXTENSION isn't permitted (managed hosting without superuser), fetchbilagsmatch.php
+// falls back to ILIKE/position() matching instead - this must never block the migration.
+// Attempted only once (flag below) so a tenant that lacks the privilege doesn't retry
+// (and re-email the error) on every future migration run.
+$trgm_attempted = db_fetch_array(db_select(
+	"SELECT var_value FROM settings WHERE var_name = 'pg_trgm_extension_attempted' AND var_grp = 'system'",
+	__FILE__ . " linje " . __LINE__
+));
+if (!$trgm_attempted) {
+	$qtxt = "SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("CREATE EXTENSION IF NOT EXISTS pg_trgm", __FILE__ . " linje " . __LINE__);
+	}
+	db_modify(
+		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+		VALUES ('pg_trgm_extension_attempted', 'system', 'yes', 'Whether pg_trgm CREATE EXTENSION has been attempted for Bilagsmatch text scoring')",
+		__FILE__ . " linje " . __LINE__
+	);
+}
 
 $qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '38' and tekst = 'Stillingsliste'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -224,6 +289,51 @@ if ($mp_client_id) {
 			}
 		}
 	}
+}
+
+// R5 moms periodelaasning — opret tabel, funktion og trigger een gang ved login.
+// Kontrollen sker paa trigger-eksistens; er triggeren der, springes hele blokken over.
+$qtxt = "SELECT 1 FROM pg_trigger WHERE tgname='tr_check_moms_periode_luk' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("CREATE TABLE IF NOT EXISTS moms_periode_luk (
+        id               SERIAL PRIMARY KEY,
+        kalender_aar     INTEGER NOT NULL,
+        kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
+        status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
+        lukket_af        VARCHAR(100),
+        lukket_dato      TIMESTAMP,
+        aabnet_af        VARCHAR(100),
+        aabnet_dato      TIMESTAMP,
+        UNIQUE (kalender_aar, kalender_maaned)
+    )", __FILE__ . " linje " . __LINE__);
+    // pg_query() bruges her for at omgaa injecttjek(): PL/pgSQL-kroppen indeholder
+    // semikolon uden for enkeltcitater, som injecttjek() ville fejlfortolke som injection.
+    $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
+    $fn .= "RETURNS TRIGGER AS \$\$ ";
+    $fn .= "BEGIN ";
+    $fn .= "    IF EXISTS ( ";
+    $fn .= "        SELECT 1 FROM moms_periode_luk ";
+    $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
+    $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
+    $fn .= "          AND status = 'closed' ";
+    $fn .= "    ) THEN ";
+    $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
+    $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
+    $fn .= "    END IF; ";
+    $fn .= "    RETURN NEW; ";
+    $fn .= "END; ";
+    $fn .= "\$\$ LANGUAGE plpgsql";
+    pg_query($connection, $fn);
+    pg_query($connection,
+        "CREATE TRIGGER tr_check_moms_periode_luk "
+        . "BEFORE INSERT OR UPDATE ON transaktioner "
+        . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()");
+}
+
+// Add note column to moms_periode_luk if not present (idempotent guard).
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='moms_periode_luk' AND column_name='note' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE moms_periode_luk ADD COLUMN note TEXT", __FILE__ . " linje " . __LINE__);
 }
 
 ?>

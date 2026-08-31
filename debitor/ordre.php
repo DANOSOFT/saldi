@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-07-08 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -101,7 +101,13 @@
 // 20260706 PHR Added $tmp to avoid division by zero
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
-// 20260715 PHR Valuto was omittet when copying order
+// 20260715 PHR Valuta was omittet when copying order
+// 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
+// 20260807 CX/PHR Allow free text in the Att. field while retaining customer contact suggestions.
+// 20260825 CL/SZ tilbudnr is now a per-sagsnr revision number rather than globally unique
+// 20260825 CL/SZ SD-600: "New order" insert now goes through includes/order_creation.php
+//                (see ordrefunc.php), so the sibling-order lookup here now pairs it with
+//                sagsnr instead of matching on tilbudnr alone (SD-600)
 
 @session_start();
 $s_id = session_id();
@@ -212,6 +218,7 @@ if (!empty($_GET['sag_id']) || !empty($_POST['sag_id'])) {
 
 include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
+include("../includes/order_creation.php");
 
 function bg_display_name($sprog_value) {
 	global $sprog_id;
@@ -786,16 +793,55 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$ordredate = date("Y-m-d");
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
-	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
-	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,hvem,";
-	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
-	$qtxt .= "lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,procenttillag,omvbet)";
-	$qtxt .= " values ";
-	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
-	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','$ref','$hvem',";
-	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
-	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	order_creation_create(array(
+		'ordrenr' => $ordrenr,
+		'konto_id' => $konto_id,
+		'kontonr' => $kontonr,
+		'firmanavn' => $firmanavn,
+		'addr1' => $addr1,
+		'addr2' => $addr2,
+		'postnr' => $postnr,
+		'bynavn' => $bynavn,
+		'land' => $land,
+		'betalingsdage' => $betalingsdage,
+		'betalingsbet' => $betalingsbet,
+		'cvrnr' => $cvrnr,
+		'ean' => $ean,
+		'institution' => $institution,
+		'email' => $email,
+		'mail_fakt' => $mail_fakt,
+		'phone' => $phone,
+		'notes' => $notes,
+		'art' => 'DO',
+		'ordredate' => $ordredate,
+		'momssats' => $momssats,
+		'tidspkt' => $tidspkt,
+		'ref' => $ref,
+		'hvem' => $hvem,
+		'valuta' => $valuta,
+		'sprog' => $formularsprog,
+		'kontakt' => $kontakt,
+		'pbs' => $pbs,
+		'afd' => $afd,
+		'status' => '0',
+		'restordre' => '0',
+		'lev_navn' => $lev_firmanavn,
+		'lev_addr1' => $lev_addr1,
+		'lev_addr2' => $lev_addr2,
+		'lev_postnr' => $lev_postnr,
+		'lev_bynavn' => $lev_bynavn,
+		'lev_land' => $lev_land,
+		'lev_email' => $lev_email,
+		'lev_kontakt' => $lev_kontakt,
+		'vis_lev_addr' => $vis_lev_addr,
+		'felt_1' => $felt_1,
+		'felt_2' => $felt_2,
+		'felt_3' => $felt_3,
+		'felt_4' => $felt_4,
+		'felt_5' => $felt_5,
+		'procenttillag' => $default_procenttillag,
+		'omvbet' => $omkunde,
+	));
 
 	# Porto vare system
 	## Create a new order line on creation from the specified sku
@@ -1207,10 +1253,12 @@ if ($b_submit) {
 		db_modify("update ordrer set art='DO' where id='$id'", __FILE__ . " linje " . __LINE__);
 	}
 	if (($godkend == "on") && ($status == 0) && ($art == 'DO' || $art == 'DK') && $sag_id) { # Kopi af original Tilbud. 20140716
-		$r = db_fetch_array(db_select("select tilbudnr from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select("select tilbudnr, sagsnr from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
 
 		$x = 0;
-		$q = db_select("select art from ordrer where tilbudnr = '$r[tilbudnr]'", __FILE__ . " linje " . __LINE__);
+		// 20260825 CL/SZ tilbudnr is now a revision number scoped to sagsnr, not globally
+		//                unique, so it must be paired with sagsnr here too (SD-600)
+		$q = db_select("select art from ordrer where tilbudnr = '$r[tilbudnr]' and sagsnr = '$r[sagsnr]'", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$art_tjk[$x] = $r['art'];
 			$x++;
@@ -4797,61 +4845,32 @@ function ordreside($id, $regnskab)
 		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_land\">" . findtekst('593|Lande', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"land\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$land\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		if (!$sag_id && count($a_kontakt) <= 1) { #20140826 #20260409 show dropdown when multiple contacts
 			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"kontakt\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kontakt\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-		} else { #20260409 select dropdown with option to type custom name
+		} else { #20260807 editable contact field with suggestions
 			if (empty($kontakt) && count($a_kontakt) > 0) $kontakt = $a_kontakt[0]; # default to first contact
-			$kontaktInList = in_array($kontakt, $a_kontakt);
 			print "<script language=\"javascript\" type=\"text/javascript\">\n";
 			print "var kontaktTlfMap = {};\n";
 			for ($y = 0; $y < count($a_kontakt); $y++) {
-				$jsName = addslashes($a_kontakt[$y]);
-				$jsTlf = addslashes($a_mobil[$y]);
-				print "kontaktTlfMap['$jsName'] = '$jsTlf';\n";
+				$jsName = json_encode(html_entity_decode($a_kontakt[$y], ENT_QUOTES, 'UTF-8'));
+				$jsTlf = json_encode(html_entity_decode($a_mobil[$y], ENT_QUOTES, 'UTF-8'));
+				print "kontaktTlfMap[$jsName] = $jsTlf;\n";
 			}
 			print "</script>\n";
 			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . "</td><td colspan=\"2\">";
-			print "<input type='hidden' name='kontakt' id='kontakt_hidden' value=\"$kontakt\">\n";
-			# Select dropdown (visible by default if current value is in list or empty)
-			$selStyle = (!$kontaktInList && !empty($kontakt)) ? "display:none" : "";
-			$txtStyle = (!$kontaktInList && !empty($kontakt)) ? "" : "display:none";
-			print "<select class='inputbox' id='kontakt_select' style=\"width:200px;$selStyle\" onchange=\"javascript:docChange = true;\" $disabled>\n";
+			print "<input class='inputbox' type='text' name='kontakt' id='kontakt_input' list='kontakt_options' style=\"width:200px\" value=\"$kontakt\" onchange=\"javascript:docChange = true;\" $disabled>\n";
+			print "<datalist id='kontakt_options'>\n";
 			for ($y = 0; $y < count($a_kontakt); $y++) {
-				$sel = ($a_kontakt[$y] == $kontakt) ? " selected" : "";
-				print "<option value=\"$a_kontakt[$y]\"$sel>$a_kontakt[$y]</option>\n";
+				print "<option value=\"$a_kontakt[$y]\"></option>\n";
 			}
-			print "<option value='__custom__'>-- Skriv selv --</option>\n";
-			print "</select>\n";
-			# Text input (hidden by default, shown when "Skriv selv" is picked)
-			$customVal = (!$kontaktInList && !empty($kontakt)) ? $kontakt : "";
-			print "<input class='inputbox' type='text' id='kontakt_custom' style=\"width:170px;$txtStyle\" value=\"$customVal\" placeholder='Skriv navn...' $disabled>";
-			print "<a href='#' id='kontakt_back_link' style=\"margin-left:4px;font-size:11px;$txtStyle\">Liste</a>";
+			print "</datalist>\n";
 			print "</td></tr>\n";
 			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . " " . strtolower(findtekst('49|Tlf', $sprog_id)) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"kontakt_tlf\" id=\"kontakt_tlf\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kontakt_tlf\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<script language=\"javascript\" type=\"text/javascript\">
-							$('#kontakt_select').on('change', function () {
+							$('#kontakt_input').on('input change', function () {
 								var val = $(this).val();
-								if (val == '__custom__') {
-									$(this).hide();
-									$('#kontakt_custom').show().focus();
-									$('#kontakt_back_link').show();
-									$('#kontakt_hidden').val('');
-									$('#kontakt_tlf').val('');
-								} else {
-									$('#kontakt_hidden').val(val);
-									if (kontaktTlfMap.hasOwnProperty(val)) {
-										$('#kontakt_tlf').val(kontaktTlfMap[val]);
-									}
+								if (kontaktTlfMap.hasOwnProperty(val)) {
+									$('#kontakt_tlf').val(kontaktTlfMap[val]);
 								}
 								docChange = true;
-							});
-							$('#kontakt_custom').on('input', function () {
-								$('#kontakt_hidden').val($(this).val());
-								docChange = true;
-							});
-							$('#kontakt_back_link').on('click', function (e) {
-								e.preventDefault();
-								$('#kontakt_custom').hide().val('');
-								$(this).hide();
-								$('#kontakt_select').show().val($('#kontakt_select option:first').val()).trigger('change');
 							});
 						</script>\n";
 		}
@@ -6342,7 +6361,7 @@ function ordreside($id, $regnskab)
 			$txt3      = findtekst('1541|Vælg betalingsmåde', $sprog_id);
 
 			$tiltext   = findtekst('1532|Beløb til betaling stemmer ikke', $sprog_id);
-			if (($status == 2 && $bogfor != 0) || ($status > 0 && $hurtigfakt == 'on')) {
+			if ($del_ordre != 'on' && (($status == 2 && $bogfor != 0) || ($status > 0 && $hurtigfakt == 'on'))) {
 				$disabled = NULL;
 				$titletext = '';
 				$tmp = "";

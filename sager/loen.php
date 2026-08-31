@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- lap 4.0.8 --- 2023-05-22 ---
+// --- sager/loen.php --- lap 5.0.0 --- 2026-07-31 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 160113 Leder skal kunne tilføje på acc - time seddel 
 // Dato på oversigt
@@ -111,6 +111,7 @@
 // 20230522 PHR - Workaround for stillads_5 as tent is in list 13 and all others have tent in 11
 // 20230524 PHR - Moved functions to folder loenIncludes.
 // 20240220 PK - Added javascript that prevent user from double click.
+// 20260731 PHR - Added cache busting for warning when selecting a former employee in ret_loen.
 
 @session_start();
 $s_id = session_id();
@@ -211,8 +212,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 			
 			/* jQuery funktion til autosize på textarea */
 			$(document).ready(function(){
-
-			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize();
+				$('.autosize').autosize();
 			});
 		
 			/* javascript funktion til print */
@@ -297,7 +297,7 @@ print "</div><!-- end of maincontent -->
 	});
 });
 </script>
-<script type=\"text/javascript\" src=\"../javascript/jquery.loen.js\"></script>
+<script type=\"text/javascript\" src=\"../javascript/jquery.loen.js?v=20260731\"></script>
 </body>
 </html>";
 

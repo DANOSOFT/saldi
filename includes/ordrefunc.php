@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-04-27 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-07-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
 
 
@@ -100,6 +100,24 @@
 // 20260618 Sawaneh Stock warning popup now triggers when sale quantity would leave stock below min_lager
 // 20260619 Sawaneh check_stock_warning reads stock from lagerstatus (sum across warehouses) like the order-line red-highlight, not the drifting varer.beholdning field
 // 20260630 CDX/PK Changed the cleanup so that negative lines are only deleted if there is also at least one normal line (item no. >= 0) on the same order.
+// 20260720 MJ bogfor(): check_periode_luk() called on fakturadate for friendly period-lock error on invoice posting.
+// 20260729 CL/NTR function bogfor: Wrapped in transaktion('begin')/('commit'), with transaktion('rollback')
+//                 added before every early return/failure path, so a failed posting no longer leaves
+//                 partial writes (ordrer/ordrelinjer/kontoplan updates) committed without a matching
+//                 transaktioner/kladdeliste row. Requested via CodeRabbit review.
+// 20260729 CX/PHR function bogfor: Preserve an existing invoice number and only call get_next_invoice_number when no invoice number is assigned
+// 20260729 CL/SZ functions bogfor and momsupdat: check global $db_modify_fejl before reporting
+//                "OK" so a failed write inside the posting transaction surfaces as an error
+//                instead of a phantom success (SD-595)
+// 20260804 SZ function bogfor: the master merge moved the $db_modify_fejl check inside the
+//             elseif(!$svar) branch, right after $fejl (which is never reassigned), making it
+//             dead code and leaving the committed-success path unchecked; moved it back to
+//             sit unconditionally before the shared return (SD-595)
+// 20260825 CL/SZ functions opret_ordre and opret_ordre_kopi: tilbudnr was built as a hyphenated
+//                "<sagsnr>-01" string against a numeric(15,0) column, failing every insert.
+//                Per Nicolai, replaced with a plain max(tilbudnr)+1 scoped by sagsnr (SD-600)
+// 20260825 CL/SZ functions opret_ordre and opret_ordre_kopi: "insert into ordrer" now goes
+//                through includes/order_creation.php's order_creation_create() (SD-600)
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1157,6 +1175,7 @@ function bogfor($id, $webservice=false)
 	global $regnaar, $retur;
 	global $sprog_id;
 	global $valutakurs;
+	global $db_modify_fejl; #20260729 SZ (SD-595)
 
 	$fejl = 0;
 
@@ -1170,6 +1189,12 @@ function bogfor($id, $webservice=false)
 	$ordredate = $row['ordredate'];
 	$levdate = $row['levdate'];
 	$fakturadate = $row['fakturadate'];
+	if ($fakturadate && function_exists('check_periode_luk') && ($err = check_periode_luk($fakturadate))) {
+		return $err;
+	}
+
+	transaktion('begin');
+
 	$nextfakt = $row['nextfakt'];
 	$art = $row['art'];
 	$kred_ord_id = $row['kred_ord_id'];
@@ -1229,6 +1254,7 @@ function bogfor($id, $webservice=false)
 	}
 
 	if ($row['status'] > '2') {
+		transaktion('rollback');
 		return ("invoice allready created for order id $id");
 	}
 	/*
@@ -1278,10 +1304,14 @@ function bogfor($id, $webservice=false)
 
 				db_modify("update ordrer set sum=sum+$tillag, moms=moms+$tillag/100*$momssats where id = '$id'", __FILE__ . " linje " . __LINE__);
 				#xit;	
-			} else
+			} else {
+				transaktion('rollback');
 				return ('Manglende vare til procenttillæg');
-		} else
+			}
+		} else {
+			transaktion('rollback');
 			return ('Manglende vare til procenttillæg -- ' . $procentvare);
+		}
 	}
 	#	$x=0;
 #	$saet=array();
@@ -1341,6 +1371,7 @@ function bogfor($id, $webservice=false)
 	$row = db_fetch_array($query);
 
 	if (!$fakturadate) {
+		transaktion('rollback');
 		if ($webservice) {
 			return ("missing invoicedate for order $id");
 		} else {
@@ -1363,6 +1394,7 @@ function bogfor($id, $webservice=false)
 			$qtxt = "select id, moms from kontoplan where kontonr='$currDiff' and regnskabsaar='$regnaar'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			} else {
+				transaktion('rollback');
 				if ($webservice)
 					return ("Kontonr $currDiff (kursdiff) eksisterer ikke");
 				else {
@@ -1372,6 +1404,7 @@ function bogfor($id, $webservice=false)
 			/* echo count($xx); */
 			#	exit;
 		} else {
+			transaktion('rollback');
 			$tmp = dkdato($fakturadate);
 			return ("Der er ikke nogen valutakurs for $valuta den $tmp (fakturadatoen).");
 		}
@@ -1381,12 +1414,14 @@ function bogfor($id, $webservice=false)
 	}
 
 	if (!$levdate) {
+		transaktion('rollback');
 		if ($webservice)
 			return ("Missing deliverydate");
 		else
 			return ("Leveringsdato SKAL udfyldes");
 	}
 	if ($levdate < $ordredate) {
+		transaktion('rollback');
 		if ($webservice)
 			return ("Deliverydate prior to orderdate");
 		else
@@ -1399,6 +1434,7 @@ function bogfor($id, $webservice=false)
 #	}
 
 	if (($nextfakt) && ($nextfakt <= $fakturadate)) {
+		transaktion('rollback');
 		if ($webservice)
 			return ("Next_invoicedate prior to invoicedate");
 		else
@@ -1409,6 +1445,7 @@ function bogfor($id, $webservice=false)
 	$ym = $year . $month;
 
 	if ($art != 'PO' && !$webservice && ($ym < $aarstart || $ym > $aarslut)) {
+		transaktion('rollback');
 		print "<BODY onLoad=\"javascript:alert('Fakturadato udenfor regnskabs&aring;r')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 		exit;
@@ -1417,6 +1454,7 @@ function bogfor($id, $webservice=false)
 		if ($r = db_fetch_array(db_select("select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=" . nr_cast("grupper.kodenr") . " and valuta.valdate <= '$ordredate' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
 			$valutakurs = $r['kurs'];
 		} else {
+			transaktion('rollback');
 			$tmp = dkdato($ordredate);
 			return ("Der er ikke nogen valutakurs for $valuta den $ordredate (ordredatoen)");
 		}
@@ -1435,9 +1473,13 @@ function bogfor($id, $webservice=false)
 	}
 	if (!$fejl) {
 		if ($art != "PO") {
-			// Generate unique invoice number using the thread-safe function
-			// Note: get_next_invoice_number now also sets fakturanr on the order atomically
-			$fakturanr = get_next_invoice_number($art, $id);
+			// Preserve an invoice number already assigned to the order. This is
+			// required when an existing invoice is posted again after an
+			// interrupted posting.
+			if (!$fakturanr) {
+				// get_next_invoice_number also sets fakturanr on the order atomically.
+				$fakturanr = get_next_invoice_number($art, $id);
+			}
 			$ny_id = array();
 			$x = 0;
 			$q = db_select("select * from ordrelinjer where pris != '0' and m_rabat != '0' and rabat = '0' and ordre_id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1581,14 +1623,17 @@ function bogfor($id, $webservice=false)
 		if ($straksbogfor)
 			$svar = bogfor_nu($id, $webservice);
 		if ($svar != "OK") {
+			transaktion('rollback');
 			return ($svar);
 			exit;
 		} else {
-			#			exit;
-			#ransaktion("commit"); 20130506
+			transaktion('commit');
 		}
-	} elseif (!$svar)
+	} elseif (!$svar) {
+		transaktion('rollback');
 		$svar = $fejl;
+	}
+	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor
@@ -1599,6 +1644,7 @@ function momsupdat($id)
 	# Hvis begge betingelser er opfyldt beregnes momsen ud fra det totale beløb og hvis ikke beregnes momsen for hver ordrelinje og summeres til sidst.
 	global $db, $db_skriv_id;
 	global $brugernavn, $regnaar;
+	global $db_modify_fejl; #20260729 SZ (SD-595)
 	$sum = 0;
 	$moms = 0;
 	$antal_diff_moms = 0; #indfort 20110323 grundet momsafvigelse paa 3 ore i faktura 30283 regnskab 329
@@ -1653,6 +1699,7 @@ function momsupdat($id)
 		$moms *= 1;
 		db_modify("update ordrer set sum=$sum, moms=$moms where id = '$id'", __FILE__ . " linje " . __LINE__);
 	}
+	if ($db_modify_fejl) return ("Database write failed while updating moms for order $id"); #20260729 SZ (SD-595)
 	return ("OK");
 }
 ###########################################################
@@ -4864,17 +4911,12 @@ function opret_ordre($sag_id, $konto_id)
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
 		exit;
 	}
-	// Her oprettes tilbudsnr
-	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select max(tilbudnr) as tilbudnr from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__));
-		$tilbudsnummer = $r['tilbudnr'];
-		$ny_tilbudnr = explode("-", $tilbudsnummer); // Her fjerner jeg '-', og laver '$ny_tilbudnr' til et array
-		$ny_tilbudnr[1] = sprintf("%02s", ($ny_tilbudnr[1] + 1)); // Her lægges 1 til det sidste nummer. Bruger 'sprintf()' for at sikre et to cifret tal
-		$tilbudnr = implode("-", $ny_tilbudnr); // Her sætter jeg begge numre sammen igen med bindestreg
-	} else {
-		$r = db_fetch_array(db_select("select sagsnr from sager where id = $sag_id", __FILE__ . " linje " . __LINE__));
-		$tilbudnr = $r['sagsnr'] .= '-01'; // bindestreg foran tilbudsnr. database skal ændres fra integer til text
-	}
+	// Her oprettes tilbudsnr. tilbudnr er et revisionsnummer pr. sagsnr (ikke pr.
+	// sag_id) - max(tilbudnr)+1 for sagsnr'et, sa det altid er et rent tal (20260825 CL/SZ, SD-600)
+	$r = db_fetch_array(db_select("select sagsnr from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
+	$sagsnr = $r['sagsnr'];
+	$r = db_fetch_array(db_select("select max(tilbudnr) as tilbudnr from ordrer where sagsnr='$sagsnr'", __FILE__ . " linje " . __LINE__));
+	$tilbudnr = (int)$r['tilbudnr'] + 1;
 	// Her laves nr. Nr bliver brugt til visning af tilbuds-liste i sager.php
 	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
 		$r = db_fetch_array(db_select("select max(nr) as nr from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__));
@@ -4884,7 +4926,6 @@ function opret_ordre($sag_id, $konto_id)
 	}
 	// Her hentes oplysninger fra sager
 	$r = db_fetch_array(db_select("select * from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
-	$sagsnr = $r['sagsnr'];
 	$konto_id = $r['konto_id'];
 	//$firmanavn=htmlspecialchars($r['firmanavn']);
 	//$addr1=htmlspecialchars($r['addr1']);
@@ -4919,7 +4960,59 @@ function opret_ordre($sag_id, $konto_id)
 		($lev_firmanavn) ? $vis_lev_addr = 'on' : $vis_lev_addr = '';
 		$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 		$afd = (int)$afd;
-		db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,kontakt_tlf,pbs,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,sag_id,tilbudnr,datotid,nr,returside,sagsnr,procenttillag,kundeordnr,afd) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$kontakt_tlf','$pbs','0','0','$udf_firmanavn','$udf_addr1','$udf_addr2','$udf_postnr','$udf_bynavn','$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$sag_id','$tilbudnr','$tidspkt','$tilbud_nr','$returside','$sagsnr','$default_procenttillag','$kundeordnr','$afd')", __FILE__ . " linje " . __LINE__);
+		order_creation_create(array(
+			'ordrenr' => $ordrenr,
+			'konto_id' => $konto_id,
+			'kontonr' => $kontonr,
+			'firmanavn' => $firmanavn,
+			'addr1' => $addr1,
+			'addr2' => $addr2,
+			'postnr' => $postnr,
+			'bynavn' => $bynavn,
+			'land' => $land,
+			'betalingsdage' => $betalingsdage,
+			'betalingsbet' => $betalingsbet,
+			'cvrnr' => $cvrnr,
+			'ean' => $ean,
+			'institution' => $institution,
+			'email' => $email,
+			'mail_fakt' => $mail_fakt,
+			'notes' => $notes,
+			'art' => 'DO',
+			'ordredate' => $ordredate,
+			'momssats' => $momssats,
+			'hvem' => $brugernavn,
+			'tidspkt' => $tidspkt,
+			'ref' => $ref,
+			'valuta' => $valuta,
+			'sprog' => $formularsprog,
+			'kontakt' => $kontakt,
+			'kontakt_tlf' => $kontakt_tlf,
+			'pbs' => $pbs,
+			'status' => '0',
+			'restordre' => '0',
+			'lev_navn' => $udf_firmanavn,
+			'lev_addr1' => $udf_addr1,
+			'lev_addr2' => $udf_addr2,
+			'lev_postnr' => $udf_postnr,
+			'lev_bynavn' => $udf_bynavn,
+			'lev_kontakt' => $lev_kontakt,
+			'vis_lev_addr' => $vis_lev_addr,
+			'felt_1' => $felt_1,
+			'felt_2' => $felt_2,
+			'felt_3' => $felt_3,
+			'felt_4' => $felt_4,
+			'felt_5' => $felt_5,
+			'sag_id' => $sag_id,
+			'tilbudnr' => $tilbudnr,
+			'datotid' => $tidspkt,
+			'nr' => $tilbud_nr,
+			'returside' => $returside,
+			'sagsnr' => $sagsnr,
+			'procenttillag' => $default_procenttillag,
+			'kundeordnr' => $kundeordnr,
+			'afd' => $afd,
+		));
 		$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query))
 			$id = $row['id'];
@@ -5057,17 +5150,12 @@ function opret_ordre_kopi($sag_id, $konto_id)
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
 		exit;
 	}
-	// Her oprettes tilbudsnr
-	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select max(tilbudnr) as tilbudnr from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__));
-		$tilbudsnummer = $r['tilbudnr'];
-		$ny_tilbudnr = explode("-", $tilbudsnummer); // Her fjerner jeg '-', og laver '$ny_tilbudnr' til et array
-		$ny_tilbudnr[1] = sprintf("%02s", ($ny_tilbudnr[1] + 1)); // Her lægges 1 til det sidste nummer. Bruger 'sprintf()' for at sikre et to cifret tal
-		$tilbudnr = implode("-", $ny_tilbudnr); // Her sætter jeg begge numre sammen igen med bindestreg
-	} else {
-		$r = db_fetch_array(db_select("select sagsnr from sager where id = $sag_id", __FILE__ . " linje " . __LINE__));
-		$tilbudnr = $r['sagsnr'] .= '-01'; // bindestreg foran tilbudsnr. database skal ændres fra integer til text
-	}
+	// Her oprettes tilbudsnr. tilbudnr er et revisionsnummer pr. sagsnr (ikke pr.
+	// sag_id) - max(tilbudnr)+1 for sagsnr'et, sa det altid er et rent tal (20260825 CL/SZ, SD-600)
+	$r = db_fetch_array(db_select("select sagsnr from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
+	$sagsnr = $r['sagsnr'];
+	$r = db_fetch_array(db_select("select max(tilbudnr) as tilbudnr from ordrer where sagsnr='$sagsnr'", __FILE__ . " linje " . __LINE__));
+	$tilbudnr = (int)$r['tilbudnr'] + 1;
 	// Her laves nr. Nr bliver brugt til visning af tilbuds-liste i sager.php
 	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
 		$r = db_fetch_array(db_select("select max(nr) as nr from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__));
@@ -5077,7 +5165,6 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	}
 	// Her hentes oplysninger fra sager
 	$r = db_fetch_array(db_select("select * from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
-	$sagsnr = $r['sagsnr'];
 	//$konto_id=$r['konto_id'];
 	//$firmanavn=htmlspecialchars($r['firmanavn']);
 	//$addr1=htmlspecialchars($r['addr1']);
@@ -5118,7 +5205,57 @@ function opret_ordre_kopi($sag_id, $konto_id)
 		$tidspkt = date("U");
 		$default_procenttillag *= 1;
 		($lev_firmanavn) ? $vis_lev_addr = 'on' : $vis_lev_addr = '';
-		db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,kontakt_tlf,pbs,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,sag_id,tilbudnr,datotid,nr,returside,sagsnr,procenttillag) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$kontakt_tlf','$pbs','0','0','$udf_firmanavn','$udf_addr1','$udf_addr2','$udf_postnr','$udf_bynavn','$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$sag_id','$tilbudnr','$tidspkt','$tilbud_nr','$returside','$sagsnr','$default_procenttillag')", __FILE__ . " linje " . __LINE__);
+		order_creation_create(array(
+			'ordrenr' => $ordrenr,
+			'konto_id' => $konto_id,
+			'kontonr' => $kontonr,
+			'firmanavn' => $firmanavn,
+			'addr1' => $addr1,
+			'addr2' => $addr2,
+			'postnr' => $postnr,
+			'bynavn' => $bynavn,
+			'land' => $land,
+			'betalingsdage' => $betalingsdage,
+			'betalingsbet' => $betalingsbet,
+			'cvrnr' => $cvrnr,
+			'ean' => $ean,
+			'institution' => $institution,
+			'email' => $email,
+			'mail_fakt' => $mail_fakt,
+			'notes' => $notes,
+			'art' => 'DO',
+			'ordredate' => $ordredate,
+			'momssats' => $momssats,
+			'hvem' => $brugernavn,
+			'tidspkt' => $tidspkt,
+			'ref' => $ref,
+			'valuta' => $valuta,
+			'sprog' => $formularsprog,
+			'kontakt' => $kontakt,
+			'kontakt_tlf' => $kontakt_tlf,
+			'pbs' => $pbs,
+			'status' => '0',
+			'restordre' => '0',
+			'lev_navn' => $udf_firmanavn,
+			'lev_addr1' => $udf_addr1,
+			'lev_addr2' => $udf_addr2,
+			'lev_postnr' => $udf_postnr,
+			'lev_bynavn' => $udf_bynavn,
+			'lev_kontakt' => $lev_kontakt,
+			'vis_lev_addr' => $vis_lev_addr,
+			'felt_1' => $felt_1,
+			'felt_2' => $felt_2,
+			'felt_3' => $felt_3,
+			'felt_4' => $felt_4,
+			'felt_5' => $felt_5,
+			'sag_id' => $sag_id,
+			'tilbudnr' => $tilbudnr,
+			'datotid' => $tidspkt,
+			'nr' => $tilbud_nr,
+			'returside' => $returside,
+			'sagsnr' => $sagsnr,
+			'procenttillag' => $default_procenttillag,
+		));
 
 		$r = db_fetch_array(db_select("select max(id) as id from ordrer where sag_id = '$sag_id'", __FILE__ . " linje " . __LINE__));
 		$nyordre_id = $r['id'];

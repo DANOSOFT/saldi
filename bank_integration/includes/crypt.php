@@ -34,10 +34,15 @@
 // ----------------------------------------------------------------------
 //
 // 20260526 NTR - Initial version.
+// 20260729 NTR - Added a default path (oauthKeyPath) to make sure the installation creates it the correct place.
 
 if (!function_exists('oauthEncrypt')) {
+    function oauthKeyPath(): string {
+        return __DIR__ . '/../.ht_oauth_key.bin';
+    }
+
     function _oauthLoadKey(): string {
-        $path = __DIR__ . '/../.ht_oauth_key.bin';
+        $path = oauthKeyPath();
         if (!is_readable($path)) {
             throw new RuntimeException('OAuth key file not found. Generate it with: php -r "file_put_contents(\'bank_integration/.ht_oauth_key.bin\', random_bytes(32));"');
         }

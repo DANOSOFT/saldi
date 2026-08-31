@@ -222,6 +222,28 @@ final class RestApiEnv
         return ['status' => $status, 'json' => is_array($json) ? $json : null, 'body' => $raw];
     }
 
+    /**
+     * Minimal curl helper for classic $_POST-form pages (not the JSON REST API).
+     *
+     * @return array{status:int, body:string}
+     */
+    public static function httpForm(string $method, string $path, array $fields = []): array
+    {
+        $ch = curl_init(self::baseUrl() . $path);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_POSTFIELDS => http_build_query($fields),
+        ]);
+        $raw = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+        return ['status' => $status, 'body' => $raw === false ? '' : (string)$raw];
+    }
+
     /** Login against the test tenant, return the decoded response json. */
     public static function login(string $username, string $password, string $account): array
     {

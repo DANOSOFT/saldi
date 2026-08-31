@@ -27,6 +27,9 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260630 CDX/NTR Fixed Lager/varer from refreshing once every time we try to access it.
 //                  This possibly has changes across everything, but I have tested it, and it has also fixed rendering prematurely.
+// 20260716 MJ      Tilfoejede Momsperioder-link i Finans-sidebar.
+// 20260730 NTR - Added translation to momsperioder.
+// 20260730 MJ Fjernede Momsperioder-link fra Finans-sidebaren; linket er nu en knap i regnskabsaar.php
 @session_start();
 $s_id = session_id();
 

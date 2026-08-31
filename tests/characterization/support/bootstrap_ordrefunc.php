@@ -15,6 +15,8 @@
 //
 // History:
 // 20260725 CL/LH Extracted from run_order_invoice.php for the coverage push.
+// 20260825 CL/SZ Also include order_creation.php - opret_ordre()/opret_ordre_kopi()
+//                now call order_creation_create() (SD-600)
 
 if (!isset($tenantDb) || $tenantDb === '') {
     fwrite(STDERR, "bootstrap_ordrefunc.php: \$tenantDb must be set before including\n");
@@ -46,6 +48,7 @@ $regnskab = $r['regnskab'];
 $max_posteringer = $r['posteringer'];
 
 include("../includes/ordrefunc.php");
+include("../includes/order_creation.php");
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
