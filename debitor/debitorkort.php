@@ -1267,6 +1267,15 @@ if (!isset($efternavn)) $efternavn = null;
 if (!isset($firmanavn)) $firmanavn = null;
 if (!isset($lev_fornavn)) $lev_fornavn = null;
 if (!isset($lev_efternavn)) $lev_efternavn = null;
+if (!isset($lev_firmanavn)) $lev_firmanavn = null;
+if (!isset($lev_addr1)) $lev_addr1 = null;
+if (!isset($lev_addr2)) $lev_addr2 = null;
+if (!isset($lev_postnr)) $lev_postnr = null;
+if (!isset($lev_bynavn)) $lev_bynavn = null;
+if (!isset($lev_land)) $lev_land = null;
+if (!isset($lev_tlf)) $lev_tlf = null;
+if (!isset($lev_email)) $lev_email = null;
+if (!isset($lev_kontakt)) $lev_kontakt = null;
 
 if ($kontotype == "privat") {
 	if (!$fornavn && !$efternavn && $firmanavn) {
@@ -1480,14 +1489,6 @@ if (!isset($bank_konto)) $bank_konto = NULL;
 if (!isset($swift)) $swift = NULL;
 if (!isset($lukket)) $lukket = NULL;
 if (!isset($stripe_fravalg)) $stripe_fravalg = NULL;
-if (!isset($lev_firmanavn)) $lev_firmanavn = NULL;
-if (!isset($lev_addr1)) $lev_addr1 = NULL;
-if (!isset($lev_addr2)) $lev_addr2 = NULL;
-if (!isset($lev_postnr)) $lev_postnr = NULL;
-if (!isset($lev_land)) $lev_land = NULL;
-if (!isset($lev_kontakt)) $lev_kontakt = NULL;
-if (!isset($lev_bynavn)) $lev_bynavn = NULL;
-if (!isset($lev_tlf)) $lev_tlf = NULL;
 if (!isset($notes)) $notes = NULL;
 
 if ($kontotype == 'privat') {
