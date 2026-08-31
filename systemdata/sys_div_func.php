@@ -114,6 +114,10 @@
 //                 label the visual editor's field model can't losslessly regenerate (imported
 //                 Brother/Dymo templates, hand-written raw HTML, ...) - saving via the visual editor
 //                 was silently discarding whatever it doesn't model (MB-18).
+// 20260826 SZ    kontoplan_io: removed the redundant "Eksportér kontoplan" header row that was
+//                 printed unconditionally right before the real (popup or non-popup) export row
+//                 of the same label, making it appear twice under System -> Indstillinger ->
+//                 Diverse -> Import & eksport (MB-26).
 // 20260827 CL/SZ Removed the dead "MySalesTest" checkbox row and its duplicate mySale
 //                query (was mislabeled $mySaleTest but still read var_name='mySale');
 //                also dropped the debug echo block referencing it. Never saved
@@ -347,7 +351,6 @@ function kontoplan_io() {
 	$antal_regnskabsaar = $x;
 	print "<tr><td colspan='6'><hr></td></tr>";
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('1352|Indlæs/udlæs kontoplan', $sprog_id)."</b></u></td></tr>";
-	print "<tr><td colspan='6'><br>".findtekst('1353|Eksportér kontoplan', $sprog_id)."</td></tr>";
 	if ($popup) {
 		print "<form name=diverse action=diverse.php?sektion=kontoplan_io method=post>";
 		print "<tr><td colspan='2'></td>\n";
