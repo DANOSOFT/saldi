@@ -65,6 +65,9 @@ final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
         $db = self::TENANT_DB;
         $connection = @db_connect($sqhost, $squser, $sqpass, $db);
         if (!$connection) {
+            // tearDownAfterClass() is not guaranteed to run after a setUpBeforeClass() skip, so
+            // restore the cwd here rather than relying on it to undo the chdir() above.
+            chdir(self::$originalCwd);
             self::markTestSkipped(
                 "tenant db '" . self::TENANT_DB . "' not reachable on host '$sqhost' as user '$squser' " .
                 '- clone it from an installed tenant first'
@@ -76,14 +79,23 @@ final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
     public static function tearDownAfterClass(): void
     {
         if (self::$connected) {
-            db_modify("delete from labels where labelname = '" . self::LABEL_NAME . "'", __FILE__ . ' linje ' . __LINE__);
+            self::deleteTestLabel();
         }
         chdir(self::$originalCwd);
     }
 
     protected function setUp(): void
     {
-        db_modify("delete from labels where labelname = '" . self::LABEL_NAME . "'", __FILE__ . ' linje ' . __LINE__);
+        self::deleteTestLabel();
+    }
+
+    // saveLabelText() only ever writes account_id = '0'/null rows for a given labelname; scope
+    // cleanup the same way so a same-named account-specific label in the cloned tenant survives.
+    private static function deleteTestLabel(): void
+    {
+        $qtxt = "delete from labels where labelname = '" . self::LABEL_NAME . "'";
+        $qtxt.= " and (account_id = '0' or account_id is null)";
+        db_modify($qtxt, __FILE__ . ' linje ' . __LINE__);
     }
 
     /**
