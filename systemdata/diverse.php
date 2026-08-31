@@ -1242,49 +1242,21 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$labelType = if_isset($_POST['labelType'], 'sheet');
 		saveLabelText($valg, $labelName, $rawHTML, $labelType);
 	} elseif ($saveLabel) {
-            // Generate template from form data (visual editor). Refuse if the label's CURRENT
-            // template has formatting the visual editor's field model can't reproduce
-            // (imported Brother/Dymo templates, hand-written raw HTML, ...) - regenerating from
-            // that narrow model would silently discard whatever it doesn't understand, which is
-            // exactly MB-18 ("changing any setting destroys the whole configuration"). The UI
-            // already hides the visual editor for such labels (see labels() in
-            // sys_div_func.php); this is the authoritative check a form submit cannot bypass.
-    $existingLabel = loadLabelText($valg, $labelName);
-    if (!labelTemplateEditableVisually($existingLabel['labeltext'])) {
-        // Nothing saved - labels() below re-renders this label in raw-HTML mode.
-    } else {
-    $formData = array(
-        'cols'                  => if_isset($_POST['cols'], 1),
-        'rows'                  => if_isset($_POST['rows'], 1),
-        'txtlen'                => if_isset($_POST['txtlen'], 50),
-        'width'                 => if_isset($_POST['width'], '38.1'),
-        'height'                => if_isset($_POST['height'], '21.2'),
-        'font_size'             => if_isset($_POST['font_size'], '12'),
-        'margin_top'            => if_isset($_POST['margin_top'], '7'),
-        'margin_left'           => if_isset($_POST['margin_left'], '3'),
-        'show_varenr'           => if_isset($_POST['show_varenr'])      == 'on',
-        'show_varemrk'          => if_isset($_POST['show_varemrk'])     == 'on',
-        'show_beskrivelse'      => if_isset($_POST['show_beskrivelse']) == 'on',
-        'show_pris'             => if_isset($_POST['show_pris'])        == 'on',
-        'show_barcode'          => if_isset($_POST['show_barcode'])     == 'on',
-        // Individual font sizes for each element
-        'varenr_font_size'      => if_isset($_POST['varenr_font_size'],      if_isset($_POST['font_size'], '12')),
-        'varemrk_font_size'     => if_isset($_POST['varemrk_font_size'],     if_isset($_POST['font_size'], '12')),
-        'beskrivelse_font_size' => if_isset($_POST['beskrivelse_font_size'], if_isset($_POST['font_size'], '12')),
-        'pris_font_size'        => if_isset($_POST['pris_font_size'],        if_isset($_POST['font_size'], '12'))
-    );
-    
-    // Add custom text lines with individual font sizes
-    for ($i = 1; $i <= 5; $i++) {
-        $formData["custom_text_$i"] = if_isset($_POST["custom_text_$i"], '');
-        $formData["custom_text_{$i}_size"] = if_isset($_POST["custom_text_{$i}_size"], $formData['font_size']);
-    }
-    
-    $generatedTemplate = generateLabelTemplate($formData);
-    $labelType         = if_isset($_POST['labelType'], 'sheet');
-    saveLabelText($valg, $labelName, $generatedTemplate, $labelType);
-    }
-
+		// saveVisualLabelEdit() (sys_div_func.php) refuses when the label's CURRENT template
+		// has formatting the visual editor's field model can't reproduce (imported Brother/Dymo
+		// templates, hand-written raw HTML, ...) - regenerating from that narrow model would
+		// silently discard whatever it doesn't understand, which is exactly MB-18 ("changing
+		// any setting destroys the whole configuration"). The UI already hides the visual
+		// editor for such labels (see labels() in sys_div_func.php); this is the authoritative
+		// check a form submit cannot bypass.
+		if (!saveVisualLabelEdit($valg, $labelName, $_POST)) {
+			// Refused - the template changed underneath this submit (e.g. another tab/admin, or
+			// a back-button re-post) into something the visual editor can no longer safely
+			// regenerate. Nothing is saved; labels() below re-renders the current stored
+			// template in raw-HTML mode with an explicit "not saved" message instead of silently
+			// discarding the user's submitted values (MB-18 review).
+			$saveLabelRefused = true;
+		}
 		} elseif ($deleteLabel && $labelName != 'Standard') {
 			$qtxt = "DELETE FROM labels WHERE labelname = '" . db_escape_string($labelName) . "'";
 			$qtxt.= " and (account_id = '0' or account_id is null)";

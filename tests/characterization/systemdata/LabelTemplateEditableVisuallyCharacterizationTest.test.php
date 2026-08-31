@@ -139,19 +139,85 @@ final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
     }
 
     /**
+     * Lui's PR #508 review: $varenr and $varemrk share one line when both are shown
+     * ("<span ...>$varenr</span> / <span ...>$varemrk</span>"), and the old per-element
+     * font-size regexes used .*? between the opening tag and the variable, which doesn't stop
+     * at a </span> boundary - the varemrk regex matched leftmost and read straight across into
+     * the varenr span, reporting ITS font-size instead. A label the visual editor itself just
+     * wrote (two different sizes) would fail its own round-trip on the very next page load and
+     * get locked into raw-HTML mode with no way back.
+     */
+    public function testDifferingVarenrAndVaremrkFontSizesOnOneLineRoundTripCorrectly(): void
+    {
+        $template = generateLabelTemplate($this->visualEditorFormData([
+            'show_varenr' => true, 'show_varemrk' => true,
+            'varenr_font_size' => '14', 'varemrk_font_size' => '16',
+        ]));
+
+        self::assertTrue(labelTemplateEditableVisually($template));
+        $parsed = parseLabelTemplate($template);
+        self::assertSame('14', $parsed['varenr_font_size']);
+        self::assertSame('16', $parsed['varemrk_font_size'], 'must read the varemrk span\'s own size, not the varenr span\'s');
+    }
+
+    /**
+     * Lui's PR #508 review: the old custom-text filter excluded any line containing the bare
+     * words "pris"/"$"/"<img" - not just the actual $pris/$minpris/$varenr/.../<img markup
+     * generateLabelTemplate() emits - so ordinary custom text like "Pris pr. stk" or "Kun $99"
+     * (which the editor's free-text field happily accepts) was silently dropped by the parser
+     * and never reproduced, failing the round-trip on the very next page load.
+     */
+    public function testCustomTextContainingThePlainWordsPrisOrADollarSignSurvives(): void
+    {
+        $template = generateLabelTemplate($this->visualEditorFormData([
+            'custom_text_1' => 'Pris pr. stk',
+            'custom_text_2' => 'Kun $99',
+        ]));
+
+        self::assertTrue(labelTemplateEditableVisually($template));
+        $parsed = parseLabelTemplate($template);
+        self::assertSame('Pris pr. stk', $parsed['custom_text_1'] ?? null);
+        self::assertSame('Kun $99', $parsed['custom_text_2'] ?? null);
+    }
+
+    /**
+     * Lui's PR #508 review: width/height/font_size/margin_top/margin_left are free-text form
+     * fields, not type=number, so a Danish "3,5" reaches generateLabelTemplate() as-is - which
+     * isn't valid CSS to begin with, and parseLabelTemplate()'s [0-9.]+ regex can't read it
+     * back either, silently falling back to the default and failing the round-trip on the very
+     * next page load. generateLabelTemplate() now normalizes a comma to a dot before writing
+     * CSS, so the value that reaches storage is always valid and always round-trips.
+     */
+    public function testADanishDecimalCommaInAFreeTextDimensionFieldRoundTripsCorrectly(): void
+    {
+        $template = generateLabelTemplate($this->visualEditorFormData(['margin_left' => '3,5']));
+
+        self::assertStringContainsString('margin-left: 3.5mm', $template, 'must write valid dot-decimal CSS, not the raw comma');
+        self::assertTrue(labelTemplateEditableVisually($template));
+        self::assertSame('3.5', parseLabelTemplate($template)['margin_left']);
+    }
+
+    /**
      * SirRolin's PR #508 review: deleting a 'Standard' label's raw HTML entirely and saving
      * (leaving the stored labeltext truly empty) incorrectly stayed locked out of the visual
-     * editor on the next page load. The cause was upstream of this guard function itself -
-     * sys_div_func.php's labels() fills the display-only raw-HTML textarea for an empty
-     * 'Standard' label with a hardcoded placeholder template (written in the labels table's
-     * older $beskrivelse/$pris variable names, predating generateLabelTemplate()'s
-     * $minbeskrivelse/$minpris), and was running THIS guard against that placeholder instead of
-     * against what loadLabelText() actually returned. This test pins the fact that drives the
-     * bug: the placeholder itself is not visually editable, so it must never be the value
-     * labelTemplateEditableVisually() is asked to judge - labels() now saves the stored text
-     * to a separate variable before the placeholder substitution and guards on that instead.
+     * editor on the next page load. sys_div_func.php's labels() fills the display-only
+     * raw-HTML textarea for an empty 'Standard' label with a hardcoded placeholder template
+     * (written in the labels table's older $beskrivelse/$pris variable names, predating
+     * generateLabelTemplate()'s $minbeskrivelse/$minpris), and was running THIS guard against
+     * that placeholder instead of against what loadLabelText() actually returned - labels()
+     * now saves the stored text to a separate variable before the placeholder substitution
+     * and guards on that instead, so this specific placeholder is never actually judged.
+     *
+     * Lui's PR #508 review, same day: judged on its own merits the placeholder IS visually
+     * editable too - it differs from generateLabelTemplate()'s output only by the deliberate
+     * $beskrivelse/$pris -> $minbeskrivelse/$minpris rename (see the docblock on
+     * labelTemplateEditableVisually()), which the guard now canonicalizes before comparing.
+     * That fix is what every pre-existing installation's migrated 'Standard' label (see
+     * includes/opdat_4.0.php, which copies grupper.box1 verbatim into labels.Standard) depends
+     * on to keep visual-editor access after upgrading - this placeholder is byte-for-byte that
+     * same legacy shape, so it's the natural regression pin for that fix.
      */
-    public function testTheEmptyStandardDisplayPlaceholderIsNotItselfVisuallyEditable(): void
+    public function testTheEmptyStandardDisplayPlaceholderIsAlsoVisuallyEditableOnItsOwnMerits(): void
     {
         $placeholder = '$cols=1;
 $rows=1;
@@ -196,9 +262,10 @@ Pris $pris<br>
 </div>
 /bottom;';
 
-        self::assertFalse(
+        self::assertTrue(
             labelTemplateEditableVisually($placeholder),
-            "labels()'s 'Standard'-and-empty display placeholder must never be passed to this guard"
+            'the legacy $beskrivelse/$pris placeholder is canonically identical to what '
+            . 'generateLabelTemplate() writes and must not be locked out of the visual editor'
         );
     }
 
@@ -214,8 +281,9 @@ Pris $pris<br>
         $importedTemplate = file_get_contents(self::$repoRoot . '/importfiler/BrotherLabel22606.txt');
         saveLabelText('box1', self::LABEL_NAME, $importedTemplate, 'sheet');
 
-        $this->attemptGuardedVisualSave(self::LABEL_NAME, ['txtlen' => '40']);
+        $saved = $this->attemptGuardedVisualSave(self::LABEL_NAME, ['txtlen' => '40']);
 
+        self::assertFalse($saved, 'saveVisualLabelEdit() must report the save as refused');
         $after = loadLabelText('box1', self::LABEL_NAME);
         self::assertSame($importedTemplate, $after['labeltext'], 'an unsafe save must leave the stored template completely untouched');
         self::assertStringContainsString('rotate(0deg)', $after['labeltext']);
@@ -232,8 +300,9 @@ Pris $pris<br>
         ]));
         saveLabelText('box1', self::LABEL_NAME, $original, 'sheet');
 
-        $this->attemptGuardedVisualSave(self::LABEL_NAME, ['txtlen' => '40']);
+        $saved = $this->attemptGuardedVisualSave(self::LABEL_NAME, ['txtlen' => '40']);
 
+        self::assertTrue($saved, 'saveVisualLabelEdit() must report a safe save as applied');
         $after = loadLabelText('box1', self::LABEL_NAME);
         self::assertStringContainsString('$cols=2;', $after['labeltext'], 'unrelated field must survive the save');
         self::assertStringContainsString('$txtlen=40;', $after['labeltext'], 'the changed field must actually be applied');
@@ -241,19 +310,21 @@ Pris $pris<br>
     }
 
     /**
-     * Mirrors systemdata/diverse.php's $saveLabel branch together with labels()'s form
-     * pre-fill: refuse when the label's CURRENT template isn't reproducible by the visual
-     * editor's model; otherwise the real browser form (pre-filled from parseLabelTemplate(),
-     * per labels()) submits every field, with only $postFields actually changed by the "user".
+     * Calls the real production save path - saveVisualLabelEdit() (sys_div_func.php), the
+     * function systemdata/diverse.php's $saveLabel branch itself calls, not a
+     * reimplementation of its guard-then-generate-then-save logic. Lui's PR #508 review:
+     * the previous version of this helper duplicated that logic inline, so it would still
+     * pass even if the guard were deleted from diverse.php entirely - nothing pinned the
+     * actual save path. Builds $postData the way a real browser form submit would (a
+     * pre-filled form, per labels()'s parseLabelTemplate() call, with only $postFields
+     * actually changed by the "user", and checkbox fields present as 'on' only when
+     * checked - never as a literal false, matching real $_POST).
      */
-    private function attemptGuardedVisualSave(string $labelName, array $postFields): void
+    private function attemptGuardedVisualSave(string $labelName, array $postFields): bool
     {
         $existing = loadLabelText('box1', $labelName);
-        if (!labelTemplateEditableVisually($existing['labeltext'])) {
-            return;
-        }
         $formData = $this->visualEditorFormData(array_merge(parseLabelTemplate($existing['labeltext']), $postFields));
-        saveLabelText('box1', $labelName, generateLabelTemplate($formData), if_isset($postFields, 'sheet', 'labelType'));
+        return saveVisualLabelEdit('box1', $labelName, $this->asPostData($formData));
     }
 
     private function visualEditorFormData(array $overrides): array
@@ -272,5 +343,20 @@ Pris $pris<br>
             if (!isset($formData["custom_text_{$i}_size"])) $formData["custom_text_{$i}_size"] = $formData['font_size'];
         }
         return $formData;
+    }
+
+    /**
+     * @param array $formData The visualEditorFormData() shape (booleans for show_*).
+     * @return array The $_POST shape saveVisualLabelEdit() actually reads: an unchecked
+     *               HTML checkbox sends no key at all, never a literal 'off'/false.
+     */
+    private function asPostData(array $formData): array
+    {
+        $postData = $formData;
+        foreach (array('show_varenr', 'show_varemrk', 'show_beskrivelse', 'show_pris', 'show_barcode') as $checkbox) {
+            if (!empty($formData[$checkbox])) $postData[$checkbox] = 'on';
+            else unset($postData[$checkbox]);
+        }
+        return $postData;
     }
 }
