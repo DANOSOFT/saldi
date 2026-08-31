@@ -25,6 +25,9 @@
 //
 // 20180131 
 // 20210916 LOE translated some texts 
+// 20260804 Sawaneh Tilfoejet link til admin/opret_email.php under Admin Panel. Teksten
+//                  hentes med findtekst(5056) - se nye raekker 5056-5107 i
+//                  importfiler/tekster.csv
 
 @session_start();  # Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -88,6 +91,8 @@ if ($revisorregnskab || $forhandlerregnskab) {
 	print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/admin_settings.php\"><big>".findtekst(613, $sprog_id)."</big></a></td>"; #Indstillinger
 	print"</tr><tr>";
 	print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/admin_panel.php\"><big>Admin Panel</big></a></td>";
+	print"</tr><tr>";
+	print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/opret_email.php\"><big>".findtekst(5056, $sprog_id)."</big></a></td>"; #Opret email
 	if (isset($mastername) && $mastername=="ROTARY") {
 		print"</tr><tr>";
 		print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/bankfordeling.php\"><big>".findtekst(567, $sprog_id)."</big></td>";#Kortbetalinger
