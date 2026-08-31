@@ -68,6 +68,11 @@
 // 20260819 CX/PHR - Synchronize VAT exemption with both VAT fields and confirm intentional one-sided VAT.
 // 20260820 Sawaneh Shortcut letters (genvej) in debit/credit crashed the VAT lookup with a numeric
 //                  SQL error; non-numeric input is now resolved via genvej before querying kontonr.
+// 20260822 Sawaneh Print-only header with journal id, date and note so printouts identify the journal (JOB-055)
+// 20260827 Sawaneh The AJAX VAT lookup passed unvalidated debit/credit shortcuts ('=', 'D', 'K') to the
+//                  numeric kontoplan.kontonr query; input is now checked with is_account_number() first.
+// 20260827 Sawaneh Array-valued request fields (name[]) reached trim() in the VAT lookups and threw a
+//                  TypeError on PHP 8; non-scalar input is now rejected by scalar_input_text().
 
 ob_start(); //Starter output buffering  
 
@@ -144,8 +149,20 @@ while ($vat_r = db_fetch_array($vat_q)) {
     }
 }
 
+/**
+ * Request values arrive as arrays when a field name is posted with [] appended,
+ * and PHP 8 raises a TypeError when such a value reaches trim(). Anything that is
+ * not a string or a number is therefore treated as no input at all.
+ */
+function scalar_input_text($value) {
+    if (!is_string($value) && !is_int($value) && !is_float($value)) {
+        return '';
+    }
+    return trim((string)$value);
+}
+
 function normalize_vat_code($value, $vat_codes) {
-    $value = trim((string)$value);
+    $value = scalar_input_text($value);
     if ($value === '') {
         return '';
     }
@@ -159,14 +176,32 @@ function get_saved_vat_code($row, $field) {
     return trim((string)$row[$field]);
 }
 
+/**
+ * Tells whether a cash journal debit/credit value is an actual account number.
+ *
+ * The debit/credit fields also accept shortcuts such as '=' (copy from the line
+ * above), 'D'/'K' (debtor/creditor lookup) and the single letter shortcuts held
+ * in kontoplan.genvej. Those are translated later in the request, so any value
+ * reaching an account number query before that point may still be a shortcut.
+ * kontoplan.kontonr is numeric, so a shortcut would abort the query.
+ *
+ * @return bool  True when the value can be used as kontoplan.kontonr.
+ */
+function is_account_number($value) {
+    if (!is_string($value) && !is_int($value)) {
+        return false;
+    }
+    return ctype_digit(trim((string)$value));
+}
+
 function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_codes) {
-    $account_no = trim((string)$account_no);
-    $account_type = trim(strtoupper((string)$account_type));
+    $account_no = scalar_input_text($account_no);
+    $account_type = strtoupper(scalar_input_text($account_type));
 
     if ($account_no === '' || ($account_type !== '' && $account_type !== 'F')) {
         return '';
     }
-    if (!is_numeric($account_no)) {
+    if (!is_account_number($account_no)) {
         if (strlen($account_no) != 1) {
             return '';
         }
@@ -186,10 +221,10 @@ function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_code
 }
 
 function resolve_lookup_vat_code($explicit_vat, $current_account, $current_type, $existing_account, $existing_type, $existing_vat, $momsfri, $regnaar, $vat_codes) {
-    $current_account = trim((string)$current_account);
-    $current_type = trim(strtoupper((string)$current_type));
-    $existing_account = trim((string)$existing_account);
-    $existing_type = trim(strtoupper((string)$existing_type));
+    $current_account = scalar_input_text($current_account);
+    $current_type = strtoupper(scalar_input_text($current_type));
+    $existing_account = scalar_input_text($existing_account);
+    $existing_type = strtoupper(scalar_input_text($existing_type));
 
     if ($current_account !== $existing_account || $current_type !== $existing_type) {
         return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
@@ -197,7 +232,7 @@ function resolve_lookup_vat_code($explicit_vat, $current_account, $current_type,
 
     if ($explicit_vat !== null) {
         $explicit_vat = normalize_vat_code($explicit_vat, $vat_codes);
-        if (!trim((string)$momsfri) && $explicit_vat === '') {
+        if (!scalar_input_text($momsfri) && $explicit_vat === '') {
             return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
         }
         return $explicit_vat;
@@ -205,7 +240,7 @@ function resolve_lookup_vat_code($explicit_vat, $current_account, $current_type,
 
     if ($existing_account !== '') {
         $existing_vat = normalize_vat_code($existing_vat, $vat_codes);
-        if (!trim((string)$momsfri) && $existing_vat === '') {
+        if (!scalar_input_text($momsfri) && $existing_vat === '') {
             return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
         }
         return $existing_vat;
@@ -229,13 +264,13 @@ function resolve_post_vat_code($row_id, $field, $current_account, $current_type,
         }
     }
 
-    $current_account = trim((string)$current_account);
-    $current_type = trim(strtoupper((string)$current_type));
+    $current_account = scalar_input_text($current_account);
+    $current_type = strtoupper(scalar_input_text($current_type));
     $submitted_vat = normalize_vat_code($submitted_vat, $vat_codes);
 
     // A blank VAT code is only an explicit choice when the line is marked VAT exempt.
     // Otherwise use the financial account's configured VAT code.
-    if (!trim((string)$momsfri) && !$allow_blank && $submitted_vat === '') {
+    if (!scalar_input_text($momsfri) && !$allow_blank && $submitted_vat === '') {
         return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
     }
 
@@ -400,11 +435,11 @@ if (
     && isset($_POST['action'])
     && $_POST['action'] === 'lookup_vat'
 ) {
-    $kontonr = db_escape_string(trim($_POST['kontonr']));
-    $regnaar_vat = db_escape_string(trim($_POST['regnaar']));
+    $kontonr = scalar_input_text(if_isset($_POST, '', 'kontonr'));
+    $regnaar_vat = scalar_input_text(if_isset($_POST, '', 'regnaar'));
     $vat = '';
-    if ($kontonr && $regnaar_vat) {
-        $qtxt = "select moms from kontoplan where kontonr='$kontonr' and regnskabsaar='$regnaar_vat'";
+    if (is_account_number($kontonr) && is_account_number($regnaar_vat)) {
+        $qtxt = "select moms from kontoplan where kontonr='" . (int)$kontonr . "' and regnskabsaar='" . (int)$regnaar_vat . "'";
         $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if ($row = db_fetch_array($query)) {
             $vat = trim(if_isset($row['moms'], ''));
