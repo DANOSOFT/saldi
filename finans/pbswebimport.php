@@ -25,6 +25,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260831 Sawaneh Corrected misplaced parenthesis in mb_convert_encoding calls from 20250130
 // 20260831 Sawaneh Removed duplicate fclose() in flyt_data - fatal TypeError on PHP 8
+// 20260831 Sawaneh Restrict $filnavn from POST to the user's own upload - path traversal in fopen/unlink
 
 @session_start();
 $s_id=session_id();
@@ -48,6 +49,7 @@ if(($_GET)||($_POST)) {
 		$submit=$_POST['submit'];
 		$kladde_id=$_POST['kladde_id'];
 		$filnavn=$_POST['filnavn'];
+		if ($filnavn && $filnavn !== "../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv") $filnavn=NULL; # kun brugerens egen uploadfil
 		$modkonto=$_POST['modkonto'];
 #		$feltnavn=$_POST['feltnavn'];
 #		$feltantal=$_POST['feltantal'];
