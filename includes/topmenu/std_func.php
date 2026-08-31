@@ -55,6 +55,12 @@
 // 20260217 PHR added "(float)$tal" in function afrund
 // 20260429 PHR Check for $regnaar in function transtjek()
 // 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
+// 20260827 Sawaneh get_next_number: debtors and creditors draw from one shared kontonr sequence
+//                 (highest number in use + 1, min 1000) instead of two independent first-free-gap
+//                 series, so a debtor and a creditor can no longer receive the same number and a
+//                 deleted account's number is never reused; kontonr above 8 digits (EAN-like
+//                 outliers) are ignored when finding the highest, and if the 8-digit range is
+//                 capped by an outlier the first number free in both series is used (SST-753)
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -2091,27 +2097,43 @@ if (!function_exists('get_next_number')) {
 	function get_next_number($table, $art)
 	{
 		/**
-		 * Generates the next available account number (kontonr) for a given 'art' (type).
-		 * It checks the existing account numbers in the specified table and ensures the new number is unique.
+		 * Generates the next account number (kontonr) for a new debtor or creditor.
+		 * Debtors and creditors draw from one shared sequence: every kontonr in the table
+		 * is considered regardless of art, and the highest number in use plus one is
+		 * returned (minimum 1000). Numbers are never reused, so a deleted account's
+		 * number cannot be handed out again while historical orders and postings still
+		 * carry it, and a debtor and a creditor can no longer receive the same number.
+		 * Values above eight digits (EAN/GLN-like numbers stored as kontonr) are
+		 * ignored so a single outlier cannot push the sequence into the billions.
+		 * If the eight-digit range is already occupied at the top (an outlier stored
+		 * right at the cap), the first number unused by any art is returned instead,
+		 * so a usable number is always handed out and never a duplicate.
 		 *
 		 * @param string $table - The table name to search for existing account numbers.
-		 * @param string $art - The type/category associated with the account numbers.
+		 * @param string $art - Unused; kept so existing callers keep working.
 		 *
-		 * @return int - The next available account number.
+		 * @return int - The next account number.
 		 */
 
-		$x = 0;
-		$ktonr = array();
-		$qtxt = "select kontonr from $table where art='$art'";
+		$kontonr = 1000;
+		$brugt = array();
+		$qtxt = "select kontonr from $table";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$ktonr[$x] = $r['kontonr'];
-			$x++;
+			if (!is_numeric($r['kontonr'])) {
+				continue;
+			}
+			$nr = intval($r['kontonr']);
+			$brugt[$nr] = true;
+			if ($nr >= $kontonr && $nr <= 99999999) {
+				$kontonr = $nr + 1;
+			}
 		}
-		$kontonr = 1000;
-		while (in_array($kontonr, $ktonr)) {
-			$kontonr++;
-
+		if ($kontonr > 99999999) {
+			$kontonr = 1000;
+			while (isset($brugt[$kontonr])) {
+				$kontonr++;
+			}
 		}
 		return ($kontonr);
 	}
