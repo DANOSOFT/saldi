@@ -29,7 +29,7 @@ Severity is about money and data, not about how hard it is to hit:
 | P2-4 | P2 | `limit` reaches the SQL as a raw string on three endpoints | `products/index.php:30` +2 |
 | P2-5 | P2 | Two REST endpoints cannot execute at all | `dashboard/stats.php:16` +1 |
 | P2-6 | P2 | The product-groups endpoint always returns an empty list | `VareGruppeModel.php:233` |
-| P3-1 | P3 | `selext` typo makes a query a permanent no-op | `docsIncludes/updateCashDraft.php:25` |
+| P3-1 | P3 | Two unreferenced cash-draft helpers were removed instead of repaired | Former `docsIncludes/updateCashDraft.php` and `includes/docsIncludes/updateCashDraft.php` |
 
 Every one of these was found by a test rather than by reading code.
 
@@ -430,18 +430,22 @@ models.
 
 ---
 
-## P3-1 — `selext` typo makes a query a permanent no-op
+## P3-1 — Dead cash-draft helpers removed instead of repaired
 
-**Where:** `docsIncludes/updateCashDraft.php:25` and its duplicate
-`includes/docsIncludes/updateCashDraft.php:25`.
+**Where:** the former `docsIncludes/updateCashDraft.php` and
+`includes/docsIncludes/updateCashDraft.php` paths.
 
-```php
-$qtxt = "selext max(id) as sourceid from kassekladde where kladde_id = '$kladde_id'";
-```
+The identical helpers had no tracked include, require, loader, route, link, or
+other caller. Their `$sourceId` assignment was the last executable statement,
+so neither file had an in-file consumer for the value. Repairing the malformed
+query would therefore have activated a dormant path that inserted a blank
+`kassekladde` row without an established caller or requirement.
 
-`selext` is not SQL. The query cannot ever have returned a row, so
-`$sourceid` has always been empty on this path — in two separate copies of the
-same file.
+The active document flow uses `includes/documents.php` and
+`includes/docsIncludes/insertDoc.php`, where cash-journal row creation and the
+resulting `$sourceId` are handled together. Both helpers were deleted: the
+copy under the top-level `docsIncludes/` directory was also dead. General
+`docsIncludes/` deduplication remains outside this resolution.
 
 ---
 
