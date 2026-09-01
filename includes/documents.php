@@ -1,6 +1,6 @@
 <!doctype html>
 <?php
-// --- includes/documents.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/documents.php --- patch 5.0.0 --- 2026-08-31 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,7 +17,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230622 - LOE Updated file path and some related modifications.
 //20240412 - PHR Various modifications
@@ -27,6 +27,7 @@
 //20260304 PHR Someone removed the convertOldDoc section.
 //20260603 CL/PHR debitorOrdrer tilføjet som moderne kilde (modernSources, isModernLayout,
 //                  docFolder-fallback, header-logik og openPool-default)
+// 20260831 CX/PHR Added local OIOUBL/Peppol XML upload and extraction support
 
 @session_start();
 $s_id=session_id();
@@ -130,7 +131,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 	}
 	
 	if ($isAjax || $openPool) {
-		$allowedTypes = array('jpg','jpeg','pdf','png');
+		$allowedTypes = array('jpg','jpeg','pdf','png','xml');
 		$fileName = basename($_FILES['uploadedFile']['name']);
 		
 		// Get file type from MIME type
@@ -162,7 +163,8 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 			// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
 			$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 			$baseName = sanitize_filename($baseName);
-			$targetFile = "$poolDir/$baseName.pdf";
+			$storedExt = $ext === 'xml' ? 'xml' : 'pdf';
+			$targetFile = "$poolDir/$baseName.$storedExt";
 			
 			// Try to extract invoice data via API
 			$extractedData = null;
@@ -196,11 +198,11 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					}
 				}
 			} else {
-				// For PDF files, move directly
+				// PDF and XML files are preserved unchanged.
 				move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
-				// Extract data from PDF
+				// Extract data through AI for PDF or locally for UBL XML.
 				if ($autoExtract && file_exists($targetFile)) {
-					error_log("documents.php (AJAX): Calling extractInvoiceData for PDF: $targetFile");
+					error_log("documents.php (AJAX): Calling extractInvoiceData for document: $targetFile");
 					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
 					$extractedData = extractInvoiceData($targetFile, $invoiceId);
 					if ($extractedData) {
@@ -246,7 +248,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				
 				// Rename file if we have a new name
 				if ($newBaseName !== $baseName) {
-					$newTargetFile = "$poolDir/$newBaseName.pdf";
+					$newTargetFile = "$poolDir/$newBaseName.$storedExt";
 					
 					// Check if file already exists and append number if needed
 					$counter = 1;
@@ -260,9 +262,9 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					if (rename($targetFile, $newTargetFile)) {
 						$targetFile = $newTargetFile;
 						$baseName = $newBaseName;
-						error_log("documents.php (AJAX): Renamed file to: $newBaseName.pdf");
+						error_log("documents.php (AJAX): Renamed file to: $newBaseName.$storedExt");
 					} else {
-						error_log("documents.php (AJAX): Failed to rename file to: $newBaseName.pdf");
+						error_log("documents.php (AJAX): Failed to rename file to: $newBaseName.$storedExt");
 					}
 				}
 			}
@@ -339,7 +341,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				
 				// Save extracted currency directly to pool_files (currency not stored in .info files)
 				if ($extractedData !== null && !empty($extractedData['currency'])) {
-					$uploadFilename = $baseName . '.pdf';
+					$uploadFilename = $baseName . '.' . $storedExt;
 					$uploadCurrency = $extractedData['currency'];
 					$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($uploadFilename) . "'";
 					$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -354,7 +356,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				echo json_encode([
 					'success' => true,
 					'message' => 'File uploaded successfully',
-					'filename' => $baseName . '.pdf',
+					'filename' => $baseName . '.' . $storedExt,
 					'extracted' => $extractedData
 				]);
 				exit;
@@ -545,10 +547,11 @@ if (!$isModernLayout) {
 // Handle file uploads for pool view
 // Allow uploads when sourceId is set OR when openPool is set (for new pool uploads)
 if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $openPool)) {
-	$fileTypes = array('jpg','jpeg','pdf','png');
+	$fileTypes = array('jpg','jpeg','pdf','png','xml');
 	$fileName = basename($_FILES['uploadedFile']['name']);
 	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
-	if (in_array(strtolower($fileType),$fileTypes)) {
+	$fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+	if (in_array(strtolower($fileType),$fileTypes) || in_array($fileExt, $fileTypes)) {
 		$poolDir = "$docFolder/$db/pulje";
 		if (!is_dir($poolDir)) {
 			mkdir($poolDir, 0755, true);
@@ -559,7 +562,8 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 		// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
 		$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 		$baseName = sanitize_filename($baseName);
-		$targetFile = "$poolDir/$baseName.pdf";
+		$storedExt = $ext === 'xml' ? 'xml' : 'pdf';
+		$targetFile = "$poolDir/$baseName.$storedExt";
 		
 		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
 		$extractedData = null;
@@ -593,11 +597,11 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 				}
 			}
 		} else {
-			// For PDF files, move directly
+			// PDF and XML files are preserved unchanged.
 			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
-			// Extract data from PDF
+			// Extract data through AI for PDF or locally for UBL XML.
 			if ($autoExtract && file_exists($targetFile)) {
-				error_log("documents.php (block2): Calling extractInvoiceData for PDF: $targetFile");
+				error_log("documents.php (block2): Calling extractInvoiceData for document: $targetFile");
 				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
 				$extractedData = extractInvoiceData($targetFile, $invoiceId);
 				if ($extractedData) {
@@ -686,7 +690,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 				"kladde_id=$kladde_id"."&".
 				"bilag=$bilag"."&".
 				"fokus=$fokus"."&".
-				"poolFile=$baseName.pdf"."&".
+				"poolFile=$baseName.$storedExt"."&".
 				"docFolder=$docFolder"."&".
 				"sourceId=$sourceId"."&".
 				"source=$source";
