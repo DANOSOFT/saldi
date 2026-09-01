@@ -29,7 +29,6 @@ Severity is about money and data, not about how hard it is to hit:
 | P2-4 | P2 | `limit` reaches the SQL as a raw string on three endpoints | `products/index.php:30` +2 |
 | P2-5 | P2 | Two REST endpoints cannot execute at all | `dashboard/stats.php:16` +1 |
 | P2-6 | P2 | The product-groups endpoint always returns an empty list | `VareGruppeModel.php:233` |
-| P3-1 | P3 | `selext` typo makes a query a permanent no-op | `docsIncludes/updateCashDraft.php:25` |
 
 Every one of these was found by a test rather than by reading code.
 
@@ -427,23 +426,6 @@ so an API client cannot build a working create-a-product form.
 
 **Suggested fix:** resolve the year through `getFiscalYear()` like the other
 models.
-
----
-
-## P3-1 — `selext` typo makes a query a permanent no-op
-
-**Where:** `docsIncludes/updateCashDraft.php:25` and its duplicate
-`includes/docsIncludes/updateCashDraft.php:25`.
-
-```php
-$qtxt = "selext max(id) as sourceid from kassekladde where kladde_id = '$kladde_id'";
-```
-
-`selext` is not SQL. The query cannot ever have returned a row, so
-`$sourceid` has always been empty on this path — in two separate copies of the
-same file.
-
----
 
 ---
 
