@@ -26,6 +26,7 @@
 // 20240207 PHR Accounts was not shown if all was alligned, evet if alligned after $todate.
 // 20240411 PHR	'if (abs($y)' changed to 'if (abs($y) >= 0.01'
 // 20240529	PHR Unalignet account with sum = 0 was not shown
+// 20260818 LH	MB-15: quoted + urlencoded account-statement link so all kontonr are clickable
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit) {
@@ -261,7 +262,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$sum=$sum+$y;
 			$kontrolsum+=$kontrol;
 			print "<tr bgcolor=\"$linjebg\">";
-			print "<td><a href=rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$konto_fra&kilde_kto_til=$konto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kontonr[$x]&konto_til=$kontonr[$x]&submit=ok>";
+			# 20260818 MB-15: href was unquoted and kontonr not urlencoded - links broke for kontonr with spaces/special chars.
+			print "<td><a href=\"rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=".urlencode($konto_fra)."&kilde_kto_til=".urlencode($konto_til)."&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=".urlencode($kontonr[$x])."&konto_til=".urlencode($kontonr[$x])."&submit=ok\">";
 			print "<span title='Klik for detaljer'>$kontonr[$x]</span></a></td>";
 			print "<td>$pbs[$x]</td>";
 			print "<td>$firmanavn[$x]</td>";
