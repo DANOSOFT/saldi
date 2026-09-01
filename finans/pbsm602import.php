@@ -30,6 +30,7 @@
 // 20231023 PHR Combined recognition with invoice nummer for use with and without.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250613 PHR	Corrected error in chages made 20250130
+// 20260831 Sawaneh Corrected misplaced parenthesis in commented mb_convert_encoding line from 20250130
 
 @session_start();
 $s_id=session_id();
@@ -328,7 +329,7 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 	}
 	transaktion('begin');
 	for ($i=0;$i<count($linje);$i++) {
-#			$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
+#			$linje[$i]=trim(mb_convert_encoding($linje[$i], 'UTF-8', 'ISO-8859-1'));
 			if ($linje[$i] && substr($linje[$i],0,5)=='BS042') {
 				if (substr($linje[$i],13,4)=='0297') {
 					$skriv_linje[$y]=1;

@@ -62,24 +62,24 @@
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
 // 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
+// 20260827 Sawaneh create supplier: before insert the kontonr is re-checked across all arts, and a
+//                 number taken meanwhile (stale prefill or a debtor holding it) is replaced with a
+//                 fresh one from get_next_number, so no cross-art duplicate can be created (SST-753)
 
 @session_start();
 $s_id=session_id();
 
 ?>
-	<script type="text/javascript">
+<script type="text/javascript">
+	function serienummer(linje_id, antal) {
+		window.open("serienummer.php?linje_id=" + linje_id, "",
+			"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
+	}
 
-function serienummer(linje_id, antal) {
-	window.open("serienummer.php?linje_id=" + linje_id, "",
-		"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
-}
-
-function batch(linje_id, antal) {
-	window.open("batch.php?linje_id=" + linje_id, "",
-		"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
-}
-//
--->
+	function batch(linje_id, antal) {
+		window.open("batch.php?linje_id=" + linje_id, "",
+			"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
+	}
 </script>
 
 <!--<script type="text/javascript">
@@ -210,6 +210,10 @@ if (isset($_POST['create_creditor'])) {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$new_konto_id = $r['id'];
 	} else {
+		$qtxt = "select id from adresser where kontonr='$ny_kontonr'";
+		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$ny_kontonr = get_next_number('adresser', 'K');
+		}
 		$qtxt  = "insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,tlf,kontakt,email,cvrnr,gruppe,betalingsbet,betalingsdage,art,lukket) values ";
 		$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$tlf','$kontakt','$email','$cvrnr','$grp','$betalingsbet','$betalingsdage','K','')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);

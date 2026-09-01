@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 5.0.0 --- 2026-08-12 ---
+// --- includes/udskriv.php --- lap 5.0.0 --- 2026-09-01 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20260428 LOE added more options for 'DO' type and updated faktura navigation for pick list.
 // 20260512 LOE Updated the code to allow printing multiple files no matter the state of 'Use HTML / CSS for form generation-SD-490'
 // 20260812 MJ Valider returside til relative stier; undgaar open-redirect og XSS via JS/href-kontekst
+// 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
 
 @session_start();
 $s_id=session_id();
@@ -85,7 +86,10 @@ $returside = (function($s) {
     return '';
 })($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
-
+error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
+if ($art == 'R' && $id) {
+	$returside = "../debitor/rykker.php?rykker_id=" . (int)$id;
+}
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
 	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
@@ -400,7 +404,8 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				$url=str_replace("/includes/udskriv.php","",$url);
 				if ($_SERVER['HTTPS']) $url="s".$url;
 				$url="http".$url;
-				if ($art=='PO') $returside=$url."/debitor/pos_ordre.php";
+				if ($art=='R') $returside=$url."/debitor/rykker.php?rykker_id=".(int)$id;
+				elseif ($art=='PO') $returside=$url."/debitor/pos_ordre.php";
 				else $returside=$url."/debitor/ordre.php";
 				$url.="/temp/$ps_fil";
 				$printfil=end(explode('/', $ps_fil));
@@ -415,7 +420,8 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				print "<!--!";
 				system("lpr -P $ip ../temp/$ps_fil.pdf &");
 				print "--> \n";
-				if ($art=='PO') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/pos_ordre.php?id=$id\">";
+				if ($art=='R') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/rykker.php?rykker_id=$id\">";
+				elseif ($art=='PO') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/pos_ordre.php?id=$id\">";
 				else print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordre.php?id=$id\">";
 				exit;
 			} elseif ($udskriv_til=='fil') {
@@ -434,7 +440,9 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>"; 
 				if ($returside) {
-				 if (substr($art,0,1)=='K'){
+				 if ($art == 'R') {
+					$href = "../debitor/rykker.php?rykker_id=" . (int)$id;
+				 } elseif (substr($art,0,1)=='K'){
 					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside) . "\" accesskey=\"L\"";
 				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
 					$href = "../debitor/ordreliste.php";

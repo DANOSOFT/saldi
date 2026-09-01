@@ -62,12 +62,24 @@ if ($accountNr !== '' && $accountType !== '') {
 
 // Add search filter
 if ($search !== '') {
-    $baseWhere .= " AND (
-        CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%' 
-        OR adresser.firmanavn ILIKE '%$search_escaped%'
-        OR CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'
-        OR openpost.beskrivelse ILIKE '%$search_escaped%'
-    )";
+    $searchConds = array(
+        "CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%'",
+        "adresser.firmanavn ILIKE '%$search_escaped%'",
+        "CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'",
+        "openpost.beskrivelse ILIKE '%$search_escaped%'"
+    );
+    $amountSearch = str_replace(' ', '', $search);
+    if (strpos($amountSearch, ',') !== false) {
+        // Danish format: "2.985,00" -> "2985.00"
+        $amountSearch = str_replace('.', '', $amountSearch);
+        $amountSearch = str_replace(',', '.', $amountSearch);
+    }
+    if (preg_match('/^-?\d+(\.\d+)?$/', $amountSearch)) {
+        // Prefix match on the absolute amount, so "985" does not hit "2985,00"
+        $amountSearch_escaped = db_escape_string(ltrim($amountSearch, '-'));
+        $searchConds[] = "CAST(ABS(openpost.amount) AS TEXT) LIKE '$amountSearch_escaped%'";
+    }
+    $baseWhere .= " AND (" . implode(" OR ", $searchConds) . ")";
 }
 
 $countQuery = db_select("
@@ -134,15 +146,28 @@ if ($mode === 'open_post') {
             if ($matchCount > 0) $score += 30 + ($matchCount * 5);
         }
         
-        // 3. Invoice number contains any hint token
+        // 3. Invoice number contains any hint token or description word (mirrors client scoring)
         $faktnr = trim($row['faktnr']);
-        if ($faktnr && !empty($hintTokens)) {
+        if ($faktnr && (!empty($hintTokens) || !empty($descWords))) {
             $faktnrUpper = strtoupper($faktnr);
+            $invoiceHit = false;
             foreach ($hintTokens as $tok) {
-                if (strpos($faktnrUpper, $tok) !== false) {
-                    $score += 20;
+                if (strpos($faktnrUpper, (string)$tok) !== false) {
+                    $invoiceHit = true;
                     break;
                 }
+            }
+            if (!$invoiceHit) {
+                foreach ($descWords as $dw) {
+                    $dw = strtoupper((string)$dw);
+                    if (strlen($dw) >= 3 && strpos($faktnrUpper, $dw) !== false) {
+                        $invoiceHit = true;
+                        break;
+                    }
+                }
+            }
+            if ($invoiceHit) {
+                $score += 20;
             }
         }
         

@@ -33,6 +33,11 @@
 // 2020.11.07 PHR - Added controle for duplicates when displaying matching openposts 'distinct(openpost.id)'
 // 2026.05.14 LOE - General code cleanup and modernization; no functional changes intended.
 // 2026.05.19 CL/PHR Fixet problem that it did not find some openoposts.
+// 20260901 Sawaneh Initial load shows all open posts ranked by score instead of
+//                  filtering literally on the entry description.
+// 20260901 Sawaneh Review fixes: stale search responses are ignored, server
+//                  invoice scoring mirrors the client, amount search is a
+//                  prefix match on the absolute amount.
 
 @session_start();
 $s_id = session_id();
@@ -811,6 +816,7 @@ print "</tbody></table></td></tr></tbody></table>";
   let selectedIndex    = -1;
   let debounceTimer    = null;
   let autoSelected     = false;    // did we auto-pick a candidate?
+  let fetchSeq         = 0;        // guards against stale responses
 
   /* ── DOM ────────────────────────────────────────────────── */
   const searchInput   = document.getElementById('searchInput');
@@ -929,9 +935,11 @@ print "</tbody></table></td></tr></tbody></table>";
 
     setLoading();
 
+    const seq = ++fetchSeq;
     fetch(getSearchUrl(search, page))
       .then(r => r.json())
       .then(data => {
+        if (seq !== fetchSeq) return;   // a newer request superseded this one
         const raw   = (data.results || []).filter(c => !BRUGT.includes(String(c.faktnr)));
         candidates  = sortAndScore(raw);
         totalCount  = data.pagination ? data.pagination.total : candidates.length;
@@ -940,6 +948,7 @@ print "</tbody></table></td></tr></tbody></table>";
         autoSelectBest();
       })
       .catch(() => {
+        if (seq !== fetchSeq) return;
         candidateBody.innerHTML = '<tr><td colspan="6"><div class="state-msg">Error loading results. Please try again.</div></td></tr>';
       });
   }
@@ -1201,9 +1210,9 @@ print "</tbody></table></td></tr></tbody></table>";
   }
 
   /* ── Boot ────────────────────────────────────────────────── */
-  // fetchCandidates('', 1);
-  const initialSearch = BESKRIVELSE;   // the entry's description
-  fetchCandidates(initialSearch, 1);
+  // Load all open posts unfiltered; HINT_TOKENS/DESC_WORDS scoring ranks them.
+  // Using the raw description as a literal filter hides the real matches.
+  fetchCandidates('', 1);
 
 })();
 </script>
