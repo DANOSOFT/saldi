@@ -27,6 +27,7 @@
 // 20260827 CDX/PHR Restored supplier lookup for KO, including AJAX results.
 // 20260901 CL/LH Escape grid cell values before rendering (XSS) and pass
 //                 o_art=KO along on row select so supplier choice survives
+// 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
 
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
@@ -313,6 +314,8 @@ TOGGLESCRIPT;
 HTML;
 
     // ============ SD-338: Create new customer form ============
+    // Supplier lookups (KO) must not offer debtor creation
+    if ($o_art != 'KO') {
     // Store searched kontonr before we potentially replace it
     $searched_kontonr = $kontonr;
     $user_searched_for_kontonr = ($searched_kontonr > 0);
@@ -546,6 +549,7 @@ function validateCreateCustomer() {
 }
 </script>
 CREATEFORM;
+    }
     // ============ End of create new customer form ============
 
     if ($o_art == 'PO')
