@@ -95,7 +95,7 @@ if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['
 	if (move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
 		vis_data(find_file_charset($filnavn), $filnavn, $splitter, $feltnavn, 1);
 	} else {
-		print findtekst('5063|Der er sket en fejl under hentningen, prøv venligst igen', $sprog_id);
+		print findtekst('5084|Der er sket en fejl under hentningen, prøv venligst igen', $sprog_id);
 	}
 } elseif ((isset($_POST['vis']) || isset($_POST['import'])) && file_exists($filnavn)) {
 	if (!$file_charset) $file_charset = find_file_charset($filnavn);
@@ -104,7 +104,7 @@ if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['
 } else {
 	$qtxt = "select box1, box2, beskrivelse from grupper where art='RA' order by box2 desc,box1 desc";
 	if (!$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		alert(findtekst('5066|Der er ikke oprettet et regnskabsår', $sprog_id));
+		alert(findtekst('5087|Der er ikke oprettet et regnskabsår', $sprog_id));
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 		exit;
 	}
@@ -160,7 +160,7 @@ function tjek_kolonner($feltnavn, $feltantal) {
 	for ($y = 0; $y <= $feltantal; $y++) {
 		$navn = $feltnavn[$y] ?? '';
 		if ($navn && in_array($navn, $brugt)) {
-			alert(findtekst('5062|Der kan kun være 1 kolonne med', $sprog_id)." ".$navn);
+			alert(findtekst('5083|Der kan kun være 1 kolonne med', $sprog_id)." ".$navn);
 			$navn = '';
 		} elseif ($navn) {
 			$brugt[] = $navn;
@@ -259,7 +259,7 @@ function vis_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal) {
 			if (!$linje) continue;
 			$tjek = tjek_linje($linje, $file_charset, $splitTegn, $feltnavn, $feltantal, $kontonumre);
 			if ($tjek['fejl'] && !$advaret) {
-				alert(findtekst('5060|Røde linjer indeholder fejl og bliver ikke importeret', $sprog_id));
+				alert(findtekst('5081|Røde linjer indeholder fejl og bliver ikke importeret', $sprog_id));
 				$advaret = 1;
 			}
 			$farve = $tjek['fejl'] ? "#e00000" : "#000000";
@@ -282,7 +282,7 @@ function overfoer_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal
 
 	$feltnavn = tjek_kolonner($feltnavn, $feltantal);
 	if (!in_array('Kontonr', $feltnavn) || !in_array('Beskrivelse', $feltnavn) || !in_array('Kontotype', $feltnavn)) {
-		alert(findtekst('5064|Kontonr, Beskrivelse og Kontotype skal være valgt', $sprog_id));
+		alert(findtekst('5085|Kontonr, Beskrivelse og Kontotype skal være valgt', $sprog_id));
 		vis_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal);
 		return;
 	}
@@ -304,7 +304,7 @@ function overfoer_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal
 		fclose($fp);
 	}
 	if (!$linjer) {
-		alert(findtekst('5065|Ingen konti importeret - kontoplanen er uændret', $sprog_id));
+		alert(findtekst('5086|Ingen konti importeret - kontoplanen er uændret', $sprog_id));
 		vis_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal);
 		return;
 	}
@@ -327,7 +327,7 @@ function overfoer_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal
 	db_modify("update kontoplan set til_kto=kontonr where kontotype='Z' and regnskabsaar='$regnskabsaar'", __FILE__ . " linje " . __LINE__);
 	transaktion('commit');
 
-	if ($regnaar == 1 && round($balance, 2) != 0) alert(findtekst('5059|Åbningsbalance stemmer ikke - kontroller sum', $sprog_id));
-	else alert(count($linjer)." ".findtekst('5061|konti importeret - husk at overføre åbningstal', $sprog_id));
+	if ($regnaar == 1 && round($balance, 2) != 0) alert(findtekst('5080|Åbningsbalance stemmer ikke - kontroller sum', $sprog_id));
+	else alert(count($linjer)." ".findtekst('5082|konti importeret - husk at overføre åbningstal', $sprog_id));
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 }

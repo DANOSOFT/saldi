@@ -1089,7 +1089,7 @@ $custom_columns = array(
         "decimalPrecision" => 2,
         "searchable" => true,
         "render" => function ($value, $row, $column) use ($valg, &$ialt, &$ialt_m_moms, &$ialt_kostpris) {
-            global $genberegn;
+            global $genberegn, $sprog_id;
 
             if ($genberegn) {
                 $kostpris = genberegn($row['id']);
@@ -1979,6 +1979,7 @@ print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 
 
 // Shop order integration logic (ported from ordrelisteOld.php)
+$show_shop_link = false;
 if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
     $api_fil=trim($r['box4']);
     $api_fil2=trim($r['box5']);

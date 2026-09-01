@@ -33,6 +33,11 @@
 // 20260824 CL/NTR Track mit salg rows per cell in $hasMyLabelRow instead of one flag per print, and
 //                 reset the cell arrays per label, so each cell falls back individually and no data
 //                 leaks from the previous label on the sheet.
+// 20260826 CL/SZ  Printing a specific label (a plain item-card print, or one entry of a printIds
+//                 batch) now renders exactly one cell instead of the template's full rows x cols
+//                 sheet grid - only a real full-sheet ($page, no specific id) print still uses the
+//                 whole grid. Fixes a single-label print producing an extra, effectively blank
+//                 second label (MB-16).
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -97,8 +102,19 @@ if (($varenr || $stregkode) && (!$account || !$condition)) {
 $fp=fopen($filename,'w');
 fwrite ($fp, $top);
 for ($l=0;$l<count($labels);$l++) {
-	for ($a=1;$a<=$rows;$a++) {
-		for ($b=1;$b<=$cols;$b++) {
+	// $rows/$cols describe the physical sheet layout, meant to be filled with
+	// ONE mylabel row per (row,col) - see the $page branch below, the only one
+	// that legitimately populates more than cell (1,1). Printing a specific
+	// label ($labels[$l] set - a plain item-card print, or one entry of a
+	// printIds batch) must render exactly that one cell, not the whole sheet -
+	// otherwise every other cell in the grid renders with fallback/blank data
+	// nobody asked for (MB-16: a single-label print produced a second,
+	// effectively blank label). 20260826 CL/SZ.
+	$sheetPrint = (!$labels[$l] && $page && $account && $condition);
+	$cellRows = $sheetPrint ? $rows : 1;
+	$cellCols = $sheetPrint ? $cols : 1;
+	for ($a=1;$a<=$cellRows;$a++) {
+		for ($b=1;$b<=$cellCols;$b++) {
 			$barcode[$a][$b]=NULL;
 			$description[$a][$b]=NULL;
 			$price[$a][$b]=NULL;
@@ -178,8 +194,8 @@ for ($l=0;$l<count($labels);$l++) {
 		elseif ($varenr) $img=barcode($varenr);
 	}
 	if (!$brotherTD) fwrite ($fp, "<div id=\"main\">\n");
-	for ($a=1;$a<=$rows;$a++) {
-		for ($b=1;$b<=$cols;$b++) {
+	for ($a=1;$a<=$cellRows;$a++) {
+		for ($b=1;$b<=$cellCols;$b++) {
 			$labelTxt=$txt;
 			$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
 			# Uden mit salg data - et print uden konto - ville labelen komme ud tom, så

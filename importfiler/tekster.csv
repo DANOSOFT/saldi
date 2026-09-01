@@ -5056,12 +5056,32 @@
 5056	For at anvende CRM-systemet kræves det, at der er tilføjet ansatte under Stamdata i Indstillinger.<br>Gå til: System → Indstillinger → Stamdata for at tilføje ansatte.	Using the CRM system requires adding employees under Master Data in Settings.<br>Go to: System → Settings → Master Data to add employees.	For å bruke CRM-systemet må ansatte være lagt til under Stamdata i Innstillinger.<br>Gå til: System → Innstillinger → Stamdata for å legge til ansatte.
 5057	Du kan redigere den komplette HTML skabelon her. Brug variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. $beskrivelse og $pris henter altid varens egen.	You can edit the complete HTML template here. Use variables such as $varenr, $minbeskrivelse, $minpris, $img, etc. $minbeskrivelse and $minpris show the customer's own text and price from Mit salg and fall back to the item's own when printing without an account. $beskrivelse and $pris always take the item's own.	Du kan redigere hele HTML-malen her. Bruk variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mitt salg og faller tilbake til varens egen når det skrives ut uten konto. $beskrivelse og $pris henter alltid varens egen.
 5058	Salg pr. Postnr	Sales by postcode	Salg pr. postnr
-5059	Åbningsbalance stemmer ikke - kontroller sum	Opening balance does not balance - check the total	Åpningsbalansen stemmer ikke - kontroller sum
-5060	Røde linjer indeholder fejl og bliver ikke importeret	Red lines contain errors and will not be imported	Røde linjer inneholder feil og blir ikke importert
-5061	konti importeret - husk at overføre åbningstal	accounts imported - remember to transfer opening balances	kontoer importert - husk å overføre åpningstall
-5062	Der kan kun være 1 kolonne med	There can only be 1 column with	Det kan bare være 1 kolonne med
-5063	Der er sket en fejl under hentningen, prøv venligst igen	An error occurred during the upload, please try again	Det oppstod en feil under opplastingen, prøv igjen
-5064	Kontonr, Beskrivelse og Kontotype skal være valgt	Account no., Description and Account type must be selected	Kontonr, Beskrivelse og Kontotype må være valgt
-5065	Ingen konti importeret - kontoplanen er uændret	No accounts imported - the chart of accounts is unchanged	Ingen kontoer importert - kontoplanen er uendret
-5066	Der er ikke oprettet et regnskabsår	No fiscal year has been created	Det er ikke opprettet et regnskapsår
-
+5059	Datointerval:	Date range:	Datointervall:
+5060	dage omkring bilagsdatoen	days around the voucher date	dager rundt bilagsdatoen
+5061	Beløbstolerance:	Amount tolerance:	Beløpstoleranse:
+5062	Tillad afvigelse på 0,5 %	Allow deviation of 0.5 %	Tillat avvik på 0,5 %
+5063	Medtag allerede bogførte bilag	Include already posted vouchers	Ta med allerede bokførte bilag
+5064	Match	Match	Treff
+5065	100 % match	100 % match	100 % treff
+5066	Dato matcher	Date matches	Dato stemmer
+5067	Beløb matcher	Amount matches	Beløp stemmer
+5068	Viser $m resultater	Showing $m results	Viser $m resultater
+5069	Match valgte	Match selected	Match valgte
+5070	Nogle af de valgte matches er ikke 100 % sikre. Vil du fortsætte?	Some of the selected matches are not 100 % certain. Do you want to continue?	Noen av de valgte treffene er ikke 100 % sikre. Vil du fortsette?
+5071	Klik for at se bilaget	Click to see attachment	Klikk for å se vedlegget
+5072	Zoom ud	Zoom out	Zoom ut
+5073	Zoom ind	Zoom in	Zoom inn
+5074	Tilpas til bredde	Fit to width	Tilpass til bredde
+5075	Åbn i ny fane	Open in new tab	Åpne i ny fane
+5076	Formatet kan ikke forhåndsvises	This format cannot be previewed	Formatet kan ikke forhåndsvises
+5077	Kunne ikke indlæse dokumentet	Could not load the document	Kunne ikke laste dokumentet
+5078	Denne label indeholder formatering, som den visuelle editor ikke forstår, og kan derfor kun redigeres her som rå HTML - at gemme via den visuelle editor ville slette den formatering, den ikke kan vise. For at få adgang til den visuelle editor igen skal den rå HTML tømmes og gemmes.	This label contains formatting that the visual editor doesn't understand, so it can only be edited here as raw HTML - saving via the visual editor would delete the formatting it can't display. To regain access to the visual editor, clear the raw HTML and save.	Denne etiketten inneholder formatering som den visuelle editoren ikke forstår, og kan derfor bare redigeres her som rå HTML - å lagre via den visuelle editoren ville slette formateringen den ikke kan vise. For å få tilgang til den visuelle editoren igjen må den rå HTML-en tømmes og lagres.
+5079	Din ændring blev ikke gemt - denne labels skabelon er ændret siden siden blev indlæst (fx i en anden fane), og kan nu kun redigeres som rå HTML. Genindlæs siden og prøv igen.	Your change wasn't saved - this label's template has changed since the page was loaded (e.g. in another tab), and can now only be edited as raw HTML. Reload the page and try again.	Endringen din ble ikke lagret - denne etikettens mal er endret siden siden ble lastet (f.eks. i en annen fane), og kan nå bare redigeres som rå HTML. Last siden på nytt og prøv igjen.
+5080	Åbningsbalance stemmer ikke - kontroller sum	Opening balance does not balance - check the total	Åpningsbalansen stemmer ikke - kontroller sum
+5081	Røde linjer indeholder fejl og bliver ikke importeret	Red lines contain errors and will not be imported	Røde linjer inneholder feil og blir ikke importert
+5082	konti importeret - husk at overføre åbningstal	accounts imported - remember to transfer opening balances	kontoer importert - husk å overføre åpningstall
+5083	Der kan kun være 1 kolonne med	There can only be 1 column with	Det kan bare være 1 kolonne med
+5084	Der er sket en fejl under hentningen, prøv venligst igen	An error occurred during the upload, please try again	Det oppstod en feil under opplastingen, prøv igjen
+5085	Kontonr, Beskrivelse og Kontotype skal være valgt	Account no., Description and Account type must be selected	Kontonr, Beskrivelse og Kontotype må være valgt
+5086	Ingen konti importeret - kontoplanen er uændret	No accounts imported - the chart of accounts is unchanged	Ingen kontoer importert - kontoplanen er uendret
+5087	Der er ikke oprettet et regnskabsår	No fiscal year has been created	Det er ikke opprettet et regnskapsår

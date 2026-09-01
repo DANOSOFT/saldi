@@ -66,6 +66,15 @@
 // 20260812 Sawaneh Review: sync_shop_vare initialises the stock values before the lagerstatus lookup, so a
 //                 product without a row no longer warns or sends empty parameters, and __FILE__/__LINE__ are
 //                 no longer sent to the shop - they belong in the local log, not in the shop's access log
+// 20260815 CL/SZ Added moms_periode_luk_schema_status()/_ready()/_ensure_schema() -
+//                explicit, idempotent table/function/trigger health check + repair for
+//                the R5 periodelaasning migration (SD-646)
+// 20260827 Sawaneh get_next_number: debtors and creditors draw from one shared kontonr sequence
+//                 (highest number in use + 1, min 1000) instead of two independent first-free-gap
+//                 series, so a debtor and a creditor can no longer receive the same number and a
+//                 deleted account's number is never reused; kontonr above 8 digits (EAN-like
+//                 outliers) are ignored when finding the highest, and if the 8-digit range is
+//                 capped by an outlier the first number free in both series is used (SST-753)
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2124,27 +2133,43 @@ if (!function_exists('get_next_number')) {
 	function get_next_number($table, $art)
 	{
 		/**
-		 * Generates the next available account number (kontonr) for a given 'art' (type).
-		 * It checks the existing account numbers in the specified table and ensures the new number is unique.
-		 * 
+		 * Generates the next account number (kontonr) for a new debtor or creditor.
+		 * Debtors and creditors draw from one shared sequence: every kontonr in the table
+		 * is considered regardless of art, and the highest number in use plus one is
+		 * returned (minimum 1000). Numbers are never reused, so a deleted account's
+		 * number cannot be handed out again while historical orders and postings still
+		 * carry it, and a debtor and a creditor can no longer receive the same number.
+		 * Values above eight digits (EAN/GLN-like numbers stored as kontonr) are
+		 * ignored so a single outlier cannot push the sequence into the billions.
+		 * If the eight-digit range is already occupied at the top (an outlier stored
+		 * right at the cap), the first number unused by any art is returned instead,
+		 * so a usable number is always handed out and never a duplicate.
+		 *
 		 * @param string $table - The table name to search for existing account numbers.
-		 * @param string $art - The type/category associated with the account numbers.
-		 * 
-		 * @return int - The next available account number.
+		 * @param string $art - Unused; kept so existing callers keep working.
+		 *
+		 * @return int - The next account number.
 		 */
 
-		$x = 0;
-		$ktonr = array();
-		$qtxt = "select kontonr from $table where art='$art'";
+		$kontonr = 1000;
+		$brugt = array();
+		$qtxt = "select kontonr from $table";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$ktonr[$x] = $r['kontonr'];
-			$x++;
+			if (!is_numeric($r['kontonr'])) {
+				continue;
+			}
+			$nr = intval($r['kontonr']);
+			$brugt[$nr] = true;
+			if ($nr >= $kontonr && $nr <= 99999999) {
+				$kontonr = $nr + 1;
+			}
 		}
-		$kontonr = 1000;
-		while (in_array($kontonr, $ktonr)) {
-			$kontonr++;
-
+		if ($kontonr > 99999999) {
+			$kontonr = 1000;
+			while (isset($brugt[$kontonr])) {
+				$kontonr++;
+			}
 		}
 		return ($kontonr);
 	}
@@ -3040,6 +3065,126 @@ if (!function_exists('darkenColor')) {
         
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
+    }
+}
+
+if (!function_exists('moms_periode_luk_schema_status')) {
+    /**
+     * Independent existence check for each of the three DB objects the R5
+     * periodelaasning feature installs (SD-646): the moms_periode_luk table,
+     * the check_moms_periode_luk() PL/pgSQL function, and the
+     * tr_check_moms_periode_luk trigger on transaktioner. Gating solely on
+     * trigger existence (the original includes/betweenUpdates.php design)
+     * hides a partial install - e.g. the table created but the
+     * function/trigger step failing silently - from both the login-time
+     * repair and finans/moms_periode.php's own queries.
+     *
+     * @return array{table:bool, function:bool, trigger:bool}
+     */
+    function moms_periode_luk_schema_status() {
+        $table = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM information_schema.tables WHERE table_name = 'moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        $function = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM pg_proc WHERE proname = 'check_moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        $trigger = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM pg_trigger WHERE tgname = 'tr_check_moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        return ['table' => $table, 'function' => $function, 'trigger' => $trigger];
+    }
+}
+
+if (!function_exists('moms_periode_luk_schema_ready')) {
+    /** All three moms_periode_luk objects exist, i.e. period locking is actually enforced (SD-646). */
+    function moms_periode_luk_schema_ready() {
+        $s = moms_periode_luk_schema_status();
+        return $s['table'] && $s['function'] && $s['trigger'];
+    }
+}
+
+if (!function_exists('moms_periode_luk_ensure_schema')) {
+    /**
+     * Create whichever of the three moms_periode_luk objects are missing, in
+     * dependency order, and return the resulting status (SD-646). Safe to
+     * call on every login: idempotent, and a no-op once everything exists.
+     *
+     * Every write here uses raw pg_query(), not db_modify(): on failure
+     * db_modify() calls alert()+exit() outside webservice mode, which would
+     * abort the caller's whole request over a migration hiccup. A failed
+     * step here is logged instead and left for the next call to retry -
+     * that retry-on-next-login is the feature's whole self-healing design.
+     *
+     * @return array{table:bool, function:bool, trigger:bool}
+     */
+    function moms_periode_luk_ensure_schema() {
+        global $connection, $db;
+        $status = moms_periode_luk_schema_status();
+
+        if (!$status['table']) {
+            $ok = @pg_query($connection, "CREATE TABLE IF NOT EXISTS moms_periode_luk (
+                id               SERIAL PRIMARY KEY,
+                kalender_aar     INTEGER NOT NULL,
+                kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
+                status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
+                lukket_af        VARCHAR(100),
+                lukket_dato      TIMESTAMP,
+                aabnet_af        VARCHAR(100),
+                aabnet_dato      TIMESTAMP,
+                UNIQUE (kalender_aar, kalender_maaned)
+            )");
+            if ($ok) {
+                $status['table'] = true;
+            } else {
+                error_log("SD-646: moms_periode_luk table creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        if ($status['table'] && !$status['function']) {
+            // pg_query() bruges her for at omgaa injecttjek(): PL/pgSQL-kroppen
+            // indeholder semikolon uden for enkeltcitater, som injecttjek() ville
+            // fejlfortolke som injection.
+            $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
+            $fn .= "RETURNS TRIGGER AS \$\$ ";
+            $fn .= "BEGIN ";
+            $fn .= "    IF EXISTS ( ";
+            $fn .= "        SELECT 1 FROM moms_periode_luk ";
+            $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
+            $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
+            $fn .= "          AND status = 'closed' ";
+            $fn .= "    ) THEN ";
+            $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
+            $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
+            $fn .= "    END IF; ";
+            $fn .= "    RETURN NEW; ";
+            $fn .= "END; ";
+            $fn .= "\$\$ LANGUAGE plpgsql";
+            $ok = @pg_query($connection, $fn);
+            if ($ok) {
+                $status['function'] = true;
+            } else {
+                error_log("SD-646: check_moms_periode_luk() function creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        if ($status['function'] && !$status['trigger']) {
+            $ok = @pg_query(
+                $connection,
+                "CREATE TRIGGER tr_check_moms_periode_luk "
+                . "BEFORE INSERT OR UPDATE ON transaktioner "
+                . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()"
+            );
+            if ($ok) {
+                $status['trigger'] = true;
+            } else {
+                error_log("SD-646: tr_check_moms_periode_luk trigger creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        return $status;
     }
 }
 ?>
