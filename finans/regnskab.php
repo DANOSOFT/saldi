@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---finans/regnskab.php --- patch 5.0.0 --- 2026.05.19 ---
+// ---finans/regnskab.php --- patch 5.0.0 --- 2026.08.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,19 @@
 // 20250510 LOE Text id changed from 3072 to 2373
 // 20260312 PHR Division by zero
 // 20260519 CL/PHR @media print: skjul topbar, fjern højdebegrænsning på wrapper og sticky thead/tfoot så hele regnskabet udskrives
+// 20260828 CL/SZ SD-659: Fixed if_isset() calling convention at beregn_lager (array
+//                access evaluated before the helper ran, so it warned on every plain
+//                GET). Fixed $regnslut[$x][$z] string-offset indexing in the ultimo
+//                exchange-rate lookup - $regnslut is a scalar date (see :183/:342),
+//                never an array; the sibling $primokurs lookup a few hundred lines up
+//                (:236) already does this correctly against the scalar $regnstart.
+//                Verified against real valuta rows: the bug always fails to find a
+//                rate, so foreign-currency accounts' ultimo column showed the raw DKK
+//                amount unconverted instead of the currency-converted figure.
+//                NOTE: a separate, related off-by-one ($valkode[$x] vs $valkode[$y] at
+//                :199-200, in the same valuta-loading loop) still warns on any tenant
+//                with more than one historical rate per currency - out of scope here
+//                (ticket named only :72 and :530); filed as a follow-up.
 
 @session_start();
 $s_id=session_id();
@@ -69,7 +82,7 @@ print '<script src="../javascript/chart.js"></script>';
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
 : '../index/menu.php';
-$beregn_lager=if_isset($_POST['beregn_lager']);
+$beregn_lager=if_isset($_POST, NULL, 'beregn_lager');
 include_once '../includes/oldDesign/header.php';
 include_once '../includes/topline_settings.php';
 $finans = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"/></svg>';
@@ -527,7 +540,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 		$mdkurs = $tal = 0;
 		if ($kontovaluta[$x]) {
 			for ($y=0;$y<=count($valkode);$y++){
-				if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnslut[$x][$z]) {
+				if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnslut) {
 					$mdkurs=$valkurs[$y];
 					break 1;
 				}

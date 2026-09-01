@@ -60,6 +60,21 @@
 // -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
 // 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
 // 20260706 CX/PHR get_next_invoice_number uses SAVEPOINT when called inside an active transaction to avoid premature commit during invoice posting
+// 20260727 Sawaneh sync_shop_price/sync_shop_vare send shop updates with shopApiRequest() instead of backgrounded
+//                 shell curl/wget: exit status and http code are captured, failures are logged and returned,
+//                 item data is url-encoded so it can no longer reach the shell, and the shared curl.txt is gone
+// 20260812 Sawaneh Review: sync_shop_vare initialises the stock values before the lagerstatus lookup, so a
+//                 product without a row no longer warns or sends empty parameters, and __FILE__/__LINE__ are
+//                 no longer sent to the shop - they belong in the local log, not in the shop's access log
+// 20260815 CL/SZ Added moms_periode_luk_schema_status()/_ready()/_ensure_schema() -
+//                explicit, idempotent table/function/trigger health check + repair for
+//                the R5 periodelaasning migration (SD-646)
+// 20260827 Sawaneh get_next_number: debtors and creditors draw from one shared kontonr sequence
+//                 (highest number in use + 1, min 1000) instead of two independent first-free-gap
+//                 series, so a debtor and a creditor can no longer receive the same number and a
+//                 deleted account's number is never reused; kontonr above 8 digits (EAN-like
+//                 outliers) are ignored when finding the highest, and if the 8-digit range is
+//                 capped by an outlier the first number free in both series is used (SST-753)
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -67,6 +82,7 @@ include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
+include(__DIR__ . '/stdFunc/shopApiRequest.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -1725,6 +1741,8 @@ if(!function_exists("sync_shop_price")){
 	function sync_shop_price($vare_id){
 	  global $bruger_id,$db;
 	  $costPrice = 0;
+	  $shop_id = $rand = ''; # never assigned in this function, kept empty as in the original url
+	  $failed = 0;
 	  $log = fopen("../temp/$db/rest_api.log", "a");
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
@@ -1747,20 +1765,30 @@ if(!function_exists("sync_shop_price")){
 		$retailPrice = $r["retail_price"];
 		$webFragt = $r["colli_webfragt"];
 		$stregkode = $r["stregkode"];
-		$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-		fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-		shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-		if($api_fil2){
-		  $txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-		  fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-		  shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-		}
-		if($api_fil3){
-		  $txt = "$api_fil3?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-		  fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-		  shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+		$params = array(
+			'update_price' => $shop_id,
+			'salesPrice'   => $salesPrice,
+			'discountType' => $discountType,
+			'discount'     => $discount,
+			'itemNo'       => $itemNo,
+			'rand'         => $rand,
+			'costPrice'    => $costPrice,
+			'retailPrice'  => $retailPrice,
+			'webFragt'     => $webFragt,
+			'barcode'      => $stregkode,
+		);
+		foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+		  if (!$endpoint) {
+			continue;
+		  }
+		  $res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
+		  if (!$res['ok']) {
+			$failed++;
+		  }
 		}
 	  }
+	  fclose($log);
+	  return ($failed ? "sync errors: $failed" : 'OK');
 	}
   }
   
@@ -1769,6 +1797,7 @@ if (!function_exists('sync_shop_vare')) {
 	function sync_shop_vare($vare_id, $variant_id, $lager) {
 		global $bruger_id,$db,$regnaar;
 		$costPrice = 0;
+		$failed = 0;
 		$log = fopen("../temp/$db/rest_api.log", "a");
 		$qtxt = "select box4, box5, box6 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
@@ -1799,7 +1828,7 @@ if (!function_exists('sync_shop_vare')) {
 			return ('no stock');
 		}
 		
-		$header = "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+		$userAgent = "Mozilla/5.0 Gecko/20100101 Firefox/23.0";
 		if ($variant_id) {
 			$qtxt = "select shop_variant from shop_varer where saldi_variant='$variant_id'";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -1817,23 +1846,27 @@ if (!function_exists('sync_shop_vare')) {
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$costPrice = $r['kostpris'];
 			}
-			$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil?update_stock=$shop_id";
-			$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
-			fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-			exec("nohup $txt > /dev/null 2>&1 &\n");
-			if($api_fil2){
-				$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil2?update_stock=$shop_id";
-				$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
-				fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-				exec("nohup $txt > /dev/null 2>&1 &\n");
-			}
-			if($api_fil3){
-				$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil3?update_stock=$shop_id";
-				$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
-				fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-				exec("nohup $txt > /dev/null 2>&1 &\n");
+			$params = array(
+				'update_stock' => $shop_id,
+				'stock'        => $variant_beholdning,
+				'stockno'      => $lager,
+				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
+			);
+			foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+				if (!$endpoint) {
+					continue;
+				}
+				$res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_vare update_stock variant_id $variant_id", 'userAgent' => $userAgent));
+				if (!$res['ok']) {
+					$failed++;
+				}
 			}
 		} else {
+			# A product with no lagerstatus row for this warehouse leaves the query below
+			# without a result, so the values are initialised first. Otherwise php 8 warns
+			# about undefined variables and the sync url is built with them missing.
+			$stock = $itemNo = $itemNoAlias = $costPrice = '';
+			$totalStock = 0;
 			$qtxt = "select varer.varenr, varer.varenr_alias, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
 			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
 			// echo $qtxt;  // Debug line removed
@@ -1845,7 +1878,7 @@ if (!function_exists('sync_shop_vare')) {
 			} #$stock=$itemNo=NULL; #20210225
 			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$totalStock = $r['total_stock'];
+				$totalStock = (isset($r['total_stock']) && $r['total_stock'] !== null) ? $r['total_stock'] : 0;
 			}
 			$qtxt = "select shop_id from shop_varer where saldi_id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
@@ -1866,51 +1899,76 @@ if (!function_exists('sync_shop_vare')) {
 				$retailPrice = $r["retail_price"];
 				$webFragt = $r["colli_webfragt"];
 				$stregkode = $r["stregkode"];
-				$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-#if ($bruger_id == '-1') echo "$txt<br>";
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				if($api_fil2){
-					$txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				}
-				if($api_fil3){
-					$txt = "$api_fil3?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				$params = array(
+					'update_price' => $shop_id,
+					'salesPrice'   => $salesPrice,
+					'discountType' => $discountType,
+					'discount'     => $discount,
+					'itemNo'       => $itemNo,
+					'itemNoAlias'  => $itemNoAlias,
+					'rand'         => (isset($rand) ? $rand : ''),
+					'costPrice'    => $costPrice,
+					'retailPrice'  => $retailPrice,
+					'webFragt'     => $webFragt,
+					'barcode'      => $stregkode,
+				);
+				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+					if (!$endpoint) {
+						continue;
+					}
+					$res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_vare update_price vare_id $vare_id", 'userAgent' => $userAgent));
+					if (!$res['ok']) {
+						$failed++;
+					}
 				}
 			}
-			$stock = (int)$stock;
+			# lagerstatus.beholdning is numeric, so keep decimals - totalStock and variant stock
+			# are already sent undecimated. Default to 0 when the query above found no row.
+			$stock = (isset($stock) && $stock !== '' && $stock !== null) ? $stock : 0;
 
 			if ($itemNo) {
 				#			if (($shop_id || $itemNo) && is_numeric($stock)) {
 				$rand = rand();
-				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&skuAlias=" . urlencode("$itemNoAlias") . "&costPrice=$costPrice&rand=$rand";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				if($api_fil2){
-					$txt = "$api_fil2?sku=" . urlencode("$itemNo") . "&skuAlias=" . urlencode("$itemNoAlias") . "&costPrice=$costPrice&rand=$rand";
-					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				$skuParams = array(
+					'sku'       => $itemNo,
+					'skuAlias'  => $itemNoAlias,
+					'costPrice' => $costPrice,
+					'rand'      => $rand,
+				);
+				# api_fil3 is left out here as in the original code, this call never went to endpoint 3
+				foreach (array($api_fil, $api_fil2) as $endpoint) {
+					if (!$endpoint) {
+						continue;
+					}
+					$res = shopApiRequest($endpoint, $skuParams, $log, array('context' => "sync_shop_vare sku vare_id $vare_id", 'userAgent' => $userAgent));
+					if (!$res['ok']) {
+						$failed++;
+					}
 				}
-				$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-				$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				if($api_fil2){
-					$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-#if ($bruger_id == '-1') echo "$txt<br>";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				}
-				if($api_fil3){
-					$txt = "$api_fil3?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-#if ($bruger_id == '-1') echo "$txt<br>";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				$stockParams = array(
+					'update_stock' => $shop_id,
+					'stock'        => $stock,
+					'totalStock'   => $totalStock,
+					'stockno'      => $lager,
+					'costPrice'    => $costPrice,
+					'salesPrice'   => $salesPrice,
+					'discountType' => $discountType,
+					'discount'     => $discount,
+					'itemNo'       => $itemNo,
+					'itemNoAlias'  => $itemNoAlias,
+					'rand'         => $rand,
+					'retailPrice'  => $retailPrice,
+					'webFragt'     => $webFragt,
+					'barcode'      => $stregkode,
+				);
+				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+					if (!$endpoint) {
+						continue;
+					}
+					$res = shopApiRequest($endpoint, $stockParams, $log, array('context' => "sync_shop_vare update_stock vare_id $vare_id", 'userAgent' => $userAgent));
+					if (!$res['ok']) {
+						$failed++;
+					}
 				}
 				if ($partOfItem) {
 					$x = 0;
@@ -1943,48 +2001,41 @@ if (!function_exists('sync_shop_vare')) {
 						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
 						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $shop_id = $r['shop_id'];
 						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
-						$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-						$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
-						$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-						fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-						exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						if($api_fil2){
-#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
-							$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
-							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						}
-						if($api_fil3){
-#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
-							$txt = "$api_fil3?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
-							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						}
-						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-						shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						if($api_fil2){
-							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						}
-						if($api_fil3){
-							$txt = "$api_fil3?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						$partStockParams = array(
+							'update_stock' => $shop_id,
+							'stock'        => $stock,
+							'totalStock'   => $totalStock,
+							'stockno'      => $lager,
+							'costPrice'    => $costPrice,
+							'itemNo'       => $productNo,
+							'itemNoAlias'  => $productNoAlias,
+							'sku'          => $productNo,
+							'skuAlias'     => $productNoAlias,
+						);
+						$partCostParams = array(
+							'costPrice' => $costPrice,
+							'sku'       => $productNo,
+							'skuAlias'  => $productNoAlias,
+						);
+						foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+							if (!$endpoint) {
+								continue;
+							}
+							$res = shopApiRequest($endpoint, $partStockParams, $log, array('context' => "sync_shop_vare update_stock part vare_id $partOf[$x]", 'userAgent' => $userAgent));
+							if (!$res['ok']) {
+								$failed++;
+							}
+							$res = shopApiRequest($endpoint, $partCostParams, $log, array('context' => "sync_shop_vare costPrice part vare_id $partOf[$x]", 'userAgent' => $userAgent));
+							if (!$res['ok']) {
+								$failed++;
+							}
 						}
 					}
 				}
 			}
 		}
-		return ('OK');
+		fclose($log);
+		return ($failed ? "sync errors: $failed" : 'OK');
 	}
 } #endfunc sync_shop_vare()
 
@@ -2082,27 +2133,43 @@ if (!function_exists('get_next_number')) {
 	function get_next_number($table, $art)
 	{
 		/**
-		 * Generates the next available account number (kontonr) for a given 'art' (type).
-		 * It checks the existing account numbers in the specified table and ensures the new number is unique.
-		 * 
+		 * Generates the next account number (kontonr) for a new debtor or creditor.
+		 * Debtors and creditors draw from one shared sequence: every kontonr in the table
+		 * is considered regardless of art, and the highest number in use plus one is
+		 * returned (minimum 1000). Numbers are never reused, so a deleted account's
+		 * number cannot be handed out again while historical orders and postings still
+		 * carry it, and a debtor and a creditor can no longer receive the same number.
+		 * Values above eight digits (EAN/GLN-like numbers stored as kontonr) are
+		 * ignored so a single outlier cannot push the sequence into the billions.
+		 * If the eight-digit range is already occupied at the top (an outlier stored
+		 * right at the cap), the first number unused by any art is returned instead,
+		 * so a usable number is always handed out and never a duplicate.
+		 *
 		 * @param string $table - The table name to search for existing account numbers.
-		 * @param string $art - The type/category associated with the account numbers.
-		 * 
-		 * @return int - The next available account number.
+		 * @param string $art - Unused; kept so existing callers keep working.
+		 *
+		 * @return int - The next account number.
 		 */
 
-		$x = 0;
-		$ktonr = array();
-		$qtxt = "select kontonr from $table where art='$art'";
+		$kontonr = 1000;
+		$brugt = array();
+		$qtxt = "select kontonr from $table";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$ktonr[$x] = $r['kontonr'];
-			$x++;
+			if (!is_numeric($r['kontonr'])) {
+				continue;
+			}
+			$nr = intval($r['kontonr']);
+			$brugt[$nr] = true;
+			if ($nr >= $kontonr && $nr <= 99999999) {
+				$kontonr = $nr + 1;
+			}
 		}
-		$kontonr = 1000;
-		while (in_array($kontonr, $ktonr)) {
-			$kontonr++;
-
+		if ($kontonr > 99999999) {
+			$kontonr = 1000;
+			while (isset($brugt[$kontonr])) {
+				$kontonr++;
+			}
 		}
 		return ($kontonr);
 	}
@@ -2998,6 +3065,126 @@ if (!function_exists('darkenColor')) {
         
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
+    }
+}
+
+if (!function_exists('moms_periode_luk_schema_status')) {
+    /**
+     * Independent existence check for each of the three DB objects the R5
+     * periodelaasning feature installs (SD-646): the moms_periode_luk table,
+     * the check_moms_periode_luk() PL/pgSQL function, and the
+     * tr_check_moms_periode_luk trigger on transaktioner. Gating solely on
+     * trigger existence (the original includes/betweenUpdates.php design)
+     * hides a partial install - e.g. the table created but the
+     * function/trigger step failing silently - from both the login-time
+     * repair and finans/moms_periode.php's own queries.
+     *
+     * @return array{table:bool, function:bool, trigger:bool}
+     */
+    function moms_periode_luk_schema_status() {
+        $table = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM information_schema.tables WHERE table_name = 'moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        $function = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM pg_proc WHERE proname = 'check_moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        $trigger = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM pg_trigger WHERE tgname = 'tr_check_moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        return ['table' => $table, 'function' => $function, 'trigger' => $trigger];
+    }
+}
+
+if (!function_exists('moms_periode_luk_schema_ready')) {
+    /** All three moms_periode_luk objects exist, i.e. period locking is actually enforced (SD-646). */
+    function moms_periode_luk_schema_ready() {
+        $s = moms_periode_luk_schema_status();
+        return $s['table'] && $s['function'] && $s['trigger'];
+    }
+}
+
+if (!function_exists('moms_periode_luk_ensure_schema')) {
+    /**
+     * Create whichever of the three moms_periode_luk objects are missing, in
+     * dependency order, and return the resulting status (SD-646). Safe to
+     * call on every login: idempotent, and a no-op once everything exists.
+     *
+     * Every write here uses raw pg_query(), not db_modify(): on failure
+     * db_modify() calls alert()+exit() outside webservice mode, which would
+     * abort the caller's whole request over a migration hiccup. A failed
+     * step here is logged instead and left for the next call to retry -
+     * that retry-on-next-login is the feature's whole self-healing design.
+     *
+     * @return array{table:bool, function:bool, trigger:bool}
+     */
+    function moms_periode_luk_ensure_schema() {
+        global $connection, $db;
+        $status = moms_periode_luk_schema_status();
+
+        if (!$status['table']) {
+            $ok = @pg_query($connection, "CREATE TABLE IF NOT EXISTS moms_periode_luk (
+                id               SERIAL PRIMARY KEY,
+                kalender_aar     INTEGER NOT NULL,
+                kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
+                status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
+                lukket_af        VARCHAR(100),
+                lukket_dato      TIMESTAMP,
+                aabnet_af        VARCHAR(100),
+                aabnet_dato      TIMESTAMP,
+                UNIQUE (kalender_aar, kalender_maaned)
+            )");
+            if ($ok) {
+                $status['table'] = true;
+            } else {
+                error_log("SD-646: moms_periode_luk table creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        if ($status['table'] && !$status['function']) {
+            // pg_query() bruges her for at omgaa injecttjek(): PL/pgSQL-kroppen
+            // indeholder semikolon uden for enkeltcitater, som injecttjek() ville
+            // fejlfortolke som injection.
+            $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
+            $fn .= "RETURNS TRIGGER AS \$\$ ";
+            $fn .= "BEGIN ";
+            $fn .= "    IF EXISTS ( ";
+            $fn .= "        SELECT 1 FROM moms_periode_luk ";
+            $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
+            $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
+            $fn .= "          AND status = 'closed' ";
+            $fn .= "    ) THEN ";
+            $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
+            $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
+            $fn .= "    END IF; ";
+            $fn .= "    RETURN NEW; ";
+            $fn .= "END; ";
+            $fn .= "\$\$ LANGUAGE plpgsql";
+            $ok = @pg_query($connection, $fn);
+            if ($ok) {
+                $status['function'] = true;
+            } else {
+                error_log("SD-646: check_moms_periode_luk() function creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        if ($status['function'] && !$status['trigger']) {
+            $ok = @pg_query(
+                $connection,
+                "CREATE TRIGGER tr_check_moms_periode_luk "
+                . "BEFORE INSERT OR UPDATE ON transaktioner "
+                . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()"
+            );
+            if ($ok) {
+                $status['trigger'] = true;
+            } else {
+                error_log("SD-646: tr_check_moms_periode_luk trigger creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        return $status;
     }
 }
 ?>
