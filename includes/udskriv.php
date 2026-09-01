@@ -43,6 +43,8 @@
 // 20260512 LOE Updated the code to allow printing multiple files no matter the state of 'Use HTML / CSS for form generation-SD-490'
 // 20260812 MJ Valider returside til relative stier; undgaar open-redirect og XSS via JS/href-kontekst
 // 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
+// 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
+//             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
 
 @session_start();
 $s_id=session_id();
@@ -101,7 +103,7 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
         echo "<script>
                 alert('ERROR: pdftk is not installed. Please install pdftk first.');
                 setTimeout(function() {
-                    window.location.href = <?= json_encode($returside) ?>;
+                    window.location.href = " . json_encode($returside) . ";
                 }, 1000); // 1 second delay
               </script>";
         exit();
@@ -486,7 +488,11 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			}
 			print exit;
 
-		} else print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+		} else {
+			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
+			print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+			print "<p><a href=\"$fejl_retur\">" . findtekst('2172|Luk', $sprog_id) . "</a></p>";
+		}
 	}
   if ($valg=="printer") {
     system ("$r[box1] ../temp/$ps_fil");
