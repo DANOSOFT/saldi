@@ -62,12 +62,23 @@ if ($accountNr !== '' && $accountType !== '') {
 
 // Add search filter
 if ($search !== '') {
-    $baseWhere .= " AND (
-        CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%' 
-        OR adresser.firmanavn ILIKE '%$search_escaped%'
-        OR CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'
-        OR openpost.beskrivelse ILIKE '%$search_escaped%'
-    )";
+    $searchConds = array(
+        "CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%'",
+        "adresser.firmanavn ILIKE '%$search_escaped%'",
+        "CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'",
+        "openpost.beskrivelse ILIKE '%$search_escaped%'"
+    );
+    $amountSearch = str_replace(' ', '', $search);
+    if (strpos($amountSearch, ',') !== false) {
+        // Danish format: "2.985,00" -> "2985.00"
+        $amountSearch = str_replace('.', '', $amountSearch);
+        $amountSearch = str_replace(',', '.', $amountSearch);
+    }
+    if (preg_match('/^-?\d+(\.\d+)?$/', $amountSearch)) {
+        $amountSearch_escaped = db_escape_string($amountSearch);
+        $searchConds[] = "CAST(openpost.amount AS TEXT) ILIKE '%$amountSearch_escaped%'";
+    }
+    $baseWhere .= " AND (" . implode(" OR ", $searchConds) . ")";
 }
 
 $countQuery = db_select("

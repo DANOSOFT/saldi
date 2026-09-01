@@ -33,6 +33,8 @@
 // 2020.11.07 PHR - Added controle for duplicates when displaying matching openposts 'distinct(openpost.id)'
 // 2026.05.14 LOE - General code cleanup and modernization; no functional changes intended.
 // 2026.05.19 CL/PHR Fixet problem that it did not find some openoposts.
+// 20260901 Sawaneh Initial load shows all open posts ranked by score instead of
+//                  filtering literally on the entry description.
 
 @session_start();
 $s_id = session_id();
@@ -1201,9 +1203,9 @@ print "</tbody></table></td></tr></tbody></table>";
   }
 
   /* ── Boot ────────────────────────────────────────────────── */
-  // fetchCandidates('', 1);
-  const initialSearch = BESKRIVELSE;   // the entry's description
-  fetchCandidates(initialSearch, 1);
+  // Load all open posts unfiltered; HINT_TOKENS/DESC_WORDS scoring ranks them.
+  // Using the raw description as a literal filter hides the real matches.
+  fetchCandidates('', 1);
 
 })();
 </script>
