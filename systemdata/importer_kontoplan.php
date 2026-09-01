@@ -33,6 +33,10 @@
 //                  and import; charset, separator and column names whitelisted before use in SQL.
 // 20260827 Sawaneh JOB-086 review: cookie set before online.php sends output; preview field count
 //                  follows the chosen separator; non-numeric opening balances flag the row as error.
+// 20260828 Sawaneh JOB-086 review 2: a VAT code needs a digit after S/K/E/Y (bare 'S' was accepted);
+//                  quotes are only stripped when both ends carry the same quote character; a stale
+//                  cookie separator that does not occur in a freshly uploaded file loses to the
+//                  detected one, so the preview is not garbled by the previous import's choice.
 
 @session_start();
 $s_id=session_id();
@@ -138,6 +142,20 @@ function find_file_charset($filnavn) {
 	return mb_check_encoding(file_get_contents($filnavn), 'UTF-8') ? 'UTF-8' : 'ISO-8859-15';
 }
 
+/**
+ * Removes one pair of enclosing quotes, but only when both ends carry the same
+ * quote character - a value that genuinely starts or ends with a quote or an
+ * apostrophe (an item name ending in a prime mark) must come through unchanged.
+ */
+function fjern_citationstegn($value) {
+	$value = trim((string)$value);
+	$len = strlen($value);
+	if ($len >= 2 && ($value[0] == '"' || $value[0] == "'") && $value[$len - 1] == $value[0]) {
+		$value = trim(substr($value, 1, $len - 2));
+	}
+	return $value;
+}
+
 function find_splitter($filnavn) {
 	global $splitters;
 
@@ -183,16 +201,16 @@ function tjek_linje($linje, $file_charset, $splitTegn, $feltnavn, $feltantal, &$
 	$felt = explode($splitTegn, $linje);
 	$kontotyper = array("H", "D", "S", "Z", "R");
 	$typeKolonne = array_search('Kontotype', $feltnavn);
-	$kontotype = ($typeKolonne === false) ? '' : trim(trim($felt[$typeKolonne] ?? ''), "\"'");
+	$kontotype = ($typeKolonne === false) ? '' : fjern_citationstegn($felt[$typeKolonne] ?? '');
 	for ($y = 0; $y <= $feltantal; $y++) {
-		$felt[$y] = trim(trim($felt[$y] ?? ''), "\"'");
+		$felt[$y] = fjern_citationstegn($felt[$y] ?? '');
 		$navn = $feltnavn[$y] ?? '';
 		if ($navn == 'Kontonr') {
 			if (!ctype_digit($felt[$y]) || in_array($felt[$y], $kontonumre)) $fejl = 1;
 			else $kontonumre[] = $felt[$y];
 		} elseif ($navn == 'Kontotype' && !in_array($felt[$y], $kontotyper)) {
 			$fejl = 1;
-		} elseif ($navn == 'Moms' && $felt[$y] && !preg_match('/^[SKEY][0-9]*$/', $felt[$y])) {
+		} elseif ($navn == 'Moms' && $felt[$y] && !preg_match('/^[SKEY][0-9]+$/', $felt[$y])) {
 			$fejl = 1;
 		} elseif ($navn == 'Fra_kto') {
 			if (!$felt[$y] || ($kontotype != 'Z' && $kontotype != 'R')) $felt[$y] = '0';
@@ -212,7 +230,11 @@ function vis_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal) {
 	global $charset, $charsets, $splitters, $kolonner, $regnaar, $sprog_id;
 
 	list($fundet, $antal) = find_splitter($filnavn);
-	if (!$splitter) $splitter = $fundet;
+	# The splitter can come from the saldi_kto_imp cookie of an earlier import. When it was
+	# not chosen in this request and does not occur in this file, the detected one wins -
+	# otherwise a tab file after a semicolon import renders with the stale separator's count.
+	$splitterValgt = isset($_POST['splitter']);
+	if (!$splitter || (!$splitterValgt && empty($antal[$splitter]))) $splitter = $fundet;
 	if (!empty($antal[$splitter])) $feltantal = $antal[$splitter];
 	$cols = $feltantal + 1;
 	$feltnavn = tjek_kolonner($feltnavn, $feltantal);
