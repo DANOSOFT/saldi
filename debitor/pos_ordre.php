@@ -102,6 +102,8 @@
 // 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
 // 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
 // 20260707 MJ Add kasse to form action URL so drawer kasse is preserved on POST; restore commented-out drawer redirect in aabn_skuffe
+// 20260901 CL/LH opdater_konto: validated o_art mode from lookup row click; KO loads creditor
+//                 accounts only, and a missing/wrong-art account no longer wipes the order
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -932,9 +934,10 @@ if (!$kontonr)
 	$kontonr = '0';
 if (!$konto_id)
 	$konto_id = if_isset($_GET['konto_id']);
+$opslag_art = (if_isset($_GET, '', 'o_art') == 'KO') ? 'KO' : 'PO'; # validated lookup mode from account lookup row click
 if ($konto_id || $kontonr) {
 	$konto_id = (int)$konto_id;
-	$id = opdater_konto($konto_id, $kontonr, $id);
+	$id = opdater_konto($konto_id, $kontonr, $id, $opslag_art);
 	$r = db_fetch_array(db_select("select momssats,sum,betalt,betalingsbet from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 	$betalingsbet = $r['betalingsbet'];
 	$momssats = (float) $r['momssats'];
@@ -2362,7 +2365,7 @@ function indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling){
 } # function indbetaling
 
 
-function opdater_konto($konto_id, $kontonr, $id) {
+function opdater_konto($konto_id, $kontonr, $id, $o_art = 'PO') {
 	#Opdaterer kontoinformation på ordren
 	global $baseCurrency, $db, $kasse;
 	global $kundeordnr;
@@ -2374,10 +2377,17 @@ function opdater_konto($konto_id, $kontonr, $id) {
 	$r = db_fetch_array(db_select("select status from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 	$status = $r['status'];
 	if ($status < 3) {
-		if ($konto_id)
-			$r = db_fetch_array(db_select("select * from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
-		else
-			$r = db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__));
+		# In supplier lookup mode (KO) only accept creditor accounts
+		if ($konto_id) {
+			$art_filter = ($o_art == 'KO') ? " and art = 'K'" : "";
+			$r = db_fetch_array(db_select("select * from adresser where id = '$konto_id'$art_filter", __FILE__ . " linje " . __LINE__));
+		} else {
+			$adr_art = ($o_art == 'KO') ? 'K' : 'D';
+			$r = db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art = '$adr_art'", __FILE__ . " linje " . __LINE__));
+		}
+		if (!$r || !$r['id']) {
+			return ($id); # unknown or wrong-art account: leave the order untouched
+		}
 		$konto_id = $r['id'];
 		if ($r['lukket']) {
 			$betalingsbet = 'Kontant';

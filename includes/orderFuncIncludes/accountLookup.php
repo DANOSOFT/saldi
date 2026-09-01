@@ -25,6 +25,8 @@
 // -----------------------------------------------------------
 
 // 20260827 CDX/PHR Restored supplier lookup for KO, including AJAX results.
+// 20260901 CL/LH Escape grid cell values before rendering (XSS) and pass
+//                 o_art=KO along on row select so supplier choice survives
 
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
@@ -248,14 +250,29 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 
     // Add custom renderer for clickable rows
     foreach ($columns as &$column) {
-        $column['render'] = function ($value, $row, $column) use ($href, $id, $o_art) {
+        $column['render'] = function ($value, $row, $column) use ($href, $id, $o_art, $grid_id) {
             $style = "text-align: {$column['align']}; cursor: pointer;";
             $fokus = 'kontonr';
 
+            // $value may already carry the grid's highlight markup, so rebuild
+            // from the raw row value: escape first, then re-apply the highlight
+            $field = $column['field'];
+            $safe = htmlspecialchars(isset($row[$field]) ? (string) $row[$field] : '');
+            $term = isset($_GET['search'][$grid_id][$field]) ? trim((string) $_GET['search'][$grid_id][$field]) : '';
+            if ($term !== '') {
+                $safe = preg_replace_callback(
+                    '/' . preg_quote(htmlspecialchars($term), '/') . '/iu',
+                    function ($match) {
+                        return '<span style="background-color:#FF0">' . $match[0] . '</span>';
+                    },
+                    $safe
+                );
+            }
+
             // Make the entire row clickable to select the account
-            $onclick = "selectAccount{$id}( '" . $fokus . "', '{$row['id']}')";
-            
-            return "<td style='$style' onclick=\"$onclick\">$value</td>";
+            $onclick = "selectAccount{$id}( '" . $fokus . "', '" . (int) $row['id'] . "')";
+
+            return "<td style='$style' onclick=\"$onclick\">$safe</td>";
         };
     }
 
@@ -286,10 +303,11 @@ TOGGLESCRIPT;
     $rows = create_datagrid($grid_id, $grid_data);
 
     // account selection JavaScript
+    $o_art_param = ($o_art == 'KO') ? "&o_art=KO" : "";
     echo <<<HTML
     <script>
     function selectAccount{$id}(fokus, konto_id) {
-        window.location.href = "$href?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
+        window.location.href = "$href?id=$id&fokus=" + fokus + "&konto_id=" + konto_id + "$o_art_param";
     }
     </script>
 HTML;

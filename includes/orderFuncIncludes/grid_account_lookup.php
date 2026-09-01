@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20260513 CL/PHR Solved double order creation problem
 // 20260827 CDX/PHR Preserve KO in supplier lookup AJAX and POS navigation.
+// 20260901 CL/LH Pass o_art=KO along on AJAX row click so supplier choice survives
 
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -1599,6 +1600,8 @@ function render_ajax_search_script($id) {
         $fokus = 'kontonr';
     }
 
+    $o_art_param = ($o_art_global === 'KO') ? '&o_art=KO' : '';
+
     echo <<<SCRIPT
     <script>
     // ── state ────────────────────────────────────────────────────────────────
@@ -1757,7 +1760,7 @@ function render_ajax_search_script($id) {
         var html = '';
         data.forEach(function(row, index) {
             var rowColor    = (index % 2 === 0) ? '{$bgcolor}' : '{$bgcolor5}';
-            var redirectUrl = '{$href}?fokus=kontonr&id={$ordre_id}&konto_id=' + (row.id || '');
+            var redirectUrl = '{$href}?fokus=kontonr&id={$ordre_id}&konto_id=' + (row.id || '') + '{$o_art_param}';
 
             html += '<tr style="background-color:' + rowColor + ';cursor:pointer;"' +
                     ' onclick="window.location.href=\'' + redirectUrl + '\'"' +
