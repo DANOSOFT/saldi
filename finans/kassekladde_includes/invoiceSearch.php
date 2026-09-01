@@ -75,8 +75,9 @@ if ($search !== '') {
         $amountSearch = str_replace(',', '.', $amountSearch);
     }
     if (preg_match('/^-?\d+(\.\d+)?$/', $amountSearch)) {
-        $amountSearch_escaped = db_escape_string($amountSearch);
-        $searchConds[] = "CAST(openpost.amount AS TEXT) ILIKE '%$amountSearch_escaped%'";
+        // Prefix match on the absolute amount, so "985" does not hit "2985,00"
+        $amountSearch_escaped = db_escape_string(ltrim($amountSearch, '-'));
+        $searchConds[] = "CAST(ABS(openpost.amount) AS TEXT) LIKE '$amountSearch_escaped%'";
     }
     $baseWhere .= " AND (" . implode(" OR ", $searchConds) . ")";
 }
@@ -145,15 +146,28 @@ if ($mode === 'open_post') {
             if ($matchCount > 0) $score += 30 + ($matchCount * 5);
         }
         
-        // 3. Invoice number contains any hint token
+        // 3. Invoice number contains any hint token or description word (mirrors client scoring)
         $faktnr = trim($row['faktnr']);
-        if ($faktnr && !empty($hintTokens)) {
+        if ($faktnr && (!empty($hintTokens) || !empty($descWords))) {
             $faktnrUpper = strtoupper($faktnr);
+            $invoiceHit = false;
             foreach ($hintTokens as $tok) {
-                if (strpos($faktnrUpper, $tok) !== false) {
-                    $score += 20;
+                if (strpos($faktnrUpper, (string)$tok) !== false) {
+                    $invoiceHit = true;
                     break;
                 }
+            }
+            if (!$invoiceHit) {
+                foreach ($descWords as $dw) {
+                    $dw = strtoupper((string)$dw);
+                    if (strlen($dw) >= 3 && strpos($faktnrUpper, $dw) !== false) {
+                        $invoiceHit = true;
+                        break;
+                    }
+                }
+            }
+            if ($invoiceHit) {
+                $score += 20;
             }
         }
         
