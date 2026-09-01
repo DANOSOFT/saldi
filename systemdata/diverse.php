@@ -99,7 +99,7 @@
 //                 table that lager/labelprint.php prints from, and new labels get account_id 0.
 // 20260824 CL/NTR Label deletion only removes global rows (account_id 0 or null), matching what the
 //                 label editor shows.
-
+// 20260826 LOE Added a new setting to hide revenue on ordreliste for users based on the db who don't want to see it.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -651,7 +651,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
 		
 		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
-
+		$hideRevenueOnOrdreliste = if_isset($_POST, null, 'hideRevenueOnOrdreliste'); 
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
@@ -664,6 +664,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("ourRefStockSwitch", "ordre", $ourRefStockSwitch, "Update order stock/warehouse from Our ref when the reference changes"); // Removed single quotes from description to avoid SQL syntax error
 		update_settings_value("stockWarningEnabled", "ordre", $stockWarningEnabled, "Show popup and require approval note when selling out-of-stock items (POS + Debtor/Order)");
 		update_settings_value("showBothAddrExtra", "ordre", $showBothAddrExtra, "Show both delivery address and extra fields simultaneously on open orders");
+		update_settings_value("hideRevenueOnOrdreliste", "ordreliste", $hideRevenueOnOrdreliste, "Hide revenue on order list");
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
 		} elseif ($box2) {
