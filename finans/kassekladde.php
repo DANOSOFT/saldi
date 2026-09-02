@@ -3589,6 +3589,18 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		$debet = trim($debet);
 		$kredit = trim($kredit);
+		// 20260902 CL/LH  L4 finding adversarial-numbers DEVY-2: "1234.56" typed in Beløb was stored
+		// as 123456,00 because usdecimal() treats every "." as a thousands separator. Reject any
+		// amount that is not unambiguous Danish format before it reaches usdecimal(), the same way
+		// an unknown account rejects the line ("Kladden er IKKE gemt").
+		if (!$fejl && $bilag != "-" && !dk_amount_is_valid($belob)) {
+			$txt1 = findtekst('5080|Beløbet', $sprog_id); // Beløbet
+			$txt2 = findtekst('5081|er ikke et gyldigt beløb - brug komma som decimaltegn, fx 1.234,56 (Bilag nr', $sprog_id);
+			$txt3 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
+			$alerttekst = addslashes($txt1 . " " . trim((string)$belob) . " " . $txt2 . " " . $bilag . $txt3);
+			alert($alerttekst);
+			$fejl = 1;
+		}
 		if (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {
 			if ((!$bilag) && ($bilag != '0')) $bilag = $prebilag;
 			if (!$bilag) $bilag = '0';
