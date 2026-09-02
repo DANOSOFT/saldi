@@ -196,27 +196,17 @@ list($a,$b)=explode(":",$varegruppe);
 // the 4 candidate queries below runs, so a real Jira ticket key/description search actually narrows
 // this report instead of only filtering by Varegruppe/Lager/Dato.
 $vareSearchSql = "";
-if ($varenrSoeg && $varenrSoeg != '*') {
-	if (strstr($varenrSoeg, "*")) {
-		if (substr($varenrSoeg,0,1)=='*') $varenrSoeg="%".substr($varenrSoeg,1);
-		if (substr($varenrSoeg,-1,1)=='*') $varenrSoeg=substr($varenrSoeg,0,strlen($varenrSoeg)-1)."%";
-	} else {
-		// MB-31/CodeRabbit - no explicit '*' anchor still needs to match as a substring, same as
-		// every other per-column search box in this grid row (e.g. Enhed just below).
-		$varenrSoeg = "%".$varenrSoeg."%";
-	}
+if ($varenrSoeg) {
+	// MB-31 - always a plain substring match, same as every other per-column search box in this
+	// grid row and in the ordreliste.php sample - no special '*' wildcard syntax to remember.
+	$varenrSoeg = "%".$varenrSoeg."%";
 	$low=strtolower($varenrSoeg);
 	$upp=strtoupper($varenrSoeg);
 	$vareSearchSql.=" and (varer.varenr LIKE '".db_escape_string($varenrSoeg)."' or lower(varer.varenr) LIKE '".db_escape_string($low)."' or upper(varer.varenr) LIKE '".db_escape_string($upp)."')";
 }
-if ($varenavn && $varenavn != '*') {
-	if (strstr($varenavn, "*")) {
-		if (substr($varenavn,0,1)=='*') $varenavn="%".substr($varenavn,1);
-		if (substr($varenavn,-1,1)=='*') $varenavn=substr($varenavn,0,strlen($varenavn)-1)."%";
-	} else {
-		// MB-31/CodeRabbit - same substring-match fallback as Varenr. above.
-		$varenavn = "%".$varenavn."%";
-	}
+if ($varenavn) {
+	// MB-31 - same plain substring match as Varenr. above.
+	$varenavn = "%".$varenavn."%";
 	$low=strtolower($varenavn);
 	$upp=strtoupper($varenavn);
 	$vareSearchSql.=" and (varer.beskrivelse LIKE '".db_escape_string($varenavn)."' or lower(varer.beskrivelse) LIKE '".db_escape_string($low)."' or upper(varer.beskrivelse) LIKE '".db_escape_string($upp)."')";
