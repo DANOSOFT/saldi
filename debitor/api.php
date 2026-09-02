@@ -169,6 +169,9 @@
 
         // Send update request to EasyUBL with the actual company ID
         $ch = curl_init();
+        // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$companyId");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
@@ -223,6 +226,9 @@
             $guid = "00000000-0000-0000-0000-000000000000";
             $data = createCompany($apiKey);
             $ch = curl_init();
+            // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
             curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$guid");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
@@ -264,6 +270,9 @@
 
                 // Send the company id to ssl2.saldi.dk for storage
                 $ch = curl_init();
+                // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
                 curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=insertCompanyId&companyId=$companyId&globalId=$globalid");
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json"));
@@ -427,6 +436,9 @@
         file_put_contents("../temp/$db/xml-$fileId.xml", $xml);
         curl_close($ch);
         $ch = curl_init();
+        // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         $data = [
             "language" => "",
             "base64EncodedDocumentXml" => $result["base64EncodedDocumentXml"]
