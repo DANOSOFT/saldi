@@ -3459,9 +3459,7 @@ function aabn_skuffe($id, $kasse)
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$x = $kasse - 1;
 	$tmp = explode(chr(9), $r['box3']);
-	$printserver = trim($tmp[$x]);
-	if (!$printserver)
-		$printserver = 'localhost';
+	$printserver = isset($tmp[$x]) ? trim($tmp[$x]) : '';
 	if ($printserver == 'box' || $printserver == 'saldibox') {
 		$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
 		if ($fp = fopen($filnavn, 'r')) {
@@ -3475,6 +3473,15 @@ function aabn_skuffe($id, $kasse)
 		$url = "s" . $url;
 	$url = "http" . $url;
 	countDrawOpening($kasse);
+	// 20260902 CL/LH  L4 finding pos-day-close DEVY-4: with no print server configured for this
+	// register the page used to redirect to http://localhost/saldiprint.php, which is unreachable
+	// from a browser on any other machine (ERR_CONNECTION_REFUSED). Return to the POS instead.
+	if (!$printserver) {
+		if ($tracelog)
+			fwrite($tracelog, __FILE__ . " " . __LINE__ . " No printserver for box $kasse - skipping saldiprint (openDrawer)\n");
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$url/debitor/pos_ordre.php\">\n";
+		exit;
+	}
 	if ($tracelog)
 		fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls $printserver/saldiprint.php (openDrawer)\n");
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
@@ -3496,9 +3503,7 @@ function udskriv_kasseopg($id, $kasse, $pfnavn)
 	$r = db_fetch_array(db_select("select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
 	$x = $kasse - 1;
 	$tmp = explode(chr(9), $r['box3']);
-	$printserver = trim($tmp[$x]);
-	if (!$printserver)
-		$printserver = 'localhost';
+	$printserver = isset($tmp[$x]) ? trim($tmp[$x]) : '';
 	if ($printserver == 'box' || $printserver == 'saldibox') {
 		$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
 		if ($fp = fopen($filnavn, 'r')) {
@@ -3511,6 +3516,15 @@ function udskriv_kasseopg($id, $kasse, $pfnavn)
 	if ($_SERVER['HTTPS'])
 		$url = "s" . $url;
 	$url = "http" . $url;
+	// 20260902 CL/LH  L4 finding pos-day-close DEVY-4: the Z/X report is already persisted and
+	// written to $pfnavn at this point; with no print server configured, go back to the POS
+	// instead of redirecting the browser to an unreachable http://localhost/saldiprint.php.
+	if (!$printserver) {
+		if ($tracelog)
+			fwrite($tracelog, __FILE__ . " " . __LINE__ . " No printserver for box $kasse - skipping saldiprint (kasseopg)\n");
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$url/debitor/pos_ordre.php\">\n";
+		exit;
+	}
 	if ($tracelog)
 		fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls $printserver/saldiprint.php\n");
 	if ($printpopup) {
