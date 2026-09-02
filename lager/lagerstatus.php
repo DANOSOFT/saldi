@@ -457,6 +457,14 @@ if ($csv) {
 	fwrite($fp,"$linje\n");
 }
  
+if ($lsGridMode) {
+	// MB-31 - must exist even if zero items ever push into them below (e.g. a search or the
+	// Varenr./Beskrivelse/Enhed filter matches nothing): count($lsAllChunks) in the unified
+	// filter block further down otherwise fatals with "count(): Argument #1 ($value) must be
+	// of type Countable|array, null given" instead of just showing "0 results".
+	$lsAllChunks = array();
+	$lsRowValues = array();
+}
 for($x=1; $x<=$vareantal; $x++) {
 	// 20260710 SZ - capture this item's row so it can be skipped when outside the current Grid
 	// Framework page window (real server-side pagination, matching includes/salgsstat.php /
