@@ -172,6 +172,11 @@ $lager = if_isset($_GET, NULL, 'lager');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
 
 if ((!$id || $id === 'null') && $konto_id) {
+	// 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup
+	// navigates here by GET, see accountLookup.php selectAccount) into the new order header.
+	// usdate('') returns today, so only convert values that were actually supplied.
+	$ordredate = trim(if_isset($_GET, '', 'ordredato')) !== '' ? usdate(trim($_GET['ordredato'])) : '';
+	$levdate   = trim(if_isset($_GET, '', 'levdato'))   !== '' ? usdate(trim($_GET['levdato']))   : '';
 	include_once('orderIncludes/insertAccount.php');
 	$id = insertAccount(0, $konto_id);
 	if ($id) {

@@ -278,7 +278,15 @@ TOGGLESCRIPT;
 	echo <<<HTML
 	<script>
 	function selectAccount{$id}(fokus, konto_id) {
-		window.location.href = "ordre.php?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
+		// 20260902 CL/LH  Carry already-typed order/delivery dates along so the new order header
+		// keeps them (kreditor/ordre.php reads ordredato/levdato from GET before insertAccount()).
+		var url = "ordre.php?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
+		var dateFields = ["ordredato", "levdato"];
+		for (var i = 0; i < dateFields.length; i++) {
+			var el = document.getElementsByName(dateFields[i]);
+			if (el.length && el[0].value) url += "&" + dateFields[i] + "=" + encodeURIComponent(el[0].value);
+		}
+		window.location.href = url;
 	}
 	</script>
 HTML;

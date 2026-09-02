@@ -44,6 +44,7 @@ function insertAccount($id, $konto_id) {
 	global $status,$sum;
 	global $valuta,$omlev,$afd;
 	global $ref;
+	global $ordredate,$levdate;
 	$tidspkt=date("U");
 
 	if (!$konto_id) {
@@ -121,16 +122,23 @@ function insertAccount($id, $konto_id) {
 	$momssats=(float)usdecimal($momssats);
 	if ((!$id)&&($firmanavn)) {
 		transaktion('begin');
-		$ordredate=date("Y-m-d");
+		// 20260902 CL/LH  L4 finding master-data-supplier DEVY-1: selecting the supplier used to
+		// stamp today's date over an Ordredato the operator had already typed, and never stored
+		// Levdato. Keep the dates from the form (kreditor/ordre.php passes them along) and only
+		// fall back to today when nothing was entered.
+		$ordredate = trim((string)$ordredate);
+		if (strlen($ordredate) < 6) $ordredate = date("Y-m-d");
+		$levdate = trim((string)$levdate);
+		$levdate_sql = (strlen($levdate) >= 6) ? "'" . db_escape_string($levdate) . "'" : "NULL";
 		$ordrenr = get_next_order_number('KO');
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,lev_addr1,";
-		$qtxt.= "lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,betalingsdage,betalingsbet,cvrnr,notes,art,ordredate,";
+		$qtxt.= "lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,betalingsdage,betalingsbet,cvrnr,notes,art,ordredate,levdate,";
 		$qtxt.= "email,momssats,status,ref,afd,lager,sum,hvem,tidspkt,valuta,kred_ord_id,omvbet)";
 		$qtxt.= " values ";
 		$qtxt.= "($ordrenr,$konto_id,'$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',";
 		$qtxt.= "'$land','$kontakt','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt',";
-		$qtxt.= "'$betalingsdage','$betalingsbet','$cvrnr','$notes','$art','$ordredate','$email','$momssats',$status,";
+		$qtxt.= "'$betalingsdage','$betalingsbet','$cvrnr','$notes','$art','" . db_escape_string($ordredate) . "',$levdate_sql,'$email','$momssats',$status,";
 		$qtxt.="'$insert_ref','$afd','$lager','$sum','$brugernavn','$tidspkt','$valuta','$kred_ord_id','$omlev')";
 /*		
 		$qtxt = "insert into ordrer ";
