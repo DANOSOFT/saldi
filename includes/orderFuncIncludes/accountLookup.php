@@ -1,7 +1,37 @@
 <?php
-// ../includes/orderFuncIncludes/accountLookup.php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+//---includes/orderFuncIncludes/accountLookup.php ---patch 5.0.0 ----2026-08-29 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Danosoft ApS
+// -----------------------------------------------------------
+
+// 20260827 CDX/PHR Restored supplier lookup for KO, including AJAX results.
+// 20260901 CL/LH Escape grid cell values before rendering (XSS) and pass
+//                 o_art=KO along on row select so supplier choice survives
+// 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
+
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
+    $art = ($o_art == 'KO') ? 'K' : 'D';
     // Store original kontonr before casting (to check if user searched for something)
     $original_kontonr = $kontonr;
     $kontonr = (int) $kontonr;
@@ -9,7 +39,7 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     // Check if this kontonr already exists in the database
     $kontonr_exists = false;
     if ($kontonr > 0) {
-        $check_q = db_select("SELECT id FROM adresser WHERE art='D' AND kontonr='" . db_escape_string($kontonr) . "'", __FILE__ . " linje " . __LINE__);
+        $check_q = db_select("SELECT id FROM adresser WHERE art='$art' AND kontonr='" . db_escape_string($kontonr) . "'", __FILE__ . " linje " . __LINE__);
         if (db_fetch_array($check_q)) {
             $kontonr_exists = true;
         }
@@ -80,7 +110,7 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     if ($o_art == 'DO' || $o_art == 'DK') {
         sidehoved($id, "../debitor/ordre.php", "../debitor/debitorkort.php", $fokus, "$kundeordre $id - Kontoopslag");
         $href = "ordre.php";
-    } elseif ($o_art == 'PO') {
+    } elseif ($o_art == 'PO' || $o_art == 'KO') {
         $find = "";
         $fokus = "kontonr";
         sidehoved($id, "../debitor/pos_ordre.php", "../debitor/debitorkort.php", $fokus, "POS ordre $id - Kontoopslag");
@@ -128,9 +158,9 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 	}
     
     // Base query
-    $base_query = "SELECT id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, tlf 
+    $base_query = "SELECT id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, tlf
                    FROM adresser 
-                   WHERE art = 'D' AND lukket != 'on'";
+                   WHERE art = '$art' AND lukket != 'on'";
 
     // Define columns for the grid
     $columns = [
@@ -221,14 +251,29 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 
     // Add custom renderer for clickable rows
     foreach ($columns as &$column) {
-        $column['render'] = function ($value, $row, $column) use ($href, $id, $o_art) {
+        $column['render'] = function ($value, $row, $column) use ($href, $id, $o_art, $grid_id) {
             $style = "text-align: {$column['align']}; cursor: pointer;";
             $fokus = 'kontonr';
 
+            // $value may already carry the grid's highlight markup, so rebuild
+            // from the raw row value: escape first, then re-apply the highlight
+            $field = $column['field'];
+            $safe = htmlspecialchars(isset($row[$field]) ? (string) $row[$field] : '');
+            $term = isset($_GET['search'][$grid_id][$field]) ? trim((string) $_GET['search'][$grid_id][$field]) : '';
+            if ($term !== '') {
+                $safe = preg_replace_callback(
+                    '/' . preg_quote(htmlspecialchars($term), '/') . '/iu',
+                    function ($match) {
+                        return '<span style="background-color:#FF0">' . $match[0] . '</span>';
+                    },
+                    $safe
+                );
+            }
+
             // Make the entire row clickable to select the account
-            $onclick = "selectAccount{$id}( '" . $fokus . "', '{$row['id']}')";
-            
-            return "<td style='$style' onclick=\"$onclick\">$value</td>";
+            $onclick = "selectAccount{$id}( '" . $fokus . "', '" . (int) $row['id'] . "')";
+
+            return "<td style='$style' onclick=\"$onclick\">$safe</td>";
         };
     }
 
@@ -259,15 +304,18 @@ TOGGLESCRIPT;
     $rows = create_datagrid($grid_id, $grid_data);
 
     // account selection JavaScript
+    $o_art_param = ($o_art == 'KO') ? "&o_art=KO" : "";
     echo <<<HTML
     <script>
     function selectAccount{$id}(fokus, konto_id) {
-        window.location.href = "$href?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
+        window.location.href = "$href?id=$id&fokus=" + fokus + "&konto_id=" + konto_id + "$o_art_param";
     }
     </script>
 HTML;
 
     // ============ SD-338: Create new customer form ============
+    // Supplier lookups (KO) must not offer debtor creation
+    if ($o_art != 'KO') {
     // Store searched kontonr before we potentially replace it
     $searched_kontonr = $kontonr;
     $user_searched_for_kontonr = ($searched_kontonr > 0);
@@ -501,6 +549,7 @@ function validateCreateCustomer() {
 }
 </script>
 CREATEFORM;
+    }
     // ============ End of create new customer form ============
 
     if ($o_art == 'PO')
