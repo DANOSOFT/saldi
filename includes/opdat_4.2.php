@@ -873,7 +873,7 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	$nextver='4.3.0';
-	if ($SubNo < '1'){
+	if ($subNo < '1'){
 		include("../includes/connect.php");
 		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
 		$tmp=$r['version'];
@@ -1519,6 +1519,11 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 			$qtxt = "update varer set lukket = '0' where lukket is NULL";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+
+        // Update the database version to the targeted version after running the update step.
+        $qtxt = "UPDATE grupper set box1='$nextver' where art = 'VE'";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
 		include("../includes/connect.php");
 		$qtxt="UPDATE regnskab set version = '$nextver' where db = '$db'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
