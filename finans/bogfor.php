@@ -1104,6 +1104,12 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	global $regnaar;
 	global $kladde_id;
 
+	// 20260902 CL/LH  L4 finding dunning-run DEVY-5: a zero-amount posting line (e.g. a reminder
+	// finalised without a fee) must not create an open item. A 0,00 row can never settle
+	// anything (the +/-0.005 match window below only matches other zero rows) and it shows
+	// up as a duplicate unsettled post under the same faktnr as the original invoice.
+	if (abs((float)$amount) < 0.005) return;
+
 ## Finder kreditorens valuta;
 	if ($valutakode) {
 		$r = db_fetch_array(db_select("select box1 from grupper where art = 'VK' and kodenr = '$valutakode'",__FILE__ . " linje " . __LINE__));
