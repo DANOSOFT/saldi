@@ -1293,6 +1293,23 @@ if ($_POST) {
 		copy2new($kladde_id, $bilagsnr, $ny_dato, $vend_fortegn);
 	}
 	$fokus = $_POST['fokus'];
+	// 20260902 CL/LH  L4 findings adversarial-forms DEVY-2 / adversarial-navigation DEVY-1: a
+	// double-click on Gem, or browser Back + "resend form", posted the identical form twice and
+	// the second POST inserted the new lines again as duplicate draft rows. The tidspkt refresh
+	// check below never fires for an open journal (bogfort is '-' which is truthy), so detect the
+	// replay explicitly: the same session re-posting the exact same save payload for the same
+	// journal is a replay and must not touch the lines again. A stale tab with *different*
+	// content is not affected (different payload) and saves as before.
+	$kk_replay = false;
+	if ($submit == 'save' && $kladde_id) {
+		$kk_payload = md5(serialize($_POST));
+		if (isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
+			$kk_replay = true;
+		} else {
+			if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+			$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+		}
+	}
 	if ($kladde_id) {
 		$row = db_fetch_array(db_select("select bogfort,tidspkt from kladdeliste where id=$kladde_id", __FILE__ . " linje " . __LINE__));
 		if (!$row['bogfort'] && $tidspkt == $row['tidspkt']) { #Refreshtjek"
@@ -1348,9 +1365,9 @@ if ($_POST) {
 							$kreditvat[$x] = '';
 						if (!isset($afd[$x]))
 							$afd[$x] = NULL;
-						if ((!$fejl) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
+						if ((!$fejl) && (!$kk_replay) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
-						} elseif ((!$fejl) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
+						} elseif ((!$fejl) && (!$kk_replay) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						}
 					}
@@ -1503,8 +1520,12 @@ if ($r = db_fetch_array(db_select("select id from adresser where art = 'S'", __F
 	}
 }
 if (!$fejl && $kladde_id) {
-	opdater($kladde_id);
-    initializePositions($kladde_id);
+	// A replayed save (see $kk_replay above) must not move the staged lines into the journal
+	// again - that is exactly what produced the duplicate rows. Still clear the staging table.
+	if (empty($kk_replay)) {
+		opdater($kladde_id);
+		initializePositions($kladde_id);
+	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
 /*
