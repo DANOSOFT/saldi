@@ -779,7 +779,11 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			$vrCacheRaw = @file_get_contents($vrCacheFile);
 			if ($vrCacheRaw !== false) {
 				$vrCacheTry = @unserialize($vrCacheRaw);
-				if (is_array($vrCacheTry) && isset($vrCacheTry['totalRows']) && $vrCacheTry['totalRows'] == count($v_id)) {
+				// MB-31/CodeRabbit - also require 'values': a cache entry written before this ticket's
+				// deploy has no 'values' key, and without this check it would still pass as a hit, silently
+				// disabling every computed-column search for up to 20 minutes post-deploy (vrRowMatchesSearch()
+				// skips any term whose field is missing from an empty $values array instead of filtering).
+				if (is_array($vrCacheTry) && isset($vrCacheTry['totalRows']) && $vrCacheTry['totalRows'] == count($v_id) && isset($vrCacheTry['values'])) {
 					$vrCacheData = $vrCacheTry;
 				}
 			}
@@ -875,8 +879,10 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		print "<input type='hidden' name='afd' value='" . htmlspecialchars((string)$afd, ENT_QUOTES) . "'>";
 		print "<input type='hidden' name='lev' value='" . htmlspecialchars((string)$lev, ENT_QUOTES) . "'>";
 		print "<input type='hidden' name='ref' value='" . htmlspecialchars((string)$ref, ENT_QUOTES) . "'>";
-		print "<input type='hidden' name='dato_fra' value='" . dkdato($date_from) . "'>";
-		print "<input type='hidden' name='dato_til' value='" . dkdato($date_to) . "'>";
+		// MB-31/CodeRabbit - $date_from/$date_to come straight from $_GET with no format validation;
+		// dkdato() doesn't escape its output, so an unescaped value here is a reflected-XSS vector.
+		print "<input type='hidden' name='dato_fra' value='" . htmlspecialchars(dkdato($date_from), ENT_QUOTES, 'UTF-8') . "'>";
+		print "<input type='hidden' name='dato_til' value='" . htmlspecialchars(dkdato($date_to), ENT_QUOTES, 'UTF-8') . "'>";
 		print "<input type='hidden' name='detaljer' value='" . htmlspecialchars((string)$detaljer, ENT_QUOTES) . "'>";
 		print "<input type='hidden' name='kun_salg' value='" . htmlspecialchars((string)$kun_salg, ENT_QUOTES) . "'>";
 		print "<input type='hidden' name='lagertal' value='" . htmlspecialchars((string)$lagertal, ENT_QUOTES) . "'>";

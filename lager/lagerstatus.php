@@ -200,6 +200,10 @@ if ($varenrSoeg && $varenrSoeg != '*') {
 	if (strstr($varenrSoeg, "*")) {
 		if (substr($varenrSoeg,0,1)=='*') $varenrSoeg="%".substr($varenrSoeg,1);
 		if (substr($varenrSoeg,-1,1)=='*') $varenrSoeg=substr($varenrSoeg,0,strlen($varenrSoeg)-1)."%";
+	} else {
+		// MB-31/CodeRabbit - no explicit '*' anchor still needs to match as a substring, same as
+		// every other per-column search box in this grid row (e.g. Enhed just below).
+		$varenrSoeg = "%".$varenrSoeg."%";
 	}
 	$low=strtolower($varenrSoeg);
 	$upp=strtoupper($varenrSoeg);
@@ -209,6 +213,9 @@ if ($varenavn && $varenavn != '*') {
 	if (strstr($varenavn, "*")) {
 		if (substr($varenavn,0,1)=='*') $varenavn="%".substr($varenavn,1);
 		if (substr($varenavn,-1,1)=='*') $varenavn=substr($varenavn,0,strlen($varenavn)-1)."%";
+	} else {
+		// MB-31/CodeRabbit - same substring-match fallback as Varenr. above.
+		$varenavn = "%".$varenavn."%";
 	}
 	$low=strtolower($varenavn);
 	$upp=strtoupper($varenavn);
@@ -277,7 +284,10 @@ global $menu;
 //             with a sticky colgroup-driven column-title row, and a fixed footer with real
 //             (server-side) pagination. $menu != 'S' keeps the old, unstyled chrome unchanged.
 $lsGridMode = ($menu=='S');
+// MB-31/CodeRabbit - propagate every $lsSFields numeric filter (not just varenr/varenavn/enhed),
+// same as $lsBaseUrlParams below does for pagination, so a CSV export matches what the grid shows.
 $lsCsvHref = "lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg&varenr=".urlencode((string)$varenrSoeg)."&varenavn=".urlencode((string)$varenavn)."&enhed=".urlencode((string)$enhedSoeg);
+foreach ($lsSFields as $lsSField) $lsCsvHref .= "&lss_".$lsSField."=".urlencode((string)$lsS[$lsSField]);
 
 if ($lsGridMode) {
 	$lsTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
@@ -621,7 +631,14 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		if ($csv) {
 			$linje="$varenr[$x]".";"."$enhed[$x]".";"."$beskrivelse[$x]".";"."$batch_k_antal[$x]".";"."$batch_s_antal[$x]".";".$batch_t_antal[$x].";".dkdecimal($batch_pris[$x]).";".dkdecimal($kostpris[$x]*$batch_t_antal[$x]).";".dkdecimal($salgspris[$x]*$batch_t_antal[$x]);
 #			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
-			fwrite($fp,"$linje\n");
+			if ($lsGridMode) {
+				// MB-31/CodeRabbit - deferred so a search actually filters what lands in the CSV too: written
+				// to the file only for matching rows, in the unified filter step below (same $lsMatchIndices
+				// as $lsAllChunks/$lsRowValues, so the index this candidate gets here stays aligned with them).
+				$lsCsvLines[] = $linje;
+			} else {
+				fwrite($fp,"$linje\n");
+			}
 		}
 		if ($lsGridMode) {
 			// MB-31 - snapshot of this item's already-computed values, used only to filter/paginate/total
@@ -673,6 +690,13 @@ if ($lsGridMode) {
 	}
 	for ($lsCi = $lsPageStart; $lsCi < min($lsPageEnd, count($lsMatchIndices)); $lsCi++) {
 		print $lsAllChunks[$lsMatchIndices[$lsCi]];
+	}
+	if ($csv) {
+		// MB-31/CodeRabbit - write only the matching rows' buffered CSV lines (see $lsCsvLines above),
+		// not every item, so a filtered CSV export actually matches what the grid shows on screen.
+		foreach ($lsMatchIndices as $lsI) {
+			if (isset($lsCsvLines[$lsI])) fwrite($fp, $lsCsvLines[$lsI]."\n");
+		}
 	}
 }
 if ($csv){
