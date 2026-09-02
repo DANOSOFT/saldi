@@ -33,6 +33,8 @@
 //                  dismissable first-time hint bubble pointing at the gear.
 // 20260902 Sawaneh Storage keys now include brugernavn as well so the choice
 //                  never leaks between users sharing a browser.
+// 20260902 Sawaneh CodeRabbit (PR #545): Units label via findtekst(1259) and
+//                  'Show all' is a real button for keyboard accessibility.
 
 /**
  * @var string $db         company database name (includes/connect.php)
@@ -43,8 +45,8 @@
 $pcVisSections = array(
 	'pcSecPrices'       => findtekst(2017, $sprog_id),
 	'pcSecOffer'        => findtekst(812, $sprog_id),
-	'pcSecColli'        => 'Colli',
-	'pcSecUnits'        => 'Enheder',
+	'pcSecColli'        => 'Colli', // heading in showColli.php is 'Colli' in all languages
+	'pcSecUnits'        => findtekst(1259, $sprog_id),
 	'pcSecGroups'       => findtekst(2037, $sprog_id),
 	'pcSecQtyDiscounts' => findtekst(2041, $sprog_id),
 	'pcSecMisc'         => findtekst(782, $sprog_id),
@@ -129,7 +131,15 @@ $pcVisGotIt    = findtekst(5134, $sprog_id); // Forstået
 	padding: 7px 10px;
 	text-align: right;
 }
-.pcVisFoot a { color: #15488f; cursor: pointer; text-decoration: underline; }
+.pcVisFoot button {
+	background: none;
+	border: none;
+	padding: 0;
+	font: inherit;
+	color: #15488f;
+	cursor: pointer;
+	text-decoration: underline;
+}
 #pcVisHint {
 	position: fixed;
 	right: 60px;
@@ -188,7 +198,7 @@ foreach ($pcVisSections as $pcVisKey => $pcVisLabel) {
 }
 ?>
 	</div>
-	<div class="pcVisFoot"><a id="pcVisShowAll"><?php print $pcVisShowAll; ?></a></div>
+	<div class="pcVisFoot"><button type="button" id="pcVisShowAll"><?php print $pcVisShowAll; ?></button></div>
 </div>
 <div id="pcVisHint">
 	<?php print $pcVisHint; ?><br>
