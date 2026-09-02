@@ -31,7 +31,15 @@
 //              opdat_func now automatically fetches the version from the database.
 // 20260901 PHR Movet context to opdat_4.2.php
 if (!function_exists('opdat_4_3')) {
-	function opdat_4_3($majorNo, $subNo, $fixNo){
-	return ;
-}}
+	function opdat_4_3(){
+		return ;
+	
+		include_once(__DIR__ . "/opdat_func/opdat_func.php");
+
+		$nextver='4.3.0';
+		opdat_to($nextver, function () {
+			// Add your update steps here for version 4.3.0
+		});
+	}
+}
 ?>
