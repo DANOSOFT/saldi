@@ -241,8 +241,6 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 #	$regnaar=$regnaar*1; #fordi den er i tekstformat og skal vaere numerisk
 	($date_from)?$dato_fra=dkdato($date_from):$dato_fra="01-01-".date("Y");
 	($date_to)?$dato_til=dkdato($date_to):$dato_til=date("d-m-Y");
-	if (!$varenr) $varenr="*";
-	if (!$varenavn) $varenavn="*";
 	if ($detaljer) $detaljer='checked';
 	if ($kun_salg) $kun_salg='checked';
 	if ($lagertal) $lagertal='checked';
