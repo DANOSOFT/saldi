@@ -642,6 +642,11 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		if (strstr($varenr, "*")) {
 			if (substr($varenr,0,1)=='*') $varenr="%".substr($varenr,1);
 			if (substr($varenr,-1,1)=='*') $varenr=substr($varenr,0,strlen($varenr)-1)."%";
+		} else {
+			// MB-31 - a term with no explicit '*' anchor still needs to match as a substring, same as
+			// every other per-column search box in this grid row (matches the fix already applied to
+			// lager/lagerstatus.php's identical convention per CodeRabbit's PR #536 review).
+			$varenr = "%".$varenr."%";
 		}
 		$low=strtolower($varenr);
 		$upp=strtoupper($varenr);
@@ -652,6 +657,9 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		if (strstr($varenavn, "*")) {
 			if (substr($varenavn,0,1)=='*') $varenavn="%".substr($varenavn,1);
 			if (substr($varenavn,-1,1)=='*') $varenavn=substr($varenavn,0,strlen($varenavn)-1)."%";
+		} else {
+			// MB-31 - same substring-match fallback as Varenr. above.
+			$varenavn = "%".$varenavn."%";
 		}
 		$low=strtolower($varenavn);
 		$upp=strtoupper($varenavn);
