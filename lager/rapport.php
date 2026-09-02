@@ -639,19 +639,22 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	if ($varenr) {
 		// MB-31 - always a plain substring match, same as every other per-column search box in this
 		// grid row and in the ordreliste.php sample - no special '*' wildcard syntax to remember.
-		$varenr = "%".$varenr."%";
-		$low=strtolower($varenr);
-		$upp=strtoupper($varenr);
-		if ($tmp) $tmp.=" and (varenr LIKE '".db_escape_string($varenr)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
-		else $tmp =  "where (varenr LIKE '".db_escape_string($varenr)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
+		// Pattern built into its own variable (not $varenr itself) so the search box, cache key,
+		// hidden fields and pagination links all keep showing what the user actually typed instead
+		// of the wrapped '%...%' SQL pattern.
+		$varenrPattern = "%".$varenr."%";
+		$low=strtolower($varenrPattern);
+		$upp=strtoupper($varenrPattern);
+		if ($tmp) $tmp.=" and (varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
+		else $tmp =  "where (varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
 	}
 	if ($varenavn) {
-		// MB-31 - same plain substring match as Varenr. above.
-		$varenavn = "%".$varenavn."%";
-		$low=strtolower($varenavn);
-		$upp=strtoupper($varenavn);
-		if ($tmp) $tmp.=" and (beskrivelse LIKE '".db_escape_string($varenavn)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";
-		else $tmp =  "where (beskrivelse LIKE '".db_escape_string($varenavn)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";
+		// MB-31 - same plain substring match as Varenr. above, same reason for a separate pattern var.
+		$varenavnPattern = "%".$varenavn."%";
+		$low=strtolower($varenavnPattern);
+		$upp=strtoupper($varenavnPattern);
+		if ($tmp) $tmp.=" and (beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";
+		else $tmp =  "where (beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";
 	}
 	$vare_id=array();
 	$x=0;

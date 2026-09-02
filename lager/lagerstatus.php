@@ -199,17 +199,20 @@ $vareSearchSql = "";
 if ($varenrSoeg) {
 	// MB-31 - always a plain substring match, same as every other per-column search box in this
 	// grid row and in the ordreliste.php sample - no special '*' wildcard syntax to remember.
-	$varenrSoeg = "%".$varenrSoeg."%";
-	$low=strtolower($varenrSoeg);
-	$upp=strtoupper($varenrSoeg);
-	$vareSearchSql.=" and (varer.varenr LIKE '".db_escape_string($varenrSoeg)."' or lower(varer.varenr) LIKE '".db_escape_string($low)."' or upper(varer.varenr) LIKE '".db_escape_string($upp)."')";
+	// Pattern built into its own variable (not $varenrSoeg itself) so the search box, CSV href
+	// and pagination links all keep showing what the user actually typed instead of the wrapped
+	// '%...%' SQL pattern.
+	$varenrPattern = "%".$varenrSoeg."%";
+	$low=strtolower($varenrPattern);
+	$upp=strtoupper($varenrPattern);
+	$vareSearchSql.=" and (varer.varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varer.varenr) LIKE '".db_escape_string($low)."' or upper(varer.varenr) LIKE '".db_escape_string($upp)."')";
 }
 if ($varenavn) {
-	// MB-31 - same plain substring match as Varenr. above.
-	$varenavn = "%".$varenavn."%";
-	$low=strtolower($varenavn);
-	$upp=strtoupper($varenavn);
-	$vareSearchSql.=" and (varer.beskrivelse LIKE '".db_escape_string($varenavn)."' or lower(varer.beskrivelse) LIKE '".db_escape_string($low)."' or upper(varer.beskrivelse) LIKE '".db_escape_string($upp)."')";
+	// MB-31 - same plain substring match as Varenr. above, same reason for a separate pattern var.
+	$varenavnPattern = "%".$varenavn."%";
+	$low=strtolower($varenavnPattern);
+	$upp=strtoupper($varenavnPattern);
+	$vareSearchSql.=" and (varer.beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(varer.beskrivelse) LIKE '".db_escape_string($low)."' or upper(varer.beskrivelse) LIKE '".db_escape_string($upp)."')";
 }
 if ($enhedSoeg) {
 	// MB-31 - Enhed's search box: substring match (not exact/wildcard like Varenr./Beskrivelse above),
