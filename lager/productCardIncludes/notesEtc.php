@@ -26,12 +26,13 @@
 // 17/05-2023 PBLM - Fixed made rental button work
 // 20230827 PHR - Changed $box8 to $stockItem
 // 20240527 MMK - Added Wolt intergration settings
+// 20260902 Sawaneh Added id pcSecNotes so the field-visibility panel can toggle the section
 
 include("../includes/topline_settings.php");
 
 print "\n<!-- productCardIncludes/notesEtc.php start -->\n";
 
-print "<tr><td valign='top' colspan='3'><table border='0' width='100%'><tbody>\n"; # Notetabel ->
+print "<tr><td id='pcSecNotes' valign='top' colspan='3'><table border='0' width='100%'><tbody>\n"; # Notetabel ->
  
 $noteChecked = $note_on_orderline ? 'checked' : '';
 print "<tr><td valign='top'>".findtekst(391,$sprog_id)."&nbsp;
