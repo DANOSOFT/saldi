@@ -3377,11 +3377,11 @@
 3377	CVR-nummeret er ikke gyldigt.	The VAT number is not valid.	Organisasjonsnummeret er ikke gyldig.
 3378	Søger...	Searching...	Søker...
 3379			
-3380			
-3381			
-3382			
-3383			
-3384			
+3380	Tilpas visning	Customize view	Tilpass visning
+3381	Vælg hvilke felter der vises på varekortet. Gælder kun visningen for dig.	Choose which fields are shown on the product card. Only affects what you see.	Velg hvilke felter som vises på varekortet. Gjelder bare visningen for deg.
+3382	Vis alle	Show all	Vis alle
+3383	Nyt! Klik på tandhjulet for at vælge hvilke felter der vises på varekortet.	New! Click the gear to choose which fields are shown on the product card.	Nytt! Klikk på tannhjulet for å velge hvilke felter som vises på varekortet.
+3384	Forstået	Got it	Skjønner
 3385			
 3386			
 3387			
@@ -5077,8 +5077,3 @@
 5077	Kunne ikke indlæse dokumentet	Could not load the document	Kunne ikke laste dokumentet
 5078	Denne label indeholder formatering, som den visuelle editor ikke forstår, og kan derfor kun redigeres her som rå HTML - at gemme via den visuelle editor ville slette den formatering, den ikke kan vise. For at få adgang til den visuelle editor igen skal den rå HTML tømmes og gemmes.	This label contains formatting that the visual editor doesn't understand, so it can only be edited here as raw HTML - saving via the visual editor would delete the formatting it can't display. To regain access to the visual editor, clear the raw HTML and save.	Denne etiketten inneholder formatering som den visuelle editoren ikke forstår, og kan derfor bare redigeres her som rå HTML - å lagre via den visuelle editoren ville slette formateringen den ikke kan vise. For å få tilgang til den visuelle editoren igjen må den rå HTML-en tømmes og lagres.
 5079	Din ændring blev ikke gemt - denne labels skabelon er ændret siden siden blev indlæst (fx i en anden fane), og kan nu kun redigeres som rå HTML. Genindlæs siden og prøv igen.	Your change wasn't saved - this label's template has changed since the page was loaded (e.g. in another tab), and can now only be edited as raw HTML. Reload the page and try again.	Endringen din ble ikke lagret - denne etikettens mal er endret siden siden ble lastet (f.eks. i en annen fane), og kan nå bare redigeres som rå HTML. Last siden på nytt og prøv igjen.
-5130	Tilpas visning	Customize view	Tilpass visning
-5131	Vælg hvilke felter der vises på varekortet. Gælder kun visningen for dig.	Choose which fields are shown on the product card. Only affects what you see.	Velg hvilke felter som vises på varekortet. Gjelder bare visningen for deg.
-5132	Vis alle	Show all	Vis alle
-5133	Nyt! Klik på tandhjulet for at vælge hvilke felter der vises på varekortet.	New! Click the gear to choose which fields are shown on the product card.	Nytt! Klikk på tannhjulet for å velge hvilke felter som vises på varekortet.
-5134	Forstået	Got it	Skjønner

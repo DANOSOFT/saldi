@@ -27,7 +27,7 @@
 // so nothing changes in the database and the fields still post on save.
 // Sections are matched by id or class pcSec* set in varekort.php,
 // notesEtc.php and showExpirySettings.php.
-// Texts 5130-5134 live in importfiler/tekster.csv (da/en/no).
+// Texts 3380-3384 live in importfiler/tekster.csv (da/en/no).
 // 20260902 Sawaneh Created this file.
 // 20260902 Sawaneh Numeric findtekst ids (csv holds the texts) and a
 //                  dismissable first-time hint bubble pointing at the gear.
@@ -35,6 +35,7 @@
 //                  never leaks between users sharing a browser.
 // 20260902 Sawaneh CodeRabbit (PR #545): Units label via findtekst(1259) and
 //                  'Show all' is a real button for keyboard accessibility.
+// 20260903 CL/NTR  Texts renumbered 5130-5134 -> 3380-3384 (free rows in tekster.csv).
 
 /**
  * @var string $db         company database name (includes/connect.php)
@@ -57,11 +58,11 @@ $pcVisSections = array(
 );
 $pcVisStoreKey = 'saldiPcHidden_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $db . '_' . $bruger_id . '_' . $brugernavn);
 $pcVisHintKey  = 'saldiPcHint_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $db . '_' . $bruger_id . '_' . $brugernavn);
-$pcVisTitle    = findtekst(5130, $sprog_id); // Tilpas visning
-$pcVisHelp     = findtekst(5131, $sprog_id); // Vælg hvilke felter der vises ...
-$pcVisShowAll  = findtekst(5132, $sprog_id); // Vis alle
-$pcVisHint     = findtekst(5133, $sprog_id); // Nyt! Klik på tandhjulet ...
-$pcVisGotIt    = findtekst(5134, $sprog_id); // Forstået
+$pcVisTitle    = findtekst('3380|Tilpas visning', $sprog_id);
+$pcVisHelp     = findtekst('3381|Vælg hvilke felter der vises ...', $sprog_id);
+$pcVisShowAll  = findtekst('3382|Vis alle', $sprog_id);
+$pcVisHint     = findtekst('3383|Nyt! Klik på tandhjulet ...', $sprog_id);
+$pcVisGotIt    = findtekst('3384|Forstået', $sprog_id);
 ?>
 <style>
 .pcVisHidden { display: none !important; }
