@@ -105,10 +105,10 @@
 105	Kassekladder	Cashbook	Kontantutkast
 106	Klik her når du skal oprette salgsordrer eller fakturaer til kunder.	Click here to create sales orders or invoices for customers.	Klikk her for å opprette salgsordrer eller fakturaer for kunder.
 107	Ordrer	Orders	Ordrer
-108	Klik her nå½st	Innholdsfortegnelse
-109	
+108	Klik her nå½st	Innholdsfortegnelse	
+109			
 110	Varer	Goods	Varer
-111	
+111			
 112	Klik her for at se eller rette i kontoplanen.	Click here to view or correct the chart of accounts.	Klikk her for å se eller korrigere kontoplanen.
 113	Kontoplan	Chart of Accounts	Kontooversikt
 114	Klik her for at se en månedsopdelt regnskabsoversigt.	Click here to see a monthly financial statement.	Klikk her for å se en månedlig regnskap.
@@ -1462,7 +1462,7 @@
 1462	Klik her for at oprette en kreditnota, som hel eller delvist krediterer denne faktura. Kreditnotaen oprettes som en kreditnotaordre, som kan redigeres inden bogføring. Eksempelvis hvis kun en enkelt faktureret vare skal krediteres.	Click here to create a credit note that fully or partially credits this invoice. The credit note is created as a credit note order, which can be edited before posting. For example, if only a single invoiced item needs to be credited.	Klikk her for å opprette en kreditnota som helt eller delvis krediterer denne fakturaen. Kreditnotaen opprettes som en kreditnotaordre, som kan redigeres før bokføring. For eksempel hvis kun én fakturert vare skal krediteres.
 1463	Klik her for at skifte kunde på denne ordre	Click here to change customer on this order	Klikk her for å endre kunde på denne bestillingen
 1464	Kundens ordrenummer som refererence	Customer's order number for reference	Kundens bestillingsnummer for referanse
-1465	! Not used !
+1465	! Not used !		
 1466	Afmærk her for at medsende standard bilag	Check here to enclose standard documents	Sjekk her for å legge ved standarddokumenter
 1467	Mail bilag	Mail attachments	Postvedlegg
 1468	Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.	Language to be used on documents such as offers, orders, invoices and so on.	Språk som skal brukes på dokumenter som tilbud, bestillinger, fakturaer og så videre.
@@ -2363,7 +2363,7 @@
 2363	Nyt	New	Nytt
 2364	Mine labels	My labels	Mine prislapper
 2365	Slet	Delete	Slett
-2366	Alle data, inklusiv kunder, leverandører, varer, bilag mm som ikke har været ændret / handlet efter regnskabårets slutning bliver slettet, sammen med finansbilag fra før denne dato.
+2366	Alle data, inklusiv kunder, leverandører, varer, bilag mm som ikke har været ændret / handlet efter regnskabårets slutning bliver slettet, sammen med finansbilag fra før denne dato.		
 2367	Vis lagerbeholdning	Show inventory	Viss inventar
 2368	Når en vare som er en lagervare, indastes på kassesystemet, vises den aktuelle lagerbeholdning	When an item that is a stock item, is entered in the POS system, the current stock is shown	Når en vare som er en lagervare, angis i POS-systemet, vises gjeldende beholdning
 2369	Aktiver debitoripad	Activate debitor ipad	Aktiver debitoripad
@@ -2402,7 +2402,7 @@
 2402	Vælg hvilke varegrupper og kreditorer som skal vises i varelisten	Select which product groups and creditors are to be displayed in the product list	Velg hvilke produktgrupper og kreditorer som skal vises i produktlisten
 2403	Opret en ny vare	Create a new product	Opprett et nytt produkt
 2404	Luk varelisten og gå tilbage til hovedmenuen	Close the product list and go back to the main menu	Lukk produktlisten og gå tilbake til hovedmenyen
-2405	'
+2405	'		
 2406	Opret indkøbsforslag udfra igangværende tilbud og ordrebeholdning	Create purchase proposals based on ongoing offers and order inventory	Opprett innkjøpsforslag basert på pågående tilbud og ordrebeholdning.
 2407	Stor sum	Big total	Stor summ
 2408	Vis ordres totalsum større i kassesystemet	Show the order sum larger in the point of sale system	Vis ordretotaler større i POS-systemet
@@ -2473,7 +2473,7 @@
 2473	Stk. rabat	Unit discount	Stk. rabatt
 2474	V. antal	Per quantity	V. antall
 2475	Kun visning	View only	Kun visning
-2476	Startmåned Start month	Startmåned
+2476	Startmåned Start month	Startmåned	
 2477	Slutmåned	End month	Slutmåned
 2478	Startår	Start year	Startår
 2479	Slutår	End year	Slutår
@@ -2518,7 +2518,7 @@
 2518	Eget	Own	Eget
 2519	Kundeordrenummer	Customer order number	Kundeordrenummer
 2520	Formular	Form	Skjema
-2521	Transportsum Transport cost Transportsum
+2521	Transportsum Transport cost Transportsum		
 2522	Der findes allerede en enhed med betegnelsen	A unit already exists with the designation	Det finnes allerede en enhet med betegnelsen
 2523	Der findes allerede et materiale med beskrivelsen	A material already exists with the description	Det finnes allerede et materiale med beskrivelsen
 2524	Skriv nyt navn på regnskab	Enter new name for the account	Skriv nytt navn på regnskap
@@ -2655,7 +2655,7 @@
 2655	Søg efter et eksisterende serienummer i dit system	Search for an existing serial number in your system	Søk etter et eksisterende serienummer i systemet ditt
 2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
 2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
-2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
+2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det		
 2659	Søg efter standnavne. Adskil med komma for at søge efter flere.	Search for stall names. Separate with commas to search for multiple.	Søk etter standnavn. Skill med komma for å søke etter flere.
 2660	Se dage, og klik på en dag for at se ledige stande	View days and click on a day to see available stalls	Se dager, og klikk på en dag for å se ledige stander
 2661	Grønne prikker viser ledige dage, og røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag og stand.	Green dots indicate available days, and red dots indicate booked days. Click on a green dot to create a booking for a specific day and stall.	Grønne prikker viser ledige dager, og røde prikker viser bookede dager. Klikk på en grønn prikk for å opprette en booking for en bestemt dag og stand.
@@ -3358,13 +3358,13 @@
 3358	Gå til indlæsning	Go to Restore	Gå til innlasting
 3359	Finansrapporter	Financial reports	Finansrapporter
 3360	Salg pr. postnummer	Sales by postal code	Salg per postnummer
-3361	Varerapporter	Item reports	Varerapporter		
+3361	Varerapporter	Item reports	Varerapporter
 3362	Posteringer pr. momskode.	Entried pr. VAT code	Posteringer per MVA-kode.
 3363	Momsrubrikker	VAT categories	Momsrubrikker
 3364	Momsafstemning	VAT reconciliation	MVA-avstemming
 3365	OSS B2C EU-salg	B2C EU Sales	OSS B2C EU-salg
-3366	Momsperioder	Vat periods	MVA-perioder		
-3367	Medtages på eFaktura når udfyldt	Included on eInvoice when filled in	Medtas på eFaktura når utfylt		
+3366	Momsperioder	Vat periods	MVA-perioder
+3367	Medtages på eFaktura når udfyldt	Included on eInvoice when filled in	Medtas på eFaktura når utfylt
 3368			
 3369			
 3370	Mail sendt til	Mail sent to	E-post sendt til
@@ -5077,3 +5077,4 @@
 5077	Kunne ikke indlæse dokumentet	Could not load the document	Kunne ikke laste dokumentet
 5078	Denne label indeholder formatering, som den visuelle editor ikke forstår, og kan derfor kun redigeres her som rå HTML - at gemme via den visuelle editor ville slette den formatering, den ikke kan vise. For at få adgang til den visuelle editor igen skal den rå HTML tømmes og gemmes.	This label contains formatting that the visual editor doesn't understand, so it can only be edited here as raw HTML - saving via the visual editor would delete the formatting it can't display. To regain access to the visual editor, clear the raw HTML and save.	Denne etiketten inneholder formatering som den visuelle editoren ikke forstår, og kan derfor bare redigeres her som rå HTML - å lagre via den visuelle editoren ville slette formateringen den ikke kan vise. For å få tilgang til den visuelle editoren igjen må den rå HTML-en tømmes og lagres.
 5079	Din ændring blev ikke gemt - denne labels skabelon er ændret siden siden blev indlæst (fx i en anden fane), og kan nu kun redigeres som rå HTML. Genindlæs siden og prøv igen.	Your change wasn't saved - this label's template has changed since the page was loaded (e.g. in another tab), and can now only be edited as raw HTML. Reload the page and try again.	Endringen din ble ikke lagret - denne etikettens mal er endret siden siden ble lastet (f.eks. i en annen fane), og kan nå bare redigeres som rå HTML. Last siden på nytt og prøv igjen.
+5080	Mobilnummer	Mobile number	Mobilnummer
