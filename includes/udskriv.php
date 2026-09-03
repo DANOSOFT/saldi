@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 5.0.0 --- 2026.08.20 ---
+// --- includes/udskriv.php --- lap 5.0.0 --- 2026-09-01 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -41,7 +41,10 @@
 // 20260320 PHR cleanup (pdftk)
 // 20260428 LOE added more options for 'DO' type and updated faktura navigation for pick list.
 // 20260512 LOE Updated the code to allow printing multiple files no matter the state of 'Use HTML / CSS for form generation-SD-490'
+// 20260812 MJ Valider returside til relative stier; undgaar open-redirect og XSS via JS/href-kontekst
 // 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
+// 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
+//             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
 
 @session_start();
 $s_id=session_id();
@@ -71,6 +74,19 @@ $art           = if_isset($_GET, NULL, 'art');
 $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
+// 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
+$returside = (function($s) {
+    $s = trim((string)$s);
+    if ($s === '' || $s === 'ordreliste.php') return $s; // 'ordreliste.php' normaliseres nedenfor linje 93
+    if (!mb_check_encoding($s, 'UTF-8')) return '';       // afvis ugyldig UTF-8 (json_encode returnerer false)
+    if (preg_match('/[a-zA-Z][a-zA-Z0-9+\-.]*:/', $s)) return ''; // afvis protokol-URL'er (javascript:, http://)
+    if (substr($s, 0, 2) === '//') return '';             // afvis protokol-relative URL'er (//evil.com)
+    // Godkend relative stier (../x) og rod-relative stier (/x) — begge er same-origin
+    // nav_back_url() gemmer $_SERVER['REQUEST_URI'] som /debitor/... saa rod-relative skal accepteres
+    if (substr($s, 0, 3) === '../') return $s;
+    if (substr($s, 0, 1) === '/') return $s;
+    return '';
+})($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
 error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
 if ($art == 'R' && $id) {
@@ -87,7 +103,7 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
         echo "<script>
                 alert('ERROR: pdftk is not installed. Please install pdftk first.');
                 setTimeout(function() {
-                    window.location.href = '$returside';
+                    window.location.href = " . json_encode($returside) . ";
                 }, 1000); // 1 second delay
               </script>";
         exit();
@@ -400,7 +416,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$firmanavn=htmlentities($r['firmanavn']);
 				$fakturanr=htmlentities($r['fakturanr']);
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$ip/localprint.php?printfil=$printfil.pdf&url=$url&id=$id&returside=$returside&bruger_id=$bruger_id&firmanavn=$firmanavn&fakturanr=$fakturanr\">\n";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$ip/localprint.php?printfil=$printfil.pdf&url=$url&id=$id&returside=" . urlencode($returside) . "&bruger_id=$bruger_id&firmanavn=$firmanavn&fakturanr=$fakturanr\">\n";
 				exit;
 			} elseif ($valg=='ip') {
 				print "<!--!";
@@ -429,19 +445,19 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				 if ($art == 'R') {
 					$href = "../debitor/rykker.php?rykker_id=" . (int)$id;
 				 } elseif (substr($art,0,1)=='K'){
-					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside) . "\" accesskey=\"L\"";
 				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
 					$href = "../debitor/ordreliste.php";
 				 } else {
 					if($art == 'DO'){
 						if($value == 'faktura'){
-							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=$returside";
+							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=" . urlencode($returside);
 
 						}else{
 							$href = "../debitor/ordreliste.php";
 						}
 					}else{
-					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside);
 					}
 				 }  
 				} else { 
@@ -460,7 +476,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 			} else {
 				print "<table width=100% height=100%><tbody>";
-				if ($returside) $href="\"$returside\" accesskey=\"L\"";
+				if ($returside) $href="\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</a></td>";
 				print "<td width=\"80%\" $top_bund align=\"center\" title=\"".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id).">";
@@ -472,7 +488,11 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			}
 			print exit;
 
-		} else print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+		} else {
+			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
+			print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+			print "<p><a href=\"$fejl_retur\">" . findtekst('2172|Luk', $sprog_id) . "</a></p>";
+		}
 	}
   if ($valg=="printer") {
     system ("$r[box1] ../temp/$ps_fil");
