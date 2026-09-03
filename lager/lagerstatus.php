@@ -202,7 +202,10 @@ list($a,$b)=explode(":",$varegruppe);
 // the 4 candidate queries below runs, so a real Jira ticket key/description search actually narrows
 // this report instead of only filtering by Varegruppe/Lager/Dato.
 $vareSearchSql = "";
-if ($varenrSoeg) {
+// CodeRabbit - a plain truthy check treats the string "0" as false (PHP's "0" == false), so searching
+// Varenr./Beskrivelse/Enhed for exactly "0" silently built no SQL filter at all - explicit "not null and
+// not empty string" checks below instead, so "0" is treated as a real search term like any other.
+if ($varenrSoeg !== null && $varenrSoeg !== '') {
 	// MB-31 - always a plain substring match, same as every other per-column search box in this
 	// grid row and in the ordreliste.php sample - no special '*' wildcard syntax to remember.
 	// Pattern built into its own variable (not $varenrSoeg itself) so the search box, CSV href
@@ -213,14 +216,14 @@ if ($varenrSoeg) {
 	$upp=strtoupper($varenrPattern);
 	$vareSearchSql.=" and (varer.varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varer.varenr) LIKE '".db_escape_string($low)."' or upper(varer.varenr) LIKE '".db_escape_string($upp)."')";
 }
-if ($varenavn) {
+if ($varenavn !== null && $varenavn !== '') {
 	// MB-31 - same plain substring match as Varenr. above, same reason for a separate pattern var.
 	$varenavnPattern = "%".$varenavn."%";
 	$low=strtolower($varenavnPattern);
 	$upp=strtoupper($varenavnPattern);
 	$vareSearchSql.=" and (varer.beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(varer.beskrivelse) LIKE '".db_escape_string($low)."' or upper(varer.beskrivelse) LIKE '".db_escape_string($upp)."')";
 }
-if ($enhedSoeg) {
+if ($enhedSoeg !== null && $enhedSoeg !== '') {
 	// MB-31 - Enhed's search box: substring match (not exact/wildcard like Varenr./Beskrivelse above),
 	// same convention includes/grid.php's own DEFAULT_GENERATE_SEARCH() uses for its 'text' columns.
 	$vareSearchSql.=" and varer.enhed ILIKE '%".db_escape_string($enhedSoeg)."%'";
@@ -234,14 +237,25 @@ if ($enhedSoeg) {
 // only, not $lsS (the numeric per-column boxes) - those have no SQL-level filter of their own to bypass,
 // and bypassing zStock for a numeric-only search would run the expensive per-item loop over the whole
 // catalog instead of a search-narrowed candidate list.
-$lsHasTextSearch = ($varenrSoeg || $varenavn || $enhedSoeg);
+// CodeRabbit - same "0" truthy pitfall as $vareSearchSql above: || on the raw strings would treat an
+// exact "0" search as no search at all, leaving the very filters this flag exists to bypass still in
+// effect for that value - explicit not-null/not-empty checks instead.
+$lsHasTextSearch = ($varenrSoeg !== null && $varenrSoeg !== '')
+	|| ($varenavn !== null && $varenavn !== '')
+	|| ($enhedSoeg !== null && $enhedSoeg !== '');
 
 if ($a) {
 	if ($lagervalg) {
 		$qtxt = "select varer.id,varer.varenr,varer.enhed,varer.beskrivelse,varer.salgspris,varer.kostpris,varer.varianter,varer.gruppe,";
 		$qtxt.= "lagerstatus.beholdning ";
-		$qtxt.= "from varer,lagerstatus where varer.gruppe='$a' and lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' ";
-		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and lagerstatus.beholdning != '0' ";
+		// CodeRabbit - LEFT JOIN (was an inner join): a product that has never had any stock movement in
+		// THIS specific warehouse has no lagerstatus row for it at all, so an inner join dropped it before
+		// $lsHasTextSearch below ever got a chance to matter - a text search still couldn't find it even
+		// with the zStock/showClosed bypass. coalesce() below treats "no row" the same as "0 stock"
+		// everywhere beholdning is filtered; the loop that reads $r2['beholdning'] further down does the
+		// same for display.
+		$qtxt.= "from varer left join lagerstatus on lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' where varer.gruppe='$a' ";
+		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and coalesce(lagerstatus.beholdning,0) != '0' ";
 		if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= "$vareSearchSql ";
 		$qtxt.="order by varer.varenr";
@@ -256,8 +270,9 @@ if ($a) {
 	if ($lagervalg) {
 		$qtxt =" select varer.id,varer.varenr,varer.enhed,varer.beskrivelse,varer.salgspris,varer.kostpris,varer.varianter,varer.gruppe,";
 		$qtxt.= "lagerstatus.beholdning ";
-		$qtxt.= "from varer,lagerstatus where lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' ";
-		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and lagerstatus.beholdning != '0' ";
+		// CodeRabbit - LEFT JOIN, same reason as the gruppe+lagervalg branch above.
+		$qtxt.= "from varer left join lagerstatus on lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' where 1=1 ";
+		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and coalesce(lagerstatus.beholdning,0) != '0' ";
 	   if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= "$vareSearchSql ";
 		$qtxt.= " order by varer.varenr";
@@ -276,7 +291,11 @@ while ($r2=db_fetch_array($q2)){
 		$vare_id[$x]=$r2['id'];
 		$varenr[$x]=stripslashes($r2['varenr']);
 		$enhed[$x]=stripslashes($r2['enhed']);
-		$beholdning[$x]=$r2['beholdning'];
+		// CodeRabbit - the lagervalg branches above now LEFT JOIN lagerstatus, so a product with no
+		// stock row at all for the selected warehouse comes back with beholdning=NULL rather than a
+		// missing row; treat that the same as 0 here so downstream arithmetic (afrund/dkdecimal/etc.)
+		// never operates on NULL.
+		$beholdning[$x]=$r2['beholdning'] !== null ? $r2['beholdning'] : 0;
 		$varianter[$x]=$r2['varianter']; #20180204
 		$beskrivelse[$x]=stripslashes($r2['beskrivelse']);
 		$salgspris[$x]=$r2['salgspris'];
