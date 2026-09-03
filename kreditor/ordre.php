@@ -65,6 +65,8 @@
 // 20260827 Sawaneh create supplier: before insert the kontonr is re-checked across all arts, and a
 //                 number taken meanwhile (stale prefill or a debtor holding it) is replaced with a
 //                 fresh one from get_next_number, so no cross-art duplicate can be created (SST-753)
+// 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup navigates here by GET, see accountLookup.php selectAccount) into the new order header. 
+//                 usdate('') returns today, so only convert values that were actually supplied.
 
 @session_start();
 $s_id=session_id();
@@ -172,6 +174,11 @@ $lager = if_isset($_GET, NULL, 'lager');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
 
 if ((!$id || $id === 'null') && $konto_id) {
+	// 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup
+	// navigates here by GET, see accountLookup.php selectAccount) into the new order header.
+	// usdate('') returns today, so only convert values that were actually supplied.
+	$ordredate = trim(if_isset($_GET, '', 'ordredato')) !== '' ? usdate(trim($_GET['ordredato'])) : '';
+	$levdate   = trim(if_isset($_GET, '', 'levdato'))   !== '' ? usdate(trim($_GET['levdato']))   : '';
 	include_once('orderIncludes/insertAccount.php');
 	$id = insertAccount(0, $konto_id);
 	if ($id) {
