@@ -35,6 +35,18 @@ mkdir($tempDir);
 $pdfPath = $tempDir . '/invoice.pdf';
 $pdfBytes = "%PDF-1.7\npage-one\fpage-two\n%%EOF";
 file_put_contents($pdfPath, $pdfBytes);
+$xmlPath = $tempDir . '/invoice.xml';
+$xmlBytes = '<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017</cbc:CustomizationID>
+  <cbc:ID>INV-42</cbc:ID>
+  <cbc:IssueDate>2026-07-23</cbc:IssueDate>
+  <cbc:DocumentCurrencyCode>DKK</cbc:DocumentCurrencyCode>
+  <cac:AccountingSupplierParty><cac:Party><cac:PartyName><cbc:Name>Leverandør ApS</cbc:Name></cac:PartyName></cac:Party></cac:AccountingSupplierParty>
+  <cac:LegalMonetaryTotal><cbc:PayableAmount currencyID="DKK">1250.00</cbc:PayableAmount></cac:LegalMonetaryTotal>
+  <cac:InvoiceLine><cac:Item><cbc:Name>Konsulentydelse</cbc:Name></cac:Item></cac:InvoiceLine>
+</Invoice>';
+file_put_contents($xmlPath, $xmlBytes);
 
 $dbSelectCalls = array();
 $dbSelectResult = array('var_value' => 'global-key');
@@ -66,6 +78,19 @@ $invoiceExtractionApiDependencies = array(
 	'key_resolver' => function () { return null; },
 	'transport' => function () use (&$transportCalls) { $transportCalls++; return array(); }
 );
+$xmlResult = extractInvoiceData($xmlPath, 'xml-test');
+check($xmlResult === array('amount' => '1250.00', 'date' => '2026-07-23', 'vendor' => 'Leverandør ApS', 'invoiceNumber' => 'INV-42', 'description' => 'Konsulentydelse', 'currency' => 'DKK'), 'extracts standard OIOUBL/Peppol fields locally');
+check($transportCalls === 0, 'does not call the AI transport for XML invoices');
+
+$unsafeXmlPath = $tempDir . '/unsafe.xml';
+file_put_contents($unsafeXmlPath, '<!DOCTYPE Invoice [<!ENTITY secret SYSTEM "file:///etc/passwd">]><Invoice>&secret;</Invoice>');
+check(extractInvoiceData($unsafeXmlPath, 'unsafe-xml') === null, 'rejects XML document type and entity declarations');
+
+$transportCalls = 0;
+$invoiceExtractionApiDependencies = array(
+	'key_resolver' => function () { return null; },
+	'transport' => function () use (&$transportCalls) { $transportCalls++; return array(); }
+);
 check(extractInvoiceData($pdfPath, 'missing-key') === null && $transportCalls === 0, 'does not call transport without an API key');
 
 foreach (array(
@@ -82,6 +107,8 @@ foreach (array(
 
 unset($invoiceExtractionApiDependencies);
 unlink($pdfPath);
+unlink($xmlPath);
+unlink($unsafeXmlPath);
 rmdir($tempDir);
 
 echo "\nResults: $passed passed, $failed failed\n";
