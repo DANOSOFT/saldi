@@ -2,6 +2,9 @@
 // ../includes/kreditorOrderFuncIncludes/accountLookup.php
 // 20260304 LOE Converted to use grid framework (same as debitor/order account lookup)
 // 20260506 sawaneh Added create-new-supplier overlay when looked-up kontonr/firmanavn has no match
+// 20260902 CL/LH  Carry already-typed order/delivery dates along so the new order header
+//                 keeps them (kreditor/ordre.php reads ordredato/levdato from GET before insertAccount()).
+
 function kontoopslag($sort, $fokus, $id, $find){
 
 	global $bgcolor, $bgcolor5;
@@ -278,8 +281,7 @@ TOGGLESCRIPT;
 	echo <<<HTML
 	<script>
 	function selectAccount{$id}(fokus, konto_id) {
-		// 20260902 CL/LH  Carry already-typed order/delivery dates along so the new order header
-		// keeps them (kreditor/ordre.php reads ordredato/levdato from GET before insertAccount()).
+		// 20260902
 		var url = "ordre.php?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
 		var dateFields = ["ordredato", "levdato"];
 		for (var i = 0; i < dateFields.length; i++) {

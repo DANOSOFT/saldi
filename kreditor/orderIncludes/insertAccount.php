@@ -30,6 +30,7 @@
 // 20270226 PHR $art set to 'KO' if empty
 // 20260710 MJ Preserve ref: use global $ref (from form) or look up employee naam, not raw brugernavn.
 // 20260713 MJ Fix structural bug: orphaned if(!$afd){ caused all main logic to be skipped when afd was set. Also restore afd lookup from ansatte.
+// 20260902 CL/LH  L4 finding master-data-supplier DEVY-1: selecting the supplier used to stamp today's date over an Ordredato the operator had already typed, and never stored Levdato. Keep the dates from the form (kreditor/ordre.php passes them along) and only fall back to today when nothing was entered.
 
 if (!function_exists('insertAccount')) {
 function insertAccount($id, $konto_id) {
