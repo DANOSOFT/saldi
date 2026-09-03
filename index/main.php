@@ -668,8 +668,8 @@ function brightenColor($color, $amount = 0.2) {
 
 <?php
 // Chat-widget serveres lokalt fra chaty_V2's docker-compose ved udvikling paa localhost
-$chatyBase = (strpos($_SERVER['HTTP_HOST'], 'localhost') === 0 || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === 0)
-	? 'http://localhost:3000' : 'https://wuweiworkai.com/chaty-v2';
+$chatyHost = strtolower((string) parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST));  
+$chatyBase = in_array($chatyHost, ['localhost', '127.0.0.1'], true)	? 'http://localhost:3000' : 'https://wuweiworkai.com/chaty-v2';
 ?>
 <script async
   src="<?php print $chatyBase; ?>/widget.js"
