@@ -2459,7 +2459,7 @@
 2459	Momsgruppe som kreditorgruppen skal tilknyttes	VAT group to which the creditor group should be assigned	MVA-gruppe som kreditorgruppen skal knyttes til
 2460	Samlekonto for kreditorgruppen	Collective account for the creditor group	Samlekonto for kreditorgruppen
 2461	Det sprog, der skal anvendes ved kommunikation med kreditoren	The language to be used when communicating with the creditor	Språket som skal brukes ved kommunikasjon med kreditoren
-2462	Momsgruppe for salgsmoms ved omvendt betalingspligt	VAT group for sales VAT under reverse charge	"MVA-gruppe for salgs-MVA ved omvendt betalingsplikt
+2462	Momsgruppe for salgsmoms ved omvendt betalingspligt	VAT group for sales VAT under reverse charge	MVA-gruppe for salgs-MVA ved omvendt betalingsplikt
 2463	S.moms grp.	S.VAT grp.	S.MVA grp.
 2464	Afd.	Dept.	Avd.
 2465	Afmærk her, hvis denne leverandørgruppe er omfattet af omvendt betalingspligt	Check here if this supplier group is subject to reverse charge	Merk av her hvis denne leverandørgruppen er omfattet av omvendt betalingsplikt
