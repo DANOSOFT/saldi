@@ -47,6 +47,12 @@
 //             $varenrSoeg, not $varenr, to avoid clobbering the existing per-item $varenr[$x] array
 //             further down (caught live against a real tenant - first version silently turned every
 //             result row's item-number display into "Array" and broke pagination links)
+// 20260903 SZ MB-31 follow-up: the search added above couldn't find an item that had never been
+//             bought/sold, nor one that was out of stock or discontinued (reported by Peter, tenant
+//             test_31, item K7048TE12) - the zStock/showClosed SQL filters and the "has any activity"
+//             gate further down excluded it regardless of a matching search term. Added
+//             $lsHasTextSearch to bypass both once Varenr./Beskrivelse/Enhed is searched - see its
+//             own comment further down. Live-verified against the local chartest tenant.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -220,19 +226,29 @@ if ($enhedSoeg) {
 	$vareSearchSql.=" and varer.enhed ILIKE '%".db_escape_string($enhedSoeg)."%'";
 }
 
+// MB-31 follow-up (Peter, test_31, 20260903) - a Varenr./Beskrivelse/Enhed search must find a matching
+// item regardless of the zStock ("0 lager")/showClosed ("Udgåede") checkboxes and regardless of whether
+// it's ever been bought or sold: those two checkboxes are for browsing the full list, but a deliberate
+// text search already narrows $vareSearchSql to matching items, so it's safe (and expected) to bypass
+// both filters below plus the "has activity" gate further down in that case. Scoped to the text fields
+// only, not $lsS (the numeric per-column boxes) - those have no SQL-level filter of their own to bypass,
+// and bypassing zStock for a numeric-only search would run the expensive per-item loop over the whole
+// catalog instead of a search-narrowed candidate list.
+$lsHasTextSearch = ($varenrSoeg || $varenavn || $enhedSoeg);
+
 if ($a) {
 	if ($lagervalg) {
 		$qtxt = "select varer.id,varer.varenr,varer.enhed,varer.beskrivelse,varer.salgspris,varer.kostpris,varer.varianter,varer.gruppe,";
 		$qtxt.= "lagerstatus.beholdning ";
 		$qtxt.= "from varer,lagerstatus where varer.gruppe='$a' and lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' ";
-		if (!$zStock) $qtxt.= "and lagerstatus.beholdning != '0' ";
-		if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and lagerstatus.beholdning != '0' ";
+		if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= "$vareSearchSql ";
 		$qtxt.="order by varer.varenr";
 	} else {
 	   $qtxt = "select * from varer where gruppe='$a' ";
-	   if (!$zStock) $qtxt.= "and beholdning != '0' ";
-	   if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+	   if (!$zStock && !$lsHasTextSearch) $qtxt.= "and beholdning != '0' ";
+	   if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 	   $qtxt.= "$vareSearchSql ";
 	   $qtxt.= "order by varenr";
 	}
@@ -241,16 +257,14 @@ if ($a) {
 		$qtxt =" select varer.id,varer.varenr,varer.enhed,varer.beskrivelse,varer.salgspris,varer.kostpris,varer.varianter,varer.gruppe,";
 		$qtxt.= "lagerstatus.beholdning ";
 		$qtxt.= "from varer,lagerstatus where lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' ";
-		if (!$zStock) $qtxt.= "and lagerstatus.beholdning != '0' ";
-	   if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and lagerstatus.beholdning != '0' ";
+	   if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= "$vareSearchSql ";
 		$qtxt.= " order by varer.varenr";
 	} else {
 		$qtxt = "select * from varer where 1=1 ";
-		if (!$zStock) {
-			$qtxt.= "and beholdning != '0' ";
-			if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
-		} elseif (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and beholdning != '0' ";
+		if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= "$vareSearchSql ";
 		$qtxt.= "order by varenr";
 	}
@@ -577,7 +591,12 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 			db_modify("insert into lagerstatus(vare_id,beholdning,lager) values ('$vare_id[$x]','$diff','$tmp')",__FILE__ . " linje " . __LINE__);
 		}
 	}
-	if ($batch_k_antal[$x]||$batch_s_antal[$x]||$beholdning[$x]||$handlet[$x]) {
+	// MB-31 follow-up - $lsHasTextSearch bypasses this "has any activity" gate too: a text search
+	// already narrowed the candidate query above ($vareSearchSql), so every $x reaching here already
+	// matches the search term and must be shown even if it's never been bought/sold and has 0 stock
+	// (K7048TE12, Peter's test_31 report) - previously such an item silently vanished here even though
+	// it matched the query.
+	if ($batch_k_antal[$x]||$batch_s_antal[$x]||$beholdning[$x]||$handlet[$x]||$lsHasTextSearch) {
 		if ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		else {$linjebg=$bgcolor; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";
