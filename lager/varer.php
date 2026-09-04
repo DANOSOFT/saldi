@@ -57,7 +57,12 @@
 // 2021.04.01 LOE - Translated these texts to English 20210401
 // 2023.04.14 LOE - Minor modifications
 // 2023.06.03 PHR - php8
-// 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
+// 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines
+// 20260905 SZ MB-35: udskriv()'s two genbestil branches disagreed on whether existing purchase
+//             proposals/orders (i_forslag/bestilt) were subtracted from the reorder suggestion -
+//             one branch used neither, so an item already covered by a pending purchase order got
+//             suggested for the full gap to max again. Extracted genbestil_nettobeholdning()/
+//             beregn_genbestil() and routed both branches through them.
 
 @session_start();
 $s_id=session_id();
@@ -904,11 +909,13 @@ for ($v=0;$v<count($varenr);$v++) {
 					print "<td align=right>".dkdecimal($beholdning[$v],2)."</td>";
 				}
 				if ($makeSuggestion){
-					$tmp=$beholdning[$v]-$i_ordre[$z];
+					// MB-35 - was $beholdning[$v]-$i_ordre[$z] and $max_lager[$v]-$beholdning[$v]+$i_ordre[$z]
+					// below, ignoring $i_forslag[$z]/$bestilt[$z] (already fetched above) - see
+					// genbestil_nettobeholdning()/beregn_genbestil() in includes/std_func.php.
+					$tmp=genbestil_nettobeholdning($beholdning[$v],$i_ordre[$z],$i_forslag[$z],$bestilt[$z]);
 					if ($min_lager[$v]*1>$tmp || $alle_varer) {
 						$gb=$gb+1;
-						$genbestil[$z]=$max_lager[$v]-$beholdning[$v]+$i_ordre[$z];
-						if ($genbestil[$z] < 0) $genbestil[$z]=0;	
+						$genbestil[$z]=beregn_genbestil($max_lager[$v],$beholdning[$v],$i_ordre[$z],$i_forslag[$z],$bestilt[$z]);
 						print "<td align=right><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:60px\" name=\"gb_antal_$gb\" value=\"$genbestil[$z]\"></td>";
 						print "<input type=\"hidden\" name=\"gb_id_$gb\" value=\"$id[$v]\">";
 						print "<input type=\"hidden\" name=\"genbestil_ant\" value=\"$gb\">";
@@ -998,9 +1005,12 @@ for ($v=0;$v<count($varenr);$v++) {
 			}
 			if (!$min_lager[$v])  $min_lager[$v]  = 0;
 			if (!$beholdning[$v]) $beholdning[$v] = 0;
-			if ($min_lager[$v]*1>($beholdning[$v]-$i_ordre[$z]+$i_forslag[$z]+$bestilt[$z])) {
-			
-				$genbestil[$z]=$max_lager[$v]-$beholdning[$v]+$i_ordre[$z]-($i_forslag[$z]+$bestilt[$z]);
+			// MB-35 - routed through the same genbestil_nettobeholdning()/beregn_genbestil() helpers
+			// as the other branch above (line ~906), so the two can't drift apart again - this
+			// branch's own formula was already correct, the other one was missing the
+			// i_forslag/bestilt subtraction.
+			if ($min_lager[$v]*1>genbestil_nettobeholdning($beholdning[$v],$i_ordre[$z],$i_forslag[$z],$bestilt[$z])) {
+				$genbestil[$z]=beregn_genbestil($max_lager[$v],$beholdning[$v],$i_ordre[$z],$i_forslag[$z],$bestilt[$z]);
 				if ($makeSuggestion) {
 					$forslag[$v]=$id[$v];
 				}
@@ -1019,6 +1029,10 @@ return($z);
 }
 }# endfunc udskriv
 ##############################################
+
+// MB-35 - genbestil_nettobeholdning()/beregn_genbestil(), used by both branches above, now live in
+// includes/std_func.php next to find_beholdning() (whose $i_ordre/$i_forslag/$bestilt values they
+// consume), so they're plain testable functions rather than tied up in this page's top-level script.
 
 function genbestil($vare_id, $antal) {
 	global $brugernavn,$db,$regnaar;
