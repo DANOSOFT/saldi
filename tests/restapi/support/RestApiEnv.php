@@ -10,18 +10,54 @@
 // ("apitest") and one closed ("apitestclosed") so the closed-tenant
 // rejection path can be exercised.
 //
+// Each test class bootstraps the tenant in setUpBeforeClass() and drops it
+// again in tearDownAfterClass() (teardownTenant()), so the seeded login only
+// exists while a class is running. Set SALDI_REST_KEEP_TENANT=1 to keep it
+// around for inspecting a failure.
+//
 // Skips cleanly when the stack is not reachable (no pgsql/curl extension or
 // no postgres/web host), so `composer test` stays green on a bare checkout.
 //
 // History:
 // 20260723 CL/LH SD-602: created.
+// 20260904 CL/NTR Reset the cached login when the tenant is re-bootstrapped
+//                 (each bootstrap re-inserts the regnskab rows with new ids,
+//                 which invalidated a token cached by an earlier test class);
+//                 added authHeaders(), loginData(), refreshToken(),
+//                 regnskabId() and signToken() for the wider endpoint suite.
+// 20260904 CL/NTR Seeded API user's password is no longer a literal: it comes
+//                 from tests/TestCredentials.php, random per process (override
+//                 with SALDI_TEST_PASSWORD_RESTAPI to log in by hand).
+// 20260904 CL/NTR teardownTenant(): drop the throwaway tenant + its regnskab
+//                 rows after each test class (SALDI_REST_KEEP_TENANT=1 keeps
+//                 them for debugging) so no seeded login outlives the run.
+
+require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
 final class RestApiEnv
 {
+    /** Username of the API user the suite seeds into its throwaway tenant (grants nothing by itself). */
     public const USER = 'apitest';
-    public const PASSWORD = 'apitest-local-2026';
     public const ACCOUNT_OPEN = 'apitest';
     public const ACCOUNT_CLOSED = 'apitestclosed';
+
+    /** @var array|null Decoded `data` of the seeded user's login, cached per bootstrap. */
+    private static $loginData = null;
+
+    /** @var bool True between bootstrapTenant() and teardownTenant(), so teardown is a no-op after a skipped setup. */
+    private static $bootstrapped = false;
+
+    /** Username of the seeded API user. */
+    public static function user(): string
+    {
+        return self::USER;
+    }
+
+    /** Password of the seeded API user - random per process, see tests/TestCredentials.php. */
+    public static function password(): string
+    {
+        return TestCredentials::password('restapi');
+    }
 
     public static function baseUrl(): string
     {
@@ -121,6 +157,8 @@ final class RestApiEnv
     /** Clone the template tenant, register open+closed regnskab rows, seed the API user. */
     public static function bootstrapTenant(): void
     {
+        self::$loginData = null; // the regnskab ids change below, so any cached token is stale
+        self::$bootstrapped = true;
         $master = self::connect(self::masterDb());
         $test = self::testDb();
         $template = self::templateDb();
@@ -157,13 +195,48 @@ final class RestApiEnv
         pg_close($master);
 
         $tenant = self::connect($test);
-        pg_query_params($tenant, 'DELETE FROM brugere WHERE brugernavn = $1', [self::USER]);
+        pg_query_params($tenant, 'DELETE FROM brugere WHERE brugernavn = $1', [self::user()]);
         pg_query_params(
             $tenant,
             "INSERT INTO brugere (brugernavn, kode, email, rettigheder, status) VALUES ($1, $2, $3, $4, true)",
-            [self::USER, md5(self::PASSWORD), 'apitest@example.invalid', 'admin']
+            [self::user(), md5(self::password()), 'apitest@example.invalid', 'admin']
         );
         pg_close($tenant);
+    }
+
+    /**
+     * Drop the throwaway tenant and its two master regnskab rows again, so the
+     * seeded API user does not outlive the test class that created it. No-op
+     * when nothing was bootstrapped in this process, or when
+     * SALDI_REST_KEEP_TENANT=1 asks to keep the tenant for inspection.
+     */
+    public static function teardownTenant(): void
+    {
+        if (!self::$bootstrapped) {
+            return;
+        }
+        self::$bootstrapped = false;
+        self::$loginData = null;
+        if (getenv('SALDI_REST_KEEP_TENANT')) {
+            return;
+        }
+        $test = self::testDb();
+        if (!preg_match('/^[a-z0-9_]+$/', $test)) {
+            throw new RuntimeException('unsafe database name');
+        }
+        $master = self::connect(self::masterDb());
+        pg_query_params(
+            $master,
+            'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
+            [$test]
+        );
+        $dropped = pg_query($master, "DROP DATABASE IF EXISTS $test");
+        pg_query_params($master, 'DELETE FROM regnskab WHERE db = $1 OR regnskab IN ($2, $3)', [$test, self::ACCOUNT_OPEN, self::ACCOUNT_CLOSED]);
+        $error = $dropped === false ? pg_last_error($master) : '';
+        pg_close($master);
+        if ($dropped === false) {
+            throw new RuntimeException("could not drop throwaway tenant $test: $error");
+        }
     }
 
     /**
@@ -228,17 +301,77 @@ final class RestApiEnv
         ]);
     }
 
-    /** Access token for the seeded test user (cached per process). */
-    public static function accessToken(): string
+    /**
+     * The `data` block of a successful login for the seeded test user
+     * (tokens, user, tenant). Cached until the next bootstrapTenant().
+     *
+     * @return array{access_token:string, refresh_token:string, token_type:string, expires_in:int, user:array, tenant:array}
+     */
+    public static function loginData(): array
     {
-        static $token = null;
-        if ($token === null) {
-            $res = self::login(self::USER, self::PASSWORD, self::ACCOUNT_OPEN);
-            $token = $res['json']['data']['access_token'] ?? '';
-            if ($token === '') {
+        if (self::$loginData === null) {
+            $res = self::login(self::user(), self::password(), self::ACCOUNT_OPEN);
+            $data = $res['json']['data'] ?? null;
+            if (!is_array($data) || empty($data['access_token'])) {
                 throw new RuntimeException('login for seeded test user failed: ' . $res['body']);
             }
+            self::$loginData = $data;
         }
-        return $token;
+        return self::$loginData;
+    }
+
+    /** Access token for the seeded test user (cached until the next bootstrap). */
+    public static function accessToken(): string
+    {
+        return self::loginData()['access_token'];
+    }
+
+    /** Refresh token for the seeded test user (cached until the next bootstrap). */
+    public static function refreshToken(): string
+    {
+        return self::loginData()['refresh_token'];
+    }
+
+    /** Authorization header for the seeded test user, ready for http(). */
+    public static function authHeaders(): array
+    {
+        return ['Authorization: Bearer ' . self::accessToken()];
+    }
+
+    /** Master `regnskab.id` for one of the registered account names (ACCOUNT_OPEN / ACCOUNT_CLOSED). */
+    public static function regnskabId(string $account): int
+    {
+        $master = self::connect(self::masterDb());
+        $rows = self::rows($master, 'SELECT id FROM regnskab WHERE regnskab = $1', [$account]);
+        pg_close($master);
+        if ($rows === []) {
+            throw new RuntimeException("no regnskab row named $account (bootstrapTenant() not run?)");
+        }
+        return (int)$rows[0]['id'];
+    }
+
+    /** Null when tokens can be signed with the install's own JWT secret, otherwise a skip-reason. */
+    public static function installSecretUnavailableReason(): ?string
+    {
+        require_once dirname(__DIR__, 3) . '/restapi/core/JWT.php';
+        $path = JWT::secretPath();
+        if (!is_readable($path)) {
+            return "JWT secret $path is not readable from the test process (run inside the docker web container)";
+        }
+        return null;
+    }
+
+    /**
+     * Sign an arbitrary JWT payload with the install's own secret, so tests can
+     * hand the API tokens it would never issue itself (expired, wrong type,
+     * foreign account id, ...). Requires installSecretUnavailableReason() === null.
+     */
+    public static function signToken(array $claims, int $ttl = 3600): string
+    {
+        $root = dirname(__DIR__, 3);
+        require_once $root . '/restapi/core/JWT.php';
+        require_once $root . '/restapi/core/JwtSecretProvisioning.php';
+        JWT::setSecret(_jwtLoadSecret(JWT::secretPath()));
+        return JWT::encode($claims, $ttl);
     }
 }
