@@ -47,6 +47,13 @@
 //             $varenrSoeg, not $varenr, to avoid clobbering the existing per-item $varenr[$x] array
 //             further down (caught live against a real tenant - first version silently turned every
 //             result row's item-number display into "Array" and broke pagination links)
+// 20260904 SZ MB-39: Kobspris valued stock at the wrong price - the batch_kob value walk's
+//             "and antal >= 1" dropped negative (credit note) lines, so a credited purchase never
+//             cancelled the batch it credited, and its "order by kobsdate desc" had no tie-break,
+//             so the result could change between runs when batches shared a date. Included
+//             negative lines, added an id-based tie-break, stopped the walk once remaining stock
+//             is covered, and guarded on positive remaining stock so already-zero/negative-stock
+//             items still value at 0. Verified against IBON's real saldi_821 dump (SST-764).
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
