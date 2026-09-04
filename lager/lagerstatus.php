@@ -539,14 +539,24 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		if ($tmp*$batch_t_antal[$x]!=0) $batch_pris[$x]=$batch_pris[$x]/$tmp*$batch_t_antal[$x];
 		else $batch_pris[$x]=0;
 */	
-	if ($batch_k_antal[$x]) {
+	// MB-39 - "and antal >= 1" used to drop negative batch_kob lines (purchase credit notes) from
+	// this walk, so a credit note never cancelled the erroneous batch it credited, plus it dropped
+	// legitimate fractional purchase lines (0 < antal < 1, e.g. produce sold by weight). Now that
+	// negative lines are included, the walk must only run when there's positive remaining stock to
+	// value ($batch_t_antal[$x] > 0): for a fully sold-out or oversold/misposted item, a negative
+	// line alone can satisfy the "<=" check below and leave $antal non-zero without ever reaching
+	// real stock, producing a bogus non-zero price for an item that should value at 0 - the old
+	// antal>=1 filter prevented this too, as a side effect of keeping negative lines out entirely.
+	if ($batch_k_antal[$x] && $batch_t_antal[$x] > 0) {
 		$pris=0;
 		$antal=0;
-		$qtxt="select antal,pris from batch_kob where vare_id=$vare_id[$x] and antal >= 1"; #20140128
+		// Tie-break on id keeps same-day batches in a deterministic order - previously relied on
+		// undefined physical row order, so the result could change between runs on tied dates.
+		$qtxt="select antal,pris from batch_kob where vare_id=$vare_id[$x]";
 		if ($lagervalg) $qtxt.=" and lager='$lagervalg'";
 		($dateType == 'levdate')?$dt = 'kobsdate':$dt = $dateType;
 		if ($date!=$dd) $qtxt.=" and $dt <= '$date'";
-		$qtxt.=" order by kobsdate desc";
+		$qtxt.=" order by kobsdate desc, id desc";
 		$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while($r1=db_fetch_array($q1)) {
 			if ($antal+$r1['antal'] <= $batch_t_antal[$x]) {
@@ -556,6 +566,11 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 				$pris+=$r1['pris']*($batch_t_antal[$x]-$antal);
 				$antal=$batch_t_antal[$x];
 			}
+			// Once the walk has accounted for all remaining stock, stop - otherwise an older
+			// credit note (now included above) could still get pulled in here, since a negative
+			// antal always satisfies the "<=" check above regardless of how much of the target is
+			// already covered.
+			if ($antal>=$batch_t_antal[$x]) break;
 		}
 		($antal)?$batch_pris[$x]=$pris:$batch_pris[$x]=0;
 	}
