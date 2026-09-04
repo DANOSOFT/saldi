@@ -43,6 +43,8 @@
 // 20260727 CL/SZ Also generate a random JWT signing secret per install (SD-587)
 // 20260729 NTR Added guards to put_file functions so that it throws an error, when not having access to writing the files.
 // 20260729 NTR Changed crypt & JWT file location to be fetched from the location instead of hardcoded, to make sure there's no mismatch location.
+// 20260904 CL/NTR Pre-flight check of the OAuth key and JWT secret directories, trying chmod first, so a
+//                   missing write access stops the wizard with a message instead of an exception after the DB is created.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -66,6 +68,8 @@ include("../includes/settings.php");
 include("../includes/version.php");
 include("../includes/std_func.php");
 include("languageText.php");
+require_once __DIR__ . '/../bank_integration/includes/crypt.php';
+require_once __DIR__ . '/../restapi/core/JWT.php';
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
@@ -228,13 +232,16 @@ if (isset($_POST['opret'])){
 		fclose($fp);
 		unlink("../logolib/test.txt");
 	}	else $noskriv="logolib";
+	// The OAuth key and the JWT secret are written to these directories further down.
+	if (!make_dir_writable(dirname(oauthKeyPath()))) $noskriv="bank_integration";
+	if (!make_dir_writable(dirname(JWT::secretPath()))) $noskriv="restapi";
 	if ($noskriv) {
 		// ($db_encode=="UTF8")? $href="INSTALLATION_utf8.txt":$href="INSTALLATION_lat9.txt";
 		if ($noskriv=="includes") print "<p>Webbrugere har ikke skriveadgang til kataloget \"$noskriv\", hvor \"connect.php\" skal oprettes.</p>\n\n";
 		else print "<p>Webbrugere har ikke skriveadgang til kataloget \"$noskriv\".</p>\n\n";
 		print "<p>S&oslash;rg for at der er skriveadgang for den bruger, som den bes&oslash;gende k&oslash;rer som (webserverbrugeren) \n";
 		print "til katalogerne";
-		print "\"includes\", \"temp\" og \"logolib\".<br>\n\n Se hvordan i installeringsvejledningen <a href=\"../INSTALLATION.txt\" target=\"blank\">INSTALLATION.txt</a>.</p>\n\n";
+		print "\"includes\", \"temp\", \"logolib\", \"bank_integration\" og \"restapi\".<br>\n\n Se hvordan i installeringsvejledningen <a href=\"../INSTALLATION.txt\" target=\"blank\">INSTALLATION.txt</a>.</p>\n\n";
 		print "</td></tr></table></body></html>\n";
 		exit;
 	}		
@@ -339,9 +346,6 @@ if (isset($_POST['opret'])){
 	transaktion("commit");
 	// rename("../includes/connect", "../includes/connect.php");
 	
-	require_once __DIR__ . '/../bank_integration/includes/crypt.php';
-	require_once __DIR__ . '/../restapi/core/JWT.php';
-
 	$secret_bank_key = random_bytes(32);
 	if (file_put_contents(oauthKeyPath(), $secret_bank_key, LOCK_EX) !== strlen($secret_bank_key)) {
 		throw new \RuntimeException('Unable to create JWT signing secret');
@@ -507,6 +511,25 @@ function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,
 	}	
 	fwrite($fp,"\n");
 	fwrite($fp,"?".">\n");
+}
+
+/**
+ * Make sure the web server user can create files in $dir, trying chmod when it cannot.
+ *
+ * chmod only succeeds when the web server user owns the directory, so it is only
+ * attempted in that case; nothing is thrown and no warning is raised when it cannot help.
+ *
+ * @param string $dir Directory that must be writable.
+ * @return bool True when files can be created in $dir afterwards.
+ */
+function make_dir_writable($dir) {
+	if (is_writable($dir)) return true;
+	if (!is_dir($dir)) return false;
+	if (function_exists('posix_geteuid') && fileowner($dir) === posix_geteuid()) {
+		chmod($dir, (fileperms($dir) & 0777) | 0700);
+		clearstatcache(true, $dir);
+	}
+	return is_writable($dir);
 }
 
 ?>

@@ -1980,8 +1980,8 @@
 1980	Kan ikke oprette forbindelse til MySQLi\n	Unable to connect to MySQLi \n	Kan ikke koble til MySQLi \n
 1981	Kan ikke oprette forbindelse til PostgreSQL\n	Unable to connect to PostgreSQL \n	Kan ikke koble til PostgreSQL \n
 1982	SALDI er installeret	SALDI is installed	SALDI er installert
-1983	Dit SALDI-system er nu oprettet. Og det første, du skal gøre, er at oprette et regnska	Your SALDI system is now set up. And the first thing you need to do is create an account	SALDI-systemet ditt er nå satt opp. Og det første du må gjøre er å opprette en konto
-1984	Dette gøres ved at loggge ind med	This is done by logging in with	Dette gjøres ved å logge inn med
+1983	Dit SALDI-system er nu oprettet. Og det første, du skal gøre, er at oprette et regnskab	Your SALDI system is now set up. And the first thing you need to do is create an account	SALDI-systemet ditt er nå satt opp. Og det første du må gjøre er å opprette en konto
+1984	Dette gøres ved at logge ind med	This is done by logging in with	Dette gjøres ved å logge inn med
 1985	som regnskab,	as accounts,	som regnskap,
 1986	som brugernavn og den valgte adgangskode	as the username and the selected password	som brukernavn og den valgte adgangskoden
 1987	Tegn en hotline-aftale for kun, så kan du ringe eller sende en e-mail 	Sign a hotline deal only, then you can call or send an email	Tegn en hotline-aftale for kun, så kan du ringe eller sende en e-post
