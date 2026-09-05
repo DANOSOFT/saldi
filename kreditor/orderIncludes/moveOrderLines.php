@@ -33,6 +33,11 @@
 //             POST strings in arithmetic - '1,5' in arithmetic is a PHP8 TypeError = blank page;
 //             guard/int-cast $linje_id (count(null) is likewise fatal); cap posnr bump with LEAST()
 //             so repeated splits cannot overflow the smallint posnr column mid-transaction.
+// 20260905 SZ MB-38: splitting to "Opret ny ordre" cloned the source row into temp_table and only
+//             rewrote id before the INSERT, so ordrenr (and every other header field) came along
+//             verbatim - two orders ended up sharing the same number, breaking ordrenr-based
+//             lookups/matching. Now also assign the temp row the next free kreditor ordrenr
+//             (scoped to art IN ('KO','KK'), same scope kreditor/ublimport.php already uses).
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
@@ -71,9 +76,12 @@ else {
 		$qtxt = "select max(id) as new_id FROM ordrer";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$newId = $r['new_id'] + 1;
+		$qtxt = "select max(ordrenr) as new_ordrenr FROM ordrer WHERE art = 'KO' OR art = 'KK'";	# MB-38 - kreditor order numbering is its own sequence, scoped like kreditor/ublimport.php's next-number lookup
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$newOrdrenr = $r['new_ordrenr'] + 1;
 		$qtxt = "CREATE TEMPORARY TABLE temp_table AS SELECT * FROM ordrer WHERE id='$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "UPDATE temp_table SET id='$newId' WHERE id='$id'";
+		$qtxt = "UPDATE temp_table SET id='$newId', ordrenr='$newOrdrenr' WHERE id='$id'";	# MB-38 - give the split-off order its own number instead of cloning the source's
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "INSERT INTO ordrer SELECT * FROM temp_table";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
