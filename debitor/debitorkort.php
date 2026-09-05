@@ -101,6 +101,9 @@
 // 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
 // 20260820 Sawaneh Save no longer rewrites kontakt_emails/adresser.email when the POST lacks the
 //                kontakt_email fields, so partial or stale submits cannot wipe stored email addresses
+// 20260905 SZ MB-32: blank Customer no. popped a false "must be integers" alert under PHP 8 - (float)''
+//             compared to '' is now a string comparison ("0" != ""), true, where PHP 7 compared both as
+//             0. Skip the check when the field is blank, matching debitor/debkort_save.php's SD-513 fix
 @session_start();
 $s_id = session_id();
 
@@ -495,7 +498,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$tmp2 = $tmp2 . $y;
 		}
 		$tmp2 = (float)$tmp2;
-		if ($tmp2 != $ny_kontonr) {
+		if ($ny_kontonr !== '' && $tmp2 != $ny_kontonr) {	# MB-32 - an empty field is not an error, the number is assigned automatically further down (same fix as debitor/debkort_save.php, SD-513)
 			$alerttekst = findtekst('345|Kontonummer må kun bestå af heltal uden mellemrum', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 345-->";
 		}
