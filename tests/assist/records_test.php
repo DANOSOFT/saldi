@@ -1,11 +1,13 @@
 <?php
 // 20260907 CDX/LH Pure checks and characterization of the extracted legacy predicates.
 // 20260908 CDX/LH Cover Apache/CGI header handling and conflicting credentials.
+// 20260908 CDX/LH Characterize sub-cent voucher differences independently of totals.
 require_once __DIR__ . '/../../includes/assist/RecordRules.php';
 require_once __DIR__ . '/../../includes/assist/RecordAuth.php';
 
 set_error_handler(static function (int $severity, string $message): void { throw new RuntimeException($message); });
 $checks = 0;
+/** Count an assertion and stop immediately with its non-sensitive test label. */
 function expect_assist(bool $ok, string $label): void
 {
     global $checks;
@@ -47,6 +49,21 @@ $validation = saldi_assist_validate_journal(['bogfort' => '-'], $bad, $reference
 expect_assist(count($validation['differences']) === 2, 'opposite voucher differences must not cancel');
 expect_assist($validation['differences'][0]['row_ids'] === [1], 'stable affected row IDs');
 expect_assist($validation['differences'][0]['difference'] === '100.005', 'stored three-decimal amount preserved');
+// bogfor.php rounds individual amounts with afrund(..., 2), then passes diffbilag
+// to the final predicate. These simple two-row vouchers establish its boundaries.
+foreach (['004' => false, '005' => true, '009' => true, '010' => true] as $fraction => $blocked) {
+    foreach ([1, -1] as $sign) {
+        $boundaryRows = $rows;
+        $boundaryRows[0]['amount'] = $sign > 0 ? '100.' . $fraction : '100.000';
+        $boundaryRows[1]['amount'] = $sign < 0 ? '100.' . $fraction : '100.000';
+        $result = saldi_assist_validate_journal(['bogfort' => '-'], $boundaryRows, $reference);
+        $difference = $sign * (int)$fraction / 1000;
+        $legacyVoucherDifferences = $blocked ? [1 => $sign * 0.01] : [];
+        expect_assist(saldi_assist_has_differences($difference, $legacyVoucherDifferences) === $blocked, 'legacy sub-cent voucher decision');
+        expect_assist(($result['status'] === 'blocked') === $blocked, 'assistant preserves sub-cent voucher decision');
+        expect_assist($result['difference_count'] === ($blocked ? 1 : 0), 'voucher finding at rounding boundary');
+    }
+}
 $reference['closed_months'] = ['2026-09'];
 expect_assist(in_array('period_closed', array_column(saldi_assist_validate_journal([], $rows, $reference)['issues'], 'code'), true), 'period lock');
 $reference['closed_months'] = [];

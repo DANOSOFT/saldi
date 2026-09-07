@@ -1,9 +1,11 @@
 <?php
 // 20260907 CDX/LH Scoped, short-lived access to saved assistant records.
 // 20260908 CDX/LH Read authorization headers across Apache and CGI SAPIs.
+// 20260908 CDX/LH Document grant helper contracts.
 
 final class SaldiAssistFailure extends RuntimeException
 {
+    /** Pair a public error code with the HTTP status returned by the endpoint. */
     public function __construct(string $reason, public int $status = 403)
     {
         parent::__construct($reason);
@@ -14,6 +16,7 @@ final class SaldiAssistRecordAuth
 {
     public const TTL = 300;
 
+    /** @return string Unpadded URL-safe base64 for a signed grant component. */
     public static function encode(string $bytes): string
     {
         return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');

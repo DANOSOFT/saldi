@@ -59,7 +59,8 @@ Special auditor/superuser arrangements need installation-specific verification.
 
 Calls use independent READ ONLY, REPEATABLE READ transactions with timeouts,
 prepared statements and bounded snapshots. Revisions cover saved data and
-relevant configuration. Stale reads return 409. Highlighting rechecks the
+relevant configuration. Bearer reads must include the revision returned with the
+grant; missing, invalid or stale revisions return 409. Highlighting rechecks the
 revision and refuses dirty/different records. `tmpkassekl` triggers a saved-draft
 warning; journals exceeding 2,000 saved rows fail explicitly.
 

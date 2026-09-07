@@ -1,5 +1,6 @@
 <?php
 // 20260907 CDX/LH Bounded snapshots of saved journal and sales-invoice records.
+// 20260908 CDX/LH Document snapshot construction requirements.
 require_once __DIR__ . '/RecordAuth.php';
 require_once __DIR__ . '/RecordRules.php';
 
@@ -7,6 +8,7 @@ final class SaldiAssistRecordService
 {
     public const MAX_ROWS = 2000;
 
+    /** Use an authorized tenant's read-only transaction and selected fiscal year. */
     public function __construct(private PDO $pdo, private int $year)
     {
     }

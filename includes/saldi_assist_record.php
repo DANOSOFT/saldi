@@ -1,6 +1,7 @@
 <?php
 // 20260907 CDX/LH Read-only assistant record endpoint. Opt-in, scoped to the active SALDI login.
 // 20260908 CDX/LH Accept the native Apache authorization header.
+// 20260908 CDX/LH Require snapshot revisions on every bearer record read.
 require_once __DIR__ . '/assist/RecordService.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -65,7 +66,8 @@ try {
         throw new SaldiAssistFailure('invalid_rows', 400);
     }
     $result = $service->execute($operation === 'grant' ? ($kind === 'journal' ? 'get_journal_context' : 'get_invoice_status') : $operation, $kind, $id, $rowIds);
-    if (isset($body['revision']) && (!is_string($body['revision']) || !hash_equals($result['revision'], $body['revision']))) {
+    if (($operation !== 'grant' || isset($body['revision']))
+        && (!is_string($body['revision'] ?? null) || !hash_equals($result['revision'], $body['revision']))) {
         throw new SaldiAssistFailure('record_changed', 409);
     }
     if ($operation === 'grant') {

@@ -1,5 +1,6 @@
 <?php
 // 20260907 CDX/LH Pure preliminary journal checks and invoice button predicates.
+// 20260908 CDX/LH Document the separate legacy voucher and grand-total checks.
 
 /** This predicate is also used by the existing posting preview.
  *  @param array<int,mixed> $voucherDifferences */
@@ -25,6 +26,7 @@ function saldi_assist_milli($value): int
     return ($parts[1] === '-') ? -$milli : $milli;
 }
 
+/** @return string Signed decimal with exactly three fractional digits. */
 function saldi_assist_decimal(int $milli): string
 {
     return ($milli < 0 ? '-' : '') . intdiv(abs($milli), 1000) . '.' . str_pad((string)(abs($milli) % 1000), 3, '0', STR_PAD_LEFT);
@@ -153,6 +155,8 @@ function saldi_assist_validate_journal(array $header, array $rows, array $refere
     $differences = [];
     foreach ($vouchers as $voucher) {
         // Do not sum mixed currencies as if they were DKK or apply invented FX tolerances.
+        // bogfor.php populates diffbilag from rounded voucher balances before the shared
+        // grand-total predicate: a 0.005 voucher difference must not be ignored here.
         if (!$voucher['foreign'] && round($voucher['milli'] / 1000, 2) != 0) {
             $differences[] = ['voucher' => $voucher['voucher'], 'difference' => saldi_assist_decimal($voucher['milli']), 'currency' => 'DKK', 'row_ids' => $voucher['row_ids']];
             $add('voucher_unbalanced', 'Bilag ' . $voucher['voucher'] . ' har en difference på ' . saldi_assist_decimal($voucher['milli']) . ' DKK.', $voucher['row_ids']);

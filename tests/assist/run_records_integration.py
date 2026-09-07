@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 
 
 def command(args, data=None):
+    """Run a subprocess without exposing credential-bearing stderr on failure."""
     result = subprocess.run(args, input=data, text=True, capture_output=True)
     if result.returncode:
         # SQL/env failures can echo credentials. Do not print subprocess streams.
@@ -27,7 +28,28 @@ def command(args, data=None):
     return result.stdout.strip()
 
 
+def cleanup_resources(container, databases, reader, sql, run=command):
+    """Attempt every generated resource cleanup, returning the number of failures."""
+    steps = []
+    if container:
+        steps.append((run, (["docker", "rm", "-f", container],)))
+    for database in reversed(databases):
+        steps.append((sql, ("postgres", f"DROP DATABASE {database} WITH (FORCE);")))
+    if reader:
+        steps.append((sql, ("postgres", f"DROP ROLE {reader};")))
+    failures = 0
+    for action, arguments in steps:
+        try:
+            action(*arguments)
+        except Exception as error:
+            failures += 1
+            # Exception messages can include credentials; retain only their type.
+            print(f"cleanup step failed: {type(error).__name__}", file=sys.stderr)
+    return failures
+
+
 def main():
+    """Provision disposable fixtures, verify the HTTP contract, and remove them."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--postgres", default="saldi-postgres-1")
     parser.add_argument("--image", default="saldi-web")
@@ -41,13 +63,16 @@ def main():
     databases, role_created, container = [], False, None
 
     def sql(database, text):
+        """Execute fixture SQL using credentials already inside the test container."""
         return command(["docker", "exec", "-i", args.postgres, "sh", "-c",
             'PGPASSWORD="$POSTGRES_PASSWORD" exec psql -X -v ON_ERROR_STOP=1 -At -U "$POSTGRES_USER" -d "$1"', "sh", database], text)
 
     def snapshot(database, tables):
+        """Hash table contents deterministically to detect writes during read tests."""
         return [sql(database, f"SELECT md5(COALESCE(string_agg(row_to_json(t)::text, '' ORDER BY row_to_json(t)::text), '')) FROM {table} t;") for table in tables]
 
     def expect(value, label):
+        """Fail with a named contract assertion instead of printing fixture data."""
         if not value:
             raise AssertionError(label)
 
@@ -117,6 +142,7 @@ def main():
         command(["docker", "exec", container, "php", "-r", 'session_id($argv[1]); session_start(); $_SESSION["assist_test"] = true; session_write_close();', sid])
 
         def call(body, token=None, cookie=True, request_origin=origin):
+            """POST JSON and return status/body, retrying only server-startup failures."""
             headers = {"Content-Type": "application/json", "Origin": request_origin}
             if cookie:
                 headers["Cookie"] = f"PHPSESSID={sid}"
@@ -135,6 +161,7 @@ def main():
                     time.sleep(0.1)
 
         def grant(kind="journal", record_id=7):
+            """Mint a scoped grant and retain its saved snapshot revision."""
             status, data = call({"operation": "grant", "kind": kind, "record_id": record_id, "embed_session": "a" * 32})
             expect(status == 200, f"grant failed: {status} {data}")
             return data
@@ -155,8 +182,13 @@ def main():
             status, data = call({"operation": "get_invoice_status", "revision": invoice["revision"]}, invoice["grant"], cookie=False)
             expect(status == 200 and data["actions"][0]["enabled"] is False and data["issues"][0]["code"] == reason, "invoice action reason")
         pending = grant("invoice", 14)
-        _, data = call({"operation": "get_invoice_status"}, pending["grant"])
+        _, data = call({"operation": "get_invoice_status", "revision": pending["revision"]}, pending["grant"])
         expect(data["payment_gate_requires_form_check"] and data["actions"][0]["enabled"] is None, "form-dependent payment gate stays unknown")
+        for record, operations in [(journal, ["get_journal_context", "validate_journal"]), (pending, ["get_invoice_status"])]:
+            for operation in operations:
+                for fields in [{}, {"revision": None}, {"revision": 42}, {"revision": []}, {"revision": ""}, {"revision": "0" * 64}]:
+                    status, error = call({"operation": operation, **fields}, record["grant"], cookie=False)
+                    expect(status == 409 and error["error"] == "record_changed", f"{operation} requires a matching revision")
         expect(before == (snapshot(tenant, tenant_tables), snapshot(master, ["online", "regnskab", "settings"])), "all reads leave all fixture tables identical")
 
         if args.chaty_source:
@@ -174,8 +206,10 @@ def main():
             expect(tools is not None and tools.execute("validate_journal", {})["status"] == "blocked", "real Python to PHP transport and signature interoperability")
 
         sql(tenant, "INSERT INTO moms_periode_luk VALUES (2026, 9, 'closed'); UPDATE ordrer SET fakturadate = '2026-09-01' WHERE id = 14;")
+        expect(call({"operation": "get_invoice_status", "revision": pending["revision"]}, pending["grant"])[0] == 409, "stale invoice revision refused")
+        expect(call({"operation": "get_invoice_status"}, pending["grant"])[0] == 409, "omitting a stale invoice revision does not bypass the check")
         period_grant = grant("invoice", 14)
-        _, period_result = call({"operation": "get_invoice_status"}, period_grant["grant"])
+        _, period_result = call({"operation": "get_invoice_status", "revision": period_grant["revision"]}, period_grant["grant"])
         expect(period_result["issues"][0]["code"] == "period_closed", "closed invoice period")
         expect(call({"operation": "validate_journal", "revision": journal["revision"]}, journal["grant"])[0] == 409, "reference-setting change invalidates revision")
         sql(tenant, "DELETE FROM moms_periode_luk; INSERT INTO tmpkassekl VALUES (7);")
@@ -186,7 +220,9 @@ def main():
         expect(call({"operation": "grant", "kind": "journal", "record_id": 9, "embed_session": "a" * 32})[0] == 413, "oversized journal is refused in full")
 
         sql(tenant, "UPDATE kassekladde SET amount = amount + 0.001 WHERE id = 10;")
-        expect(call({"operation": "validate_journal", "revision": journal["revision"]}, journal["grant"])[0] == 409, "stale revision refused")
+        for operation in ["get_journal_context", "validate_journal"]:
+            expect(call({"operation": operation, "revision": journal["revision"]}, journal["grant"])[0] == 409, "stale journal revision refused")
+            expect(call({"operation": operation}, journal["grant"])[0] == 409, "omitting a stale journal revision does not bypass the check")
         fresh = grant()
         expect(fresh["revision"] != journal["revision"], "revision changes with saved content")
         sql(tenant, "UPDATE brugere SET rettigheder = '000000';")
@@ -199,15 +235,12 @@ def main():
         denied = command(["docker", "exec", container, "php", "-r",
             'require "/work/includes/assist/RecordAuth.php"; $p=saldi_assist_read_connection($argv[1]); try { $p->exec("DELETE FROM kassekladde"); exit(1); } catch (PDOException $e) { echo $e->getCode(); }', tenant])
         expect(denied in ("25006", "42501"), "database enforces read-only access")
-        adapter = ", Python adapter" if args.chaty_source else ""
-        print(f"PASS: PHP endpoints{adapter}, scoped grants, revisions, invoice reasons, unchanged snapshots and database read-only enforcement")
     finally:
-        if container:
-            command(["docker", "rm", "-f", container])
-        for database in reversed(databases):
-            sql("postgres", f"DROP DATABASE {database};")
-        if role_created:
-            sql("postgres", f"DROP ROLE {reader};")
+        failures = cleanup_resources(container, databases, reader if role_created else None, sql)
+        if failures and sys.exc_info()[0] is None:
+            raise RuntimeError(f"{failures} cleanup steps failed")
+    adapter = ", Python adapter" if args.chaty_source else ""
+    print(f"PASS: PHP endpoints{adapter}, scoped grants, revisions, invoice reasons, unchanged snapshots and database read-only enforcement")
 
 
 if __name__ == "__main__":
