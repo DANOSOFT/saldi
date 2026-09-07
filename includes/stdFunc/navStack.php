@@ -19,6 +19,7 @@
 //                  stack (with a bare-script guard), luk.php retursides are honoured
 //                  so popup Luk closes, print pages are no longer recorded, dedup
 //                  compares the path only, and nav files are cleaned up on logout.
+// 20260907 CDX/LH Reject raw whitespace and control characters in request return targets.
 
 if (!defined('NAV_STACK_MAX'))   define('NAV_STACK_MAX',   10);
 if (!defined('NAV_DEFAULT_URL')) define('NAV_DEFAULT_URL', '../index/menu.php');
@@ -123,15 +124,20 @@ function nav_push(?string $current_url = null, bool $popup = false): void {
     _nav_write($stack);
 }
 
-function nav_sanitize_returside(?string $url): string {
+function nav_sanitize_returside($url): string {
     // Central guard for request-supplied back targets (returside). They end up in
     // meta refresh / href attributes, so reject anything that could escape an
     // attribute or navigate off-site. Root-relative paths must pass: several pages
     // send urlencode($_SERVER['REQUEST_URI']) as their returside.
     // Do NOT run this over internally-built absolute URLs (the POS print flow
     // hands saldiprint/localprint absolute retursides) — GET/POST values only.
-    if ($url === null || $url === '') return '';
-    if (strpbrk($url, "<>\"'") !== false) return '';
+    if (!is_string($url) || $url === '') return '';
+    // Raw whitespace can split an unquoted legacy attribute; embedded tabs/newlines
+    // can also disguise a URI scheme. Query values must URL-encode these characters.
+    if (preg_match('/[\x00-\x20\x7f<>"\'`]/', $url)) return '';
+    // An HTML character reference must not turn into a scheme or control character
+    // when a legacy view renders the URL. URL components use percent encoding.
+    if (preg_match('/&(?:#|[a-z][a-z0-9]*;)/i', $url)) return '';
     if (!_nav_is_safe_target($url)) return '';
     return $url;
 }
