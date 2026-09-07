@@ -31,6 +31,7 @@
 // 20260730 NTR - Added translation to momsperioder.
 // 20260730 MJ Fjernede Momsperioder-link fra Finans-sidebaren; linket er nu en knap i regnskabsaar.php
 // 20260902 CL/LH Indlejrede chaty_V2 support-chatbot (wuweiworkai.com/chaty-v2) i skallen
+// 20260907 CDX/LH Fjernede gammel widget-loader, saa SALDI Assist kun indlaeses en gang
 @session_start();
 $s_id = session_id();
 
@@ -665,18 +666,6 @@ function brightenColor($color, $amount = 0.2) {
     }
   }
 </style>
-
-<?php
-// Chat-widget serveres lokalt fra chaty_V2's docker-compose ved udvikling paa localhost
-$chatyHost = strtolower((string) parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST));  
-$chatyBase = in_array($chatyHost, ['localhost', '127.0.0.1'], true)	? 'http://localhost:3000' : 'https://wuweiworkai.com/chaty-v2';
-?>
-<script async
-  src="<?php print $chatyBase; ?>/widget.js"
-  data-widget-id="saldi-erp"
-  data-brand="SALDI.dk"
-  data-lang="<?php print ($sprog_id == 2) ? 'en' : 'da'; ?>"
-  data-theme-color="#2872fa"></script>
 
 <?php
 /* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
