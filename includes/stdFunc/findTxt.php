@@ -7,13 +7,9 @@
  // 20260512 PHR CL/PHR Enabled cache.
  // 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
  // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
+ // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
-		$sessionVar = 'text_'. $textId .'_'. $languageID;
-		$sessionVar = preg_replace('/[^a-zA-Z0-9_]/','_','text_'. $textId .'_'. $languageID); 
-		if (isset($_SESSION[$sessionVar])) {
-			return ($_SESSION[$sessionVar]);
-		}
 		global $bruger_id;
 		global $db, $db_encode;
 		global $sqdb;
@@ -23,12 +19,14 @@ if (!function_exists('findtekst')) {
 		if (strpos($textId,'|')) {
 			list($a,$b) = explode('|',$textId);
 			if (preg_match('/^[0-9]+$/', $a)) $textId = $a;
-		} #else $a = $textId;
-		 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster'";
-		// if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		// 	if ($b) return $b;
-		// 	else return $textId;
-		// }
+		}
+		
+		$sessionVar = 'text_'. $textId .'_'. $languageID;
+		$sessionVar = preg_replace('/[^a-zA-Z0-9_]/','_','text_'. $textId .'_'. $languageID); 
+		if (isset($_SESSION[$sessionVar])) {
+			return ($_SESSION[$sessionVar]);
+		}
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster'";
 
 		########################
 		if (function_exists('db_fetch_array') && function_exists('db_select')) {

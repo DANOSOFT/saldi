@@ -17,6 +17,9 @@
 // Copyright (c) 2004-2011 DANOSOFT ApS
 //
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260831 Sawaneh Corrected misplaced parenthesis in mb_convert_encoding calls from 20250130
+// 20260831 Sawaneh Removed duplicate fclose() in flyt_data - fatal TypeError on PHP 8
+// 20260831 Sawaneh Restrict $filnavn from POST to the user's own upload - path traversal in fopen/unlink
 // ----------------------------------------------------------------------
 
 @session_start();
@@ -41,6 +44,7 @@ if(($_GET)||($_POST)) {
 		$submit=$_POST['submit'];
 		$kladde_id=$_POST['kladde_id'];
 		$filnavn=$_POST['filnavn'];
+		if ($filnavn && $filnavn !== "../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv") $filnavn=NULL; # kun brugerens egen uploadfil
 #		$modkonto=$_POST['modkonto'];
 #		$feltnavn=$_POST['feltnavn'];
 #		$feltantal=$_POST['feltantal'];
@@ -81,7 +85,7 @@ function vis_data($kladde_id, $filnavn, $bilag){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
+			$linje=trim(mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1'));
 			if ($linje) {
 				$y++;
 				$skriv_linje[$y]=1;
@@ -136,7 +140,7 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
+			$linje=trim(mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1'));
 			if ($linje) {
 				$y++;
 				$skriv_linje[$y]=1;
@@ -168,7 +172,6 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 			db_modify("insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id) values ('$bilag','$date[$x]','$beskrivelse[$x]','F','$debet[$x]','F','$kredit[$x]','$amount[$x]', '$kladde_id')",__FILE__ . " linje " . __LINE__);
 		}
 	}	
-	fclose($fp);
 	unlink($filnavn); # sletter filen.
 #	transaktion('commit');
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
