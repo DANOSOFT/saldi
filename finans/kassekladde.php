@@ -76,6 +76,10 @@
 // 20260831 Sawaneh Action buttons were clipped and unreachable at 125% Windows scaling (SST-747):
 //                  replaced the guessed 130/150px viewport calc with a flex column layout, removed the
 //                  unconditional html/body overflow-y:hidden and let the button bar wrap on narrow windows.
+// 20260907 CL/LH  Rejected amounts: alert text is sanitised before alert() embeds it in a <script>, a rejected
+//                  line skips kontroller()'s processing/tmpkassekl update and the error re-render shows the
+//                  operator's raw text instead of usdecimal()'s 100x value, the "+=" shortcut validates the
+//                  amount before indsaet_linjer(), and the texts moved from 5080/5081 to 5089/5090.
 
 ob_start(); //Starter output buffering  
 
@@ -1155,7 +1159,12 @@ if ($_POST) {
 		}
 		if (strpos($bilag[$x], '+') && $kladde_id) {
 			list($bilag[$x], $newLines) = explode('+', $bilag[$x]);
-			if ($newLines == '=') {
+			// 20260907 CL/LH  "+=" inserts straight into kassekladde through usdecimal() without passing
+			// kontroller(), so the amount has to be validated here as well; the line stays in tmpkassekl as typed.
+			if ($newLines == '=' && !dk_amount_is_valid($belob[$x])) {
+				alert_ugyldigt_belob($belob[$x], $bilag[$x]);
+				$fejl = 1;
+			} elseif ($newLines == '=') {
 				indsaet_linjer(
 					$kladde_id,
 					$bilag[$x],
@@ -2642,6 +2651,7 @@ if ($kladde_id) {
 	$kredit = array();
 	$faktura = array();
 	$belob = array();
+	$belobRaw = array();
 	$afd = array();
 	$ansat = array();
 	$ansat_id = array();
@@ -2725,7 +2735,14 @@ if ($kladde_id) {
 				$forfaldsdate[$x] = usdate($row['forfaldsdate']);
 				$forfaldsdato[$x] = $row['forfaldsdate'];
 			}
-			$amount[$x] = usdecimal($row['amount']);
+			// 20260907 CL/LH  A rejected amount is shown as the operator typed it; usdecimal() would turn
+			// "1234.56" into 123456 and the field would come back as 123.456,00, which then passes validation.
+			if (dk_amount_is_valid($row['amount'])) {
+				$amount[$x] = usdecimal($row['amount']);
+			} else {
+				$amount[$x] = 0;
+				$belobRaw[$x] = $row['amount'];
+			}
 		} else {
 			$transdate[$x] = $row['transdate'];
 			$dato[$x] = dkdato($row['transdate']);
@@ -3015,8 +3032,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
 		if ($valuta[$y] == $baseCurrency) $title = "";
 		else 	$title = "$baseCurrency: " . dkdecimal($dkkamount[$y], 2);
+		if (isset($belobRaw[$y]) && $belobRaw[$y] !== '') {
+			$belobVis = htmlspecialchars($belobRaw[$y], ENT_QUOTES, $charset);
+		} else {
+			$belobVis = dkdecimal($amount[$y], 2);
+		}
 		print "<td title='$title'><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$y'
-		$de_fok value ='" . dkdecimal($amount[$y], 2) . "' onchange='javascript:docChange = true;'></td>\n";
+		$de_fok value ='$belobVis' onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd) {
 			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$y' 
 			$de_fok value =\"$afd[$y]\" onchange='javascript:docChange = true;'></td>\n";
@@ -3533,6 +3555,31 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<script>window.onload = function() { window.print(); };</script>";
 	}
 	#############################################################################################################################
+	/**
+	 * Alerts that an operator-typed amount was rejected by dk_amount_is_valid().
+	 *
+	 * The echoed amount and voucher number are stripped of quotes, backslashes, angle brackets and
+	 * control characters, and the whole message is JSON-encoded with the JSON_HEX_* flags so it is
+	 * a safe JavaScript string literal inside the <script> element (a </script> in the text cannot
+	 * close the tag). The generic alert() helper is not used because it wraps its argument in
+	 * single quotes, which would show the JSON quotes literally in the popup.
+	 *
+	 * @param string|int|float|null $belob  The amount as typed.
+	 * @param string|int|null       $bilag  The voucher number of the line.
+	 * @return void
+	 */
+	function alert_ugyldigt_belob($belob, $bilag) {
+		global $sprog_id;
+
+		$belobVist = preg_replace('/[<>"\'\\\\\x00-\x1f\x7f]/', '', trim((string)$belob));
+		$bilagVist = preg_replace('/[<>"\'\\\\\x00-\x1f\x7f]/', '', trim((string)$bilag));
+		$txt1 = findtekst('5089|Beløbet', $sprog_id); // Beløbet
+		$txt2 = findtekst('5090|er ikke et gyldigt beløb - brug komma som decimaltegn, fx 1.234,56 (Bilag nr', $sprog_id);
+		$txt3 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
+		$msg = $txt1 . " " . $belobVist . " " . $txt2 . " " . $bilagVist . $txt3;
+		print "<script type='text/javascript'>alert(" . json_encode($msg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>";
+	}
+	#############################################################################################################################
 	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $debetvat, $kreditvat, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
 		global $baseCurrency,$bilagscount,$bilagsrenum;
 		global $connection;
@@ -3589,7 +3636,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		$debet = trim($debet);
 		$kredit = trim($kredit);
-		if (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {
+		// 20260902 CL/LH  L4 finding adversarial-numbers DEVY-2: "1234.56" typed in Beløb was stored
+		// as 123456,00 because usdecimal() treats every "." as a thousands separator. Reject any
+		// amount that is not unambiguous Danish format before it reaches usdecimal(), the same way
+		// an unknown account rejects the line ("Kladden er IKKE gemt").
+		// 20260907 CL/LH  The rejected line skips the processing and tmpkassekl update below (elseif), so
+		// nothing downstream converts it: the row inserted from POST keeps the operator's raw text, opdater()
+		// never runs while $fejl is set, and the error re-render shows the text as typed.
+		if ($bilag != "-" && !dk_amount_is_valid($belob)) {
+			alert_ugyldigt_belob($belob, $bilag);
+			$fejl = 1;
+		} elseif (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {
 			if ((!$bilag) && ($bilag != '0')) $bilag = $prebilag;
 			if (!$bilag) $bilag = '0';
 			if ((strstr($d_type, "d")) || (strstr($d_type, "D"))) $d_type = "D";
