@@ -105,6 +105,7 @@
 //             compared to '' is now a string comparison ("0" != ""), true, where PHP 7 compared both as
 //             0. Skip the check when the field is blank, matching debitor/debkort_save.php's SD-513 fix
 // 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
+// 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
 @session_start();
 $s_id = session_id();
 
@@ -164,11 +165,10 @@ $queryString = $parts['query'] ?? '';
 
 ######################
 
-$backUrl = nav_back_url(isset($_GET['returside']) ? $_GET['returside'] : null);
+$returside = nav_sanitize_returside($_GET['returside'] ?? null);
+$backUrl = nav_back_url($returside);
 
-if ($_GET['returside']) {
-	
-	$returside = $_GET['returside'];
+if ($returside) {
 	$ordre_id = $_GET['ordre_id'];
 	$fokus = $_GET['fokus'];
 	// Only append ordre_id if it's not already in the returside URL

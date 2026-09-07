@@ -60,6 +60,7 @@
 // 2023.06.03 PHR - php8
 // 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
+// 20260907 CDX/LH Mark new and existing product-card windows as popups.
 
 @session_start();
 $s_id=session_id();
@@ -466,7 +467,7 @@ if ($menu=='T') {
 	} #else print "<td width=\"80%\" $top_bund> Visning</td>\n";
 	if ($popup) {
 		print "<td width=\"5%\"$top_bund onClick=\"javascript:vare_vis=window.open('varevisning.php','vare_vis','scrollbars=1,resizable=1');vare_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></td>";
-		print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:window.open('varekort.php?opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');ordre.focus();\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
+		print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:var productWindow=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');if(productWindow){productWindow.focus();}\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
 	} else {
 		print "<td width=\"5%\" $top_bund><a href=\"varevisning.php\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></a></td>";
 		print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside={$listReturnQuery}\"><span title='Opret en ny vare'>Ny</span></a></td>";
@@ -842,7 +843,7 @@ for ($v=0;$v<count($varenr);$v++) {
 			print "<tr bgcolor=\"$linjebg\">";
 			if ($popup) { #20170920
 				$kort="kort".$id[$v];
-				$js="onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kort=window.open('varekort.php?opener=varer.php&amp;id=$id[$v]&amp;returside=../includes/luk.php','".$jsvars."');$kort.focus();\"";
+				$js="onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kort=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;id=$id[$v]&amp;returside=../includes/luk.php','".$jsvars."');$kort.focus();\"";
 			} elseif ($href_vnr) $js=NULL; 
 			else $js="onMouseOver=\"this.style.cursor = 'pointer'\"; onclick=\"javascript:location.href='varekort.php?id=$id[$v]'\"";
 #			if ($popup) print "<td </td>";

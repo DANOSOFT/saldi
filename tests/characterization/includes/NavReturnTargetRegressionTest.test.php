@@ -1,5 +1,6 @@
 <?php
 // 20260907 CDX/LH Reject attribute and URI-scheme payloads while retaining encoded internal return URLs.
+// 20260907 CDX/LH Exercise raw request arrays at the navigation boundary and popup query propagation.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -8,6 +9,29 @@ require_once dirname(__DIR__, 3) . '/includes/stdFunc/navStack.php';
 
 final class NavReturnTargetRegressionTest extends TestCase
 {
+    public function testArrayReturnParameterUsesTheNormalFallback(): void
+    {
+        parse_str('returside[]=x', $query);
+        self::assertSame(nav_back_url(null), nav_back_url($query['returside']));
+    }
+
+    public static function popupRequests(): array
+    {
+        return [
+            [[], [], ''],
+            [['popup' => '1'], [], 'popup=1&'],
+            [[], ['popup' => '1'], 'popup=1&'],
+            [['popup' => '0'], [], ''],
+            [['popup' => '0'], ['popup' => '1'], 'popup=1&'],
+        ];
+    }
+
+    #[DataProvider('popupRequests')]
+    public function testPopupContextFollowsTheRequest(array $get, array $post, string $expected): void
+    {
+        self::assertSame($expected, nav_popup_query($get, $post));
+    }
+
     public static function unsafeTargets(): array
     {
         return [

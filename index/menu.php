@@ -35,6 +35,7 @@
 // 20250815 LOE Empty text at 110 changed to 609 for old menu [Goods]
 // 20260904 Sawaneh WP-1.3: popup window.open links now carry popup=1 so the opened
 //                  window is treated as a popup by request, not by user preference.
+// 20260907 CDX/LH Mark the POS launcher as a popup when opening it in a new window.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -182,7 +183,7 @@ function oldmenu() {
 
 	$qtxt="select id from grupper where art = 'POS' and kodenr = '1' and box1 >= '1'"; #20180807
 	if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		if ($popup)	print "<a href=\"../debitor/pos_ordre.php\" target=\"_blank\">$regnskab</a></b></big></big></td></tr>\n";
+		if ($popup)	print "<a href=\"../debitor/pos_ordre.php?popup=1\" target=\"_blank\">$regnskab</a></b></big></big></td></tr>\n";
 		else	print "<a href=\"../debitor/pos_ordre.php\">$regnskab</a></b></big></big></td></tr>\n";
 	} elseif (file_exists('../sager/sager.php')){ // Hvis 'sager.php' eksistere, skal der linkes tilbage til sagstyring
 		print "<a href=\"../sager/sager.php\">$regnskab</a></b></big></big></td></tr>\n";
