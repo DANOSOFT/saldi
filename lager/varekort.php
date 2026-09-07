@@ -311,7 +311,7 @@ if (isset($_POST['supplierLookUp']) && $_POST['supplierLookUp'])
     $submit = 'supplierLookUp';
 
 if ($saveItem || $submit = trim($submit)) {
-    $id = if_isset($_POST, NULL, 'id');
+    $id = (int) if_isset($_POST, 0, 'id');
     $beskrivelse = if_isset($_POST, NULL,'beskrivelse');
     $beskrivelse[0] = trim(if_isset($_POST, NULL,'beskrivelse0')); # fordi fokus ikke fungerer på array navne
     $grossWeight = usdecimal((isset($_POST['grossWeight']) ? $_POST['grossWeight'] : 0), 3);
