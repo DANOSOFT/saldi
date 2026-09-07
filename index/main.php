@@ -31,7 +31,9 @@
 // 20260730 NTR - Added translation to momsperioder.
 // 20260730 MJ Fjernede Momsperioder-link fra Finans-sidebaren; linket er nu en knap i regnskabsaar.php
 // 20260902 CL/LH Indlejrede chaty_V2 support-chatbot (wuweiworkai.com/chaty-v2) i skallen
+// 20260904 Sawaneh WP-1.6: update_iframe() tags iframe navigations with inframe=1 (context flag for hosted pages)
 // 20260907 CDX/LH Fjernede gammel widget-loader, saa SALDI Assist kun indlaeses en gang
+// 20260907 CDX/LH Preserve iframe navigation while merging the current shell integration.
 @session_start();
 $s_id = session_id();
 
@@ -531,6 +533,12 @@ function brightenColor($color, $amount = 0.2) {
     const baseUrl = (location + "").split("/").splice(0, 4).join("/");
     const targetUrl = baseUrl + (uri.startsWith("/") ? uri : "/" + uri);
     const parsedTargetUrl = new URL(targetUrl);
+    // Context flag for the loaded page: it runs inside the shell's iframe, so
+    // window.close()-based flows (luk.php) can't work and back targets must stay
+    // in-frame. Set centrally here instead of on every menu link.
+    if (!parsedTargetUrl.searchParams.has('inframe')) {
+      parsedTargetUrl.searchParams.set('inframe', '1');
+    }
     const targetPath = parsedTargetUrl.pathname + parsedTargetUrl.search;
 
     if (get_iframe_path() === targetPath) {
@@ -543,7 +551,7 @@ function brightenColor($color, $amount = 0.2) {
       }
     }
 
-    iframe.src = targetUrl
+    iframe.src = parsedTargetUrl.href
   }
 
   const redirect_uri = (uri) => {
