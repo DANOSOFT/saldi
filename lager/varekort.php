@@ -228,7 +228,7 @@ if (isset($_GET['returside']) && $returside = $_GET['returside']) {
 if ($funktion = if_isset($_GET, NULL, 'funktion')) {
     $funktion(if_isset($_GET, NULL, 'sort'), if_isset($_GET, NULL, 'fokus'), $id, if_isset($_GET, NULL, 'vis_kost'), '', if_isset($_GET, NULL, 'find'), 'varekort.php');
 }
-if ($konto_id = if_isset($_GET, NULL, 'konto_id')) {
+if ($konto_id = (int) if_isset($_GET, NULL, 'konto_id')) {
     db_modify("insert into vare_lev (lev_id, vare_id, posnr) values ('$konto_id', '$id', '1')", __FILE__ . " linje " . __LINE__);
 }
 if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0) {
@@ -238,7 +238,7 @@ if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0) {
         db_modify("update varer set delvare =  'on' where id = '$vare_id'", __FILE__ . " linje " . __LINE__);
     }
 }
-if ($delete_category = if_isset($_GET, NULL, 'delete_category')) {
+if ($delete_category = (int) if_isset($_GET, NULL, 'delete_category')) {
     db_modify("delete from grupper where id = '$delete_category'", __FILE__ . " linje " . __LINE__);
 }
 if ($delete_var_type = if_isset($_GET, NULL, 'delete_var_type')) {
