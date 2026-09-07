@@ -2620,10 +2620,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kkVisHintKey = 'saldiKkHint_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $db . '_' . $bruger_id . '_' . $brugernavn);
 		print "<div id='kkVisHint'>$kkVisHintTxt<br><button type='button' id='kkVisHintOk'>" . htmlspecialchars($kkVisGotIt, ENT_QUOTES, $charset) . "</button></div>";
 		print "<script>
-		document.addEventListener('change',function(e){
-			if(!e.target.classList.contains('kk-col-toggle')) return;
-			var col=e.target.getAttribute('data-col');
-			var show=e.target.checked;
+		function kkApplyColToggle(col,show){
 			if(col==='ac_forslag'||col==='ac_opslag'){
 				window.saldiAutocompleteOptions=window.saldiAutocompleteOptions||{};
 				if(col==='ac_forslag'){window.saldiAutocompleteOptions.showLastPostings=show;}
@@ -2631,10 +2628,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}else{
 				document.querySelectorAll('.kk-col-'+col).forEach(function(el){el.style.display=show?'table-cell':'none';});
 			}
+		}
+		function kkSaveCols(){
 			var hidden=[];
 			document.querySelectorAll('.kk-col-toggle').forEach(function(cb){if(!cb.checked) hidden.push(cb.getAttribute('data-col'));});
 			var fd=new FormData();fd.append('save_kk_cols',hidden.join(','));
 			fetch(window.location.pathname+window.location.search,{method:'POST',body:fd,credentials:'same-origin'}).catch(function(){});
+		}
+		document.addEventListener('change',function(e){
+			if(!e.target.classList.contains('kk-col-toggle')) return;
+			kkApplyColToggle(e.target.getAttribute('data-col'),e.target.checked);
+			kkSaveCols();
 		});
 		(function(){
 			var panel=document.getElementById('kkVisPanel');
@@ -2667,9 +2671,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if(panel.classList.contains('kkVisOpen') && !panel.contains(e.target) && e.target!==toggleBtn && !toggleBtn.contains(e.target)){panel.classList.remove('kkVisOpen');}
 			});
 			document.getElementById('kkVisShowAll').addEventListener('click',function(){
+				// apply all toggles first, then persist ONCE - one change event per box
+				// would fire N concurrent saves that can complete out of order
 				document.querySelectorAll('#kkVisPanel .kk-col-toggle').forEach(function(cb){
-					if(!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change',{bubbles:true}));}
+					if(!cb.checked){cb.checked=true;kkApplyColToggle(cb.getAttribute('data-col'),true);}
 				});
+				kkSaveCols();
 			});
 		})();
 		</script>";
@@ -4506,8 +4513,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					return ($r['bilag'] . ",0,bogfort");
 				}
 			}
-			return ("0,0,0");
 		}
+		return ("0,0,0");
 	}
 
 	$x--;
