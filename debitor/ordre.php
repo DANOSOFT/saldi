@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-07 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -107,6 +107,24 @@
 // 20260818 Sawaneh Credit notes: only cap the quantity when the line points the wrong way or more
 //                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
 //                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
+// 20260828 CL/SZ SD-660: Fixed $tpm/$tmp typo in the pile (prev/next arrows) block - $tpm never
+//                existed so the guard from SD-368 (line ~3722, "sets tmp to value_type if set for
+//                navigation") always fired unconditionally; harmless in effect since $tmp/$value_type
+//                here only ever fed the already-commented-out OLV lookup, but confirmed via history
+//                (SD-368) this is genuinely a typo, not a differently-named variable. Added isset()
+//                bounds guards to the prev/next $ordrlst[$i-1]/$ordrlst[$i+1] reads; boundary
+//                behaviour (NULL at both ends) is unchanged, just no longer warns. Restored the
+//                $opValue assignment (and its area$bruger_id.txt write) that #356's plukliste-
+//                condition merge accidentally deleted - includes/udskriv.php:423 reads that file to
+//                pick the post-print redirect target, so this wasn't just a warning, it silently
+//                broke that redirect for every order since #356 merged.
+// 20260828 CL/SZ SD-660 (CodeRabbit, PR #526): the invoice form posts to ordre.php without
+//                valg, so the unconditional file_put_contents above was clearing the
+//                remembered redirect target on every invoice save - the exact same
+//                unconditional-overwrite behaviour the original pre-#356 code had, just
+//                newly visible now that it's restored. Only write the file when valg is
+//                actually present on this request; otherwise leave the previously-written
+//                value alone.
 
 @session_start();
 $s_id = session_id();
@@ -3415,6 +3433,10 @@ function ordreside($id, $regnskab)
 		$restordre = if_isset($row, NULL, 'restordre');
 		$digitalStatus = if_isset($row, NULL, 'digital_status');
 		$ordredate = if_isset($row, null, 'ordredate') ?? date("y-m-d");
+		$opValue = if_isset($_GET, NULL, 'valg');
+		if ($opValue !== NULL) {
+			file_put_contents("../temp/$db/area$bruger_id.txt", $opValue, LOCK_EX);
+		}
 		$ordredato = dkdato($ordredate);
 		if (if_isset($row, NULL, 'levdate')) {
 			$levdato = dkdato(if_isset($row, NULL, 'levdate'));
@@ -3720,7 +3742,7 @@ function ordreside($id, $regnskab)
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
 	$value_type = if_isset($_GET, 'ordrer', 'valg');
-	if($tpm != $value_type) $tmp = $value_type; 
+	if($tmp != $value_type) $tmp = $value_type;
 	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
 	#$ordreliste = explode(",", if_isset($r['box1']));
 	$ordrlst=array();
@@ -3731,9 +3753,9 @@ function ordreside($id, $regnskab)
 	$next_id = 0;
 	for ($i=0;$i<count($ordrlst);$i++) {
 		if ($ordrlst[$i] == $id) {
-			if ($ordrlst[$i - 1]) $prev_id = $ordrlst[$i - 1];
+			if (isset($ordrlst[$i - 1]) && $ordrlst[$i - 1]) $prev_id = $ordrlst[$i - 1];
 			else $prev_id = NULL;
-			if ($ordrlst[$i + 1]) $next_id = $ordrlst[$i + 1];
+			if (isset($ordrlst[$i + 1]) && $ordrlst[$i + 1]) $next_id = $ordrlst[$i + 1];
 			else $next_id = NULL;
 		}
 	}
