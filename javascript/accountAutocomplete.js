@@ -1,4 +1,6 @@
 
+// 20260907 CDX/LH Preserve D/K/F account types when selecting a historical counter-account.
+//                  Handle each keyboard selection once, without bubbling into a second move.
 (function () {
     'use strict'; 
 
@@ -124,7 +126,7 @@
                 focusViaKeyboardNav = true;
             }
 
-            if (activeDropdown) {
+            if (activeDropdown && !e.defaultPrevented) {
                 handleKeyboardNavigation(e);
             }
         });
@@ -668,8 +670,9 @@
 
             html += '<tr class="account-autocomplete-item account-autocomplete-last-posting-item"' +
                 ' data-kontonr="' + escapeHtml(item.kontonr || '') + '"' +
+                ' data-account-type="' + escapeHtml(item.art || '') + '"' +
                 ' data-index="last-' + index + '">' +
-                '<td>' + escapeHtml(item.kontonr || '') + '</td>' +
+                '<td>' + escapeHtml((item.art ? item.art + ' ' : '') + (item.kontonr || '')) + '</td>' +
                 '<td title="' + escapeHtml(description) + '">' + escapeHtml(description) + '</td>';
 
             for (let i = 2; i < columnCount; i++) {
@@ -1360,6 +1363,17 @@
             : undefined;
 
         input.value = kontonr;
+
+        if (input.fieldType === 'debet' || input.fieldType === 'kredit') {
+            const accountType = selectedItem ? selectedItem.dataset.accountType : '';
+            if (['D', 'K', 'F'].includes(accountType)) {
+                const typeName = (input.fieldType === 'debet' ? 'd_ty' : 'k_ty') + rowNum;
+                const typeField = (input.form || document).querySelector('input[name="' + typeName + '"]');
+                if (typeField && typeField.value !== accountType) {
+                    setFieldValue(typeField, accountType);
+                }
+            }
+        }
 
         // Dispatch both input and change events to ensure all handlers are triggered
         input.dispatchEvent(new Event('input', { bubbles: true }));

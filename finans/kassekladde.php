@@ -103,6 +103,10 @@
 //                  longer cancel the persistence request (choices appeared to reset on fast reload).
 // 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
 //                  other menu styles keep the floating button; panel now opens just below the button.
+// 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
+//                  with customer/supplier evidence; isolate journal history queries for regression tests.
+
+require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 
 ob_start(); //Starter output buffering  
 
@@ -396,7 +400,7 @@ print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.4">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.5" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.6" defer></script>';
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -3079,8 +3083,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			#if ($debet[$y] === '' && $kredit[$y] === '')	$kontrolsaldo = ''; #outcommented 20240401
 		}
 
-		if ($id[$y] && $debet[$y] && is_numeric($debet[$y]) && $kredit[$y] && is_numeric($kredit[$y]))
-			list($dub_bilag[$y], $dub_kladde_id[$y], $dub_kilde[$y]) = explode(",", find_dublet($id[$y], $transdate[$y], $d_type[$y], $debet[$y], $k_type[$y], $kredit[$y], $amount[$y], $faktura[$y]));
+		if ($id[$y] && $debet[$y] && is_numeric($debet[$y]) && $kredit[$y] && is_numeric($kredit[$y])) {
+			list($dub_bilag[$y], $dub_kladde_id[$y], $dub_kilde[$y]) = explode(",", find_dublet(
+				$id[$y], $transdate[$y], $d_type[$y], $debet[$y], $k_type[$y], $kredit[$y],
+				$amount[$y], $faktura[$y], $dkkamount[$y], $regnstart, $regnslut
+			));
+		}
 		print "<tr>";
 		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
 			$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
@@ -3141,17 +3149,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$y' $de_fok value =\"$d_type[$y]\" onchange='javascript:docChange = true;'></td>";
 		if (($k_type[$y] == 'D' || $k_type[$y] == 'K' || $k_type[$y] == 'F' || !$k_type[$y]) && $kredit[$y] && !$debet[$y]) {
-			$lastPostingsAttr = sidste_5_forslag_attr($kredit[$y], $k_type[$y], 'D', $charset);
+			$lastPostingsAttr = sidste_5_forslag_attr($kredit[$y], $k_type[$y], 'D', $charset, $kladde_id, $sprog_id);
 			print "<td><input class='inputbox' type='text' autocomplete='off' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
-		} else
+		} else {
 			print "<td><input class='inputbox' type='text' autocomplete='off' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\" title='$debettext[$y]' onchange='javascript:docChange = true;'></td>\n";
+		}
 		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset, lookup_account_vat_code($debet[$y], $d_type[$y], $regnaar, $vat_codes)) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$y' $de_fok value =\"$k_type[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (($d_type[$y] == 'D' || $d_type[$y] == 'K' || $d_type[$y] == 'F' || !$d_type[$y]) && $debet[$y] && !$kredit[$y]) {
-			$lastPostingsAttr = sidste_5_forslag_attr($debet[$y], $d_type[$y], 'K', $charset);
+			$lastPostingsAttr = sidste_5_forslag_attr($debet[$y], $d_type[$y], 'K', $charset, $kladde_id, $sprog_id);
 			print "<td><input class='inputbox' type='text' autocomplete='off' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
-		} else
+		} else {
 			print "<td><input class='inputbox' type='text' autocomplete='off' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
+		}
 		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset, lookup_account_vat_code($kredit[$y], $k_type[$y], $regnaar, $vat_codes)) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
@@ -4391,134 +4401,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			return ($kontonr);
 	}
 	##########################################################################################################
-	function sidste_5_forslag($kontonr, $art, $dk)
-	{
-		global $kladde_id;
-		global $charset;
-		global $sprog_id;
-
-		$forslag = array(
-			'heading' => '',
-			'rows' => array()
-		);
-
-		if (!is_numeric($kontonr)) {
-			return $forslag;
-		}
-		if (!$art) {
-			$art = 'F'; # blank type is treated as finance everywhere else in the file
-		}
-		if (!in_array($art, array('D', 'K', 'F'), true)) {
-			return $forslag;
-		}
-
-		$kontonr_sql = db_escape_string($kontonr);
-		$kladde_id_sql = (int)$kladde_id;
-		if ($art == 'F') {
-			$d_artcond = "(d_type = 'F' or d_type = '' or d_type is null)";
-			$k_artcond = "(k_type = 'F' or k_type = '' or k_type is null)";
-		} else {
-			$d_artcond = "d_type = '$art'";
-			$k_artcond = "k_type = '$art'";
-		}
-		# NB: soger kun i kassekladde (aabne/tidligere kladdelinjer) - udvidelse til transaktioner er en senere opgave
-		if ($dk == "D") {
-			$txt = "select bilag,transdate,beskrivelse,debet as kontonr from kassekladde where $k_artcond and kredit = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc";
-		} else {
-			$txt = "select bilag,transdate,beskrivelse,kredit as kontonr from kassekladde where $d_artcond and debet = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc";
-		}
-
-		if ($art == 'K') {
-			$forslag['heading'] = "Sidste 5 posteringer for kreditor: $kontonr";
-		} elseif ($art == 'D') {
-			$forslag['heading'] = "Sidste 5 posteringer for debitor: $kontonr";
-		} else {
-			$heading = findtekst('5140|Sidste 5 posteringer for konto', $sprog_id) . ": $kontonr";
-			if ($charset && strtoupper($charset) != 'UTF-8' && function_exists('mb_convert_encoding')) {
-				$heading = mb_convert_encoding($heading, 'UTF-8', $charset);
-			}
-			$forslag['heading'] = $heading;
-		}
-
-		$q = db_select($txt, __FILE__ . " linje " . __LINE__);
-		while (count($forslag['rows']) < 5 && ($r = db_fetch_array($q))) {
-			if ($r['kontonr']) {
-				$tekst = stripslashes($r['beskrivelse']);
-				if ($charset && strtoupper($charset) != 'UTF-8' && function_exists('mb_convert_encoding')) {
-					$tekst = mb_convert_encoding($tekst, 'UTF-8', $charset);
-				}
-				$forslag['rows'][] = array(
-					'bilag' => $r['bilag'],
-					'dato' => dkdato($r['transdate']),
-					'tekst' => $tekst,
-					'kontonr' => $r['kontonr']
-				);
-			}
-		}
-
-		return $forslag;
-	}
-	##########################################################################################################
-	function sidste_5_forslag_attr($kontonr, $art, $dk, $charset)
-	{
-		$forslag = sidste_5_forslag($kontonr, $art, $dk);
-		if (!count($forslag['rows'])) {
-			return '';
-		}
-
-		$json = json_encode($forslag);
-		if ($json === false) {
-			return '';
-		}
-		return " data-last-postings=\"" . htmlspecialchars($json, ENT_QUOTES, $charset) . "\"";
-	}
-	##########################################################################################################
-	# Returnerer "bilag,kladde_id,kilde" hvor kilde er 'kladde' (dublet i anden aaben kladde)
-	# eller 'bogfort' (dublet blandt bogfoerte posteringer) - "0,0,0" naar ingen dublet findes.
-	function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount, $faktura) {
-		global $regnstart, $regnslut;
-		if ($id) {
-			$id = (int)$id;
-			$transdate_sql = db_escape_string($transdate);
-			$d_type_sql    = db_escape_string($d_type);
-			$debet_sql     = db_escape_string($debet);
-			$k_type_sql    = db_escape_string($k_type);
-			$kredit_sql    = db_escape_string($kredit);
-			$amount_sql    = db_escape_string($amount);
-			$faktura_sql   = db_escape_string($faktura);
-			$qtxt = "select bilag,kladde_id from kassekladde where transdate='$transdate_sql' and d_type='$d_type_sql' ";
-			$qtxt.= "and debet='$debet_sql' and k_type='$k_type_sql' and kredit='$kredit_sql' and amount = '$amount_sql' ";
-			$qtxt.= "and faktura = '$faktura_sql' and id!='$id' limit 1";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				return ($r['bilag'] . "," . $r['kladde_id'] . ",kladde");
-			}
-			# Ingen dublet i aabne kladder - slaa op blandt bogfoerte posteringer. En bogfoert linje ligger
-			# som separate debet-/kreditraekker i transaktioner (samme bilag+kladde_id), og momsbaerende
-			# sider er gemt ekskl. moms, saa bruttobeloebet matches mod mindst een af de to sider.
-			# D/K-konti bogfoeres paa samlekontoen og kan derfor kun matches paa deres F-modside.
-			$sider = array();
-			if ($d_type == 'F' || !$d_type) {
-				$sider[] = "t1.kontonr='" . (int)$debet . "'";
-			}
-			if ($k_type == 'F' || !$k_type) {
-				$sider[] = "t2.kontonr='" . (int)$kredit . "'";
-			}
-			if (count($sider) && $regnstart && $regnslut) {
-				$regnstart_sql = db_escape_string($regnstart);
-				$regnslut_sql  = db_escape_string($regnslut);
-				$qtxt = "select t1.bilag from transaktioner t1, transaktioner t2 ";
-				$qtxt.= "where t1.transdate='$transdate_sql' and t2.transdate='$transdate_sql' ";
-				$qtxt.= "and t1.transdate>='$regnstart_sql' and t1.transdate<='$regnslut_sql' ";
-				$qtxt.= "and t1.kladde_id=t2.kladde_id and t1.bilag=t2.bilag and t1.id!=t2.id ";
-				$qtxt.= "and t1.debet>0 and t2.kredit>0 and (t1.debet='$amount_sql' or t2.kredit='$amount_sql') ";
-				$qtxt.= "and t1.faktura='$faktura_sql' and " . implode(' and ', $sider) . " limit 1";
-				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					return ($r['bilag'] . ",0,bogfort");
-				}
-			}
-		}
-		return ("0,0,0");
-	}
 
 	$x--;
 	if (!$fokus && $x == 1)
