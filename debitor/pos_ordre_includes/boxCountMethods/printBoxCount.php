@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.0 --- 2026-02-25 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.1 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make functions to print the box count
 // 20190314	PHR	Varius changes in function 'setPrintTxt' according to 'changeCardValue'
 // 20230623 PHR Added (float) to $omsatning, $byttepenge & $tilgang
 // 20260225 PHR Updated cashCount
+// 20260907 CDX/PHR Preserve decimal points in calculated payment totals saved to report.
 
 function setSpecifiedPrintText() 
 { 
@@ -173,17 +174,22 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		}
 		if ($kontosum) {
-			$qtxt2 = "('$dd','cashCount','Salg på konto','0','". usdecimal($kontosum,2) .#','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','Salg på konto','0','". (float)$kontosum ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		}
 		for ($x=0;$x<count($kortnavn);$x++) {
-				$txt1="$kortnavn[$x]";
+			$txt1="$kortnavn[$x]";
 			if ($changeCardValue) {
 				$txt1.="(". dkdecimal($kortsum[$x],2) .")";
 				$txt2=usdecimal($ny_kortsum[$x],2);
-			} else $txt2=usdecimal($kortsum[$x],2);
-			$qtxt2 = "('$dd','cashCount','$txt1','0','$txt2','$reportNumber')";
-				if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+			} else {
+				$txt2=(float)$kortsum[$x];
+			}
+			$paymentDescription = db_escape_string($txt1);
+			$paymentTotal = (float)$txt2;
+			$paymentReport = (int)$reportNumber;
+			$qtxt2 = "('$dd','cashCount','$paymentDescription','0','$paymentTotal','$paymentReport')";
+			if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
 		}
 	}
 	if ($baseCurrency == 'EUR') {
@@ -330,4 +336,3 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 
 
 ?>
-

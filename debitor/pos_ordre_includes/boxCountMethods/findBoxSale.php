@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 5.0.0 - 2026.06.05 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 5.0.1 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260605 CL/PHR findBoxSale: inkluder kasse_nr=0 transaktioner for ordrer tilhørende denne kasse i kasseopgørelsen
@@ -30,7 +30,9 @@
 // 20260523 CL/PHR Changed INNER JOIN with pos_betalinger to LEFT JOIN with COALESCE fallback to ordrer.felt_1/valuta,
 //                 so orders without pos_betalinger rows (art='DO') are included in cash balance calculation
 // 20260523 CL/PHR Fixed negative tilgang: skip retur calculation when pos_betalinger has no rows (NULL amount)
-function findBoxSale ($kasse,$optalt,$valuta) {
+// 20260907 CDX/PHR Expose included orders for cash report assignment.
+function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
+	$reportOrderIds = array();
 	echo "<!-- function findBoxSale begin -->"; 
   	global $baseCurrency,$db,$regnaar;
 	global $sprog_id,$straksbogfor;
@@ -192,6 +194,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 				if (substr($betalingstype,0,14)=='Betalingskort|')$betalingstype='Betalingskort';	
 				if (!in_array($r['ordre_id'],$oid)) {
 					$oid[$b]  = $r['ordre_id'];
+					$reportOrderIds[] = (int)$r['ordre_id'];
 					$oVat[$b] = (float)$r['moms'];
 					$osum[$b] = $r['sum']+$r['moms'];
 #$tsum+=$osum[$b];
@@ -273,6 +276,17 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); # and kasse_nr = '$kasse'
 				$kortsum[$x]+=$r['debet']-$r['kredit'];
 			}
+		}
+	}
+	if ($straksbogfor && func_num_args() >= 4) {
+		$reportRegister = (int)$kasse;
+		$reportCurrency = db_escape_string($valuta);
+		$qtxt = "select distinct o.id from ordrer o join transaktioner t on t.ordre_id = o.id ";
+		$qtxt.= "where o.felt_5 = '$reportRegister' and o.status >= 3 and o.valuta = '$reportCurrency' ";
+		$qtxt.= "and t.transdate = '$dd'";
+		$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$reportOrderIds[] = (int)$r['id'];
 		}
 	}
 #	$kassesum=dkdecimal($byttepenge+$tilgang);

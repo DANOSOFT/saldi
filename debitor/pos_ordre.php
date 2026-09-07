@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/pos_ordre.php --- patch 5.0.1 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
@@ -104,6 +104,8 @@
 // 20260707 MJ Add kasse to form action URL so drawer kasse is preserved on POST; restore commented-out drawer redirect in aabn_skuffe
 // 20260901 CL/LH opdater_konto: validated o_art mode from lookup row click; KO loads creditor
 //                 accounts only, and a missing/wrong-art account no longer wipes the order
+// 20260907 CDX/PHR Include calculated cash balances in the approval freshness check.
+// 20260907 CDX/PHR Assign the cash report to included sales that were already posted.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2728,6 +2730,13 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 
 	$ko_id = NULL; #Salg på konto
 	transaktion('begin');
+	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/findBoxSale.php');
+	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/assignCashReport.php');
+	$cashReportOrderIds = array();
+	foreach (array_unique($valuta) as $cashReportCurrency) {
+		findBoxSale($kasse, 0, $cashReportCurrency, $currencyOrderIds);
+		$cashReportOrderIds = array_merge($cashReportOrderIds, $currencyOrderIds);
+	}
 	// $qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) "; #20240227
 	// $qtxt.= "values ";
 	// $qtxt.= "('13009','". date('U') ."','$kasse','$bruger_id','0','".__file__."','".__line__."')";
@@ -2739,6 +2748,7 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	$qtxt = "insert into report (date,type,description,count,total,report_number) ";
 	$qtxt.= "values ('$dd','Head line','Cash count, box $kasse','0','0','$reportNumber')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	assignCashReport($cashReportOrderIds, $reportNumber);
 	if (count($fakturadate) && (($ownCommissionAccountNew) || ($ownCommissionAccountUsed))) {
 		include('pos_ordre_includes/settleCommission/moveToOwnAccount.php');
 	}
@@ -3115,8 +3125,10 @@ function kasseoptalling( // Called from cashBalance.php
 			print tekstboks($txt);
 		}
 	}
-	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
+	include_once(__DIR__ . "/pos_ordre_includes/boxCountMethods/findBoxSale.php");
+	include_once(__DIR__ . "/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php");
 	$svar = findBoxSale($kasse, $optalt, $baseCurrency);
+	$cashCountSales = array($baseCurrency => $svar);
 	$byttepenge = $svar[0];
 	$tilgang = (float)$svar[1];
 	$diff = (float)$svar[2];
@@ -3224,6 +3236,7 @@ function kasseoptalling( // Called from cashBalance.php
 	for ($x = 0; $x < count($valuta); $x++) {
 		if ($valuta[$x]) {
 			$svar = findBoxSale($kasse, $optval[$x] * $valutakurs[$x] / 100, $valuta[$x]);
+			$cashCountSales[$valuta[$x]] = $svar;
 			if (is_array($svar)) { #20160824
 				$byttepenge = $svar[0] * 100 / $valutakurs[$x];
 				$omsatning += $svar[1];
@@ -3232,7 +3245,6 @@ function kasseoptalling( // Called from cashBalance.php
 				$ValutaKasseDiff[$x] = $optval[$x] - ($byttepenge + $tilgang);
 				#cho "$valuta[$x] TG $tilgang Om $omsatning<br>"; 	
 				print "<tr><td colspan=\"3\" align=\"center\">";
-				print "<input type=\"hidden\" name=\"kontosum\" value=\"$valuta[$x]\">\n";
 				print "<input type=\"hidden\" name=\"valuta[$x]\" value=\"$valuta[$x]\">\n";
 				print "<input type=\"hidden\" name=\"ValutaKasseDiff[$x]\" value=\"$ValutaKasseDiff[$x]\">\n";
 				print "<input type=\"hidden\" name=\"ValutaByttePenge[$x]\" value=\"$byttepenge\">\n";
@@ -3265,6 +3277,8 @@ function kasseoptalling( // Called from cashBalance.php
 			}
 		}
 	}
+	$cashCountSignature = cashCountSignature($cashCountSales);
+	print "<input type='hidden' name='cashCountSignature' value='$cashCountSignature'>\n";
 #	$calcTxtArr = setCashCountText();
 	if (($optalt || $optalt == '0') && isset($_POST['calculate'])) { #LN 20190219
 #		if($kortdiff) {

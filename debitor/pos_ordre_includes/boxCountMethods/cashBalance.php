@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/CashBalance.php --- patch 5.0.0 --- 2026-03-16 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/CashBalance.php --- patch 5.0.1 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,15 +21,16 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260316 PHR Corrected Currency error
 
 // 20260211 PHR Updated cashCount 
 // 20260225 PHR Updated cashCount
+// 20260907 CDX/PHR Recalculate stale cash counts before posting and printing.
 
 function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
-	global $bruger_id,$brugernavn;
+	global $baseCurrency,$bruger_id,$brugernavn;
 	global $db,$db_encode,$FromCharset,$ToCharset;
 #	global $printserver;
 	global $regnaar,$reportNumber;
@@ -96,6 +97,14 @@ for ($i=0;$i<count($tmparray);$i++) {
 		}
 	} else $printpopup=1;
 
+	if ($godkendt && $optalassist) {
+		include_once(__DIR__ . '/cashCountSnapshot.php');
+		if (!cashCountIsCurrent($kasse, $baseCurrency, isset($_POST['cashCountSignature']) ? $_POST['cashCountSignature'] : null)) {
+			$godkendt = 0;
+			$_POST['calculate'] = 1;
+			print tekstboks('Kasseopgørelsen er opdateret. Kontrollér beløbene og godkend igen.');
+		}
+	}
 	if (!$godkendt && $optalassist) kasseoptalling ($kasse,$optalt,$ore_10,$ore_20,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval);
 	$r=db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$startmd=$r['box1'];
