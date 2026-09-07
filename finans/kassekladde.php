@@ -99,6 +99,8 @@
 //                  round gear button, click-to-open panel with title/intro/Show all; same persistence.
 // 20260907 Sawaneh First-time hint bubble pointing at the gear ("klik for at tilpasse din opsætning",
 //                  texts 5147/5148), dismissed per user via localStorage - product card hint pattern.
+// 20260907 Sawaneh Column/panel save fetch uses keepalive so a refresh right after toggling can no
+//                  longer cancel the persistence request (choices appeared to reset on fast reload).
 // 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
 //                  other menu styles keep the floating button; panel now opens just below the button.
 
@@ -2633,7 +2635,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			var hidden=[];
 			document.querySelectorAll('.kk-col-toggle').forEach(function(cb){if(!cb.checked) hidden.push(cb.getAttribute('data-col'));});
 			var fd=new FormData();fd.append('save_kk_cols',hidden.join(','));
-			fetch(window.location.pathname+window.location.search,{method:'POST',body:fd,credentials:'same-origin'}).catch(function(){});
+			// keepalive: a reload right after toggling must not cancel the save request
+			fetch(window.location.pathname+window.location.search,{method:'POST',body:fd,credentials:'same-origin',keepalive:true}).catch(function(){});
 		}
 		document.addEventListener('change',function(e){
 			if(!e.target.classList.contains('kk-col-toggle')) return;
