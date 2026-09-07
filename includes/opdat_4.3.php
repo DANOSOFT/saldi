@@ -30,15 +30,26 @@
 // 20260727 NTR Removed current version parameter, as it was incorrect and resulted in no update.
 //              opdat_func now automatically fetches the version from the database.
 // 20260901 PHR Movet context to opdat_4.2.php
+// 20260903 CL/LH Removed the early return; opdat_to('5.0.0') now stamps tenants to the installed version.
 if (!function_exists('opdat_4_3')) {
 	function opdat_4_3(){
-		return ;
-	
+		global $db, $sqdb, $sqhost, $squser, $sqpass, $connection;
 		include_once(__DIR__ . "/opdat_func/opdat_func.php");
 
-		$nextver='4.3.0';
+		// The 4.2.x steps in opdat_4.2.php end with include("../includes/connect.php"), which
+		// leaves $connection on the master database. Reconnect to the tenant (same idiom as
+		// includes/online.php) so opdat_to() reads and stamps the tenant's grupper row.
+		if ($db && $db != $sqdb) {
+			$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+		}
+
+		// 20260903 CL/LH: the 4.3.0 schema step lives in opdat_4.2.php (moved there 20260901).
+		// This function's job is to stamp tenants at 4.3.0 up to the installed program version,
+		// so tjek4opdat() stops re-entering the update chain on every login. opdat_to() is a
+		// no-op when the tenant is already at or above the target.
+		$nextver='5.0.0';
 		opdat_to($nextver, function () {
-			// Add your update steps here for version 4.3.0
+			// No schema changes between 4.3.0 and 5.0.0. Add 5.0.x steps here.
 		});
 	}
 }
