@@ -26,11 +26,15 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260907 CDX/PHR Carry revised year-end balances through subsequent fiscal years after journal posting.
+// 20260907 CL/NTR  Stop propagation instead of dropping balances when the target year lacks a
+//                  destination account for a status or result balance.
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
  * The caller owns the tenant transaction. Closed years retain their status.
  * Deleted years and missing predecessors form a boundary because their source data is unavailable.
+ * A target year that lacks the destination account for a status or result balance is also a boundary,
+ * so a partially transferable year is never written.
  *
  * @return int[] Fiscal year numbers whose opening balances were updated.
  */
@@ -75,6 +79,7 @@ function updateFollowingOpeningBalances($postedYear) {
 		}
 		$profit = 0;
 		$resultAccount = null;
+		$missingDestination = false;
 		$q = db_select("select kontonr, kontotype, primo, overfor_til from kontoplan where regnskabsaar = '$sourceYear' and kontotype in ('S', 'D', 'X') order by kontonr", __FILE__ . ' line ' . __LINE__);
 		while ($row = db_fetch_array($q)) {
 			$account = (int)$row['kontonr'];
@@ -88,6 +93,8 @@ function updateFollowingOpeningBalances($postedYear) {
 				if (!isset($opening[$destination])) $destination = $account;
 				if (isset($opening[$destination])) {
 					$opening[$destination] += (float)$row['primo'] + $amount;
+				} else {
+					$missingDestination = true;
 				}
 			}
 		}
@@ -96,7 +103,13 @@ function updateFollowingOpeningBalances($postedYear) {
 			$account = (int)$resultAccount['kontonr'];
 			if (isset($opening[$destination])) {
 				$opening[$destination] += afrund($profit, 2) + (isset($movement[$account]) ? $movement[$account] : 0);
+			} else {
+				$missingDestination = true;
 			}
+		}
+		if ($missingDestination) {
+			// A balance has no account to land on in the target year, so leave it and later years untouched.
+			break;
 		}
 		foreach ($opening as $account => $amount) {
 			$amount = (float)afrund($amount, 2);

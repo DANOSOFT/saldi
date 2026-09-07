@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260907 CDX/PHR Verify chained opening balances against isolated PostgreSQL temporary tables.
+// 20260907 CL/NTR  Cover missing status and result destinations in the target year.
 // Run with SALDI_TEST_DSN and libpq credentials (for example PGPASSFILE).
 
 if (PHP_SAPI !== 'cli') exit('CLI only');
@@ -69,6 +70,19 @@ try {
 	updateFollowingOpeningBalances(9);
 	checkOpening(accountValue(11, 2000, 'primo') === 1170.0, 'Repeated recalculation is idempotent');
 	checkOpening(updateFollowingOpeningBalances(11) === array(), 'Posting in the newest year does not change openings');
+	db_modify('savepoint missing_status_destination');
+	db_modify("update kontoplan set primo=4444 where regnskabsaar in (10, 11) and kontonr=2000");
+	db_modify("delete from kontoplan where regnskabsaar=10 and kontonr=2500");
+	checkOpening(updateFollowingOpeningBalances(9) === array(), 'Stop when a status account has neither a transfer nor a same-number account in the next year');
+	checkOpening(accountValue(10, 2000, 'primo') === 4444.0 && accountValue(11, 2000, 'primo') === 4444.0, 'Leave the target year and later years unwritten when a status destination is missing');
+	db_modify('rollback to savepoint missing_status_destination');
+	db_modify('savepoint missing_result_destination');
+	db_modify("update kontoplan set primo=4444 where regnskabsaar in (10, 11) and kontonr=2000");
+	db_modify("update kontoplan set overfor_til=3999 where regnskabsaar=9 and kontonr=1999");
+	checkOpening(updateFollowingOpeningBalances(9) === array(), 'Stop when the result account transfers to an account missing from the next year');
+	checkOpening(accountValue(10, 2000, 'primo') === 4444.0 && accountValue(11, 2000, 'primo') === 4444.0, 'Leave the target year and later years unwritten when the result destination is missing');
+	db_modify('rollback to savepoint missing_result_destination');
+	checkOpening(updateFollowingOpeningBalances(9) === array(10, 11) && accountValue(11, 2000, 'primo') === 1170.0, 'Resume propagation once every destination exists again');
 	db_modify('savepoint additional_posting');
 	db_modify("insert into transaktioner (kontonr,transdate,debet,kredit) values (2000,'2024-03-01',5.25,0),(1999,'2024-03-01',0,5.25)");
 	updateFollowingOpeningBalances(9);
