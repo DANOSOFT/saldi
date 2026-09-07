@@ -38,6 +38,10 @@
 //                 sheet grid - only a real full-sheet ($page, no specific id) print still uses the
 //                 whole grid. Fixes a single-label print producing an extra, effectively blank
 //                 second label (MB-16).
+// 20260907 CL/LH  The sheet gate no longer requires $account/$condition: an account-less
+//                 $page print (any template with $rows) fills the grid again from the item's
+//                 own description/price; the mylabel sheet query stays inside
+//                 if ($account && $condition) where MB-16 needs it.
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -110,7 +114,7 @@ for ($l=0;$l<count($labels);$l++) {
 	// otherwise every other cell in the grid renders with fallback/blank data
 	// nobody asked for (MB-16: a single-label print produced a second,
 	// effectively blank label). 20260826 CL/SZ.
-	$sheetPrint = (!$labels[$l] && $page && $account && $condition);
+	$sheetPrint = (!$labels[$l] && $page);
 	$cellRows = $sheetPrint ? $rows : 1;
 	$cellCols = $sheetPrint ? $cols : 1;
 	for ($a=1;$a<=$cellRows;$a++) {
