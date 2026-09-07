@@ -104,6 +104,7 @@
 // 20260707 MJ Add kasse to form action URL so drawer kasse is preserved on POST; restore commented-out drawer redirect in aabn_skuffe
 // 20260901 CL/LH opdater_konto: validated o_art mode from lookup row click; KO loads creditor
 //                 accounts only, and a missing/wrong-art account no longer wipes the order
+// 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -596,7 +597,8 @@ $r = db_fetch_array(db_select("select box2 from grupper where art='OreDif'", __F
 $difkto = if_isset($r['box2'], NULL);
 $returside = (if_isset($_GET['returside']));
 if (!$returside) {
-	if ($popup)
+	// 20260904 Sawaneh WP-1.3c: request flag instead of popup preference
+	if (!empty($_GET['popup']))
 		$returside = "../includes/luk.php";
 	else
 		$returside = "../index/menu.php";

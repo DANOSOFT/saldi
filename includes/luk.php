@@ -62,22 +62,33 @@ if (strpos($_SERVER['HTTP_USER_AGENT'],'Chrome')) $browser='chrome';
 elseif (strpos($_SERVER['HTTP_USER_AGENT'],'Firefox')) $browser='ff';
 elseif (strpos($_SERVER['HTTP_USER_AGENT'],'MSIE')) $browser='ie';
 
-$returside=if_isset($_GET['returside']);
+// 20260904 Sawaneh WP-1: returside sanitised (was reflected XSS/open redirect), popup=1
+//                  request flag also closes, blocked-close fallback goes to the returside
+//                  instead of the login page, and the unlock SQL params are cast/whitelisted.
+if (!function_exists('nav_sanitize_returside')) {
+	include(__DIR__ . "/stdFunc/navStack.php");
+}
+$returside=nav_sanitize_returside(if_isset($_GET['returside']));
 $tabel=if_isset($_GET['tabel']);
-$id=if_isset($_GET['id']);
-if($tabel && $id) {
+$id=(int)if_isset($_GET['id']);
+if($tabel && $id && preg_match('/^[A-Za-z_]+$/', $tabel)) {
 	if ($tabel == 'ordrer') {
 		db_modify("update ordrer set tidspkt='', hvem = case when art in ('DO','DK') then hvem else '' end where id=$id",__FILE__ . " linje " . __LINE__);
 	} else {
 		db_modify("update $tabel set tidspkt='', hvem='' where id=$id",__FILE__ . " linje " . __LINE__);
 	}
 }
+if (!isset($popup)) $popup = NULL;
+if (!empty($_GET['popup'])) $popup = 1; // request flag: this window IS a popup regardless of the user's popup preference
 if ($popup || !$returside) {
-	if ($browser=='chrome') print  "<body onload=\"javascript:closeChrome();\">";	
-	if ($browser=='ff') print  "<body onload=\"javascript:closeFF();\">";	
-	if ($browser=='ie') print  "<body onload=\"javascript:closeIE();\">";	
+	if ($browser=='chrome') print  "<body onload=\"javascript:closeChrome();\">";
+	if ($browser=='ff') print  "<body onload=\"javascript:closeFF();\">";
+	if ($browser=='ie') print  "<body onload=\"javascript:closeIE();\">";
 	print "<body onload=\"javascript:window.opener.focus();window.close();\">";
-	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/index.php\">";
+	// When window.close() is blocked (page not script-opened, e.g. inside the
+	// new-design iframe), fall back to the returside instead of the login page.
+	$lukFallback = $returside ? $returside : "../index/index.php";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=$lukFallback\">";
 } elseif ($returside) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 }

@@ -23,6 +23,7 @@
 //
 // Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 
 // 2013.01.15 Wildcard forsvinder efter søgning - tak til Henrik Thomsen fra Basslab for rettelse - søg 20130115
 // 2014.07.28 Timeout ændret fra 30 til 60 - Søg timeout.
@@ -107,7 +108,9 @@ if ($menu == "S") {
 	exit;
 }
 	
-if ($popup) $returside="../includes/luk.php";
+// 20260904 Sawaneh WP-1.3c: luk.php only when THIS window is a popup (popup=1 flag),
+// not on the user's popup preference — inline/iframe use otherwise ends on luk.php.
+if (!empty($_GET['popup'])) $returside="../includes/luk.php";
 else $returside=(if_isset($_GET['returside']));
 if (!$returside) $returside="../index/menu.php";
 $lev_id = array();
