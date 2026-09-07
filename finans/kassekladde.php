@@ -101,6 +101,9 @@
 //                  texts 5147/5148), dismissed per user via localStorage - product card hint pattern.
 // 20260907 Sawaneh Column/panel save fetch uses keepalive so a refresh right after toggling can no
 //                  longer cancel the persistence request (choices appeared to reset on fast reload).
+// 20260907 Sawaneh Column/panel choices now also persist for revisor/admin sessions: online.php gives
+//                  those bruger_id = -1 and the save/read guards required > 0, so admins silently lost
+//                  every choice on reload (pre-existing bug in the column picker, inherited by Part B).
 // 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
 //                  other menu styles keep the floating button; panel now opens just below the button.
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
@@ -495,7 +498,9 @@ $kk_toggle_cols = array(
 $kk_panel_opts = array('ac_forslag', 'ac_opslag');
 
 
-if (isset($_POST['save_kk_cols']) && isset($bruger_id) && $bruger_id > 0) {
+// (int)$bruger_id != 0: revisor/admin sessions have bruger_id = -1 (online.php) and must also
+// keep their choices - same self-consistent behaviour as the USET user settings.
+if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) {
     $parts = array_filter(array_map('trim', explode(',', (string)$_POST['save_kk_cols'])));
     $clean = array();
     foreach ($parts as $p) {
@@ -516,7 +521,7 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && $bruger_id > 0) {
 
 $kk_hidden_cols = array();
 $kk_panel_hidden = array();
-if (isset($bruger_id) && $bruger_id > 0) {
+if (isset($bruger_id) && (int)$bruger_id != 0) {
     $kk_r = db_fetch_array(db_select("select box3 from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
     if ($kk_r && trim((string)$kk_r['box3']) !== '') {
         foreach (explode(',', $kk_r['box3']) as $c) {
