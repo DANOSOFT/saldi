@@ -3558,9 +3558,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	/**
 	 * Alerts that an operator-typed amount was rejected by dk_amount_is_valid().
 	 *
-	 * alert() drops the text into alert('...') inside a <script> tag, so the echoed amount and
-	 * voucher number are stripped of quotes, backslashes, angle brackets and control characters
-	 * before the whole message goes through addslashes() like the other kontroller() alerts.
+	 * The echoed amount and voucher number are stripped of quotes, backslashes, angle brackets and
+	 * control characters, and the whole message is JSON-encoded with the JSON_HEX_* flags so it is
+	 * a safe JavaScript string literal inside the <script> element (a </script> in the text cannot
+	 * close the tag). The generic alert() helper is not used because it wraps its argument in
+	 * single quotes, which would show the JSON quotes literally in the popup.
 	 *
 	 * @param string|int|float|null $belob  The amount as typed.
 	 * @param string|int|null       $bilag  The voucher number of the line.
@@ -3574,7 +3576,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$txt1 = findtekst('5089|Beløbet', $sprog_id); // Beløbet
 		$txt2 = findtekst('5090|er ikke et gyldigt beløb - brug komma som decimaltegn, fx 1.234,56 (Bilag nr', $sprog_id);
 		$txt3 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
-		alert(addslashes($txt1 . " " . $belobVist . " " . $txt2 . " " . $bilagVist . $txt3));
+		$msg = $txt1 . " " . $belobVist . " " . $txt2 . " " . $bilagVist . $txt3;
+		print "<script type='text/javascript'>alert(" . json_encode($msg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>";
 	}
 	#############################################################################################################################
 	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $debetvat, $kreditvat, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
