@@ -26,6 +26,8 @@
 // Expiry date handling (FEFO) - batch_kob: due_date, batch_no
 //                                varer: has_due_date, default_shelf_life_days
 //
+// 20260903 CL/LH Reopened the 4.3.0 step gate ($subNo < '3' instead of '< 1'), which could
+//                never be true because tjek4opdat() always passes $subNo = 2.
 
 if (!function_exists('opdat_4_2')) {
 function opdat_4_2($majorNo, $subNo, $fixNo){
@@ -873,7 +875,12 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	$nextver='4.3.0';
-	if ($subNo < '1'){
+	// 20260903 CL/LH: this step must run for every 4.2.x tenant. tjek4opdat.php only calls
+	// opdat_4_2() with $subNo == 2, so the previous "$subNo < '1'" gate could never open and
+	// the whole 4.3.0 step (adresser.fax -> mobile, kontakt_emails, delivery_addresses, ...)
+	// was skipped while the code already depended on it. Every statement inside is
+	// existence-guarded, so re-running it on a partially upgraded tenant is safe.
+	if ($subNo < '3'){
 		include("../includes/connect.php");
 		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
 		$tmp=$r['version'];
