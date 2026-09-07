@@ -41,6 +41,11 @@
 // 20260807 CL/NTR Generalize the async report shell to kontokort/kontosaldo/accountChart (not just openpost), drop the shell's inline padding, and add Cache-Control: no-store + pageshow/persisted reload so the back button can't restore a frozen shell/iframe.
 // 20260807 CL/NTR Skip the async shell for requests already inside its own iframe (Sec-Fetch-Dest: iframe), so report links that don't carry the *_content flag forward don't nest a second shell+iframe inside the first.
 // 20260824 CL/NTR Prototype: openpost drops the iframe shell - the shell stream-fetches the report and document.write()s it over itself chunk by chunk (progressive rendering like the iframe had), so Back/bfcache can never restore a nested or frozen frame; Cache-Control: no-store now sent before any output on openpost requests.
+// 20260812 Sawaneh The openpost path now reads dato_fra/dato_til/konto_fra/konto_til from the query
+//                  string before the saved report settings are written. Every link back into the
+//                  report (pagination, BS toggle, view mode) used to overwrite box2-box5 with
+//                  empty values, after which openpost() reloaded an empty filter and showed all
+//                  debtors at today's date. That update is escaped now that it carries request data.
 
 @session_start();
 $s_id = session_id();
@@ -267,6 +272,18 @@ if (isset($_POST['saft'])) {
 	exit();
 }
 
+// A link back into the report - pagination, the BS toggle, the view-mode dropdown - carries
+// its filter in the query string, and it has to be read before the block below. That block
+// writes the saved report settings, and with these variables still undefined it wrote empty
+// values over them; openpost() then reloaded that empty filter, so every link back into the
+// report showed all debtors at today's date no matter what was asked for.
+if ($openpost) {
+	if (isset($_GET['dato_fra']))  $dato_fra  = $_GET['dato_fra'];
+	if (isset($_GET['dato_til']))  $dato_til  = $_GET['dato_til'];
+	if (isset($_GET['konto_fra'])) $konto_fra = $_GET['konto_fra'];
+	if (isset($_GET['konto_til'])) $konto_til = $_GET['konto_til'];
+}
+
 if (isset($_POST['submit']) || $rapportart) {
 	#	$husk=$_POST['husk'];
 	if (!$rapportart) {
@@ -275,7 +292,14 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_fra = $_POST['dato_fra'];
 		$dato_til = $_POST['dato_til'];
 	} else {
-		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		$qtxt  = "update grupper set box1='" . db_escape_string((string) $husk) . "'";
+		$qtxt .= ", box2='" . db_escape_string((string) $dato_fra) . "'";
+		$qtxt .= ", box3='" . db_escape_string((string) $dato_til) . "'";
+		$qtxt .= ", box4='" . db_escape_string((string) $konto_fra) . "'";
+		$qtxt .= ", box5='" . db_escape_string((string) $konto_til) . "'";
+		$qtxt .= ", box6='" . db_escape_string((string) $rapportart) . "'";
+		$qtxt .= " where art='DRV' and kodenr='" . (int) $bruger_id . "'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
