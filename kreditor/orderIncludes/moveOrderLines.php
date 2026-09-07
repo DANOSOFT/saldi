@@ -253,8 +253,9 @@ else {
 	transaktion('commit');
 	# MB-38/CodeRabbit: pg_advisory_xact_lock releases itself on commit above; GET_LOCK is
 	# connection-scoped, not transaction-scoped, so release it explicitly now the row is visible.
-	if (!empty($newOrderCreated) && ($db_type == 'mysql' || $db_type == 'mysqli'))
+	if (!empty($newOrderCreated) && ($db_type == 'mysql' || $db_type == 'mysqli')){
 		db_select("SELECT RELEASE_LOCK('kreditor_ordre_split_ordrenr')", __FILE__ . " linje " . __LINE__);
+	}
 	/*
 	$qtxt = "SELECT MAX(id) - nextval('ordrer_id_seq') as nextval FROM ordrer"; #20230206
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
