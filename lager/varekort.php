@@ -111,6 +111,12 @@
 // 20260902 Sawaneh Udløbsdato (showExpirySettings) moved out of the Diverse
 //                  cell into its own section box row, like the other sections,
 //                  so it separates and toggles independently.
+// 20260905 SZ MB-33: "Automatisk prisberegning" checkbox had no column of its own -
+//             show_advanced_price_calc is read from POST but never saved, so the
+//             checkbox was always redrawn from salgspris/tier/retail_price_multiplier
+//             > 0, and unchecking it did nothing since those fields kept their old
+//             values. Now zero the multipliers when the box is unchecked so "off"
+//             actually persists and stops updateProductPrice.php's auto-overwrite too.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -415,6 +421,9 @@ if ($saveItem || $submit = trim($submit)) {
     $retail_price_method = if_isset($_POST['retail_price_method']);
     $retail_price_rounding = if_isset($_POST['retail_price_rounding']);
     $show_advanced_price_calc = if_isset($_POST['show_advanced_price_calc']);
+    if (!$show_advanced_price_calc) {	# MB-33 - the checkbox has no column of its own; zero the multipliers so unchecking actually turns automatic price calc off (it's gated on these being >0, both here and in updateProductPrice.php)
+        $tier_price_multiplier = $salgspris_multiplier = $retail_price_multiplier = 0;
+    }
 
     if (!$kat_id)
         $kat_id = array();
