@@ -12,6 +12,17 @@
         return window.saldiTranslations || {};
     }
 
+    // Per-page panel-section config (set by kassekladde.php). Pages that don't define
+    // window.saldiAutocompleteOptions (bank import, document pool, order autocomplete)
+    // keep the default behaviour: both sections shown.
+    function getPanelOptions() {
+        const opts = window.saldiAutocompleteOptions || {};
+        return {
+            showLastPostings: opts.showLastPostings !== false,
+            showAccountLookup: opts.showAccountLookup !== false
+        };
+    }
+
     let activeDropdown = null;
     let activeInput = null;
     let debounceTimer = null;
@@ -532,6 +543,17 @@
             }
         }
 
+        const panelOptions = getPanelOptions();
+        if (!panelOptions.showLastPostings && !panelOptions.showAccountLookup) {
+            closeDropdown();
+            return;
+        }
+        if (!panelOptions.showAccountLookup) {
+            // Lookup section deselected: skip the server search and show suggestions only
+            renderDropdown(input, [], searchType, searchValue, null);
+            return;
+        }
+
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/accountSearch.php';
@@ -1013,7 +1035,8 @@
     function renderDropdown(input, results, searchType, currentSearchValueParam, pagination) {
         const dropdown = input.autocompleteDropdown;
         const trans = getTrans();
-        const lastPostings = getLastPostings(input);
+        const panelOptions = getPanelOptions();
+        const lastPostings = panelOptions.showLastPostings ? getLastPostings(input) : { heading: '', rows: [] };
         const hasLastPostings = lastPostings.rows && lastPostings.rows.length > 0;
         const columnCount = searchType === 'finance' ? 5 : 2;
 
@@ -1022,7 +1045,7 @@
         pagination = pagination || { page: 1, total: 0, hasMore: false };
 
         if (!results || results.length === 0) {
-            if (currentSearchValueParam !== '' || hasLastPostings) {
+            if ((currentSearchValueParam !== '' && panelOptions.showAccountLookup) || hasLastPostings) {
                 let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 if (hasLastPostings) {
                     noResultHtml = '<div class="account-autocomplete-results">' +

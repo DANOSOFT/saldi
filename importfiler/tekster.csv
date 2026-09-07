@@ -5079,3 +5079,12 @@
 5079	Din ændring blev ikke gemt - denne labels skabelon er ændret siden siden blev indlæst (fx i en anden fane), og kan nu kun redigeres som rå HTML. Genindlæs siden og prøv igen.	Your change wasn't saved - this label's template has changed since the page was loaded (e.g. in another tab), and can now only be edited as raw HTML. Reload the page and try again.	Endringen din ble ikke lagret - denne etikettens mal er endret siden siden ble lastet (f.eks. i en annen fane), og kan nå bare redigeres som rå HTML. Last siden på nytt og prøv igjen.
 5089	Beløbet	The amount	Beløpet
 5090	er ikke et gyldigt beløb - brug komma som decimaltegn, fx 1.234,56 (Bilag nr	is not a valid amount - use a comma as the decimal separator, e.g. 1.234,56 (Attachment no	er ikke et gyldig beløp - bruk komma som desimaltegn, f.eks. 1.234,56 (Bilag nr
+5140	Sidste 5 posteringer for konto	Last 5 postings for account	Siste 5 posteringer for konto
+5141	En tilsvarende postering er allerede bogført med bilagsnummer	A matching entry has already been posted with voucher number	En tilsvarende postering er allerede bokført med bilagsnummer
+5142	Kontoforslag (sidste 5)	Account suggestions (last 5)	Kontoforslag (siste 5)
+5143	Konto-opslag	Account lookup	Kontooppslag
+5144	Kladden balancerer	The journal balances	Kladden balanserer
+5145	Vælg hvilke kolonner og opslagssektioner der vises i kassekladden. Gælder kun visningen for dig.	Choose which columns and lookup sections are shown in the cash journal. Only affects what you see.	Velg hvilke kolonner og oppslagsseksjoner som vises i kassekladden. Gjelder bare visningen for deg.
+5146	Vis alle	Show all	Vis alle
+5147	Nyt! Klik på tandhjulet for at tilpasse din opsætning af kassekladden.	New! Click the gear to customize your setup of the cash journal.	Nytt! Klikk på tannhjulet for å tilpasse oppsettet av kassekladden.
+5148	Forstået	Got it	Skjønner
