@@ -106,6 +106,8 @@ function updateFollowingOpeningBalances($postedYear) {
 			} else {
 				$missingDestination = true;
 			}
+		} else {
+			$missingDestination = true;
 		}
 		if ($missingDestination) {
 			// A balance has no account to land on in the target year, so leave it and later years untouched.
