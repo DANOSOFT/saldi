@@ -1,4 +1,5 @@
 <?php
+// 20260906 CDX/LH Reuse inherited endpoint properties and database includes to prevent PHP 8 fatal errors; reject unsupported GET with 405.
 /**
  * POST /notifications/register - Register device token for push notifications
  * DELETE /notifications/register - Unregister device token
@@ -9,13 +10,9 @@ require_once __DIR__ . '/../../../core/JWT.php';
 require_once __DIR__ . '/../../../core/JWTAuth.php';
 require_once __DIR__ . '/../../../core/logging.php';
 
-include_once __DIR__ . '/../../../../includes/db_query.php';
-include_once __DIR__ . '/../../../../includes/connect.php';
 
 class NotificationsRegisterEndpoint extends BaseEndpoint
 {
-    private $userId;
-    private $db;
     
     public function __construct()
     {
@@ -38,6 +35,11 @@ class NotificationsRegisterEndpoint extends BaseEndpoint
         return true;
     }
     
+    protected function handleGet($id = null)
+    {
+        $this->sendResponse(false, null, 'GET method not supported', 405);
+    }
+
     protected function handlePost($data)
     {
         if (!isset($data->token) || empty($data->token)) {
