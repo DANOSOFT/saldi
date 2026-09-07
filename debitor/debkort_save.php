@@ -178,6 +178,10 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 			 include("../includes/online.php");
 			}
 		}
+		// 20260902 CL/LH  L4 finding master-data-customer DEVY-1: the INSERT/UPDATE below write
+		// adresser.stripe_fravalg unconditionally; self-heal the column for tenants that never
+		// ran includes/betweenUpdates.php (only reached via aaben_regnskab.php / POS).
+		ensure_column('adresser', 'stripe_fravalg', 'varchar(2)');
 		######### Kategorier
 
 		for ($x=0;$x<$cat_antal;$x++) {

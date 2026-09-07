@@ -80,6 +80,7 @@ include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
+include(__DIR__ . '/stdFunc/ensureColumn.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');

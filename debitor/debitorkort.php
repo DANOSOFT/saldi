@@ -116,6 +116,11 @@ $css = "../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+// 20260902 CL/LH  L4 finding master-data-customer DEVY-1 / concurrent-editing DEVY-1: the debtor
+// INSERT/UPDATE below reference adresser.stripe_fravalg unconditionally, but the column is only
+// added by includes/betweenUpdates.php (aaben_regnskab.php). Self-heal here so a tenant that
+// skipped that path does not lose every debtor save to "column does not exist".
+ensure_column('adresser', 'stripe_fravalg', 'varchar(2)');
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");

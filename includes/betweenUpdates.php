@@ -479,10 +479,10 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // 20260819 CL/LH Per-debtor opt-out for kortbetaling ("Ingen kortbetaling" on the
 // debitorkort): overrides templates and catalog - the link helper renders '' and
 // subscribe.php parks. Does NOT touch already-running subscriptions.
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='stripe_fravalg'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE adresser ADD stripe_fravalg varchar(2)", __FILE__ . " linje " . __LINE__);
-}
+// 20260902 CL/LH  Same guard as debitor/debitorkort.php + debkort_save.php now call themselves
+// (L4 finding: tenants that never came through aaben_regnskab.php lacked the column and every
+// debtor save failed). Kept here so the migration path stays the canonical one.
+ensure_column('adresser', 'stripe_fravalg', 'varchar(2)');
 
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ansatte' and column_name = 'mobile'";
