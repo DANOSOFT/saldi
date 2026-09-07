@@ -678,4 +678,20 @@ $chatyBase = in_array($chatyHost, ['localhost', '127.0.0.1'], true)	? 'http://lo
   data-lang="<?php print ($sprog_id == 2) ? 'en' : 'da'; ?>"
   data-theme-color="#2872fa"></script>
 
+<?php
+/* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
+   endpointet ligger i includes/saldi_assist_token.php. SALDI_ASSIST_WIDGET_URL
+   kan saettes i webserverens miljoe til en test-instans; standard er produktion. */
+$assistWidgetUrl = getenv('SALDI_ASSIST_WIDGET_URL') ?: 'https://wuweiworkai.com/chaty-v2/widget.js';
+$assistVersion = isset($version) ? (string)$version : '';
+?>
+<script src="../javascript/saldi-assist-navigate.js"></script>
+<script>
+  // update_iframe er en const i sidens script; goer den tilgaengelig for
+  // navigate-hook'en, saa "Gaa dertil" gaar gennem SALDIs egen navigation
+  // (inkl. advarslen om ugemte aendringer).
+  if (typeof update_iframe === 'function') { window.update_iframe = update_iframe; }
+</script>
+<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+<script>window.SaldiAssist = { appVersion: <?= json_encode($assistVersion) ?>, correlationId: <?= json_encode($assist_correlation_id ?? null) ?>, errorCategory: <?= json_encode($assist_error_category ?? null) ?>, getContextToken: function (sessionHash) { return fetch('../includes/saldi_assist_token.php?embed_session=' + encodeURIComponent(sessionHash), {credentials:'same-origin'}).then(function (r) { return r.ok ? r.json() : null }).then(function (j) { return j && j.token ? j.token : null }) }, navigate: window.SaldiAssistNavigate };</script>
 </html>
