@@ -34,6 +34,7 @@
 // 20260904 Sawaneh WP-1.6: update_iframe() tags iframe navigations with inframe=1 (context flag for hosted pages)
 // 20260907 CDX/LH Fjernede gammel widget-loader, saa SALDI Assist kun indlaeses en gang
 // 20260907 CDX/LH Preserve iframe navigation while merging the current shell integration.
+// 20260907 CDX/LH Enable the saved-record bridge when the installation opts in.
 @session_start();
 $s_id = session_id();
 
@@ -691,4 +692,11 @@ $assistVersion = isset($version) ? (string)$version : '';
 </script>
 <script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>" defer></script>
 <script>window.SaldiAssist = { appVersion: <?= json_encode($assistVersion) ?>, correlationId: <?= json_encode($assist_correlation_id ?? null) ?>, errorCategory: <?= json_encode($assist_error_category ?? null) ?>, getContextToken: function (sessionHash) { return fetch('../includes/saldi_assist_token.php?embed_session=' + encodeURIComponent(sessionHash), {credentials:'same-origin'}).then(function (r) { return r.ok ? r.json() : null }).then(function (j) { return j && j.token ? j.token : null }) }, navigate: window.SaldiAssistNavigate };</script>
+<?php if (getenv('SALDI_ASSIST_RECORDS_ENABLED') === '1') { ?>
+<script src="../javascript/saldi-assist-records.js"></script>
+<script>
+  window.SaldiAssist.getRecordContext = window.SaldiAssistRecords.getRecordContext;
+  window.SaldiAssist.highlightRows = window.SaldiAssistRecords.highlightRows;
+</script>
+<?php } ?>
 </html>

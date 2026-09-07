@@ -62,7 +62,10 @@
 // 20260822 Sawaneh Show journal id and note in heading and above movements so output identifies the journal;
 //                  print icon on the simulation/posting view prints just the report
 // 20260907 CDX/PHR Update following fiscal years' opening balances within the journal posting transaction.
+// 20260907 CDX/LH Share the difference predicate with the read-only assistant checks.
 
+
+require_once __DIR__ . '/../includes/assist/RecordRules.php';
 
 @session_start();
 $s_id=session_id();
@@ -560,7 +563,7 @@ for ($y=1;$y<=$posteringer;$y++) {
 if (afrund($b_sum[$x],2)) $diffbilag[$y-1]=afrund($b_sum[$x],2);
 # <- 20131115
 $fejl=0; #20140228
-if (abs($diff)>=0.01 || count($diffbilag))  { #20131115 ( || count($diffbilag))
+if (saldi_assist_has_differences((float)$diff, $diffbilag)) { #20131115 ( || count($diffbilag))
 	print "<tr><td colspan=6><br>";
 	print "<table width=100% border=1><tbody>"; 
 	print "<tr><td align=center colspan=2>Der er differencer p&aring; følgende bilag</td></tr>";

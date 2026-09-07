@@ -107,6 +107,7 @@
 // 20260818 Sawaneh Credit notes: only cap the quantity when the line points the wrong way or more
 //                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
 //                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
+// 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
 
 @session_start();
 $s_id = session_id();
@@ -131,6 +132,8 @@ $valgt = $varenr[0] = $valuta = $vis_lev_addr = $vis_projekt = NULL;
 $width = NULL;
 $fast_db = array();
 $sletslut = $sletstart = 0;
+
+require_once __DIR__ . '/../includes/assist/RecordRules.php';
 
 $modulnr = 5;
 
@@ -6342,12 +6345,8 @@ function ordreside($id, $regnskab)
 					$disabled = '';
 					
 					$lockPayment = get_settings_value("lockedInvoiceButton", "debitor", "");
-					if(!$betalt && $vis_betalingslink && $lockPayment == "on"){
-						$disabled = "disabled";
-					}
-					// Made for Havemøbelshoppen
-					if ($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant") {
-						$disabled = '';
+					if (saldi_assist_invoice_payment_locked($betalt, (bool)($vis_betalingslink ?? false), (string)$lockPayment, (string)$ref, (string)$felt_1)) {
+						$disabled = 'disabled';
 					}
 					
 					$txt = findtekst('2374|Fakturér', $sprog_id);
