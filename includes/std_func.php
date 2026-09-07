@@ -75,6 +75,9 @@
 //                 deleted account's number is never reused; kontonr above 8 digits (EAN-like
 //                 outliers) are ignored when finding the highest, and if the 8-digit range is
 //                 capped by an outlier the first number free in both series is used (SST-753)
+// 20260905 SZ Added genbestil_nettobeholdning()/beregn_genbestil() next to find_beholdning() -
+//             lager/varer.php's reorder-suggestion formula had two branches that disagreed on
+//             whether existing purchase proposals/orders were subtracted (MB-35)
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1675,6 +1678,24 @@ if (!function_exists('find_beholdning')) {
 		return $beholdning;
 	}
 } #endfunc find_beholdning()
+
+// MB-35 - lager/varer.php's reorder-suggestion code had two branches computing this differently:
+// one subtracted existing purchase proposals/orders ($i_forslag/$bestilt, from find_beholdning()
+// above) from both the trigger and the suggested quantity, the other used neither anywhere, so an
+// item already covered by a pending purchase order still got flagged and suggested for the full
+// gap up to max - doubling the order once the pending one also arrives. Both branches now share
+// these two functions so they can't drift apart again.
+if (!function_exists('genbestil_nettobeholdning')) {
+	function genbestil_nettobeholdning($beholdning, $i_ordre, $i_forslag, $bestilt) {
+		return $beholdning - $i_ordre + $i_forslag + $bestilt;
+	}
+}
+if (!function_exists('beregn_genbestil')) {
+	function beregn_genbestil($max_lager, $beholdning, $i_ordre, $i_forslag, $bestilt) {
+		$genbestil = $max_lager - genbestil_nettobeholdning($beholdning, $i_ordre, $i_forslag, $bestilt);
+		return $genbestil < 0 ? 0 : $genbestil;
+	}
+}
 
 if (!function_exists('hent_shop_ordrer')) {
 	function hent_shop_ordrer($shop_ordre_id, $from_date)
