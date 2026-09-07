@@ -76,6 +76,9 @@
 // 20260831 Sawaneh Action buttons were clipped and unreachable at 125% Windows scaling (SST-747):
 //                  replaced the guessed 130/150px viewport calc with a flex column layout, removed the
 //                  unconditional html/body overflow-y:hidden and let the button bar wrap on narrow windows.
+// 20260907 CL/LH  The replay fingerprint is recorded only after a successful save; recording it before
+//                  kontroller() turned a double-click on a failing save into a "replay" that skipped
+//                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 
 ob_start(); //Starter output buffering  
 
@@ -1299,15 +1302,14 @@ if ($_POST) {
 	// check below never fires for an open journal (bogfort is '-' which is truthy), so detect the
 	// replay explicitly: the same session re-posting the exact same save payload for the same
 	// journal is a replay and must not touch the lines again. A stale tab with *different*
-	// content is not affected (different payload) and saves as before.
+	// content is not affected (different payload) and saves as before. The fingerprint is only
+	// compared here; it is recorded after opdater() below, once the save has actually succeeded,
+	// so a re-post of a save that failed validation is validated (and rejected) again.
 	$kk_replay = false;
 	if ($submit == 'save' && $kladde_id) {
 		$kk_payload = md5(serialize($_POST));
 		if (isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
 			$kk_replay = true;
-		} else {
-			if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
-			$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
 		}
 	}
 	if ($kladde_id) {
@@ -1525,6 +1527,13 @@ if (!$fejl && $kladde_id) {
 	if (empty($kk_replay)) {
 		opdater($kladde_id);
 		initializePositions($kladde_id);
+		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
+		// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
+		// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
+		if (isset($kk_payload)) {
+			if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+			$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+		}
 	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
