@@ -28,6 +28,10 @@
 // genuinely new statements below (not present in opdat_4.3.php) were pulled in from production.
 // 20260717 CL/NTR Guard the API-key insert/update blocks so an existing but
 //                  incomplete .ht_keys.txt can't silently write an empty var_value.
+// 20260724 Sawaneh  MobilePay webhook reconciliation: add connect/read timeouts and
+//                  fail-soft logging to the api.vipps.no calls, and gate the whole
+//                  block behind a one-shot marker so it no longer runs (or makes any
+//                  outbound HTTP) on every login.
 // 20260728 CL/SZ Moved the Bilagsmatch pool_files.norm_amount/pg_trgm setup here from
 //                  includes/opdat_4.3.php's opdat_to('4.3.0', ...) gate: that gate had
 //                  already run on tenants (including the reviewer's test DB) before this
@@ -36,6 +40,15 @@
 //                  a nonexistent column, pg_query() failed, and the endpoint silently
 //                  returned zero rows regardless of any actual match. All statements below
 //                  are idempotent (existence/flag-checked), matching this file's pattern.
+// 20260812 Sawaneh  Review: the callback url is read from settings ('mobilepay'/
+//                  'webhook_base_url') instead of $_SERVER['SERVER_NAME'], so a crafted
+//                  Host header can no longer redirect the payment callback; a webhook
+//                  deletion counts only on 2xx and a failed one keeps the db
+//                  unreconciled; and a 2xx list payload without a webhooks array is
+//                  treated as a failure rather than as an empty list.
+// 20260812 Sawaneh  The reconciliation itself moved to includes/stdFunc/mobilepayWebhookSync.php
+//                  so it can be exercised against a stub endpoint; this file keeps the
+//                  settings reads, the secret write and the one-shot marker.
 
 
 
@@ -290,73 +303,82 @@ if ($mp_client_id) {
 	$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'MSN'", __FILE__ . " linje " . __LINE__);
 	$mp_msn = db_fetch_array($q)['var_value'];
 
-	$expected_url = 'https://' . $_SERVER['SERVER_NAME'] . '/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db;
+	// One-shot gate: reconciliation only talks to Vipps once per webhook URL. Once the
+	// URL for this server/db is confirmed, the stored marker matches $expected_url and
+	// the whole block (and all outbound HTTP) is skipped on subsequent logins. A changed
+	// base url/db, or a first-time setup, changes/clears the marker and re-triggers it.
+	$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_reconciled_url'", __FILE__ . " linje " . __LINE__);
+	$mp_reconciled_url = db_fetch_array($q)['var_value'] ?? null;
 
-	// Get access token
-	$ch = curl_init('https://api.vipps.no/accesstoken/get');
-	curl_setopt($ch, CURLOPT_POST, 1);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, [
-		'Content-Type: application/json',
-		"Client_id: $mp_client_id",
-		"Client_secret: $mp_client_secret",
-		"Ocp-Apim-Subscription-Key: $mp_subscription",
-		"Merchant-Serial-Number: $mp_msn",
-		'Content-Length: 0'
-	]);
-	$token_resp = json_decode(curl_exec($ch), true);
-	curl_close($ch);
-	$mp_token = $token_resp['access_token'] ?? null;
+	// The callback url must NOT come from $_SERVER['SERVER_NAME']: with Apache's default
+	// UseCanonicalName Off that follows the request's Host header, so a crafted Host on a
+	// login request could make this code delete the real webhook and register the payment
+	// callback at an attacker's address. It is read from settings instead.
+	$q = db_select("SELECT id, var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_base_url'", __FILE__ . " linje " . __LINE__);
+	$mp_base_row = db_fetch_array($q);
+	$mp_webhook_base = trim((string)($mp_base_row['var_value'] ?? ''));
 
-	if ($mp_token) {
-		$mp_headers = [
-			"Authorization: Bearer $mp_token",
-			"Ocp-Apim-Subscription-Key: $mp_subscription",
-			"Merchant-Serial-Number: $mp_msn",
-			'Content-Type: application/json'
-		];
-
-		// List registered webhooks
-		$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-		$webhooks = json_decode(curl_exec($ch), true)['webhooks'] ?? [];
-		curl_close($ch);
-
-		$correct_webhook_exists = false;
-		foreach ($webhooks as $wh) {
-			if ($wh['url'] === $expected_url) {
-				$correct_webhook_exists = true;
+	// Installations reconciled before this change have no setting yet, and their marker
+	// holds a url Vipps has already accepted. Adopting it keeps them working instead of
+	// silently stopping every POS tenant's reconciliation until someone fills the setting
+	// in, and it is logged so an operator can see what was adopted.
+	if ($mp_webhook_base === '' && $mp_reconciled_url) {
+		$mp_seed = parse_url($mp_reconciled_url);
+		if (!empty($mp_seed['scheme']) && !empty($mp_seed['host'])) {
+			$mp_webhook_base = $mp_seed['scheme'] . '://' . $mp_seed['host'] . (isset($mp_seed['port']) ? ':' . $mp_seed['port'] : '');
+			$mp_seed_value = db_escape_string($mp_webhook_base);
+			// The row may already exist with an empty value, which is what got us here, so
+			// insert only when there is nothing to update - two rows for the same
+			// var_grp/var_name would make every later read pick one of them at random.
+			if (!empty($mp_base_row['id'])) {
+				db_modify("UPDATE settings SET var_value = '$mp_seed_value' WHERE id = " . (int)$mp_base_row['id'], __FILE__ . " linje " . __LINE__);
 			} else {
-				// Delete webhook pointing to a different URL for this db
-				if (strpos($wh['url'], 'webhook_recive.php?db=' . $db) !== false) {
-					$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks/' . $wh['id']);
-					curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-					curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-					curl_exec($ch);
-					curl_close($ch);
-				}
+				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_base_url', 'mobilepay', '$mp_seed_value', 'Canonical https base url for the MobilePay webhook callback, e.g. https://pos.example.dk')", __FILE__ . " linje " . __LINE__);
 			}
+			error_log("betweenUpdates.php: MobilePay webhook_base_url was not configured - adopted '$mp_webhook_base' from the existing reconciled url");
+		}
+	}
+
+	$mp_base_parts = $mp_webhook_base !== '' ? parse_url($mp_webhook_base) : false;
+	if (!$mp_base_parts || empty($mp_base_parts['host']) || strtolower($mp_base_parts['scheme'] ?? '') !== 'https') {
+		// Without a configured base url there is nothing safe to reconcile against, so no
+		// webhook is deleted or registered. Vipps keeps delivering to whatever is already
+		// registered; only reconciliation waits.
+		error_log("betweenUpdates.php: MobilePay webhook reconciliation skipped - set settings var_grp 'mobilepay', var_name 'webhook_base_url' to the canonical https base url for this installation");
+		$expected_url = null;
+	} else {
+		$expected_url = rtrim($mp_webhook_base, '/') . '/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db;
+	}
+
+	if ($expected_url !== null && $mp_reconciled_url !== $expected_url) {
+		include_once(__DIR__ . '/stdFunc/mobilepayWebhookSync.php');
+		$mp_result = mobilepay_webhook_sync(array(
+			'expectedUrl'     => $expected_url,
+			'db'              => $db,
+			'clientId'        => $mp_client_id,
+			'clientSecret'    => $mp_client_secret,
+			'subscriptionKey' => $mp_subscription,
+			'msn'             => $mp_msn,
+		));
+		foreach ($mp_result['errors'] as $mp_error) {
+			error_log("betweenUpdates.php: MobilePay webhook reconciliation - $mp_error");
 		}
 
-		if (!$correct_webhook_exists) {
-			// Register webhook with correct URL
-			$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-			curl_setopt($ch, CURLOPT_POST, true);
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-				'url' => $expected_url,
-				'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
-			]));
-			$reg_resp = json_decode(curl_exec($ch), true);
-			curl_close($ch);
+		if ($mp_result['secret']) {
+			db_modify("DELETE FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_secret'", __FILE__ . " linje " . __LINE__);
+			$new_secret = db_escape_string($mp_result['secret']);
+			db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_secret', 'mobilepay', '$new_secret', 'The secret that is generated for the webhook')", __FILE__ . " linje " . __LINE__);
+		}
 
-			if (!empty($reg_resp['secret'])) {
-				db_modify("DELETE FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_secret'", __FILE__ . " linje " . __LINE__);
-				$new_secret = db_escape_string($reg_resp['secret']);
-				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_secret', 'mobilepay', '$new_secret', 'The secret that is generated for the webhook')", __FILE__ . " linje " . __LINE__);
+		// Persist the marker only after a confirmed reconciliation, so a transient Vipps
+		// outage - or a stale webhook that could not be deleted - leaves it unchanged and
+		// the next login retries rather than assuming success.
+		if ($mp_result['reconciled']) {
+			$new_reconciled_url = db_escape_string($expected_url);
+			if ($mp_reconciled_url === null) {
+				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_reconciled_url', 'mobilepay', '$new_reconciled_url', 'Last webhook URL reconciled with Vipps - one-shot gate for betweenUpdates.php')", __FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("UPDATE settings SET var_value = '$new_reconciled_url' WHERE var_grp = 'mobilepay' AND var_name = 'webhook_reconciled_url'", __FILE__ . " linje " . __LINE__);
 			}
 		}
 	}
