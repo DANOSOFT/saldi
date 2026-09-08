@@ -6,6 +6,15 @@ $recordLockRows = array();
 $recordLockQueries = array();
 $db_type = 'pgsql';
 
+// 20260908 CDX/MJ Only install these stubs when the real helpers are absent. The fake and the
+// real db_* functions cannot coexist in one PHP process, and PHPUnit loads every test file
+// before it applies --filter, so on a full-suite run includes/db_query.php (required by the
+// finans suite, which sorts first) is already loaded - redeclaring here aborted the whole run
+// with "Cannot redeclare db_escape_string()". When the stubs cannot be installed the tests
+// below skip with an explanation instead.
+if (!function_exists('db_escape_string')) {
+define('RECORD_LOCK_TEST_STUBS', true);
+
 function db_escape_string($value) {
 	return str_replace("'", "''", (string)$value);
 }
@@ -51,9 +60,23 @@ function db_modify($query, $source = null) {
 	}
 }
 
-require_once __DIR__ . '/../../../../includes/record_lock.php';
+} // end stub installation
+
+if (defined('RECORD_LOCK_TEST_STUBS')) {
+	require_once __DIR__ . '/../../../../includes/record_lock.php';
+}
 
 final class RecordLockCharacterizationTest extends TestCase {
+	public static function setUpBeforeClass(): void {
+		if (!defined('RECORD_LOCK_TEST_STUBS')) {
+			self::markTestSkipped(
+				'includes/db_query.php is already loaded in this process, so the db_* stubs could '
+				. 'not be installed. Run this file on its own to exercise these tests: '
+				. 'vendor/bin/phpunit tests/characterization/includes/record_lock/'
+			);
+		}
+	}
+
 	protected function setUp(): void {
 		global $recordLockRows, $recordLockQueries;
 		$recordLockRows = array();
