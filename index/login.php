@@ -56,7 +56,8 @@
 //                  use up two positions each. Added $allowed_length parameter (default 80); regnskab is passed 60
 //                  to match varchar(60) on regnskab.regnskab.
 // 20260908 CL/NTR sanitize_input: input that is not valid UTF-8 is converted from ISO-8859-1 first, so æøå
-//                  posted from an ISO-8859-1 page is filtered instead of rejected. Length check now uses the
+//                  posted from an ISO-8859-1 page is filtered instead of rejected, and the result is converted
+//                  back to the page charset so a non-UTF8 database still matches. Length check now uses the
 //                  shared is_input_too_long() from std_func.php.
 
 ob_start(); //Starter output buffering 
@@ -164,14 +165,16 @@ $dbMail=NULL;
  * being interpolated into SQL and htmlspecialchars() before being printed as HTML.
  *
  * @param string $input          Raw value in UTF-8 or ISO-8859-1 (the two page charsets this file
- *                               serves); it is normalised to UTF-8 before filtering.
+ *                               serves); it is normalised to UTF-8 while filtering and handed back
+ *                               in the page charset ($charset).
  * @param int    $allowed_length Maximum length in characters after filtering. Default 80;
  *                               pass 60 for regnskab to match varchar(60) on regnskab.regnskab.
  *
- * @return string|false The filtered value as UTF-8, or false if it is longer than $allowed_length
- *                      or could not be read as UTF-8.
+ * @return string|false The filtered value in the page charset, or false if it is longer than
+ *                      $allowed_length or could not be read as UTF-8.
  */
 function sanitize_input($input, $allowed_length = 80) {
+	global $charset;
 
 	// Trim the input to remove any leading/trailing whitespace
 	$input = trim($input);
@@ -200,6 +203,14 @@ function sanitize_input($input, $allowed_length = 80) {
 
 	if (is_input_too_long($input, $allowed_length)) {
 		return false;
+	}
+
+	// Hand the value back in the page charset, so the database lookup, the huskmig cookie and the
+	// form echo see the same encoding they received: a non-UTF8 database stores ISO-8859-1.
+	// Characters ISO-8859-1 cannot represent (€, Cyrillic ...) become '?', which such a database
+	// could not have stored anyway.
+	if ($charset == 'ISO-8859-1') {
+		$input = mb_convert_encoding($input, 'ISO-8859-1', 'UTF-8');
 	}
 
 	return $input;
