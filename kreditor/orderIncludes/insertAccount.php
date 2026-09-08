@@ -37,6 +37,8 @@ if (!function_exists('insertAccount')) {
 /**
  * Create or update the creditor order header.
  *
+ * @param int|string|null $id Order id, or zero to create a new order.
+ * @param int|string $konto_id Creditor account id. returns zero if false-ness.
  * @param bool $manageTransaction False when the caller owns an active transaction.
  * @return int|string Order id, or zero if no order was created.
  */

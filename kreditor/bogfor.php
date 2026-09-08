@@ -236,7 +236,7 @@ if (!$row['levdate']){
 						$hasPurchaseBatches = false;
 						while ($row = db_fetch_array($query)) {
 							// Preserve the batch id used by a later negative order line.
-							$batch_id=$row['id']*1;
+							$batch_id = (int) $row['id'];
 							$hasPurchaseBatches = true;
 						}
 						if ($hasPurchaseBatches) {
