@@ -46,7 +46,7 @@
 // 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
 // 20260819 Sawaneh Show a confirmation per sent mail instead of a blank page when
 //                  sending account statements with 'Send mail(s)'.
-// 20260908 CDX/LH Compare ISO due dates in statement emails and close amount/date spans.
+// 20260908 CDX/LH Initialize statement date before sending, compare ISO dates and close spans.
 
 @session_start();
 $s_id=session_id();
@@ -68,6 +68,7 @@ $forfaldsum=$fra=$fromdate=NULL;
 $konto_id=$kontoantal=$kontoliste=NULL;
 $send_mails=$send_pdfs=NULL;
 $til=NULL;
+$currentdate=date("Y-m-d");
 
 if (isset($_POST['retur']) && $_POST['retur']) {
 	print "<body onload=\"javascript:opener.focus();window.close();\">";
@@ -164,7 +165,6 @@ print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbo
  * $slutaar=$r['box4']*1;
  * $slutdato=31;
  */
-$currentdate=date("Y-m-d");
 /*
  * if ($maaned_fra) {$startmaaned=$maaned_fra;}
  * if ($maaned_til) {$slutmaaned=$maaned_til;}
@@ -615,4 +615,3 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	return $sent_emails;
 }
 ?>
-
