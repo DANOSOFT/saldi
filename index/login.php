@@ -55,6 +55,9 @@
 // 20260908 NTR    sanitize_input: length check now counts characters (mb_strlen) instead of bytes, so æøå no longer
 //                  use up two positions each. Added $allowed_length parameter (default 80); regnskab is passed 60
 //                  to match varchar(60) on regnskab.regnskab.
+// 20260908 CL/NTR sanitize_input: input that is not valid UTF-8 is converted from ISO-8859-1 first, so æøå
+//                  posted from an ISO-8859-1 page is filtered instead of rejected. Length check now uses the
+//                  shared is_input_too_long() from std_func.php.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -160,17 +163,25 @@ $dbMail=NULL;
  * This is defence in depth only: values must still go through db_escape_string() before
  * being interpolated into SQL and htmlspecialchars() before being printed as HTML.
  *
- * @param string $input          Raw value, expected to be UTF-8.
+ * @param string $input          Raw value in UTF-8 or ISO-8859-1 (the two page charsets this file
+ *                               serves); it is normalised to UTF-8 before filtering.
  * @param int    $allowed_length Maximum length in characters after filtering. Default 80;
  *                               pass 60 for regnskab to match varchar(60) on regnskab.regnskab.
  *
- * @return string|false The filtered value, or false if it is longer than $allowed_length
- *                      or is not valid UTF-8.
+ * @return string|false The filtered value as UTF-8, or false if it is longer than $allowed_length
+ *                      or could not be read as UTF-8.
  */
 function sanitize_input($input, $allowed_length = 80) {
 
 	// Trim the input to remove any leading/trailing whitespace
 	$input = trim($input);
+	// Normalise to UTF-8. The browser posts in the page charset, which is ISO-8859-1 when $db_encode
+	// is not UTF8. The whitelist regex ('u' modifier) and the length check both work on UTF-8, so an
+	// ISO-8859-1 æøå would otherwise be rejected as malformed. ISO-8859-1 is the only other charset
+	// this file serves (see where $charset is set), so any non-UTF-8 input is converted from that.
+	if (!mb_check_encoding($input, 'UTF-8')) {
+		$input = mb_convert_encoding($input, 'UTF-8', 'ISO-8859-1');
+	}
 	// Allow: letters in any language (\p{L} incl. æøåÆØÅ, áé, ü, ñ ...), combining accent marks (\p{M}),
 	// digits (\p{N}), currency symbols (\p{Sc}: £ $ € ...), a plain space, and the punctuation
 	// @ . _ + - ! # % ( ) * , : = ? [ ] ^ { | } ~ ` / which is inert inside a quoted SQL string or HTML attribute.
@@ -187,11 +198,11 @@ function sanitize_input($input, $allowed_length = 80) {
 		return false;
 	}
 
-	if (mb_strlen($input, 'UTF-8') > $allowed_length) {
+	if (is_input_too_long($input, $allowed_length)) {
 		return false;
 	}
-	
-	return $input; 
+
+	return $input;
 }
 /* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
 if (isset($_POST['regnskab'])) {

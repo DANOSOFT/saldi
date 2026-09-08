@@ -2771,7 +2771,7 @@ if(!function_exists('check_and_sanitize_input')){
 		 */
 
 		if (isset($_POST[$input_name])) {
-			if (strlen($_POST[$input_name]) > 80) {
+			if (mb_strlen($_POST[$input_name], 'UTF-8') > 80) {
 
 				$sanitized_message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
 
