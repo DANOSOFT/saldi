@@ -58,6 +58,9 @@
 // 20260731 MJ Rettet kolonneoverskrift for hvem til findtekst('3367|Udført af')
 // 20260812 MJ Ret kolonne og filtrering fra hvem til performed_by
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260908 CDX/MJ Udført af column header moved from tekst_id 3367 to 5151. 3367 is already used by
+//             systemdata/stamkort.php for "Medtages på eFaktura når udfyldt", and findtekst() prefers
+//             an existing tekster row over tekster.csv, so the header rendered as that instead.
 
 @session_start();
 $s_id = session_id();
@@ -1261,7 +1264,7 @@ $custom_columns = array(
     ),
     "performed_by" => array(
         "field" => "performed_by",
-        "headerName" => findtekst('3367|Udført af', $sprog_id),
+        "headerName" => findtekst('5151|Udført af', $sprog_id),
         "width" => "1",
         "type" => "dropdown",
         "hidden" => true,
