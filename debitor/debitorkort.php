@@ -101,6 +101,11 @@
 // 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
 // 20260820 Sawaneh Save no longer rewrites kontakt_emails/adresser.email when the POST lacks the
 //                kontakt_email fields, so partial or stale submits cannot wipe stored email addresses
+// 20260905 SZ MB-32: blank Customer no. popped a false "must be integers" alert under PHP 8 - (float)''
+//             compared to '' is now a string comparison ("0" != ""), true, where PHP 7 compared both as
+//             0. Skip the check when the field is blank, matching debitor/debkort_save.php's SD-513 fix
+// 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
+// 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
 @session_start();
 $s_id = session_id();
 
@@ -160,11 +165,10 @@ $queryString = $parts['query'] ?? '';
 
 ######################
 
-$backUrl = nav_back_url(isset($_GET['returside']) ? $_GET['returside'] : null);
+$returside = nav_sanitize_returside($_GET['returside'] ?? null);
+$backUrl = nav_back_url($returside);
 
-if ($_GET['returside']) {
-	
-	$returside = $_GET['returside'];
+if ($returside) {
 	$ordre_id = $_GET['ordre_id'];
 	$fokus = $_GET['fokus'];
 	// Only append ordre_id if it's not already in the returside URL
@@ -495,7 +499,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$tmp2 = $tmp2 . $y;
 		}
 		$tmp2 = (float)$tmp2;
-		if ($tmp2 != $ny_kontonr) {
+		if ($ny_kontonr !== '' && $tmp2 != $ny_kontonr) {	# MB-32 - an empty field is not an error, the number is assigned automatically further down (same fix as debitor/debkort_save.php, SD-513)
 			$alerttekst = findtekst('345|Kontonummer må kun bestå af heltal uden mellemrum', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 345-->";
 		}
@@ -1308,14 +1312,14 @@ if ($menu == 'T') {
 	}
 	print "</div>";
 	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
+	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
 	if (substr($rettigheder, 5, 1) == '1') {
 		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
 	} else {
 		print "";
 	}
 	if ($jobkort) {
-		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=debitorkort.php' title='" . findtekst('38|Opgaveliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
+		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "' title='" . findtekst('38|Opgaveliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
 	} else {
 		print "";
 	}
@@ -2555,7 +2559,7 @@ $buttons_html = "<div class='sticky-custom-buttons' style='display: flex; justif
 if ($popup) {
     $buttons_html .= "<button type='button' onclick=\"window.open('historikkort.php?id=$id&amp;returside=../includes/luk.php', 'historik')\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
 } elseif ($returside != "historikkort.php") {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id&amp;returside=debitorkort.php'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id&amp;returside=" . urlencode("debitorkort.php?id=$id") . "'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
 } else {
     $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
 }
@@ -2607,7 +2611,7 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 		print "title='$tekst'>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	} elseif ($returside != "historikkort.php") {
 		print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
-		print "<a href=historikkort.php?id=$id&returside=debitorkort.php>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
+		print "<a href=historikkort.php?id=$id&returside=" . urlencode("debitorkort.php?id=$id") . ">" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	} else {
 		print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
 		print "<a href=historikkort.php?id=$id>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";

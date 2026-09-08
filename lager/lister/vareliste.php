@@ -28,6 +28,7 @@
 // 20250617 PBLM - Fixed bug where you could not search for leverandør in vareliste.
 // 20260213 LOE  - Added returside as variable used in topLineVarer.php and optimized search with supplied varenr.
 // 20260415 LOE  - Added Categories column with search functionality in vareliste. 
+// 20260908 CDX/LH Keep missing stock blank while preserving numeric stock search and sorting (SST-767).
 
 @session_start();
 $s_id = session_id();
@@ -291,7 +292,9 @@ $lagere = array();
 
 $q = db_select($query, __FILE__ . " line " . __LINE__);
 while ($row = db_fetch_array($q)) {
+    // Keep COALESCE selected for DISTINCT sorting and retain NULL separately for display.
     $SQLLagerFetch .= "COALESCE(ls$row[kodenr].beholdning, 0) AS lager$row[kodenr],\n";
+    $SQLLagerFetch .= "ls$row[kodenr].beholdning AS lager$row[kodenr]_raw,\n";
     $SQLLagerJoin .= "LEFT JOIN lagerstatus_grouped ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
     $lagere[] = "lager" . $row['kodenr'];
 
@@ -306,6 +309,10 @@ while ($row = db_fetch_array($q)) {
         "render" => function ($value, $row, $column) {
             if ($row["samlevare"] == "on") {
                 return "<td></td>";
+            }
+            // The grid formats missing stock as zero; use the nullable SQL value for display.
+            if ($row[$column['field'] . '_raw'] === null) {
+                return "<td align='$column[align]'></td>";
             }
             if (!$value) {
                 return "<td align='$column[align]'>0,00</td>";
@@ -332,6 +339,9 @@ $columns[] = array(
     "render" => function ($value, $row, $column) {
         if ($row["samlevare"] == "on") {
             return "<td></td>";
+        }
+        if ($row['lager_total_raw'] === null) {
+            return "<td align='$column[align]'></td>";
         }
         if (!$value) {
             return "<td align='$column[align]'>0,00</td>";
@@ -509,6 +519,7 @@ SELECT DISTINCT
     v.samlevare AS samlevare,
     $SQLLagerFetch
     COALESCE(lt.lager_total, 0) AS lager_total,  
+    lt.lager_total AS lager_total_raw,
     v.salgspris AS salgspris,       
     v.kostpris AS kostpris, 
     (

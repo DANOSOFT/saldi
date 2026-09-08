@@ -114,6 +114,7 @@
 //                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
 //                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
 // 20260830 CDX/MJ Keep performed_by separate while restoring hvem lock ownership
+// 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
 
 @session_start();
 $s_id = session_id();
@@ -139,6 +140,8 @@ $valgt = $varenr[0] = $valuta = $vis_lev_addr = $vis_projekt = NULL;
 $width = NULL;
 $fast_db = array();
 $sletslut = $sletstart = 0;
+
+require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
 
@@ -4101,7 +4104,7 @@ function ordreside($id, $regnskab)
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td></tr>\n";
-		if (trim($performed_by ?? '') != '') print "<tr class='tableTexting2'><td><b>" . findtekst('5059|Udført af', $sprog_id) . "</b></td><td>" . htmlspecialchars($performed_by, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
+		if (trim($performed_by ?? '') != '') print "<tr class='tableTexting2'><td><b>" . findtekst('5151|Udført af', $sprog_id) . "</b></td><td>" . htmlspecialchars($performed_by, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td><td>$fakturanr</td></tr>\n";
 		$tmp = dkdecimal($valutakurs, 2);
 		if ($valuta) print "<tr class='tableTexting2'><td><b>" . findtekst('552|Valuta / Kurs', $sprog_id) . "</b></td><td>$valuta / $tmp</td></tr>\n";
@@ -5183,7 +5186,7 @@ function ordreside($id, $regnskab)
 			print "<INPUT TYPE = 'hidden' NAME = 'oldperformed_by' VALUE = \"" . htmlspecialchars($performed_by ?? '', ENT_QUOTES, 'UTF-8') . "\">";
 			for ($x=0;$x<count($ansat);$x++) {
 				if (!$x) {
-				print "<tr><td>" . findtekst('5059|Udført af', $sprog_id) . "</td>\n";
+				print "<tr><td>" . findtekst('5151|Udført af', $sprog_id) . "</td>\n";
 				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"performed_by\" $disabled>\n";
 				print "<option>" . htmlspecialchars($performed_by ?? '', ENT_QUOTES, 'UTF-8') . "</option>\n";
 				if (trim($performed_by) != '') print "<option value=\"\"></option>\n";
@@ -6390,12 +6393,8 @@ function ordreside($id, $regnskab)
 					$disabled = '';
 					
 					$lockPayment = get_settings_value("lockedInvoiceButton", "debitor", "");
-					if(!$betalt && $vis_betalingslink && $lockPayment == "on"){
-						$disabled = "disabled";
-					}
-					// Made for Havemøbelshoppen
-					if ($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant") {
-						$disabled = '';
+					if (saldi_assist_invoice_payment_locked($betalt, (bool)($vis_betalingslink ?? false), (string)$lockPayment, (string)$ref, (string)$felt_1)) {
+						$disabled = 'disabled';
 					}
 					
 					$txt = findtekst('2374|Fakturér', $sprog_id);

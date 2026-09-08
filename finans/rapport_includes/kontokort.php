@@ -31,7 +31,10 @@
 // 20210301 PHR error in csv.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260309 LOE Fixed execessive error logging relating to undefined array keys.
-// 20260430 LOE Updated the top menu and made the report header sticky when scrolling. 
+// 20260430 LOE Updated the top menu and made the report header sticky when scrolling.
+// 20260901 CL/LAH Fixed Saldo column showing the same value on every line:
+//                  running balance was only accumulated for rows skipped by
+//                  pagination, never for the printed rows.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -780,9 +783,9 @@ print "<tbody>";
                 // (moved up so it runs before the skip check)
                 $debet_val  = afrund($debet[$tr], 2);
                 $kredit_val = afrund($kredit[$tr], 2);
+                $kontosum += $debet_val - $kredit_val;
 
                 if ($rows_to_skip > 0) {
-                    $kontosum += $debet_val - $kredit_val;
                     $rows_to_skip--;
                     continue;
                 }

@@ -24,6 +24,9 @@ $s_id=session_id();
 // 20150114 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
 // 20230804	LOE Minor modification
 // 20250211 Initialize $css to fix undefined variable in online.php
+// 20260904 Sawaneh WP-1.7: delete the session's nav-stack file on logout (before
+//                  session_destroy, while session_id() is still valid) and sweep
+//                  stale nav files from sessions that never logged out.
 
 $title="logud";
 $css = "";
@@ -44,6 +47,10 @@ if (isset($r['revisor'])) {
 	}	
 }
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
+if (function_exists('nav_forget')) {
+	nav_forget();
+	nav_cleanup_old();
+}
 session_unset();
 session_destroy();
 if(isset($_COOKIE["saldi_std"])) {
