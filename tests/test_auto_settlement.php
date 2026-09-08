@@ -64,6 +64,18 @@ function reject($callback, $message) {
 }
 
 $passed = 0;
+foreach ([[500,500,true], [-500,500,false], [500,-500,false], [-500,-500,true], [500,499,false], [500,null,false]] as [$amount,$target,$expected]) {
+    check(autoSettlementAmountMatches($amount,$target) === $expected, 'Automatic matching ignored payment direction');
+    ++$passed;
+}
+$exact = ['id'=>101,'amountMatch'=>true,'_score'=>40];
+$partial = ['id'=>102,'amountMatch'=>false,'_score'=>0];
+$tied = array_fill(0, 51, $exact);
+foreach ([[$tied,null], [[$exact],101], [[$exact,$partial],101], [[$partial],null], [[],null]] as [$rows,$expected]) {
+    check(autoSettlementBestCandidateId($rows) === $expected, 'Automatic selection ignored global ambiguity');
+    ++$passed;
+}
+
 foreach ([['1009','K',[101,105]], ['1009','D',[102]], ['2000','K',[103]], ['404','K',[]],
     ['','',[]], ['1009','',[]], ['','K',[]], ['1009','F',[]], [[], 'K', []], ["1009' OR 1=1 --",'K',[]]] as [$number,$type,$expected]) {
     $db = fixture();
@@ -108,6 +120,12 @@ foreach (['debet'=>'1009', 'kredit'=>'5900', 'amount'=>'499', 'faktura'=>'other'
     $snapshot = autoSettlementSnapshot(entry());
     $db->prepare("UPDATE kassekladde SET $field=? WHERE id=1")->execute([$value]);
     reject(fn() => saveAutoSettlement(99,1,101,29,$snapshot), 'line has changed');
+    ++$passed;
+}
+foreach (['', ' ', null] as $invoice) {
+    $db = fixture();
+    $db->prepare('UPDATE openpost SET faktnr=? WHERE id=101')->execute([$invoice]);
+    reject(fn() => saveAutoSettlement(99,1,101,29,autoSettlementSnapshot(entry())), 'no invoice reference');
     ++$passed;
 }
 foreach (['V', 'S'] as $posted) {

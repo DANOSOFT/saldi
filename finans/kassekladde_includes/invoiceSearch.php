@@ -46,7 +46,6 @@ $totalCount = 0;
 
 $search_escaped = db_escape_string($search);
 // Sanitize accountType - only allow 'D' or 'K'
-$hasAccountFilter = $accountNr !== '' || $accountType !== '';
 $accountType = strtoupper($accountType);
 if ($accountType !== 'D' && $accountType !== 'K') {
     $accountType = '';
@@ -54,8 +53,12 @@ if ($accountType !== 'D' && $accountType !== 'K') {
 
 $baseWhere = "(openpost.udlignet != '1' OR openpost.udlignet IS NULL)";
 
-if ($mode === 'open_post' || $hasAccountFilter) {
+if ($mode === 'open_post' || $accountNr !== '') {
     $baseWhere .= ' AND (' . autoSettlementAccountWhere($accountNr, $accountType) . ')';
+}
+
+if ($mode === 'open_post') {
+    $baseWhere .= " AND TRIM(COALESCE(openpost.faktnr, '')) != ''";
 }
 
 // Add search filter
@@ -129,7 +132,7 @@ if ($mode === 'open_post') {
         $score = 0;
         
         // 1. Amount match
-        $amountMatch = ($currentAmountFloat !== null) && (abs(abs($rowAmount) - abs($currentAmountFloat)) < 0.001);
+        $amountMatch = autoSettlementAmountMatches($rowAmount, $currentAmountFloat);
         if ($amountMatch) $score += 40;
         
         // 2. Company name words in description words
@@ -203,6 +206,7 @@ if ($mode === 'open_post') {
         return strcmp($a['faktnr'], $b['faktnr']);
     });
     
+    $autoSelectId = autoSettlementBestCandidateId($allRows);
     $totalCount = count($allRows);
     $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
     $limit = 50;
@@ -214,6 +218,7 @@ if ($mode === 'open_post') {
     
     $response = [
         'results' => $pageResults,
+        'autoSelectId' => $autoSelectId,
         'pagination' => [
             'page' => $page,
             'limit' => $limit,

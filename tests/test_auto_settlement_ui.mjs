@@ -13,7 +13,7 @@ script = script.replace(/(const|let)\s+(\w+)\s*=\s*<\?= .*? \?>;/g, (_,kind,name
   return `${kind} ${name} = ${JSON.stringify(values[name])};`;
 });
 
-function boot(initialAccount = '') {
+function boot(initialAccount = '', used = []) {
   const nodes = new Map();
   const listeners = {};
   const requests = [];
@@ -51,13 +51,13 @@ function boot(initialAccount = '') {
     document:{getElementById:id=>nodes.get(id),addEventListener:(name,fn)=>{listeners[name]=fn;}},
     setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),
     fetch:(url,options)=>new Promise((resolve,reject)=>requests.push({url,options,resolve,reject}))};
-  vm.runInNewContext(script, context, {filename:'autoudlign-page.js'});
+  vm.runInNewContext(script.replace('const BRUGT = [];', 'const BRUGT = ' + JSON.stringify(used) + ';'), context, {filename:'autoudlign-page.js'});
   const key = (key,target=nodes.get('searchInput')) => listeners.keydown({key,target,preventDefault(){}});
   return {nodes,requests,choose,key,location,alerts,timers};
 }
 const candidate = (id=101, amountMatch=true) => ({id,konto_id:29,kontonr:'1009',art:'K',faktnr:`REF-${id}`,firmanavn:'Alcar',amount:amountMatch?500:1991.50,amountMatch,transdate:'2026-09-01'});
-async function respond(request, results) {
-  request.resolve({json:async()=>({results,pagination:{total:results.length,hasMore:false}})});
+async function respond(request, results, metadata = {}) {
+  request.resolve({json:async()=>({results,autoSelectId:results.length === 1 ? results[0].id : null,pagination:{total:results.length,hasMore:false},...metadata})});
   await new Promise(resolve=>setImmediate(resolve));
 }
 async function saveResponse(request, data) {
@@ -138,4 +138,22 @@ ui.choose('');
 await respond(ui.requests[0],[candidate()]);
 assert.match(ui.nodes.get('candidateBody').innerHTML,/Choose a customer or supplier/);
 assert.equal(ui.nodes.get('udlignBtn').disabled,true);
+ui=boot('29');
+await respond(ui.requests[0],[{...candidate(),amount:-500}]);
+assert.equal(ui.nodes.get('udlignBtn').disabled,true,'Opposite-sign credit was automatically selected');
+ui.key('ArrowDown');
+ui.key('Enter');
+assert.equal(ui.requests[1].options.body.get('openpost_id'),'101','Credit could not be chosen manually');
+
+const pageOfTies = Array.from({length:50},(_,i)=>candidate(101+i));
+ui=boot('29',pageOfTies.slice(0,49).map(c=>c.art + ':' + c.kontonr + ':' + c.faktnr));
+await respond(ui.requests[0],pageOfTies,{autoSelectId:null,pagination:{total:51,hasMore:true}});
+assert.equal(ui.nodes.get('candidateBody').rows.length,1,'Fixture should leave one unused visible candidate');
+assert.equal(ui.nodes.get('udlignBtn').disabled,true,'Filtering a page hid the server-reported global tie');
+ui.key('Enter');
+assert.equal(ui.requests.length,1,'Enter confirmed a tie on another page');
+ui.nodes.get('nextBtn').dispatch('click');
+await respond(ui.requests[1],[candidate(151)],{autoSelectId:null,pagination:{total:51,hasMore:false}});
+assert.equal(ui.nodes.get('udlignBtn').disabled,true,'Last-page single row hid global ambiguity');
+
 console.log('PASS: account choice, typed search parameters, keyboard confirmation, ambiguous/partial/no matches, duplicate submit guard, save errors and stale responses.');

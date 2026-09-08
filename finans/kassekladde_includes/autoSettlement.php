@@ -48,6 +48,23 @@ function autoSettlementAccountWhere($account, $type) {
     return "openpost.konto_nr = '$account' AND adresser.kontonr = '$account' AND adresser.art = '$type'";
 }
 
+/** @return bool Whether an automatic match has the same amount and payment direction. */
+function autoSettlementAmountMatches($amount, $currentAmount) {
+    return $currentAmount !== null && abs((float)$amount - (float)$currentAmount) < 0.001;
+}
+
+/**
+ * Decide before pagination or client-side removal of already-used invoices.
+ *
+ * @param array $sortedRows All matching open posts, sorted by score descending.
+ * @return int|null The unique highest-scored exact match, or null when selection must be manual.
+ */
+function autoSettlementBestCandidateId(array $sortedRows) {
+    if (!$sortedRows || !$sortedRows[0]['amountMatch']) return null;
+    if (isset($sortedRows[1]) && $sortedRows[0]['_score'] <= $sortedRows[1]['_score']) return null;
+    return (int)$sortedRows[0]['id'];
+}
+
 /** @return void */
 function autoSettlementWrite($sql) {
     $result = db_modify($sql, __FILE__ . ' line ' . __LINE__);
@@ -90,6 +107,9 @@ function saveAutoSettlement($journalId, $entryId, $openpostId, $accountId, $snap
             || trim((string)$post['konto_nr']) !== trim((string)$account['kontonr'])
             || !in_array(trim((string)$account['art']), ['D', 'K'], true)) {
             throw new RuntimeException('The selected open entry is no longer available for this account. Search again.');
+        }
+        if (trim((string)$post['faktnr']) === '') {
+            throw new RuntimeException('The selected open entry has no invoice reference to assign.');
         }
         if ($context['account'] !== '' && ($context['account'] !== trim((string)$account['kontonr'])
             || $context['accountType'] !== trim((string)$account['art']))) {

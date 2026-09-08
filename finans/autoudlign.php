@@ -852,6 +852,7 @@ print "</tbody></table></td></tr></tbody></table>";
   let selectedIndex    = -1;
   let debounceTimer    = null;
   let autoSelected     = false;    // did we auto-pick a candidate?
+  let autoSelectId     = null;     // server checks uniqueness before pagination
   let saving           = false;
   let fetchSeq         = 0;        // guards against stale responses
 
@@ -986,6 +987,7 @@ print "</tbody></table></td></tr></tbody></table>";
         if (seq !== fetchSeq) return;   // a newer request superseded this one
         const raw   = (data.results || []).filter(c => !BRUGT.includes(c.art + ':' + c.kontonr + ':' + c.faktnr));
         candidates  = sortAndScore(raw);
+        autoSelectId = data.autoSelectId ?? null;
         totalCount  = data.pagination ? data.pagination.total : candidates.length;
         hasMore     = data.pagination ? data.pagination.hasMore : false;
         render(search);
@@ -1079,9 +1081,10 @@ print "</tbody></table></td></tr></tbody></table>";
   function autoSelectBest() {
     if (!accountSelect.value || candidates.length === 0) return;
 
-    const best = candidates[0];
-    if (best.amountMatch && (candidates.length === 1 || best._score > candidates[1]._score)) {
-      setSelected(0);
+    const bestIndex = candidates.findIndex(c => String(c.id) === String(autoSelectId));
+    const best = candidates[bestIndex];
+    if (best && best.amountMatch && Math.abs(Number(best.amount) - AMOUNT) < 0.001) {
+      setSelected(bestIndex);
       autoSelected = true;
     }
 
