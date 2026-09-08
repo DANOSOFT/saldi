@@ -78,6 +78,7 @@
 // 20260827 LOE Checked for $r in the function sync_shop_vare, sync_shop_price before using it to avoid undefined variable notice. My comment of '#20211013 removed as associated comments have been earlier deleted
 // 20260908 CL/NTR Added is_input_too_long(): character-count (mb_strlen) limit check shared by every
 //                  place that creates or renames a username (80) or account name (60), matching login.php
+// 20260908 CDX/LH Let order-number allocation retain a caller-owned transaction (SST-765).
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2184,25 +2185,28 @@ if (!function_exists('get_next_number')) {
 }
 
 if (!function_exists('get_next_order_number')) {
-	function get_next_order_number($art = 'DO')
+	/**
+	 * Generates the next available order number (ordrenr) for a given 'art' (type).
+	 * Uses database transactions and table locking to prevent race conditions and duplicate numbers.
+	 *
+	 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
+	 * @param bool $manageTransaction False when the caller owns an active transaction.
+	 *
+	 * @return int - The next available order number.
+	 * @throws Exception - If unable to generate unique order number after maximum attempts.
+	 */
+	function get_next_order_number($art = 'DO', $manageTransaction = true)
 	{
-		/**
-		 * Generates the next available order number (ordrenr) for a given 'art' (type).
-		 * Uses database transactions and table locking to prevent race conditions and duplicate numbers.
-		 * 
-		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
-		 * 
-		 * @return int - The next available order number.
-		 * @throws Exception - If unable to generate unique order number after maximum attempts.
-		 */
 		global $db_type;
 		
 		$max_attempts = 10;
 		$attempt = 0;
 		$ordrenr = null;
 
-		// Start transaction to ensure atomicity
-		transaktion('begin');
+		// Keep the caller's order lock and pending writes in its transaction.
+		if ($manageTransaction) {
+			transaktion('begin');
+		}
 		try {
 			while ($attempt < $max_attempts) {
 				$attempt++;
@@ -2238,8 +2242,9 @@ if (!function_exists('get_next_order_number')) {
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				
 				if (!$check_r || !$check_r['id']) {
-					// Order number is unique, commit transaction and return
-					transaktion('commit');
+					if ($manageTransaction) {
+						transaktion('commit');
+					}
 					return $ordrenr;
 				} else {
 					// Order number already exists (shouldn't happen with proper locking)
@@ -2251,11 +2256,12 @@ if (!function_exists('get_next_order_number')) {
 			}
 			
 			// If we get here, we couldn't generate a unique number
-			transaktion('rollback');
 			throw new Exception("Could not generate unique order number after $max_attempts attempts");
 			
 		} catch (Exception $e) {
-			transaktion('rollback');
+			if ($manageTransaction) {
+				transaktion('rollback');
+			}
 			throw $e;
 		}
 	}
