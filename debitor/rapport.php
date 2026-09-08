@@ -286,7 +286,9 @@ if (isset($_POST['submit']) || $rapportart) {
 	// The in-report account search (open posts) sends kontonr - a single account, a fra:til range
 	// or a firm-name pattern - and carries rapportart=openpost, so it lands in this branch instead
 	// of the kontonr branch below. Derive the konto_fra/konto_til pair the report works with.
-	if (!isset($_POST['konto']) && !isset($_GET['konto_fra']) && isset($_GET['kontonr'])) list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	if (!isset($_POST['konto']) && !isset($_GET['konto_fra']) && isset($_GET['kontonr'])) {
+		list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	}
 	$konto_fra = trim(if_isset($konto_fra));
 	#	}
 	#	if (isset($_POST['konto_til']) && strpos($_POST['konto_til'],":")) {
