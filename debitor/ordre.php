@@ -133,7 +133,7 @@ $width = NULL;
 $fast_db = array();
 $sletslut = $sletstart = 0;
 
-require_once __DIR__ . '/../includes/assist/RecordRules.php';
+require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
 

@@ -65,7 +65,7 @@
 // 20260907 CDX/LH Share the difference predicate with the read-only assistant checks.
 
 
-require_once __DIR__ . '/../includes/assist/RecordRules.php';
+require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 @session_start();
 $s_id=session_id();
