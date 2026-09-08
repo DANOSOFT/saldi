@@ -48,6 +48,8 @@
 // 20260425 LOE Fixed a bug where same account name with different case could cause login issues. Now first tries to find exact match and only if that fails, it tries case-insensitive match.
 // 20260707 MJ Restore rykkertjek.php include at login (was commented out)
 // 20262707 PK Have outcomment rykkertjek.php again, as phpmailer is missing and you can't log in to the individual accounts. Can only log in as admin.
+// 20260908 CL/NTR sanitize_input: added 'u' modifier, escaped '-' and switched to \p{L}\p{M}\p{N} so letters
+//                  in any language (æøåÆØÅ, áé, ü ...) and hyphen are kept (previously '_-æ' was a byte range).
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -143,11 +145,14 @@ print "</head>";
 $dbMail=NULL;
 function sanitize_input($input) {
 	
-	 // Trim the input to remove any leading/trailing whitespace
+	// Trim the input to remove any leading/trailing whitespace
 	$input = trim($input);
-	// Allow only: letters, numbers, spaces, @ . _ -
-    // Remove anything else (quotes, semicolons, backticks, etc.) for email addresses compatibility
-    $input = preg_replace('/[^a-zA-Z0-9\s@._-]/', '', $input);
+	// Allow only: letters in any language (\p{L} incl. æøåÆØÅ, áé, ü, ñ ...), combining accent marks (\p{M}),
+	// digits (\p{N}), whitespace, and @ . _ + - which occur in email-address-like usernames.
+	// Remove anything else (quotes, semicolons, backticks, <>, etc.).
+	// The 'u' modifier is required so UTF-8 input is matched as characters, not bytes,
+	// and '-' is escaped so it is a literal hyphen and not a range operator.
+	$input = preg_replace('/[^\p{L}\p{M}\p{N}\s@._+\-]/u', '', $input);
 	
 	if (strlen($input) > 80) {
 		return false;
