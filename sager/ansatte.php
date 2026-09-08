@@ -30,6 +30,7 @@ $s_id=session_id();
 // 20151007 PK - Der er sat session på alle og aftrådte i leftmenu, så den husker søgning. Søg alleA eller tiltraadteA
 // 20170911 PK - Har sat validering på brugernavn så der ikke kommer duplikater. Søg 20170911 
 // 20260318 LOE  Added functionality to toggle between password visibility.
+// 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) when creating or renaming a login, matching login.php
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -333,6 +334,11 @@ function ret_ansat($id) {
 		$brugere_id=if_isset($_POST['brugere_id']);
 		$kode1=if_isset($_POST['kode1']);
 		$kode2=if_isset($_POST['kode2']);
+		if (is_input_too_long($brugere_navn)) {
+			$alerttext=findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id);
+			print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
+			$brugere_navn = NULL;
+		}
 		
 		
 		if ($brugere_navn && !$brugere_id) { #20170911
@@ -397,7 +403,7 @@ function ret_ansat($id) {
 	print "<div style=\"float:left; margin-right:70px; width:379px;\">\n";
 	print "<h3 id=\"anch\">".findtekst('3079|Login', $sprog_id)." &amp; ".lcfirst(findtekst('3080|Brugergruppe', $sprog_id))."</h3>\n"; #Login & brugergruppe
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst('225|Brugernavn', $sprog_id)."</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"brugere_navn\" value=\"$brugere_navn\"></div><div class=\"clear\"></div></div><!-- end of row -->\n"; 
+	print "<div class=\"row\"><div class=\"left\">".findtekst('225|Brugernavn', $sprog_id)."</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"brugere_navn\" maxlength=\"80\" value=\"$brugere_navn\"></div><div class=\"clear\"></div></div><!-- end of row -->\n"; 
 	print "<div class=\"row\"><div class=\"left\">".findtekst('3080|Brugergruppe', $sprog_id)."</div><div class=\"right\"><select name=\"brugergruppe\" style=\"width:194px;\">\n";
 	for ($x=0;$x<=count($gruppe_id);$x++) {
 		if ($gruppe==$gruppe_id[$x]) print "<option value=\"$gruppe_id[$x]\">$gruppe_beskrivelse[$x]&nbsp;</option>\n"; 
