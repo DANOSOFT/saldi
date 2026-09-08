@@ -106,6 +106,9 @@
 //             0. Skip the check when the field is blank, matching debitor/debkort_save.php's SD-513 fix
 // 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
 // 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
+// 20260908 CDX/MJ Delivery-address save is now one transaction (upsert loop + delete of removed
+//             rows + primary sync to adresser.lev_*), so a part-way failure can no longer leave
+//             the account with zero or several primary addresses while reporting success.
 @session_start();
 $s_id = session_id();
 
@@ -783,6 +786,11 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				
 				//####
 				// ---- Save delivery_addresses ----
+				// 20260908 CDX/MJ Wrap the whole save in one transaction. The upsert loop, the
+				// delete of rows removed in the UI and the primary sync back to adresser.lev_*
+				// are one unit: a failure part-way through used to leave the account with zero
+				// (or several) primary addresses while the save still reported success.
+				transaktion('begin');
 				$da_json  = isset($_POST['delivery_addresses_json']) ? $_POST['delivery_addresses_json'] : '[]';
 				$da_rows  = json_decode($da_json, true);
 				if (!is_array($da_rows)) $da_rows = []; 
@@ -924,6 +932,13 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 							lev_email     = '$s_em'
 						WHERE id = '$id'
 					", __FILE__ . " linje " . __LINE__);
+				}
+				if ($db_modify_fejl) {
+					transaktion('rollback');
+					$alerttekst = findtekst('5152|Leveringsadresserne kunne ikke gemmes - ingen ændringer er gemt', $sprog_id);
+					print "<BODY onLoad=\"javascript:alert('$alerttekst')\">\n";
+				} else {
+					transaktion('commit');
 				}
 				// ---- END Save delivery_addresses ----
 
