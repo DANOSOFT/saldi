@@ -50,6 +50,8 @@
 // 20262707 PK Have outcomment rykkertjek.php again, as phpmailer is missing and you can't log in to the individual accounts. Can only log in as admin.
 // 20260908 CL/NTR sanitize_input: added 'u' modifier, escaped '-' and switched to \p{L}\p{M}\p{N} so letters
 //                  in any language (æøåÆØÅ, áé, ü ...) and hyphen are kept (previously '_-æ' was a byte range).
+//                  Widened whitelist to currency symbols and inert punctuation (£$€{}[]()#%!?,:=*^~|` /);
+//                  only < > " ' \ ; & and tab/newline are still stripped. Returns false on malformed UTF-8.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -147,13 +149,22 @@ function sanitize_input($input) {
 	
 	// Trim the input to remove any leading/trailing whitespace
 	$input = trim($input);
-	// Allow only: letters in any language (\p{L} incl. æøåÆØÅ, áé, ü, ñ ...), combining accent marks (\p{M}),
-	// digits (\p{N}), whitespace, and @ . _ + - which occur in email-address-like usernames.
-	// Remove anything else (quotes, semicolons, backticks, <>, etc.).
+	// Allow: letters in any language (\p{L} incl. æøåÆØÅ, áé, ü, ñ ...), combining accent marks (\p{M}),
+	// digits (\p{N}), currency symbols (\p{Sc}: £ $ € ...), a plain space, and the punctuation
+	// @ . _ + - ! # % ( ) * , : = ? [ ] ^ { | } ~ ` / which is inert inside a quoted SQL string or HTML attribute.
+	// Remove: < > " ' (break out of HTML text / attributes, ' also ends a SQL literal), \ (SQL/JS escape),
+	// ; (ends a SQL statement), & (starts an HTML entity; call sites run htmlspecialchars before this
+	// function, so a stray & would re-form entities), and tab/newline (tab is the cookie separator
+	// on the huskmig cookie and the value is written to log files).
 	// The 'u' modifier is required so UTF-8 input is matched as characters, not bytes,
 	// and '-' is escaped so it is a literal hyphen and not a range operator.
-	$input = preg_replace('/[^\p{L}\p{M}\p{N}\s@._+\-]/u', '', $input);
-	
+	$input = preg_replace('/[^\p{L}\p{M}\p{N}\p{Sc} @._+\-!#%()*,:=?\[\]^{|}~`\/]/u', '', $input);
+
+	// preg_replace returns null on malformed UTF-8 (because of the 'u' modifier); treat that as invalid input.
+	if ($input === null) {
+		return false;
+	}
+
 	if (strlen($input) > 80) {
 		return false;
 	}
