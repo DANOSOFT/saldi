@@ -1462,25 +1462,25 @@ if ($menu == 'T') {
   var grid = false;
   var rulersOn = false;
   var previewMode = false;   // "Show draft": fill variables with sample data
-  var DK_UI    = <?php echo $dk_ui ? 'true' : 'false'; ?>;   // Danish UI? (SAMPLE below reads it, so it must be set first)
+  var DK_UI    = <?php echo $dk_ui ? 'true' : 'false'; ?>;  
   // Sample values used only for the on-screen preview (Spec FR-3.1 sample data).
   var SAMPLE = {
-    ordre_firmanavn:'Acme Trading ApS', ordre_addr1:'Nørregade 12', ordre_addr2:'2. sal',
-    ordre_postnr:'1165', ordre_bynavn: (DK_UI?'København K':'Copenhagen'), ordre_land:(DK_UI?'Danmark':'Denmark'),
-    ordre_kontakt:'Jens Hansen', ordre_cvrnr:'12345678', ordre_email:'info@acme.dk', ordre_tlf:'+45 33 12 34 56',
+    ordre_firmanavn:(DK_UI?'Testkunde ApS':'Test Customer Ltd'), ordre_addr1:(DK_UI?'Testvej 1':'Test Street 1'), ordre_addr2:'',
+    ordre_postnr:'1000', ordre_bynavn:(DK_UI?'Testby':'Test City'), ordre_land:(DK_UI?'Danmark':'Denmark'),
+    ordre_kontakt:(DK_UI?'Test Testesen':'Test Person'), ordre_cvrnr:'12345678', ordre_email:'test@example.com', ordre_tlf:'+45 00 00 00 00',
     ordre_ordrenr:'10042', ordre_ordredate:'14-07-2026', ordre_fakturanr:'2026-0042', ordre_fakturadate:'14-07-2026',
-    ordre_kundenr:'1001', ordre_kundeordnr:'PO-5567', ordre_projekt:'P-2026-07', ordre_valuta:'DKK',
+    ordre_kundenr:'1001', ordre_kundeordnr:'PO-0000', ordre_projekt:'P-0000', ordre_valuta:'DKK',
     ordre_momssats:'25', ordre_betalingsbet:(DK_UI?'Netto 8 dage':'Net 8 days'), ordre_betalingsdage:'8',
-    ordre_institution:'', ordre_ean:'5790000012345', ordre_hvem:'Jens Hansen', ordre_notes:'',
-    ordre_lev_navn:'Acme Warehouse', ordre_lev_addr1:'Havnevej 5', ordre_lev_addr2:'',
-    ordre_lev_postnr:'2100', ordre_lev_bynavn:(DK_UI?'København Ø':'Copenhagen'), ordre_lev_kontakt:'Lars Lager',
+    ordre_institution:'', ordre_ean:'5790000000000', ordre_hvem:(DK_UI?'Test Testesen':'Test Person'), ordre_notes:'',
+    ordre_lev_navn:(DK_UI?'Testlager':'Test Warehouse'), ordre_lev_addr1:(DK_UI?'Testvej 5':'Test Street 5'), ordre_lev_addr2:'',
+    ordre_lev_postnr:'1000', ordre_lev_bynavn:(DK_UI?'Testby':'Test City'), ordre_lev_kontakt:(DK_UI?'Test Testesen':'Test Person'),
     ordre_levdate:'16-07-2026',
-    eget_firmanavn:'Havemøbelland ApS', egen_addr1:'Fredgårdsvej 2', egen_addr2:'', eget_postnr:'3200',
-    eget_bynavn:'Helsinge', eget_land:(DK_UI?'Danmark':'Denmark'), eget_cvrnr:'87654321',
-    egen_tlf:'8877 8288', egen_mobile:'2222 3333', egen_email:'info@havemoebelland.dk', egen_web:'www.havemoebelland.dk',
-    egen_bank_navn:'Danske Bank', egen_bank_reg:'1234', egen_bank_konto:'5678901234',
-    ansat_navn:'Peter Sælger', ansat_initialer:'PS', ansat_email:'ps@havemoebelland.dk', ansat_tlf:'8877 8290', ansat_mobil:'2011 2233',
-    konto_firmanavn:'Acme Trading ApS', konto_addr1:'Nørregade 12', konto_postnr:'1165', konto_bynavn:'København K', konto_cvrnr:'12345678',
+    eget_firmanavn:(DK_UI?'Testfirma ApS':'Test Company Ltd'), egen_addr1:(DK_UI?'Testvej 1':'Test Street 1'), egen_addr2:'', eget_postnr:'1000',
+    eget_bynavn:(DK_UI?'Testby':'Test City'), eget_land:(DK_UI?'Danmark':'Denmark'), eget_cvrnr:'12345678',
+    egen_tlf:'00 00 00 00', egen_mobile:'00 00 00 00', egen_email:'test@example.com', egen_web:'www.example.com',
+    egen_bank_navn:(DK_UI?'Testbank':'Test Bank'), egen_bank_reg:'0000', egen_bank_konto:'0000000000',
+    ansat_navn:(DK_UI?'Test Sælger':'Test Seller'), ansat_initialer:'TS', ansat_email:'test@example.com', ansat_tlf:'00 00 00 00', ansat_mobil:'00 00 00 00',
+    konto_firmanavn:(DK_UI?'Testkunde ApS':'Test Customer Ltd'), konto_addr1:(DK_UI?'Testvej 1':'Test Street 1'), konto_postnr:'1000', konto_bynavn:(DK_UI?'Testby':'Test City'), konto_cvrnr:'12345678',
     formular_ialt:'12.500,00', formular_moms:'2.500,00', formular_momsgrundlag:'10.000,00',
     formular_side:'1', formular_nextside:'2', formular_preside:'0', formular_transportsum:'0,00',
     formular_forfaldsdato:'22-07-2026', formular_betalingsid:'71000000123456', formular_grossWeight:'12,50', formular_netWeight:'10,00',
@@ -1489,7 +1489,7 @@ if ($menu == 'T') {
   // sample values for order-line columns, per sample row
   var COL_SAMPLE = {
     posnr:['1','2','3'], varenr:['VN-100','VN-205','VN-330'], lev_varenr:['LV-1','LV-2','LV-3'],
-    beskrivelse:[(DK_UI?'Kontorstol, sort':'Office chair, black'),(DK_UI?'Skrivebord 160 cm':'Desk 160 cm'),(DK_UI?'Bordlampe':'Desk lamp')],
+    beskrivelse:[(DK_UI?'Testvare 1':'Test item 1'),(DK_UI?'Testvare 2':'Test item 2'),(DK_UI?'Testvare 3':'Test item 3')],
     antal:['2','1','4'], enhed:['stk','stk','stk'], pris:['1.250,00','3.400,00','450,00'],
     rabat:['0','10','0'], momssats:['25','25','25'], linjesum:['2.500,00','3.060,00','1.800,00'],
     varemomssats:['25','25','25'], linjemoms:['625,00','765,00','450,00'], projekt:['P-07','P-07','P-07'], lokation:['A-1','A-2','B-1']

@@ -36,6 +36,10 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260416 - PHR Migrated to Peppol BIS 3.0 (EN 16931 compliant) structure
 // 20260507 - PHR Reverted to pure OIOUBL-2.02 (Peppol ikke kompatibel med EAN-modtagere)
+// 20260814 Sawaneh SST-726 Document TaxTotal now holds one TaxSubtotal per tax
+//                  category found on the lines, so mixed invoices pass F-LIB404
+// 20260820 Sawaneh Invoices include an extra IBAN/SWIFT payment means when IBAN
+//                  is filled in under Systemdata/Stamdata (foreign e-invoices)
 
 $oioxmlubl="OIOUBL";
 
@@ -176,6 +180,8 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	$egen_bank_navn=htmlspecialchars($egen_bank_navn, ENT_QUOTES);
 	$egen_tlf=htmlspecialchars($egen_tlf, ENT_QUOTES);
 	$egen_cvrnr=str_replace(" ","",$r_egen['cvrnr']);
+	$egen_iban=htmlspecialchars(str_replace(" ","",if_isset($r_egen,'','iban')), ENT_QUOTES);
+	$egen_swift=htmlspecialchars(str_replace(" ","",if_isset($r_egen,'','swift')), ENT_QUOTES);
 
 	if (is_numeric($egen_cvrnr)) $egen_cvrnr = 'DK'.$egen_cvrnr;
 	$cvrnr_num = preg_replace('/^DK/', '', $cvrnr);
@@ -281,6 +287,22 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$l_retur.="</cac:FinancialInstitutionBranch>\n";
 		$l_retur.="</cac:PayeeFinancialAccount>\n";
 		$l_retur.="</cac:PaymentMeans>\n";
+		if ($egen_iban) {
+			$l_retur.="<cac:PaymentMeans>\n";
+			$l_retur.="<cbc:PaymentMeansCode listID=\"urn:oioubl:codelist:paymentmeanscode-1.1\">31</cbc:PaymentMeansCode>\n";
+			$l_retur.="<cbc:PaymentChannelCode listID=\"urn:oioubl:codelist:paymentchannelcode-1.1\">IBAN</cbc:PaymentChannelCode>\n";
+			$l_retur.="<cac:PayeeFinancialAccount>\n";
+			$l_retur.="<cbc:ID schemeID=\"IBAN\">".$egen_iban."</cbc:ID>\n";
+			if ($egen_swift) {
+				$l_retur.="<cac:FinancialInstitutionBranch>\n";
+				$l_retur.="<cac:FinancialInstitution>\n";
+				$l_retur.="<cbc:ID schemeID=\"BIC\">".$egen_swift."</cbc:ID>\n";
+				$l_retur.="</cac:FinancialInstitution>\n";
+				$l_retur.="</cac:FinancialInstitutionBranch>\n";
+			}
+			$l_retur.="</cac:PayeeFinancialAccount>\n";
+			$l_retur.="</cac:PaymentMeans>\n";
+		}
 		if ($r_faktura['betalingsbet']) {
 			$l_retur.="<cac:PaymentTerms>\n";
 			$l_retur.="<cbc:Note>".htmlspecialchars($r_faktura['betalingsbet'], ENT_QUOTES).($r_faktura['betalingsdage']?" ".htmlspecialchars($r_faktura['betalingsdage'], ENT_QUOTES)." dage":"")."</cbc:Note>\n";
@@ -288,28 +310,10 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 			$l_retur.="</cac:PaymentTerms>\n";
 		}
 	}
-	$l_retur.="<cac:TaxTotal>\n";
-	$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_momsbeloeb)."</cbc:TaxAmount>\n";
-	$l_retur.="<cac:TaxSubtotal>\n";
-	$l_retur.="<cbc:TaxableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_momspligtigt)."</cbc:TaxableAmount>\n";
-	$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_momsbeloeb)."</cbc:TaxAmount>\n";
-	$l_retur.="<cac:TaxCategory>\n";
-	$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">".$taxcategoryid."</cbc:ID>\n";
-	$l_retur.="<cbc:Percent>".$l_momssats."</cbc:Percent>\n";
-	$l_retur.="<cac:TaxScheme>\n";
-	$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxschemeid-1.5\">63</cbc:ID>\n";
-	$l_retur.="<cbc:Name>Moms</cbc:Name>\n";
-	$l_retur.="</cac:TaxScheme>\n";
-	$l_retur.="</cac:TaxCategory>\n";
-	$l_retur.="</cac:TaxSubtotal>\n";
-	$l_retur.="</cac:TaxTotal>\n";
-	$l_retur.="<cac:LegalMonetaryTotal>\n";
-	$l_retur.="<cbc:LineExtensionAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_sumbeloeb)."</cbc:LineExtensionAmount>\n";
-	$l_retur.="<cbc:TaxExclusiveAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_momsbeloeb)."</cbc:TaxExclusiveAmount>\n";
-	$l_retur.="<cbc:TaxInclusiveAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", ($l_sumbeloeb+$l_momsbeloeb))."</cbc:TaxInclusiveAmount>\n";
-	$l_retur.="<cbc:PayableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", ($l_sumbeloeb+$l_momsbeloeb))."</cbc:PayableAmount>\n";
-	$l_retur.="</cac:LegalMonetaryTotal>\n";
-
+	# Lines are built first, so TaxTotal can get one TaxSubtotal per tax category
+	$l_hoved=$l_retur;
+	$l_retur="";
+	$l_momsgrupper=array();
 
 # Ordrelinjer
 	$tjeksum=0;
@@ -340,6 +344,12 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$varemomssats=$r_linje['momssats']*1;
 		if (!$momsfri && !$varemomssats) $varemomssats=$l_momssats;
 		if ($varemomssats > $l_momssats) $varemomssats=$l_momssats;
+		if ($momsfri || $taxcategoryid == 'ZeroRated') {
+			$varemomssats=0;
+			$linjekategori='ZeroRated';
+		} else {
+			$linjekategori='StandardRated';
+		}
 		if (!$varenr) { #20190204 Put in 'tuborgs' and added $antal & $pris
 			$varenr='.'; #phr 20080803 + 20150922
 			($l_ptype=="PCM")?$antal = -1:$antal = 1;
@@ -348,7 +358,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		if ($r_linje['procent']) $pris*=$r_linje['procent']/100; #20150525
 		$pris=$pris-($r_linje['rabat']*$pris)/100; #20140206 + næste 2 linjer
 		$linjepris=afrund($r_linje['antal']*$pris,2);
-		$pris=afrund($pris,2); 
+		$pris=afrund($pris,2);
 		$linjemoms=afrund($linjepris/100*$varemomssats,2);
 		if ($l_ptype=="PCM") {
 			$l_fortegn=-1;
@@ -357,6 +367,12 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 			$l_fortegn=1;
 			$tjeksum+=$linjepris;
 		}
+		$l_momsnoegle=$linjekategori."|".$varemomssats;
+		if (!isset($l_momsgrupper[$l_momsnoegle])) {
+			$l_momsgrupper[$l_momsnoegle]=array('kategori'=>$linjekategori,'sats'=>$varemomssats,'grundlag'=>0,'moms'=>0);
+		}
+		$l_momsgrupper[$l_momsnoegle]['grundlag']+=$l_fortegn*$linjepris;
+		$l_momsgrupper[$l_momsnoegle]['moms']+=$l_fortegn*$linjemoms;
 		$l_retur.="<cac:".$l_doctype."Line>\n";
 		$l_retur.="<cbc:ID>".$posnr."</cbc:ID>\n";
 		$l_retur.="<cbc:".$l2_doctype."Quantity unitCode=\"".oioubl_enhed($enhed)."\">".$l_fortegn*$antal."</cbc:".$l2_doctype."Quantity>\n";
@@ -367,8 +383,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$l_retur.="<cbc:TaxableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_fortegn*$linjepris)."</cbc:TaxableAmount>\n";
 		$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_fortegn*$linjemoms)."</cbc:TaxAmount>\n";
 		$l_retur.="<cac:TaxCategory>\n";
-		if ($momsfri || $taxcategoryid == 'ZeroRated') $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">ZeroRated</cbc:ID>\n";
-		else $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">StandardRated</cbc:ID>\n";
+		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">".$linjekategori."</cbc:ID>\n";
 		$l_retur.="<cbc:Percent>".$varemomssats."</cbc:Percent>\n";
 		$l_retur.="<cac:TaxScheme>\n";
 		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxschemeid-1.5\">63</cbc:ID>\n";
@@ -388,11 +403,11 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 			$tmp=htmlspecialchars($tmp);
 		}
 		$l_retur.="<cbc:Name>".$tmp."</cbc:Name>\n";
-		//$l_retur.="<cac:SellersItemID>".$varenr."</cac:SellersItemID>\n"; // 20260603 - NTR & MMR - tried decoding Jørgen's email which says it should be posnr instead of warenr.
-		$l_retur.="<cac:SellersItemID>".$posnr."</cac:SellersItemID>\n";
+		$l_retur.="<cac:SellersItemIdentification>\n";
+		$l_retur.="<cbc:ID>".$posnr."</cbc:ID>\n"; // 20260603 - NTR & MMR - posnr instead of varenr per Jørgen's email
+		$l_retur.="</cac:SellersItemIdentification>\n";
 		$l_retur.="<cac:ClassifiedTaxCategory>\n";
-		if ($momsfri || $taxcategoryid == 'ZeroRated') $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">ZeroRated</cbc:ID>\n";
-		else $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">StandardRated</cbc:ID>\n";
+		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">".$linjekategori."</cbc:ID>\n";
 		$l_retur.="<cbc:Percent>".$varemomssats."</cbc:Percent>\n";
 		$l_retur.="<cac:TaxScheme>\n";
 		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxschemeid-1.5\">63</cbc:ID>\n";
@@ -406,19 +421,24 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$l_retur.="</cac:".$l_doctype."Line>\n";
 	}
 	if ($tjeksum!=$l_sumbeloeb) {
+		$l_afrunding=$l_sumbeloeb-$tjeksum;
+		if (!isset($l_momsgrupper['ZeroRated|0'])) {
+			$l_momsgrupper['ZeroRated|0']=array('kategori'=>'ZeroRated','sats'=>0,'grundlag'=>0,'moms'=>0);
+		}
+		$l_momsgrupper['ZeroRated|0']['grundlag']+=$l_afrunding;
 		$l_retur.="<cac:".$l_doctype."Line>\n";
-		$tmp=$posnr+1; 
+		$tmp=$posnr+1;
 		$l_retur.="<cbc:ID>".$tmp."</cbc:ID>\n";
 		$l_retur.="<cbc:".$l2_doctype."Quantity unitCode=\"".oioubl_enhed($enhed)."\">1</cbc:".$l2_doctype."Quantity>\n";
-		$l_retur.="<cbc:LineExtensionAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_sumbeloeb-$tjeksum)."</cbc:LineExtensionAmount>\n";
+		$l_retur.="<cbc:LineExtensionAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_afrunding)."</cbc:LineExtensionAmount>\n";
 		$l_retur.="<cac:TaxTotal>\n";
 		$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">0.00</cbc:TaxAmount>\n";
 		$l_retur.="<cac:TaxSubtotal>\n";
-		$l_retur.="<cbc:TaxableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_sumbeloeb-$tjeksum)."</cbc:TaxableAmount>\n";
+		$l_retur.="<cbc:TaxableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_afrunding)."</cbc:TaxableAmount>\n";
 		$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">0.00</cbc:TaxAmount>\n";
 		$l_retur.="<cac:TaxCategory>\n";
-		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">".$taxcategoryid."</cbc:ID>\n";
-		$l_retur.="<cbc:Percent>".$varemomssats."</cbc:Percent>\n";
+		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">ZeroRated</cbc:ID>\n";
+		$l_retur.="<cbc:Percent>0</cbc:Percent>\n";
 		$l_retur.="<cac:TaxScheme>\n";
 		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxschemeid-1.5\">63</cbc:ID>\n";
 		$l_retur.="<cbc:Name>Moms</cbc:Name>\n";
@@ -433,9 +453,8 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$l_retur.="<cbc:ID>0</cbc:ID>\n";
 		$l_retur.="</cac:SellersItemIdentification>\n";
 		$l_retur.="<cac:ClassifiedTaxCategory>\n";
-		if ($momsfri) $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">ZeroRated</cbc:ID>\n";
-		else $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">StandardRated</cbc:ID>\n";
-		$l_retur.="<cbc:Percent>".$varemomssats."</cbc:Percent>\n";
+		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">ZeroRated</cbc:ID>\n";
+		$l_retur.="<cbc:Percent>0</cbc:Percent>\n";
 		$l_retur.="<cac:TaxScheme>\n";
 		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxschemeid-1.5\">63</cbc:ID>\n";
 		$l_retur.="<cbc:Name>Moms</cbc:Name>\n";
@@ -447,8 +466,38 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$l_retur.="</cac:Price>\n";
 		$l_retur.="</cac:".$l_doctype."Line>\n";
 	}
+	if (!$l_momsgrupper) {
+		$l_momsgrupper[]=array('kategori'=>$taxcategoryid,'sats'=>$l_momssats,'grundlag'=>$l_momspligtigt,'moms'=>$l_momsbeloeb);
+	}
+	$l_docmoms=0;
+	foreach ($l_momsgrupper as $l_gruppe) {
+		$l_docmoms+=$l_gruppe['moms'];
+	}
+	$l_totaler="<cac:TaxTotal>\n";
+	$l_totaler.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_docmoms)."</cbc:TaxAmount>\n";
+	foreach ($l_momsgrupper as $l_gruppe) {
+		$l_totaler.="<cac:TaxSubtotal>\n";
+		$l_totaler.="<cbc:TaxableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_gruppe['grundlag'])."</cbc:TaxableAmount>\n";
+		$l_totaler.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_gruppe['moms'])."</cbc:TaxAmount>\n";
+		$l_totaler.="<cac:TaxCategory>\n";
+		$l_totaler.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">".$l_gruppe['kategori']."</cbc:ID>\n";
+		$l_totaler.="<cbc:Percent>".$l_gruppe['sats']."</cbc:Percent>\n";
+		$l_totaler.="<cac:TaxScheme>\n";
+		$l_totaler.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxschemeid-1.5\">63</cbc:ID>\n";
+		$l_totaler.="<cbc:Name>Moms</cbc:Name>\n";
+		$l_totaler.="</cac:TaxScheme>\n";
+		$l_totaler.="</cac:TaxCategory>\n";
+		$l_totaler.="</cac:TaxSubtotal>\n";
+	}
+	$l_totaler.="</cac:TaxTotal>\n";
+	$l_totaler.="<cac:LegalMonetaryTotal>\n";
+	$l_totaler.="<cbc:LineExtensionAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_sumbeloeb)."</cbc:LineExtensionAmount>\n";
+	$l_totaler.="<cbc:TaxExclusiveAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_docmoms)."</cbc:TaxExclusiveAmount>\n";
+	$l_totaler.="<cbc:TaxInclusiveAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", ($l_sumbeloeb+$l_docmoms))."</cbc:TaxInclusiveAmount>\n";
+	$l_totaler.="<cbc:PayableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", ($l_sumbeloeb+$l_docmoms))."</cbc:PayableAmount>\n";
+	$l_totaler.="</cac:LegalMonetaryTotal>\n";
+	$l_retur=$l_hoved.$l_totaler.$l_retur;
 	$l_retur.="</".$l_doctype.">\n";
-# $l_retur.=oioubl_bottom($l_doctype);
 	return $l_retur;
 }
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/showMysale.php --- lap 4.0.8 --- 2023-03-25 ---
+// --- mysale/showMysale.php --- lap 5.0.0 --- 2026-08-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2021 - 2023 saldi.dk aps
+// Copyright (c) 2021 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210829 PHR varoius minor changes
 // 20220212 PHR replaced cookies with session vars
@@ -28,7 +28,8 @@
 // 20230311 PHR Various updates according to PHP8 
 // 20230325 PHR added memberShip to query and corrected an sols and for sale buttons in mobileView. 
 // 16712/2024 PBLM added functionality to despina
-
+// 20260811 PHR Removed the routine that reversed the commission if it was less than 50%.
+//
 if ($from) $from = usdate($from);
 if ($to) $to = usdate($to);
 if ($sort && $newSort && $sort == $newSort) $sort = $sort . " desc";
@@ -170,7 +171,6 @@ if ($custName && $access) {
 	$myLabel = 0;
 	($mobile) ? $wh = 50 : $wh = 25;
 	if ($link) $id = $link;
-
 	// new implementation for Despina
 	$qtxt = "SELECT * FROM settings WHERE var_name='showMysaleTimes' AND var_value='1'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -222,6 +222,7 @@ if ($custName && $access) {
 			}
 		}
 	}
+
 	print "<div style='float:right;'><a href = mysale.php?id=$id&condition=$condition&editProfile=1>";
 	print "<img class='checkMobile' src=\"../img/profile.png\" style=\"border: 0px solid;width:$wh;height:$wh\"></a></div>";
 	print "<center>";
@@ -238,8 +239,14 @@ if ($custName && $access) {
 		}
 	}
 
+	$showNew = $showUsed = 0;
+	$qtxt ="select id from varer where varenr like 'kn%$account'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $showNew  = 1;
+	$qtxt ="select id from varer where varenr like 'kb%$account'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $showUsed = 1;
+	if (!$condition && $showNew == 1 && $showUsed == 0) $condition = 'new';
 	if ($myLabel) {
-		($mobile) ? $style = "width:450px;font-size:25pt;'" : $style = "width:'200px'";
+				($mobile) ? $style = "width:450px;font-size:25pt;'" : $style = "width:'200px'";
 		if ($medlem) {
 			if ($vareLimit <= 0) {
 
@@ -269,6 +276,7 @@ if ($custName && $access) {
 	print "Kontakt " . $store . " for åbning af adgang.<br></style>";
 	exit;
 }
+
 $x = 0;
 $fakturadate = $solgtArray = array();
 $qtxt = "select batch_salg.fakturadate,batch_salg.id,batch_salg.ordre_id,batch_salg.antal,batch_salg.pris,ordrelinjer.kostpris,";
@@ -293,10 +301,12 @@ while ($r = db_fetch_array($q)) {
 	$kostpris[$x] = (float)$r['kostpris'];
 	#if (!$kostpris[$x]) $kostpris[$x] = $pris[$x] * 0.85;
 	($pris[$x]) ? $provision[$x] = $kostpris[$x] * 100 / $pris[$x] : $provision[$x] = 0;
+/* 20260811
 	if ($provision[$x] < 50) {
 		$provision[$x] = 100 - $provision[$x];
 		$kostpris[$x] = $pris[$x] * $provision[$x] / 100;
 	}
+*/
 	$qty += $antal[$x];
 	$linePrice[$x] = $antal[$x] * $pris[$x];
 	$totalPrice += $linePrice[$x];
@@ -354,16 +364,7 @@ usort($testArray, 'date_compare');
 #	$pris[$x]=$r['pris'];
 #}
 
-
-
-
-
 if ($tilsalg == 1) {
-
-
-
-
-
 	print "<center>";
 	print "<table border='0'>";
 	print "<form action='mysale.php?id=$id&sort=$sort' method='post'>";
@@ -372,8 +373,8 @@ if ($tilsalg == 1) {
 	} else {
 		print "<td><select name ='condition'>";
 		if ($condition == 'new') print "<option value='new'>nyt</option>";
-		print "<option value='used'>brugt</option>";
-		if ($condition != 'new') print "<option value='new'>nyt</option>";
+		if ($showUsed) print "<option value='used'>brugt</option>";
+		if ($showNew && $condition != 'new') print "<option value='new'>nyt</option>";
 	}
 	/*
 print "</select></td>";
@@ -439,8 +440,8 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 	if (!$medlem) {
 		print "<td><select name ='condition'>";
 		if ($condition == 'new') print "<option value='new'>nyt</option>";
-		print "<option value='used'>brugt</option>";
-		if ($condition != 'new') print "<option value='new'>nyt</option>";
+		if ($showUsed) print "<option value='used'>brugt</option>";
+		if ($showNew && $condition != 'new') print "<option value='new'>nyt</option>";
 	}
 
 

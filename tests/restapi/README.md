@@ -17,6 +17,8 @@ docker-compose stack.
 - `OrdersEndpointTest` — `debitor/orders/`: 401 without/with garbage token,
   authorized list, create → read-back (+ debtor auto-provisioned in the
   tenant db), 404 for unknown id; `debitor/invoices/` list shape.
+- `AdminOpretAuthorizationTest` — `admin/opret.php`: an anonymous form POST
+  must be refused and leave no `regnskab` row and no tenant database.
 
 There is no voucher REST endpoint in the repo (the old VoucherEndpointTest
 targeted a `/vouchers` path that doesn't exist); voucher/kassekladde posting

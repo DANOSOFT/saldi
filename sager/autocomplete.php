@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-	// -------sager/autocomplete.php--------lap 3.0.0-------2013-01-06-------
+	// -------sager/autocomplete.php--------lap 5.0.0-------2026-08-05-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,8 +21,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2013 DANOSOFT ApS
+// Copyright (c) 2012-2026 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260731 CX/PHR - Added termination date to employee autocomplete used by ret_loen.
+// 20260805 CX/PHR - Use tabs as field separators for case autocomplete so company names may contain "|".
 
 	$bg      = "nix";
 	$header  = 'nix';
@@ -85,25 +87,25 @@
 */			
 		case 'medarbejdernr': // til søgning af medarbejdernummer i loen.php
 			$my_data = db_escape_string($q);
-			$result  = db_select("SELECT id, konto_id, navn, nummer, lukket FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND nummer::text LIKE '%$my_data%' ORDER BY nummer",__FILE__ . " linje " . __LINE__);
-			
+			$result  = db_select("SELECT id, konto_id, navn, nummer, lukket, slutdate FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND nummer::text LIKE '%$my_data%' ORDER BY nummer",__FILE__ . " linje " . __LINE__);
+
 			if($result)
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['nummer']."|".$row['navn']."\n";
+					echo $row['nummer']."|".$row['navn']."|".(($row['slutdate'] && $row['slutdate'] != '9999-12-31' && $row['slutdate'] < date('Y-m-d')) ? 'fratraadt' : '')."|".$row['slutdate']."\n";
 				}
 			}
 			break;
 		case 'medarbejdernavn': // til søgning af medarbejdernavn i loen.php
 			$my_data = db_escape_string($q);
-			$result  = db_select("SELECT id, konto_id, navn, nummer, lukket FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND navn ILIKE '%$my_data%' ORDER BY navn",__FILE__ . " linje " . __LINE__);
-			
+			$result  = db_select("SELECT id, konto_id, navn, nummer, lukket, slutdate FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND navn ILIKE '%$my_data%' ORDER BY navn",__FILE__ . " linje " . __LINE__);
+
 			if($result)
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['navn']."|".$row['nummer']."\n";
+					echo $row['navn']."|".$row['nummer']."|".(($row['slutdate'] && $row['slutdate'] != '9999-12-31' && $row['slutdate'] < date('Y-m-d')) ? 'fratraadt' : '')."|".$row['slutdate']."\n";
 				}
 			}
 			break;
@@ -175,7 +177,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['sagsnr']."|".$row['firmanavn']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['id']."|".$row['status']."\n";
+					echo $row['sagsnr']."\t".$row['firmanavn']."\t".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['id']."\t".$row['status']."\n";
 				}
 			} 
 			break;
@@ -187,7 +189,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['firmanavn']."|".$row['sagsnr']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['id']."|".$row['status']."\n";
+					echo $row['firmanavn']."\t".$row['sagsnr']."\t".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['id']."\t".$row['status']."\n";
 				}
 			} 
 			break;
@@ -199,7 +201,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['firmanavn']."|".$row['sagsnr']."|".$row['id']."|".$row['status']."\n";
+					echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['firmanavn']."\t".$row['sagsnr']."\t".$row['id']."\t".$row['status']."\n";
 				}
 			} 
 			break;

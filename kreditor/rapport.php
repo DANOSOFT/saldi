@@ -21,6 +21,7 @@
 // ----------------------------------------------------------------------
 // 2023.03.23 PBLM Fixed minor errors
 // 20250618 PHR - changed $modulnr from 8 to 13;
+// 20260826 Sawaneh SD-140: rapportart GET branch accepts kontonr (in-report account search of the open posts report).
 
 
 @session_start();
@@ -60,6 +61,7 @@ if (isset($_GET['ny_rykker'])) {
 	$dato_til  = if_isset($_GET['dato_til'], NULL);
 	$konto_fra = if_isset($_GET['konto_fra'], NULL);
 	$konto_til = if_isset($_GET['konto_til'], NULL);
+	if (!isset($_GET['konto_fra']) && isset($_GET['kontonr'])) list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
 	$udlign    = if_isset($_GET['udlign'], NULL);
 	if ($udlign) autoudlign($udlign);
 	if ($rapportart == 'kontokort' && if_isset($_GET['layout']) == 'grid' && $konto_fra && $konto_fra == $konto_til) {

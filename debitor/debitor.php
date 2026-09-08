@@ -26,6 +26,7 @@
 // 20130210 Break ændret til break 1
 // 20160218 Udvælg fungerer nu også hvis debitor er med i flere kategorier. Søg 20160218
 // 20160606 Tilføjet mulighed for at skjule lukkede debitorer Søg box11 / skjul_lukkede
+// 20260813 CX/PHR - Vis altid filteret "Vis udgået" og bevar brugerens standardvisning.
 // 20181205 Definering af variabler.
 // 20181217 msc Rettet design til
 // 20190107 MSC Rettet topmenu design til
@@ -612,21 +613,20 @@ include_once '../includes/oldDesign/footer.php';
     // Build filters
     $filters = array();
 
-    // Hide closed filter
-    if ($skjul_lukkede) {
-        $filters[] = array(
-            "filterName" => "Misc",
-            "joinOperator" => "and",
-            "options" => array(
-                array(
-                    "name" => "Vis udgået",
-                    "checked" => "",
-                    "sqlOn" => "",
-                    "sqlOff" => "(a.lukket IS NULL OR a.lukket = '0' or a.lukket = '')",
-                )
+    // Always make the closed debtor filter available. If closed debtors are not
+    // hidden in the user's view setup, keep them visible by default.
+    $filters[] = array(
+        "filterName" => "Misc",
+        "joinOperator" => "and",
+        "options" => array(
+            array(
+                "name" => "Vis udgået",
+                "checked" => $skjul_lukkede ? "" : "checked",
+                "sqlOn" => "",
+                "sqlOff" => "(a.lukket IS NULL OR a.lukket = '0' or a.lukket = '')",
             )
-        );
-    }
+        )
+    );
 
     // Debtor groups filter - show all available groups (group by kodenr to avoid duplicates)
     // Use GROUP BY to ensure unique kodenr values, taking the first beskrivelse for each
