@@ -118,6 +118,7 @@
 //             > 0, and unchecking it did nothing since those fields kept their old
 //             values. Now zero the multipliers when the box is unchecked so "off"
 //             actually persists and stops updateProductPrice.php's auto-overwrite too.
+// 20260907 CDX/LH Retain popup context through product-card saves and local navigation.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -168,6 +169,7 @@ $css = "../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+$productNavigationQuery = nav_popup_query($_GET, $_POST);
 include("../includes/vareopslag.php"); # 20090514
 include("../includes/stykliste.php");
 include("../includes/fuld_stykliste.php");
@@ -230,7 +232,8 @@ if (!$numberOfStocks)
 
 $opener = if_isset($_GET, NULL, 'opener');
 $id = (int) if_isset($_GET, NULL, 'id');
-if (isset($_GET['returside']) && $returside = $_GET['returside']) {
+$returside = nav_sanitize_returside($_GET['returside'] ?? null);
+if ($returside) {
     $ordre_id = if_isset($_GET, NULL, 'ordre_id') * 1;
     $fokus = if_isset($_GET, NULL, 'fokus');
     $vare_lev_id = if_isset($_GET, NULL, 'leverandor');
@@ -299,10 +302,10 @@ if ($acceptStockChange) {
         lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
         #       }
     }
-    print "<meta http-equiv='refresh' content='0;URL=varekort.php?id=$id'>";
+    print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$id'>";
     exit;
 } elseif ($cancelStockChange) {
-    print "<meta http-equiv='refresh' content='0;URL=varekort.php?id=$id'>";
+    print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$id'>";
     exit;
 }
 if (isset($_POST['copy']) && $_POST['copy'])
@@ -369,7 +372,7 @@ if ($saveItem || $submit = trim($submit)) {
     $note_on_orderline = (if_isset($_POST, NULL, 'note_on_orderline') == 'on') ? true : false;
     $notesInternal = db_escape_string(trim(if_isset($_POST, NULL, 'notesInternal')));
     $ordre_id = if_isset($_POST, NULL, 'ordre_id');
-    $returside = if_isset($_POST, NULL, 'returside');
+    $returside = nav_sanitize_returside(if_isset($_POST, NULL, 'returside'));
     $fokus = if_isset($_POST, NULL, 'fokus');
     $vare_sprogantal = if_isset($_POST, NULL, 'vare_sprogantal');
     $vare_sprog_id = if_isset($_POST, NULL, 'vare_sprog_id');
@@ -832,7 +835,7 @@ if ($saveItem || $submit = trim($submit)) {
             $query = db_select("select id from varer where lower(varenr) = '" . strtolower($varenr) . "' or  upper(varenr) = '" . strtoupper($varenr) . "'", __FILE__ . " linje " . __LINE__);
             $row = db_fetch_array($query);
             if ($row['id']) {
-                print "<meta http-equiv='refresh' content='0;URL=varekort.php?id=$row[id]'>";
+                print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$row[id]'>";
                 exit;
             } elseif ($varenr) {
                 $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
@@ -1172,10 +1175,9 @@ if ($stockItem) {
     sync_shop_price($id);
 }
 
-if ($popup && !$returside)
-    $returside = "../includes/luk.php";
-elseif (!$returside)
-    $returside = "varer.php";
+if (!$returside) {
+    $returside = $productNavigationQuery !== '' ? "../includes/luk.php?popup=1" : "varer.php";
+}
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 
 if ($begin)
@@ -1274,7 +1276,7 @@ if ($menu == 'T') {
         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $icon_posmenu . "POS menuer" . "</button></a></td>\n";
         }
         # Create new item
-        $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
+        $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
         print "<td width='10%' align='right'>
          <a href=\"javascript:confirmClose($confirmNewUrl,$confirmTekst)\" accesskey=N>
          <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
@@ -1298,8 +1300,9 @@ if ($menu == 'T') {
         print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:console.log(getCookie('pos_menu_location'));confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>" . "POS menuer" . "</a>\n";
 
     # Create new item
-    if ($id)
-        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
+    if ($id) {
+        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
+    }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
     print "<td align = center valign = center>\n";
@@ -1586,7 +1589,7 @@ if (!isset($varianter))
 if (!isset($ant_be_af))
     $ant_be_af = NULL;
 
-print "<form name='varekort' action='varekort.php?opener=$opener' method='post'>\n";
+print "<form name='varekort' action='varekort.php?{$productNavigationQuery}opener=$opener' method='post'>\n";
 
 print "<input type = 'hidden' name=id value='$id'>\n";
 print "<input type = 'hidden' name=ordre_id value='$ordre_id'>\n";
@@ -1939,7 +1942,7 @@ if (!$varenr) {
     # Vises hvis varen indegår i en stykliste
     if ($delvare == 'on') {
         if ($vis_samlevarer) {
-            print "<tr><td valign=top width=10%><span title='Klik her for at lukke oversigten'><a href=varekort.php?opener=$opener&id=$id&returside=$returside>Indg&aring;r i</a></td><td></td><td><table width=80% border=0><tbody>";
+            print "<tr><td valign=top width=10%><span title='Klik her for at lukke oversigten'><a href=varekort.php?{$productNavigationQuery}opener=$opener&id=$id&returside=$returside>Indg&aring;r i</a></td><td></td><td><table width=80% border=0><tbody>";
             print "<tr><td> Pos.</td><td width=80> V.nr.</td><td width=300> Beskrivelse</td><td> Antal</td></tr>";
             for ($x = 1; $x <= $ant_indg_i; $x++) {
                 print "<tr><td><input class=\"inputbox\" type = 'text' size=2 name=indg_i_ant[$x] value=$x></td><td><a href='?id=$indg_i_id[$x]'>$indg_i_vnr[$x]</a></td><td>$indg_i_beskrivelse[$x]</td><td align=\"right\">$indg_i_ant[$x]</td></tr>";
@@ -1947,7 +1950,7 @@ if (!$varenr) {
             print "<input type=\"hidden\" name=\"vis_samlevarer\" value=\"on\">";
         } else {
             print "<tr><td colspan=3><table width=100% border='0' cellspacing='1'><tbody>";
-            print "<tr><td width=100% align=center><a href=varekort.php?opener=$opener&id=$id&returside=$returside&vis_samlevarer=on>Denne vare indg&aring;r i andre varer - Klik for oversigt</a></td></tr>";
+            print "<tr><td width=100% align=center><a href=varekort.php?{$productNavigationQuery}opener=$opener&id=$id&returside=$returside&vis_samlevarer=on>Denne vare indg&aring;r i andre varer - Klik for oversigt</a></td></tr>";
         }
 
         #   print "<tr><td><input class=\"inputbox\" type = 'text' size=2 name=indg_i_ant[$x] value=$x></td><td colspan=2><SELECT class=\"inputbox\" NAME=indg_i_ant[0]>";
@@ -2107,6 +2110,7 @@ function prisopdat_xx($id)
 
 function kategorier($x, $id, $kat_niveau, $kategori_antal, $kat_id, $kategori, $kat_beskrivelse, $kat_master)
 {
+    $productNavigationQuery = nav_popup_query($_GET, $_POST);
     global $sprog_id;
     $checked = "";
     for ($y = 0; $y <= $kategori_antal; $y++) {
@@ -2124,8 +2128,8 @@ function kategorier($x, $id, $kat_niveau, $kategori_antal, $kat_id, $kategori, $
     $tekst = findtekst('395|Afmærk her for at knytte $firmanavn til denne kategori', $sprog_id);
     #               $tekst=str_replace('$firmanavn',$firmanavn,$tekst); 
     print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"kat_valg[$x]\" $checked></td>\n";
-    print "<td title=\"".findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&    =$kat_id\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
-    print "<td title=\"".findtekst('397|Klik her for at slette denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+    print "<td title=\"".findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?{$productNavigationQuery}id=$id&    =$kat_id\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
+    print "<td title=\"".findtekst('397|Klik her for at slette denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?{$productNavigationQuery}id=$id&delete_category=$kat_id\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
     print "</tr>\n";
     print "<input type=\"hidden\" name=\"kat_id[$x]\" value=\"$kat_id\">\n";
 } # endfunc kategorier
@@ -2196,6 +2200,7 @@ function cirkeltjek($vare_id)
 ######################################################################################################################################
 function kontoopslag($sort, $fokus, $id)
 {
+    $productNavigationQuery = nav_popup_query($_GET, $_POST);
     global $bgcolor2;
     global $top_bund;
     global $returside;
@@ -2237,21 +2242,21 @@ function kontoopslag($sort, $fokus, $id)
 
     } else {
         print "<table width='100%'><tbody>";
-        print "<td width=\"10%\" $top_bund><a href=varekort.php?opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
+        print "<td width=\"10%\" $top_bund><a href=varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
         print "<td width=\"80%\" $top_bund align=\"center\">Varekort</td>";
         print "<td width=\"10%\" $top_bund align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"JavaScript:window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\"><u>Ny</u></td>";
         print "</tbody></table></td></tr>";
     }
     print "<table width='100%'><tbody>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=kontonr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontonr</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=firmanavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Navn</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=addr1&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=addr2&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse2</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=postnr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Postnr</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=bynavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>bynavn</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=land&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>land</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=kontonr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontonr</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=firmanavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Navn</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=addr1&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=addr2&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse2</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=postnr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Postnr</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=bynavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>bynavn</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=land&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>land</b></td>";
     #   print"<td><b><a href=varekort.php?opener=$opener&sort=kontakt&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontaktperson</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=tlf&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Telefon</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=tlf&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Telefon</b></td>";
     print " </tr>";
 
     if (!isset($_GET['sort']))
@@ -2265,7 +2270,7 @@ function kontoopslag($sort, $fokus, $id)
     while ($row = db_fetch_array($q)) {
         $kontonr = str_replace(" ", "", $row['kontonr']);
         print "<tr>";
-        print "<td><a href=varekort.php?id=$id&konto_id=$row[id]&returside=$returside&vare_lev_id=$row[id]>$row[kontonr]</a></td>";
+        print "<td><a href=varekort.php?{$productNavigationQuery}id=$id&konto_id=$row[id]&returside=$returside&vare_lev_id=$row[id]>$row[kontonr]</a></td>";
         print "<td>$row[firmanavn]</td>";
         print "<td>$row[addr1]</td>";
         print "<td>$row[addr2]</td>";
