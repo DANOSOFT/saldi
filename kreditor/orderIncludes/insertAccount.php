@@ -31,9 +31,16 @@
 // 20260710 MJ Preserve ref: use global $ref (from form) or look up employee naam, not raw brugernavn.
 // 20260713 MJ Fix structural bug: orphaned if(!$afd){ caused all main logic to be skipped when afd was set. Also restore afd lookup from ansatte.
 // 20260902 CL/LH  L4 finding master-data-supplier DEVY-1: selecting the supplier used to stamp today's date over an Ordredato the operator had already typed, and never stored Levdato. Keep the dates from the form (kreditor/ordre.php passes them along) and only fall back to today when nothing was entered.
+// 20260908 CDX/LH Preserve the caller transaction during creditor order creation (SST-765).
 
 if (!function_exists('insertAccount')) {
-function insertAccount($id, $konto_id) {
+/**
+ * Create or update the creditor order header.
+ *
+ * @param bool $manageTransaction False when the caller owns an active transaction.
+ * @return int|string Order id, or zero if no order was created.
+ */
+function insertAccount($id, $konto_id, $manageTransaction = true) {
 	global $addr1,$addr2,$art;
 	global $betalingsbet,$betalingsdate,$brugernavn,$bynavn;
 	global $cvrnr;
@@ -122,7 +129,9 @@ function insertAccount($id, $konto_id) {
 	} elseif ($konto_id) print "<BODY onLoad=\"javascript:alert('Kreditor er ikke tilknyttet en kreditorgruppe')\">";
 	$momssats=(float)usdecimal($momssats);
 	if ((!$id)&&($firmanavn)) {
-		transaktion('begin');
+		if ($manageTransaction) {
+			transaktion('begin');
+		}
 		// 20260902 CL/LH  L4 finding master-data-supplier DEVY-1: selecting the supplier used to
 		// stamp today's date over an Ordredato the operator had already typed, and never stored
 		// Levdato. Keep the dates from the form (kreditor/ordre.php passes them along) and only
@@ -131,7 +140,7 @@ function insertAccount($id, $konto_id) {
 		if (strlen($ordredate) < 6) $ordredate = date("Y-m-d");
 		$levdate = trim((string)$levdate);
 		$levdate_sql = (strlen($levdate) >= 6) ? "'" . db_escape_string($levdate) . "'" : "NULL";
-		$ordrenr = get_next_order_number('KO');
+		$ordrenr = get_next_order_number('KO', false);
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,lev_addr1,";
 		$qtxt.= "lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,betalingsdage,betalingsbet,cvrnr,notes,art,ordredate,levdate,";
@@ -152,7 +161,9 @@ function insertAccount($id, $konto_id) {
 		$qtxt.= "'0', '$brugernavn', '$tidspkt', '$valuta','$omlev', '$email', '$mail_fakt', '$udskriv_til')";
 */
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		transaktion('commit');
+		if ($manageTransaction) {
+			transaktion('commit');
+		}
 		$qtxt = "select max(id) as id from ordrer where ordrenr = '$ordrenr' and konto_id = '$konto_id' and tidspkt = '$tidspkt'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$id=$r['id'];
