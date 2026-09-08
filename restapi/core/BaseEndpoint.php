@@ -10,25 +10,13 @@ require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/JWT.php';
 require_once __DIR__ . '/JWTAuth.php';
 
-// JWT signing secret (SD-587): install-specific, >=256 bits, stored outside the
-// repo at restapi/.ht_jwt_secret.bin (git-ignored, matches the .ht* pattern
-// already used for bank_integration/.ht_oauth_key.bin). Generate it once per
-// install with:
-//   php -r "file_put_contents(__DIR__.'/../.ht_jwt_secret.bin', random_bytes(32));"
-// (from restapi/core), or let index/install.php create it for new installs.
-if (!function_exists('_jwtLoadSecret')) {
-    function _jwtLoadSecret(): string {
-        $path = JWT::secretPath();
-        if (!is_readable($path)) {
-            throw new \RuntimeException('JWT secret file not found: ' . $path);
-        }
-        $secret = file_get_contents($path);
-        if ($secret === false || strlen($secret) < 32) {
-            throw new \RuntimeException('JWT secret file must contain at least 32 bytes (256 bits): ' . $path);
-        }
-        return $secret;
-    }
-}
+// JWT signing secret (SD-587, self-provisioning added SD-634): install-specific,
+// >=256 bits, stored outside the repo at restapi/.ht_jwt_secret.bin (git-ignored,
+// matches the .ht* pattern already used for bank_integration/.ht_oauth_key.bin).
+// One file per codebase install, shared by every tenant it serves - see
+// "JWT signing secret is per install, not per tenant" in restapi/IMPLEMENTATION_STATUS.md.
+// See JwtSecretProvisioning.php for how it's loaded/created.
+require_once __DIR__ . '/JwtSecretProvisioning.php';
 try {
     JWT::setSecret(_jwtLoadSecret());
 } catch (\RuntimeException $e) {

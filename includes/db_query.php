@@ -40,6 +40,7 @@
 // 20260820 Sawaneh The fallback alert text used the HTML entity &aelig;, which JS alert() shows
 //                  literally; replaced with a literal æ like the rest of the string
 // 20260824 CL/SZ db_select(): ROLLBACK the connection on a Postgres query error - reproduced
+// 20260907 CL/LH db_select(): drop the pg ROLLBACK from #503 - it turned failed postings into partial commits
 //                that without it, one failed query inside an open transaction ("current
 //                transaction is aborted...") silently fails every later query on that same
 //                connection for the rest of the request; confirmed harmless when no
@@ -292,7 +293,11 @@ if (!function_exists('db_select')) {
 			$errtxt = pg_last_error($use_connection);
 			if ($errtxt) {
 				error_log("db_select failed: $qtext");
-				pg_query($use_connection, "ROLLBACK"); // 20260824 CL/SZ a failed query inside an open transaction otherwise poisons every later query on this connection for the rest of the request ("current transaction is aborted..."); harmless no-op outside a transaction (SST-672)
+				// 20260907 CL/LH Removed the ROLLBACK added 20260824 (#503, SST-672): db_select() only alerts and
+				// continues on the first error, so the rollback discarded the work already done inside a
+				// transaktion('begin') block and every later write autocommitted - a failed posting became a
+				// partial posting instead of the previous all-or-nothing failure. The aborted transaction is
+				// the caller's to roll back (SD-595 $db_modify_fejl pattern, finans/bogfor.php).
 			}
 		}
 

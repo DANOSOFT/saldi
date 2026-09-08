@@ -30,6 +30,10 @@
 // 20260716 MJ      Tilfoejede Momsperioder-link i Finans-sidebar.
 // 20260730 NTR - Added translation to momsperioder.
 // 20260730 MJ Fjernede Momsperioder-link fra Finans-sidebaren; linket er nu en knap i regnskabsaar.php
+// 20260902 CL/LH Indlejrede chaty_V2 support-chatbot (wuweiworkai.com/chaty-v2) i skallen
+// 20260904 Sawaneh WP-1.6: update_iframe() tags iframe navigations with inframe=1 (context flag for hosted pages)
+// 20260907 CDX/LH Fjernede gammel widget-loader, saa SALDI Assist kun indlaeses en gang
+// 20260907 CDX/LH Preserve iframe navigation while merging the current shell integration.
 @session_start();
 $s_id = session_id();
 
@@ -529,6 +533,12 @@ function brightenColor($color, $amount = 0.2) {
     const baseUrl = (location + "").split("/").splice(0, 4).join("/");
     const targetUrl = baseUrl + (uri.startsWith("/") ? uri : "/" + uri);
     const parsedTargetUrl = new URL(targetUrl);
+    // Context flag for the loaded page: it runs inside the shell's iframe, so
+    // window.close()-based flows (luk.php) can't work and back targets must stay
+    // in-frame. Set centrally here instead of on every menu link.
+    if (!parsedTargetUrl.searchParams.has('inframe')) {
+      parsedTargetUrl.searchParams.set('inframe', '1');
+    }
     const targetPath = parsedTargetUrl.pathname + parsedTargetUrl.search;
 
     if (get_iframe_path() === targetPath) {
@@ -541,7 +551,7 @@ function brightenColor($color, $amount = 0.2) {
       }
     }
 
-    iframe.src = targetUrl
+    iframe.src = parsedTargetUrl.href
   }
 
   const redirect_uri = (uri) => {
@@ -665,4 +675,20 @@ function brightenColor($color, $amount = 0.2) {
   }
 </style>
 
+<?php
+/* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
+   endpointet ligger i includes/saldi_assist_token.php. SALDI_ASSIST_WIDGET_URL
+   kan saettes i webserverens miljoe til en test-instans; standard er produktion. */
+$assistWidgetUrl = getenv('SALDI_ASSIST_WIDGET_URL') ?: 'https://wuweiworkai.com/chaty-v2/widget.js';
+$assistVersion = isset($version) ? (string)$version : '';
+?>
+<script src="../javascript/saldi-assist-navigate.js"></script>
+<script>
+  // update_iframe er en const i sidens script; goer den tilgaengelig for
+  // navigate-hook'en, saa "Gaa dertil" gaar gennem SALDIs egen navigation
+  // (inkl. advarslen om ugemte aendringer).
+  if (typeof update_iframe === 'function') { window.update_iframe = update_iframe; }
+</script>
+<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+<script>window.SaldiAssist = { appVersion: <?= json_encode($assistVersion) ?>, correlationId: <?= json_encode($assist_correlation_id ?? null) ?>, errorCategory: <?= json_encode($assist_error_category ?? null) ?>, getContextToken: function (sessionHash) { return fetch('../includes/saldi_assist_token.php?embed_session=' + encodeURIComponent(sessionHash), {credentials:'same-origin'}).then(function (r) { return r.ok ? r.json() : null }).then(function (j) { return j && j.token ? j.token : null }) }, navigate: window.SaldiAssistNavigate };</script>
 </html>

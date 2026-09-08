@@ -61,6 +61,7 @@
 // 20260320 PHR cleanup (pdftk)
 // 20260402 PHR Bypass style if title = 'Bordplan'
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
+// 20260904 Sawaneh WP-1.3: nav_push popup arg now uses the popup=1 request flag, not the user preference
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -287,7 +288,11 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				db_modify("update grupper set box1='$jsvars' where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
 			}
 		}
-		nav_push(null, (bool)$popup);
+		// 20260904 Sawaneh WP-1.3: skip recording only when THIS request is a popup window
+		// (popup=1 on the URL), not when the user merely prefers popups — the preference
+		// made the nav stack permanently empty for those users, and genuine popups
+		// opened by others polluted the opener's stack.
+		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup']));
 		if ($db_ver > '3.7.4') {
 			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {

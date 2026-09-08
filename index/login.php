@@ -833,8 +833,12 @@ if(!isset($afbryd)){
 			$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&globalId=$globalId&dbName=$db&dbMail=$mainMail";
 			$url.= "&dbAlias=". urlencode($regnskab) ."&dbLocation=$dbLocation&userId=$userId&userName=". urlencode($brugernavn);
 			$url.= "&usermail=". urlencode($usermail);;
-			$result = file_get_contents($url);
-			$a = explode(',',json_decode($result, true));
+			// 20260902 CL/LH  F-010: the locator call is synchronous on every login. Bound it so an
+			// unreachable saldi.dk cannot hang the login page, and tolerate a failed call.
+			$locatorCtx = stream_context_create(array('http' => array('timeout' => 5)));
+			$result = @file_get_contents($url, false, $locatorCtx);
+			if ($result === false) $result = '';
+			$a = explode(',', (string)json_decode($result, true));
 			if ($a[0] && (!$globalId || (!$dbMail && $mainMail))) {
 				$globalId = $a[0];
 				include("../includes/connect.php");

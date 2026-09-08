@@ -62,6 +62,11 @@
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
 // 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
+// 20260827 Sawaneh create supplier: before insert the kontonr is re-checked across all arts, and a
+//                 number taken meanwhile (stale prefill or a debtor holding it) is replaced with a
+//                 fresh one from get_next_number, so no cross-art duplicate can be created (SST-753)
+// 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup navigates here by GET, see accountLookup.php selectAccount) into the new order header. 
+//                 usdate('') returns today, so only convert values that were actually supplied.
 
 @session_start();
 $s_id=session_id();
@@ -169,6 +174,11 @@ $lager = if_isset($_GET, NULL, 'lager');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
 
 if ((!$id || $id === 'null') && $konto_id) {
+	// 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup
+	// navigates here by GET, see accountLookup.php selectAccount) into the new order header.
+	// usdate('') returns today, so only convert values that were actually supplied.
+	$ordredate = trim(if_isset($_GET, '', 'ordredato')) !== '' ? usdate(trim($_GET['ordredato'])) : '';
+	$levdate   = trim(if_isset($_GET, '', 'levdato'))   !== '' ? usdate(trim($_GET['levdato']))   : '';
 	include_once('orderIncludes/insertAccount.php');
 	$id = insertAccount(0, $konto_id);
 	if ($id) {
@@ -207,6 +217,10 @@ if (isset($_POST['create_creditor'])) {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$new_konto_id = $r['id'];
 	} else {
+		$qtxt = "select id from adresser where kontonr='$ny_kontonr'";
+		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$ny_kontonr = get_next_number('adresser', 'K');
+		}
 		$qtxt  = "insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,tlf,kontakt,email,cvrnr,gruppe,betalingsbet,betalingsdage,art,lukket) values ";
 		$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$tlf','$kontakt','$email','$cvrnr','$grp','$betalingsbet','$betalingsdage','K','')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);

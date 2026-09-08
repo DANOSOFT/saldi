@@ -69,11 +69,19 @@
 // 20260815 CL/SZ Added moms_periode_luk_schema_status()/_ready()/_ensure_schema() -
 //                explicit, idempotent table/function/trigger health check + repair for
 //                the R5 periodelaasning migration (SD-646)
+// 20260827 Sawaneh get_next_number: debtors and creditors draw from one shared kontonr sequence
+//                 (highest number in use + 1, min 1000) instead of two independent first-free-gap
+//                 series, so a debtor and a creditor can no longer receive the same number and a
+//                 deleted account's number is never reused; kontonr above 8 digits (EAN-like
+//                 outliers) are ignored when finding the highest, and if the 8-digit range is
+//                 capped by an outlier the first number free in both series is used (SST-753)
+// 20260827 LOE Checked for $r in the function sync_shop_vare, sync_shop_price before using it to avoid undefined variable notice. My comment of '#20211013 removed as associated comments have been earlier deleted
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
+include(__DIR__ . '/stdFunc/dkAmountValid.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
@@ -1737,13 +1745,15 @@ if(!function_exists("sync_shop_price")){
 	  $costPrice = 0;
 	  $shop_id = $rand = ''; # never assigned in this function, kept empty as in the original url
 	  $failed = 0;
+	  $api_fil =$api_fil2=$api_fil3= NULL;
 	  $log = fopen("../temp/$db/rest_api.log", "a");
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	  $api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
-	  $api_fil2 = trim($r["box5"]);
-	  $api_fil3 = trim($r["box6"]);
+	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$api_fil = trim($r['box4']);
+		$api_fil2 = trim($r["box5"]);
+		$api_fil3 = trim($r["box6"]);
+	  }
 	  if (!$api_fil) {
 		fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 		fclose($log);
@@ -1792,13 +1802,15 @@ if (!function_exists('sync_shop_vare')) {
 		global $bruger_id,$db,$regnaar;
 		$costPrice = 0;
 		$failed = 0;
+		$api_fil =$api_fil2=$api_fil3= NULL;
 		$log = fopen("../temp/$db/rest_api.log", "a");
 		$qtxt = "select box4, box5, box6 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
-		$api_fil2 = trim($r["box5"]);
-		$api_fil3 = trim($r["box6"]);
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$api_fil = trim($r['box4']);
+			$api_fil2 = trim($r["box5"]);
+			$api_fil3 = trim($r["box6"]);
+		}
 		
 		if (!$api_fil) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
@@ -2127,27 +2139,43 @@ if (!function_exists('get_next_number')) {
 	function get_next_number($table, $art)
 	{
 		/**
-		 * Generates the next available account number (kontonr) for a given 'art' (type).
-		 * It checks the existing account numbers in the specified table and ensures the new number is unique.
-		 * 
+		 * Generates the next account number (kontonr) for a new debtor or creditor.
+		 * Debtors and creditors draw from one shared sequence: every kontonr in the table
+		 * is considered regardless of art, and the highest number in use plus one is
+		 * returned (minimum 1000). Numbers are never reused, so a deleted account's
+		 * number cannot be handed out again while historical orders and postings still
+		 * carry it, and a debtor and a creditor can no longer receive the same number.
+		 * Values above eight digits (EAN/GLN-like numbers stored as kontonr) are
+		 * ignored so a single outlier cannot push the sequence into the billions.
+		 * If the eight-digit range is already occupied at the top (an outlier stored
+		 * right at the cap), the first number unused by any art is returned instead,
+		 * so a usable number is always handed out and never a duplicate.
+		 *
 		 * @param string $table - The table name to search for existing account numbers.
-		 * @param string $art - The type/category associated with the account numbers.
-		 * 
-		 * @return int - The next available account number.
+		 * @param string $art - Unused; kept so existing callers keep working.
+		 *
+		 * @return int - The next account number.
 		 */
 
-		$x = 0;
-		$ktonr = array();
-		$qtxt = "select kontonr from $table where art='$art'";
+		$kontonr = 1000;
+		$brugt = array();
+		$qtxt = "select kontonr from $table";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$ktonr[$x] = $r['kontonr'];
-			$x++;
+			if (!is_numeric($r['kontonr'])) {
+				continue;
+			}
+			$nr = intval($r['kontonr']);
+			$brugt[$nr] = true;
+			if ($nr >= $kontonr && $nr <= 99999999) {
+				$kontonr = $nr + 1;
+			}
 		}
-		$kontonr = 1000;
-		while (in_array($kontonr, $ktonr)) {
-			$kontonr++;
-
+		if ($kontonr > 99999999) {
+			$kontonr = 1000;
+			while (isset($brugt[$kontonr])) {
+				$kontonr++;
+			}
 		}
 		return ($kontonr);
 	}
