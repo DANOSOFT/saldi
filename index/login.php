@@ -52,6 +52,9 @@
 //                  in any language (æøåÆØÅ, áé, ü ...) and hyphen are kept (previously '_-æ' was a byte range).
 //                  Widened whitelist to currency symbols and inert punctuation (£$€{}[]()#%!?,:=*^~|` /);
 //                  only < > " ' \ ; & and tab/newline are still stripped. Returns false on malformed UTF-8.
+// 20260908 NTR    sanitize_input: length check now counts characters (mb_strlen) instead of bytes, so æøå no longer
+//                  use up two positions each. Added $allowed_length parameter (default 80); regnskab is passed 60
+//                  to match varchar(60) on regnskab.regnskab.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -145,8 +148,27 @@ print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/login.css\" />";
 print "</head>";
 
 $dbMail=NULL;
-function sanitize_input($input) {
-	
+/**
+ * Whitelist-filter a login form value (account name, username, error text) before it is
+ * looked up in the database or echoed back into the login form.
+ *
+ * Trims the value, removes every character outside the whitelist (letters in any language,
+ * digits, currency symbols, space and inert punctuation; see the comment above the regex for
+ * the exact list and why < > " ' \ ; & tab and newline are dropped), then enforces a maximum
+ * length in characters (not bytes), which is how Postgres measures varchar(n).
+ *
+ * This is defence in depth only: values must still go through db_escape_string() before
+ * being interpolated into SQL and htmlspecialchars() before being printed as HTML.
+ *
+ * @param string $input          Raw value, expected to be UTF-8.
+ * @param int    $allowed_length Maximum length in characters after filtering. Default 80;
+ *                               pass 60 for regnskab to match varchar(60) on regnskab.regnskab.
+ *
+ * @return string|false The filtered value, or false if it is longer than $allowed_length
+ *                      or is not valid UTF-8.
+ */
+function sanitize_input($input, $allowed_length = 80) {
+
 	// Trim the input to remove any leading/trailing whitespace
 	$input = trim($input);
 	// Allow: letters in any language (\p{L} incl. æøåÆØÅ, áé, ü, ñ ...), combining accent marks (\p{M}),
@@ -165,7 +187,7 @@ function sanitize_input($input) {
 		return false;
 	}
 
-	if (strlen($input) > 80) {
+	if (mb_strlen($input, 'UTF-8') > $allowed_length) {
 		return false;
 	}
 	
@@ -984,7 +1006,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 	$timestamp = time(); //unix timestamp
 	global	$charset;
 	global 	$nonce;
-	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset)) : null;
+	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset), 60) : null;
 	$brugernavn = isset($brugernavn) ? sanitize_input(htmlspecialchars($brugernavn, ENT_COMPAT, $charset)) : null;
 	$fejltxt = isset($fejltxt) ? sanitize_input(htmlspecialchars($fejltxt, ENT_COMPAT, 'UTF-8')) : null;
 
@@ -1033,7 +1055,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 		}
 
 		if (isset($_GET['regnskab'])) {
-			$regnskab = sanitize_input(htmlspecialchars($_GET['regnskab'], ENT_COMPAT, $charset));
+			$regnskab = sanitize_input(htmlspecialchars($_GET['regnskab'], ENT_COMPAT, $charset), 60);
 		}
 
 		if (isset($_GET['tlf'])) {
