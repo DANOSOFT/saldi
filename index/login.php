@@ -60,6 +60,7 @@
 //                  back to the page charset so a non-UTF8 database still matches. Length check now uses the
 //                  shared is_input_too_long() from std_func.php.
 // 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
+// 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -202,7 +203,7 @@ function sanitize_input($input, $allowed_length = 80) {
 		return false;
 	}
 
-	if (is_input_too_long($input, $allowed_length)) {
+	if (mb_strlen($input, 'UTF-8') > $allowed_length) {
 		return false;
 	}
 
