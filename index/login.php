@@ -59,6 +59,7 @@
 //                  posted from an ISO-8859-1 page is filtered instead of rejected, and the result is converted
 //                  back to the page charset so a non-UTF8 database still matches. Length check now uses the
 //                  shared is_input_too_long() from std_func.php.
+// 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -342,7 +343,7 @@ if (isset($_POST['regnskab'])) {
 		exit();
 		}
 		if ($regnskab) $fejltxt="Regnskab $regnskab findes ikke";
-		login(htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset),$fejltxt);
+		login($regnskab,$brugernavn,$fejltxt);
  	}
 } else {
 	
