@@ -93,8 +93,8 @@ if ($besked) {
 if ($o) {
 	list($fdd, $fmm, $fyy) = explode("-", forfaldsdag($o['fakturadate'], $o['betalingsbet'], $o['betalingsdage']));
 	print "<tr><td><table><tbody>";
-	print "<tr><td>" . findtekst('5180|Fakturanr', $sprog_id) . "</td><td><b>$o[fakturanr]</b></td></tr>";
-	print "<tr><td>" . findtekst('35|Kunde', $sprog_id) . "</td><td>$o[kontonr] " . htmlspecialchars($o['firmanavn']) . "</td></tr>";
+	print "<tr><td>" . findtekst('5180|Fakturanr', $sprog_id) . "</td><td><b>" . htmlspecialchars($o['fakturanr']) . "</b></td></tr>";
+	print "<tr><td>" . findtekst('35|Kunde', $sprog_id) . "</td><td>" . htmlspecialchars($o['kontonr']) . " " . htmlspecialchars($o['firmanavn']) . "</td></tr>";
 	print "<tr><td>" . findtekst('934|Beløb', $sprog_id) . "</td><td>" . dkdecimal($o['sum'] + $o['moms'], 2) . "</td></tr>";
 	print "<tr><td>" . findtekst('1094|Fakturadato', $sprog_id) . "</td><td>" . dkdato($o['fakturadate']) . "</td></tr>";
 	print "<tr><td>" . findtekst('1164|Forfaldsdato', $sprog_id) . "</td><td>$fdd-$fmm-$fyy</td></tr>";

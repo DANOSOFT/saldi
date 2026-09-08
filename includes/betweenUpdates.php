@@ -530,18 +530,30 @@ $pbs_ordrer_kolonner = array(
 	'oprettet' => 'timestamp', 'bruger_id' => 'integer', 'brugernavn' => 'text', 'gensendt_fra' => 'integer',
 	'resultat' => 'varchar(16)', 'resultat_ref' => 'text', 'resultat_dato' => 'date', 'resultat_bruger_id' => 'integer'
 );
+$pbs_mysql = ($db_type == 'mysql' || $db_type == 'mysqli');
 foreach ($pbs_ordrer_kolonner as $pbs_kolonne => $pbs_type) {
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pbs_ordrer' AND column_name = '$pbs_kolonne'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("ALTER TABLE pbs_ordrer ADD COLUMN IF NOT EXISTS $pbs_kolonne $pbs_type", __FILE__ . " linje " . __LINE__);
+		# IF NOT EXISTS (Postgres/MariaDB, not MySQL) because betweenUpdates.php runs at login and two
+		# concurrent logins can both pass the check above.
+		$pbs_if_not_exists = $pbs_mysql ? '' : 'IF NOT EXISTS ';
+		db_modify("ALTER TABLE pbs_ordrer ADD COLUMN $pbs_if_not_exists$pbs_kolonne $pbs_type", __FILE__ . " linje " . __LINE__);
 	}
 }
 // Legacy pbsfakt() blocked any second row per invoice, so duplicates within a batch should not
 // exist; remove any (keep the oldest) before the unique index so the statement cannot fail.
-$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pbs_ordrer' AND indexname = 'pbs_ordrer_liste_ordre_uidx'";
+if ($pbs_mysql) {
+	$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pbs_ordrer' AND index_name = 'pbs_ordrer_liste_ordre_uidx'";
+	$pbs_dedupe = "DELETE a FROM pbs_ordrer a JOIN pbs_ordrer b ON a.liste_id = b.liste_id AND a.ordre_id = b.ordre_id AND a.id > b.id";
+	$pbs_index = "CREATE UNIQUE INDEX pbs_ordrer_liste_ordre_uidx ON pbs_ordrer (liste_id, ordre_id)";
+} else {
+	$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pbs_ordrer' AND indexname = 'pbs_ordrer_liste_ordre_uidx'";
+	$pbs_dedupe = "DELETE FROM pbs_ordrer a USING pbs_ordrer b WHERE a.liste_id = b.liste_id AND a.ordre_id = b.ordre_id AND a.id > b.id";
+	$pbs_index = "CREATE UNIQUE INDEX IF NOT EXISTS pbs_ordrer_liste_ordre_uidx ON pbs_ordrer (liste_id, ordre_id)";
+}
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("DELETE FROM pbs_ordrer a USING pbs_ordrer b WHERE a.liste_id = b.liste_id AND a.ordre_id = b.ordre_id AND a.id > b.id", __FILE__ . " linje " . __LINE__);
-	db_modify("CREATE UNIQUE INDEX IF NOT EXISTS pbs_ordrer_liste_ordre_uidx ON pbs_ordrer (liste_id, ordre_id)", __FILE__ . " linje " . __LINE__);
+	db_modify($pbs_dedupe, __FILE__ . " linje " . __LINE__);
+	db_modify($pbs_index, __FILE__ . " linje " . __LINE__);
 }
 
 ?>

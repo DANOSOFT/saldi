@@ -30,6 +30,19 @@
 //                     create one open batch / one attempt per batch.
 
 /**
+ * Lock name qualified by tenant database: MySQL named locks are server-wide, so tenants
+ * on the same server must not block each other.
+ *
+ * @return string
+ */
+if (!function_exists('pbs_laas_navn')) {
+	function pbs_laas_navn() {
+		global $db;
+		return db_escape_string('pbs_liste_' . $db);
+	}
+}
+
+/**
  * Serialises "find or create the open PBS batch" + "add attempt" across requests.
  * Session-level lock: released by pbs_frigiv() or when the connection ends.
  *
@@ -38,11 +51,12 @@
 if (!function_exists('pbs_laas')) {
 	function pbs_laas() {
 		global $db_type;
+		$navn = pbs_laas_navn();
 		if ($db_type == 'mysql' || $db_type == 'mysqli') {
-			$r = db_fetch_array(db_select("select get_lock('pbs_liste', 10) as lock_ok", __FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("select get_lock('$navn', 10) as lock_ok", __FILE__ . " linje " . __LINE__));
 			return ($r && $r['lock_ok'] == 1);
 		}
-		db_select("select pg_advisory_lock(hashtext('pbs_liste'))", __FILE__ . " linje " . __LINE__);
+		db_select("select pg_advisory_lock(hashtext('$navn'))", __FILE__ . " linje " . __LINE__);
 		return true;
 	}
 }
@@ -50,10 +64,11 @@ if (!function_exists('pbs_laas')) {
 if (!function_exists('pbs_frigiv')) {
 	function pbs_frigiv() {
 		global $db_type;
+		$navn = pbs_laas_navn();
 		if ($db_type == 'mysql' || $db_type == 'mysqli') {
-			db_select("select release_lock('pbs_liste')", __FILE__ . " linje " . __LINE__);
+			db_select("select release_lock('$navn')", __FILE__ . " linje " . __LINE__);
 		} else {
-			db_select("select pg_advisory_unlock(hashtext('pbs_liste'))", __FILE__ . " linje " . __LINE__);
+			db_select("select pg_advisory_unlock(hashtext('$navn'))", __FILE__ . " linje " . __LINE__);
 		}
 	}
 }
@@ -176,11 +191,11 @@ if (!function_exists('pbs_ordre_status')) {
  *
  * @param int $ordre_id
  * @param int $gensendt_fra id of the pbs_ordrer attempt this one replaces, 0 for a first send
- * @return int batch id
+ * @return int batch id, 0 when the insert failed (db_modify() only returns on failure in webservice mode)
  */
 if (!function_exists('pbs_tilfoej')) {
 	function pbs_tilfoej($ordre_id, $gensendt_fra = 0) {
-		global $bruger_id, $brugernavn;
+		global $bruger_id, $brugernavn, $db_modify_fejl;
 		$ordre_id = intval($ordre_id);
 		$gensendt_fra = intval($gensendt_fra);
 		$bruger = intval($bruger_id);
@@ -190,7 +205,7 @@ if (!function_exists('pbs_tilfoej')) {
 		$qtxt = "insert into pbs_ordrer (liste_id, ordre_id, oprettet, bruger_id, brugernavn, gensendt_fra) ";
 		$qtxt .= "values ('$liste_id', '$ordre_id', '$nu', '$bruger', '$navn', '$gensendt_fra')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		return $liste_id;
+		return $db_modify_fejl ? 0 : $liste_id;
 	}
 }
 
@@ -240,7 +255,7 @@ if (!function_exists('pbs_gensend')) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		$liste_id = pbs_tilfoej($ordre_id, $sidste_id);
-		if ($db_modify_fejl) {
+		if (!$liste_id || $db_modify_fejl) {
 			transaktion('rollback');
 			pbs_frigiv();
 			return array('ok' => false, 'besked' => findtekst('5189|Databasefejl - intet er gemt', $sprog_id));
@@ -274,8 +289,12 @@ if (!function_exists('pbsfakt')) {
 		$s = pbs_ordre_status($id);
 		if ($s['ordre'] && ($s['status'] == 'ikke_sendt' || $s['status'] == 'afvist')) {
 			$liste_id = pbs_tilfoej($id, $s['sidste'] ? $s['sidste']['id'] : 0);
-			print findtekst('5180|Fakturanr', $sprog_id) . " " . $s['ordre']['fakturanr'] . " ";
-			print findtekst('5171|er tilføjet PBS-leverance', $sprog_id) . " $liste_id<br>";
+			if ($liste_id) {
+				print findtekst('5180|Fakturanr', $sprog_id) . " " . $s['ordre']['fakturanr'] . " ";
+				print findtekst('5171|er tilføjet PBS-leverance', $sprog_id) . " $liste_id<br>";
+			} else {
+				print findtekst('5189|Databasefejl - intet er gemt', $sprog_id) . "<br>";
+			}
 		} else {
 			print $s['forklaring'] . "<br>";
 		}

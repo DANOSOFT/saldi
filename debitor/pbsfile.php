@@ -877,7 +877,7 @@ function vis_leverance_ordrer($liste_id) {
 		} else {
 			$link = "<a href=\"pbs_gensend.php?id=$ordre_id\">";
 		}
-		print "<tr><td>$r[fakturanr]</td><td>$r[kontonr] ".htmlspecialchars($r['firmanavn'])."</td>";
+		print "<tr><td>".htmlspecialchars($r['fakturanr'])."</td><td>".htmlspecialchars($r['kontonr'])." ".htmlspecialchars($r['firmanavn'])."</td>";
 		print "<td align=\"right\">".dkdecimal($r['sum']+$r['moms'],2)."</td><td>$status</td>";
 		print "<td>".$link.findtekst('5179|PBS-historik', $sprog_id)."</a></td></tr>";
 	}
