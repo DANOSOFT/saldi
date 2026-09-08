@@ -27,6 +27,9 @@
 // content was already relocated into includes/opdat_4.3.php (see commit 74634e46); only the
 // genuinely new statements below (not present in opdat_4.3.php) were pulled in from production.
 // 20260717 CL/NTR Guard the API-key insert/update blocks so an existing but
+// 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
+//                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
+//                     be resent in a later batch but never twice in the same batch.
 //                  incomplete .ht_keys.txt can't silently write an empty var_value.
 // 20260728 CL/SZ Moved the Bilagsmatch pool_files.norm_amount/pg_trgm setup here from
 //                  includes/opdat_4.3.php's opdat_to('4.3.0', ...) gate: that gate had
@@ -519,5 +522,26 @@ foreach ($cvr_gamle_tekster as $cvr_tekst) {
 db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast CVR-nr. efterfulgt%'", __FILE__ . " linje " . __LINE__);
 db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Enter the VAT no. followed%'", __FILE__ . " linje " . __LINE__);
 db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast inn org.nr. etterfulgt%'", __FILE__ . " linje " . __LINE__);
+
+// 20260908 CL/Sawaneh SST-763: one pbs_ordrer row per PBS attempt. New columns record who/when,
+// the Nets result registered by the user and which earlier attempt a resend replaces.
+// brugernavn is stored as text too: revisor/superuser logins have bruger_id = -1 (no brugere row).
+$pbs_ordrer_kolonner = array(
+	'oprettet' => 'timestamp', 'bruger_id' => 'integer', 'brugernavn' => 'text', 'gensendt_fra' => 'integer',
+	'resultat' => 'varchar(16)', 'resultat_ref' => 'text', 'resultat_dato' => 'date', 'resultat_bruger_id' => 'integer'
+);
+foreach ($pbs_ordrer_kolonner as $pbs_kolonne => $pbs_type) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pbs_ordrer' AND column_name = '$pbs_kolonne'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE pbs_ordrer ADD COLUMN IF NOT EXISTS $pbs_kolonne $pbs_type", __FILE__ . " linje " . __LINE__);
+	}
+}
+// Legacy pbsfakt() blocked any second row per invoice, so duplicates within a batch should not
+// exist; remove any (keep the oldest) before the unique index so the statement cannot fail.
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pbs_ordrer' AND indexname = 'pbs_ordrer_liste_ordre_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("DELETE FROM pbs_ordrer a USING pbs_ordrer b WHERE a.liste_id = b.liste_id AND a.ordre_id = b.ordre_id AND a.id > b.id", __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE UNIQUE INDEX IF NOT EXISTS pbs_ordrer_liste_ordre_uidx ON pbs_ordrer (liste_id, ordre_id)", __FILE__ . " linje " . __LINE__);
+}
 
 ?>

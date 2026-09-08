@@ -125,6 +125,7 @@
 //             out-of-balance order BEFORE any transaktioner/openpost rows are written (previously the
 //             imbalance was detected after posting, with no rollback for callers outside bogfor).
 //             Also guarded the vatAccount rounding loops against infinite loop on empty SM account list
+// 20260908 CL/Sawaneh SST-763: duplicate pbsfakt() removed; includes/pbsfunc.php is included instead.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -4858,31 +4859,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 }
 
 ######################################################################################################################################
-if (!function_exists('pbsfakt')) {
-	function pbsfakt($id)
-	{
-
-		if ($id && $id > 0) {
-			if ($r = db_fetch_array(db_select("select id from pbs_liste where afsendt = ''", __FILE__ . " linje " . __LINE__)))
-				$liste_id = $r['id'];
-			else {
-				$liste_date = date("Y-m-d");
-				$afsendt = NULL;
-				db_modify("insert into pbs_liste (liste_date,afsendt) values ('$liste_date','$afsendt')", __FILE__ . " linje " . __LINE__);
-				$r = db_fetch_array(db_select("select id from pbs_liste where afsendt = ''", __FILE__ . " linje " . __LINE__));
-				$liste_id = $r['id'];
-			}
-			if (db_fetch_array(db_select("select id from pbs_ordrer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__))) {
-				print "<tr><td>Faktura nr $r[fakturanr] findes allerede i PBS liste</td></tr>";
-			} else {
-				$r = db_fetch_array(db_select("select fakturanr, konto_id from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-				$konto_id = $r['konto_id'];
-				db_modify("insert into pbs_ordrer (liste_id,ordre_id) values ('$liste_id','$id')", __FILE__ . " linje " . __LINE__);
-				print "<tr><td>Faktura nr $r[fakturanr] tilf&oslash;jet til PBS liste</td></tr>";
-			}
-		}
-	}
-}
+include_once(__DIR__ . '/pbsfunc.php'); # pbsfakt() lives there now (SST-763)
 ##################################################
 function pos_afrund($sum, $difkto, $kurs)
 {

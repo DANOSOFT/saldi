@@ -40,6 +40,9 @@
 // 20260321 PHR Reversed above as ktonr does not exist in all accounts
 // 20260601 PHR Removed PBS from CVR nr.
 // 20260711 MJ Two spaces after BS10605 in leverance BS002 header line.
+// 20260908 CL/Sawaneh SST-763: id/slet_ordreid int-cast; deleting an order from the list is limited to
+//                     this batch and refused on sent batches (history is kept); a sent batch shows its
+//                     invoices with attempt status and a resend link (debitor/pbs_gensend.php).
 
 @session_start();
 $s_id=session_id();
@@ -56,8 +59,8 @@ include("../includes/forfaldsdag.php");
 include("../includes/var2str.php");
 
 $afslut=if_isset($_GET['afslut']);
-$id=if_isset($_GET['id']);
-$slet_ordreid=if_isset($_GET['slet_ordreid']);
+$id=intval(if_isset($_GET['id']));
+$slet_ordreid=intval(if_isset($_GET['slet_ordreid']));
 $usdd=date("ymd");
 $dkdd=date("dmy");
 $x=0;
@@ -75,8 +78,6 @@ PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 <head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\">\n";
 PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\" />";
 PRINT "</head>";
-
-if ($slet_ordreid) db_modify("delete from pbs_ordrer where ordre_id='$slet_ordreid'",__FILE__ . " linje " . __LINE__);
 
 print "<table width=\"100%\" border=\"0\"><tbody>";
 ######## TOPLINJE #########
@@ -99,8 +100,14 @@ if (!$id) {
 		$id=$r['id']+1;
 	}
 }
+$afsendt='';
 if ($r=db_fetch_array(db_select("select afsendt from pbs_liste where id = '$id'",__FILE__ . " linje " . __LINE__))) {
 	$afsendt=$r['afsendt'];
+}
+if ($slet_ordreid && !$afsendt) {
+	$qtxt = "delete from pbs_ordrer where ordre_id = '$slet_ordreid' and liste_id = '$id' ";
+	$qtxt.= "and not exists (select 1 from pbs_liste where pbs_liste.id = pbs_ordrer.liste_id and pbs_liste.afsendt = 'on')";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 if (!$afsendt) {
 /*
@@ -231,7 +238,7 @@ if (!$afsendt) {
 		while ($r=db_fetch_array($q)){
 			if ($r['status']<3) { #20180117
 				Print "<b><big>Ordre nr: $r[ordrenr] ikke faktureret - Fjernet fra liste</big></b><br>";
-				$qtxt="delete from pbs_ordrer where ordre_id='$r[ordre_id]'";
+				$qtxt="delete from pbs_ordrer where ordre_id='$r[ordre_id]' and liste_id='$id'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			} else {
 				$x++;
@@ -298,6 +305,7 @@ if (!$afslut) for ($x=1;$x<=$lnr;$x++)	{
 	$tmp2=substr($linje[$x],0,5);
 }
 if ($afslut || $afsendt) print "<tr><td title=\"Klik for at &aring;bne PBS filen. H&oslash;jreklik for at gemme.\" align=center> H&oslash;jreklik <b><a href=\"$filnavn\" target=\"blank\">her</a></b> for at gemme PBS filen</td></tr>";
+if ($afsendt) vis_leverance_ordrer($id);
 
 function opret_nye ($antal_nye,$leverance_id,$dkdd,$cvrnr,$bank_reg,$bank_konto,$pbs_nr,$ny_pbs_aftale,$kontonr) {
 	global $id;
@@ -835,6 +843,47 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 }
 
 print "</tbody></table>";
+
+/**
+ * Invoices of a sent batch with their attempt status and a resend link - the sent
+ * batch itself is never rewritten, a resend adds a new attempt on the open batch.
+ *
+ * @param int $liste_id
+ */
+function vis_leverance_ordrer($liste_id) {
+	global $sprog_id, $popup, $jsvars;
+
+	$liste_id = intval($liste_id);
+	$qtxt = "select pbs_ordrer.id, pbs_ordrer.ordre_id, pbs_ordrer.gensendt_fra, coalesce(pbs_ordrer.resultat, '') as resultat, ";
+	$qtxt.= "pbs_ordrer.resultat_ref, ordrer.fakturanr, ordrer.kontonr, ordrer.firmanavn, ordrer.sum, ordrer.moms ";
+	$qtxt.= "from pbs_ordrer, ordrer where pbs_ordrer.liste_id = '$liste_id' and ordrer.id = pbs_ordrer.ordre_id order by pbs_ordrer.id";
+	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	print "<tr><td><br><b>".findtekst('5190|Fakturaer i leverancen', $sprog_id)."</b></td></tr>";
+	print "<tr><td><table width=\"100%\"><tbody>";
+	print "<tr><td>".findtekst('5180|Fakturanr', $sprog_id)."</td><td>".findtekst('35|Kunde', $sprog_id)."</td>";
+	print "<td align=\"right\">".findtekst('934|Beløb', $sprog_id)."</td><td>".findtekst('494|Status', $sprog_id)."</td><td></td></tr>";
+	while ($r = db_fetch_array($q)) {
+		$ordre_id = intval($r['ordre_id']);
+		$qtxt = "select liste_id from pbs_ordrer where gensendt_fra = '$r[id]' order by id desc limit 1";
+		$gensendt = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if ($r['resultat'] == 'afvist') {
+			$status = findtekst('3011|Afvist', $sprog_id).": ".htmlspecialchars($r['resultat_ref']);
+		} else {
+			$status = findtekst('5183|Afventer svar', $sprog_id);
+		}
+		if ($gensendt) $status .= " - ".findtekst('5170|Gensend til PBS', $sprog_id).": ".findtekst('5181|Leverance', $sprog_id)." $gensendt[liste_id]";
+		if ($popup) {
+			$link = "<a href=\"#\" onClick=\"javascript:pbs_gensend=window.open('pbs_gensend.php?id=$ordre_id','pbs_gensend','".$jsvars."');pbs_gensend.focus();return false;\">";
+		} else {
+			$link = "<a href=\"pbs_gensend.php?id=$ordre_id\">";
+		}
+		print "<tr><td>$r[fakturanr]</td><td>$r[kontonr] ".htmlspecialchars($r['firmanavn'])."</td>";
+		print "<td align=\"right\">".dkdecimal($r['sum']+$r['moms'],2)."</td><td>$status</td>";
+		print "<td>".$link.findtekst('5179|PBS-historik', $sprog_id)."</a></td></tr>";
+	}
+	print "</tbody></table></td></tr>";
+}
+
 function filler($antal,$tegn){
 	$filler=$tegn;
 	while(strlen($filler)<$antal) $filler=$filler.$tegn;
