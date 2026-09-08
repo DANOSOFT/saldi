@@ -21,7 +21,9 @@ To log in by hand while a suite keeps its data (`SALDI_REST_KEEP_TENANT=1`
 for `restapi/`), set the override in the environment for that run:
 
 ```bash
-SALDI_TEST_PASSWORD_RESTAPI=... SALDI_REST_KEEP_TENANT=1 php vendor/bin/phpunit --testsuite restapi
+SALDI_TEST_PASSWORD_RESTAPI=... \
+SALDI_REST_KEEP_TENANT=1 \
+php vendor/bin/phpunit --testsuite restapi
 ```
 
 A suite that seeds an account must remove it again in `tearDownAfterClass()`

@@ -71,9 +71,13 @@ docker compose exec -T -w /var/www/html/saldi web php vendor/bin/phpunit --tests
 Against a plain local Apache + Postgres install instead of docker, point the env at it (credentials come from your gitignored `includes/connect.php`; never put them in a tracked file):
 
 ```bash
-SALDI_REST_BASE_URL=http://localhost/...SALDI_CHAR_PGHOST=localhost \
-SALDI_CHAR_PGUSER=... SALDI_CHAR_PGPASS=... SALDI_CHAR_MASTER_DB=... \
-SALDI_CHAR_TEMPLATE_DB=... php vendor/bin/phpunit --testsuite restapi
+SALDI_REST_BASE_URL=http://localhost/... \
+SALDI_CHAR_PGHOST=localhost \
+SALDI_CHAR_PGUSER=... \
+SALDI_CHAR_PGPASS=... \
+SALDI_CHAR_MASTER_DB=... \
+SALDI_CHAR_TEMPLATE_DB=... \
+php vendor/bin/phpunit --testsuite restapi
 ```
 
 The template tenant must have a fiscal year (`grupper` art `RA`) covering today; a small one clones in about a second.
