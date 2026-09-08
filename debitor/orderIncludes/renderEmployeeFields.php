@@ -9,14 +9,15 @@
  * @param string|null $reference Current Vor ref. value.
  * @param string|null $performedBy Current Udført af value.
  * @param string $referenceLabel Translated Vor ref. label.
+ * @param string $performedByLabel Translated Udført af label.
  * @param bool $disabled Whether the order fields are locked for editing.
  * @return string HTML table row with independent, optional employee selections.
  */
-function renderOrderEmployeeFields($employees, $reference, $performedBy, $referenceLabel, $disabled = false)
+function renderOrderEmployeeFields($employees, $reference, $performedBy, $referenceLabel, $disabled = false, $performedByLabel = 'Udført af')
 {
     $fields = array(
         'ref' => array('label' => $referenceLabel, 'value' => $reference, 'old' => 'oldRef'),
-        'hvem' => array('label' => 'Udført af', 'value' => $performedBy, 'old' => 'oldhvem'),
+        'hvem' => array('label' => $performedByLabel, 'value' => $performedBy, 'old' => 'oldhvem'),
     );
     $html = '<tr>';
     foreach ($fields as $name => $field) {
