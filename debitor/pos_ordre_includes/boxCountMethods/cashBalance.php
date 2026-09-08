@@ -28,6 +28,7 @@
 // 20260211 PHR Updated cashCount 
 // 20260225 PHR Updated cashCount
 // 20260907 CDX/PHR Recalculate stale cash counts before posting and printing.
+// 20260908 CDX/LH Return transaction-time stale approvals to the count before printing.
 
 function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
 	global $baseCurrency,$bruger_id,$brugernavn;
@@ -37,6 +38,7 @@ function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
 	global $tracelog;
 	global $vis_saet;
 
+	$cashCountSignature = $_POST['cashCountSignature'] ?? null;
 	$dd=date("Y-m-d");
 	$tid=date("H:i");
 	if (!$reportNumber) $reportNumber = 0;
@@ -97,14 +99,6 @@ for ($i=0;$i<count($tmparray);$i++) {
 		}
 	} else $printpopup=1;
 
-	if ($godkendt && $optalassist) {
-		include_once(__DIR__ . '/cashCountSnapshot.php');
-		if (!cashCountIsCurrent($kasse, $baseCurrency, isset($_POST['cashCountSignature']) ? $_POST['cashCountSignature'] : null)) {
-			$godkendt = 0;
-			$_POST['calculate'] = 1;
-			print tekstboks('Kasseopgørelsen er opdateret. Kontrollér beløbene og godkend igen.');
-		}
-	}
 	if (!$godkendt && $optalassist) kasseoptalling ($kasse,$optalt,$ore_10,$ore_20,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval);
 	$r=db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$startmd=$r['box1'];
@@ -113,11 +107,12 @@ for ($i=0;$i<count($tmparray);$i++) {
 	($startaar && $startmd)?$regnstart=$startaar."-".$startmd."-01":$regnstart='2000-01-01';
 
 	if ($godkendt) {
-		$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
-		$qtxt.= "values ";
-		$qtxt.= "('13009','". date('U') ."','$kasse','$bruger_id','0','".__file__."','".__line__."')";
-		db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
-		posbogfor($kasse,$regnstart,$reportNumber);
+		if (!posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature, (bool)$optalassist)) {
+			$_POST['calculate'] = 1;
+			print tekstboks('Kasseopgørelsen er opdateret. Kontrollér beløbene og godkend igen.');
+			kasseoptalling($kasse,$optalt,$ore_10,$ore_20,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval);
+			return;
+		}
 	}
 	$optval=if_isset($_POST['optval']);
 	$valuta=if_isset($_POST['valuta'],array());
@@ -137,9 +132,9 @@ for ($i=0;$i<count($tmparray);$i++) {
 	$log=fopen("$logfil","a");
     setPrintHeaderTxt($FromCharset, $ToCharset, $fp, $dd, $tid, $kasse, $brugernavn);
 	if ($optalassist) {
-        setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval, $change_cardvalue,$reportNumber);
+		setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval, $change_cardvalue,$reportNumber,$kasse,$ore_10,$ore_20);
 	} else {
-	 	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
+		include_once(__DIR__ . '/findBoxSale.php');
 		$svar=findBoxSale($kasse,$optalt,'DKK');
 		$byttepenge=$svar[0];
 		$tilgang=$svar[1];

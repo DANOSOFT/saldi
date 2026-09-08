@@ -31,6 +31,7 @@
 //                 so orders without pos_betalinger rows (art='DO') are included in cash balance calculation
 // 20260523 CL/PHR Fixed negative tilgang: skip retur calculation when pos_betalinger has no rows (NULL amount)
 // 20260907 CDX/PHR Expose included orders for cash report assignment.
+// 20260908 CDX/LH Limit immediate-posting report assignments to counted accounts; keep calculation read-only.
 function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	$reportOrderIds = array();
 	echo "<!-- function findBoxSale begin -->"; 
@@ -38,6 +39,8 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	global $sprog_id,$straksbogfor;
 	global $vis_saet;
 	$retur=0;
+	$kontosum = $accountPayment = 0;
+	$vatRates = $vatAmounts = '';
 	$dd=date("Y-m-d");
 	$r=db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$startmd=$r['box1'];
@@ -169,7 +172,6 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	} else {
 		$tilgang=0;
 		$oid=0;
-		db_modify("update ordrer set felt_3='' where felt_3 is NULL and status='3'",__FILE__ . " linje " . __LINE__);
 		$b = $v = 0;
 		$oid=$osum=$oVat=array();
 #		$kontosalg='';
@@ -283,7 +285,16 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 		$reportCurrency = db_escape_string($valuta);
 		$qtxt = "select distinct o.id from ordrer o join transaktioner t on t.ordre_id = o.id ";
 		$qtxt.= "where o.felt_5 = '$reportRegister' and o.status >= 3 and o.valuta = '$reportCurrency' ";
-		$qtxt.= "and t.transdate = '$dd'";
+		// Match the cash and card predicates used by the totals above, including
+		// the fiscal-year bound on cash and the absence of cards for foreign currency.
+		$cashAccount = (int)$kassekonti[$k];
+		$reportStart = db_escape_string($regnstart);
+		$accountPredicate = "(t.kontonr = '$cashAccount' and t.transdate >= '$reportStart')";
+		$cardAccounts = array_filter(array_map('intval', array_slice($kortkonto, 0, $kortantal)));
+		if ($cardAccounts) {
+			$accountPredicate .= ' or t.kontonr in (' . implode(',', array_unique($cardAccounts)) . ')';
+		}
+		$qtxt.= "and t.transdate = '$dd' and ($accountPredicate)";
 		$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$reportOrderIds[] = (int)$r['id'];

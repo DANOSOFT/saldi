@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/showMysale.php --- lap 5.0.0 --- 2026-08-11 ---
+// --- mysale/showMysale.php --- lap 5.0.0 --- 2026-08-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20230325 PHR added memberShip to query and corrected an sols and for sale buttons in mobileView. 
 // 16712/2024 PBLM added functionality to despina
 // 20260811 PHR Removed the routine that reversed the commission if it was less than 50%.
+// 20260827 PHR Fixed 'dvision by zero' error
 //
 if ($from) $from = usdate($from);
 if ($to) $to = usdate($to);
@@ -295,12 +296,12 @@ while ($r = db_fetch_array($q)) {
 	else {
 		$vareid[$x] = $r['id'];
 	}
-	$pris[$x] = $r['pris'];
+	$pris[$x] = (float)$r['pris'];
 	if ($db == 'pos_118') $pris[$x] = $r['vat_price'];
 	$beskrivelse[$x] = $r['beskrivelse'];
 	$kostpris[$x] = (float)$r['kostpris'];
 	#if (!$kostpris[$x]) $kostpris[$x] = $pris[$x] * 0.85;
-	($pris[$x]) ? $provision[$x] = $kostpris[$x] * 100 / $pris[$x] : $provision[$x] = 0;
+	($pris[$x] != 0) ? $provision[$x] = $kostpris[$x] * 100 / $pris[$x] : $provision[$x] = 0;
 /* 20260811
 	if ($provision[$x] < 50) {
 		$provision[$x] = 100 - $provision[$x];

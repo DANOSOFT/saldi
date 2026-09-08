@@ -2,6 +2,7 @@
 // --- tests/test_cash_count_snapshot.php --- patch 5.0.1 --- 2026.09.07 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20260908 CDX/LH Verify that transaction-time rejection returns to recalculation.
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php');
 
 function checkCashCount($condition, $message) {
@@ -41,7 +42,12 @@ function db_fetch_array($query) {
 	return array('box1' => 0, 'box2' => 'on', 'box3' => "localhost\tlocalhost", 'box6' => 0, 'box12' => '', 'var_value' => '');
 }
 function db_modify($sql, $location) { throw new RuntimeException('Unexpected database write'); }
-function posbogfor($register, $start, $report) { throw new RuntimeException('Unexpected posting'); }
+function posbogfor($register, $start, $report, $signature, $requireSignature) {
+	if ($signature !== null || !$requireSignature) {
+		throw new RuntimeException('Approval must forward the submitted signature and require validation');
+	}
+	return false;
+}
 function tekstboks($text) { return $text; }
 class CashCountRecalculated extends RuntimeException {}
 function kasseoptalling(...$args) { throw new CashCountRecalculated(); }

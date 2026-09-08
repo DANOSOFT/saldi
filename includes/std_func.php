@@ -75,11 +75,15 @@
 //                 deleted account's number is never reused; kontonr above 8 digits (EAN-like
 //                 outliers) are ignored when finding the highest, and if the 8-digit range is
 //                 capped by an outlier the first number free in both series is used (SST-753)
+// 20260827 LOE Checked for $r in the function sync_shop_vare, sync_shop_price before using it to avoid undefined variable notice. My comment of '#20211013 removed as associated comments have been earlier deleted
+// 20260908 CL/NTR Added is_input_too_long(): character-count (mb_strlen) limit check shared by every
+//                  place that creates or renames a username (80) or account name (60), matching login.php
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
+include(__DIR__ . '/stdFunc/dkAmountValid.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
@@ -1743,13 +1747,15 @@ if(!function_exists("sync_shop_price")){
 	  $costPrice = 0;
 	  $shop_id = $rand = ''; # never assigned in this function, kept empty as in the original url
 	  $failed = 0;
+	  $api_fil =$api_fil2=$api_fil3= NULL;
 	  $log = fopen("../temp/$db/rest_api.log", "a");
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	  $api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
-	  $api_fil2 = trim($r["box5"]);
-	  $api_fil3 = trim($r["box6"]);
+	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$api_fil = trim($r['box4']);
+		$api_fil2 = trim($r["box5"]);
+		$api_fil3 = trim($r["box6"]);
+	  }
 	  if (!$api_fil) {
 		fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 		fclose($log);
@@ -1798,13 +1804,15 @@ if (!function_exists('sync_shop_vare')) {
 		global $bruger_id,$db,$regnaar;
 		$costPrice = 0;
 		$failed = 0;
+		$api_fil =$api_fil2=$api_fil3= NULL;
 		$log = fopen("../temp/$db/rest_api.log", "a");
 		$qtxt = "select box4, box5, box6 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
-		$api_fil2 = trim($r["box5"]);
-		$api_fil3 = trim($r["box6"]);
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$api_fil = trim($r['box4']);
+			$api_fil2 = trim($r["box5"]);
+			$api_fil3 = trim($r["box6"]);
+		}
 		
 		if (!$api_fil) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
@@ -2818,7 +2826,7 @@ if(!function_exists('check_and_sanitize_input')){
 		 */
 
 		if (isset($_POST[$input_name])) { 
-			if (strlen($_POST[$input_name]) > 80) { 
+			if (mb_strlen($_POST[$input_name], 'UTF-8') > 80) { 
 				
 				$sanitized_message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
 				
@@ -2832,6 +2840,29 @@ if(!function_exists('check_and_sanitize_input')){
 		}
 		
 		return null;
+	}
+}
+
+if (!function_exists('is_input_too_long')) {
+	/**
+	 * Check whether a form value is longer than the allowed number of characters.
+	 *
+	 * Length is counted in characters (mb_strlen), not bytes, so æøå count as one position each,
+	 * which is also how Postgres measures varchar(n).
+	 *
+	 * Used wherever a username or account name is inserted or updated: the login form
+	 * (index/login.php, sanitize_input) rejects usernames longer than 80 characters and account
+	 * names longer than 60 (varchar(60) on regnskab.regnskab), so a login created or renamed
+	 * beyond those limits could never be used.
+	 *
+	 * @param string|null $input          The value as entered, trimmed but before db_escape_string().
+	 * @param int         $allowed_length Maximum length in characters. Default 80 (username);
+	 *                                    pass 60 for an account name (regnskab).
+	 *
+	 * @return bool True if $input is longer than $allowed_length.
+	 */
+	function is_input_too_long($input, $allowed_length = 80) {
+		return mb_strlen((string)$input, 'UTF-8') > $allowed_length;
 	}
 }
 

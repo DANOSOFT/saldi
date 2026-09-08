@@ -108,6 +108,8 @@
 // 20260804 SZ Also terminate on the webservice "Session expired" include return,
 //             instead of relying only on $db != $sqdb (SD-615)
 // 20260818 CL/LH Corrected Stripe table boolean default definitions
+// 20260908 CL/NTR Reject account names over 60 and usernames over 80 characters (is_input_too_long)
+//                  before creating the account, matching login.php and varchar(60) on regnskab.regnskab
 
 @session_start();
 $s_id=session_id();
@@ -167,6 +169,16 @@ if ($_POST){
 	(isset($_POST['posteringer']))?$posteringer=(int)$_POST['posteringer']:$posteringer=0;
 	(isset($_POST['brugerantal']))?$brugerantal=(int)$_POST['brugerantal']:$brugerantal=0;
 	(isset($_POST['std_kto_plan']))?$std_kto_plan=$_POST['std_kto_plan']:$std_kto_plan=NULL;
+	if (is_input_too_long(trim($_POST['regnskab']), 60)) {
+		print "<BODY onLoad=\"javascript:alert('".findtekst('5150|Regnskabsnavnet må højst være 60 tegn', $sprog_id)."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
+	}
+	if (is_input_too_long(trim($_POST['brugernavn']))) {
+		print "<BODY onLoad=\"javascript:alert('".findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id)."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
+	}
 	if ((($revisorregnskab && $passwd) || !$revisorregnskab)  && $passwd!=$passwd2 ) {
 		print "<BODY onLoad=\"javascript:alert('Adgangskoder er ikke ens')\">";
 		forside($regnskab,$brugernavn);
@@ -236,8 +248,8 @@ function forside($regnskab,$brugernavn) {
 	global $sprog_id;
 
 	print "<form name=debitorkort action=opret.php method=post>";
-	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=regnskab value='$regnskab'></td></tr>";
-	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=brugernavn value='$brugernavn'></td></tr>";
+	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=60 name=regnskab value='$regnskab'></td></tr>";
+	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=80 name=brugernavn value='$brugernavn'></td></tr>";
 	print "<tr><td>".findtekst('2687|Administrators adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd></td></tr>";
 	print "<tr><td>".findtekst('2688|Gentag adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd2></td></tr>";
 	print "<tr><td>".findtekst('2689|Opret standardkontoplan', $sprog_id)."</td><td><br></td><td><input type=checkbox name=std_kto_plan checked></td></tr>";

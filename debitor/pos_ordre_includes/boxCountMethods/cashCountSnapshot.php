@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260907 CDX/PHR Detect changed sales before approving a cash count.
+// 20260908 CDX/LH Validate approval in the same transaction snapshot used for posting.
 
 /**
  * Fingerprint calculated balances, independently of the amounts counted by the cashier.
@@ -46,4 +47,31 @@ function cashCountIsCurrent($register, $baseCurrency, $signature) {
 		$sales[$currency] = findBoxSale((int)$register, 0, db_escape_string($currency));
 	}
 	return hash_equals(cashCountSignature($sales), $signature);
+}
+
+/**
+ * Open the posting transaction and validate before any posting reads or writes.
+ * The caller must commit the transaction on success; stale approvals roll back here.
+ *
+ * @param int $register Cash register number.
+ * @param string $baseCurrency Base currency code.
+ * @param string|null $signature Submitted signature, required when counting is assisted.
+ * @param string $dbType Configured database backend.
+ * @param bool $requireSignature Whether the count assistant is enabled.
+ * @return bool Whether posting may proceed in the open transaction.
+ */
+function beginCashCountPosting($register, $baseCurrency, $signature, $dbType, $requireSignature) {
+	$isMysql = $dbType === 'mysql' || $dbType === 'mysqli';
+	if ($isMysql) {
+		db_modify('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ', __FILE__ . ' line ' . __LINE__);
+	}
+	transaktion('begin');
+	if (!$isMysql) {
+		db_modify('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ', __FILE__ . ' line ' . __LINE__);
+	}
+	if ($requireSignature && !cashCountIsCurrent($register, $baseCurrency, $signature)) {
+		transaktion('rollback');
+		return false;
+	}
+	return true;
 }
