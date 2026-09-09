@@ -61,6 +61,7 @@
 // 20260320 PHR cleanup (pdftk)
 // 20260402 PHR Bypass style if title = 'Bordplan'
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
+// 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
 // 20260904 Sawaneh WP-1.3: nav_push popup arg now uses the popup=1 request flag, not the user preference
 
 #include("../includes/connect.php"); #20211001
@@ -310,7 +311,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$textcolor = "#000077";
 		$textcolor2 = "#009900";
 		$textcolor3 = "#6666aa"; # Svagere tekst til det som er mindre vigtigt
-		if (!isset($bgcolor))  $bgcolor = "#eeeef0"; #alm baggrund
+		if (!isset($bgcolor) || $bgcolor === '') $bgcolor = "#eeeef0"; #alm baggrund
 		if (!isset($bgcolor2)) $bgcolor2 = "#BEBCCE"; #top & bundlinjer
 		if (!isset($bgcolor3)) $bgcolor3 = "#cccccc";
 		if (!isset($bgcolor4)) $bgcolor4 = "#d0d0f0";
@@ -500,7 +501,7 @@ if ($header != 'nix') {
 	}
 */
 if ($bg != 'nix') {
-	if (!$bgcolor) $bgcolor = "#000000";
+	if (empty($bgcolor)) $bgcolor = "#eeeef0";
 	print "<body bgcolor=\"$bgcolor\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\">\n";
 }
 
