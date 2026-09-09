@@ -28,6 +28,13 @@
 // 20251002 MS Removed "Width=80%" and added padding to allow the Print/Email buttons to have the intended size, while still centering the text
 // 20260423 PHR Corrected call to text number for text
 // 20260429 PHR Removed 'unalign' from Openpost / AllAcount
+// 20260824 CL/SZ Restore caller's dato_fra/dato_til (not just konto_fra/til)
+//                when the saved KRV/DRV filter overwrites them - detail view
+//                was silently running against a stale date range (SST-672)
+// 20260907 CL/LH MB-15: port the accountChart fix from PR #480 (landed in the dead
+//                top-level reportFunc/ copy) - exact kontonr match first, second
+//                firmanavn query line appended instead of overwriting, and
+//                konto_fra/kontoart escaped before SQL interpolation
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -83,6 +90,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	else $returnpath="../debitor/";
 
 	$tmp=$konto_fra;
+	$tmpDatoFra=$dato_fra;
+	$tmpDatoTil=$dato_til;
 	($kontoart=='D')?$tekst='DRV':$tekst='KRV';
 	$qtxt = "select * from grupper where art = '$tekst' and kodenr = '$bruger_id'";
 	if(isset($_GET['returside'])) $returside= $_GET['returside'];
@@ -105,6 +114,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 		$returside="rapport.php?rapportart=$rapportart"; //&submit=ok&regnaar=$regnaar&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 		$konto_fra=$tmp;
 		$konto_til=$konto_fra;
+		$dato_fra=$tmpDatoFra;
+		$dato_til=$tmpDatoTil;
 	} elseif (!$returside) $returside="rapport.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 
 	if ($dato_fra && $dato_til) {
@@ -116,9 +127,10 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	$kontonr=array();
 	$kto_id=array();
 	$x=0;
+	$kontoartSql=db_escape_string($kontoart);
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) { #changed 20210816
 #		$qtxt = "select id from adresser where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art = '$kontoart' order by ".nr_cast('kontonr')."";
-		$qtxt = "select id,kontonr from adresser where art = '$kontoart' order by kontonr";
+		$qtxt = "select id,kontonr from adresser where art = '$kontoartSql' order by kontonr";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($konto_fra <= $r['kontonr'] && $konto_til >= $r['kontonr']) {
@@ -127,17 +139,33 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 			}
 		}
 	} else {
-		if ($konto_fra && $konto_fra!='*') {
-			$konto_fra=str_replace("*","%",$konto_fra);
-			$tmp1=strtolower($konto_fra);
-			$tmp2=strtoupper($konto_fra);
-			$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
-			$qtxt = "upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
-		}	else $qtxt = "select id from adresser where art = '$kontoart' order by firmanavn";
+		# 20260907 MB-15: alphanumeric kontonr (e.g. from the open-posts report) ended in the
+		# firmanavn search below and found nothing - try an exact kontonr match first.
+		if ($konto_fra && $konto_fra==$konto_til && strpos($konto_fra,'*')===false) {
+			$tmp=db_escape_string($konto_fra);
+			$qtxt = "select id from adresser where kontonr = '$tmp' and art = '$kontoartSql'";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$x++;
-			$konto_id[$x]=$r['id'];
+			while ($r = db_fetch_array($q)) {
+				$x++;
+				$konto_id[$x]=$r['id'];
+			}
+		}
+		if (!$x) {
+			if ($konto_fra && $konto_fra!='*') {
+				$konto_fra=str_replace("*","%",$konto_fra);
+				$tmp1=db_escape_string(strtolower($konto_fra));
+				$tmp2=db_escape_string(strtoupper($konto_fra));
+				$konto_fra=db_escape_string($konto_fra);
+				$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
+				$qtxt.= "upper(firmanavn) like '$tmp2') and art = '$kontoartSql' order by firmanavn";
+			} else {
+				$qtxt = "select id from adresser where art = '$kontoartSql' order by firmanavn";
+			}
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$x++;
+				$konto_id[$x]=$r['id'];
+			}
 		}
 	}
 	$kontoantal=$x;

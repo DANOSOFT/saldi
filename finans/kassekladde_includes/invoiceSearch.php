@@ -1,4 +1,5 @@
 <?php
+// 20260908 CDX/LH Require an exact customer/supplier filter for automatic settlement.
 
 ob_start();
 
@@ -12,17 +13,19 @@ $webservice = true;
 
 chdir(dirname(__FILE__) . '/..');
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php"); 
+include(__DIR__ . "/../../includes/connect.php");
+include(__DIR__ . "/../../includes/online.php");
+include(__DIR__ . "/../../includes/std_func.php");
+
+include_once(__DIR__ . '/autoSettlement.php');
 
 ob_end_clean();
 
 header('Content-Type: application/json; charset=utf-8');
 
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-$accountNr = isset($_GET['account']) ? trim($_GET['account']) : '';
-$accountType = isset($_GET['accountType']) ? trim($_GET['accountType']) : ''; // D or K
+$accountNr = is_string($_GET['account'] ?? null) ? trim($_GET['account']) : '';
+$accountType = is_string($_GET['accountType'] ?? null) ? trim($_GET['accountType']) : ''; // D or K
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $limit = 50; 
 $offset = ($page - 1) * $limit;
@@ -42,32 +45,42 @@ $results = array();
 $totalCount = 0;
 
 $search_escaped = db_escape_string($search);
-$accountNr_escaped = db_escape_string($accountNr);
 // Sanitize accountType - only allow 'D' or 'K'
-$accountType = strtoupper(substr($accountType, 0, 1));
+$accountType = strtoupper($accountType);
 if ($accountType !== 'D' && $accountType !== 'K') {
     $accountType = '';
 }
 
 $baseWhere = "(openpost.udlignet != '1' OR openpost.udlignet IS NULL)";
 
-if ($accountNr !== '' && $accountType !== '') {
-    $baseWhere .= " AND openpost.konto_nr = '$accountNr_escaped'";
-    $ktoQuery = db_select("SELECT id FROM adresser WHERE kontonr = '$accountNr_escaped' AND art = '$accountType'", __FILE__ . " line " . __LINE__);
-    if ($ktoRow = db_fetch_array($ktoQuery)) {
-        $konto_id = $ktoRow['id'];
-        $baseWhere .= " AND openpost.konto_id = '$konto_id'";
-    }
+if ($mode === 'open_post' || $accountNr !== '') {
+    $baseWhere .= ' AND (' . autoSettlementAccountWhere($accountNr, $accountType) . ')';
+}
+
+if ($mode === 'open_post') {
+    $baseWhere .= " AND TRIM(COALESCE(openpost.faktnr, '')) != ''";
 }
 
 // Add search filter
 if ($search !== '') {
-    $baseWhere .= " AND (
-        CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%' 
-        OR adresser.firmanavn ILIKE '%$search_escaped%'
-        OR CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'
-        OR openpost.beskrivelse ILIKE '%$search_escaped%'
-    )";
+    $searchConds = array(
+        "CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%'",
+        "adresser.firmanavn ILIKE '%$search_escaped%'",
+        "CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'",
+        "openpost.beskrivelse ILIKE '%$search_escaped%'"
+    );
+    $amountSearch = str_replace(' ', '', $search);
+    if (strpos($amountSearch, ',') !== false) {
+        // Danish format: "2.985,00" -> "2985.00"
+        $amountSearch = str_replace('.', '', $amountSearch);
+        $amountSearch = str_replace(',', '.', $amountSearch);
+    }
+    if (preg_match('/^-?\d+(\.\d+)?$/', $amountSearch)) {
+        // Prefix match on the absolute amount, so "985" does not hit "2985,00"
+        $amountSearch_escaped = db_escape_string(ltrim($amountSearch, '-'));
+        $searchConds[] = "CAST(ABS(openpost.amount) AS TEXT) LIKE '$amountSearch_escaped%'";
+    }
+    $baseWhere .= " AND (" . implode(" OR ", $searchConds) . ")";
 }
 
 $countQuery = db_select("
@@ -119,7 +132,7 @@ if ($mode === 'open_post') {
         $score = 0;
         
         // 1. Amount match
-        $amountMatch = ($currentAmountFloat !== null) && (abs(abs($rowAmount) - abs($currentAmountFloat)) < 0.001);
+        $amountMatch = autoSettlementAmountMatches($rowAmount, $currentAmountFloat);
         if ($amountMatch) $score += 40;
         
         // 2. Company name words in description words
@@ -134,15 +147,28 @@ if ($mode === 'open_post') {
             if ($matchCount > 0) $score += 30 + ($matchCount * 5);
         }
         
-        // 3. Invoice number contains any hint token
+        // 3. Invoice number contains any hint token or description word (mirrors client scoring)
         $faktnr = trim($row['faktnr']);
-        if ($faktnr && !empty($hintTokens)) {
+        if ($faktnr && (!empty($hintTokens) || !empty($descWords))) {
             $faktnrUpper = strtoupper($faktnr);
+            $invoiceHit = false;
             foreach ($hintTokens as $tok) {
-                if (strpos($faktnrUpper, $tok) !== false) {
-                    $score += 20;
+                if (strpos($faktnrUpper, (string)$tok) !== false) {
+                    $invoiceHit = true;
                     break;
                 }
+            }
+            if (!$invoiceHit) {
+                foreach ($descWords as $dw) {
+                    $dw = strtoupper((string)$dw);
+                    if (strlen($dw) >= 3 && strpos($faktnrUpper, $dw) !== false) {
+                        $invoiceHit = true;
+                        break;
+                    }
+                }
+            }
+            if ($invoiceHit) {
+                $score += 20;
             }
         }
         
@@ -180,6 +206,7 @@ if ($mode === 'open_post') {
         return strcmp($a['faktnr'], $b['faktnr']);
     });
     
+    $autoSelectId = autoSettlementBestCandidateId($allRows);
     $totalCount = count($allRows);
     $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
     $limit = 50;
@@ -191,6 +218,7 @@ if ($mode === 'open_post') {
     
     $response = [
         'results' => $pageResults,
+        'autoSelectId' => $autoSelectId,
         'pagination' => [
             'page' => $page,
             'limit' => $limit,

@@ -79,3 +79,37 @@ if (!function_exists('normalizePoolAmount')) {
 		return round($value, 3);
 	}
 }
+
+if (!function_exists('normalizePoolCurrency')) {
+	/**
+	 * Maps a free-form currency string (as extracted from an invoice PDF/image, or typed
+	 * by a user) to an ISO 4217 code. fetchbilagsmatch.php's currency hard gate compares
+	 * pf.currency to the journal line's currency with a plain UPPER(TRIM(...)) - that
+	 * catches whitespace/case but not aliases like "kr" or "kr." for DKK, so an invoice
+	 * extracted with a non-ISO currency string would silently never match anything,
+	 * regardless of how well amount/date/text otherwise line up.
+	 *
+	 * @param string|null $raw
+	 * @return string|null Null when $raw is empty. Falls back to the trimmed/uppercased
+	 *   input unchanged when it isn't a recognized alias (better than discarding it).
+	 */
+	function normalizePoolCurrency($raw) {
+		if ($raw === null) return null;
+		$raw = trim((string) $raw);
+		if ($raw === '') return null;
+
+		$symbolAliases = ['€' => 'EUR', '$' => 'USD', '£' => 'GBP'];
+		if (isset($symbolAliases[$raw])) return $symbolAliases[$raw];
+
+		$upper = rtrim(strtoupper($raw), '.');
+		$wordAliases = [
+			'KR' => 'DKK', 'DKR' => 'DKK', 'KRONER' => 'DKK', 'DANSKE KRONER' => 'DKK',
+			'EURO' => 'EUR',
+			'DOLLAR' => 'USD', 'DOLLARS' => 'USD',
+			'PUND' => 'GBP',
+			'NKR' => 'NOK', 'NORSKE KRONER' => 'NOK',
+			'SKR' => 'SEK', 'SVENSKE KRONER' => 'SEK',
+		];
+		return $wordAliases[$upper] ?? $upper;
+	}
+}

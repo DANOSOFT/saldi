@@ -28,6 +28,7 @@
 // 20230530 PHR Employee no is now shown.
 // 20230803 LOE Initialized some varibles and made some modifications
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
+// 20260820 Sawaneh Added IBAN and SWIFT fields (included on e-invoices when filled in)
 
 @session_start();
 $s_id=session_id();
@@ -61,6 +62,7 @@ if ($menu=='T') {  # 20150331 start
 
 if (!isset ($notes)) $notes = NULL;
 $id=$email=$firmanavn=$addr1=$addr2=$postnr=$bynavn=$bank_navn=$kontakt=$cvrnr=$tlf=$mobile=$pbs_nr=$fi_nr=$bank_reg=$bank_konto=$countryConfig=NULL;
+$swift=$iban='';
 if ($_POST) {
     $country = isset($_POST['landeconfig']) ?  $_POST['landeconfig'] : getCountry();
     $id=$_POST['id'];
@@ -81,6 +83,8 @@ if ($_POST) {
 	$bank_navn=addslashes(trim($_POST['bank_navn']));
 	$bank_reg=addslashes(trim($_POST['bank_reg']));
 	$bank_konto=addslashes(trim($_POST['bank_konto']));
+	$swift=substr(trim(if_isset($_POST,'','swift')),0,15);
+	$iban=substr(trim(if_isset($_POST,'','iban')),0,40);
 	$email=addslashes(trim($_POST['email']));
 	$ny_email=addslashes(trim($_POST['ny_email']));
 	$mailfakt=addslashes(trim(if_isset($_POST['mailfakt'])));
@@ -91,9 +95,10 @@ if ($_POST) {
 	$fi_nr=trim($_POST['fi_nr']);
 	if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
 	if ($id==0) {
-		$qtxt = "insert into adresser"; $qtxt.="(kontonr,firmanavn,addr1,addr2,postnr,bynavn, land,tlf,mobile,cvrnr,art,bank_navn,bank_reg,bank_konto,";
+		$qtxt = "insert into adresser"; $qtxt.="(kontonr,firmanavn,addr1,addr2,postnr,bynavn, land,tlf,mobile,cvrnr,art,bank_navn,bank_reg,bank_konto,swift,iban,";
 		$qtxt.= "email,mailfakt,pbs_nr,pbs,bank_fi,gruppe,kontakt)";
 		$qtxt.= "values"; $qtxt.="('$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',"; $qtxt.="'$country','$tlf','$mobile','$cvrnr','S','$bank_navn','$bank_reg','$bank_konto',";
+		$qtxt.= "'". db_escape_string($swift) ."','". db_escape_string($iban) ."',";
 		$qtxt.= "'$ny_email','$mailfakt','$pbs_nr','$pbs','$fi_nr','$gruppe','$kontakt')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt = "select id from adresser where art = 'S'";
@@ -106,6 +111,7 @@ if ($_POST) {
 		$qtxt.= "bynavn = '". db_escape_string($bynavn) ."',tlf = '". db_escape_string($tlf) ."',mobile = '". db_escape_string($mobile) ."',";
 		$qtxt.= "cvrnr = '". db_escape_string($cvrnr) ."',bank_navn='". db_escape_string($bank_navn) ."',";
 		$qtxt.= "bank_reg='". db_escape_string($bank_reg) ."',bank_konto='". db_escape_string($bank_konto) ."',";
+		$qtxt.= "swift='". db_escape_string($swift) ."',iban='". db_escape_string($iban) ."',";
 		$qtxt.= "email='". db_escape_string($ny_email) ."',mailfakt='". db_escape_string($mailfakt) ."',";
 		$qtxt.= "notes = '". db_escape_string($notes) ."',pbs_nr='". db_escape_string($pbs_nr) ."',pbs='". db_escape_string($pbs) ."',";
 		$qtxt.= "bank_fi='". db_escape_string($fi_nr) ."',gruppe='$gruppe',kontakt='". db_escape_string($kontakt) ."'";
@@ -147,6 +153,8 @@ if ($r != false) {
 	$bank_navn     = $r['bank_navn'];
 	$bank_reg      = $r['bank_reg'];
 	$bank_konto    = $r['bank_konto'];
+	$swift         = htmlspecialchars(trim($r['swift'] ?? ''), ENT_QUOTES);
+	$iban          = htmlspecialchars(trim($r['iban'] ?? ''), ENT_QUOTES);
 	$email         = $r['email'];
 	($r['mailfakt']) ? $mailfakt = 'checked' : $mailfakt = '';
 	$pbs_nr = $r['pbs_nr']; 
@@ -215,6 +223,9 @@ print "</td></tr>";
 print "<tr><td>FI ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fi_nr\" value=\"$fi_nr\"></td></tr>";
 print "<td>Reg./".findtekst('592|Konto', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:50;' name=\"bank_reg\" value=\"$bank_reg\">";
 print "<input class=\"inputbox\" type=\"text\" style='width:100;' name=\"bank_konto\" value=\"$bank_konto\"></td></tr>";
+$tekst=findtekst('3367|Medtages på eFaktura når udfyldt', $sprog_id);
+print "<tr><td title=\"$tekst\">IBAN</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' maxlength=\"40\" name=\"iban\" value=\"$iban\" title=\"$tekst\"></td></tr>";
+print "<tr><td title=\"$tekst\">".findtekst('2228|SWIFT nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' maxlength=\"15\" name=\"swift\" value=\"$swift\" title=\"$tekst\"></td></tr>";
 
 checkUserAndSetCountryConfig($countryConfig, $superUserPermission);
 

@@ -24,6 +24,8 @@ $s_id=session_id();
 // Copyright (c) 2004-2012 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
+// 2026.08.28 CL MB-22: valideringsfejl-mailadresse rettet fra oio@saldi.dk til Support@danosoft.dk
+
 $css="../css/standard.css";
 
 #$form=array();
@@ -89,7 +91,7 @@ print "<a href=\"http://xmltools.oio.dk/oioonlinevalidator/index.aspx\" title=\"
 print "<p>Validatoren kr&aelig;ver, at hele indholdet af OIOXML-filen kopieres ind i tekstfeltet. S&aring; &aring;bn filen i en teksteditor, \n";
 print "mark&eacute;r det hele med CTRL-A, kopi&eacute;r med CTRL-C og inds&aelig;t det i tekstfeltet med CTRL-V.</p>\n\n";
 print "<p>Hvis OIOXML-filen ikke validerer s&aring; send filen vedlagt en e-mail til \n";
-print "<a href=\"mailto:oio@saldi.dk\">oio@saldi.dk</a>, s&aring; vi kan finde &aring;rsagen. P&aring; forh&aring;nd tak.</p>\n\n";  
+print "<a href=\"mailto:Support@danosoft.dk\">Support@danosoft.dk</a>, s&aring; vi kan finde &aring;rsagen. P&aring; forh&aring;nd tak.</p>\n\n";  
 
 # Kommenteringern af disse linjer skal slettes, naar bidragssiden er paa plads - slet ogsaa slut linjen \n"; 
 /*

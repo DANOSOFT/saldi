@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20260501 PHR removed K (creditors) from address lookup
+// 20260827 CDX/PHR Restored supplier lookup when o_art is KO.
 
 
 header('Content-Type: application/json');
@@ -60,6 +61,7 @@ try {
     ];
 
     $isClear = $requestParams['clear'] === '1';
+    $addressArt = $requestParams['o_art'] === 'KO' ? 'K' : 'D';
 
     if ($isClear) {
             //  reset saved search in DB
@@ -135,7 +137,7 @@ try {
 
     // Handle search parameters
     $searchParams = $requestParams['search'];
-    $whereClauses = ["art='D'", "lukket != 'on'"];
+    $whereClauses = ["art='$addressArt'", "lukket != 'on'"];
 
     foreach ($validColumns as $col) {
         if (!empty($searchParams[$col])) {

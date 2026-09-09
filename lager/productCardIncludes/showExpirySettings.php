@@ -24,23 +24,27 @@
 // ----------------------------------------------------------------------
 // Expiry date settings section on item card.
 // Shows toggle for has_due_date and input for default_shelf_life_days.
+// 20260902 Sawaneh Section is now its own box on the item card like the other
+//                  sections (own td with id pcSecExpiry in varekort.php, used
+//                  by the field-visibility panel), so the old hr separator
+//                  inside the 'Diverse' box is gone. Label/field colspans
+//                  aligned with the other sections (2/4).
 global $has_due_date, $default_shelf_life_days;
 
 $has_due_date_checked = ($has_due_date == 'on') ? 'checked' : '';
 $shelf_life_display = ($has_due_date == 'on') ? '' : 'display:none;';
 $shelf_life_val = ($default_shelf_life_days !== null && $default_shelf_life_days !== '') ? intval($default_shelf_life_days) : '';
 
-print "<tr><td colspan='2'><hr></td></tr>\n";
 print "<tr><td colspan='2'><b>".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."</b></td></tr>\n";
 
-print "<tr><td>".findtekst('5002|Varen har udl&oslash;bsdato', $sprog_id)."</td>\n";
-print "<td><input type='checkbox' name='has_due_date' $has_due_date_checked ";
+print "<tr><td colspan='2'>".findtekst('5002|Varen har udl&oslash;bsdato', $sprog_id)."</td>\n";
+print "<td colspan='4'><input type='checkbox' name='has_due_date' $has_due_date_checked ";
 print "onchange=\"javascript:docChange=true; document.getElementById('shelf_life_row').style.display = this.checked ? '' : 'none';\">";
 print "</td></tr>\n";
 
 print "<tr id='shelf_life_row' style='$shelf_life_display'>\n";
-print "<td>".findtekst('5003|Standard holdbarhed (dage)', $sprog_id)."</td>\n";
-print "<td><input class='inputbox' type='number' min='1' style='width:80px;text-align:right;' ";
+print "<td colspan='2'>".findtekst('5003|Standard holdbarhed (dage)', $sprog_id)."</td>\n";
+print "<td colspan='4'><input class='inputbox' type='number' min='1' style='width:80px;text-align:right;' ";
 print "name='default_shelf_life_days' value='$shelf_life_val' onchange='javascript:docChange=true;'>";
 print "</td></tr>\n";
 

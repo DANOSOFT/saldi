@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260821 CL/SZ Removed debug print_r($_GET)/echo $returside leftover that
+//                leaked "Array ( [date] => ... )" text onto the page (SST-736)
 
 @session_start();
 $s_id = session_id();
@@ -34,8 +36,6 @@ include ("../includes/std_func.php");
 include ("../includes/stdFunc/dkDecimal.php");
 include ("../includes/stdFunc/usDecimal.php");
 $returside = if_isset($_GET["returside"], "../crmkalender.php");
-print_r($_GET);
-echo $returside;
 $valg = "";
 $date = $_GET["date"];
 

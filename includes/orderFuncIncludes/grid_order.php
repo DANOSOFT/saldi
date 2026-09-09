@@ -5,6 +5,8 @@
 // 20260612 pk - Changed the size of the arrow buttons in pagination so that they are the same size as the number buttons
 // 20260630 Sawaneh render_table_row now wraps render-less column values in a <td> so raw values no longer leak as text above the grid
 // 20260701 CDX/NTR - Changed DEFAULT_GENERATE_SEARCH to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260817 Sawaneh Sort descending columns NULLS LAST so rows without a date no longer
+//                  displace the newest rows, and validate the request-sourced sort value.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -810,6 +812,46 @@ function get_default_sort($columns) {
 }
 
 /**
+ * Builds the ORDER BY expression from the request-sourced sort value.
+ * Replaces the bare sort field with its sqlOverride when defined, so ORDER BY is unambiguous.
+ * The field must match a configured column or a plain identifier and the direction is
+ * normalized to asc/desc before either is placed into the query.
+ * Descending sorts append NULLS LAST because Postgres defaults DESC to NULLS FIRST,
+ * which would let rows without a value displace the newest rows at the top.
+ *
+ * @param string $sort The sort value, e.g. "field" or "field desc".
+ * @param array $columns The grid's column definitions.
+ * @return string The validated ORDER BY expression.
+ */
+function prepare_grid_order_sort($sort, $columns) {
+    if (!$sort || !is_array($columns)) return $sort;
+    $sortParts = preg_split('/\s+/', trim($sort), 2);
+    $sortField = $sortParts[0];
+    $sortDirection = isset($sortParts[1]) ? strtolower(trim($sortParts[1])) : '';
+    if ($sortDirection != 'asc' && $sortDirection != 'desc') {
+        $sortDirection = '';
+    }
+    $sortColumn = null;
+    foreach ($columns as $column) {
+        if (is_array($column) && isset($column['field']) && $column['field'] === $sortField) {
+            $sortColumn = $column;
+            break;
+        }
+    }
+    if (!$sortColumn && !preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/', $sortField)) {
+        return '1';
+    }
+    if ($sortColumn && !empty($sortColumn['sqlOverride'])) {
+        $sortField = $sortColumn['sqlOverride'];
+    }
+    $orderBy = trim($sortField . ' ' . $sortDirection);
+    if ($sortDirection == 'desc') {
+        $orderBy .= ' NULLS LAST';
+    }
+    return $orderBy;
+}
+
+/**
  * Builds a query string based on filters, search terms, sorting, pagination, and other parameters.
  *
  * @param string $id The ID used to reference the query.
@@ -933,17 +975,8 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     
     # Is always set due to get_default_sort
     # Translate sort field to sqlOverride if one exists for proper sorting (e.g., for varchar columns that need numeric sorting)
-    $sortParts = preg_split('/\s+/', trim($sort), 2);
-    $sortField = $sortParts[0];
-    $sortDirection = isset($sortParts[1]) ? ' ' . $sortParts[1] : '';
-    
-    foreach ($columns as $column) {
-        if ($column['field'] === $sortField && !empty($column['sqlOverride'])) {
-            $sort = $column['sqlOverride'] . $sortDirection;
-            break;
-        }
-    }
-    
+    $sort = prepare_grid_order_sort($sort, $columns);
+
     $finalSort = $exactMatchOrdering . $sort;
     $query = str_replace("{{SORT}}", $finalSort, $query);
     // ========================================================================
@@ -1022,15 +1055,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
     }
 
     // Apply sqlOverride to sort field so ORDER BY uses the qualified column (mirrors build_query).
-    $sortParts = preg_split('/\s+/', trim($sort), 2);
-    $sortField = $sortParts[0];
-    $sortDirection = isset($sortParts[1]) ? ' ' . $sortParts[1] : '';
-    foreach ($columns as $column) {
-        if (isset($column['field']) && $column['field'] === $sortField && !empty($column['sqlOverride'])) {
-            $sort = $column['sqlOverride'] . $sortDirection;
-            break;
-        }
-    }
+    $sort = prepare_grid_order_sort($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     // Remove the LIMIT clause to count all rows
@@ -2472,14 +2497,15 @@ function render_sort_script($id) {
     <script>
         function setSort$id(header, defaultDir) {
             const sortBox = document.getElementsByName('sort[$id]')[0];
-            defaultDir = defaultDir || 'asc';
-            const ascVal = header;
-            const descVal = header + ' desc';
-            if (defaultDir === 'desc') {
-                sortBox.value = (sortBox.value === descVal) ? ascVal : descVal;
+            const parts = sortBox.value.trim().split(/\s+/);
+            const currentDir = (parts[1] || 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+            let dir;
+            if (parts[0] === header) {
+                dir = currentDir === 'desc' ? 'asc' : 'desc';
             } else {
-                sortBox.value = (sortBox.value === ascVal) ? descVal : ascVal;
+                dir = defaultDir === 'desc' ? 'desc' : 'asc';
             }
+            sortBox.value = dir === 'desc' ? header + ' desc' : header;
             sortBox.form.submit();
         }
     </script>

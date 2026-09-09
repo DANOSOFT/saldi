@@ -25,6 +25,7 @@
 // 20230910 PHR Added orderlookup for incoming and outgoing orders ($orderInOutput & $orderOutOutput)
 // 20231018 PHR Inserted  '&& !count($variantVarerId)' to avoid deleteing variants from lagertatus
 // 20240605 PHR Replaced text 2046 (Følgevare) by 980 (Beholdning)
+// 20260810 LOE Removed right alignment from commission field
 ?>
 <style>
 .CellComment{
@@ -253,7 +254,7 @@
 		print "</td></tr>";
 	}
 		($provisionsfri)?$provisionsfri="checked":$provisionsfri="";
-		print "<tr><td colspan=\"2\" align='right'>".findtekst(2048,$sprog_id)."</td><td align=\"center\"><input class=\"inputbox\"
+		print "<tr><td colspan=\"2\">".findtekst(2048,$sprog_id)."</td><td align=\"center\"><input class=\"inputbox\"
 		type=\"checkbox\" name=\"provisionsfri\" $provisionsfri></td>";
 		if ($shopurl) {
 			if ($shop_id) {
