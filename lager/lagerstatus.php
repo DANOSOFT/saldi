@@ -47,6 +47,14 @@
 //             $varenrSoeg, not $varenr, to avoid clobbering the existing per-item $varenr[$x] array
 //             further down (caught live against a real tenant - first version silently turned every
 //             result row's item-number display into "Array" and broke pagination links)
+// 20260904 SZ MB-39: Kobspris valued stock at the wrong price - the batch_kob value walk's
+//             "and antal >= 1" dropped negative (credit note) lines, so a credited purchase never
+//             cancelled the batch it credited, and its "order by kobsdate desc" had no tie-break,
+//             so the result could change between runs when batches shared a date. Included
+//             negative lines, added an id-based tie-break, stopped the walk once remaining stock
+//             is covered, and guarded on positive remaining stock so already-zero/negative-stock
+//             items still value at 0. Verified against IBON's real saldi_821 dump (SST-764).
+// 20260908 CDX/LH Cancel linked purchase credits before selecting the remaining stock value.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -89,6 +97,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include_once(__DIR__ . "/lagerstatusValue.php");
 
 db_modify("update varer set lukket = '0' where lukket is NULL or lukket = ''",__FILE__ . " linje " . __LINE__);
 
@@ -539,26 +548,17 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		if ($tmp*$batch_t_antal[$x]!=0) $batch_pris[$x]=$batch_pris[$x]/$tmp*$batch_t_antal[$x];
 		else $batch_pris[$x]=0;
 */	
-	if ($batch_k_antal[$x]) {
-		$pris=0;
-		$antal=0;
-		$qtxt="select antal,pris from batch_kob where vare_id=$vare_id[$x] and antal >= 1"; #20140128
-		if ($lagervalg) $qtxt.=" and lager='$lagervalg'";
-		($dateType == 'levdate')?$dt = 'kobsdate':$dt = $dateType;
-		if ($date!=$dd) $qtxt.=" and $dt <= '$date'";
-		$qtxt.=" order by kobsdate desc";
-		$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while($r1=db_fetch_array($q1)) {
-			if ($antal+$r1['antal'] <= $batch_t_antal[$x]) {
-				$antal+=$r1['antal'];
-				$pris+=$r1['antal']*$r1['pris'];
-			} elseif ($antal < $batch_t_antal[$x] && $antal+$r1['antal'] > $batch_t_antal[$x]) {
-				$pris+=$r1['pris']*($batch_t_antal[$x]-$antal);
-				$antal=$batch_t_antal[$x];
+		// Keep fractional receipts and unresolved credit rows in the signed history. Linked
+		// credits cancel their original receipts before the newest-first quantity cutoff.
+		if ($batch_k_antal[$x] && $batch_t_antal[$x] > 0) {
+			$qtxt = lagerstatusPurchaseValueSql($vare_id[$x], $lagervalg, $dateType, $date != $dd ? $date : null);
+			$q1 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			$purchaseBatches = array();
+			while ($r1 = db_fetch_array($q1)) {
+				$purchaseBatches[] = $r1;
 			}
+			$batch_pris[$x] = lagerstatusPurchaseValue($purchaseBatches, $batch_t_antal[$x]);
 		}
-		($antal)?$batch_pris[$x]=$pris:$batch_pris[$x]=0;
-	}
 	}
 	if (isset($_GET['ajour']) && $_GET['ajour']==1 && $batch_t_antal[$x] != $beholdning[$x]) {
 		$diff=$batch_t_antal[$x];
