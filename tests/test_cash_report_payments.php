@@ -4,6 +4,7 @@
 // ----------------------------------------------------------------------
 // 20260907 CDX/PHR Regression test for report payment amounts and order assignment.
 // 20260908 CDX/LH Exercise report payments with all PHP warnings visible.
+// 20260909 CL/NTR Use the real if_isset from std_func instead of a two-argument stub.
 error_reporting(E_ALL);
 set_error_handler(function($severity, $message, $file, $line) {
 	throw new ErrorException($message, 0, $severity, $file, $line);
@@ -11,8 +12,8 @@ set_error_handler(function($severity, $message, $file, $line) {
 require_once(__DIR__ . '/../includes/stdFunc/usDecimal.php');
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php');
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/boxCountMethods/assignCashReport.php');
+require_once(__DIR__ . '/../includes/std_func.php');
 
-function if_isset($value, $default = null) { return isset($value) ? $value : $default; }
 function getCountry() { return 'Denmark'; }
 function dkdecimal($value, $decimals = 2) { return number_format((float)$value, $decimals, ',', '.'); }
 function afrund($value, $decimals) { return round($value, $decimals); }

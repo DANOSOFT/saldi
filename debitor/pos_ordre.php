@@ -104,10 +104,10 @@
 // 20260707 MJ Add kasse to form action URL so drawer kasse is preserved on POST; restore commented-out drawer redirect in aabn_skuffe
 // 20260901 CL/LH opdater_konto: validated o_art mode from lookup row click; KO loads creditor
 //                 accounts only, and a missing/wrong-art account no longer wipes the order
-// 20260907 CDX/PHR Include calculated cash balances in the approval freshness check.
-// 20260907 CDX/PHR Assign the cash report to included sales that were already posted.
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20260907 CDX/LH Preserve popup context through POS forms, redirects and menu actions.
+// 20260907 CDX/PHR Include calculated cash balances in the approval freshness check.
+// 20260907 CDX/PHR Assign the cash report to included sales that were already posted.
 // 20260908 CDX/LH Keep approval validation and eligible-order reads in one transaction snapshot.
 @session_start();
 $s_id = session_id();

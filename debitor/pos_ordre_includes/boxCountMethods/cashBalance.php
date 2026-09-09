@@ -53,20 +53,20 @@ function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
 	$tmparray=explode(chr(9),$cookievalue);
 for ($i=0;$i<count($tmparray);$i++) {
 }
-	$ore_10       = if_isset($tmparray[0],0);
-	$ore_20       = if_isset($tmparray[1],0);
-	$ore_50       = if_isset($tmparray[2],0);
-	$kr_1         = if_isset($tmparray[3],0);
-	$kr_2         = if_isset($tmparray[4],0);
-	$kr_5         = if_isset($tmparray[5],0);
-	$kr_10        = if_isset($tmparray[6],0);
-	$kr_20        = if_isset($tmparray[7],0);
-	$kr_50        = if_isset($tmparray[8],0);
-	$kr_100       = if_isset($tmparray[9],0);
-	$kr_200       = if_isset($tmparray[10],0);
-	$kr_500       = if_isset($tmparray[11],0);
-	$kr_1000      = if_isset($tmparray[12],0);
-	$kr_andet     = if_isset($tmparray[13],0);
+	$ore_10       = if_isset($tmparray, 0, 0);
+	$ore_20       = if_isset($tmparray, 0, 1);
+	$ore_50       = if_isset($tmparray, 0, 2);
+	$kr_1         = if_isset($tmparray, 0, 3);
+	$kr_2         = if_isset($tmparray, 0, 4);
+	$kr_5         = if_isset($tmparray, 0, 5);
+	$kr_10        = if_isset($tmparray, 0, 6);
+	$kr_20        = if_isset($tmparray, 0, 7);
+	$kr_50        = if_isset($tmparray, 0, 8);
+	$kr_100       = if_isset($tmparray, 0, 9);
+	$kr_200       = if_isset($tmparray, 0, 10);
+	$kr_500       = if_isset($tmparray, 0, 11);
+	$kr_1000      = if_isset($tmparray, 0, 12);
+	$kr_andet     = if_isset($tmparray, 0, 13);
 
 	for ($x=12;$x<count($tmparray);$x++) {
 		$i = $x-17;

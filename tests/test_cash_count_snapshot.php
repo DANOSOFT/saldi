@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260908 CDX/LH Verify that transaction-time rejection returns to recalculation.
+// 20260909 CL/NTR Use the real if_isset from std_func instead of a two-argument stub.
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php');
 
 function checkCashCount($condition, $message) {
@@ -36,7 +37,7 @@ checkCashCount(!cashCountIsCurrent(2, 'DKK', null), 'Require recalculation for f
 
 // Exercise the actual approval path: stale forms must return to the count before posting.
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/boxCountMethods/cashBalance.php');
-function if_isset($value, $default = null) { return isset($value) ? $value : $default; }
+require_once(__DIR__ . '/../includes/std_func.php');
 function db_select($sql, $location) { return $sql; }
 function db_fetch_array($query) {
 	return array('box1' => 0, 'box2' => 'on', 'box3' => "localhost\tlocalhost", 'box6' => 0, 'box12' => '', 'var_value' => '');
