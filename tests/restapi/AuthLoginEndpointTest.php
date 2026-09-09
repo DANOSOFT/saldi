@@ -7,6 +7,9 @@
 //
 // History:
 // 20260723 CL/LH SD-602: created.
+// 20260904 CL/NTR Seeded credentials now come from RestApiEnv::user()/password()
+//                 (gitignored file) instead of public constants.
+// 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
 
 use PHPUnit\Framework\TestCase;
 
@@ -23,9 +26,14 @@ final class AuthLoginEndpointTest extends TestCase
         RestApiEnv::bootstrapTenant();
     }
 
+    public static function tearDownAfterClass(): void
+    {
+        RestApiEnv::teardownTenant();
+    }
+
     public function test_login_with_valid_credentials_returns_tokens_and_tenant(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::USER, RestApiEnv::PASSWORD, RestApiEnv::ACCOUNT_OPEN);
+        $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), RestApiEnv::ACCOUNT_OPEN);
 
         $this->assertSame(200, $res['status'], $res['body']);
         $this->assertTrue($res['json']['success']);
@@ -34,13 +42,13 @@ final class AuthLoginEndpointTest extends TestCase
         $this->assertNotEmpty($data['refresh_token']);
         $this->assertSame('Bearer', $data['token_type']);
         $this->assertSame(3600, $data['expires_in']);
-        $this->assertSame(RestApiEnv::USER, $data['user']['username']);
+        $this->assertSame(RestApiEnv::user(), $data['user']['username']);
         $this->assertSame(RestApiEnv::testDb(), $data['tenant']['db']);
     }
 
     public function test_login_with_wrong_password_is_rejected_401(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::USER, 'wrong-password', RestApiEnv::ACCOUNT_OPEN);
+        $res = RestApiEnv::login(RestApiEnv::user(), 'wrong-password', RestApiEnv::ACCOUNT_OPEN);
 
         $this->assertSame(401, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
@@ -56,7 +64,7 @@ final class AuthLoginEndpointTest extends TestCase
 
     public function test_login_against_unknown_account_is_rejected_404(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::USER, RestApiEnv::PASSWORD, 'no-such-account');
+        $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), 'no-such-account');
 
         $this->assertSame(404, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
@@ -64,7 +72,7 @@ final class AuthLoginEndpointTest extends TestCase
 
     public function test_login_against_closed_account_is_rejected_403(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::USER, RestApiEnv::PASSWORD, RestApiEnv::ACCOUNT_CLOSED);
+        $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), RestApiEnv::ACCOUNT_CLOSED);
 
         $this->assertSame(403, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
