@@ -31,6 +31,7 @@
 // 20260102 LOE Added department support for background files
 // 20260309 PHR Fixed error in $returside after printing
 // 20260309 PHR Fixed another error in $returside after printing
+// 20260909 Sawaneh SST-759: POST email_fix_from applies the recipient suggestion from send_mails() after explicit acceptance
 
 
 session_start();
@@ -88,6 +89,26 @@ function find_background_file($background, $file_type, $department) {
     }
 
     return null;
+}
+// 20260909 Sawaneh SST-759: the user accepted the suggested recipient correction shown by
+// send_mails(); the suggestion is re-derived server-side from the rejected address.
+if (isset($_POST['email_fix_from']) && isset($_POST['id'])) {
+    $id = (int)$_POST['id'];
+    $formular = (int)if_isset($_POST['formular']);
+    if ($rettigheder && substr($rettigheder, 5, 1) < '1') {
+        print tekstboks(findtekst('5221|Du har ikke rettigheder til at ændre ordrens e-mailadresse', $sprog_id));
+        exit;
+    }
+    include_once(__DIR__ . "/../includes/formFuncIncludes/emailLookalike.php");
+    $newEmail = emailLookalikeApply($id, $_POST['email_fix_from']);
+    if ($newEmail === '') {
+        print "<script type='text/javascript'>alert(" . json_encode(findtekst('5216|Ordrens e-mailadresse er ændret siden - kontrollér og send igen', $sprog_id), JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) . ");</script>";
+        print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+        exit;
+    }
+    print findtekst('5220|E-mailadressen på ordren er rettet til', $sprog_id) . " " . htmlspecialchars($newEmail, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "<br>";
+    print "<meta http-equiv=\"refresh\" content=\"1;URL=formularprint.php?id=$id&formular=$formular&udskriv_til=email\">";
+    exit;
 }
 //check Post for returside
 $returside = if_isset($_POST['returside']);

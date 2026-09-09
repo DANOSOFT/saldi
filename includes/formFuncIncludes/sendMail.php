@@ -32,6 +32,8 @@
 // 20260818 CL/LH Preserved plain-text mail bodies when anchor flattening fails.
 // 20260819 Sawaneh 'Mail sent to' confirmation translated via findtekst and
 //                  recipient escaped before output.
+// 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
+//                  and offers the ASCII suggestion via emailLookalike.php.
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -53,8 +55,8 @@ print "<!--function send_mails start-->";
 	else $emails[0]=$email;
 	for ($x=0;$x<count($emails);$x++) {
 		if (!filter_var($emails[$x], FILTER_VALIDATE_EMAIL)) { #20200122
-			alert("Invalid email format in $emails[$x]");
-			return ("Invalid email format in $emails[$x]");
+			include_once(__DIR__ . "/emailLookalike.php");
+			return emailRecipientRejected($emails[$x], $ordre_id, $sprog_id, $mailantal);
 		}
 	}
 	$bilag=$brugermail=$mail_bilag=NULL;
