@@ -43,7 +43,7 @@ function db_fetch_array($query) {
 }
 function db_modify($sql, $location) { throw new RuntimeException('Unexpected database write'); }
 function posbogfor($register, $start, $report, $signature, $requireSignature) {
-	if ($signature !== null || !$requireSignature) {
+	if ($signature === null || !$requireSignature) {
 		throw new RuntimeException('Approval must forward the submitted signature and require validation');
 	}
 	return false;
