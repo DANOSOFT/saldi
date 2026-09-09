@@ -45,6 +45,9 @@
 // 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
 // 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
 //             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
+// 20260909 CDX/LH SST-780: Preserve document filenames when merging PDF pages.
+
+require_once __DIR__ . '/stdFunc/mergePrintPdfs.php';
 
 @session_start();
 $s_id=session_id();
@@ -185,32 +188,28 @@ if ($valg) {
 		if (file_exists("../temp/".$ps_fil."_*.pdf")) unlink("../temp/".$ps_fil."_*.pdf");
 		list($a,$b,$c)=explode("/",$ps_fil);
 		$htmfil=glob("../temp/$a/$b/*.htm");
-		$indfil='';
+		$pdf = array();
 		for ($i=0;$i<count($htmfil);$i++) {
 			if (filesize($htmfil[$i])) {
-				$pdf[$i]=str_replace("htm","pdf",$htmfil[$i]);
-				fwrite($log,__line__." $pdf[$i]=str_replace(\"htm\",\"pdf\",$htmfil[$i])\n"); #20190103
-				fwrite($log,__line__." system (\"weasyprint -e UTF-8 $htmfil[$i] $pdf[$i]\")\n"); #20190103
-				system ("weasyprint -e UTF-8 $htmfil[$i] $pdf[$i]");
-				($indfil)?$indfil.=" ".$pdf[$i]:$indfil=$pdf[$i];
-				fwrite($log,__line__." indfil $indfil\n");
-			} 
-			if (count($htmfil)>1) {
-				$udfil="../temp/$a/$b/udskrift.pdf";
-				fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
-				$ps_fil="/$a/$b/udskrift";
-				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n"); 
-			} else $udfil=NULL;
-		} 
-		if ($udfil) {
-			system ("pdftk $indfil output $udfil");
-			fwrite($log,__line__." system (\"pdftk $indfil output $udfil\")\n");
-			for ($i=0;$i<count($htmfil);$i++) {
-				unlink ($htmfil[$i]);
-				fwrite($log,__line__." unlink ($htmfil[$i])\n");
-				if (isset($pdffil[$i]) && file_exists($pdffil[$i])) {
-					unlink ($pdffil[$i]);
-					fwrite($log,__line__." unlink ($pdffil[$i])\n");
+				$pdf[$i]=str_replace(".htm", ".pdf", $htmfil[$i]);
+				fwrite($log,__line__." Convert $htmfil[$i] to $pdf[$i]\n");
+				system("weasyprint -e UTF-8 " . escapeshellarg($htmfil[$i]) . " " . escapeshellarg($pdf[$i]), $convertStatus);
+				if ($convertStatus !== 0) {
+					throw new RuntimeException('Cannot convert print page to PDF.');
+				}
+			}
+		}
+		$udfil = NULL;
+		if (count($pdf) > 1) {
+			$udfil = "../temp/$ps_fil.pdf";
+			mergePrintPdfs(array_values($pdf), $udfil);
+			fwrite($log,__line__." Merged PDF: $udfil\n");
+			foreach ($htmfil as $hf) {
+				unlink($hf);
+			}
+			foreach ($pdf as $pagePdf) {
+				if ($pagePdf !== $udfil && file_exists($pagePdf)) {
+					unlink($pagePdf);
 				}
 			}
 		}
@@ -259,60 +258,60 @@ if ($valg) {
 
 		########################
 
-		 $ps_fil=str_replace("../temp/","",$ps_fil);
-			$ps_fil=str_replace("$db/$db","$db",$ps_fil);
-			list($a,$b,$c)=explode("/",$ps_fil);
+		$ps_fil=str_replace("../temp/","",$ps_fil);
+		$ps_fil=str_replace("$db/$db","$db",$ps_fil);
+		list($a,$b,$c)=explode("/",$ps_fil);
 
-			$indfil='';
+		// Convert single .ps file
+		$psfil = "../temp/$a/$b/$c.ps";
+		$pdffil_p1 = "../temp/$a/$b/$c.pdf";
 
-			// Convert single .ps file 
-			$psfil = "../temp/$a/$b/$c.ps";
-			$pdffil_p1 = "../temp/$a/$b/$c.pdf";
-			
-			if (file_exists($psfil) && filesize($psfil)) {
-				fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
-				system ("$ps2pdf $psfil $pdffil_p1");
-				fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
-				$indfil = $pdffil_p1;
+		if (file_exists($psfil) && filesize($psfil)) {
+			fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
+			system($ps2pdf . " " . escapeshellarg($psfil) . " " . escapeshellarg($pdffil_p1), $convertStatus);
+			if ($convertStatus !== 0) {
+				throw new RuntimeException('Cannot convert PostScript to PDF.');
 			}
+			fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
+		}
 
-			// find any extra pages in .htm files (_2.htm, _3.htm etc)
-			$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
-			if ($htmfil) sort($htmfil);
-			
-			foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
+		// find any extra pages in .htm files (_2.htm, _3.htm etc)
+		$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
+		if ($htmfil) sort($htmfil);
 
-			$extra_pdfs = array();
+		foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
+
+		$extra_pdfs = array();
+		foreach ($htmfil as $hf) {
+			if (filesize($hf)) {
+				$hpdf = str_replace(".htm", ".pdf", $hf);
+				system("weasyprint -e UTF-8 " . escapeshellarg($hf) . " " . escapeshellarg($hpdf), $convertStatus);
+				if ($convertStatus !== 0) {
+					throw new RuntimeException('Cannot convert print page to PDF.');
+				}
+				$extra_pdfs[] = $hpdf;
+			}
+		}
+
+		// If we have multiple pages, merge them all with pdftk
+		if (!empty($extra_pdfs)) {
+			$udfil = $pdffil_p1;
+			mergePrintPdfs(array_merge(array($pdffil_p1), $extra_pdfs), $udfil);
+
+			// Cleanup intermediate files
+			if (file_exists($psfil)) unlink($psfil);
 			foreach ($htmfil as $hf) {
-				if (filesize($hf)) {
-					$hpdf = str_replace(".htm", ".pdf", $hf);
-					system ("weasyprint -e UTF-8 $hf $hpdf");
-					$extra_pdfs[] = $hpdf;
-					$indfil .= " " . $hpdf;
-				}
+				if (file_exists($hf)) unlink($hf);
 			}
+			foreach ($extra_pdfs as $ep) {
+				if (file_exists($ep)) unlink($ep);
+			}
+		} else {
 
-			// If we have multiple pages, merge them all with pdftk
-			if (!empty($extra_pdfs)) {
-				$udfil = "../temp/$a/$b/udskrift.pdf";
-				$ps_fil = "/$a/$b/udskrift";
-				system ("pdftk $indfil output $udfil", $pdftk_rc);
-				
-				// Cleanup intermediate files
-				if (file_exists($psfil)) unlink($psfil);
-				if (file_exists($pdffil_p1)) unlink($pdffil_p1);
-				foreach ($htmfil as $hf) {
-					if (file_exists($hf)) unlink($hf);
-				}
-				foreach ($extra_pdfs as $ep) {
-					if (file_exists($ep)) unlink($ep);
-				}
-			} else {
-				
-				$udfil = NULL;
-				fwrite($log,__line__." single page only, no merge needed\n");
-				if (file_exists($psfil)) unlink($psfil);
-			}
+			$udfil = NULL;
+			fwrite($log,__line__." single page only, no merge needed\n");
+			if (file_exists($psfil)) unlink($psfil);
+		}
 		########################
 	}
 	
