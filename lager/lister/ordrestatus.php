@@ -205,7 +205,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_buy_order",
-    "headerName" => findtekst('3374|Indkøbsordre', $sprog_id),
+    "headerName" => findtekst('3393|Indkøbsordre', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -331,7 +331,7 @@ $columns[] = array(
     "field" => "genbestil",
     'defaultSort' => true,
     'defaultSortDirection' =>'desc',
-    "headerName" => findtekst('3375|Gen.', $sprog_id),
+    "headerName" => findtekst('3394|Gen.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -360,7 +360,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "sales_last_6_months",
-    "headerName" => "6".findtekst('3378|md.', $sprog_id), #6md.
+    "headerName" => "6".findtekst('3397|md.', $sprog_id), #6md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -371,7 +371,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_3_months",
-    "headerName" => "3".findtekst('3378|md.', $sprog_id), #3md.
+    "headerName" => "3".findtekst('3397|md.', $sprog_id), #3md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -379,7 +379,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_1_month",
-    "headerName" => "1".findtekst('3378|md.', $sprog_id), #1md.
+    "headerName" => "1".findtekst('3397|md.', $sprog_id), #1md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -392,7 +392,7 @@ $columns[] = array(
 // Continue adding other fields if needed
 $columns[] = array(
     "field" => "salgspris",
-    "headerName" => findtekst('3376|Salgspris u.m.', $sprog_id),
+    "headerName" => findtekst('3395|Salgspris u.m.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -402,7 +402,7 @@ $columns[] = array(
 $columns[] = array(
     "field" => "momspris",
     "headerName" => findtekst('949|Salgspris', $sprog_id),
-    "description" => "(".findtekst('2747|Inkl. moms', $sprog_id).")",
+    "description" => "(".strtolower(findtekst('2747|Inkl. moms', $sprog_id)).")",
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -414,7 +414,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "dg",
-    "headerName" => findtekst('3377|DG', $sprog_id),
+    "headerName" => findtekst('3396|DG', $sprog_id),
     "type" => "number",
     "align" => "right",
     "sqlOverride" => "
@@ -439,11 +439,8 @@ $columns[] = array(
 );
 
 // Filtersetup
-// TODO: filterName og de enkelte valgs "name" er ikke oversat endnu. grid.php bruger begge
-//       som nøgle til brugerens gemte filteropsætning, så en oversat tekst nulstiller
-//       filtervalgene ved sprogskift. Oversæt dem når gridet bruger en sproguafhængig nøgle.
-//       Valgnavne der kommer fra databasen (varegrupper, leverandører) er sproguafhængige
-//       i forvejen og udgør ikke et problem.
+// TODO: filterName og valgenes "name" står bevidst på dansk. grid.php bruger dem som nøgle
+//       til brugerens gemte filtervalg, så en oversættelse nulstiller fluebenene.
 $filters = array();
 
 // Vargrupper
@@ -460,6 +457,7 @@ while ($row = db_fetch_array($q)) {
 }
 $filters[] = array(
     "filterName" => "Varegrupper",
+#   "filterName" => findtekst('774|Varegrupper', $sprog_id),
     "joinOperator" => "or",
     "options" => $VGs
 );
@@ -484,6 +482,7 @@ while ($row = db_fetch_array($q)) {
 }
 $filters[] = array(
     "filterName" => "Leverandøre",
+#   "filterName" => findtekst('988|Leverandører', $sprog_id),
     "joinOperator" => "or",
     "options" => $levs
 );
@@ -491,10 +490,12 @@ $filters[] = array(
 // Misc
 $filters[] = array(
     "filterName" => "Misc",
+#   "filterName" => findtekst('782|Diverse', $sprog_id),
     "joinOperator" => "and",
     "options" => array(
         array(
             "name" => "Vis udgået",
+#           "name" => findtekst('3398|Vis udgået', $sprog_id),
             "checked" => "checked",
             "sqlOn" => "",
             "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",

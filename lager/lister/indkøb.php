@@ -58,7 +58,7 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
     <div style="width:100%; display: flex; justify-content: flex-end">
         <button type="button" id="autoudfyldBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="m422-232 207-248H469l29-227-185 267h139l-30 208ZM320-80l40-280H160l360-520h80l-40 320h240L400-80h-80Zm151-390Z"/></svg>
-            <?php echo findtekst('3369|Autoudfyld', $sprog_id) ?>
+            <?php echo findtekst('3388|Autoudfyld', $sprog_id) ?>
         </button>
         &nbsp;
         <button type="button" id="bestilBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
@@ -97,7 +97,7 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
         if (data.length > 0) {
             // Show loading state
             this.disabled = true;
-            this.innerHTML = '<?php echo findtekst("3370|Bestiller", $sprog_id) ?>...';
+            this.innerHTML = '<?php echo findtekst("3389|Bestiller", $sprog_id) ?>...';
             
             // Process each item with AJAX calls to orderapi.php
             processOrders(data).then(() => {
@@ -108,15 +108,15 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
                 inputs.forEach(input => {
                     input.value = '';
                 });
-                alert('<?php echo findtekst("3371|Bestillinger oprettet", $sprog_id) ?>!');
+                alert('<?php echo findtekst("3390|Bestillinger oprettet", $sprog_id) ?>!');
             }).catch((error) => {
                 // Reset button on error
                 this.disabled = false;
                 this.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg> <?php echo findtekst("2218|Bestil", $sprog_id) ?>';
-                alert('<?php echo findtekst("3372|Fejl ved oprettelse af bestillinger", $sprog_id) ?>!');
+                alert('<?php echo findtekst("3391|Fejl ved oprettelse af bestillinger", $sprog_id) ?>!');
             });
         } else {
-            alert('<?php echo findtekst("3373|Ingen værdier angivet", $sprog_id) ?>');
+            alert('<?php echo findtekst("3392|Ingen værdier angivet", $sprog_id) ?>');
         }
     });
 
@@ -304,7 +304,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_buy_order",
-    "headerName" => findtekst('3374|Indkøbsordre', $sprog_id),
+    "headerName" => findtekst('3393|Indkøbsordre', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -375,7 +375,7 @@ $columns[] = array(
     "field" => "genbestil",
     'defaultSort' => true,
     'defaultSortDirection' =>'desc',
-    "headerName" => findtekst('3375|Gen.', $sprog_id),
+    "headerName" => findtekst('3394|Gen.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -401,7 +401,7 @@ $columns[] = array(
 // Continue adding other fields if needed
 $columns[] = array(
     "field" => "salgspris",
-    "headerName" => findtekst('3376|Salgspris u.m.', $sprog_id),
+    "headerName" => findtekst('3395|Salgspris u.m.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -411,7 +411,7 @@ $columns[] = array(
 $columns[] = array(
     "field" => "momspris",
     "headerName" => findtekst('949|Salgspris', $sprog_id),
-    "description" => "(".findtekst('2747|Inkl. moms', $sprog_id).")",
+    "description" => "(".strtolower(findtekst('2747|Inkl. moms', $sprog_id)).")",
     "hidden" => true,
     "type" => "number",
     "align" => "right",
@@ -424,7 +424,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "dg",
-    "headerName" => findtekst('3377|DG', $sprog_id),
+    "headerName" => findtekst('3396|DG', $sprog_id),
     "type" => "number",
     "align" => "right",
     "hidden" => true,
@@ -442,7 +442,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "sales_last_6_months",
-    "headerName" => "6".findtekst('3378|md.', $sprog_id), #6md.
+    "headerName" => "6".findtekst('3397|md.', $sprog_id), #6md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -453,7 +453,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_3_months",
-    "headerName" => "3".findtekst('3378|md.', $sprog_id), #3md.
+    "headerName" => "3".findtekst('3397|md.', $sprog_id), #3md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -461,7 +461,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_1_month",
-    "headerName" => "1".findtekst('3378|md.', $sprog_id), #1md.
+    "headerName" => "1".findtekst('3397|md.', $sprog_id), #1md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -482,11 +482,8 @@ $columns[] = array(
 );
 
 // Filtersetup
-// TODO: filterName og de enkelte valgs "name" er ikke oversat endnu. grid.php bruger begge
-//       som nøgle til brugerens gemte filteropsætning, så en oversat tekst nulstiller
-//       filtervalgene ved sprogskift. Oversæt dem når gridet bruger en sproguafhængig nøgle.
-//       Valgnavne der kommer fra databasen (varegrupper, leverandører) er sproguafhængige
-//       i forvejen og udgør ikke et problem.
+// TODO: filterName og valgenes "name" står bevidst på dansk. grid.php bruger dem som nøgle
+//       til brugerens gemte filtervalg, så en oversættelse nulstiller fluebenene.
 $filters = array();
 
 // Vargrupper
@@ -503,6 +500,7 @@ while ($row = db_fetch_array($q)) {
 }
 $filters[] = array(
     "filterName" => "Varegrupper",
+#   "filterName" => findtekst('774|Varegrupper', $sprog_id),
     "joinOperator" => "or",
     "options" => $VGs
 );
@@ -527,6 +525,7 @@ while ($row = db_fetch_array($q)) {
 }
 $filters[] = array(
     "filterName" => "Leverandøre",
+#   "filterName" => findtekst('988|Leverandører', $sprog_id),
     "joinOperator" => "or",
     "options" => $levs
 );
@@ -534,10 +533,12 @@ $filters[] = array(
 // Misc
 $filters[] = array(
     "filterName" => "Misc",
+#   "filterName" => findtekst('782|Diverse', $sprog_id),
     "joinOperator" => "and",
     "options" => array(
         array(
             "name" => "Vis udgået",
+#           "name" => findtekst('3398|Vis udgået', $sprog_id),
             "checked" => "checked",
             "sqlOn" => "",
             "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",
@@ -808,7 +809,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => findtekst('3380|Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag', $sprog_id)."<br><br>".findtekst('3381|Hold musen over et beholdningstal for at se hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
+    "content" => findtekst('3399|Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag', $sprog_id)."<br><br>".findtekst('3400|Hold musen over et beholdningstal for at se hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",

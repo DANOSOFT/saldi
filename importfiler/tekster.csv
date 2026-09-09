@@ -964,7 +964,7 @@
 964	Varerapport - forside	Item report - front page	Varerapport - forsiden
 965	Varerapport	Item report	Varerapport
 966	Leverandør 	Supplier	Leverandør
-967	Varenavn	Item name	Gjenstandsnavn
+967	Varenavn	Item name	Varenavn
 968	Detaljeret	Detailed	Detaljert
 969	Kun salg / DB	Sales / DB only	Bare salg / DB
 970	Beregn lagerbeh.	Calculate stock	Beregn lagerbeh.
@@ -2637,8 +2637,8 @@
 2637	Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment terms. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsbetingelser. Disse hentes automatisk fra kreditoroppsettet
 2638	Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment days. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsdager. Disse hentes automatisk fra kreditoroppsettet
 2639	<b>Vareliste:</b> Den liste du ser forneden.<br><br><b>Ordrevisning:</b> Se, hvilke ordrer dine varer indgår i.<br><br><b>Indkøb:</b> Opret hurtigt indkøbslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administration af serienummer-varer.	<b>Product list:</b> The list you see below.<br><br><b>Order view:</b> See which orders your products are included in.<br><br><b>Purchasing:</b> Quickly create purchase lists automatically or manually.<br><br><b>Serial numbers:</b> Tracking and management of serial-numbered products.	<b>Vareliste:</b> Listen du ser nedenfor.<br><br><b>Ordrevisning:</b> Se hvilke ordre varene dine inngår i.<br><br><b>Innkjøp:</b> Opprett raskt innkjøpslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administrasjon av produkter med serienummer.
-2640	Klik her for at oprette en ny vare	 Click here to add a new product	Klikk her for å opprette et nytt produkt
-2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click a item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
+2640	Klik her for at oprette en ny vare	Click here to add a new product	Klikk her for å opprette en ny vare
+2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click an item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
 2642	Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder	Click on a stock quantity to perform an internal transfer of inventory units	Klikk på et lagerantall for å utføre en intern overføring av lagerenheter
 2643	Søg på lagerbeholdning. For eksempel:<br><b>""10""</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>""1:10""</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>""10""</b> – Shows products with a stock quantity of exactly 10.<br><b>""1:10""</b> – Shows products with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>""10""</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>""1:10""</b> – Viser varer med lagerbeholdning mellom 1 og 10.
 2644	Undersøg dækningsgraden for dine varer, for at finde eventuelle optimeringer	Inspect the contribution margin of your products to find potential optimizations	Undersøk dekningsgraden for varene dine for å finne mulige forbedringer
@@ -2653,9 +2653,9 @@
 2653	Klik for at autoudfylde alle beregnede genbestillingsværdier	Click to auto-fill all calculated reorder values	Klikk for å autofylle alle beregnede gjenbestillingsverdier
 2654	Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.	Create a purchase suggestion based on the entered product values. It will either create a new order for the supplier or add the product to an open purchase suggestion with today’s date.	Opprett et innkjøpsforslag basert på de registrerte vareverdiene. Det oppretter enten en ny ordre til leverandøren eller legger varen til et åpent innkjøpsforslag med dagens dato.
 2655	Søg efter et eksisterende serienummer i dit system	Search for an existing serial number in your system	Søk etter et eksisterende serienummer i systemet ditt
-2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
-2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
-2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
+2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor varen ble kjøpt, hvilken leverandør den ble kjøpt fra, og ordrenummeret
+2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne opplysninger om hvor varen ble solgt, hvem kjøperen var, og ordrenummeret
+2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det	If the serial number has not been sold, you can delete or edit it	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
 2659	Søg efter standnavne. Adskil med komma for at søge efter flere.	Search for stall names. Separate with commas to search for multiple.	Søk etter standnavn. Skill med komma for å søke etter flere.
 2660	Se dage, og klik på en dag for at se ledige stande	View days and click on a day to see available stalls	Se dager, og klikk på en dag for å se ledige stander
 2661	Grønne prikker viser ledige dage, og røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag og stand.	Green dots indicate available days, and red dots indicate booked days. Click on a green dot to create a booking for a specific day and stall.	Grønne prikker viser ledige dager, og røde prikker viser bookede dager. Klikk på en grønn prikk for å opprette en booking for en bestemt dag og stand.
@@ -3382,7 +3382,7 @@
 3382	Vis alle	Show all	Vis alle
 3383	Nyt! Klik på tandhjulet for at vælge hvilke felter der vises på varekortet.	New! Click the gear to choose which fields are shown on the product card.	Nytt! Klikk på tannhjulet for å velge hvilke felter som vises på varekortet.
 3384	Forstået	Got it	Skjønner
-3385	Momsperioder	Vat periods	MVA-perioder		
+3385
 3386	Indkøb	Purchasing	Innkjøp		
 3387	Serienumre	Serial numbers	Serienumre		
 3388	Autoudfyld	Auto-fill	Autoutfyll		
@@ -3398,12 +3398,12 @@
 3398	Vis udgået	Show discontinued	Vis utgått		
 3399	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.		
 3400	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.		
-3401			
-3402			
-3403			
-3404			
-3405			
-3406			
+3401	Ekskl. moms	Excl. VAT	Ekskl. MVA		
+3402	Køber	Buyer	Kjøper		
+3403	Hvad skal serienummeret omdøbes til?	What should the serial number be renamed to?	Hva skal serienummeret omdøpes til?		
+3404	Omdøb	Rename	Omdøp		
+3405	Vis rækker uden serienummer	Show rows without serial numbers	Vis rader uten serienummer		
+3406	Vis kun serienumre der ikke er solgt	Show only unsold serial numbers	Vis kun serienumre som ikke er solgt		
 3407			
 3408			
 3409			
