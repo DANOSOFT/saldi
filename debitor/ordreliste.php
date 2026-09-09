@@ -61,6 +61,10 @@
 // 20260908 CDX/MJ Udført af column header moved from tekst_id 3367 to 5151. 3367 is already used by
 //             systemdata/stamkort.php for "Medtages på eFaktura når udfyldt", and findtekst() prefers
 //             an existing tekster row over tekster.csv, so the header rendered as that instead.
+// 20260909 CDX/MJ Show Udført af by default on the order view. The "hidden" key in $custom_columns is
+//             dead - it is overwritten from $active_column_names further down - so default visibility
+//             is decided solely by $explicit_default_columns, which never listed performed_by.
+//             Users with a saved column_setup keep their own selection, as before.
 
 @session_start();
 $s_id = session_id();
@@ -1302,7 +1306,7 @@ if ($valg == "tilbud") {
 } elseif ($valg == "faktura") {
     $explicit_default_columns = array("ordrenr", "ordredate", "fakturanr", "fakturadate", "nextfakt", "kontonr", "firmanavn", "ref", "sum");
 } else {
-    $explicit_default_columns = array("ordrenr", "ordredate", "levdate", "kontonr", "firmanavn", "ref", "sum");
+    $explicit_default_columns = array("ordrenr", "ordredate", "levdate", "kontonr", "firmanavn", "ref", "performed_by", "sum");
 }
 
 // Check if user has saved column preferences in the OLD system (box3)
