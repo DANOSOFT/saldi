@@ -167,12 +167,16 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // the moment they happen to load this list - only locks stale by more than the existing 3600s
 // staleness window (the same threshold already used to warn users elsewhere, e.g. this file's
 // own render callback above, kreditor/ordre.php:133) are cleared.
+// 20260910 SZ SST-755 (CodeRabbit): pass the selected hvem/tidspkt through to unlock_record()
+// instead of clearing by id alone - a row selected as stale here could be re-acquired by
+// anyone between this SELECT and the loop reaching it, and an id-only release would still
+// clobber that fresh lock, which is exactly the race this whole ticket exists to close.
 $kOrdreSweepNow = time();
-$qtxt = "select id, tidspkt from ordrer where art like 'K%' and status < '3' and hvem is not null and hvem != '' and tidspkt is not null and tidspkt != ''";
+$qtxt = "select id, hvem, tidspkt from ordrer where art like 'K%' and status < '3' and hvem is not null and hvem != '' and tidspkt is not null and tidspkt != ''";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
     if (($kOrdreSweepNow - (int)$r['tidspkt']) > 3600) {
-        unlock_record('ordrer', (int)$r['id']);
+        unlock_record('ordrer', (int)$r['id'], $r['hvem'], $r['tidspkt']);
     }
 }
 

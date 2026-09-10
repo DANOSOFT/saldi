@@ -68,6 +68,12 @@
 // 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup navigates here by GET, see accountLookup.php selectAccount) into the new order header. 
 //                 usdate('') returns today, so only convert values that were actually supplied.
 // 20260908 CDX/LH Lock creditor order status before saving, deleting or adding lines.
+// 20260908 SZ SST-755: Luk links and the unload beacon now carry the row's tidspkt, so
+//                 includes/luk.php / unlock_order.php can confirm this tab still holds
+//                 the lock before releasing it.
+// 20260910 SZ SST-755 (CodeRabbit): the unload beacon now checks sendBeacon()'s return
+//                 value before treating the lock as released, falling back to the sync
+//                 XHR when it fails (same fix as finans/ordre.php and kassekladde.php).
 
 @session_start();
 $s_id=session_id();
@@ -1873,20 +1879,22 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 function unlockOrderBeacon(evtName) {
     if (!isSubmitting && !window.orderUnlocked) {
-        window.orderUnlocked = true;
         let data = new URLSearchParams();
         data.append("table", "ordrer");
         data.append("id", "<?php echo (int)$id; ?>");
         data.append("tidspkt", "<?php echo htmlspecialchars($beaconTidspkt, ENT_QUOTES); ?>");
         data.append("event", evtName);
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon("../includes/unlock_order.php", data);
-        } else {
+        // sendBeacon() can return false (queue full/rejected) without sending anything - only
+        // treat the lock as released, and skip the sync XHR fallback, once one of the two has
+        // actually gone out (CodeRabbit).
+        let queued = navigator.sendBeacon && navigator.sendBeacon("../includes/unlock_order.php", data);
+        if (!queued) {
             let xhr = new XMLHttpRequest();
             xhr.open('POST', '../includes/unlock_order.php', false);
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             xhr.send(data.toString());
         }
+        window.orderUnlocked = true;
     }
 }
 window.addEventListener("beforeunload", function() { unlockOrderBeacon('beforeunload'); });

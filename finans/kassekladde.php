@@ -112,6 +112,9 @@
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
 //                  unload/pagehide beacon was added (there was none before).
+// 20260910 SZ SST-755 (CodeRabbit): popup/visipop Luk link now carries a returside fallback
+//                  too, and the unload beacon checks sendBeacon()'s return value before
+//                  treating the lock as released, falling back to the sync XHR when it fails.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 
@@ -1635,7 +1638,7 @@ if (!$simuler) {
 			else print "<td $top_bund>";
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			if ($popup || $visipop) {
-				print "<a href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase . "&returside=" . urlencode($backUrl), ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			} else {
 				print "<a href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase . "&returside=" . urlencode($backUrl), ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			}
@@ -5573,20 +5576,22 @@ document.addEventListener("submit", function () { isSubmittingKassekladde = true
 })();
 function unlockKassekladdeBeacon(evtName) {
     if (!isSubmittingKassekladde && !window.kassekladdeUnlocked) {
-        window.kassekladdeUnlocked = true;
         let data = new URLSearchParams();
         data.append("table", "kladdeliste");
         data.append("id", "<?php echo $beaconKladdeId; ?>");
         data.append("tidspkt", "<?php echo htmlspecialchars($beaconTidspkt, ENT_QUOTES); ?>");
         data.append("event", evtName);
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon("../includes/unlock_order.php", data);
-        } else {
+        // sendBeacon() can return false (queue full/rejected) without sending anything - only
+        // treat the lock as released, and skip the sync XHR fallback, once one of the two has
+        // actually gone out (CodeRabbit).
+        let queued = navigator.sendBeacon && navigator.sendBeacon("../includes/unlock_order.php", data);
+        if (!queued) {
             let xhr = new XMLHttpRequest();
             xhr.open('POST', '../includes/unlock_order.php', false);
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             xhr.send(data.toString());
         }
+        window.kassekladdeUnlocked = true;
     }
 }
 window.addEventListener("beforeunload", function() { unlockKassekladdeBeacon('beforeunload'); });
