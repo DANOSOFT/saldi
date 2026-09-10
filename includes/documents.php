@@ -30,6 +30,9 @@
 // 20260910 CL/SZ Pool upload now dedupes against an existing file with the same base name
 //                 (e.g. generic scanner/phone names like "scan.pdf") instead of silently
 //                 overwriting it and confusing its metadata (SST-776).
+// 20260910 CL/NTR Pool upload and vendor+date rename now reserve their target name atomically
+//                  via FileReservation instead of file_exists() polling, closing the window in
+//                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 
 @session_start();
 $s_id=session_id();
@@ -51,6 +54,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
+include_once(__DIR__ . "/docsIncludes/FileReservation.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 if (!isset($menu)) $menu = null;
@@ -166,17 +170,20 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 			$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 			$baseName = sanitize_filename($baseName);
 
-			// Dedupe against any pool file already using this base name (e.g. generic
-			// scanner/phone names like "scan.pdf") so an unrelated document's upload can't
-			// silently overwrite it and confuse its metadata (SST-776) - same pattern as
-			// the vendor+date rename dedup further below.
-			$originalBaseName = $baseName;
-			$dedupCounter = 1;
-			while (file_exists("$poolDir/$baseName.pdf") || file_exists("$poolDir/$baseName.jpg") || file_exists("$poolDir/$baseName.jpeg") || file_exists("$poolDir/$baseName.png")) {
-				$baseName = $originalBaseName . '_' . $dedupCounter;
-				$dedupCounter++;
+			// Reserve the target name atomically so a pool file already using this base name
+			// (e.g. generic scanner/phone names like "scan.pdf") is never overwritten, and two
+			// concurrent uploads with the same name can't both settle on it (SST-776). Sibling
+			// extensions count as taken too, so a leftover "scan.jpg" or "scan.info" also bumps
+			// us to "scan_1". $targetFile is an empty placeholder until the upload lands on it.
+			$reservation = FileReservation::reserve($poolDir, $baseName, 'pdf', ['pdf', 'jpg', 'jpeg', 'png', 'info']);
+			if ($reservation === null) {
+				error_log("documents.php (AJAX): could not reserve a pool filename for '$baseName' in $poolDir");
+				header('Content-Type: application/json');
+				echo json_encode(['success' => false, 'message' => 'Failed to save file']);
+				exit;
 			}
-			$targetFile = "$poolDir/$baseName.pdf";
+			$baseName = $reservation->baseName();
+			$targetFile = $reservation->path();
 
 			// Try to extract invoice data via API
 			$extractedData = null;
@@ -184,8 +191,10 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 
 			// Convert images to PDF if needed
 			if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
-				$tempFile = "$poolDir/$baseName.$ext";
-				if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				$tempFile = $reservation->siblingPath($ext);
+				if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+					$reservation->discard();
+				} else {
 					if ($autoExtract) {
 						// Extract data from ORIGINAL image before converting to PDF
 						error_log("documents.php (AJAX): Calling extractInvoiceData for ORIGINAL image: $tempFile");
@@ -201,17 +210,21 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					}
 
 
-					// Now convert to PDF
+					// Now convert to PDF (overwrites the empty placeholder in place)
 					exec("convert '$tempFile' '$targetFile'", $output, $return_var);
-					if ($return_var === 0 && file_exists($targetFile)) {
+					clearstatcache(true, $targetFile);
+					if ($return_var === 0 && filesize($targetFile) > 0) {
 						unlink($tempFile);
 					} else {
+						$reservation->discard(); // drop the empty/partial .pdf placeholder
 						$targetFile = $tempFile; // Fallback to original if conversion fails
 					}
 				}
 			} else {
-				// For PDF files, move directly
-				move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+				// For PDF files, move directly onto the placeholder (rename = atomic replace)
+				if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile)) {
+					$reservation->discard();
+				}
 				// Extract data from PDF
 				if ($autoExtract && file_exists($targetFile)) {
 					error_log("documents.php (AJAX): Calling extractInvoiceData for PDF: $targetFile");
@@ -258,25 +271,23 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					$newBaseName = $invoiceDate;
 				}
 				
-				// Rename file if we have a new name
+				// Rename file if we have a new name - reserve the new name atomically first,
+				// then rename onto the placeholder (same race as the upload dedup above)
 				if ($newBaseName !== $baseName) {
-					$newTargetFile = "$poolDir/$newBaseName.pdf";
-					
-					// Check if file already exists and append number if needed
-					$counter = 1;
-					$originalNewBaseName = $newBaseName;
-					while (file_exists($newTargetFile)) {
-						$newBaseName = $originalNewBaseName . '_' . $counter;
-						$newTargetFile = "$poolDir/$newBaseName.pdf";
-						$counter++;
-					}
-					
-					if (rename($targetFile, $newTargetFile)) {
-						$targetFile = $newTargetFile;
-						$baseName = $newBaseName;
-						error_log("documents.php (AJAX): Renamed file to: $newBaseName.pdf");
+					$renameReservation = FileReservation::reserve($poolDir, $newBaseName, 'pdf', ['pdf', 'jpg', 'jpeg', 'png', 'info']);
+					if ($renameReservation === null) {
+						error_log("documents.php (AJAX): could not reserve a pool filename for '$newBaseName' in $poolDir, keeping $baseName.pdf");
 					} else {
-						error_log("documents.php (AJAX): Failed to rename file to: $newBaseName.pdf");
+						$newBaseName = $renameReservation->baseName();
+						$newTargetFile = $renameReservation->path();
+						if (rename($targetFile, $newTargetFile)) {
+							$targetFile = $newTargetFile;
+							$baseName = $newBaseName;
+							error_log("documents.php (AJAX): Renamed file to: $newBaseName.pdf");
+						} else {
+							$renameReservation->discard();
+							error_log("documents.php (AJAX): Failed to rename file to: $newBaseName.pdf");
+						}
 					}
 				}
 			}
@@ -574,26 +585,32 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 		$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 		$baseName = sanitize_filename($baseName);
 
-		// Dedupe against any pool file already using this base name (e.g. generic
-		// scanner/phone names like "scan.pdf") so an unrelated document's upload can't
-		// silently overwrite it and confuse its metadata (SST-776) - same pattern as
-		// the vendor+date rename dedup further below.
-		$originalBaseName = $baseName;
-		$dedupCounter = 1;
-		while (file_exists("$poolDir/$baseName.pdf") || file_exists("$poolDir/$baseName.jpg") || file_exists("$poolDir/$baseName.jpeg") || file_exists("$poolDir/$baseName.png")) {
-			$baseName = $originalBaseName . '_' . $dedupCounter;
-			$dedupCounter++;
+		// Reserve the target name atomically so a pool file already using this base name
+		// (e.g. generic scanner/phone names like "scan.pdf") is never overwritten, and two
+		// concurrent uploads with the same name can't both settle on it (SST-776). Sibling
+		// extensions count as taken too, so a leftover "scan.jpg" or "scan.info" also bumps
+		// us to "scan_1". $targetFile is an empty placeholder until the upload lands on it.
+		$reservation = FileReservation::reserve($poolDir, $baseName, 'pdf', ['pdf', 'jpg', 'jpeg', 'png', 'info']);
+		if ($reservation === null) {
+			error_log("documents.php (block2): could not reserve a pool filename for '$baseName' in $poolDir");
+			$targetFile = '';
+		} else {
+			$baseName = $reservation->baseName();
+			$targetFile = $reservation->path();
 		}
-		$targetFile = "$poolDir/$baseName.pdf";
 
 		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
 		$extractedData = null;
 		$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
 
 		// Convert images to PDF if needed
-		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
-			$tempFile = "$poolDir/$baseName.$ext";
-			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+		if ($reservation === null) {
+			// Nothing to write to; the file_exists($targetFile) check below skips the .info/redirect
+		} elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+			$tempFile = $reservation->siblingPath($ext);
+			if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				$reservation->discard();
+			} else {
 				if ($autoExtract) {
 					// Extract data from ORIGINAL image before converting to PDF
 					error_log("documents.php (block2): Calling extractInvoiceData for ORIGINAL image: $tempFile");
@@ -609,17 +626,21 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 				}
 
 
-				// Now convert to PDF
+				// Now convert to PDF (overwrites the empty placeholder in place)
 				exec("convert '$tempFile' '$targetFile'", $output, $return_var);
-				if ($return_var === 0 && file_exists($targetFile)) {
+				clearstatcache(true, $targetFile);
+				if ($return_var === 0 && filesize($targetFile) > 0) {
 					unlink($tempFile);
 				} else {
+					$reservation->discard(); // drop the empty/partial .pdf placeholder
 					$targetFile = $tempFile; // Fallback to original if conversion fails
 				}
 			}
 		} else {
-			// For PDF files, move directly
-			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+			// For PDF files, move directly onto the placeholder (rename = atomic replace)
+			if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile)) {
+				$reservation->discard();
+			}
 			// Extract data from PDF
 			if ($autoExtract && file_exists($targetFile)) {
 				error_log("documents.php (block2): Calling extractInvoiceData for PDF: $targetFile");
