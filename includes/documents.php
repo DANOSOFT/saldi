@@ -162,8 +162,19 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 			// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
 			$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 			$baseName = sanitize_filename($baseName);
+
+			// Dedupe against any pool file already using this base name (e.g. generic
+			// scanner/phone names like "scan.pdf") so an unrelated document's upload can't
+			// silently overwrite it and confuse its metadata (SST-776) - same pattern as
+			// the vendor+date rename dedup further below.
+			$originalBaseName = $baseName;
+			$dedupCounter = 1;
+			while (file_exists("$poolDir/$baseName.pdf") || file_exists("$poolDir/$baseName.jpg") || file_exists("$poolDir/$baseName.jpeg") || file_exists("$poolDir/$baseName.png")) {
+				$baseName = $originalBaseName . '_' . $dedupCounter;
+				$dedupCounter++;
+			}
 			$targetFile = "$poolDir/$baseName.pdf";
-			
+
 			// Try to extract invoice data via API
 			$extractedData = null;
 			$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
@@ -559,8 +570,19 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 		// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
 		$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 		$baseName = sanitize_filename($baseName);
+
+		// Dedupe against any pool file already using this base name (e.g. generic
+		// scanner/phone names like "scan.pdf") so an unrelated document's upload can't
+		// silently overwrite it and confuse its metadata (SST-776) - same pattern as
+		// the vendor+date rename dedup further below.
+		$originalBaseName = $baseName;
+		$dedupCounter = 1;
+		while (file_exists("$poolDir/$baseName.pdf") || file_exists("$poolDir/$baseName.jpg") || file_exists("$poolDir/$baseName.jpeg") || file_exists("$poolDir/$baseName.png")) {
+			$baseName = $originalBaseName . '_' . $dedupCounter;
+			$dedupCounter++;
+		}
 		$targetFile = "$poolDir/$baseName.pdf";
-		
+
 		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
 		$extractedData = null;
 		$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
