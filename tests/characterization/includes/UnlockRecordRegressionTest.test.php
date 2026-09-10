@@ -61,4 +61,37 @@ final class UnlockRecordRegressionTest extends TestCase
         unlock_record('ordrer', 0);
         self::assertSame(3, (int)$this->db->query("SELECT count(*) FROM ordrer WHERE tidspkt<>''")->fetchColumn());
     }
+
+    // 20260908 SZ SST-755: a stale tab's delayed release must not clobber a lock a newer
+    // tab (different tidspkt) or a different user has since acquired.
+
+    public function testStaleTidspktDoesNotUnlock(): void
+    {
+        unlock_record('kladdeliste', 1, null, 'not-the-current-tidspkt');
+        self::assertSame(['123', 'salesperson'], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testMatchingTidspktUnlocks(): void
+    {
+        unlock_record('kladdeliste', 1, null, '123');
+        self::assertSame(['', ''], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testDifferentOwnerDoesNotUnlock(): void
+    {
+        unlock_record('kladdeliste', 1, 'someone-else', null);
+        self::assertSame(['123', 'salesperson'], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testMatchingOwnerUnlocks(): void
+    {
+        unlock_record('kladdeliste', 1, 'salesperson', null);
+        self::assertSame(['', ''], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testMatchingOwnerAndTidspktUnlocksOrderWhileRetainingResponsibility(): void
+    {
+        unlock_record('ordrer', 1, 'salesperson', '123');
+        self::assertSame(['', 'salesperson'], $this->db->query('SELECT tidspkt,hvem FROM ordrer WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
 }
