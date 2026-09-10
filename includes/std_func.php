@@ -169,14 +169,15 @@ if (!function_exists('get_relative')) {
     }
 }
 
-
-if (!function_exists('if_isset')) {
-    function if_isset($arrayOrVar, $default = null, $key = null) {
+if (!function_exists('ifset')) {
+    function ifset($arrayOrVar, $key = null, $default = null) {
         /**
          * Custom function to safely check if a variable or an array key exists.
          *
-         * - if_isset($var, $default)           // safely checks if $var is set, returns $default if not
-         * - if_isset($array, $default, $key)   // safely gets $array[$key] or returns $default
+         * - ifset($var)           // safely checks if $var is set, returns null if not
+         * - ifset($array, $key)           // safely gets $array[$key] or returns null
+         * - ifset($array, $key, $default)   // safely gets $array[$key] or returns $default
+         * - ifset($array, null, $default)   // safely checks if $var is set or returns $default
          *
          * Behavior for special values:
          * ----------------------------------------
@@ -186,12 +187,15 @@ if (!function_exists('if_isset')) {
          * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
          * - Arrays: If the key exists, it returns the value. If not, it returns the default value.
          * #############USECASE####################
-		 * $sektion = if_isset($_GET,null,'sektion');
+		 * $sektion = ifset($_GET,'sektion', 0);
+		 * $sektion = ifset($_GET,'sektion');
+		 * $user = ifset($user);
+		 * $id = ifset($id, null, 0);
 		 * ########################################
 		 * 
          * @param mixed $arrayOrVar The array or variable to check.
-         * @param mixed $default    The default value to return if the variable or array's key is not set.
          * @param mixed $key        The key (if array is passed).
+         * @param mixed $default    The default value to return if the variable or array's key is not set.
          * @return mixed           The actual value or the default.
          */
 
@@ -226,6 +230,34 @@ if (!function_exists('if_isset')) {
 
         // Default case: Return the default value
         return $default;
+	}
+}
+
+if (!function_exists('if_isset')) {
+    function if_isset($arrayOrVar, $default = null, $key = null) {
+        /**
+         * Custom function to safely check if a variable or an array key exists.
+         *
+         * - if_isset($var, $default)           // safely checks if $var is set, returns $default if not
+         * - if_isset($array, $default, $key)   // safely gets $array[$key] or returns $default
+         *
+         * Behavior for special values:
+         * ----------------------------------------
+         * - `false`: Treated as "set".
+         * - `null`: If the variable or array key is explicitly `null`
+         * - `0`: Considered a valid value, returned as-is (0 is treated as set).
+         * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
+         * - Arrays: If the key exists, it returns the value. If not, it returns the default value.
+         * #############USECASE####################
+		 * $sektion = if_isset($_GET,null,'sektion');
+		 * ########################################
+		 * 
+         * @param mixed $arrayOrVar The array or variable to check.
+         * @param mixed $default    The default value to return if the variable or array's key is not set.
+         * @param mixed $key        The key (if array is passed).
+         * @return mixed           The actual value or the default.
+         */
+		return ifset($arrayOrVar, $key, $default);
     }
 }
 
