@@ -43,6 +43,7 @@
 //                 which the very next INSERT/UPDATE in each of those code paths already
 //                 references - a brand-new tenant's first pool file would fail with
 //                 "column norm_amount does not exist". Added the column to both.
+// 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -3836,7 +3837,7 @@ JS;
 	print "<div style='padding: 12px;'>";
 	
 	// Unified upload zone (click to select or drag and drop)
-	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png' multiple style='display:none'>";
+	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png,.xml' multiple style='display:none'>";
 	print "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' onclick='document.getElementById(\"fileUploadInput\").click()' style='width: 100%; border: 2px dashed #bbb; border-radius: 10px; padding: 90px 16px; background-color: #f8f8f8; cursor: pointer; transition: all 0.3s ease; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;'>";
 	print "<div id='dropText' style='display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; text-align: center;'>";
 	print "<svg viewBox='0 0 24 24' fill='none' stroke='#7ab3d4' stroke-width='1.5' width='44' height='44'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg>";
@@ -3874,7 +3875,7 @@ JS;
 	}
 
 	function uploadFiles(files) {
-		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.xml'];
 		var validFiles = [];
 		for (var i = 0; i < files.length; i++) {
 			var fileName = files[i].name.toLowerCase();
