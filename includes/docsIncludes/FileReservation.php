@@ -37,8 +37,13 @@ if (!class_exists('FileReservation')) {
 	 *
 	 * Sibling extensions let a caller treat a base name as taken when any related file
 	 * exists, e.g. a "scan.jpg" temp file or a "scan.info" metadata file next to the
-	 * "scan.pdf" being reserved. Only the reserved extension is actually created; siblings
-	 * are protected indirectly because every competing reservation checks them too.
+	 * "scan.pdf" being reserved. To make that atomic across callers reserving *different*
+	 * extensions for the same base name, each candidate is first claimed through a hidden
+	 * marker file ".<name>.reserving" (also created with 'x'), the siblings are re-checked
+	 * and the real file created while the marker is held, and the marker is removed again.
+	 * Competing reservations treat an existing marker as "name taken", so "scan.pdf" and
+	 * "scan.jpg" can never be handed out to two concurrent callers. A marker orphaned by a
+	 * crash merely causes that one candidate name to be skipped.
 	 *
 	 * Typical use:
 	 *   $res = FileReservation::reserve($dir, 'scan', 'pdf', ['pdf', 'jpg', 'jpeg', 'png', 'info']);
@@ -86,21 +91,46 @@ if (!class_exists('FileReservation')) {
 
 			for ($n = 0; $n < $maxAttempts; $n++) {
 				$candidate = $n === 0 ? $baseName : $baseName . $separator . $n;
-				if (self::anyExists($dir, $candidate, $siblingExts)) {
+				$marker = self::markerPath($dir, $candidate);
+				if (file_exists($marker) || self::anyExists($dir, $candidate, $siblingExts)) {
 					continue;
 				}
-				// 'x' = create only; fails if the path appeared between the check and here.
-				$handle = @fopen("$dir/$candidate.$ext", 'x');
+				// Claim the base name itself first ('x' = create only, fails atomically if
+				// it appeared between the check and here), so a concurrent caller reserving
+				// another extension of the same name is bumped instead of slipping through.
+				$markerHandle = @fopen($marker, 'x');
+				if ($markerHandle === false) {
+					if (!is_dir($dir) || !is_writable($dir)) {
+						return null;
+					}
+					continue; // lost the race for this candidate; try the next one
+				}
+				fclose($markerHandle);
+				// Holding the marker serialises creation for this name, so re-checking the
+				// siblings now is authoritative: a competitor that won the marker a moment ago
+				// and already created "$candidate.<otherExt>" is caught here.
+				$handle = self::anyExists($dir, $candidate, $siblingExts)
+					? false
+					: @fopen("$dir/$candidate.$ext", 'x');
 				if ($handle !== false) {
 					fclose($handle);
+				}
+				// The real file (if created) now guards the name; the marker is no longer needed.
+				@unlink($marker);
+				if ($handle !== false) {
 					return new self($dir, $candidate, $ext);
 				}
 				if (!is_dir($dir) || !is_writable($dir)) {
 					return null;
 				}
-				// Lost the race for this candidate to a concurrent reservation; try the next one.
+				// Candidate was taken while we waited for the marker; try the next one.
 			}
 			return null;
+		}
+
+		/** Hidden per-candidate claim file; dot-prefixed so "*.pdf"-style listings never see it. */
+		private static function markerPath(string $dir, string $baseName): string {
+			return "$dir/.$baseName.reserving";
 		}
 
 		/**

@@ -18,8 +18,10 @@ final class FileReservationTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach (glob($this->dir . '/*') ?: [] as $f) {
-            unlink($f);
+        foreach (scandir($this->dir) ?: [] as $f) {
+            if ($f !== '.' && $f !== '..') {
+                unlink($this->dir . '/' . $f);
+            }
         }
         rmdir($this->dir);
     }
@@ -122,25 +124,68 @@ final class FileReservationTest extends TestCase
         self::assertNull(FileReservation::reserve($this->dir, 'scan', 'pdf', [], '_', 2));
     }
 
+    public function testExistingMarkerCountsAsTaken(): void
+    {
+        touch($this->dir . '/.scan.reserving');
+
+        $res = FileReservation::reserve($this->dir, 'scan', 'pdf');
+
+        self::assertSame('scan_1', $res->baseName());
+        self::assertFileExists($this->dir . '/.scan.reserving', 'a foreign marker must not be removed');
+        self::assertFileDoesNotExist($this->dir . '/.scan_1.reserving', 'own marker is removed after reserving');
+    }
+
     /**
      * Spawns several PHP processes that all reserve "scan.pdf" in the same directory at the
      * same moment. Every process must come away with a distinct name.
      */
     public function testConcurrentProcessesGetDistinctNames(): void
     {
-        $workers = 12;
-        $script = $this->dir . '/worker.php';
+        $names = $this->reserveConcurrently(array_fill(0, 12, 'pdf'));
+
+        self::assertCount(12, array_unique($names), 'two workers reserved the same name: ' . implode(', ', $names));
+        self::assertCount(12, glob($this->dir . '/scan*.pdf'));
+    }
+
+    /**
+     * Same race, but the workers ask for different extensions of the same base name. The
+     * sibling rule alone is check-then-act, so without the marker two workers could end up
+     * with "scan.pdf" and "scan.jpg". Every base name must still be unique.
+     */
+    public function testConcurrentProcessesWithDifferentExtensionsGetDistinctBaseNames(): void
+    {
+        $exts = ['pdf', 'jpg', 'png', 'pdf', 'jpg', 'png', 'pdf', 'jpg', 'png', 'pdf', 'jpg', 'png'];
+
+        $names = $this->reserveConcurrently($exts);
+
+        self::assertCount(count($exts), array_unique($names), 'two workers reserved the same base name: ' . implode(', ', $names));
+        self::assertSame([], glob($this->dir . '/.*.reserving'), 'no markers left behind');
+    }
+
+    /**
+     * Runs one PHP process per entry in $exts, each reserving base name "scan" with that
+     * extension, released simultaneously. Returns the base names they were given.
+     *
+     * @param string[] $exts
+     * @return string[]
+     */
+    private function reserveConcurrently(array $exts): array
+    {
         $go = $this->dir . '/go';
-        file_put_contents($script, '<?php
-            require ' . var_export(dirname(__DIR__, 3) . '/includes/docsIncludes/FileReservation.php', true) . ';
-            while (!file_exists(' . var_export($go, true) . ')) { usleep(200); }
-            $r = FileReservation::reserve(' . var_export($this->dir, true) . ', "scan", "pdf", ["jpg", "info"]);
-            echo $r === null ? "NULL" : $r->baseName();
-        ');
+        $scripts = [];
+        foreach ($exts as $i => $ext) {
+            $scripts[$i] = $this->dir . "/worker$i.php";
+            file_put_contents($scripts[$i], '<?php
+                require ' . var_export(dirname(__DIR__, 3) . '/includes/docsIncludes/FileReservation.php', true) . ';
+                while (!file_exists(' . var_export($go, true) . ')) { usleep(200); }
+                $r = FileReservation::reserve(' . var_export($this->dir, true) . ', "scan", ' . var_export($ext, true) . ', ["pdf", "jpg", "png", "info"]);
+                echo $r === null ? "NULL" : $r->baseName();
+            ');
+        }
 
         $procs = [];
         $pipes = [];
-        for ($i = 0; $i < $workers; $i++) {
+        foreach ($scripts as $i => $script) {
             $spec = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
             $procs[$i] = proc_open(PHP_BINARY . ' ' . escapeshellarg($script), $spec, $pipes[$i]);
             self::assertIsResource($procs[$i]);
@@ -149,17 +194,16 @@ final class FileReservationTest extends TestCase
         touch($go);
 
         $names = [];
-        for ($i = 0; $i < $workers; $i++) {
+        foreach ($procs as $i => $proc) {
             $names[] = trim(stream_get_contents($pipes[$i][1]));
             fclose($pipes[$i][1]);
             fclose($pipes[$i][2]);
-            proc_close($procs[$i]);
+            proc_close($proc);
+            unlink($scripts[$i]);
         }
-        unlink($script);
         unlink($go);
 
         self::assertNotContains('NULL', $names);
-        self::assertCount($workers, array_unique($names), 'two workers reserved the same name: ' . implode(', ', $names));
-        self::assertCount($workers, glob($this->dir . '/scan*.pdf'));
+        return $names;
     }
 }
