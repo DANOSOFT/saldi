@@ -76,10 +76,6 @@
 // 20260831 Sawaneh Action buttons were clipped and unreachable at 125% Windows scaling (SST-747):
 //                  replaced the guessed 130/150px viewport calc with a flex column layout, removed the
 //                  unconditional html/body overflow-y:hidden and let the button bar wrap on narrow windows.
-// 20260907 CL/LH  Rejected amounts: alert text is sanitised before alert() embeds it in a <script>, a rejected
-//                  line skips kontroller()'s processing/tmpkassekl update and the error re-render shows the
-//                  operator's raw text instead of usdecimal()'s 100x value, the "+=" shortcut validates the
-//                  amount before indsaet_linjer(), and the texts moved from 5080/5081 to 5089/5090.
 // 20260903 Sawaneh Removed leftover debug output: per-line bilag console.log and the fiscal-year
 //                  console dump (incl. its debug-only grupper query); validation itself is unchanged.
 // 20260903 Sawaneh "Sidste 5 posteringer" counter-account suggestions now also cover finance (F) lines,
@@ -97,6 +93,8 @@
 //                  difference amount under bilag sorting) - the balance status at the top replaces it.
 // 20260903 Sawaneh Settings box restyled as the product card gear panel (fieldVisibility.php look):
 //                  round gear button, click-to-open panel with title/intro/Show all; same persistence.
+// 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
+//                  other menu styles keep the floating button; panel now opens just below the button.
 // 20260907 Sawaneh First-time hint bubble pointing at the gear ("klik for at tilpasse din opsætning",
 //                  texts 5147/5148), dismissed per user via localStorage - product card hint pattern.
 // 20260907 Sawaneh Column/panel save fetch uses keepalive so a refresh right after toggling can no
@@ -104,10 +102,15 @@
 // 20260907 Sawaneh Column/panel choices now also persist for revisor/admin sessions: online.php gives
 //                  those bruger_id = -1 and the save/read guards required > 0, so admins silently lost
 //                  every choice on reload (pre-existing bug in the column picker, inherited by Part B).
-// 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
-//                  other menu styles keep the floating button; panel now opens just below the button.
+// 20260907 CL/LH  Rejected amounts: alert text is sanitised before alert() embeds it in a <script>, a rejected
+//                  line skips kontroller()'s processing/tmpkassekl update and the error re-render shows the
+//                  operator's raw text instead of usdecimal()'s 100x value, the "+=" shortcut validates the
+//                  amount before indsaet_linjer(), and the texts moved from 5080/5081 to 5089/5090.
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
 //                  with customer/supplier evidence; isolate journal history queries for regression tests.
+// 20260907 CL/LH  The replay fingerprint is recorded only after a successful save; recording it before
+//                  kontroller() turned a double-click on a failing save into a "replay" that skipped
+//                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 
@@ -1338,6 +1341,22 @@ if ($_POST) {
 		copy2new($kladde_id, $bilagsnr, $ny_dato, $vend_fortegn);
 	}
 	$fokus = $_POST['fokus'];
+	// 20260902 CL/LH  L4 findings adversarial-forms DEVY-2 / adversarial-navigation DEVY-1: a
+	// double-click on Gem, or browser Back + "resend form", posted the identical form twice and
+	// the second POST inserted the new lines again as duplicate draft rows. The tidspkt refresh
+	// check below never fires for an open journal (bogfort is '-' which is truthy), so detect the
+	// replay explicitly: the same session re-posting the exact same save payload for the same
+	// journal is a replay and must not touch the lines again. A stale tab with *different*
+	// content is not affected (different payload) and saves as before. The fingerprint is only
+	// compared here; it is recorded after opdater() below, once the save has actually succeeded,
+	// so a re-post of a save that failed validation is validated (and rejected) again.
+	$kk_replay = false;
+	if ($submit == 'save' && $kladde_id) {
+		$kk_payload = md5(serialize($_POST));
+		if (isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
+			$kk_replay = true;
+		}
+	}
 	if ($kladde_id) {
 		$row = db_fetch_array(db_select("select bogfort,tidspkt from kladdeliste where id=$kladde_id", __FILE__ . " linje " . __LINE__));
 		if (!$row['bogfort'] && $tidspkt == $row['tidspkt']) { #Refreshtjek"
@@ -1393,9 +1412,9 @@ if ($_POST) {
 							$kreditvat[$x] = '';
 						if (!isset($afd[$x]))
 							$afd[$x] = NULL;
-						if ((!$fejl) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
+						if ((!$fejl) && (!$kk_replay) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
-						} elseif ((!$fejl) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
+						} elseif ((!$fejl) && (!$kk_replay) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						}
 					}
@@ -1548,8 +1567,19 @@ if ($r = db_fetch_array(db_select("select id from adresser where art = 'S'", __F
 	}
 }
 if (!$fejl && $kladde_id) {
-	opdater($kladde_id);
-    initializePositions($kladde_id);
+	// A replayed save (see $kk_replay above) must not move the staged lines into the journal
+	// again - that is exactly what produced the duplicate rows. Still clear the staging table.
+	if (empty($kk_replay)) {
+		opdater($kladde_id);
+		initializePositions($kladde_id);
+		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
+		// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
+		// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
+		if (isset($kk_payload)) {
+			if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+			$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+		}
+	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
 /*
