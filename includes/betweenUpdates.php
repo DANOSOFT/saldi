@@ -36,6 +36,12 @@
 //                  a nonexistent column, pg_query() failed, and the endpoint silently
 //                  returned zero rows regardless of any actual match. All statements below
 //                  are idempotent (existence/flag-checked), matching this file's pattern.
+// 20260910 CL/SZ SST-777: added pool_files.manually_edited so a corrected suggestion
+//                  (account/amount/date/etc, saved via docPool.php's row/card edit) isn't
+//                  silently overwritten by a later automatic re-extraction.
+// 20260910 SZ SST-777 (CodeRabbit): the manually_edited column add wasn't concurrent-login
+//                  safe - guarded it with IF NOT EXISTS the same way the SST-763 migration
+//                  just below it already does.
 // 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
@@ -95,6 +101,18 @@ while ($r_norm_catchup = db_fetch_array($q_norm_catchup)) {
 			__FILE__ . " linje " . __LINE__
 		);
 	}
+}
+
+// SST-777: track whether a pool_files row's fields were set by an explicit human
+// correction (docPool.php's row/card "Save") rather than an automatic (re-)extraction,
+// so a later automatic re-extraction save can skip overwriting an already-corrected
+// field instead of silently clobbering it (see extractInvoiceHandler.php's save action).
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='manually_edited'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# IF NOT EXISTS (Postgres/MariaDB, not MySQL) because betweenUpdates.php runs at login and two
+	# concurrent logins can both pass the check above.
+	$pool_files_if_not_exists = ($db_type == 'mysql' || $db_type == 'mysqli') ? '' : 'IF NOT EXISTS ';
+	db_modify("ALTER TABLE pool_files ADD COLUMN {$pool_files_if_not_exists}manually_edited BOOLEAN NOT NULL DEFAULT false", __FILE__ . " linje " . __LINE__);
 }
 
 // Same reasoning as the norm_amount catch-up above, for currency: extractInvoiceHandler.php
