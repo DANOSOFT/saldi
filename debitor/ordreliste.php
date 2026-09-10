@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-09--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-07-31--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,7 +55,16 @@
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
+// 20260731 MJ Rettet kolonneoverskrift for hvem til findtekst('3367|Udført af')
+// 20260812 MJ Ret kolonne og filtrering fra hvem til performed_by
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260908 CDX/MJ Udført af column header moved from tekst_id 3367 to 5151. 3367 is already used by
+//             systemdata/stamkort.php for "Medtages på eFaktura når udfyldt", and findtekst() prefers
+//             an existing tekster row over tekster.csv, so the header rendered as that instead.
+// 20260909 CDX/MJ Show Udført af by default on the order view. The "hidden" key in $custom_columns is
+//             dead - it is overwritten from $active_column_names further down - so default visibility
+//             is decided solely by $explicit_default_columns, which never listed performed_by.
+//             Users with a saved column_setup keep their own selection, as before.
 
 @session_start();
 $s_id = session_id();
@@ -1257,6 +1266,34 @@ $custom_columns = array(
         "hidden" => true,
         "sqlOverride" => "o.felt_5",
     ),
+    "performed_by" => array(
+        "field" => "performed_by",
+        "headerName" => findtekst('5151|Udført af', $sprog_id),
+        "width" => "1",
+        "type" => "dropdown",
+        "hidden" => true,
+        "sortable" => true,
+        "searchable" => true,
+        "sqlOverride" => "o.performed_by",
+        "dropdownOptions" => function () use ($valg, $hurtigfakt) {
+            if ($hurtigfakt) {
+                $status_condition = ($valg == "faktura") ? "status >= 3" : "status < 3";
+            } else {
+                if ($valg == "tilbud")       $status_condition = "status < 1";
+                elseif ($valg == "faktura")  $status_condition = "status >= 3";
+                else                         $status_condition = "(status = 1 OR status = 2)";
+            }
+            $options = array();
+            $q = db_select("SELECT DISTINCT performed_by FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND performed_by IS NOT NULL AND performed_by != '' ORDER BY performed_by", __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                $options[] = $r['performed_by'];
+            }
+            return $options;
+        },
+        "render" => function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') . "</td>";
+        },
+    ),
 );
 
 // Build the FINAL $columns array dynamically
@@ -1269,7 +1306,7 @@ if ($valg == "tilbud") {
 } elseif ($valg == "faktura") {
     $explicit_default_columns = array("ordrenr", "ordredate", "fakturanr", "fakturadate", "nextfakt", "kontonr", "firmanavn", "ref", "sum");
 } else {
-    $explicit_default_columns = array("ordrenr", "ordredate", "levdate", "kontonr", "firmanavn", "ref", "sum");
+    $explicit_default_columns = array("ordrenr", "ordredate", "levdate", "kontonr", "firmanavn", "ref", "performed_by", "sum");
 }
 
 // Check if user has saved column preferences in the OLD system (box3)
@@ -1380,7 +1417,7 @@ foreach ($custom_columns as $field_name => $column_def) {
 foreach ($all_db_columns as $field_name => $column_info) {
     $grid_type = $column_info['grid_type'];
     $decimalPrecision = $column_info['decimalPrecision'];
-    $skip_fields = ['id', 'tidspkt', 'copied', 'scan_id'];
+    $skip_fields = ['id', 'hvem', 'tidspkt', 'copied', 'scan_id'];
     if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
         continue;
     }
@@ -1621,22 +1658,6 @@ $columns[] = array(
         return $actions;
     }
 );
- if ($sprog_id == 2) {
-        $columnHd = 'Performed by'; //TODO: findtekst
- } else{
-        $columnHd = 'Hvem';
- }
- $columns[] = array(
-        "field" => "hvem",
-        "headerName" => $columnHd,
-        "width" => "1",
-        "type" => "text",
-        "hidden" => true,
-        "searchable" => true,
-        "render" => function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>$value</td>";
-        }
-    );
 // === END DYNAMIC COLUMN DEFINITION ===
 
 
@@ -2027,6 +2048,7 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
 $rows = create_datagrid($grid_id, $data);
+
 #######
 // Build ordreliste for box1 (used by other parts of the system)
 

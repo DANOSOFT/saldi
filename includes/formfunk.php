@@ -50,6 +50,7 @@
 // 20260426 PHR Outcommented change by PBLM as it has to be modified
 // 20260528 Sawaneh Print out-of-stock approval note under item description; fall back to formular 3 when requested formularer layout is missing
 // 20260611 LOE Added hvem to show up in printing of necessary documents.
+// 20260812 MJ Ret ordre_hvem-pladsholder og udskriftslaesning til performed_by
 // 20260623 Sawaneh Log 'Reason' (out-of-stock approval note) now prints only on the delivery note, not on quotes/orders/invoices.
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
@@ -272,6 +273,8 @@ if (!function_exists('skriv')) {
 									$variabel = "fakturadate";
 								if ($variabel == "tlf")
 									$variabel = "phone";
+								if ($variabel == "hvem")
+									$variabel = "performed_by"; // 20260812 MJ ordre_hvem-pladsholder laeses fra performed_by
 								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
@@ -641,6 +644,8 @@ if (!function_exists('find_form_tekst')) {
 							$variabel = "fakturadate";
 						if ($variabel == "tlf")
 							$variabel = "phone";
+						if ($variabel == "hvem")
+							$variabel = "performed_by"; // 20260812 MJ ordre_hvem-pladsholder laeses fra performed_by
 						if ($variabel) {
 							$qtxt = "select $variabel from ordrer where id=$id";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -1175,7 +1180,7 @@ if (!function_exists('formularprint')) {
 				$email[0] = 'Kundens email';
 				$pbs = '';
 			} else {
-				$qtxt = "select afd,status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,sprog,udskriv_til,mail_subj,mail_text,dokument,procenttillag ";
+				$qtxt = "select afd,status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,performed_by,sprog,udskriv_til,mail_subj,mail_text,dokument,procenttillag ";
 				$qtxt .= "from ordrer where id = '$ordre_id[$o]'";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($q);
@@ -1183,7 +1188,7 @@ if (!function_exists('formularprint')) {
 				$afd = $row['afd'];
 				$art = $row['art'];
 				$ref = $row['ref'];
-				$hvem = $row['hvem'];
+				$hvem = $row['performed_by']; // 20260812 MJ performed_by erstatter hvem til Udfoert af-pladsholder
 				$ordrenr = $row['ordrenr'];
 				if (!$udskriv_alle_til)
 					$udskriv_til = $row['udskriv_til'];

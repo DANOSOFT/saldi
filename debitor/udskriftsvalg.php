@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------debitor/udskriftsvalg.php----------------lap 3.6.9----2017-05-05-------------
+// --- debitor/udskriftsvalg.php --- patch 5.0.0 --- 2026-08-03 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -49,7 +49,8 @@ $udskriv_til=if_isset($_GET['udskriv_til']);
 
 if ($valg=="tilbage" || $udskriv_til=='ingen') {
 	if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-	else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php??tjek=$id&id=$id\">";
+	// 20260803 MJ ret dobbelt-spørgsmålstegn
+	else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?tjek=$id&id=$id\">";
 	exit;
 }
 
