@@ -108,7 +108,10 @@
 //                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
 //                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
 // 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
+// 20260908 CL/Sawaneh SST-763: PBS button on posted PBS invoices opens debitor/pbs_gensend.php
+//                     (attempt history + resend after a Nets rejection).
 // 20260909 Sawaneh JOB-124: partial-delivery packing-slip buttons pass a returside back to the order.
+// 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
 // 20260910 Sawaneh Back button: luk.php returside only on the popup=1 request flag (was the popup
 //                  preference, which sent inline/iframe users to the login page); GET returside sanitised.
 
@@ -3308,7 +3311,7 @@ function ordreside($id, $regnskab)
 	global $oio, $oioubl, $omkunde, $ordresum;
 	global $popup, $isPopupRequest, $procentfakt, $procenttillag, $procentvare;
 	global $regnaar, $returside, $rvid, $rvnr;
-	global $samlet_pris, $samlet_rabat, $samlet_rabatpct, $showLocalPrint, $sprog_id, $sprog, $svnr;
+	global $samlet_pris, $samlet_rabat, $samlet_rabatpct, $showLocalPrint, $sprog_id, $sprog, $svnr, $jsvars;
 	global $txt370, $txt283;
 	global $varenr, $vis_projekt, $vis_saet; #20150306 varenr
 	global $width;
@@ -4556,6 +4559,11 @@ function ordreside($id, $regnskab)
 		else if ($udskriv_til == "Digitalt") $tmp = "value=\"Send\" title=\"" . findtekst('2539|Send faktura digitalt', $sprog_id) . "\"";
 		else $tmp = "value=\"" . findtekst('880|Udskriv', $sprog_id) . "\" title=\"" . findtekst('1461|Åbn et PDF-dokument, som kan gemmes eller viderebehandles på anden vis.', $sprog_id) . "\"";
 		print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" name=\"print\" $tmp></td>\n";
+		if ($art == 'DO' && (strstr($udskriv_til, 'PBS') || db_fetch_array(db_select("select id from pbs_ordrer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__)))) {
+			$title = findtekst('3394|PBS-historik', $sprog_id) . " / " . findtekst('3385|Gensend til PBS', $sprog_id);
+			print "<td align=\"center\"><input type=\"button\" class=\"button gray medium\" value=\"PBS\" title=\"$title\" ";
+			print "onclick=\"pbs_gensend=window.open('pbs_gensend.php?id=$id','pbs_gensend','$jsvars');pbs_gensend.focus();\"></td>\n";
+		}
 		if (($art != 'DK') && (!$krediteret)) {
 			$title = findtekst('1462|Klik her for at oprette en kreditnota, som hel eller delvist krediterer denne faktura. Kreditnotaen oprettes som en kreditnotaordre, som kan redigeres inden bogføring. Eksempelvis hvis kun en enkelt faktureret vare skal krediteres.', $sprog_id);
 			print "<td align=\"center\" title=\"$title\"><input type=\"submit\" class=\"button gray medium\" value=\"" . findtekst('1001|Kredit', $sprog_id) . "\" name=\"b_submit\"></td>\n";
