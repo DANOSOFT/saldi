@@ -36,6 +36,8 @@
 // 20260126 PHR fixed $exitDraft
 // 20260706 MJ Optimized cash journal list entry counts for large databases.
 // 20260904 Sawaneh WP-1.4: pass GET returside (sanitised) to topLineFinans; exitDraft cast to int
+// 20260908 SZ SST-755: exitDraft's release now also requires hvem to still match the
+//                  current user, so it can't clear a lock a different user has since taken.
 
 @session_start();
 $s_id=session_id();
@@ -202,7 +204,7 @@ print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" 
 
 $exitDraft = isset($_GET['exitDraft']) ? (int)$_GET['exitDraft'] : null;
 if ($exitDraft) {
-	$qtxt = "update kladdeliste set hvem = '', tidspkt = NULL where id = '$exitDraft'";
+	$qtxt = "update kladdeliste set hvem = '', tidspkt = NULL where id = '$exitDraft' and hvem = '$brugernavn'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 

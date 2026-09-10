@@ -109,9 +109,13 @@
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
 //                  with customer/supplier evidence; isolate journal history queries for regression tests.
 
+// 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
+//                  includes/luk.php instead of the dead/conditional exitDraft links, and an
+//                  unload/pagehide beacon was added (there was none before).
+
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 
-ob_start(); //Starter output buffering  
+ob_start(); //Starter output buffering
 
 register_shutdown_function(function() {
     $e = error_get_last();
@@ -1573,6 +1577,18 @@ if ($kladde_id) {
 	$kladdenote = htmlentities(stripslashes($row['kladdenote']), ENT_QUOTES, $charset);
 	$bogfort = $row['bogfort'];
 }
+
+// 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
+// includes/luk.php with the row's *current* DB tidspkt, instead of the old exitDraft links
+// (dead for the "Ny" button, since kassekladde.php never read exitDraft; and skipped entirely
+// whenever the back target wasn't kladdeliste.php). $kladdeLukBase is reused below for every
+// exit link, with &returside=<target> appended per link.
+$lockTidspkt = NULL;
+if ($kladde_id) {
+	$lockRow = db_fetch_array(db_select("select tidspkt from kladdeliste where id=" . (int)$kladde_id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) $lockTidspkt = $lockRow['tidspkt'];
+}
+$kladdeLukBase = "../includes/luk.php?tabel=kladdeliste&id=" . (int)$kladde_id . ($lockTidspkt !== null ? "&tidspkt=" . urlencode($lockTidspkt) : "");
 $x = 0;
 ($visipop) ? $ny = NULL : $ny = findtekst('39|Ny', $sprog_id); #20210628
 
@@ -1603,10 +1619,10 @@ if (!$simuler) {
 
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<div id='header'>";
-			$backTarget = $backUrl != '../finans/kladdeliste.php' ? $backUrl : "../finans/kladdeliste.php?exitDraft=$kladde_id&line=". __line__ .";";
+			$backTarget = $kladdeLukBase . "&returside=" . urlencode($backUrl);
 			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('" . htmlspecialchars($backTarget, ENT_QUOTES, $charset) . "','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 			print "<div class='headerTxt'>$title &nbsp;•&nbsp; $kladde_id</div>";
-			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id&line=". __line__ .";','$tekst')\" title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
+			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase . "&returside=" . urlencode('../finans/kassekladde.php'), ENT_QUOTES, $charset) . "','$tekst')\" title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
 			print "</div>";
 			print "<div class='content-noside'>";
 
@@ -1619,14 +1635,12 @@ if (!$simuler) {
 			else print "<td $top_bund>";
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			if ($popup || $visipop) {
-				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id&line=". __line__ .";','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
-			} elseif ($backUrl != '../finans/kladdeliste.php') {
-				print "<a href=\"javascript:confirmClose('" . htmlspecialchars($backUrl, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			} else {
-				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id&line=". __line__ .";','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase . "&returside=" . urlencode($backUrl), ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			}
 			print "<td width='80%' $top_bund> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
-			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id&line=". __line__ .";','$tekst')\" accesskey='N'>$ny</a></td></tr>";
+			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase . "&returside=" . urlencode('../finans/kassekladde.php'), ENT_QUOTES, $charset) . "','$tekst')\" accesskey='N'>$ny</a></td></tr>";
 			print "</tbody></table>"; # Tabel 1.1 <- Toplinje
 			print "</td></tr>\n";
 		}
@@ -5527,4 +5541,57 @@ document.addEventListener('DOMContentLoaded', function() {
 	});
 </script>
 
-<?php ?>
+<?php
+// 20260908 SZ SST-755: kassekladde had no unload/pagehide release at all. Re-read the lock
+// fresh here (not the earlier $lockTidspkt) since $kladde_id can change later in this script
+// (e.g. a newly created kladde) - the beacon must reference whatever is actually locked by the
+// time the page finishes rendering.
+$beaconKladdeId = (int)if_isset($kladde_id, 0);
+$beaconTidspkt = NULL;
+if ($beaconKladdeId) {
+	$beaconRow = db_fetch_array(db_select("select tidspkt from kladdeliste where id=" . $beaconKladdeId . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) $beaconTidspkt = $beaconRow['tidspkt'];
+}
+if ($beaconTidspkt) {
+?>
+<script>
+let isSubmittingKassekladde = false;
+// 20260908 SZ SST-755: a plain addEventListener("submit", ...) misses any form.submit() called
+// directly from JS (kopierForm.submit(), document.getElementById('kassekladde').submit(), etc.
+// further up this file) - per DOM spec, calling .submit() does NOT fire the submit event, only a
+// real user-click/requestSubmit() does. That gap let normal in-page actions (delete line, copy to
+// new) look like the user leaving, so the beforeunload beacon released the lock mid-edit. Catch
+// both: a document-level listener for genuine submit events (also covers forms added after this
+// script ran), and a prototype patch for direct .submit() calls that bypass the event entirely.
+document.addEventListener("submit", function () { isSubmittingKassekladde = true; }, true);
+(function () {
+    var nativeFormSubmit = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function () {
+        isSubmittingKassekladde = true;
+        return nativeFormSubmit.apply(this, arguments);
+    };
+})();
+function unlockKassekladdeBeacon(evtName) {
+    if (!isSubmittingKassekladde && !window.kassekladdeUnlocked) {
+        window.kassekladdeUnlocked = true;
+        let data = new URLSearchParams();
+        data.append("table", "kladdeliste");
+        data.append("id", "<?php echo $beaconKladdeId; ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconTidspkt, ENT_QUOTES); ?>");
+        data.append("event", evtName);
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon("../includes/unlock_order.php", data);
+        } else {
+            let xhr = new XMLHttpRequest();
+            xhr.open('POST', '../includes/unlock_order.php', false);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.send(data.toString());
+        }
+    }
+}
+window.addEventListener("beforeunload", function() { unlockKassekladdeBeacon('beforeunload'); });
+window.addEventListener("pagehide", function() { unlockKassekladdeBeacon('pagehide'); });
+</script>
+<?php
+}
+?>
