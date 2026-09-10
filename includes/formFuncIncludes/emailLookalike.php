@@ -25,6 +25,8 @@
 // 20260909 Sawaneh SST-759: Explain why a recipient address is rejected (character,
 //                  code point, position), suggest the ASCII equivalent for known
 //                  lookalikes and let the user apply it explicitly on the order.
+// 20260910 Sawaneh SST-759: Apply only when the stored recipient is unchanged since it was
+//                  shown (conditional update + re-read), per CodeRabbit review on PR #583.
 
 if (!function_exists('emailLookalikeTable')) {
 	/**
@@ -244,6 +246,42 @@ if (!function_exists('emailLookalikeIssueText')) {
 	}
 }
 
+if (!function_exists('emailLookalikeOrderEmail')) {
+	/**
+	 * The raw recipient value stored on an order.
+	 *
+	 * @param int $ordre_id
+	 * @return string '' when the order does not exist or has no recipient
+	 */
+	function emailLookalikeOrderEmail($ordre_id) {
+		$ordre_id = (int)$ordre_id;
+		if ($ordre_id <= 0) {
+			return '';
+		}
+		$r = db_fetch_array(db_select("select email from ordrer where id = '$ordre_id'", __FILE__ . " linje " . __LINE__));
+		if (!$r || $r['email'] === null) {
+			return '';
+		}
+		return $r['email'];
+	}
+}
+
+if (!function_exists('emailLookalikeSplit')) {
+	/**
+	 * Splits a stored recipient list the same way send_mails() does.
+	 *
+	 * @param string $email
+	 * @return string[]
+	 */
+	function emailLookalikeSplit($email) {
+		if ($email === '') {
+			return [];
+		}
+		$parts = explode(';', str_replace([' ', ','], ['', ';'], emailLookalikeUtf8($email)));
+		return array_values(array_filter($parts, 'strlen'));
+	}
+}
+
 if (!function_exists('emailLookalikeOrderParts')) {
 	/**
 	 * The recipient list stored on an order, split the same way send_mails() splits it.
@@ -252,16 +290,7 @@ if (!function_exists('emailLookalikeOrderParts')) {
 	 * @return string[]
 	 */
 	function emailLookalikeOrderParts($ordre_id) {
-		$ordre_id = (int)$ordre_id;
-		if ($ordre_id <= 0) {
-			return [];
-		}
-		$r = db_fetch_array(db_select("select email from ordrer where id = '$ordre_id'", __FILE__ . " linje " . __LINE__));
-		if (!$r || $r['email'] === null || $r['email'] === '') {
-			return [];
-		}
-		$parts = explode(';', str_replace([' ', ','], ['', ';'], emailLookalikeUtf8($r['email'])));
-		return array_values(array_filter($parts, 'strlen'));
+		return emailLookalikeSplit(emailLookalikeOrderEmail($ordre_id));
 	}
 }
 
@@ -272,12 +301,14 @@ if (!function_exists('emailLookalikeApply')) {
 	 *
 	 * @param int $ordre_id
 	 * @param string $from The rejected address exactly as it was shown to the user
-	 * @return string The new recipient list, or '' when the order no longer holds $from or it is not fixable
+	 * @return string The new recipient list, or '' when the order no longer holds $from, it is not fixable,
+	 *                or the order was saved by someone else between the read and the write
 	 */
 	function emailLookalikeApply($ordre_id, $from) {
 		$ordre_id = (int)$ordre_id;
 		$from = emailLookalikeUtf8($from);
-		$parts = emailLookalikeOrderParts($ordre_id);
+		$stored = emailLookalikeOrderEmail($ordre_id);
+		$parts = emailLookalikeSplit($stored);
 		$index = array_search($from, $parts, true);
 		if ($index === false) {
 			return '';
@@ -288,7 +319,12 @@ if (!function_exists('emailLookalikeApply')) {
 		}
 		$parts[$index] = $analysis['suggested'];
 		$newEmail = implode(';', $parts);
-		db_modify("update ordrer set email = '" . db_escape_string($newEmail) . "' where id = '$ordre_id'", __FILE__ . " linje " . __LINE__);
+		$qtxt = "update ordrer set email = '" . db_escape_string($newEmail) . "' where id = '$ordre_id'"
+			. " and email = '" . db_escape_string($stored) . "'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if (emailLookalikeOrderEmail($ordre_id) !== $newEmail) {
+			return '';
+		}
 		return $newEmail;
 	}
 }
