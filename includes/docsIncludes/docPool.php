@@ -43,6 +43,18 @@
 //                 which the very next INSERT/UPDATE in each of those code paths already
 //                 references - a brand-new tenant's first pool file would fail with
 //                 "column norm_amount does not exist". Added the column to both.
+// 20260910 CL/SZ SST-777: newAccount was read from POST but never applied anywhere - a
+//                 corrected account suggestion never reached the kassekladde journal line
+//                 (SST-740). Now sets debet from it for new entries, validated against
+//                 kontoplan first. Also validates the account in the rename/metadata-edit
+//                 path before any write, and flags edited pool_files rows manually_edited
+//                 so an automatic re-extraction can't silently overwrite them.
+// 20260910 CL/SZ SST-777 follow-up (per Nicolai): the account fix above only applied to
+//                 new entries - attaching via Bilagsmatch (or any other existing-line
+//                 attach flow) still didn't get it, which was itself the bug, not a
+//                 deliberate difference. Now applies to an existing line too, but only
+//                 fills debet in if the line doesn't already have one - never reclassifies
+//                 an already-classified line.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -409,6 +421,44 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			docPoolLog("docPool INSERT - NOT setting amount. sourceId=$sourceId, newAmount=$newAmount");
 		}
 		
+		// Set the account from the pool suggestion - for a new entry (no sourceId) as
+		// well as an existing kassekladde line reached via Bilagsmatch or any other
+		// attach flow. Per Nicolai (SST-777): attaching a pool file is supposed to
+		// behave the same regardless of which flow triggered it - a difference between
+		// "new entry" and "existing line" here was the bug, not a deliberate boundary,
+		// the same way the SST-740 gap was a bug. Still never clobbers an existing
+		// line's own account - only fills it in if the line doesn't have one yet, since
+		// an already-classified line was presumably classified on purpose.
+		$targetHasAccount = false;
+		if ($sourceId) {
+			$targetRow = db_fetch_array(db_select(
+				"SELECT debet FROM kassekladde WHERE id = '" . (int) $sourceId . "'",
+				__FILE__ . " linje " . __LINE__
+			));
+			$targetHasAccount = $targetRow && !empty($targetRow['debet']);
+		}
+
+		// Validate against kontoplan first - an unknown account must not be applied
+		// (AC2), it should just fall through and let the user set debet themselves.
+		if (!$targetHasAccount && $newAccount) {
+			// kontoplan.kontonr is numeric - check the format first so an unrecognizable
+			// value (e.g. a vendor name the AI extraction mistook for an account) never
+			// reaches the query as a non-numeric literal, which errors instead of just
+			// not matching.
+			$accountRow = preg_match('/^\d+$/', $newAccount)
+				? db_fetch_array(db_select(
+					"SELECT kontonr FROM kontoplan WHERE kontonr = '" . db_escape_string($newAccount) . "' LIMIT 1",
+					__FILE__ . " linje " . __LINE__
+				))
+				: false;
+			if ($accountRow) {
+				$_POST['debet'] = $newAccount;
+				docPoolLog("docPool INSERT - Setting debet from pool file account suggestion: newAccount=$newAccount, sourceId=$sourceId");
+			} else {
+				docPoolLog("docPool INSERT - NOT setting debet, unknown account: newAccount=$newAccount");
+			}
+		}
+
 		// Set invoice number from pool file if sourceId is empty (new entry) and newInvoiceNumber is set
 		if (!$sourceId && $newInvoiceNumber) {
 			$_POST['fakturanr'] = $newInvoiceNumber;
@@ -502,6 +552,20 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					if ($currRow && $currRow['kodenr']) {
 						$_POST['valuta'] = $currRow['kodenr'];
+					}
+				}
+				if (!$targetHasAccount && empty($newAccount) && $poolData['account']) {
+					// $targetHasAccount already reflects whether the target kassekladde
+					// line (if any - $sourceId may or may not be set) already has its
+					// own account, computed above before this block.
+					$accountRow = preg_match('/^\d+$/', $poolData['account'])
+						? db_fetch_array(db_select(
+							"SELECT kontonr FROM kontoplan WHERE kontonr = '" . db_escape_string($poolData['account']) . "' LIMIT 1",
+							__FILE__ . " linje " . __LINE__
+						))
+						: false;
+					if ($accountRow) {
+						$_POST['debet'] = $poolData['account'];
 					}
 				}
 			} elseif (!$sourceId && empty($newDate) && !empty($poolFiles)) {
@@ -731,6 +795,28 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	
 	if ($rename && $newFileName && $newFileName != $poolFile || ($rename && ($newAccount||$newAmount||$newSubject||$newDate||$newInvoiceNumber||$newInvoiceDescription))) {
 		file_put_contents($logFile, date('Y-m-d H:i:s') . " - ENTERED rename block\n", FILE_APPEND);
+
+		// This whole block is always an explicit human edit (row/card "Save") - unlike
+		// extractInvoiceHandler.php's automatic re-extraction save, so pool_files rows
+		// touched here are always flagged manually_edited (see the two writes below).
+		// Validate the account BEFORE any file rename or DB write happens: an unknown
+		// account must produce a clear error and no partial save (SST-777 AC2).
+		if ($newAccount) {
+			// kontoplan.kontonr is numeric - checking the format first avoids handing
+			// Postgres a non-numeric literal, which errors instead of just not matching.
+			$accountRow = preg_match('/^\d+$/', $newAccount)
+				? db_fetch_array(db_select(
+					"SELECT kontonr FROM kontoplan WHERE kontonr = '" . db_escape_string($newAccount) . "' LIMIT 1",
+					__FILE__ . " linje " . __LINE__
+				))
+				: false;
+			if (!$accountRow) {
+				http_response_code(422);
+				print "Ukendt kontonummer: " . htmlspecialchars($newAccount, ENT_QUOTES);
+				exit;
+			}
+		}
+
 	$legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.','(',')');
 		$nfn = trim($newFileName);
@@ -859,6 +945,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$qtxt = "UPDATE pool_files SET
 								filename = '" . db_escape_string($newFilename) . "',
 								subject = '" . db_escape_string($newSubject ?: $newBase) . "',
+								manually_edited = true,
 								updated = CURRENT_TIMESTAMP";
 
 							if ($newAccount) $qtxt .= ", account = '" . db_escape_string($newAccount) . "'";
@@ -877,7 +964,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							// Insert new record if old didn't exist
 							$newAmountNorm = normalizePoolAmount($newAmount ?: '');
 							$newAmountNormSql = ($newAmountNorm === null) ? 'NULL' : db_escape_string((string) $newAmountNorm);
-							$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
+							$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, manually_edited) VALUES (
 								'" . db_escape_string($newFilename) . "',
 								'" . db_escape_string($newSubject ?: $newBase) . "',
 								'" . db_escape_string($newAccount ?: '') . "',
@@ -885,7 +972,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								$newAmountNormSql,
 								'" . db_escape_string($newDate ?: '') . "',
 								'" . db_escape_string($newInvoiceNumber ?: '') . "',
-								'" . db_escape_string($newInvoiceDescription ?: '') . "'
+								'" . db_escape_string($newInvoiceDescription ?: '') . "',
+								true
 							)";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 						}
@@ -917,14 +1005,14 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			// Update existing
 			$logFile = "../temp/docpool_edit_debug.log";
 			file_put_contents($logFile, date('Y-m-d H:i:s') . " - docPool EDIT - Updating database for poolFile=$poolFile, id=" . $existing['id'] . "\n", FILE_APPEND);
-			$qtxt = "UPDATE pool_files SET updated = CURRENT_TIMESTAMP";
+			$qtxt = "UPDATE pool_files SET updated = CURRENT_TIMESTAMP, manually_edited = true";
 			if ($newSubject) $qtxt .= ", subject = '" . db_escape_string($newSubject) . "'";
 			if ($newAccount) $qtxt .= ", account = '" . db_escape_string($newAccount) . "'";
 			if ($newAmount) $qtxt .= ", amount = '" . db_escape_string($newAmount) . "'";
 			if ($newDate) $qtxt .= ", file_date = '" . db_escape_string($newDate) . "'";
 			if ($newInvoiceNumber) $qtxt .= ", invoice_number = '" . db_escape_string($newInvoiceNumber) . "'";
 			if ($newInvoiceDescription) $qtxt .= ", description = '" . db_escape_string($newInvoiceDescription) . "'";
-			
+
 			$qtxt .= " WHERE id = '" . $existing['id'] . "'";
 			$logFile = "../temp/docpool_edit_debug.log";
 			file_put_contents($logFile, date('Y-m-d H:i:s') . " - docPool EDIT - SQL: $qtxt\n", FILE_APPEND);
@@ -933,15 +1021,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			// Insert if missing (shouldn't happen usually)
 			$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
 			$subject = $newSubject ?: $baseName;
-			
-			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+
+			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, manually_edited) VALUES (
 				'" . db_escape_string($poolFile) . "',
 				'" . db_escape_string($subject) . "',
 				'" . db_escape_string($newAccount ?: '') . "',
 				'" . db_escape_string($newAmount ?: '') . "',
 				'" . db_escape_string($newDate ?: '') . "',
 				'" . db_escape_string($newInvoiceNumber ?: '') . "',
-				'" . db_escape_string($newInvoiceDescription ?: '') . "'
+				'" . db_escape_string($newInvoiceDescription ?: '') . "',
+				true
 			)";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
@@ -3330,12 +3419,16 @@ window.extractPoolFile = function(poolFile) {
 			if (extracted.currency) message += '{$txt7}: ' + extracted.currency + "\\n";
 
 			if (confirm(message + '{$txt37}')) {
-				// Save the extracted data to the .info file
+				// Save the extracted data to the .info file. manual=1 because the user just
+				// explicitly confirmed these values via the dialog above (unlike the silent
+				// bulk extractAllPoolFiles()/upload-time auto-save flows below, which must
+				// not overwrite a field the user already corrected by hand - SST-777 AC3).
 				const saveData = new FormData();
 				saveData.append('action', 'save');
 				saveData.append('poolFile', poolFile);
 				saveData.append('db', db);
 				saveData.append('docFolder', docFolder);
+				saveData.append('manual', '1');
 				if (extracted.amount) saveData.append('newAmount', extracted.amount);
 				if (extracted.date) saveData.append('newDate', extracted.date);
 				if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);

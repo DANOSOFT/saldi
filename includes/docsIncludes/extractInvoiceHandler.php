@@ -2,6 +2,9 @@
 // --- includes/docsIncludes/extractInvoiceHandler.php ---
 // AJAX handler for invoice extraction from pool files
 // ----------------------------------------------------------------------
+// 20260910 CL/SZ SST-777: validate the suggested account against kontoplan before saving,
+//                 and skip an automatic re-extraction save that would overwrite a field
+//                 the user already corrected by hand (manually_edited).
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -212,9 +215,14 @@ if ($action === 'save') {
 	$newInvoiceNumber = isset($_POST['newInvoiceNumber']) ? $_POST['newInvoiceNumber'] : '';
 	$newDescription = isset($_POST['newDescription']) ? $_POST['newDescription'] : '';
 	$newCurrency = isset($_POST['newCurrency']) ? $_POST['newCurrency'] : '';
-	
+	// Row/card "Save" (docPool.php's enableRowEdit/enableCardEdit) sends manual=1 for an
+	// explicit human correction. An automatic re-extraction save (after upload, or a
+	// re-run) does not - see the manually_edited guard below (SST-777 AC3: re-extraction
+	// must not silently overwrite a correction the user already made).
+	$isManualEdit = !empty($_POST['manual']);
+
 	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
-	
+
 	// Read existing data from database
 	$existingSubject = '';
 	$existingAccount = '';
@@ -223,10 +231,11 @@ if ($action === 'save') {
 	$existingInvoiceNumber = '';
 	$existingDescription = '';
 	$existingCurrency = '';
-	
+	$existingManuallyEdited = false;
+
 	$qtxt = "SELECT * FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
 	$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	
+
 	if ($existingRow) {
 		$existingSubject = $existingRow['subject'] ?? '';
 		$existingAccount = $existingRow['account'] ?? '';
@@ -235,6 +244,7 @@ if ($action === 'save') {
 		$existingInvoiceNumber = $existingRow['invoice_number'] ?? '';
 		$existingDescription = $existingRow['description'] ?? '';
 		$existingCurrency = $existingRow['currency'] ?? '';
+		$existingManuallyEdited = !empty($existingRow['manually_edited']);
 
 		// If date in DB is in Y-m-d H:i:s format, we might want to standardize, but let's keep it as is
 		// logic below handles newDate overrides
@@ -254,6 +264,13 @@ if ($action === 'save') {
 		}
 	}
 	
+	// An automatic re-extraction save must not clobber a field the user already
+	// corrected by hand - bail out before touching anything (SST-777 AC3).
+	if (!$isManualEdit && $existingManuallyEdited) {
+		echo json_encode(['success' => true, 'skipped' => true, 'message' => 'Eksisterende manuel rettelse bevaret']);
+		exit;
+	}
+
 	// Use new values if provided, otherwise keep existing
 	$finalSubject = !empty($newSubject) ? $newSubject : (!empty($existingSubject) ? $existingSubject : $baseName);
 	$finalAccount = !empty($newAccount) ? $newAccount : $existingAccount;
@@ -275,6 +292,28 @@ if ($action === 'save') {
 	$finalNormAmount = normalizePoolAmount($finalAmount);
 	$normAmountSql = ($finalNormAmount === null) ? 'NULL' : db_escape_string((string) $finalNormAmount);
 
+	// The suggested account must be a real account before it can be saved: an invalid
+	// account produces a clear error and no partial save (SST-777 AC2), rather than
+	// silently persisting a value that will never post correctly. kontoplan.kontonr is a
+	// numeric column - checking the format first avoids handing Postgres a non-numeric
+	// literal, which errors instead of just not matching.
+	if ($finalAccount !== '') {
+		$accountRow = preg_match('/^\d+$/', $finalAccount)
+			? db_fetch_array(db_select(
+				"SELECT kontonr FROM kontoplan WHERE kontonr = '" . db_escape_string($finalAccount) . "' LIMIT 1",
+				__FILE__ . " linje " . __LINE__
+			))
+			: false;
+		if (!$accountRow) {
+			echo json_encode(['success' => false, 'error' => 'Ukendt kontonummer: ' . $finalAccount]);
+			exit;
+		}
+	}
+
+	// The guard above already ensures $existingManuallyEdited is false whenever we reach
+	// here without $isManualEdit, so this is just "was this call itself manual".
+	$manuallyEditedSql = $isManualEdit ? 'true' : 'false';
+
 	// Update or Insert into Database
 	if ($existingRow) {
 		$qtxt = "UPDATE pool_files SET
@@ -286,11 +325,12 @@ if ($action === 'save') {
 			description = '". db_escape_string($finalDescription) ."',
 			currency = '". db_escape_string($finalCurrency) ."',
 			file_date = '". db_escape_string($finalDate) ."',
+			manually_edited = $manuallyEditedSql,
 			updated = CURRENT_TIMESTAMP
 			WHERE filename = '". db_escape_string($poolFile) ."'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	} else {
-		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency) VALUES (
+		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency, manually_edited) VALUES (
 			'". db_escape_string($poolFile) ."',
 			'". db_escape_string($finalSubject) ."',
 			'". db_escape_string($finalAccount) ."',
@@ -299,11 +339,12 @@ if ($action === 'save') {
 			'". db_escape_string($finalDate) ."',
 			'". db_escape_string($finalInvoiceNumber) ."',
 			'". db_escape_string($finalDescription) ."',
-			'". db_escape_string($finalCurrency) ."'
+			'". db_escape_string($finalCurrency) ."',
+			$manuallyEditedSql
 		)";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
-	
+
 	echo json_encode(['success' => true]);
 	exit;
 }
