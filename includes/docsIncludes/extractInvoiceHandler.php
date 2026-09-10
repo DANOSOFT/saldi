@@ -5,6 +5,12 @@
 // 20260910 CL/SZ SST-777: validate the suggested account against kontoplan before saving,
 //                 and skip an automatic re-extraction save that would overwrite a field
 //                 the user already corrected by hand (manually_edited).
+// 20260910 SZ SST-777 (CodeRabbit): manually_edited came back from Postgres as "f", which
+//                 !empty() treated as true - every row read as manually edited. Check
+//                 explicit truthy values instead. Also closed the race where a manual save
+//                 landing between the read and an automatic save's write got overwritten:
+//                 the automatic UPDATE's WHERE clause now itself requires
+//                 manually_edited = false, and skipped:true is reported if it loses that race.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -261,7 +267,11 @@ if ($action === 'save') {
 		$existingInvoiceNumber = $existingRow['invoice_number'] ?? '';
 		$existingDescription = $existingRow['description'] ?? '';
 		$existingCurrency = $existingRow['currency'] ?? '';
-		$existingManuallyEdited = !empty($existingRow['manually_edited']);
+		// db_fetch_array() uses pg_fetch_array() by default, and Postgres returns BOOLEAN
+		// columns as the strings "t"/"f" - !empty("f") is true, which would treat every
+		// not-manually-edited row as manually edited. Check explicit truthy representations
+		// instead (also covers a mysqli tinyint(1) "1", or an actual PHP bool).
+		$existingManuallyEdited = in_array($existingRow['manually_edited'] ?? null, ['t', true, 1, '1'], true);
 
 		// If date in DB is in Y-m-d H:i:s format, we might want to standardize, but let's keep it as is
 		// logic below handles newDate overrides
@@ -333,6 +343,12 @@ if ($action === 'save') {
 
 	// Update or Insert into Database
 	if ($existingRow) {
+		// A manual save can race in between the read above and this write. For an
+		// automatic save, make the WHERE clause itself atomic on manually_edited so a
+		// concurrent manual correction can never be overwritten no matter how the two
+		// requests interleave - db_modify() doesn't expose an affected-row count, so
+		// confirm below whether this guarded update actually applied (SST-777 AC3).
+		$manualGuardSql = $isManualEdit ? '' : " AND manually_edited = false";
 		$qtxt = "UPDATE pool_files SET
 			subject = '". db_escape_string($finalSubject) ."',
 			account = '". db_escape_string($finalAccount) ."',
@@ -344,8 +360,19 @@ if ($action === 'save') {
 			file_date = '". db_escape_string($finalDate) ."',
 			manually_edited = $manuallyEditedSql,
 			updated = CURRENT_TIMESTAMP
-			WHERE filename = '". db_escape_string($poolFile) ."'";
+			WHERE filename = '". db_escape_string($poolFile) ."'" . $manualGuardSql;
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+		if (!$isManualEdit) {
+			$postRow = db_fetch_array(db_select(
+				"SELECT manually_edited FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'",
+				__FILE__ . " linje " . __LINE__
+			));
+			if (in_array($postRow['manually_edited'] ?? null, ['t', true, 1, '1'], true)) {
+				echo json_encode(['success' => true, 'skipped' => true, 'message' => 'Eksisterende manuel rettelse bevaret']);
+				exit;
+			}
+		}
 	} else {
 		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency, manually_edited) VALUES (
 			'". db_escape_string($poolFile) ."',
