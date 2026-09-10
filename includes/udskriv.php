@@ -46,6 +46,7 @@
 // 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
 //             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
 // 20260909 CDX/LH SST-780: Preserve document filenames when merging PDF pages.
+// 20260910 CDX/LH Handle print failures and cleanup; support extra pages without a primary PDF.
 
 require_once __DIR__ . '/stdFunc/mergePrintPdfs.php';
 
@@ -180,141 +181,174 @@ if ($valg) {
   $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($valg=="pdf" || $valg=="ip")  {
 #		print "<!--";
-	if (isset($r['box2']) && $r['box2']) { 
-	fwrite($log,__line__." system (\"$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\"\n");
-			system ("$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
-		} elseif (isset($r['box3']) && $r['box3'] && $udskrift!='kontokort') { # Brug html
-		fwrite($log,__line__." unlink(\"../temp/".$ps_fil."_*.pdf\"\n");
-		if (file_exists("../temp/".$ps_fil."_*.pdf")) unlink("../temp/".$ps_fil."_*.pdf");
-		list($a,$b,$c)=explode("/",$ps_fil);
-		$htmfil=glob("../temp/$a/$b/*.htm");
-		$pdf = array();
-		for ($i=0;$i<count($htmfil);$i++) {
-			if (filesize($htmfil[$i])) {
-				$pdf[$i]=str_replace(".htm", ".pdf", $htmfil[$i]);
-				fwrite($log,__line__." Convert $htmfil[$i] to $pdf[$i]\n");
-				system("weasyprint -e UTF-8 " . escapeshellarg($htmfil[$i]) . " " . escapeshellarg($pdf[$i]), $convertStatus);
-				if ($convertStatus !== 0) {
-					throw new RuntimeException('Cannot convert print page to PDF.');
+		$printIntermediateFiles = array();
+		try {
+			if (isset($r['box2']) && $r['box2']) {
+				fwrite($log,__line__." system (\"$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\"\n");
+				system ("$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
+			} elseif (isset($r['box3']) && $r['box3'] && $udskrift!='kontokort') { # Brug html
+				fwrite($log,__line__." unlink(\"../temp/".$ps_fil."_*.pdf\"\n");
+				if (file_exists("../temp/".$ps_fil."_*.pdf")) unlink("../temp/".$ps_fil."_*.pdf");
+				list($a,$b,$c)=explode("/",$ps_fil);
+				$htmfil=glob("../temp/$a/$b/*.htm");
+				$printIntermediateFiles = array_merge($printIntermediateFiles, array("../temp/$ps_fil.ps"), $htmfil);
+				$pdf = array();
+				for ($i=0;$i<count($htmfil);$i++) {
+					if (filesize($htmfil[$i])) {
+						$pdf[$i]=str_replace(".htm", ".pdf", $htmfil[$i]);
+						$printIntermediateFiles[] = $pdf[$i];
+						fwrite($log,__line__." Convert $htmfil[$i] to $pdf[$i]\n");
+						$convertOutput = array();
+						exec("weasyprint -e UTF-8 " . escapeshellarg($htmfil[$i]) . " " . escapeshellarg($pdf[$i]) . " 2>&1", $convertOutput, $convertStatus);
+						if ($convertStatus !== 0) {
+							throw new RuntimeException('Cannot convert print page to PDF: ' . implode(' | ', $convertOutput));
+						}
+						if ($pdf[$i] === "../temp/$ps_fil.pdf") {
+							$printIntermediateFiles = array_diff($printIntermediateFiles, array($pdf[$i]));
+						}
+					}
+				}
+				$udfil = NULL;
+				if (count($pdf) > 1) {
+					$udfil = "../temp/$ps_fil.pdf";
+					mergePrintPdfs(array_values($pdf), $udfil);
+					fwrite($log,__line__." Merged PDF: $udfil\n");
+					foreach ($htmfil as $hf) {
+						unlink($hf);
+					}
+					foreach ($pdf as $pagePdf) {
+						if ($pagePdf !== $udfil && file_exists($pagePdf)) {
+							unlink($pagePdf);
+						}
+					}
+				}
+			} else { # Brug PostScript
+				/*
+				    $ps_fil=str_replace("../temp/","",$ps_fil);
+				$ps_fil=str_replace("$db/$db","$db",$ps_fil);
+				if (file_exists("../temp/".$ps_fil."_*.pdf")) {
+					unlink("../temp/".$ps_fil."_*.pdf");
+					fwrite($log,__line__." unlink(\"../temp/".$ps_fil."_*.pdf\"\n");
+				}
+				list($a,$b,$c)=explode("/",$ps_fil);
+				$psfil=glob("../temp/$a/$b/*.ps");
+			#		fwrite($log,__line__." $psfil=glob(\"../temp/$a/$b/*.ps\")\n");
+				$indfil='';
+				for ($i=0;$i<count($psfil);$i++) {
+			#				fwrite($log,__line__." PSFIL $psfil[$i]\n");
+					if (filesize($psfil[$i])) {
+						$pdf[$i]=str_replace("ps","pdf",$psfil[$i]);
+						fwrite($log,__line__." $pdf[$i]=str_replace(\"ps\",\"pdf\",$psfil[$i])\n");
+						fwrite($log,__line__." system (\"$ps2pdf  $psfil[$i] $pdf[$i]\")\n");
+						system ("$ps2pdf $psfil[$i] $pdf[$i]");
+						($indfil)?$indfil.=" ".$pdf[$i]:$indfil=$pdf[$i];
+						fwrite($log,__line__." indfil $indfil\n");
+					}
+					if (count($psfil)>1) {
+						$udfil="../temp/$a/$b/udskrift.pdf";
+						fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
+						$ps_fil="/$a/$b/udskrift";
+						fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n");
+					} else $udfil=NULL;
+				}
+				if ($udfil) {
+				system ("pdftk $indfil output $udfil");
+				fwrite($log,__line__." system (\"pdftk $indfil output $udfil\")\n");
+				for ($i=0;$i<count($psfil);$i++) {
+					unlink ($psfil[$i]);
+					fwrite($log,__line__." unlink ($psfil[$i])\n");
+						if (isset($pdffil[$i]) && file_exists($pdffil[$i])) {
+						unlink ($pdffil[$i]);
+						fwrite($log,__line__." unlink ($pdffil[$i])\n");
+					}
+					}
+				}
+				*/
+
+				########################
+
+				$ps_fil=str_replace("../temp/","",$ps_fil);
+				$ps_fil=str_replace("$db/$db","$db",$ps_fil);
+				list($a,$b,$c)=explode("/",$ps_fil);
+
+				// Convert single .ps file
+				$psfil = "../temp/$a/$b/$c.ps";
+				$pdffil_p1 = "../temp/$a/$b/$c.pdf";
+				$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
+				$printIntermediateFiles = array_merge($printIntermediateFiles, array($psfil), $htmfil);
+				$primaryPdfCreated = false;
+
+				if (file_exists($psfil) && filesize($psfil)) {
+					$printIntermediateFiles[] = $pdffil_p1;
+					fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
+					$convertOutput = array();
+					exec($ps2pdf . " " . escapeshellarg($psfil) . " " . escapeshellarg($pdffil_p1) . " 2>&1", $convertOutput, $convertStatus);
+					if ($convertStatus !== 0) {
+						throw new RuntimeException('Cannot convert PostScript to PDF: ' . implode(' | ', $convertOutput));
+					}
+					$primaryPdfCreated = is_file($pdffil_p1) && filesize($pdffil_p1) > 0;
+					$printIntermediateFiles = array_diff($printIntermediateFiles, array($pdffil_p1));
+					fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
+				}
+
+				// find any extra pages in .htm files (_2.htm, _3.htm etc)
+				if ($htmfil) sort($htmfil);
+
+				foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
+
+				$extra_pdfs = array();
+				foreach ($htmfil as $hf) {
+					if (filesize($hf)) {
+						$hpdf = str_replace(".htm", ".pdf", $hf);
+						$printIntermediateFiles[] = $hpdf;
+						$convertOutput = array();
+						exec("weasyprint -e UTF-8 " . escapeshellarg($hf) . " " . escapeshellarg($hpdf) . " 2>&1", $convertOutput, $convertStatus);
+						if ($convertStatus !== 0) {
+							throw new RuntimeException('Cannot convert print page to PDF: ' . implode(' | ', $convertOutput));
+						}
+						$extra_pdfs[] = $hpdf;
+					}
+				}
+
+				// If we have multiple pages, merge them all with pdftk
+				if (!empty($extra_pdfs)) {
+					$udfil = $pdffil_p1;
+					$mergeInputs = $extra_pdfs;
+					if ($primaryPdfCreated) {
+						array_unshift($mergeInputs, $pdffil_p1);
+					}
+					mergePrintPdfs($mergeInputs, $udfil);
+
+					// Cleanup intermediate files
+					if (file_exists($psfil)) unlink($psfil);
+					foreach ($htmfil as $hf) {
+						if (file_exists($hf)) unlink($hf);
+					}
+					foreach ($extra_pdfs as $ep) {
+						if (file_exists($ep)) unlink($ep);
+					}
+				} else {
+
+					$udfil = NULL;
+					fwrite($log,__line__." single page only, no merge needed\n");
+					if (file_exists($psfil)) unlink($psfil);
+				}
+				########################
+			}
+		} catch (RuntimeException $error) {
+			fwrite($log, __LINE__ . " Print failed: " . $error->getMessage() . "\n");
+			foreach (array_unique($printIntermediateFiles) as $intermediate) {
+				if (is_file($intermediate)) {
+					unlink($intermediate);
 				}
 			}
-		}
-		$udfil = NULL;
-		if (count($pdf) > 1) {
-			$udfil = "../temp/$ps_fil.pdf";
-			mergePrintPdfs(array_values($pdf), $udfil);
-			fwrite($log,__line__." Merged PDF: $udfil\n");
-			foreach ($htmfil as $hf) {
-				unlink($hf);
-			}
-			foreach ($pdf as $pagePdf) {
-				if ($pagePdf !== $udfil && file_exists($pagePdf)) {
-					unlink($pagePdf);
-				}
-			}
-		}
-	} else { # Brug PostScript 
-		/*
-	    $ps_fil=str_replace("../temp/","",$ps_fil);
-		$ps_fil=str_replace("$db/$db","$db",$ps_fil);
-		if (file_exists("../temp/".$ps_fil."_*.pdf")) {
-			unlink("../temp/".$ps_fil."_*.pdf");
-			fwrite($log,__line__." unlink(\"../temp/".$ps_fil."_*.pdf\"\n");
-		}
-		list($a,$b,$c)=explode("/",$ps_fil);
-		$psfil=glob("../temp/$a/$b/*.ps");
-#		fwrite($log,__line__." $psfil=glob(\"../temp/$a/$b/*.ps\")\n");
-		$indfil='';
-		for ($i=0;$i<count($psfil);$i++) {
-#				fwrite($log,__line__." PSFIL $psfil[$i]\n");
-			if (filesize($psfil[$i])) {
-				$pdf[$i]=str_replace("ps","pdf",$psfil[$i]);
-				fwrite($log,__line__." $pdf[$i]=str_replace(\"ps\",\"pdf\",$psfil[$i])\n");
-				fwrite($log,__line__." system (\"$ps2pdf  $psfil[$i] $pdf[$i]\")\n");
-				system ("$ps2pdf $psfil[$i] $pdf[$i]");
-				($indfil)?$indfil.=" ".$pdf[$i]:$indfil=$pdf[$i];
-				fwrite($log,__line__." indfil $indfil\n");
-			} 
-			if (count($psfil)>1) {
-				$udfil="../temp/$a/$b/udskrift.pdf";
-				fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
-				$ps_fil="/$a/$b/udskrift";
-				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n");
-			} else $udfil=NULL;
-		}
-		if ($udfil) {
-		system ("pdftk $indfil output $udfil");
-		fwrite($log,__line__." system (\"pdftk $indfil output $udfil\")\n");
-		for ($i=0;$i<count($psfil);$i++) {
-			unlink ($psfil[$i]);
-			fwrite($log,__line__." unlink ($psfil[$i])\n");
-				if (isset($pdffil[$i]) && file_exists($pdffil[$i])) {
-				unlink ($pdffil[$i]);
-				fwrite($log,__line__." unlink ($pdffil[$i])\n");
-			}
-			}
-		}
-		*/
-
-		########################
-
-		$ps_fil=str_replace("../temp/","",$ps_fil);
-		$ps_fil=str_replace("$db/$db","$db",$ps_fil);
-		list($a,$b,$c)=explode("/",$ps_fil);
-
-		// Convert single .ps file
-		$psfil = "../temp/$a/$b/$c.ps";
-		$pdffil_p1 = "../temp/$a/$b/$c.pdf";
-
-		if (file_exists($psfil) && filesize($psfil)) {
-			fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
-			system($ps2pdf . " " . escapeshellarg($psfil) . " " . escapeshellarg($pdffil_p1), $convertStatus);
-			if ($convertStatus !== 0) {
-				throw new RuntimeException('Cannot convert PostScript to PDF.');
-			}
-			fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
+			fclose($log);
+			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
+			print "<p>PDF-udskriften kunne ikke oprettes. Prøv igen eller kontakt support.</p>";
+			print "<p><a href=\"$fejl_retur\">" . findtekst('30|Tilbage', $sprog_id) . "</a></p>";
+			exit;
 		}
 
-		// find any extra pages in .htm files (_2.htm, _3.htm etc)
-		$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
-		if ($htmfil) sort($htmfil);
-
-		foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
-
-		$extra_pdfs = array();
-		foreach ($htmfil as $hf) {
-			if (filesize($hf)) {
-				$hpdf = str_replace(".htm", ".pdf", $hf);
-				system("weasyprint -e UTF-8 " . escapeshellarg($hf) . " " . escapeshellarg($hpdf), $convertStatus);
-				if ($convertStatus !== 0) {
-					throw new RuntimeException('Cannot convert print page to PDF.');
-				}
-				$extra_pdfs[] = $hpdf;
-			}
-		}
-
-		// If we have multiple pages, merge them all with pdftk
-		if (!empty($extra_pdfs)) {
-			$udfil = $pdffil_p1;
-			mergePrintPdfs(array_merge(array($pdffil_p1), $extra_pdfs), $udfil);
-
-			// Cleanup intermediate files
-			if (file_exists($psfil)) unlink($psfil);
-			foreach ($htmfil as $hf) {
-				if (file_exists($hf)) unlink($hf);
-			}
-			foreach ($extra_pdfs as $ep) {
-				if (file_exists($ep)) unlink($ep);
-			}
-		} else {
-
-			$udfil = NULL;
-			fwrite($log,__line__." single page only, no merge needed\n");
-			if (file_exists($psfil)) unlink($psfil);
-		}
-		########################
-	}
-	
 	if ($zx) { # Brug PostScript 
 		$tmp = system ("ls");
 			fwrite($log,__line__." system (\"$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\")\n");
