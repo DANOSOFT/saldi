@@ -67,13 +67,24 @@ elseif (strpos($_SERVER['HTTP_USER_AGENT'],'MSIE')) $browser='ie';
 // 20260904 Sawaneh WP-1: returside sanitised (was reflected XSS/open redirect), popup=1
 //                  request flag also closes, blocked-close fallback goes to the returside
 //                  instead of the login page, and the unlock SQL params are cast/whitelisted.
+// 20260908 SZ SST-755: unlock_record() now also takes the releasing tab's own $brugernavn
+//                  and $tidspkt, so a release only takes effect while it still names the
+//                  lock's current owner and tidspkt - a stale tab's delayed release can no
+//                  longer clobber a lock a newer tab has since acquired.
 if (!function_exists('nav_sanitize_returside')) {
 	include(__DIR__ . "/stdFunc/navStack.php");
 }
 $returside = nav_sanitize_returside($_GET['returside'] ?? null);
 $tabel = $_GET['tabel'] ?? null;
 $id = (int)($_GET['id'] ?? 0);
-unlock_record($tabel, $id);
+$tidspkt = $_GET['tidspkt'] ?? null;
+// A locking table's release must carry the tab's own tidspkt - skip the unlock entirely
+// rather than release the lock without verifying it (SST-755). Anything else (most
+// callers, which don't hold a lock at all) is unaffected - unlock_record() already
+// no-ops for a $tabel outside its own allowlist.
+if (!in_array($tabel, ['ordrer', 'kladdeliste'], true) || $tidspkt) {
+	unlock_record($tabel, $id, $brugernavn ?? null, $tidspkt);
+}
 if (!isset($popup)) $popup = NULL;
 if (!empty($_GET['popup'])) $popup = 1; // request flag: this window IS a popup regardless of the user's popup preference
 if ($popup || !$returside) {
