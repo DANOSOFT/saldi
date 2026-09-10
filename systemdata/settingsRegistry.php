@@ -19,6 +19,7 @@
 // ----------------------------------------------------------------------
 // 20260709 SZ Created: hand-maintained registry of Settings pages/keywords for search
 // 20260710 SZ Expanded keywords (deep page content, DA/EN/NO, sys_div_func.php-derived terms)
+// 20260721 Sawaneh Added Opgaveliste/Brug jobkort (task list) search terms to div_valg entry
 //
 // Hand-maintained index of Settings pages, used by settingsSearch.php.
 // Each entry:
@@ -101,6 +102,9 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'api_valg',              'url' => 'diverse.php?sektion=api_valg',             'category' => 'integrations', 'textId' => 790,
 				'keywords' => array('api settings','api key','api access','ip whitelist','allowed ip addresses','external integration','import file path','api bruger','api nøgle',
 					'saldi db variable','saldi url variable','api client url','api reference user','update from shop','fetch new products from shop')),
+			array('key' => 'stripe_valg',           'url' => 'diverse.php?sektion=stripe_valg',          'category' => 'integrations', 'labelDa' => 'Stripe abonnement', 'labelEn' => 'Stripe subscriptions',
+				'keywords' => array('stripe','subscription','subscriptions','abonnement','recurring payment','recurring billing','checkout','webhook','webhook secret','secret key','api key stripe',
+					'kortbetaling','card payment','betalingslink','payment link','tax rate','vat rate id','base url','bogholder email','bookkeeper email','stripe mode','test mode','live mode')),
 			array('key' => 'labels',                'url' => 'diverse.php?sektion=labels',               'category' => 'documents', 'textId' => 791,
 				'keywords' => array('label printer template','price tag design','price label','barcode label layout','product label template','sticker template','label size','label width and height','label columns and rows','label font size','label margins','show item number on label','show barcode on label','mærkater','label editor','vareetiket','klistremerker','skriftstørrelse',
 					'dymo','dymo 11354','brother printer','brother 22606','label print html code','product card label html','a4 label sheet','simple labels','label templates')),
@@ -112,7 +116,7 @@ if (!function_exists('getSettingsRegistry')) {
 					'reminder responsible email','interest rate per month reminder','reminder 1 deadline days','reminder 2 deadline days','reminder 3 deadline days','collection lawyer account number','collection attorney')),
 			array('key' => 'div_valg',               'url' => 'diverse.php?sektion=div_valg',             'category' => 'diverse', 'textId' => 794,
 				'keywords' => array('shipping integration','carrier integration','freight integration','gls','bring','dfm','mobilepay','mobilepay webhook','copayone','quickpay','nemhandel','e-invoicing','electronic invoicing','vibrant','paperflow','scan invoices ocr','payment gateway','payment days','default payment terms','label size mysale','vat on orders private customers','vat on orders business customers','pickup address','multiple pickup addresses','fragtintegration','betalingsdage','afhentningsadresse',
-					'mysale','customer sales portal','salesperson self service','commission self service portal','let customers see own sales','jobkort','job card system','work order tracking','payment list toggle','show payment list debitor creditor','betalingsliste','customer phone on new order','different dates on order','extra employee on order','enable docubizz','docubizz toggle',
+					'mysale','customer sales portal','salesperson self service','commission self service portal','let customers see own sales','jobkort','brug jobkort','use job cards','opgaveliste','task list','oppgaveliste','bruk jobbkort','task list under debtor accounts','job card system','work order tracking','payment list toggle','show payment list debitor creditor','betalingsliste','customer phone on new order','different dates on order','extra employee on order','enable docubizz','docubizz toggle',
 					'mandatory debtor group on debtor card','mandatory customer responsible on debtor card','extra fields on employee card','payment lists erh bank format','debtor account as order phone','docubizz scanned documents application','activate mysale flea market','max label character length','use jobkort task descriptions','direct print to local printer','html css form generation','different dates same voucher cash journal','collection agency account number','use paperflow ocr','paperflow id','paperflow bearer token','ebconnect integration','oioubl e-invoice','gls id','gls username','gls contact id','gls password','danske fragtmænd','dfm agreement number','dfm hub code','dfm api url','dfm clientid','dfm api username','dfm api password','default shipping type danske fragtmænd','default goods type danske fragtmænd','default payment method danske fragtmænd','default delivery method danske fragtmænd','pickup address different from main address','pickup company name','pickup zip code and city','order button name')),
 			array('key' => 'tjekliste',             'url' => 'diverse.php?sektion=tjekliste',            'category' => 'diverse', 'textId' => 796,
 				'keywords' => array('checklist','checklists','case checklist','task list','workflow phases','case phases','sagsstyring tjekliste','tjekpunkt','sjekkliste','sjekklister','new check group','new checklist')),

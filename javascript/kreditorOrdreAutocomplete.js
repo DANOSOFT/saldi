@@ -159,12 +159,18 @@
         const kassePath = '../finans/kassekladde_includes/';
 
         switch (type) {
-            case 'item':
+            case 'item': {
+                const kontoId = (document.querySelector('input[name="konto_id"]') || {}).value || '0';
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value);
+                if (kontoId && kontoId !== '0') url += '&kreditor_order=1&konto_id=' + encodeURIComponent(kontoId);
                 break;
-            case 'lev_item':
+            }
+            case 'lev_item': {
+                const kontoId = (document.querySelector('input[name="konto_id"]') || {}).value || '0';
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value) + '&search_field=lev_varenr';
+                if (kontoId && kontoId !== '0') url += '&kreditor_order=1&konto_id=' + encodeURIComponent(kontoId);
                 break;
+            }
             case 'customer':
                 url = kassePath + 'accountSearch.php?type=kreditor&search=' + encodeURIComponent(value);
                 break;
@@ -212,6 +218,8 @@
             <div class="ordre-autocomplete-results">
         `;
 
+        const hasSupplier = type === 'item' && results && results.some(r => r.lev_id > 0);
+
         if (!results || results.length === 0) {
             html += '<div class="ordre-autocomplete-no-results">Ingen resultater fundet</div>';
         } else {
@@ -220,6 +228,7 @@
             if (type === 'item') {
                 html += '<th style="width: 100px;">Varenr.</th>';
                 html += '<th>Beskrivelse</th>';
+                if (hasSupplier) html += '<th style="width: 140px;">Leverandør</th>';
                 html += '<th style="width: 80px; text-align: right;">Kostpris</th>';
             } else if (type === 'lev_item') {
                 html += '<th style="width: 100px;">Lev. varenr</th>';
@@ -244,6 +253,10 @@
                 if (type === 'item') {
                     html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
                     html += `<td>${escapeHtml(item.beskrivelse)}</td>`;
+                    if (hasSupplier) {
+                        const levLabel = item.lev_id > 0 ? escapeHtml((item.lev_kontonr ? item.lev_kontonr + ':' : '') + item.lev_firmanavn) : '';
+                        html += `<td class="code-cell">${levLabel}</td>`;
+                    }
                     html += `<td style="text-align: right;">${item.kostpris.toFixed(2)}</td>`;
                 } else if (type === 'lev_item') {
                     html += `<td class="code-cell">${escapeHtml(item.lev_varenr)}</td>`;

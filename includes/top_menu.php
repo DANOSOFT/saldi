@@ -5,6 +5,8 @@
 // 20220912 MSC - Implementing new design
 // 20221011 MSC - Added link to feedback mail in systemdata
 // 20260306 Sawaneh - Added Simple guides link.
+// 20260716 MJ - Added vat reporting module.
+// 20260730 NTR - Added translation to momsperioder.
 
 $site = "";
 $subsite = "";
@@ -86,6 +88,7 @@ print "          <a href='../finans/kladdeliste.php'>".findtekst(105,$sprog_id).
 print "          <a href='../finans/regnskab.php'>".findtekst(849,$sprog_id)."</a>";
 print "          <a href='../finans/budget.php'>".findtekst(1067,$sprog_id)."</a>";
 print "          <a href='../finans/rapport.php'>".findtekst(603,$sprog_id)."</a>";
+print "          <a href='../finans/moms_periode.php'>".findtekst('3366|Momsperioder', $sprog_id)."</a>";
 print "          </div>";
 print "      </li>";
 print "      <li class='dropDown'>";

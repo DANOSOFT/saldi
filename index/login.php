@@ -47,6 +47,18 @@
 // 20260422 LOE Updated sanitize_input function to allow more characters for email address like usernames.
 // 20260425 LOE Fixed a bug where same account name with different case could cause login issues. Now first tries to find exact match and only if that fails, it tries case-insensitive match.
 // 20260707 MJ Restore rykkertjek.php include at login (was commented out)
+// 20262707 PK Have outcomment rykkertjek.php again, as phpmailer is missing and you can't log in to the individual accounts. Can only log in as admin.
+// 20260908 CL/NTR sanitize_input: added 'u' modifier, escaped '-' and switched to \p{L}\p{M}\p{N} so letters
+//                  in any language (æøåÆØÅ, áé, ü ...) and hyphen are kept (previously '_-æ' was a byte range).
+//                  Widened whitelist to currency symbols and inert punctuation (£$€{}[]()#%!?,:=*^~|` /);
+//                  only < > " ' \ ; & and tab/newline are still stripped. Returns false on malformed UTF-8.
+// 20260908 NTR    sanitize_input: length check now counts characters (mb_strlen) instead of bytes, so æøå no longer
+//                  use up two positions each. Added $allowed_length parameter (default 80); regnskab is passed 60
+//                  to match varchar(60) on regnskab.regnskab.
+// 20260908 CL/NTR sanitize_input: input that is not valid UTF-8 is converted from ISO-8859-1 first, so æøå
+//                  posted from an ISO-8859-1 page is filtered instead of rejected, and the result is converted
+//                  back to the page charset so a non-UTF8 database still matches. Length check now uses the
+//                  shared is_input_too_long() from std_func.php.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -140,19 +152,68 @@ print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/login.css\" />";
 print "</head>";
 
 $dbMail=NULL;
-function sanitize_input($input) {
-	
-	 // Trim the input to remove any leading/trailing whitespace
+/**
+ * Whitelist-filter a login form value (account name, username, error text) before it is
+ * looked up in the database or echoed back into the login form.
+ *
+ * Trims the value, removes every character outside the whitelist (letters in any language,
+ * digits, currency symbols, space and inert punctuation; see the comment above the regex for
+ * the exact list and why < > " ' \ ; & tab and newline are dropped), then enforces a maximum
+ * length in characters (not bytes), which is how Postgres measures varchar(n).
+ *
+ * This is defence in depth only: values must still go through db_escape_string() before
+ * being interpolated into SQL and htmlspecialchars() before being printed as HTML.
+ *
+ * @param string $input          Raw value in UTF-8 or ISO-8859-1 (the two page charsets this file
+ *                               serves); it is normalised to UTF-8 while filtering and handed back
+ *                               in the page charset ($charset).
+ * @param int    $allowed_length Maximum length in characters after filtering. Default 80;
+ *                               pass 60 for regnskab to match varchar(60) on regnskab.regnskab.
+ *
+ * @return string|false The filtered value in the page charset, or false if it is longer than
+ *                      $allowed_length or could not be read as UTF-8.
+ */
+function sanitize_input($input, $allowed_length = 80) {
+	global $charset;
+
+	// Trim the input to remove any leading/trailing whitespace
 	$input = trim($input);
-	// Allow only: letters, numbers, spaces, @ . _ -
-    // Remove anything else (quotes, semicolons, backticks, etc.) for email addresses compatibility
-    $input = preg_replace('/[^a-zA-Z0-9\s@._-]/', '', $input);
-	
-	if (strlen($input) > 80) {
+	// Normalise to UTF-8. The browser posts in the page charset, which is ISO-8859-1 when $db_encode
+	// is not UTF8. The whitelist regex ('u' modifier) and the length check both work on UTF-8, so an
+	// ISO-8859-1 æøå would otherwise be rejected as malformed. ISO-8859-1 is the only other charset
+	// this file serves (see where $charset is set), so any non-UTF-8 input is converted from that.
+	if (!mb_check_encoding($input, 'UTF-8')) {
+		$input = mb_convert_encoding($input, 'UTF-8', 'ISO-8859-1');
+	}
+	// Allow: letters in any language (\p{L} incl. æøåÆØÅ, áé, ü, ñ ...), combining accent marks (\p{M}),
+	// digits (\p{N}), currency symbols (\p{Sc}: £ $ € ...), a plain space, and the punctuation
+	// @ . _ + - ! # % ( ) * , : = ? [ ] ^ { | } ~ ` / which is inert inside a quoted SQL string or HTML attribute.
+	// Remove: < > " ' (break out of HTML text / attributes, ' also ends a SQL literal), \ (SQL/JS escape),
+	// ; (ends a SQL statement), & (starts an HTML entity; call sites run htmlspecialchars before this
+	// function, so a stray & would re-form entities), and tab/newline (tab is the cookie separator
+	// on the huskmig cookie and the value is written to log files).
+	// The 'u' modifier is required so UTF-8 input is matched as characters, not bytes,
+	// and '-' is escaped so it is a literal hyphen and not a range operator.
+	$input = preg_replace('/[^\p{L}\p{M}\p{N}\p{Sc} @._+\-!#%()*,:=?\[\]^{|}~`\/]/u', '', $input);
+
+	// preg_replace returns null on malformed UTF-8 (because of the 'u' modifier); treat that as invalid input.
+	if ($input === null) {
 		return false;
 	}
-	
-	return $input; 
+
+	if (is_input_too_long($input, $allowed_length)) {
+		return false;
+	}
+
+	// Hand the value back in the page charset, so the database lookup, the huskmig cookie and the
+	// form echo see the same encoding they received: a non-UTF8 database stores ISO-8859-1.
+	// Characters ISO-8859-1 cannot represent (€, Cyrillic ...) become '?', which such a database
+	// could not have stored anyway.
+	if ($charset == 'ISO-8859-1') {
+		$input = mb_convert_encoding($input, 'ISO-8859-1', 'UTF-8');
+	}
+
+	return $input;
 }
 /* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
 if (isset($_POST['regnskab'])) {
@@ -832,8 +893,12 @@ if(!isset($afbryd)){
 			$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&globalId=$globalId&dbName=$db&dbMail=$mainMail";
 			$url.= "&dbAlias=". urlencode($regnskab) ."&dbLocation=$dbLocation&userId=$userId&userName=". urlencode($brugernavn);
 			$url.= "&usermail=". urlencode($usermail);;
-			$result = file_get_contents($url);
-			$a = explode(',',json_decode($result, true));
+			// 20260902 CL/LH  F-010: the locator call is synchronous on every login. Bound it so an
+			// unreachable saldi.dk cannot hang the login page, and tolerate a failed call.
+			$locatorCtx = stream_context_create(array('http' => array('timeout' => 5)));
+			$result = @file_get_contents($url, false, $locatorCtx);
+			if ($result === false) $result = '';
+			$a = explode(',', (string)json_decode($result, true));
 			if ($a[0] && (!$globalId || (!$dbMail && $mainMail))) {
 				$globalId = $a[0];
 				include("../includes/connect.php");
@@ -855,7 +920,7 @@ if(!isset($afbryd)){
 				}
 			}
 		}
-		if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
+		// if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php"); #20262707
 		# Lager status mail
 		if (file_exists("../lager/lagerstatusmail.php")) {
 			$email = get_settings_value("mail", "lagerstatus", "");
@@ -963,7 +1028,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 	$timestamp = time(); //unix timestamp
 	global	$charset;
 	global 	$nonce;
-	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset)) : null;
+	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset), 60) : null;
 	$brugernavn = isset($brugernavn) ? sanitize_input(htmlspecialchars($brugernavn, ENT_COMPAT, $charset)) : null;
 	$fejltxt = isset($fejltxt) ? sanitize_input(htmlspecialchars($fejltxt, ENT_COMPAT, 'UTF-8')) : null;
 
@@ -1012,7 +1077,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 		}
 
 		if (isset($_GET['regnskab'])) {
-			$regnskab = sanitize_input(htmlspecialchars($_GET['regnskab'], ENT_COMPAT, $charset));
+			$regnskab = sanitize_input(htmlspecialchars($_GET['regnskab'], ENT_COMPAT, $charset), 60);
 		}
 
 		if (isset($_GET['tlf'])) {

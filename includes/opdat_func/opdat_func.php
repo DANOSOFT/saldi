@@ -24,6 +24,8 @@
 // Copyright (c) 2022-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 202060702 NTR Initial version of opdat_func.php with opdat_to() function for version comparison and update steps.
+// 20260727 NTR Removed current version parameter, as it was incorrect and resulted in no update.
+//              opdat_func now automatically fetches the version from the database.
 
 if (!function_exists('opdat_version_compare')) {
     /**
@@ -78,24 +80,33 @@ if (!function_exists('opdat_to')) {
      * The update step is skipped when the targeted version is higher than the global
      * program version, so updates cannot move the database past the installed code.
      *
+     * The current version is fetched from grupper (box1 where art = 'VE') and from
+     * regnskab (version where db = $db); the lowest of the two is used, since both
+     * are expected to be updated together and neither should be trusted alone.
+     *
      * Usage:
-     * opdat_to($current_version, '4.3.0', function () {
+     * opdat_to('4.3.0', function () {
      *     // Database changes needed before version 4.3.0.
      * });
      *
-     * @param string      $current_version  Current installed version, e.g. "4.2.6".
      * @param string      $targeted_version Version that this update step upgrades to, e.g. "4.3.0".
      * @param callable    $update_step      Code to run if current version is lower than targeted version.
      * @return bool True if the update step was run, otherwise false.
      */
-    function opdat_to($current_version, $targeted_version, $update_step){
-        global $version;
+    function opdat_to($targeted_version, $update_step){
         global $db;
 
-        // If the targeted version is higher than the global program version, skip the update step.
-        if ($version && opdat_version_compare($targeted_version, $version) > 0) {
-            return false;
-        }
+        $qtxt = "SELECT box1 FROM grupper WHERE art = 'VE'";
+        $grupper_row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+        $grupper_version = $grupper_row['box1'] ?? '0';
+
+        $qtxt = "SELECT version FROM regnskab WHERE db = '$db'";
+        $regnskab_row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
+        $regnskab_version = $regnskab_row['version'] ?? '0';
+
+        $current_version = opdat_version_compare($grupper_version, $regnskab_version) <= 0
+            ? $grupper_version
+            : $regnskab_version;
 
         // If the current version is already equal to or higher than the targeted version, skip the update step.
         if (opdat_version_compare($current_version, $targeted_version) >= 0) {

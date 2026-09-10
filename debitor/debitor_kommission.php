@@ -407,6 +407,9 @@ $folder=trim($_SERVER['PHP_SELF'],'/');
 $folder=str_replace('debitor/debitor_kommission.php','',$folder);
 $myLink="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
 $myLink=str_replace('bizsys','mysale',$myLink);
+# 20260828 SST-743: mysale.php accepts sha256 of a logged-in staff session as proof the visitor is
+# staff, so a customer's own portal password no longer locks staff out of the commission view.
+$staffToken = hash('sha256', session_id());
 echo "<script>console.log('link: $myLink\n')</script>";
 
 // Add clickable row renderer for all columns (whole row is clickable)
@@ -417,7 +420,7 @@ foreach ($columns as &$column) {
 	
 	if ($field == 'kontonr') {
 		// kontonr keeps special MySale link handling
-		$column["render"] = function ($value, $row, $column) use ($myLink, $db) {
+		$column["render"] = function ($value, $row, $column) use ($myLink, $db, $staffToken) {
 			// Handle kommission links: if mysale is enabled, open MySale link, otherwise go to debitorkort
 			if (isset($row['mysale']) && $row['mysale']) {
 				// Build MySale link with encoded customer data
@@ -426,6 +429,7 @@ foreach ($columns as &$column) {
 				for ($x=0;$x<strlen($txt);$x++) {
 					$lnk.=dechex(ord(substr($txt,$x,1)));
 				}
+				$lnk.='&st='.$staffToken;
 				return "<td align='{$column['align']}' onclick=\"window.open('$lnk','_blank')\" style='cursor:pointer'>$value</td>"; // <a href='$lnk' target='_blank' class='kommission-link'>$value</a>
 			} else {
 				// Link to debitorkort for customers without MySale
@@ -435,7 +439,7 @@ foreach ($columns as &$column) {
 		};
 	} else {
 		// All other columns get onclick handler
-		$column["render"] = function ($value, $row, $column) use ($originalRender, $myLink, $db) {
+		$column["render"] = function ($value, $row, $column) use ($originalRender, $myLink, $db, $staffToken) {
 			// Determine URL based on mysale status
 			if (isset($row['mysale']) && $row['mysale']) {
 				$txt = $row['id'] .'|'. $row['kontonr'] .'@'. $db .'@'. $_SERVER['HTTP_HOST'];
@@ -443,6 +447,7 @@ foreach ($columns as &$column) {
 				for ($x=0;$x<strlen($txt);$x++) {
 					$url.=dechex(ord(substr($txt,$x,1)));
 				}
+				$url.='&st='.$staffToken;
 				$openInPage = ",'_blank'";
 			} else {
 				$url = "debitorkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_kommission.php";

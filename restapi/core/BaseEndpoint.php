@@ -10,6 +10,22 @@ require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/JWT.php';
 require_once __DIR__ . '/JWTAuth.php';
 
+// JWT signing secret (SD-587, self-provisioning added SD-634): install-specific,
+// >=256 bits, stored outside the repo at restapi/.ht_jwt_secret.bin (git-ignored,
+// matches the .ht* pattern already used for bank_integration/.ht_oauth_key.bin).
+// One file per codebase install, shared by every tenant it serves - see
+// "JWT signing secret is per install, not per tenant" in restapi/IMPLEMENTATION_STATUS.md.
+// See JwtSecretProvisioning.php for how it's loaded/created.
+require_once __DIR__ . '/JwtSecretProvisioning.php';
+try {
+    JWT::setSecret(_jwtLoadSecret());
+} catch (\RuntimeException $e) {
+    error_log('JWT bootstrap failed: ' . $e->getMessage());
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'REST API is not configured', 'data' => null]);
+    exit;
+}
 
 abstract class BaseEndpoint
 {
@@ -137,7 +153,7 @@ abstract class BaseEndpoint
             switch ($method) {
                 case 'POST':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("POST data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePost()", $logDb, 'INFO');
                     $this->handlePost($data);
@@ -150,21 +166,21 @@ abstract class BaseEndpoint
                     break;
                 case 'PUT':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("PUT data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePut()", $logDb, 'INFO');
                     $this->handlePut($data);
                     break;
                 case 'DELETE':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("DELETE data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handleDelete()", $logDb, 'INFO');
                     $this->handleDelete($data);
                     break;
                 case 'PATCH':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("PATCH data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePatch()", $logDb, 'INFO');
                     $this->handlePatch($data);
@@ -174,11 +190,24 @@ abstract class BaseEndpoint
                     $this->handleError(new Exception("Method Not Allowed"));
                     break;
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) { // 20260812 CL/LH: was Exception - an Error (e.g. undefined method) escaped the JSON error handling and died as an empty HTTP 500
             write_log("Exception caught: " . $e->getMessage(), $logDb, 'ERROR');
             write_log("Stack trace: " . $e->getTraceAsString(), $logDb, 'ERROR');
             $this->handleError($e);
         }
+    }
+
+    // 20260812 CL/LH: reject malformed JSON bodies with a clear 400 instead of letting a null
+    // $data surface further down as misleading 'missing required field' errors (a truncated
+    // body previously read as a business-validation problem).
+    protected function decodeJsonBody($rawInput)
+    {
+        $data = json_decode($rawInput);
+        if ($data === null && trim((string)$rawInput) !== '' && json_last_error() !== JSON_ERROR_NONE) {
+            $this->sendResponse(false, null, 'Invalid JSON body: ' . json_last_error_msg(), 400);
+            exit;
+        }
+        return $data;
     }
 
     protected function sanitizeLogData($data)

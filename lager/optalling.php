@@ -45,7 +45,7 @@
 // 20230224 CA  Case insensitive and 'like' search using % and _. Searching for _vd% gets DVD, Vd, dvd-player
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260518 CL/PHR Bedre fejlhåndtering ved fil-upload: viser fejlkode og returnerer. MAX_FILE_SIZE øget til 100 MB.
-// 20260707 SZ Added Grid Framework sticky header and footer to Stock Count report
+// 20260707 CL/SZ Added Grid Framework sticky header and footer to Stock Count report
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 
 @session_start();

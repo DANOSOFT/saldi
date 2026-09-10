@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240301 PHR Added $printfile and call to saldiprint.php
+// 20260720 NTR Recreate temp/$db (cleared daily) before writing logs
 
 @session_start();
 $s_id = session_id();
@@ -49,6 +50,10 @@ function vibrant_log($msg) {
     $entry = "[$timestamp] [SERVER] [$ip] [$sid] $msg" . PHP_EOL;
     file_put_contents($log_file, $entry, FILE_APPEND);
 }
+
+// temp folders are cleared daily, so recreate them if missing before logging
+if (!is_dir(dirname($log_file))) mkdir(dirname($log_file), 0777, true);
+if (!is_dir("../../temp/$db")) mkdir("../../temp/$db", 0777, true);
 
 vibrant_log("Script started");
 

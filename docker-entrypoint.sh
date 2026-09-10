@@ -51,7 +51,7 @@ if [ ! -d /var/www/html/saldi/vendor ] && [ -f /var/www/html/saldi/includes/comp
 fi
 
 # Ensure required writable directories exist with correct permissions
-for dir in includes logolib temp; do
+for dir in includes logolib temp bank_integration restapi; do
     mkdir -p /var/www/html/saldi/$dir
     chmod 777 /var/www/html/saldi/$dir
 done

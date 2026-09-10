@@ -29,6 +29,7 @@
 //20240329 PHR Now returns to kassekladde when done.
 //20260603 CL/PHR debitorOrdrer-blok tilføjet (opretter debitor/orders/$sourceId/).
 //                  Redirect hardkodede source=creditorOrder rettet til source=$source
+//20260720 Sawaneh kassekladde-bilagssti bruger nu $docFolder (ikke hardkodet ../bilag) og opretter mappen rekursivt via dirname()+mkdir(...,true).
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -54,15 +55,33 @@ else alert ('Missing global ID');
 // Extract variables from REQUEST if not already set (for AJAX/POST support without register_globals)
 $source = isset($_REQUEST['source']) ? $_REQUEST['source'] : (isset($source) ? $source : null);
 $kladde_id = isset($_REQUEST['kladde_id']) ? $_REQUEST['kladde_id'] : (isset($kladde_id) ? $kladde_id : null);
-$docFolder = isset($_REQUEST['docFolder']) ? $_REQUEST['docFolder'] : (isset($docFolder) ? $docFolder : null);
+if     (is_dir("$sth/owncloud"))  $docFolder = '../owncloud';
+elseif (is_dir("$sth/bilag"))     $docFolder = '../bilag';
+elseif (is_dir("$sth/documents")) $docFolder = '../documents';
+else                              $docFolder = '../bilag';
+// A requested docFolder is only honored if it resolves (via realpath) to one
+// of the known folders under $sth; anything else keeps the auto-detected one.
+if (isset($_REQUEST['docFolder'])) {
+	$fe_docFolder_name = basename($_REQUEST['docFolder']);
+	$fe_docFolder_real = realpath("$sth/$fe_docFolder_name");
+	foreach (array('owncloud', 'bilag', 'documents') as $fe_docFolder_candidate) {
+		$fe_docFolder_candidate_real = realpath("$sth/$fe_docFolder_candidate");
+		if ($fe_docFolder_real && $fe_docFolder_candidate_real && $fe_docFolder_real === $fe_docFolder_candidate_real) {
+			$docFolder = "../$fe_docFolder_candidate";
+			break;
+		}
+	}
+}
 $poolFile = isset($_REQUEST['poolFile']) ? $_REQUEST['poolFile'] : (isset($poolFile) ? $poolFile : null);
 if (isset($_REQUEST['db'])) $db = $_REQUEST['db']; // Ensure db is set if passed
+// SECURITY: $db becomes a path segment — reject slashes and traversal.
+if (preg_match('#[/\\\\]|\.\.#', (string)$db) || !isset($db) || empty(trim($db))) { print "invalid database identifier<br>"; exit; }
 
 // Debug logging
 file_put_contents('/tmp/debug_insert.log', date('Y-m-d H:i:s') . " - Request: " . print_r($_REQUEST, true) . "\n", FILE_APPEND);
 
 $docFolder.= "/$db";
-if ($poolFile && !$fileName) $fileName = $poolFile;
+if ($poolFile && !isset($fileName)) $fileName = $poolFile;
 
 // Handle updateOnly action (Save button) — early return, no file handling needed
 if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
@@ -338,22 +357,17 @@ if ($docFolder && $source == 'creditorOrder') {
     
 
 
-	$path = "../bilag/$db/finance/$kladde_id/$sourceId/";
+	$fileName   = basename($fileName);   // strip any path/traversal from the filename
+	$safeKladde = (int)$kladde_id;       // path segments must be numeric IDs
+	$safeSource = (int)$sourceId;
+	$path = "$docFolder/finance/$safeKladde/$safeSource/";
 	$showDoc = $path.$fileName;
-	if(!file_exists("../bilag/$db")) 							mkdir ("../bilag/$db",0777);
-	if(!file_exists("../bilag/$db")) {
-		print "creation of ../bilag/$db failed<br>";
+	$targetDir = dirname($showDoc);
+	if (!is_dir($targetDir) && !mkdir($targetDir, 0777, true) && !is_dir($targetDir)) {
+		print "creation of $targetDir failed<br>";
 		exit;
 	}
-	if (!file_exists($docFolder))                 			mkdir ($docFolder,0777);
-	if (!file_exists("$docFolder")) print "Ku ik oprette $docFolder<br>";
-	if (!file_exists("$docFolder/finance"))        		mkdir ("$docFolder/finance",0777);
-	if (!file_exists("$docFolder/finance")) print "Ku ik oprette $docFolder/finance<br>";
-	if (!file_exists("$docFolder/finance/$kladde_id")) 	mkdir ("$docFolder/finance/$kladde_id",0777); //Groups the individual attached files
-# 	if (!file_exists("$docFolder/finance/$kladde_id")) #cho "Ku ik oprette $docFolder/finance/$kladde_id<br>";
-	if (!file_exists("$docFolder/finance/$kladde_id/$sourceId")) 	mkdir ("$docFolder/finance/$kladde_id/$sourceId",0777);
-#	if (!file_exists("$docFolder/finance/$kladde_id/$sourceId")) #cho "Ku ik oprette $docFolder/finance/$kladde_id/$sourceId<br>";
-	$filePath = "/finance/$kladde_id/$sourceId";
+	$filePath = "/finance/$safeKladde/$safeSource";
 }
 
 /* // Debug logging

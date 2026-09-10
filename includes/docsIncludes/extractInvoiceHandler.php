@@ -9,14 +9,25 @@ header('Content-Type: application/json');
 // Start output buffering to capture any unwanted output
 ob_start();
 
-// Include database connection
-include_once("../connect.php");
+// Start session so the tenant db can be resolved from it below - a POSTed
+// db name must never be trusted directly (it would let a tampered request
+// read/write/delete another tenant's pool documents; see SST-776).
+@session_start();
+$s_id = session_id();
 
-// Get database name from POST
-$db = isset($_POST['db']) ? $_POST['db'] : '';
+// Include database connection
+include_once(__DIR__ . "/../connect.php");
+include_once(__DIR__ . "/poolAmountNormalizer.php");
+
+// Resolve the tenant db from the session's online-table entry, same pattern
+// as includes/_docPoolData.php and includes/online.php - never from $_POST['db'].
+$qtxt = "select db from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
+$onlineRow = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
+$db = trim($onlineRow['db'] ?? '');
+
 if (empty($db)) {
 	ob_end_clean();
-	echo json_encode(['success' => false, 'error' => 'Database ikke angivet']);
+	echo json_encode(['success' => false, 'error' => 'Session udløbet - log ind igen']);
 	exit;
 }
 
@@ -27,18 +38,14 @@ if (!preg_match('/^[a-zA-Z0-9_]+$/', $db)) {
 	exit;
 }
 
-// Connect to the specific database
-if ($db) {
-	global $sqhost, $squser, $sqpass;
-	// Close previous connection if exists (optional but good practice)
-	// pg_close($connection); // db_connect usually handles new connection, but we just overwrite variable
-	$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
-	
-	if (!$connection) {
-		ob_end_clean();
-		echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
-		exit;
-	}
+// Connect to the session's own database
+global $sqhost, $squser, $sqpass;
+$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
+
+if (!$connection) {
+	ob_end_clean();
+	echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
+	exit;
 }
 
 // Include the extraction API
@@ -133,8 +140,19 @@ if (empty($poolFile)) {
 	exit;
 }
 
-// Get docFolder from POST (same as what docPool.php uses)
-$docFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : '../bilag';
+// poolFile must be a bare filename - reject any path component so a
+// tampered value can't escape the tenant's own pulje directory (SST-776).
+if ($poolFile !== basename($poolFile) || $poolFile === '.' || $poolFile === '..') {
+	echo json_encode(['success' => false, 'error' => 'Ugyldigt filnavn']);
+	exit;
+}
+
+// Get docFolder from POST, but only accept the same fixed values
+// documents.php itself ever assigns to $docFolder - a POSTed path is not
+// trusted for directory traversal (SST-776).
+$requestedDocFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : '../bilag';
+$allowedDocFolders = ['../owncloud', '../bilag', '../documents'];
+$docFolder = in_array($requestedDocFolder, $allowedDocFolders, true) ? $requestedDocFolder : '../bilag';
 
 // Build full path to the pool file using the same path structure as docPool.php
 // docFolder is relative to the includes/ directory (e.g., "../bilag")
@@ -259,18 +277,28 @@ if ($action === 'save') {
 	$finalAmount = !empty($newAmount) ? $newAmount : $existingAmount;
 	$finalInvoiceNumber = !empty($newInvoiceNumber) ? $newInvoiceNumber : $existingInvoiceNumber;
 	$finalDescription = !empty($newDescription) ? $newDescription : $existingDescription;
-	$finalCurrency = !empty($newCurrency) ? $newCurrency : $existingCurrency;
+	// Normalize aliases like "kr"/"kr." to "DKK" - fetchbilagsmatch.php's currency hard
+	// gate is a plain string match, so an unrecognized currency string (as returned
+	// verbatim by the AI extraction API) would silently exclude this file from every
+	// match regardless of how well amount/date/text otherwise line up.
+	$finalCurrency = normalizePoolCurrency(!empty($newCurrency) ? $newCurrency : $existingCurrency) ?? '';
 
 	// Format date using the normalization function (handles Danish months, etc.)
 	$dateToUse = !empty($newDate) ? $newDate : $existingDate;
 	$finalDate = normalizeDateFormat($dateToUse);
-	
+
+	// Normalize the amount to a real number now, so Bilagsmatch scoring can join on
+	// norm_amount directly instead of re-parsing this free-form string at query time.
+	$finalNormAmount = normalizePoolAmount($finalAmount);
+	$normAmountSql = ($finalNormAmount === null) ? 'NULL' : db_escape_string((string) $finalNormAmount);
+
 	// Update or Insert into Database
 	if ($existingRow) {
 		$qtxt = "UPDATE pool_files SET
 			subject = '". db_escape_string($finalSubject) ."',
 			account = '". db_escape_string($finalAccount) ."',
 			amount = '". db_escape_string($finalAmount) ."',
+			norm_amount = $normAmountSql,
 			invoice_number = '". db_escape_string($finalInvoiceNumber) ."',
 			description = '". db_escape_string($finalDescription) ."',
 			currency = '". db_escape_string($finalCurrency) ."',
@@ -279,11 +307,12 @@ if ($action === 'save') {
 			WHERE filename = '". db_escape_string($poolFile) ."'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	} else {
-		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, currency) VALUES (
+		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency) VALUES (
 			'". db_escape_string($poolFile) ."',
 			'". db_escape_string($finalSubject) ."',
 			'". db_escape_string($finalAccount) ."',
 			'". db_escape_string($finalAmount) ."',
+			$normAmountSql,
 			'". db_escape_string($finalDate) ."',
 			'". db_escape_string($finalInvoiceNumber) ."',
 			'". db_escape_string($finalDescription) ."',

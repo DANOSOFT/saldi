@@ -1,4 +1,4 @@
-<?php?
+<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -25,18 +25,19 @@
 // 
 //20210804 Created by LOE
 //20211125 PHR Moved to kreditor/scanAttachments and modified
+//20260727 NTR removed ? after <?php and added a semicolon on line 31 to avoid syntax error. Also ended the Center element.
 
 
-$_SESSION['content'] = NULL
+$_SESSION['content'] = NULL;
 ?>
 <center>
-<br><br><br>
+<br/><br/><br/>
 <form action="paperflowapi.php" method="POST" enctype="multipart/form-data">
 	<input type="file" name="toUpload" id="toUpload"><br><br>
 	<input type="submit" value="Upload PDF" name="submit"><br>
 </form>
 <br><a href='../ordreliste.php?valg=skanBilag'><button>Cancel</button></a>
-
+</center>
 
 
 <!--

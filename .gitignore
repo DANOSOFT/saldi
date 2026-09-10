@@ -1,95 +1,91 @@
-bilag
-bilag/
-bilag/*
-*temp/*
-bordplaner/temp/*
-logolib/*
-nedlagte regnskaber/*
-nedlagte_regnskaber/*
-certs/*
-includes/connect.php
-testshop.php
-saldiinfo.php
-phpmailer
-vendor
-phpmailer/*
-phpmailer
-vendor
-*/phpmailer/*
-includes/vendor/
-
-bordplaner/bordplan_*
-debitor/pos_print/*_*.php
-helm/saldi/charts
-
-includes/connect.php
-includes/temp/
-index/ch/
-
-docker/
-includes/connect.php
-#html/includes/oldDesign/
-kreditor/betalinger_old.php
-logolib/
-
 # AI agent instructions
 !AGENTS.md
 !CLAUDE.md
 !doc/ai/
 !doc/ai/*
+.claude/
 
-#test
-/price.txt
+# hidden files
+.ht*
+.htaccess
+
+# Secrets / local config
+includes/connect.php
+includes/vendor/
+certs/*
+
+# Vendor / third-party libraries
+vendor
+logolib/
+phpmailer/
+phpmailer/*
+*/phpmailer/*
+phpmailerOld/
+
+# Runtime/tooling artifacts
+*.log
+*.phar
+!tools/php/composer.phar
+.svn/
+tools/php/.phpunit.cache/
+node_modules/
+test-results/
+playwright-report/
+
+# Python stuff
+__pycache__/
+.pytest_cache
+
+# VS Code
+.vscode/
+
+# Test / scratch files
 test/
 testing/
+testing/*
+/price.txt
 /SÆT i HMS - SÆT.csv
 /adminpanel.txt
 /nyteEmailSystem.txt
 /invoice.json
 /ordre.php
-
-paperpdf/
-temp/
-utils/
-logolib/
-vouchers/
-/temp/
-/docker/
-docker/
-SaldiAPI/
-phpmailerOld/
-phpmailer/
-mappe/
-/utils/
-
-
-# Python stuff
-__pycache__/
-.pytest_cache
-testing/*
-
-# VS Code
-.vscode/
-.htaccess
-converter/exitsound_5.sql
-.claude/
-
-# Opret
-opret/
-
-# Dandomain and mysaleX
-dandomain/
-mysaleX/
-
-email.php
-
-# hidden files
-.ht*
-
-# Live Service
-/index/redirect.php
+/varer.csv
 /stock.txt
 /vareFlytning.txt
 /varenr_alias.txt
-/varer.csv
+saldiinfo.php
+testshop.php
+converter/exitsound_5.sql
+
+# Temp / generated data
+temp/
+/temp/
+*temp/*
+includes/temp/
+bordplaner/temp/*
+bordplaner/bordplan_*
+debitor/pos_print/*_*.php
+paperpdf/
+vouchers/
+mappe/
+utils/
+/utils/
+nedlagte_regnskaber/*
+bilag
+bilag/
+bilag/*
+
+# Modules not in use
+docker/
+/docker/
+opret/
+dandomain/
+mysaleX/
+SaldiAPI/
+helm/saldi/charts
+kreditor/betalinger_old.php
+index/ch/
+
+# Live Service
 /index/redirect.php
+email.php

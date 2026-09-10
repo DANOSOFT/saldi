@@ -34,6 +34,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250524 PHR Bogfor now set to 0 if tidl_lev (Delivered) differs from antal (qty)
 // 20251113 PHR Corrected error in $tidl_lev for creditnotas
+// 20260611 MJ Changed creditor print button fallback text to English.
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 
@@ -45,6 +46,12 @@ print "<style>
 </style>";
 
 $kreditmax=NULL;
+// 20260812 CL/LH (SD-645): $bogfor (posting eligibility) was only initialised in the POST flow
+// (kreditor/ordre.php:542, and kreditor/ordreM.php:412 does it unconditionally), so a reopened
+// fully-received order never got 'Bogfoer nu' offered below and could not be posted. Initialise
+// it like the POST flow does; the per-line check below (antal != tidl_lev => $bogfor = 0) still
+// clears it on any delivery mismatch, so nothing unreceived becomes postable.
+if (!isset($bogfor)) $bogfor = 1;
 for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) {
     $ialt=($pris[$x]-($pris[$x]/100*$rabat[$x]))*$antal[$x];
@@ -313,7 +320,7 @@ if(!count($posnr) && $id) {
     $txt     = findtekst(2310, $sprog_id);
   } else {
     $spantxt = findtekst(1506, $sprog_id);
-    $txt     = findtekst(880, $sprog_id);
+    $txt     = findtekst('880|Print', $sprog_id);
   }
   print "<td align=center><span title='".$spantxt."'>";
   print "<input type = 'submit' style = 'width:120px;' value='".$txt."' ";
