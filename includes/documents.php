@@ -27,6 +27,9 @@
 //20260304 PHR Someone removed the convertOldDoc section.
 //20260603 CL/PHR debitorOrdrer tilføjet som moderne kilde (modernSources, isModernLayout,
 //                  docFolder-fallback, header-logik og openPool-default)
+// 20260910 CL/SZ Pool upload now dedupes against an existing file with the same base name
+//                 (e.g. generic scanner/phone names like "scan.pdf") instead of silently
+//                 overwriting it and confusing its metadata (SST-776).
 
 @session_start();
 $s_id=session_id();
