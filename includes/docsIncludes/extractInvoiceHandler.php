@@ -12,15 +12,25 @@ header('Content-Type: application/json');
 // Start output buffering to capture any unwanted output
 ob_start();
 
+// Start session so the tenant db can be resolved from it below - a POSTed
+// db name must never be trusted directly (it would let a tampered request
+// read/write/delete another tenant's pool documents; see SST-776).
+@session_start();
+$s_id = session_id();
+
 // Include database connection
-include_once("../connect.php");
+include_once(__DIR__ . "/../connect.php");
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 
-// Get database name from POST
-$db = isset($_POST['db']) ? $_POST['db'] : '';
+// Resolve the tenant db from the session's online-table entry, same pattern
+// as includes/_docPoolData.php and includes/online.php - never from $_POST['db'].
+$qtxt = "select db from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
+$onlineRow = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
+$db = trim($onlineRow['db'] ?? '');
+
 if (empty($db)) {
 	ob_end_clean();
-	echo json_encode(['success' => false, 'error' => 'Database ikke angivet']);
+	echo json_encode(['success' => false, 'error' => 'Session udløbet - log ind igen']);
 	exit;
 }
 
@@ -31,18 +41,14 @@ if (!preg_match('/^[a-zA-Z0-9_]+$/', $db)) {
 	exit;
 }
 
-// Connect to the specific database
-if ($db) {
-	global $sqhost, $squser, $sqpass;
-	// Close previous connection if exists (optional but good practice)
-	// pg_close($connection); // db_connect usually handles new connection, but we just overwrite variable
-	$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
-	
-	if (!$connection) {
-		ob_end_clean();
-		echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
-		exit;
-	}
+// Connect to the session's own database
+global $sqhost, $squser, $sqpass;
+$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
+
+if (!$connection) {
+	ob_end_clean();
+	echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
+	exit;
 }
 
 // Include the extraction API
@@ -137,8 +143,19 @@ if (empty($poolFile)) {
 	exit;
 }
 
-// Get docFolder from POST (same as what docPool.php uses)
-$docFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : '../bilag';
+// poolFile must be a bare filename - reject any path component so a
+// tampered value can't escape the tenant's own pulje directory (SST-776).
+if ($poolFile !== basename($poolFile) || $poolFile === '.' || $poolFile === '..') {
+	echo json_encode(['success' => false, 'error' => 'Ugyldigt filnavn']);
+	exit;
+}
+
+// Get docFolder from POST, but only accept the same fixed values
+// documents.php itself ever assigns to $docFolder - a POSTed path is not
+// trusted for directory traversal (SST-776).
+$requestedDocFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : '../bilag';
+$allowedDocFolders = ['../owncloud', '../bilag', '../documents'];
+$docFolder = in_array($requestedDocFolder, $allowedDocFolders, true) ? $requestedDocFolder : '../bilag';
 
 // Build full path to the pool file using the same path structure as docPool.php
 // docFolder is relative to the includes/ directory (e.g., "../bilag")
