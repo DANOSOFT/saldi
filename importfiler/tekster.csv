@@ -3382,28 +3382,28 @@
 3382	Vis alle	Show all	Vis alle
 3383	Nyt! Klik på tandhjulet for at vælge hvilke felter der vises på varekortet.	New! Click the gear to choose which fields are shown on the product card.	Nytt! Klikk på tannhjulet for å velge hvilke felter som vises på varekortet.
 3384	Forstået	Got it	Skjønner
-3385
-3386	Indkøb	Purchasing	Innkjøp		
-3387	Serienumre	Serial numbers	Serienumre		
-3388	Autoudfyld	Auto-fill	Autoutfyll		
-3389	Bestiller	Ordering	Bestiller		
-3390	Bestillinger oprettet	Orders created	Bestillinger opprettet		
-3391	Fejl ved oprettelse af bestillinger	Error creating orders	Feil ved opprettelse av bestillinger		
-3392	Ingen værdier angivet	No values entered	Ingen verdier angitt		
-3393	Indkøbsordre	Purchase order	Innkjøpsordre		
-3394	Gen.	Reord.	Gjen.		
-3395	Salgspris u.m.	Sales price ex. VAT	Salgspris u.mva.		
-3396	DG	GM	DG		
-3397	md.	mo.	mnd.		
-3398	Vis udgået	Show discontinued	Vis utgått		
-3399	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.		
-3400	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.		
-3401	Ekskl. moms	Excl. VAT	Ekskl. MVA		
-3402	Køber	Buyer	Kjøper		
-3403	Hvad skal serienummeret omdøbes til?	What should the serial number be renamed to?	Hva skal serienummeret omdøpes til?		
-3404	Omdøb	Rename	Omdøp		
-3405	Vis rækker uden serienummer	Show rows without serial numbers	Vis rader uten serienummer		
-3406	Vis kun serienumre der ikke er solgt	Show only unsold serial numbers	Vis kun serienumre som ikke er solgt		
+3385	Gensend til PBS	Resend to PBS	Send på nytt til PBS
+3386	er tilføjet PBS-leverance	has been added to PBS delivery	er lagt til PBS-leveranse
+3387	findes allerede i den åbne PBS-leverance	is already in the open PBS delivery	finnes allerede i den åpne PBS-leveransen
+3388	afventer svar fra Nets på leverance	is awaiting a response from Nets on delivery	venter på svar fra Nets på leveranse
+3389	Fakturaen er udlignet/betalt og kan ikke gensendes til PBS	The invoice is settled/paid and cannot be resent to PBS	Fakturaen er utlignet/betalt og kan ikke sendes på nytt til PBS
+3390	Fakturaen har ikke været med i nogen PBS-leverance. Den kommer på leverancen ved bogføring.	The invoice has not been part of any PBS delivery. It is added to the delivery when posted.	Fakturaen har ikke vært med i noen PBS-leveranse. Den legges til leveransen ved bokføring.
+3391	Ordren er ikke bogført som faktura	The order is not posted as an invoice	Ordren er ikke bokført som faktura
+3392	Afvisning fra Nets (advis/fejlkode og dato)	Rejection from Nets (advice/error code and date)	Avvisning fra Nets (advis/feilkode og dato)
+3393	Angiv afvisningen fra Nets for at kunne gensende. Uden registreret afvisning regnes fakturaen som afventende hos Nets.	Enter the rejection from Nets to be able to resend. Without a registered rejection the invoice is regarded as pending at Nets.	Oppgi avvisningen fra Nets for å kunne sende på nytt. Uten registrert avvisning regnes fakturaen som ventende hos Nets.
+3394	PBS-historik	PBS history	PBS-historikk
+3395	Leverance	Delivery	Leveranse
+3396	Afsendt	Sent	Sendt
+3397	Afventer svar	Awaiting response	Venter på svar
+3398	Status er ændret siden siden blev åbnet. Kontrollér historikken og prøv igen.	The status changed after the page was opened. Check the history and try again.	Statusen er endret etter at siden ble åpnet. Kontroller historikken og prøv igjen.
+3399	Gensendt fra forsøg	Resent from attempt	Sendt på nytt fra forsøk
+3400	Du har ikke rettigheder til at gensende til PBS	You do not have permission to resend to PBS	Du har ikke rettigheter til å sende på nytt til PBS
+3401	Kunne ikke låse PBS-leverancen - prøv igen	Could not lock the PBS delivery - try again	Kunne ikke låse PBS-leveransen - prøv igjen
+3402	I kø	Queued	I kø
+3403	Databasefejl - intet er gemt	Database error - nothing was saved	Databasefeil - ingenting er lagret
+3404	Fakturaer i leverancen	Invoices in the delivery	Fakturaer i leveransen
+3405	Ugyldig eller udløbet formular - genindlæs siden og prøv igen	Invalid or expired form - reload the page and try again	Ugyldig eller utløpt skjema - last inn siden på nytt og prøv igjen
+3406			
 3407			
 3408			
 3409			
@@ -4976,27 +4976,27 @@
 4976			
 4977			
 4978			
-4979			
-4980			
-4981			
-4982			
-4983			
-4984			
-4985			
-4986			
-4987			
-4988			
-4989			
-4990			
-4991			
-4992			
-4993			
-4994			
-4995			
-4996			
-4997			
-4998			
-4999			
+4979	Indkøb	Purchasing	Innkjøp		
+4980	Serienumre	Serial numbers	Serienumre		
+4981	Autoudfyld	Auto-fill	Autoutfyll		
+4982	Bestiller	Ordering	Bestiller		
+4983	Bestillinger oprettet	Orders created	Bestillinger opprettet		
+4984	Fejl ved oprettelse af bestillinger	Error creating orders	Feil ved opprettelse av bestillinger		
+4985	Ingen værdier angivet	No values entered	Ingen verdier angitt		
+4986	Indkøbsordre	Purchase order	Innkjøpsordre		
+4987	Gen.	Reord.	Gjen.		
+4988	Salgspris u.m.	Sales price ex. VAT	Salgspris u.mva.		
+4989	DG	GM	DG		
+4990	md.	mo.	mnd.		
+4991	Vis udgået	Show discontinued	Vis utgått		
+4992	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.		
+4993	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.		
+4994	Ekskl. moms	Excl. VAT	Ekskl. MVA		
+4995	Køber	Buyer	Kjøper		
+4996	Hvad skal serienummeret omdøbes til?	What should the serial number be renamed to?	Hva skal serienummeret omdøpes til?		
+4997	Omdøb	Rename	Omdøp		
+4998	Vis rækker uden serienummer	Show rows without serial numbers	Vis rader uten serienummer		
+4999	Vis kun serienumre der ikke er solgt	Show only unsold serial numbers	Vis kun serienumre som ikke er solgt		
 5000			
 5001	Udløbsdato	Expiry date	Utløpsdato
 5002	Varen har udløbsdato	Item has expiry date	Varen har utløpsdato
