@@ -29,6 +29,7 @@
 // 2013.01.17 Oprydning i forb. med fejlsøgning i ret_genfakt.php
 // 2014.01.12 Fremover vises plukliste og følgeseddel kun for lagervarer.
 // 2017.05.05 Ved $udskriv_til=='ingen' returneres uden udskrift.
+// 20260909 Sawaneh JOB-124: forward returside to formularprint.php so print close returns to the order.
 
 
 @session_start();
@@ -46,25 +47,27 @@ $id=if_isset($_GET['id']);
 $valg=if_isset($_GET['valg']);
 $formular=if_isset($_GET['formular']);
 $udskriv_til=if_isset($_GET['udskriv_til']);
+$returside=nav_sanitize_returside(ifset($_GET, 'returside'));
+$returQuery=$returside ? '&returside=' . urlencode($returside) : '';
 
 if ($valg=="tilbage" || $udskriv_til=='ingen') {
 	if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-	else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php??tjek=$id&id=$id\">";
+	else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?tjek=$id&id=$id\">";
 	exit;
 }
 
 if ($valg) {
 	$query = db_select("select box1, box2 from grupper where art='PV'",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
-	if ($valg==-1)	$ps_fil="formularprint.php?id=$id&formular=$formular";
-	else $ps_fil="formularprint.php?id=$id&formular=3";
+	if ($valg==-1)	$ps_fil="formularprint.php?id=$id&formular=$formular$returQuery";
+	else $ps_fil="formularprint.php?id=$id&formular=3$returQuery";
 
 #	if ((!file_exists($ps_fil))&&($ps_fil!="udskriftsvalg.php"))	{
 #		if (!file_exists("../formularer/$db_id")) {mkdir("../formularer/$db_id",0777);}
 #		$kildefil=str_replace("/$db_id", "", $ps_fil);
 #		copy($kildefil, $ps_fil);
 #	}
-	if ($valg!=-1) $ps_fil="formularprint.php?id=$id&formular=3&lev_nr=$valg";
+	if ($valg!=-1) $ps_fil="formularprint.php?id=$id&formular=3&lev_nr=$valg$returQuery";
 	echo "<meta http-equiv=refresh content=0;url=$ps_fil>";
 	exit;
 #	print "<BODY onLoad=\"JavaScript:window.open('$ps_fil&id=$id' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";

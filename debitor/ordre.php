@@ -108,6 +108,9 @@
 //                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
 //                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
 // 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
+// 20260909 Sawaneh JOB-124: partial-delivery packing-slip buttons pass a returside back to the order.
+// 20260910 Sawaneh Back button: luk.php returside only on the popup=1 request flag (was the popup
+//                  preference, which sent inline/iframe users to the login page); GET returside sanitised.
 
 @session_start();
 $s_id = session_id();
@@ -409,11 +412,15 @@ if (isset($_GET['kundeordnr']) && $_GET['kundeordnr']) { #20200407
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 }
-$returside = if_isset($_GET, NULL, 'returside');
+$returside = nav_sanitize_returside(ifset($_GET, 'returside'));
 if (isset($sag_id)) { // Returside sættes til 'sager' fra sager.php #20210715
 	#  $returside=urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id");
 }
-if ($popup) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
+// luk.php only when THIS window is a popup (popup=1 flag), not on the user's popup
+// preference: inside the new-design iframe luk.php cannot close anything and
+// used to end on the login page.
+$isPopupRequest = !empty($_GET['popup']) || !empty($_POST['popup']);
+if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
 
 if (($ret_tekst = if_isset($_GET, NULL, 'ret_tekst')) && ($id = if_isset($_GET, NULL, 'id'))) tekstopslag($sort, $id);
 
@@ -3299,7 +3306,7 @@ function ordreside($id, $regnskab)
 	global $incl_moms;
 	global $lagerantal, $lagernavn, $lagernr, $localPrint;
 	global $oio, $oioubl, $omkunde, $ordresum;
-	global $popup, $procentfakt, $procenttillag, $procentvare;
+	global $popup, $isPopupRequest, $procentfakt, $procenttillag, $procentvare;
 	global $regnaar, $returside, $rvid, $rvnr;
 	global $samlet_pris, $samlet_rabat, $samlet_rabatpct, $showLocalPrint, $sprog_id, $sprog, $svnr;
 	global $txt370, $txt283;
@@ -3338,7 +3345,7 @@ function ordreside($id, $regnskab)
 		$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 	}
 	if (!$returside) {
-		if ($popup) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
+		if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
 		else $returside = "ordreliste.php";
 	}
 	$addr1 = $addr2 = NULL;
@@ -4167,9 +4174,10 @@ function ordreside($id, $regnskab)
 			}
 		}
 		if ($lev_max > 0) {
+			$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
 			print "<tr class='tableTexting2'><td colspan=\"2\">&nbsp;</td></tr>\n";
 			for ($levnr = 1; $levnr <= $lev_max; $levnr++) {
-				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
 			}
 		}
 		
@@ -5606,10 +5614,11 @@ function ordreside($id, $regnskab)
 			}
 		}
 		if ($lev_max > 0) {
+			$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
 			print "<tr class='tableTexting2'><td colspan=\"2\">&nbsp;</td></tr>\n";
 			for ($levnr = 1; $levnr <= $lev_max; $levnr++) {
 				include("../includes/topline_settings.php");
-				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
 			}
 		}
 		print "</td></tr></tbody></table></td></tr>\n"; #<- Tabel 4.3

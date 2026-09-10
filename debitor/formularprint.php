@@ -31,6 +31,7 @@
 // 20260102 LOE Added department support for background files
 // 20260309 PHR Fixed error in $returside after printing
 // 20260309 PHR Fixed another error in $returside after printing
+// 20260909 Sawaneh JOB-124: accept returside from GET as well as POST.
 
 
 session_start();
@@ -89,8 +90,10 @@ function find_background_file($background, $file_type, $department) {
 
     return null;
 }
-//check Post for returside
-$returside = if_isset($_POST['returside']);
+$returside = ifset($_POST, 'returside');
+if (!$returside) {
+    $returside = nav_sanitize_returside(ifset($_GET, 'returside'));
+}
 $sag_id = 0;
 $sag_q = '';
 if (isset($_GET['id']) && $_GET['id']){
