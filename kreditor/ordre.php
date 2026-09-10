@@ -1644,6 +1644,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 ######################################################################################################################################
 function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $bgcolor2;
+	global $brugernavn;
 	global $color;
 	global $menu;
 	global $sprog_id;
@@ -1652,6 +1653,15 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 
 	$title= 'Leverandør ordre';
 	$alerttekst=findtekst(154,$sprog_id);
+
+	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
+	// includes/luk.php can confirm this tab still holds the lock before releasing it.
+	$sidehovedTidspkt = NULL;
+	if ($id) {
+		$sidehovedLockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) $sidehovedTidspkt = $sidehovedLockRow['tidspkt'];
+	}
+	$sidehovedTidspktQs = $sidehovedTidspkt !== null ? "&tidspkt=" . urlencode($sidehovedTidspkt) : "";
 
 	include("../includes/topline_settings.php");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -1664,7 +1674,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 				accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i>
 				&nbsp;".findtekst(30,$sprog_id)."</a></div>";
 		else print "<div class=\"headerbtnLft headLink\"><a
-				href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\"
+				href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\"
 				accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i>
 				&nbsp;".findtekst(30,$sprog_id)."</a></div>";
 		print "<div class=\"headerTxt\">$title</div>";
@@ -1702,7 +1712,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 			print "<td width=10%><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
 			       <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
 		} else {
-			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst') accesskey=L>
+			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst') accesskey=L>
 				   <button type='button' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" onclick=\"loacation.href('ordreliste.php')\">".findtekst(30, $sprog_id)."</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
@@ -1743,7 +1753,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 		#	if ($returside != "ordre.php") {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		#	else {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		if ($kort) print "<td width=\"10%\" $top_bund> $color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
-		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
+		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
 		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
 		else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
@@ -1840,6 +1850,17 @@ if ($menu=='T') {
 }
 </style>
 
+<?php
+// 20260908 SZ SST-755: added table+tidspkt (required by the now-generalized, whitelisted
+// unlock_order.php) - re-read fresh here rather than trusting an earlier-computed value, since
+// $id can be reassigned by insertAccount() etc. earlier in this same render.
+$beaconTidspkt = NULL;
+if ($id) {
+	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) $beaconTidspkt = $beaconRow['tidspkt'];
+}
+if ($beaconTidspkt) {
+?>
 <script>
 let isSubmitting = false;
 document.addEventListener("DOMContentLoaded", function () {
@@ -1854,7 +1875,9 @@ function unlockOrderBeacon(evtName) {
     if (!isSubmitting && !window.orderUnlocked) {
         window.orderUnlocked = true;
         let data = new URLSearchParams();
-        data.append("id", "<?php echo (int)$id; ?>"); 
+        data.append("table", "ordrer");
+        data.append("id", "<?php echo (int)$id; ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconTidspkt, ENT_QUOTES); ?>");
         data.append("event", evtName);
         if (navigator.sendBeacon) {
             navigator.sendBeacon("../includes/unlock_order.php", data);
@@ -1869,3 +1892,4 @@ function unlockOrderBeacon(evtName) {
 window.addEventListener("beforeunload", function() { unlockOrderBeacon('beforeunload'); });
 window.addEventListener("pagehide", function() { unlockOrderBeacon('pagehide'); });
 </script>
+<?php } ?>

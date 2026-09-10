@@ -1555,6 +1555,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find,$lager) {
 ######################################################################################################################################
 function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $bgcolor2;
+	global $brugernavn;
 	global $color;
 	global $menu;
 	global $sprog_id;
@@ -1563,12 +1564,21 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	$title= 'Leverandør ordre';
 	$alerttekst=findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 
+	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
+	// includes/luk.php can confirm this tab still holds the lock before releasing it.
+	$sidehovedTidspkt = NULL;
+	if ($id) {
+		$sidehovedLockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) $sidehovedTidspkt = $sidehovedLockRow['tidspkt'];
+	}
+	$sidehovedTidspktQs = $sidehovedTidspkt !== null ? "&tidspkt=" . urlencode($sidehovedTidspkt) : "";
+
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
 	if ($kort) print "<div class=\"headerbtnLft headLink\"><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
-	else print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
+	else print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
 	print "<div class=\"headerTxt\">$title</div>";     	
 	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<div class=\"headerbtnRght headLink\"><a accesskey=N href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" title='Klik her for at lave ny ordre'><i class='fa fa-plus-square fa-lg'></i></a></div>";}
 	else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<div class=\"headerbtnRghtheadLink\"><a accesskey=N href=\"$kort?returside=$returside&ordre_id=$id\"  title='Klik her for at lave ny ordre'><i class='fa fa-plus-square fa-lg'></i></a></div>";}
@@ -1590,7 +1600,7 @@ if ($menu=='T') {
 #	if ($returside != "ordre.php") {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 #	else {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		if ($kort) print "<td width=\"10%\" $top_bund> $color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
-		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
 		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";}
 		else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";}
