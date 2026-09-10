@@ -58,7 +58,7 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
     <div style="width:100%; display: flex; justify-content: flex-end">
         <button type="button" id="autoudfyldBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="m422-232 207-248H469l29-227-185 267h139l-30 208ZM320-80l40-280H160l360-520h80l-40 320h240L400-80h-80Zm151-390Z"/></svg>
-            <?php echo findtekst('3388|Autoudfyld', $sprog_id) ?>
+            <?php echo findtekst('4981|Autoudfyld', $sprog_id) ?>
         </button>
         &nbsp;
         <button type="button" id="bestilBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
@@ -304,7 +304,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_buy_order",
-    "headerName" => findtekst('3393|Indkøbsordre', $sprog_id),
+    "headerName" => findtekst('4986|Indkøbsordre', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -375,7 +375,7 @@ $columns[] = array(
     "field" => "genbestil",
     'defaultSort' => true,
     'defaultSortDirection' =>'desc',
-    "headerName" => findtekst('3394|Gen.', $sprog_id),
+    "headerName" => findtekst('4987|Gen.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -401,7 +401,7 @@ $columns[] = array(
 // Continue adding other fields if needed
 $columns[] = array(
     "field" => "salgspris",
-    "headerName" => findtekst('3395|Salgspris u.m.', $sprog_id),
+    "headerName" => findtekst('4988|Salgspris u.m.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -424,7 +424,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "dg",
-    "headerName" => findtekst('3396|DG', $sprog_id),
+    "headerName" => findtekst('4989|DG', $sprog_id),
     "type" => "number",
     "align" => "right",
     "hidden" => true,
@@ -442,7 +442,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "sales_last_6_months",
-    "headerName" => "6".findtekst('3397|md.', $sprog_id), #6md.
+    "headerName" => "6".findtekst('4990|md.', $sprog_id), #6md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -453,7 +453,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_3_months",
-    "headerName" => "3".findtekst('3397|md.', $sprog_id), #3md.
+    "headerName" => "3".findtekst('4990|md.', $sprog_id), #3md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -461,7 +461,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_1_month",
-    "headerName" => "1".findtekst('3397|md.', $sprog_id), #1md.
+    "headerName" => "1".findtekst('4990|md.', $sprog_id), #1md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -538,7 +538,7 @@ $filters[] = array(
     "options" => array(
         array(
             "name" => "Vis udgået",
-#           "name" => findtekst('3398|Vis udgået', $sprog_id),
+#           "name" => findtekst('4991|Vis udgået', $sprog_id),
             "checked" => "checked",
             "sqlOn" => "",
             "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",
@@ -809,7 +809,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => findtekst('3399|Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag', $sprog_id)."<br><br>".findtekst('3400|Hold musen over et beholdningstal for at se hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
+    "content" => findtekst('4992|Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag', $sprog_id)."<br><br>".findtekst('4993|Hold musen over et beholdningstal for at se hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",

@@ -177,7 +177,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "salgs_kontonr",
-    "headerName" => findtekst('3402|Køber', $sprog_id),
+    "headerName" => findtekst('4995|Køber', $sprog_id),
     "width" => "1.5",
     "sqlOverride" => "LOWER(so.kontonr)",
     "generateSearch" => function ($column, $term) {
@@ -239,14 +239,14 @@ $filters[] = array(
     "options" => array(
         array(
             "name" => "Vis tomme serienr værdier",
-#           "name" => findtekst('3405|Vis rækker uden serienummer', $sprog_id),
+#           "name" => findtekst('4998|Vis rækker uden serienummer', $sprog_id),
             "checked" => "",
             "sqlOn" => "",
             "sqlOff" => "sn.serienr != '' AND sn.serienr IS NOT NULL",
         ),
         array(
             "name" => "Vis kun serienumre der ikke er solgt",
-#           "name" => findtekst('3406|Vis kun serienumre der ikke er solgt', $sprog_id),
+#           "name" => findtekst('4999|Vis kun serienumre der ikke er solgt', $sprog_id),
             "checked" => "",
             "sqlOn" => "sn.salgslinje_id = 0",
             "sqlOff" => "",
@@ -309,8 +309,8 @@ ORDER BY
     'metaColumn' => substr($rettigheder,1,1) ? function ($row) {
         global $sprog_id;
         if ($row['salgs_ordre'] == "") {
-            $renamePrompt  = findtekst('3403|Hvad skal serienummeret omdøbes til?', $sprog_id)."\\n".findtekst('1497|Serienummer', $sprog_id).": {$row['serienr']}";
-            $renameConfirm = findtekst('3404|Omdøb', $sprog_id)." {$row['serienr']} ".findtekst('904|til', $sprog_id);
+            $renamePrompt  = findtekst('4996|Hvad skal serienummeret omdøbes til?', $sprog_id)."\\n".findtekst('1497|Serienummer', $sprog_id).": {$row['serienr']}";
+            $renameConfirm = findtekst('4997|Omdøb', $sprog_id)." {$row['serienr']} ".findtekst('904|til', $sprog_id);
             $deleteConfirm = findtekst('1099|Slet', $sprog_id)." {$row['serienr']}";
 
             return <<<HTML

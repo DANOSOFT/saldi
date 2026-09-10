@@ -205,7 +205,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_buy_order",
-    "headerName" => findtekst('3393|Indkøbsordre', $sprog_id),
+    "headerName" => findtekst('4986|Indkøbsordre', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -331,7 +331,7 @@ $columns[] = array(
     "field" => "genbestil",
     'defaultSort' => true,
     'defaultSortDirection' =>'desc',
-    "headerName" => findtekst('3394|Gen.', $sprog_id),
+    "headerName" => findtekst('4987|Gen.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -360,7 +360,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "sales_last_6_months",
-    "headerName" => "6".findtekst('3397|md.', $sprog_id), #6md.
+    "headerName" => "6".findtekst('4990|md.', $sprog_id), #6md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -371,7 +371,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_3_months",
-    "headerName" => "3".findtekst('3397|md.', $sprog_id), #3md.
+    "headerName" => "3".findtekst('4990|md.', $sprog_id), #3md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -379,7 +379,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_1_month",
-    "headerName" => "1".findtekst('3397|md.', $sprog_id), #1md.
+    "headerName" => "1".findtekst('4990|md.', $sprog_id), #1md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -392,7 +392,7 @@ $columns[] = array(
 // Continue adding other fields if needed
 $columns[] = array(
     "field" => "salgspris",
-    "headerName" => findtekst('3395|Salgspris u.m.', $sprog_id),
+    "headerName" => findtekst('4988|Salgspris u.m.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -414,7 +414,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "dg",
-    "headerName" => findtekst('3396|DG', $sprog_id),
+    "headerName" => findtekst('4989|DG', $sprog_id),
     "type" => "number",
     "align" => "right",
     "sqlOverride" => "
@@ -495,7 +495,7 @@ $filters[] = array(
     "options" => array(
         array(
             "name" => "Vis udgået",
-#           "name" => findtekst('3398|Vis udgået', $sprog_id),
+#           "name" => findtekst('4991|Vis udgået', $sprog_id),
             "checked" => "checked",
             "sqlOn" => "",
             "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",

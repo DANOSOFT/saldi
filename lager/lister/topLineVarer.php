@@ -64,13 +64,13 @@
 			if ($valg=="Indkøb") {
 				print "<td width = '200px' align=center id='indkob'>
 					<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-					$icon_indkob ".findtekst('3386|Indkøb', $sprog_id)." 
+					$icon_indkob ".findtekst('4979|Indkøb', $sprog_id)." 
 					</button></td>";
 			} else {
 				print "<td width = '200px' align=center id='indkob'>
 					<a href='indkøb.php?returside=$returside'>
 					<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-					$icon_indkob ".findtekst('3386|Indkøb', $sprog_id)." 
+					$icon_indkob ".findtekst('4979|Indkøb', $sprog_id)." 
 					</button></a></td>";
 			}
 		}
@@ -80,13 +80,13 @@
 		if ($valg=="Serienumre") {
 			print "<td width = '200px' align=center id='serial'>
 				<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_serialnumber ".findtekst('3387|Serienumre', $sprog_id)." 
+				$icon_serialnumber ".findtekst('4980|Serienumre', $sprog_id)." 
 				</button></td>";
 		} else {
 			print "<td width = '200px' align=center id='serial'>
 				<a href='serialnumber.php?returside=$returside'>
 				<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_serialnumber ".findtekst('3387|Serienumre', $sprog_id)." 
+				$icon_serialnumber ".findtekst('4980|Serienumre', $sprog_id)." 
 				</button></a></td>";
 		}
 	print "</tbody></table></td>\n"; # <- Tabel 1.1.1

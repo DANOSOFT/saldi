@@ -354,7 +354,7 @@ $columns[] = array(
 $columns[] = array(
     "field" => "salgspris",
     "headerName" => findtekst('949|Salgspris', $sprog_id),
-    "description" => "(".strtolower(findtekst('3401|Ekskl. moms', $sprog_id)).")",
+    "description" => "(".strtolower(findtekst('4994|Ekskl. moms', $sprog_id)).")",
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -386,7 +386,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "dg",
-    "headerName" => findtekst('3396|DG', $sprog_id),
+    "headerName" => findtekst('4989|DG', $sprog_id),
     "type" => "number",
     "align" => "right",
     "sqlOverride" => "
@@ -467,7 +467,7 @@ $filters[] = array(
     "options" => array(
         array(
             "name" => "Vis udgået",
-#           "name" => findtekst('3398|Vis udgået', $sprog_id),
+#           "name" => findtekst('4991|Vis udgået', $sprog_id),
             "checked" => "checked",
             "sqlOn" => "",
             "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0' or v.lukket = '')",
