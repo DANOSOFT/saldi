@@ -27,9 +27,6 @@
 // content was already relocated into includes/opdat_4.3.php (see commit 74634e46); only the
 // genuinely new statements below (not present in opdat_4.3.php) were pulled in from production.
 // 20260717 CL/NTR Guard the API-key insert/update blocks so an existing but
-// 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
-//                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
-//                     be resent in a later batch but never twice in the same batch.
 //                  incomplete .ht_keys.txt can't silently write an empty var_value.
 // 20260728 CL/SZ Moved the Bilagsmatch pool_files.norm_amount/pg_trgm setup here from
 //                  includes/opdat_4.3.php's opdat_to('4.3.0', ...) gate: that gate had
@@ -39,6 +36,9 @@
 //                  a nonexistent column, pg_query() failed, and the endpoint silently
 //                  returned zero rows regardless of any actual match. All statements below
 //                  are idempotent (existence/flag-checked), matching this file's pattern.
+// 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
+//                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
+//                     be resent in a later batch but never twice in the same batch.
 
 
 
