@@ -28,6 +28,8 @@
 //                     result) and an explicit "Gensend til PBS" for invoices Nets rejected.
 //                     Post/Redirect/Get; the write itself is in pbs_gensend() (includes/pbsfunc.php).
 // 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
+// 20260910 CL/NTR SST-763: Resend POST redirects with HTTP 303 instead of meta refresh and requires a
+//                  session-bound form token (CodeRabbit review).
 
 @session_start();
 $s_id = session_id();
@@ -54,14 +56,22 @@ if (!$id) {
 	$id = intval(if_isset($_POST, 0, 'id'));
 }
 
+// Session-bound token so a forged cross-site POST cannot trigger a resend.
+if (empty($_SESSION['pbs_gensend_token'])) {
+	$_SESSION['pbs_gensend_token'] = bin2hex(random_bytes(16));
+}
+$csrf_token = $_SESSION['pbs_gensend_token'];
+
 if (isset($_POST['sidste_id'])) {
-	if (substr($rettigheder, $modulnr, 1) < '1') {
+	if (!hash_equals($csrf_token, (string) ifset($_POST, 'token', ''))) {
+		$_SESSION['pbs_gensend_besked'] = findtekst('3405|Ugyldig eller udløbet formular - genindlæs siden og prøv igen', $sprog_id);
+	} elseif (substr($rettigheder, $modulnr, 1) < '1') {
 		$_SESSION['pbs_gensend_besked'] = findtekst('3400|Du har ikke rettigheder til at gensende til PBS', $sprog_id);
 	} else {
-		$svar = pbs_gensend($id, if_isset($_POST, '', 'ref'), if_isset($_POST, 0, 'sidste_id'));
+		$svar = pbs_gensend($id, ifset($_POST, 'ref', ''), ifset($_POST, 'sidste_id', 0));
 		$_SESSION['pbs_gensend_besked'] = $svar['besked'];
 	}
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=pbs_gensend.php?id=$id\">";
+	header("Location: pbs_gensend.php?id=$id", true, 303);
 	exit;
 }
 
@@ -131,6 +141,7 @@ if ($s['kan_gensendes']) {
 	print "<tr><td><br><form method=\"post\" action=\"pbs_gensend.php\" onsubmit=\"this.gensend.disabled=true;\">";
 	print "<input type=\"hidden\" name=\"id\" value=\"$id\">";
 	print "<input type=\"hidden\" name=\"sidste_id\" value=\"" . intval($s['sidste']['id']) . "\">";
+	print "<input type=\"hidden\" name=\"token\" value=\"$csrf_token\">";
 	print findtekst('3392|Afvisning fra Nets (advis/fejlkode og dato)', $sprog_id) . "<br>";
 	print "<textarea name=\"ref\" rows=\"3\" cols=\"60\"" . ($s['kraever_ref'] ? " required" : "") . "></textarea><br>";
 	print "<input type=\"submit\" class=\"button gray medium\" name=\"gensend\" value=\"" . findtekst('3385|Gensend til PBS', $sprog_id) . "\">";
