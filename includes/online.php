@@ -61,8 +61,8 @@
 // 20260320 PHR cleanup (pdftk)
 // 20260402 PHR Bypass style if title = 'Bordplan'
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
-// 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
 // 20260904 Sawaneh WP-1.3: nav_push popup arg now uses the popup=1 request flag, not the user preference
+// 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
