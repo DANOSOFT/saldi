@@ -7,6 +7,7 @@
 // 20260701 CDX/NTR - Changed DEFAULT_GENERATE_SEARCH to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260817 Sawaneh Sort descending columns NULLS LAST so rows without a date no longer
 //                  displace the newest rows, and validate the request-sourced sort value.
+// 20260911 LOE SD-686: grid filter defaults declared with "checked" are honoured.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -683,7 +684,11 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
         // Encode configurations as JSON for storage
         $columns_json = db_escape_string(json_encode($columns_save));
-        $filters_json = db_escape_string(json_encode($filters));
+        // SD-686: a fresh grid row starts with an empty *selection* map. Filter
+        // defaults belong to the page's $filters definition and are applied by
+        // updateCheckedValues(); storing the definitions here left the declared
+        // defaults unreadable on the first page view.
+        $filters_json = '{}';
         $search_json  = db_escape_string(json_encode($search_setup));
 
         // Insert the new grid setup into the database
@@ -751,16 +756,18 @@ function fill_missing_values($firstArray, $secondArray) {
  * @return array The updated first array with the 'checked' values for options updated.
  */
 function updateCheckedValues(array $firstArray, array $secondArray) {
+    // SD-686: only a saved *selection* map may override a filter option's declared
+    // default. Where nothing (or only a legacy definition list) has been saved, the
+    // declared value stays in force instead of being forced back to ''.
     foreach ($firstArray as &$filter) {
         $filterName = $filter['filterName'];
-        if (isset($secondArray[$filterName])) {
-            $updatesForFilter = $secondArray[$filterName];
-            foreach ($filter['options'] as &$option) {
-                $option['checked'] = isset($updatesForFilter[$option['name']]) ? $updatesForFilter[$option['name']] : '';
-            }
-        } else {
-            foreach ($filter['options'] as &$option) {
+        $updatesForFilter = isset($secondArray[$filterName]) ? $secondArray[$filterName] : array();
+        foreach ($filter['options'] as &$option) {
+            if (!isset($option['checked'])) {
                 $option['checked'] = '';
+            }
+            if (isset($updatesForFilter[$option['name']])) {
+                $option['checked'] = $updatesForFilter[$option['name']];
             }
         }
     }
@@ -1820,7 +1827,8 @@ function render_filters($id, $filters, $all_filters) {
             <span><b>{$filter["filterName"]} ({$filter["joinOperator"]})</b></span>
 HTML;
         foreach ($filter["options"] as $filterItem) {
-            print "<div><label><input type='checkbox' $filterItem[checked] name='filter[$id][$filter[filterName]][$filterItem[name]]'>$filterItem[name]</label></div>";
+            // SD-686: submit unticked options too, so turning a declared default off persists.
+            print "<div><label><input type='hidden' name='filter[$id][$filter[filterName]][$filterItem[name]]' value=''><input type='checkbox' $filterItem[checked] name='filter[$id][$filter[filterName]][$filterItem[name]]'>$filterItem[name]</label></div>";
         }
 
         echo <<<HTML
