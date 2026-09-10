@@ -56,6 +56,7 @@
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260908 CDX/LH Translate the performed-by column consistently with the order (SD-558).
 
 @session_start();
 $s_id = session_id();
@@ -1621,11 +1622,7 @@ $columns[] = array(
         return $actions;
     }
 );
- if ($sprog_id == 2) {
-        $columnHd = 'Performed by'; //TODO: findtekst
- } else{
-        $columnHd = 'Hvem';
- }
+ $columnHd = findtekst('5149|Udført af', $sprog_id);
  $columns[] = array(
         "field" => "hvem",
         "headerName" => $columnHd,
