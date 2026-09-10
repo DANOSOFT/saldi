@@ -3382,26 +3382,26 @@
 3382	Vis alle	Show all	Vis alle
 3383	Nyt! Klik på tandhjulet for at vælge hvilke felter der vises på varekortet.	New! Click the gear to choose which fields are shown on the product card.	Nytt! Klikk på tannhjulet for å velge hvilke felter som vises på varekortet.
 3384	Forstået	Got it	Skjønner
-3385			
-3386			
-3387			
-3388			
-3389			
-3390			
-3391			
-3392			
-3393			
-3394			
-3395			
-3396			
-3397			
-3398			
-3399			
-3400			
-3401			
-3402			
-3403			
-3404			
+3385	Gensend til PBS	Resend to PBS	Send på nytt til PBS
+3386	er tilføjet PBS-leverance	has been added to PBS delivery	er lagt til PBS-leveranse
+3387	findes allerede i den åbne PBS-leverance	is already in the open PBS delivery	finnes allerede i den åpne PBS-leveransen
+3388	afventer svar fra Nets på leverance	is awaiting a response from Nets on delivery	venter på svar fra Nets på leveranse
+3389	Fakturaen er udlignet/betalt og kan ikke gensendes til PBS	The invoice is settled/paid and cannot be resent to PBS	Fakturaen er utlignet/betalt og kan ikke sendes på nytt til PBS
+3390	Fakturaen har ikke været med i nogen PBS-leverance. Den kommer på leverancen ved bogføring.	The invoice has not been part of any PBS delivery. It is added to the delivery when posted.	Fakturaen har ikke vært med i noen PBS-leveranse. Den legges til leveransen ved bokføring.
+3391	Ordren er ikke bogført som faktura	The order is not posted as an invoice	Ordren er ikke bokført som faktura
+3392	Afvisning fra Nets (advis/fejlkode og dato)	Rejection from Nets (advice/error code and date)	Avvisning fra Nets (advis/feilkode og dato)
+3393	Angiv afvisningen fra Nets for at kunne gensende. Uden registreret afvisning regnes fakturaen som afventende hos Nets.	Enter the rejection from Nets to be able to resend. Without a registered rejection the invoice is regarded as pending at Nets.	Oppgi avvisningen fra Nets for å kunne sende på nytt. Uten registrert avvisning regnes fakturaen som ventende hos Nets.
+3394	PBS-historik	PBS history	PBS-historikk
+3395	Leverance	Delivery	Leveranse
+3396	Afsendt	Sent	Sendt
+3397	Afventer svar	Awaiting response	Venter på svar
+3398	Status er ændret siden siden blev åbnet. Kontrollér historikken og prøv igen.	The status changed after the page was opened. Check the history and try again.	Statusen er endret etter at siden ble åpnet. Kontroller historikken og prøv igjen.
+3399	Gensendt fra forsøg	Resent from attempt	Sendt på nytt fra forsøk
+3400	Du har ikke rettigheder til at gensende til PBS	You do not have permission to resend to PBS	Du har ikke rettigheter til å sende på nytt til PBS
+3401	Kunne ikke låse PBS-leverancen - prøv igen	Could not lock the PBS delivery - try again	Kunne ikke låse PBS-leveransen - prøv igjen
+3402	I kø	Queued	I kø
+3403	Databasefejl - intet er gemt	Database error - nothing was saved	Databasefeil - ingenting er lagret
+3404	Fakturaer i leverancen	Invoices in the delivery	Fakturaer i leveransen
 3405			
 3406			
 3407			
@@ -5095,24 +5095,4 @@
 5148	Forstået	Got it	Skjønner
 5149	Brugernavnet må højst være 80 tegn	The username may be at most 80 characters	Brukernavnet kan høyst være 80 tegn
 5150	Regnskabsnavnet må højst være 60 tegn	The account name may be at most 60 characters	Regnskapsnavnet kan høyst være 60 tegn
-5170	Gensend til PBS	Resend to PBS	Send på nytt til PBS
-5171	er tilføjet PBS-leverance	has been added to PBS delivery	er lagt til PBS-leveranse
-5172	findes allerede i den åbne PBS-leverance	is already in the open PBS delivery	finnes allerede i den åpne PBS-leveransen
-5173	afventer svar fra Nets på leverance	is awaiting a response from Nets on delivery	venter på svar fra Nets på leveranse
-5174	Fakturaen er udlignet/betalt og kan ikke gensendes til PBS	The invoice is settled/paid and cannot be resent to PBS	Fakturaen er utlignet/betalt og kan ikke sendes på nytt til PBS
-5175	Fakturaen har ikke været med i nogen PBS-leverance. Den kommer på leverancen ved bogføring.	The invoice has not been part of any PBS delivery. It is added to the delivery when posted.	Fakturaen har ikke vært med i noen PBS-leveranse. Den legges til leveransen ved bokføring.
-5176	Ordren er ikke bogført som faktura	The order is not posted as an invoice	Ordren er ikke bokført som faktura
-5177	Afvisning fra Nets (advis/fejlkode og dato)	Rejection from Nets (advice/error code and date)	Avvisning fra Nets (advis/feilkode og dato)
-5178	Angiv afvisningen fra Nets for at kunne gensende. Uden registreret afvisning regnes fakturaen som afventende hos Nets.	Enter the rejection from Nets to be able to resend. Without a registered rejection the invoice is regarded as pending at Nets.	Oppgi avvisningen fra Nets for å kunne sende på nytt. Uten registrert avvisning regnes fakturaen som ventende hos Nets.
-5179	PBS-historik	PBS history	PBS-historikk
-5180	Fakturanr	Invoice no.	Fakturanr
-5181	Leverance	Delivery	Leveranse
-5182	Afsendt	Sent	Sendt
-5183	Afventer svar	Awaiting response	Venter på svar
-5184	Status er ændret siden siden blev åbnet. Kontrollér historikken og prøv igen.	The status changed after the page was opened. Check the history and try again.	Statusen er endret etter at siden ble åpnet. Kontroller historikken og prøv igjen.
-5185	Gensendt fra forsøg	Resent from attempt	Sendt på nytt fra forsøk
-5186	Du har ikke rettigheder til at gensende til PBS	You do not have permission to resend to PBS	Du har ikke rettigheter til å sende på nytt til PBS
-5187	Kunne ikke låse PBS-leverancen - prøv igen	Could not lock the PBS delivery - try again	Kunne ikke låse PBS-leveransen - prøv igjen
-5188	I kø	Queued	I kø
-5189	Databasefejl - intet er gemt	Database error - nothing was saved	Databasefeil - ingenting er lagret
-5190	Fakturaer i leverancen	Invoices in the delivery	Fakturaer i leveransen
+

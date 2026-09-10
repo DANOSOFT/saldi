@@ -43,6 +43,7 @@
 // 20260908 CL/Sawaneh SST-763: id/slet_ordreid int-cast; deleting an order from the list is limited to
 //                     this batch and refused on sent batches (history is kept); a sent batch shows its
 //                     invoices with attempt status and a resend link (debitor/pbs_gensend.php).
+// 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
 
 @session_start();
 $s_id=session_id();
@@ -858,9 +859,9 @@ function vis_leverance_ordrer($liste_id) {
 	$qtxt.= "pbs_ordrer.resultat_ref, ordrer.fakturanr, ordrer.kontonr, ordrer.firmanavn, ordrer.sum, ordrer.moms ";
 	$qtxt.= "from pbs_ordrer, ordrer where pbs_ordrer.liste_id = '$liste_id' and ordrer.id = pbs_ordrer.ordre_id order by pbs_ordrer.id";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	print "<tr><td><br><b>".findtekst('5190|Fakturaer i leverancen', $sprog_id)."</b></td></tr>";
+	print "<tr><td><br><b>".findtekst('3404|Fakturaer i leverancen', $sprog_id)."</b></td></tr>";
 	print "<tr><td><table width=\"100%\"><tbody>";
-	print "<tr><td>".findtekst('5180|Fakturanr', $sprog_id)."</td><td>".findtekst('35|Kunde', $sprog_id)."</td>";
+	print "<tr><td>".findtekst('828|Fakturanr.', $sprog_id)."</td><td>".findtekst('35|Kunde', $sprog_id)."</td>";
 	print "<td align=\"right\">".findtekst('934|Beløb', $sprog_id)."</td><td>".findtekst('494|Status', $sprog_id)."</td><td></td></tr>";
 	while ($r = db_fetch_array($q)) {
 		$ordre_id = intval($r['ordre_id']);
@@ -869,9 +870,9 @@ function vis_leverance_ordrer($liste_id) {
 		if ($r['resultat'] == 'afvist') {
 			$status = findtekst('3011|Afvist', $sprog_id).": ".htmlspecialchars($r['resultat_ref']);
 		} else {
-			$status = findtekst('5183|Afventer svar', $sprog_id);
+			$status = findtekst('3397|Afventer svar', $sprog_id);
 		}
-		if ($gensendt) $status .= " - ".findtekst('5170|Gensend til PBS', $sprog_id).": ".findtekst('5181|Leverance', $sprog_id)." $gensendt[liste_id]";
+		if ($gensendt) $status .= " - ".findtekst('3385|Gensend til PBS', $sprog_id).": ".findtekst('3395|Leverance', $sprog_id)." $gensendt[liste_id]";
 		if ($popup) {
 			$link = "<a href=\"#\" onClick=\"javascript:pbs_gensend=window.open('pbs_gensend.php?id=$ordre_id','pbs_gensend','".$jsvars."');pbs_gensend.focus();return false;\">";
 		} else {
@@ -879,7 +880,7 @@ function vis_leverance_ordrer($liste_id) {
 		}
 		print "<tr><td>".htmlspecialchars($r['fakturanr'])."</td><td>".htmlspecialchars($r['kontonr'])." ".htmlspecialchars($r['firmanavn'])."</td>";
 		print "<td align=\"right\">".dkdecimal($r['sum']+$r['moms'],2)."</td><td>$status</td>";
-		print "<td>".$link.findtekst('5179|PBS-historik', $sprog_id)."</a></td></tr>";
+		print "<td>".$link.findtekst('3394|PBS-historik', $sprog_id)."</a></td></tr>";
 	}
 	print "</tbody></table></td></tr>";
 }

@@ -28,6 +28,7 @@
 //                     and includes/ordrefunc.php). Adds per-invoice PBS attempt status, an
 //                     explicit resend (pbs_gensend) and a lock so concurrent requests can only
 //                     create one open batch / one attempt per batch.
+// 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
 
 /**
  * Lock name qualified by tenant database: MySQL named locks are server-wide, so tenants
@@ -140,7 +141,7 @@ if (!function_exists('pbs_ordre_status')) {
 		$qtxt .= "betalingsbet, betalingsdage from ordrer where id = '$ordre_id'";
 		$ordre = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (!$ordre) {
-			$s['forklaring'] = findtekst('5176|Ordren er ikke bogført som faktura', $sprog_id);
+			$s['forklaring'] = findtekst('3391|Ordren er ikke bogført som faktura', $sprog_id);
 			return $s;
 		}
 		$s['ordre'] = $ordre;
@@ -161,16 +162,16 @@ if (!function_exists('pbs_ordre_status')) {
 		$fakturanr = $ordre['fakturanr'];
 
 		if ($ordre['status'] < 3 || $ordre['art'] != 'DO') {
-			$s['forklaring'] = findtekst('5176|Ordren er ikke bogført som faktura', $sprog_id);
+			$s['forklaring'] = findtekst('3391|Ordren er ikke bogført som faktura', $sprog_id);
 		} elseif (pbs_faktura_betalt($ordre)) {
 			$s['status'] = 'betalt';
-			$s['forklaring'] = findtekst('5174|Fakturaen er udlignet/betalt og kan ikke gensendes til PBS', $sprog_id);
+			$s['forklaring'] = findtekst('3389|Fakturaen er udlignet/betalt og kan ikke gensendes til PBS', $sprog_id);
 		} elseif (!$s['sidste']) {
 			$s['status'] = 'ikke_sendt';
-			$s['forklaring'] = findtekst('5175|Fakturaen har ikke været med i nogen PBS-leverance. Den kommer på leverancen ved bogføring.', $sprog_id);
+			$s['forklaring'] = findtekst('3390|Fakturaen har ikke været med i nogen PBS-leverance. Den kommer på leverancen ved bogføring.', $sprog_id);
 		} elseif ($i_koe) {
 			$s['status'] = 'i_koe';
-			$s['forklaring'] = findtekst('5180|Fakturanr', $sprog_id) . " $fakturanr " . findtekst('5172|findes allerede i den åbne PBS-leverance', $sprog_id) . " $i_koe";
+			$s['forklaring'] = findtekst('828|Fakturanr.', $sprog_id) . " $fakturanr " . findtekst('3387|findes allerede i den åbne PBS-leverance', $sprog_id) . " $i_koe";
 		} elseif ($s['sidste']['resultat'] == 'afvist') {
 			$s['status'] = 'afvist';
 			$s['kan_gensendes'] = true;
@@ -179,8 +180,8 @@ if (!function_exists('pbs_ordre_status')) {
 			$s['status'] = 'afventer';
 			$s['kan_gensendes'] = true;
 			$s['kraever_ref'] = true;
-			$s['forklaring'] = findtekst('5180|Fakturanr', $sprog_id) . " $fakturanr " . findtekst('5173|afventer svar fra Nets på leverance', $sprog_id) . " " . $s['sidste']['liste_id'] . ". ";
-			$s['forklaring'] .= findtekst('5178|Angiv afvisningen fra Nets for at kunne gensende. Uden registreret afvisning regnes fakturaen som afventende hos Nets.', $sprog_id);
+			$s['forklaring'] = findtekst('828|Fakturanr.', $sprog_id) . " $fakturanr " . findtekst('3388|afventer svar fra Nets på leverance', $sprog_id) . " " . $s['sidste']['liste_id'] . ". ";
+			$s['forklaring'] .= findtekst('3393|Angiv afvisningen fra Nets for at kunne gensende. Uden registreret afvisning regnes fakturaen som afventende hos Nets.', $sprog_id);
 		}
 		return $s;
 	}
@@ -228,7 +229,7 @@ if (!function_exists('pbs_gensend')) {
 		$ref = trim($ref);
 
 		if (!pbs_laas()) {
-			return array('ok' => false, 'besked' => findtekst('5187|Kunne ikke låse PBS-leverancen - prøv igen', $sprog_id));
+			return array('ok' => false, 'besked' => findtekst('3401|Kunne ikke låse PBS-leverancen - prøv igen', $sprog_id));
 		}
 		transaktion('begin');
 		$s = pbs_ordre_status($ordre_id);
@@ -236,9 +237,9 @@ if (!function_exists('pbs_gensend')) {
 		if (!$s['kan_gensendes']) {
 			$fejl = $s['forklaring'];
 		} elseif (intval($s['sidste']['id']) != $sidste_id) {
-			$fejl = findtekst('5184|Status er ændret siden siden blev åbnet. Kontrollér historikken og prøv igen.', $sprog_id);
+			$fejl = findtekst('3398|Status er ændret siden siden blev åbnet. Kontrollér historikken og prøv igen.', $sprog_id);
 		} elseif ($s['kraever_ref'] && $ref == '') {
-			$fejl = findtekst('5178|Angiv afvisningen fra Nets for at kunne gensende. Uden registreret afvisning regnes fakturaen som afventende hos Nets.', $sprog_id);
+			$fejl = findtekst('3393|Angiv afvisningen fra Nets for at kunne gensende. Uden registreret afvisning regnes fakturaen som afventende hos Nets.', $sprog_id);
 		}
 		if ($fejl) {
 			transaktion('rollback');
@@ -258,12 +259,12 @@ if (!function_exists('pbs_gensend')) {
 		if (!$liste_id || $db_modify_fejl) {
 			transaktion('rollback');
 			pbs_frigiv();
-			return array('ok' => false, 'besked' => findtekst('5189|Databasefejl - intet er gemt', $sprog_id));
+			return array('ok' => false, 'besked' => findtekst('3403|Databasefejl - intet er gemt', $sprog_id));
 		}
 		transaktion('commit');
 		pbs_frigiv();
-		$besked = findtekst('5180|Fakturanr', $sprog_id) . " " . $s['ordre']['fakturanr'] . " ";
-		$besked .= findtekst('5171|er tilføjet PBS-leverance', $sprog_id) . " $liste_id";
+		$besked = findtekst('828|Fakturanr.', $sprog_id) . " " . $s['ordre']['fakturanr'] . " ";
+		$besked .= findtekst('3386|er tilføjet PBS-leverance', $sprog_id) . " $liste_id";
 		return array('ok' => true, 'besked' => $besked);
 	}
 }
@@ -283,17 +284,17 @@ if (!function_exists('pbsfakt')) {
 			return;
 		}
 		if (!pbs_laas()) {
-			print findtekst('5187|Kunne ikke låse PBS-leverancen - prøv igen', $sprog_id) . "<br>";
+			print findtekst('3401|Kunne ikke låse PBS-leverancen - prøv igen', $sprog_id) . "<br>";
 			return;
 		}
 		$s = pbs_ordre_status($id);
 		if ($s['ordre'] && ($s['status'] == 'ikke_sendt' || $s['status'] == 'afvist')) {
 			$liste_id = pbs_tilfoej($id, $s['sidste'] ? $s['sidste']['id'] : 0);
 			if ($liste_id) {
-				print findtekst('5180|Fakturanr', $sprog_id) . " " . $s['ordre']['fakturanr'] . " ";
-				print findtekst('5171|er tilføjet PBS-leverance', $sprog_id) . " $liste_id<br>";
+				print findtekst('828|Fakturanr.', $sprog_id) . " " . $s['ordre']['fakturanr'] . " ";
+				print findtekst('3386|er tilføjet PBS-leverance', $sprog_id) . " $liste_id<br>";
 			} else {
-				print findtekst('5189|Databasefejl - intet er gemt', $sprog_id) . "<br>";
+				print findtekst('3403|Databasefejl - intet er gemt', $sprog_id) . "<br>";
 			}
 		} else {
 			print $s['forklaring'] . "<br>";

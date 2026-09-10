@@ -110,6 +110,7 @@
 // 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
 // 20260908 CL/Sawaneh SST-763: PBS button on posted PBS invoices opens debitor/pbs_gensend.php
 //                     (attempt history + resend after a Nets rejection).
+// 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
 
 @session_start();
 $s_id = session_id();
@@ -4551,7 +4552,7 @@ function ordreside($id, $regnskab)
 		else $tmp = "value=\"" . findtekst('880|Udskriv', $sprog_id) . "\" title=\"" . findtekst('1461|Åbn et PDF-dokument, som kan gemmes eller viderebehandles på anden vis.', $sprog_id) . "\"";
 		print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" name=\"print\" $tmp></td>\n";
 		if ($art == 'DO' && (strstr($udskriv_til, 'PBS') || db_fetch_array(db_select("select id from pbs_ordrer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__)))) {
-			$title = findtekst('5179|PBS-historik', $sprog_id) . " / " . findtekst('5170|Gensend til PBS', $sprog_id);
+			$title = findtekst('3394|PBS-historik', $sprog_id) . " / " . findtekst('3385|Gensend til PBS', $sprog_id);
 			print "<td align=\"center\"><input type=\"button\" class=\"button gray medium\" value=\"PBS\" title=\"$title\" ";
 			print "onclick=\"pbs_gensend=window.open('pbs_gensend.php?id=$id','pbs_gensend','$jsvars');pbs_gensend.focus();\"></td>\n";
 		}
