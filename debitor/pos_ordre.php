@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/pos_ordre.php --- patch 5.0.1 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
@@ -106,6 +106,9 @@
 //                 accounts only, and a missing/wrong-art account no longer wipes the order
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20260907 CDX/LH Preserve popup context through POS forms, redirects and menu actions.
+// 20260907 CDX/PHR Include calculated cash balances in the approval freshness check.
+// 20260907 CDX/PHR Assign the cash report to included sales that were already posted.
+// 20260908 CDX/LH Keep approval validation and eligible-order reads in one transaction snapshot.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2568,23 +2571,35 @@ function fejl($id, $fejltekst)
 
 }
 
-function posbogfor($kasse, $regnstart, $reportNumber)
+/** @return bool False when the cash count changed; true after posting. */
+function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null, $requireCashCountSignature = false)
 {
 	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	global $afd;
 	global $baseCurrency,$bruger_id, $brugernavn;
-	global $db;
+	global $db, $db_type;
 	global $regnaar, $reportNumber;
 	global $vis_saet;
 	global $tracelog;
 
+	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php');
+	if (!beginCashCountPosting($kasse, $baseCurrency, $cashCountSignature, $db_type, $requireCashCountSignature)) {
+		return false;
+	}
+
+	$kasse = (int)$kasse;
+	$regnstart = db_escape_string($regnstart);
+	$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
+	$qtxt .= "values ('13009','" . date('U') . "','$kasse','" . (int)$bruger_id . "','0','" . __FILE__ . "','" . __LINE__ . "')";
+	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
 	$dd = date("Y-m-d");
 	$logtime = date("H:i:s");
 	$udtages = if_isset($_POST['udtages']);
 	$kassediff = if_isset($_POST['kassediff']);
 	$kassediff = afrund($kassediff, 2);
-	if ($udtages)
+	if ($udtages) {
 		$udtages = (float) usdecimal($udtages, 2);
+	}
 	$valuta = if_isset($_POST['valuta'], array());
 	$ValutaUdtages = if_isset($_POST['ValutaUdtages']);
 	$ValutaKasseDiff = if_isset($_POST['ValutaKasseDiff']);
@@ -2630,11 +2645,6 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	$r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
 	$ansat_id = (int) $r['ansat_id'];
 
-	$kassekonti = explode(chr(9), $r['box2']);
-	$kassekonto = $kassekonti[$kasse - 1];
-	$afdelinger = explode(chr(9), $r['box3']);
-	$afd = (int) $afdelinger[$kasse - 1];
-
 	$r = db_fetch_array(db_select("select box2,box3 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
 	$kassekonti = explode(chr(9), $r['box2']);
 	$kassekonto = $kassekonti[$kasse - 1];
@@ -2658,20 +2668,24 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 				$tmp2 = substr($tmp, 1); #f.eks 3
 				$qtxt = "select box1,box2 from grupper where art = '$tmp1' and kodenr = '$tmp2'";
 				$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r2['box1'])
+				if ($r2['box1']) {
 					$diffVatAccount = (int) $r2['box1'];
-				if ($r2['box2'])
+				}
+				if ($r2['box2']) {
 					$diffVatRate = (int) $r2['box2'];
+				}
 			}
 		}
 	}
 	$x = 0;
 	$fakturadate = array();
 	$qtxt = "select distinct(fakturadate) as fakturadate from ordrer where felt_5='$kasse' ";
-	if ($vis_saet)
+	if ($vis_saet) {
 		$qtxt .= "and (art = 'PO' or art like 'D%') and status='3' ";
-	else
+	}
+	else {
 		$qtxt .= "and (konto_id='0' or betalingsbet='Kontant') and art = 'PO' and status='3' ";
+	}
 	$qtxt .= "and fakturadate >= '$regnstart' order by fakturadate";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -2721,10 +2735,12 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$tmp = substr($tmp, 1); #f.eks 3
 					$qtxt = "select box1,box2 from grupper where art = 'SM' and kodenr = '$tmp'";
 					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					if ($r2['box1'])
+					if ($r2['box1']) {
 						$ValutaDiffVatAccount[$x] = (int) $r2['box1'];
-					if ($r2['box2'])
+					}
+					if ($r2['box2']) {
 						$ValutaDiffVatRate[$x] = (int) $r2['box2'];
+					}
 				}
 			}
 		}
@@ -2746,7 +2762,13 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 */
 
 	$ko_id = NULL; #Salg på konto
-	transaktion('begin');
+	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/findBoxSale.php');
+	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/assignCashReport.php');
+	$cashReportOrderIds = array();
+	foreach (array_unique($valuta) as $cashReportCurrency) {
+		findBoxSale($kasse, 0, $cashReportCurrency, $currencyOrderIds);
+		$cashReportOrderIds = array_merge($cashReportOrderIds, $currencyOrderIds);
+	}
 	// $qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) "; #20240227
 	// $qtxt.= "values ";
 	// $qtxt.= "('13009','". date('U') ."','$kasse','$bruger_id','0','".__file__."','".__line__."')";
@@ -2758,11 +2780,12 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	$qtxt = "insert into report (date,type,description,count,total,report_number) ";
 	$qtxt.= "values ('$dd','Head line','Cash count, box $kasse','0','0','$reportNumber')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	assignCashReport($cashReportOrderIds, $reportNumber);
 	if (count($fakturadate) && (($ownCommissionAccountNew) || ($ownCommissionAccountUsed))) {
-		include('pos_ordre_includes/settleCommission/moveToOwnAccount.php');
+		include(__DIR__ . '/pos_ordre_includes/settleCommission/moveToOwnAccount.php');
 	}
 	if (($settleCommission || $createPayList) && (($customerCommissionAccountNew && $commissionAccountNew) || ($customerCommissionAccountUsed && $commissionAccountUsed))) {
-		include('pos_ordre_includes/settleCommission/moveToCustomerAccount.php');
+		include(__DIR__ . '/pos_ordre_includes/settleCommission/moveToCustomerAccount.php');
 	}
 	for ($z = 0; $z < count($valuta); $z++) { #201606132 Flyttet fra nederst (af de 3 for løkker) til øverst"
 		for ($x = 0; $x < count($fakturadate); $x++) {
@@ -3033,6 +3056,7 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	setcookie("saldi_kasseoptael", NULL, time() - 10); #20200112
 	$pfnavn = "../temp/" . $db . "/kasseopg" . str_replace("-", "", $kasse) . ".txt";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
+	return true;
 } #?id=$id&udskriv_kasseopg=$pfnavn&kasse=$kasse
 
 function kasseoptalling( // Called from cashBalance.php
@@ -3135,8 +3159,10 @@ function kasseoptalling( // Called from cashBalance.php
 			print tekstboks($txt);
 		}
 	}
-	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
+	include_once(__DIR__ . "/pos_ordre_includes/boxCountMethods/findBoxSale.php");
+	include_once(__DIR__ . "/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php");
 	$svar = findBoxSale($kasse, $optalt, $baseCurrency);
+	$cashCountSales = array($baseCurrency => $svar);
 	$byttepenge = $svar[0];
 	$tilgang = (float)$svar[1];
 	$diff = (float)$svar[2];
@@ -3244,6 +3270,7 @@ function kasseoptalling( // Called from cashBalance.php
 	for ($x = 0; $x < count($valuta); $x++) {
 		if ($valuta[$x]) {
 			$svar = findBoxSale($kasse, $optval[$x] * $valutakurs[$x] / 100, $valuta[$x]);
+			$cashCountSales[$valuta[$x]] = $svar;
 			if (is_array($svar)) { #20160824
 				$byttepenge = $svar[0] * 100 / $valutakurs[$x];
 				$omsatning += $svar[1];
@@ -3252,7 +3279,6 @@ function kasseoptalling( // Called from cashBalance.php
 				$ValutaKasseDiff[$x] = $optval[$x] - ($byttepenge + $tilgang);
 				#cho "$valuta[$x] TG $tilgang Om $omsatning<br>"; 	
 				print "<tr><td colspan=\"3\" align=\"center\">";
-				print "<input type=\"hidden\" name=\"kontosum\" value=\"$valuta[$x]\">\n";
 				print "<input type=\"hidden\" name=\"valuta[$x]\" value=\"$valuta[$x]\">\n";
 				print "<input type=\"hidden\" name=\"ValutaKasseDiff[$x]\" value=\"$ValutaKasseDiff[$x]\">\n";
 				print "<input type=\"hidden\" name=\"ValutaByttePenge[$x]\" value=\"$byttepenge\">\n";
@@ -3285,6 +3311,8 @@ function kasseoptalling( // Called from cashBalance.php
 			}
 		}
 	}
+	$cashCountSignature = cashCountSignature($cashCountSales);
+	print "<input type='hidden' name='cashCountSignature' value='$cashCountSignature'>\n";
 #	$calcTxtArr = setCashCountText();
 	if (($optalt || $optalt == '0') && isset($_POST['calculate'])) { #LN 20190219
 #		if($kortdiff) {
