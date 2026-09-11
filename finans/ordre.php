@@ -16,6 +16,10 @@
 //
 // Copyright (c) 2004-2010 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260908 SZ SST-755: popup close/beacon now releases the lock properly (was missing
+// id/tabel params entirely, and there was no unload beacon at all).
+// 20260910 SZ SST-755 (CodeRabbit): the unload beacon now checks sendBeacon()'s return value
+// before treating the lock as released, falling back to the sync XHR when it fails.
 
 @session_start();
 $s_id=session_id();
@@ -57,6 +61,7 @@ print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascr
 $tidspkt=date("U");
 	
 $returside=if_isset($_GET['returside']);
+$id=if_isset($_GET['id']);
 if ($popup) $returside="../includes/luk.php";
 
 if ($tjek=if_isset($_GET['tjek'])){
@@ -70,7 +75,20 @@ if ($tjek=if_isset($_GET['tjek'])){
 		db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);}
 	}
 }
-	
+
+// 20260908 SZ SST-755: this popup's Luk/close/beacon must carry id, tabel and the row's
+// *current* DB tidspkt (read fresh, not the request's own "now" value - prev/next navigation
+// re-renders without re-acquiring) so a stale tab's release can't clobber a lock a newer tab
+// has since acquired. $lockTidspkt is also reused for the unload beacon further down.
+$lockTidspkt = NULL;
+if ($popup && $id) {
+	$lockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
+		$lockTidspkt = $lockRow['tidspkt'];
+		$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&tidspkt=" . urlencode($lockTidspkt);
+	}
+}
+
 $q = db_SELECT("select box4,box9 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__);
 $r=db_fetch_array($q); 
 
@@ -83,7 +101,6 @@ $incl_moms = $vatPrivateCustomers; // Default to private customer setting
 $hurtigfakt=$r['box4'];
 $negativt_lager=$r['box9'];
 
-$id=if_isset($_GET['id']);
 $sort=if_isset($_GET['sort']);
 $fokus=if_isset($_GET['fokus']);
 $submit=if_isset($_GET['funktion']);
@@ -1937,6 +1954,50 @@ if ($fokus) {
 	document.ordre.<?php echo $fokus?>.focus();
 	</script>
 	<?php
+}
+// 20260908 SZ SST-755: finansbilag had no unload/pagehide release at all (unlike kreditor and
+// debitor). Re-read the lock fresh here (not the early $lockTidspkt) since $id can change later
+// in this script (POST-created order, etc.) - the beacon must reference whatever is actually
+// locked by the time the page finishes rendering, not what was locked at request start.
+$beaconTidspkt = NULL;
+if ($id) {
+	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) $beaconTidspkt = $beaconRow['tidspkt'];
+}
+if ($beaconTidspkt) {
+?>
+<script>
+let isSubmittingFinansOrdre = false;
+document.addEventListener("DOMContentLoaded", function () {
+    const forms = document.querySelectorAll("form");
+    forms.forEach(function (form) {
+        form.addEventListener("submit", function () { isSubmittingFinansOrdre = true; });
+    });
+});
+function unlockFinansOrdreBeacon(evtName) {
+    if (!isSubmittingFinansOrdre && !window.finansOrdreUnlocked) {
+        let data = new URLSearchParams();
+        data.append("table", "ordrer");
+        data.append("id", "<?php echo (int)$id; ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconTidspkt, ENT_QUOTES); ?>");
+        data.append("event", evtName);
+        // sendBeacon() can return false (queue full/rejected) without sending anything - only
+        // treat the lock as released, and skip the sync XHR fallback, once one of the two has
+        // actually gone out (CodeRabbit).
+        let queued = navigator.sendBeacon && navigator.sendBeacon("../includes/unlock_order.php", data);
+        if (!queued) {
+            let xhr = new XMLHttpRequest();
+            xhr.open('POST', '../includes/unlock_order.php', false);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.send(data.toString());
+        }
+        window.finansOrdreUnlocked = true;
+    }
+}
+window.addEventListener("beforeunload", function() { unlockFinansOrdreBeacon('beforeunload'); });
+window.addEventListener("pagehide", function() { unlockFinansOrdreBeacon('pagehide'); });
+</script>
+<?php
 }
 ?>
 </tbody></table>

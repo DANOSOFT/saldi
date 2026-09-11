@@ -34,6 +34,8 @@
 // 20260219 PHR if ($row['valutakurs'] && $row['valutakurs'] != 100) changed to ($sum && $row['valutakurs'] && $row['valutakurs'] != 100)
 // 20260219 PHR orders with status 0 was not listet if $hurtigfakt was selected;
 // 20260605 Sawaneh Make the whole order line clickable (and right-clickable for "open in new tab/window"), not just the order number.
+// 20260908 SZ SST-755: replaced the blanket per-user lock sweep with an age-based one that
+//                  isn't scoped to the current user (see comment at its call site).
 
 
 ob_start();
@@ -46,6 +48,7 @@ $title = "Leverandører • Ordreliste";
 
 include("../includes/connect.php");
 include("../includes/online.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
@@ -153,9 +156,28 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $hurtigfakt = 'on';
 }
 
-if (!$popup) {
-    $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'K%' and status < '3'";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+// 20260908 SZ SST-755: replaced the blanket "clear every K% order this user holds" sweep that
+// used to run here. It had no per-document check at all, so merely loading this list in one tab
+// released the lock on every OTHER kreditor order the same user had open in other tabs -
+// violating "exiting one document must leave others locked". Per-document release is now wired
+// correctly everywhere (includes/luk.php + the unload beacon in ordre.php), so the only job left
+// for a sweep is catching locks abandoned without any release path firing at all (browser crash,
+// killed tab before the beacon could send). Per Nicolai (SST-652): base it on elapsed time
+// instead of the current user, so it can't clobber a lock a *different* user is actively holding
+// the moment they happen to load this list - only locks stale by more than the existing 3600s
+// staleness window (the same threshold already used to warn users elsewhere, e.g. this file's
+// own render callback above, kreditor/ordre.php:133) are cleared.
+// 20260910 SZ SST-755 (CodeRabbit): pass the selected hvem/tidspkt through to unlock_record()
+// instead of clearing by id alone - a row selected as stale here could be re-acquired by
+// anyone between this SELECT and the loop reaching it, and an id-only release would still
+// clobber that fresh lock, which is exactly the race this whole ticket exists to close.
+$kOrdreSweepNow = time();
+$qtxt = "select id, hvem, tidspkt from ordrer where art like 'K%' and status < '3' and hvem is not null and hvem != '' and tidspkt is not null and tidspkt != ''";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+    if (($kOrdreSweepNow - (int)$r['tidspkt']) > 3600) {
+        unlock_record('ordrer', (int)$r['id'], $r['hvem'], $r['tidspkt']);
+    }
 }
 
 ob_end_flush();
