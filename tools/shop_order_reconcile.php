@@ -30,6 +30,9 @@
 //                     the line-by-line reconciliation and which shop-side
 //                     rounding rule reproduces the shop totals (SST-768/JOB-117).
 //                     Reads nothing from the database and changes nothing.
+//                     Review: non-DKK orders need a rate and every order a VAT
+//                     rate (override or request, request flagged), overrides are
+//                     validated, and failures exit 1 (CodeRabbit on PR #594).
 
 require_once __DIR__ . '/../includes/std_func.php';
 
@@ -153,6 +156,7 @@ function shop_hypotheses($lines, $momssats)
  * @param array{momssats?:float,valutakurs?:float} $overrides values Saldi takes from its own
  *        settings rather than the request (customer-group VAT rate, currency rate)
  * @return string report
+ * @throws InvalidArgumentException when the input cannot be replayed faithfully
  */
 function reconcile($requests, $overrides = [])
 {
@@ -167,11 +171,34 @@ function reconcile($requests, $overrides = [])
         }
     }
     if (!$order) {
-        return "No insert_shop_order request found.\n";
+        throw new InvalidArgumentException('No insert_shop_order request found.');
     }
     $valuta = $order['valuta'] ?: 'DKK';
-    $valutakurs = ($valuta === 'DKK') ? 100 : (float)($overrides['valutakurs'] ?? rate_value($order['valutakurs'] ?? 100));
-    $momssats = (float)($overrides['momssats'] ?? ($order['momssats'] ?? 25));
+    $warnings = [];
+    if ($valuta === 'DKK') {
+        $valutakurs = 100.0;
+    } elseif (isset($overrides['valutakurs'])) {
+        $valutakurs = $overrides['valutakurs'];
+    } elseif (isset($order['valutakurs']) && $order['valutakurs'] !== '') {
+        $valutakurs = rate_value($order['valutakurs']);
+        $warnings[] = "valutakurs $valutakurs taken from the request; Saldi uses its own currency table (grupper VK), pass --valutakurs to replay what Saldi did";
+    } else {
+        throw new InvalidArgumentException("Order is in $valuta but no rate is available; pass --valutakurs=<rate from grupper VK>.");
+    }
+    if ($valutakurs <= 0) {
+        throw new InvalidArgumentException("valutakurs must be greater than zero, got $valutakurs.");
+    }
+    if (isset($overrides['momssats'])) {
+        $momssats = $overrides['momssats'];
+    } elseif (isset($order['momssats']) && $order['momssats'] !== '') {
+        $momssats = (float)$order['momssats'];
+        $warnings[] = "momssats $momssats taken from the request; Saldi uses the customer group rate (DG -> SM), pass --momssats to replay what Saldi did";
+    } else {
+        throw new InvalidArgumentException('No VAT rate available; pass --momssats=<customer group rate>.');
+    }
+    if ($momssats < 0) {
+        throw new InvalidArgumentException("momssats cannot be negative, got $momssats.");
+    }
     $nettosum = (float)($order['nettosum'] ?? 0);
     $momssum = (float)($order['momssum'] ?? 0);
     $betalt = isset($order['ekstra2']) ? (float)$order['ekstra2'] : null;
@@ -219,6 +246,7 @@ function reconcile($requests, $overrides = [])
         $payDiff = abs($nettosum + $momssum - $betalt);
         $out[] = sprintf("Payment check (pos_betaling): |nettosum+momssum - ekstra2| = %.4f -> %s", $payDiff, $payDiff >= RECONCILE_TOLERANCE ? "REJECTED (Error in amount vs. paid amount)" : "ok");
     }
+    $flags = array_merge($warnings, $flags);
     if ($flags) {
         $out[] = "";
         $out[] = "Notes:";
@@ -241,12 +269,13 @@ function reconcile($requests, $overrides = [])
  *
  * @param string $path
  * @return string report
+ * @throws InvalidArgumentException when the log cannot be opened
  */
 function scan_log($path)
 {
-    $fh = fopen($path, 'r');
+    $fh = @fopen($path, 'r');
     if (!$fh) {
-        return "Cannot open $path\n";
+        throw new InvalidArgumentException("Cannot open $path");
     }
     $out = [];
     $block = [];
@@ -305,7 +334,11 @@ function main($argv)
             $log = '';
         } elseif ($log === '') {
             $log = $arg;
-        } elseif (preg_match('/^--(momssats|valutakurs)=(.+)$/', $arg, $m)) {
+        } elseif (preg_match('/^--(momssats|valutakurs)=(.*)$/', $arg, $m)) {
+            if (!preg_match('/^\d+([.,]\d+)?$/', $m[2])) {
+                fwrite(STDERR, "Invalid value for --{$m[1]}: '{$m[2]}' (expected a number)\n");
+                return 1;
+            }
             $overrides[$m[1]] = rate_value($m[2]);
         } elseif ($arg === '-h' || $arg === '--help') {
             fwrite(STDOUT, usage());
@@ -314,23 +347,28 @@ function main($argv)
             $file = $arg;
         }
     }
-    if ($log) {
-        fwrite(STDOUT, scan_log($log));
+    try {
+        if ($log) {
+            fwrite(STDOUT, scan_log($log));
+            return 0;
+        }
+        if (!$file || !is_readable($file)) {
+            fwrite(STDERR, usage());
+            return 1;
+        }
+        $requests = [];
+        foreach (file($file) as $raw) {
+            $p = parse_request($raw);
+            if ($p) {
+                $requests[] = $p;
+            }
+        }
+        fwrite(STDOUT, reconcile($requests, $overrides));
         return 0;
-    }
-    if (!$file || !is_readable($file)) {
-        fwrite(STDERR, usage());
+    } catch (InvalidArgumentException $e) {
+        fwrite(STDERR, $e->getMessage() . "\n");
         return 1;
     }
-    $requests = [];
-    foreach (file($file) as $raw) {
-        $p = parse_request($raw);
-        if ($p) {
-            $requests[] = $p;
-        }
-    }
-    fwrite(STDOUT, reconcile($requests, $overrides));
-    return 0;
 }
 
 if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === __FILE__) {

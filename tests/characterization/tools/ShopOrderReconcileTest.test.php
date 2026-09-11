@@ -50,6 +50,37 @@ final class ShopOrderReconcileTest extends TestCase
         self::assertSame(12.345, stored_line_price(12.345, 100));
     }
 
+    public function testNonDkkOrderWithoutRateIsRefused(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        reconcile([
+            parse_request('action=insert_shop_order&shop_ordre_id=4&valuta=SEK&nettosum=1&momssum=0&momssats=25'),
+        ]);
+    }
+
+    public function testMissingOrderIsRefused(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        reconcile([parse_request('action=insert_shop_orderline&varenr=A&antal=1&pris=1')]);
+    }
+
+    public function testRequestRatesAreFlaggedAndOverridesAreNot(): void
+    {
+        $requests = [
+            parse_request('action=insert_shop_order&shop_ordre_id=5&valuta=DKK&momssats=25&nettosum=100&momssum=25'),
+            parse_request('action=insert_shop_orderline&varenr=A&antal=1&pris=100&rabat=0'),
+        ];
+        self::assertStringContainsString('momssats 25 taken from the request', reconcile($requests));
+        self::assertStringNotContainsString('taken from the request', reconcile($requests, ['momssats' => 25.0]));
+    }
+
+    public function testMainRejectsInvalidOverrideAndUnreadableLog(): void
+    {
+        self::assertSame(1, main(['x', '--momssats=abc', '/dev/null']));
+        self::assertSame(1, main(['x', '--valutakurs=', '/dev/null']));
+        self::assertSame(1, main(['x', '--log', '/nonexistent/rest_api.log']));
+    }
+
     public function testVatFreeLineCarriesNoVat(): void
     {
         $requests = [
