@@ -56,6 +56,8 @@
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
+//                  Define it in the column pool so saved layouts use the same field configuration.
 
 @session_start();
 $s_id = session_id();
@@ -1009,6 +1011,19 @@ $custom_columns = array(
         }
     ),
     
+    "hvem" => array(
+        "field" => "hvem",
+        "headerName" => 'Udført af',
+        "width" => "1",
+        "type" => "text",
+        "sqlOverride" => "o.hvem",
+        "searchable" => true,
+        "render" => function ($value, $row, $column) {
+            $value = htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+            return "<td align='{$column['align']}'>$value</td>";
+        }
+    ),
+
     "sum_m_moms" => array(
         "field" => "sum_m_moms",
         "headerName" => "Sum m. moms",
@@ -1621,22 +1636,6 @@ $columns[] = array(
         return $actions;
     }
 );
- if ($sprog_id == 2) {
-        $columnHd = 'Performed by'; //TODO: findtekst
- } else{
-        $columnHd = 'Hvem';
- }
- $columns[] = array(
-        "field" => "hvem",
-        "headerName" => $columnHd,
-        "width" => "1",
-        "type" => "text",
-        "hidden" => true,
-        "searchable" => true,
-        "render" => function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>$value</td>";
-        }
-    );
 // === END DYNAMIC COLUMN DEFINITION ===
 
 
