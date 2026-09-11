@@ -333,6 +333,9 @@ function create_datagrid($id, $grid_data) {
     
     $setup_processing_start = microtime(true);
     $columns_setup = json_decode($columns_setup, true);
+    if (!is_array($columns_setup)) {
+        $columns_setup = array();
+    }
     // SD-685: the code's columns define which columns exist and what they are called;
     // the stored row contributes the user's preferences only (matched on 'field').
     $columns_updated = merge_column_setup($columns_setup, $columns);
@@ -393,6 +396,9 @@ function create_datagrid($id, $grid_data) {
 
     // Process filters
     $filters_setup = json_decode($filter_setup, true);
+    if (!is_array($filters_setup)) {
+        $filters_setup = array();
+    }
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
@@ -477,6 +483,12 @@ function create_datagrid($id, $grid_data) {
             );
             $columns_setup = json_decode($columns_setup, true);
             $filters_setup = json_decode($filter_setup, true);
+            if (!is_array($columns_setup)) {
+                $columns_setup = array();
+            }
+            if (!is_array($filters_setup)) {
+                $filters_setup = array();
+            }
             $filters_updated = updateCheckedValues($filters, $filters_setup);
         }
 
@@ -498,6 +510,12 @@ function create_datagrid($id, $grid_data) {
             );
             $columns_setup = json_decode($columns_setup, true);
             $filters_setup = json_decode($filter_setup, true);
+            if (!is_array($columns_setup)) {
+                $columns_setup = array();
+            }
+            if (!is_array($filters_setup)) {
+                $filters_setup = array();
+            }
             $filters_updated = updateCheckedValues($filters, $filters_setup);
         }
 
