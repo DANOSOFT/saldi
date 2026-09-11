@@ -27,6 +27,7 @@
 // 20260827 CDX/PHR Preserve KO in supplier lookup AJAX and POS navigation.
 // 20260901 CL/LH Pass o_art=KO along on AJAX row click so supplier choice survives
 // 20260911 LOE SD-686: grid filter defaults declared with "checked" are honoured.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -332,7 +333,9 @@ function create_datagrid($id, $grid_data) {
     
     $setup_processing_start = microtime(true);
     $columns_setup = json_decode($columns_setup, true);
-    $columns_updated = fill_missing_values($columns_setup, $columns);
+    // SD-685: the code's columns define which columns exist and what they are called;
+    // the stored row contributes the user's preferences only (matched on 'field').
+    $columns_updated = merge_column_setup($columns_setup, $columns);
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
@@ -589,31 +592,78 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
 
 /**
- * Fills missing values in the first array using values from the second array based on matching 'field' values.
+ * SD-685: merges the code's column definitions with the user's stored column setup.
  *
- * This function iterates over each item in the first array and looks for a matching 'field' in the second array.
- * When a match is found, it fills in any missing or empty values in the first array item with the corresponding values
- * from the second array item.
+ * The code defines which columns exist and what they are called, so a translated
+ * headerName/description or a newly added column reaches every user. The stored row
+ * only contributes the user's preferences, matched on the language-independent
+ * 'field': row order, width, align, visibility, and the optional user texts
+ * ("Valgfri overskrift"/"Valgfri beskrivelse") which override the code's text when set.
  *
- * @param array $firstArray The first array containing items that may have missing values.
- * @param array $secondArray The second array providing default values for missing fields.
- * @return array The first array with missing values filled from the second array.
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @param array $codeColumns All code-defined columns, including code-hidden ones.
+ * @return array The columns to render, in the user's order.
  */
-function fill_missing_values($firstArray, $secondArray) {
-    foreach ($firstArray as &$firstItem) {
-        foreach ($secondArray as $secondItem) {
-            if ($firstItem['field'] === $secondItem['field']) {
-                foreach ($secondItem as $key => $value) {
-                    if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
-                        $firstItem[$key] = $value;
-                    }
-                }
-                break;
+function merge_column_setup(array $setup, array $codeColumns) {
+    $prefs = array();
+    $order = array();
+    foreach (array_values($setup) as $index => $row) {
+        if (empty($row['field']) || isset($prefs[$row['field']])) {
+            continue;
+        }
+        $prefs[$row['field']] = $row;
+        $order[$row['field']] = $index;
+    }
+
+    $merged = array();
+    foreach (array_values($codeColumns) as $index => $column) {
+        $field = isset($column['field']) ? $column['field'] : null;
+        $saved = isset($prefs[$field]) ? $prefs[$field] : array();
+        $surfaced = isset($prefs[$field]);
+
+        // A code-hidden column stays out unless this user has it in their setup.
+        if (!empty($column['hidden']) && !$surfaced) {
+            continue;
+        }
+        // A stored column the user removed stays hidden.
+        if (isset($saved['visible']) && $saved['visible'] === false) {
+            continue;
+        }
+
+        $column['customHeaderName']  = isset($saved['customHeaderName']) ? $saved['customHeaderName'] : '';
+        $column['customDescription'] = isset($saved['customDescription']) ? $saved['customDescription'] : '';
+        if ($column['customHeaderName'] !== '') {
+            $column['headerName'] = $column['customHeaderName'];
+        }
+        if ($column['customDescription'] !== '') {
+            $column['description'] = $column['customDescription'];
+        }
+        foreach (array('width', 'align') as $pref) {
+            if (isset($saved[$pref]) && $saved[$pref] !== '') {
+                $column[$pref] = $saved[$pref];
             }
         }
+        if ($surfaced) {
+            $column['hidden'] = false;
+        }
+
+        $column['_order'] = $surfaced ? $order[$field] : PHP_INT_MAX;
+        $column['_code']  = $index;
+        $merged[] = $column;
     }
-    unset($firstItem);
-    return $firstArray;
+
+    usort($merged, function ($a, $b) {
+        if ($a['_order'] === $b['_order']) {
+            return $a['_code'] - $b['_code'];
+        }
+        return ($a['_order'] < $b['_order']) ? -1 : 1;
+    });
+    foreach ($merged as &$column) {
+        unset($column['_order'], $column['_code']);
+    }
+    unset($column);
+
+    return $merged;
 }
 
 /**
@@ -630,15 +680,28 @@ function updateCheckedValues(array $firstArray, array $secondArray) {
     // SD-686: only a saved *selection* map may override a filter option's declared
     // default. Where nothing (or only a legacy definition list) has been saved, the
     // declared value stays in force instead of being forced back to ''.
+    // SD-685: a filter group/option may declare a language-independent
+    // filterKey/optionKey. The stored selection is looked up by that key, with the
+    // display text as fallback so rows saved before keys existed keep working.
     foreach ($firstArray as &$filter) {
-        $filterName = $filter['filterName'];
-        $updatesForFilter = isset($secondArray[$filterName]) ? $secondArray[$filterName] : array();
+        $groupKeys = array(isset($filter['filterKey']) ? $filter['filterKey'] : $filter['filterName'], $filter['filterName']);
+        $updatesForFilter = array();
+        foreach ($groupKeys as $groupKey) {
+            if (isset($secondArray[$groupKey]) && is_array($secondArray[$groupKey])) {
+                $updatesForFilter = $secondArray[$groupKey];
+                break;
+            }
+        }
         foreach ($filter['options'] as &$option) {
             if (!isset($option['checked'])) {
                 $option['checked'] = '';
             }
-            if (isset($updatesForFilter[$option['name']])) {
-                $option['checked'] = $updatesForFilter[$option['name']];
+            $optionKeys = array(isset($option['optionKey']) ? $option['optionKey'] : $option['name'], $option['name']);
+            foreach ($optionKeys as $optionKey) {
+                if (isset($updatesForFilter[$optionKey])) {
+                    $option['checked'] = $updatesForFilter[$optionKey];
+                    break;
+                }
             }
         }
     }
@@ -1256,8 +1319,13 @@ function render_filters($id, $filters, $all_filters) {
             <span><b>{$filter["filterName"]} ({$filter["joinOperator"]})</b></span>
 HTML;
         foreach ($filter["options"] as $filterItem) {
+            // SD-685: the field is keyed by filterKey/optionKey where the page declares
+            // them; the display text is only a fallback, so a translation can no longer
+            // detach a stored selection from its checkbox.
+            $groupKey  = isset($filter['filterKey']) ? $filter['filterKey'] : $filter["filterName"];
+            $optionKey = isset($filterItem['optionKey']) ? $filterItem['optionKey'] : $filterItem["name"];
             // SD-686: submit unticked options too, so turning a declared default off persists.
-            print "<div><label><input type='hidden' name='filter[$id][$filter[filterName]][$filterItem[name]]' value=''><input type='checkbox' $filterItem[checked] name='filter[$id][$filter[filterName]][$filterItem[name]]'>$filterItem[name]</label></div>";
+            print "<div><label><input type='hidden' name='filter[$id][$groupKey][$optionKey]' value=''><input type='checkbox' $filterItem[checked] name='filter[$id][$groupKey][$optionKey]'>$filterItem[name]</label></div>";
         }
 
         echo <<<HTML

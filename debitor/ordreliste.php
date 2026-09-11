@@ -58,6 +58,7 @@
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 
 @session_start();
 $s_id = session_id();
@@ -1648,28 +1649,33 @@ $filters = array();
 
 // Order type filter
 $filters[] = array(
+    "filterKey" => "ordretype",
     "filterName" => findtekst('2769|Ordretype', $sprog_id),
     "joinOperator" => "or",
     "options" => array(
         array(
+            "optionKey" => "tilbud",
             "name" => findtekst('2770|Tilbud', $sprog_id),
             "checked" => ($valg == "tilbud") ? "checked" : "",
             "sqlOn" => "o.status < 1",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "ordrer",
             "name" => findtekst('107|Ordrer', $sprog_id),
             "checked" => ($valg == "ordrer") ? "checked" : "",
             "sqlOn" => $hurtigfakt ? "o.status < 3" : "(o.status = 1 OR o.status = 2)",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "faktura",
             "name" => findtekst('1777|Fakturaer', $sprog_id),
             "checked" => ($valg == "faktura") ? "checked" : "",
             "sqlOn" => "o.status >= 3",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "pbs",
             "name" => "BS",
             "checked" => ($valg == "pbs") ? "checked" : "",
             "sqlOn" => "o.art = 'PO' AND o.konto_id > '0'", // PBS orders
