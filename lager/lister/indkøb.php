@@ -25,6 +25,7 @@
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
 // 20260909 CDX/LH SST-783: Return orders opened from Indkøb to the purchase tab.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 
 @session_start();
 $s_id = session_id();
@@ -489,6 +490,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $VGs = array();
 while ($row = db_fetch_array($q)) {
     $VGs[] = array(
+        "optionKey" => "vg_" . $row["kodenr"],
         "name" => $row["beskrivelse"],
         "checked" => "",
         "sqlOn" => "vg.kodenr = $row[kodenr]",
@@ -496,6 +498,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "varegrupper",
     "filterName" => "Varegrupper",
     "joinOperator" => "or",
     "options" => $VGs
@@ -513,6 +516,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $levs = array();
 while ($row = db_fetch_array($q)) {
     $levs[] = array(
+        "optionKey" => "lev_" . $row["kontonr"],
         "name" => $row["firmanavn"],
         "checked" => "",
         "sqlOn" => "levs.kontonr_concat LIKE '%$row[kontonr]%'", // Use EXISTS for efficient lookups
@@ -520,6 +524,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "leverandorer",
     "filterName" => "Leverandøre",
     "joinOperator" => "or",
     "options" => $levs
@@ -527,10 +532,12 @@ $filters[] = array(
 
 // Misc
 $filters[] = array(
+    "filterKey" => "misc",
     "filterName" => "Misc",
     "joinOperator" => "and",
     "options" => array(
         array(
+            "optionKey" => "show_discontinued",
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
