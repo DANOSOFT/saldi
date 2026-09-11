@@ -43,6 +43,20 @@
 //                 which the very next INSERT/UPDATE in each of those code paths already
 //                 references - a brand-new tenant's first pool file would fail with
 //                 "column norm_amount does not exist". Added the column to both.
+// 20260910 CL/SZ SST-776 follow-up (root cause identified during the SST-740 trace on
+//                 20260908, but PR #584 only shipped the FileReservation/session-tenant half -
+//                 this closes the other half): syncPuljeFilesToDatabase() only ever inserted a
+//                 row for a filename it didn't already know, never checking whether a known
+//                 filename still had a file behind it. A row orphaned by any pulje-file removal
+//                 other than insertDoc.php's guarded attach (manual delete, a failed move, etc.)
+//                 sat forever and got silently reused by a later unrelated upload that
+//                 generated the same filename, showing that document's real PDF paired with
+//                 a different document's vendor/amount/date/invoice number. Now deletes any
+//                 pool_files row whose file is no longer in the pulje folder before checking
+//                 what's missing (a failed scandir() bails out first, so it can't misread a
+//                 read failure as "folder is empty" and wipe every row), and the insert is
+//                 ON CONFLICT DO NOTHING now that includes/betweenUpdates.php adds a unique
+//                 index on filename.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -148,6 +162,14 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	// Get all PDF and XML files from the pulje directory
 	$pdfFiles = [];
 	$files = scandir($puljePath);
+	// scandir() returns false on a read failure (permission issue, a disconnected
+	// owncloud mount, etc.) rather than an empty array - treating that the same as
+	// "genuinely empty" would make the orphan cleanup below delete every pool_files row
+	// for this tenant on a transient read failure. Bail out instead; nothing to sync.
+	if ($files === false) {
+		docPoolLog("syncPuljeFilesToDatabase: scandir($puljePath) failed, skipping sync");
+		return;
+	}
 	foreach ($files as $file) {
 		if ($file === '.' || $file === '..') continue;
 		$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
@@ -155,11 +177,27 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$pdfFiles[] = $file;
 		}
 	}
-	
+
+	// Drop any pool_files row whose file is no longer in the pulje folder, before
+	// looking at what's missing. insertDoc.php only deletes a row when a pool file is
+	// attached via its own guarded move (SST-740); any other removal (manual delete, a
+	// failed move, etc.) left the row behind forever, so a later unrelated upload that
+	// happened to generate the same filename (e.g. recurring vendor + date, like NETS/META)
+	// silently inherited that stale row's vendor/amount/date/invoice number - the customer
+	// then saw the right PDF paired with a different document's metadata. This must run
+	// even when the pulje folder is now empty, so it's before the empty-check below.
+	if ($pdfFiles) {
+		$onDiskEscaped = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
+		$onDiskClause = "filename NOT IN (" . implode(',', $onDiskEscaped) . ")";
+	} else {
+		$onDiskClause = "1=1";
+	}
+	db_modify("DELETE FROM pool_files WHERE $onDiskClause", __FILE__ . " line " . __LINE__);
+
 	if (empty($pdfFiles)) {
 		return;
 	}
-	
+
 	// Get existing filenames from database in one query
 	$escapedFiles = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
 	$inClause = implode(',', $escapedFiles);
@@ -212,7 +250,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 				'" . db_escape_string($fileDate) . "',
 				'" . db_escape_string($invoiceNumber) . "',
 				'" . db_escape_string($description) . "'
-			)";
+			) ON CONFLICT (filename) DO NOTHING";
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}

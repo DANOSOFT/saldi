@@ -556,4 +556,56 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($pbs_index, __FILE__ . " linje " . __LINE__);
 }
 
+// 20260910 CL/SZ SST-776 follow-up (root cause identified during the SST-740 trace on
+// 20260908, but PR #584 only shipped the FileReservation/session-tenant half - this closes
+// the other half): pool_files never had a uniqueness constraint on filename in the
+// schema paths that actually provision it (admin/opret.php, includes/opdat_4.1.php,
+// includes/opdat_4.2.php all create it without one - only docPool.php's own from-scratch
+// CREATE TABLE IF NOT EXISTS included one, which never runs against a tenant that already
+// has the table). Combined with docPool.php's pulje-folder sync only ever inserting a row
+// when the filename string isn't already known - never checking whether the tracked row
+// still corresponds to a file actually on disk - a row orphaned by any pulje-file removal
+// other than the guarded attach flow in includes/docsIncludes/insertDoc.php (a manual
+// delete, a failed move, etc.) could sit forever and later get silently re-attached to an
+// unrelated upload that happened to reuse the same generated filename (recurring vendor +
+// date names, e.g. NETS/META, collide easily). The customer then sees one document's real
+// PDF paired with a different document's vendor/amount/date/invoice number. Same
+// dedupe-then-constrain pattern as pbs_ordrer_liste_ordre_uidx above: existing duplicate
+// filenames are collapsed to the highest id (most recently inserted row) before the index
+// is added, so this cannot fail on data that predates the fix. The docPool.php sync itself
+// now also deletes any row whose file is no longer in the pulje folder, which is what
+// actually prevents new orphans going forward - this index is the backstop against a race
+// between two requests doing that same reconciliation concurrently.
+if ($db_type == 'mysql' || $db_type == 'mysqli') {
+	$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND non_unique = 0 AND seq_in_index = 1 AND column_name = 'filename'";
+	$pool_files_dedupe = "DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id";
+	$pool_files_index = "CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)";
+} else {
+	// Checked against pg_index/pg_attribute directly (not a fixed index name, and not
+	// information_schema.table_constraints) because a tenant whose pool_files table
+	// didn't exist yet when docPool.php's own CREATE TABLE IF NOT EXISTS bootstrap first
+	// ran (its schema already includes an unnamed UNIQUE(filename) table constraint,
+	// which Postgres auto-names pool_files_filename_key) already has this covered under
+	// a different name - confirmed live against a real customer dump (saldi_821_verify,
+	// used for MB-39) that has exactly that constraint with zero duplicate filenames.
+	// Checking any single-column unique index on filename, regardless of name or
+	// whether it backs a formal constraint, avoids creating a second redundant index
+	// on tenants provisioned that way.
+	$qtxt = "
+		SELECT indexrelid::regclass AS idxname
+		FROM pg_index i
+		JOIN pg_class t ON t.oid = i.indrelid
+		WHERE t.relname = 'pool_files'
+			AND i.indisunique
+			AND i.indnatts = 1
+			AND i.indkey[0] = (SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename')
+	";
+	$pool_files_dedupe = "DELETE FROM pool_files a USING pool_files b WHERE a.filename = b.filename AND a.id < b.id";
+	$pool_files_index = "CREATE UNIQUE INDEX IF NOT EXISTS pool_files_filename_uidx ON pool_files (filename)";
+}
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify($pool_files_dedupe, __FILE__ . " linje " . __LINE__);
+	db_modify($pool_files_index, __FILE__ . " linje " . __LINE__);
+}
+
 ?>
