@@ -45,6 +45,7 @@
 // 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
 // 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
 //             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
+// 20260909 Sawaneh JOB-124: menu S honours a returside pointing at the debtor order instead of forcing the order list.
 
 @session_start();
 $s_id=session_id();
@@ -446,7 +447,9 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 					$href = "../debitor/rykker.php?rykker_id=" . (int)$id;
 				 } elseif (substr($art,0,1)=='K'){
 					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside) . "\" accesskey=\"L\"";
-				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
+				 } elseif (strpos($returside, '../debitor/ordre.php?') === 0) {
+					$href = "\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
+				 } elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
 					$href = "../debitor/ordreliste.php";
 				 } else {
 					if($art == 'DO'){

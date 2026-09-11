@@ -29,6 +29,7 @@
 // 2013.01.17 Oprydning i forb. med fejlsøgning i ret_genfakt.php
 // 2014.01.12 Fremover vises plukliste og følgeseddel kun for lagervarer.
 // 2017.05.05 Ved $udskriv_til=='ingen' returneres uden udskrift.
+// 20260909 Sawaneh JOB-124: forward returside to formularprint.php so print close returns to the order.
 
 
 @session_start();
@@ -46,25 +47,28 @@ $id=if_isset($_GET['id']);
 $valg=if_isset($_GET['valg']);
 $formular=if_isset($_GET['formular']);
 $udskriv_til=if_isset($_GET['udskriv_til']);
+$returside=nav_sanitize_returside(ifset($_GET, 'returside'));
+$returQuery=$returside ? '&returside=' . urlencode($returside) : '';
 
 if ($valg=="tilbage" || $udskriv_til=='ingen') {
 	if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-	else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php??tjek=$id&id=$id\">";
+	elseif ($returside) print "<meta http-equiv=\"refresh\" content=\"0;URL=" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\">";
+	else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?tjek=$id&id=$id\">";
 	exit;
 }
 
 if ($valg) {
 	$query = db_select("select box1, box2 from grupper where art='PV'",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
-	if ($valg==-1)	$ps_fil="formularprint.php?id=$id&formular=$formular";
-	else $ps_fil="formularprint.php?id=$id&formular=3";
+	if ($valg==-1)	$ps_fil="formularprint.php?id=$id&formular=$formular$returQuery";
+	else $ps_fil="formularprint.php?id=$id&formular=3$returQuery";
 
 #	if ((!file_exists($ps_fil))&&($ps_fil!="udskriftsvalg.php"))	{
 #		if (!file_exists("../formularer/$db_id")) {mkdir("../formularer/$db_id",0777);}
 #		$kildefil=str_replace("/$db_id", "", $ps_fil);
 #		copy($kildefil, $ps_fil);
 #	}
-	if ($valg!=-1) $ps_fil="formularprint.php?id=$id&formular=3&lev_nr=$valg";
+	if ($valg!=-1) $ps_fil="formularprint.php?id=$id&formular=3&lev_nr=$valg$returQuery";
 	echo "<meta http-equiv=refresh content=0;url=$ps_fil>";
 	exit;
 #	print "<BODY onLoad=\"JavaScript:window.open('$ps_fil&id=$id' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";
@@ -73,14 +77,14 @@ if ($valg) {
 
 if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'",__FILE__ . " linje " . __LINE__))) {
 #	$hurtigfakt='on';
-	print "<meta http-equiv=refresh content=0;url='udskriftsvalg.php?id=$id&valg=-1&formular=2'>";
+	print "<meta http-equiv=refresh content=0;url='udskriftsvalg.php?id=$id&valg=-1&formular=2$returQuery'>";
 	exit;
 }
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" height=\"1%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=udskriftsvalg.php?valg=tilbage&id=$id accesskey=L>Luk</a></td>";
+print "<td width=\"10%\" $top_bund><a href=\"udskriftsvalg.php?valg=tilbage&id=$id$returQuery\" accesskey=L>Luk</a></td>";
 print "<td width=\"80%\" $top_bund align=\"center\">Udskriftsvalg</td>";
 print "<td width=\"10%\" $top_bund align = \"right\"><br></td>";
 print "</tbody></table>";
@@ -97,10 +101,10 @@ $q = db_select("select * from batch_salg where ordre_id = $id",__FILE__ . " linj
 while ($r = db_fetch_array($q)) {
 	if ($r['lev_nr']>$lev_nr) {$lev_nr=$r['lev_nr'];}
 }
-if ($leveres) print "<tr><td align=center> <a href='udskriftsvalg.php?id=$id&valg=-1&formular=9'>Plukliste</a></td></tr>";
-print "<tr><td align=center> <a href='udskriftsvalg.php?id=$id&valg=-1&formular=2'>Ordrebekr&aelig;ftelse</a></td></tr>";
+if ($leveres) print "<tr><td align=center> <a href='udskriftsvalg.php?id=$id&valg=-1&formular=9$returQuery'>Plukliste</a></td></tr>";
+print "<tr><td align=center> <a href='udskriftsvalg.php?id=$id&valg=-1&formular=2$returQuery'>Ordrebekr&aelig;ftelse</a></td></tr>";
 for ($x=1; $x<=$lev_nr; $x++) {
-	print "<tr><td align=center> <a href='udskriftsvalg.php?id=$id&valg=$x&formular=3'>F&oslash;lgeseddel $x</a></td></tr>";
+	print "<tr><td align=center> <a href='udskriftsvalg.php?id=$id&valg=$x&formular=3$returQuery'>F&oslash;lgeseddel $x</a></td></tr>";
 }
 print "</tbody></table></td>";
 print "</tbody></table>";
