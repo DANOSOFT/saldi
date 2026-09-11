@@ -1656,9 +1656,11 @@ function save_column_setup($id) {
     }));
 
     // Print the result
-    // SD-685: the editor only renders the columns that are visible, so a column this
-    // user hid earlier is not part of the POST at all. Keep those stored rows, otherwise
-    // the hidden column would come back on the next page load.
+    // SD-685: the editor only renders the visible columns, so a column this user hid
+    // earlier is not part of the POST at all. Keep exactly those stored rows, otherwise
+    // the hidden column would come back on the next page load. A *visible* stored row the
+    // POST does not mention was replaced by another field in the editor instead, and must
+    // not be restored with its old position, width and custom text.
     $postedFields = array();
     foreach ($rows as $row) {
         $postedFields[$row['field']] = true;
@@ -1667,7 +1669,8 @@ function save_column_setup($id) {
     $storedRows = ($stored && isset($stored['column_setup'])) ? json_decode($stored['column_setup'], true) : array();
     if (is_array($storedRows)) {
         foreach ($storedRows as $storedRow) {
-            if (!empty($storedRow['field']) && !isset($postedFields[$storedRow['field']])) {
+            if (!empty($storedRow['field']) && !isset($postedFields[$storedRow['field']])
+                    && isset($storedRow['visible']) && $storedRow['visible'] === false) {
                 $rows[] = $storedRow;
             }
         }
