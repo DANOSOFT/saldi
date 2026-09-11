@@ -112,6 +112,9 @@
 // 20260908 CL/Sawaneh SST-763: PBS button on posted PBS invoices opens debitor/pbs_gensend.php
 //                     (attempt history + resend after a Nets rejection).
 // 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
+// 20260911 CDX/MJ JOB-106 Approval guard validates the effective order type: an all-negative DO
+//             order only becomes a DK credit note in bogfor(), long after this runs, so a valid
+//             return date was refused at approval.
 
 @session_start();
 $s_id = session_id();
@@ -1650,7 +1653,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
 				$levdate = date("Y-m-d");
 			} else $levdate = $ordredate;;
-		} elseif (delivery_date_before_order_date($art, $levdate, $ordredate)) {
+		} elseif (delivery_date_before_order_date(order_becomes_credit_note($id, $art) ? 'DK' : $art, $levdate, $ordredate)) {
 			$alert1 = findtekst('1679|Leveringsdato er før ordredato', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
 			$status = 0;
