@@ -731,7 +731,7 @@
 731	Aut. regulering af kostpriser	Aut. regulation of cost prices	Aut. regulering av kostpris
 732	Vælg om kostpriser skal reguleres til gennemsnitspris, genanskaffelsespris eller ikke skal justeres	Select whether cost prices should be adjusted to average price, replacement price, or not be adjusted	Velg om kostpriser skal reguleres til gjennomsnittspris, erstatningspris eller ikke skal reguleres
 733	Tegn kodning for shop 	Draw coding for shop	Tegn koding for butikk
-734	Hvis dette felt er afmærket gives mulighed for at give en speciel pris på en gruppe af varer. Varene samles på bonnen uden pris på de enkelte varer og prisen vises som sætpris under varerne.    	If this field is checked	Hvis dette feltet er merket av, er det mulig å gi en spesialpris for en gruppe varer. Varene samles på kvitteringen uten prisen på de enkelte varene, og prisen vises som en fast pris under varene.
+734	Hvis dette felt er afmærket gives mulighed for at give en speciel pris på en gruppe af varer. Varene samles på bonnen uden pris på de enkelte varer og prisen vises som sætpris under varerne.	If this field is checked	Hvis dette feltet er merket av, er det mulig å gi en spesialpris for en gruppe varer. Varene samles på kvitteringen uten prisen på de enkelte varene, og prisen vises som en fast pris under varene.
 735	Vis knap [Sæt]	Show button [Set]	Vis knapp [Set]
 736	Labelprint	Labelprint	Etiketavtrykk
 737	Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.	Here you enter the html code for formatting the label print in product cards. You can find examples of <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159> Saldi forum </a> under tips and tricks.	Her skriver du inn html-koden for formatering av etikettutskrift i produktkort. Du kan finne eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159> Saldi forum </a> under tips og triks.
@@ -2008,7 +2008,7 @@
 2008	Angiv antal der stal flyttes til anden eller ny ordre	Specify quantity to be moved to second or new order	Spesifiser antall som skal flyttes til andre eller ny ordre
 2009	Flyt	Move	Flytt
 2010	Flyt det angivne antal fra valgte linjer til:  (ordredato / ordrenr)	Move the specified quantity from selected lines to (order date / order no)	Flytt det angitte tallet fra valgte linjer til (bestillingsdato / ordrenr)
-2011	Opret ny ordre	Create new order Oprett ny bestilling	
+2011	Opret ny ordre	Create new order	Oprett ny bestilling
 2012	Antal, ej modtaget, der skal flyttes, maks: $maxQ	 Quantity, not recieved, to be moved, max: $maxQ	Antall, ej mottaget, som skal flyttes, maks: $maxQ
 2013	Antal modtaget, der skal flyttes, maks: $maxQ	 Quantity recieved, to be moved, max: $maxQ	Antall mottaget, som skal flyttes, maks: $maxQ
 2014	Kreditér	Credit	Krediter
@@ -2375,7 +2375,7 @@
 2375	Sæt	Set	Sett
 2376	Dagens omsætning	Today's turnover	Dagens omsetning
 2377	System	System	System
-2378	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days	
+2378	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days	Ufakturerte ordrer de siste 30 dager
 2379	Aktive medarbejdere	Active employees	Aktive medarbeidere
 2380	Har været aktive inden for den sidste time	Have been active within the last hour	Har vært aktive innen den siste timen
 2381	Hvilket svarer til	Which is equivalent to	Som tilsvarer
@@ -3358,15 +3358,15 @@
 3358	Gå til indlæsning	Go to Restore	Gå til innlasting
 3359	Finansrapporter	Financial reports	Finansrapporter
 3360	Salg pr. postnummer	Sales by postal code	Salg per postnummer
-3361	Varerapporter	Item reports	Varerapporter		
+3361	Varerapporter	Item reports	Varerapporter
 3362	Posteringer pr. momskode.	Entried pr. VAT code	Posteringer per MVA-kode.
 3363	Momsrubrikker	VAT categories	Momsrubrikker
 3364	Momsafstemning	VAT reconciliation	MVA-avstemming
 3365	OSS B2C EU-salg	B2C EU Sales	OSS B2C EU-salg
-3366	Momsperioder	Vat periods	MVA-perioder		
-3367	Medtages på eFaktura når udfyldt	Included on eInvoice when filled in	Medtas på eFaktura når utfylt		
-3368			
-3369			
+3366	Momsperioder	Vat periods	MVA-perioder
+3367	Medtages på eFaktura når udfyldt	Included on eInvoice when filled in	Medtas på eFaktura når utfylt
+3368	
+3369	Differencen mellem debit og kredit på denne kassekladde.	The difference between debit and credit on this cash journal.	Differansen mellom debet og kredit på denne kassekladden.		
 3370	Mail sendt til	Mail sent to	E-post sendt til
 3371	Ingen mails afsendt	No mails were sent	Ingen e-poster sendt
 3372	Auto-opslag	Auto lookup	Auto-oppslag

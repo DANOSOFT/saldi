@@ -4418,10 +4418,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!empty($kk_editable_view)) {
 		# Balance-status: genbruger de summer loekken allerede har akkumuleret - visning alene, blokerer intet
 		$kladde_diff = afrund($kladde_debetsum, 2) - afrund($kladde_kreditsum, 2);
+		$hovertxt_kladde_diff = findtekst('3369|differencen mellem debet og kredit i kladden', $sprog_id);
 		if (abs($kladde_diff) < 0.005) {
-			$balance_txt = "<span style='color:#1a7a1a;'>" . findtekst('5144|Kladden balancerer', $sprog_id) . "</span>";
+			$balance_txt = "<span style='color:#1a7a1a;' title='$hovertxt_kladde_diff'>" . findtekst('5144|Kladden balancerer', $sprog_id) . "</span>";
 		} else {
-			$balance_txt = "<span style='color:#cc0000;font-weight:bold;'>" . findtekst('2396|Difference', $sprog_id) . ": " . dkdecimal($kladde_diff, 2) . " $baseCurrency</span>";
+			$balance_txt = "<span style='color:#cc0000;font-weight:bold;' title='$hovertxt_kladde_diff'>" . findtekst('2396|Difference', $sprog_id) . ": " . dkdecimal($kladde_diff, 2) . " $baseCurrency</span>";
 		}
 		# Fyldes ind i det tomme felt til venstre for bemaerkningslinjen - summerne kendes foerst efter loekken
 		$balance_pill = "<span style='display:inline-block;white-space:nowrap;background:#fff;border:1px solid #ddd;border-radius:4px;padding:2px 10px;font-size:12px;'>$balance_txt</span>";
@@ -4944,6 +4945,10 @@ document.addEventListener('click', function(e) {
 	$steps[] = array(
 		"selector" => "[name=bila1]",
 		"content" => findtekst('2606|Du kan slette linjen ved at skrive \'-\' i feltet i stedet for et tal og trykke Enter', $sprog_id).".",
+	);
+	$steps[] = array(
+		"selector" => "#kk-balance-status",
+		"content" => findtekst('3369|Differencen mellem debit og kredit på denne kassekladde', $sprog_id).".",
 	);
 
 
