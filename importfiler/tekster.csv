@@ -370,7 +370,7 @@
 370	Kontant	Cash	Kontant
 371	Efterkrav	Cash on delivery	Kontantbetaling ved levering
 372	Netto	Net	Netto
-373	Lb. md.	EOM.	Løp. md.
+373	Lb. md.	EOM.	Løp. mnd.
 374	Debitorgruppe	Debtor group	Debitorgruppe
 375	Rabatgruppe	Discount group	Rabattgruppe
 376	CVR-nr.	VAT no.	MVA-nr.
@@ -426,7 +426,7 @@
 426	Klik her for at sætte individuelle rabatter og varegrupper for de enkelte prisgrupper	Click here to set individual discounts and product groups for the individual price groups	Klikk her for å angi individuelle rabatter og produktgrupper for de enkelte prisgruppene
 427	Prislister	Price lists	Prislister
 428	Rabat	Discount	Rabatt
-429	Varegruppe	Category	Kategori
+429	Varegruppe	Product group	Varegruppe
 430	Aktiv	Active	Aktiv
 431	Skriv den generelle rabat for varer fra $beskrivelse	Write the general discount for items from $beskrivelse	Skriv den generelle rabatten for varer fra $beskrivelse
 432	Vælg den generelle varegruppe til varer fra $beskrivelse	Select the general item group for items from $beskrivelse	Velg den generelle varegruppen for varer fra $beskrivelse
@@ -541,9 +541,9 @@
 541	Justering	Adjustment	Justering
 542	DropDown	DropDown	Fall ned
 543	Felt	Field	Felt
-544	Fakturavisning	Invoice Display	Fakturavisning
-545	Tilbudsvisning	Offer Display	Tilbyr utsikt
-546	Ordrevisning	Order Display	Bestill skjerm
+544	Fakturavisning	Invoice view	Fakturavisning
+545	Tilbudsvisning	Offer view	Tilbudsvisning
+546	Ordrevisning	Order view	Ordrevisning
 547	Leverandørordre	Supplier order	Leverandørbestilling
 548	Vælg om lukkede kreditorer skal være synlige på oversigten.	Choose whether closed creditors should be visible on the overview.	Velg om lukkede kreditorer skal være synlige i oversikten.
 549	Postnr, by	Zipcode, City	Postnummer, by
@@ -602,7 +602,7 @@
 602	Regnskab	Financial Accounting	Finansregnskap
 603	Rapporter	Reports	Rapporter
 604	Debitor	Debtor	Debitor
-605	Ordre	Order	Rekkefølge
+605	Ordre	Order	Ordre
 606	Konti	Accounts	Kontoer
 607	Kreditorer	Creditors	Kreditorer
 608	Lager	Inventory	Lager
@@ -951,7 +951,7 @@
 951	Leverandør	Supplier	Leverandør
 952	Lev. varenr.	Suppl. item no.	Lev. varenr.
 953	Ordrebeholdning	Order book	Ordrebeholdning
-954	Indkøbsforslag	Purchase suggestions	Kjøpsforslag
+954	Indkøbsforslag	Purchase suggestions	Innkjøpsforslag
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
 956	Kun mangler	Only missing	Bare mangler
 957	Vareliste	Item list	Vareliste
@@ -964,7 +964,7 @@
 964	Varerapport - forside	Item report - front page	Varerapport - forsiden
 965	Varerapport	Item report	Varerapport
 966	Leverandør 	Supplier	Leverandør
-967	Varenavn	Item name	Gjenstandsnavn
+967	Varenavn	Item name	Varenavn
 968	Detaljeret	Detailed	Detaljert
 969	Kun salg / DB	Sales / DB only	Bare salg / DB
 970	Beregn lagerbeh.	Calculate stock	Beregn lagerbeh.
@@ -985,7 +985,7 @@
 985	Åbne ordrer	Open orders	Åpne ordrer
 986	Invoice	Invoiced orders	Fakturerte ordrer
 987	Sagsstyring	Case management	Saksbehandling
-988	Leverandører	Supplier	Leverandør
+988	Leverandører	Suppliers	Leverandører
 989	Faktura	Invoice	Faktura
 990	Bruger	User	Bruker
 991	Kunder	Customers	Kunder
@@ -1205,9 +1205,9 @@
 1205	Diff. konto	Diff. account	Diff. konto
 1206	Ret	Modify	Rett
 1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change.\\nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen.\\nEllers risikerer du at lave rod i ditt regnskap
-1208	Start md.	Start mnth.	Start md.
+1208	Start md.	Start mo.	Start mnd.
 1209	Start år	Start yr.	Startår
-1210	Slut md.	End mnth.	Slutt md.
+1210	Slut md.	End mo.	Slutt mnd.
 1211	Slut år	End yr.	Slutten av året
 1212	Sæt alle	Set all	Putt alle
 1213	Sæt aktivt	Set active	Sett aktivt
@@ -2637,25 +2637,25 @@
 2637	Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment terms. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsbetingelser. Disse hentes automatisk fra kreditoroppsettet
 2638	Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment days. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsdager. Disse hentes automatisk fra kreditoroppsettet
 2639	<b>Vareliste:</b> Den liste du ser forneden.<br><br><b>Ordrevisning:</b> Se, hvilke ordrer dine varer indgår i.<br><br><b>Indkøb:</b> Opret hurtigt indkøbslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administration af serienummer-varer.	<b>Product list:</b> The list you see below.<br><br><b>Order view:</b> See which orders your products are included in.<br><br><b>Purchasing:</b> Quickly create purchase lists automatically or manually.<br><br><b>Serial numbers:</b> Tracking and management of serial-numbered products.	<b>Vareliste:</b> Listen du ser nedenfor.<br><br><b>Ordrevisning:</b> Se hvilke ordre varene dine inngår i.<br><br><b>Innkjøp:</b> Opprett raskt innkjøpslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administrasjon av produkter med serienummer.
-2640	Klik her for at oprette en ny vare	 Click here to add a new product	Klikk her for å opprette et nytt produkt
-2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click a item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
+2640	Klik her for at oprette en ny vare	Click here to add a new product	Klikk her for å opprette en ny vare
+2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click an item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
 2642	Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder	Click on a stock quantity to perform an internal transfer of inventory units	Klikk på et lagerantall for å utføre en intern overføring av lagerenheter
 2643	Søg på lagerbeholdning. For eksempel:<br><b>""10""</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>""1:10""</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>""10""</b> – Shows products with a stock quantity of exactly 10.<br><b>""1:10""</b> – Shows products with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>""10""</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>""1:10""</b> – Viser varer med lagerbeholdning mellom 1 og 10.
 2644	Undersøg dækningsgraden for dine varer, for at finde eventuelle optimeringer	Inspect the contribution margin of your products to find potential optimizations	Undersøk dekningsgraden for varene dine for å finne mulige forbedringer
 2645	Klik her for at vende tilbage til varelisten	Click here to return to the product list	Klikk her for å gå tilbake til varelisten
 2646	Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Order status shows how many products are in offers, orders, or purchase suggestions.<br><br>Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Ordrestatus viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.<br><br>Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
 2647	Viser hvor mange enheder af varen der er på lager	Shows how many units of the product are in stock	Viser hvor mange enheter av varen som er på lager
-2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du bestiller på nytt. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
+2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du gjenbestiller. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
 2649	Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned	See how much of the product you have sold over the past 6 months, 3 months, or the most recent month	Se hvor mye du har solgt av varen i løpet av de siste 6 månedene, 3 månedene eller den siste måneden
 2650	Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.	When you create a new purchase list, only products with an associated supplier will be shown.<br><br>Order suggestions will automatically be linked to the top supplier on the product card if multiple suppliers are listed.	Når du oppretter en ny innkjøpsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag blir automatisk knyttet til den øverste leverandøren på varekortet hvis det finnes flere leverandører.
 2651	Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.	These are used for reordering. When the stock level drops below the minimum, the system suggests reordering enough to reach the maximum.	Disse brukes til gjenbestilling. Når beholdningen faller under minimum, foreslår systemet å bestille nok til å nå maksimum.
-2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i for eksempel partier på f.eks.
+2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i partier på f.eks.
 2653	Klik for at autoudfylde alle beregnede genbestillingsværdier	Click to auto-fill all calculated reorder values	Klikk for å autofylle alle beregnede gjenbestillingsverdier
 2654	Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.	Create a purchase suggestion based on the entered product values. It will either create a new order for the supplier or add the product to an open purchase suggestion with today’s date.	Opprett et innkjøpsforslag basert på de registrerte vareverdiene. Det oppretter enten en ny ordre til leverandøren eller legger varen til et åpent innkjøpsforslag med dagens dato.
 2655	Søg efter et eksisterende serienummer i dit system	Search for an existing serial number in your system	Søk etter et eksisterende serienummer i systemet ditt
-2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
-2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
-2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
+2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor varen ble kjøpt, hvilken leverandør den ble kjøpt fra, og ordrenummeret
+2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne opplysninger om hvor varen ble solgt, hvem kjøperen var, og ordrenummeret
+2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det	If the serial number has not been sold, you can delete or edit it	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
 2659	Søg efter standnavne. Adskil med komma for at søge efter flere.	Search for stall names. Separate with commas to search for multiple.	Søk etter standnavn. Skill med komma for å søke etter flere.
 2660	Se dage, og klik på en dag for at se ledige stande	View days and click on a day to see available stalls	Se dager, og klikk på en dag for å se ledige stander
 2661	Grønne prikker viser ledige dage, og røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag og stand.	Green dots indicate available days, and red dots indicate booked days. Click on a green dot to create a booking for a specific day and stall.	Grønne prikker viser ledige dager, og røde prikker viser bookede dager. Klikk på en grønn prikk for å opprette en booking for en bestemt dag og stand.
@@ -4976,27 +4976,27 @@
 4976			
 4977			
 4978			
-4979			
-4980			
-4981			
-4982			
-4983			
-4984			
-4985			
-4986			
-4987			
-4988			
-4989			
-4990			
-4991			
-4992			
-4993			
-4994			
-4995			
-4996			
-4997			
-4998			
-4999			
+4979	Indkøb	Purchasing	Innkjøp		
+4980	Serienumre	Serial numbers	Serienumre		
+4981	Autoudfyld	Auto-fill	Autoutfyll		
+4982	Bestiller	Ordering	Bestiller		
+4983	Bestillinger oprettet	Orders created	Bestillinger opprettet		
+4984	Fejl ved oprettelse af bestillinger	Error creating orders	Feil ved opprettelse av bestillinger		
+4985	Ingen værdier angivet	No values entered	Ingen verdier angitt		
+4986	Indkøbsordre	Purchase order	Innkjøpsordre		
+4987	Gen.	Reord.	Gjen.		
+4988	Salgspris u.m.	Sales price ex. VAT	Salgspris u.mva.		
+4989	DG	GM	DG		
+4990	md.	mo.	mnd.		
+4991	Vis udgået	Show discontinued	Vis utgått		
+4992	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.		
+4993	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.		
+4994	Ekskl. moms	Excl. VAT	Ekskl. MVA		
+4995	Køber	Buyer	Kjøper		
+4996	Hvad skal serienummeret omdøbes til?	What should the serial number be renamed to?	Hva skal serienummeret omdøpes til?		
+4997	Omdøb	Rename	Omdøp		
+4998	Vis rækker uden serienummer	Show rows without serial numbers	Vis rader uten serienummer		
+4999	Vis kun serienumre der ikke er solgt	Show only unsold serial numbers	Vis kun serienumre som ikke er solgt		
 5000			
 5001	Udløbsdato	Expiry date	Utløpsdato
 5002	Varen har udløbsdato	Item has expiry date	Varen har utløpsdato
