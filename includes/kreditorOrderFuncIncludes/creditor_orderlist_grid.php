@@ -391,6 +391,9 @@ function create_datagrid($id, $grid_data) {
     
     $setup_processing_start = microtime(true);
     $columns_setup = json_decode($columns_setup, true);
+    if (!is_array($columns_setup)) {
+        $columns_setup = array();
+    }
     // SD-685: the code's columns define which columns exist and what they are called;
     // the stored row contributes the user's preferences only (matched on 'field').
     $columns_updated = merge_column_setup($columns_setup, $columns);
@@ -450,6 +453,9 @@ function create_datagrid($id, $grid_data) {
 
     // Process filters
     $filters_setup = json_decode($filter_setup, true);
+    if (!is_array($filters_setup)) {
+        $filters_setup = array();
+    }
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
@@ -532,7 +538,16 @@ function create_datagrid($id, $grid_data) {
             );
             $columns_setup = json_decode($columns_setup, true);
             $filters_setup = json_decode($filter_setup, true);
+            if (!is_array($columns_setup)) {
+                $columns_setup = array();
+            }
+            if (!is_array($filters_setup)) {
+                $filters_setup = array();
+            }
             $filters_updated = updateCheckedValues($filters, $filters_setup);
+            // SD-685: the editor has to show what was just saved, so re-merge the
+            // refetched setup instead of the one merged before save_column_setup().
+            $columns_updated = merge_column_setup($columns_setup, $columns);
         }
 
         // Render column setup interface
@@ -553,6 +568,12 @@ function create_datagrid($id, $grid_data) {
             );
             $columns_setup = json_decode($columns_setup, true);
             $filters_setup = json_decode($filter_setup, true);
+            if (!is_array($columns_setup)) {
+                $columns_setup = array();
+            }
+            if (!is_array($filters_setup)) {
+                $filters_setup = array();
+            }
             $filters_updated = updateCheckedValues($filters, $filters_setup);
         }
 
@@ -1565,6 +1586,7 @@ HTML;
         </td>
         <td>
             <select name='rows[$id][$i][field]' class="inputbox">
+                <option value=''></option>
                 {$selectOptions}
             </select>
         </td>
@@ -1608,27 +1630,6 @@ function save_column_setup($id) {
     global $bruger_id;
 
     $rows = $_POST['rows'][$id];
-
-    // Filter out rows where 'pos' is null
-    $rows = array_filter($rows, function ($row) {
-        return is_numeric($row['pos']) && $row['headerName'] && $row['pos'] !== null;
-    });
-
-    // Sort the array by 'pos'
-    usort($rows, function ($a, $b) {
-        if ($a['pos'] == $b['pos']) {
-            return 0;
-        }
-        return ($a['pos'] < $b['pos']) ? -1 : 1;
-    });
-    
-
-    // Remove the 'pos' key from each sub-array
-    $rows = array_map(function ($row) {
-        unset($row['pos']);
-        $row["width"] = $row["width"] / 100;
-        return $row;
-    }, $rows);
 
     // SD-685: a row is kept when it names a field. The header is no longer required -
     // an empty custom header means "use the code's (translated) header" - and the
@@ -1676,6 +1677,23 @@ function save_column_setup($id) {
     $rows = array_values(array_filter($rows, function ($row) use ($visibleFields) {
         return !empty($row['visible']) || !isset($visibleFields[$row['field']]);
     }));
+    // SD-685: the editor only renders the columns that are visible, so a column this
+    // user hid earlier is not part of the POST at all. Keep those stored rows, otherwise
+    // the hidden column would come back on the next page load.
+    $postedFields = array();
+    foreach ($rows as $row) {
+        $postedFields[$row['field']] = true;
+    }
+    $stored = db_fetch_array(db_select("SELECT column_setup FROM datatables WHERE user_id = $bruger_id AND tabel_id = '".db_escape_string($id)."'", __FILE__ . " line " . __LINE__));
+    $storedRows = ($stored && isset($stored['column_setup'])) ? json_decode($stored['column_setup'], true) : array();
+    if (is_array($storedRows)) {
+        foreach ($storedRows as $storedRow) {
+            if (!empty($storedRow['field']) && !isset($postedFields[$storedRow['field']])) {
+                $rows[] = $storedRow;
+            }
+        }
+    }
+
     $columns_json = db_escape_string(json_encode($rows));
     db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }

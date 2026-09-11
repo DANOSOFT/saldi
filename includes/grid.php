@@ -471,9 +471,12 @@ function create_datagrid($id, $grid_data) {
                 if_isset($_GET["search"][$id], array()),
                 $filters
             );
-            $columns_setup = json_decode($columns_setup, true);
-            $filters_setup = json_decode($filter_setup, true);
+            $columns_setup = decode_grid_json_array($columns_setup, array());
+            $filters_setup = decode_grid_json_array($filter_setup, array());
             $filters_updated = updateCheckedValues($filters, $filters_setup);
+            // SD-685: the editor has to show what was just saved, so re-merge the
+            // refetched setup instead of the one merged before save_column_setup().
+            $columns_updated = merge_column_setup($columns_setup, $columns);
         }
 
         // Render column setup interface
@@ -492,8 +495,8 @@ function create_datagrid($id, $grid_data) {
                 if_isset($_GET["search"][$id], array()),
                 $filters
             );
-            $columns_setup = json_decode($columns_setup, true);
-            $filters_setup = json_decode($filter_setup, true);
+            $columns_setup = decode_grid_json_array($columns_setup, array());
+            $filters_setup = decode_grid_json_array($filter_setup, array());
             $filters_updated = updateCheckedValues($filters, $filters_setup);
         }
 
@@ -1560,6 +1563,7 @@ HTML;
         </td>
         <td>
             <select name='rows[$id][$i][field]' class="inputbox">
+                <option value=''></option>
                 {$selectOptions}
             </select>
         </td>
@@ -1652,6 +1656,23 @@ function save_column_setup($id) {
     }));
 
     // Print the result
+    // SD-685: the editor only renders the columns that are visible, so a column this
+    // user hid earlier is not part of the POST at all. Keep those stored rows, otherwise
+    // the hidden column would come back on the next page load.
+    $postedFields = array();
+    foreach ($rows as $row) {
+        $postedFields[$row['field']] = true;
+    }
+    $stored = db_fetch_array(db_select("SELECT column_setup FROM datatables WHERE user_id = $bruger_id AND tabel_id = '".db_escape_string($id)."'", __FILE__ . " line " . __LINE__));
+    $storedRows = ($stored && isset($stored['column_setup'])) ? json_decode($stored['column_setup'], true) : array();
+    if (is_array($storedRows)) {
+        foreach ($storedRows as $storedRow) {
+            if (!empty($storedRow['field']) && !isset($postedFields[$storedRow['field']])) {
+                $rows[] = $storedRow;
+            }
+        }
+    }
+
     $columns_json = db_escape_string(json_encode($rows));
     db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
