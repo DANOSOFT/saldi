@@ -30,6 +30,7 @@
 // 20260415 LOE  - Added Categories column with search functionality in vareliste. 
 // 20260908 CDX/LH Keep missing stock blank while preserving numeric stock search and sorting (SST-767).
 // 20260910 CDX/PHR Added optional purchased and sold quantity totals from the purchase/sales report sources.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 
 @session_start();
 $s_id = session_id();
@@ -436,6 +437,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $VGs = array();
 while ($row = db_fetch_array($q)) {
     $VGs[] = array(
+        "optionKey" => "vg_" . $row["kodenr"],
         "name" => $row["beskrivelse"],
         "checked" => "",
         "sqlOn" => "vg.kodenr = $row[kodenr]",
@@ -443,6 +445,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "varegrupper",
     "filterName" => "Varegrupper",
     "joinOperator" => "or",
     "options" => $VGs
@@ -463,6 +466,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $levs = array();
 while ($row = db_fetch_array($q)) {
     $levs[] = array(
+        "optionKey" => "lev_" . $row["kontonr"],
         "name" => $row["firmanavn"],
         "checked" => "",
         "sqlOn" => "ol.kontonr_concat = '$row[kontonr]'", // Fixed: changed from levs.lev to ol.kontonr_concat
@@ -470,6 +474,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "leverandorer",
     "filterName" => "Leverandøre",
     "joinOperator" => "or",
     "options" => $levs
@@ -479,10 +484,12 @@ log_performance("Leverandøre filter query", $leverandor_start);
 
 // Misc
 $filters[] = array(
+    "filterKey" => "misc",
     "filterName" => "Misc",
     "joinOperator" => "and",
     "options" => array(
         array(
+            "optionKey" => "show_discontinued",
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
