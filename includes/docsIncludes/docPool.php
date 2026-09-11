@@ -43,6 +43,20 @@
 //                 which the very next INSERT/UPDATE in each of those code paths already
 //                 references - a brand-new tenant's first pool file would fail with
 //                 "column norm_amount does not exist". Added the column to both.
+// 20260910 CL/SZ SST-776 follow-up (root cause identified during the SST-740 trace on
+//                 20260908, but PR #584 only shipped the FileReservation/session-tenant half -
+//                 this closes the other half): syncPuljeFilesToDatabase() only ever inserted a
+//                 row for a filename it didn't already know, never checking whether a known
+//                 filename still had a file behind it. A row orphaned by any pulje-file removal
+//                 other than insertDoc.php's guarded attach (manual delete, a failed move, etc.)
+//                 sat forever and got silently reused by a later unrelated upload that
+//                 generated the same filename, showing that document's real PDF paired with
+//                 a different document's vendor/amount/date/invoice number. Now deletes any
+//                 pool_files row whose file is no longer in the pulje folder before checking
+//                 what's missing (a failed scandir() bails out first, so it can't misread a
+//                 read failure as "folder is empty" and wipe every row), and the insert is
+//                 ON CONFLICT DO NOTHING now that includes/betweenUpdates.php adds a unique
+//                 index on filename.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -85,6 +99,7 @@ if (!function_exists('docPoolLog')) {
  * This runs once on page load and adds any missing PDF files to the database.
  */
 function syncPuljeFilesToDatabase($docFolder, $db) {
+	global $db_type;
 	$puljePath = "$docFolder/$db/pulje";
 	
 	$skip = get_settings_value("skip_sync", "docs", 0);
@@ -148,6 +163,14 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	// Get all PDF and XML files from the pulje directory
 	$pdfFiles = [];
 	$files = scandir($puljePath);
+	// scandir() returns false on a read failure (permission issue, a disconnected
+	// owncloud mount, etc.) rather than an empty array - treating that the same as
+	// "genuinely empty" would make the orphan cleanup below delete every pool_files row
+	// for this tenant on a transient read failure. Bail out instead; nothing to sync.
+	if ($files === false) {
+		docPoolLog("syncPuljeFilesToDatabase: scandir($puljePath) failed, skipping sync");
+		return;
+	}
 	foreach ($files as $file) {
 		if ($file === '.' || $file === '..') continue;
 		$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
@@ -155,11 +178,38 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$pdfFiles[] = $file;
 		}
 	}
-	
+
+	// Drop any pool_files row whose file is no longer in the pulje folder, before
+	// looking at what's missing. insertDoc.php only deletes a row when a pool file is
+	// attached via its own guarded move (SST-740); any other removal (manual delete, a
+	// failed move, etc.) left the row behind forever, so a later unrelated upload that
+	// happened to generate the same filename (e.g. recurring vendor + date, like NETS/META)
+	// silently inherited that stale row's vendor/amount/date/invoice number - the customer
+	// then saw the right PDF paired with a different document's metadata. This must run
+	// even when the pulje folder is now empty, so it's before the empty-check below.
+	//
+	// Excludes rows updated in the last 60 seconds: moveDoc.php (and other writers) always
+	// write the file to disk before inserting its pool_files row, but this function's own
+	// scandir() snapshot above is taken before that INSERT, not atomically with it - a
+	// concurrent request's file+row could land in that gap, and without this grace window
+	// the row would look orphaned (not in our snapshot) and get deleted despite its file
+	// now genuinely being on disk. The next sync pass sees it correctly once the snapshot
+	// catches up, so this only ever delays cleanup of a real orphan by at most one pass.
+	if ($pdfFiles) {
+		$onDiskEscaped = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
+		$onDiskClause = "filename NOT IN (" . implode(',', $onDiskEscaped) . ")";
+	} else {
+		$onDiskClause = "1=1";
+	}
+	$recentGuard = ($db_type == 'mysql' || $db_type == 'mysqli')
+		? "(updated IS NULL OR updated < (NOW() - INTERVAL 60 SECOND))"
+		: "(updated IS NULL OR updated < (NOW() - INTERVAL '60 seconds'))";
+	db_modify("DELETE FROM pool_files WHERE ($onDiskClause) AND $recentGuard", __FILE__ . " line " . __LINE__);
+
 	if (empty($pdfFiles)) {
 		return;
 	}
-	
+
 	// Get existing filenames from database in one query
 	$escapedFiles = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
 	$inClause = implode(',', $escapedFiles);
@@ -200,10 +250,13 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			// get date from file
 			$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
 
-			// Insert into database
+			// Insert into database. ON CONFLICT is PostgreSQL-only syntax; MySQL's
+			// equivalent no-op-on-duplicate-key is INSERT IGNORE instead.
 			$syncNormAmount = normalizePoolAmount($amount);
 			$syncNormAmountSql = ($syncNormAmount === null) ? 'NULL' : db_escape_string((string) $syncNormAmount);
-			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
+			$insertVerb = ($db_type == 'mysql' || $db_type == 'mysqli') ? 'INSERT IGNORE' : 'INSERT';
+			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli') ? '' : ' ON CONFLICT (filename) DO NOTHING';
+			$qtxt = "$insertVerb INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
 				'" . db_escape_string($file) . "',
 				'" . db_escape_string($subject) . "',
 				'" . db_escape_string($account) . "',
@@ -212,7 +265,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 				'" . db_escape_string($fileDate) . "',
 				'" . db_escape_string($invoiceNumber) . "',
 				'" . db_escape_string($description) . "'
-			)";
+			)$onConflictClause";
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
