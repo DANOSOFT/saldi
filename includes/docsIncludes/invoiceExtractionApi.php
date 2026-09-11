@@ -2,6 +2,7 @@
 // --- includes/docsIncludes/invoiceExtractionApi.php -----
 // Helper functions for invoice extraction API integration
 
+// 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 function invoiceExtractionApiResolveApiKey() {
 	if (!function_exists('db_select') || !function_exists('db_fetch_array')) {
 		error_log("Invoice extraction API key lookup is unavailable");
@@ -53,13 +54,113 @@ function invoiceExtractionApiDependencies() {
 }
 
 /**
- * Extract invoice data from a PDF or image file using the external API.
+ * Extract standard invoice fields from an OIOUBL or Peppol UBL XML document.
  *
- * @param string $filePath Full path to the PDF or image file (jpg, jpeg, png)
+ * @param string $filePath Full path to the XML document.
+ * @return array{
+ *   amount: string|null,
+ *   date: string|null,
+ *   vendor: string|null,
+ *   invoiceNumber: string|null,
+ *   description: string|null,
+ *   currency: string|null
+ * }|null SALDI invoice fields, or null when the XML is not a supported UBL invoice.
+ */
+function extractUblInvoiceData($filePath) {
+	$xmlContent = file_get_contents($filePath);
+	if ($xmlContent === false || trim($xmlContent) === '') {
+		error_log("UBL invoice XML is empty or unreadable: $filePath");
+		return null;
+	}
+	if (stripos($xmlContent, '<!DOCTYPE') !== false || stripos($xmlContent, '<!ENTITY') !== false) {
+		error_log("UBL invoice XML contains a prohibited document type or entity declaration: $filePath");
+		return null;
+	}
+
+	$previousUseInternalErrors = libxml_use_internal_errors(true);
+	$document = new DOMDocument();
+	$loaded = $document->loadXML($xmlContent, LIBXML_NONET | LIBXML_NOBLANKS | LIBXML_COMPACT);
+	libxml_clear_errors();
+	libxml_use_internal_errors($previousUseInternalErrors);
+	if (!$loaded || !$document->documentElement) {
+		error_log("Failed to parse UBL invoice XML: $filePath");
+		return null;
+	}
+
+	$documentType = $document->documentElement->localName;
+	if (!in_array($documentType, array('Invoice', 'CreditNote'), true)) {
+		error_log("Unsupported UBL XML document type: $documentType (file: $filePath)");
+		return null;
+	}
+
+	$xpath = new DOMXPath($document);
+	$getValue = function ($expression) use ($xpath) {
+		$nodes = $xpath->query($expression);
+		if (!$nodes || $nodes->length === 0) return null;
+		$value = trim($nodes->item(0)->textContent);
+		return $value !== '' ? $value : null;
+	};
+
+	$invoiceNumber = $getValue('/*[local-name()="Invoice" or local-name()="CreditNote"]/*[local-name()="ID"][1]');
+	$date = $getValue('/*[local-name()="Invoice" or local-name()="CreditNote"]/*[local-name()="IssueDate"][1]');
+	$vendor = $getValue('/*/*[local-name()="AccountingSupplierParty"]//*[local-name()="PartyName"]/*[local-name()="Name"][1]');
+	if ($vendor === null) {
+		$vendor = $getValue('/*/*[local-name()="AccountingSupplierParty"]//*[local-name()="PartyLegalEntity"]/*[local-name()="RegistrationName"][1]');
+	}
+
+	$amountNodes = $xpath->query('/*/*[local-name()="LegalMonetaryTotal"]/*[local-name()="PayableAmount"][1]');
+	$amount = null;
+	$currency = null;
+	if ($amountNodes && $amountNodes->length > 0) {
+		$amountNode = $amountNodes->item(0);
+		$amount = trim($amountNode->textContent);
+		if ($amount === '') $amount = null;
+		$currency = trim($amountNode->getAttribute('currencyID'));
+		if ($currency === '') $currency = null;
+	}
+	if ($currency === null) {
+		$currency = $getValue('/*/*[local-name()="DocumentCurrencyCode"][1]');
+	}
+
+	$descriptionValues = array();
+	$descriptionNodes = $xpath->query('/*/*[local-name()="InvoiceLine" or local-name()="CreditNoteLine"]/*[local-name()="Item"]/*[local-name()="Name" or local-name()="Description"]');
+	if ($descriptionNodes) {
+		foreach ($descriptionNodes as $descriptionNode) {
+			$value = trim($descriptionNode->textContent);
+			if ($value !== '' && !in_array($value, $descriptionValues, true)) $descriptionValues[] = $value;
+		}
+	}
+	if (empty($descriptionValues)) {
+		$note = $getValue('/*/*[local-name()="Note"][1]');
+		if ($note !== null) $descriptionValues[] = $note;
+	}
+	$description = !empty($descriptionValues) ? implode('; ', $descriptionValues) : null;
+
+	if ($amount === null && $date === null && $vendor === null && $invoiceNumber === null && $description === null && $currency === null) {
+		return null;
+	}
+
+	return array(
+		'amount' => $amount,
+		'date' => $date,
+		'vendor' => $vendor,
+		'invoiceNumber' => $invoiceNumber,
+		'description' => $description,
+		'currency' => $currency
+	);
+}
+
+/**
+ * Extract invoice data locally from UBL XML or through the external API for PDF/images.
+ *
+ * @param string $filePath Full path to an XML, PDF, or image file (jpg, jpeg, png).
  * @param string $invoiceId Unique ID for the invoice (e.g., "invoice-001")
  * @return array|null Returns SALDI invoice fields on success, null on failure
  */
 function extractInvoiceData($filePath, $invoiceId = null) {
+	$fileExt = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+	if ($fileExt === 'xml') return extractUblInvoiceData($filePath);
+
 	$dependencies = invoiceExtractionApiDependencies();
 	$keyResolver = isset($dependencies['key_resolver']) && is_callable($dependencies['key_resolver'])
 		? $dependencies['key_resolver']
@@ -73,7 +174,6 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		return null;
 	}
 
-	$fileExt = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 	$allowedTypes = array('pdf', 'jpg', 'jpeg', 'png');
 	if (!in_array($fileExt, $allowedTypes)) {
 		error_log("Unsupported file type for invoice extraction: $fileExt (file: $filePath)");
