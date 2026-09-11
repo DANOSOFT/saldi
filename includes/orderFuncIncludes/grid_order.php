@@ -7,6 +7,7 @@
 // 20260701 CDX/NTR - Changed DEFAULT_GENERATE_SEARCH to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260817 Sawaneh Sort descending columns NULLS LAST so rows without a date no longer
 //                  displace the newest rows, and validate the request-sourced sort value.
+// 20260911 CDX/LH SD-186 Escape search ordering with the DB driver; pass raw terms to search callbacks.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -858,14 +859,14 @@ function prepare_grid_order_sort($sort, $columns) {
  * @param array $grid_data An array containing the base query and other data for constructing the query.
  * @param array $columns An array of column definitions used for sorting, searching, and filtering.
  * @param array $filters An array of filter definitions.
- * @param array $searchTerms (optional) An associative array of search terms where the key is the column field name and the value is the search term.
+ * @param array $searchTerms An associative array of search terms where the key is the column field name and the value is the search term.
  * @param string $sort The sorting condition (e.g., "field ASC" or "field DESC").
  * @param int $rowCount The number of rows to return.
  * @param int $offset The starting point for the result set (used for pagination).
  * @return string The final SQL query with all conditions applied.
  *
  */
-function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $sort, $rowCount, $offset) {
+function build_query($id, $grid_data, $columns, $filters, $searchTerms, $sort, $rowCount, $offset) {
     $query = $grid_data['query'];
     
     $filterstring = "";
@@ -906,7 +907,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
             if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
-                $term = addslashes($searchTerms[$column['field']]);
+                $term = $searchTerms[$column['field']];
                 // Convert both the column value and the search term to lowercase
                 if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
@@ -934,7 +935,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         $orderCases = array();
         foreach ($searchableColumns as $column) {
             if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
-                $term = addslashes($searchTerms[$column['field']]);
+                $term = db_escape_string($searchTerms[$column['field']]);
                 $field = $column['sqlOverride'] == '' ? $column['field'] : $column['sqlOverride'];
                 
                 if ($term === '' && $term !== '0') {
@@ -993,11 +994,11 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
  * @param array $grid_data An array containing the base query and other data for constructing the query.
  * @param array $columns An array of column definitions used for sorting, searching, and filtering.
  * @param array $filters An array of filter definitions.
- * @param array $searchTerms (optional) An associative array of search terms where the key is the column field name and the value is the search term.
+ * @param array $searchTerms An associative array of search terms where the key is the column field name and the value is the search term.
  * @param string $sort The sorting condition (although not needed for counting, it's included for consistency).
  * @return string The final count query to return the total number of rows.
  */
-function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $sort) {
+function build_count_query($grid_data, $columns, $filters, $searchTerms, $sort) {
     // Start with the original query and modify it for counting rows
     $query = $grid_data['query'];
 
@@ -1039,7 +1040,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
             if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
-                $term = addslashes($searchTerms[$column['field']]);
+                $term = $searchTerms[$column['field']];
                 if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
