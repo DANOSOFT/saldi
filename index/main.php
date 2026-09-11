@@ -35,6 +35,10 @@
 // 20260907 CDX/LH Fjernede gammel widget-loader, saa SALDI Assist kun indlaeses en gang
 // 20260907 CDX/LH Preserve iframe navigation while merging the current shell integration.
 // 20260907 CDX/LH Enable the saved-record bridge when the installation opts in.
+// 20260910 Sawaneh JOB-128: hash sync raced its setTimeout(0) guard, so a page rendered on a POST
+//                 response (kreditor split view, bare ordre.php URL) got reloaded from the hash as
+//                 ordre.php?inframe=1 = empty new order. Track the shell-written hash explicitly and
+//                 ignore the inframe flag when deciding whether the iframe already shows the target.
 @session_start();
 $s_id = session_id();
 
@@ -529,6 +533,18 @@ function brightenColor($color, $amount = 0.2) {
     }
   }
 
+  // Compare shell paths without the inframe flag: a page reached by an in-frame
+  // redirect (ordre.php?id=X) has no inframe=1 yet still is the requested page.
+  const strip_inframe = (path) => {
+    try {
+      const url = new URL(path, location.origin);
+      url.searchParams.delete('inframe');
+      return url.pathname + url.search;
+    } catch (e) {
+      return path;
+    }
+  }
+
   const update_iframe = (uri) => {
     const iframe = document.querySelector(".content-iframe")
     const baseUrl = (location + "").split("/").splice(0, 4).join("/");
@@ -542,7 +558,7 @@ function brightenColor($color, $amount = 0.2) {
     }
     const targetPath = parsedTargetUrl.pathname + parsedTargetUrl.search;
 
-    if (get_iframe_path() === targetPath) {
+    if (strip_inframe(get_iframe_path()) === strip_inframe(targetPath)) {
       return;
     }
 
@@ -562,13 +578,20 @@ function brightenColor($color, $amount = 0.2) {
   // Check for page reloads and manage inital load of iframe
   update_iframe(window.location.hash == "" ? "/index/dashboard.php" : window.location.hash.replace("#", ""));
 
-  let manualHashChange = true;
+  // Hash the shell wrote itself from an iframe load. hashchange is dispatched
+  // asynchronously, so a timer-based flag could reset before the event arrived
+  // and the shell would then reload the iframe from the hash - fatal for pages
+  // rendered straight on a POST response (e.g. kreditor split view), whose URL
+  // carries no id and reloads as an empty form.
+  let shellWrittenHash = null;
   addEventListener("hashchange", (event) => {
-    if (manualHashChange) {
-      const newHash = event.newURL.split("#")[1];
-      if (newHash && newHash !== "/") {
-        update_iframe(newHash);
-      }
+    const newHash = event.newURL.split("#")[1];
+    if (shellWrittenHash !== null && newHash === shellWrittenHash) {
+      shellWrittenHash = null;
+      return;
+    }
+    if (newHash && newHash !== "/") {
+      update_iframe(newHash);
     }
   });
 
@@ -577,14 +600,8 @@ function brightenColor($color, $amount = 0.2) {
     const path = "/" + iframe.contentWindow.document.location.href.split("/").slice(4).join("/");
 
     if (window.location.hash !== "#" + path) {
-      // Prevent iframe load hashchange from triggering update_iframe
-      manualHashChange = false;
+      shellWrittenHash = path;
       window.location.hash = path;
-
-      // Reset manualHashChange flag after the hash has been set
-      setTimeout(() => {
-        manualHashChange = true;
-      }, 0);
     }
 
     setCookie('last-sidebar-location', path, 1);
