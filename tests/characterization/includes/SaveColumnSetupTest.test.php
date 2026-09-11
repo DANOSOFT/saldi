@@ -270,4 +270,35 @@ final class SaveColumnSetupTest extends TestCase
         self::assertSame(array('beskrivelse', 'varenr'), array_column($merged, 'field'));
         self::assertSame('Mit navn', $merged[1]['headerName']);
     }
+
+    /**
+     * @param string $relativePath The implementation under test.
+     * @return void
+     */
+    #[DataProvider('implementationProvider')]
+    public function testChangingARowToAnotherFieldDoesNotRestoreTheReplacedColumn($relativePath): void
+    {
+        $this->loadImplementation($relativePath);
+
+        $this->save(array(
+            1 => $this->postedRow('1', 'varenr'),
+            2 => $this->postedRow('2', 'beskrivelse'),
+            3 => $this->postedRow('-', 'konto'),
+        ));
+
+        // Every editor row carries a select over all columns, so changing one from
+        // 'varenr' to 'konto' leaves 'varenr' out of the POST without the user hiding it.
+        // Only a hidden column may be restored from storage.
+        $this->save(array(
+            1 => $this->postedRow('1', 'konto'),
+            2 => $this->postedRow('2', 'beskrivelse'),
+            3 => $this->postedRow('3', ''),
+        ));
+
+        $stored = $this->storedRows();
+        self::assertNotContains('varenr', array_column($stored, 'field'),
+            'a visible stored row the POST replaced must not be restored');
+        self::assertSame(array('konto', 'beskrivelse'), array_column($stored, 'field'));
+        self::assertSame(array(true, true), array_column($stored, 'visible'));
+    }
 }
