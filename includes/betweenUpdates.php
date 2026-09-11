@@ -577,7 +577,10 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // actually prevents new orphans going forward - this index is the backstop against a race
 // between two requests doing that same reconciliation concurrently.
 if ($db_type == 'mysql' || $db_type == 'mysqli') {
-	$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND non_unique = 0 AND seq_in_index = 1 AND column_name = 'filename'";
+	// Group by index_name and require exactly one column in the index - seq_in_index = 1
+	// alone would also match a composite index like UNIQUE(filename, account), which
+	// still permits duplicate filenames and must not be treated as covering this.
+	$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND non_unique = 0 GROUP BY index_name HAVING COUNT(*) = 1 AND MAX(column_name) = 'filename'";
 	$pool_files_dedupe = "DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id";
 	$pool_files_index = "CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)";
 } else {

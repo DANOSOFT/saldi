@@ -99,6 +99,7 @@ if (!function_exists('docPoolLog')) {
  * This runs once on page load and adds any missing PDF files to the database.
  */
 function syncPuljeFilesToDatabase($docFolder, $db) {
+	global $db_type;
 	$puljePath = "$docFolder/$db/pulje";
 	
 	$skip = get_settings_value("skip_sync", "docs", 0);
@@ -186,13 +187,24 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	// silently inherited that stale row's vendor/amount/date/invoice number - the customer
 	// then saw the right PDF paired with a different document's metadata. This must run
 	// even when the pulje folder is now empty, so it's before the empty-check below.
+	//
+	// Excludes rows updated in the last 60 seconds: moveDoc.php (and other writers) always
+	// write the file to disk before inserting its pool_files row, but this function's own
+	// scandir() snapshot above is taken before that INSERT, not atomically with it - a
+	// concurrent request's file+row could land in that gap, and without this grace window
+	// the row would look orphaned (not in our snapshot) and get deleted despite its file
+	// now genuinely being on disk. The next sync pass sees it correctly once the snapshot
+	// catches up, so this only ever delays cleanup of a real orphan by at most one pass.
 	if ($pdfFiles) {
 		$onDiskEscaped = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
 		$onDiskClause = "filename NOT IN (" . implode(',', $onDiskEscaped) . ")";
 	} else {
 		$onDiskClause = "1=1";
 	}
-	db_modify("DELETE FROM pool_files WHERE $onDiskClause", __FILE__ . " line " . __LINE__);
+	$recentGuard = ($db_type == 'mysql' || $db_type == 'mysqli')
+		? "(updated IS NULL OR updated < (NOW() - INTERVAL 60 SECOND))"
+		: "(updated IS NULL OR updated < (NOW() - INTERVAL '60 seconds'))";
+	db_modify("DELETE FROM pool_files WHERE ($onDiskClause) AND $recentGuard", __FILE__ . " line " . __LINE__);
 
 	if (empty($pdfFiles)) {
 		return;
@@ -238,10 +250,13 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			// get date from file
 			$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
 
-			// Insert into database
+			// Insert into database. ON CONFLICT is PostgreSQL-only syntax; MySQL's
+			// equivalent no-op-on-duplicate-key is INSERT IGNORE instead.
 			$syncNormAmount = normalizePoolAmount($amount);
 			$syncNormAmountSql = ($syncNormAmount === null) ? 'NULL' : db_escape_string((string) $syncNormAmount);
-			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
+			$insertVerb = ($db_type == 'mysql' || $db_type == 'mysqli') ? 'INSERT IGNORE' : 'INSERT';
+			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli') ? '' : ' ON CONFLICT (filename) DO NOTHING';
+			$qtxt = "$insertVerb INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
 				'" . db_escape_string($file) . "',
 				'" . db_escape_string($subject) . "',
 				'" . db_escape_string($account) . "',
@@ -250,7 +265,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 				'" . db_escape_string($fileDate) . "',
 				'" . db_escape_string($invoiceNumber) . "',
 				'" . db_escape_string($description) . "'
-			) ON CONFLICT (filename) DO NOTHING";
+			)$onConflictClause";
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
