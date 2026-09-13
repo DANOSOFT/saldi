@@ -1,4 +1,5 @@
 // 20260908 CDX/LH Exercise the actual settlement-page JavaScript with an isolated DOM and transport.
+// 20260911 Sawaneh Cover the payment ID column in the candidate list.
 // Run: node tests/test_auto_settlement_ui.mjs
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -156,4 +157,9 @@ ui.nodes.get('nextBtn').dispatch('click');
 await respond(ui.requests[1],[candidate(151)],{autoSelectId:null,pagination:{total:51,hasMore:false}});
 assert.equal(ui.nodes.get('udlignBtn').disabled,true,'Last-page single row hid global ambiguity');
 
-console.log('PASS: account choice, typed search parameters, keyboard confirmation, ambiguous/partial/no matches, duplicate submit guard, save errors and stale responses.');
+ui=boot('29');
+await respond(ui.requests[0],[{...candidate(),betalings_id:'000521422'},{...candidate(102,false),betalings_id:''}]);
+assert.match(ui.nodes.get('candidateBody').innerHTML,/000521422/,'Payment ID from the order was not rendered in the candidate list');
+assert.doesNotMatch(ui.nodes.get('candidateBody').innerHTML,/undefined|null/,'Blank payment ID rendered as a literal');
+
+console.log('PASS: account choice, typed search parameters, keyboard confirmation, ambiguous/partial/no matches, duplicate submit guard, save errors, stale responses and payment ID column.');
