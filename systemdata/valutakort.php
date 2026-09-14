@@ -73,13 +73,18 @@ $bgcolor=NULL; $bgcolor1=NULL; $dato=date("d-m-Y"); $kurs=NULL; $valuta=NULL; $b
 // undefined-array-key warning.
 $kodenr = (int) ifset($_GET, 'kodenr');
 $id     = (int) ifset($_GET, 'id');
-
 // SST-769 $id names a row in valuta and $kodenr names the currency, but nothing tied the
 // two together: a request pairing an $id from one currency with another currency's $kodenr
-// reached the select at the old-rate lookup, both updates, the delete and the form. Bind
-// them once here so every query below is constrained to the currency actually being edited.
-if ($id && $kodenr) {
-	if (!db_fetch_array(db_select("select id from valuta where id = '$id' and gruppe = '$kodenr'", __FILE__ . " linje " . __LINE__))) {
+// reached the old-rate lookup, both updates, the delete and the form. Bind them once here so
+// every query below is constrained to the currency actually being edited.
+//
+// A truthy $id is rejected whenever it cannot be validated - including when $kodenr is absent
+// or zero, which skips the lookup entirely. The delete branch below never references $kodenr
+// at all, so "no currency given" must not mean "no check".
+if ($id) {
+	$bundet = $kodenr
+		&& db_fetch_array(db_select("select id from valuta where id = '$id' and gruppe = '$kodenr'", __FILE__ . " linje " . __LINE__));
+	if (!$bundet) {
 		$id = 0;
 	}
 }
