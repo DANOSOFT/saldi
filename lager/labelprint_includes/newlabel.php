@@ -45,6 +45,7 @@
 // 20260914 CL/NTR The one-cell gate is a specific label ($labels[$l]) or single=1, no longer
 //                 $page: only the mit salg sheet print ever sends page, so gating on it made
 //                 every item-card/order-line print one cell instead of the template's grid.
+// 20260914 CDX/LH Port ssl3 blank description and price fields for unused commission cells.
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -207,7 +208,11 @@ for ($l=0;$l<count($labels);$l++) {
 			$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
 			# Uden mit salg data - et print uden konto - ville labelen komme ud tom, så
 			# $minbeskrivelse/$minpris falder tilbage til varens egen beskrivelse og pris.
-			if ($hasMyLabelRow[$a][$b]) {
+			// Unused commission cells stay blank for handwritten descriptions and prices.
+			if (!$hasMyLabelRow[$a][$b] && $account && $condition) {
+				$minbeskrivelse = '';
+				$minpris = '';
+			} elseif ($hasMyLabelRow[$a][$b]) {
 				$minbeskrivelse=$description[$a][$b];
 				if($price[$a][$b] == 0) {
 					$minpris = "_______";
