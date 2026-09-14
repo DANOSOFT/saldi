@@ -362,7 +362,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				echo "<script>alert('$alert');</script>";
 			}
 		}
-		update_settings_value("cleanup", "docs", 1);
+		update_settings_value("cleanup", "docs", 1, "is docs cleaned up?");
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1\">";
 		exit;
 	}
