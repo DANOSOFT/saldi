@@ -1019,7 +1019,8 @@ $custom_columns = array(
         "sqlOverride" => "o.hvem",
         "searchable" => true,
         "render" => function ($value, $row, $column) {
-            $value = htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+            // caused issues due to our use of <span> for highlighting each match in the value, so we will not escape it for now
+            // $value = htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
             return "<td align='{$column['align']}'>$value</td>";
         }
     ),
