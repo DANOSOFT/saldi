@@ -115,6 +115,11 @@
 //                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
 // 20260830 CDX/MJ Keep performed_by separate while restoring hvem lock ownership
 // 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
+// 20260908 CL/Sawaneh SST-763: PBS button on posted PBS invoices opens debitor/pbs_gensend.php
+//                     (attempt history + resend after a Nets rejection).
+// 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
+// 20260911 CDX/LH SD-186 Place Udført af beside Vor ref. using the same employee options.
+//                  Escape employee selections when saving names containing apostrophes.
 
 @session_start();
 $s_id = session_id();
@@ -822,7 +827,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$qtxt .= "lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,procenttillag,omvbet)";
 	$qtxt .= " values ";
 	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
-	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','$ref','" . db_escape_string($performed_by ?? '') . "',";
+	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string($performed_by ?? '') . "',";
 	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
 	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -1803,7 +1808,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$qtxt .= "'$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', ";
 		$qtxt .= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', ";
 		$qtxt .= "'$cvrnr', '$ean', '$institution', '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', ";
-		$qtxt .= "'$momssats', $status, '$ref','" . db_escape_string($performed_by ?? '') . "', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
+		$qtxt .= "'$momssats', $status, '" . db_escape_string((string) $ref) . "','" . db_escape_string($performed_by ?? '') . "', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
 		$qtxt .= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -2410,7 +2415,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',cvrnr='$cvrnr',momssats='$momssats',";
 				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='$mail_fakt',";
 				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='" . db_escape_string($notes) . "', ";
-				$qtxt .= "ordredate='$ordredate',status='$status',ref='$ref',";
+				$qtxt .= "ordredate='$ordredate',status='$status',ref='" . db_escape_string((string) $ref) . "',";
 				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',performed_by='" . db_escape_string($performed_by ?? '') . "',tidspkt='$tidspkt',projekt='$projekt[0]',";
 				$qtxt .= "sprog='$formularsprog',pbs='$pbs',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
 				$qtxt .= "where id=$id";
@@ -2590,7 +2595,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$qtxt .= " values ";
 		$qtxt .= "($ordrenr,'$konto_id','$kontonr','$kundeordnr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt',";
 		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','$betalingsdage','$betalingsbet',";
-		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','$ref','" . db_escape_string($performed_by ?? '') . "','$lev_adr',";
+		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','" . db_escape_string((string) $ref) . "','" . db_escape_string($performed_by ?? '') . "','$lev_adr',";
 		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs',".($afd==""?"NULL":"'$afd'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'$datotid',";
 		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','$omkunde',";
 		($art == 'PO') ? $qtxt .= "'','','','','')" : $qtxt .= "'$felt_1','$felt_2','$felt_3','$felt_4','$felt_5')"; #20191004
@@ -3307,7 +3312,7 @@ function ordreside($id, $regnskab)
 	global $oio, $oioubl, $omkunde, $ordresum;
 	global $popup, $procentfakt, $procenttillag, $procentvare;
 	global $regnaar, $returside, $rvid, $rvnr;
-	global $samlet_pris, $samlet_rabat, $samlet_rabatpct, $showLocalPrint, $sprog_id, $sprog, $svnr;
+	global $samlet_pris, $samlet_rabat, $samlet_rabatpct, $showLocalPrint, $sprog_id, $sprog, $svnr, $jsvars;
 	global $txt370, $txt283;
 	global $varenr, $vis_projekt, $vis_saet; #20150306 varenr
 	global $width;
@@ -4596,6 +4601,11 @@ function ordreside($id, $regnskab)
 		else if ($udskriv_til == "Digitalt") $tmp = "value=\"Send\" title=\"" . findtekst('2539|Send faktura digitalt', $sprog_id) . "\"";
 		else $tmp = "value=\"" . findtekst('880|Udskriv', $sprog_id) . "\" title=\"" . findtekst('1461|Åbn et PDF-dokument, som kan gemmes eller viderebehandles på anden vis.', $sprog_id) . "\"";
 		print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" name=\"print\" $tmp></td>\n";
+		if ($art == 'DO' && (strstr($udskriv_til, 'PBS') || db_fetch_array(db_select("select id from pbs_ordrer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__)))) {
+			$title = findtekst('3394|PBS-historik', $sprog_id) . " / " . findtekst('3385|Gensend til PBS', $sprog_id);
+			print "<td align=\"center\"><input type=\"button\" class=\"button gray medium\" value=\"PBS\" title=\"$title\" ";
+			print "onclick=\"pbs_gensend=window.open('pbs_gensend.php?id=$id','pbs_gensend','$jsvars');pbs_gensend.focus();\"></td>\n";
+		}
 		if (($art != 'DK') && (!$krediteret)) {
 			$title = findtekst('1462|Klik her for at oprette en kreditnota, som hel eller delvist krediterer denne faktura. Kreditnotaen oprettes som en kreditnotaordre, som kan redigeres inden bogføring. Eksempelvis hvis kun en enkelt faktureret vare skal krediteres.', $sprog_id);
 			print "<td align=\"center\" title=\"$title\"><input type=\"submit\" class=\"button gray medium\" value=\"" . findtekst('1001|Kredit', $sprog_id) . "\" name=\"b_submit\"></td>\n";
@@ -5155,6 +5165,7 @@ function ordreside($id, $regnskab)
 			print "</td>\n";
 		} else //print "<tr><td colspan=\"2\" width=\"200\">\n"; # udkommenteret 15052014
 			print "</tr>\n";
+		$ansat = array();
 		$r = db_fetch_array(db_select("select id from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
 		if (isset($r['id'])) {
 			$adr_id = intval($r['id']);
@@ -5167,37 +5178,14 @@ function ordreside($id, $regnskab)
 				$a_afd[$x] = $r['afd'];
 				$x++;
 			}
-			if (!in_array($ref,$ansat)) {
-				$r=db_fetch_array(db_select("select ansatte.navn from ansatte,brugere where brugere.brugernavn='$ref' and ansatte.id=".nr_cast('brugere.ansat_id')."",__FILE__ . " linje " . __LINE__));
-				if (!empty($r['navn'])) $ref=$r['navn']; #20210715
+			if (!in_array($ref, $ansat)) {
+				$escapedRef = db_escape_string((string) $ref);
+				$r = db_fetch_array(db_select("select ansatte.navn from ansatte,brugere where brugere.brugernavn='$escapedRef' and ansatte.id=" . nr_cast('brugere.ansat_id'), __FILE__ . " linje " . __LINE__));
+				if (!empty($r['navn'])) $ref = $r['navn']; #20210715
 			}
-			print "<INPUT TYPE = 'hidden' NAME = 'oldRef' VALUE = \"$ref\">";
-			for ($x=0;$x<count($ansat);$x++) {
-				if (!$x) {
-				print "<tr><td>".findtekst(1097,$sprog_id)."</td>\n";
-				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"ref\" $disabled>\n";
-				print "<option>$ref</option>\n";
-				}
-				if ($ref!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
-			}
-			if (count($ansat) > 0) print "</select></td></tr>\n";
-
-			#####
-			print "<INPUT TYPE = 'hidden' NAME = 'oldperformed_by' VALUE = \"" . htmlspecialchars($performed_by ?? '', ENT_QUOTES, 'UTF-8') . "\">";
-			for ($x=0;$x<count($ansat);$x++) {
-				if (!$x) {
-				print "<tr><td>" . findtekst('5151|Udført af', $sprog_id) . "</td>\n";
-				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"performed_by\" $disabled>\n";
-				print "<option>" . htmlspecialchars($performed_by ?? '', ENT_QUOTES, 'UTF-8') . "</option>\n";
-				if (trim($performed_by) != '') print "<option value=\"\"></option>\n";
-				}
-				if ($performed_by!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
-			}
-			if (count($ansat) > 0) print "</select></td></tr>\n";
-			####
-
-					
 		}
+		include_once(__DIR__ . '/orderIncludes/renderEmployeeFields.php');
+		print renderOrderEmployeeFields($ansat, $ref, $performed_by, findtekst(1097, $sprog_id), findtekst('5151|Udført af', $sprog_id), !empty($disabled));
 		$x = 0;
 		$afd_navn = array();
 		$afd_nr[$x] = array();
@@ -5207,7 +5195,7 @@ function ordreside($id, $regnskab)
 			$afd_navn[$x] = $r['beskrivelse'];
 			$x++;
 		}
-		print "</td>";
+		print "<tr><td colspan='2'>";
 		// Ensure afd is set from user settings for new orders before rendering dropdown
 		/* Do not enable - does nor work !!!
 		 *		if (!$id) {
@@ -5217,7 +5205,7 @@ function ordreside($id, $regnskab)
 		*/
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
-			print "</td><td></td>\n";
+			print "</td>\n";
 			print "<td>" . findtekst('1198|Afd.', $sprog_id) . "</td><td><select style=\"width:130px;\" class = 'inputbox' name=\"afd\">";
 			for ($x = 0; $x < count($afd_nr); $x++) {
 				if ($afd_nr[$x] == $afd) print "<option value=\"$afd_nr[$x]\" selected>$afd_nr[$x] $afd_navn[$x]</option>";

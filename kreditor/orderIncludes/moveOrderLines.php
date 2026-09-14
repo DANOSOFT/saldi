@@ -45,6 +45,10 @@
 // 20260905 SZ MB-38/CodeRabbit: GET_LOCK() returns 0 on timeout / NULL on error, which the earlier
 //             fix ignored - check for a return of 1 and abort the split with an alert instead of
 //             risking a duplicate ordrenr if the lock wasn't actually acquired.
+// 20260910 Sawaneh JOB-128: reverted the MB-38 ordrenr reassignment (and its advisory lock). MEDSHOP
+//                 splits supplier orders so the back-ordered lines can be received later on the
+//                 ORIGINAL order number; a split-off order must therefore keep the source ordrenr,
+//                 exactly as the restordre flow in kreditor/ordre.php already does at partial delivery.
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
@@ -80,30 +84,12 @@ else {
 	$newId = $_POST['MoveItemsTo'];
 	# Create new order if it is not selected
 	if ($newId == '0') {
-		# MB-38/CodeRabbit: serialize ordrenr allocation so two concurrent splits can't compute the
-		# same "next free number" - hold the lock until this transaction actually commits (below),
-		# since a concurrent transaction's MAX(ordrenr) can't see our new row until then anyway.
-		if ($db_type == 'mysql' || $db_type == 'mysqli') {
-			$lockResult = db_fetch_array(db_select("SELECT GET_LOCK('kreditor_ordre_split_ordrenr', 10) AS lock_ok", __FILE__ . " linje " . __LINE__));
-			if ($lockResult['lock_ok'] != 1) {
-				# GET_LOCK returns 0 on timeout or NULL on error - don't risk allocating a
-				# duplicate ordrenr, make the user retry the split instead.
-				alert("Kunne ikke oprette ny ordre lige nu (ordrenummer var l&aring;st af en anden bruger). Pr&oslash;v igen.");
-				transaktion('rollback');
-				exit;
-			}
-		} else {
-			# pg_advisory_xact_lock blocks until it can acquire the lock (no timeout/failure case)
-			db_select("SELECT pg_advisory_xact_lock(hashtext('kreditor_ordre_split_ordrenr'))", __FILE__ . " linje " . __LINE__);
-		}
-		$newOrderCreated = true;
 		$qtxt = "select max(id) as new_id FROM ordrer";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$newId = $r['new_id'] + 1;
-		$newOrdrenr = "select max(ordrenr) + 1 FROM ordrer WHERE art = 'KO' OR art = 'KK'";	# MB-38 - kreditor order numbering is its own sequence, scoped like kreditor/ublimport.php's next-number lookup
 		$qtxt = "CREATE TEMPORARY TABLE temp_table AS SELECT * FROM ordrer WHERE id='$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "UPDATE temp_table SET id='$newId', ordrenr=($newOrdrenr) WHERE id='$id'";	# MB-38 - give the split-off order its own number instead of cloning the source's
+		$qtxt = "UPDATE temp_table SET id='$newId' WHERE id='$id'";	# JOB-128 - the split-off order keeps the source ordrenr on purpose (same as restordre in ordre.php)
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "INSERT INTO ordrer SELECT * FROM temp_table";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -249,11 +235,6 @@ else {
 		}
 	}
 	transaktion('commit');
-	# MB-38/CodeRabbit: pg_advisory_xact_lock releases itself on commit above; GET_LOCK is
-	# connection-scoped, not transaction-scoped, so release it explicitly now the row is visible.
-	if (!empty($newOrderCreated) && ($db_type == 'mysql' || $db_type == 'mysqli')){
-		db_select("SELECT RELEASE_LOCK('kreditor_ordre_split_ordrenr')", __FILE__ . " linje " . __LINE__);
-	}
 	/*
 	$qtxt = "SELECT MAX(id) - nextval('ordrer_id_seq') as nextval FROM ordrer"; #20230206
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

@@ -62,6 +62,7 @@
 // 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
 //                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
 //                  Supplier orders no longer print VAT-inclusive prices (customer setting).
+// 20260911 CDX/LH SD-186 Load performed-by value when printing or emailing order documents.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 

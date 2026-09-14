@@ -61,6 +61,7 @@
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 // 20260731 MJ Rettet 'Performed by'-label til 'Udført af' i formular-feltvaelger
 // 20260830 CDX/MJ Move Udført af label to unique translation ID 5151
+// 20260911 CDX/LH SD-186 Use the Danish Udført af label for the invoice field.
 @session_start();
 $s_id=session_id();
 

@@ -55,9 +55,9 @@
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
+// 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260731 MJ Rettet kolonneoverskrift for hvem til findtekst('3367|Udført af')
 // 20260812 MJ Ret kolonne og filtrering fra hvem til performed_by
-// 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260908 CDX/MJ Udført af column header moved from tekst_id 3367 to 5151. 3367 is already used by
 //             systemdata/stamkort.php for "Medtages på eFaktura når udfyldt", and findtekst() prefers
 //             an existing tekster row over tekster.csv, so the header rendered as that instead.
@@ -65,6 +65,8 @@
 //             dead - it is overwritten from $active_column_names further down - so default visibility
 //             is decided solely by $explicit_default_columns, which never listed performed_by.
 //             Users with a saved column_setup keep their own selection, as before.
+// 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
+//                  Define it in the column pool so saved layouts use the same field configuration.
 
 @session_start();
 $s_id = session_id();
@@ -1018,6 +1020,13 @@ $custom_columns = array(
         }
     ),
     
+    // SST/SD-186 defined a "hvem" column here labelled Udført af. This branch moves the
+    // performer to ordrer.performed_by and leaves ordrer.hvem as the order-lock owner
+    // (see includes/record_lock.php), so a column labelled Udført af backed by o.hvem would
+    // be both mislabelled and empty for every migrated order. The "performed_by" column
+    // further down carries SD-186's intent instead: same searchable employee column, plus
+    // sortable and a dropdown filter, and it resolves SD-186's "TODO findtekst" via id 5151.
+
     "sum_m_moms" => array(
         "field" => "sum_m_moms",
         "headerName" => "Sum m. moms",
