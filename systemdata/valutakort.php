@@ -68,10 +68,14 @@ if ($menu=='T') {  # 20150313 start
 }  # 20150313 stop
 
 $bgcolor=NULL; $bgcolor1=NULL; $dato=date("d-m-Y"); $kurs=NULL; $valuta=NULL; $beskrivelse=NULL;
-// SST-769 Cast both: they reach SQL throughout this file. ifset() with the key passed
-// separately, per doc/ai/convention_ifset.md, so an absent parameter does not emit an
-// undefined-array-key warning.
-$kodenr = (int) ifset($_GET, 'kodenr');
+// SST-769 Both reach SQL throughout this file, so cast them - but $kodenr also carries the
+// literal 'ny' from ny_valuta()'s form (action=valutakort.php?kodenr=ny), and the branch that
+// creates a currency tests $kodenr == 'ny'. Casting that to 0 makes creating a currency
+// impossible, because under PHP 8 `0 == 'ny'` is false. Keep the sentinel, cast the rest.
+// ifset() takes the key separately, per doc/ai/convention_ifset.md, so an absent parameter
+// does not emit an undefined-array-key warning.
+$kodenr = ifset($_GET, 'kodenr');
+$kodenr = ($kodenr === 'ny') ? 'ny' : (int) $kodenr;
 $id     = (int) ifset($_GET, 'id');
 // SST-769 $id names a row in valuta and $kodenr names the currency, but nothing tied the
 // two together: a request pairing an $id from one currency with another currency's $kodenr
