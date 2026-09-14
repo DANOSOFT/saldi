@@ -25,6 +25,7 @@
 // 20240227 PHR Added include print_receipt
 // 20260720 NTR Recreate temp/$db if missing (cleared daily) before saving receipt
 // 20260914 CDX/LH SST-788 Acknowledge successful receipt writes for reconciliation callers.
+// 20260914 CDX/LH Prevent online.php body markup in JSON receipt acknowledgements.
 //
 
 /**
@@ -39,6 +40,7 @@ $json = json_decode(file_get_contents('php://input'), true);
 $confirmSaved = ($json['confirm_saved'] ?? false) === true;
 if ($confirmSaved) {
 	$header = 'nix';
+	$bg = 'nix';
 	$modulnr = 5;
 }
 
