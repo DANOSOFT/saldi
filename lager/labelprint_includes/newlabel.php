@@ -114,7 +114,7 @@ for ($l=0;$l<count($labels);$l++) {
 	// otherwise every other cell in the grid renders with fallback/blank data
 	// nobody asked for (MB-16: a single-label print produced a second,
 	// effectively blank label). 20260826 CL/SZ.
-	$sheetPrint = (!$labels[$l] && $page);
+	$sheetPrint = (!$labels[$l]); // && $page); // 20260914 - NTR - $page doesn't exist, so it only prevents all prists from being multiple cells.
 	$cellRows = $sheetPrint ? $rows : 1;
 	$cellCols = $sheetPrint ? $cols : 1;
 	for ($a=1;$a<=$cellRows;$a++) {
@@ -206,10 +206,18 @@ for ($l=0;$l<count($labels);$l++) {
 			# $minbeskrivelse/$minpris falder tilbage til varens egen beskrivelse og pris.
 			if ($hasMyLabelRow[$a][$b]) {
 				$minbeskrivelse=$description[$a][$b];
-				$minpris=$price[$a][$b];
+				if($price[$a][$b] == 0) {
+					$minpris = "_______";
+				} else {
+					$minpris=$price[$a][$b];
+				}	
 			} else {
 				$minbeskrivelse=$r['beskrivelse'];
-				$minpris=dkdecimal($salgspris,2);
+				if($salgspris == 0) {
+					$minpris = "_______";
+				} else {
+					$minpris=dkdecimal($salgspris,2);
+				}
 			}
 			$labelTxt=str_replace('$minbeskrivelse',$minbeskrivelse,$labelTxt);
 			$labelTxt=str_replace('$beskrivelse',$r['beskrivelse'],$labelTxt);
@@ -222,8 +230,8 @@ for ($l=0;$l<count($labels);$l++) {
 			$labelTxt=str_replace('$firstprint',if_isset($firstprint, null, [$a, $b]),$labelTxt);
 			$labelTxt=str_replace('$lastprint',if_isset($lastprint, null, [$a, $b]),$labelTxt);
 			if ($brotherTD) $labelTxt=str_replace('$stregkode',$barcode[$a][$b],$labelTxt);
-			elseif ($stregkode) {
-				$labelTxt=str_replace('$stregkode',$stregkode,$labelTxt);
+			elseif ($barcode[$a][$b]) {
+				$labelTxt=str_replace('$stregkode',$barcode[$a][$b],$labelTxt);
 			} else {
 				if ($r['stregkode']) $labelTxt=str_replace('$stregkode',$r['stregkode'],$labelTxt);
 				else $labelTxt=str_replace('$stregkode',$r['varenr'],$labelTxt);

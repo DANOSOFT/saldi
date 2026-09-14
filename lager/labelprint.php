@@ -145,8 +145,9 @@ else {
 $mylabel=0;
 if ($brotherTD) {
 	$mylabel=1;
-} elseif ($printIds) $mylabel=1;
-elseif (strpos($txt,'$minpris') || strpos($txt,'$minbeskrivelse') || strpos($txt,'$rows')) $mylabel=1; 
+} elseif ($printIds) {
+	$mylabel=1;
+} elseif (strpos($txt,'$minpris') || strpos($txt,'$minbeskrivelse') || strpos($txt,'$rows')) $mylabel=1; 
 if (strpos($txt,'$kundenr')) {
 	if (!$account && !$varenr && $id) {
 		$r=db_fetch_array(db_select("select varenr from varer where id = '$id'",__FILE__ . " linje " . __LINE__));
