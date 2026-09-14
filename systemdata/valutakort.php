@@ -33,6 +33,7 @@
 // 20260911 CDX/MJ SST-769 Added an explicit "save rate without posting" action. The existing button
 //             still saves and posts the adjustment; the new one writes rate history only, with no
 //             transaktioner rows and no kontoplan change. Cast $_GET kodenr/id, which reached SQL raw.
+// 20260914 CDX/LH Recalculate account balances only after posting a currency adjustment.
  
 @session_start();
 $s_id=session_id();
@@ -220,6 +221,7 @@ if (isset($_POST['submit']) || isset($_POST['submit_uden_bogf'])) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #exit;
 			transaktion('commit');
+			genberegn($regnaar);
 		} elseif ($dato && $ny_kurs){ #20160119
 			// SST-769 Rate history only - no transaktioner rows and no kontoplan change. Reached
 			// either for the first rate on a currency (no $gl_kurs) or when the user chose to save
@@ -259,8 +261,6 @@ if (isset($_POST['submit']) || isset($_POST['submit_uden_bogf'])) {
 	$dato = "";
 	$kurs = "";
 	$id   = 0;
-	echo "genberegn($regnaar)<br>";
-	genberegn($regnaar);
 }
 
 if ($kodenr < 0) $bredde = "width=\"500px\"";
