@@ -79,6 +79,8 @@
 // 20260908 CL/NTR Added is_input_too_long(): character-count (mb_strlen) limit check shared by every
 //                  place that creates or renames a username (80) or account name (60), matching login.php
 // 20260908 CDX/LH Let order-number allocation retain a caller-owned transaction (SST-765).
+// 20260911 Sawaneh Added strip_placeholder_value() / strip_placeholder_sql_literals(): blank the
+//                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -169,14 +171,15 @@ if (!function_exists('get_relative')) {
     }
 }
 
-
-if (!function_exists('if_isset')) {
-    function if_isset($arrayOrVar, $default = null, $key = null) {
+if (!function_exists('ifset')) {
+    function ifset($arrayOrVar, $key = null, $default = null) {
         /**
          * Custom function to safely check if a variable or an array key exists.
          *
-         * - if_isset($var, $default)           // safely checks if $var is set, returns $default if not
-         * - if_isset($array, $default, $key)   // safely gets $array[$key] or returns $default
+         * - ifset($var)           // safely checks if $var is set, returns null if not
+         * - ifset($array, $key)           // safely gets $array[$key] or returns null
+         * - ifset($array, $key, $default)   // safely gets $array[$key] or returns $default
+         * - ifset($array, null, $default)   // safely checks if $var is set or returns $default
          *
          * Behavior for special values:
          * ----------------------------------------
@@ -186,12 +189,15 @@ if (!function_exists('if_isset')) {
          * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
          * - Arrays: If the key exists, it returns the value. If not, it returns the default value.
          * #############USECASE####################
-		 * $sektion = if_isset($_GET,null,'sektion');
+		 * $sektion = ifset($_GET,'sektion', 0);
+		 * $sektion = ifset($_GET,'sektion');
+		 * $user = ifset($user);
+		 * $id = ifset($id, null, 0);
 		 * ########################################
 		 * 
          * @param mixed $arrayOrVar The array or variable to check.
-         * @param mixed $default    The default value to return if the variable or array's key is not set.
          * @param mixed $key        The key (if array is passed).
+         * @param mixed $default    The default value to return if the variable or array's key is not set.
          * @return mixed           The actual value or the default.
          */
 
@@ -226,7 +232,77 @@ if (!function_exists('if_isset')) {
 
         // Default case: Return the default value
         return $default;
+	}
+}
+
+if (!function_exists('if_isset')) {
+    function if_isset($arrayOrVar, $default = null, $key = null) {
+        /**
+         * Custom function to safely check if a variable or an array key exists.
+         *
+         * - if_isset($var, $default)           // safely checks if $var is set, returns $default if not
+         * - if_isset($array, $default, $key)   // safely gets $array[$key] or returns $default
+         *
+         * Behavior for special values:
+         * ----------------------------------------
+         * - `false`: Treated as "set".
+         * - `null`: If the variable or array key is explicitly `null`
+         * - `0`: Considered a valid value, returned as-is (0 is treated as set).
+         * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
+         * - Arrays: If the key exists, it returns the value. If not, it returns the default value.
+         * #############USECASE####################
+		 * $sektion = if_isset($_GET,null,'sektion');
+		 * ########################################
+		 * 
+         * @param mixed $arrayOrVar The array or variable to check.
+         * @param mixed $default    The default value to return if the variable or array's key is not set.
+         * @param mixed $key        The key (if array is passed).
+         * @return mixed           The actual value or the default.
+         */
+		return ifset($arrayOrVar, $key, $default);
     }
+}
+
+if (!function_exists('integration_placeholder_values')) {
+	/**
+	 * Literal placeholder strings some integrations send for fields the shop
+	 * customer left empty. Saldi must never store them (JOB-115).
+	 *
+	 * @return string[] lowercase placeholders
+	 */
+	function integration_placeholder_values() {
+		return array('dummyvalue');
+	}
+}
+
+if (!function_exists('strip_placeholder_value')) {
+	/**
+	 * Returns '' when the value is a known integration placeholder such as
+	 * "dummyvalue" (trimmed, case-insensitive); otherwise the value untouched.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	function strip_placeholder_value($value) {
+		if (is_string($value) && in_array(strtolower(trim($value)), integration_placeholder_values(), true)) {
+			return '';
+		}
+		return $value;
+	}
+}
+
+if (!function_exists('strip_placeholder_sql_literals')) {
+	/**
+	 * Blanks quoted placeholder literals ('dummyvalue') inside a raw SQL
+	 * fragment supplied by a client, for the generic SOAP insert/update facade.
+	 *
+	 * @param string $sql
+	 * @return string
+	 */
+	function strip_placeholder_sql_literals($sql) {
+		$pattern = "/'\\s*(" . implode('|', array_map('preg_quote', integration_placeholder_values())) . ")\\s*'/i";
+		return preg_replace($pattern, "''", $sql);
+	}
 }
 
 if (!function_exists('usdate')) {

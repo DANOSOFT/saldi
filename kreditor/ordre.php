@@ -702,7 +702,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 								else $rest=$rest+$row['antal'];
 								$llager[$x]=$row['lager'];
 							}
-							$tmp=$leveres[$x]*-1;
+							$tmp=((int) $leveres[$x])*-1;
 							if (($rest<$tmp)&&($llager[$x]<='0')) {
 								if ($batch[$x]) print "<BODY onLoad=\"javascript:alert('Du kan ikke returnere $tmp n&aring;r der er $rest tilbage fra ordre nr: $kred_ord_nr! (Varenr: $varenr[$x])')\">";
 								else print "<BODY onLoad=\"javascript:alert('Du kan ikke returnere $tmp n&aring;r der er k&oslash;bt $rest på ordre nr: $kred_ord_nr! (Varenr: $varenr[$x])')\">";
