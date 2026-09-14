@@ -15,18 +15,31 @@ implementation is out of scope until that agreement exists.
 
 Facts, verified against master `44523819`.
 
-### 1.1 The pool attachment flow
+### 1.1 The pool already creates journal lines
 
-A pool document reaches the journal today only by being attached to a journal line that the
-user is already editing:
+There are two paths, and the second one matters more than the ticket's framing suggests.
+
+**Attaching to a line the user is editing.** `docPool()`
+(`includes/docsIncludes/docPool.php:257`) pre-fills an open line's date (`:381`) and amount
+(`:390`) from the pool record.
+
+**Creating a line.** `docPool.php:557-575` includes `includes/docsIncludes/insertDoc.php`,
+which at `:89` — `if ($source == 'kassekladde' && !$sourceId)` — does all of this already:
 
 | Step | Where |
 |---|---|
-| `docPool($sourceId, $source, $kladde_id, $bilag, $fokus, $poolFile, $docFolder, $docFocus)` | `includes/docsIncludes/docPool.php:257` |
-| Pre-fills the line's date from the pool metadata into `$_POST['dato']` | `:381` |
-| Pre-fills the amount likewise | `:390` |
+| Allocate the next `bilag` within the fiscal year | `insertDoc.php:118` |
+| Allocate the next `pos` within that voucher | `:114` |
+| Insert the `kassekladde` line (placeholder `d_type`/`k_type` = `F`, amount 0) | `:118` |
+| Read back the new line's id as `$sourceId` | `:122` |
+| Update the line's fields from POST | `:127` onwards |
+| Write the `documents` row linking the file | see §1.3 |
 
-The pool never creates a journal line. It fills in one the user opened.
+So the skeleton SST-778 needs — new journal line, voucher number, document link — **exists
+and is in daily use.** What a private expense adds on top is which accounts go on the two
+sides, whose payable it is, and the VAT treatment, in place of the `F`/`F`/0 placeholder.
+
+That materially shrinks the implementation; see §9.
 
 `finans/pulje_review.php` is a separate mobile-friendly review screen that lists and deletes
 pool documents (`:28`). It has no journal path at all.
@@ -146,7 +159,7 @@ user reviews and posts through the normal flow, which also means the period lock
    record's account), open journal to write into, VAT treatment.
 3. Confirm → one draft line in the chosen journal: expense account debit, employee payable
    credit, amount and date from the pool record, description from the document.
-4. The document is attached to that line through the existing attachment flow, so a
+4. The document is attached to that line by the same `insertDoc.php` path that created it, so a
    `documents` row records filename, source, source_id, user and timestamp.
 5. The source document **stays in the pool** and is marked as transferred. It is not moved or
    deleted.
@@ -260,7 +273,7 @@ Not part of this ticket's estimate; listed so the estimate has something to pric
 | Piece | Rough shape |
 |---|---|
 | Checkbox and dialog in the pool UI | `includes/docsIncludes/docPool.php`, and `finans/pulje_review.php` if the mobile screen gets it too |
-| Draft line creation | New; writes `kassekladde` plus the `documents` row in one transaction |
+| Draft line creation | **Mostly reuse.** `insertDoc.php` already creates the line, allocates the voucher and writes the `documents` row (§1.1). The work is setting the two account sides, the employee and the VAT treatment instead of the `F`/`F`/0 placeholder |
 | Payable account setting | `settings` table; no migration if an existing group is reused |
 | Exactly-once check (§4) | One query against `documents` |
 | Transferred marker in the pool list | Depends on Q7 |
