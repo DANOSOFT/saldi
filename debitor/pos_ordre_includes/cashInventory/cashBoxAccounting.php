@@ -30,6 +30,9 @@
 // LN 20190310 LN Set the function posbogfor here
 // LN 20190310 LN Include the file cashBoxAccounting/basicData.php
 // LN 20190310 LN Include the file cashBoxAccounting/valuta.php
+// 20260914 CL/SZ SST-744: posbogfor: show bogfor_nu's actual return value on failure instead of a
+//                 hardcoded generic message that referenced undefined variables from another function's
+//                 scope and hid the real (e.g. VAT/account setup) error from the user
 
 function posbogfor ($kasse,$regnstart) {
 	global $afd;
@@ -67,13 +70,15 @@ function posbogfor ($kasse,$regnstart) {
 					if ($svar=='OK') {
 						echo '';
 					} else {
+						# 20260914 CL/SZ SST-744: show bogfor_nu's actual return instead of always the
+						# generic uoverensstemmelse text, which masked actionable errors like a missing
+						# VAT code on a posting account (also referenced undefined $ordre_id/$ordrenr/
+						# $d_kontrol/$k_kontrol - those are locals inside bogfor_nu, not this function).
+						$svarJs = str_replace(array("\\", "'"), array("\\\\", "\\'"), $svar);
 						echo "<br>Svar $svar<br>\n";
-						print "Der er konstateret en uoverensstemmelse i posteringssummen, ID $ordre_id ordre $ordrenr, d=$d_kontrol, k=$k_kontrol kontakt saldi.dk p&aring; telefon 4690 2208";
-						print "<BODY onLoad=\"javascript:alert('Der er konstateret en uoverenstemmelse i posteringssummen. \\nKontakt saldi.dk på telefon 4690 2208 eller 2066 9860')\">\n";
+						print "<BODY onLoad=\"javascript:alert('$svarJs')\">\n";
 						exit;
-						print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
-						exit;
-					} 
+					}
 				}
 			} # 20160612 Flyttet fra under nedenstående blok
 		} # 20160612 Flyttet fra under nedenstående blok

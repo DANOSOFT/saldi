@@ -106,6 +106,9 @@
 //                 accounts only, and a missing/wrong-art account no longer wipes the order
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20260907 CDX/LH Preserve popup context through POS forms, redirects and menu actions.
+// 20260914 CL/SZ SST-744: function posbogfor: on the $id (cash-line) branch, show bogfor_nu's
+//             actual return instead of a hardcoded generic uoverensstemmelse alert, which masked
+//             actionable errors (e.g. a missing VAT code on a posting account) from the user.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2797,12 +2800,12 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					if ($svar == 'OK') {
 						echo '';
 					} else {
-						$alert1 = findtekst(1869, $sprog_id);
-						$txt1 = findtekst(1870, $sprog_id);
-						$txt2 = findtekst(1871, $sprog_id);
-						print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
-						exit;
-						print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n";
+						# 20260914 CL/SZ SST-744: show bogfor_nu's actual return instead of the generic
+						# uoverensstemmelse alert (findtekst 1869), which masked actionable errors like a
+						# missing VAT code on a posting account; $txt1/$txt2 were assigned but never used.
+						$svarJs = str_replace(array("\\", "'"), array("\\\\", "\\'"), $svar);
+						echo "<br>Svar $svar<br>\n";
+						print "<BODY onLoad=\"javascript:alert('$svarJs')\">\n";
 						exit;
 					}
 				}
