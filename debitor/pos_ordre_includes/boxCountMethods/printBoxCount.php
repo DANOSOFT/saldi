@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.0 --- 2026-02-25 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.1 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make functions to print the box count
 // 20190314	PHR	Varius changes in function 'setPrintTxt' according to 'changeCardValue'
 // 20230623 PHR Added (float) to $omsatning, $byttepenge & $tilgang
 // 20260225 PHR Updated cashCount
+// 20260907 CDX/PHR Preserve decimal points in calculated payment totals saved to report.
+// 20260908 CDX/LH Pass register and small denominations explicitly; preserve merged decimal fixes.
 
 function setSpecifiedPrintText() 
 { 
@@ -70,12 +72,16 @@ function acceptPrint() {
     }
 }
 
-function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval,$changeCardValue,$reportNumber) {
+function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval,$changeCardValue,$reportNumber,$kasse=0,$ore_10=0,$ore_20=0) {
 
 	global $baseCurrency;
 
 	$dd=date("Y-m-d");
 	$specifiedCashTxt = setSpecifiedPrintText();
+	if ($baseCurrency === 'EUR') {
+		$specifiedCashTxt['tenth'] = '10 cent';
+		$specifiedCashTxt['fiveth'] = '20 cent';
+	}
 	$cashCountTxt = setSpecifiedCashPrintText();
 	$country = getCountry();
 	
@@ -103,10 +109,12 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 	}
 	if ($reportNumber) {
 		$qtxt  = "insert into report (date,type,description,count,total,report_number) values ";
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[tenth]','0','". $ore_10*1 ."','$reportNumber')";
-		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveth]','0','". $ore_20*1 ."','$reportNumber')";
-		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+		if ($baseCurrency === 'EUR') {
+			$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[tenth]','0','". $ore_10*1 ."','$reportNumber')";
+			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+			$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveth]','0','". $ore_20*1 ."','$reportNumber')";
+			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+		}
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". $ore_50*1 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[one]','0','". $kr_1*1 ."','$reportNumber')";
@@ -184,13 +192,18 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		}
 		for ($x=0;$x<count($kortnavn);$x++) {
-				$txt1="$kortnavn[$x]";
+			$txt1="$kortnavn[$x]";
 			if ($changeCardValue) {
 				$txt1.="(". dkdecimal($kortsum[$x],2) .")";
 				$txt2=usdecimal($ny_kortsum[$x],2);
-			} else $txt2=(float)$kortsum[$x];
-			$qtxt2 = "('$dd','cashCount','$txt1','0','$txt2','$reportNumber')";
-				if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+			} else {
+				$txt2=(float)$kortsum[$x];
+			}
+			$paymentDescription = db_escape_string($txt1);
+			$paymentTotal = (float)$txt2;
+			$paymentReport = (int)$reportNumber;
+			$qtxt2 = "('$dd','cashCount','$paymentDescription','0','$paymentTotal','$paymentReport')";
+			if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
 		}
 	}
 	if ($baseCurrency == 'EUR') {
@@ -337,4 +350,3 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 
 
 ?>
-
