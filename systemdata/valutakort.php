@@ -68,8 +68,21 @@ if ($menu=='T') {  # 20150313 start
 }  # 20150313 stop
 
 $bgcolor=NULL; $bgcolor1=NULL; $dato=date("d-m-Y"); $kurs=NULL; $valuta=NULL; $beskrivelse=NULL;
-$kodenr=(int)if_isset($_GET['kodenr']); // SST-769: was raw $_GET in SQL throughout this file
-$id=(int)if_isset($_GET['id']);           // SST-769: ditto
+// SST-769 Cast both: they reach SQL throughout this file. ifset() with the key passed
+// separately, per doc/ai/convention_ifset.md, so an absent parameter does not emit an
+// undefined-array-key warning.
+$kodenr = (int) ifset($_GET, 'kodenr');
+$id     = (int) ifset($_GET, 'id');
+
+// SST-769 $id names a row in valuta and $kodenr names the currency, but nothing tied the
+// two together: a request pairing an $id from one currency with another currency's $kodenr
+// reached the select at the old-rate lookup, both updates, the delete and the form. Bind
+// them once here so every query below is constrained to the currency actually being edited.
+if ($id && $kodenr) {
+	if (!db_fetch_array(db_select("select id from valuta where id = '$id' and gruppe = '$kodenr'", __FILE__ . " linje " . __LINE__))) {
+		$id = 0;
+	}
+}
 
 $rettext = findtekst('1207|Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen. Ellers risikerer du at lave rod i dit regnskab', $sprog_id); #20210708
 
