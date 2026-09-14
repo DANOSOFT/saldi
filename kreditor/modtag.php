@@ -41,6 +41,7 @@
 //                batch_batch_no is empty, mirroring the existing serial-number check; also
 //                escaped batch_due_date and fixed a "0" batch-no being treated as empty in
 //                every batch_kob insert/update built from these two fields (MB-36).
+// 20260914 CL/SZ Added docstrings to reservation()/returnering() (CodeRabbit, PR #608).
 
 @session_start();
 $s_id=session_id();
@@ -423,6 +424,19 @@ echo "$shopurl<br>";
 #xit;
 } #endif ($fejl==0);
 
+/**
+ * Records a batch-tracked goods receipt for a lagerf&oslash;rt (stock-managed) order line:
+ * creates or updates the matching batch_kob row (carrying over the line's expiry
+ * date/batch number), reassigns any open reservation onto it, and moves its
+ * serial numbers across.
+ *
+ * @param int    $linje_id  ordrelinjer.id being received
+ * @param float  $leveres   Quantity received on this call
+ * @param int    $vare_id   Item id
+ * @param string $serienr   'on' if the item is serial-number tracked
+ * @param int    $lager     Warehouse id
+ * @return void
+ */
 function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 	global $id;
 	global $levdate;
@@ -474,6 +488,24 @@ function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 	}
 }
 
+/**
+ * Records a return of previously-received, batch-tracked goods: reduces `rest` on
+ * the original batch_kob row(s) for the credited line, reassigns their serial
+ * numbers, and inserts a new batch_kob row for the return carrying over the
+ * line's expiry date/batch number.
+ *
+ * @param int    $id            ordrer.id of the credit note
+ * @param int    $linje_id      ordrelinjer.id of the credited line
+ * @param float  $leveres       Quantity being returned (negative)
+ * @param int    $vare_id       Item id
+ * @param int    $variant_id    Variant id, or 0
+ * @param float  $pris          Unit price
+ * @param string $serienr       'on' if the item is serial-number tracked
+ * @param int    $lager         Warehouse id
+ * @param int    $kred_linje_id Original kreditor order line being credited
+ * @param string $levdate       Delivery date
+ * @return void
+ */
 function returnering ($id,$linje_id,$leveres,$vare_id, $variant_id,$pris, $serienr,$lager,$kred_linje_id, $levdate) {
 	global $id;
 	$rest=$leveres;
