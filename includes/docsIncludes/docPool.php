@@ -5098,8 +5098,7 @@ HTML;
 					sourceData = docData.find(d => d.filename === filename);
 				}
 			} else if (checked.length > 1) {
-				alert('Flere filer er markeret. Vælg kun én fil for at overføre data.');
-				return;
+				sourceData = "multiple"; // Indicate multiple selections
 			}
 		}
 
@@ -5118,6 +5117,9 @@ HTML;
 
 		if (!sourceData) {
 			alert('Ingen fil valgt i listen. Klik på en fil i listen til venstre først.');
+			return;
+		} else if (sourceData === "multiple") {
+			alert('Flere filer er markeret. Vælg kun én fil for at overføre data.');
 			return;
 		}
 
