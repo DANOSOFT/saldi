@@ -250,12 +250,15 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			// get date from file
 			$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
 
-			// Insert into database. ON CONFLICT is PostgreSQL-only syntax; MySQL's
-			// equivalent no-op-on-duplicate-key is INSERT IGNORE instead.
+			// Insert into database. 
+			// ON CONFLICT is PostgreSQL-only syntax; 
+			// MySQL's basically equivalent no-op-on-duplicate-key is DUPLICATE KEY UPDATE id = id.
 			$syncNormAmount = normalizePoolAmount($amount);
 			$syncNormAmountSql = ($syncNormAmount === null) ? 'NULL' : db_escape_string((string) $syncNormAmount);
-			$insertVerb = ($db_type == 'mysql' || $db_type == 'mysqli') ? 'INSERT IGNORE' : 'INSERT';
-			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli') ? '' : ' ON CONFLICT (filename) DO NOTHING';
+			$insertVerb =  'INSERT';
+			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli') 
+					? ' ON DUPLICATE KEY UPDATE id = id' 
+					: ' ON CONFLICT (filename) DO NOTHING';
 			$qtxt = "$insertVerb INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
 				'" . db_escape_string($file) . "',
 				'" . db_escape_string($subject) . "',
