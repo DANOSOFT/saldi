@@ -2332,6 +2332,14 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
 	return $diff;
 }
 ######################################################################################################################################
+/**
+ * Posts one or more orders' lines to the ledger (transaktioner/kontoplan), validating VAT/account
+ * setup and control-total balance before writing anything.
+ *
+ * @param int|string $id A single ordrer.id, or a comma-separated list of ids to post together.
+ * @param string $kilde Caller context; 'Dagsafslutning' forces POS (cash-drawer) posting rules.
+ * @return string 'OK' on success, otherwise a user-facing description of why posting failed.
+ */
 function bogfor_nu($id, $kilde) {
 
 	include("../includes/genberegn.php");

@@ -109,6 +109,9 @@
 // 20260914 CL/SZ SST-744: function posbogfor: on the $id (cash-line) branch, show bogfor_nu's
 //             actual return instead of a hardcoded generic uoverensstemmelse alert, which masked
 //             actionable errors (e.g. a missing VAT code on a posting account) from the user.
+// 20260914 CL/SZ SST-744: function posbogfor: CodeRabbit review - embed the alert text via
+//             json_encode() instead of a manual string-replace, matching index/login.php's
+//             existing pattern for the same problem.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2571,6 +2574,15 @@ function fejl($id, $fejltekst)
 
 }
 
+/**
+ * Closes out a POS cash-drawer count for $kasse: posts the day's pending orders via bogfor_nu(),
+ * then records cash/card/account totals to the report table.
+ *
+ * @param int $kasse Cash register (kasse) number being closed.
+ * @param string $regnstart Start-of-fiscal-year date, used to scope which orders are pending.
+ * @param int $reportNumber Report batch number this closing is filed under.
+ * @return void Ends the request via exit() on a posting failure; otherwise falls through to printing.
+ */
 function posbogfor($kasse, $regnstart, $reportNumber)
 {
 	$posNavigationQuery = nav_popup_query($_GET, $_POST);
@@ -2803,9 +2815,11 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 						# 20260914 CL/SZ SST-744: show bogfor_nu's actual return instead of the generic
 						# uoverensstemmelse alert (findtekst 1869), which masked actionable errors like a
 						# missing VAT code on a posting account; $txt1/$txt2 were assigned but never used.
-						$svarJs = str_replace(array("\\", "'"), array("\\\\", "\\'"), $svar);
+						# 20260914 CL/SZ CodeRabbit: use json_encode (with HEX flags) instead of a manual
+						# str_replace to embed $svar in the inline script - matches the existing pattern in
+						# index/login.php and safely handles quotes/backslashes/markup in one call.
 						echo "<br>Svar $svar<br>\n";
-						print "<BODY onLoad=\"javascript:alert('$svarJs')\">\n";
+						print "<script>alert(" . json_encode($svar, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
 						exit;
 					}
 				}
