@@ -13,7 +13,9 @@ Run the PHP check as an unprivileged user: its raw-write failure scenario requir
 docker exec --user www-data saldi-web-1 php /var/www/html/saldi/tests/payments/receipt_confirmation.php
 ```
 
-Verified on 2026-09-14: 22 JavaScript tests and 20 PHP checks pass, with PHP `E_ALL` enabled. Authentication/database responses are stubbed in the PHP fixture; actual session permissions and terminal/printer behavior need the manual checks below. The filesystem failure cases intentionally emit visible warnings. PHP syntax checks and `git diff --check` also pass.
+Verified on 2026-09-14: 22 JavaScript tests and 20 PHP checks pass, with PHP `E_ALL` enabled. Authentication/database responses are stubbed in the PHP fixture; the separate Docker application checks below exercise actual sessions and permissions. The filesystem failure cases intentionally emit visible warnings. PHP syntax checks and `git diff --check` also pass.
+
+Additional Docker application verification on 2026-09-14 used Apache/PHP 8.3, PostgreSQL 16, Chromium, synthetic invoices and two test registers. Nets responses and the printer handoff were mocked. All eight scenarios passed: success on registers 1 and 2, blocked popup, terminal failure, raw receipt write failure, prepared receipt write failure, denied POS access and an expired session. The success check exposed an HTML body tag before the JSON acknowledgement with menu S; `save_receipt.php` now disables both header and body markup, and the PHP fixture covers that regression. This does not verify physical printing or real payment-provider behavior.
 
 | Affected file / behavior | Manual scenario and expected result |
 | --- | --- |
