@@ -125,7 +125,66 @@
 //             out-of-balance order BEFORE any transaktioner/openpost rows are written (previously the
 //             imbalance was detected after posting, with no rollback for callers outside bogfor).
 //             Also guarded the vatAccount rounding loops against infinite loop on empty SM account list
+// 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 // 20260908 CL/Sawaneh SST-763: duplicate pbsfakt() removed; includes/pbsfunc.php is included instead.
+// 20260908 CDX/MJ JOB-106 Validate the date against the effective order type: an all-negative DO
+//             order is turned into a DK credit note by bogfor(), but only after the date checks
+//             had already run, so a valid return date was still rejected for that case
+
+/**
+ * Check whether a delivery date invalidly precedes its order date.
+ *
+ * Customer credit notes use levdate as the return date, so their date is not
+ * ordered relative to the date on which the credit note was created.
+ *
+ * @return bool True when the delivery date is invalid for this order type.
+ */
+function delivery_date_before_order_date($art, $levdate, $ordredate)
+{
+	return !$levdate || ($art !== 'DK' && $levdate < $ordredate);
+}
+
+/**
+ * Decide whether an order will be converted into a credit note when it is posted.
+ *
+ * bogfor() turns an all-negative DO order into a DK credit note (its $dan_kn flag),
+ * but not until after the delivery date has been validated. Callers that validate
+ * earlier have to classify the order themselves, or they reject a return date that
+ * is legitimately older than the order date.
+ *
+ * Mirrors the $dan_kn loop in bogfor(): same query, same row order, same conditions.
+ *
+ * @param int|string $id  Order id.
+ * @param string     $art Order type as currently stored.
+ * @return bool True when this is a DO order whose lines all point the credit way.
+ */
+function order_becomes_credit_note($id, $art)
+{
+	if ($art !== 'DO') {
+		return false;
+	}
+	$id = intval($id);
+	$dan_kn = 1;
+	$a = 0;
+	$z = 0;
+	$q = db_select("select vare_id, antal from ordrelinjer where ordre_id = '$id' and antal != '0' order by saet", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$z++;
+		if ($r['antal'] < 0) {
+			$a += $r['antal'];
+		}
+		if ($r['vare_id'] && $r['antal'] >= 0) {
+			$dan_kn = 0;
+		}
+		if ($dan_kn && !$a) {
+			$dan_kn = 0;
+		}
+	}
+	if ($dan_kn && !$z) {
+		$dan_kn = 0;
+	}
+	return (bool)$dan_kn;
+}
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -244,14 +303,15 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 		$ordredate = $fakturadate;
 	}
 	$r = db_fetch_array(db_select("select * from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-	if ($fakturadate && !$r['levdate']) {
+	if (!$r['levdate']) {
 		if ($webservice)
 			return ('Manglende leveringsdato');
 		else
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato SKAL udfyldes')\">";
 		exit;
 	} else {
-		if (!$hurtigfakt && $r['levdate'] < $r['ordredate']) {
+		$effektiv_art = order_becomes_credit_note($id, $art) ? 'DK' : $art;
+		if (!$hurtigfakt && delivery_date_before_order_date($effektiv_art, $r['levdate'], $r['ordredate'])) {
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato $r[levdate]<$r[ordredate]')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 			exit;
@@ -1429,7 +1489,7 @@ function bogfor($id, $webservice=false)
 		else
 			return ("Leveringsdato SKAL udfyldes");
 	}
-	if ($levdate < $ordredate) {
+	if (delivery_date_before_order_date($dan_kn ? 'DK' : $art, $levdate, $ordredate)) {
 		transaktion('rollback');
 		if ($webservice)
 			return ("Deliverydate prior to orderdate");
