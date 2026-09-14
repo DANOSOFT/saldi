@@ -61,6 +61,7 @@
 // 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
 //                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
 //                  Supplier orders no longer print VAT-inclusive prices (customer setting).
+// 20260914 CDX/LH SST-784: Escape parentheses and backslashes only in PostScript output.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -125,8 +126,6 @@ if (!function_exists('skriv')) {
 			$incr_y = 0;
 
 		$format = strtoupper($format);
-		$tekst = str_replace("(", "\\(", $tekst);
-		$tekst = str_replace(")", "\\)", $tekst);
 
 		if (substr($tekst, 0, 3) == "<b>") {
 			$startfed = 'on';
@@ -385,9 +384,10 @@ if (!function_exists('skriv')) {
 			$i2 = NULL;
 		}
 		if ($x && $tekst && $y2 / 2.86 > $Opkt) {
-			#			if ($tekst == '891,42')	exit;
-			if ($x != '22')
-				fwrite($psfp, "/$form_font\n$str scalefont\nsetfont\nnewpath\n$x $y2 moveto (" . utf8_iso8859($tekst) . ") $format show\n");
+			if ($x != '22') {
+				$psTekst = strtr(utf8_iso8859($tekst), array('\\' => '\\\\', '(' => '\\(', ')' => '\\)'));
+				fwrite($psfp, "/$form_font\n$str scalefont\nsetfont\nnewpath\n$x $y2 moveto (" . $psTekst . ") $format show\n");
+			}
 			$a = $x / 2.86;
 			$b = 297 - $y2 / 2.86;
 			$c = $ny_str * 1.2;
