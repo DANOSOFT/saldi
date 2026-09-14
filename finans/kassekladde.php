@@ -112,7 +112,9 @@
 //                  kontroller() turned a double-click on a failing save into a "replay" that skipped
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 
+// 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
+require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 
 ob_start(); //Starter output buffering  
 
@@ -165,6 +167,15 @@ if (!isset($c))
 
 include("../includes/connect.php");
 include("../includes/online.php");
+// online.php authenticates the request and selects the tenant before the replay lookup.
+// The PHP session lock serializes duplicate requests, including two first saves with id=0.
+$kk_request_key = journalSaveRequestKey($_POST ?? [], (string)$db, (string)$brugernavn);
+$kk_form_key = $kk_request_key !== null ? journalSaveFormKey($_POST ?? [], (string)$db, (string)$brugernavn) : null;
+$kk_saved_journal = journalSavedRequest($_SESSION, $kk_request_key);
+if ($kk_saved_journal !== null) {
+	header('Location: kassekladde.php?kladde_id=' . $kk_saved_journal . '&tjek=' . $kk_saved_journal, true, 303);
+	exit;
+}
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
@@ -770,7 +781,7 @@ if ($_POST) {
 	elseif (isset($_POST['upload']) && $_POST['upload'])     $submit = 'upload';
 	else $submit   = trim(if_isset($_POST['submit'], ''));
 	$tidspkt       = if_isset($_POST['tidspkt']);
-	$kladde_id     = if_isset($_POST['kladde_id']);
+	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
 	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
@@ -1275,6 +1286,7 @@ if ($_POST) {
 			$kladde_id = $row['id'] + 1;
 			$kladdedate = date("Y-m-d");	# OBS I naeste linje indsaettes tidspkt fratrukket 1 sek. Ellers bliver 1. gemning afvist af	"Refresktjek"
 			db_modify("insert into kladdeliste (id, kladdenote, kladdedate, bogfort, hvem, oprettet_af, tidspkt) values ('$kladde_id', '$ny_kladdenote', '$kladdedate', '-', '$brugernavn', '$brugernavn', '$tidspkt')", __FILE__ . " linje " . __LINE__);
+			journalRememberCreation($_SESSION, $kk_form_key, (int)$kladde_id);
 			$tidspkt = microtime();
 		}
 		if ($kladde_id) {
@@ -1572,6 +1584,7 @@ if (!$fejl && $kladde_id) {
 	if (empty($kk_replay)) {
 		opdater($kladde_id);
 		initializePositions($kladde_id);
+		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
 		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
 		// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
 		// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
@@ -2514,6 +2527,7 @@ if ($tjek) {
     $action_url .= "&tjek=$tjek";
 }
 print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post' autocomplete='off'>";
+print "<input type='hidden' name='kk_save_token' value='" . bin2hex(random_bytes(32)) . "'>";
 print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 print "<tr><td width='100%' valign='top' height='1%' align='center' class='kassekladde-note-tb'>
