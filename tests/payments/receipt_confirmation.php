@@ -26,6 +26,10 @@ if (in_array($db, ['unauthenticated', 'unauthorized'], true)) {
 if (($json['confirm_saved'] ?? false) && ($modulnr ?? null) !== 5) {
     throw new RuntimeException('POS authorization module not selected');
 }
+// online.php emits its body independently of the header, including for menu S.
+if (($bg ?? null) !== 'nix') {
+    echo '<body bgcolor="#eeeef0">';
+}
 $regnaar = '2026 OR 1=1';
 $sprog_id = 1;
 $printserver = 'localhost';
