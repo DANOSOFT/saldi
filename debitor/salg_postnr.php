@@ -119,7 +119,7 @@ if ($menu == 'T') {
     $tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
     print "<tr><td colspan='5' height='8'><table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>
         <td width='10%' align='left'><a href='../debitor/rapport.php' accesskey='L'><button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>
-        <td width='80%' align='center' style='$topStyle'>Sales by zip code</td>
+        <td width='80%' align='center' style='$topStyle'>".findtekst('3360|Salg pr. postnummer', $sprog_id)."</td>
         <td width='10%' style='$topStyle'><br></td>
         </tr></tbody></table></td></tr></tbody></table>";
 } else {
