@@ -57,6 +57,7 @@
 //                 read failure as "folder is empty" and wipe every row), and the insert is
 //                 ON CONFLICT DO NOTHING now that includes/betweenUpdates.php adds a unique
 //                 index on filename.
+// 20260914 CDX/LAH Resolve transfer targets from their checkboxes so unsaved voucher lines receive data.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -5119,11 +5120,11 @@ HTML;
 
 		// Find the active (checked) kassebilag-entry rows to populate
 		const targetCheckboxes = document.querySelectorAll('.targetLineCheckbox:checked');
-		const targetIds = Array.from(targetCheckboxes).map(cb => cb.value);
 
+		// Unsaved rows use checkbox value 0 but have the DOM id bilagEntry_new.
 		// If no checkbox is checked, populate all visible entries
-		const entriesToFill = targetIds.length > 0
-			? targetIds.map(id => document.getElementById('bilagEntry_' + id)).filter(Boolean)
+		const entriesToFill = targetCheckboxes.length > 0
+			? Array.from(targetCheckboxes).map(cb => cb.closest('.kassebilag-entry')).filter(Boolean)
 			: Array.from(document.querySelectorAll('.kassebilag-entry'));
 
 		if (!entriesToFill.length) {
