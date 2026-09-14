@@ -30,6 +30,40 @@
 // 20240209 PHR Added indbetaling to vibrant & flatpay
 // 20240313 MMK/PHR Vipps / Mobilepay
 // 20260914 CDX/LH Restore drawer redirect after cash payment without an automatic receipt (MB-48).
+// 20260914 CDX/LH Require HTTPS for remote cash drawer redirects; allow HTTP only on loopback.
+
+/**
+ * Resolve a cash drawer endpoint without allowing remote cleartext requests.
+ *
+ * @param string $printserver Host with optional port, HTTP(S) origin, or android.
+ * @return string|null Printer origin, or null for an unsafe/invalid configuration.
+ */
+function cashDrawerPrintOrigin($printserver) {
+	$printserver = trim($printserver);
+	if ($printserver === 'android') {
+		return 'saldiprint://';
+	}
+	$hasScheme = strpos($printserver, '://') !== false;
+	$candidate = $hasScheme ? $printserver : 'https://' . $printserver;
+	if (!filter_var($candidate, FILTER_VALIDATE_URL)) {
+		return null;
+	}
+	$parts = parse_url($candidate);
+	if (isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+		|| !in_array($parts['path'] ?? '', ['', '/'], true)) {
+		return null;
+	}
+	$host = strtolower($parts['host'] ?? '');
+	$address = trim($host, '[]');
+	$isLoopback = $host === 'localhost'
+		|| (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && strpos($address, '127.') === 0)
+		|| (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && inet_pton($address) === inet_pton('::1'));
+	$scheme = $hasScheme ? strtolower($parts['scheme']) : ($isLoopback ? 'http' : 'https');
+	if ($scheme !== 'https' && !($scheme === 'http' && $isLoopback)) {
+		return null;
+	}
+	return $scheme . '://' . $host . (isset($parts['port']) ? ':' . $parts['port'] : '');
+}
 
 function afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$line=null) {
 
@@ -310,7 +344,18 @@ print "\n<!-- Function afslut (start)-->\n";
 		$skuffe=1;
 		file_put_contents("../temp/skuffe.log",__file__." $id B: $betaling S: $skuffe\n", FILE_APPEND);
 
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?&url=$url&bruger_id=$bruger_id&bon=&bonantal=1&id=$id&skuffe=$skuffe&returside=$returside&logo=\">\n";
+		$printOrigin = cashDrawerPrintOrigin($printserver);
+		if ($printOrigin === null) {
+			print "<p>Kasseskuffen kunne ikke åbnes. Kontrollér printserverens adresse. ";
+			print "Printservere på andre computere skal bruge HTTPS.</p>";
+			print '<a href="pos_ordre.php">Fortsæt til næste salg</a>';
+			exit;
+		}
+		$drawerUrl = $printOrigin . '/saldiprint.php?' . http_build_query([
+			'url' => $url, 'bruger_id' => $bruger_id, 'bon' => '', 'bonantal' => 1,
+			'id' => $id, 'skuffe' => $skuffe, 'returside' => $returside, 'logo' => '',
+		], '', '&', PHP_QUERY_RFC3986);
+		print '<meta http-equiv="refresh" content="0;URL=' . htmlspecialchars($drawerUrl, ENT_QUOTES, 'UTF-8') . "\">\n";
 
 		exit;
 	} else { #20160211
