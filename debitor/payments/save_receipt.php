@@ -24,29 +24,44 @@
 // ----------------------------------------------------------------------
 // 20240227 PHR Added include print_receipt
 // 20260720 NTR Recreate temp/$db if missing (cleared daily) before saving receipt
+// 20260914 CDX/LH SST-788 Acknowledge successful receipt writes for reconciliation callers.
 //
+
+/**
+ * Injected by ../../includes/online.php, included below:
+ * @var string $db
+ */
 
 @session_start();
 $s_id = session_id();
 
-global $db;
-
-include ("../../includes/connect.php");
-include ("../../includes/online.php");
-include ("../../includes/std_func.php");
-include ("../../includes/stdFunc/dkDecimal.php");
-include ("../../includes/stdFunc/usDecimal.php");
-
 $json = json_decode(file_get_contents('php://input'), true);
+$confirmSaved = ($json['confirm_saved'] ?? false) === true;
+if ($confirmSaved) {
+	$header = 'nix';
+	$modulnr = 5;
+}
+
+include (__DIR__ . "/../../includes/connect.php");
+include (__DIR__ . "/../../includes/online.php");
+include (__DIR__ . "/../../includes/std_func.php");
+include (__DIR__ . "/../../includes/stdFunc/dkDecimal.php");
+include (__DIR__ . "/../../includes/stdFunc/usDecimal.php");
+
+if ($confirmSaved) {
+	header('Content-Type: application/json; charset=UTF-8');
+}
 $data = $json["data"];
 $id = $json["id"];
 $type = $json["type"];
 $kasse = isset($json["kasse"]) ? $json["kasse"] : null;
 $terminal_id = isset($json["terminal_id"]) ? $json["terminal_id"] : null;
 
-echo "<pre>";
-print_r($data);
-echo "</pre>";
+if (!$confirmSaved) {
+	echo "<pre>";
+	print_r($data);
+	echo "</pre>";
+}
 
 $directory = "../../temp/$db";
 
@@ -64,7 +79,13 @@ while (file_exists($filename)) {
     $counter++;
 }
 
-file_put_contents($filename, json_encode($data));
+$receiptJson = json_encode($data);
+$receiptBytesWritten = file_put_contents($filename, $receiptJson);
+if ($confirmSaved && ($receiptBytesWritten === false || $receiptBytesWritten !== strlen($receiptJson))) {
+	http_response_code(500);
+	echo json_encode(['saved' => false]);
+	exit;
+}
 
 // For flatpay transactions, also save a copy with terminal_id filename
 if (($type == 'flatpay' || $type == 'move3500') && $terminal_id) {
@@ -81,4 +102,14 @@ if (($type == 'flatpay' || $type == 'move3500') && $terminal_id) {
     file_put_contents($terminal_filename, json_encode($data));
 }
 $print_receipt = 1;
-if ($print_receipt) include_once("print_receipt.php");
+$printserver = $printserver ?? null;
+if ($print_receipt) include_once(__DIR__ . "/print_receipt.php");
+
+if ($confirmSaved) {
+	$saved = isset($printBytesWritten) && $printBytesWritten !== false
+		&& $printBytesWritten > 0 && $printBytesWritten === strlen($bon);
+	if (!$saved) {
+		http_response_code(500);
+	}
+	echo json_encode(['saved' => $saved]);
+}
