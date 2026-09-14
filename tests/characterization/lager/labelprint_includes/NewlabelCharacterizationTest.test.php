@@ -101,7 +101,7 @@ final class NewlabelCharacterizationTest extends TestCase
     {
         db_modify('delete from mylabel where account_id = ' . self::$accountId, __FILE__ . ' linje ' . __LINE__);
         db_modify("delete from adresser where kontonr = '" . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
-        foreach (['knXXX', 'knPLAIN', 'knZERO', 'knZERO2', 'knPRICED', 'knSINGLE'] as $prefix) {
+        foreach (['knXXX', 'knPLAIN', 'knZERO', 'knZERO2', 'knPRICED', 'knSINGLE', 'knLEGACY', 'knLEGACY2'] as $prefix) {
             db_modify("delete from varer where varenr = '" . $prefix . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
         }
         chdir(self::$originalCwd);
@@ -335,6 +335,73 @@ final class NewlabelCharacterizationTest extends TestCase
         ]);
 
         self::assertSame(1, preg_match_all('/<p>/', $html), 'single=1 must render exactly one cell');
+    }
+
+    /**
+     * The same rule has to hold in oldlabel.php: labelprint.php:145-149 picks that
+     * renderer whenever a layout has neither $rows nor $minpris/$minbeskrivelse, and
+     * its $pris substitution is independent of newlabel.php's.
+     */
+    public function testZeroItemPriceLeavesTheLegacyPrisFieldEmpty(): void
+    {
+        $itemId = $this->seedItem('knLEGACY' . self::KONTONR, 'Legacy layout item', '0.000');
+        $template = $this->legacyPriceTemplate('$pris');
+
+        // Precondition: nothing here routes the layout to newlabel.php instead.
+        self::assertStringNotContainsString('$rows', $template);
+        self::assertStringNotContainsString('$minpris', $template);
+        self::assertStringNotContainsString('$minbeskrivelse', $template);
+
+        $html = $this->renderLegacyLabel(['txt' => $template, 'id' => $itemId]);
+
+        self::assertStringNotContainsString('0,00', $html, 'legacy renderer must not print 0,00');
+        self::assertMatchesRegularExpression('/Pris\s*<br/', $html, 'legacy price field must be empty');
+    }
+
+    /** Control: the legacy renderer still prints a real price. */
+    public function testLegacyRendererStillPrintsARealPrice(): void
+    {
+        $itemId = $this->seedItem('knLEGACY2' . self::KONTONR, 'Legacy priced item', '12.50');
+
+        $html = $this->renderLegacyLabel([
+            'txt' => $this->legacyPriceTemplate('$pris'),
+            'id' => $itemId,
+        ]);
+
+        self::assertMatchesRegularExpression('/Pris\s+[0-9]+,[0-9]{2}<br/', $html);
+    }
+
+    /** A layout that labelprint.php would send to oldlabel.php (no $rows/$minpris). */
+    private function legacyPriceTemplate(string $pricePlaceholder): string
+    {
+        return "<top>\n<div id=\"main\">\n</top>\n\n" .
+            "<p>\n\$varenr<br>\nPris " . $pricePlaceholder . "<br>\n</p>\n\n" .
+            "<bottom>\n</div>\n/bottom;";
+    }
+
+    /**
+     * Drives oldlabel.php the way labelprint.php does ($filename receives the
+     * rendered text).
+     *
+     * @param array{txt: string, id?: int|null, stregkode?: string|null, varenr?: string|null} $args
+     */
+    private function renderLegacyLabel(array $args): string
+    {
+        $txt = $args['txt'];
+        $id = $args['id'] ?? null;
+        $stregkode = $args['stregkode'] ?? null;
+        $varenr = $args['varenr'] ?? null;
+        $img = null;
+        $variant = $variant_type = null;
+        $filename = tempnam(sys_get_temp_dir(), 'sst790_old_');
+        self::assertNotFalse($filename);
+
+        include self::$repoRoot . '/lager/labelprint_includes/oldlabel.php';
+
+        $html = file_get_contents($filename);
+        unlink($filename);
+
+        return $html;
     }
 
     private function twoColumnTemplate(): string
