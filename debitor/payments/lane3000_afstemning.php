@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260914 CDX/LH SST-788: Show reconciliation completion and blocked print-window feedback.
 
 @session_start();
 $s_id = session_id();
@@ -196,10 +197,18 @@ async function print_str(baseurl, apikey, data) {
         const printWindow = window.open("http://<?php echo $printserver; ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1", '', 'width=200,height=100');
         
         if (!printWindow) {
-            console.warn('Print vindue blev blokeret af browser');
+            const status = document.getElementById('status');
+            status.innerText = <?php echo json_encode(findtekst('5151|Afstemning gennemført. Browseren blokerede udskriftsvinduet. Tillad pop op-vinduer for denne side.', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+            status.style.backgroundColor = '#fbbc04';
+        } else {
+            const status = document.getElementById('status');
+            status.innerText = <?php echo json_encode(findtekst('2599|Færdig', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+            status.style.backgroundColor = '#34a853';
+            document.getElementById('bg').style.backgroundColor = '#ceead6';
         }
-        
+
         finished = true;
+        leave();
     } catch (error) {
         fail(`Print fejl: ${error.message}`);
     }
