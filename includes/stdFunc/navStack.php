@@ -167,7 +167,7 @@ function nav_push(?string $current_url = null, bool $popup = false): void {
 
 /**
  * Validate a raw request value before it is used as a local return target.
- *
+ * @param string $url raw returnside url.
  * @return string
  */
 function nav_sanitize_returside($url): string {
