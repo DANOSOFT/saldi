@@ -24,46 +24,37 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
-// 20260914 CDX/LH SST-788: Show reconciliation completion and blocked print-window feedback.
+// 20260914 CDX/LH SST-788 Show reconciliation completion and preserve receipt/print failures.
+
+/**
+ * Injected by ../../includes/online.php, included below:
+ * @var string $db
+ * @var string $regnaar
+ * @var int $sprog_id
+ */
 
 @session_start();
 $s_id = session_id();
 
-#print '<head>';
-#print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
-#print '</head>';
-
 $css = "../../css/flatpay.css";
+$modulnr = 5;
 
-include ("../../includes/connect.php");
-include ("../../includes/online.php");
-include ("../../includes/std_func.php");
-include ("../../includes/stdFunc/dkDecimal.php");
-include ("../../includes/stdFunc/usDecimal.php");
+include (__DIR__ . "/../../includes/connect.php");
+include (__DIR__ . "/../../includes/online.php");
+include (__DIR__ . "/../../includes/std_func.php");
 
-$raw_amount = (float) usdecimal(if_isset($_GET['amount'], 0));
-$pretty_amount = dkdecimal($raw_amount, 2);
-$ordre_id    = if_isset($_GET['id'], 1000);
-$indbetaling = if_isset($_GET['indbetaling'], 0);
-$kasse = $_COOKIE['saldi_pos'];
-print "<div id='container'>";
-print "<span>Lane3000 terminal afstemmer.</span>";
-print "<div id='status' style='background-color: #fbbc04' >Afventer kort...</div>";
-print "<button id='continue' class='btn' onClick='failed();' disabled style='display: block'>Tilbage</button>";
-print "<button id='continue-success' class='btn' onClick='successed();'>Tilbage</button>";
-print "</div>";
-print "<div id='bg'></div>";
-
-$type = ($raw_amount < 0) ? "returnOfGoods" : "purchase";
-$amount = abs($raw_amount) * 100;
+$ordre_id = intval($_GET['id'] ?? 1000);
+$kasse = intval($_COOKIE['saldi_pos'] ?? 0);
+$fiscalYear = intval($regnaar);
 
 // Fetch printserver
-$r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
+$r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$fiscalYear'", __FILE__ . " linje " . __LINE__));
 $x = $kasse - 1;
-$tmp = explode(chr(9), $r['box3']);
-$printserver = trim($tmp[$x]);
-if (!$printserver) $printserver = 'localhost';
-elseif ($printserver == 'box' || $printserver == 'saldibox') {
+$tmp = explode(chr(9), $r['box3'] ?? '');
+$printserver = trim($tmp[$x] ?? '');
+if (!$printserver) {
+	$printserver = 'localhost';
+} elseif ($printserver == 'box' || $printserver == 'saldibox') {
 	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
 	if ($fp = fopen($filnavn, 'r')) {
 		$printserver = trim(fgets($fp));
@@ -71,35 +62,51 @@ elseif ($printserver == 'box' || $printserver == 'saldibox') {
 	}
 }
 
-# Get settings
-$q=db_select("select var_value from settings where var_name = 'flatpay_auth'",__FILE__ . " linje " . __LINE__);
-$guid = db_fetch_array($q)[0];
-
 # Get terminal id
-$qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
+$qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$fiscalYear'";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-$terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
+$terminal_id = explode(chr(9), db_fetch_array($q)[0] ?? '')[$kasse-1] ?? '';
 
 # Print setup
 $printfile = 'https://'.$_SERVER['SERVER_NAME'];
 $printfile.= str_replace('debitor/payments/lane3000_afstemning.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
+$messages = [
+	'heading' => findtekst('5152|Lane3000 terminal afstemmer.', $sprog_id),
+	'authorizing' => findtekst('5153|Autoriserer...', $sprog_id),
+	'reconciling' => findtekst('5154|Afstemmer...', $sprog_id),
+	'printing' => findtekst('5155|Printer...', $sprog_id),
+	'completed' => findtekst('5156|Afstemning gennemført. Kvittering sendt til print.', $sprog_id),
+	'popupBlocked' => findtekst('5157|Afstemning gennemført, men printvinduet blev blokeret. Tillad pop op-vinduer for at udskrive kvitteringen.', $sprog_id),
+	'missingCredentials' => findtekst('5158|Manglende brugernavn eller adgangskode i indstillinger', $sprog_id),
+	'missingToken' => findtekst('5159|Ingen token modtaget fra server', $sprog_id),
+	'authFailed' => findtekst('5160|Autorisation fejlede', $sprog_id),
+	'receiptFailed' => findtekst('5161|Printforberedelse fejlede', $sprog_id),
+	'printFailed' => findtekst('5162|Print fejlede', $sprog_id),
+	'missingApiKey' => findtekst('5163|Ingen API nøgle tilgængelig', $sprog_id),
+	'missingTerminal' => findtekst('5164|Terminal ID ikke fundet', $sprog_id),
+	'terminalError' => findtekst('5165|Ukendt fejl fra terminal', $sprog_id),
+	'invalidResponse' => findtekst('5166|Ugyldigt svar fra terminal', $sprog_id),
+	'missingReceipt' => findtekst('5167|Kvittering mangler i terminalens svar', $sprog_id),
+	'reconciliationFailed' => findtekst('5168|Afstemning fejlede', $sprog_id),
+	'unexpectedError' => findtekst('5169|Uventet fejl', $sprog_id),
+	'back' => findtekst('30|Tilbage', $sprog_id),
+	'error' => findtekst('3124|Fejl', $sprog_id),
+];
 ?>
+
+<div id="container">
+    <span><?= htmlspecialchars($messages['heading'], ENT_QUOTES, 'UTF-8') ?></span>
+    <div id="status" role="status" aria-live="polite" style="background-color: #fbbc04"><?= htmlspecialchars($messages['authorizing'], ENT_QUOTES, 'UTF-8') ?></div>
+    <button id="continue" class="btn" onclick="failed();" disabled style="display: block"><?= htmlspecialchars($messages['back'], ENT_QUOTES, 'UTF-8') ?></button>
+</div>
+<div id="bg"></div>
 
 <script>
 
-var counting = false;
+const messages = <?= json_encode($messages, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 var finished = false;
 
-function countdown(i) {
-    document.getElementById("timestatus").innerText = i;
-    if (i != 0 && counting) {
-        setTimeout(() => {
-            countdown(i-1);
-        }, 1000);
-    }
-}
-
-const failed = (event) => {
+const failed = () => {
     window.location.replace('../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=afvist')
 }
 
@@ -108,39 +115,39 @@ function fail(err) {
     console.error('Error occurred:', err);
     var elm = document.getElementById('status');
     elm.style.backgroundColor = '#ea3a3a';
-    elm.innerText = `Fejl: ${err}`;
+    elm.innerText = `${messages.error}: ${err}`;
     document.getElementById('bg').style.backgroundColor = '#fb9389';
     document.getElementById('continue').style.display = 'block';
     document.getElementById('continue').disabled = false;
     finished = true; // Prevent further execution
 }
 
-function leave() {
-    if (!finished) {
-        setTimeout(function() { leave(); }, 2500);
-    } else {
-        document.getElementById('continue').style.display = 'block';
-        document.getElementById('continue').disabled = false;
-    }
+function complete(printWindow) {
+    const status = document.getElementById('status');
+    status.innerText = printWindow ? messages.completed : messages.popupBlocked;
+    status.style.backgroundColor = printWindow ? '#34a853' : '#fbbc04';
+    document.getElementById('bg').style.backgroundColor = printWindow ? '#b7e1cd' : '#fff2cc';
+    document.getElementById('continue').disabled = false;
+    finished = true;
 }
 
 // GET API KEY
 async function get_api_key(baseurl) {
     try {
-        document.getElementById('status').innerText = "Authorizer...";
-        
-        const username = "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>";
-        const password = "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>";
-        
+        document.getElementById('status').innerText = messages.authorizing;
+
+        const username = <?= json_encode(get_settings_value("username", "move3500", "", null, $kasse), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        const password = <?= json_encode(get_settings_value("password", "move3500", "", null, $kasse), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
         if (!username || !password) {
-            throw new Error("Manglende brugernavn eller adgangskode i indstillinger");
+            throw new Error(messages.missingCredentials);
         }
-        
+
         const data = {
             "username": username,
             "password": password
         }
-        
+
         var res = await fetch(
             `${baseurl}login`,
             {
@@ -160,20 +167,20 @@ async function get_api_key(baseurl) {
         var jsondata = await res.json();
 
         if (!jsondata.token) {
-            throw new Error("Ingen token modtaget fra server");
+            throw new Error(messages.missingToken);
         }
 
         return jsondata.token;
     } catch (error) {
-        fail(`Autorisation fejlede: ${error.message}`);
+        fail(`${messages.authFailed}: ${error.message}`);
         return null;
     }
 }
 
-async function print_str(baseurl, apikey, data) {
+async function print_str(data) {
     try {
-        document.getElementById('status').innerText = "Printer...";
-        
+        document.getElementById('status').innerText = messages.printing;
+
         const response = await fetch(
             'save_receipt.php',
             {
@@ -182,35 +189,28 @@ async function print_str(baseurl, apikey, data) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    data: data, 
+                    data: data,
                     id: '<?php print $ordre_id; ?>',
-                    type: 'move3500'
+                    type: 'move3500',
+                    confirm_saved: true
                 })
             }
         );
-        
+
         if (!response.ok) {
-            throw new Error(`Print forberedelse fejlede: ${response.status}`);
-        }
-        
-        // Try to open print window
-        const printWindow = window.open("http://<?php echo $printserver; ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1", '', 'width=200,height=100');
-        
-        if (!printWindow) {
-            const status = document.getElementById('status');
-            status.innerText = <?php echo json_encode(findtekst('5151|Afstemning gennemført. Browseren blokerede udskriftsvinduet. Tillad pop op-vinduer for denne side.', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-            status.style.backgroundColor = '#fbbc04';
-        } else {
-            const status = document.getElementById('status');
-            status.innerText = <?php echo json_encode(findtekst('2599|Færdig', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-            status.style.backgroundColor = '#34a853';
-            document.getElementById('bg').style.backgroundColor = '#ceead6';
+            throw new Error(`${messages.receiptFailed}: HTTP ${response.status}`);
         }
 
-        finished = true;
-        leave();
+        const receipt = await response.json();
+        if (receipt.saved !== true) {
+            throw new Error(messages.receiptFailed);
+        }
+
+        // Opening the window confirms handoff, not physical printing.
+        const printWindow = window.open(<?= json_encode("http://$printserver/saldiprint.php?bruger_id=99&bonantal=1&printfil=$printfile&skuffe=0&gem=1", JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, '', 'width=200,height=100');
+        complete(printWindow);
     } catch (error) {
-        fail(`Print fejl: ${error.message}`);
+        fail(`${messages.printFailed}: ${error.message}`);
     }
 }
 
@@ -218,18 +218,18 @@ async function print_str(baseurl, apikey, data) {
 async function afstem(baseurl, apikey) {
     try {
         if (!apikey) {
-            throw new Error("Ingen API nøgle tilgængelig");
+            throw new Error(messages.missingApiKey);
         }
-        
-        const terminalId = "<?php print $terminal_id; ?>";
+
+        const terminalId = <?= json_encode($terminal_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         if (!terminalId) {
-            throw new Error("Terminal ID ikke fundet");
+            throw new Error(messages.missingTerminal);
         }
-        
+
         const data = {
             "action": "reconciliation",
         }
-        
+
         var res = await fetch(
             `${baseurl}terminal/${terminalId}/administration`,
             {
@@ -248,51 +248,50 @@ async function afstem(baseurl, apikey) {
         }
 
         var jsondata = await res.json();
-        
+
         if (jsondata.failure) {
-            throw new Error(jsondata.failure.error || 'Ukendt fejl fra terminal');
+            throw new Error(jsondata.failure.error || messages.terminalError);
         }
-        
+
         if (!jsondata.result || !jsondata.result.reconciliation) {
-            throw new Error('Ugyldig svar fra terminal');
+            throw new Error(messages.invalidResponse);
         }
-        
-        console.log('Afstemning resultat:', jsondata);
-        const lines = jsondata.result.reconciliation.printText?.Text || '';
-        
-        await print_str(baseurl, apikey, lines);
-        leave();
-        
+
+        const lines = jsondata.result.reconciliation.printText?.Text;
+        if (typeof lines !== 'string' || !lines.trim()) {
+            throw new Error(messages.missingReceipt);
+        }
+
+        await print_str(lines);
+
     } catch (error) {
-        fail(`Afstemning fejlede: ${error.message}`);
+        fail(`${messages.reconciliationFailed}: ${error.message}`);
     }
 }
 
 async function start() {
     try {
         const baseurl = "https://connectcloud.aws.nets.eu/v1/";
-        var elm = document.getElementById('status');
 
         const apikey = await get_api_key(baseurl);
-        if (!apikey || elm.innerText.includes("Fejl:")) {
+        if (!apikey || finished) {
             return;
         }
-        
-        document.getElementById('status').innerText = "Afstemmer...";
+
+        document.getElementById('status').innerText = messages.reconciling;
         await afstem(baseurl, apikey);
-        
+
     } catch (error) {
-        fail(`Generel fejl: ${error.message}`);
+        fail(`${messages.unexpectedError}: ${error.message}`);
     }
 }
 
 // Add error handler for unhandled promises
 window.addEventListener('unhandledrejection', function(event) {
     console.error('Unhandled promise rejection:', event.reason);
-    fail(`Uventet fejl: ${event.reason}`);
+    fail(`${messages.unexpectedError}: ${event.reason}`);
 });
 
 start();
 
 </script>
-

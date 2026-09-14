@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20251005 PHR some cleanup.
 // 20260720 NTR Guard against direct access; relies on scope from save_receipt.php
+// 20260914 CDX/LH SST-788 Report prepared receipt write result to save_receipt.php.
 
 // This file is only ever include()d from save_receipt.php and relies on its
 // scope ($type, $filename, $directory, $db, ...). Refuse direct HTTP access.
@@ -212,7 +213,7 @@ file_put_contents("$directory/check.txt","$contents[$i]\n",FILE_APPEND);
 }
 $bon=iconv('UTF-8', 'cp865',$bon);
 #file_put_contents($filename,$bon);
-file_put_contents("$directory/receipt_$kasse.txt",$bon);
+$printBytesWritten = file_put_contents("$directory/receipt_$kasse.txt",$bon);
 /*
 $printfile = 'https://'.$_SERVER['SERVER_NAME'];
 $printfile.= str_replace('debitor/payments/save_receipt.php','',$_SERVER['PHP_SELF']);
