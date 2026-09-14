@@ -37,6 +37,8 @@
 // 2021-04-07	PHR Added  '&& $stregkode' as labelprint from creditororder failed with line disabled and and failed with line enabled. 
 // 20260819 CL/NTR Mit salg layouts are matched on '$minpris'/'$minbeskrivelse' rather than a bare
 //                 'minpris', so a layout using only $minbeskrivelse also counts as mit salg.
+// 20260914 CL/NTR Added single=1: asks newlabel.php for one label cell instead of the template's
+//                 rows x cols grid. Carried through the layout chooser and Brother qty forms.
 
 @session_start();
 $s_id=session_id();
@@ -76,6 +78,7 @@ $condition = if_isset($_GET, null, ['condition']);
 $page      = if_isset($_GET, null, ['page']);
 $labelName = if_isset($_GET, null, ['labelName']);
 $printIds  = if_isset($_GET, null, ['printIds']);
+$single    = (int) if_isset($_GET, 0, ['single']); # 1 = render one label cell, not the template's rows x cols grid
 $print     = strtolower(if_isset($_GET, null, ['print']));
 $qty       = if_isset($_POST, null, ['qty']);
 if (!$labelName) $labelName=if_isset($_POST, null, ['labelName']);
@@ -101,7 +104,7 @@ if (!$labelName) {
 	}
 	if ($x > 1) {
 		$action = "labelprint.php?id=$id&varenr=$varenr&account=$account&condition=$condition&page=$page&printIds=$printIds";
-		$action.= "&stregkode=$stregkode&src=$img&labelId=$labelId";
+		$action.= "&stregkode=$stregkode&src=$img&labelId=$labelId&single=$single";
 		print "<form action='$action' method='POST'>";
 		print "<center><br><br>Vælg label layout<br>";
 		print "<select name='labelName' onchange='javascript:this.form.submit()'>";
@@ -117,7 +120,7 @@ if (!$labelName) {
 	} elseif ($labelNames) $labelName = $labelNames[0];
 } elseif ((strtolower(substr($labelName,0,9)) == 'brothertd') && !$qty) {
 	$action = "labelprint.php?id=$id&varenr=$varenr&account=$account&condition=$condition&page=$page&printIds=$printIds";
-	$action.= "&stregkode=$stregkode&src=$img&labelId=$labelId";
+	$action.= "&stregkode=$stregkode&src=$img&labelId=$labelId&single=$single";
 	print "<form action='$action' method='POST'>";
 	print "<input type='hidden' name='labelName'value='$labelName'>";
 	print "<center><br><br>Vælg antal &nbsp;";

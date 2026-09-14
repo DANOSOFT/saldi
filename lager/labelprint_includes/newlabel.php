@@ -42,6 +42,9 @@
 //                 $page print (any template with $rows) fills the grid again from the item's
 //                 own description/price; the mylabel sheet query stays inside
 //                 if ($account && $condition) where MB-16 needs it.
+// 20260914 CL/NTR The one-cell gate is a specific label ($labels[$l]) or single=1, no longer
+//                 $page: only the mit salg sheet print ever sends page, so gating on it made
+//                 every item-card/order-line print one cell instead of the template's grid.
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -106,15 +109,15 @@ if (($varenr || $stregkode) && (!$account || !$condition)) {
 $fp=fopen($filename,'w');
 fwrite ($fp, $top);
 for ($l=0;$l<count($labels);$l++) {
-	// $rows/$cols describe the physical sheet layout, meant to be filled with
-	// ONE mylabel row per (row,col) - see the $page branch below, the only one
-	// that legitimately populates more than cell (1,1). Printing a specific
-	// label ($labels[$l] set - a plain item-card print, or one entry of a
-	// printIds batch) must render exactly that one cell, not the whole sheet -
-	// otherwise every other cell in the grid renders with fallback/blank data
-	// nobody asked for (MB-16: a single-label print produced a second,
-	// effectively blank label). 20260826 CL/SZ.
-	$sheetPrint = (!$labels[$l]); // && $page); // 20260914 - NTR - $page doesn't exist, so it only prevents all prists from being multiple cells.
+	// $rows/$cols describe the physical sheet layout and a print fills the whole grid
+	// unless it asks for one cell. The mit salg sheet print fills it with ONE mylabel
+	// row per (row,col) - the $page branch below; any other print (item card, order
+	// line, ...) fills every cell from the item's own data. Printing a specific label
+	// ($labels[$l] set - one mit salg cell, or one entry of a printIds batch) or
+	// passing single=1 renders exactly one cell, otherwise every other cell in the
+	// grid renders with fallback/blank data nobody asked for (MB-16: a single-label
+	// print produced a second, effectively blank label). 20260826 CL/SZ, 20260914 CL/NTR.
+	$sheetPrint = (!$labels[$l] && !$single && $rows > 0 && $cols > 0);
 	$cellRows = $sheetPrint ? $rows : 1;
 	$cellCols = $sheetPrint ? $cols : 1;
 	for ($a=1;$a<=$cellRows;$a++) {
