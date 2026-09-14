@@ -21,6 +21,7 @@ Regards:) 20260220 LOE
 // 20260620 MJ Recover from invalid saved datatable setup so stale user grid state does not block page loading.
 // 20260817 Sawaneh Sort descending columns NULLS LAST, honor defaultSortDirection on
 //                  first header click and validate the request-sourced sort value.
+// 20260910 CDX/PHR Preserve a literal zero search in both row and count queries.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -741,7 +742,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
             if (!empty($searchTerms[$column['field']]) || (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] == '0')) {
                 $term = addslashes($searchTerms[$column['field']]);
                 // Convert both the column value and the search term to lowercase
-                if ($term) {
+                if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
             }
@@ -868,7 +869,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         foreach ($searchableColumns as $column) {
             if (!empty($searchTerms[$column['field']]) || (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] == '0')) {
                 $term = addslashes($searchTerms[$column['field']]);
-                if ($term) {
+                if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
             }

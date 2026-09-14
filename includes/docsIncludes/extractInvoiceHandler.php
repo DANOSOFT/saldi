@@ -11,6 +11,11 @@
 //                 landing between the read and an automatic save's write got overwritten:
 //                 the automatic UPDATE's WHERE clause now itself requires
 //                 manually_edited = false, and skipped:true is reported if it loses that race.
+// 20260909 CDX/MJ SST-775 Moved normalizeDateFormat() to poolDateNormalizer.php so the date
+//             handling is testable - this file connects to a database and exits when included.
+//             Behaviour is unchanged here; the fixes live in that file.
+
+// 20260914 CDX/LH Share atomic metadata saves and reject stale confirmations.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -27,12 +32,17 @@ $s_id = session_id();
 // Include database connection
 include_once(__DIR__ . "/../connect.php");
 include_once(__DIR__ . "/poolAmountNormalizer.php");
+include_once(__DIR__ . "/poolDateNormalizer.php");
+require_once __DIR__ . "/poolMetadata.php";
+require_once __DIR__ . "/../std_func.php";
 
 // Resolve the tenant db from the session's online-table entry, same pattern
 // as includes/_docPoolData.php and includes/online.php - never from $_POST['db'].
-$qtxt = "select db from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
+$qtxt = "select db, regnskabsaar, language_id from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
 $onlineRow = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
 $db = trim($onlineRow['db'] ?? '');
+$regnaar = (int)($onlineRow['regnskabsaar'] ?? 0);
+$sprog_id = (int)($onlineRow['language_id'] ?? 1);
 
 if (empty($db)) {
 	ob_end_clean();
@@ -58,93 +68,17 @@ if (!$connection) {
 }
 
 // Include the extraction API
-include_once("invoiceExtractionApi.php");
+include_once(__DIR__ . "/invoiceExtractionApi.php");
 
 // Discard any buffered output from includes
 ob_end_clean();
 
-/**
- * Normalize date format from various formats to Y-m-d
- * Handles Danish month names like "januar", "februar", etc.
- * Also handles formats like "17.oktober.2025", "17-10-2025", "2025-10-17", etc.
- */
-function normalizeDateFormat($dateStr) {
-	if (empty($dateStr)) {
-		return '';
-	}
-	
-	// Danish month names to numbers
-	$danishMonths = [
-		'januar' => '01', 'jan' => '01',
-		'februar' => '02', 'feb' => '02',
-		'marts' => '03', 'mar' => '03',
-		'april' => '04', 'apr' => '04',
-		'maj' => '05',
-		'juni' => '06', 'jun' => '06',
-		'juli' => '07', 'jul' => '07',
-		'august' => '08', 'aug' => '08',
-		'september' => '09', 'sep' => '09', 'sept' => '09',
-		'oktober' => '10', 'okt' => '10', 'oct' => '10',
-		'november' => '11', 'nov' => '11',
-		'december' => '12', 'dec' => '12'
-	];
-	
-	// Clean up the date string
-	$dateStr = trim($dateStr);
-	$originalDate = $dateStr;
-	
-	// Convert to lowercase for matching
-	$lowerDate = strtolower($dateStr);
-	
-	// Replace Danish month names with numbers
-	foreach ($danishMonths as $monthName => $monthNum) {
-		if (stripos($lowerDate, $monthName) !== false) {
-			// Found a Danish month name, try to parse
-			// Pattern: day.monthname.year or day monthname year
-			if (preg_match('/(\d{1,2})[.\s\-]+' . preg_quote($monthName, '/') . '[.\s\-]+(\d{4}|\d{2})/i', $dateStr, $matches)) {
-				$day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
-				$year = $matches[2];
-				// Handle 2-digit year
-				if (strlen($year) == 2) {
-					$year = ($year > 50 ? '19' : '20') . $year;
-				}
-				return $year . '-' . $monthNum . '-' . $day;
-			}
-		}
-	}
-	
-	// Try standard formats
-	// Format: dd.mm.yyyy or dd-mm-yyyy or dd/mm/yyyy
-	if (preg_match('/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4})$/', $dateStr, $matches)) {
-		$day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
-		$month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-		$year = $matches[3];
-		return $year . '-' . $month . '-' . $day;
-	}
-	
-	// Format: yyyy-mm-dd (already correct)
-	if (preg_match('/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})$/', $dateStr, $matches)) {
-		$year = $matches[1];
-		$month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-		$day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
-		return $year . '-' . $month . '-' . $day;
-	}
-	
-	// Try PHP's strtotime as fallback
-	$timestamp = strtotime($dateStr);
-	if ($timestamp !== false && $timestamp > 0) {
-		return date('Y-m-d', $timestamp);
-	}
-	
-	// Return original if nothing worked
-	return $originalDate;
-}
 
 // Get action and poolFile from POST
 $action = isset($_POST['action']) ? $_POST['action'] : '';
 $poolFile = isset($_POST['poolFile']) ? $_POST['poolFile'] : '';
 
-if (empty($poolFile)) {
+if (!is_string($poolFile) || $poolFile === '') {
 	echo json_encode(['success' => false, 'error' => 'Ingen fil angivet']);
 	exit;
 }
@@ -195,6 +129,8 @@ if (!file_exists($filePath)) {
 
 // Action: extract - Call the invoice extraction API
 if ($action === 'extract') {
+	$metadata = db_fetch_array(db_select("SELECT * FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'", __FILE__ . ' line ' . __LINE__));
+	$metadataVersion = $metadata ? poolMetadataVersion($metadata) : null;
 	// Check if file exists
 	if (!file_exists($filePath)) {
 		echo json_encode(['success' => false, 'error' => 'Fil ikke fundet: ' . $poolFile]);
@@ -214,6 +150,7 @@ if ($action === 'extract') {
 		
 		echo json_encode([
 			'success' => true,
+			'version' => $metadataVersion,
 			'data' => [
 				'amount' => $result['amount'] ?? null,
 				'date' => $normalizedDate,
@@ -231,165 +168,28 @@ if ($action === 'extract') {
 
 // Action: save - Save extracted data to the database
 if ($action === 'save') {
-	$newAmount = isset($_POST['newAmount']) ? $_POST['newAmount'] : '';
-	$newDate = isset($_POST['newDate']) ? $_POST['newDate'] : '';
-	$newSubject = isset($_POST['newSubject']) ? $_POST['newSubject'] : '';
-	$newAccount = isset($_POST['newAccount']) ? $_POST['newAccount'] : '';
-	$newInvoiceNumber = isset($_POST['newInvoiceNumber']) ? $_POST['newInvoiceNumber'] : '';
-	$newDescription = isset($_POST['newDescription']) ? $_POST['newDescription'] : '';
-	$newCurrency = isset($_POST['newCurrency']) ? $_POST['newCurrency'] : '';
-	// Row/card "Save" (docPool.php's enableRowEdit/enableCardEdit) sends manual=1 for an
-	// explicit human correction. An automatic re-extraction save (after upload, or a
-	// re-run) does not - see the manually_edited guard below (SST-777 AC3: re-extraction
-	// must not silently overwrite a correction the user already made).
-	$isManualEdit = !empty($_POST['manual']);
-
-	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
-
-	// Read existing data from database
-	$existingSubject = '';
-	$existingAccount = '';
-	$existingAmount = '';
-	$existingDate = '';
-	$existingInvoiceNumber = '';
-	$existingDescription = '';
-	$existingCurrency = '';
-	$existingManuallyEdited = false;
-
-	$qtxt = "SELECT * FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
-	$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
-	if ($existingRow) {
-		$existingSubject = $existingRow['subject'] ?? '';
-		$existingAccount = $existingRow['account'] ?? '';
-		$existingAmount = $existingRow['amount'] ?? '';
-		$existingDate = $existingRow['file_date'] ?? '';
-		$existingInvoiceNumber = $existingRow['invoice_number'] ?? '';
-		$existingDescription = $existingRow['description'] ?? '';
-		$existingCurrency = $existingRow['currency'] ?? '';
-		// db_fetch_array() uses pg_fetch_array() by default, and Postgres returns BOOLEAN
-		// columns as the strings "t"/"f" - !empty("f") is true, which would treat every
-		// not-manually-edited row as manually edited. Check explicit truthy representations
-		// instead (also covers a mysqli tinyint(1) "1", or an actual PHP bool).
-		$existingManuallyEdited = in_array($existingRow['manually_edited'] ?? null, ['t', true, 1, '1'], true);
-
-		// If date in DB is in Y-m-d H:i:s format, we might want to standardize, but let's keep it as is
-		// logic below handles newDate overrides
-	} else {
-		// Fallback to .info file ONLY if not in DB (migration path)
-		$infoFile = "$puljePath/$baseName.info";
-		if (file_exists($infoFile)) {
-			$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
-			if ($infoLines !== false && is_array($infoLines)) {
-				$existingSubject = isset($infoLines[0]) ? trim($infoLines[0]) : '';
-				$existingAccount = isset($infoLines[1]) ? trim($infoLines[1]) : '';
-				$existingAmount = isset($infoLines[2]) ? trim($infoLines[2]) : '';
-				$existingDate = isset($infoLines[3]) ? trim($infoLines[3]) : '';
-				$existingInvoiceNumber = isset($infoLines[4]) ? trim($infoLines[4]) : '';
-				$existingDescription = isset($infoLines[5]) ? trim($infoLines[5]) : '';
-			}
+	$input = [];
+	foreach (['newSubject' => 'subject', 'newAccount' => 'account', 'newAmount' => 'amount',
+		'newDate' => 'file_date', 'newInvoiceNumber' => 'invoice_number',
+		'newDescription' => 'description', 'newCurrency' => 'currency'] as $requestKey => $field) {
+		if (array_key_exists($requestKey, $_POST)) {
+			$input[$field] = $_POST[$requestKey];
 		}
 	}
-	
-	// An automatic re-extraction save must not clobber a field the user already
-	// corrected by hand - bail out before touching anything (SST-777 AC3).
-	if (!$isManualEdit && $existingManuallyEdited) {
-		echo json_encode(['success' => true, 'skipped' => true, 'message' => 'Eksisterende manuel rettelse bevaret']);
-		exit;
-	}
-
-	// Use new values if provided, otherwise keep existing
-	$finalSubject = !empty($newSubject) ? $newSubject : (!empty($existingSubject) ? $existingSubject : $baseName);
-	$finalAccount = !empty($newAccount) ? $newAccount : $existingAccount;
-	$finalAmount = !empty($newAmount) ? $newAmount : $existingAmount;
-	$finalInvoiceNumber = !empty($newInvoiceNumber) ? $newInvoiceNumber : $existingInvoiceNumber;
-	$finalDescription = !empty($newDescription) ? $newDescription : $existingDescription;
-	// Normalize aliases like "kr"/"kr." to "DKK" - fetchbilagsmatch.php's currency hard
-	// gate is a plain string match, so an unrecognized currency string (as returned
-	// verbatim by the AI extraction API) would silently exclude this file from every
-	// match regardless of how well amount/date/text otherwise line up.
-	$finalCurrency = normalizePoolCurrency(!empty($newCurrency) ? $newCurrency : $existingCurrency) ?? '';
-
-	// Format date using the normalization function (handles Danish months, etc.)
-	$dateToUse = !empty($newDate) ? $newDate : $existingDate;
-	$finalDate = normalizeDateFormat($dateToUse);
-
-	// Normalize the amount to a real number now, so Bilagsmatch scoring can join on
-	// norm_amount directly instead of re-parsing this free-form string at query time.
-	$finalNormAmount = normalizePoolAmount($finalAmount);
-	$normAmountSql = ($finalNormAmount === null) ? 'NULL' : db_escape_string((string) $finalNormAmount);
-
-	// The suggested account must be a real account before it can be saved: an invalid
-	// account produces a clear error and no partial save (SST-777 AC2), rather than
-	// silently persisting a value that will never post correctly. kontoplan.kontonr is a
-	// numeric column - checking the format first avoids handing Postgres a non-numeric
-	// literal, which errors instead of just not matching.
-	if ($finalAccount !== '') {
-		$accountRow = preg_match('/^\d+$/', $finalAccount)
-			? db_fetch_array(db_select(
-				"SELECT kontonr FROM kontoplan WHERE kontonr = '" . db_escape_string($finalAccount) . "' LIMIT 1",
-				__FILE__ . " linje " . __LINE__
-			))
-			: false;
-		if (!$accountRow) {
-			echo json_encode(['success' => false, 'error' => 'Ukendt kontonummer: ' . $finalAccount]);
-			exit;
+	try {
+		$version = $_POST['poolVersion'] ?? null;
+		if ($version !== null && !is_string($version)) {
+			throw new InvalidArgumentException('Invalid version', 422);
 		}
+		echo json_encode(poolMetadataSave($poolFile, $input, ($_POST['manual'] ?? '') === '1', $version, $regnaar));
+	} catch (RuntimeException | InvalidArgumentException $error) {
+		$status = $error->getCode() === 409 ? 409 : 422;
+		http_response_code($status);
+		$message = $status === 409
+			? findtekst('5210|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
+			: findtekst('5211|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+		echo json_encode(['success' => false, 'error' => $message]);
 	}
-
-	// The guard above already ensures $existingManuallyEdited is false whenever we reach
-	// here without $isManualEdit, so this is just "was this call itself manual".
-	$manuallyEditedSql = $isManualEdit ? 'true' : 'false';
-
-	// Update or Insert into Database
-	if ($existingRow) {
-		// A manual save can race in between the read above and this write. For an
-		// automatic save, make the WHERE clause itself atomic on manually_edited so a
-		// concurrent manual correction can never be overwritten no matter how the two
-		// requests interleave - db_modify() doesn't expose an affected-row count, so
-		// confirm below whether this guarded update actually applied (SST-777 AC3).
-		$manualGuardSql = $isManualEdit ? '' : " AND manually_edited = false";
-		$qtxt = "UPDATE pool_files SET
-			subject = '". db_escape_string($finalSubject) ."',
-			account = '". db_escape_string($finalAccount) ."',
-			amount = '". db_escape_string($finalAmount) ."',
-			norm_amount = $normAmountSql,
-			invoice_number = '". db_escape_string($finalInvoiceNumber) ."',
-			description = '". db_escape_string($finalDescription) ."',
-			currency = '". db_escape_string($finalCurrency) ."',
-			file_date = '". db_escape_string($finalDate) ."',
-			manually_edited = $manuallyEditedSql,
-			updated = CURRENT_TIMESTAMP
-			WHERE filename = '". db_escape_string($poolFile) ."'" . $manualGuardSql;
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-		if (!$isManualEdit) {
-			$postRow = db_fetch_array(db_select(
-				"SELECT manually_edited FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'",
-				__FILE__ . " linje " . __LINE__
-			));
-			if (in_array($postRow['manually_edited'] ?? null, ['t', true, 1, '1'], true)) {
-				echo json_encode(['success' => true, 'skipped' => true, 'message' => 'Eksisterende manuel rettelse bevaret']);
-				exit;
-			}
-		}
-	} else {
-		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency, manually_edited) VALUES (
-			'". db_escape_string($poolFile) ."',
-			'". db_escape_string($finalSubject) ."',
-			'". db_escape_string($finalAccount) ."',
-			'". db_escape_string($finalAmount) ."',
-			$normAmountSql,
-			'". db_escape_string($finalDate) ."',
-			'". db_escape_string($finalInvoiceNumber) ."',
-			'". db_escape_string($finalDescription) ."',
-			'". db_escape_string($finalCurrency) ."',
-			$manuallyEditedSql
-		)";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	}
-
-	echo json_encode(['success' => true]);
 	exit;
 }
 
