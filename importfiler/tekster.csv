@@ -5096,3 +5096,15 @@
 5149	Brugernavnet må højst være 80 tegn	The username may be at most 80 characters	Brukernavnet kan høyst være 80 tegn
 5150	Regnskabsnavnet må højst være 60 tegn	The account name may be at most 60 characters	Regnskapsnavnet kan høyst være 60 tegn
 
+5210	Ugyldig e-mailadresse	Invalid e-mail address	Ugyldig e-postadresse
+5211	Ugyldigt tegn	Invalid character	Ugyldig tegn
+5212	position	position	posisjon
+5213	Foreslået rettelse	Suggested correction	Foreslått rettelse
+5214	Brug den foreslåede adresse og send igen	Use the suggested address and send again	Bruk den foreslåtte adressen og send på nytt
+5215	Ret adressen manuelt på ordren eller debitorkortet	Correct the address manually on the order or the debtor card	Rett adressen manuelt på ordren eller debitorkortet
+5216	Ordrens e-mailadresse er ændret siden - kontrollér og send igen	The order's e-mail address has changed since - check and send again	Ordrens e-postadresse er endret siden - kontroller og send på nytt
+5217	Ukendt tegn	Unknown character	Ukjent tegn
+5218	erstattes med	is replaced by	erstattes med
+5219	fjernes	is removed	fjernes
+5220	E-mailadressen på ordren er rettet til	The e-mail address on the order was changed to	E-postadressen på ordren er rettet til
+5221	Du har ikke rettigheder til at ændre ordrens e-mailadresse	You do not have permission to change the order's e-mail address	Du har ikke rettigheter til å endre ordrens e-postadresse
