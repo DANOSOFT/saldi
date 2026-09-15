@@ -30,6 +30,10 @@
 // 20210802 LOE - Translated title and alert texts
 // 20220614 MSC - Implementing new design
 // 20350507 PHR - PHP 8
+// 20260911 CDX/MJ SST-769 Added an explicit "save rate without posting" action. The existing button
+//             still saves and posts the adjustment; the new one writes rate history only, with no
+//             transaktioner rows and no kontoplan change. Cast $_GET kodenr/id, which reached SQL raw.
+// 20260914 CDX/LH Recalculate account balances only after posting a currency adjustment.
  
 @session_start();
 $s_id=session_id();
@@ -65,8 +69,30 @@ if ($menu=='T') {  # 20150313 start
 }  # 20150313 stop
 
 $bgcolor=NULL; $bgcolor1=NULL; $dato=date("d-m-Y"); $kurs=NULL; $valuta=NULL; $beskrivelse=NULL;
-$kodenr=if_isset($_GET['kodenr']);
-$id=if_isset($_GET['id']);
+// SST-769 Both reach SQL throughout this file, so cast them - but $kodenr also carries the
+// literal 'ny' from ny_valuta()'s form (action=valutakort.php?kodenr=ny), and the branch that
+// creates a currency tests $kodenr == 'ny'. Casting that to 0 makes creating a currency
+// impossible, because under PHP 8 `0 == 'ny'` is false. Keep the sentinel, cast the rest.
+// ifset() takes the key separately, per doc/ai/convention_ifset.md, so an absent parameter
+// does not emit an undefined-array-key warning.
+$kodenr = ifset($_GET, 'kodenr');
+$kodenr = ($kodenr === 'ny') ? 'ny' : (int) $kodenr;
+$id     = (int) ifset($_GET, 'id');
+// SST-769 $id names a row in valuta and $kodenr names the currency, but nothing tied the
+// two together: a request pairing an $id from one currency with another currency's $kodenr
+// reached the old-rate lookup, both updates, the delete and the form. Bind them once here so
+// every query below is constrained to the currency actually being edited.
+//
+// A truthy $id is rejected whenever it cannot be validated - including when $kodenr is absent
+// or zero, which skips the lookup entirely. The delete branch below never references $kodenr
+// at all, so "no currency given" must not mean "no check".
+if ($id) {
+	$bundet = $kodenr
+		&& db_fetch_array(db_select("select id from valuta where id = '$id' and gruppe = '$kodenr'", __FILE__ . " linje " . __LINE__));
+	if (!$bundet) {
+		$id = 0;
+	}
+}
 
 $rettext = findtekst('1207|Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen. Ellers risikerer du at lave rod i dit regnskab', $sprog_id); #20210708
 
@@ -76,7 +102,10 @@ if (isset($_GET['ret'])) {
 }
 #print "<meta http-equiv=refresh content=2;url=valutakort.php>";
 
-if (isset($_POST['submit'])) {
+if (isset($_POST['submit']) || isset($_POST['submit_uden_bogf'])) {
+	// SST-769 MEDSHOP's bookkeeper wants to post the adjustment herself. 'submit' keeps the
+	// old behaviour (save + post); 'submit_uden_bogf' saves the rate only.
+	$bogfor_regulering = !isset($_POST['submit_uden_bogf']);
 	$dato        = addslashes(if_isset($_POST['dato']));
 	$kurs        = addslashes(if_isset($_POST['kurs']));
 	$valuta      = addslashes(if_isset($_POST['valuta']));
@@ -136,7 +165,7 @@ if (isset($_POST['submit'])) {
 				$dato = NULL;
 			}
 		}
-		if ($dato && $ny_kurs && $gl_kurs){ #20160116
+		if ($dato && $ny_kurs && $gl_kurs && $bogfor_regulering){ #20160116
 			transaktion('begin');
 			for ($x=0;$x<count($konto_id);$x++){
 				$posttekst   = "Kursændring $valuta fra ".dkdecimal($gl_kurs)." til ".dkdecimal($ny_kurs);
@@ -192,8 +221,14 @@ if (isset($_POST['submit'])) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #exit;
 			transaktion('commit');
+			genberegn($regnaar);
 		} elseif ($dato && $ny_kurs){ #20160119
-			$qtxt = "insert into valuta(kurs, valdate, gruppe) values('$ny_kurs', '$ny_valdate', '$kodenr')";
+			// SST-769 Rate history only - no transaktioner rows and no kontoplan change. Reached
+			// either for the first rate on a currency (no $gl_kurs) or when the user chose to save
+			// without posting. Handles the update case too; before SST-769 this branch could only
+			// insert, which was safe only because the first rate never has an $id.
+			if ($id) $qtxt = "update valuta set kurs='$ny_kurs', valdate='$ny_valdate' where id = '$id'";
+			else $qtxt = "insert into valuta(kurs, valdate, gruppe) values('$ny_kurs', '$ny_valdate', '$kodenr')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 
@@ -226,8 +261,6 @@ if (isset($_POST['submit'])) {
 	$dato = "";
 	$kurs = "";
 	$id   = 0;
-	echo "genberegn($regnaar)<br>";
-	genberegn($regnaar);
 }
 
 if ($kodenr < 0) $bredde = "width=\"500px\"";
@@ -266,7 +299,13 @@ if ($kodenr) {
 	print "<td align=right title='".findtekst('1704|Værdien i DKK af 100', $sprog_id)." $valuta'><input type=text name=kurs size=8 value=$kurs></td>\n"; # 20150327d
 	print "<td align=right title='".findtekst('1705|Kontonummer fra kontoplanen som skal bruges til valutakursdifferencer og øreafrunding', $sprog_id)."'><input type=text name=difkto size=8 value=$difkto></td>\n";
 	print "<td align=center><input type='submit' name='submit' value='$knaptext'></td>\n";
+	// SST-769 The button above also posts the rate adjustment on every account in the currency.
+	// MEDSHOP's bookkeeper needs to post it herself, so offer an explicit rate-only save. The
+	// note below spells out which button does what; a tooltip is not enough to make the choice
+	// clear before submission.
+	print "<td align=center><input type='submit' name='submit_uden_bogf' value='".findtekst('5153|Gem kurs uden bogføring', $sprog_id)."'></td>\n";
 	print "</tr>\n";
+	print "<tr><td colspan=4>" . findtekst('5154|Kursen bogføres automatisk som kursregulering på alle konti i valutaen. Brug Gem kurs uden bogføring, hvis du selv vil bogføre reguleringen.', $sprog_id) . "</td></tr>\n";
 	print "</form>\n";	
 	$x         = 0;
 	$kodenr    = $kodenr*1;
