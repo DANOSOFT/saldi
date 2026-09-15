@@ -5096,3 +5096,21 @@
 5149	Brugernavnet må højst være 80 tegn	The username may be at most 80 characters	Brukernavnet kan høyst være 80 tegn
 5150	Regnskabsnavnet må højst være 60 tegn	The account name may be at most 60 characters	Regnskapsnavnet kan høyst være 60 tegn
 
+5152	Lane3000 terminal afstemmer.	Lane3000 terminal reconciliation.	Lane3000-terminalen avstemmer.
+5153	Autoriserer...	Authorizing...	Autoriserer...
+5154	Afstemmer...	Reconciling...	Avstemmer...
+5155	Printer...	Printing...	Skriver ut...
+5156	Afstemning gennemført. Kvittering sendt til print.	Reconciliation complete. Receipt sent to print.	Avstemming fullført. Kvittering sendt til utskrift.
+5157	Afstemning gennemført, men printvinduet blev blokeret. Tillad pop op-vinduer for at udskrive kvitteringen.	Reconciliation complete, but the print window was blocked. Allow popups to print the receipt.	Avstemming fullført, men utskriftsvinduet ble blokkert. Tillat sprettoppvinduer for å skrive ut kvitteringen.
+5158	Manglende brugernavn eller adgangskode i indstillinger	Missing username or password in settings	Brukernavn eller passord mangler i innstillingene
+5159	Ingen token modtaget fra server	No token received from server	Ingen token mottatt fra serveren
+5160	Autorisation fejlede	Authorization failed	Autorisering mislyktes
+5161	Printforberedelse fejlede	Receipt preparation failed	Klargjøring av kvittering mislyktes
+5162	Print fejlede	Print failed	Utskrift mislyktes
+5163	Ingen API nøgle tilgængelig	No API key available	Ingen API-nøkkel tilgjengelig
+5164	Terminal ID ikke fundet	Terminal ID not found	Terminal-ID ikke funnet
+5165	Ukendt fejl fra terminal	Unknown terminal error	Ukjent feil fra terminalen
+5166	Ugyldigt svar fra terminal	Invalid terminal response	Ugyldig svar fra terminalen
+5167	Kvittering mangler i terminalens svar	Receipt missing from terminal response	Kvittering mangler i terminalens svar
+5168	Afstemning fejlede	Reconciliation failed	Avstemming mislyktes
+5169	Uventet fejl	Unexpected error	Uventet feil
