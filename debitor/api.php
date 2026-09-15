@@ -40,6 +40,13 @@
 // 20260825 NTR - Set isAllowanceCharge based on price sign (negative price indicates allowance/charge)
 // 20260825 CL/NTR - Added 0184 (Danish CVR) to the Peppol scheme map so an "0184:xxxxxxxx" EAN gets the DK prefix and correct country code instead of falling through unprefixed.
 // &&       Also added "0088" as a swedish prefix.
+// 20260914 Sawaneh    JOB-141: getInvoicesOrder() classifies EasyUBL's reply with
+//                     easyubl_interpret_response() (includes/stdFunc/easyUblResponse.php) - the
+//                     error branch looked for errorMessage/error, which EasyUBL never sends
+//                     (it returns errNo/message), so real API errors showed as "Uventet svar".
+//                     Every failure now logs one fakture-error file, sets ordrer.digital_status
+//                     to SendFailed so the order shows it and a resend asks first, and reports
+//                     through findtekst(); an HTTP 500 with a document is no longer a success.
 
     @session_start();
     $s_id=session_id();
@@ -54,6 +61,7 @@
 
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
+    include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");
 
     /**
      * @param string $address The full street address to split
@@ -355,93 +363,20 @@
         // 20260604 - Save raw response before JSON decoding for better error diagnosis
         file_put_contents("../temp/$db/fakture-result-raw-$fileId.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
 
-        if (curl_errno($ch)) {
-            // Curl connection error - don't continue
-            $errorNumber = curl_errno($ch);
-            $errorMessage = curl_error($ch);
-            file_put_contents("../temp/$db/fakture-curl-error-$fileId.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
-            ?>
-            <script>
-                alert("Forbindelsesfejl:\n\n<?php echo htmlspecialchars($errorMessage); ?>\n\nKontroller internetforbindelsen og prøv igen.");
-            </script>
-            <?php
-            curl_close($ch);
-            exit();
-        }
-
-        $rawJsonResponse = $result;
-        $result = json_decode($result, true);
-
-        // EasyUBL returnerer tomt svar (HTTP 500) for kreditnotaer - bug i EasyUBL API
-        if ($result === null) {
-            file_put_contents("../temp/$db/fakture-error-$fileId.txt", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL"
-            . "\n---RAW RESPONSE---\n" . $rawJsonResponse . "\n---SENT DATA---\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            ?>
-            <script>
-                alert("EasyUBL returnerede et tomt eller ugyldigt svar (HTTP <?php echo $httpCode; ?>).\n\nDette er sandsynligvis en fejl i EasyUBL's API. Kontakt saldi.dk support med følgende oplysninger:\nDB: <?php echo $db; ?>\nFil-ID: <?php echo $fileId; ?>");
-            </script>
-            <?php
-            exit;
-        }
-
-        // decode base64
-        $xml = base64_decode($result["base64EncodedDocumentXml"] ?? "", true);
-        if($xml === false || trim($xml) == ""){
-            // An error occurred - check for easyUBL or Semantic error messages
-            $errorNumber = curl_errno($ch);
-            $errorMessage = curl_error($ch);
-            $easyUBLError = isset($result["errorMessage"]) ? $result["errorMessage"] : "";
-            $errorDetails = isset($result["error"]) ? $result["error"] : "";
-
-            // 20260604 - Improved error logging for E-APS24003 errors
-            // Capture all possible error information
-            $error = [
-                'curl_error_number' => $errorNumber,
-                'curl_error_message' => $errorMessage,
-                'easyUBL_errorMessage' => $easyUBLError,
-                'easyUBL_error' => $errorDetails,
-                'full_response' => $result
-            ];
-
-            // save response in file in temp folder with full details for debugging
-            file_put_contents("../temp/$db/fakture-full-details-$fileId.txt", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-
-            // Determine which error to show
-            $displayError = "";
-
-            if(!empty($errorMessage)){
-                // curl error
-                $displayError = "Forbindelsesfejl: " . $errorMessage;
-            }else if(!empty($easyUBLError)){
-                // easyUBL specific error - likely validation issue
-                $displayError = "easyUBL fejl: " . $easyUBLError;
-            }else if(!empty($errorDetails)){
-                // Alternative error field
-                $displayError = "API fejl: " . (is_array($errorDetails) ? json_encode($errorDetails) : $errorDetails);
-            }else if(is_array($result) && !empty($result)){
-                // Show full response if nothing else works
-                $displayError = "Uventet svar fra server: " . json_encode($result);
-            }else{
-                $displayError = "Ukendt fejl - kontakt support";
-            }
-
-            ?>
-            <script>
-                alert("Transmission fejl:\n\n" + <?= json_encode($displayError); ?> + "\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
-            </script>
-            <?php
-            exit;
-        }
-        file_put_contents("../temp/$db/xml-$fileId.xml", $xml);
+        $outcome = easyubl_interpret_response($httpCode, $result, curl_errno($ch), curl_error($ch));
         curl_close($ch);
+        if ($outcome['kind'] != 'ok') {
+            easyUblSendFailed($outcome, $data, $fileId, $orderId);
+        }
+        $xml = $outcome['xml'];
+        file_put_contents("../temp/$db/xml-$fileId.xml", $xml);
         $ch = curl_init();
         // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         $data = [
             "language" => "",
-            "base64EncodedDocumentXml" => $result["base64EncodedDocumentXml"]
+            "base64EncodedDocumentXml" => $outcome['base64']
         ];
 
         curl_setopt($ch, CURLOPT_URL, 'https://easyubl.net/api/HumanReadable/HTMLDocument');
@@ -458,6 +393,51 @@
         curl_close($ch);
 
         return $fileId;
+    }
+
+    /**
+     * A send to EasyUBL did not produce a document: log it, mark the order so the failure is
+     * visible and a resend asks first, tell the user why, and stop. Never returns.
+     *
+     * @param array  $outcome From easyubl_interpret_response()
+     * @param array  $data    The payload that was sent, kept in the log for support
+     * @param string $fileId  Log file id (order id, or a random id when unknown)
+     * @param int    $orderId ordrer.id, 0 when unknown
+     */
+    function easyUblSendFailed($outcome, $data, $fileId, $orderId) {
+        global $db, $sprog_id;
+
+        file_put_contents("../temp/$db/fakture-error-$fileId.txt",
+            "HTTP $outcome[http_code] kind=$outcome[kind] errNo=" . var_export($outcome['err_no'], true)
+            . "\nmessage: $outcome[message]\ndetail: $outcome[detail]"
+            . "\n---SENT DATA---\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+        if ((int) $orderId > 0) {
+            db_modify("UPDATE ordrer SET digital_status = 'SendFailed' WHERE id = " . (int) $orderId, __FILE__ . " linje " . __LINE__);
+        }
+
+        $txt = findtekst('5155|Digital afsendelse fejlede', $sprog_id) . "\n\n";
+        switch ($outcome['kind']) {
+            case 'transport':
+                $txt .= findtekst('5158|Forbindelsesfejl til EasyUBL:', $sprog_id) . " $outcome[message]";
+                break;
+            case 'api_error':
+                $txt .= findtekst('5157|EasyUBL afviste dokumentet:', $sprog_id) . " $outcome[message]";
+                if ($outcome['err_no'] !== null) $txt .= " (errNo $outcome[err_no])";
+                break;
+            default:
+                $txt .= str_replace('<variable>', (string) $outcome['http_code'],
+                    findtekst('5156|EasyUBL svarede tomt eller ugyldigt (HTTP <variable>). Fakturaen er ikke registreret som sendt.', $sprog_id));
+                if ($outcome['detail'] !== '') $txt .= "\n$outcome[detail]";
+        }
+        $txt .= "\n\n" . findtekst('5159|Kontrollér hos EasyUBL om dokumentet alligevel er modtaget, før du sender igen. Kontakt saldi.dk support med oplysningerne nedenfor.', $sprog_id);
+        $txt .= "\nDB: $db\nFil-ID: $fileId";
+        ?>
+        <script>
+            alert(<?php echo json_encode($txt, JSON_UNESCAPED_UNICODE); ?>);
+        </script>
+        <?php
+        exit;
     }
 
     // Setting up the invoice data
