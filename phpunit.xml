@@ -21,5 +21,8 @@
     <testsuite name="restapi">
       <directory suffix="Test.php">tests/restapi</directory>
     </testsuite>
+    <testsuite name="einvoice">
+      <directory suffix="Test.php">tests/einvoice</directory>
+    </testsuite>
   </testsuites>
 </phpunit>
