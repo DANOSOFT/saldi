@@ -1,7 +1,9 @@
 <?php
+// 20260914 Sawaneh    JOB-141: "name" from the query string is reduced to a bare file name before
+//                     it is used in the temp path below.
 ob_start();
 include_once("api.php");
-$name = isset($_GET["name"]) ? $_GET["name"] : "";
+$name = isset($_GET["name"]) ? basename((string) $_GET["name"]) : "";
 $type = isset($_GET["type"]) ? $_GET["type"] : "";
 
 if(isset($_GET["id"]) && isset($_GET["type"])){
