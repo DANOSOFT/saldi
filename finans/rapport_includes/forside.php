@@ -45,6 +45,7 @@
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20251206 LOE Unified topline without back button for reports moved to includes/S_topLine.php
 // 20260617 PK Placed projekt_fra and projekt_til in the same <td>
+// 20260915 CDX/PHR Handle stale financial years and empty charts of accounts on report entry.
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -73,10 +74,11 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 
 	($simulering) ? $simulering = "checked" : $simulering = NULL;
 	($lagerbev) ? $lagerbev = "checked" : $lagerbev = NULL;
-	if (!$regnaar) {
-		$qtxt = "select regnskabsaar from brugere where brugernavn = '$brugernavn'";
+	$qtxt = "select kodenr from grupper where art='RA' and kodenr='" . intval($regnaar) . "'";
+	if (!$regnaar || !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$qtxt = "select regnskabsaar from brugere where brugernavn = '" . db_escape_string($brugernavn) . "'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$regnaar = $r['regnskabsaar'];
+		$regnaar = intval($r['regnskabsaar'] ?? 0);
 	}
 	$query = db_select("select * from grupper where art = 'RA' order by box2 desc", __FILE__ . " linje " . __LINE__);
 	$x = 0;
@@ -99,6 +101,18 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 		}
 	}
 	$antal_regnaar = $x;
+	if (!$antal_regnaar) {
+		print "<p>Der er ikke oprettet et regnskabsår. Opret et regnskabsår under Indstillinger.</p>";
+		return;
+	}
+	if (!isset($aktiv)) {
+		$aktiv = 1;
+		$regnaar = intval($regn_kode[$aktiv]);
+		$aktivStartMd = $start_md[$aktiv];
+		$aktivSlutMd = $slut_md[$aktiv];
+		$aktivStartAar = $start_aar[$aktiv];
+		$aktivSlutAar = $slut_aar[$aktiv];
+	}
 
 	#	print_r($_POST);
 	if (isset($_POST['submit']) && $_POST['submit']) {
@@ -128,6 +142,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	$maxResult = $x = 0;
 	$minBalace = 99999999;
 	$ar=array();
+	$kontonr = $konto_beskrivelse = $kontoType = array();
 	while ($row = db_fetch_array($query)) {
 		$konto_id[$x] = $row['id'];
 		$kontonr[$x] = $row['kontonr'];
@@ -144,7 +159,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		$ar[$x]=$row;
 		$x++;
 	}
-	if (!$konto_til) {
+	if (!$konto_til && $x > 0) {
 		$konto_til = $kontonr[count($kontonr) - 1];
 		$ktoNameTo = $konto_beskrivelse[count($konto_beskrivelse) - 1];
 	}
@@ -574,7 +589,7 @@ const konti = " . json_encode(array_map(function($i) use ($kontonr, $kontoType, 
         'type' => $kontoType[$i],
         'label' => $kontonr[$i] . ' : ' . $konto_beskrivelse[$i]
     ];
-}, range(0, count($kontonr) - 1))) . ";
+}, array_keys($kontonr))) . ";
 </script>";
 
 
