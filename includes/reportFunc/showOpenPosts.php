@@ -68,6 +68,12 @@
 //                openpost_account_query_parts() and added openpost_export_csv(), an "Eksporter CSV"
 //                link next to the account search that streams every matching account across
 //                batched queries, bypassing pagination while still bounding resource use.
+// 20260915 CL/SZ SST-786 CodeRabbit fixes: initialized vis_aabne_poster()'s $currentdate (was
+//                undefined, so an explicit dato_til of today could disagree with the CSV export on
+//                which accounts/totals to show); added a konto_id tiebreaker to the export's batch
+//                ordering (accountOrder alone isn't unique, so accounts could be skipped/repeated
+//                across batches); quoted formula-leading kontonr/firmanavn values before writing
+//                them to CSV (CWE-1236); documented vis_aabne_poster().
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -420,6 +426,23 @@ function openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPB
 }
 }
 
+if (!function_exists('openpost_csv_safe_field')) {
+/**
+ * Prefixes a value with a single quote when it begins with a character a spreadsheet would treat as
+ * the start of a formula (=, +, -, @, tab or carriage return), so a crafted account number or firm
+ * name is shown as literal text instead of evaluated when the export is opened in Excel/Sheets
+ * (CWE-1236, CSV injection).
+ *
+ * @param string $value  Raw field value.
+ * @return string  The value, quote-prefixed when formula-leading.
+ */
+function openpost_csv_safe_field($value) {
+	$value = (string)$value;
+	if ($value !== '' && strpbrk($value[0], "=+-@\t\r") !== false) return "'".$value;
+	return $value;
+}
+}
+
 if (!function_exists('openpost_export_csv')) {
 /**
  * Streams every account matching the open posts report's current filters as CSV, bypassing the
@@ -478,7 +501,10 @@ function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kont
 		$idQtxt.= "from ($accountGroup) account_posts ";
 		if ($db_type == 'postgresql') $idQtxt.= "cross join lateral (select id, kontonr, firmanavn from adresser where id=account_posts.konto_id and $accountWhere offset 0) adresser ";
 		else $idQtxt.= ", adresser where account_posts.konto_id=adresser.id and $accountWhere ";
-		$idQtxt.= "order by $accountOrder limit $batchSize offset $batchOffset";
+		// $accountOrder (firmanavn, or nr_cast(kontonr) for a numeric range) is not unique, so a
+		// bare LIMIT/OFFSET over it can skip or repeat accounts across batches when several share
+		// the same order value - konto_id as a tiebreaker keeps the paging stable.
+		$idQtxt.= "order by $accountOrder, account_posts.konto_id limit $batchSize offset $batchOffset";
 		$batchIds = array();
 		$accountInfo = array();
 		$q = db_select($idQtxt,__FILE__ . " linje " . __LINE__);
@@ -500,8 +526,8 @@ function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kont
 			if (!openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle)) continue;
 			$info = $accountInfo[$accountId];
 			fputcsv($fp, array(
-				trim($info['account_kontonr']),
-				stripslashes($info['account_firmanavn']),
+				openpost_csv_safe_field(trim($info['account_kontonr'])),
+				openpost_csv_safe_field(stripslashes($info['account_firmanavn'])),
 				number_format(afrund($aging['forfalden_plus90'],2), 2, ',', ''),
 				number_format(afrund($aging['forfalden_plus60'],2), 2, ',', ''),
 				number_format(afrund($aging['forfalden_plus30'],2), 2, ',', ''),
@@ -535,6 +561,26 @@ function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kont
 }
 
 if (!function_exists('vis_aabne_poster')) {
+/**
+ * Renders one page of the open posts report (Debitor/Kreditor -> Rapporter -> Åbne poster): the
+ * account/PBS toggle header, the paginated account grid with aging-bucket columns, and the
+ * "Mail kontoudtog"/"Opret rykker"/"Udlign alle" actions for the accounts on the current page.
+ *
+ * Account/post filtering is built by openpost_account_query_parts() (shared with
+ * openpost_export_csv(), SST-786's CSV export of every page's accounts in one file) and rendered
+ * per account via openpost_account_aging()/openpost_account_visible().
+ *
+ * @param string|null $dato_fra    Report period start, or null.
+ * @param string|null $dato_til    Report date (to-date), or null for today.
+ * @param string|null $konto_fra   Start of the account range, or a firm-name search pattern.
+ * @param string|null $konto_til   End of the account range.
+ * @param string      $rapportart  Report type, echoed into links back to rapport.php.
+ * @param string      $kontoart    'D' for debtors, 'K' for creditors.
+ * @param string      $kun_debet   'on' to keep only accounts in debit.
+ * @param string      $kun_kredit  'on' to keep only accounts in credit.
+ * @param bool        $vis_alle    True to include settled posts too (Vis alle poster).
+ * @return void  Prints HTML directly.
+ */
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
 	global $baseCurrency,$bgcolor,$bgcolor5,$bruger_id;
 	global $db;
@@ -557,8 +603,12 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$padding = "";
 	}
 	$forfaldsum=$forfaldsum_plus8=$forfaldsum_plus30=$forfaldsum_plus60=$forfaldsum_plus90=$fromdate=$linjebg=$popup=$todate=NULL;
-	
-	
+	// SST-786: $currentdate must be real, not NULL - openpost_export_csv() sets it to today's date
+	// too, and the two must agree whenever $dato_til is today, or openpost_account_query_parts()
+	// takes different branches (historical vs. current-date) for the report and its CSV export.
+	$currentdate=date('Y-m-d');
+
+
 	$dato_fraUrl=rawurlencode((string)$dato_fra);
 	$dato_tilUrl=rawurlencode((string)$dato_til);
 	$konto_fraUrl=rawurlencode((string)$konto_fra);
