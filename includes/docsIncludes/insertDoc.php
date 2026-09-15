@@ -35,7 +35,8 @@
 //                     momsfri, forfald, medarb, bilagsnr). Both now call insertDocUpdateKassekladdeLine().
 //                     A new line on Attach takes the typed/document date before the sibling date.
 //                     Removed the unbounded print_r($_REQUEST) dump to /tmp/debug_insert.log.
-//                     $_POST reads in the edited blocks go through ifset().
+//                     $_POST reads in the edited blocks go through ifset(). A posted amount of "0"
+//                     is stored instead of being skipped as empty.
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -144,7 +145,7 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		$sum = ifset($_POST, 'sum');
-		if ($sum) {
+		if ($sum !== null && trim((string)$sum) !== '') {
 			$qtxt = "update kassekladde set amount = '" . usdecimal($sum) . "' where id = '$sourceId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}

@@ -62,7 +62,8 @@
 //                     (newEntry*/existingEntry*), so typed date/description/accounts/amount were never
 //                     sent and file data replaced them. Now collects every row_<id>_* field of the first
 //                     checked line via _collectRow(), and file data (JS, pool_files, .info) only fills
-//                     fields the user left empty on a new line.
+//                     fields the user left empty on a new line. A typed "0" counts as typed, and
+//                     other checked saved lines are saved via the Save path before the attach.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -433,6 +434,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			
 		docPoolLog($logMessage);
 
+		// A typed value wins over file data; only a missing or blank field may be filled ("0" counts as typed)
+		$postedBlank = function($key) {
+			return !isset($_POST[$key]) || trim((string)$_POST[$key]) === '';
+		};
+
 		// Debug: Log all POST values we receive
 		$postDebugMsg = "docPool INSERT - sourceId: " . ($sourceId ?? 'NOT SET') . "\n" .
 			"docPool INSERT - newDate: " . ($newDate ?? 'NOT SET') . "\n" .
@@ -440,7 +446,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		docPoolLog($postDebugMsg);
 		
 		// File data only fills fields the user left empty, and only on a new line (typed values win)
-		if (!$sourceId && empty($_POST['dato']) && $newDate && strtotime($newDate) !== false && strtotime($newDate) > 0) {
+		if (!$sourceId && $postedBlank('dato') && $newDate && strtotime($newDate) !== false && strtotime($newDate) > 0) {
 			$formattedDate = date("d-m-Y", strtotime($newDate));
 			$dato = $formattedDate;
 			$_POST['dato'] = $dato;
@@ -449,7 +455,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			docPoolLog("docPool INSERT - NOT setting date. sourceId=$sourceId, newDate=$newDate, strtotime result=" . (strtotime($newDate ?? '') ?: 'false'));
 		}
 		
-		if (!$sourceId && empty($_POST['sum']) && $newAmount) {
+		if (!$sourceId && $postedBlank('sum') && $newAmount) {
 			// Normalize amount format from US/API format to Danish format for usdecimal()
 			// usdecimal() expects Danish format: dot=thousands, comma=decimal (e.g. "19.455,00")
 			// API returns US format: comma=thousands, dot=decimal (e.g. "19,455.00" or "61.13")
@@ -470,15 +476,15 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			docPoolLog("docPool INSERT - NOT setting amount. sourceId=$sourceId, newAmount=$newAmount");
 		}
 		
-		if (!$sourceId && empty($_POST['fakturanr']) && $newInvoiceNumber) {
+		if (!$sourceId && $postedBlank('fakturanr') && $newInvoiceNumber) {
 			$_POST['fakturanr'] = $newInvoiceNumber;
 		}
 		
-		if (!$sourceId && empty($_POST['beskrivelse']) && $newInvoiceDescription) {
+		if (!$sourceId && $postedBlank('beskrivelse') && $newInvoiceDescription) {
 			$_POST['beskrivelse'] = $newInvoiceDescription;
 		}
 
-		if (!$sourceId && empty($_POST['valuta']) && $newCurrency) {
+		if (!$sourceId && $postedBlank('valuta') && $newCurrency) {
 			// Look up the grupper kodenr for this currency code (e.g. "DKK" -> kodenr integer)
 			$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($newCurrency)) . "'";
 			$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -530,14 +536,14 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$poolData = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 			if ($poolData) {
-				if (!$sourceId && empty($_POST['dato']) && $poolData['file_date']) {
+				if (!$sourceId && $postedBlank('dato') && $poolData['file_date']) {
 					// format date from Y-m-d H:i:s to d-m-Y
 					$ts = strtotime($poolData['file_date']);
 					if ($ts !== false && $ts > 0) {
 						$_POST['dato'] = date("d-m-Y", $ts);
 					}
 				}
-				if (!$sourceId && empty($_POST['sum']) && $poolData['amount']) {
+				if (!$sourceId && $postedBlank('sum') && $poolData['amount']) {
 					$poolAmt = $poolData['amount'];
 					$cPos = strrpos($poolAmt, ','); $dPos = strrpos($poolAmt, '.');
 					if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
@@ -549,13 +555,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					}
 					$_POST['sum'] = $poolAmt;
 				}
-				if (!$sourceId && empty($_POST['fakturanr']) && $poolData['invoice_number']) {
+				if (!$sourceId && $postedBlank('fakturanr') && $poolData['invoice_number']) {
 					$_POST['fakturanr'] = $poolData['invoice_number'];
 				}
-				if (!$sourceId && empty($_POST['beskrivelse']) && $poolData['description']) {
+				if (!$sourceId && $postedBlank('beskrivelse') && $poolData['description']) {
 					$_POST['beskrivelse'] = $poolData['description'];
 				}
-				if (!$sourceId && empty($_POST['valuta']) && $poolData['currency']) {
+				if (!$sourceId && $postedBlank('valuta') && $poolData['currency']) {
 					$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($poolData['currency'])) . "'";
 					$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					if ($currRow && $currRow['kodenr']) {
@@ -571,7 +577,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				if (file_exists($infoFile)) {
 					$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
 					// Line 0: subject, Line 1: account, Line 2: amount, Line 3: date, Line 4: invoiceNumber, Line 5: invoiceDescription
-					if (empty($_POST['dato']) && isset($infoLines[3]) && !empty(trim($infoLines[3]))) {
+					if ($postedBlank('dato') && isset($infoLines[3]) && !empty(trim($infoLines[3]))) {
 						$infoDate = trim($infoLines[3]);
 						// Try to parse the date
 						$timestamp = strtotime($infoDate);
@@ -580,7 +586,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$_POST['dato'] = $formattedDate;
 						}
 					}
-					if (empty($_POST['sum']) && isset($infoLines[2]) && !empty(trim($infoLines[2]))) {
+					if ($postedBlank('sum') && isset($infoLines[2]) && !empty(trim($infoLines[2]))) {
 						$infoAmt = trim($infoLines[2]);
 						$cPos = strrpos($infoAmt, ','); $dPos = strrpos($infoAmt, '.');
 						if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
@@ -593,11 +599,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						$_POST['sum'] = $infoAmt;
 					}
 					// Get invoice_number from line 4
-					if (empty($_POST['fakturanr']) && isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
+					if ($postedBlank('fakturanr') && isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
 						$_POST['fakturanr'] = trim($infoLines[4]);
 					}
 					// Get invoice_description from line 5
-					if (empty($_POST['beskrivelse']) && isset($infoLines[5]) && !empty(trim($infoLines[5]))) {
+					if ($postedBlank('beskrivelse') && isset($infoLines[5]) && !empty(trim($infoLines[5]))) {
 						$_POST['beskrivelse'] = trim($infoLines[5]);
 					}
 				}
@@ -3089,12 +3095,28 @@ print <<<JS
 		const loadingMsg = selectedFiles.length > 1 ? 'Indsætter ' + selectedFiles.length + ' filer...' : 'Indsætter fil...';
 		console.log(loadingMsg);
 
+		// The attach request saves the fields of the first checked line only. Save every other
+		// checked saved line through the normal Save path first so its edits are not lost.
+		const otherCheckedRowIds = Array.from(targetCheckboxes)
+			.map(cb => cb.closest('.kassebilag-entry'))
+			.filter(Boolean)
+			.map(entry => entry.id.replace('bilagEntry_', ''))
+			.filter(rowId => rowId !== 'new' && rowId !== typedRowId);
+		const preSave = (otherCheckedRowIds.length > 0 && typeof _saveRowFetch === 'function')
+			? Promise.all(otherCheckedRowIds.map(rowId => _saveRowFetch(rowId, url.searchParams.get('kladde_id') || 0, url.searchParams.get('bilag') || 0)))
+				.then(results => {
+					const failed = results.find(d => !d || !d.success);
+					if (failed) throw new Error(failed && failed.message ? failed.message : 'Save failed for line');
+					console.log('Saved other checked lines before attach:', otherCheckedRowIds);
+				})
+			: Promise.resolve();
+
 		// Send AJAX request - backend handles attaching to all targetSourceIds
-		fetch(url.toString(), {
+		preSave.then(() => fetch(url.toString(), {
 			method: 'POST',
 			body: formData,
 			redirect: 'follow'
-		})
+		}))
 		.then(response => {
 			console.log('Insert response status:', response.status, response.ok, response.redirected);
 
