@@ -6,6 +6,8 @@
 //                     reply inline while sending, looked for error fields the API does not return
 //                     (errorMessage/error - EasyUBL returns errNo/message) and could not be tested
 //                     without the network. The classification is a pure function here.
+// 20260915 Sawaneh    PR #619 review: an explicit errNo/message is an error even when a document
+//                     is returned alongside it.
 
 /**
  * Classify a reply from EasyUBL's SendDocuments endpoints.
@@ -68,14 +70,16 @@ function easyubl_interpret_response($httpCode, $rawBody, $curlErrno = 0, $curlEr
 	}
 	$xml = ($base64 !== '') ? base64_decode($base64, true) : false;
 	$httpOk = ($out['http_code'] >= 200 && $out['http_code'] < 300);
+	// An explicit error wins even when a document came along with it
+	$apiError = ($out['err_no'] !== null && $out['err_no'] != 0) || ($out['err_no'] === null && $out['message'] !== '');
 
-	if ($httpOk && $xml !== false && trim($xml) !== '') {
+	if ($httpOk && !$apiError && $xml !== false && trim($xml) !== '') {
 		$out['kind'] = 'ok';
 		$out['base64'] = $base64;
 		$out['xml'] = $xml;
 		return $out;
 	}
-	if (($out['err_no'] !== null && $out['err_no'] != 0) || ($out['err_no'] === null && $out['message'] !== '')) {
+	if ($apiError) {
 		$out['kind'] = 'api_error';
 	} elseif (!$httpOk) {
 		$out['kind'] = 'http_error';

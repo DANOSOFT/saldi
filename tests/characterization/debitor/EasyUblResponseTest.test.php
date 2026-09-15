@@ -14,7 +14,8 @@ use PHPUnit\Framework\TestCase;
  * No database, no network.
  *
  * History:
- * 20260914 CL/Sawaneh Created (JOB-141, EXIT-SOUND invoice 129629 "tomt eller ugyldigt svar").
+ * 20260914 Sawaneh Created (JOB-141, EXIT-SOUND invoice 129629 "tomt eller ugyldigt svar").
+ * 20260915 Sawaneh PR #619 review: errNo != 0 with a document is an error, not a success.
  */
 final class EasyUblResponseTest extends TestCase
 {
@@ -55,6 +56,19 @@ final class EasyUblResponseTest extends TestCase
         self::assertSame('api_error', $out['kind']);
         self::assertSame(4003, $out['err_no']);
         self::assertSame('Recipient 5790001272180 is not registered in Nemhandel', $out['message']);
+        self::assertSame('', $out['xml']);
+    }
+
+    public function testExplicitErrorWithDocumentIsStillAnError(): void
+    {
+        $out = easyubl_interpret_response(200, self::reply(['errNo' => 4003, 'message' => 'Recipient not registered', 'base64EncodedDocumentXml' => base64_encode(self::XML)]));
+        self::assertSame('api_error', $out['kind']);
+        self::assertSame(4003, $out['err_no']);
+        self::assertSame('', $out['xml']);
+        self::assertSame('', $out['base64']);
+
+        $out = easyubl_interpret_response(200, '{"errorMessage":"Rejected","base64EncodedDocumentXml":"' . base64_encode(self::XML) . '"}');
+        self::assertSame('api_error', $out['kind']);
         self::assertSame('', $out['xml']);
     }
 
