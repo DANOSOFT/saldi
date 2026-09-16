@@ -4,6 +4,7 @@
 //                  As well as making the table footer a proper page footer and fixing scrollbar weirdness with footer.
 // 20260911 LOE SD-686: grid filter defaults declared with "checked" are honoured.
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260916 LOE SD-685: escape tabel_id in the column/filter setup UPDATEs (review follow-up).
 
 function is_ajax_request() {
     return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
@@ -1698,7 +1699,7 @@ function save_column_setup($id) {
     }
 
     $columns_json = db_escape_string(json_encode($rows));
-    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='".db_escape_string($id)."'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1837,7 +1838,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id='".db_escape_string($id)."'", __FILE__ . " line " . __LINE__);
 }
 
 /**
