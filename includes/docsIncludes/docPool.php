@@ -424,8 +424,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$status = $error->getCode() === 409 ? 409 : 422;
 			http_response_code($status);
 			$message = $status === 409
-				? findtekst('5210|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
-				: findtekst('5211|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
+				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
 			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
 		}
 		return;
@@ -574,7 +574,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				$attachVersion = $_POST['poolAttachVersion'] ?? null;
 				if ($attachVersion !== null && (!is_string($attachVersion) || !hash_equals(poolMetadataVersion($poolData), $attachVersion))) {
 					http_response_code(409);
-					print htmlspecialchars(findtekst('5210|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id), ENT_QUOTES, 'UTF-8');
+					print htmlspecialchars(findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id), ENT_QUOTES, 'UTF-8');
 					return;
 				}
 				if (!$sourceId && empty($newDate) && $poolData['file_date']) {
@@ -618,7 +618,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					}
 				} catch (InvalidArgumentException $error) {
 					http_response_code(422);
-					print htmlspecialchars(findtekst('5211|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id), ENT_QUOTES, 'UTF-8');
+					print htmlspecialchars(findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id), ENT_QUOTES, 'UTF-8');
 					return;
 				}
 			} elseif (!$sourceId && empty($newDate) && !empty($poolFiles)) {
@@ -858,7 +858,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$newAccount = poolMetadataAccount($newAccount, (int)$regnaar);
 		} catch (InvalidArgumentException $error) {
 			http_response_code(422);
-			print htmlspecialchars(findtekst('5211|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id), ENT_QUOTES, 'UTF-8');
+			print htmlspecialchars(findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id), ENT_QUOTES, 'UTF-8');
 			return;
 		}
 
@@ -1800,9 +1800,9 @@ $txt71  = $txt31.". ".$txt32.".";                                               
 $txt72  = $txt1 ." ".lcfirst($txt15);                                                           #Gem alle
 $txt73  = $txt15." ".lcfirst($txt50)."!";                                                       #Alle gemt!
 $txt74  = $txt16." ".lcfirst($txt14);                                                           #Duplikér linje
-$poolSuggestedText = findtekst('5212|Forslag', $sprog_id);
-$poolAcceptedText = findtekst('5213|Rettet / accepteret', $sprog_id);
-$poolStaleText = findtekst('5210|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
+$poolSuggestedText = findtekst('5255|Forslag', $sprog_id);
+$poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
+$poolStaleText = findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
 
 print <<<JS
 <script>

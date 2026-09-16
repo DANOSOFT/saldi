@@ -186,8 +186,8 @@ if ($action === 'save') {
 		$status = $error->getCode() === 409 ? 409 : 422;
 		http_response_code($status);
 		$message = $status === 409
-			? findtekst('5210|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
-			: findtekst('5211|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+			? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
+			: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
 		echo json_encode(['success' => false, 'error' => $message]);
 	}
 	exit;
