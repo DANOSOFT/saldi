@@ -24,6 +24,7 @@
 //
 // History:
 // 20260723 CL/LH SD-601: created.
+// 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_bogfor_page.php <simuler|bogfor> <kladde_id> <session_id>\n");

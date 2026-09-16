@@ -25,6 +25,7 @@
 //
 // History:
 // 20260723 CL/LH SD-601: created.
+// 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice> <ordre_id> [tenant_db]\n");
@@ -34,7 +35,7 @@ $scenario = $argv[1];
 $ordreId = (int)$argv[2];
 $tenantDb = $argv[3] ?? 'saldi_chartest';
 
-error_reporting(E_ERROR | E_PARSE);
+error_reporting(E_ALL);
 
 $_SERVER['REQUEST_URI'] = '/saldi/remoteBooking/api.php';
 $_SERVER['PHP_SELF'] = '/saldi/remoteBooking/api.php';

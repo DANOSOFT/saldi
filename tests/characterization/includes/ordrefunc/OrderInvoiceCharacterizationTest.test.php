@@ -17,6 +17,7 @@
 //
 // History:
 // 20260723 CL/LH SD-601: created.
+// 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 
 use PHPUnit\Framework\TestCase;
 
