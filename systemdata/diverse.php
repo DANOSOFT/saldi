@@ -102,6 +102,8 @@
 // 20260826 CL/SZ  saveLabel now refuses to save when the label's current template isn't reproducible
 //                 by the visual editor's field model - it was silently discarding formatting it
 //                 doesn't understand on every save (MB-18).
+// 20260915 CL/NTR Bank Integration settings button only shown when the API credentials
+//                 are configured (bankIntegrationEnabled()).
 
 @session_start();
 $s_id = session_id();
@@ -120,6 +122,7 @@ $diffkto    = NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 
@@ -2229,10 +2232,12 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
 
-			   // TODO: Translation Tekst til bank integration
-		print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   ."Bank Integration" ."</button></a></td></tr>\n";
+		if (bankIntegrationEnabled()) {
+			// TODO: findtekst. // TODO: Translation Tekst til bank integration
+			print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   ."Bank Integration" ."</button></a></td></tr>\n";
+		}
 
 		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
