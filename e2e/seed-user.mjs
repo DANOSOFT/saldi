@@ -1,11 +1,7 @@
 // e2e/seed-user.mjs - idempotently seed the local e2e login (SD-603).
 //
-// Creates/replaces the "e2etest" user in the tenant database of the local
-// docker-compose stack. Local-only credentials; nothing here touches any
-// production system. Overridable via env:
-//   SALDI_E2E_TENANT_DB (default saldi_2)
-//   SALDI_E2E_USER      (default e2etest)
-//   SALDI_E2E_PASSWORD  (default e2etest-local-2026)
+// Requires SALDI_E2E_TENANT_DB, SALDI_E2E_ACCOUNT, SALDI_E2E_PASSWORD
+// and SALDI_CHAR_PGPASS. The account must resolve to the configured tenant.
 //
 // Usage: node e2e/seed-user.mjs
 //
@@ -15,14 +11,9 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
-const db = process.env.SALDI_E2E_TENANT_DB ?? "saldi_2";
-const user = process.env.SALDI_E2E_USER ?? "e2etest";
-const password = process.env.SALDI_E2E_PASSWORD ?? "e2etest-local-2026";
-
-if (!/^[a-z0-9_]+$/.test(db) || !/^[a-z0-9_]+$/i.test(user)) {
-  console.error("unsafe db/user name");
-  process.exit(2);
-}
+import { e2eConfig } from "./config.mjs";
+const { db, account, user, password, master, pgUser } = e2eConfig();
+if (!process.env.SALDI_CHAR_PGPASS) throw new Error("SALDI_CHAR_PGPASS is required");
 
 const md5 = createHash("md5").update(password).digest("hex");
 const sql =
@@ -31,15 +22,13 @@ const sql =
   `VALUES ('${user}', '${md5}', 'e2e@example.invalid', repeat('9',50), true, 1);`;
 
 function psql(database, statement) {
-  execFileSync(
-    "docker",
-    ["compose", "exec", "-T", "-e", "PGPASSWORD=password", "postgres", "psql", "-U", "user", "-d", database, "-c", statement],
-    { stdio: "inherit" }
-  );
+  return execFileSync("docker", ["compose", "exec", "-T", "-e", "PGPASSWORD", "postgres",
+    "psql", "-X", "-v", "ON_ERROR_STOP=1", "-t", "-A", "-U", pgUser, "-d", database],
+    { input: statement, encoding: "utf8", env: { ...process.env, PGPASSWORD: process.env.SALDI_CHAR_PGPASS } });
 }
-
+const escapedAccount = account.replaceAll("'", "''");
+const resolved = psql(master, `SELECT db FROM regnskab WHERE regnskab='${escapedAccount}';`).trim();
+if (resolved !== db) throw new Error("SALDI_E2E_ACCOUNT does not resolve uniquely to SALDI_E2E_TENANT_DB");
 psql(db, sql);
-// Clear any stale online-session row so login doesn't hit the
-// "user already logged in" force-logout interstitial.
-psql("saldi", `DELETE FROM online WHERE brugernavn='${user}';`);
+psql(master, `DELETE FROM online WHERE brugernavn='${user}' AND db='${db}';`);
 console.log(`seeded ${user} in ${db}`);

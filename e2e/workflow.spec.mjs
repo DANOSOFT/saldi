@@ -6,7 +6,7 @@
 // missing: e2e/smoke.spec.mjs only proves the stack answers HTTP.
 //
 // PREREQUISITES (same stack as tests/characterization, see that README):
-//   docker compose up -d          # installed app + tenant (default saldi_2)
+//   docker compose up -d          # installed app + tenant (SALDI_E2E_TENANT_DB)
 //   npm install && npx playwright install chromium
 //   node e2e/seed-user.mjs        # seeds the e2e login (idempotent)
 //
@@ -20,9 +20,8 @@
 
 import { test, expect } from "@playwright/test";
 
-const ACCOUNT = process.env.SALDI_E2E_ACCOUNT ?? "saldi_chatbot_test";
-const USER = process.env.SALDI_E2E_USER ?? "e2etest";
-const PASSWORD = process.env.SALDI_E2E_PASSWORD ?? "e2etest-local-2026";
+import { e2eConfig } from "./config.mjs";
+const { account: ACCOUNT, user: USER, password: PASSWORD } = e2eConfig();
 
 // Two plain (VAT-free) accounts from the standard chart of accounts.
 const DEBIT_ACCOUNT = "1050";
@@ -89,6 +88,7 @@ test("login, create kassekladde voucher, post it, verify it is posted", async ({
   // The preview lists both accounts and the amount before the final confirm.
   await expect(page.locator("body")).toContainText(DEBIT_ACCOUNT);
   await expect(page.locator("body")).toContainText(CREDIT_ACCOUNT);
+  await expect(page.locator("body")).toContainText("123,45");
   // Final "Bogfør" confirm. Posting + genberegn + the meta-refresh chain can
   // take a while - don't tie the navigation wait to the click itself.
   await page.locator('[name="bogfor"]').click({ noWaitAfter: true });
