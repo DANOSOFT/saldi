@@ -831,7 +831,7 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 			print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transSaldo) . "</td>";
 			if ($saldotjek) {
 				print "<td align = 'right' style='color:red'>(" . dkdecimal(if_isset($bankSaldo, 0, $l) - $transSaldo) . ")</td>";
-				}
+			}
 		} else {
 			print "<td colspan = '6'></td>";
 		}
