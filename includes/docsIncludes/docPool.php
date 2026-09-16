@@ -64,6 +64,7 @@
 //                     checked line via _collectRow(), and file data (JS, pool_files, .info) only fills
 //                     fields the user left empty on a new line. A typed "0" counts as typed, and
 //                     other checked saved lines are saved via the Save path before the attach.
+// 20260916 CDX/LAH Keep the selected new voucher row visible above collapsed existing lines.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -1489,9 +1490,29 @@ if ($source == 'kassekladde') {
 
 	print "<div id='bilagRowsContainer'>";
 
+	// Keep the selected new row first so transfer data remains visible when other rows are collapsed.
+	if (!$sourceId) {
+		print "<div class='bilag-row-wrapper'>";
+		$renderBilagRow('new', [
+			'bilag'       => $displayBilag,
+			'dato'        => $displayDato,
+			'faktura'     => $displayFaktura,
+			'beskrivelse' => $displayBeskrivelse,
+			'debet'       => $displayDebet,
+			'kredit'      => $displayKredit,
+			'amount'      => $displayAmount,
+			'afd'         => $displayAfd,
+			'projekt'     => $displayProjekt,
+			'valuta'      => $displayValuta,
+			'momsfri'     => $displayMomsfri,
+			'forfald'     => $displayForfald,
+		], true);
+		print "</div>";
+	}
+
 	// Render all existing lines for this bilag
 	foreach ($bilagLines as $blIdx => $bl) {
-		$hiddenClass = ($collapsible && $blIdx >= 1) ? " style='display:none;'" : "";
+		$hiddenClass = ($collapsible && (!$sourceId || $blIdx >= 1)) ? " style='display:none;'" : "";
 		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
 		$renderBilagRow($bl['id'], [
 			'bilag'       => $bl['bilag'],
@@ -1506,29 +1527,7 @@ if ($source == 'kassekladde') {
 			'valuta'      => $bl['valuta'] ?? '',
 			'momsfri'     => $bl['momsfri'] ?? 0,
 			'forfald'     => $bl['forfaldsdate'] ? dkdato($bl['forfaldsdate']) : '',
-		], $blIdx === 0);
-		print "</div>";
-	}
-
-	// New entry row: always shown when sourceId=0
-	if (!$sourceId) {
-		$newIdx = count($bilagLines);
-		$hiddenClass = ($collapsible && $newIdx >= 1) ? " style='display:none;'" : "";
-		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
-		$renderBilagRow('new', [
-			'bilag'       => $displayBilag,
-			'dato'        => $displayDato,
-			'faktura'     => $displayFaktura,
-			'beskrivelse' => $displayBeskrivelse,
-			'debet'       => $displayDebet,
-			'kredit'      => $displayKredit,
-			'amount'      => $displayAmount,
-			'afd'         => $displayAfd,
-			'projekt'     => $displayProjekt,
-			'valuta'      => $displayValuta,
-			'momsfri'     => $displayMomsfri,
-			'forfald'     => $displayForfald,
-		], empty($bilagLines));
+		], $sourceId && $blIdx === 0);
 		print "</div>";
 	}
 
