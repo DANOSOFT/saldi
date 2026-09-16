@@ -162,6 +162,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			invoice_number varchar(100),
 			description text,
 			manually_edited boolean NOT NULL DEFAULT false,
+			currency varchar(10),
 			updated timestamp DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			UNIQUE(filename)
@@ -169,16 +170,31 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		db_modify($qtxt, __FILE__ . " line " . __LINE__);
 	} else {
 		// Table exists, check for missing columns and add them
-		$qtxt = "SELECT column_name FROM information_schema.columns 
+		$qtxt = "SELECT column_name FROM information_schema.columns
 				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'invoice_number'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
 			@db_modify("ALTER TABLE pool_files ADD COLUMN invoice_number varchar(100)", __FILE__ . " line " . __LINE__);
 		}
-		
-		$qtxt = "SELECT column_name FROM information_schema.columns 
+
+		$qtxt = "SELECT column_name FROM information_schema.columns
 				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'description'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
 			@db_modify("ALTER TABLE pool_files ADD COLUMN description text", __FILE__ . " line " . __LINE__);
+		}
+
+		// 20260916 SZ SST-777 (CodeRabbit): poolMetadataSave()/poolMetadataVersion() read and
+		// write currency and manually_edited unconditionally on every pool_files row - a
+		// tenant whose table predates either column would hard-fail on the very first save.
+		$qtxt = "SELECT column_name FROM information_schema.columns
+				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'currency'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+			@db_modify("ALTER TABLE pool_files ADD COLUMN currency varchar(10)", __FILE__ . " line " . __LINE__);
+		}
+
+		$qtxt = "SELECT column_name FROM information_schema.columns
+				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'manually_edited'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+			@db_modify("ALTER TABLE pool_files ADD COLUMN manually_edited boolean NOT NULL DEFAULT false", __FILE__ . " line " . __LINE__);
 		}
 	}
 	
@@ -579,8 +595,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$poolData = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 			if ($poolData) {
+				// 20260916 SZ SST-777 (CodeRabbit): $attachVersion !== null let a request that
+				// omitted poolAttachVersion entirely skip this check outright - a stale client
+				// (or one that simply never sent the field) attached using whatever metadata the
+				// backend currently held, without the user ever reviewing it. Require the version
+				// whenever poolData exists, matching poolMetadataSave()'s manual-save contract.
 				$attachVersion = $_POST['poolAttachVersion'] ?? null;
-				if ($attachVersion !== null && (!is_string($attachVersion) || !hash_equals(poolMetadataVersion($poolData), $attachVersion))) {
+				if (!is_string($attachVersion) || !hash_equals(poolMetadataVersion($poolData), $attachVersion)) {
 					http_response_code(409);
 					print htmlspecialchars(findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id), ENT_QUOTES, 'UTF-8');
 					return;
@@ -862,8 +883,18 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		// touched here are always flagged manually_edited (see the two writes below).
 		// Validate the account BEFORE any file rename or DB write happens: an unknown
 		// account must produce a clear error and no partial save (SST-777 AC2).
+		// 20260916 SZ SST-777 (CodeRabbit): only the account was validated here - an invalid
+		// amount/date still passed straight through to the raw UPDATE/INSERT further below,
+		// AFTER the file had already been renamed on disk, leaving a renamed file paired with
+		// unusable metadata. Reject both up front too, same as poolMetadataSave()'s own checks.
 		try {
 			$newAccount = poolMetadataAccount($newAccount, (int)$regnaar);
+			if ($newAmount !== '' && $newAmount !== null && normalizePoolAmount($newAmount) === null) {
+				throw new InvalidArgumentException('Invalid amount', 422);
+			}
+			if ($newDate !== '' && $newDate !== null && normalizeDateFormat($newDate) === '') {
+				throw new InvalidArgumentException('Invalid date', 422);
+			}
 		} catch (InvalidArgumentException $error) {
 			http_response_code(422);
 			print htmlspecialchars(findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id), ENT_QUOTES, 'UTF-8');
@@ -983,6 +1014,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								invoice_number varchar(100),
 								description text,
 								manually_edited boolean NOT NULL DEFAULT false,
+								currency varchar(10),
 								updated timestamp DEFAULT CURRENT_TIMESTAMP,
 								PRIMARY KEY (id),
 								UNIQUE(filename)
