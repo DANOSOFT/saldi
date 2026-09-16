@@ -5,7 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/usdecimal.php';
+require_once __DIR__ . '/../../includes/usdecimal.php';
 
 final class usdecimal extends TestCase
 {
