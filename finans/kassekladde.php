@@ -2806,8 +2806,13 @@ if ($kladde_id) {
 	$forfaldsdato = array();
 	$betal_id = array();
 	$momsfri = array();
+	// 20260916 SZ SST-755 (Lui): this pre-existing auto-refresh predates $kladdeLukBase and still
+	// hit luk.php without a tidspkt - under the new owner+tidspkt release gate in includes/luk.php
+	// that made it a silent no-op, leaving the lock held indefinitely after 1h of inactivity
+	// (the exact MEDSHOP symptom) whenever the unload beacon also failed to fire. Reuse
+	// $kladdeLukBase so this fallback carries the same tidspkt as every other exit link.
 	if ($popup)
-		print "<meta http-equiv='refresh' content='3600;URL=../includes/luk.php?tabel=kladdeliste&id=$kladde_id'>";
+		print "<meta http-equiv='refresh' content='3600;URL=$kladdeLukBase'>";
 	else
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
 
