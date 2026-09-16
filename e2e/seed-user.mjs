@@ -11,9 +11,13 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
-import { e2eConfig } from "./config.mjs";
+import { e2eConfig, missingE2eConfiguration } from "./config.mjs";
+const missing = missingE2eConfiguration(process.env, true);
+if (missing.length) {
+  console.log(`Skipping e2e seed: configure ${missing.join(", ")}`);
+  process.exit(0);
+}
 const { db, account, user, password, master, pgUser } = e2eConfig();
-if (!process.env.SALDI_CHAR_PGPASS) throw new Error("SALDI_CHAR_PGPASS is required");
 
 const md5 = createHash("md5").update(password).digest("hex");
 const sql =

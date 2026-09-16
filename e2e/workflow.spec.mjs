@@ -20,8 +20,10 @@
 
 import { test, expect } from "@playwright/test";
 
-import { e2eConfig } from "./config.mjs";
-const { account: ACCOUNT, user: USER, password: PASSWORD } = e2eConfig();
+import { e2eConfig, missingE2eConfiguration } from "./config.mjs";
+const missing = missingE2eConfiguration();
+const { account: ACCOUNT, user: USER, password: PASSWORD } = missing.length ? {} : e2eConfig();
+test.skip(missing.length > 0, `Configure ${missing.join(", ")} to run the tenant workflow`);
 
 // Two plain (VAT-free) accounts from the standard chart of accounts.
 const DEBIT_ACCOUNT = "1050";
