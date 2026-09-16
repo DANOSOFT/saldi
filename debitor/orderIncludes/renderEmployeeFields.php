@@ -1,5 +1,6 @@
 <?php
 // 20260911 CDX/LH SD-186 Render independent employee fields beside each other.
+// 20260916 CDX/LH Accept the translated performed-by label from the order page.
 
 /**
  * Render the order's two employee selections from the same master-data list.

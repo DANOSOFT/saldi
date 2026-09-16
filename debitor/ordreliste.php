@@ -1013,7 +1013,7 @@ $custom_columns = array(
     
     "hvem" => array(
         "field" => "hvem",
-        "headerName" => 'Udført af', // TODO findtekst.
+        "headerName" => findtekst('5231|Udført af', $sprog_id),
         "width" => "1",
         "type" => "text",
         "sqlOverride" => "o.hvem",
