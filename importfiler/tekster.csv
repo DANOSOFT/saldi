@@ -5095,7 +5095,10 @@
 5148	Forstået	Got it	Skjønner
 5149	Brugernavnet må højst være 80 tegn	The username may be at most 80 characters	Brukernavnet kan høyst være 80 tegn
 5150	Regnskabsnavnet må højst være 60 tegn	The account name may be at most 60 characters	Regnskapsnavnet kan høyst være 60 tegn
+5151	Eksporter CSV (alle sider)	Export CSV (all pages)	Eksporter CSV (alle sider)
+5152	Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling	Export all accounts under the selected filters to CSV, without pagination	Eksporter alle kontoer under de valgte filtrene til CSV, uten sideinndeling
 5253	Dokumentet er ændret. Genindlæs det før du gemmer.	The document has changed. Reload it before saving.	Dokumentet er endret. Last det inn på nytt før du lagrer.
 5254	Kontrollér konto, beløb og dato. Ingen ændringer er gemt.	Check the account, amount and date. No changes have been saved.	Kontroller konto, beløp og dato. Ingen endringer er lagret.
 5255	Forslag	Suggested	Forslag
 5256	Rettet / accepteret	Corrected / accepted	Rettet / akseptert
+

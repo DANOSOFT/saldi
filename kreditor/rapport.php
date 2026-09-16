@@ -22,6 +22,12 @@
 // 2023.03.23 PBLM Fixed minor errors
 // 20250618 PHR - changed $modulnr from 8 to 13;
 // 20260826 Sawaneh SD-140: rapportart GET branch accepts kontonr (in-report account search of the open posts report).
+// 20260916 CL/SZ SST-786: the "Eksporter CSV (alle sider)" link (openpost_csv=1) rendered here too
+//                (vis_aabne_poster() doesn't know which rapport.php served it), but only
+//                debitor/rapport.php had a handler for it, so this creditor side just returned the
+//                normal HTML page instead of a CSV. Buffer/discard the includes' page shell the
+//                same way debitor/rapport.php does, before openpost_export_csv() sends its own
+//                Content-Type/Content-Disposition headers.
 
 
 @session_start();
@@ -31,12 +37,26 @@ $css = "../css/std.css";
 $title = "Kreditorrapport";
 $modulnr = 13;
 
+$openpostCsvRequest = isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpost' && isset($_GET['openpost_csv']);
+if ($openpostCsvRequest) ob_start();
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
+
+if ($openpostCsvRequest) {
+	ob_end_clean();
+	$dato_fra = ifset($_GET, 'dato_fra');
+	$dato_til = ifset($_GET, 'dato_til');
+	$konto_fra = ifset($_GET, 'konto_fra');
+	$konto_til = ifset($_GET, 'konto_til');
+	if ($konto_fra === null && isset($_GET['kontonr'])) list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, 'K', ifset($_GET, 'kun_debet'), ifset($_GET, 'kun_kredit'), isset($_GET['vis_alle_poster']), ifset($_GET, 'showPBS', 1));
+	exit;
+}
 include("../includes/row-hover-style.js.php");
 
 
