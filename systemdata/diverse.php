@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2025-11-24------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-16------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2013.01.19 funktioner lagt i selvstændig fil (../includes/sys_div_func.php)
@@ -104,6 +104,8 @@
 //                 doesn't understand on every save (MB-18).
 // 20260915 CL/NTR Bank Integration settings button only shown when the API credentials
 //                 are configured (bankIntegrationEnabled()).
+// 20260916 CDX/PHR Reset additional account data and skip tables absent from the installed schema.
+// 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
 
 @session_start();
 $s_id = session_id();
@@ -2035,40 +2037,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				setcookie("timezone", $timezone, time() + 60 * 60 * 24 * 30, '/');
 			}
 		} elseif (isset($_POST['nulstil']) && $_POST['nulstil']) { #20170731
-			$qtxt = "TRUNCATE ansatmappe,ansatmappebilag,batch_kob,batch_salg,betalinger,betalingsliste,bilag,bilag_tjekskema,";
-			$qtxt.= "budget,corrections,crm,deleted_order,drawer,gavekort,gavekortbrug,historik,jobkort,jobkort_felter,";
-			$qtxt.= "kassekladde,kladdeliste,kontokort,kostpriser,loen,loen_enheder,lagerstatus,mappe,mappebilag,misc_meta_data,";
-			$qtxt.= "modtageliste,modtagelser,navigator,noter,openpost,opgaver,ordrelinjer,ordrer,ordretekster,";
-			$qtxt.= "pbs_kunder,pbs_linjer,pbs_liste,pbs_ordrer,pos_betalinger,price_correction,proforma,provision,queries,rabat,";
-			$qtxt.= "regulering,reservation,returnings,sager,sagstekster,serienr,shop_adresser,shop_ordrer,shop_varer,";
-			$qtxt.= "simulering,tabeller,tidsreg,tjekpunkter,tmpkassekl,transaktioner,report,valuta restart identity";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='RA' and kodenr !='1'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE fiscal_year > 1", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='USET'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='DLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='KLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='DRV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='KRV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='VV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='OLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM kontoplan WHERE regnskabsaar!='1'", __FILE__ . " linje " . __LINE__);
-			db_modify("UPDATE varer SET beholdning = '0'", __FILE__ . " linje " . __LINE__);
-			$qtxt = "DELETE From settings where (var_grp = 'debitor' or var_grp = 'mySale') and (var_name = 'mailSubject' or var_name = 'mailText')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($_POST['behold_debkred'] == '') {
-				$qtxt    = "select id from adresser WHERE art='S'";
-				$r       = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$eget_id = $r['id'];
-				$qtxt    = "DELETE FROM adresser WHERE id!='$eget_id'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				$qtxt = "TRUNCATE ansatte,ansatmappe,ansatmappebilag,vare_lev,shop_adresser restart identity";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-			if ($_POST['behold_varer'] == '') {
-				$qtxt = "TRUNCATE shop_varer,styklister,varer,vare_lev,varetilbud,variant_typer,variant_varer,varianter restart identity";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
+			require_once(__DIR__ . '/resetAccount.php');
+			resetAccount(!empty($_POST['behold_debkred']), !empty($_POST['behold_varer']), $db_type, $db);
+			$regnaar = 1;
 			print tekstboks('regnskab nulstillet');
 		} elseif (isset($_POST['slet'])) {
 			if ($_POST['slet_regnskab'] == 'on') { #20185024
