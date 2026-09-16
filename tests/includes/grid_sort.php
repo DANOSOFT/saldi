@@ -1,8 +1,8 @@
 <?php
 // 20260916 CDX/LH Cover grid sort validation and the inventory DISTINCT query regression.
 error_reporting(E_ALL);
-set_error_handler(function ($severity, $message, $file, $line) { throw new ErrorException($message, 0, $severity, $file, $line); });
 require_once __DIR__ . '/../../includes/grid.php';
+set_error_handler(function ($severity, $message, $file, $line) { throw new ErrorException($message, 0, $severity, $file, $line); });
 $columns = [];
 foreach (['varegruppe' => 'vg.beskrivelse', 'stregkode' => 'v.stregkode', 'leverandør' => 'ol.lev', 'lager_total' => 'COALESCE(lt.lager_total, 0)', 'momspris' => 'momspris', 'kostpris' => 'v.kostpris', 'dg' => 'dg'] as $field => $sql) {
     $columns[] = ['field' => $field, 'sqlOverride' => $sql, 'sortable' => true];
