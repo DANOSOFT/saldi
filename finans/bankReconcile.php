@@ -27,10 +27,10 @@
 // 20240403 PHR Added instruction text
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260416 PHR	Some errorfixing
-// 20260916 CDX/LH Confine bank uploads to the tenant and retain all numeric CSV formats and rows.
 // 20260624 CL/PHR Normalize bank dates before reconciliation, find fiscal year by date interval,
 // 20260624 CL/PHR apply 'vend' during reconciliation, show all CSV columns, and remember 'vend'.
 // 20260624 CL/PHR Normalize bank file text encoding when reconciling.
+// 20260916 CDX/LH Confine bank uploads to the tenant and retain all numeric CSV formats and rows.
 
 ini_set("auto_detect_line_endings", true);
 
@@ -665,10 +665,12 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	}
 	$up = intval(if_isset($_GET, 0, 'up'));
 	$down = intval(if_isset($_GET, 0, 'down'));
-	if ($up)
+	if ($up) {
 		$fokus = "u" . $up;
-	if ($down)
+	}
+	if ($down) {
 		$fokus = "d" . $down;
+	}
 	$byt = intval(if_isset($_GET, 0, 'byt'));
 	/*
 		if ($byt) {
@@ -731,8 +733,9 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	$qtxt = "SELECT transdate, MAX(pos) AS maxpos FROM transaktioner WHERE kontonr = '$kontonr' ";
 	$qtxt .= "AND transdate >= '$startdate' AND transdate <= '$enddate' AND (debet != 0 OR kredit != 0) GROUP BY transdate";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q))
+	while ($r = db_fetch_array($q)) {
 		$maxPos[$r['transdate']] = (int)$r['maxpos'];
+	}
 
 	$counter = $i = 1;
 	$qtxt = "select * FROM transaktioner WHERE kontonr = '$kontonr' AND transdate >= '$startdate' AND transdate <= '$enddate' ";
@@ -744,8 +747,9 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 		$transDate[$i] = $r['transdate'];
 		$transText[$i] = $r['beskrivelse'];
 		$transAmount[$i] = $r['debet'] - $r['kredit'];
-		if ($i == 1 || $transDate[$i] != $transDate[$i - 1])
+		if ($i == 1 || $transDate[$i] != $transDate[$i - 1]) {
 			$counter = (int)if_isset($maxPos, 0, $transDate[$i]) + 1;
+		}
 		if ($transPos[$i] == 0) {
 			$qtxt = "update transaktioner set pos = '$counter' where id = '$transId[$i]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -758,7 +762,8 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	$bg = $i = 0;
 	print "<tr><td>Dato</td><td>Tekst</td><td>Beløb</td><td>Saldo</td><td colspan='2'></td>";
 	print "<td>Dato</td><td>Tekst</td><td>Beløb</td><td>Saldo</td></tr>";
-	foreach (array_keys($rows) as $rowIndex => $l) {
+	$lineNumbers = array_keys($rows);
+	foreach ($lineNumbers as $rowIndex => $l) {
 		$match[$l] = 0;
 		for ($x = 1; $x <= count($transAmount); $x++) {
 			if (if_isset($transDate, '', $x) == if_isset($bankDate, '', $l) && !in_array(if_isset($transId, 0, $x), $match)) {
@@ -823,41 +828,42 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 			print "<td style='color:$txtcolor'>$transDate[$i]</td>";
 			print "<td style='color:$txtcolor'>$transText[$i]</td>";
 			print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transAmount[$i]) . "</td>";
-				print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transSaldo) . "</td>";
-				if ($saldotjek) {
-					print "<td align = 'right' style='color:red'>(" . dkdecimal(if_isset($bankSaldo, 0, $l) - $transSaldo) . ")</td>";
+			print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transSaldo) . "</td>";
+			if ($saldotjek) {
+				print "<td align = 'right' style='color:red'>(" . dkdecimal(if_isset($bankSaldo, 0, $l) - $transSaldo) . ")</td>";
 				}
-		} else
+		} else {
 			print "<td colspan = '6'></td>";
+		}
 		print "</tr>";
-		if ($bankDate[$l] != ($bankDate[array_keys($rows)[$rowIndex + 1] ?? -1] ?? null)) {
+		if ($bankDate[$l] != ($bankDate[$lineNumbers[$rowIndex + 1] ?? -1] ?? null)) {
 			$txtcolor = 'red';
 			while (isset($transDate[$i + 1]) && $bankDate[$l] == $transDate[$i + 1]) {
 				$i++;
 				$transSaldo += $transAmount[$i];
 				$saldotjek = afrund($bankSaldo[$l] - $transSaldo, 2);
 				print "<tr><td colspan = '4'></td>";
-			print "<td width = '25px'>";
-			if ($i > 1 && $transDate[$i - 1] == $transDate[$i]) {
-				$actualDate = $transDate[$i];
-				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
-				print "&up=$transId[$i]&byt=" . $transId[$i - 1] . "&feltnavne=$feltnavne&splitter=$splitter' id='u$transId[$i]'>";
-				print "<img src='../ikoner/up.png' width='25px' height='25px' style='border: 0px solid;'></a>";
-			} else {
-				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
-				print "&feltnavne=$feltnavne&splitter=$splitter' id='u$transId[$i]'>";
-			}
-			print "</td>";
-			print "<td width = '25px'>";
-			if (isset($transDate[$i + 1]) && $transDate[$i] == $transDate[$i + 1]) {
-				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
-				print "&down=$transId[$i]&byt=" . $transId[$i + 1] . "&feltnavne=$feltnavne&splitter=$splitter' id='d$transId[$i]'>";
-				print "<img src='../ikoner/down.png' width='25px' height='25px' style='border: 0px solid;'></a>";
-			} else {
-				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
-				print "&feltnavne=$feltnavne&splitter=$splitter' id='d$transId[$i]'>";
-			}
-			print "</td>";
+				print "<td width = '25px'>";
+				if ($i > 1 && $transDate[$i - 1] == $transDate[$i]) {
+					$actualDate = $transDate[$i];
+					print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
+					print "&up=$transId[$i]&byt=" . $transId[$i - 1] . "&feltnavne=$feltnavne&splitter=$splitter' id='u$transId[$i]'>";
+					print "<img src='../ikoner/up.png' width='25px' height='25px' style='border: 0px solid;'></a>";
+				} else {
+					print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
+					print "&feltnavne=$feltnavne&splitter=$splitter' id='u$transId[$i]'>";
+				}
+				print "</td>";
+				print "<td width = '25px'>";
+				if (isset($transDate[$i + 1]) && $transDate[$i] == $transDate[$i + 1]) {
+					print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
+					print "&down=$transId[$i]&byt=" . $transId[$i + 1] . "&feltnavne=$feltnavne&splitter=$splitter' id='d$transId[$i]'>";
+					print "<img src='../ikoner/down.png' width='25px' height='25px' style='border: 0px solid;'></a>";
+				} else {
+					print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
+					print "&feltnavne=$feltnavne&splitter=$splitter' id='d$transId[$i]'>";
+				}
+				print "</td>";
 				print "<td style='color:$txtcolor'>$transDate[$i]</td>";
 				print "<td style='color:$txtcolor'>$transText[$i]</td>";
 				print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transAmount[$i]) . "</td>";
