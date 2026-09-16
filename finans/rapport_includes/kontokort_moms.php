@@ -38,6 +38,7 @@
 // 20260512 NTR Merged Live/POS into prod_test.
 // 20260513 PK Fixed style on csv button.
 // 20260915 CDX/PHR Paginate posted and simulated VAT rows together, including the final date.
+// 20260916 CDX/PHR Show opening balances, including balance accounts without VAT or period entries.
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 50) {
 
@@ -263,7 +264,7 @@ print "</table>";
 	$qtxt="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
 	$q= db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
-		if (!in_array($row['kontonr'],$kontonr) && (trim($row['moms']) || $simulering)) {
+		if (!in_array($row['kontonr'],$kontonr) && (trim($row['moms']) || $simulering || $row['kontotype'] == 'S')) {
 			$x++;
 			$kontonr[$x]=(int)$row['kontonr'];
 			$kontobeskrivelse[$x]=$row['beskrivelse'];
@@ -272,8 +273,9 @@ print "</table>";
 			$kontokurs[$x]=$row['valutakurs'];
 			if (!$dim && $row['kontotype']=="S") $primo[$x]=afrund($row['primo'],2);
 			else $primo[$x]=0;
-			if ($primo[$x] && $kontovaluta[$x]) {
-				for ($y=0;$y<=count($valkode);$y++){
+			$primokurs[$x] = 100;
+			if ($kontovaluta[$x]) {
+				for ($y=0;$y<count($valkode);$y++){
 					if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnstart) {
 						$primokurs[$x]=$valkurs[$y];
 						break 1;
@@ -327,26 +329,34 @@ print "</table>";
 	#############
 	fwrite($csv, "Dato;Bilag;Tekst;". mb_convert_encoding('Beløb', 'ISO-8859-1', 'UTF-8') .";Moms;Incl. moms\n");
 
-	$accountRows = array();
+	$accountRows = $openingBalances = $periodRows = array();
 	$tables = $simulering ? array('transaktioner', 'simulering') : array('transaktioner');
 	for ($x = 1; $x <= $kontoantal; $x++) {
-		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
-			$accountRows[$x] = 0;
-			foreach ($tables as $table) {
-				$qtxt = "SELECT COUNT(*) as c FROM $table WHERE kontonr=" . intval($kontonr[$x]);
-				$qtxt .= " AND transdate>='" . db_escape_string($regnstart) . "'";
-				$qtxt .= " AND transdate<='" . db_escape_string($regnslut) . "' $dim";
-				$cnt = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$accountRows[$x] += (int)$cnt['c'];
+		$openingBalances[$x] = $primo[$x];
+		$periodRows[$x] = 0;
+		foreach ($tables as $table) {
+			$qtxt = "SELECT debet, kredit FROM $table WHERE kontonr=" . intval($kontonr[$x]);
+			$qtxt .= " AND transdate>='" . db_escape_string($regnaarstart) . "'";
+			$qtxt .= " AND transdate<'" . db_escape_string($regnstart) . "' $dim";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($row = db_fetch_array($q)) {
+				$openingBalances[$x] += afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 			}
-			$total_rows += $accountRows[$x];
+			$qtxt = "SELECT COUNT(*) as c FROM $table WHERE kontonr=" . intval($kontonr[$x]);
+			$qtxt .= " AND transdate>='" . db_escape_string($regnstart) . "'";
+			$qtxt .= " AND transdate<='" . db_escape_string($regnslut) . "' $dim";
+			$cnt = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$periodRows[$x] += (int)$cnt['c'];
 		}
+		// An account with only an opening balance occupies one row in pagination.
+		$accountRows[$x] = $periodRows[$x] ?: ($openingBalances[$x] != 0 ? 1 : 0);
+		$total_rows += $accountRows[$x];
 	}
 	$total_pages = max(1, ceil($total_rows / $per_page));
 
 	for ($x = 1; $x <= $kontoantal; $x++) {
 		$linjebg = $bgcolor5;
-		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+		if ($accountRows[$x]) {
 			$acct_cnt = $accountRows[$x];
             if ($rows_to_skip >= $acct_cnt) {
                 $rows_to_skip -= $acct_cnt;
@@ -376,9 +386,18 @@ print "</table>";
 			print "<tr><td colspan=6><hr></td></tr>";
 	#		fwrite($csv, ";;;;;;;");
 			$xMomsSum=$momsSum=0;
-			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
-			while ($row = db_fetch_array($query)){
-			 	$kontosum+=afrund($row['debet'],2)-afrund($row['kredit'],2);
+			$kontosum = $openingBalances[$x];
+			$openingAmount = $primokurs[$x] ? $kontosum * 100 / $primokurs[$x] : $kontosum;
+			$openingText = dkdecimal($openingAmount, 2);
+			print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>Primosaldo</td>";
+			print "<td align=right>$openingText</td><td></td><td align=right>$openingText</td></tr>";
+			fwrite($csv, ";;Primosaldo;\"$openingText\";;\"$openingText\"\n");
+			if (!$periodRows[$x]) {
+				$rows_printed++;
+				if ($rows_printed >= $per_page) {
+					break;
+				}
+				continue;
 			}
 
 			$rows = array();
