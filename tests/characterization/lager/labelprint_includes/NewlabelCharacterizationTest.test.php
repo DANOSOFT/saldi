@@ -101,7 +101,7 @@ final class NewlabelCharacterizationTest extends TestCase
     {
         db_modify('delete from mylabel where account_id = ' . self::$accountId, __FILE__ . ' linje ' . __LINE__);
         db_modify("delete from adresser where kontonr = '" . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
-        foreach (['knXXX', 'knPLAIN', 'knZERO', 'knZERO2', 'knPRICED', 'knSINGLE', 'knLEGACY', 'knLEGACY2'] as $prefix) {
+        foreach (['knXXX', 'knPLAIN', 'knZERO', 'knZERO2', 'knPRICED', 'knSINGLE', 'knLEGACY', 'knLEGACY2', 'knDKKZERO', 'knDKKPRICED', 'knDKKLEGACY', 'knDKKLEGACY2'] as $prefix) {
             db_modify("delete from varer where varenr = '" . $prefix . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
         }
         chdir(self::$originalCwd);
@@ -253,6 +253,39 @@ final class NewlabelCharacterizationTest extends TestCase
     }
 
     /**
+     * SST-790: $dkkpris is the third price placeholder and is substituted
+     * independently of $pris/$minpris, so it needs the same zero rule - a
+     * hand-written layout using it must not keep printing "0,-" after the
+     * other price fields went blank.
+     */
+    public function testZeroItemPriceLeavesTheDkkprisFieldEmpty(): void
+    {
+        $itemId = $this->seedItem('knDKKZERO' . self::KONTONR, 'DKK zero price item', '0.000');
+
+        $html = $this->renderLabel([
+            'txt' => $this->priceTemplate('$dkkpris'),
+            'id' => $itemId,
+        ]);
+
+        self::assertStringNotContainsString('0,-', $html);
+        self::assertMatchesRegularExpression('/Pris\s*<br/', $html, 'price field must be empty');
+    }
+
+    /** Control: a real price through $dkkpris is still printed, not blanked. */
+    public function testNonZeroItemPriceStillPrintsTheFormattedDkkpris(): void
+    {
+        $itemId = $this->seedItem('knDKKPRICED' . self::KONTONR, 'DKK priced item', '12.50');
+
+        $html = $this->renderLabel([
+            'txt' => $this->priceTemplate('$dkkpris'),
+            'id' => $itemId,
+        ]);
+
+        # VAT handling in the tenant may scale the price, so assert the shape, not the amount.
+        self::assertMatchesRegularExpression('/Pris\s+[0-9]+,[0-9]{2}<br/', $html);
+    }
+
+    /**
      * SST-790: a mit-salg row with a real zero price goes through the other
      * branch, where the value was already formatted to "0,00" - and "0,00" == 0
      * is false on PHP 8, so the guard has to test the raw value.
@@ -365,6 +398,33 @@ final class NewlabelCharacterizationTest extends TestCase
 
         $html = $this->renderLegacyLabel([
             'txt' => $this->legacyPriceTemplate('$pris'),
+            'id' => $itemId,
+        ]);
+
+        self::assertMatchesRegularExpression('/Pris\s+[0-9]+,[0-9]{2}<br/', $html);
+    }
+
+    /** The same zero rule has to hold for $dkkpris in the legacy renderer. */
+    public function testZeroItemPriceLeavesTheLegacyDkkprisFieldEmpty(): void
+    {
+        $itemId = $this->seedItem('knDKKLEGACY' . self::KONTONR, 'Legacy DKK zero item', '0.000');
+
+        $html = $this->renderLegacyLabel([
+            'txt' => $this->legacyPriceTemplate('$dkkpris'),
+            'id' => $itemId,
+        ]);
+
+        self::assertStringNotContainsString('0,-', $html, 'legacy renderer must not print 0,-');
+        self::assertMatchesRegularExpression('/Pris\s*<br/', $html, 'legacy price field must be empty');
+    }
+
+    /** Control: the legacy renderer still prints a real price through $dkkpris. */
+    public function testLegacyRendererStillPrintsAFormattedDkkpris(): void
+    {
+        $itemId = $this->seedItem('knDKKLEGACY2' . self::KONTONR, 'Legacy DKK priced item', '12.50');
+
+        $html = $this->renderLegacyLabel([
+            'txt' => $this->legacyPriceTemplate('$dkkpris'),
             'id' => $itemId,
         ]);
 

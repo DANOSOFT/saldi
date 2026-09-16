@@ -48,6 +48,7 @@
 // 20260914 CDX/LH Port ssl3 blank description and price fields for unused commission cells.
 // 20260914 LOE SST-790: a zero price is left blank on the label ($pris and $minpris),
 //                 the mylabel price is tested on its raw value, not the formatted "0,00".
+// 20260916 LOE SST-790: $dkkpris is blanked on a zero price too (review follow-up).
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -209,11 +210,15 @@ for ($l=0;$l<count($labels);$l++) {
 	for ($a=1;$a<=$cellRows;$a++) {
 		for ($b=1;$b<=$cellCols;$b++) {
 			$labelTxt=$txt;
-			$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
-			# SST-790: a zero price leaves the label field empty instead of printing "0,00".
+			# SST-790: a zero price leaves the label field empty instead of printing "0,00"/"0,-".
 			# Tested on the raw value: the formatted "0,00" is not == 0 under PHP 8.
-			if (is_numeric($salgspris) && $salgspris == 0) $vispris="";
-			else $vispris=dkdecimal($salgspris,2);
+			if (is_numeric($salgspris) && $salgspris == 0) {
+				$vispris="";
+				$dkkpris="";
+			} else {
+				$vispris=dkdecimal($salgspris,2);
+				$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
+			}
 			# Uden mit salg data - et print uden konto - ville labelen komme ud tom, så
 			# $minbeskrivelse/$minpris falder tilbage til varens egen beskrivelse og pris.
 			// Unused commission cells stay blank for handwritten descriptions and prices.

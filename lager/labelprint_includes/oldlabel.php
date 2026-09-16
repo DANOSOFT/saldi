@@ -23,6 +23,7 @@
 // Copyright (c) 2016-2021 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20260914 LOE SST-790: $pris is left blank when the item's price is 0,00.
+// 20260916 LOE SST-790: $dkkpris is blanked on a zero price too (review follow-up).
 
 $r=db_fetch_array(db_select("select * from varer where id='$id'",__FILE__ . " linje " . __LINE__));
 $momsfri='on';
@@ -45,10 +46,14 @@ if ($vatOnItemCard && $r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . 
 	$salgspris*=(100+$incl_moms)/(100);
 	$special_price*=(100+$incl_moms)/(100);
 } 
-$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
-# SST-790: a zero price leaves the field empty instead of printing "0,00" (see newlabel.php).
-if (is_numeric($salgspris) && $salgspris == 0) $vispris="";
-else $vispris=dkdecimal($salgspris,2);
+# SST-790: a zero price leaves the field empty instead of printing "0,00"/"0,-" (see newlabel.php).
+if (is_numeric($salgspris) && $salgspris == 0) {
+	$vispris="";
+	$dkkpris="";
+} else {
+	$vispris=dkdecimal($salgspris,2);
+	$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
+}
 $txt=str_replace('$beskrivelse',$r['beskrivelse'],$txt);
 $txt=str_replace('$varenr',$r['varenr'],$txt);
 $txt=str_replace('$trademark',$r['trademark'],$txt);
