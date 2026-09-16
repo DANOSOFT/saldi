@@ -58,6 +58,8 @@
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260916 LOE SD-685: headers declare headerText so a saved header can be told from a rename.
 
 @session_start();
 $s_id = session_id();
@@ -733,6 +735,7 @@ $custom_columns = array(
     "ordrenr" => array(
         "field" => "ordrenr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "headerText" => '500|Ordrenr.',
         "width" => "0.8",
         "align" => "right",
         "type"  => "number",
@@ -820,6 +823,7 @@ $custom_columns = array(
     "ordredate" => array(
         "field" => "ordredate",
         "headerName" => findtekst('881|Ordredato', $sprog_id),
+        "headerText" => '881|Ordredato',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -835,6 +839,7 @@ $custom_columns = array(
     "levdate" => array(
         "field" => "levdate",
         "headerName" => findtekst('886|Dato for levering', $sprog_id),
+        "headerText" => '886|Dato for levering',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -846,6 +851,7 @@ $custom_columns = array(
     "fakturanr" => array(
         "field" => "fakturanr",
         "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
+        "headerText" => '882|Fakt. nr.',
         "width" => "0.8",
         "align" => "right",
         "type" => "number",
@@ -880,6 +886,7 @@ $custom_columns = array(
     "fakturadate" => array(
         "field" => "fakturadate",
         "headerName" => findtekst('883|Fakt. dato', $sprog_id),
+        "headerText" => '883|Fakt. dato',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -892,6 +899,7 @@ $custom_columns = array(
     "firmanavn" => array(
         "field" => "firmanavn",
         "headerName" => findtekst('360|Firmanavn', $sprog_id),
+        "headerText" => '360|Firmanavn',
         "width" => "2",
         "type" => "text",
         "searchable" => true,
@@ -955,6 +963,7 @@ $custom_columns = array(
     "kontonr" => array(
         "field" => "kontonr",
         "headerName" => findtekst('804|Kontonr.', $sprog_id),
+        "headerText" => '804|Kontonr.',
         "width" => "1",
         "type" => "text",
         "sqlOverride" => "o.kontonr",
@@ -978,6 +987,7 @@ $custom_columns = array(
     "ref" => array(
         "field" => "ref",
         "headerName" => findtekst('884|Sælger', $sprog_id),
+        "headerText" => '884|Sælger',
         "width" => "1.5",
         "type" => "dropdown",
         "searchable" => true,
@@ -1061,6 +1071,7 @@ $custom_columns = array(
     "betalingsbet" => array(
         "field" => "betalingsbet",
         "headerName" => findtekst('56|Betalingsbet.', $sprog_id),
+        "headerText" => '56|Betalingsbet.',
         "width" => "1",
         "type" => "dropdown",
         "align" => "left",
@@ -1147,6 +1158,7 @@ $custom_columns = array(
     "kundeordnr" => array(
         "field" => "kundeordnr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "headerText" => '500|Ordrenr.',
         "width" => "1",
         "type" => "text",
         "align" => "right",
@@ -1167,6 +1179,7 @@ $custom_columns = array(
     "debitorgruppe" => array(
         "field" => "debitorgruppe",
         "headerName" => findtekst('2413|Debitorgruppe', $sprog_id),
+        "headerText" => '2413|Debitorgruppe',
         "width" => "1.5",
         "type" => "dropdown",
         "align" => "left",
@@ -1203,6 +1216,7 @@ $custom_columns = array(
     "land" => array(
         "field" => "land",
         "headerName" => findtekst('364|Land', $sprog_id),
+        "headerText" => '364|Land',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1221,6 +1235,7 @@ $custom_columns = array(
     "felt_1" => array(
         "field" => "felt_1",
         "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),
+        "headerText" => '255|Ekstrafelt 1',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1232,6 +1247,7 @@ $custom_columns = array(
     "felt_2" => array(
         "field" => "felt_2",
         "headerName" => findtekst('256|Ekstrafelt 2', $sprog_id),
+        "headerText" => '256|Ekstrafelt 2',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1243,6 +1259,7 @@ $custom_columns = array(
     "felt_3" => array(
         "field" => "felt_3",
         "headerName" => findtekst('257|Ekstrafelt 3', $sprog_id),
+        "headerText" => '257|Ekstrafelt 3',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1254,6 +1271,7 @@ $custom_columns = array(
     "felt_4" => array(
         "field" => "felt_4",
         "headerName" => findtekst('258|Ekstrafelt 4', $sprog_id),
+        "headerText" => '258|Ekstrafelt 4',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1265,6 +1283,7 @@ $custom_columns = array(
     "felt_5" => array(
         "field" => "felt_5",
         "headerName" => findtekst('259|Ekstrafelt 5', $sprog_id),
+        "headerText" => '259|Ekstrafelt 5',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1648,28 +1667,33 @@ $filters = array();
 
 // Order type filter
 $filters[] = array(
+    "filterKey" => "ordretype",
     "filterName" => findtekst('2769|Ordretype', $sprog_id),
     "joinOperator" => "or",
     "options" => array(
         array(
+            "optionKey" => "tilbud",
             "name" => findtekst('2770|Tilbud', $sprog_id),
             "checked" => ($valg == "tilbud") ? "checked" : "",
             "sqlOn" => "o.status < 1",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "ordrer",
             "name" => findtekst('107|Ordrer', $sprog_id),
             "checked" => ($valg == "ordrer") ? "checked" : "",
             "sqlOn" => $hurtigfakt ? "o.status < 3" : "(o.status = 1 OR o.status = 2)",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "faktura",
             "name" => findtekst('1777|Fakturaer', $sprog_id),
             "checked" => ($valg == "faktura") ? "checked" : "",
             "sqlOn" => "o.status >= 3",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "pbs",
             "name" => "BS",
             "checked" => ($valg == "pbs") ? "checked" : "",
             "sqlOn" => "o.art = 'PO' AND o.konto_id > '0'", // PBS orders

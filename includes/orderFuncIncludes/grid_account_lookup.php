@@ -26,6 +26,9 @@
 // 20260513 CL/PHR Solved double order creation problem
 // 20260827 CDX/PHR Preserve KO in supplier lookup AJAX and POS navigation.
 // 20260901 CL/LH Pass o_art=KO along on AJAX row click so supplier choice survives
+// 20260911 LOE SD-686: grid filter defaults declared with "checked" are honoured.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
 
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -331,7 +334,12 @@ function create_datagrid($id, $grid_data) {
     
     $setup_processing_start = microtime(true);
     $columns_setup = json_decode($columns_setup, true);
-    $columns_updated = fill_missing_values($columns_setup, $columns);
+    if (!is_array($columns_setup)) {
+        $columns_setup = array();
+    }
+    // SD-685: the code's columns define which columns exist and what they are called;
+    // the stored row contributes the user's preferences only (matched on 'field').
+    $columns_updated = merge_column_setup($columns_setup, $columns);
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
@@ -389,6 +397,9 @@ function create_datagrid($id, $grid_data) {
 
     // Process filters
     $filters_setup = json_decode($filter_setup, true);
+    if (!is_array($filters_setup)) {
+        $filters_setup = array();
+    }
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
@@ -473,6 +484,12 @@ function create_datagrid($id, $grid_data) {
             );
             $columns_setup = json_decode($columns_setup, true);
             $filters_setup = json_decode($filter_setup, true);
+            if (!is_array($columns_setup)) {
+                $columns_setup = array();
+            }
+            if (!is_array($filters_setup)) {
+                $filters_setup = array();
+            }
             $filters_updated = updateCheckedValues($filters, $filters_setup);
         }
 
@@ -494,6 +511,12 @@ function create_datagrid($id, $grid_data) {
             );
             $columns_setup = json_decode($columns_setup, true);
             $filters_setup = json_decode($filter_setup, true);
+            if (!is_array($columns_setup)) {
+                $columns_setup = array();
+            }
+            if (!is_array($filters_setup)) {
+                $filters_setup = array();
+            }
             $filters_updated = updateCheckedValues($filters, $filters_setup);
         }
 
@@ -564,7 +587,11 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
         // Encode configurations as JSON for storage
         $columns_json = db_escape_string(json_encode($columns_save));
-        $filters_json = db_escape_string(json_encode($filters));
+        // SD-686: a fresh grid row starts with an empty *selection* map. Filter
+        // defaults belong to the page's $filters definition and are applied by
+        // updateCheckedValues(); storing the definitions here left the declared
+        // defaults unreadable on the first page view.
+        $filters_json = '{}';
         $search_json  = db_escape_string(json_encode($search_setup));
 
         // Insert the new grid setup into the database
@@ -584,31 +611,128 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
 
 /**
- * Fills missing values in the first array using values from the second array based on matching 'field' values.
+ * SD-685: merges the code's column definitions with the user's stored column setup.
  *
- * This function iterates over each item in the first array and looks for a matching 'field' in the second array.
- * When a match is found, it fills in any missing or empty values in the first array item with the corresponding values
- * from the second array item.
+ * The code defines which columns exist and what they are called, so a translated
+ * headerName/description or a newly added column reaches every user. The stored row
+ * only contributes the user's preferences, matched on the language-independent
+ * 'field': row order, width, align, visibility, and the optional user texts
+ * ("Valgfri overskrift"/"Valgfri beskrivelse") which override the code's text when set.
  *
- * @param array $firstArray The first array containing items that may have missing values.
- * @param array $secondArray The second array providing default values for missing fields.
- * @return array The first array with missing values filled from the second array.
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @param array $codeColumns All code-defined columns, including code-hidden ones.
+ * @return array The columns to render, in the user's order.
  */
-function fill_missing_values($firstArray, $secondArray) {
-    foreach ($firstArray as &$firstItem) {
-        foreach ($secondArray as $secondItem) {
-            if ($firstItem['field'] === $secondItem['field']) {
-                foreach ($secondItem as $key => $value) {
-                    if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
-                        $firstItem[$key] = $value;
-                    }
-                }
-                break;
+/**
+ * SD-685 review: every text the code itself can display for one column, so a
+ * stored legacy header can be told apart from a personal rename without knowing
+ * which language the row was saved in.
+ *
+ * A column that declares headerText (the raw "tekst_id|default" its header was
+ * resolved from) contributes every stored translation of that tekst_id plus the
+ * default after the pipe; a literal header column has exactly one form.
+ *
+ * @param array $column A code column definition, optionally carrying headerText.
+ * @return array<int,string> The texts the code can produce for this column.
+ */
+function grid_known_header_texts($column) {
+    static $cache = array();
+
+    $known = array($column['headerName']);
+    // Callers that already hold the texts (and tests) can pass the set straight in.
+    if (isset($column['headerTexts']) && is_array($column['headerTexts'])) {
+        return array_values(array_unique(array_merge($known, $column['headerTexts'])));
+    }
+    if (empty($column['headerText'])) return $known;
+
+    $parts = explode('|', $column['headerText'], 2);
+    if (isset($parts[1]) && $parts[1] !== '') $known[] = $parts[1];
+    if (!preg_match('/^[0-9]+$/', $parts[0])) return array_values(array_unique($known));
+
+    $tekstId = (int) $parts[0];
+    if (!isset($cache[$tekstId])) {
+        $texts = array();
+        if (function_exists('db_select') && function_exists('db_fetch_array')) {
+            $q = db_select("select tekst from tekster where tekst_id = '$tekstId'", __FILE__ . " line " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                if (isset($r['tekst']) && $r['tekst'] !== '') $texts[] = $r['tekst'];
             }
         }
+        $cache[$tekstId] = $texts;
     }
-    unset($firstItem);
-    return $firstArray;
+
+    return array_values(array_unique(array_merge($known, $cache[$tekstId])));
+}
+function merge_column_setup(array $setup, array $codeColumns) {
+    $prefs = array();
+    $order = array();
+    foreach (array_values($setup) as $index => $row) {
+        if (empty($row['field']) || isset($prefs[$row['field']])) {
+            continue;
+        }
+        $prefs[$row['field']] = $row;
+        $order[$row['field']] = $index;
+    }
+
+    $merged = array();
+    foreach (array_values($codeColumns) as $index => $column) {
+        $field = isset($column['field']) ? $column['field'] : null;
+        $saved = isset($prefs[$field]) ? $prefs[$field] : array();
+        $surfaced = isset($prefs[$field]);
+
+        // A code-hidden column stays out unless this user has it in their setup.
+        if (!empty($column['hidden']) && !$surfaced) {
+            continue;
+        }
+        // A stored column the user removed stays hidden.
+        if (isset($saved['visible']) && $saved['visible'] === false) {
+            continue;
+        }
+
+        // SD-685 review: rows saved before customHeaderName stored the code's own text
+        // (the editor pre-filled it), so a legacy headerName is only kept as a personal
+        // rename when the code could not have produced it in any language.
+        $customHeaderName = isset($saved['customHeaderName']) ? $saved['customHeaderName'] : '';
+        // Kept unless the code provably produces it: dropping a value the code cannot
+        // produce would destroy a rename saved before customHeaderName existed.
+        if ($customHeaderName === '' && isset($saved['headerName']) && $saved['headerName'] !== ''
+                && !in_array($saved['headerName'], grid_known_header_texts($column), true)) {
+            $customHeaderName = $saved['headerName'];
+        }
+        $column['customHeaderName']  = $customHeaderName;
+        $column['customDescription'] = isset($saved['customDescription']) ? $saved['customDescription'] : '';
+        if ($column['customHeaderName'] !== '') {
+            $column['headerName'] = $column['customHeaderName'];
+        }
+        if ($column['customDescription'] !== '') {
+            $column['description'] = $column['customDescription'];
+        }
+        foreach (array('width', 'align') as $pref) {
+            if (isset($saved[$pref]) && $saved[$pref] !== '') {
+                $column[$pref] = $saved[$pref];
+            }
+        }
+        if ($surfaced) {
+            $column['hidden'] = false;
+        }
+
+        $column['_order'] = $surfaced ? $order[$field] : PHP_INT_MAX;
+        $column['_code']  = $index;
+        $merged[] = $column;
+    }
+
+    usort($merged, function ($a, $b) {
+        if ($a['_order'] === $b['_order']) {
+            return $a['_code'] - $b['_code'];
+        }
+        return ($a['_order'] < $b['_order']) ? -1 : 1;
+    });
+    foreach ($merged as &$column) {
+        unset($column['_order'], $column['_code']);
+    }
+    unset($column);
+
+    return $merged;
 }
 
 /**
@@ -622,16 +746,31 @@ function fill_missing_values($firstArray, $secondArray) {
  * @return array The updated first array with the 'checked' values for options updated.
  */
 function updateCheckedValues(array $firstArray, array $secondArray) {
+    // SD-686: only a saved *selection* map may override a filter option's declared
+    // default. Where nothing (or only a legacy definition list) has been saved, the
+    // declared value stays in force instead of being forced back to ''.
+    // SD-685: a filter group/option may declare a language-independent
+    // filterKey/optionKey. The stored selection is looked up by that key, with the
+    // display text as fallback so rows saved before keys existed keep working.
     foreach ($firstArray as &$filter) {
-        $filterName = $filter['filterName'];
-        if (isset($secondArray[$filterName])) {
-            $updatesForFilter = $secondArray[$filterName];
-            foreach ($filter['options'] as &$option) {
-                $option['checked'] = isset($updatesForFilter[$option['name']]) ? $updatesForFilter[$option['name']] : '';
+        $groupKeys = array(isset($filter['filterKey']) ? $filter['filterKey'] : $filter['filterName'], $filter['filterName']);
+        $updatesForFilter = array();
+        foreach ($groupKeys as $groupKey) {
+            if (isset($secondArray[$groupKey]) && is_array($secondArray[$groupKey])) {
+                $updatesForFilter = $secondArray[$groupKey];
+                break;
             }
-        } else {
-            foreach ($filter['options'] as &$option) {
+        }
+        foreach ($filter['options'] as &$option) {
+            if (!isset($option['checked'])) {
                 $option['checked'] = '';
+            }
+            $optionKeys = array(isset($option['optionKey']) ? $option['optionKey'] : $option['name'], $option['name']);
+            foreach ($optionKeys as $optionKey) {
+                if (isset($updatesForFilter[$optionKey])) {
+                    $option['checked'] = $updatesForFilter[$optionKey];
+                    break;
+                }
             }
         }
     }
@@ -1249,7 +1388,13 @@ function render_filters($id, $filters, $all_filters) {
             <span><b>{$filter["filterName"]} ({$filter["joinOperator"]})</b></span>
 HTML;
         foreach ($filter["options"] as $filterItem) {
-            print "<div><label><input type='checkbox' $filterItem[checked] name='filter[$id][$filter[filterName]][$filterItem[name]]'>$filterItem[name]</label></div>";
+            // SD-685: the field is keyed by filterKey/optionKey where the page declares
+            // them; the display text is only a fallback, so a translation can no longer
+            // detach a stored selection from its checkbox.
+            $groupKey  = isset($filter['filterKey']) ? $filter['filterKey'] : $filter["filterName"];
+            $optionKey = isset($filterItem['optionKey']) ? $filterItem['optionKey'] : $filterItem["name"];
+            // SD-686: submit unticked options too, so turning a declared default off persists.
+            print "<div><label><input type='hidden' name='filter[$id][$groupKey][$optionKey]' value=''><input type='checkbox' $filterItem[checked] name='filter[$id][$groupKey][$optionKey]'>$filterItem[name]</label></div>";
         }
 
         echo <<<HTML
