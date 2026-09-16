@@ -45,6 +45,9 @@
 // 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
+// 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
+// 20260916 CDX/MJ Merge: keep the batch created_by blocks outside the pool_files guard this
+//                  branch added, so they still run on tenants without a pool_files table.
 
 
 
@@ -90,6 +93,18 @@ if ($_pool_files_exists) {
 			__FILE__ . " linje " . __LINE__
 		);
 	}
+}
+
+// Deliberately outside the $_pool_files_exists guard above: batch_kob/batch_salg have nothing
+// to do with pool_files, and a tenant without that table must still get these columns. Master
+// carries them at top level for the same reason; the merge only moved them past the guard.
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='batch_kob' AND column_name='created_by' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_kob ADD COLUMN created_by TEXT", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='batch_salg' AND column_name='created_by' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_salg ADD COLUMN created_by TEXT", __FILE__ . " linje " . __LINE__);
 }
 
 // Ongoing catch-up (unlike the one-time backfill above, this has no settings flag - it

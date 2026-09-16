@@ -42,6 +42,10 @@
 //                 $page print (any template with $rows) fills the grid again from the item's
 //                 own description/price; the mylabel sheet query stays inside
 //                 if ($account && $condition) where MB-16 needs it.
+// 20260914 CL/NTR The one-cell gate is a specific label ($labels[$l]) or single=1, no longer
+//                 $page: only the mit salg sheet print ever sends page, so gating on it made
+//                 every item-card/order-line print one cell instead of the template's grid.
+// 20260914 CDX/LH Port ssl3 blank description and price fields for unused commission cells.
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -106,15 +110,15 @@ if (($varenr || $stregkode) && (!$account || !$condition)) {
 $fp=fopen($filename,'w');
 fwrite ($fp, $top);
 for ($l=0;$l<count($labels);$l++) {
-	// $rows/$cols describe the physical sheet layout, meant to be filled with
-	// ONE mylabel row per (row,col) - see the $page branch below, the only one
-	// that legitimately populates more than cell (1,1). Printing a specific
-	// label ($labels[$l] set - a plain item-card print, or one entry of a
-	// printIds batch) must render exactly that one cell, not the whole sheet -
-	// otherwise every other cell in the grid renders with fallback/blank data
-	// nobody asked for (MB-16: a single-label print produced a second,
-	// effectively blank label). 20260826 CL/SZ.
-	$sheetPrint = (!$labels[$l] && $page);
+	// $rows/$cols describe the physical sheet layout and a print fills the whole grid
+	// unless it asks for one cell. The mit salg sheet print fills it with ONE mylabel
+	// row per (row,col) - the $page branch below; any other print (item card, order
+	// line, ...) fills every cell from the item's own data. Printing a specific label
+	// ($labels[$l] set - one mit salg cell, or one entry of a printIds batch) or
+	// passing single=1 renders exactly one cell, otherwise every other cell in the
+	// grid renders with fallback/blank data nobody asked for (MB-16: a single-label
+	// print produced a second, effectively blank label). 20260826 CL/SZ, 20260914 CL/NTR.
+	$sheetPrint = (!$labels[$l] && !$single && $rows > 0 && $cols > 0);
 	$cellRows = $sheetPrint ? $rows : 1;
 	$cellCols = $sheetPrint ? $cols : 1;
 	for ($a=1;$a<=$cellRows;$a++) {
@@ -204,12 +208,24 @@ for ($l=0;$l<count($labels);$l++) {
 			$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
 			# Uden mit salg data - et print uden konto - ville labelen komme ud tom, så
 			# $minbeskrivelse/$minpris falder tilbage til varens egen beskrivelse og pris.
-			if ($hasMyLabelRow[$a][$b]) {
+			// Unused commission cells stay blank for handwritten descriptions and prices.
+			if (!$hasMyLabelRow[$a][$b] && $account && $condition) {
+				$minbeskrivelse = '';
+				$minpris = '';
+			} elseif ($hasMyLabelRow[$a][$b]) {
 				$minbeskrivelse=$description[$a][$b];
-				$minpris=$price[$a][$b];
+				if($price[$a][$b] == 0) {
+					$minpris = "_______";
+				} else {
+					$minpris=$price[$a][$b];
+				}	
 			} else {
 				$minbeskrivelse=$r['beskrivelse'];
-				$minpris=dkdecimal($salgspris,2);
+				if($salgspris == 0) {
+					$minpris = "_______";
+				} else {
+					$minpris=dkdecimal($salgspris,2);
+				}
 			}
 			$labelTxt=str_replace('$minbeskrivelse',$minbeskrivelse,$labelTxt);
 			$labelTxt=str_replace('$beskrivelse',$r['beskrivelse'],$labelTxt);
@@ -222,8 +238,8 @@ for ($l=0;$l<count($labels);$l++) {
 			$labelTxt=str_replace('$firstprint',if_isset($firstprint, null, [$a, $b]),$labelTxt);
 			$labelTxt=str_replace('$lastprint',if_isset($lastprint, null, [$a, $b]),$labelTxt);
 			if ($brotherTD) $labelTxt=str_replace('$stregkode',$barcode[$a][$b],$labelTxt);
-			elseif ($stregkode) {
-				$labelTxt=str_replace('$stregkode',$stregkode,$labelTxt);
+			elseif ($barcode[$a][$b]) {
+				$labelTxt=str_replace('$stregkode',$barcode[$a][$b],$labelTxt);
 			} else {
 				if ($r['stregkode']) $labelTxt=str_replace('$stregkode',$r['stregkode'],$labelTxt);
 				else $labelTxt=str_replace('$stregkode',$r['varenr'],$labelTxt);

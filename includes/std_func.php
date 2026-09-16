@@ -81,6 +81,8 @@
 // 20260908 CDX/LH Let order-number allocation retain a caller-owned transaction (SST-765).
 // 20260911 Sawaneh Added strip_placeholder_value() / strip_placeholder_sql_literals(): blank the
 //                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
+// 20260914 CL/NTR barcode(): no horizontal padding in the SVG so the bars span the full 285 px
+//                  (vertical padding kept at 2 px) as we want to control padding in the print.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2535,6 +2537,7 @@ if (!function_exists('barcode')) {
 				'w'  => 285,
 				'h'  => 32,
 				'p'  => 2,
+				'ph' => 0,
 				'th' => 0,
 				'ts' => 0,
 				'bc' => '',
