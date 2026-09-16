@@ -65,6 +65,7 @@
 // 20260915 CDX/PHR Preserve discount line price when no numeric set price is stored in lev_varenr.
 // 20260914 CDX/LH SST-784: Escape parentheses and backslashes only in PostScript output.
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
+// 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1670,7 +1671,7 @@ if (!function_exists('formularprint')) {
 				$pfnavn = $mappe . "/" . $printfilnavn;
 				$psfp = fopen("$pfnavn.ps", "w");
 				$htmfp = fopen("$pfnavn.htm", "w");
-				$printBatchDocuments[] = array('name' => $printfilnavn, 'background' => $background_pdf_path ?? '');
+				$printBatchDocuments[] = array('name' => $printfilnavn, 'background' => $background_pdf_path ?? '', 'pages' => 1);
 				$printBatchIndex = count($printBatchDocuments) - 1;
 				#		} else {
 				#			fclose ($htmfp);
