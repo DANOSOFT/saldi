@@ -40,6 +40,8 @@ final class KassekladdePostingCharacterizationTest extends TestCase
     {
         if (isset(self::$tenant) && self::$tenant) {
             pg_close(self::$tenant);
+            self::$tenant = null;
+            CharacterizationEnv::teardownTenant();
         }
     }
 
@@ -107,10 +109,12 @@ final class KassekladdePostingCharacterizationTest extends TestCase
 
     private function runPage(string $mode, int $kladdeId): array
     {
-        return CharacterizationEnv::runChild(
+        $result = CharacterizationEnv::runChild(
             __DIR__ . '/../support/run_bogfor_page.php',
             [$mode, $kladdeId, CharacterizationEnv::SESSION_ID]
         );
+        $this->assertSame(0, $result['exit'], $result['stderr'] . $result['stdout']);
+        return $result;
     }
 
     private function ledgerRows(string $table, int $kladdeId): array

@@ -44,6 +44,8 @@ final class OrderInvoiceCharacterizationTest extends TestCase
     {
         if (isset(self::$tenant) && self::$tenant) {
             pg_close(self::$tenant);
+            self::$tenant = null;
+            CharacterizationEnv::teardownTenant();
         }
     }
 

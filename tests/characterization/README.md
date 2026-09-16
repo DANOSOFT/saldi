@@ -39,6 +39,9 @@ skips the DB-backed ones with a reason.
   clone of an installed tenant, registers it in master `regnskab`, and seeds
   an `online` session row (the legacy pages authenticate by session id;
   `rettigheder` is a positional digit string — see `includes/online.php:331`).
+  Teardown drops the clone and deletes only its chartest registry/session rows.
+  Test, template and master DB names must differ. The template must be idle; its
+  sessions are never terminated. `SALDI_CHAR_PGPASS` is required (no default).
   Config via env: `SALDI_CHAR_PGHOST/PGUSER/PGPASS/MASTER_DB/TEMPLATE_DB/TEST_DB`.
 - `run_bogfor_page.php` — `finans/bogfor.php` is a page script (session,
   relative includes, `exit()` branches), so it cannot be included in the

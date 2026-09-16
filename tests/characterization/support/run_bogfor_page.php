@@ -37,7 +37,7 @@ if ($mode !== 'simuler' && $mode !== 'bogfor') {
     exit(2);
 }
 
-error_reporting(E_ERROR | E_PARSE); // the legacy page is warning-noisy; keep child output usable
+error_reporting(E_ALL);
 
 $_SERVER['REQUEST_URI'] = '/saldi/finans/bogfor.php';
 $_SERVER['PHP_SELF'] = '/saldi/finans/bogfor.php';
