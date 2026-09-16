@@ -28,6 +28,7 @@
 // 20260901 CL/LH Pass o_art=KO along on AJAX row click so supplier choice survives
 // 20260911 LOE SD-686: grid filter defaults declared with "checked" are honoured.
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
 
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -622,6 +623,46 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
  * @param array $codeColumns All code-defined columns, including code-hidden ones.
  * @return array The columns to render, in the user's order.
  */
+/**
+ * SD-685 review: every text the code itself can display for one column, so a
+ * stored legacy header can be told apart from a personal rename without knowing
+ * which language the row was saved in.
+ *
+ * A column that declares headerText (the raw "tekst_id|default" its header was
+ * resolved from) contributes every stored translation of that tekst_id plus the
+ * default after the pipe; a literal header column has exactly one form.
+ *
+ * @param array $column A code column definition, optionally carrying headerText.
+ * @return array<int,string> The texts the code can produce for this column.
+ */
+function grid_known_header_texts($column) {
+    static $cache = array();
+
+    $known = array($column['headerName']);
+    // Callers that already hold the texts (and tests) can pass the set straight in.
+    if (isset($column['headerTexts']) && is_array($column['headerTexts'])) {
+        return array_values(array_unique(array_merge($known, $column['headerTexts'])));
+    }
+    if (empty($column['headerText'])) return $known;
+
+    $parts = explode('|', $column['headerText'], 2);
+    if (isset($parts[1]) && $parts[1] !== '') $known[] = $parts[1];
+    if (!preg_match('/^[0-9]+$/', $parts[0])) return array_values(array_unique($known));
+
+    $tekstId = (int) $parts[0];
+    if (!isset($cache[$tekstId])) {
+        $texts = array();
+        if (function_exists('db_select') && function_exists('db_fetch_array')) {
+            $q = db_select("select tekst from tekster where tekst_id = '$tekstId'", __FILE__ . " line " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                if (isset($r['tekst']) && $r['tekst'] !== '') $texts[] = $r['tekst'];
+            }
+        }
+        $cache[$tekstId] = $texts;
+    }
+
+    return array_values(array_unique(array_merge($known, $cache[$tekstId])));
+}
 function merge_column_setup(array $setup, array $codeColumns) {
     $prefs = array();
     $order = array();
@@ -648,7 +689,17 @@ function merge_column_setup(array $setup, array $codeColumns) {
             continue;
         }
 
-        $column['customHeaderName']  = isset($saved['customHeaderName']) ? $saved['customHeaderName'] : '';
+        // SD-685 review: rows saved before customHeaderName stored the code's own text
+        // (the editor pre-filled it), so a legacy headerName is only kept as a personal
+        // rename when the code could not have produced it in any language.
+        $customHeaderName = isset($saved['customHeaderName']) ? $saved['customHeaderName'] : '';
+        // Kept unless the code provably produces it: dropping a value the code cannot
+        // produce would destroy a rename saved before customHeaderName existed.
+        if ($customHeaderName === '' && isset($saved['headerName']) && $saved['headerName'] !== ''
+                && !in_array($saved['headerName'], grid_known_header_texts($column), true)) {
+            $customHeaderName = $saved['headerName'];
+        }
+        $column['customHeaderName']  = $customHeaderName;
         $column['customDescription'] = isset($saved['customDescription']) ? $saved['customDescription'] : '';
         if ($column['customHeaderName'] !== '') {
             $column['headerName'] = $column['customHeaderName'];

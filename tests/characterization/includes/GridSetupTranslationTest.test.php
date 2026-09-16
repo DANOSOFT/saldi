@@ -1,5 +1,6 @@
 <?php
 // 20260911 LOE Cover SD-685: the grid's stored setup separates display text from data —
+// 20260916 LOE Cover SD-685 review: legacy headers are kept unless the code produces them.
 //                filter selections keyed independently of their labels, and column
 //                headers/description following the code (translations included).
 
@@ -105,8 +106,8 @@ final class GridSetupTranslationTest extends TestCase
     public function testTranslatedHeadersReachAUserWhoSavedTheSetupInAnotherLanguage(): void
     {
         $code = array(
-            $this->codeColumn('varenr', 'Item No.'),
-            $this->codeColumn('momspris', 'Sales price', '(incl. VAT)'),
+            $this->codeColumn('varenr', 'Item No.', '', array('headerTexts' => array('Vare Nr.'))),
+            $this->codeColumn('momspris', 'Sales price', '(incl. VAT)', array('headerTexts' => array('Salgspris'))),
         );
         $savedInDanish = array(
             array('field' => 'varenr', 'headerName' => 'Vare Nr.', 'description' => '', 'width' => 1, 'align' => 'left'),
@@ -115,9 +116,45 @@ final class GridSetupTranslationTest extends TestCase
 
         $merged = merge_column_setup($savedInDanish, $code);
 
-        self::assertSame('Item No.', $merged[0]['headerName'], 'The stored header must not freeze the code text.');
+        self::assertSame('Item No.', $merged[0]['headerName'], 'A stored header the code also produces is not a rename - the code text must not freeze.');
         self::assertSame('Sales price', $merged[1]['headerName']);
         self::assertSame('(incl. VAT)', $merged[1]['description'], 'The sub-header must follow the code too.');
+        self::assertSame('', $merged[0]['customHeaderName'], 'nothing to prefill: the stored text was the code\'s own');
+    }
+
+    /**
+     * SD-685 review: the same storage shape is also how a genuine personal rename
+     * used to be saved, so a stored header the code could not have produced is kept
+     * as customHeaderName instead of being dropped.
+     */
+    public function testALegacyHeaderTheCodeCouldNotProduceIsKeptAsARename(): void
+    {
+        $code = array($this->codeColumn('varenr', 'Item No.', '', array('headerTexts' => array('Vare Nr.'))));
+        $saved = array(array('field' => 'varenr', 'headerName' => 'Mit navn'));
+
+        $merged = merge_column_setup($saved, $code);
+
+        self::assertSame('Mit navn', $merged[0]['headerName']);
+        self::assertSame('Mit navn', $merged[0]['customHeaderName'], 'the editor needs the raw text for prefill');
+    }
+
+    /**
+     * A column whose header is not resolved from translations - a literal in the pool,
+     * or one built from tenant data like the warehouse columns - has no set of code
+     * forms to compare against, so a stored value the code does not produce cannot be
+     * proven stale. It is kept as the user's own wording rather than dropped, which is
+     * the deliberate trade-off: an older code text kept by mistake is visible and
+     * clearable in the editor, a discarded rename is gone for good.
+     */
+    public function testALegacyRenameOnAColumnWithoutDeclaredCodeTextsIsKept(): void
+    {
+        $code = array($this->codeColumn('varenr', 'Vare Nr.'));
+        $saved = array(array('field' => 'varenr', 'headerName' => 'Mit navn'));
+
+        $merged = merge_column_setup($saved, $code);
+
+        self::assertSame('Mit navn', $merged[0]['headerName']);
+        self::assertSame('Mit navn', $merged[0]['customHeaderName'], 'the editor needs the raw text for prefill');
     }
 
     public function testUserOrderAndWidthPreferencesAreKept(): void
