@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- debitor/func/pos_ordre_itemscan.php ---- lap 4.1.1 -- 2025.10.07 --
+// -------- debitor/func/pos_ordre_itemscan.php ---- lap 5.1.0 -- 2026.09.17 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2014-2025 saldi.dk aps
+// Copyright (c) 2014-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 //
 // 2014.05.08 - Indsat diverse til bordhåndtering, bruger nr fra ordrer til bordnummer (PHR - Danosoft) Søg 20140508 eller $bordnr 
@@ -68,6 +68,7 @@
 // 20240112 PHR Set $myDe to '-' if empty 
 // 20251007 PHR Now looking for varenr_alias
 // 20260914 CDX/LH Port ssl3 extended mylabel barcodes; keep full IDs in fallback lookup.
+// 20260917 CDX/PHR Normalize zero prices for PHP 8 and set price focus before rendering inputs.
 
 function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny) {
 	print "\n<!-- Function varescan (start)-->\n";
@@ -450,6 +451,12 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			$pris_old=$pris_ny; #20140702
 			$leveret[0]=0;
 		}
+		// Zero prices are displayed as an empty string; compare numerically on PHP 8.
+		if ($varenr_ny && $jump2price && (float)usdecimal($pris[0], 2) === 0.0) {
+			$antal_ny = 1;
+			$fokus    = 'pris_ny';
+			$pris_old = '';
+		}
 		$bgColor = 'white';
 		$qtyTitle = '';
 		if (isset($itemGroup[0]) && in_array($itemGroup[0],$stockGrp) && $beholdning[0] < $min_lager[0]) { #20210503
@@ -488,11 +495,6 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 					if ($lagernr[$l]==$lager_ny && strlen($lagernavn[$l])==1) $lager_ny=$lagernavn[$l]; 
 				}
 				print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right;font-size:$ifs;width:40px\" name=\"lager_ny\" placeholder=\"$lager_ny\" value=\"$lager_ny\"></td>\n";
-			}
-			if ($jump2price && $pris[0] == 0) {
-				$antal_ny = 1;
-				$fokus    = 'pris_ny';
-				$pris_old = '';
 			}
 			if ($antal_ny) {
 				if ($textNew) {
