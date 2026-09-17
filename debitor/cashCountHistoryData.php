@@ -4,6 +4,7 @@
 // Licensed under the GNU General Public License, version 2 or later.
 // 20260917 CDX/PHR Reconstruct saved cash counts and reconcile historical decimal errors.
 // 20260917 CDX/PHR Persist unambiguous decimal repairs atomically before presentation.
+// 20260917 CL/LH Keep manual-control warnings when no decimal repair was persisted.
 
 /**
  * Work on a copy only. report.total holds piece counts for denominations.
@@ -132,6 +133,7 @@ function cashCountHistoryLoadAndRepair($reportNumber, $date)
             $rows[] = $row;
         }
         $data = cashCountHistoryPrepare($rows, $date);
+        $repaired = false;
         foreach ($data['rows'] as &$row) {
             if (!isset($row['original'])) {
                 continue;
@@ -145,10 +147,16 @@ function cashCountHistoryLoadAndRepair($reportNumber, $date)
                 throw new RuntimeException('Kunne ikke gemme kasseoptællingen. Prøv igen.');
             }
             unset($row['original']);
+            $repaired = true;
         }
         unset($row);
         cashCountHistoryModify('COMMIT');
-        $data['warning'] = '';
+        // Only the "calculated, database unchanged" notice from cashCountHistoryPrepare()
+        // becomes obsolete once a repair is stored. Warnings asking for manual control of
+        // the report must survive and be shown to the user.
+        if ($repaired) {
+            $data['warning'] = '';
+        }
         return $data;
     } catch (Throwable $error) {
         db_modify('ROLLBACK', __FILE__ . ' rollback count repair');

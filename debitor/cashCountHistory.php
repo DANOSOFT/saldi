@@ -6,6 +6,7 @@
 // 20260917 CDX/PHR Send historical count copies through the normal POS receipt print path.
 // 20260917 CDX/PHR Save decimal repairs before displaying clean report amounts.
 // 20260917 CDX/PHR Select only configured registers, defaulting to the current POS register.
+// 20260917 CL/LH Show the report's manual-control warning above the amounts.
 /**
  * Session/account context supplied by includes/online.php.
  * @var string $db
@@ -101,7 +102,7 @@ if ($printRequested) {
             $company = db_fetch_array(db_select("select firmanavn,cvrnr from adresser where art='S'", __FILE__ . ' receipt header'));
             try {
                 $receipt = cashCountHistoryReceipt($selected, $data, $company ?: [], $brugernavn);
-                $file = cashCountHistoryPrintFile($db, $receipt);
+                $file = cashCountHistoryPrintFile($db, $receipt, $selected['register']);
                 $destination = 'pos_ordre.php?' . http_build_query([
                     'id' => 0, 'kasse' => $selected['register'], 'udskriv_kasseopg' => $file
                 ]);
@@ -159,6 +160,7 @@ if ($printRequested) {
 <?php else: ?>
 <h2>Kasse <?= $selected['register'] ?> · <?= cashCountHistoryEscape($selected['date']) ?> · Rapport <?= (int)$selected['report_number'] ?></h2>
 <p>Genskabt fra den gemte optælling. Mønter og sedler vises som antal; øvrige værdier som beløb.</p>
+<?php if ($data['warning']): ?><p class="notice"><?= cashCountHistoryEscape($data['warning']) ?></p><?php endif; ?>
 <table><thead><tr><th>Beskrivelse</th><th class="amount">Antal / beløb</th></tr></thead><tbody>
 <?php foreach ($data['rows'] as $row): ?>
 <?php if (trim($row['description']) === '' && (float)$row['total'] == 0) { continue; } ?>

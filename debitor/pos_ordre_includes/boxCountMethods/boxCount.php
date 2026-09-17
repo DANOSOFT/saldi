@@ -44,6 +44,7 @@
 // 20260706 CX/PHR setCreditCards: sort VAT rate/amount pairs defensively to avoid array_multisort fatal on uneven arrays
 // 20260917 CDX/PHR Link to saved cash count history.
 // 20260917 CDX/PHR Replace Print last with a same-tab cash count history button.
+// 20260917 CL/LH Translate the cash count history button label (text 5153).
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -195,6 +196,7 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	$countInv    = findtekst('2395|Optalt beholdning',$sprog_id);
 	$diff        = findtekst('2396|Difference',$sprog_id);
 	$fromBox     = findtekst('2397|Udtag fra kasse',$sprog_id);
+	$history     = findtekst('5153|Tidligere optællinger',$sprog_id);
 
 	print "<tr><td align=\"center\" colspan=\"3\">";
 	print "<span onclick='window.open(\"http://$printserver/saldiprint.php?skuffe=1\")'>";
@@ -205,7 +207,7 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	print "<tr><td align=\"center\" colspan=\"3\">";
 	print "<a href=pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&printXreport=1>";
 	print "<input style='width:100px' type=\"button\" name=\"xReport\" value=\"X-rapport\"></a>\n";
-	echo '<button type="button" style="min-width:100px" onclick="window.location.href=\'cashCountHistory.php?kasse=' . (int)$kasse . '\'">Tidligere optællinger</button>';
+	echo '<button type="button" style="min-width:100px" onclick="window.location.href=\'cashCountHistory.php?kasse=' . (int)$kasse . '\'">' . $history . '</button>';
 	print "<td></td>";
 
 	$txt1 = "         ----- X-report -----";

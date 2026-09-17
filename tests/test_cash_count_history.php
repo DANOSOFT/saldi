@@ -4,6 +4,7 @@
 // Licensed under the GNU General Public License, version 2 or later.
 // 20260917 CDX/PHR Exercise historical decimal repair and ambiguous/unsupported reports.
 // 20260917 CDX/PHR Check receipts omit repair annotations.
+// 20260917 CL/LH Cover surviving warnings and the latin9 receipt charset.
 require_once __DIR__ . '/../debitor/cashCountHistoryData.php';
 function historyCheck($condition, $message)
 {
@@ -36,6 +37,9 @@ $ambiguous = historyFixture(952, ['Dankort'=>100, 'MobilePay'=>100]);
 historyCheck(cashCountHistoryPrepare($ambiguous, '2025-08-15')['rows'] === $ambiguous, 'Ambiguous assignments unchanged');
 $manual = historyFixture(7783.1, ['Dankort(6.941,10)'=>69411]);
 historyCheck(cashCountHistoryPrepare($manual, '2025-08-15')['rows'] === $manual, 'Manual card changes unchanged');
+historyCheck(cashCountHistoryPrepare($manual, '2025-08-15')['warning'] !== '', 'Manual card changes warn');
+historyCheck(cashCountHistoryPrepare([['id'=>1, 'description'=>'Dankort', 'total'=>100]], '2025-08-15')['warning'] !== '',
+    'Unknown report layout warns');
 $foreign = $rows;
 $foreign[8]['description'] = 'Morgenbeholdning EUR:';
 historyCheck(cashCountHistoryPrepare($foreign, '2025-08-15')['rows'] === $foreign, 'Foreign currencies unchanged');
@@ -47,6 +51,7 @@ echo "OK: cash count history tests\n";
 
 // Receipt generation is tested without contacting a physical printer.
 require_once __DIR__ . '/../debitor/cashCountHistoryPrint.php';
+$db_encode = 'UTF8';
 $receipt = cashCountHistoryReceipt(
     ['date'=>'2025-08-15', 'register'=>1, 'report_number'=>567],
     $result,
@@ -64,6 +69,13 @@ foreach (explode("\n", $receipt) as $line) {
     historyCheck(strlen($line) <= 40, 'Receipt fits normal 40-column layout');
 }
 historyCheck(strpos(cashCountReceiptText("Bad\x1b\x1d\nlabel"), "\x1b") === false, 'Strip printer control characters');
+
+// Accounts which are not UTF8 store latin9 text; convert from the account charset like createXreport().
+$db_encode = 'latin9';
+$latin9 = iconv('UTF-8', 'ISO-8859-15', 'Bogføring æøå');
+historyCheck(iconv('CP865', 'UTF-8', cashCountReceiptText($latin9)) === 'Bogføring æøå', 'Latin9 accounts convert from iso-8859-15');
+historyCheck(strpos(cashCountReceiptText($latin9 . "\x1b"), "\x1b") === false, 'Strip control characters in latin9 accounts');
+$db_encode = 'UTF8';
 echo "OK: cash count receipt tests (no physical print)\n";
 
 // Optional PostgreSQL integration. All writes target a session-local TEMP table.
@@ -91,6 +103,9 @@ if ($testDatabase) {
     historyCheck((float)pg_fetch_result(pg_query($connection, 'SELECT total FROM report WHERE id=9'), 0, 0) === 6941.1, 'Persist repaired amount');
     historyCheck(!isset($saved['rows'][8]['original']) && $saved['warning'] === '', 'Clean saved result');
     historyCheck((float)pg_fetch_result(pg_query($connection, 'SELECT total FROM report WHERE id=100'), 0, 0) === 69411.0, 'Other reports untouched');
+    // Nothing is repairable in report 568, so its manual-control warning must survive.
+    $unsupported = cashCountHistoryLoadAndRepair(568, '2025-08-15');
+    historyCheck($unsupported['warning'] !== '', 'Keep the prepare warning when nothing was repaired');
     $savedAgain = cashCountHistoryLoadAndRepair(567, '2025-08-15');
     historyCheck((float)$savedAgain['rows'][8]['total'] === 6941.1, 'Repeated load is idempotent');
 

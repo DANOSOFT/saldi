@@ -4,12 +4,25 @@
 // Licensed under the GNU General Public License, version 2 or later.
 // 20260917 CDX/PHR Format reconstructed counts for the existing POS receipt printer.
 // 20260917 CDX/PHR Print saved totals without decimal-repair annotations.
+// 20260917 CL/LH Convert receipt text from the account's own charset, and reuse one copy file per register.
 
-/** Convert and sanitize one line before it reaches the receipt printer. */
+/**
+ * Convert and sanitize one line before it reaches the receipt printer.
+ * Same source charset as createXreport(): the account's own encoding, not always UTF-8.
+ * Control characters are stripped after the conversion, so the regex works on single-byte
+ * CP865 and never has to interpret non-UTF-8 input.
+ */
 function cashCountReceiptText($text)
 {
-    $text = preg_replace('/[\x00-\x1f\x7f]/u', ' ', (string)$text);
-    return iconv('UTF-8', 'CP865//TRANSLIT', $text);
+    global $db_encode;
+
+    if ($db_encode == "UTF8") {
+        $fromCharset = "UTF-8";
+    } else {
+        $fromCharset = "iso-8859-15";
+    }
+    $text = iconv($fromCharset, 'CP865//TRANSLIT', (string)$text);
+    return preg_replace('/[\x00-\x1f\x7f]/', ' ', (string)$text);
 }
 
 /** Return the same 40-column, CP865 text format as a normal cash count. */
@@ -39,8 +52,11 @@ function cashCountHistoryReceipt(array $header, array $data, array $company, $pr
     return $receipt . "\n\n\n";
 }
 
-/** Write a unique copy; never replace kasseopgN.txt or update accounting data. */
-function cashCountHistoryPrintFile($database, $receipt)
+/**
+ * Write the copy; never replace kasseopgN.txt or update accounting data.
+ * One file per register, like Xreport$kasse.txt, so reprints do not pile up in temp/.
+ */
+function cashCountHistoryPrintFile($database, $receipt, $register)
 {
     if (!preg_match('/^[a-zA-Z0-9_-]+$/', $database)) {
         throw new RuntimeException('Ugyldigt regnskab til udskrivning.');
@@ -49,7 +65,7 @@ function cashCountHistoryPrintFile($database, $receipt)
     if (!is_dir($directory) || !is_writable($directory)) {
         throw new RuntimeException('Regnskabets temp-mappe er ikke skrivbar.');
     }
-    $name = 'cash-count-copy-' . bin2hex(random_bytes(12)) . '.txt';
+    $name = 'cash-count-copy-' . (int)$register . '.txt';
     if (file_put_contents($directory . '/' . $name, $receipt, LOCK_EX) !== strlen($receipt)) {
         throw new RuntimeException('Kunne ikke oprette filen til bonprinteren.');
     }
