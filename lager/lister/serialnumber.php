@@ -30,11 +30,16 @@
 // 20260710 MJ ABS(sn.kobslinje_id) i JOIN så negative kobslinje_id (retur til leverandør) også viser indkøbsordren.
 // 20260710 MJ Ekstra COALESCE-fallbacks via ordrelinjer.vare_id→varer og batch_kob/batch_salg.vare_id→varer så serienr med tom/manglende ordrelinjer.varenr stadig søges.
 // 20260813 Sawaneh - "Not sold" filter: sn.salgslinje_id = 0 instead of <= 0, so negative history rows (credited sales) are no longer shown as available. Credited return serials still appear via the fresh row with salgslinje_id = 0 from krediter().
+// 20260917 CL/LH Column headers, filters and the rename/delete dialogs pulled from findtekst().
+// 20260917 CL/LH Translated values interpolated into JavaScript string literals are addslashes()'d, and the page title follows the language via document.title.
 
 @session_start();
 $s_id = session_id();
 
 $css = "../../css/standard.css?v=20";
+// Danish fallback only: online.php prints <head><title>$title</title> while it is being
+// included, i.e. before it has resolved the session language into $sprog_id. The translated
+// title is set further down.
 $title = "Serienr.";
 
 include ("../../includes/std_func.php");
@@ -42,6 +47,9 @@ include ("../../includes/connect.php");
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
 
+// $sprog_id is known from here on. index/main.php copies the iframe title into the browser
+// tab when the frame loads, so correcting document.title here makes the tab follow the language.
+print "<script>document.title = '".addslashes(findtekst('5232|Serienr.', $sprog_id))."';</script>\n";
 
 $valg = "Serienumre";
 include ("topLineVarer.php");
@@ -309,9 +317,13 @@ ORDER BY
     'metaColumn' => substr($rettigheder,1,1) ? function ($row) {
         global $sprog_id;
         if ($row['salgs_ordre'] == "") {
-            $renamePrompt  = findtekst('4996|Hvad skal serienummeret omdøbes til?', $sprog_id)."\\n".findtekst('1497|Serienummer', $sprog_id).": {$row['serienr']}";
-            $renameConfirm = findtekst('4997|Omdøb', $sprog_id)." {$row['serienr']} ".findtekst('904|til', $sprog_id);
-            $deleteConfirm = findtekst('1099|Slet', $sprog_id)." {$row['serienr']}";
+            // The three strings below end up inside single-quoted JavaScript string literals in the
+            // onclick handlers, so every interpolated value is addslashes()'d - an apostrophe in a
+            // translation (or in a serial number) would otherwise break the dialog.
+            $serienr       = addslashes($row['serienr']);
+            $renamePrompt  = addslashes(findtekst('4996|Hvad skal serienummeret omdøbes til?', $sprog_id))."\\n".addslashes(findtekst('1497|Serienummer', $sprog_id)).": {$serienr}";
+            $renameConfirm = addslashes(findtekst('4997|Omdøb', $sprog_id))." {$serienr} ".addslashes(findtekst('904|til', $sprog_id));
+            $deleteConfirm = addslashes(findtekst('1099|Slet', $sprog_id))." {$serienr}";
 
             return <<<HTML
             <td class='filler-row'> <!-- Automatically gets removed on export -->

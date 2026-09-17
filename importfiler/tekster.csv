@@ -4976,27 +4976,27 @@
 4976			
 4977			
 4978			
-4979	Indkøb	Purchasing	Innkjøp		
-4980	Serienumre	Serial numbers	Serienumre		
-4981	Autoudfyld	Auto-fill	Autoutfyll		
-4982	Bestiller	Ordering	Bestiller		
-4983	Bestillinger oprettet	Orders created	Bestillinger opprettet		
-4984	Fejl ved oprettelse af bestillinger	Error creating orders	Feil ved opprettelse av bestillinger		
-4985	Ingen værdier angivet	No values entered	Ingen verdier angitt		
-4986	Indkøbsordre	Purchase order	Innkjøpsordre		
-4987	Gen.	Reord.	Gjen.		
-4988	Salgspris u.m.	Sales price ex. VAT	Salgspris u.mva.		
-4989	DG	GM	DG		
-4990	md.	mo.	mnd.		
-4991	Vis udgået	Show discontinued	Vis utgått		
-4992	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.		
-4993	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.		
-4994	Ekskl. moms	Excl. VAT	Ekskl. MVA		
-4995	Køber	Buyer	Kjøper		
-4996	Hvad skal serienummeret omdøbes til?	What should the serial number be renamed to?	Hva skal serienummeret omdøpes til?		
-4997	Omdøb	Rename	Omdøp		
-4998	Vis rækker uden serienummer	Show rows without serial numbers	Vis rader uten serienummer		
-4999	Vis kun serienumre der ikke er solgt	Show only unsold serial numbers	Vis kun serienumre som ikke er solgt		
+4979	Indkøb	Purchasing	Innkjøp
+4980	Serienumre	Serial numbers	Serienumre
+4981	Autoudfyld	Auto-fill	Autoutfyll
+4982	Bestiller	Ordering	Bestiller
+4983	Bestillinger oprettet	Orders created	Bestillinger opprettet
+4984	Fejl ved oprettelse af bestillinger	Error creating orders	Feil ved opprettelse av bestillinger
+4985	Ingen værdier angivet	No values entered	Ingen verdier angitt
+4986	Indkøbsordre	Purchase order	Innkjøpsordre
+4987	Gen.	Reord.	Gjen.
+4988	Salgspris u.m.	Sales price ex. VAT	Salgspris u.mva.
+4989	DG	GM	DG
+4990	md.	mo.	mnd.
+4991	Vis udgået	Show discontinued	Vis utgått
+4992	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.
+4993	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
+4994	Ekskl. moms	Excl. VAT	Ekskl. MVA
+4995	Køber	Buyer	Kjøper
+4996	Hvad skal serienummeret omdøbes til?	What should the serial number be renamed to?	Hva skal serienummeret omdøpes til?
+4997	Omdøb	Rename	Omdøp
+4998	Vis rækker uden serienummer	Show rows without serial numbers	Vis rader uten serienummer
+4999	Vis kun serienumre der ikke er solgt	Show only unsold serial numbers	Vis kun serienumre som ikke er solgt
 5000			
 5001	Udløbsdato	Expiry date	Utløpsdato
 5002	Varen har udløbsdato	Item has expiry date	Varen har utløpsdato
@@ -5099,3 +5099,4 @@
 5152	Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling	Export all accounts under the selected filters to CSV, without pagination	Eksporter alle kontoer under de valgte filtrene til CSV, uten sideinndeling
 
 5231	Udført af	Performed by	Utført av
+5232	Serienr.	Serial no.	Serienr.
