@@ -61,6 +61,7 @@
 // 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
+// 20260917 CL/LH Lager -> Varer reopens the goods tab the user last worked in (Havemoebelland).
 
 @session_start();
 $s_id=session_id();
@@ -106,7 +107,16 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 
 // Navigate to new lagersystem
 if ($menu == "S") {
-	header('Location: lister/vareliste.php');
+	// 20260917 CL/LH Reopen the goods tab the user last worked in; tabs the user may not see fall back to the item list.
+	$goodsTab = (int)$bruger_id > 0 ? get_settings_value('vareliste_valg', 'lager', 'vareliste', (int)$bruger_id) : 'vareliste';
+	$goodsTabPages = array(
+		'vareliste'    => 'vareliste.php',
+		'ordrestatus'  => substr($rettigheder, 5, 1) ? 'ordrestatus.php' : 'vareliste.php',
+		'indkob'       => substr($rettigheder, 7, 1) ? rawurlencode('indkøb') . '.php' : 'vareliste.php',
+		'serialnumber' => 'serialnumber.php',
+	);
+	$goodsTabPage = isset($goodsTabPages[$goodsTab]) ? $goodsTabPages[$goodsTab] : 'vareliste.php';
+	header('Location: lister/' . $goodsTabPage);
 	exit;
 }
 	

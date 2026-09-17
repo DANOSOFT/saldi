@@ -36,6 +36,7 @@
 // 20260904 Sawaneh WP-1.3: popup window.open links now carry popup=1 so the opened
 //                  window is treated as a popup by request, not by user preference.
 // 20260907 CDX/LH Mark the POS launcher as a popup when opening it in a new window.
+// 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -233,8 +234,8 @@ function oldmenu() {
 	if ($vis_debitor) {
 		$tekst=findtekst(106,$sprog_id);
 		if (substr($rettigheder,5,1)=='1') {
-			if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer&returside=../includes/luk.php&popup=1','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
-			else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer&returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
+			if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?menu_entry=1&reset_context=1&returside=../includes/luk.php&popup=1','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
+			else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?menu_entry=1&reset_context=1&returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
 		} else {
 			print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(107,$sprog_id)."</td>\n";
 		}
