@@ -32,6 +32,14 @@
             }
         });
 
+        // Lev. varenr field
+        document.querySelectorAll('input[name="lev_varenr0"]').forEach(input => {
+            if (!input.autocompleteInitialized) {
+                setupAutocomplete(input, 'lev_item');
+                input.autocompleteInitialized = true;
+            }
+        });
+
         // Creditor account fields
         document.querySelectorAll('input[name="kontonr"], input[name="newAccountNo"]').forEach(input => {
             if (!input.autocompleteInitialized) {
@@ -151,9 +159,18 @@
         const kassePath = '../finans/kassekladde_includes/';
 
         switch (type) {
-            case 'item':
+            case 'item': {
+                const kontoId = (document.querySelector('input[name="konto_id"]') || {}).value || '0';
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value);
+                if (kontoId && kontoId !== '0') url += '&kreditor_order=1&konto_id=' + encodeURIComponent(kontoId);
                 break;
+            }
+            case 'lev_item': {
+                const kontoId = (document.querySelector('input[name="konto_id"]') || {}).value || '0';
+                url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value) + '&search_field=lev_varenr';
+                if (kontoId && kontoId !== '0') url += '&kreditor_order=1&konto_id=' + encodeURIComponent(kontoId);
+                break;
+            }
             case 'customer':
                 url = kassePath + 'accountSearch.php?type=kreditor&search=' + encodeURIComponent(value);
                 break;
@@ -186,6 +203,7 @@
         let title = 'Select ';
         switch (type) {
             case 'item': title += 'Item'; break;
+            case 'lev_item': title += 'Lev. varenr'; break;
             case 'customer': title += 'Account'; break;
             case 'currency': title += 'Currency'; break;
             case 'employee': title += 'Employee'; break;
@@ -200,6 +218,8 @@
             <div class="ordre-autocomplete-results">
         `;
 
+        const hasSupplier = type === 'item' && results && results.some(r => r.lev_id > 0);
+
         if (!results || results.length === 0) {
             html += '<div class="ordre-autocomplete-no-results">Ingen resultater fundet</div>';
         } else {
@@ -208,7 +228,12 @@
             if (type === 'item') {
                 html += '<th style="width: 100px;">Varenr.</th>';
                 html += '<th>Beskrivelse</th>';
+                if (hasSupplier) html += '<th style="width: 140px;">Leverandør</th>';
                 html += '<th style="width: 80px; text-align: right;">Kostpris</th>';
+            } else if (type === 'lev_item') {
+                html += '<th style="width: 100px;">Lev. varenr</th>';
+                html += '<th style="width: 100px;">Varenr.</th>';
+                html += '<th>Beskrivelse</th>';
             } else if (type === 'customer') {
                 html += '<th style="width: 100px;">Kontonr.</th>';
                 html += '<th>Navn</th>';
@@ -223,12 +248,20 @@
                 const id = item.id || item.kontonr || item.code;
                 const val = item.varenr || item.kontonr || item.code || item.initials;
 
-                html += `<tr class="autocomplete-item" data-id="${id}" data-value="${val}">`;
+                html += `<tr class="autocomplete-item" data-id="${id}" data-value="${val}" data-lev-varenr="${escapeHtml(item.lev_varenr || '')}">`;
 
                 if (type === 'item') {
                     html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
                     html += `<td>${escapeHtml(item.beskrivelse)}</td>`;
+                    if (hasSupplier) {
+                        const levLabel = item.lev_id > 0 ? escapeHtml((item.lev_kontonr ? item.lev_kontonr + ':' : '') + item.lev_firmanavn) : '';
+                        html += `<td class="code-cell">${levLabel}</td>`;
+                    }
                     html += `<td style="text-align: right;">${item.kostpris.toFixed(2)}</td>`;
+                } else if (type === 'lev_item') {
+                    html += `<td class="code-cell">${escapeHtml(item.lev_varenr)}</td>`;
+                    html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
+                    html += `<td>${escapeHtml(item.beskrivelse)}</td>`;
                 } else if (type === 'customer') {
                     html += `<td class="code-cell">${escapeHtml(item.kontonr)}</td>`;
                     html += `<td>${escapeHtml(item.beskrivelse)}</td>`;
@@ -281,11 +314,19 @@
         const dropdownHeight = 450;
         const windowHeight = window.innerHeight;
 
-        let top = rect.bottom + window.scrollY;
+        const spaceBelow = windowHeight - rect.bottom;
+        const spaceAbove = rect.top;
 
-        // If dropdown would go off screen, show it above the input
-        if (rect.bottom + dropdownHeight > windowHeight) {
-            top = rect.top + window.scrollY - dropdownHeight;
+        let top;
+        if (spaceBelow >= dropdownHeight || spaceBelow >= spaceAbove) {
+            // Show below — cap height to available space so it doesn't go off screen
+            top = rect.bottom + window.scrollY;
+            dropdown.style.maxHeight = Math.min(dropdownHeight, spaceBelow - 4) + 'px';
+        } else {
+            // Show above — cap height to available space so it doesn't cover the field
+            const availableAbove = Math.min(dropdownHeight, spaceAbove - 4);
+            top = rect.top + window.scrollY - availableAbove;
+            dropdown.style.maxHeight = availableAbove + 'px';
         }
 
         dropdown.style.top = top + 'px';
@@ -306,7 +347,7 @@
         const value = selected.dataset.value;
         const id = selected.dataset.id;
 
-        if (type === 'item') {
+        if (type === 'item' || type === 'lev_item') {
             const urlParams = new URLSearchParams(window.location.search);
             let orderId = urlParams.get('id');
             // Fallback: read from form hidden input (page is often loaded via POST, so URL may not have the id)

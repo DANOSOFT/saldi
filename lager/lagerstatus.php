@@ -37,6 +37,51 @@
 // 20251209 PHR closed products in now hidden by default
 // 20260206 PHR	fiscal_year
 // 20260217 PHR Removed fiscal_year from 'LG' serach
+// 20260707 CL/SZ Added Grid Framework sticky header and footer to Stock Status report
+// 20260710 SZ Added Grid Framework sticky header+footer with pagination and internal-scroll grid
+// 20260901 CL/SZ MB-31: added a standardised per-column Varenr./Beskrivelse search row directly
+//             under the sticky column-title row (matching lager/lister/vareliste.php's
+//             create_datagrid() search row) - this report had no free-text search at all, unlike
+//             lager/rapport.php's front page. Same wildcard/case-insensitive LIKE pattern already
+//             used there, applied to the existing candidate query. The search term is
+//             $varenrSoeg, not $varenr, to avoid clobbering the existing per-item $varenr[$x] array
+//             further down (caught live against a real tenant - first version silently turned every
+//             result row's item-number display into "Array" and broke pagination links)
+// 20260904 SZ MB-39: Kobspris valued stock at the wrong price - the batch_kob value walk's
+//             "and antal >= 1" dropped negative (credit note) lines, so a credited purchase never
+//             cancelled the batch it credited, and its "order by kobsdate desc" had no tie-break,
+//             so the result could change between runs when batches shared a date. Included
+//             negative lines, added an id-based tie-break, stopped the walk once remaining stock
+//             is covered, and guarded on positive remaining stock so already-zero/negative-stock
+//             items still value at 0. Verified against IBON's real saldi_821 dump (SST-764).
+// 20260908 CDX/LH Cancel linked purchase credits before selecting the remaining stock value.
+
+// MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
+// same markup.
+function lsSearchInput($name, $value) {
+	return "<input class='inputbox' type='text' name='lss_$name' value='" . htmlspecialchars((string)$value, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
+}
+// MB-31 - matches one item's already-computed $values (see $lsRowValues) against every non-blank term
+// in $search (the $lsS array): an exact numeric match (rounded to 2 decimals, same as the report
+// already displays) or a "min:max" range if the box contains a colon - same convention
+// includes/grid.php's own generic search uses for its 'number' column type (Enhed is a plain text
+// column and stays a SQL-level substring filter instead, alongside Varenr./Beskrivelse).
+function lsRowMatchesSearch($values, $search) {
+	foreach ($search as $field => $term) {
+		$term = trim((string)$term);
+		if ($term === '' || !array_key_exists($field, $values)) continue;
+		$value = $values[$field];
+		if (strpos($term, ':') !== false) {
+			list($lo, $hi) = explode(':', $term, 2);
+			$lo = trim((string)$lo) === '' ? -INF : usdecimal($lo);
+			$hi = trim((string)$hi) === '' ? INF : usdecimal($hi);
+			if (round((float)$value, 2) < $lo || round((float)$value, 2) > $hi) return false;
+		} elseif (round((float)$value, 2) != usdecimal($term)) {
+			return false;
+		}
+	}
+	return true;
+}
 
 @session_start();
 $s_id=session_id();
@@ -52,12 +97,24 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include_once(__DIR__ . "/lagerstatusValue.php");
 
 db_modify("update varer set lukket = '0' where lukket is NULL or lukket = ''",__FILE__ . " linje " . __LINE__);
 
 # if ($popup) $returside="../includes/luk.php";
 # else $returside="rapport.php";
-$scv = $dato = $dateType = $opdater = $lagervalg = $ret_behold = $zStock = $saldi_lagerstatus = $showClosed = $varegruppe = NULL;
+$scv = $dato = $dateType = $opdater = $lagervalg = $ret_behold = $zStock = $saldi_lagerstatus = $showClosed = $varegruppe = $varenrSoeg = $varenavn = $enhedSoeg = NULL;
+
+// MB-31 - one search box per grid column, matching every other list in the app (create_datagrid()).
+// Enhed is a plain stored column, so like Varenr./Beskrivelse above it stays a SQL-level filter -
+// named $enhedSoeg (not $enhed) to avoid colliding with the existing per-item $enhed[$x] array further
+// down, same reason $varenrSoeg isn't just $varenr. Every other column here is a per-item computed
+// value with no column to filter on directly, so those are read into one array and matched against
+// each item's already-computed value further down (see $lsRowValues/$lsMatchIndices), not the query.
+$lsSFields = array('tilgang','afgang','antal','kobspris','kostpris','salgspris');
+$lsS = array();
+foreach ($lsSFields as $lsSField) $lsS[$lsSField] = isset($_GET['lss_'.$lsSField]) ? trim($_GET['lss_'.$lsSField]) : null;
+$enhedSoeg = isset($_GET['enhed']) ? trim($_GET['enhed']) : null;
 
 $returside="rapport.php";
 
@@ -69,6 +126,30 @@ else {
 	setcookie("saldi_lagerstatus", $varegruppe);
 	$returside="rapport.php?varegruppe=$varegruppe";
 }
+// 20260714 SZ - GET baseline (covers pagination/back-button/direct-link navigation, which is a plain
+// GET request with no $_POST at all) first, then an actual search-form submit (POST) overlays on top -
+// same GET-first/POST-overlay shape as includes/salgsstat.php's input handling. This also fixes
+// showClosed reading from $_POST here (a typo - every other field in this branch reads $_GET), which
+// meant showClosed silently reset on every plain GET navigation, incl. Grid Framework pagination.
+if (isset($_GET['dato']) && $_GET['dato']) {
+	$dato       = $_GET['dato'];
+	$dateType   = 'levdate';
+	$varegruppe = $_GET['varegruppe'];
+	$lagervalg  = $_GET['lagervalg'];
+	$zStock     = $_GET['zStock'];
+	$showClosed = $_GET['showClosed'];
+	// 20260901 CL/SZ - named $varenrSoeg (not $varenr): this file already has a per-item $varenr[$x]
+	// array further down (the item number shown in each result row) - reusing the bare name here would
+	// silently clobber that array with this scalar search term, so the request field stays "varenr" but
+	// the PHP variable holding it is renamed to avoid the collision.
+	$varenrSoeg = isset($_GET['varenr'])   ? $_GET['varenr']   : null;
+	$varenavn   = isset($_GET['varenavn']) ? $_GET['varenavn'] : null;
+} elseif (!$varegruppe)  {
+	$dato       = date("d-m-Y");
+	$dateType   = 'levdate';
+	$varegruppe = ($_COOKIE['saldi_lagerstatus']);
+	if (!$varegruppe) $varegruppe = "0:Alle";
+}
 if (isset($_POST['dato']) && $_POST['dato']) {
 	$dato       = $_POST['dato'];
 	$dateType   = $_POST['dateType'];
@@ -76,20 +157,11 @@ if (isset($_POST['dato']) && $_POST['dato']) {
 	$lagervalg  = $_POST['lagervalg'];
 	$zStock     = $_POST['zStock'];
 	$showClosed = $_POST['showClosed'];
+	$varenrSoeg = isset($_POST['varenr'])   ? trim($_POST['varenr'])   : null;
+	$varenavn   = isset($_POST['varenavn']) ? trim($_POST['varenavn']) : null;
+	$enhedSoeg  = isset($_POST['enhed'])    ? trim($_POST['enhed'])    : null;
+	foreach ($lsSFields as $lsSField) $lsS[$lsSField] = isset($_POST['lss_'.$lsSField]) ? trim($_POST['lss_'.$lsSField]) : null;
 	setcookie("saldi_lagerstatus", $varegruppe);
-} elseif (isset($_GET['dato']) && $_GET['dato']) {
-	$dato       = $_GET['dato'];
-	$dateType   = 'levdate';
-	$varegruppe = $_GET['varegruppe'];
-	$lagervalg  = $_GET['lagervalg'];
-	$zStock     = $_GET['zStock'];
-	$showClosed = $_POST['showClosed'];
-	# setcookie("saldi_lagerstatus", $varegruppe);
-} elseif (!$varegruppe)  {
-	$dato       = date("d-m-Y");
-	$dateType   = 'levdate';
-	$varegruppe = ($_COOKIE['saldi_lagerstatus']);
-	if (!$varegruppe) $varegruppe = "0:Alle";
 }
 if (!$dateType) $dateType   = 'levdate';
 $csv=if_isset($_GET['csv']);
@@ -128,6 +200,35 @@ if (count($lager)>=1) {
 $x=0;
 list($a,$b)=explode(":",$varegruppe);
 
+// 20260901 CL/SZ MB-31 - same wildcard/case-insensitive LIKE pattern lager/rapport.php's forside()
+// already uses for these same two fields; built once and appended (as "and (...)") to whichever of
+// the 4 candidate queries below runs, so a real Jira ticket key/description search actually narrows
+// this report instead of only filtering by Varegruppe/Lager/Dato.
+$vareSearchSql = "";
+if ($varenrSoeg) {
+	// MB-31 - always a plain substring match, same as every other per-column search box in this
+	// grid row and in the ordreliste.php sample - no special '*' wildcard syntax to remember.
+	// Pattern built into its own variable (not $varenrSoeg itself) so the search box, CSV href
+	// and pagination links all keep showing what the user actually typed instead of the wrapped
+	// '%...%' SQL pattern.
+	$varenrPattern = "%".$varenrSoeg."%";
+	$low=strtolower($varenrPattern);
+	$upp=strtoupper($varenrPattern);
+	$vareSearchSql.=" and (varer.varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varer.varenr) LIKE '".db_escape_string($low)."' or upper(varer.varenr) LIKE '".db_escape_string($upp)."')";
+}
+if ($varenavn) {
+	// MB-31 - same plain substring match as Varenr. above, same reason for a separate pattern var.
+	$varenavnPattern = "%".$varenavn."%";
+	$low=strtolower($varenavnPattern);
+	$upp=strtoupper($varenavnPattern);
+	$vareSearchSql.=" and (varer.beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(varer.beskrivelse) LIKE '".db_escape_string($low)."' or upper(varer.beskrivelse) LIKE '".db_escape_string($upp)."')";
+}
+if ($enhedSoeg) {
+	// MB-31 - Enhed's search box: substring match (not exact/wildcard like Varenr./Beskrivelse above),
+	// same convention includes/grid.php's own DEFAULT_GENERATE_SEARCH() uses for its 'text' columns.
+	$vareSearchSql.=" and varer.enhed ILIKE '%".db_escape_string($enhedSoeg)."%'";
+}
+
 if ($a) {
 	if ($lagervalg) {
 		$qtxt = "select varer.id,varer.varenr,varer.enhed,varer.beskrivelse,varer.salgspris,varer.kostpris,varer.varianter,varer.gruppe,";
@@ -135,11 +236,13 @@ if ($a) {
 		$qtxt.= "from varer,lagerstatus where varer.gruppe='$a' and lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' ";
 		if (!$zStock) $qtxt.= "and lagerstatus.beholdning != '0' ";
 		if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		$qtxt.= "$vareSearchSql ";
 		$qtxt.="order by varer.varenr";
 	} else {
 	   $qtxt = "select * from varer where gruppe='$a' ";
 	   if (!$zStock) $qtxt.= "and beholdning != '0' ";
 	   if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+	   $qtxt.= "$vareSearchSql ";
 	   $qtxt.= "order by varenr";
 	}
 } else {
@@ -149,13 +252,15 @@ if ($a) {
 		$qtxt.= "from varer,lagerstatus where lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' ";
 		if (!$zStock) $qtxt.= "and lagerstatus.beholdning != '0' ";
 	   if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		$qtxt.= "$vareSearchSql ";
 		$qtxt.= " order by varer.varenr";
 	} else {
-		$qtxt = "select * from varer ";
+		$qtxt = "select * from varer where 1=1 ";
 		if (!$zStock) {
-			$qtxt.= "where beholdning != '0' ";
+			$qtxt.= "and beholdning != '0' ";
 			if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
-		} elseif (!$showClosed) $qtxt.= "where varer.lukket = '0' ";
+		} elseif (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		$qtxt.= "$vareSearchSql ";
 		$qtxt.= "order by varenr";
 	}
 }
@@ -176,33 +281,46 @@ while ($r2=db_fetch_array($q2)){
 $vareantal=$x;
 global $menu;
 
-if ($menu=='S') {
-	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
-	print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-	print "<tr>";
+// 20260710 SZ Added Grid Framework sticky header+footer (mirrors includes/salgsstat.php /
+//             lager/rapport.php): fixed blue header bar + filter form, internal-scroll data grid
+//             with a sticky colgroup-driven column-title row, and a fixed footer with real
+//             (server-side) pagination. $menu != 'S' keeps the old, unstyled chrome unchanged.
+$lsGridMode = ($menu=='S');
+// MB-31/CodeRabbit - propagate every $lsSFields numeric filter (not just varenr/varenavn/enhed),
+// same as $lsBaseUrlParams below does for pagination, so a CSV export matches what the grid shows.
+$lsCsvHref = "lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg&varenr=".urlencode((string)$varenrSoeg)."&varenavn=".urlencode((string)$varenavn)."&enhed=".urlencode((string)$enhedSoeg);
+foreach ($lsSFields as $lsSField) $lsCsvHref .= "&lss_".$lsSField."=".urlencode((string)$lsS[$lsSField]);
 
-	print "<td width='10%'><a href='$returside' accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+if ($lsGridMode) {
+	$lsTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 
-	print "<td width='80%' align='center' style='$topStyle'>".ucfirst(findtekst('992|Lagerstatus', $sprog_id))."</td>";
-
-	print "<td width='10%'><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg' title=\"".findtekst('1655|Klik her for at eksportere til csv', $sprog_id)."\">
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
-
-	print "</tr></td></tbody></table>\n";
+	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+	print "<div id='lsPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+	print "<td width='10%' align='left'><a href='$returside' accesskey=L>
+		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$lsTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+	print "<td width='80%' align='center' style='$topStyle'>" . ucfirst(findtekst('992|Lagerstatus', $sprog_id)) . "</td>";
+	print "<td width='10%' align='center'><a href='$lsCsvHref' title=\"".findtekst('1655|Klik her for at eksportere til csv', $sprog_id)."\">
+		   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+	print "</tr></tbody></table>\n";
 } else {
 	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
 	print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
 	print "<tr>";
 	print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>"; #20210708
 	print "<td width=80% $top_bund align=center>".ucfirst(findtekst('992|Lagerstatus', $sprog_id))."</td>";
-	print "<td width=10% $top_bund><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg' ";
+	print "<td width=10% $top_bund><a href='$lsCsvHref' ";
 	print "title=\"".findtekst('1655|Klik her for at eksportere til csv', $sprog_id)."\">CSV</a></td>";
 	print "</tr></td></tbody></table>\n";
 }
 
-print "<form action=lagerstatus.php method=post>";
-print "<tr><td colspan=\"7\" align=\"center\">";
+($zStock)?$zStock="checked='checked'":$zStock=NULL;
+($showClosed)?$showClosed="checked='checked'":$showClosed=NULL;
+
+if (!$lsGridMode) print "<form action=lagerstatus.php method=post>";
+if ($lsGridMode) print "<form action=lagerstatus.php method=post><table width='100%' cellpadding='2' cellspacing='0'><tbody><tr><td align='center'>";
+else print "<tr><td colspan=\"7\" align=\"center\">";
 if (count($lager)) {
 	print findtekst('608|Lager', $sprog_id).": <select class=\"inputbox\" name=\"lagervalg\">";
 	for ($x=0;$x<count($lager);$x++){
@@ -232,28 +350,130 @@ if ($dateType == 'levdate') {
 	print "<option value='levdate'>Leveringsdato</option>";
 }
 print "</select>";
-($zStock)?$zStock="checked='checked'":$zStock=NULL;
-($showClosed)?$showClosed="checked='checked'":$showClosed=NULL;
 print "&nbsp;<span title='".findtekst('1656|Medtag varer, hvor beholdningen er 0', $sprog_id)."'>0 ".strtolower(findtekst('608|Lager', $sprog_id)).":<input type=\"checkbox\" name=\"zStock\" $zStock>";
-print "&nbsp;<span title='Medtag udgåede varer''>Udgåede:<input type=\"checkbox\" name=\"showClosed\" $showClosed></span></td>";
-print "<td  colspan=6 align=right><input type=submit value=OK></form></td></tr>";
-print "<tr><td colspan=9><hr></td></tr>";
-print "<tr><td width=8%>".findtekst('917|Varenr.', $sprog_id).".</td><td width=5%>".findtekst('945|Enhed', $sprog_id)."</td><td width=48%>".findtekst('914|Beskrivelse', $sprog_id)."</td>
+print "&nbsp;<span title='Medtag udgåede varer''>Udgåede:<input type=\"checkbox\" name=\"showClosed\" $showClosed></span>";
+if ($lsGridMode) {
+	print "&nbsp;<input type=submit value=OK></td></tr></tbody></table></form>\n";
+	print "</div>\n"; // <- close flex:0 wrapper around header bar + filter form
+} else {
+	print "</td>";
+	print "<td  colspan=6 align=right><input type=submit value=OK></form></td></tr>";
+	print "<tr><td colspan=9><hr></td></tr>";
+}
+
+// Real (server-side) pagination for the Grid Framework footer - same $ls_page/$ls_per_page
+// query-param pattern the other Grid Framework reports use. $vareantal is the candidate item
+// count before the per-item "has any activity" filter below (line ~369 in the original), so a
+// page may show slightly fewer than $lsPerPage rows if some candidates in that index range are
+// filtered out - an accepted approximation, same tradeoff made for lager/rapport.php's pagination.
+if ($lsGridMode) {
+	$lsValidPageSizes=array(50,100,250,500,100000);
+	$lsPerPage=(int) (isset($_GET['ls_per_page']) ? $_GET['ls_per_page'] : 0);
+	if (!in_array($lsPerPage,$lsValidPageSizes)) $lsPerPage=50;
+	$lsPage=(int) (isset($_GET['ls_page']) ? $_GET['ls_page'] : 0);
+	if ($lsPage<1) $lsPage=1;
+	$lsTotalRows=$vareantal;
+	$lsTotalPages=max(1,ceil($lsTotalRows/$lsPerPage));
+	if ($lsPage>$lsTotalPages) $lsPage=$lsTotalPages;
+	$lsPageStart=($lsPage-1)*$lsPerPage;
+	$lsPageEnd=$lsPageStart+$lsPerPage;
+
+	print "<style>
+#lsGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
+#lsGridTable { border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; }
+/* This page's legacy doctype puts the browser in quirks mode, where two independently
+   position:sticky <tr>s in one table both lose their stickiness the moment there are two of
+   them - confirmed live (hiding the search row on its own made the title row stick again).
+   Sticking the whole <thead> as a single unit sidesteps that and keeps both rows pinned
+   together, same as includes/grid.php's own .datatable thead { position:sticky } does. */
+#lsGridTable thead { position:sticky; top:0; z-index:10; }
+#lsGridTable th { padding:6px 4px; background-color:$bgcolor; box-sizing:border-box; text-align:left; }
+#lsGridTable td { box-sizing:border-box; padding:4px; }
+#lsGridTable th.text-right { text-align:right; }
+#lsGridTable tr.ls-search-row th { background-color:$bgcolor; font-weight:normal; padding:2px 4px; }
+/* .inputbox (css/standard.css) doesn't style :disabled, so the placeholder boxes on columns with
+   no real search field looked identical to the two working ones (Varenr./Beskrivelse) - blend
+   them into the row instead so it's visually clear only those two are actually searchable. */
+#lsGridTable tr.ls-search-row input:disabled { background-color:$bgcolor; border-color:$bgcolor; cursor:default; }
+</style>\n";
+	$lsColgroupHtml = "<colgroup><col style='width:10%'><col style='width:6%'><col style='width:34%'><col style='width:8%'><col style='width:8%'><col style='width:8%'><col style='width:9%'><col style='width:9%'><col style='width:8%'></colgroup>";
+	// MB-31 - standardised per-column search row (matches lager/lister/vareliste.php's
+	// create_datagrid()/includes/grid.php render_table_headers(): a second <tr> of <th> search
+	// inputs inside the same sticky <thead> as the column-title row, not a row below it). A
+	// second <form> wraps just the grid table, carrying the filter-form's current settings as
+	// hidden fields so a search resubmit doesn't lose them; a hidden submit input keeps Enter-key
+	// submission working without showing a visible per-column OK button (grid.php's own search
+	// row has none either - it submits via JS, this submits via a plain hidden reload instead).
+	// display:flex/flex:1/min-height:0 here make the <form> a transparent pass-through in the
+	// #lsPageFlex flex column: without them the form (a plain block box) breaks the flex chain
+	// between #lsPageFlex and #lsGridWrapper, #lsGridWrapper's own flex:1 has no effect, it grows to
+	// its full content height instead of the viewport, and the sticky header/search rows have no
+	// scrolling ancestor to stick within - this is what broke the header/search scroll-pinning.
+	print "<form name='lsInlineSearch' action='lagerstatus.php' method='post' style='display:flex;flex-direction:column;flex:1 1 auto;min-height:0;'>";
+	print "<input type='hidden' name='dato' value='" . htmlspecialchars((string)$dato, ENT_QUOTES) . "'>";
+	print "<input type='hidden' name='dateType' value='" . htmlspecialchars((string)$dateType, ENT_QUOTES) . "'>";
+	print "<input type='hidden' name='varegruppe' value='" . htmlspecialchars((string)$varegruppe, ENT_QUOTES) . "'>";
+	print "<input type='hidden' name='lagervalg' value='" . htmlspecialchars((string)$lagervalg, ENT_QUOTES) . "'>";
+	print "<input type='hidden' name='zStock' value='" . htmlspecialchars((string)$zStock, ENT_QUOTES) . "'>";
+	print "<input type='hidden' name='showClosed' value='" . htmlspecialchars((string)$showClosed, ENT_QUOTES) . "'>";
+	print "<input type='submit' style='position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;'>";
+	$lsSearchVarenr   = "<input class='inputbox' type='text' name='varenr' value='" . htmlspecialchars((string)$varenrSoeg, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
+	$lsSearchVarenavn = "<input class='inputbox' type='text' name='varenavn' value='" . htmlspecialchars((string)$varenavn, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
+	$lsSearchEnhed    = "<input class='inputbox' type='text' name='enhed' value='" . htmlspecialchars((string)$enhedSoeg, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
+	// MB-31 - Tilgang..Salgspris are computed/aggregated per item (batch_kob/batch_salg sums), not
+	// plain DB columns, so unlike Varenr./Enhed/Beskrivelse above these can't filter via SQL without
+	// touching the per-item aggregation this ticket says not to disturb - instead each $lsS[...] term
+	// is matched against the item's already-computed value after the fact (see $lsRowValues/
+	// $lsMatchIndices further down, right before pagination/totals are worked out).
+	$lsSearchTilgang   = lsSearchInput('tilgang', $lsS['tilgang']);
+	$lsSearchAfgang    = lsSearchInput('afgang', $lsS['afgang']);
+	$lsSearchAntal     = lsSearchInput('antal', $lsS['antal']);
+	$lsSearchKobspris  = lsSearchInput('kobspris', $lsS['kobspris']);
+	$lsSearchKostpris  = lsSearchInput('kostpris', $lsS['kostpris']);
+	$lsSearchSalgspris = lsSearchInput('salgspris', $lsS['salgspris']);
+	print "<div id='lsGridWrapper'><table id='lsGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$lsColgroupHtml<thead>";
+	print "<tr class='ls-col-title-row'><th>".findtekst('917|Varenr.', $sprog_id).".</th><th>".findtekst('945|Enhed', $sprog_id)."</th><th>".findtekst('914|Beskrivelse', $sprog_id)."</th>
+	<th class='text-right'><span title='".findtekst('1657|Antal enheder købt før den', $sprog_id)." $dato'>".findtekst('2744|Tilgang', $sprog_id)."</span></th>
+	<th class='text-right'><span title='".findtekst('1658|Antal enheder solgt før den', $sprog_id)." $dato'>".findtekst('2745|Afgang', $sprog_id)."</span></th>
+	<th class='text-right'><span title='".findtekst('1659|Lagerbeholdning pr', $sprog_id).". $dato'>".findtekst('916|Antal', $sprog_id)."</span></th>
+	<th class='text-right'><span title='".findtekst('1660|Købsværdi af lagerbeholdning (Reel købspris)', $sprog_id)."'>".findtekst('978|Købspris', $sprog_id)."</span></th>
+	<th class='text-right'><span title='".findtekst('1661|Kostpris af lagerbeholdning (fra varekort)', $sprog_id)."'>".findtekst('950|Kostpris', $sprog_id)."</span></th>
+	<th class='text-right'><span title='".findtekst('1662|Salgsværdi af lagerbeholdning (fra varekort)', $sprog_id)."'>".findtekst('949|Salgspris', $sprog_id)."</span></th></tr>";
+	print "<tr class='ls-search-row'><th>$lsSearchVarenr</th><th>$lsSearchEnhed</th><th>$lsSearchVarenavn</th>
+	<th>$lsSearchTilgang</th><th>$lsSearchAfgang</th><th>$lsSearchAntal</th><th>$lsSearchKobspris</th><th>$lsSearchKostpris</th><th>$lsSearchSalgspris</th></tr>";
+	print "</thead><tbody>";
+} else {
+	print "<tr><td width=8%>".findtekst('917|Varenr.', $sprog_id).".</td><td width=5%>".findtekst('945|Enhed', $sprog_id)."</td><td width=48%>".findtekst('914|Beskrivelse', $sprog_id)."</td>
 	<td align=right width=5%><span title='".findtekst('1657|Antal enheder købt før den', $sprog_id)." $dato'>".findtekst('2744|Tilgang', $sprog_id)."</span></td>
 	<td align=right width=5%><span title='".findtekst('1658|Antal enheder solgt før den', $sprog_id)." $dato'>".findtekst('2745|Afgang', $sprog_id)."</span></td>
 	<td align=right width=5%><span title='".findtekst('1659|Lagerbeholdning pr', $sprog_id).". $dato'>".findtekst('916|Antal', $sprog_id)."</span></td>
 	<td align=right width=8%><span title='".findtekst('1660|Købsværdi af lagerbeholdning (Reel købspris)', $sprog_id)."'>".findtekst('978|Købspris', $sprog_id)."</span></td>
 	<td align=right width=8%><span title='".findtekst('1661|Kostpris af lagerbeholdning (fra varekort)', $sprog_id)."'>".findtekst('950|Kostpris', $sprog_id)."</span></td>
 	<td align=right width=8%><span title='".findtekst('1662|Salgsværdi af lagerbeholdning (fra varekort)', $sprog_id)."'>".findtekst('949|Salgspris', $sprog_id)."</span></td></tr>";
+}
 
 if ($csv) {
 	$fp=fopen("../temp/$db/lagerstatus.csv","w");
 	$linje="Varenr".";"."Enhed".";"."Beskrivelse".";"."Købt".";"."Solgt".";"."Antal".";"."Købspris".";"."Kostpris".";"."Salgspris";
-	$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
+#	$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	fwrite($fp,"$linje\n");
 }
  
+if ($lsGridMode) {
+	// MB-31 - must exist even if zero items ever push into them below (e.g. a search or the
+	// Varenr./Beskrivelse/Enhed filter matches nothing): count($lsAllChunks) in the unified
+	// filter block further down otherwise fatals with "count(): Argument #1 ($value) must be
+	// of type Countable|array, null given" instead of just showing "0 results".
+	$lsAllChunks = array();
+	$lsRowValues = array();
+}
 for($x=1; $x<=$vareantal; $x++) {
+	// 20260710 SZ - capture this item's row so it can be skipped when outside the current Grid
+	// Framework page window (real server-side pagination, matching includes/salgsstat.php /
+	// lager/rapport.php). ob_start() only intercepts print/echo output - the db_modify() stock
+	// corrections and fwrite($fp,...) CSV export below are unaffected and still run for every
+	// item regardless of page, exactly as before.
+	if ($lsGridMode) ob_start();
 	$handlet[$x]=0;
 	$batch_k_antal[$x]=0;$batch_t_antal[$x]=0;$batch_pris[$x]=0;$batch_s_antal[$x]=0;
 	$qtxt="select sum(antal) as antal from batch_kob where vare_id=$vare_id[$x]";
@@ -328,26 +548,17 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		if ($tmp*$batch_t_antal[$x]!=0) $batch_pris[$x]=$batch_pris[$x]/$tmp*$batch_t_antal[$x];
 		else $batch_pris[$x]=0;
 */	
-	if ($batch_k_antal[$x]) {
-		$pris=0;
-		$antal=0;
-		$qtxt="select antal,pris from batch_kob where vare_id=$vare_id[$x] and antal >= 1"; #20140128
-		if ($lagervalg) $qtxt.=" and lager='$lagervalg'";
-		($dateType == 'levdate')?$dt = 'kobsdate':$dt = $dateType;
-		if ($date!=$dd) $qtxt.=" and $dt <= '$date'";
-		$qtxt.=" order by kobsdate desc";
-		$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while($r1=db_fetch_array($q1)) {
-			if ($antal+$r1['antal'] <= $batch_t_antal[$x]) {
-				$antal+=$r1['antal'];
-				$pris+=$r1['antal']*$r1['pris'];
-			} elseif ($antal < $batch_t_antal[$x] && $antal+$r1['antal'] > $batch_t_antal[$x]) {
-				$pris+=$r1['pris']*($batch_t_antal[$x]-$antal);
-				$antal=$batch_t_antal[$x];
+		// Keep fractional receipts and unresolved credit rows in the signed history. Linked
+		// credits cancel their original receipts before the newest-first quantity cutoff.
+		if ($batch_k_antal[$x] && $batch_t_antal[$x] > 0) {
+			$qtxt = lagerstatusPurchaseValueSql($vare_id[$x], $lagervalg, $dateType, $date != $dd ? $date : null);
+			$q1 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			$purchaseBatches = array();
+			while ($r1 = db_fetch_array($q1)) {
+				$purchaseBatches[] = $r1;
 			}
+			$batch_pris[$x] = lagerstatusPurchaseValue($purchaseBatches, $batch_t_antal[$x]);
 		}
-		($antal)?$batch_pris[$x]=$pris:$batch_pris[$x]=0;
-	}
 	}
 	if (isset($_GET['ajour']) && $_GET['ajour']==1 && $batch_t_antal[$x] != $beholdning[$x]) {
 		$diff=$batch_t_antal[$x];
@@ -420,13 +631,76 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		<td align=right>".dkdecimal($salgspris[$x]*$batch_t_antal[$x])."<br></td></tr>";
 		if ($csv) {
 			$linje="$varenr[$x]".";"."$enhed[$x]".";"."$beskrivelse[$x]".";"."$batch_k_antal[$x]".";"."$batch_s_antal[$x]".";".$batch_t_antal[$x].";".dkdecimal($batch_pris[$x]).";".dkdecimal($kostpris[$x]*$batch_t_antal[$x]).";".dkdecimal($salgspris[$x]*$batch_t_antal[$x]);
-			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
-			fwrite($fp,"$linje\n");
+#			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
+			if ($lsGridMode) {
+				// MB-31/CodeRabbit - deferred so a search actually filters what lands in the CSV too: written
+				// to the file only for matching rows, in the unified filter step below (same $lsMatchIndices
+				// as $lsAllChunks/$lsRowValues, so the index this candidate gets here stays aligned with them).
+				$lsCsvLines[] = $linje;
+			} else {
+				fwrite($fp,"$linje\n");
+			}
 		}
-		$lagervalue=$lagervalue+$batch_pris[$x];$kostvalue=$kostvalue+$kostpris[$x]*$batch_t_antal[$x]; $salgsvalue=$salgsvalue+($salgspris[$x]*$batch_t_antal[$x]);
-	} 
+		if ($lsGridMode) {
+			// MB-31 - snapshot of this item's already-computed values, used only to filter/paginate/total
+			// below (see the unified filter block after this loop) - never re-queried, so a search costs
+			// nothing beyond a plain comparison against numbers the report was already computing anyway.
+			// $lagervalue/$kostvalue/$salgsvalue are recomputed there too, from only the matching items,
+			// instead of accumulating unconditionally here like the legacy (non-grid) view still does.
+			$lsRowValues[] = array(
+				'tilgang' => $batch_k_antal[$x], 'afgang' => $batch_s_antal[$x], 'antal' => $batch_t_antal[$x],
+				'kobspris' => $batch_pris[$x], 'kostpris' => $kostpris[$x]*$batch_t_antal[$x],
+				'salgspris' => $salgspris[$x]*$batch_t_antal[$x],
+			);
+		} else {
+			$lagervalue=$lagervalue+$batch_pris[$x];$kostvalue=$kostvalue+$kostpris[$x]*$batch_t_antal[$x]; $salgsvalue=$salgsvalue+($salgspris[$x]*$batch_t_antal[$x]);
+		}
+	}
+	if ($lsGridMode) {
+		// Printing is deferred to the unified filter+paginate step after this loop (see below) - every
+		// item's chunk is captured here regardless of page, same as before. Nothing is printed at all
+		// for a candidate that doesn't pass the "has activity" gate above (no $lsRowValues entry either
+		// for it), so only push a chunk when there's actually one to keep the two arrays aligned by index.
+		$lsChunk = ob_get_clean();
+		if ($lsChunk !== '') $lsAllChunks[] = $lsChunk;
+	}
 }
-if ($csv){ 
+if ($lsGridMode) {
+	// MB-31 - unified filter/paginate/grand-total step, run once here now that every item's chunk and
+	// values have been captured (see the loop above) - overrides the provisional (unfiltered)
+	// $lsTotalRows/$lsPageStart/$lsPageEnd computed early on (before any item's value could be checked
+	// against a search term), and recomputes $lagervalue/$kostvalue/$salgsvalue (the "Samlet
+	// lagerværdi" footer figures below) from only the matching items, so that footer always matches
+	// what's actually shown.
+	$lsMatchIndices = array();
+	for ($lsI = 0; $lsI < count($lsAllChunks); $lsI++) {
+		if (lsRowMatchesSearch(isset($lsRowValues[$lsI]) ? $lsRowValues[$lsI] : array(), $lsS)) {
+			$lsMatchIndices[] = $lsI;
+		}
+	}
+	$lsTotalRows = count($lsMatchIndices);
+	$lsTotalPages = max(1, ceil($lsTotalRows / $lsPerPage));
+	if ($lsPage > $lsTotalPages) $lsPage = $lsTotalPages;
+	$lsPageStart = ($lsPage - 1) * $lsPerPage;
+	$lsPageEnd = $lsPageStart + $lsPerPage;
+	$lagervalue = $kostvalue = $salgsvalue = 0;
+	foreach ($lsMatchIndices as $lsI) {
+		$lagervalue += $lsRowValues[$lsI]['kobspris'];
+		$kostvalue += $lsRowValues[$lsI]['kostpris'];
+		$salgsvalue += $lsRowValues[$lsI]['salgspris'];
+	}
+	for ($lsCi = $lsPageStart; $lsCi < min($lsPageEnd, count($lsMatchIndices)); $lsCi++) {
+		print $lsAllChunks[$lsMatchIndices[$lsCi]];
+	}
+	if ($csv) {
+		// MB-31/CodeRabbit - write only the matching rows' buffered CSV lines (see $lsCsvLines above),
+		// not every item, so a filtered CSV export actually matches what the grid shows on screen.
+		foreach ($lsMatchIndices as $lsI) {
+			if (isset($lsCsvLines[$lsI])) fwrite($fp, $lsCsvLines[$lsI]."\n");
+		}
+	}
+}
+if ($csv){
 	fclose($fp);
 	print "<BODY onLoad=\"JavaScript:window.open('../temp/$db/lagerstatus.csv' ,'' ,'$jsvars');\">\n";
 }
@@ -436,6 +710,91 @@ print "<tr><td colspan=2><br></td><td>".findtekst('2235|Samlet lagerværdi pr.',
 <td align=right>".dkdecimal($kostvalue)."<br></td>
 <td align=right>".dkdecimal($salgsvalue)."<br></td></tr>";
 if ($ret_behold==1) print "<tr><td><a href=\"lagerstatus.php?varegruppe=$varegruppe&ret_behold=2\">Ret skæve lagertal</a></td></tr>";
+
+if ($lsGridMode) {
+	// Close #lsGridTable/#lsGridWrapper opened above, then print the fixed Grid Framework footer
+	// with real (server-side) pagination - same link/markup/CSS technique includes/salgsstat.php
+	// and lager/rapport.php use for their own page-footer bars.
+	print "</tbody></table>"; // close #lsGridTable
+	print "</div>\n"; // close #lsGridWrapper
+	print "</form>"; // close the search-row form opened alongside #lsGridTable above
+
+	$lsTxt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+	$lsTxt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+	$lsOffsetFrom = $lsTotalRows ? (($lsPage - 1) * $lsPerPage) + 1 : 0;
+	$lsOffsetTo = min($lsTotalRows, $lsPage * $lsPerPage);
+	$lsBaseUrlParams = array(
+		'dato' => $dato,
+		'varegruppe' => $varegruppe,
+		'lagervalg' => $lagervalg,
+		'dateType' => $dateType,
+		'zStock' => $zStock,
+		'showClosed' => $showClosed,
+		'varenr' => $varenrSoeg,
+		'varenavn' => $varenavn,
+		'enhed' => $enhedSoeg,
+	);
+	foreach ($lsSFields as $lsSField) $lsBaseUrlParams['lss_'.$lsSField] = $lsS[$lsSField];
+	$lsBaseUrl = "lagerstatus.php?" . http_build_query($lsBaseUrlParams);
+	$lsPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
+	$lsNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
+
+	print "<style>
+#lsPageFooterBar { position:fixed; left:0; right:0; bottom:0; width:100%; margin:0; z-index:1000; background-color:$bgcolor; border-top:1px solid #b8bec8; padding:6px 12px; display:flex; align-items:center; justify-content:flex-end; gap:20px; flex-wrap:wrap; box-sizing:border-box; line-height:1; }
+#lsPageFooterBar #lsNavButtons { display:flex; align-items:center; gap:3px; }
+#lsPageFooterBar #lsNavButtons .navbutton { height:20px; min-width:20px; padding:0 4px; display:inline-flex; align-items:center; justify-content:center; background:#f0f0f0; color:#000; border:1px solid #b8bec8; border-radius:4px; text-decoration:none; }
+#lsPageFooterBar #lsNavButtons a.navbutton { cursor:pointer; }
+#lsPageFooterBar #lsNavButtons span.navbutton { opacity:0.5; }
+#lsPageFooterBar #lsNavButtons .navbutton.current { text-decoration:underline; }
+</style>\n";
+	print "<div id='lsPageFooterBar'>";
+	print "<span id='lsPageStatus'>" . ($lsTotalRows ? "$lsOffsetFrom-$lsOffsetTo $lsTxt1 $lsTotalRows" : "0 $lsTxt1 0") . "</span>";
+	print "<span>$lsTxt2 <select id='lsPageSize' onchange=\"window.location.href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=1&ls_per_page=' + this.value;\">";
+	foreach (array(50, 100, 250, 500, 100000) as $lsOpt) {
+		$lsSel = ($lsOpt == $lsPerPage) ? " selected" : "";
+		$lsLabel = ($lsOpt == 100000) ? "Alle" : $lsOpt;
+		print "<option value='$lsOpt'$lsSel>$lsLabel</option>";
+	}
+	print "</select></span>";
+	print "<span id='lsNavButtons'>";
+	if ($lsPage > 1){
+		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=" . ($lsPage - 1) . "&ls_per_page=$lsPerPage'>$lsPrevIcon</a>";
+	} else {
+		print "<span class='navbutton'>$lsPrevIcon</span>";
+	}
+	$lsPageRange = 2;
+	$lsStartPage = max(1, $lsPage - $lsPageRange);
+	$lsEndPage = min($lsTotalPages, $lsPage + $lsPageRange);
+	if ($lsStartPage > 1) {
+		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=1&ls_per_page=$lsPerPage'>1</a>";
+		if ($lsStartPage > 2) {
+			print "<span>...</span>";
+		}
+	}
+	for ($lsP = $lsStartPage; $lsP <= $lsEndPage; $lsP++) {
+		if ($lsP == $lsPage){
+			print "<span class='navbutton current'>$lsP</span>";
+		} else {
+			print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=$lsP&ls_per_page=$lsPerPage'>$lsP</a>";
+		}
+	}
+	if ($lsEndPage < $lsTotalPages) {
+		if ($lsEndPage < $lsTotalPages - 1){
+			print "<span>...</span>";
+		}
+		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=$lsTotalPages&ls_per_page=$lsPerPage'>$lsTotalPages</a>";
+	}
+	if ($lsPage < $lsTotalPages){
+		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=" . ($lsPage + 1) . "&ls_per_page=$lsPerPage'>$lsNextIcon</a>";
+	} else {
+		print "<span class='navbutton'>$lsNextIcon</span>";
+	}
+	print "</span>";
+	print "</div>\n";
+	print "</div>\n"; // close #lsPageFlex
+} else {
 ?>
 </tbody></table>
 </body></html>
+<?php
+}

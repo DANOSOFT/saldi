@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/vis_liste.php --- lap 4.0.8 --- 2023-09-27 ---
+// --- sager/loenIncludes/vis_liste.php --- lap 5.0.0 --- 2026-03-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,18 +20,18 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
-// ----------------------------------------------------------------------
+// Copyright (c) 2003-2026 saldi.dk aps
 // 20230703 PHR array tr_tjek moved up, as it was reset when it should not. 
 // 20230703 PHR reactiveate $sum1 - no idea why it was deactivated.
 // 20230915 PHR if transport has been on list and all itens with transport is removed, transportlines are deleted from
 //              loen_enheder
 // 20230915 PHR tent surcharges were not shown on completed bills.
+// 20260319 LOE Added $categorySum to calculate sum per category for use in ret_loen.php
 
 function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 
-	global $brugernavn,$bgcolor,$db;
-	
+	global $brugernavn,$bgcolor,$db,$sprog_id;
+	$categorySum = array(); 
 /*
  ($listevalg >= 10)?$nyListe = 1:$nyListe = 0;
 	if ($db == 'stillads_11' && $listevalg == 8) $nyListe = 1;
@@ -91,10 +91,10 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 			$l_ned_60[$x]   = (int)$r['ned_60'];
 			$l_op_70[$x]    = (int)$r['op_70'];
 			$l_ned_70[$x]   = (int)$r['ned_70'];
-			$l_op_100[$x]    = (int)$r['op_100'];
-			$l_ned_100[$x]   = (int)$r['ned_100'];
-			$l_op_160[$x]    = (int)$r['op_160'];
-			$l_ned_160[$x]   = (int)$r['ned_160'];
+			$l_op_100[$x]   = (int)$r['op_100'];
+			$l_ned_100[$x]  = (int)$r['ned_100'];
+			$l_op_160[$x]   = (int)$r['op_160'];
+			$l_ned_160[$x]  = (int)$r['ned_160'];
 			$l_op_30m[$x]   = (int)$r['op_30m'];
 			$l_ned_30m[$x]  = (int)$r['ned_30m'];
 			$l_pris_op[$x]  = (float)$r['pris_op'];
@@ -313,6 +313,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 				$teltsum+=$linjesum1[$x];
 			}
 			$sum1+=$linjesum1[$x];
+			$categorySum[$l_liste[$x]] += $linjesum1[$x];
 			$sum+= $linjesum2[$x];
 			($linjebg == $bgcolor)?$linjebg=$bgcolor2:$linjebg=$bgcolor;
 			($op[$x])?$op[$x]           = str_replace(".",",",$op[$x]):$op[$x] = '';
@@ -371,16 +372,28 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 			$z++;
 			if ($afsluttet && $l_liste[$x]!=$l_liste[$x+1]) {
 				for ($tr=0;$tr<count($tr_id);$tr++) {
-					if ($tr_liste[$tr]==$l_liste[$x]) {
-						print "<tr class=\"akkordListeTrans\"><td colspan=\"1\" style=\"text-align:right;\">$tr_antal[$tr]</td><td></td><td style=\"padding-left: 5px;\" colspan=\"12\">$tr_navn[$tr] Transport</td><td style=\"text-align:right;\">".dkdecimal($tr_antal[$tr]*$tr_pris[$tr],2)."</td></tr>";
-						$sum+=$tr_antal[$tr]*$tr_pris[$tr];
-					}
+					if ($tr_liste[$tr] == $l_liste[$x]) {
+
+				$colspan = 11; 
+				//dkdecimal($linjesum1[$x],2).
+                $CurrentSum = dkdecimal($categorySum[$tr_liste[$tr]], 2);
+				print "<tr class=\"akkordListeTrans\" style=\"font-weight:bold;\">
+					<td colspan=\"1\" style=\"text-align:right;\">{$tr_antal[$tr]}</td>
+					<td></td>
+					<td style=\"padding-left: 5px;\" colspan=\"".($colspan-8)."\">
+						{$tr_navn[$tr]} " . findtekst('3056|Transport', $sprog_id)." ".findtekst('2795|Sum', $sprog_id)."</td>"; #Transport Sum
+				print "<td colspan=\"".(0)."\" style=\"text-align:right;\">$CurrentSum</td>
+					<td colspan=\"".($colspan-2)."\" style=\"text-align:right;\">" . dkdecimal($tr_antal[$tr] * $tr_pris[$tr], 2) . "</td>
+				</tr>";
+
+				$sum += $tr_antal[$tr] * $tr_pris[$tr];
+			}
 				}
 				if ($l_liste[$x]=='7' || $l_liste[$x]=='11') {
 					print "<tr class=\"akkordListeTrans\">
 						<td colspan=\"1\" style=\"text-align:right;\">1</td>
 						<td></td>
-						<td style=\"padding-left: 5px;\" colspan=\"12\">$l_liste[$x]. Telt tillæg ".($telt_antal*100)."%</td>
+						<td style=\"padding-left: 5px;\" colspan=\"12\">$l_liste[$x]. ".findtekst('3058|Telttillæg', $sprog_id)." ".($telt_antal*100)."%</td>
 						<td align=\"right\">".dkdecimal($telt_antal*$telt_pris,2)."</td></tr>
 						<!--<td align=\"right\">".dkdecimal($telt_antal*$teltsum,2)."</td>-->
 					</tr>"; #20140810 ændret telt_pris til sum1 også 2 linjer herunder
@@ -393,7 +406,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 	}
 	if (!$afsluttet) {
 		print "<tr>
-			<td colspan=\"2\" class=\"tableSagerBorder\"></td><td colspan=\"3\" class=\"tableSagerBorder\" style=\"padding-left: 5px;\"><b>Sum</b></td><td align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum1,2)."</b></td>
+			<td colspan=\"2\" class=\"tableSagerBorder\"></td><td colspan=\"3\" class=\"tableSagerBorder\" style=\"padding-left: 5px;\"><b>".findtekst('2795|Sum', $sprog_id)."</b></td><td align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum1,2)."</b></td>
 			<td colspan=\"9\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
 		</tr>";
 		$trans_antal=0;
@@ -413,11 +426,11 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 				<input type=\"hidden\" $readonly name=\"tr_id\" value=\"$trans_id\">
 				<input type=\"hidden\" $readonly name=\"tr_pris\" value=\"$tr_sum\">
 			</td>
-			<td colspan=\"3\" class=\"tableSagerBorder\" style=\"padding-left: 5px;\"><b>Transport</b></td><td align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($trans_antal*$tr_sum,2)."</b></td>
+			<td colspan=\"3\" class=\"tableSagerBorder\" style=\"padding-left: 5px;\"><b>".findtekst('3056|Transport', $sprog_id)."</b></td><td align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($trans_antal*$tr_sum,2)."</b></td>
 			<td colspan=\"9\" class=\"tableSagerBorder\">&nbsp;</td>
 		</tr>
 		<tr>
-		<td colspan=\"2\"></td><td colspan=\"3\" style=\"padding-left: 5px;\"><b>Sum incl. transport</b></td>
+		<td colspan=\"2\"></td><td colspan=\"3\" style=\"padding-left: 5px;\"><b>".findtekst('3057|Sum inkl. transport', $sprog_id)."</b></td>
 		<td colspan=\"10\" align=\"right\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
 		</tr>";
 	} elseif (!$tr_sum) { // 20230915
@@ -531,7 +544,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 				print "<tr>
 					<td colspan=\"1\" style=\"#border-style:solid;#border-width:1px;text-align:right;\">1</td>
 					<td></td>
-					<td colspan=\"3\" style=\"padding-left: 5px;\"><b>$c_navn - Telt tillæg ".($telt_antal*100)."%</b></td>
+					<td colspan=\"3\" style=\"padding-left: 5px;\"><b>$c_navn - ".findtekst('3058|Telttillæg', $sprog_id)." ".($telt_antal*100)."%</b></td>
 					<td align=\"right\"><b>".dkdecimal($telt_antal*$telt_pris,2)."</b></td>
 				</tr>";
 				$c_sum+=$telt_antal*$telt_pris;
@@ -544,7 +557,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 				print "<tr>
 				<td colspan=\"1\" style=\"#border-style:solid;#border-width:1px;text-align:right;padding-right: 1px;\">$tr_antal[$tr]</td>
 				<td></td>
-				<td colspan=\"3\" style=\"padding-left: 5px;\"><b>$c_navn - Transport</b></td>
+				<td colspan=\"3\" style=\"padding-left: 5px;\"><b>$c_navn - ".findtekst('3056|Transport', $sprog_id)."</b></td>
 				<td align=\"right\" style=\"padding-right: 1px;\"><b>".dkdecimal($tr_antal[$tr]*$tr_pris[$tr])."</b></td>
 				</tr>";
 				$c_sum+=$tr_antal[$tr]*$tr_pris[$tr];
@@ -552,7 +565,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 			}
 		}
 		# 20140810 $c_id fjernet fra "print"  
-		if ($c_id && $c_sum) print "<tr><td colspan=\"2\"></td><td colspan=\"12\" style=\"padding-left: 5px;\"><b>$c_navn i alt</b></td><td align=\"right\" style=\"padding-right: 1px;\"><b>".dkdecimal($c_sum)."</b></td></tr>";
+		if ($c_id && $c_sum) print "<tr><td colspan=\"2\"></td><td colspan=\"12\" style=\"padding-left: 5px;\"><b>$c_navn ".lcfirst(findtekst('2373|I alt', $sprog_id))."</b></td><td align=\"right\" style=\"padding-right: 1px;\"><b>".dkdecimal($c_sum)."</b></td></tr>";
 		$c_sum=0;
 		}
 		}

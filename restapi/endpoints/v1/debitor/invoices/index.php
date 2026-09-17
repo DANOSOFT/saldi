@@ -10,52 +10,31 @@
  * GET /invoices/{id}/pdf - Hent PDF
  */
 
-require_once __DIR__ . '/../../../core/BaseEndpoint.php';
-require_once __DIR__ . '/../../../core/JWT.php';
-require_once __DIR__ . '/../../../core/JWTAuth.php';
-require_once __DIR__ . '/../../../models/orders/OrderModel.php';
-require_once __DIR__ . '/../../../models/orderlines/OrderLineModel.php';
-require_once __DIR__ . '/../../../services/OrderService.php';
-require_once __DIR__ . '/../../../core/logging.php';
+require_once __DIR__ . '/../../../../core/BaseEndpoint.php';
+require_once __DIR__ . '/../../../../core/JWT.php';
+require_once __DIR__ . '/../../../../core/JWTAuth.php';
+require_once __DIR__ . '/../../../../models/orders/OrderModel.php';
+require_once __DIR__ . '/../../../../models/orderlines/OrderLineModel.php';
+require_once __DIR__ . '/../../../../services/OrderService.php';
+require_once __DIR__ . '/../../../../core/logging.php';
 
-include_once __DIR__ . '/../../../../includes/db_query.php';
-include_once __DIR__ . '/../../../../includes/connect.php';
-include_once __DIR__ . '/../../../../includes/std_func.php';
-include_once __DIR__ . '/../../../../includes/ordrefunc.php';
+include_once __DIR__ . '/../../../../../includes/db_query.php';
+include_once __DIR__ . '/../../../../../includes/connect.php';
+include_once __DIR__ . '/../../../../../includes/std_func.php';
+include_once __DIR__ . '/../../../../../includes/ordrefunc.php';
 
 class InvoicesEndpoint extends BaseEndpoint
 {
-    private $userId;
-    private $username;
-    private $db;
+    protected $userId;
+    protected $username;
+    protected $db;
     
     public function __construct()
     {
         parent::__construct();
     }
     
-    protected function checkAuthorization()
-    {
-        $payload = JWTAuth::validateToken();
-        
-        if (!$payload) {
-            $this->sendResponse(false, null, 'Invalid or expired token', 401);
-            return false;
-        }
-        
-        $this->userId = $payload['user_id'];
-        $this->username = $payload['username'];
-        
-        // Get database from tenant
-        $this->db = JWTAuth::getTenantDatabase();
-        if (!$this->db) {
-            $this->sendResponse(false, null, 'Tenant database not found. Set X-Tenant-ID header.', 400);
-            return false;
-        }
-        
-        return true;
-    }
-    
+
     protected function handleGet($id = null)
     {
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -95,6 +74,17 @@ class InvoicesEndpoint extends BaseEndpoint
             // Build query
             $qtxt = "SELECT id FROM ordrer WHERE art = 'DO'";
             
+            // Filter by customer (konto_id or kontonr)
+            if (isset($_GET['customer'])) {
+                $customerParam = db_escape_string($_GET['customer']);
+                if (is_numeric($customerParam)) {
+                    $customerId = (int)$customerParam;
+                    $qtxt .= " AND (konto_id = $customerId OR kontonr = '$customerParam')";
+                } else {
+                    $qtxt .= " AND kontonr = '$customerParam'";
+                }
+            }
+            
             // Filter by status
             if ($status === 'draft') {
                 $qtxt .= " AND status = 1";
@@ -111,13 +101,7 @@ class InvoicesEndpoint extends BaseEndpoint
             
             $qtxt .= " ORDER BY fakturadate DESC, id DESC LIMIT $limit OFFSET $offset";
             
-            global $sqhost, $squser, $sqpass;
-            $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
-            
-            if (!$conn) {
-                $this->sendResponse(false, null, 'Database connection failed', 500);
-                return;
-            }
+
             
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
             $invoices = [];

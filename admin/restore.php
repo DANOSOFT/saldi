@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------admin/restore.php--------lap 5.0.0------2026-01-29-----------
+// --- admin/restore.php --- lap 5.0.0 --- 2026-07-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,8 @@
 // 20250511 LOE Various changes to ehance user's experience
 // 20260127 LOE Updated migrateMySQLToPostgreSQL for some isolated fixes.
 // 20260129 PHR Added some str_replace  and a call to connect.php before lookup in 'regnskab'
+// 20260702 CX/PHR Close target PostgreSQL connection and terminate active sessions before DROP DATABASE in restore
+
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -165,8 +167,8 @@ if ($menu=='T') {
 	print "<tr><td height = '25' align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
-	print "<td width='10%'<a href='$returside' accesskey=L>";
-	print "<button style='$buttonStyle; width:100%'onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+	print "<td width='10%'><a href='$returside' accesskey=L>";
+	print "<button style='$buttonStyle; width:100%'onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)." </button></a></td>";
 
 	print "<td width='80%' style='$topStyle' align='center'>".findtekst('1247|Indlæs sikkerhedskopi', $sprog_id)."</td>";
 
@@ -401,6 +403,7 @@ function upload($db){
 	global $connection;
 	global $translations;
 	global $db_type;
+	global $buttonStyle;
 
 	if ($db_type=='mysql' or $db_type=='mysqli') {
 		echo '<span style="color:red;">This is not available yet!</span>';
@@ -409,9 +412,9 @@ function upload($db){
 	
 	
 	
-		$textup = $translations[2422][$sprog_id];
-		$textc = $translations[2425][$sprog_id];
-		$load = $translations[1360][$sprog_id];
+		$textup     = $translations[2422][$sprog_id];
+		$textc      = $translations[2425][$sprog_id];
+		$load       = $translations[1360][$sprog_id];
 		$selectdfil = $translations[1364][$sprog_id];
 	
 
@@ -428,7 +431,7 @@ function upload($db){
 	print "<tr><td width=100% align=center></td></tr>";
 	print "<tr><td width=100% align=center>\"".$selectdfil."\": <input class=\"inputbox\" NAME=\"uploadedfile\" type=\"file\"></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td align=center><input type=\"submit\" value=\"".$load."\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
+	print "<tr><td align=center><input type=\"submit\" style=\"$buttonStyle\" value=\"".$load."\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
 	print "<tr><td></form></td></tr>";
 	print "</tbody></table>";
 	print "</td></tr>";
@@ -503,13 +506,20 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 		} else if ($db_type=='mysqli') { #RG_mysqli
 			$connection = db_connect ("$sqhost", "$squser", "$sqpass", "$sqdb");
 			mysqli_select_db($connection, $sqdb);
-		} 
-		
+		} else {
+			db_close($connection);
+			$connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
+		}
+
 		// else {
 		// 	db_close($connection);
 		// }
 		db_modify("delete from online where db='$db'",__FILE__ . " linje " . __LINE__);
 		db_modify("update regnskab set version = '' where db='$db'",__FILE__ . " linje " . __LINE__);
+		if ($db_type=='postgresql') {
+			$escapedDb = pg_escape_string($connection, $db);
+			db_select("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$escapedDb' AND pid <> pg_backend_pid()", __FILE__ . " linje " . __LINE__);
+		}
 		db_modify("DROP DATABASE $db",__FILE__ . " linje " . __LINE__);
 		db_create($db);
 		print "<!-- Saldi-kommentar for at skjule uddata til siden \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres

@@ -1,10 +1,10 @@
-<?php
+	<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---finans/regnskab.php --- patch 4.1.1 --- 2025.12.03 ---
+// ---finans/regnskab.php --- patch 5.0.0 --- 2026.08.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // --------------------------------------------------------------------------
 
 // 20121011 Indsat "and (lukket != 'on' or saldo != 0)" søg 20121011
@@ -44,6 +44,24 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250113 PHR Syncronized with saldiupdates
 // 20250510 LOE Text id changed from 3072 to 2373
+// 20260312 PHR Division by zero
+// 20260519 CL/PHR @media print: skjul topbar, fjern højdebegrænsning på wrapper og sticky thead/tfoot så hele regnskabet udskrives
+// 20260828 CL/SZ SD-659: Fixed if_isset() calling convention at beregn_lager (array
+//                access evaluated before the helper ran, so it warned on every plain
+//                GET). Fixed $regnslut[$x][$z] string-offset indexing in the ultimo
+//                exchange-rate lookup - $regnslut is a scalar date (see :183/:342),
+//                never an array; the sibling $primokurs lookup a few hundred lines up
+//                (:236) already does this correctly against the scalar $regnstart.
+//                Verified against real valuta rows: the bug always fails to find a
+//                rate, so foreign-currency accounts' ultimo column showed the raw DKK
+//                amount unconverted instead of the currency-converted figure.
+//                NOTE: a separate, related off-by-one ($valkode[$x] vs $valkode[$y] at
+//                :199-200, in the same valuta-loading loop) still warns on any tenant
+//                with more than one historical rate per currency - out of scope here
+//                (ticket named only :72 and :530); filed as a follow-up.
+// 20260902 CL/NTR Added tutorial steps + create_tutorial("regnskab") so the Hjælp button in the
+//                top bar works (it had no tutorial to restart); ids budget-link/csv-export added
+//                as anchors. Texts 3500-3503 added to importfiler/tekster.csv.
 
 @session_start();
 $s_id=session_id();
@@ -67,7 +85,7 @@ print '<script src="../javascript/chart.js"></script>';
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
 : '../index/menu.php';
-$beregn_lager=if_isset($_POST['beregn_lager']);
+$beregn_lager=if_isset($_POST, NULL, 'beregn_lager');
 include_once '../includes/oldDesign/header.php';
 include_once '../includes/topline_settings.php';
 $finans = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"/></svg>';
@@ -113,6 +131,7 @@ $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -
 // 	print "</td></tr> ";
 // }
 
+print "<div id='regnskab-topbar'>";
 print "<tr><td height='25' align='center' valign='top'>";
 print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
@@ -124,7 +143,7 @@ print "<td width='200px' align='center'>
 
 print "<td>&nbsp;</td>";
 
-print "<td width='200px' align='center'>
+print "<td id='budget-link' width='200px' align='center'>
     <a href='budget.php?returside=$backUrl'>
     <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
     $icon_budget Budget
@@ -140,6 +159,7 @@ print "<td id='tutorial-help' width='5%' style='$buttonStyle'>
 print "</tbody></table></td></tr>";
 
 print "</tbody></table>";
+print "</div>";
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
 
@@ -243,10 +263,13 @@ while ($row = db_fetch_array($query)) {
 	if ($row['kontotype']=='D' || $row['kontotype']=='S') {
 		$primo[$x]=round($row['primo']+0.0001,2);
 		$ultimo[$x]=round($row['primo']+0.0001,2);
-		$q2 = db_select("select * from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr='$kontonr[$x]' order by transdate",__FILE__ . " linje " . __LINE__);
+		$qtxt = "select * from transaktioner where transdate>='$regnstart' and ";
+		$qtxt.= "transdate<='$regnslut' and kontonr='$kontonr[$x]' order by transdate";
+		$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 		 	for ($y=1; $y<=$maanedantal; $y++) {
 				if (!isset($belob[$x][$y])) $belob[$x][$y]=0;
+				$transdate[$x][$y]=$r2['transdate'];
 				if (($md[$y][1]<=$r2['transdate'])&&($md[$y+1][1]>$r2['transdate'])) {
 			 		$md[$y][2]=$md[$y][2]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
 					$belob[$x][$y]=$belob[$x][$y]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
@@ -399,6 +422,22 @@ print "<style>
     text-decoration: none;
     gap: 5px;
 }
+@media print {
+    #regnskab-topbar {
+        display: none;
+    }
+    .regnskab-wrapper {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .regnskab-wrapper table.dataTable thead,
+    .regnskab-wrapper table.dataTable tfoot {
+        position: static;
+    }
+    .regnskab-wrapper table.dataTable tfoot {
+        display: none;
+    }
+}
 </style>";
 
 print "<div class='regnskab-wrapper' id='regnskab-wrapper'>";
@@ -479,17 +518,20 @@ for ($x=1; $x<=$kontoantal; $x++){
 		# Each month
 		for ($z=1; $z<=$maanedantal; $z++) {
 			$title='';
+			$mdkurs = $tal = 0;
 			if (!isset($belob[$x][$z])) $belob[$x][$z]=0;
 			if ($kontovaluta[$x]) {
-				for ($y=0;$y<=count($valkode);$y++){
+					for ($y=0;$y<=count($valkode);$y++){
 					if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$x][$z]) {
 						$mdkurs=$valkurs[$y];
 						break 1;
 					}
 				}
+			}
+			if ($mdkurs) {
 				$tal=dkdecimal($belob[$x][$z]*100/$mdkurs,2);
 				$title="DKK: ".dkdecimal($belob[$x][$z],2)." Kurs: $mdkurs";
-			}	else $tal=dkdecimal($belob[$x][$z],2); # if ($link) $y=$z.">";
+			} else $tal=dkdecimal($belob[$x][$z],2); # if ($link) $y=$z.">";
 			if ($kontotype[$x]!='Z') {
 				print "<td align=\"right\" title=\"$title\"><a href=kontospec.php?kontonr=$kontonr[$x]&month=$z>$tal<br></a></td>";
 			} else print "<td align=\"right\" title=\"$title\">$tal<br></td>";
@@ -498,16 +540,19 @@ for ($x=1; $x<=$kontoantal; $x++){
 		}
 		if ($kontotype[$x]=='Z') $ultimo[$x]=$ultimo[$x]+$primo[$x];  # if indsat 20.11.07 grundet fejl i sammentaeling paa statuskonti
 		$title='';
+		$mdkurs = $tal = 0;
 		if ($kontovaluta[$x]) {
-				for ($y=0;$y<=count($valkode);$y++){
-					if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnslut[$x][$z]) {
-						$mdkurs=$valkurs[$y];
-						break 1;
-					}
+			for ($y=0;$y<=count($valkode);$y++){
+				if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnslut) {
+					$mdkurs=$valkurs[$y];
+					break 1;
 				}
-				$tal=dkdecimal($ultimo[$x]*100/$mdkurs,2);
-				$title="DKK: ".dkdecimal($ultimo[$x],2)." Kurs: $mdkurs";
-			}	else $tal=dkdecimal($ultimo[$x],2); # if ($link) $y=$z.">";
+			}
+		}
+		if ($mdkurs) {
+			$tal=dkdecimal($ultimo[$x]*100/$mdkurs,2);
+			$title="DKK: ".dkdecimal($ultimo[$x],2)." Kurs: $mdkurs";
+		}	else $tal=dkdecimal($ultimo[$x],2); # if ($link) $y=$z.">";
 #		$tal=dkdecimal($ultimo[$x]); # if ($link) {$y='13>';}
 		print "<td align=\"right\" title=\"$title\">$tal<br></td>";
 		fwrite($csv,";$tal\n");
@@ -535,7 +580,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 }
 print "</tbody>";
 print "<tfoot>";
-print "<tr><td colspan='$cols' align='center'><input type='button' style='width: 200px; margin: 10px;' onclick=\"document.location='../temp/$db/regnskab.csv'\" value='".findtekst('2595|Regnskab', $sprog_id).".csv'></input></td></tr>";
+print "<tr><td colspan='$cols' align='center'><input type='button' id='csv-export' style='width: 200px; margin: 10px;' onclick=\"document.location='../temp/$db/regnskab.csv'\" value='".findtekst('2595|Regnskab', $sprog_id).".csv'></input></td></tr>";
 print "</tfoot>";
 print "</table>";
 print "</div>"; 
@@ -548,6 +593,28 @@ if ($menu=='T') {
 } else {
 	include_once '../includes/oldDesign/footer.php';
 }
+
+// Tutorial setup - the help button in the top bar (#tutorial-help) does nothing without this
+$steps = array();
+$steps[] = array(
+	"selector" => "#budget-link",
+	"content" => findtekst('3500|Klik her for at gå til budgettet', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => ".dataTable tbody tr:nth-child(-n+12) td[onclick]",
+	"content" => findtekst('3501|Klik på et kontonummer for at vise kontoens bevægelser som en graf', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => ".dataTable tbody tr:nth-child(-n+12) a[href^='kontospec.php']",
+	"content" => findtekst('3502|Klik på et beløb for at se kontospecifikationen for den pågældende måned', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => "#csv-export",
+	"content" => findtekst('3503|Klik her for at hente regnskabet som en CSV-fil', $sprog_id).".",
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("regnskab", $steps);
 
 function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 	/**

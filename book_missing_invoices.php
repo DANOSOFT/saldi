@@ -5,6 +5,8 @@
 @session_start();
 $s_id=session_id();
 
+global $regnaar;
+
 // Include necessary files
 include("../includes/connect.php");
 include("../includes/std_func.php");

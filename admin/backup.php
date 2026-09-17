@@ -29,11 +29,11 @@
 // 20250511 LOE Backupfile save a copy of current db on saldi
 
 @session_start();
-$s_id=session_id();
+$s_id = session_id();
 
-$css="../css/standard.css";
-$title="Sikkerhedskopi";
-$modulnr=11;
+$css     = "../css/standard.css";
+$title   = "Sikkerhedskopi";
+$modulnr = 11;
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -45,17 +45,17 @@ if (!isset($exec_path)) $exec_path="/usr/bin";
 if ($popup) $returside="../includes/luk.php";
 else $returside="../index/menu.php";
 
-$dump_filnavn="../temp/".trim($db.".sql");
-$info_filnavn="../temp/backup.info";
-$tar_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".tar";
-$gz_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".tar.gz";
-$dat_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".sdat";
-$backup=TRUE;
-$timestamp=date("Ymd-Hi");
-$r=db_fetch_array(db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__));
-$dbver=$r['box1'];
+$dump_filnavn = "../temp/".trim($db.".sql");
+$info_filnavn = "../temp/backup.info";
+$tar_filnavn  = "../temp/".trim($db."_".date("Ymd-Hi")).".tar";
+$gz_filnavn   = "../temp/".trim($db."_".date("Ymd-Hi")).".tar.gz";
+$dat_filnavn  = "../temp/".trim($db."_".date("Ymd-Hi")).".sdat";
+$backup       = TRUE;
+$timestamp    = date("Ymd-Hi");
+$r            = db_fetch_array(db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__));
+$dbver        = $r['box1'];
 if (isset($_GET['backup']) && $_GET['backup']==1) {
-	$fp=fopen($info_filnavn,"w");
+	$fp = fopen($info_filnavn,"w");
 	if ($fp) {
 		fwrite($fp,"$timestamp".chr(9)."$db".chr(9)."$dbver".chr(9)."$regnskab".chr(9)."$db_encode".chr(9)."$db_type");
 	} 
@@ -191,8 +191,8 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
     print findtekst('3|Gem', $sprog_id)." ".findtekst('614|Sikkerhedskopi', $sprog_id);
     print "$buttonEnd </a></td></tr>";
     print "<tr><td align=center colspan=2>".findtekst('1242|og gem sikkerhedskopien et passende sted.', $sprog_id)."</td></tr>";
-    print "<tr><td align=center colspan=2>".findtekst('1243|Hvis din browser forsøger at åbne filen', $sprog_id)."</td></tr>";
-    print "<tr><td align=center colspan=2>".findtekst('1244|skal du højreklikke og vælge gem som', $sprog_id)."</td></tr>";
+    print "<tr><td align=center colspan=2>".findtekst('1243|Hvis din browser forsøger at åbne filen',   $sprog_id)."</td></tr>";
+    print "<tr><td align=center colspan=2>".findtekst('1244|skal du højreklikke og vælge gem som',      $sprog_id)."</td></tr>";
     
     // Add Cancel button below
     error_log('Backup file path: ' . $backUpFile);
@@ -201,12 +201,12 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 	print "<div style='display: flex; justify-content: center; gap: 20px;'>";
 	print "<form action='' method='post'>";
 	print "<input type='hidden' name='file_path' value='$backUpFile' />";
-	print "<input type='submit' name='cancel' value='Cancel' />";
+	print "<input type='submit' name='cancel' style='$buttonStyle' value='".findtekst('5|Annullér', $sprog_id)."' />";
 	print "</form>";
 
 	print "<form action='restore.php' method='get'>";
 	print "<input type='hidden' name='file_path' value='$backUpFile' />";
-	print "<input type='submit' value='Go to Restore' />";
+	print "<input type='submit' style='$buttonStyle' value='".findtekst('3358|Gå til indlæsning', $sprog_id)."' />";
 	print "</form>";
 	print "</div>";
     print "</td></tr>";
@@ -218,7 +218,7 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
    
     print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td><td $style  title='".findtekst('1675|Her har du mulighed for at gemme sikkerhedskopien på din computer', $sprog_id)."'>";
     print "<a href='backup.php?backup=1'> $buttonStart";
-    print findtekst('1245|Dan sikkerhedskopi', $sprog_id);
+    print findtekst('1245|Opret sikkerhedskopi', $sprog_id);
     print "$buttonEnd </a></td></tr>";
     print "<tr><td align=center colspan=2>".findtekst('1246|for at danne en sikkerhedskopi', $sprog_id)."<br>".findtekst('1676|som du kan gemme på din computer', $sprog_id).".</td></tr>";
     print "<tr><td colspan=2><hr></td></tr>";

@@ -1,20 +1,20 @@
 <?php
 @session_start();
-$s_id=session_id();
+$s_id = session_id();
 
-$bg="nix";
-$header='nix';
+$bg     = "nix";
+$header = 'nix';
 
-$menu_sager=NULL;
-$menu_planlaeg=NULL;
-$menu_dagbog=NULL;
-$menu_kunder=NULL;
-$menu_loen=NULL;
-$menu_ansatte=NULL;
-$menu_certificering='id="menuActive"';
-$menu_medarbejdermappe=NULL;
+$menu_sager            = NULL;
+$menu_planlaeg         = NULL;
+$menu_dagbog           = NULL;
+$menu_kunder           = NULL;
+$menu_loen             = NULL;
+$menu_ansatte          = NULL;
+$menu_certificering    = 'id="menuActive"';
+$menu_medarbejdermappe = NULL;
 
-$modulnr=0;
+$modulnr = 0;
 		
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -22,8 +22,8 @@ include("../includes/std_func.php");
 
 //$sag_id=if_isset($_GET['sag_id']);
 //$konto_id=if_isset($_GET['konto_id']);
-$funktion=if_isset($_GET['funktion']);
-if (!$funktion) $funktion="certificeringliste";  
+$funktion = if_isset($_GET['funktion']);
+if (!$funktion) $funktion = "certificeringliste";  
 
 	
 		global $brugernavn;
@@ -44,16 +44,17 @@ if (!$funktion) $funktion="certificeringliste";
 function certificeringliste() {
 
 		global $sag_rettigheder;
+		global $sprog_id;
 		
 		print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
 				<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-					else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+					else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 					print "</li>
 				<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->";
 				
-				print "<li>Certificering</li>
+				print "<li>".findtekst('2777|Certificering', $sprog_id)."</li>
 			</ul>
 		</div><!-- end of breadcrumbbar -->\n";
 
@@ -63,11 +64,11 @@ function certificeringliste() {
 		print "<tr><td width=\"100%\" align=\"center\">\n";
 		print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class=\"kontrolskema_liste\" >\n";
 		print "<tbody>\n";
-		print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>Certificering menu</h4></td></tr>\n";
+		print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>".findtekst('3156|Certificeringsmenu', $sprog_id)."</h4></td></tr>\n";
 		print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 		print "</tbody>\n";
 		print "<tbody class=\"dataTableZebra dataTableTopBorder\">\n";
-		print "<tr><td>Kontrolskemaer</td><td class=\"alignRight\"><a href=\"kontrolskemaer.php\" title=\"Gå til kontrolskemaer her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
+		print "<tr><td>".findtekst('3157|Kontrolskemaer', $sprog_id)."</td><td class=\"alignRight\"><a href=\"kontrolskemaer.php\" title=\"".findtekst('3158|Gå til kontrolskemaer her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
 		print "</tbody>\n";
 		print "</table>\n";
 		print "</td></tr>\n";

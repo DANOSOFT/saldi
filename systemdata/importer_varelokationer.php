@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// ------ systemdata/importer_varelokationer.php ------------ lap 3.6.4 -- 2016-02-19 --
+// ------ systemdata/importer_varelokationer.php ------------ lap 5.0.0 -- 2016-04-16 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -26,6 +26,7 @@
 // Copyright (c) 2003-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260416 PHP8
 
 @session_start();
 $s_id=session_id();
@@ -71,7 +72,7 @@ if($submit) {
 			overfoer_data($filnavn,$lager,$tegnset);
 		} else echo "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
 	}
-} else upload();
+} else upload('');
 
 print "</tbody></table>";
 print "</body></html>";

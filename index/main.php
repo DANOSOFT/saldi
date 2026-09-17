@@ -1,3 +1,4 @@
+<!doctype html>
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
@@ -24,6 +25,21 @@
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20260630 CDX/NTR Fixed Lager/varer from refreshing once every time we try to access it.
+//                  This possibly has changes across everything, but I have tested it, and it has also fixed rendering prematurely.
+// 20260716 MJ      Tilfoejede Momsperioder-link i Finans-sidebar.
+// 20260730 NTR - Added translation to momsperioder.
+// 20260730 MJ Fjernede Momsperioder-link fra Finans-sidebaren; linket er nu en knap i regnskabsaar.php
+// 20260902 CL/LH Indlejrede chaty_V2 support-chatbot (wuweiworkai.com/chaty-v2) i skallen
+// 20260904 Sawaneh WP-1.6: update_iframe() tags iframe navigations with inframe=1 (context flag for hosted pages)
+// 20260907 CDX/LH Fjernede gammel widget-loader, saa SALDI Assist kun indlaeses en gang
+// 20260907 CDX/LH Preserve iframe navigation while merging the current shell integration.
+// 20260907 CDX/LH Enable the saved-record bridge when the installation opts in.
+// 20260910 Sawaneh JOB-128: hash sync raced its setTimeout(0) guard, so a page rendered on a POST
+//                 response (kreditor split view, bare ordre.php URL) got reloaded from the hash as
+//                 ordre.php?inframe=1 = empty new order. Track the shell-written hash explicitly and
+//                 ignore the inframe flag when deciding whether the iframe already shows the target.
+// 20260914 CDX/LH Removed the Guides sidebar entry and its popup.
 @session_start();
 $s_id = session_id();
 
@@ -69,26 +85,22 @@ function brightenColor($color, $amount = 0.2) {
 ?>
 
 <script>
-// Simple cookie-based refresh listener
-function checkRefreshCookie() {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'refresh_opener' && value === 'true') {
-            // Clear the cookie and reload
-            document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-            location.reload();
-            return;
-        }
-    }
-}
+  // Simple cookie-based refresh listener
+  function checkRefreshCookie() {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+          const [name, value] = cookie.trim().split('=');
+          if (name === 'refresh_opener' && value === 'true') {
+              // Clear the cookie and reload
+              document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+              location.reload();
+              return;
+          }
+      }
+  }
 
-// Check every 1000ms for the cookie
-setInterval(checkRefreshCookie, 1000);
-</script>
-
-// Check every 500ms
-setInterval(checkRefreshCookie, 500);
+  // Check every 1000ms for the cookie
+  setInterval(checkRefreshCookie, 1000);
 </script>
 <style>
   .showMenu{
@@ -114,11 +126,11 @@ setInterval(checkRefreshCookie, 500);
     color: <?php echo $buttonTxtColor; ?> !important;
   }
 
-  a, p{
+  .sidebar a, .sidebar p{
     color: <?php echo $buttonTxtColor; ?> !important;
   }
 
-  .bx{
+  .sidebar .bx{
     color: <?php echo $buttonTxtColor; ?> !important;
   }
 
@@ -143,7 +155,7 @@ setInterval(checkRefreshCookie, 500);
 <title>Sidebar</title>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <link rel="icon" href="../img/saldiLogo.png">
-<link href='../css/sidebar_style.css' rel='stylesheet'>
+<link href='../css/sidebar_style.css?v=22' rel='stylesheet'>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">
 
 <div class="modalbg" onclick="
@@ -222,7 +234,7 @@ setInterval(checkRefreshCookie, 500);
         <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(5))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';
@@ -238,8 +250,7 @@ setInterval(checkRefreshCookie, 500);
     </li>
     <!-- Booking -->
     <?php
-    $query = db_select("select var_value from settings where var_grp='rental'", __FILE__ . " linje " . __LINE__);
-    if (db_num_rows($query) > 0 && is_feature_licensed('booking')) {
+    if (is_feature_licensed('booking')) {
     ?>
       <li style="display: <?php if (check_permissions(array(6))) {
                             echo 'block';
@@ -411,7 +422,7 @@ setInterval(checkRefreshCookie, 500);
     <iframe
       onLoad="
       document.title = 'Saldi - ' + this.contentWindow.document.title; 
-console.log('Locaiton', this.contentWindow.document.location.href);
+      console.log('Locaiton', this.contentWindow.document.location.href);
       trigger_iframe_load();
       stopLoading();
       content_finished_loading(this);"
@@ -472,9 +483,46 @@ console.log('Locaiton', this.contentWindow.document.location.href);
     sidebar.classList.toggle("closed");
   }
 
+  const get_iframe_path = () => {
+    const iframe = document.querySelector(".content-iframe")
+    if (!iframe || !iframe.contentWindow) return "";
+
+    try {
+      const url = new URL(iframe.contentWindow.location.href);
+      return url.pathname + url.search;
+    } catch (e) {
+      return "";
+    }
+  }
+
+  // Compare shell paths without the inframe flag: a page reached by an in-frame
+  // redirect (ordre.php?id=X) has no inframe=1 yet still is the requested page.
+  const strip_inframe = (path) => {
+    try {
+      const url = new URL(path, location.origin);
+      url.searchParams.delete('inframe');
+      return url.pathname + url.search;
+    } catch (e) {
+      return path;
+    }
+  }
+
   const update_iframe = (uri) => {
     const iframe = document.querySelector(".content-iframe")
-    const path = iframe.contentWindow.location.href
+    const baseUrl = (location + "").split("/").splice(0, 4).join("/");
+    const targetUrl = baseUrl + (uri.startsWith("/") ? uri : "/" + uri);
+    const parsedTargetUrl = new URL(targetUrl);
+    // Context flag for the loaded page: it runs inside the shell's iframe, so
+    // window.close()-based flows (luk.php) can't work and back targets must stay
+    // in-frame. Set centrally here instead of on every menu link.
+    if (!parsedTargetUrl.searchParams.has('inframe')) {
+      parsedTargetUrl.searchParams.set('inframe', '1');
+    }
+    const targetPath = parsedTargetUrl.pathname + parsedTargetUrl.search;
+
+    if (strip_inframe(get_iframe_path()) === strip_inframe(targetPath)) {
+      return;
+    }
 
     if (iframe.contentWindow?.docChange) {
       if (!window.confirm("Er du sikker på du gerne vil ændre side? Dine ændringer vil ikke blive gemt")) {
@@ -482,7 +530,7 @@ console.log('Locaiton', this.contentWindow.document.location.href);
       }
     }
 
-    iframe.src = (location + "").split("/").splice(0, 4).join("/") + uri
+    iframe.src = parsedTargetUrl.href
   }
 
   const redirect_uri = (uri) => {
@@ -492,13 +540,20 @@ console.log('Locaiton', this.contentWindow.document.location.href);
   // Check for page reloads and manage inital load of iframe
   update_iframe(window.location.hash == "" ? "/index/dashboard.php" : window.location.hash.replace("#", ""));
 
-  let manualHashChange = true;
+  // Hash the shell wrote itself from an iframe load. hashchange is dispatched
+  // asynchronously, so a timer-based flag could reset before the event arrived
+  // and the shell would then reload the iframe from the hash - fatal for pages
+  // rendered straight on a POST response (e.g. kreditor split view), whose URL
+  // carries no id and reloads as an empty form.
+  let shellWrittenHash = null;
   addEventListener("hashchange", (event) => {
-    if (manualHashChange) {
-      const newHash = event.newURL.split("#")[1];
-      if (newHash && newHash !== "/") {
-        update_iframe(newHash);
-      }
+    const newHash = event.newURL.split("#")[1];
+    if (shellWrittenHash !== null && newHash === shellWrittenHash) {
+      shellWrittenHash = null;
+      return;
+    }
+    if (newHash && newHash !== "/") {
+      update_iframe(newHash);
     }
   });
 
@@ -506,15 +561,12 @@ console.log('Locaiton', this.contentWindow.document.location.href);
     const iframe = document.querySelector(".content-iframe");
     const path = "/" + iframe.contentWindow.document.location.href.split("/").slice(4).join("/");
 
-    // Prevent iframe load hashchange from triggering update_iframe
-    manualHashChange = false;
-    window.location.hash = path;
-    setCookie('last-sidebar-location', path, 1);
+    if (window.location.hash !== "#" + path) {
+      shellWrittenHash = path;
+      window.location.hash = path;
+    }
 
-    // Reset manualHashChange flag after the hash has been set
-    setTimeout(() => {
-      manualHashChange = true;
-    }, 0);
+    setCookie('last-sidebar-location', path, 1);
   }
 
   document.addEventListener('DOMContentLoaded', function() {
@@ -548,6 +600,7 @@ console.log('Locaiton', this.contentWindow.document.location.href);
     // inject the start loading handler when content finished loading
     iframe.contentWindow.onbeforeunload = startLoading;
   };
+
 </script>
 
 <style>
@@ -593,4 +646,27 @@ console.log('Locaiton', this.contentWindow.document.location.href);
   }
 </style>
 
+<?php
+/* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
+   endpointet ligger i includes/saldi_assist_token.php. SALDI_ASSIST_WIDGET_URL
+   kan saettes i webserverens miljoe til en test-instans; standard er produktion. */
+$assistWidgetUrl = getenv('SALDI_ASSIST_WIDGET_URL') ?: 'https://wuweiworkai.com/chaty-v2/widget.js';
+$assistVersion = isset($version) ? (string)$version : '';
+?>
+<script src="../javascript/saldi-assist-navigate.js"></script>
+<script>
+  // update_iframe er en const i sidens script; goer den tilgaengelig for
+  // navigate-hook'en, saa "Gaa dertil" gaar gennem SALDIs egen navigation
+  // (inkl. advarslen om ugemte aendringer).
+  if (typeof update_iframe === 'function') { window.update_iframe = update_iframe; }
+</script>
+<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+<script>window.SaldiAssist = { appVersion: <?= json_encode($assistVersion) ?>, correlationId: <?= json_encode($assist_correlation_id ?? null) ?>, errorCategory: <?= json_encode($assist_error_category ?? null) ?>, getContextToken: function (sessionHash) { return fetch('../includes/saldi_assist_token.php?embed_session=' + encodeURIComponent(sessionHash), {credentials:'same-origin'}).then(function (r) { return r.ok ? r.json() : null }).then(function (j) { return j && j.token ? j.token : null }) }, navigate: window.SaldiAssistNavigate };</script>
+<?php if (getenv('SALDI_ASSIST_RECORDS_ENABLED') === '1') { ?>
+<script src="../javascript/saldi-assist-records.js"></script>
+<script>
+  window.SaldiAssist.getRecordContext = window.SaldiAssistRecords.getRecordContext;
+  window.SaldiAssist.highlightRows = window.SaldiAssistRecords.highlightRows;
+</script>
+<?php } ?>
 </html>

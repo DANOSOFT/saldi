@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2024.02.27 ---
+// --- debitor/payments/lane3000.php --- lap 4.1.0 --- 2026.09.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
 
 @session_start();
 $s_id = session_id();
@@ -111,9 +112,17 @@ elseif ($printserver == 'box' || $printserver == 'saldibox') {
 	}
 }
 
-# Print setup
-$printfile = 'https://'.$_SERVER['SERVER_NAME'];
-$printfile.= str_replace('debitor/payments/lane3000.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
+// Build from the installation path, independent of lane3000/move3500 aliases.
+$installationPath = rtrim(dirname($_SERVER['SCRIPT_NAME'], 3), '/');
+$printfile = 'https://' . $_SERVER['SERVER_NAME'] . $installationPath
+    . '/temp/' . rawurlencode($db) . '/receipt_' . (int)$kasse . '.txt';
+$receiptPrintUrl = 'http://' . $printserver . '/saldiprint.php?' . http_build_query([
+    'bruger_id' => 99,
+    'bonantal' => 1,
+    'printfil' => $printfile,
+    'skuffe' => 0,
+    'gem' => 1
+], '', '&', PHP_QUERY_RFC3986);
 
 writeLog("Print file URL: $printfile");
 ?>
@@ -221,10 +230,10 @@ async function get_api_key(baseurl) {
         const res = fetchResult.value;
         const jsondata = await res.json();
         
-        // Log the response (don't wait for it to complete)
+         // Log the response (don't wait for it to complete)
         const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
-        
-/*         // write a put command to the settings for the terminal
+        /*
+        // write a put command to the settings for the terminal
         const putPromise = fetch(
             `${baseurl}terminal/TERMINAL ID HERER/settings`,
             {
@@ -248,7 +257,7 @@ async function get_api_key(baseurl) {
         }).catch((putError) => {
             logToServer(`Terminal settings update exception: ${putError.message}`, 'ERROR');
             console.error('Terminal settings PUT failed:', putError);
-        }); */
+        });
 
         if (res.status != 200) {
             // Wait for both error logging and fail function
@@ -257,7 +266,7 @@ async function get_api_key(baseurl) {
                 Promise.resolve(fail(jsondata.error))
             ]);
             return null;
-        }
+        } */
 
         // Wait for both success logging and response logging to complete
         await Promise.allSettled([
@@ -294,6 +303,7 @@ async function print_str(baseurl, apikey, data) {
                     data: data, 
                     id: '<?php print $ordre_id; ?>',
                     type: 'move3500',
+                    kasse: '<?php print $kasse; ?>',
                     terminal_id: '<?php print $terminal_id; ?>'
                 })
             }
@@ -321,7 +331,7 @@ async function print_str(baseurl, apikey, data) {
         }
 
         // Open print window and log it
-        window.open("http://<?php echo $printserver ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
+        window.open(<?php echo json_encode($receiptPrintUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, '', 'width=200,height=100');
         
         await Promise.allSettled([
             logToServer('Print command sent', 'INFO')

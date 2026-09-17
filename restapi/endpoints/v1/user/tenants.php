@@ -1,7 +1,11 @@
 <?php
 /**
  * GET /user/tenants
- * Get list of accessible regnskaber (tenants) for the authenticated user
+ *
+ * UNSUPPORTED with account-scoped JWT authentication. The JWT user_id belongs
+ * to an account database and must not be used to query a registry-database user
+ * with the same numeric ID. Keep this endpoint out of Swagger until a reliable
+ * cross-account identity mapping is implemented.
  * 
  * Headers:
  * - Authorization: Bearer {access_token}
@@ -12,8 +16,8 @@
  *   "data": [
  *     {
  *       "id": 1,
- *       "name": "Regnskab Navn",
- *       "db": "database_name",
+ *       "name": "Account Name",
+ *       "db": "account_database_name",
  *       "cvr": "12345678",
  *       "email": "email@example.com",
  *       "closed": false
@@ -159,4 +163,3 @@ class UserTenantsEndpoint extends BaseEndpoint
 
 $endpoint = new UserTenantsEndpoint();
 $endpoint->handleRequestMethod();
-

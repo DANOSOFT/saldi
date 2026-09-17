@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 4.1.1 --- 2025-0607-31 ---
+// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-06-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,11 +22,16 @@
 //
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
+//20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
+//                  (source=debitorOrdrer) før fallback til gammelt bilag-system
 //
 // 20211028 PHR moved this function rom ../formfunc,php  
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250603 PHR enhanced use of variables in mailtext. 
+// 20260818 CL/LH Preserved plain-text mail bodies when anchor flattening fails.
+// 20260819 Sawaneh 'Mail sent to' confirmation translated via findtekst and
+//                  recipient escaped before output.
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -40,6 +45,7 @@ print "<!--function send_mails start-->";
 	global $exec_path;
 #	global $id; // hent 'mail_bilag' fra ordrer + leveringsaddr.
 	global $returside;
+	global $sprog_id;
 
 	$email=str_replace(' ','',$email);
 	if (strpos($email,';')) $emails=explode(';',$email);
@@ -120,6 +126,19 @@ print "<!--function send_mails start-->";
 			$mailtext = str_replace('$firmanavn',$r['firmanavn'],$mailtext);
 		}
 	}
+	# 20260817 CL/LH $abonnementslink: signed Stripe subscription link derived from
+	# THIS order at send time (never stored on the order - the recurring clone in
+	# debitor/genfakturer.php drops stored fields). Must be substituted BEFORE the
+	# generic $-token resolvers below, which would otherwise look the token up as
+	# an ordrer column. Styled link in the HTML body; the AltBody build flattens
+	# anchors to "text: url". Disabled/unconfigured/no mappable lines -> ''.
+	if (strpos($mailtext,'$abonnementslink') !== false || strpos($subjekt,'$abonnementslink') !== false) {
+		include_once(__DIR__ . "/subscriptionLink.php");
+		$abonnementslink = subscriptionLinkUrl($ordre_id);
+		# 20260820 CL/LH styled CTA block (shared builder) instead of a naked anchor.
+		$mailtext = str_replace('$abonnementslink', subscriptionLinkHtml($abonnementslink), $mailtext);
+		$subjekt  = str_replace('$abonnementslink', '', $subjekt);
+	}
 	$mailtext = str_replace("\n\r","\n\r<br>",$mailtext);
 
 	(isset($bilagnavn) && $bilagnavn)?$bilagnavn=$bilagnavn:$bilagnavn="Bilag"; #2013.11.21 Hvis bilag-navn er tom, insættes 'Bilag' som navn
@@ -198,32 +217,47 @@ print "<!--function send_mails start-->";
 	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 	$fakturanavn=basename($filnavn);
 	
-	if ($mailbilag && $ordre_id) {
-		$ftpfilnavn="bilag_".$ordre_id;
-		$r=db_fetch_array(db_select("select * from grupper where art='bilag'",__FILE__ . " linje " . __LINE__));
-			if($box6=$r['box6']) {
-			$mappe='bilag';
-			$undermappe="ordrer";
-			$bilagfilnavn="bilag_".$bilag_id;
-			$google_docs=$r['box7'];
-			$fra="../bilag/".$db."/".$mappe."/".$undermappe."/".$ftpfilnavn;
-			$til="../temp/".$db."/".$mailbilag;
-			system ("cp '$fra' '$til'\n");
-		} else {
-			$r=db_fetch_array(db_select("select * from grupper where art='FTP'",__FILE__ . " linje " . __LINE__));
-			$box1=$r['box1'];
-			$box2=$r['box2'];
-			$box3=$r['box3'];
-			$mappe=$r['box4'];
-			$undermappe="ordrer";
-			$ftpfilnavn="bilag_".$ordre_id;
-			$fp=fopen("../temp/$db/ftpscript.$bruger_id","w");
-			if ($fp) {
-			fwrite ($fp, "cd $mappe\ncd $undermappe\nget $ftpfilnavn\nbye\n");
+	if ($ordre_id) {
+		// Nyt documents-system (source=debitorOrdrer)
+		$sth_path = dirname(dirname(dirname(__FILE__)));
+		$newDocFolder = null;
+		if      (file_exists("$sth_path/documents")) $newDocFolder = "$sth_path/documents";
+		elseif  (file_exists("$sth_path/owncloud"))  $newDocFolder = "$sth_path/owncloud";
+		elseif  (file_exists("$sth_path/bilag"))     $newDocFolder = "$sth_path/bilag";
+
+		if ($newDocFolder) {
+			$qtxt = "SELECT filename, filepath FROM documents WHERE source = 'debitorOrdrer' AND source_id = '$ordre_id' ORDER BY id LIMIT 1";
+			if ($docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$srcFile = $newDocFolder . '/' . $db . '/' . ltrim($docRow['filepath'], '/') . '/' . $docRow['filename'];
+				if (file_exists($srcFile)) {
+					$mailbilag = $docRow['filename'];
+					$til = "../temp/$db/$mailbilag";
+					system("cp '" . str_replace("'", "'\\''", $srcFile) . "' '$til'\n");
+				}
 			}
-			fclose($fp);
-			$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$box2.":".$box3."@".$box1." < ftpscript.$bruger_id > ftplog\nmv \"$ftpfilnavn\" \"$mailbilag\"\n";
-			system ($kommando);
+		}
+
+		// Fallback: gammelt bilag-system (bilag/{db}/bilag/ordrer/bilag_{id}[_*])
+		if (!$mailbilag) {
+			$r = db_fetch_array(db_select("select * from grupper where art='bilag'", __FILE__ . " linje " . __LINE__));
+			if ($box6 = $r['box6']) {
+				$oldFiles = glob("../bilag/$db/bilag/ordrer/bilag_{$ordre_id}") ?: array();
+				$oldFiles = array_merge($oldFiles, glob("../bilag/$db/bilag/ordrer/bilag_{$ordre_id}_*") ?: array());
+				if ($oldFiles) {
+					$fra = $oldFiles[0];
+					$mailbilag = basename($fra);
+					$til = "../temp/$db/$mailbilag";
+					system("cp '$fra' '$til'\n");
+				}
+			} else {
+				$r2 = db_fetch_array(db_select("select * from grupper where art='FTP'", __FILE__ . " linje " . __LINE__));
+				$box1 = $r2['box1']; $box2 = $r2['box2']; $box3 = $r2['box3']; $mappe = $r2['box4'];
+				$ftpfilnavn = "bilag_" . $ordre_id;
+				$fp = fopen("../temp/$db/ftpscript.$bruger_id", "w");
+				if ($fp) { fwrite($fp, "cd $mappe\ncd ordrer\nget $ftpfilnavn\nbye\n"); fclose($fp); }
+				$kommando = "cd ../temp/$db\n$exec_path/ncftp ftp://$box2:$box3@$box1 < ftpscript.$bruger_id > ftplog\nmv \"$ftpfilnavn\" \"$mailbilag\"\n";
+				system($kommando);
+			}
 		}
 	}
 	
@@ -240,9 +274,16 @@ print "<!--function send_mails start-->";
 					list($var,$tmp) = explode(',',$var,2);
 				}
 				$var=trim($var);
-				$r=db_fetch_array(db_select("select $var from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
-				$ordliste[$a]=$r[$var];
-			} 
+				# 20260817 CL/LH tier-1 allowlist: token must be a real ordrer
+				# column - closes the SQL interpolation surface (unknown -> '').
+				include_once(__DIR__ . "/mailTokenAllowlist.php");
+				if (ordrer_mail_token_allowed($var)) {
+					$r=db_fetch_array(db_select("select $var from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
+					$ordliste[$a]=$r[$var];
+				} else {
+					$ordliste[$a]='';
+				}
+			}
 			$subjekt.=$ordliste[$a]." ";
 		}
 	}
@@ -265,10 +306,16 @@ print "<!--function send_mails start-->";
 					list($var,$tmp) = explode(',',$var,2);
 				}
 				$var=trim($var);
-				$qtxt="select $var from ordrer where id='$ordre_id'";
-				#cho "$qtxt<br>";
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$ordliste[$a]=$r[$var];
+				# 20260817 CL/LH tier-1 allowlist (as in the subject resolver above)
+				include_once(__DIR__ . "/mailTokenAllowlist.php");
+				if (ordrer_mail_token_allowed($var)) {
+					$qtxt="select $var from ordrer where id='$ordre_id'";
+					#cho "$qtxt<br>";
+					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					$ordliste[$a]=$r[$var];
+				} else {
+					$ordliste[$a]='';
+				}
 				if ($br) {
 					$ordliste[$a].="<br>".$br;
 				}
@@ -357,10 +404,17 @@ print "<!--function send_mails start-->";
 	$mail->IsHTML(true);                               // send as HTML
 
 	$ren_text=html_entity_decode($mailtext,ENT_COMPAT,$charset);
+	# 20260817 CL/LH flatten anchors to "text: url" BEFORE the tag conversion -
+	# the plain-text part otherwise carries raw <a ...> markup (spam scoring).
+	# Also repairs the existing $betalingslink button's plain-text rendering.
+	$ren_text=preg_replace('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is','$2: $1',$ren_text) ?? $ren_text;
 	$ren_text=str_replace("<br>","\n",$ren_text);
 	$ren_text=str_replace("<b>","*",$ren_text);
 	$ren_text=str_replace("</b>","*",$ren_text);
 	$ren_text=str_replace("<hr>","------------------------------",$ren_text);
+	# 20260820 CL/LH the CTA block's <table> markup (and any other template HTML)
+	# must not reach the plain-text part raw - anchors are already flattened above.
+	$ren_text=strip_tags($ren_text);
 	$mail->Subject  =  "$subjekt";
 	$mail->Body     =  "$mailtext";
 	$mail->AltBody  =  "$ren_text";
@@ -409,7 +463,7 @@ print "<!--function send_mails start-->";
 			alert($tekst);
 		}
 	}
-	echo "Mail sent to $email<br>";
+	echo findtekst('3370|Mail sendt til', $sprog_id)." ".htmlspecialchars($email, ENT_QUOTES)."<br>";
 	return("Mail sent to $email");
 	print "<!--function send_mails slut-->";
 }

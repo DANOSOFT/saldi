@@ -30,6 +30,7 @@
 // 2019.02.12 MSC - Rettet isset fejl
 // 2019.02.18 MSC - Rettet topmenu design
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260709 SZ Added Grid Framework sticky header to Multiroute report
 
 @session_start();
 $s_id=session_id();
@@ -43,6 +44,7 @@ include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
+include("../includes/topline_settings.php");
 
 
 $slet=if_isset($_POST['slet']);
@@ -136,6 +138,31 @@ if ($qtxt) {
 	fclose($fp);	
 }
 
+if ($menu == 'S') {
+	// Grid Framework header — printed here, BEFORE the outer <table> below opens, and NOT nested
+	// inside any <td>. position:sticky only stays "stuck" while its containing block (effectively
+	// its parent) is still in view — nesting it inside a <td> would give it a containing block only
+	// as tall as the header bar itself (~40px), so it would lose its sticky effect and scroll away
+	// almost immediately. Printing it as a top-level element before the table gives it the full page
+	// as its containing block, so it actually remains visible for the whole scroll, matching the
+	// ticket's "remains visible when the user scrolls down through the report" requirement. Mirrors
+	// Finance -> Reports -> Balance (kontosaldo() in includes/rapportfunc.php) styling: icon back
+	// button + $topStyle title bar + empty $topStyle 3rd cell, 10/80/10 layout — same three-segment
+	// convention as saftCashRegister.php/salgsstat.php/finans/saft.php (kontosaldo() itself only has
+	// 2 columns, kept 3 per explicit follow-up direction). The previous "include
+	// ../includes/sidemenu.php" was a dead include (the file doesn't exist in this codebase) — it
+	// silently failed and printed nothing, which is why this report had no header at all in S-mode.
+	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+	print "<td width='10%' align='left'><a href='$luk' accesskey=L style=\"text-decoration: none;\">";
+	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px; justify-content: flex-start; padding-left: 3px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+	print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
+	print "<td width='10%' align='center' style='$topStyle'>&nbsp;</td>";
+	print "</tr></tbody></table>";
+	print "</div>";
+}
 print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 if ($menu=='T') {
 	$leftbutton="<a class='button red small' title=\"Klik her for at komme til startsiden\" href=\"../debitor/rapport.php\" accesskey=\"L\">Luk</a>";
@@ -143,15 +170,15 @@ if ($menu=='T') {
 	$vejledning=NULL;
 	include("../includes/top_header.php");
 	include("../includes/top_menu.php");
-	print "<div id=\"header\"> 
+	print "<div id=\"header\">
 	<div class=\"headerbtnLft\">$leftbutton</div>
-	<span class=\"headerTxt\">Salgsstat</span>";     
-	print "<div class=\"headerbtnRght\"></div>";       
+	<span class=\"headerTxt\">Salgsstat</span>";
+	print "<div class=\"headerbtnRght\"></div>";
 	print "</div><!-- end of header -->";
 	print "<div class=\"maincontentLargeHolder\">\n";
 	print "<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
 } elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
+	// Header already printed above, before this table opened — see comment there.
 } else {
 	print "<tr><td colspan=\"4\" height=\"8\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";

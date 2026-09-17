@@ -135,7 +135,7 @@ print "<input type=\"hidden\" name=\"filnavn\" value=$filnavn>";
 print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>";
 print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Vis\" />";
 
-$felt_navn=array("kontonr","firmanavn","addr1","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","ean","institution","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","bank_navn","bank_reg","bank_konto","bank_fi","swift","ean","institution","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
+$felt_navn=array("kontonr","firmanavn","addr1","addr2","postnr","bynavn","land","kontakt","tlf","mobile","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","ean","institution","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","bank_navn","bank_reg","bank_konto","bank_fi","swift","ean","institution","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_mobile","kontakt_email","kontakt_notes");
 $felt_antal=30;
 for ($y=0; $y<=$feltantal; $y++) {
 	for ($x=0; $x<=$felt_antal; $x++) {

@@ -57,8 +57,8 @@ function find_background_file($db_id, $baggrund, $current_sprog, $department = n
     if ($department && $department > 0) {
         // 1. Check Department + Language Specific (if not Default)
         if (!$is_default_lang) {
-             $lang_suffix = "_" . $lang_lower;
-             $dept_path_lang = "../logolib/$db_id/$department/{$baggrund}{$lang_suffix}.pdf";
+             $lang_suffix = $lang_lower . "_";
+             $dept_path_lang = "../logolib/$db_id/$department/{$lang_suffix}{$baggrund}.pdf";
              if (file_exists($dept_path_lang)) {
                  return $dept_path_lang;
              }
@@ -74,8 +74,8 @@ function find_background_file($db_id, $baggrund, $current_sprog, $department = n
     // Check db_id directory (default/main)
     // 3. Check Global + Language Specific (if not Default)
     if (!$is_default_lang) {
-         $lang_suffix = "_" . $lang_lower;
-         $db_path_lang = "../logolib/$db_id/{$baggrund}{$lang_suffix}.pdf";
+         $lang_suffix = $lang_lower . "_";
+         $db_path_lang = "../logolib/$db_id/{$lang_suffix}{$baggrund}.pdf";
          if (file_exists($db_path_lang)) {
              return $db_path_lang;
          }

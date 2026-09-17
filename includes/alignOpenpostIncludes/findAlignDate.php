@@ -50,7 +50,7 @@ echo round($dkkdiff,3)."<br>";
 		if (($ym<$aarstart || $ym>$aarslut))	{ #20140505
 			
 			print "<BODY onLoad=\"javascript:alert('Udligningsdato ($ym) udenfor regnskabs&aring;r ($aarstart - $aarslut)')\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;../includes/udlign_openpost.php?post_id=$post_id[0]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=$retur\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;../includes/udlign_openpost.php?post_id=$post_id[0]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=$retur&layout=$layout\">";
 echo __line__." $diff | $dkkdiff<br>";
 exit;
 			exit;
@@ -169,7 +169,7 @@ echo "DKDIF $dkkdiff<br>";
 		}
 	}
 	transaktion('commit');
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok\">";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&layout=$layout\">";
 
 ?>
 

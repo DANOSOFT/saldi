@@ -170,12 +170,16 @@ function renderTable(entries) {
   entries.forEach((entry, index) => {
     const tr = document.createElement('tr');
     tr.style.backgroundColor = (index % 2 === 0) ? bgcolor : bgcolor5;
+    tr.style.cursor = 'pointer';
 
-   tr.innerHTML =
-    '<td><a href="ordre.php?fokus=' + fokus + '&id=' + usedId + 
-    '&konto_id=' + entry.id + 
-    '&kontonr=' + encodeURIComponent(entry.kontonr) + 
-    '">' + entry.kontonr + '</a></td>' +
+    const href = 'ordre.php?fokus=' + fokus + '&id=' + usedId +
+      '&konto_id=' + entry.id +
+      '&kontonr=' + encodeURIComponent(entry.kontonr);
+
+    tr.addEventListener('click', () => { window.location.href = href; });
+
+    tr.innerHTML =
+      '<td>' + entry.kontonr + '</td>' +
       '<td>' + entry.firmanavn + '</td>' +
       '<td>' + entry.addr1 + '</td>' +
       '<td>' + entry.addr2 + '</td>' +
@@ -194,7 +198,7 @@ function changeSort(column) {
     currentSortDirection = (currentSortDirection === 'ASC') ? 'DESC' : 'ASC';
   } else {
     currentSort = column;
-    currentSortDirection = 'ASC';
+    currentSortDirection = 'ASC'; 
   }
   currentPage = 1;
   fetchData();

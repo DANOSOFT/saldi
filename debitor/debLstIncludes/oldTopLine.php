@@ -21,7 +21,7 @@
 	print "<td width = 20% align=center><a href='../rental/index.php?vare'>".findtekst('1116|Booking', $sprog_id)."</a></td>";
 }
 	$title=findtekst('1664|Klik her for at skifte til joblisten', $sprog_id); #20210728
-	if ($jobkort)	print "<td width = 20% align=center><a href='jobliste.php' title ='$title'>".findtekst('38|Stillingsliste', $sprog_id)."</a></td>";
+	if ($jobkort)	print "<td width = 20% align=center><a href='jobliste.php' title ='$title'>".findtekst('38|Opgaveliste', $sprog_id)."</a></td>";
 	print "</tbody></table></td>\n";
 	print "<td width=5% $top_bund><a accesskey=V href=debitorvisning.php?valg=$valg>".findtekst('813|Visning', $sprog_id)."</a></td>\n";
 	print "<td width=5%  $top_bund>";

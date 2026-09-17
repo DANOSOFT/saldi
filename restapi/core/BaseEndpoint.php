@@ -7,12 +7,33 @@ include_once __DIR__ . "/auth.php";
 include_once __DIR__ . "/logging.php";
 include_once __DIR__ . "/cors.php";
 require_once __DIR__ . '/ApiException.php';
+require_once __DIR__ . '/JWT.php';
+require_once __DIR__ . '/JWTAuth.php';
 
+// JWT signing secret (SD-587, self-provisioning added SD-634): install-specific,
+// >=256 bits, stored outside the repo at restapi/.ht_jwt_secret.bin (git-ignored,
+// matches the .ht* pattern already used for bank_integration/.ht_oauth_key.bin).
+// One file per codebase install, shared by every tenant it serves - see
+// "JWT signing secret is per install, not per tenant" in restapi/IMPLEMENTATION_STATUS.md.
+// See JwtSecretProvisioning.php for how it's loaded/created.
+require_once __DIR__ . '/JwtSecretProvisioning.php';
+try {
+    JWT::setSecret(_jwtLoadSecret());
+} catch (\RuntimeException $e) {
+    error_log('JWT bootstrap failed: ' . $e->getMessage());
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'REST API is not configured', 'data' => null]);
+    exit;
+}
 
 abstract class BaseEndpoint
 {
     protected $conn;
     protected $model;
+    protected $db;
+    protected $userId;
+    protected $username;
 
     public function __construct()
     {
@@ -52,7 +73,12 @@ abstract class BaseEndpoint
 
     protected function getLogDb()
     {
-        // Try JWT tenant database first (for new authentication)
+        // Use the db property if already set from JWT auth
+        if ($this->db) {
+            return $this->db;
+        }
+        
+        // Try the account database identified by the JWT tenant_id claim
         try {
             $tenantDb = JWTAuth::getTenantDatabase();
             if ($tenantDb) {
@@ -64,9 +90,9 @@ abstract class BaseEndpoint
             // PHP error, continue to fallback
         }
         
-        // Fall back to legacy x-db header or X-Tenant-ID header
+        // Fall back to X-Tenant-ID header
         $headers = array_change_key_case(getallheaders(), CASE_LOWER);
-        return $headers['x-db'] ?? $headers['x-tenant-id'] ?? 'api';
+        return $headers['x-tenant-id'] ?? 'api';
     }
 
     public function handleRequestMethod()
@@ -127,7 +153,7 @@ abstract class BaseEndpoint
             switch ($method) {
                 case 'POST':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("POST data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePost()", $logDb, 'INFO');
                     $this->handlePost($data);
@@ -140,21 +166,21 @@ abstract class BaseEndpoint
                     break;
                 case 'PUT':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("PUT data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePut()", $logDb, 'INFO');
                     $this->handlePut($data);
                     break;
                 case 'DELETE':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("DELETE data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handleDelete()", $logDb, 'INFO');
                     $this->handleDelete($data);
                     break;
                 case 'PATCH':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("PATCH data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePatch()", $logDb, 'INFO');
                     $this->handlePatch($data);
@@ -164,11 +190,24 @@ abstract class BaseEndpoint
                     $this->handleError(new Exception("Method Not Allowed"));
                     break;
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) { // 20260812 CL/LH: was Exception - an Error (e.g. undefined method) escaped the JSON error handling and died as an empty HTTP 500
             write_log("Exception caught: " . $e->getMessage(), $logDb, 'ERROR');
             write_log("Stack trace: " . $e->getTraceAsString(), $logDb, 'ERROR');
             $this->handleError($e);
         }
+    }
+
+    // 20260812 CL/LH: reject malformed JSON bodies with a clear 400 instead of letting a null
+    // $data surface further down as misleading 'missing required field' errors (a truncated
+    // body previously read as a business-validation problem).
+    protected function decodeJsonBody($rawInput)
+    {
+        $data = json_decode($rawInput);
+        if ($data === null && trim((string)$rawInput) !== '' && json_last_error() !== JSON_ERROR_NONE) {
+            $this->sendResponse(false, null, 'Invalid JSON body: ' . json_last_error_msg(), 400);
+            exit;
+        }
+        return $data;
     }
 
     protected function sanitizeLogData($data)
@@ -206,70 +245,35 @@ abstract class BaseEndpoint
             return false;
         }
 
-        // Try JWT authentication first (for new mobile app endpoints)
-        if (isset($headers['authorization']) && preg_match('/Bearer\s+/i', $headers['authorization'])) {
-            // JWT token authentication
-            require_once __DIR__ . '/JWT.php';
-            require_once __DIR__ . '/JWTAuth.php';
+        // JWT authentication (primary method)
+        $payload = JWTAuth::validateToken();
+        if ($payload) {
+            // JWT authentication successful
+            $this->userId = $payload['user_id'];
+            $this->username = $payload['username'];
             
-            $payload = JWTAuth::validateToken();
-            if ($payload) {
-                // JWT authentication successful
-                // Store user info for later use
-                $this->userId = $payload['user_id'];
-                $this->username = $payload['username'];
-                
-                // Get tenant database if X-Tenant-ID is provided
-                if (isset($headers['x-tenant-id'])) {
-                    $this->tenantDb = JWTAuth::getTenantDatabase();
-                }
-                
-                return true;
-            }
-        }
-
-        // Fall back to legacy API key authentication (for backward compatibility)
-        // Check for required headers
-        $requiredHeaders = ['authorization', 'x-saldiuser', 'x-db'];
-        foreach ($requiredHeaders as $header) {
-            if (!isset($headers[$header])) {
-                $this->sendResponse(false, array(), "Missing required header: '{$header}'", 401);
+            // Get the account database from the JWT or legacy X-Tenant-ID header
+            $this->db = JWTAuth::getTenantDatabase();
+            if (!$this->db) {
+                $this->sendResponse(false, null, 'Account database not found. Login again or set the legacy X-Tenant-ID header to the numeric account ID.', 400);
                 return false;
             }
+            
+            // Connect to the selected account database
+            global $sqhost, $squser, $sqpass;
+            $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
+            if (!$conn) {
+                $this->sendResponse(false, null, 'Database connection failed', 500);
+                return false;
+            }
+            
+            write_log("JWT auth successful for user: {$this->username}, db: {$this->db}", $this->db, 'INFO');
+            return true;
         }
 
-        // Extract header values
-        $authorization = $headers['authorization'];
-        $user = $headers['x-saldiuser'];
-        $db = $headers['x-db'];
-
-        // Validate Authorization header
-        if (empty($authorization)) {
-            $this->sendResponse(false, array(), "Authorization header cannot be empty", 401);
-            return false;
-        }
-
-        // Additional optional validations
-        if (empty($user)) {
-            $this->sendResponse(false, array(), "User identifier cannot be empty", 401);
-            return false;
-        }
-
-        if (empty($db)) {
-            $this->sendResponse(false, array(), "Database identifier cannot be empty", 401);
-            return false;
-        }
-
-        // Log authorization attempt
-        write_log("Authorization attempt for user: $user", $db, 'INFO');
-
-        $result = access_check($db, $user, $authorization) === 'OK';
-        
-        if (!$result) {
-            write_log("Authorization failed for user: $user", $db, 'WARNING');
-        }
-        
-        return $result;
+        // No valid authentication provided
+        $this->sendResponse(false, null, 'Valid Bearer token required. Login via POST /auth/login.php with username, password and account_name.', 401);
+        return false;
     }
 
     protected function sendResponse($success, $data = null, $message = '', $httpCode = 200)

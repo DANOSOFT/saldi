@@ -103,6 +103,13 @@
 // 20250503 LOE Use conditionals to adjust for MySQL vs PostgreSQL
 // 20250510 LOE Optimized to work with mysql database, long and lat now using decimal instead of int
 // 20250804	PHR Corrected error in create  proforma
+// 20260803 CL/SZ Require an authenticated session unconditionally, before any
+//                $_POST handling (SD-615)
+// 20260804 SZ Also terminate on the webservice "Session expired" include return,
+//             instead of relying only on $db != $sqdb (SD-615)
+// 20260818 CL/LH Corrected Stripe table boolean default definitions
+// 20260908 CL/NTR Reject account names over 60 and usernames over 80 characters (is_input_too_long)
+//                  before creating the account, matching login.php and varchar(60) on regnskab.regnskab
 
 @session_start();
 $s_id=session_id();
@@ -114,14 +121,11 @@ include("../includes/std_func.php");
 
 $modulnr=101;
 
-
-if (!isset($_POST['regnskab'])||!$_POST['brugernavn']||!$_POST['passwd']||!$_POST['passwd2']) {
-	include("../includes/online.php");
-	if ($db != $sqdb) {
-		print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
-		print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
-		exit;
-	}
+$online_result=include("../includes/online.php"); // the only auth check, must run for every request regardless of $_POST content (SD-615)
+if ($online_result === 'Session expired' || $db != $sqdb) {
+	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
+	exit;
 }
 
 # if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 0pt 1px;\" align=\"center\" background=\"../img/knap_bg.gif\";";
@@ -162,12 +166,19 @@ if ($_POST){
 	$brugernavn=db_escape_string(trim($_POST['brugernavn']));
 	$passwd=db_escape_string(trim($_POST['passwd']));
 	$passwd2=db_escape_string(trim($_POST['passwd2']));
-	(isset($_POST['posteringer']))?$posteringer=$_POST['posteringer']:$posteringer=0;
-	(isset($_POST['brugerantal']))?$brugerantal=$_POST['brugerantal']:$brugerantal=0;
+	(isset($_POST['posteringer']))?$posteringer=(int)$_POST['posteringer']:$posteringer=0;
+	(isset($_POST['brugerantal']))?$brugerantal=(int)$_POST['brugerantal']:$brugerantal=0;
 	(isset($_POST['std_kto_plan']))?$std_kto_plan=$_POST['std_kto_plan']:$std_kto_plan=NULL;
-
-	$posteringer*=1;
-	$brugerantal*=1;
+	if (is_input_too_long(trim($_POST['regnskab']), 60)) {
+		print "<BODY onLoad=\"javascript:alert('".findtekst('5150|Regnskabsnavnet må højst være 60 tegn', $sprog_id)."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
+	}
+	if (is_input_too_long(trim($_POST['brugernavn']))) {
+		print "<BODY onLoad=\"javascript:alert('".findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id)."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
+	}
 	if ((($revisorregnskab && $passwd) || !$revisorregnskab)  && $passwd!=$passwd2 ) {
 		print "<BODY onLoad=\"javascript:alert('Adgangskoder er ikke ens')\">";
 		forside($regnskab,$brugernavn);
@@ -237,8 +248,8 @@ function forside($regnskab,$brugernavn) {
 	global $sprog_id;
 
 	print "<form name=debitorkort action=opret.php method=post>";
-	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=regnskab value='$regnskab'></td></tr>";
-	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=brugernavn value='$brugernavn'></td></tr>";
+	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=60 name=regnskab value='$regnskab'></td></tr>";
+	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=80 name=brugernavn value='$brugernavn'></td></tr>";
 	print "<tr><td>".findtekst('2687|Administrators adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd></td></tr>";
 	print "<tr><td>".findtekst('2688|Gentag adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd2></td></tr>";
 	print "<tr><td>".findtekst('2689|Opret standardkontoplan', $sprog_id)."</td><td><br></td><td><input type=checkbox name=std_kto_plan checked></td></tr>";
@@ -315,6 +326,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // MySQL-specific adjustments
     $id_column = 'id INT AUTO_INCREMENT NOT NULL';
     $boolean_type = 'TINYINT(1) DEFAULT 0';
+    $stripe_active_type = 'TINYINT(1) NOT NULL DEFAULT 1';
     $decimal_type = 'DECIMAL';
     $text_type = 'TEXT';
 	$longlat = "`long` $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -327,6 +339,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // PostgreSQL-specific adjustments
     $id_column = 'id SERIAL NOT NULL';
     $boolean_type = 'BOOLEAN DEFAULT FALSE';
+    $stripe_active_type = 'BOOLEAN NOT NULL DEFAULT true';
     $decimal_type = 'NUMERIC';
     $text_type = 'TEXT';
 	$longlat = "\"long\" $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -342,21 +355,21 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	######## Adresser ##########
 	$qtxt = "CREATE TABLE adresser ";
 	$qtxt.= "($id_column,firmanavn varchar(90),addr1 varchar(60),addr2 varchar(60),postnr varchar(10),";
-	$qtxt.= "bynavn varchar(60),land varchar(60),kontakt varchar(60),tlf varchar(60),fax varchar(15),email varchar(60),";
+	$qtxt.= "bynavn varchar(60),land varchar(60),kontakt varchar(60),tlf varchar(60),mobile varchar(15),email varchar(60),";
 	$qtxt.= "web varchar(60),bank_navn varchar(60),bank_reg varchar(15),bank_konto varchar(15),bank_fi varchar(15),";
-	$qtxt.= "erh varchar(15),swift varchar(15),productlimit $decimal_type(15,0),notes text,rabat $decimal_type(15,3),momskonto integer,";
-	$qtxt.= "kreditmax $decimal_type(15,3),betalingsbet varchar(15),betalingsdage integer DEFAULT 0,kontonr $decimal_type(30,0),";
+	$qtxt.= "erh varchar(15),swift varchar(15),iban varchar(40),productlimit $decimal_type(15,0),notes text,rabat $decimal_type(15,3),momskonto integer,";
+	$qtxt.= "kreditmax $decimal_type(15,3),betalingsbet varchar(15),betalingsdage integer DEFAULT 0,kontonr varchar(30),";
 	$qtxt.= "cvrnr varchar(20),ean varchar(20),institution varchar(15),art varchar(2),gruppe integer,rabatgruppe integer,";
 	$qtxt.= "kontoansvarlig integer,oprettet date,kontaktet date,kontaktes date,pbs varchar(2),";
 	$qtxt.= "pbs_nr text,pbs_date date,mailfakt varchar(2),udskriv_til varchar(10),felt_1 text,felt_2 text,";
 	$qtxt.= "felt_3 text,felt_4 text,felt_5 text,vis_lev_addr varchar(2),kontotype varchar(15),fornavn varchar(60),";
 	$qtxt.= "efternavn varchar(60),lev_firmanavn varchar(90),lev_fornavn varchar(60),lev_efternavn varchar(60),lev_addr1 varchar(60),"; $qtxt.= "lev_addr2 varchar(60),lev_postnr varchar(15),lev_bynavn varchar(60),lev_land varchar(60),lev_kontakt varchar(60),";
-	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
+	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),stripe_fravalg varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
 	$qtxt.= "invoiced date,mysale varchar(2),hidden varchar(2),medlem text,$longlat,PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	######## Ansatte ########
-	db_modify("CREATE TABLE ansatte ($id_column,konto_id integer,navn text,addr1 text,addr2 text,postnr text,bynavn text,tlf text,fax text,mobil text,privattlf text,initialer text,email text,notes text,cprnr text,posnr integer,afd integer,provision $decimal_type(15,3),nummer integer,loen $decimal_type(15,3),hold integer,lukket varchar(2),bank text,startdate date,slutdate date,gruppe $decimal_type(15,3),extraloen $decimal_type(15,3),trainee text,password text,overtid $decimal_type(1,0),sag_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE ansatte ($id_column,konto_id integer,navn text,addr1 text,addr2 text,postnr text,bynavn text,tlf text,mobile text,mobil text,privattlf text,initialer text,email text,notes text,cprnr text,posnr integer,afd integer,provision $decimal_type(15,3),nummer integer,loen $decimal_type(15,3),hold integer,lukket varchar(2),bank text,startdate date,slutdate date,gruppe $decimal_type(15,3),extraloen $decimal_type(15,3),trainee text,password text,overtid $decimal_type(1,0),sag_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 
 	######## crm ########
 	db_modify("CREATE TABLE  crm ($id_column,konto_id int,kontakt_id int,ansat_id int,notat text,notedate date,spor text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
@@ -394,8 +407,8 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	$qtxt = "CREATE TABLE ordrer ($id_column,konto_id integer,firmanavn text,addr1 text,addr2 text,postnr text,";
 	$qtxt.= "bynavn text,land text,kontakt text,email text,mail_fakt varchar(2),udskriv_til varchar(10),kundeordnr text,";
-	$qtxt.= "lev_navn text,lev_addr1 text,lev_addr2 text,lev_postnr text,lev_bynavn text,lev_kontakt text,ean text,";
-	$qtxt.= "institution text,betalingsbet text,betalingsdage integer,kontonr $decimal_type(30),cvrnr text,art varchar(2),";
+	$qtxt.= "lev_navn text,lev_addr1 text,lev_addr2 text,lev_postnr text,lev_bynavn text,lev_kontakt text,lev_email varchar(60),lev_land varchar(60),ean text,";
+	$qtxt.= "institution text,betalingsbet text,betalingsdage integer,kontonr varchar(30),cvrnr text,art varchar(2),";
 	$qtxt.= "valuta text,valutakurs $decimal_type(15,3),sprog text,projekt text,ordredate date,levdate date,fakturadate date,";
 	$qtxt.= "notes text,ordrenr integer,sum $decimal_type(15,3),momssats $decimal_type(15,3),status integer,ref text,fakturanr text,";
 	$qtxt.= "modtagelse integer,kred_ord_id integer,lev_adr text,kostpris $decimal_type(15,3),moms $decimal_type(15,3),hvem text,";
@@ -404,9 +417,9 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "vis_lev_addr varchar(2),restordre $decimal_type(2,0), betalings_id text,sag_id integer,tilbudnr $decimal_type(15,0),";
 	$qtxt.= "datotid text,nr $decimal_type(15,0),returside text,sagsnr $decimal_type(15,0),dokument text,";
 	$qtxt.= "procenttillag $decimal_type(15,3),mail_bilag varchar(2),omvbet varchar(2),afd integer,lager integer,";
-	$qtxt.= "kontakt_tlf text,copied boolean,phone varchar(15),report_number int default 0,";
+	$qtxt.= "kontakt_tlf text,copied boolean,phone varchar(50),report_number int default 0,";
 	$qtxt.= "consignmentid varchar(25),shop_status int,shop_id int,scan_id int,";
-	$qtxt.= "due_date date,settletime $decimal_type(15,0) default 0, PRIMARY KEY (id))";
+	$qtxt.= "due_date date,settletime $decimal_type(15,0) default 0,digital_status varchar(25), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt = "CREATE TABLE ordrelinjer ";
@@ -418,7 +431,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "rabatgruppe integer,folgevare integer,kdo varchar(2),rabatart varchar(10),variant_id text,";
 	$qtxt.= "procent $decimal_type(15,3),omvbet varchar(2),saet integer,fast_db $decimal_type(15,3),afd integer,lager integer,";
 	$qtxt.= "discounttxt varchar(25),comment varchar(25),rental_id int,tilfravalg text,barcode varchar(20),";
-	$qtxt.= "PRIMARY KEY (id))";
+	$qtxt.= "batch_due_date date,batch_batch_no varchar(100),PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE ordretekster ($id_column,tekst text,sort $decimal_type(15,0),PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -447,10 +460,13 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "tier_price_rounding varchar(15) default 'no_rounding',salgspris_multiplier $decimal_type(15,2) default 0,";
 	$qtxt.= "salgspris_method varchar(15) default 'percentage',salgspris_rounding varchar(15) default 'no_rounding',";
 	$qtxt.= "retail_price_multiplier $decimal_type(15,2) default 0,retail_price_method varchar(15) default 'percentage',";
-	$qtxt.= "retail_price_rounding varchar(15) default 'no_rounding',on_price_list integer default 1,PRIMARY KEY (id))";
+	$qtxt.= "retail_price_rounding varchar(15) default 'no_rounding',on_price_list integer default 1,";
+	$qtxt.= "wolt_intergereted $boolean_type,notesinternal text,colli_webfragt float DEFAULT 0,";
+	$qtxt.= "varenr_alias varchar(255),beskrivelse_alias varchar(255),";
+	$qtxt.= "has_due_date $boolean_type,default_shelf_life_days integer,PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE lagerstatus ($id_column,lager integer,vare_id integer,variant_id integer,beholdning $decimal_type(15,3),lok1 text,lok2 text,lok3 text,lok4 text,lok5 text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE batch_kob ($id_column,kobsdate date,fakturadate date,vare_id integer,variant_id integer,linje_id integer,ordre_id integer,pris $decimal_type(15,3),antal $decimal_type(15,3),rest $decimal_type(15,3),lager integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE batch_kob ($id_column,kobsdate date,fakturadate date,vare_id integer,variant_id integer,linje_id integer,ordre_id integer,pris $decimal_type(15,3),antal $decimal_type(15,3),rest $decimal_type(15,3),lager integer,due_date date,batch_no varchar(100),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE batch_salg ($id_column,salgsdate date,fakturadate date,batch_kob_id integer,vare_id integer,variant_id integer,linje_id integer,ordre_id integer,pris $decimal_type(15,3),antal $decimal_type(15,3),lev_nr integer,lager integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE serienr ($id_column,vare_id integer,kobslinje_id integer,salgslinje_id integer,batch_kob_id integer,batch_salg_id integer,serienr text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE styklister ($id_column,vare_id integer,indgaar_i integer,antal $decimal_type(15,3),posnr integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
@@ -472,7 +488,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify("CREATE TABLE jobkort_felter ($id_column,job_id integer,art text,feltnr integer,subnr integer,feltnavn text,indhold text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE modtageliste ($id_column,initdate date,modtagdate date,modtagnote text,modtaget text,init_af text,modtaget_af text,hvem text,tidspkt text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE modtagelser ($id_column,varenr text,beskrivelse text,leveres $decimal_type(15,3),liste_id integer,lager $decimal_type(15,3),ordre_id integer,vare_id integer,antal $decimal_type(15,3),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE pbs_kunder($id_column,konto_id integer,kontonr $decimal_type(30),pbs_nr text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE pbs_kunder($id_column,konto_id integer,kontonr varchar(30),pbs_nr text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE pbs_liste($id_column,liste_date date,afsendt varchar(8),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE pbs_ordrer($id_column,liste_id integer,ordre_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE pos_betalinger ($id_column, ordre_id integer, betalingstype varchar(40), ";
@@ -525,16 +541,16 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify("CREATE TABLE bilag_tjekskema ($id_column,tjekskema_id integer,bilag_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	$qtxt="CREATE TABLE settings ";
 	$qtxt.= "($id_column, var_name text, var_grp text, var_value text, var_description text, ";
-	$qtxt.= "user_id integer, group_id integer, pos_id integer, PRIMARY KEY (id))";
+	$qtxt.= "user_id integer, group_id integer, pos_id integer, digital_status varchar(25), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE shop_adresser ($id_column,saldi_id integer,shop_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE shop_adresser ($id_column,saldi_id integer,shop_id integer,afd integer DEFAULT 0,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE shop_varer ($id_column,saldi_id integer,saldi_variant integer,shop_id integer,shop_variant integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE shop_ordrer ($id_column,saldi_id integer,shop_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE varianter ($id_column,beskrivelse text,shop_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE variant_typer ($id_column,variant_id integer,shop_id integer,beskrivelse text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE variant_varer ($id_column,vare_id integer,variant_type integer,variant_beholdning $decimal_type(15,3),";
 	$qtxt.= "variant_stregkode text,lager integer,variant_id int, variant_kostpris $decimal_type(15,3),variant_salgspris $decimal_type(15,3),";
-	$qtxt.= "variant_vejlpris $decimal_type(15,3),PRIMARY KEY (id))";
+	$qtxt.= "variant_vejlpris $decimal_type(15,3),variant_text varchar(25),PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE varetilbud ($id_column,vare_id integer,startdag $decimal_type(15,0),slutdag $decimal_type(15,0),";
 	$qtxt.= "starttid time,sluttid time,ugedag integer,salgspris $decimal_type(15,2),kostpris $decimal_type(15,2),PRIMARY KEY (id))";
@@ -623,9 +639,9 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt .= "local_name varchar(100), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id $varchar(10), column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, $quote_offset INTEGER, sort TEXT)", __FILE__ . " line " . __LINE__);
+	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id TEXT, column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, " . $quote_offset . " INTEGER, sort TEXT, date_range_meta TEXT)", __FILE__ . " line " . __LINE__);
 
-	db_modify("CREATE TABLE IF NOT EXISTS tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id $varchar(10), selector TEXT)", __FILE__ . " line " . __LINE__);
+	db_modify("CREATE TABLE IF NOT EXISTS tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id VARCHAR(10), selector TEXT)", __FILE__ . " line " . __LINE__);
 
 	######## Missing tables from sql.txt ########
 	$qtxt = "CREATE TABLE betalingslink ($id_column, payment_intent_id varchar(255), amount integer, ";
@@ -634,6 +650,30 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	$qtxt = "CREATE TABLE kds_records ($id_column, data text, bumped $boolean_type, timestamp integer, ";
 	$qtxt.= "time_to_complete integer, rush $boolean_type, last_undo $boolean_type, sort_timestamp integer, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	######## Stripe subscriptions (doc/stripe/INTERFACE_CONTRACT.md; indexes live in includes/betweenUpdates.php) ########
+	$qtxt = "CREATE TABLE stripe_catalog ($id_column, varenr text, stripe_price_id varchar(255), ";
+	$qtxt.= "stripe_product_id varchar(255), unit_ore integer, billing_interval varchar(10) NOT NULL DEFAULT 'month', ";
+	$qtxt.= "interval_count integer NOT NULL DEFAULT 1, currency varchar(3) NOT NULL DEFAULT 'DKK', ";
+	$qtxt.= "active $stripe_active_type, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_events ($id_column, event_id varchar(255) NOT NULL, event_type varchar(100), ";
+	$qtxt.= "payload text, status varchar(30) NOT NULL DEFAULT 'received', saldi_order_id integer, ";
+	$qtxt.= "invoice_number varchar(30), error text, received_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "processed_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_customers ($id_column, stripe_customer_id varchar(255) NOT NULL, ";
+	$qtxt.= "stripe_subscription_id varchar(255), konto_id integer, kontonr varchar(30), order_id integer, ";
+	$qtxt.= "status varchar(30) NOT NULL DEFAULT 'active', created_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "updated_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_import_failures ($id_column, event_id varchar(255), stripe_invoice_id varchar(255), ";
+	$qtxt.= "reason varchar(50), http_code integer, message text, payload_json text, ";
+	$qtxt.= "created_at timestamp DEFAULT CURRENT_TIMESTAMP, resolved_at timestamp, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE notifications ($id_column, msg varchar(255), read_status integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
@@ -657,11 +697,28 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt = "CREATE TABLE rentalsettings ($id_column, booking_format integer, search_cust_name integer, ";
 	$qtxt.= "search_cust_number integer, search_cust_tlf integer, start_day integer, deletion integer, ";
 	$qtxt.= "find_weeks integer, end_day integer, put_together integer, pass varchar(255), ";
-	$qtxt.= "invoice_date smallint, use_password integer, PRIMARY KEY (id))";
+	$qtxt.= "invoice_date smallint, use_password integer, toggle_order integer DEFAULT 1, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE stockmovement ($id_column, vareid integer, beholdning integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 
+	$qtxt = "CREATE TABLE pool_files ($id_column, filename varchar(255), subject text, account varchar(50), ";
+	$qtxt.= "amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	db_modify("CREATE TABLE kontakt_emails ($id_column, konto_id integer NOT NULL, email varchar(255) NOT NULL, email_type varchar(50) DEFAULT '', PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE delivery_addresses ($id_column, account_id integer NOT NULL,";
+	$qtxt.= " is_primary $boolean_type NOT NULL, sort_order smallint NOT NULL DEFAULT 0,";
+	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
+	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
+	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
+	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
+	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
+	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses (account_id)", __FILE__ . " linje " . __LINE__);
 
 	if ($db_type=="mysql" || $db_type=="mysqli") {
 		db_modify("ALTER TABLE adresser ADD modtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", __FILE__ . " linje " . __LINE__);

@@ -45,6 +45,7 @@ $find = if_isset($_GET, NULL, 'find');
 $lager = if_isset($_GET, NULL, 'lager');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
 $kontonr = if_isset($_GET, NULL, 'kontonr');
+$firmanavn = if_isset($_GET, NULL, 'firmanavn');
 
 $x = if_isset($_GET, NULL, 'x');
 
@@ -158,6 +159,21 @@ $columns[] = array(
         $url = "ordre.php?vare_id=" . $row['vare_id'] . "&fokus=$fokus&konto_id=$lev_id&id=$id&lager=$lager";
         $display_value = trim($value);
         return "<td><a href='$url' style='text-decoration: underline; color: inherit;'>$display_value</a></td>";
+    }
+);
+
+$columns[] = array(
+    "field" => "lev_varenr",
+    "headerName" => "Lev. varenr",
+    "sqlOverride" => "vl.lev_varenr",
+    "width" => "1",
+    "sortable" => true,
+    "searchable" => true,
+    "type" => "text",
+    "render" => function ($value, $row, $column) use ($id, $fokus, $lager, $konto_id) {
+        $lev_id = isset($row['lev_id']) ? $row['lev_id'] : $konto_id;
+        $url = "ordre.php?vare_id=" . $row['vare_id'] . "&fokus=$fokus&konto_id=$lev_id&id=$id&lager=$lager";
+        return "<td><a href='$url' style='text-decoration: underline; color: inherit;'>$value</a></td>";
     }
 );
 
@@ -318,6 +334,8 @@ if ($find) {
         $where_conditions[] = "v.beskrivelse LIKE '$find'";
     } elseif ($fokus == 'varenr') {
         $where_conditions[] = "v.varenr LIKE '$find'";
+    } elseif (strstr($fokus, 'lev_varenr')) {
+        $where_conditions[] = "vl.lev_varenr LIKE '$find'";
     }
 }
 
@@ -335,6 +353,7 @@ $query = "
 SELECT 
     v.id as vare_id,
     COALESCE(v.varenr, '') as varenr,
+    COALESCE(vl.lev_varenr, '') as lev_varenr,
     COALESCE(v.enhed, '') as enhed,
     COALESCE(v.beskrivelse, '') as beskrivelse,
     COALESCE(v.salgspris, 0) as salgspris,
@@ -368,8 +387,8 @@ $filters[] = array(
 );
 
 // Add find filter if provided
-if ($find && ($fokus == 'beskrivelse' || $fokus == 'varenr')) {
-    $field = ($fokus == 'beskrivelse') ? "v.beskrivelse" : "v.varenr";
+if ($find && ($fokus == 'beskrivelse' || $fokus == 'varenr' || strstr($fokus, 'lev_varenr'))) {
+    $field = ($fokus == 'beskrivelse') ? "v.beskrivelse" : (strstr($fokus, 'lev_varenr') ? "vl.lev_varenr" : "v.varenr");
     $filters[] = array(
         "type" => "custom",
         "filterName" => "find_filter",
@@ -436,7 +455,7 @@ if ($kontonr && $x > 1) {
     echo "<td colspan='9'><hr></td>";
 }
 
-// Render grid 
+// Render grid
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("KPductLookup_$valg", $data);
 echo "</div>";

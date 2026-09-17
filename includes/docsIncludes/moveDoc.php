@@ -128,7 +128,8 @@ if ($moveDoc) {
 		
 		if (function_exists('extractInvoiceData')) {
 			$invoiceId = 'move-' . pathinfo($fileName, PATHINFO_FILENAME) . '-' . time();
-			$extractResult = extractInvoiceData($extractFilePath, $invoiceId);
+			// API extraction disabled by user preference
+			$extractResult = null;
 			
 			if ($extractResult !== null) {
 				// Update pool_files with extracted data

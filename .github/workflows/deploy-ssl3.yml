@@ -1,0 +1,33 @@
+name: Deploy to ssl3
+
+# Runs on a self-hosted runner installed on ssl3 itself, so the deploy is
+# just a local git operation in /var/www/html/master - no SSH, no secrets.
+# Fires whenever a commit lands on master.
+on:
+  push:
+    branches:
+      - master
+  # Allows triggering the deploy manually from the Actions tab.
+  workflow_dispatch:
+
+# Only one deploy at a time; newest push wins so ssl3 ends up on latest master.
+concurrency:
+  group: deploy-ssl3
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Targets the runner installed on ssl3 (see the 'ssl3' label added
+    # during runner setup). 'self-hosted' + 'ssl3' must both match.
+    runs-on: [self-hosted, ssl3]
+    steps:
+      - name: Sync /var/www/html/master to origin/master
+        run: |
+          set -euo pipefail
+          cd /var/www/html/master
+          git fetch origin master
+          # Mirror origin exactly - hard reset (not --ff-only pull) so the
+          # deploy still succeeds after master history is rewritten/force-pushed.
+          # Only touches tracked files; runtime files (temp/, per-db data) are left alone.
+          git reset --hard origin/master
+          echo "Deployed $(git rev-parse --short HEAD) to /var/www/html/master"

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_kontoudtog.php --- ver 4.1.1 --- 2025-09-24 --
+// --- kreditor/mail_kontoudtog.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.DK ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 20120906 break ændret til break 1
 // 20121004 Gmail afviser mails hvor 'from' ikke er *.saldi.dk søg 20121029
@@ -43,6 +43,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250924 LOE Added static footer with email and period inputs + buttons
 // 20250925 LOE Kilde added to determine which emails to send
+// 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
 
 @session_start();
 $s_id=session_id();
@@ -56,6 +57,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/formfunk.php");
+include_once("../includes/stdFunc/getKontaktEmail.php");
 
 $dato_fra=$dato_til=NULL;
 $email=NULL;
@@ -129,26 +131,45 @@ if(isset($_GET['kilde'])) {
 } else {
 	$kilde=NULL;
 }
+
 $current_kilde = $_GET['kilde'] ?? ''; # For dropdown/select 
 // $AllAcount = ($current_kilde === 'show_all') ? 'on' : '';
 // $OpenPost = ($current_kilde === 'openpost') ? 'on' : '';
 
 if ($send_mails) {
-	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	$sent_emails = send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	print "<div style='text-align:center; margin:20px; padding:15px; background-color:#d4edda; border:1px solid #c3e6cb; border-radius:5px; color:#155724; font-size:16px;'>";
+	print "<strong>" . findtekst('2700|Send mail(s)', $sprog_id) . "</strong><br>";
+	print findtekst('2703|Mail er sendt', $sprog_id);
+	if (!empty($sent_emails) && is_array($sent_emails)) {
+		print "<br><small>" . implode(', ', $sent_emails) . "</small>";
+	}
+	print "</div>";
 	print "<form name=luk action=../includes/luk.php method=post>";	
 	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
 	print "</form></div>";
+	print "<script>alert('".findtekst('2703|Mail er sendt', $sprog_id)."');</script>";
 	exit;	
 } elseif ($send_pdfs) {
+	$sent_emails = array();
 	for ($x=1;$x<=count($konto_id);$x++) {
 		$qtxt="select kontonr,art from adresser where id='$konto_id[$x]'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 #		echo "kontoprint($r[kontonr],$r[kontonr],$fra[$x],$til[$x],$r[art],$email[$x])<br>";
 		$svar=kontoprint($r['kontonr'],$r['kontonr'],$fra[$x],$til[$x],$r['art'],$email[$x]);
+		if ($email[$x]) $sent_emails[] = $email[$x];
 	}
+	print "<div style='text-align:center; margin:20px; padding:15px; background-color:#d4edda; border:1px solid #c3e6cb; border-radius:5px; color:#155724; font-size:16px;'>";
+	print "<strong>" . findtekst('2701|Send som PDF', $sprog_id) . "</strong><br>";
+	print findtekst('2703|Mail er sendt', $sprog_id);
+	if (count($sent_emails) > 0) {
+		print "<br><small>" . implode(', ', $sent_emails) . "</small>";
+	}
+	print "</div>";
 	print "<form name=luk action=../includes/luk.php method=post>";	
 	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
 	print "</form></div>";
+	print "<script>alert('".findtekst('2703|Mail er sendt', $sprog_id)."');</script>";
 	exit;
 }
 #xit;
@@ -238,7 +259,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$til[$x]=dkdato($todate[$x]);
 	$query = db_select("select * from adresser where id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($query);
-	if (!$email[$x]) $email[$x]=$r['email'];
+	if (!$email[$x]) $email[$x] = getKontaktEmail($konto_id[$x], 'kontoudtog');
 	$accountId[$x]=$r['id'];
 	$r2=db_fetch_array(db_select("select box3 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 	$kontovaluta[$x]=$r2['box3'];
@@ -505,19 +526,14 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	global $subjekt;
 	global $sprog_id;
 
-	ini_set("include_path", "../phpmailer");
-	require("class.phpmailer.php");
-	
+	$sent_emails = array();
+
 	$tmpmappe="../temp/$db/".str_replace(" ","_",$brugernavn);
 	if (!file_exists($tmpmappe)) mkdir($tmpmappe);
 	$r = db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
 	$afsendermail=$r['email'];
 	$afsendernavn=$r['firmanavn'];
 	$from=$afsendermail;
-	($r['felt_1'])?$smtp=$r['felt_1']:$smtp='localhost';
-	($r['felt_2'])?$smtp_user=$r['felt_2']:$smtp_user=NULL;
-	($r['felt_3'])?$smtp_pwd=$r['felt_3']:$smtp_pwd=NULL;
-	($r['felt_4'])?$smtp_enc=$r['felt_4']:$smtp_enc=NULL;
 
 	for($x=1; $x<=$kontoantal; $x++) {
 		if (!file_exists("$tmpmappe/$x")) mkdir("$tmpmappe/$x");
@@ -622,7 +638,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailtext .= " * ".$r['addr2'];
 			if ( $r['postnr'] ) $mailtext .= " * ".$r['postnr']." ".$r['bynavn'];
 			if ( $r['tlf'] ) $mailtext .= " * tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailtext .= " * fax ".$r['fax'];
+			if ( $r['mobile'] ) $mailtext .= " * mobile ".$r['mobile'];
 			if ( $r['cvrnr'] ) $mailtext .= " * cvr ".$r['cvrnr'];
 			$mailtext .= "<p>\n</td></tr>\n";
 			$mailtext .= "</table></body></html>\n";			
@@ -638,53 +654,20 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				$afsendermail=mb_convert_encoding($afsendermail, 'UTF-8', 'ISO-8859-1');
 			}
 			$from = $afsendermail;
+			if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) {
+				$from = $db.'@'.$_SERVER['SERVER_NAME'];
+				$from=str_replace('bizsys_','post_',$from);
+			}
 			$fp=fopen("$tmpmappe/$x/kontoudtog.html","w");
 			fwrite($fp,$mailtext);
 			fclose ($fp);
 
-			$mail = new PHPMailer();
-			$mail->IsSMTP();                                   // send via SMTP
-			$mail->CharSet = "$charset";
-			$mail->SMTPDebug  = 2;
-			$mail->Host  = $smtp; // SMTP servers 
-			if ($smtp!='localhost') {
-				if ($smtp_user) {
-					$mail->SMTPAuth = true;     // turn on SMTP authentication
-					$mail->Username = $smtp_user;  // SMTP username
-					$mail->Password = $smtp_pwd; // SMTP password
-					if ($smtp_enc) $mail->SMTPSecure = $smtp_enc; // SMTP kryptering
-				}
-			} else {
-				$mail->SMTPAuth = false;
-				if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
-					$from = $db.'@'.$_SERVER['SERVER_NAME']; #20130731
-					$from=str_replace('bizsys_','post_',$from);
-				}  
-			}
-			$mail->From = $from;
-			$mail->FromName = $afsendernavn;
-			$mail->ReturnPath = $afsendermail;
-			$splitter=NULL;
-			if (strpos($email[$x],";")) $splitter=';';
-			elseif (strpos($email[$x],",")) $splitter=',';
-			if ($splitter) { #20150305-2 + 20161114
-				$tmp=array();
-				$tmp=explode($splitter,$email[$x]);
-				for ($i=0;$i<count($tmp);$i++) {
-					if (strpos($tmp[$i],"@")) $mail->AddAddress($tmp[$i]); 
-				}
-			} else $mail->AddAddress($email[$x]);
-			$mail->AddBCC($afsendermail); 
-			$mail->AddReplyTo($afsendermail,$afsendernavn);
-			$mail->WordWrap = 50;                              // set word wrap
-			$mail->AddAttachment("$tmpmappe/$x/kontoudtog.html");      // attachment
-			$mail->IsHTML(true);                               // send as HTML
+			// --- Build email using PHP mail() ---
+			$mail_subject = "Kontoudtog fra $afsendernavn";
 
-			$mail->Subject  =  "Kontoudtog fra $afsendernavn";
-			
 			$mailbody = "<html><body>\n";
-                        $mailbody .= "<p>Hermed fremsendes kontoudtog fra ".$afsendernavn.".</p>\n";
-                        $mailbody .= "<p>Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
+			$mailbody .= "<p>Hermed fremsendes kontoudtog fra ".$afsendernavn.".</p>\n";
+			$mailbody .= "<p>Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
 			$mailbody .= "ved at dobbeltklikke p&aring; den.</p>\n";
 			$mailbody .= "<hr />\n<p>";
 			$mailbody .= $r['firmanavn']."<br />\n";
@@ -692,12 +675,12 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailbody .= $r['addr2']."<br />\n";
 			if ( $r['postnr'] ) $mailbody .= $r['postnr']." ".$r['bynavn']."<br />\n";
 			if ( $r['tlf'] ) $mailbody .= "tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailbody .= " * fax ".$r['fax'];
+			if ( $r['mobile'] ) $mailbody .= " * mobile ".$r['mobile'];
 			if ( $r['cvrnr'] ) $mailbody .= " * cvr ".$r['cvrnr'];
 			$mailbody .= "</p></body></html>";
 
 			$mailaltbody = "Hermed fremsendes kontoudtog fra ".$afsendernavn.".\n\n";
-                        $mailaltbody .= "Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
+			$mailaltbody .= "Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
 			$mailaltbody .= "ved at dobbeltklikke på den.\n";
 			$mailaltbody .= "-- \n";
 			$mailaltbody .= $r['firmanavn']."\n";
@@ -705,7 +688,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailaltbody .= $r['addr2']."\n";
 			if ( $r['postnr'] ) $mailaltbody .= $r['postnr']." ".$r['bynavn']."\n";
 			if ( $r['tlf'] ) $mailaltbody .= "tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailaltbody .= " * fax ".$r['fax'];
+			if ( $r['mobile'] ) $mailaltbody .= " * mobile ".$r['mobile'];
 			if ( $r['cvrnr'] ) $mailaltbody .= " * cvr ".$r['cvrnr'];
 			
 			if ($charset!="UTF-8"){
@@ -713,19 +696,69 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				$mailaltbody=mb_convert_encoding($mailaltbody, 'UTF-8', 'ISO-8859-1');
 			}
 
+			// Build MIME boundaries
+			$boundary = md5(uniqid(time()));
+			$boundary_alt = md5(uniqid(time() . "alt"));
 
-			$mail->Body     =  $mailbody;
-			$mail->AltBody  =  $mailaltbody;
-			echo "<!--";
-			if(!$mail->Send()){
-				echo "-->";
- 				 echo "Fejl i afsendelse til $email[$x]<p>";
-   				echo "Mailer Error: " . $mail->ErrorInfo;
-  		 		exit;
-			} 
-			echo "-->";
-			echo "Kontoudtog sendt til $email[$x]<br>";
-#			sleep(2);
+			// Build recipient list
+			$to_addresses = '';
+			$splitter=NULL;
+			if (strpos($email[$x],";")) $splitter=';';
+			elseif (strpos($email[$x],",")) $splitter=',';
+			if ($splitter) {
+				$tmp_emails=explode($splitter,$email[$x]);
+				$valid_emails=array();
+				for ($i=0;$i<count($tmp_emails);$i++) {
+					if (strpos(trim($tmp_emails[$i]),"@")) $valid_emails[] = trim($tmp_emails[$i]);
+				}
+				$to_addresses = implode(', ', $valid_emails);
+			} else {
+				$to_addresses = trim($email[$x]);
+			}
+
+			// Read attachment file
+			$attachment_content = chunk_split(base64_encode(file_get_contents("$tmpmappe/$x/kontoudtog.html")));
+
+			// Build headers
+			$headers = "From: $afsendernavn <$from>\r\n";
+			$headers .= "Reply-To: $afsendernavn <$afsendermail>\r\n";
+			$headers .= "Return-Path: $afsendermail\r\n";
+			$headers .= "Bcc: $afsendermail\r\n";
+			$headers .= "MIME-Version: 1.0\r\n";
+			$headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+
+			// Build message body
+			$message = "--$boundary\r\n";
+			$message .= "Content-Type: multipart/alternative; boundary=\"$boundary_alt\"\r\n\r\n";
+
+			// Plain text part
+			$message .= "--$boundary_alt\r\n";
+			$message .= "Content-Type: text/plain; charset=UTF-8\r\n";
+			$message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+			$message .= $mailaltbody . "\r\n\r\n";
+
+			// HTML part
+			$message .= "--$boundary_alt\r\n";
+			$message .= "Content-Type: text/html; charset=UTF-8\r\n";
+			$message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+			$message .= $mailbody . "\r\n\r\n";
+			$message .= "--$boundary_alt--\r\n\r\n";
+
+			// Attachment
+			$message .= "--$boundary\r\n";
+			$message .= "Content-Type: text/html; name=\"kontoudtog.html\"\r\n";
+			$message .= "Content-Transfer-Encoding: base64\r\n";
+			$message .= "Content-Disposition: attachment; filename=\"kontoudtog.html\"\r\n\r\n";
+			$message .= $attachment_content . "\r\n";
+			$message .= "--$boundary--\r\n";
+
+			// Send
+			$mail_subject = mb_encode_mimeheader($mail_subject, 'UTF-8', 'B');
+			if(!mail($to_addresses, $mail_subject, $message, $headers)){
+				echo "Fejl i afsendelse til $email[$x]<p>";
+				exit;
+			}
+			$sent_emails[] = $email[$x];
 		}	
 	}
 	for($x=1; $x<=$kontoantal; $x++) {
@@ -734,6 +767,8 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	}
 	#	unlink("$tmpmappe/kontoudtog.html");
 	rmdir($tmpmappe);
+	
+	return $sent_emails;
 }
 ?>
 

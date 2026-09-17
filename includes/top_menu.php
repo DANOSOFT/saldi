@@ -4,6 +4,10 @@
 // 20220728 MSC - Edited leverandører faktura link from ?valg=fakture to ?valg=faktura
 // 20220912 MSC - Implementing new design
 // 20221011 MSC - Added link to feedback mail in systemdata
+// 20260306 Sawaneh - Added Simple guides link.
+// 20260716 MJ - Added vat reporting module.
+// 20260730 NTR - Added translation to momsperioder.
+// 20260914 CDX/LH Removed the Guides menu entry and its popup.
 
 $site = "";
 $subsite = "";
@@ -85,6 +89,7 @@ print "          <a href='../finans/kladdeliste.php'>".findtekst(105,$sprog_id).
 print "          <a href='../finans/regnskab.php'>".findtekst(849,$sprog_id)."</a>";
 print "          <a href='../finans/budget.php'>".findtekst(1067,$sprog_id)."</a>";
 print "          <a href='../finans/rapport.php'>".findtekst(603,$sprog_id)."</a>";
+print "          <a href='../finans/moms_periode.php'>".findtekst('3366|Momsperioder', $sprog_id)."</a>";
 print "          </div>";
 print "      </li>";
 print "      <li class='dropDown'>";
@@ -144,6 +149,8 @@ print "      </li>";
 print "    </ul>";
 print "  </div>";
 print "</div>";
+
+print "<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>";
 
 print "<div class='flex-container'>";
 

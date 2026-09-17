@@ -220,9 +220,9 @@ function vis_loen($id) {
 	}
 		
 	($afsluttet || $godkendt)?$readonly="readonly=\"readonly\"":$readonly=NULL;
-	($afsluttet)?$status="Afventer godk.":$status="Under indtast.";
-	if($godkendt)$status="Godkendt";
-	if($afvist)$status="Afvist";
+	($afsluttet)?$status=findtekst('3026|Afventer godk.', $sprog_id):$status=findtekst('3027|Under indtast.', $sprog_id);
+	if($godkendt)$status=findtekst('2937|Godkendt', $sprog_id);
+	if($afvist)$status=findtekst('3011|Afvist', $sprog_id);
 	
 	$y=0;
 #	$q=db_select("select id,kodenr,art,box1 from grupper where art ='V_CAT' order by box1",__FILE__ . " linje " . __LINE__);
@@ -242,7 +242,7 @@ function vis_loen($id) {
 	if($loendate=='1970-01-01') { 
 		$loendate='';
 		$loendato='';
-		$datotext_errortxt="<span style=\"color: red;\">Dato ikke udfyld</span>";
+		$datotext_errortxt="<span style=\"color: red;\">".findtekst('3019|Dato ikke udfyldt', $sprog_id)."</span>";
 		$datotext_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else { 
 		$loendato=dkdato($loendate); 
@@ -258,27 +258,27 @@ function vis_loen($id) {
 	}
 	/* Validering når lønseddel indlæses */ #20150623-1
 	if (strstr($loen_art,'akk') && !$sag_nr) { 
-		$sagsnr_errortxt="<span style=\"color: red;\">Sagsnr ikke valgt</span>";
+		$sagsnr_errortxt="<span style=\"color: red;\">".findtekst('3020|Sagsnr. ikke valgt', $sprog_id)."</span>";
 		$sagsnr_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else {
 		$sagsnr_errortxt=NULL;
 		$sagsnr_error=NULL;
 	}
 	if ((strstr($loen_art,'akk') || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='timer') && !$opg_id) {
-		$opgnr_errortxt="<span style=\"color: red;\">Opgave ikke valgt</span>";
+		$opgnr_errortxt="<span style=\"color: red;\">".findtekst('3021|Opgave ikke valgt', $sprog_id)."</span>";
 		$opgnr_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else {
 		$opgnr_errortxt=NULL;
 		$opgnr_error=NULL;
 	}
 	if (!$feriefra && $ferietil) {
-		$feriefratil_errortxt="<span style=\"color: red;\">Ferie 'Fra' er ikke valgt</span>";
+		$feriefratil_errortxt="<span style=\"color: red;\">".findtekst('3022|Ferie Fra er ikke valgt', $sprog_id)."</span>";
 		$feriefra_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} elseif ($feriefra && !$ferietil) {
-		$feriefratil_errortxt="<span style=\"color: red;\">Ferie 'Til' er ikke valgt</span>";
+		$feriefratil_errortxt="<span style=\"color: red;\">".findtekst('3023|Ferie Til er ikke valgt', $sprog_id)."</span>";
 		$ferietil_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} elseif (!$feriefra && !$ferietil) {
-		$feriefratil_errortxt="<span style=\"color: red;\">Ferie 'Fra' og 'Til' er ikke valgt</span>";
+		$feriefratil_errortxt="<span style=\"color: red;\">".findtekst('3024|Ferie Fra og Til er ikke valgt', $sprog_id)."</span>";
 		$feriefra_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 		$ferietil_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else {
@@ -287,7 +287,7 @@ function vis_loen($id) {
 		$ferietil_error=NULL;
 	}
 	if(!$loen_tekst && ((strstr($loen_art,'akk')) || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='timer')) {
-		$loentext_errortxt="<span style=\"color: red;\">Udført er ikke udfyldt</span>";
+		$loentext_errortxt="<span style=\"color: red;\">".findtekst('3025|Udført er ikke udfyldt', $sprog_id)."</span>";
 		$loentext_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;width: 560px;\"";
 		//print "<BODY onLoad=\"javascript:alert('Udført er ikke udfyldt')\">"; // laves o til css-validering??
 	} else {
@@ -321,48 +321,48 @@ function vis_loen($id) {
 			print "<input type=\"hidden\" name=\"loen_id[$x]\" value=\"$loen_id[$x]\">"; 
 		}
 		print "<div class=\"content\">
-			<h3>Lønindtastning</h3>
+			<h3>".findtekst('2785|Lønindtastning', $sprog_id)."</h3>
 				<div class=\"contentA\" style=\"#width: 758px;\">
 					<div class=\"row\">
-						<div class=\"leftSmall\">Dato: </div>
+						<div class=\"leftSmall\">".findtekst('438|Dato', $sprog_id).": </div>
 						<div class=\"rightSmall\"><input name=\"loendato\" id=\"datepicker\" type=\"text\" $readonly class=\"textMedium printBorderNone\" $datotext_error value=\"$loendato\"/></div><div class=\"rightNoWidth\"><p>$loen_datotext $datotext_errortxt</p></div> 
 						<div class=\"clear\"></div>
 					</div>
 					<div class=\"row\">
-						<div class=\"leftSmall\">Løntype:</div>
+						<div class=\"leftSmall\">".findtekst('2994|Løntype', $sprog_id).":</div>
 						<div class=\"rightLarge\">
 							<select name=\"loen_art\" $readonly class=\"loen_art printSelect2\" style=\"width:100%;\">";
-								if ($loen_art=='aconto') print "<option value=\"aconto\">Aconto</option>";
-								elseif ($loen_art=='akktimer') print "<option value=\"akktimer\">Dyrtid</option>";
-								elseif ($loen_art=='akk_afr') print "<option value=\"akk_afr\">Akkord afregning</option>";
-								elseif ($loen_art=='akkord') print "<option value=\"akkord\">Akkord med dyrtid</option>";
-								elseif ($loen_art=='timer') print "<option value=\"timer\">Timeløn</option>";
-								elseif ($loen_art=='plads') print "<option value=\"plads\">Pladsarbejde</option>";
-								elseif ($loen_art=='skole') print "<option value=\"skole\">Skoleophold</option>";
-								elseif ($loen_art=='sygdom') print "<option value=\"sygdom\">Sygdom</option>";
-								elseif ($loen_art=='barn_syg') print "<option value=\"barn_syg\">Barn syg</option>";
-								elseif ($loen_art=='ferie') print "<option value=\"ferie\">Ferie</option>"; # 20140627
-								elseif ($loen_art=='regulering') print "<option value=\"regulering\">Regulering</option>";
+								if ($loen_art=='aconto') print "<option value=\"aconto\">".findtekst('2998|Aconto', $sprog_id)."</option>";
+								elseif ($loen_art=='akktimer') print "<option value=\"akktimer\">".findtekst('2809|Dyrtid', $sprog_id)."</option>";
+								elseif ($loen_art=='akk_afr') print "<option value=\"akk_afr\">".findtekst('2810|Akkordafregning', $sprog_id)."</option>";
+								elseif ($loen_art=='akkord') print "<option value=\"akkord\">".findtekst('2811|Akkord med dyrtid', $sprog_id)."</option>";
+								elseif ($loen_art=='timer') print "<option value=\"timer\">".findtekst('2802|Timeløn', $sprog_id)."</option>";
+								elseif ($loen_art=='plads') print "<option value=\"plads\">".findtekst('2804|Pladsarbejde', $sprog_id)."</option>";
+								elseif ($loen_art=='skole') print "<option value=\"skole\">".findtekst('2805|Skoleophold', $sprog_id)."</option>";
+								elseif ($loen_art=='sygdom') print "<option value=\"sygdom\">".findtekst('2806|Sygdom', $sprog_id)."</option>";
+								elseif ($loen_art=='barn_syg') print "<option value=\"barn_syg\">".findtekst('2807|Barn syg', $sprog_id)."</option>";
+								elseif ($loen_art=='ferie') print "<option value=\"ferie\">".findtekst('2808|Ferie', $sprog_id)."</option>"; # 20140627
+								elseif ($loen_art=='regulering') print "<option value=\"regulering\">".findtekst('3000|Regulering', $sprog_id)."</option>";
 								else print "<option value=\"0\"></option>";
-								if ($loen_art!='aconto' && substr($sag_rettigheder,6,1)) print "<option value=\"aconto\">Aconto</option>";
-								if ($loen_art!='akktimer') print "<option value=\"akktimer\">Dyrtid</option>";
-								if ($loen_art!='akk_afr') print "<option value=\"akk_afr\">Akkord afregning</option>";
-								if ($loen_art!='akkord') print "<option value=\"akkord\">Akkord med dyrtid</option>";
-								if ($loen_art!='timer') print "<option value=\"timer\">Timeløn</option>";
-								if ($loen_art!='plads') print "<option value=\"plads\">Pladsarbejde</option>";
-								if ($loen_art!='skole') print "<option value=\"skole\">Skoleophold</option>";
-								if ($loen_art!='sygdom') print "<option value=\"sygdom\">Sygdom</option>";
-								if ($loen_art!='barn_syg') print "<option value=\"barn_syg\">Barn syg</option>";
-								if ($loen_art!='ferie') print "<option value=\"ferie\">Ferie</option>"; #20140627
-								if ($loen_art!='regulering' && substr($sag_rettigheder,6,1)) print "<option value=\"regulering\">Regulering</option>";
+								if ($loen_art!='aconto' && substr($sag_rettigheder,6,1)) print "<option value=\"aconto\">".findtekst('2998|Aconto', $sprog_id)."</option>";
+								if ($loen_art!='akktimer') print "<option value=\"akktimer\">".findtekst('2809|Dyrtid', $sprog_id)."</option>";
+								if ($loen_art!='akk_afr') print "<option value=\"akk_afr\">".findtekst('2810|Akkordafregning', $sprog_id)."</option>";
+								if ($loen_art!='akkord') print "<option value=\"akkord\">".findtekst('2811|Akkord med dyrtid', $sprog_id)."</option>";
+								if ($loen_art!='timer') print "<option value=\"timer\">".findtekst('2802|Timeløn', $sprog_id)."</option>";
+								if ($loen_art!='plads') print "<option value=\"plads\">".findtekst('2804|Pladsarbejde', $sprog_id)."</option>";
+								if ($loen_art!='skole') print "<option value=\"skole\">".findtekst('2805|Skoleophold', $sprog_id)."</option>";
+								if ($loen_art!='sygdom') print "<option value=\"sygdom\">".findtekst('2806|Sygdom', $sprog_id)."</option>";
+								if ($loen_art!='barn_syg') print "<option value=\"barn_syg\">".findtekst('2807|Barn syg', $sprog_id)."</option>";
+								if ($loen_art!='ferie') print "<option value=\"ferie\">".findtekst('2808|Ferie', $sprog_id)."</option>"; #20140627
+								if ($loen_art!='regulering' && substr($sag_rettigheder,6,1)) print "<option value=\"regulering\">".findtekst('3000|Regulering', $sprog_id)."</option>";
 							print "</select>
 						</div>
 						<div class=\"clear\"></div></div>";
 						if ($loen_art=='akk_afr' || $loen_art=='akkord' || $loen_art=='akktimer') {
-							print "<div class=\"row\"><div class=\"leftSmall\">Type:</div>
+							print "<div class=\"row\"><div class=\"leftSmall\">".findtekst('2995|Type', $sprog_id).":</div>
 							<div class=\"rightLarge\">
 								<select name=\"nyt_listevalg\" $readonly class=\"akkordlistevalg printSelect2\" style=\"width: 100%;\">";
-									if (!$listevalg) print "<option value=\"0\">Vælg type</option>";
+									if (!$listevalg) print "<option value=\"0\">".findtekst('586|Vælg', $sprog_id)." ".lcfirst(findtekst('2995|Type', $sprog_id))."</option>"; #Vælg type
 									for ($y=0;$y<$antal_cat;$y++) {
 										if ($cat_id[$y]==$listevalg) print "<option value=$cat_id[$y]>$cat_navn[$y]</option>";
 									}						  
@@ -378,16 +378,16 @@ function vis_loen($id) {
 #					print "</div>";
 					if ($loen_art!='sygdom' && $loen_art!='barn_syg' &&  $loen_art!='skole' &&  $loen_art!='plads' && $loen_art!='ferie') { #20140627 
 						print "<div class=\"row\">
-							<div class=\"leftSmall\">Sag:</div>
-							<div class=\"rightSmall\"><input type=\"text\" $readonly placeholder=\"Sags nr\" class=\"textMedium sagsnr printBorderNone printBg\" $sagsnr_error name=\"sag_nr\" value=\"$sag_nr\"></div>
-							<div class=\"rightXLarge\"><input type=\"text\" $readonly placeholder=\"Sags addresse\" class=\"textXLong sagsaddr printBorderNone printBg\" $sagsnr_error name=\"sag_addr\" value=\"$sag_addr\"></div>
+							<div class=\"leftSmall\">".findtekst('2792|Sag', $sprog_id).":</div>
+							<div class=\"rightSmall\"><input type=\"text\" $readonly placeholder=\"".findtekst('2819|Sagsnr.', $sprog_id)."\" class=\"textMedium sagsnr printBorderNone printBg\" $sagsnr_error name=\"sag_nr\" value=\"$sag_nr\"></div>
+							<div class=\"rightXLarge\"><input type=\"text\" $readonly placeholder=\"".findtekst('3053|Sagsadresse', $sprog_id)."\" class=\"textXLong sagsaddr printBorderNone printBg\" $sagsnr_error name=\"sag_addr\" value=\"$sag_addr\"></div>
 							<div class=\"rightNoWidth\"><p>$sagsnr_errortxt</p></div>
 							<!--<div class=\"rightMedium\"><p id=\"message\">Ingen resultat fundet</p></div>-->
 							<div class=\"clear\"></div>
 						</div>";
 						if ($sag_id && $opgave_id) {	
 							print "<div class=\"row\">
-								<div class=\"leftSmall\">Opgave:</div>
+								<div class=\"leftSmall\">".findtekst('2800|Opgave', $sprog_id).":</div>
 								<div class=\"rightNoWidth\"><select $readonly $opgnr_error name=\"opg_id\" class=\"printSelect2\">";
 								for ($x=0;$x<count($opgave_id);$x++) {
 									if ($opg_id==$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>"; 
@@ -406,7 +406,7 @@ function vis_loen($id) {
 					}
 					if ($loen_art=='ferie') { #20140627
 						print "<div class=\"row\">
-							<div class=\"leftSmall\">Fra / Til: </div>
+							<div class=\"leftSmall\">".findtekst('3031|Fra/Til', $sprog_id).": </div>
 							<div class=\"rightSmall\"><input name=\"feriefra\" id=\"feriefra\" type=\"text\" $readonly class=\"textMedium printBorderNone printBg\" $feriefra_error value=\"$feriefra\"/></div>
 							<div class=\"rightSmall\"><input name=\"ferietil\" id=\"ferietil\" type=\"text\" $readonly class=\"textMedium printBorderNone printBg\" $ferietil_error value=\"$ferietil\"/></div>
 							<div class=\"rightNoWidth\"><p>$feriefratil_errortxt</p></div>
@@ -415,14 +415,14 @@ function vis_loen($id) {
 					}
 					if ($afvis) {
 						print "<div class=\"row\">
-							<div class=\"leftSmall\">Årsag til afvisning:</div>";
+							<div class=\"leftSmall\">".findtekst('3029|Årsag til afvisning', $sprog_id).":</div>";
 							print "<div class=\"right\"><textarea class=\"printTextArea textAreaLoen autosize\" name=\"afvist_pga\" cols=\"78\" rows=\"3\">$afvist_pga</textarea></div>
 							<div class=\"clear\"></div>
 						</div>";
 					} else { #20140627
 						print "<div class=\"row\">";
-							if ($loen_art=='sygdom' || $loen_art=='barn_syg' || $loen_art=='skole' || $loen_art=='plads' || $loen_art=='ferie') print "<div class=\"leftSmall\">Bemærkn.:</div>";
-							else print "<div class=\"leftSmall\">Udført:</div>";
+							if ($loen_art=='sygdom' || $loen_art=='barn_syg' || $loen_art=='skole' || $loen_art=='plads' || $loen_art=='ferie') print "<div class=\"leftSmall\">".findtekst('391|Bemærkning', $sprog_id).":</div>";
+							else print "<div class=\"leftSmall\">".findtekst('3028|Udført', $sprog_id).":</div>";
 							print "<div class=\"rightXXLarge\"><textarea $readonly $loentext_error class=\"printTextArea textAreaLoen autosize\" name=\"loen_tekst\" style=\"width:560px;\" cols=\"78\" rows=\"3\">$loen_tekst</textarea></div>
 							<div class=\"rightNoWidth\"><p>$loentext_errortxt</p></div>
 							<div class=\"clear\"></div>
@@ -430,7 +430,7 @@ function vis_loen($id) {
 					}
 					if ($afvist_pga) {
 						print "<div class=\"row\">
-							<div class=\"leftSmall\">Årsag til afvisning:</div>";
+							<div class=\"leftSmall\">".findtekst('3029|Årsag til afvisning', $sprog_id).":</div>";
 							print "<div class=\"right\"><b style=\"color: #cd3300;padding-left: 4px;\">$afvist_pga</b></div>
 							<div class=\"clear\"></div>
 						</div>";
@@ -440,25 +440,25 @@ function vis_loen($id) {
 				if ($oprettet) {
 						print "<table border=\"0\" cellspacing=\"0\" width=\"780\">
 						<tr>
-							<td><b>Oprettet:</b></td><td>d.".date("d-m-Y",$oprettet)." kl. ".date("H:i",$oprettet)."</td>
-							<td><b>af:</b> $oprettet_af</td>
-							<td><b>Løbenr.:&nbsp;</b>$loen_nr</td>  
-							<td><b>Status:&nbsp;</b>$status</td>
+							<td><b>".findtekst('65|Oprettet', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y",$oprettet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$oprettet)."</td>
+							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $oprettet_af</td>
+							<td><b>".findtekst('1134|Løbenr.', $sprog_id).":&nbsp;</b>$loen_nr</td>
+							<td><b>".findtekst('494|Status', $sprog_id).":&nbsp;</b>$status</td>
 							
 						</tr>";
 					if ($afsluttet) {
-						print "<tr><td><b>Overført:</b></td><td>d.".date("d-m-Y",$afsluttet)." kl. ".date("H:i",$afsluttet)."</td>
-							<td><b>af:</b> $afsluttet_af</td></tr>";
+						print "<tr><td><b>".findtekst('2790|Overført', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y",$afsluttet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$afsluttet)."</td>
+							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
 					}
 					if ($godkendt) {
-						print "<tr><td><b>Godkendt:</b></td><td>d.".date("d-m-Y",$godkendt)." kl. ".date("H:i",$godkendt)."</td>
-							<td><b>af:</b> $godkendt_af</td>";
- 							if ($master_nr) print"<td><b>Afr. på&nbsp; : </b>$master_nr</td>"; #20151215 
+						print "<tr><td><b>".findtekst('2937|Godkendt', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y",$godkendt)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$godkendt)."</td>
+							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $godkendt_af</td>";
+ 							if ($master_nr) print"<td><b>".findtekst('3034|Afr. på', $sprog_id)."&nbsp; : </b>$master_nr</td>"; #20151215
 							print "</tr>";
 					}
 					if ($afvist) {
-						print "<tr><td><b>Afvist:</b></td><td>d.".date("d-m-Y",$afvist)." kl. ".date("H:i",$afvist)."</td>
-							<td><b>af:</b> $afvist_af</td></tr>";
+						print "<tr><td><b>".findtekst('3011|Afvist', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y",$afvist)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$afvist)."</td>
+							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
 					}
 					print "</table>";
 				}
@@ -467,23 +467,23 @@ function vis_loen($id) {
 				<table class=\"akkordTable ansatteTable\">
 					<thead class=\"akkordTableBorderBottom\">
 					<tr>";
-						if ($loen_art=='akk_afr') print "<th class=\"alignLeft\">Dato</th>";
-						print "<th class=\"alignLeft\">Nr</th>
-						<th class=\"alignLeft\">Navn</th>";
-						if ($loen_art!='aconto' && $loen_art!='regulering' && $loen_art!='ferie') print "<th>Timer</th>";
+						if ($loen_art=='akk_afr') print "<th class=\"alignLeft\">".findtekst('438|Dato', $sprog_id)."</th>";
+						print "<th class=\"alignLeft\">".findtekst('2248|Nr.', $sprog_id)."</th>
+						<th class=\"alignLeft\">".findtekst('138|Navn', $sprog_id)."</th>";
+						if ($loen_art!='aconto' && $loen_art!='regulering' && $loen_art!='ferie') print "<th>".findtekst('2980|Timer', $sprog_id)."</th>";
 						if ($loen_art=='akk_afr'||$loen_art=='akktimer'||$loen_art=='akkord'||$loen_art=='timer') {
 							print "<th>50%</th>
 							<th>100%</th>";
-							print "<th width=\"36\" title=\"Skur lav sats ($skur_sats1)\">S(L)</th>";
-							print "<th width=\"36\" title=\"Skur høj sats ($skur_sats2)\">S(H)</th>";
-							print "<th>Km</th>";
-							print "<th>Sum</th>";
-							if ($loen_art=='timer') print "<th>Timetillæg</th>";
-							else print "<th>Akkord</th>";
+							print "<th width=\"36\" title=\"".findtekst('3047|Skur - lav sats', $sprog_id)." ($skur_sats1)\">S(L)</th>";
+							print "<th width=\"36\" title=\"".findtekst('3048|Skur - høj sats', $sprog_id)." ($skur_sats2)\">S(H)</th>";
+							print "<th>".findtekst('2996|Km', $sprog_id)."</th>";
+							print "<th>".findtekst('2795|Sum', $sprog_id)."</th>";
+							if ($loen_art=='timer') print "<th>".findtekst('2997|Timetillæg', $sprog_id)."</th>";
+							else print "<th>".findtekst('2988|Akkord', $sprog_id)."</th>";
 						}
-						if ($loen_art=='aconto') print "<th>Aconto bel&oslash;b</th>";
-						elseif ($loen_art=='regulering') print "<th>Bel&oslash;b</th>";
-						elseif ($loen_art!='ferie') print "<th>I Alt</th>";
+						if ($loen_art=='aconto') print "<th>".findtekst('3035|Aconto beløb', $sprog_id)."</th>";
+						elseif ($loen_art=='regulering') print "<th>".findtekst('934|Beløb', $sprog_id)."</th>";
+						elseif ($loen_art!='ferie') print "<th>".findtekst('2373|I alt', $sprog_id)."</th>";
 						//else print "<th>I Alt</th>";
 						print "<!--<th width=\"20\"></th>-->
 					</tr>
@@ -573,12 +573,12 @@ function vis_loen($id) {
 					if (!$loen_100pct[$x]) $loen_100pct[$x]=NULL;
 					if (!$loen_km[$x]) $loen_km[$x]=NULL;
 					if (!$loen_sum[$x]) $loen_sum[$x]=NULL;
-					if ($loen_fordeling[$x] && $loen_fordeling[$x]<100) $medarb_navn[$x].=" (Under oplæring)";
+					if ($loen_fordeling[$x] && $loen_fordeling[$x]<100) $medarb_navn[$x].=" (".findtekst('3033|Under oplæring', $sprog_id).")";
 					
 					print "<tr>\n";
-						if ($loen_art=='akk_afr') print "<td title=\"Akkord seddel nr: $akkord_nr[$x]\"><input type=\"text\" $beskyttet placeholder=\"Dato\" name=\"loen_date[$x]\" class=\"medarbejdernr printBorderNone\" value=\"".dkdato($loen_date[$x])."\" style=\"width:66px;\"></td>\n";
-						print "<td><input type=\"text\" $beskyttet placeholder=\"Med. nr.\" name=\"medarb_nr[$x]\" class=\"medarbejdernr printBorderNone\" value=\"$medarb_nr[$x]\" style=\"width:56px;\"></td>
-						<td><input type=\"text\" $beskyttet placeholder=\"Medarbejder navn\" name=\"medarb_navn[$x]\" class=\"medarbejdernavn printBorderNone\" value=\"$medarb_navn[$x]\" style=\"width:260px\">\n";
+						if ($loen_art=='akk_afr') print "<td title=\"".findtekst('3050|Akkordseddel nr.', $sprog_id).": $akkord_nr[$x]\"><input type=\"text\" $beskyttet placeholder=\"".findtekst('438|Dato', $sprog_id)."\" name=\"loen_date[$x]\" class=\"medarbejdernr printBorderNone\" value=\"".dkdato($loen_date[$x])."\" style=\"width:66px;\"></td>\n";
+						print "<td><input type=\"text\" $beskyttet placeholder=\"".findtekst('3054|Med. nr.', $sprog_id)."\" name=\"medarb_nr[$x]\" class=\"medarbejdernr printBorderNone\" value=\"$medarb_nr[$x]\" style=\"width:56px;\"></td>
+						<td><input type=\"text\" $beskyttet placeholder=\"".findtekst('3055|Medarbejdernavn', $sprog_id)."\" name=\"medarb_navn[$x]\" class=\"medarbejdernavn printBorderNone\" value=\"$medarb_navn[$x]\" style=\"width:260px\">\n";
 						if ($loen_art!='ferie') print "</td>\n";
 						if ($loen_art!='aconto' && $loen_art!='regulering' && $loen_art!='ferie') print "<td><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_timer[$x]\" class=\"zeroValue alignRight printBorderNone\" value=\"".str_replace(".",",",$loen_timer[$x])."\" style=\"width:33px;\"></td>\n";
 						if ($loen_art=='akk_afr'||$loen_art=='akktimer'||$loen_art=='akkord'||$loen_art=='timer') {
@@ -587,7 +587,7 @@ function vis_loen($id) {
 							if ($beskyttet || $retskur[$x]) {
 								print "<td class=\"alignCenter\"><input name=\"skur1[$x]\" disabled=\"disabled\" type=\"checkbox\" $l_skur1[$x]></td><td class=\"alignCenter\"><input name=\"skur2[$x]\" disabled=\"disabled\" type=\"checkbox\" $l_skur2[$x]></td>\n";
 							} else print "<td class=\"alignCenter\"><input name=\"skur1[$x]\" type=\"checkbox\" $l_skur1[$x]></td><td class=\"alignCenter\"><input name=\"skur2[$x]\" type=\"checkbox\" $l_skur2[$x]></td>\n";
-							print "<td title=\"Fratrukket $fratraek[$x] kilometer\"><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_km[$x]\" class=\"alignRight printBorderNone\" value=\"".dkdecimal($loen_km[$x])."\" style=\"width:33px;\"></td>
+							print "<td title=\"".findtekst('3051|Fratrukket', $sprog_id)." $fratraek[$x] ".lcfirst(findtekst('3052|Kilometer', $sprog_id))."\"><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_km[$x]\" class=\"alignRight printBorderNone\" value=\"".dkdecimal($loen_km[$x])."\" style=\"width:33px;\"></td>
 							<td><input type=\"text\" readonly=\"readonly\" placeholder=\"0,00\" name=\"t_belob[$x]\" class=\"alignRight printBorderNone\" value=\"".dkdecimal($t_belob[$x])."\" style=\"width:50px;\"></td>
 							<td><input type=\"text\" readonly=\"readonly\" placeholder=\"0,00\" name=\"aa_belob[$x]\" class=\"alignRight printBorderNone\" value=\"".dkdecimal($aa_belob[$x])."\" style=\"width:50px;\"></td>\n";
 						}
@@ -608,7 +608,7 @@ function vis_loen($id) {
 					if ($loen_art=='timer' || $loen_art=='akktimer' || $loen_art=='akkord')$colspan=9;
 					elseif ($loen_art=='akk_afr')$colspan=10;
 					else $colspan=3;
-					print "<tr><td colspan=\"2\"><b>Sum</b></td><td class=\"alignRight\" colspan=\"$colspan\"><b>".dkdecimal($sum)."</b><input type=\"hidden\" name=\"sum\" value=\"$sum\"></td>";
+					print "<tr><td colspan=\"2\"><b>".findtekst('2795|Sum', $sprog_id)."</b></td><td class=\"alignRight\" colspan=\"$colspan\"><b>".dkdecimal($sum)."</b><input type=\"hidden\" name=\"sum\" value=\"$sum\"></td>";
 					print "</tbody>";
 					//print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">";
 				}
@@ -626,39 +626,39 @@ function vis_loen($id) {
 		 
 			<!--<h3><a id=\"aTag\" href=\"javascript:toggleAndChangeText();\">Vis akkordliste &#9658;</a></h3>-->";
 			if (count($ansat_id) && $listevalg && ($loen_art=='akk_afr' || $loen_art=='akkord')) {
-				print "<hr><h3><a id=\"aTag\" style=\"cursor:pointer;\">Vis akkordliste &#9658;</a></h3>
+				print "<hr><h3><a id=\"aTag\" style=\"cursor:pointer;\">".findtekst('3032|Vis akkordliste', $sprog_id)." &#9658;</a></h3>
 				<table class=\"akkordTableListe #akkordTableListeBody akkordlisteSort loenindtastning\"  border=\"0\" style=\"#cellspacing:0px;\" id=\"toggle\">
 					<thead style=\"border-bottom: 1px solid #d3d3d3;\">
 						<tr>
-							<th rowspan=\"2\" width=\"30\">Op</th>
-							<th rowspan=\"2\" width=\"30\">Ned</th>
-							<th rowspan=\"2\">Betegnelse</th>
-							<th rowspan=\"2\" class=\"alignRight\">Pris op</th>
-							<th rowspan=\"2\" class=\"alignRight\">Pris ned</th>
-							<th rowspan=\"2\" class=\"alignRight\" width=\"50px\">Sum</th>
+							<th rowspan=\"2\" width=\"30\">".findtekst('2508|Op', $sprog_id)."</th>
+							<th rowspan=\"2\" width=\"30\">".findtekst('2509|Ned', $sprog_id)."</th>
+							<th rowspan=\"2\">".findtekst('3001|Betegnelse', $sprog_id)."</th>
+							<th rowspan=\"2\" class=\"alignRight\">".findtekst('3002|Pris op', $sprog_id)."</th>
+							<th rowspan=\"2\" class=\"alignRight\">".findtekst('3003|Pris ned', $sprog_id)."</th>
+							<th rowspan=\"2\" class=\"alignRight\" width=\"50px\">".findtekst('2795|Sum', $sprog_id)."</th>
 							<th colspan=\"2\" width=\"25px\">25%</th>
 							<th colspan=\"2\" width=\"25px\">40%</th>
 							<th colspan=\"2\" width=\"25px\">60%</th>
 							<th colspan=\"2\" width=\"25px\">+30m</th>
-							<th rowspan=\"2\" class=\"alignRight\">Beløb</th>
+							<th rowspan=\"2\" class=\"alignRight\">".findtekst('934|Beløb', $sprog_id)."</th>
 						</tr>
 						<tr class=\"akkordListeHead2\">
-							<th>Op</th>
-							<th>Ned</th>
-							<th>Op</th>
-							<th>Ned</th>
-							<th>Op</th>
-							<th>Ned</th>
-							<th>Op</th>
-							<th>Ned</th>
+							<th>".findtekst('2508|Op', $sprog_id)."</th>
+							<th>".findtekst('2509|Ned', $sprog_id)."</th>
+							<th>".findtekst('2508|Op', $sprog_id)."</th>
+							<th>".findtekst('2509|Ned', $sprog_id)."</th>
+							<th>".findtekst('2508|Op', $sprog_id)."</th>
+							<th>".findtekst('2509|Ned', $sprog_id)."</th>
+							<th>".findtekst('2508|Op', $sprog_id)."</th>
+							<th>".findtekst('2509|Ned', $sprog_id)."</th>
 							</tr>
 					</thead>";
 					
 				print "<tbody>";
 				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt);
 				print "<tr>
-					<td colspan=\"13\" class=\"tableSagerBorder\"><b>Lønlinjer ialt:</b></td>
-					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum)."</b></td>						
+					<td colspan=\"13\" class=\"tableSagerBorder\"><b>".findtekst('3006|Lønlinjer ialt', $sprog_id).":</b></td>
+					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum)."</b></td>
 				</tr>
 			</tbody>
 			</table>"; 
@@ -666,17 +666,17 @@ function vis_loen($id) {
 			print "</div><!-- end of content -->";
 
 				if ($loen_art=='akk_afr' || $loen_art=='akkord') {
-					print "<div class=\"content\">				 
+					print "<div class=\"content\">
 						<hr>
-						<h3>Andet</h3>
+						<h3>".findtekst('630|Andet', $sprog_id)."</h3>
 						<table class=\"akkordTable andetTable\">
 								<thead>
 									<tr>
-										<th width=\"40\">Stk.</th>
-										<th width=\"600\">Text</th>
-										<th width=\"1\">Stykpris</th>
+										<th width=\"40\">".findtekst('3004|Stk.', $sprog_id)."</th>
+										<th width=\"600\">".findtekst('1163|Tekst', $sprog_id)."</th>
+										<th width=\"1\">".findtekst('3005|Stykpris', $sprog_id)."</th>
 										<!--<th width=\"80\">Procentsats</th>-->
-										<th class=\"alignRight\">Beløb</th>
+										<th class=\"alignRight\">".findtekst('934|Beløb', $sprog_id)."</th>
 										<!--<th width=\"20\"></th>-->
 									</tr>
 								</thead>
@@ -702,18 +702,18 @@ function vis_loen($id) {
 								<tbody class=\"akkordTableBody2 akkordTableBorderBottomAll\">
 
 									<tr>
-										<td colspan=\"3\"><b>Andet Ialt:</b></td>
+										<td colspan=\"3\"><b>".findtekst('3007|Andet ialt', $sprog_id).":</b></td>
 										<td colspan=\"1\" class=\"alignRight\"><b>".dkdecimal($a_sum)."
 										<input type=\"hidden\" name=\"a_sum\" value=\"$a_sum\"></b></td>
-										
+
 									</tr>
 									<tr>
-										<td colspan=\"3\"><b>Akkord Ialt:</b></td>
+										<td colspan=\"3\"><b>".findtekst('3008|Akkord ialt', $sprog_id).":</b></td>
 										<td colspan=\"1\" class=\"alignRight\"><b>".dkdecimal($sum)."
 										<input type=\"hidden\" name=\"sum\" value=\"$sum\"></b></td>
 									</tr>
 									<tr>
-										<td colspan=\"3\"><b>Til fordeling:</b></td>
+										<td colspan=\"3\"><b>".findtekst('3009|Til fordeling', $sprog_id).":</b></td>
 										<td colspan=\"1\" class=\"alignRight\" style=\"#border-bottom: 3px double #444;\">
 										<b>".dkdecimal($a_sum+$sum)."</b></td> 
 								</tr>
@@ -725,27 +725,27 @@ function vis_loen($id) {
 						<hr>";
 					print "<div class=\"contentA\">";
 						if (!$afsluttet) { # 20140627
-							print "<input name=\"gem\" type=\"submit\" class=\"button gray medium\" value=\"Gem\" >";
-							if (!$sum && !$a_sum && $id) print "<input name=\"slet\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Slet\" onclick=\"return confirm('Bekræft sletning')\">"; // Indsat $id, så slet først kommer frem efter der er trykket gem
-							print "<input name=\"luk\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Luk\">";
-							//if ((($loen_art && $loen_art!='akktimer') || $opg_id) && $sum) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
-							if (($loen_art=='akktimer' || $loen_art=='akk_afr' || $loen_art=='akkord') && $sum && $loendato && $loen_tekst && ($opg_nr || ($sag_id && !$opgave_id)) && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
-							if (($loen_art=='timer' || $loen_art=='aconto' || $loen_art=='regulering') && $sum && $loendato && $loen_tekst && (!$sag_id || $opg_nr || ($sag_id && !$opgave_id)) && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
-							if (($loen_art=='plads' || $loen_art=='sygdom' || $loen_art=='barn_syg' || $loen_art=='skole') && $sum && $loendato && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
-							if ($loen_art=='ferie' && $feriefra && $ferietil && $loendato && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
+							print "<input name=\"gem\" type=\"submit\" class=\"button gray medium\" value=\"".findtekst('3|Gem', $sprog_id)."\" >";
+							if (!$sum && !$a_sum && $id) print "<input name=\"slet\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('1099|Slet', $sprog_id)."\" onclick=\"return confirm('".findtekst('3036|Bekræft sletning', $sprog_id)."')\">"; // Indsat $id, så slet først kommer frem efter der er trykket gem
+							print "<input name=\"luk\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('2172|Luk', $sprog_id)."\">";
+							//if ((($loen_art && $loen_art!='akktimer') || $opg_id) && $sum) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('1228|Overfør', $sprog_id)."\" onclick=\"return confirm('".findtekst('3012|Bekræft overførsel', $sprog_id)."')\">";
+							if (($loen_art=='akktimer' || $loen_art=='akk_afr' || $loen_art=='akkord') && $sum && $loendato && $loen_tekst && ($opg_nr || ($sag_id && !$opgave_id)) && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('1228|Overfør', $sprog_id)."\" onclick=\"return confirm('".findtekst('3012|Bekræft overførsel', $sprog_id)."')\">";
+							if (($loen_art=='timer' || $loen_art=='aconto' || $loen_art=='regulering') && $sum && $loendato && $loen_tekst && (!$sag_id || $opg_nr || ($sag_id && !$opgave_id)) && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('1228|Overfør', $sprog_id)."\" onclick=\"return confirm('".findtekst('3012|Bekræft overførsel', $sprog_id)."')\">";
+							if (($loen_art=='plads' || $loen_art=='sygdom' || $loen_art=='barn_syg' || $loen_art=='skole') && $sum && $loendato && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('1228|Overfør', $sprog_id)."\" onclick=\"return confirm('".findtekst('3012|Bekræft overførsel', $sprog_id)."')\">";
+							if ($loen_art=='ferie' && $feriefra && $ferietil && $loendato && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('1228|Overfør', $sprog_id)."\" onclick=\"return confirm('".findtekst('3012|Bekræft overførsel', $sprog_id)."')\">";
 						}
 						if (substr($sag_rettigheder,6,1) && $afsluttet && !$godkendt && !$afvist) {
-							print "<input name=\"godkend\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Godkend\" onclick=\"return confirm('Bekræft godkendelse')\">";
-							print "<input name=\"afvis\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Afvis\" onclick=\"return confirm('Bekræft afvisning')\">";
+							print "<input name=\"godkend\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('555|Godkend', $sprog_id)."\" onclick=\"return confirm('".findtekst('3013|Bekræft godkendelse', $sprog_id)."')\">";
+							print "<input name=\"afvis\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('3010|Afvis', $sprog_id)."\" onclick=\"return confirm('".findtekst('3014|Bekræft afvisning', $sprog_id)."')\">";
 						}
 						if (substr($sag_rettigheder,6,1) && $godkendt && !$afregnet) {
-							print "<input name=\"afvis\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Afvis\" onclick=\"return confirm('Vil du afvise denne godkendte seddel???.')\">";
+							print "<input name=\"afvis\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('3010|Afvis', $sprog_id)."\" onclick=\"return confirm('".findtekst('3015|Vil du afvise denne godkendte seddel?', $sprog_id)."')\">";
 #							print "<input name=\"tilbagefoer\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Tilbagef&oslash;r\" onclick=\"return confirm('Vil du tilbageføre denne seddel?')\">";						
 						}
 						print "</div></div>
 					</form>";	
 				if ($afvis && !$afvist_pga) {
-					$txt="Skriv årsag til afvisning og klik afvis igen!";
+					$txt=findtekst('3018|Skriv årsag til afvisning og klik afvis igen', $sprog_id)."!";
 					print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				}	
 	print "</div><!-- end of printableArea -->";

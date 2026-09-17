@@ -190,7 +190,7 @@ $addr2=stripslashes(stripslashes(trim($r['addr2'])));
 $postnr=trim($r['postnr']);
 $bynavn=stripslashes(stripslashes(trim($r['bynavn'])));
 $tlf=trim($r['tlf']);
-$fax=trim($r['fax']);
+$mobile=trim($r['mobile']);
 $email=trim($r['email']);
 */
 
@@ -247,8 +247,8 @@ if ($felt_5) $felt_5="checked";
 if ($felt_7) $felt_7="checked";
 if ($felt_9) $felt_9="checked";
 
-$r=db_fetch_array(db_select("select fax,tlf from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__));
-$fax=stripslashes($r['fax']);
+$r=db_fetch_array(db_select("select mobile,tlf from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__));
+$mobile=stripslashes($r['mobile']);
 $tlf=stripslashes($r['tlf']);
 
 $z=0;
@@ -280,7 +280,7 @@ print "</tbody></table></td></tr>";
 print "<tr><td colspan=6><hr></td></tr>";
 print "<tr><td colspan=4>$firmanavn<br></td><td width=10%><align=\"right\">Kontonr</td><td align=\"right\">$kontonr</td></tr>";
 print "<tr><td colspan=4>$addr1<br></td><td width=10%><align=\"right\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></td><td align=\"right\">$tlf</td></tr>";
-print "<tr><td colspan=4>$addr2<br></td><td width=10%><align=\"right\">".findtekst('378|Telefax', $sprog_id)."<!--tekst 378--></td><td align=\"right\">$fax</td></tr>";
+print "<tr><td colspan=4>$addr2<br></td><td width=10%><align=\"right\">".findtekst('378|Mobil', $sprog_id)."<!--tekst 378--></td><td align=\"right\">$mobile</td></tr>";
 print "<tr><td colspan=4>$postnr $bynavn<br></td><td width=10%><br></tr>";
 print "<tr><td colspan=6><hr></td></tr>";
 print "<tr><td>".findtekst('7|Felt 1', $sprog_id)."<!--tekst 7--></td><td colspan=2><input type=text size=40 name=felt_2 value=\"".$felt_2."\"><br></td>";

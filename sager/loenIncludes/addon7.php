@@ -36,13 +36,13 @@
 #	db_modify("update loen_enheder set pris_op=$sum1 WHERE loen_id = '$id' and vare_id='-2'",__FILE__ . " linje " . __LINE__);
 	print "<tr>
 		<td colspan=\"2\" class=\"tableSagerBorder\" align=\"center\"><input type=\"radio\" $readonly name=\"telt_antal\" value=\"0.35\" $telt35></td>
-		<td colspan=\"3\" class=\"tableSagerBorder\" style=\"padding-left: 5px;\"><b>Telt tillæg 35%</b></td><td align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\">";
+		<td colspan=\"3\" class=\"tableSagerBorder\" style=\"padding-left: 5px;\"><b>".findtekst('3058|Telttillæg', $sprog_id)." 35%</b></td><td align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\">";
 		if ($telt35) print "<b>".dkdecimal($telt_antal*$sum1)."</b>";
 		print "</td><td colspan=\"9\" class=\"tableSagerBorder\">&nbsp;</td>
 	</tr>
 	<tr bgcolor=\"$bgcolor\">
 		<td colspan=\"2\" align=\"center\"><input type=\"radio\" $readonly name=\"telt_antal\" value=\"0.4\" $telt40></td>
-		<td colspan=\"3\" style=\"padding-left: 5px;\"><b>Telt tillæg 40%</b></td><td align=\"right\">";
+		<td colspan=\"3\" style=\"padding-left: 5px;\"><b>".findtekst('3058|Telttillæg', $sprog_id)." 40%</b></td><td align=\"right\">";
 		if ($telt40) print "<b>".dkdecimal($telt_antal*$sum1)."</b>";
 		print "</td><td colspan=\"9\">&nbsp;</td>
 	</tr>";
@@ -57,7 +57,7 @@
 	print "
 	<tr>
 		<td colspan=\"2\" align=\"center\"><input type=\"radio\" $readonly name=\"telt_antal\" value=\"0.6\" $telt60></td>
-		<td colspan=\"3\" style=\"padding-left: 5px;\"><b>Telt tillæg 60%</b></td><td align=\"right\">";
+		<td colspan=\"3\" style=\"padding-left: 5px;\"><b>".findtekst('3058|Telttillæg', $sprog_id)." 60%</b></td><td align=\"right\">";
 		if ($telt60) print "<b>".dkdecimal($telt_antal*$sum1)."</b>";
 		print "</td><td colspan=\"9\">";
 		print "<input type=\"hidden\" $readonly name=\"telt_id\" value=\"$telt_id\">
@@ -67,7 +67,7 @@
 		</td>
 	</tr>
 	<tr>
-	<td colspan=\"2\"></td><td colspan=\"3\" style=\"padding-left: 5px;\"><b>Sum incl. telt tillæg</b></td>
-	<td colspan=\"10\" align=\"right\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
+	<td colspan=\"2\"></td><td colspan=\"3\" style=\"padding-left: 5px;\"><b>".findtekst('2795|Sum', $sprog_id)." ".lcfirst(findtekst('3256|Inkl. telttillæg', $sprog_id))."</b></td>"; #Sum inkl. telttillæg
+	print "<td colspan=\"10\" align=\"right\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
 	</tr>";
 ?>

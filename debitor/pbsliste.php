@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// --- debitor/pbs_liste.php --- patch 4.1.1 --- 2025.11.11 ---
+// --- debitor/pbs_liste.php --- patch 4.5.0.0 --- 2026.03.21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,10 +18,12 @@ $s_id=session_id();
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2014.04.22 Max ID øges med en hvis alle eksisterende er afsendt. # 20140422 
+// 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar)
+// 20260321 PHR Reversed above as ktonr does not exist in all accounts
 
 $modulnr=5;
 $title="PBS Liste";

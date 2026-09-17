@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 4.1.1 --- 2025.11.06 ---
+// --- finans/bankimport.php --- patch 5.0.0 --- 2026.03.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,33 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 
-// 20121110 Indsat mulighed for valutavalg ved import - søg: valuta
-// 20130911 Fejl i 1. kald til "vis_data" "$vend" mangler.
-// 20131119	Genkendelse af posteringer fra Quickpay. Søg 20131109
-// 20140115 Genkendelse af FI indbetalinger fra Danske Bank. Søg Danske Bank
-// 20140117 Genkendelse af FI indbetalinger fra Sparekasserne. Søg Sparekasserne
-// 20140127 Genkendelse af FI indbetalinger fra Nordea. Søg Nordea
-// 20140203 Genkendelse af danske månedforkortelser i datoer. Søg 20140203
-// 20140708 Genkendelse af dankort betalinger 20140708
-// 20141005 Indsat "auto_detect_line_endings", eller kan den ikke altid genkende filer genereret på MAC 
-// 20150904 Genkendelse af dankort krediteringer 20150904
-// 20160212 Genkendelse af kortbetalinger gennem SparNord. Søg SparNord
-// 20160215 Ved Kortbetalinger fra SparNord registreres kortgebyrer på separat linje. Søg kortgebyr. 
-// 20160815 Genkendelse af FI indbetalinger fra Danske Bank som starter med IK71. Søg Danske Bank
-// 20160909 Tilføjet felt for gebyr kontonr samt ny version af SparNord. 20160909	
-// 20161101 Genkendelse af kortgebyr for Danske Bank. 20161101	
-// 20170111 Tilføjet afdeling. Søg $afd
-// 20170119 Tilføjet $qtxt= ... Søg 20170119 
-// 20170608 Tilføjet genkendelse af loppeafreningssbilag. 20170608
-// 20170630 Flyttet $bilag++ fra over db_modify da der var huller og dubletter i bilagsnr.rækken. 20170630
-// 20170816 Tilføjet genkendelse af UTF-8 i filindhold og fjerner ukendt tegn i starte og slut af linje . Søg $tegnsaet;
-// 20170914 mb_detect_encoding fejlfortolker så jeg har skrevet min egen. 21070914
-// 20180314 den udlignede de nyeste istedet for de ældste 20180318
-// 20190911 PHR Added 'DK3DSF' at SparNord Ny 20190911
-// 20190917 PHR Added 'DK3DSF' at DanskeBank Ny 20190917
 // 20200820 PHR Added recognition of outgoing payments from Cultura Sparebank, Norway 20200820
 // 20211107 PHR Added recognition of customer account # when importing bank 20201107
 // 20210328 PHR Added recognition of payment ID from Jyske Bank 21210328
@@ -67,6 +43,8 @@
 // 20250918 PHR	More check for lineshift in description
 // 20251012 PHR Added Currency
 // 20251106 PHR Corrected date error
+// 20260311 PHR Corrected decimal error
+// 20260320 PHR	Removed 'This didn't work'
 
 ini_set("auto_detect_line_endings", true);
 
@@ -220,6 +198,7 @@ print "</td></tr>";
 function vis_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$currencyCode,$afd){
 global $baseCurrency,$bruger_id,$charset,$sprog_id;
 
+#if (!count($feltnavn)) $feltnavn=array('','','','','','','','');
 $bankName = '';
 $komma = $punktum = $semikolon = $tabulator = $x = 0;
 $currencyAlert = $valuta = array();
@@ -248,7 +227,6 @@ $tegnsaet="iso";
 if ($fp) {
 	$z=0;
 	while ($linje=fgets($fp)){
-#	exit;
 		if ($z == 0 && substr($linje,0,61) == "Planlagt;Type;Fil;Fra konto;Kontonavn;Til konto;Mottakernavn;") {
 			$bankName = 'Sparebanken Vest';
 		}  
@@ -292,10 +270,11 @@ if ($fp) {
 			$i++;
 		}
 	}
+/* This didn't work
 	$y = 0;
 	$newLine = array();
-	$tmp = '';
 	for ($i=0;$i<count($line);$i++){
+		$tmp = '';
 		$ok = 0;
 		$tmp .= str_replace("\n",'',$line[$i]);
 		$i2 = $i+1;
@@ -305,18 +284,19 @@ if ($fp) {
 		elseif (is_numeric(substr($line[$i2],0,2)) && is_numeric(substr($line[$i2],5,4)) && in_array(substr($line[$i2],2,1),$datesplit)) $ok = 1;
 		elseif (is_numeric(substr($line[$i2],0,4)) && is_numeric(substr($line[$i2],5,2)) && in_array(substr($line[$i2],4,1),$datesplit)) $ok = 1;
 		if ($ok) {
-			$newLine[$y] = $tmp."\n";
+			$newLine[$y] = $tmp;
 			$tmp = '';
 			$y++;
 		}
+
 	}
 	$line = NULL;
 // 20250829 <--
-
+*/
 	$feltantal = $y = 0;
 #	while ($linje=fgets($fp)) {
-	for ($i=0;$i<count($newLine);$i++){
-		$linje = $newLine[$i];
+	for ($i=0;$i<count($line);$i++){
+		$linje = $line[$i];
 		if ($linje) {
 			$y++;
 			$ny_linje[$y]='';
@@ -364,7 +344,7 @@ fclose ($fp);
 $fp=fopen($filnavn."2","w");
 if ($vend) {
  for ($y=$linjeantal;$y>=1;$y--) fwrite($fp,$ny_linje[$y]);
-} else { 
+} else {
 	for ($y=1;$y<=$linjeantal;$y++) fwrite($fp,$ny_linje[$y]);
 }
 fclose ($fp);
@@ -428,7 +408,7 @@ print "<tr><td colspan=$cols><hr></td></tr>\n";
 $splitter=chr(9);
 print "<tr><td><span title='".findtekst(1404, $sprog_id)."'><input type=text size=4 name=bilag value=$bilag></span></td>";
 $belob = $beskr = $dato = $kundenr = 0;
-for ($y=0; $y<count($feltnavn); $y++) {
+for ($y=0; $y<=$feltantal; $y++) {
 	if ($feltnavn[$y]=='dato' && $dato==1) {
 		$aalert = findtekst(1405, $sprog_id);
 		alert("$aalert");
@@ -521,10 +501,11 @@ if ($fp) {
 						if ($felt[$y]==0) $skriv_linje=0;
 						else $felt[$y]=dkdecimal($felt[$y]);
 					} elseif (nummertjek($felt[$y])=='DK') {
-						if (usdecimal($felt[$y])==0) $skriv_linje=0;
+						if (usdecimal($felt[$y]) ==0 ) $skriv_linje=0;
 					}	else {
 						$skriv_linje=0;
 					}
+					if (substr($felt[$y],-2,1) ==',') $felt[$y].='0';
 					if (!is_numeric(substr($felt[$y],-2))) $skriv_linje=0;
 				}
 				if ($feltnavn[$y]=='beskrivelse') { // 20220120
@@ -552,6 +533,7 @@ if ($fp) {
 					}
 				}
 			}
+
 			if ($skriv_linje==1){
 				print "<tr><td>$bilag</td>";
 				for ($y=0; $y<count($feltnavn); $y++) {

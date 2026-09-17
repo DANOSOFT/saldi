@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026.02.11 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190215 Make function to count the box when submitting
@@ -39,6 +39,9 @@
 // 20250812 PHR Changed DKK to $baseCurrency
 // 20250813 PHR Compared and merged changes from ssl7
 // 20260211 PHR Updated cashCount
+// 20260225 PHR Updated cashCount
+// 20260604 PHR setCreditCards: dkdecimal() tilføjet til visning af ny_kortsum — konvertering sker nu i pos_ordre.php via usdecimal()
+// 20260706 CX/PHR setCreditCards: sort VAT rate/amount pairs defensively to avoid array_multisort fatal on uneven arrays
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -50,7 +53,7 @@ function setSpecifiedCashText() {
 		"turnover" => findtekst('2373|Dagens omsætning',$sprog_id), "headline" => findtekst('2387|Optæl kassebeholdning for kasse',$sprog_id),
 		"subline" => "(". findtekst('2388|Antal mønter/sedler af hver slags',$sprog_id) .")"];
 	} else {
-		return ["half" => "50 øre", "one" => "1 kr", "two" => "2 kr", "five" => "5 kr", "ten" => "10 kr",
+		return ["tenth" => "10 øre", "fiveth" => "20 øre", "half" => "50 øre", "one" => "1 kr", "two" => "2 kr", "five" => "5 kr", "ten" => "10 kr",
 		"twenty" => "20 kr", "fifty" => "50 kr", "hundred" => "100 kr", "twoHundred" => "200 kr",
 		"fiveHundred" => "500 kr", "thousand" => "1000 kr", "other" => "Andet",
 		"turnover" => "Dagens omsætning", "headline" => "Optæl kassebeholdning for kasse ",
@@ -74,7 +77,8 @@ function setSpecifiedCashText() {
 		echo "<!-- setCashCountText End -->\n";
   }
 
-function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
+function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet) {
+	echo "<!-- function specifyAmount begin -->";
 	global $baseCurrency,$db;
 
 	$txt = setSpecifiedCashText();
@@ -127,7 +131,7 @@ function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_
 	$temp = $txt['fiveHundred'];
 	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_500' value='$kr_500'></td></tr>\n";
 	$temp = $txt['thousand'];
-	if ($baseCurrency =='EUR') {
+	if ($baseCurrency =='EUR' | $baseCurrency =='DKK') {
 		print "<input type = 'hidden' name='kr_1000' value='$kr_1000'>";
 	} else {
 		print "<tr><td align='right'>$temp</td><td> </td> <td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_1000' value='$kr_1000'></td></tr>\n";
@@ -141,6 +145,7 @@ function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_
 	file_put_contents($logfil,$txt,FILE_APPEND);
 	$txt = "1000 kr $kr_1000\nAndet kr $kr_andet\n";
 	file_put_contents($logfil,$txt,FILE_APPEND);
+	echo "<!-- function specifyAmount end -->";
 }
 
 
@@ -288,7 +293,7 @@ function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_
 			print "<tr><td colspan='2'><b>$kortnavn[$x]</b>(".dkdecimal($kortsum[$x],2).")</td><td align='right'>";
 			print "<input type='text' style=\"width:100;text-align:right;font-size:$ifs;\" ";
 			#if (!$ny_kortsum[$x] && $ny_kortsum[$x]!='0') $ny_kortsum[$x]=dkdecimal($kortsum[$x],2); #20210517
-			print "name='ny_kortsum[$x]' value='$ny_kortsum[$x]'> $curr</td>";
+			print "name='ny_kortsum[$x]' value='".dkdecimal($ny_kortsum[$x],2)."'> $curr</td>";
 			createXreport($kortnavn[$x],$kortsum[$x],$curr);
 			displayLine($kortnavn[$x],$kortsum[$x],$curr);
 			file_put_contents($logfil,"$kortnavn[$x]($kortsum[$x]) $ny_kortsum[$x]\n",FILE_APPEND);
@@ -315,11 +320,25 @@ function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_
 	#	$space = ' ';
 	#	while (strlen($txt1.$space.$txt2." $curr") < 40) $space.= ' ';
 	#	file_put_contents("../temp/$db/x-repport.txt",$txt1.$space.$txt2." $curr\n", FILE_APPEND);
-	$acountExists = array();
-	array_multisort($vatRates,$vatAmounts);
+	$acountExists = $vatRows = array();
+	if (!is_array($vatRates)) $vatRates = array();
+	if (!is_array($vatAmounts)) $vatAmounts = array();
 	for ($i=0;$i<count($vatRates);$i++) {
-		$a = "Omsætning ".dkdecimal($vatRates[$i])."% ". findtekst(770, $sprog_id);
-		$b = $vatAmounts[$i] += $vatAmounts[$i]*$vatRates[$i]/100;
+		if (!isset($vatAmounts[$i]) || $vatRates[$i] === '') continue;
+		$vatRows[] = array(
+			'rate' => (float)$vatRates[$i],
+			'amount' => (float)$vatAmounts[$i]
+		);
+	}
+	usort($vatRows, function($a, $b) {
+		if ($a['rate'] == $b['rate']) return 0;
+		return ($a['rate'] < $b['rate']) ? -1 : 1;
+	});
+	for ($i=0;$i<count($vatRows);$i++) {
+		$vatRate = $vatRows[$i]['rate'];
+		$vatAmount = $vatRows[$i]['amount'];
+		$a = "Omsætning ".dkdecimal($vatRate)."% ". findtekst(770, $sprog_id);
+		$b = $vatAmount += $vatAmount*$vatRate/100;
 		createXreport($a,$b,$curr);
 		displayLine($a,$b,$curr);
 		#		$dkAmount  = dkdecimal($vatAmounts[$i] += $vatAmounts[$i]*$vatRates[$i]/100 );

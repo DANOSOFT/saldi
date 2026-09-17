@@ -37,7 +37,7 @@ if (findtekst(648,$sprog_id)) print "<tr><td width=\"150px\">".findtekst(648,$sp
 if (findtekst(650,$sprog_id)) print "<tr><td width=\"150px\">".findtekst(650,$sprog_id)."<!--tekst 650--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"postnr\" value=\"$postnr\"></td></tr>\n";
 if (findtekst(652,$sprog_id)) print "<tr><td width=\"150px\">".findtekst(652,$sprog_id)."<!--tekst 652--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"email\" value=\"$email\"></td></tr>\n";
 if (findtekst(654,$sprog_id)) print "<tr><td width=\"150px\">".findtekst(654,$sprog_id)."<!--tekst 654--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"tlf\" value=\"$tlf\"></td></tr>\n";
-if (findtekst(656,$sprog_id)) print "<tr><td width=\"150px\">".findtekst(656,$sprog_id)."<!--tekst 656--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"fax\" value=\"$fax\"></td></tr>\n";
+if (findtekst(656,$sprog_id)) print "<tr><td width=\"150px\">".findtekst(656,$sprog_id)."<!--tekst 656--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"mobile\" value=\"$mobile\"></td></tr>\n";
 if (findtekst(664,$sprog_id)) print "<tr><td width=\"150px\">".findtekst(664,$sprog_id)."<!--tekst 664--></td><td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:180px\" name=\"loen\" value=\"$loen\"></td></tr>\n";
 if (count($afd_nr)) {
 	print "<tr><td>".findtekst(658,$sprog_id)."<!--tekst 658--></td><td><SELECT style=\"width:180px\" NAME=\"afd\">";
@@ -49,6 +49,14 @@ if (count($afd_nr)) {
 	}
 	print "</SELECT></td>";
 } 
+if (isset($bg_options) && count($bg_options) > 0) {
+	print "<tr><td>".findtekst('571|Baggrund',$sprog_id)."<!--baggrund--></td><td><SELECT style=\"width:180px\" NAME=\"sprog\">";
+	foreach ($bg_options as $bg_opt) {
+		$bg_selected = (isset($ansat_sprog) && $ansat_sprog == $bg_opt) ? ' selected' : '';
+		print "<option value=\"$bg_opt\"$bg_selected>$bg_opt</option>";
+	}
+	print "</SELECT></td></tr>";
+}
 print "</tbody></table><!-- <- TABEL body 1 --></td>";
 print "<td colspan=\"2\" width=\"315px\" valign=\"top\"><table valign=\"top\"><!-- TABEL body 2 -> --><tbody>";
 if (findtekst(661,$sprog_id)) print "<td width=\"150px\">".findtekst(661,$sprog_id)."<!--tekst 661--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"cprnr\" value=\"$cprnr\"></td></tr>\n";
@@ -56,7 +64,7 @@ if (findtekst(647,$sprog_id)) print "<td width=\"150px\">".findtekst(647,$sprog_
 if (findtekst(649,$sprog_id)) print "<td width=\"150px\">".findtekst(649,$sprog_id)."<!--tekst 649--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"addr2\" value=\"$addr2\"></td></tr>\n";
 if (findtekst(651,$sprog_id)) print "<td width=\"150px\">".findtekst(651,$sprog_id)."<!--tekst 651--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"bynavn\" value=\"$bynavn\"></td></tr>\n";
 if (findtekst(653,$sprog_id)) print "<td width=\"150px\">".findtekst(653,$sprog_id)."<!--tekst 653--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"mobil\" value=\"$mobil\"></td></tr>\n";
-if (findtekst(655,$sprog_id)) print "<td width=\"150px\">".findtekst(655,$sprog_id)."<!--tekst 655--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"fax\" value=\"$fax\"></td></tr>\n";
+if (findtekst(655,$sprog_id)) print "<td width=\"150px\">".findtekst(655,$sprog_id)."<!--tekst 655--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"mobile\" value=\"$mobile\"></td></tr>\n";
 if (findtekst(662,$sprog_id)) print "<td width=\"150px\">".findtekst(662,$sprog_id)."<!--tekst 662--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"bank\" value=\"$bank\"></td></tr>\n";
 if (findtekst(665,$sprog_id)) print "<td width=\"150px\">".findtekst(665,$sprog_id)."<!--tekst 665--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"extraloen\" value=\"$extraloen\"></td></tr>\n";
 /*

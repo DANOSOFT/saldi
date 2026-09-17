@@ -4,23 +4,21 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.1.1 --- 2026.02.19 ---
+// --- includes/udskriv.php --- lap 5.0.0 --- 2026-09-01 ---
 // LICENS
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
@@ -40,7 +38,14 @@
 // 20230522 PHR php8
 // 20260102 LOE Added alert to install pdftk if not already done.
 // 20260217 LOE Updated the $href for 'DO' type.
-
+// 20260320 PHR cleanup (pdftk)
+// 20260428 LOE added more options for 'DO' type and updated faktura navigation for pick list.
+// 20260512 LOE Updated the code to allow printing multiple files no matter the state of 'Use HTML / CSS for form generation-SD-490'
+// 20260812 MJ Valider returside til relative stier; undgaar open-redirect og XSS via JS/href-kontekst
+// 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
+// 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
+//             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
+// 20260914 CDX/LH SST-789: Render session-owned invoice batches before publishing a PDF.
 
 @session_start();
 $s_id=session_id();
@@ -60,6 +65,11 @@ $localPrint=if_isset($_COOKIE, NULL, 'localPrint');
 $udfil=$zx=NULL;
 
 $ps_fil        = if_isset($_GET, NULL, 'ps_fil');
+$printBatch = null;
+if (is_string($ps_fil) && isset($_SESSION['printBatch']['file']) && $_SESSION['printBatch']['file'] === $ps_fil
+    && dirname($ps_fil) === $db . '/' . abs((int)$bruger_id)) {
+	$printBatch = $_SESSION['printBatch']['documents'];
+}
 $valg          = if_isset($_GET, NULL, 'valg');
 $logoart       = if_isset($_GET, NULL, 'logoart');
 $id            = if_isset($_GET, NULL, 'id');
@@ -70,24 +80,36 @@ $art           = if_isset($_GET, NULL, 'art');
 $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
+// 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
+$returside = (function($s) {
+    $s = trim((string)$s);
+    if ($s === '' || $s === 'ordreliste.php') return $s; // 'ordreliste.php' normaliseres nedenfor linje 93
+    if (!mb_check_encoding($s, 'UTF-8')) return '';       // afvis ugyldig UTF-8 (json_encode returnerer false)
+    if (preg_match('/[a-zA-Z][a-zA-Z0-9+\-.]*:/', $s)) return ''; // afvis protokol-URL'er (javascript:, http://)
+    if (substr($s, 0, 2) === '//') return '';             // afvis protokol-relative URL'er (//evil.com)
+    // Godkend relative stier (../x) og rod-relative stier (/x) — begge er same-origin
+    // nav_back_url() gemmer $_SERVER['REQUEST_URI'] som /debitor/... saa rod-relative skal accepteres
+    if (substr($s, 0, 3) === '../') return $s;
+    if (substr($s, 0, 1) === '/') return $s;
+    return '';
+})($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
 error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
+if ($art == 'R' && $id) {
+	$returside = "../debitor/rykker.php?rykker_id=" . (int)$id;
+}
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
 	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
 	elseif (!$returside) $returside = '../debitor/ordreliste.php';
-    $pdftk_check = shell_exec("which pdftk");
-		$pdftk_check = trim($pdftk_check);
-
-    // If pdftk is not installed, alert the user and redirect
-    if (!$pdftk_check) {
+    if (!$pdftk || !file_exists($pdftk)) {
         error_log("ERROR: pdftk is not installed. Please install pdftk first.");
         
         // Use JavaScript to alert and then redirect
         echo "<script>
                 alert('ERROR: pdftk is not installed. Please install pdftk first.');
                 setTimeout(function() {
-                    window.location.href = '$returside';
+                    window.location.href = " . json_encode($returside) . ";
                 }, 1000); // 1 second delay
               </script>";
         exit();
@@ -161,7 +183,25 @@ if ($valg) {
   $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($valg=="pdf" || $valg=="ip")  {
 #		print "<!--";
-	if (isset($r['box2']) && $r['box2']) { 
+	if ($printBatch !== null) {
+		require_once __DIR__ . '/stdFunc/renderPrintBatch.php';
+		try {
+			renderPrintBatch(
+				__DIR__ . '/../temp/' . $db . '/' . abs((int)$bruger_id),
+				$printBatch,
+				basename($ps_fil) . '.pdf',
+				empty($r['box2']) && !empty($r['box3']),
+				!empty($r['box2']) ? $r['box2'] : $ps2pdf,
+				$pdftk,
+				$udskriv_til !== 'PDF-tekst' && $udskriv_til !== 'fil'
+			);
+		} catch (RuntimeException $error) {
+			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
+			print '<p>' . htmlspecialchars(findtekst('PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, 'UTF-8') . '</p>';
+			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
+			exit;
+		}
+	} elseif (isset($r['box2']) && $r['box2']) {
 	fwrite($log,__line__." system (\"$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\"\n");
 			system ("$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
 		} elseif (isset($r['box3']) && $r['box3'] && $udskrift!='kontokort') { # Brug html
@@ -199,7 +239,8 @@ if ($valg) {
 			}
 		}
 	} else { # Brug PostScript 
-		$ps_fil=str_replace("../temp/","",$ps_fil);
+		/*
+	    $ps_fil=str_replace("../temp/","",$ps_fil);
 		$ps_fil=str_replace("$db/$db","$db",$ps_fil);
 		if (file_exists("../temp/".$ps_fil."_*.pdf")) {
 			unlink("../temp/".$ps_fil."_*.pdf");
@@ -238,6 +279,65 @@ if ($valg) {
 			}
 			}
 		}
+		*/
+
+		########################
+
+		 $ps_fil=str_replace("../temp/","",$ps_fil);
+			$ps_fil=str_replace("$db/$db","$db",$ps_fil);
+			list($a,$b,$c)=explode("/",$ps_fil);
+
+			$indfil='';
+
+			// Convert single .ps file 
+			$psfil = "../temp/$a/$b/$c.ps";
+			$pdffil_p1 = "../temp/$a/$b/$c.pdf";
+			
+			if (file_exists($psfil) && filesize($psfil)) {
+				fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
+				system ("$ps2pdf $psfil $pdffil_p1");
+				fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
+				$indfil = $pdffil_p1;
+			}
+
+			// find any extra pages in .htm files (_2.htm, _3.htm etc)
+			$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
+			if ($htmfil) sort($htmfil);
+			
+			foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
+
+			$extra_pdfs = array();
+			foreach ($htmfil as $hf) {
+				if (filesize($hf)) {
+					$hpdf = str_replace(".htm", ".pdf", $hf);
+					system ("weasyprint -e UTF-8 $hf $hpdf");
+					$extra_pdfs[] = $hpdf;
+					$indfil .= " " . $hpdf;
+				}
+			}
+
+			// If we have multiple pages, merge them all with pdftk
+			if (!empty($extra_pdfs)) {
+				$udfil = "../temp/$a/$b/udskrift.pdf";
+				$ps_fil = "/$a/$b/udskrift";
+				system ("pdftk $indfil output $udfil", $pdftk_rc);
+				
+				// Cleanup intermediate files
+				if (file_exists($psfil)) unlink($psfil);
+				if (file_exists($pdffil_p1)) unlink($pdffil_p1);
+				foreach ($htmfil as $hf) {
+					if (file_exists($hf)) unlink($hf);
+				}
+				foreach ($extra_pdfs as $ep) {
+					if (file_exists($ep)) unlink($ep);
+				}
+			} else {
+				
+				$udfil = NULL;
+				fwrite($log,__line__." single page only, no merge needed\n");
+				if (file_exists($psfil)) unlink($psfil);
+			}
+		########################
 	}
 	
 	if ($zx) { # Brug PostScript 
@@ -278,12 +378,34 @@ if (file_exists("../temp/$ps_fil.pdf")) {
     elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
     elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
 			print "<!-- kommentar for at skjule uddata til siden \n";
-			$pdftk_bin = trim(shell_exec("which pdftk") ?? '');
-			error_log("DIAG: pdftk_bin=$pdftk_bin");
+			# $pdftk = trim(shell_exec("which pdftk") ?? '');
+			# error_log("DIAG: pdftk_bin=$pdftk");
 
-			if ($pdftk_bin && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+			if ($printBatch === null && $pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+				// Self-heal non-A4 letterheads. A background that isn't A4 makes pdftk
+				if (function_exists('shell_exec')) {
+					$pinf = @shell_exec("pdfinfo " . escapeshellarg($bg_fil) . " 2>/dev/null");
+					if ($pinf && strpos($pinf, '(A4)') === false) {
+						$a4c = preg_replace('/\.pdf$/i', '', $bg_fil) . '.a4.pdf';
+						if (!file_exists($a4c) || filemtime($a4c) < filemtime($bg_fil)) {
+							$pf = $a4c . '.' . getmypid() . '.tmp';
+							$a4c_tmp = $a4c . '.' . getmypid() . '.new';
+							@shell_exec("pdftoppm -png -r 200 -f 1 -l 1 " . escapeshellarg($bg_fil) . " " . escapeshellarg($pf) . " 2>/dev/null");
+							if (file_exists($pf . '-1.png')) {
+								@shell_exec("convert " . escapeshellarg($pf . '-1.png') . " -resize 1654x2339 -background white -gravity center -extent 1654x2339 -units PixelsPerInch -density 200 " . escapeshellarg($a4c_tmp) . " 2>/dev/null");
+								@unlink($pf . '-1.png');
+								if (file_exists($a4c_tmp) && filesize($a4c_tmp) > 0) {
+									@rename($a4c_tmp, $a4c);
+								} else {
+									@unlink($a4c_tmp);
+								}
+							}
+						}
+						if (file_exists($a4c) && filesize($a4c) > 0) $bg_fil = $a4c;
+					}
+				}
 				$out = "../temp/" . $ps_fil . "x.pdf";
-				system("$pdftk_bin ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
+				system("$pdftk ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
 				error_log("DIAG: pdftk rc=$rc, out_exists=" . (file_exists($out) ? 'YES' : 'NO'));
 				if (file_exists($out)) {
 					unlink("../temp/$ps_fil.pdf");
@@ -308,7 +430,8 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				$url=str_replace("/includes/udskriv.php","",$url);
 				if ($_SERVER['HTTPS']) $url="s".$url;
 				$url="http".$url;
-				if ($art=='PO') $returside=$url."/debitor/pos_ordre.php";
+				if ($art=='R') $returside=$url."/debitor/rykker.php?rykker_id=".(int)$id;
+				elseif ($art=='PO') $returside=$url."/debitor/pos_ordre.php";
 				else $returside=$url."/debitor/ordre.php";
 				$url.="/temp/$ps_fil";
 				$printfil=end(explode('/', $ps_fil));
@@ -317,13 +440,14 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$firmanavn=htmlentities($r['firmanavn']);
 				$fakturanr=htmlentities($r['fakturanr']);
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$ip/localprint.php?printfil=$printfil.pdf&url=$url&id=$id&returside=$returside&bruger_id=$bruger_id&firmanavn=$firmanavn&fakturanr=$fakturanr\">\n";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$ip/localprint.php?printfil=$printfil.pdf&url=$url&id=$id&returside=" . urlencode($returside) . "&bruger_id=$bruger_id&firmanavn=$firmanavn&fakturanr=$fakturanr\">\n";
 				exit;
 			} elseif ($valg=='ip') {
 				print "<!--!";
 				system("lpr -P $ip ../temp/$ps_fil.pdf &");
 				print "--> \n";
-				if ($art=='PO') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/pos_ordre.php?id=$id\">";
+				if ($art=='R') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/rykker.php?rykker_id=$id\">";
+				elseif ($art=='PO') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/pos_ordre.php?id=$id\">";
 				else print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordre.php?id=$id\">";
 				exit;
 			} elseif ($udskriv_til=='fil') {
@@ -335,16 +459,30 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			global $menu;
 
 			include("../includes/topline_settings.php");
-
+            ############
+			$path = "../temp/$db/area$bruger_id.txt";
+			$value = file_exists($path) ? file_get_contents($path) : null;
+			###########
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>"; 
 				if ($returside) {
-				 if (substr($art,0,1)=='K'){  
-					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+				 if ($art == 'R') {
+					$href = "../debitor/rykker.php?rykker_id=" . (int)$id;
+				 } elseif (substr($art,0,1)=='K'){
+					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside) . "\" accesskey=\"L\"";
 				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
 					$href = "../debitor/ordreliste.php";
 				 } else {
-					$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+					if($art == 'DO'){
+						if($value == 'faktura'){
+							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=" . urlencode($returside);
+
+						}else{
+							$href = "../debitor/ordreliste.php";
+						}
+					}else{
+					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside);
+					}
 				 }  
 				} else { 
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
@@ -362,7 +500,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 			} else {
 				print "<table width=100% height=100%><tbody>";
-				if ($returside) $href="\"$returside\" accesskey=\"L\"";
+				if ($returside) $href="\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</a></td>";
 				print "<td width=\"80%\" $top_bund align=\"center\" title=\"".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id).">";
@@ -374,7 +512,11 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			}
 			print exit;
 
-		} else print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+		} else {
+			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
+			print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+			print "<p><a href=\"$fejl_retur\">" . findtekst('2172|Luk', $sprog_id) . "</a></p>";
+		}
 	}
   if ($valg=="printer") {
     system ("$r[box1] ../temp/$ps_fil");

@@ -191,6 +191,13 @@ if ($rykker_id) {
 	$land = htmlentities($row['land'],ENT_COMPAT,$charset);
 	$kontakt = htmlentities($row['kontakt'],ENT_COMPAT,$charset);
 	$email = htmlentities($row['email'],ENT_COMPAT,$charset);
+	// Combine order email with rykker-specific kontakt_emails
+	include_once("../includes/stdFunc/getKontaktEmail.php");
+	$ke_rykker = getAllKontaktEmails($konto_id, 'rykker');
+	if ($ke_rykker) {
+		$all = array_filter(array_map('trim', preg_split('/[;,]/', $email . ';' . $ke_rykker)));
+		$email = htmlentities(implode(';', array_unique($all)), ENT_COMPAT, $charset);
+	}
 	$valuta = htmlentities($row['valuta'],ENT_COMPAT,$charset);
 	$mail_fakt = htmlentities($row['mail_fakt'],ENT_COMPAT,$charset);
 	$kundeordnr = htmlentities($row['kundeordnr'],ENT_COMPAT,$charset);

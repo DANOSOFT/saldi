@@ -1,13 +1,18 @@
 <?php
 
+require_once __DIR__ . '/../../includes/std_func.php';
 require_once __DIR__ . '/../models/customers/CustomerModel.php';
 
 class CustomerService
 {
     /**
      * Map English property names to Danish database column names
+     *
+     * @param object $data
+     * @param bool   $dropPlaceholders Omit fields whose value is an integration placeholder
+     * @return stdClass
      */
-    private static function mapApiToDanish($data)
+    private static function mapApiToDanish($data, $dropPlaceholders = false)
     {
         $mapping = [
             // Basic info
@@ -48,13 +53,22 @@ class CustomerService
             'deliveryCity' => 'lev_bynavn',
             'deliveryPhone' => 'lev_tlf',
             'deliveryEmail' => 'lev_email',
-            'deliveryCountry' => 'lev_land'
+            'deliveryCountry' => 'lev_land',
+
+            // Contact emails
+            'contactEmails' => 'kontakt_emails'
         ];
         
         $mappedData = new stdClass();
         
-        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility
-        foreach ($data as $key => $value) {
+        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility.
+        // Placeholder values such as "dummyvalue" are stored blank (JOB-115); when $dropPlaceholders
+        // is set they are left out entirely so an update keeps the existing value.
+        foreach ($data as $key => $original) {
+            $value = strip_placeholder_value($original);
+            if ($dropPlaceholders && $value !== $original) {
+                continue;
+            }
             if (isset($mapping[$key])) {
                 // Use Danish property name
                 $danishKey = $mapping[$key];
@@ -162,6 +176,11 @@ class CustomerService
             if (isset($mappedData->lev_email)) $customer->setLevEmail(trim($mappedData->lev_email));
             if (isset($mappedData->lev_land)) $customer->setLevLand(trim($mappedData->lev_land));
 
+            // Set kontakt_emails if provided
+            if (isset($mappedData->kontakt_emails) && is_array($mappedData->kontakt_emails)) {
+                $customer->setKontaktEmails($mappedData->kontakt_emails);
+            }
+
             // Save customer
             if ($customer->save()) {
                 return [
@@ -200,7 +219,7 @@ class CustomerService
             }
 
             // Map English property names to Danish
-            $mappedData = self::mapApiToDanish($data);
+            $mappedData = self::mapApiToDanish($data, true);
 
             // Load existing customer with art parameter
             $customer = new CustomerModel($data->id, $art);
@@ -267,6 +286,11 @@ class CustomerService
             if (isset($mappedData->lev_tlf)) $customer->setLevTlf(trim($mappedData->lev_tlf));
             if (isset($mappedData->lev_email)) $customer->setLevEmail(trim($mappedData->lev_email));
             if (isset($mappedData->lev_land)) $customer->setLevLand(trim($mappedData->lev_land));
+
+            // Set kontakt_emails if provided
+            if (isset($mappedData->kontakt_emails) && is_array($mappedData->kontakt_emails)) {
+                $customer->setKontaktEmails($mappedData->kontakt_emails);
+            }
 
             // if id is in data object, set it to the customer
             $id = isset($data->id) ? (int)$data->id : null;

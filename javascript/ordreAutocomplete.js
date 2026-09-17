@@ -92,6 +92,7 @@
 
         input.addEventListener('focus', function () {
             if (selectionMade) return;
+            if (this.readOnly) return;
             if (this.value.length >= CONFIG.minSearchLength || type !== 'item') {
                 handleInput(this);
             }
@@ -235,11 +236,12 @@
                 const id = item.id || item.kontonr || item.code;
                 const val = item.varenr || item.kontonr || item.code || item.initials;
 
-                html += `<tr class="autocomplete-item" data-id="${id}" data-value="${val}">`;
+                html += `<tr class="autocomplete-item" data-id="${id}" data-value="${val}" data-vsc="${item.vv_stregkode || ''}">`;
 
                 if (type === 'item') {
+                    const variantLabel = item.vv_variant_text ? ` <small style="color:#666">(${escapeHtml(item.vv_variant_text)})</small>` : '';
                     html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
-                    html += `<td>${escapeHtml(item.beskrivelse)}</td>`;
+                    html += `<td>${escapeHtml(item.beskrivelse)}${variantLabel}</td>`;
                     html += `<td style="text-align: right;">${item.salgspris.toFixed(2)}</td>`;
                 } else if (type === 'customer') {
                     html += `<td class="code-cell">${escapeHtml(item.kontonr)}</td>`;
@@ -326,6 +328,9 @@
         console.log('window.location.href:', window.location.href);
         console.log('window.location.search:', window.location.search);
 
+        // Set value of the imput to selected value - moved from individual statements in type if statement
+        input.value = value;
+
         if (type === 'item') {
             const urlParams = new URLSearchParams(window.location.search);
             let orderId = urlParams.get('id');
@@ -373,19 +378,30 @@
                 redirectUrl += `konto_id=${kontoId}&`;
             }
             redirectUrl += `vare_id=${id}`;
+            const vsc = selected.dataset.vsc;
+            if (vsc) redirectUrl += `&vsc=${encodeURIComponent(vsc)}`;
 
             console.log('FINAL redirectUrl:', redirectUrl);
-            window.location.href = redirectUrl;
+
+            var submitButton = document.getElementById("submit");
+            submitButton.url = redirectUrl;
+            
+            submitButton.click();
+            //window.location.href = redirectUrl;
         } else if (type === 'customer') {
             const urlParams = new URLSearchParams(window.location.search);
             const orderId = urlParams.get('id');
+
+            var submitButton = document.getElementById("submit");
             if (input.name === 'newAccountNo') {
-                window.location.href = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
+                submitButton.url = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
+                //window.location.href = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
             } else {
-                window.location.href = `ordre.php?konto_id=${id}`;
+                submitButton.url = `ordre.php?konto_id=${id}`;
+                //window.location.href = `ordre.php?konto_id=${id}`;
             }
+            submitButton.click();
         } else {
-            input.value = value;
             closeDropdown();
             const event = new Event('change', { bubbles: true });
             input.dispatchEvent(event);

@@ -1,10 +1,12 @@
 <?php
 	include(get_relative()."/includes/oldDesign/header.php");
 	include(get_relative()."/includes/topline_settings.php");
-	$returside = if_isset($returside, get_relative()."index/menu.php");
+	$returside = nav_back_url(if_isset($returside, null));
 
 	$border = 'border:1px';
 	$TableBG = "bgcolor=$bgcolor";
+
+	$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
 
 	$icon_serialnumber = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M220-360v-180h-60v-60h120v240h-60Zm140 0v-100q0-17 11.5-28.5T400-500h80v-40H360v-60h140q17 0 28.5 11.5T540-560v60q0 17-11.5 28.5T500-460h-80v40h120v60H360Zm240 0v-60h120v-40h-80v-40h80v-40H600v-60h140q17 0 28.5 11.5T780-560v160q0 17-11.5 28.5T740-360H600Z"/></svg>';
 	$icon_vareliste    = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"/></svg>';
@@ -18,9 +20,9 @@
 	# Dont show close on sidebar
 	if ($menu !== "S") {
 		print "<td width=5% style=$buttonStyle>
-			<a href=$returside accesskey='L'>
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			Luk</button></a></td>";
+			<a href='" . htmlspecialchars($returside, ENT_QUOTES) . "' accesskey='L'>
+			<button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">
+			$icon_back " . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
 	}
 
 	print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->

@@ -16,6 +16,7 @@
 //
 // Copyright (c) 2004-2008 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 
 @session_start();
 $s_id = session_id();
@@ -37,11 +38,13 @@ include("../includes/topline_settings.php");
 
 $returside = (if_isset($_GET['returside']));
 if (!$returside) {
-	if ($popup)
+	// 20260904 Sawaneh WP-1.3c: request flag instead of popup preference
+	if (!empty($_GET['popup']))
 		$returside = "../includes/luk.php";
 	else
 		$returside = "modtageliste.php";
 }
+$returside = nav_back_url($returside);
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 $liste_id = if_isset($_GET['liste_id']) * 1;
@@ -264,7 +267,14 @@ function modtag($liste_id)
 				$modtaget_antal = 0;
 			}
 			if ($tmp) {
-				db_modify("insert into batch_kob(kobsdate,vare_id,linje_id,ordre_id,antal,rest)values('$date','$r[vare_id]','$r2[id]','$r2[ordre_id]','$tmp','$tmp')", __FILE__ . " linje " . __LINE__);
+				// Look up expiry data from ordrelinjer if available
+				$_mod_dd = ""; $_mod_bn = "";
+				$_mod_ol = db_fetch_array(db_select("SELECT batch_due_date, batch_batch_no FROM ordrelinjer WHERE id=" . intval($r2['id']), __FILE__ . " linje " . __LINE__));
+				if ($_mod_ol) {
+					if ($_mod_ol['batch_due_date']) $_mod_dd = ",'" . pg_escape_string($_mod_ol['batch_due_date']) . "'"; else $_mod_dd = ",NULL";
+					if ($_mod_ol['batch_batch_no']) $_mod_bn = ",'" . pg_escape_string($_mod_ol['batch_batch_no']) . "'"; else $_mod_bn = ",NULL";
+				} else { $_mod_dd = ",NULL"; $_mod_bn = ",NULL"; }
+				db_modify("insert into batch_kob(kobsdate,vare_id,linje_id,ordre_id,antal,rest,due_date,batch_no)values('$date','$r[vare_id]','$r2[id]','$r2[ordre_id]','$tmp','$tmp'$_mod_dd$_mod_bn)", __FILE__ . " linje " . __LINE__);
 				$r4 = db_fetch_array(db_select("select beholdning from varer where id='$r[vare_id]'", __FILE__ . " linje " . __LINE__));
 				$tmp2 = $r4['beholdning'] + $tmp;
 				db_modify("update varer set beholdning=$tmp2 where id='$r[vare_id]'", __FILE__ . " linje " . __LINE__);

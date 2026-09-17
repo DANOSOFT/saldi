@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<ruleset name="factory-characterization">
+  <description>
+    Factory-seeded phpcs ruleset (PROVE slice).
+
+    scripts/gates/run-gates.mjs Gate 1 runs "phpcs -q" with no path argument, so
+    phpcs relies on this ruleset for its file list. Running phpcs across the full
+    legacy Saldi tree would be all-red (pre-existing, unstyled legacy code the
+    current change never touched), which is exactly why the factory lints only
+    the code it adds (mirroring the changed-files php -l floor). This ruleset
+    therefore scopes phpcs to the factory-authored characterization suites and
+    applies PSR12, with one documented exclusion.
+  </description>
+
+  <file>tests/characterization</file>
+  <arg name="colors"/>
+
+  <rule ref="PSR12">
+    <!--
+      Characterization suites are deliberately namespace-free: ralph discovers
+      them by the ".test.php" filename convention and PHPUnit by class name, so
+      there is no PSR-4 autoloader and no vendor namespace to require. Excluding
+      only this sniff keeps every other PSR12 rule enforced on factory code.
+    -->
+    <exclude name="PSR1.Classes.ClassDeclaration.MissingNamespace"/>
+  </rule>
+</ruleset>

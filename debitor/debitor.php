@@ -26,6 +26,7 @@
 // 20130210 Break ændret til break 1
 // 20160218 Udvælg fungerer nu også hvis debitor er med i flere kategorier. Søg 20160218
 // 20160606 Tilføjet mulighed for at skjule lukkede debitorer Søg box11 / skjul_lukkede
+// 20260813 CX/PHR - Vis altid filteret "Vis udgået" og bevar brugerens standardvisning.
 // 20181205 Definering af variabler.
 // 20181217 msc Rettet design til
 // 20190107 MSC Rettet topmenu design til
@@ -487,7 +488,7 @@ include_once '../includes/oldDesign/footer.php';
         'email' => 'Email',
         'web' => 'Web',
         'land' => 'Land',
-        'fax' => 'Fax',
+        'mobile' => 'Mobile',
         'kreditmax' => 'Kreditmax',
         'betalingsdage' => 'Betalingsdage',
         'oprettet' => 'Oprettet',
@@ -497,7 +498,12 @@ include_once '../includes/oldDesign/footer.php';
         'lev_postnr' => 'Levering postnr',
         'lev_bynavn' => 'Levering by',
         'kontoansvarlig' => 'Kontoansvarlig',
-        'tlf' => 'Telefon' // Ensure tlf is available if not already
+        'tlf' => 'Telefon', // Ensure tlf is available if not already
+        'felt_1' => findtekst('255|Ekstrafelt 1', $sprog_id),
+        'felt_2' => findtekst('256|Ekstrafelt 2', $sprog_id),
+        'felt_3' => findtekst('257|Ekstrafelt 3', $sprog_id),
+        'felt_4' => findtekst('258|Ekstrafelt 4', $sprog_id),
+        'felt_5' => findtekst('259|Ekstrafelt 5', $sprog_id),
     );
 
     // Get list of already added fields to avoid duplicates
@@ -607,21 +613,20 @@ include_once '../includes/oldDesign/footer.php';
     // Build filters
     $filters = array();
 
-    // Hide closed filter
-    if ($skjul_lukkede) {
-        $filters[] = array(
-            "filterName" => "Misc",
-            "joinOperator" => "and",
-            "options" => array(
-                array(
-                    "name" => "Vis udgået",
-                    "checked" => "",
-                    "sqlOn" => "",
-                    "sqlOff" => "(a.lukket IS NULL OR a.lukket = '0' or a.lukket = '')",
-                )
+    // Always make the closed debtor filter available. If closed debtors are not
+    // hidden in the user's view setup, keep them visible by default.
+    $filters[] = array(
+        "filterName" => "Misc",
+        "joinOperator" => "and",
+        "options" => array(
+            array(
+                "name" => "Vis udgået",
+                "checked" => $skjul_lukkede ? "" : "checked",
+                "sqlOn" => "",
+                "sqlOff" => "(a.lukket IS NULL OR a.lukket = '0' or a.lukket = '')",
             )
-        );
-    }
+        )
+    );
 
     // Debtor groups filter - show all available groups (group by kodenr to avoid duplicates)
     // Use GROUP BY to ensure unique kodenr values, taking the first beskrivelse for each

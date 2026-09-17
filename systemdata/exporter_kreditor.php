@@ -87,7 +87,7 @@ function eksporter($art) {
 
 	$fp=fopen($filnavn,"w");
 
-	if (fwrite($fp,"kontonr".";"."firmanavn".";"."addr1".";"."addr2".";"."postnr".";"."bynavn".";"."land".";"."kontakt".";"."tlf".";"."fax".";"."email".";"."web".";"."notes".";"."kreditmax".";"."betalingsbet".";"."betalingsdage".";"."cvrnr".";"."ean".";"."institution".";"."gruppe".";"."kontoansvarlig".";"."oprettet".";"."kontakt_navn".";"."kontakt_addr1".";"."kontakt_addr2".";"."kontakt_postnr".";"."kontakt_bynavn".";"."kontakt_tlf".";"."kontakt_fax".";"."kontakt_email".";"."kontakt_notes]\r\n")) {
+	if (fwrite($fp,"kontonr".";"."firmanavn".";"."addr1".";"."addr2".";"."postnr".";"."bynavn".";"."land".";"."kontakt".";"."tlf".";"."mobile".";"."email".";"."web".";"."notes".";"."kreditmax".";"."betalingsbet".";"."betalingsdage".";"."cvrnr".";"."ean".";"."institution".";"."gruppe".";"."kontoansvarlig".";"."oprettet".";"."kontakt_navn".";"."kontakt_addr1".";"."kontakt_addr2".";"."kontakt_postnr".";"."kontakt_bynavn".";"."kontakt_tlf".";"."kontakt_mobile".";"."kontakt_email".";"."kontakt_notes]\r\n")) {
 		$q=db_select("select * from adresser where art='K' order by kontonr",__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			$ansatte=0;
@@ -98,13 +98,13 @@ function eksporter($art) {
 			$kreditmax=dkdecimal($r['kreditmax']);
 		$oprettet=dkdato($r['oprettet']);
 		
-			$tmp1=str_replace("\n","\\n",$r['kontonr'].";".chr(32).$r['firmanavn'].chr(32).";".chr(32).$r['addr1'].chr(32).";".chr(32).$r['addr2'].chr(32).";".chr(32).$r['postnr'].chr(32).";".chr(32).$r['bynavn'].chr(32).";".chr(32).$r['land'].chr(32).";".chr(32).$r['kontakt'].chr(32).";".chr(32).$r['tlf'].chr(32).";".chr(32).$r['fax'].chr(32).";".chr(32).$r['email'].chr(32).";".chr(32).$r['web'].chr(32).";".chr(32).$r['notes'].chr(32).";".$kreditmax.";".chr(32).$r['betalingsbet'].chr(32).";".$r['betalingsdage'].";".chr(32).$r['cvrnr'].chr(32).";".chr(32).$r['ean'].chr(32).";".chr(32).$r['institution'].chr(32).";".$r['gruppe'].";".chr(32).$kontoansvarlig.chr(32).";".chr(32).$oprettet);
+			$tmp1=str_replace("\n","\\n",$r['kontonr'].";".chr(32).$r['firmanavn'].chr(32).";".chr(32).$r['addr1'].chr(32).";".chr(32).$r['addr2'].chr(32).";".chr(32).$r['postnr'].chr(32).";".chr(32).$r['bynavn'].chr(32).";".chr(32).$r['land'].chr(32).";".chr(32).$r['kontakt'].chr(32).";".chr(32).$r['tlf'].chr(32).";".chr(32).$r['mobile'].chr(32).";".chr(32).$r['email'].chr(32).";".chr(32).$r['web'].chr(32).";".chr(32).$r['notes'].chr(32).";".$kreditmax.";".chr(32).$r['betalingsbet'].chr(32).";".$r['betalingsdage'].";".chr(32).$r['cvrnr'].chr(32).";".chr(32).$r['ean'].chr(32).";".chr(32).$r['institution'].chr(32).";".$r['gruppe'].";".chr(32).$kontoansvarlig.chr(32).";".chr(32).$oprettet);
 			$tmp1=str_replace("\r","\\r",$tmp1);
 			if ($charset=='UTF-8') $tmp1=mb_convert_encoding($tmp1, 'ISO-8859-1', 'UTF-8');
 			$q2=db_select("select * from ansatte where konto_id='$r[id]' order by navn",__FILE__ . " linje " . __LINE__);
 			while ($r2=db_fetch_array($q2)) {
 				$ansatte++;
-				$tmp2=str_replace("\n","\\n",$r2['navn'].chr(32).";".chr(32).$r2['addr1'].chr(32).";".chr(32).$r2['addr2'].chr(32).";".chr(32).$r2['postnr'].chr(32).";".chr(32).$r2['bynavn'].chr(32).";".chr(32).$r2['tlf'].chr(32).";".chr(32).$r2['fax'].chr(32).";".chr(32).$r2['email'].chr(32).";".chr(32).$r2['notes']);
+				$tmp2=str_replace("\n","\\n",$r2['navn'].chr(32).";".chr(32).$r2['addr1'].chr(32).";".chr(32).$r2['addr2'].chr(32).";".chr(32).$r2['postnr'].chr(32).";".chr(32).$r2['bynavn'].chr(32).";".chr(32).$r2['tlf'].chr(32).";".chr(32).$r2['mobile'].chr(32).";".chr(32).$r2['email'].chr(32).";".chr(32).$r2['notes']);
 				$tmp2=str_replace("\r","\\r",$tmp2);
 			if ($charset=='UTF-8') $tmp2=mb_convert_encoding($tmp2, 'ISO-8859-1', 'UTF-8');
 				$linje=$tmp1.chr(32).";".chr(32).$tmp2;

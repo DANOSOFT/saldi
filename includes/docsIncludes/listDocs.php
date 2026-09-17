@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/listDocs.php-----patch 4.1.1 ----2025-08-23--------
+// --- includes/docsIncludes/listDocs.php-----patch 5.0.0 ----2026-06-03--------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // 20240305 PHR Varioous corrections
 // 20240323 PHR Minor design changes
 // 20250815 LOE Further improvements
+// 20260603 CL/PHR debitorOrdrer tilføjet til $inFlexboxLayout
 
 $fileName = NULL;
 isset($_GET['bilag_id'])? $bilag_id = $_GET['bilag_id']: $bilag_id = null;
@@ -37,7 +38,7 @@ if (!isset($bgcolor5)) $bgcolor5 = '#f9f9f9';
 print "<link href='https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' rel='stylesheet'>\n";
 
 // Check if we're in the new flexbox layout (docPool-style)
-$inFlexboxLayout = (isset($showDoc) && isset($source) && in_array($source, array('kassekladde', 'creditorOrder')));
+$inFlexboxLayout = (isset($showDoc) && isset($source) && in_array($source, array('kassekladde', 'creditorOrder', 'debitorOrdrer')));
 
 if ($inFlexboxLayout) {
 	// Get button color for styling

@@ -72,9 +72,9 @@
 	$titlesag = "$udf_addr1, $udf_postnr $udf_bynavn";
 	$titlesagtrim = trim($titlesag);
 	$titlesagrtrim = rtrim($titlesagtrim, ",");
-	$itemsag = "{ name: \"<span style='color:#078585;'>Løbetid<\/span>\", title: \"Planlagt\", start: new Date($yearstartop,$newmonthstartop,$daystartop), end: new Date($yearendop,$newmonthendop,$dayendop)}";
+	$itemsag = "{ name: \"<span style='color:#078585;'>".findtekst('3229|Løbetid', $sprog_id)."<\/span>\", title: \"".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($yearstartop,$newmonthstartop,$daystartop), end: new Date($yearendop,$newmonthendop,$dayendop)}";
 	
-	$items = "{ id: \"$sag_id\", opg_id: \"0\", name: \"<a href='sager.php?funktion=ret_sag&sag_id=$sag_id&konto_id=$konto_id' title='$titlesagrtrim'>$udf_addr1<\/a>\", title: \"Planlagt\", series: [$itemsag]},";
+	$items = "{ id: \"$sag_id\", opg_id: \"0\", name: \"<a href='sager.php?funktion=ret_sag&sag_id=$sag_id&konto_id=$konto_id' title='$titlesagrtrim'>$udf_addr1<\/a>\", title: \"".findtekst('3216|Planlagt', $sprog_id)."\", series: [$itemsag]},";
 	
 	
 	
@@ -115,18 +115,18 @@
 		if ($opg_tilknyttil[$x] == 'demontage') {
 			$bgcolor = '#FF8E8E';
 			$opgcolor = '#DE0C0C';
-			$opgnavn = 'Demontage';
+			$opgnavn = findtekst('2873|Demontage', $sprog_id);
 		} elseif ($opg_tilknyttil[$x] == 'andet') {
 			$bgcolor = '#FFC18E';
 			$opgcolor = '#DE6B0C';
-			$opgnavn = 'Andet';
+			$opgnavn = findtekst('630|Andet', $sprog_id);
 		} else {
 			$bgcolor = '#7EE37E';
 			$opgcolor = '#09B109';
-			$opgnavn = 'Montage';
+			$opgnavn = findtekst('2872|Montage', $sprog_id);
 		}
 		
-		$items .= "{ id: \"0\", opg_id: \"$opg_id[$x]\", name: \"<a href='sager.php?funktion=ret_opgave&sag_id=$sag_id&konto_id=$konto_id&opgave_id=$opg_id[$x]' title='Opgave nr:\t$opg_nr[$x]\\nOprettet:\t$opg_dato[$x]\\nOprettet af:\t$opg_oprettet_af[$x]\\nStatus:\t\t$opg_status[$x]'>$opg_beskrivelse[$x]<\/a>\", series: [{ name: \"<span style='color:$opgcolor'>$opgnavn<\/span>\", title: \"Planlagt\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"}]},"; // #FF8E8E rød til demontage!
+		$items .= "{ id: \"0\", opg_id: \"$opg_id[$x]\", name: \"<a href='sager.php?funktion=ret_opgave&sag_id=$sag_id&konto_id=$konto_id&opgave_id=$opg_id[$x]' title='".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$x]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$x]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$x]\\n".findtekst('494|Status', $sprog_id).":\t\t$opg_status[$x]'>$opg_beskrivelse[$x]<\/a>\", series: [{ name: \"<span style='color:$opgcolor'>$opgnavn<\/span>\", title: \"".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"}]},"; // #FF8E8E rød til demontage!
 	
 	}
 	$ganttdata = "[".rtrim($items, ",")."]";
@@ -154,7 +154,7 @@
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
 		<![endif]-->
-		<title>Stillads</title>
+		<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 	</head>
 	<body>
 		<div id=\"wrapper\">";
@@ -164,10 +164,10 @@
 	print "<div id=\"breadcrumbbar\">
 
 				<ul id=\"breadcrumb\">
-					<li><a href=\"../sager/sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+					<li><a href=\"../sager/sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 					<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->";
-					print "<li><a href=\"../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"Sag: $sag_nr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">Tilbage til sag $sag_nr</a></li>";
-					print "<li>Planlægning af sag</li>\n";
+					print "<li><a href=\"../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"".findtekst('2792|Sag', $sprog_id).": $sag_nr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">".findtekst('2813|Tilbage til sag', $sprog_id)." $sag_nr</a></li>";
+					print "<li>".findtekst('2983|Planlægning af sag', $sprog_id)."</li>\n";
 				print "</ul>
 				
 	</div><!-- end of breadcrumbbar -->\n";
@@ -180,10 +180,10 @@
 	if ($status!='Beregning' && $status!='Tilbud' && $status!='Afsluttet' && ($planfraop || $planfraned)) {
 		print "<div id=\"ganttChart\"></div>";
 		if (!$opg_id) {
-			print "<div style=\"text-align:center;\"><br><p style=\"font-size:14px;color:#cd3300;\">Ingen aktive opgaver på sagen!</p><p>HUSK at vælge start og slut dato på opgave, hvis den skal vises</p></div>";
+			print "<div style=\"text-align:center;\"><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3230|Ingen aktive opgaver på sagen', $sprog_id)."!</p><p>".findtekst('3231|HUSK at vælge start- og slutdato på opgave, hvis den skal vises', $sprog_id)."</p></div>";
 		} 
 	} else {
-		print "<div style=\"text-align:center;\"><h3>Planlægning af sagen!</h3><br><p style=\"font-size:14px;color:#cd3300;\">Her vises sagens længde + start og slut dato for opgaverne på sagen.</p><br><p>For at bruge planlægning, skal sagens status være aktiv. Når status på sagen er aktiv kan der vælges start og slut dato under planlægnings information.</p><p>Det samme gør sig gældende for opgaver. Når opgavens status er aktiv kan start og slut dato vælges.</p></div>";
+		print "<div style=\"text-align:center;\"><h3>".findtekst('3232|Planlægning af sagen', $sprog_id)."!</h3><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3233|Her vises sagens længde + start- og slutdato for opgaverne på sagen', $sprog_id).".</p><br><p>".findtekst('3234|For at bruge Planlægning skal sagens status være aktiv. Når status på sagen er aktiv kan der vælges start- og slutdato under Planlægningsinformation', $sprog_id)."</p><p>".findtekst('3235|Det samme gør sig gældende for opgaver. Når opgavens status er aktiv kan start- og slutdato vælges', $sprog_id)."</p></div>";
 	}
 	//print "<br/><br/>";
 	//print "<div id=\"eventMessage\"></div>";

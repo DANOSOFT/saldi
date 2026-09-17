@@ -139,7 +139,7 @@ function opdat_1_1($under_nr, $lap_nr){
 		db_modify("INSERT INTO tabelinfo (tabelnavn, feltnavn) values ('adresser' ,'land')",__FILE__ . " linje " . __LINE__);
 		db_modify("INSERT INTO tabelinfo (tabelnavn, feltnavn) values ('adresser' ,'kontakt')",__FILE__ . " linje " . __LINE__);
 		db_modify("INSERT INTO tabelinfo (tabelnavn, feltnavn) values ('adresser' ,'tlf')",__FILE__ . " linje " . __LINE__);
-		db_modify("INSERT INTO tabelinfo (tabelnavn, feltnavn) values ('adresser' ,'fax')",__FILE__ . " linje " . __LINE__);
+		db_modify("INSERT INTO tabelinfo (tabelnavn, feltnavn) values ('adresser' ,'mobile')",__FILE__ . " linje " . __LINE__);
 		db_modify("INSERT INTO tabelinfo (tabelnavn, feltnavn) values ('adresser' ,'email')",__FILE__ . " linje " . __LINE__);
 		db_modify("INSERT INTO tabelinfo (tabelnavn, feltnavn) values ('adresser' ,'web')",__FILE__ . " linje " . __LINE__);
 		db_modify("INSERT INTO tabelinfo (tabelnavn, feltnavn) values ('adresser' ,'bank_navn')",__FILE__ . " linje " . __LINE__);

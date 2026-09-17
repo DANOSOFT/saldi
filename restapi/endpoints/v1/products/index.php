@@ -68,13 +68,13 @@ class ProductsEndpoint extends BaseEndpoint
             
             // Set additional properties
             if (isset($data->notes)) $product->setNotes($data->notes);
-            if (isset($data->serialNumber)) $product->setSerienr($data->serialNumber);
-            if (isset($data->collectionOfItems)) $product->setSamlevare($data->collectionOfItems);
+            if (isset($data->serialNumber)) $product->setSerialNumber($data->serialNumber); // 20260812 CL/LH: setSerienr()/setSamlevare()/setGruppe() never existed on VareModel - undefined-method Error gave an empty HTTP 500
+            if (isset($data->collectionOfItems)) $product->setCollectionOfItems($data->collectionOfItems);
             if (isset($data->partialItem)) $product->setDelvare($data->partialItem);
             if (isset($data->minInventory)) $product->setMinLager($data->minInventory);
             if (isset($data->maxInventory)) $product->setMaxLager($data->maxInventory);
             if (isset($data->location)) $product->setLocation($data->location);
-            if (isset($data->group)) $product->setGruppe($data->group);
+            if (isset($data->group)) $product->setGroup($data->group);
             
             // Set size/weight properties
             if (isset($data->netweight)) $product->setNetweight($data->netweight);
@@ -119,13 +119,13 @@ class ProductsEndpoint extends BaseEndpoint
             
             // Set additional properties
             if (isset($data->notes)) $product->setNotes($data->notes);
-            if (isset($data->serialNumber)) $product->setSerienr($data->serialNumber);
-            if (isset($data->collectionOfItems)) $product->setSamlevare($data->collectionOfItems);
+            if (isset($data->serialNumber)) $product->setSerialNumber($data->serialNumber); // 20260812 CL/LH: setSerienr()/setSamlevare()/setGruppe() never existed on VareModel - undefined-method Error gave an empty HTTP 500
+            if (isset($data->collectionOfItems)) $product->setCollectionOfItems($data->collectionOfItems);
             if (isset($data->partialItem)) $product->setDelvare($data->partialItem);
             if (isset($data->minInventory)) $product->setMinLager($data->minInventory);
             if (isset($data->maxInventory)) $product->setMaxLager($data->maxInventory);
             if (isset($data->location)) $product->setLocation($data->location);
-            if (isset($data->group)) $product->setGruppe($data->group);
+            if (isset($data->group)) $product->setGroup($data->group);
             
             // Set size/weight properties
             if (isset($data->netweight)) $product->setNetweight($data->netweight);

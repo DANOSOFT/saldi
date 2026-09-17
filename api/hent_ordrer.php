@@ -26,6 +26,7 @@
 // Copyright (c) 2003-2017 saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260911 Sawaneh Blank the literal "dummyvalue" sent for empty address fields (JOB-115)
 
 @session_start();
 $s_id=session_id();
@@ -189,6 +190,10 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	$tlf=trim($tlf);
 	$cvrnr=trim($cvrnr);
 	$email=trim($email);
+	$firmanavn=strip_placeholder_value($firmanavn);
+	$adresse=strip_placeholder_value($adresse);
+	$postnr=strip_placeholder_value($postnr);
+	$bynavn=strip_placeholder_value($bynavn);
 	if (!$fornavn) $fornavn=$ordre_fornavn;
 	if (!$efternavn) $efternavn=$ordre_efternavn;
 	if (!$email) $email=$ordre_email;
@@ -207,6 +212,10 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	$lev_tlf=trim($lev_tlf);
 	$lev_cvrnr=trim($lev_cvrnr);
 	$lev_email=trim($lev_email);
+	$lev_firmanavn=strip_placeholder_value($lev_firmanavn);
+	$lev_adresse=strip_placeholder_value($lev_adresse);
+	$lev_postnr=strip_placeholder_value($lev_postnr);
+	$lev_bynavn=strip_placeholder_value($lev_bynavn);
 	if (!$lev_firmanavn) $lev_firmanavn=$fornavn." ".$efternavn;
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn=bynavn($lev_postnr);
 	$lev_tlf=str_replace(" ","",$lev_tlf);
@@ -223,7 +232,7 @@ function overfoer_data($shopurl,$shop_ordre_id){
 		return(0);
 		exit;
 	}
-	$r=db_fetch_array (db_select("select saldi_id from shop_adresser where shop_id='$shop_konto_id'",__FILE__ . " linje " . __LINE__));
+	$r=db_fetch_array (db_select("select saldi_id from shop_adresser where shop_id='$shop_konto_id' and afd='$afd'",__FILE__ . " linje " . __LINE__));
 	$saldi_id=$r['saldi_id'];
 	$qtxt="select id from shop_ordrer where shop_id='$shop_ordre_id'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -243,7 +252,7 @@ function overfoer_data($shopurl,$shop_ordre_id){
 			}
 		}
 		if ($saldi_id) {
-			db_modify("insert into shop_adresser(saldi_id,shop_id)values('$saldi_id','$shop_konto_id')",__FILE__ . " linje " . __LINE__);  
+			db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_id','$shop_konto_id','$afd')",__FILE__ . " linje " . __LINE__);  
 		} else {
 			if ($tlf && $num_tlf && !$r=db_fetch_array(db_select("select id from adresser where art = 'D' and kontonr='$num_tlf'",__FILE__ . " linje " . __LINE__))) {
 				$kontonr=$num_tlf;
@@ -261,7 +270,7 @@ function overfoer_data($shopurl,$shop_ordre_id){
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__));
 			$saldi_id=$r['id'];
-			db_modify("insert into shop_adresser(saldi_id,shop_id)values('$saldi_id','$shop_konto_id')",__FILE__ . " linje " . __LINE__);  
+			db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_id','$shop_konto_id','$afd')",__FILE__ . " linje " . __LINE__);  
 		}
 	} else {
 		$r=db_fetch_array(db_select("select kontonr from adresser where id = '$saldi_id'",__FILE__ . " linje " . __LINE__));

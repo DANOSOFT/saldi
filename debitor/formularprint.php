@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/formularprint-----patch 4.1.1---2026-02-19------
-// 							LICENSE
+// ---------debitor/formularprint-----patch 5.0.0---2026-03-24------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -29,6 +29,9 @@
 // 20150106 Indsat "returside"
 // 20170505 Ved $udskriv_til=='ingen' returneres uden udskrift.
 // 20260102 LOE Added department support for background files
+// 20260309 PHR Fixed error in $returside after printing
+// 20260309 PHR Fixed another error in $returside after printing
+
 
 session_start();
 $s_id=session_id();
@@ -38,7 +41,6 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");
 include("../includes/var2str.php");
- 
 /**
  * Find the appropriate background PDF file for a given background, document type and department.
  *   
@@ -89,6 +91,8 @@ function find_background_file($background, $file_type, $department) {
 }
 //check Post for returside
 $returside = if_isset($_POST['returside']);
+$sag_id = 0;
+$sag_q = '';
 if (isset($_GET['id']) && $_GET['id']){
     $id = if_isset($_GET['id']);
     
@@ -97,10 +101,13 @@ if (isset($_GET['id']) && $_GET['id']){
     $udskriv_til = if_isset($_GET['udskriv_til']);
     $locat = if_isset($_GET['locat']);
     
-    // Get order's background and department
+    // Get order's background, department, and scaffolding context
     $r = db_fetch_array(db_select("SELECT sprog, afd FROM ordrer WHERE id='$id'", __FILE__ . " linje " . __LINE__));
     $sprog = isset($r['sprog']) ? $r['sprog'] : 'Dansk';
     $order_department = isset($r['afd']) ? (int)$r['afd'] : 0;
+    $r_sag = $id ? db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($id) . "'", __FILE__ . " linje " . __LINE__)) : null;
+    $sag_id = ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) ? (int)$r_sag['sag_id'] : 0;
+    $sag_q = $sag_id ? "&sag_id=$sag_id" : "";
    
     // Allow department override via GET parameter (e.g., for testing or admin)
     $department = isset($_GET['department']) ? (int)$_GET['department'] : $order_department;
@@ -131,22 +138,27 @@ if (isset($_GET['id']) && $_GET['id']){
             print "<meta http-equiv=\"refresh\" content=\"1;URL=$returside\">";
             exit;
         }
-        print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordre.php?id=$id\">";
+        print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordre.php?id=$id$sag_q\">";
         exit;
     }
 }
 
 // Redirect after printing
+
 if ($returside) {
-    print "<meta http-equiv=\"refresh\" content=\"1;URL=$returside&locat=$locat\">";
-    exit;
+    if (strpos($returside,'?')) $url = "$returside&locat=$locat"; # 20260309
+    else $url = "$returside?locat=$locat";
+    if ($sag_id && strpos($url, 'sag_id=') === false && (strpos($url, 'ordre.php') !== false || strpos($url, 'ordreliste.php') !== false)) {
+        $url .= "&sag_id=$sag_id";
+    }
+    print "<meta http-equiv=\"refresh\" content=\"1;URL=$url\">";
 } elseif ($popup) {
     print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/luk.php\">";
     exit;
 } elseif (is_numeric($id) && $id > 1) {
-    print "<meta http-equiv=\"refresh\" content=\"1;URL=ordre.php?id=$id\">";
+    print "<meta http-equiv=\"refresh\" content=\"1;URL=ordre.php?id=$id$sag_q\">";
     exit;
 } else {
+echo __file__." ".__line__."<br>";
     print "<meta http-equiv=\"refresh\" content=\"1;URL=ordreliste.php\">";
 }
-

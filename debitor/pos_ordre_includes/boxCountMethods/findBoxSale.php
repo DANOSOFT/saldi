@@ -1,5 +1,35 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 5.0.0 - 2026.06.05 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2003-2026 Saldi.dk ApS
+// ----------------------------------------------------------------------
+//
+// 20260605 CL/PHR findBoxSale: inkluder kasse_nr=0 transaktioner for ordrer tilhørende denne kasse i kasseopgørelsen
+
 // PHR Changed DKK to $baseCurrency
+// 20260523 CL/PHR Fixed typo: status = ' 3' (space before 3) corrected to status = '3' in else-branch
+// 20260523 CL/PHR Changed INNER JOIN with pos_betalinger to LEFT JOIN with COALESCE fallback to ordrer.felt_1/valuta,
+//                 so orders without pos_betalinger rows (art='DO') are included in cash balance calculation
+// 20260523 CL/PHR Fixed negative tilgang: skip retur calculation when pos_betalinger has no rows (NULL amount)
 function findBoxSale ($kasse,$optalt,$valuta) {
 	echo "<!-- function findBoxSale begin -->"; 
   	global $baseCurrency,$db,$regnaar;
@@ -39,23 +69,6 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($byttepenge=$r['box1'])?$fast_morgen=1:$fast_morgen=0;
 	$otherCardsAccount = (int)$r['box6'];
-
-/* 20231210 replaced by above lines
-	$qtxt = "select * from grupper where art = 'POS' and kodenr = '2'";
-	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	if ($byttepenge=$r['box1']) $fast_morgen=1; # 20160215-2 Tilføjet 'if' & $fast_morgen
-	else $fast_morgen=0;
-	$betalingskort=explode(chr(9),$r['box5']);
-	if (in_array('on',$betalingskort)){ #20170317
-		$x=count($kortnavn);
-		$kortnavn[$x]='Betalingskort';
-		$kortnavne.=chr(9).$kortnavn[$x];
-		$kortsum[$x]=0;
-		$kortkonto[$x]=$r['box6'];
-		$kortkonti.=chr(9).$kortkonto[$x];
-		$kortantal++;
-	}
-*/
 	$acountExists = $kortsum = array();
 	for ($i=0;$i<count($kortnavn);$i++) {
 		if (!in_array($kortkonto[$i],$acountExists)) {
@@ -101,8 +114,9 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 				$logdate=$regnstart;
 				$logtime='00:00';
 			}
-			$qtxt = "select distinct(ordre_id) from transaktioner where (logdate > '$logdate' or (logdate = '$logdate' and logtime > '$logtime')) ";
-			$qtxt.= "and kasse_nr='$kasse'";
+			$qtxt = "select distinct(t.ordre_id) from transaktioner t left join ordrer o on t.ordre_id = o.id";
+			$qtxt.= " where (t.logdate > '$logdate' or (t.logdate = '$logdate' and t.logtime > '$logtime'))";
+			$qtxt.= " and (t.kasse_nr='$kasse' or (t.kasse_nr=0 and o.felt_5='$kasse'))";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$o=0;
 			$oList=array();
@@ -138,11 +152,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 						$chkSum += $turnover[$i];
 					}
 				}
-#				if ($chkSum != $osum[$o]) echo __line__." $chkSum != $oSum[$o]<br>";
-#				else echo __line__." $chkSum = $oSum[$o]<br>";
 			}
-			# <-- 20150519
-#			} # 20170102
 			$qtxt="select sum(debet) as debet,sum(kredit) as kredit from transaktioner where transdate >= '$regnstart' and kontonr = '$kassekonti[$k]'"; # and kasse_nr='$kasse'
 			if ($logdate && $logtime) $qtxt.=" and (kladde_id != '0' or (logdate < '$logdate' or (logdate = '$logdate' and logtime <= '$logtime')))"; # 20161116 #20150519 #20151211 Tilføjet if...
 		}
@@ -164,12 +174,17 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$kontosum = 0;
 		$tmp=NULL;
 		($o_liste)?$tmp=" and (ordrer.status='3' or $o_liste)":$tmp=" and ordrer.status='3'"; #20150519
-		$qtxt="select pos_betalinger.*,ordrer.sum,ordrer.moms,ordrer.status from pos_betalinger,ordrer ";
+		$qtxt="select ordrer.id as ordre_id, ";
+		$qtxt.="COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) as betalingstype, ";
+		$qtxt.="COALESCE(pos_betalinger.amount, ordrer.sum + ordrer.moms) as amount, ";
+		$qtxt.="COALESCE(pos_betalinger.valuta, ordrer.valuta) as valuta, ";
+		$qtxt.="ordrer.sum, ordrer.moms, ordrer.status ";
+		$qtxt.="from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id ";
 		$qtxt.="where ordrer.felt_5='$kasse' $tmp and ordrer.fakturadate >= '$regnstart' ";
 		$qtxt.="and ordrer.fakturadate <= '$dd' and ordrer.valuta = '$valuta' ";
 		if (count($oList)) $qtxt.= "and ordrer.status >= '3' ";
-		else $qtxt.= "and ordrer.status = ' 3'";
-		$qtxt.="and ordrer.id=pos_betalinger.ordre_id order by pos_betalinger.betalingstype, ordrer.id";
+		else $qtxt.= "and ordrer.status = '3'";
+		$qtxt.=" order by betalingstype, ordrer.id";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			if ($r['status'] == '3' || in_array($r['ordre_id'],$oList)) {
@@ -211,7 +226,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$lineCount=0;
 		$qtxt="select sum(amount) as amount from pos_betalinger where ordre_id=$oid[$b]";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$retur+=($r['amount']-$osum[$b]);
+		if (is_numeric($r['amount'])) $retur+=($r['amount']-$osum[$b]);
 		$qtxt="select * from ordrelinjer where ordre_id=$oid[$b]";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
@@ -287,9 +302,9 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$valutasummer.=chr(9).$valutasum[$x];
 	}
 */	
+	echo "<!-- function findBoxSale end -->";
 
 #	if ($kontosalg) $kontosalg=trim($kontosalg,chr(9));
 	return array($byttepenge,$tilgang,$diff,$kortantal,$kortkonti,$kortnavne,$kortsummer,$kontosum,$valutaer,$valutasummer,$vatRates,$vatAmounts,$accountPayment);
 } # endfunc findBoxSale
-	echo "<!-- function findBoxSale end -->"; 
 ?>

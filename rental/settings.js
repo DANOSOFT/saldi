@@ -30,7 +30,7 @@ class SettingsManager {
         const url = new URL(window.location.href);
         const pathSegments = url.pathname.split('/').filter(segment => segment !== '');
         const firstFolder = pathSegments[0];
-        const { getSettings, updateSettings } = await import(`/${firstFolder}/rental/api/api.js`);
+        const { getSettings, updateSettings } = await import(`/${firstFolder}/rental/api/api.js?v=${Date.now()}`);
         
         this.api = { getSettings, updateSettings };
         this.settings = await this.api.getSettings();
@@ -94,8 +94,12 @@ class SettingsManager {
             toggle_order: this.elements.toggleOrder.checked ? 1 : 0
         };
 
-        const result = await this.api.updateSettings(data);
-        alert(result);
+        try {
+            const result = await this.api.updateSettings(data);
+            alert(result);
+        } catch (error) {
+            alert(error.message || "Indstillingerne kunne ikke gemmes.");
+        }
     }
 }
 

@@ -182,7 +182,7 @@ function opdat_0($version, $dbver){
 	if ($dbver<0.33){
 		transaktion("begin");
 	 print "Opdaterer til ver. 0.33<br>";
-		db_modify("CREATE TABLE ansatte (id serial NOT NULL, adr_id integer, navn varchar, addr1 varchar, addr2 varchar, postnr varchar, bynavn varchar, tlf varchar, fax varchar, mobil varchar, email varchar, notes text, cprnr varchar, posnr integer, PRIMARY KEY (id))");
+		db_modify("CREATE TABLE ansatte (id serial NOT NULL, adr_id integer, navn varchar, addr1 varchar, addr2 varchar, postnr varchar, bynavn varchar, tlf varchar, mobile varchar, mobil varchar, email varchar, notes text, cprnr varchar, posnr integer, PRIMARY KEY (id))");
 		$x=0;
 		$query = db_select("SELECT * FROM	adresser order by id");
 		while($row = db_fetch_array($query)){
@@ -573,7 +573,7 @@ function opdat_0($version, $dbver){
 			$bynavn[$x]=addslashes(trim($row['bynavn']));
 			$kontakt[$x]=addslashes(trim($row['kontakt']));
 			$tlf[$x]=addslashes(trim($row['tlf']));
-			$fax[$x]=addslashes(trim($row['fax']));
+			$mobile[$x]=addslashes(trim($row['mobile']));
 			$email[$x]=addslashes(trim($row['email']));
 			$notes[$x]=addslashes(trim($row['notes']));
 			$cvrnr[$x]=addslashes(trim($row['cvrnr']));
@@ -596,7 +596,7 @@ function opdat_0($version, $dbver){
 		db_modify("ALTER TABLE adresser DROP bynavn");
 		db_modify("ALTER TABLE adresser DROP kontakt");
 		db_modify("ALTER TABLE adresser DROP tlf");
-		db_modify("ALTER TABLE adresser DROP fax");
+		db_modify("ALTER TABLE adresser DROP mobile");
 		db_modify("ALTER TABLE adresser DROP email");
 		db_modify("ALTER TABLE adresser DROP notes");
 		db_modify("ALTER TABLE adresser DROP cvrnr");
@@ -617,7 +617,7 @@ function opdat_0($version, $dbver){
 		db_modify("ALTER TABLE adresser ADD bynavn varchar");
 		db_modify("ALTER TABLE adresser ADD kontakt varchar");
 		db_modify("ALTER TABLE adresser ADD tlf varchar");
-		db_modify("ALTER TABLE adresser ADD fax varchar");
+		db_modify("ALTER TABLE adresser ADD mobile varchar");
 		db_modify("ALTER TABLE adresser ADD email varchar");
 		db_modify("ALTER TABLE adresser ADD notes varchar");
 		db_modify("ALTER TABLE adresser ADD cvrnr varchar");
@@ -632,7 +632,7 @@ function opdat_0($version, $dbver){
 		db_modify("ALTER TABLE adresser ADD web varchar");
 
 		for ($x=1; $x<=$linjeantal; $x++) {
-			db_modify("UPDATE adresser set firmanavn = '$firmanavn[$x]',	addr1 = '$addr1[$x]',	addr2 = '$addr2[$x]', postnr = '$postnr[$x]', bynavn = '$bynavn[$x]', kontakt = '$kontakt[$x]', tlf = '$tlf[$x]', fax = '$fax[$x]', email = '$email[$x]', notes = '$notes[$x]', cvrnr = '$cvrnr[$x]', art = '$art[$x]', bank_navn = '$bank_navn[$x]', bank_reg = '$bank_reg[$x]', bank_konto = '$bank_konto[$x]', kontonr = '$kontonr[$x]', ean = '$ean[$x]', institution = '$institution[$x]', land = '$land[$x]', web = '$web[$x]' where id =$id[$x]");
+			db_modify("UPDATE adresser set firmanavn = '$firmanavn[$x]',	addr1 = '$addr1[$x]',	addr2 = '$addr2[$x]', postnr = '$postnr[$x]', bynavn = '$bynavn[$x]', kontakt = '$kontakt[$x]', tlf = '$tlf[$x]', mobile = '$mobile[$x]', email = '$email[$x]', notes = '$notes[$x]', cvrnr = '$cvrnr[$x]', art = '$art[$x]', bank_navn = '$bank_navn[$x]', bank_reg = '$bank_reg[$x]', bank_konto = '$bank_konto[$x]', kontonr = '$kontonr[$x]', ean = '$ean[$x]', institution = '$institution[$x]', land = '$land[$x]', web = '$web[$x]' where id =$id[$x]");
 		}
 		db_modify("UPDATE grupper set box1 = '0.603' where art = 'VE'");
 		transaktion("commit"); 
@@ -651,7 +651,7 @@ function opdat_0($version, $dbver){
 			$postnr[$x]=addslashes(trim($row['postnr']));
 			$bynavn[$x]=addslashes(trim($row['bynavn']));
 			$tlf[$x]=addslashes(trim($row['tlf']));
-			$fax[$x]=addslashes(trim($row['fax']));
+			$mobile[$x]=addslashes(trim($row['mobile']));
 			$mobil[$x]=addslashes(trim($row['mobil']));
 			$email[$x]=addslashes(trim($row['email']));
 			$notes[$x]=addslashes(trim($row['notes']));
@@ -665,7 +665,7 @@ function opdat_0($version, $dbver){
 		db_modify("ALTER TABLE ansatte DROP postnr");
 		db_modify("ALTER TABLE ansatte DROP bynavn");
 		db_modify("ALTER TABLE ansatte DROP tlf");
-		db_modify("ALTER TABLE ansatte DROP fax");
+		db_modify("ALTER TABLE ansatte DROP mobile");
 		db_modify("ALTER TABLE ansatte DROP mobil");
 		db_modify("ALTER TABLE ansatte DROP email");
 		db_modify("ALTER TABLE ansatte DROP notes");
@@ -677,14 +677,14 @@ function opdat_0($version, $dbver){
 		db_modify("ALTER TABLE ansatte ADD postnr varchar");
 		db_modify("ALTER TABLE ansatte ADD bynavn varchar");
 		db_modify("ALTER TABLE ansatte ADD tlf varchar");
-		db_modify("ALTER TABLE ansatte ADD fax varchar");
+		db_modify("ALTER TABLE ansatte ADD mobile varchar");
 		db_modify("ALTER TABLE ansatte ADD mobil varchar");
 		db_modify("ALTER TABLE ansatte ADD email varchar");
 		db_modify("ALTER TABLE ansatte ADD notes varchar");
 		db_modify("ALTER TABLE ansatte ADD cprnr varchar");
 
 		for ($x=1; $x<=$linjeantal; $x++) {
-			db_modify("UPDATE ansatte set navn = '$navn[$x]',	addr1 = '$addr1[$x]',	addr2 = '$addr2[$x]', postnr = '$postnr[$x]', bynavn = '$bynavn[$x]', tlf = '$tlf[$x]', fax = '$fax[$x]', mobil = '$mobil[$x]', email = '$email[$x]', notes = '$notes[$x]', cprnr = '$cprnr[$x]' where id =$id[$x]");
+			db_modify("UPDATE ansatte set navn = '$navn[$x]',	addr1 = '$addr1[$x]',	addr2 = '$addr2[$x]', postnr = '$postnr[$x]', bynavn = '$bynavn[$x]', tlf = '$tlf[$x]', mobile = '$mobile[$x]', mobil = '$mobil[$x]', email = '$email[$x]', notes = '$notes[$x]', cprnr = '$cprnr[$x]' where id =$id[$x]");
 		}
 		db_modify("UPDATE grupper set box1 = '0.604' where art = 'VE'");
 		transaktion("commit"); 
