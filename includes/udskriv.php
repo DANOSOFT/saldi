@@ -45,6 +45,7 @@
 // 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
 // 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
 //             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
+// 20260914 CDX/LH SST-789: Render session-owned invoice batches before publishing a PDF.
 
 @session_start();
 $s_id=session_id();
@@ -64,6 +65,11 @@ $localPrint=if_isset($_COOKIE, NULL, 'localPrint');
 $udfil=$zx=NULL;
 
 $ps_fil        = if_isset($_GET, NULL, 'ps_fil');
+$printBatch = null;
+if (is_string($ps_fil) && isset($_SESSION['printBatch']['file']) && $_SESSION['printBatch']['file'] === $ps_fil
+    && dirname($ps_fil) === $db . '/' . abs((int)$bruger_id)) {
+	$printBatch = $_SESSION['printBatch']['documents'];
+}
 $valg          = if_isset($_GET, NULL, 'valg');
 $logoart       = if_isset($_GET, NULL, 'logoart');
 $id            = if_isset($_GET, NULL, 'id');
@@ -177,7 +183,25 @@ if ($valg) {
   $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($valg=="pdf" || $valg=="ip")  {
 #		print "<!--";
-	if (isset($r['box2']) && $r['box2']) { 
+	if ($printBatch !== null) {
+		require_once __DIR__ . '/stdFunc/renderPrintBatch.php';
+		try {
+			renderPrintBatch(
+				__DIR__ . '/../temp/' . $db . '/' . abs((int)$bruger_id),
+				$printBatch,
+				basename($ps_fil) . '.pdf',
+				empty($r['box2']) && !empty($r['box3']),
+				!empty($r['box2']) ? $r['box2'] : $ps2pdf,
+				$pdftk,
+				$udskriv_til !== 'PDF-tekst' && $udskriv_til !== 'fil'
+			);
+		} catch (RuntimeException $error) {
+			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
+			print '<p>' . htmlspecialchars(findtekst('PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, 'UTF-8') . '</p>';
+			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
+			exit;
+		}
+	} elseif (isset($r['box2']) && $r['box2']) {
 	fwrite($log,__line__." system (\"$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\"\n");
 			system ("$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
 		} elseif (isset($r['box3']) && $r['box3'] && $udskrift!='kontokort') { # Brug html
@@ -357,7 +381,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			# $pdftk = trim(shell_exec("which pdftk") ?? '');
 			# error_log("DIAG: pdftk_bin=$pdftk");
 
-			if ($pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+			if ($printBatch === null && $pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
 				// Self-heal non-A4 letterheads. A background that isn't A4 makes pdftk
 				if (function_exists('shell_exec')) {
 					$pinf = @shell_exec("pdfinfo " . escapeshellarg($bg_fil) . " 2>/dev/null");
