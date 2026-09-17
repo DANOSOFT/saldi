@@ -1,5 +1,6 @@
 <?php
 // 20260915 CDX/PHR Verify shop/customer resolution and existing MySale link compatibility.
+// 20260917 CL/LH Cover that a newer customer row does not shadow the staff session.
 require_once(__DIR__ . '/../mysale/shopLookup.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message) { throw new RuntimeException($message); });
@@ -7,7 +8,12 @@ function db_escape_string($value) { return str_replace("'", "''", $value); }
 function db_select($sql, $location, $global = false) {
     $GLOBALS['queries'][] = array($sql, $global);
     if (!$GLOBALS['rows']) throw new RuntimeException('Unexpected query: ' . $sql);
-    return new ArrayIterator(array_shift($GLOBALS['rows']));
+    $rows = array_shift($GLOBALS['rows']);
+    if (strpos($sql, "rettigheder <> '0'") !== false) {
+        // Mimic the database filter so customer rows never reach the caller.
+        $rows = array_values(array_filter($rows, function ($row) { return $row['rettigheder'] !== '0'; }));
+    }
+    return new ArrayIterator($rows);
 }
 function db_fetch_array($result) {
     if (!$result->valid()) return false;
@@ -39,7 +45,11 @@ foreach (array(false, array_merge($login,array('rettigheder'=>'0')), array_merge
 $result = lookupCase(array(array($login),array($shop)));
 checkLookup($result['shop']==='LoppeWorld' && !$GLOBALS['connections'], 'Staff session selects shop before asking for customer');
 checkLookup($GLOBALS['queries'][0][1] && strpos($GLOBALS['queries'][0][0], 'ORDER BY logtime DESC LIMIT 1')!==false, 'Uses latest master online session like Saldi');
+checkLookup(strpos($GLOBALS['queries'][0][0], "rettigheder <> '0'")!==false, 'Session lookup filters out customer rows in SQL');
 checkLookup(count($GLOBALS['writes'])===1 && $GLOBALS['writes'][0][1], 'Refreshes session activity in master database');
+$customerRow = array_merge($login, array('rettigheder'=>'0','logtime'=>time()+60));
+$result = lookupCase(array(array($customerRow,$login),array($shop)));
+checkLookup($result['shop']==='LoppeWorld' && $result['redirect']==='', 'Newer customer row does not shadow the staff session');
 foreach (array(array_merge($shop,array('lukket'=>'on')), array_merge($shop,array('lukkes'=>'2020-01-01'))) as $closed) {
     $result = lookupCase(array(array($login),array($closed)), '1000');
     checkLookup($result['shop']==='' && !$GLOBALS['connections'], 'Closed shop cannot expose customer lookup');

@@ -1,6 +1,7 @@
 <?php
 // 20260915 CDX/PHR Shop/customer lookup for the existing MySale portal.
 // 20260915 CDX/PHR Clear customer state on logout while retaining the Saldi staff login.
+// 20260917 CL/LH Ignore customer rows (rettigheder='0') when resolving the staff session.
 
 /**
  * @return bool Whether a valid customer logout was requested.
@@ -42,7 +43,9 @@ function mySaleCustomerLogoutButton($token) {
 function mySaleShopLookup($sessionId, $customerNumber, $host, callable $connectTenant) {
 	$result = array('shop' => '', 'error' => '', 'redirect' => '');
 	$session = db_escape_string($sessionId);
-	$q = db_select("SELECT db,rettigheder,logtime FROM online WHERE session_id='$session' ORDER BY logtime DESC LIMIT 1", __FILE__ . ' ' . __LINE__, true);
+	// Customer portal rows share the session_id but carry rights='0'; skip them so a
+	// newer customer row cannot shadow the staff login (same filter as mysale.php).
+	$q = db_select("SELECT db,rettigheder,logtime FROM online WHERE session_id='$session' AND rettigheder <> '0' ORDER BY logtime DESC LIMIT 1", __FILE__ . ' ' . __LINE__, true);
 	$login = db_fetch_array($q);
 	// Customer portal sessions have rights='0'; they are not a Saldi staff login.
 	if (!$login || empty($login['db']) || empty($login['rettigheder'])
