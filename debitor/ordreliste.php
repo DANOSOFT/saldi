@@ -57,6 +57,10 @@
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260826 LOE Added a new setting to hide revenue on ordreliste for users based on the db who don't want to see it. This is stored in the settings table 
+// 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
+//                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
+
 @session_start();
 $s_id = session_id();
 
@@ -1009,6 +1013,20 @@ $custom_columns = array(
         }
     ),
     
+    "hvem" => array(
+        "field" => "hvem",
+        "headerName" => findtekst('5231|Udført af', $sprog_id),
+        "width" => "1",
+        "type" => "text",
+        "sqlOverride" => "o.hvem",
+        "searchable" => true,
+        "render" => function ($value, $row, $column) {
+            // caused issues due to our use of <span> for highlighting each match in the value, so we will not escape it for now
+            // $value = htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+            return "<td align='{$column['align']}'>$value</td>";
+        }
+    ),
+
     "sum_m_moms" => array(
         "field" => "sum_m_moms",
         "headerName" => "Sum m. moms",
@@ -1621,22 +1639,6 @@ $columns[] = array(
         return $actions;
     }
 );
- if ($sprog_id == 2) {
-        $columnHd = 'Performed by'; //TODO: findtekst
- } else{
-        $columnHd = 'Hvem';
- }
- $columns[] = array(
-        "field" => "hvem",
-        "headerName" => $columnHd,
-        "width" => "1",
-        "type" => "text",
-        "hidden" => true,
-        "searchable" => true,
-        "render" => function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>$value</td>";
-        }
-    );
 // === END DYNAMIC COLUMN DEFINITION ===
 
 

@@ -97,6 +97,7 @@
 // 20250924 PBLM - Alert for saved product is disabled
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260213 LOE  - Updated the back button for debitorkort reference.
+// 20260827 LOE  - SD-652 Added a guard for $varenrAlias and initialized few variables. Updated to use if_isset() for more variables to avoid undefined index notices.
 // 20260827 CL/SZ Defined the missing $icon_back and switched the "Tilbage"/
 //                "Luk"/"POS menuer"/"Ny" buttons in the $menu=='S' header
 //                to the standard icon+flex-start button style used
@@ -105,6 +106,19 @@
 //                href, and json_encode()+htmlspecialchars() the confirmClose()
 //                JS-string args (returside/opener/tekst) instead of raw
 //                interpolation; fixed a malformed </a><td> on the Ny button.
+// 20260902 Sawaneh Added ids on the section cells (pcSec*) and included
+//                  productCardIncludes/fieldVisibility.php: a display-only
+//                  panel where each user can show/hide product card sections.
+// 20260902 Sawaneh Udløbsdato (showExpirySettings) moved out of the Diverse
+//                  cell into its own section box row, like the other sections,
+//                  so it separates and toggles independently.
+// 20260905 SZ MB-33: "Automatisk prisberegning" checkbox had no column of its own -
+//             show_advanced_price_calc is read from POST but never saved, so the
+//             checkbox was always redrawn from salgspris/tier/retail_price_multiplier
+//             > 0, and unchecking it did nothing since those fields kept their old
+//             values. Now zero the multipliers when the box is unchecked so "off"
+//             actually persists and stops updateProductPrice.php's auto-overwrite too.
+// 20260907 CDX/LH Retain popup context through product-card saves and local navigation.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -133,9 +147,10 @@ $rabatgruppe = $ref = $returside = NULL;
 $tilbudgruppe = NULL;
 $varenr = $variant = $variantVarerVariantId = $vis_kost = NULL;
 
-$campaign_cost = $special_price = $special_from_date = $special_to_date = 0;
-$oldCost = $oldSale = $p_grp_kostpris = $p_grp_salgspris = $p_grp_retail_price = $p_grp_tier_price = 0;
+$campaign_cost = $special_price = $special_from_date = $special_to_date = $retail_price = $tier_price = 0;
+$oldCost = $oldSale = $oldRetailPrice = $p_grp_kostpris = $p_grp_salgspris = $p_grp_retail_price = $p_grp_tier_price = 0;
 $beskrivelse = $kat_id = $lagerbeh = $ny_lagerbeh = $varianter_id = $variantVarerId = $variantVarerQty = array();
+$docfolder=$changeStock=$delvare = $opener =$funktion=$konto_id=$delete_category = $delete_var_type = $rename_category = $show_subcat = $deleteItem = $saveItem = $submit = $acceptStockChange = $cancelStockChange = NULL;
 
 // 20221004
 $on_price_list = 1;
@@ -154,6 +169,7 @@ $css = "../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+$productNavigationQuery = nav_popup_query($_GET, $_POST);
 include("../includes/vareopslag.php"); # 20090514
 include("../includes/stykliste.php");
 include("../includes/fuld_stykliste.php");
@@ -214,19 +230,20 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
 if (!$numberOfStocks)
     $numberOfStocks = 1;
 
-$opener = if_isset($_GET['opener']);
-$id = if_isset($_GET['id']) * 1;
-if (isset($_GET['returside']) && $returside = $_GET['returside']) {
-    $ordre_id = if_isset($_GET['ordre_id']) * 1;
-    $fokus = if_isset($_GET['fokus']);
-    $vare_lev_id = if_isset($_GET['leverandor']);
-    $vis_samlevarer = if_isset($_GET['vis_samlevarer']);
+$opener = if_isset($_GET, NULL, 'opener');
+$id = (int) if_isset($_GET, NULL, 'id');
+$returside = nav_sanitize_returside($_GET['returside'] ?? null);
+if ($returside) {
+    $ordre_id = if_isset($_GET, NULL, 'ordre_id') * 1;
+    $fokus = if_isset($_GET, NULL, 'fokus');
+    $vare_lev_id = if_isset($_GET, NULL, 'leverandor');
+    $vis_samlevarer = if_isset($_GET, NULL, 'vis_samlevarer');
     setcookie("saldi", $returside, $ordre_id, $fokus, $vare_lev_id);
 }
-if ($funktion = if_isset($_GET['funktion'])) {
-    $funktion(if_isset($_GET['sort']), if_isset($_GET['fokus']), $id, if_isset($_GET['vis_kost']), '', if_isset($_GET['find']), 'varekort.php');
+if ($funktion = if_isset($_GET, NULL, 'funktion')) {
+    $funktion(if_isset($_GET, NULL, 'sort'), if_isset($_GET, NULL, 'fokus'), $id, if_isset($_GET, NULL, 'vis_kost'), '', if_isset($_GET, NULL, 'find'), 'varekort.php');
 }
-if ($konto_id = if_isset($_GET['konto_id'])) {
+if ($konto_id = (int) if_isset($_GET, NULL, 'konto_id')) {
     db_modify("insert into vare_lev (lev_id, vare_id, posnr) values ('$konto_id', '$id', '1')", __FILE__ . " linje " . __LINE__);
 }
 if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0) {
@@ -236,38 +253,39 @@ if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0) {
         db_modify("update varer set delvare =  'on' where id = '$vare_id'", __FILE__ . " linje " . __LINE__);
     }
 }
-if ($delete_category = if_isset($_GET['delete_category'])) {
+if ($delete_category = (int) if_isset($_GET, NULL, 'delete_category')) {
     db_modify("delete from grupper where id = '$delete_category'", __FILE__ . " linje " . __LINE__);
 }
-if ($delete_var_type = if_isset($_GET['delete_var_type'])) {
+if ($delete_var_type = if_isset($_GET, NULL, 'delete_var_type')) {
+    $delete_var_type = (int) $delete_var_type;
     db_modify("delete from variant_varer where id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
     db_modify("delete from lagerstatus where vare_id='$id' and variant_id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
     db_modify("delete from shop_varer where saldi_id='$id' and saldi_variant = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
 }
-$rename_category = if_isset($_GET['rename_category']);
-$show_subcat = if_isset($_GET['show_subcat']);
+$rename_category = if_isset($_GET, NULL, 'rename_category');
+$show_subcat = if_isset($_GET, NULL, 'show_subcat');
 
-$deleteItem = if_isset($_POST['deleteItem']);
-$saveItem = if_isset($_POST['saveItem']);
-$submit = if_isset($_POST['submit']);
+$deleteItem = if_isset($_POST, NULL, 'deleteItem');
+$saveItem = if_isset($_POST, NULL, 'saveItem');
+$submit = if_isset($_POST, NULL, 'submit');
 
 if ($deleteItem == 'Slet') {
-    $id = if_isset($_POST['id']);
+    $id = (int) if_isset($_POST, NULL, 'id');
     db_modify("delete from varer where id = $id", __FILE__ . " linje " . __LINE__);
     db_modify("delete from shop_varer where saldi_id = $id", __FILE__ . " linje " . __LINE__);
     db_modify("delete from vare_lev where vare_id = '$id'", __FILE__ . " linje " . __LINE__);
     print "<meta http-equiv=\"refresh\" content=\"0;URL=varer.php\">";
     exit;
 }
-$acceptStockChange = if_isset($_POST['acceptStockChange']);
-$cancelStockChange = if_isset($_POST['cancelStockChange']);
+$acceptStockChange = if_isset($_POST, NULL, 'acceptStockChange');
+$cancelStockChange = if_isset($_POST, NULL, 'cancelStockChange');
 
 #$acceptStockChange=1;
 if ($acceptStockChange) {
-    $initials = if_isset($_POST['initials']);
-    $reason = if_isset($_POST['reason']);
-    $beholdning = if_isset($_POST['beholdning']);
-    $ny_beholdning = if_isset($_POST['ny_beholdning']);
+    $initials = if_isset($_POST, NULL, 'initials');
+    $reason = if_isset($_POST, NULL, 'reason');
+    $beholdning = if_isset($_POST, NULL, 'beholdning');
+    $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $stockchange = $ny_beholdning - $beholdning;
     $qtxt = "select kostpris from varer where id=$id";
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -277,17 +295,17 @@ if ($acceptStockChange) {
     $qtxt .= "('$id','" . db_escape_string($userName) . "','" . db_escape_string($initials) . "','" . db_escape_string($reason) . "',";
     $qtxt .= "'" . $stockchange . "','" . date("U") . "')";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-    $lagerbeh = if_isset($_POST['lagerbeh'], array());
-    $ny_lagerbeh = if_isset($_POST['ny_lagerbeh'], array());
+    $lagerbeh = if_isset($_POST, array(), 'lagerbeh');
+    $ny_lagerbeh = if_isset($_POST, array(), 'ny_lagerbeh');
     for ($x = 1; $x <= count($ny_lagerbeh); $x++) {
         #       if ($ny_lagerbeh[$x]!=$lagerbeh[$x]) {
         lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
         #       }
     }
-    print "<meta http-equiv='refresh' content='0;URL=varekort.php?id=$id'>";
+    print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$id'>";
     exit;
 } elseif ($cancelStockChange) {
-    print "<meta http-equiv='refresh' content='0;URL=varekort.php?id=$id'>";
+    print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$id'>";
     exit;
 }
 if (isset($_POST['copy']) && $_POST['copy'])
@@ -296,119 +314,124 @@ if (isset($_POST['supplierLookUp']) && $_POST['supplierLookUp'])
     $submit = 'supplierLookUp';
 
 if ($saveItem || $submit = trim($submit)) {
-    $id = if_isset($_POST['id']);
-    $beskrivelse = if_isset($_POST['beskrivelse']);
-    $beskrivelse[0] = trim(if_isset($_POST['beskrivelse0'])); # fordi fokus ikke fungerer på array navne
+    $id = (int) if_isset($_POST, 0, 'id');
+    $beskrivelse = if_isset($_POST, NULL,'beskrivelse');
+    $beskrivelse[0] = trim(if_isset($_POST, NULL,'beskrivelse0')); # fordi fokus ikke fungerer på array navne
     $grossWeight = usdecimal((isset($_POST['grossWeight']) ? $_POST['grossWeight'] : 0), 3);
-    $beskrivelseAlias = if_isset($_POST['beskrivelseAlias']);
-    $grossWeightUnit = if_isset($_POST['grossWeightUnit'], '');
-    $varenr = db_escape_string(trim(if_isset($_POST['varenr'])));
-    $stregkode = db_escape_string(trim(if_isset($_POST['stregkode'])));
-    $oldDescription = trim(if_isset($_POST['oldDescription']));
-    $enhed = db_escape_string(trim(if_isset($_POST['enhed'])));
-    $enhed2 = db_escape_string(trim(if_isset($_POST['enhed2'])));
-    $forhold = usdecimal(if_isset($_POST['forhold']), 2);
-    $salgspris = usdecimal(if_isset($_POST['salgspris']), 2);
-    $salgspris2 = usdecimal(if_isset($_POST['salgspris2']), 2);
-    $kostpris = if_isset($_POST['kostpris']);
-    $gl_kostpris = if_isset($_POST['gl_kostpris']);
-    $commissionItem = if_isset($_POST['commissionItem']);
-    $kostpris2 = if_isset($_POST['kostpris2']);
-    $montage = usdecimal(if_isset($_POST['montage']), 2); # montagepris til stillads
-    $demontage = usdecimal(if_isset($_POST['demontage']), 2); # demontagepris til stillads
+    $beskrivelseAlias = if_isset($_POST,NULL,'beskrivelseAlias');
+    $grossWeightUnit = if_isset($_POST,NULL,'grossWeightUnit');
+    $varenr = db_escape_string(trim(if_isset($_POST, '','varenr')));
+    $stregkode = db_escape_string(trim(if_isset($_POST, '','stregkode')));
+    $oldDescription = trim(if_isset($_POST,NULL,'oldDescription'));
+    $enhed = db_escape_string(trim(if_isset($_POST, '','enhed')));
+    $enhed2 = db_escape_string(trim(if_isset($_POST, '','enhed2')));
+
+    $forhold = usdecimal(if_isset($_POST,NULL,'forhold'), 2);
+    $salgspris = usdecimal(if_isset($_POST,NULL,'salgspris'), 2);
+    $salgspris2 = usdecimal(if_isset($_POST,NULL,'salgspris2'), 2);
+    $kostpris = if_isset($_POST,NULL,'kostpris');
+    $gl_kostpris = if_isset($_POST,NULL,'gl_kostpris');
+    $commissionItem = if_isset($_POST,NULL,'commissionItem');
+    $kostpris2 = if_isset($_POST, NULL, 'kostpris2');
+    $montage = usdecimal(if_isset($_POST,NULL,'montage'), 2); # montagepris til stillads
+    $demontage = usdecimal(if_isset($_POST,NULL,'demontage'), 2); # demontagepris til stillads
     $netWeight = usdecimal((isset($_POST['netWeight']) ? $_POST['netWeight'] : 0), 3);
-    $netWeightUnit = if_isset($_POST['netWeightUnit'], '');
-    $length = usdecimal(if_isset($_POST['length'], 0), 0);
-    $width = usdecimal(if_isset($_POST['width'], 0), 0);
-    $height = usdecimal(if_isset($_POST['height'], 0), 0);
-    $indhold = usdecimal(if_isset($_POST['indhold'], 0), 2);
-    $provisionsfri = trim(if_isset($_POST['provisionsfri']));
-    $publiceret = if_isset($_POST['publiceret']);
-    $publ_pre = if_isset($_POST['publ_pre']);
-    list($leverandor) = explode(':', if_isset($_POST['leverandor']));
-    $vare_lev_id = if_isset($_POST['vare_lev_id']);
-    $lev_varenr = if_isset($_POST['lev_varenr']);
-    $lev_antal = if_isset($_POST['lev_antal']);
-    $lev_pos = if_isset($_POST['lev_pos']);
-    $gruppe = (int) if_isset($_POST['gruppe']);
-    $ny_gruppe = if_isset($_POST['ny_gruppe']);
-    $dvrg_nr[0] = if_isset($_POST['dvrg']) * 1; # DebitorVareRabatGruppe
-    $prisgruppe = if_isset($_POST['prisgruppe']) * 1;
-    $tilbudgruppe = if_isset($_POST['tilbudgruppe']) * 1;
-    $rabatgruppe = if_isset($_POST['rabatgruppe']) * 1;
-    $operation = if_isset($_POST['operation']) * 1;
-    $min_lager = if_isset($_POST['min_lager']);
-    $max_lager = if_isset($_POST['max_lager']);
-    $volume_lager = if_isset($_POST['volume_lager']);
-    $beholdning = if_isset($_POST['beholdning']);
-    $ny_beholdning = if_isset($_POST['ny_beholdning']);
-    $lukket = if_isset($_POST['lukket']);
-    $serienr = db_escape_string(trim(if_isset($_POST['serienr'])));
-    $has_due_date = (if_isset($_POST['has_due_date']) == 'on') ? 'true' : 'false';
-    $default_shelf_life_days = if_isset($_POST['default_shelf_life_days']);
+    $netWeightUnit = if_isset($_POST, NULL,'netWeightUnit');
+    $length = usdecimal(if_isset($_POST, 0, 'length'), 0);
+    $width = usdecimal(if_isset($_POST, 0, 'width'), 0);
+    $height = usdecimal(if_isset($_POST, 0, 'height'), 0);
+    $indhold = usdecimal(if_isset($_POST, 0, 'indhold'), 2);
+    $provisionsfri = trim(if_isset($_POST, NULL, 'provisionsfri'));
+    $publiceret = if_isset($_POST, NULL, 'publiceret');
+    $publ_pre = if_isset($_POST, NULL, 'publ_pre');
+    list($leverandor) = explode(':', if_isset($_POST, NULL, 'leverandor'));
+    $vare_lev_id = if_isset($_POST, NULL, 'vare_lev_id');
+    $lev_varenr = if_isset($_POST, NULL, 'lev_varenr');
+    $lev_antal = if_isset($_POST, NULL, 'lev_antal');
+    $lev_pos = if_isset($_POST, NULL, 'lev_pos');
+    $gruppe = (int) if_isset($_POST, NULL, 'gruppe');
+    $ny_gruppe = if_isset($_POST, NULL, 'ny_gruppe');
+    $dvrg_nr[0] = (int) if_isset($_POST, NULL, 'dvrg') ; # DebitorVareRabatGruppe
+    $prisgruppe = (int)if_isset($_POST, NULL, 'prisgruppe');
+    $tilbudgruppe = (int) if_isset($_POST, NULL, 'tilbudgruppe');
+    $rabatgruppe = (int) if_isset($_POST, NULL, 'rabatgruppe');
+    $operation = (int) if_isset($_POST, NULL, 'operation');
+    $min_lager = if_isset($_POST, NULL, 'min_lager');
+    $max_lager = if_isset($_POST, NULL, 'max_lager');
+    $volume_lager = if_isset($_POST, NULL, 'volume_lager');
+    $beholdning = if_isset($_POST, NULL, 'beholdning');
+    $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
+    $lukket = if_isset($_POST, NULL, 'lukket');
+    $serienr = db_escape_string(trim(if_isset($_POST, '','serienr')));
+    $has_due_date = (if_isset($_POST,NULL,'has_due_date') == 'on') ? 'true' : 'false';
+    $default_shelf_life_days = if_isset($_POST,NULL,'default_shelf_life_days');
     if ($default_shelf_life_days !== null && $default_shelf_life_days !== '') $default_shelf_life_days = intval($default_shelf_life_days);
     else $default_shelf_life_days = null;
-    #   list ($gruppe)           =  explode (':', if_isset($_POST['gruppe']));
-    $notes = db_escape_string(trim(if_isset($_POST['notes'])));
-    $note_on_orderline = (if_isset($_POST['note_on_orderline']) == 'on') ? true : false;
-    $notesInternal = db_escape_string(trim(if_isset($_POST['notesInternal'])));
-    $ordre_id = if_isset($_POST['ordre_id']);
-    $returside = if_isset($_POST['returside']);
-    $fokus = if_isset($_POST['fokus']);
-    $vare_sprogantal = if_isset($_POST['vare_sprogantal']);
-    $vare_sprog_id = if_isset($_POST['vare_sprog_id']);
-    $vare_tekst_id = if_isset($_POST['vare_tekst_id']);
-    $trademark = db_escape_string(trim(if_isset($_POST['trademark'])));
-    $retail_price = usdecimal(if_isset($_POST['retail_price']), 2);
-    $oldRetailPrice .= if_isset($_POST['oldRetailPrice'], 0);
-    $specialType = if_isset($_POST['specialType']);
-    $special_price = usdecimal(if_isset($_POST['special_price']), 2);
-    $tier_price = usdecimal(if_isset($_POST['tier_price']), 2);
-    $special_from_date = usdate(if_isset($_POST['special_from_date']));
-    $special_to_date = usdate(if_isset($_POST['special_to_date']));
-    $special_from_time = if_isset($_POST['special_from_time']);
-    $special_to_time = if_isset($_POST['special_to_time']);
-    $colli = usdecimal(if_isset($_POST['colli']), 2);
-    $colli_webfragt = usdecimal(if_isset($_POST['colli_webfragt']), 2);
-    $outer_colli = usdecimal(if_isset($_POST['outer_colli']), 2);
-    $open_colli_price = usdecimal(if_isset($_POST['open_colli_price']), 2);
-    $outer_colli_price = usdecimal(if_isset($_POST['outer_colli_price']), 2);
-    $campaign_cost = usdecimal(if_isset($_POST['campaign_cost']), 2);
-    $folgevarenr = db_escape_string(trim(if_isset($_POST['folgevarenr'])));
-    $location = db_escape_string(trim(if_isset($_POST['location'])));
-    $numberOfStocks = if_isset($_POST['lagerantal']);
-    $lagerid = if_isset($_POST['lagerid']);
-    $lagerlok = if_isset($_POST['lagerlok']);
-    $m_type = if_isset($_POST['m_type']);
-    $m_rabat_array = if_isset($_POST['m_rabat_array'], array());
-    $m_antal_array = if_isset($_POST['m_antal_array'], array());
-    $kat_valg = if_isset($_POST['kat_valg']);
-    $kat_id = if_isset($_POST['kat_id']);
-    $ny_kategori = if_isset($_POST['ny_kategori']);
-    $rename_category = if_isset($_POST['rename_category']);
-    $vare_varianter = if_isset($_POST['vare_varianter']);
+    #   list ($gruppe)           =  explode (':', if_isset($_POST,NULL,'gruppe'));
+    $notes = db_escape_string(trim(if_isset($_POST, '','notes')));
+    $note_on_orderline = (if_isset($_POST, NULL, 'note_on_orderline') == 'on') ? true : false;
+    $notesInternal = db_escape_string(trim(if_isset($_POST, NULL, 'notesInternal')));
+    $ordre_id = if_isset($_POST, NULL, 'ordre_id');
+    $returside = nav_sanitize_returside(if_isset($_POST, NULL, 'returside'));
+    $fokus = if_isset($_POST, NULL, 'fokus');
+    $vare_sprogantal = if_isset($_POST, NULL, 'vare_sprogantal');
+    $vare_sprog_id = if_isset($_POST, NULL, 'vare_sprog_id');
+    $vare_tekst_id = if_isset($_POST, NULL, 'vare_tekst_id');
+    $trademark = db_escape_string(trim(if_isset($_POST, NULL, 'trademark')));
+
+    $retail_price = usdecimal(if_isset($_POST, NULL,'retail_price'), 2);
+    $oldRetailPrice = if_isset($_POST, 0, 'oldRetailPrice');
+    $specialType = if_isset($_POST, NULL, 'specialType');
+    $special_price = usdecimal(if_isset($_POST, NULL, 'special_price'), 2);
+    $tier_price = usdecimal(if_isset($_POST, NULL, 'tier_price'), 2);
+    $special_from_date = usdate(if_isset($_POST, NULL, 'special_from_date'));
+    $special_to_date = usdate(if_isset($_POST, NULL, 'special_to_date'));
+    $special_from_time = if_isset($_POST, NULL, 'special_from_time');
+    $special_to_time = if_isset($_POST, NULL, 'special_to_time');
+    $colli = usdecimal(if_isset($_POST, NULL, 'colli'), 2);
+    $colli_webfragt = usdecimal(if_isset($_POST, NULL, 'colli_webfragt'), 2);
+    $outer_colli = usdecimal(if_isset($_POST, NULL, 'outer_colli'), 2);
+    $open_colli_price = usdecimal(if_isset($_POST, NULL, 'open_colli_price'), 2);
+    $outer_colli_price = usdecimal(if_isset($_POST, NULL, 'outer_colli_price'), 2);
+    $campaign_cost = usdecimal(if_isset($_POST, NULL, 'campaign_cost'), 2);
+    $folgevarenr = db_escape_string(trim(if_isset($_POST, NULL, 'folgevarenr')));
+    $location = db_escape_string(trim(if_isset($_POST, NULL, 'location')));
+    $numberOfStocks = if_isset($_POST, NULL, 'lagerantal');
+    $lagerid = if_isset($_POST, NULL, 'lagerid');
+    $lagerlok = if_isset($_POST, NULL, 'lagerlok');
+    $m_type = if_isset($_POST, NULL, 'm_type');
+    $m_rabat_array = if_isset($_POST, array(), 'm_rabat_array');
+    $m_antal_array = if_isset($_POST, array(), 'm_antal_array');
+    $kat_valg = if_isset($_POST, NULL, 'kat_valg');
+    $kat_id = if_isset($_POST, NULL, 'kat_id');
+    $ny_kategori = if_isset($_POST, NULL, 'ny_kategori');
+    $rename_category = if_isset($_POST, NULL, 'rename_category');
+    $vare_varianter = if_isset($_POST, NULL, 'vare_varianter');
     $useVariants = $vare_varianter;
-    $varianter_id = if_isset($_POST['varianter_id'], array());
-    $var_type = if_isset($_POST['var_type']);
-    $var_type_beh = if_isset($_POST['var_type_beh']);
-    $var_type_stregk = if_isset($_POST['var_type_stregk']);
-    $variant_vare_id = if_isset($_POST['variant_vare_id']);
-    $variant_vare_stregkode = if_isset($_POST['variant_vare_stregkode']);
-    $variantVarerQty = if_isset($_POST['variant_varer_beholdning'], array());
-    $lagerbeh = if_isset($_POST['lagerbeh']);
-    $ny_lagerbeh = if_isset($_POST['ny_lagerbeh'], array());
+    $varianter_id = if_isset($_POST, array(), 'varianter_id');
+    $var_type = if_isset($_POST, NULL, 'var_type');
+    $var_type_beh = if_isset($_POST, NULL, 'var_type_beh');
+    $var_type_stregk = if_isset($_POST, NULL, 'var_type_stregk');
+    $variant_vare_id = if_isset($_POST, NULL, 'variant_vare_id');
+    $variant_vare_stregkode = if_isset($_POST, NULL, 'variant_vare_stregkode');
+    $variantVarerQty = if_isset($_POST, array(), 'variant_varer_beholdning');
+    $lagerbeh = if_isset($_POST, NULL, 'lagerbeh');
+    $ny_lagerbeh = if_isset($_POST, array(), 'ny_lagerbeh');
     #20221004
-    $on_price_list = if_isset($_POST['on_price_list']);
-    $tier_price_multiplier = usdecimal(if_isset($_POST['tier_price_multiplier']), 2);
-    $tier_price_method = if_isset($_POST['tier_price_method']);
-    $tier_price_rounding = if_isset($_POST['tier_price_rounding']);
-    $salgspris_multiplier = usdecimal(if_isset($_POST['salgspris_multiplier']), 2);
-    $salgspris_method = if_isset($_POST['salgspris_method']);
-    $salgspris_rounding = if_isset($_POST['salgspris_rounding']);
-    $retail_price_multiplier = usdecimal(if_isset($_POST['retail_price_multiplier']), 2);
-    $retail_price_method = if_isset($_POST['retail_price_method']);
-    $retail_price_rounding = if_isset($_POST['retail_price_rounding']);
-    $show_advanced_price_calc = if_isset($_POST['show_advanced_price_calc']);
+    $on_price_list = if_isset($_POST, NULL, 'on_price_list');
+    $tier_price_multiplier = usdecimal(if_isset($_POST, NULL, 'tier_price_multiplier'), 2);
+    $tier_price_method = if_isset($_POST, NULL, 'tier_price_method');
+    $tier_price_rounding = if_isset($_POST, NULL, 'tier_price_rounding');
+    $salgspris_multiplier = usdecimal(if_isset($_POST, NULL, 'salgspris_multiplier'), 2);
+    $salgspris_method = if_isset($_POST, NULL, 'salgspris_method');
+    $salgspris_rounding = if_isset($_POST, NULL, 'salgspris_rounding');
+    $retail_price_multiplier = usdecimal(if_isset($_POST, NULL, 'retail_price_multiplier'), 2);
+    $retail_price_method = if_isset($_POST, NULL, 'retail_price_method');
+    $retail_price_rounding = if_isset($_POST, NULL, 'retail_price_rounding');
+    $show_advanced_price_calc = if_isset($_POST, NULL, 'show_advanced_price_calc');
+    if (!$show_advanced_price_calc) {	# MB-33 - the checkbox has no column of its own; zero the multipliers so unchecking actually turns automatic price calc off (it's gated on these being >0, both here and in updateProductPrice.php)
+        $tier_price_multiplier = $salgspris_multiplier = $retail_price_multiplier = 0;
+    }
 
     if (!$kat_id)
         $kat_id = array();
@@ -705,20 +728,20 @@ if ($saveItem || $submit = trim($submit)) {
             $tier_price = (float) $r['box4'];
     }
     ######## Styklister ->
-    $delvare = if_isset($_POST['delvare']);
-    $samlevare = if_isset($_POST['samlevare']);
-    $fokus = if_isset($_POST['fokus']);
-    $be_af_ant = if_isset($_POST['be_af_ant'], array());
-    $be_af_id = if_isset($_POST['be_af_id'], array());
-    $ant_be_af = if_isset($_POST['ant_be_af'], 0);
-    $indg_i_id = if_isset($_POST['indg_i_id'], array());
-    $indg_i_ant = if_isset($_POST['indg_i_ant'], array());
-    $ant_indg_i = if_isset($_POST['ant_indg_i'], 0);
-    $indg_i_pos = if_isset($_POST['indg_i_pos'], array());
-    $be_af_pos = if_isset($_POST['be_af_pos'], array());
-    $be_af_vare_id = if_isset($_POST['be_af_vare_id'], array());
-    $be_af_vnr = if_isset($_POST['be_af_vnr'], array());
-    $be_af_beskrivelse = if_isset($_POST['be_af_beskrivelse'], array());
+    $delvare = if_isset($_POST, NULL, 'delvare');
+    $samlevare = if_isset($_POST, NULL, 'samlevare');
+    $fokus = if_isset($_POST, NULL, 'fokus');
+    $be_af_ant = if_isset($_POST, array(), 'be_af_ant');
+    $be_af_id = if_isset($_POST, array(), 'be_af_id');
+    $ant_be_af = if_isset($_POST, 0, 'ant_be_af');
+    $indg_i_id = if_isset($_POST, array(), 'indg_i_id');
+    $indg_i_ant = if_isset($_POST, array(), 'indg_i_ant');
+    $ant_indg_i = if_isset($_POST, 0, 'ant_indg_i');
+    $indg_i_pos = if_isset($_POST, array(), 'indg_i_pos');
+    $be_af_pos = if_isset($_POST, array(), 'be_af_pos');
+    $be_af_vare_id = if_isset($_POST, array(), 'be_af_vare_id');
+    $be_af_vnr = if_isset($_POST, array(), 'be_af_vnr');
+    $be_af_beskrivelse = if_isset($_POST, array(), 'be_af_beskrivelse');
 
 
     #   if ($deleteItem=='Slet') {
@@ -812,7 +835,7 @@ if ($saveItem || $submit = trim($submit)) {
             $query = db_select("select id from varer where lower(varenr) = '" . strtolower($varenr) . "' or  upper(varenr) = '" . strtoupper($varenr) . "'", __FILE__ . " linje " . __LINE__);
             $row = db_fetch_array($query);
             if ($row['id']) {
-                print "<meta http-equiv='refresh' content='0;URL=varekort.php?id=$row[id]'>";
+                print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$row[id]'>";
                 exit;
             } elseif ($varenr) {
                 $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
@@ -1152,10 +1175,9 @@ if ($stockItem) {
     sync_shop_price($id);
 }
 
-if ($popup && !$returside)
-    $returside = "../includes/luk.php";
-elseif (!$returside)
-    $returside = "varer.php";
+if (!$returside) {
+    $returside = $productNavigationQuery !== '' ? "../includes/luk.php?popup=1" : "varer.php";
+}
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 
 if ($begin)
@@ -1254,7 +1276,7 @@ if ($menu == 'T') {
         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $icon_posmenu . "POS menuer" . "</button></a></td>\n";
         }
         # Create new item
-        $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
+        $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
         print "<td width='10%' align='right'>
          <a href=\"javascript:confirmClose($confirmNewUrl,$confirmTekst)\" accesskey=N>
          <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
@@ -1278,8 +1300,9 @@ if ($menu == 'T') {
         print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:console.log(getCookie('pos_menu_location'));confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>" . "POS menuer" . "</a>\n";
 
     # Create new item
-    if ($id)
-        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
+    if ($id) {
+        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
+    }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
     print "<td align = center valign = center>\n";
@@ -1566,7 +1589,7 @@ if (!isset($varianter))
 if (!isset($ant_be_af))
     $ant_be_af = NULL;
 
-print "<form name='varekort' action='varekort.php?opener=$opener' method='post'>\n";
+print "<form name='varekort' action='varekort.php?{$productNavigationQuery}opener=$opener' method='post'>\n";
 
 print "<input type = 'hidden' name=id value='$id'>\n";
 print "<input type = 'hidden' name=ordre_id value='$ordre_id'>\n";
@@ -1581,8 +1604,11 @@ for ($x = 1; $x <= $vare_sprogantal; $x++) {
 }
 
 ($noEdit) ? $href = NULL : $href = "ret_varenr.php?id=$id";
+
 $query = db_select("SELECT varenr_alias FROM varer WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-$varenrAlias = db_fetch_array($query)['varenr_alias'];
+// Safely get varenr_alias; returns NULL if no matching row exists.
+$varenrAliasRow = db_fetch_array($query);
+$varenrAlias = $varenrAliasRow ? $varenrAliasRow['varenr_alias'] : NULL;
 if (substr($rettigheder,7,1) && $id) {
     print "<tr><td colspan=\"1\"></td>\n";
     print "<td colspan=\"1\" align=\"center\"><b>".findtekst('917|Varenr.', $sprog_id).": <a href=\"$href\">$varenr</a></b>";
@@ -1694,51 +1720,48 @@ if (!$varenr) {
     print "</tr>\n";
     ######### ==> tabel 4
 #print "<tr><td colspan=4 width=100%><table border=1 width=100%><tbody>";
-    print "<tr><td width=\"33%\" valign=top><table border=\"0\" width=\"100%\"><tbody>"; # Pris enhedstabel ->
+    print "<tr><td id='pcSecPrices' width=\"33%\" valign=top><table border=\"0\" width=\"100%\"><tbody>"; # Pris enhedstabel ->
     print "\n<!-- productCardIncludes/showPrices.php begin -->\n";
     include_once("productCardIncludes/showPrices.php");
     print "\n<!-- productCardIncludes/showPrices.php end -->\n";
     print "</tbody></table></td>"; #<- Pris enhedstabel
 
-    print "<td width=33% valign=top><table border=0 width=100%><tbody>"; # Tilbudstabel ->
+    print "<td id='pcSecOffer' width=33% valign=top><table border=0 width=100%><tbody>"; # Tilbudstabel ->
     print "\n<!-- productCardIncludes/showDiscounts.php begin -->\n";
     include_once("productCardIncludes/showDiscounts.php");
     print "\n<!-- productCardIncludes/showDiscounts.php end -->\n";
     print "</tbody></table></td>";# <- Tilbudstabel 
 
-    print "<td valign=top width=33%><table border=0 width=100%><tbody>"; # Collitabel ->
+    print "<td id='pcSecColli' valign=top width=33%><table border=0 width=100%><tbody>"; # Collitabel ->
     print "\n<!-- productCardIncludes/showColli.php begin -->\n";
     include_once("productCardIncludes/showColli.php");
     print "\n<!-- productCardIncludes/showColli.php end -->\n";
 
     print "</tbody></table></td></tr>";# <- Collitabel 
-    print "<tr><td valign=top><table border='0' width='100%'><tbody>"; # Enhedstabel ->
+    print "<tr><td id='pcSecUnits' valign=top><table border='0' width='100%'><tbody>"; # Enhedstabel ->
     print "\n<!-- productCardIncludes/showUnits.php begin -->\n";
     include('productCardIncludes/showUnits.php');
     print "\n<!-- productCardIncludes/showUnits.php end -->\n";
     print "</tbody></table></td>";
 
-    print "<td valign=top><table border=0 width=100%><tbody>"; # Gruppe tabel ->
+    print "<td id='pcSecGroups' valign=top><table border=0 width=100%><tbody>"; # Gruppe tabel ->
     print "\n<!-- productCardIncludes/showGroups.php begin -->\n";
     include('productCardIncludes/showGroups.php');
     print "\n<!-- productCardIncludes/showGroups.php end -->\n";
     print "</tbody></table></td>";# <- Gruppe tabel
 
-    print "<td valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # M-rabat tabel ->
+    print "<td id='pcSecQtyDiscounts' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # M-rabat tabel ->
     print "\n<!-- productCardIncludes/showQtyDiscounts.php begin -->\n";
     include('productCardIncludes/showQtyDiscounts.php');
     print "\n<!-- productCardIncludes/showQtyDiscounts.php end -->\n";
     print "</tbody></table></td></tr>";# <- M-rabat tabel 
-    print "<tr><td valign=\"top\" height=\"200px\"><table border=\"0\" width=\"100%\"><tbody>"; # Diverse tabel ->
+    print "<tr><td id='pcSecMisc' valign=\"top\" height=\"200px\"><table border=\"0\" width=\"100%\"><tbody>"; # Diverse tabel ->
     print "\n<!-- productCardIncludes/showLocations.php begin -->\n";
     include('productCardIncludes/showLocations.php');
     print "\n<!-- productCardIncludes/showLocations.php end -->\n";
-    print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
-    include('productCardIncludes/showExpirySettings.php');
-    print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
     print "</tbody></table></td>";#  <- Diverse tabel
 #################### KATEGORIER ###########################
-    print "<td valign=\"top\" height=\"200px\">";
+    print "<td id='pcSecCategories' valign=\"top\" height=\"200px\">";
     print "<div class=\"vindue\">";
     print "<table border=0 width=100%><tbody>"; # Kategori tabel ->
     print "\n<!-- productCardIncludes/showCategories.php begin -->\n";
@@ -1747,11 +1770,18 @@ if (!$varenr) {
     print "</tbody></table></div></td>";#  <- Kategori tabel
 
     ####################################### VARIANTER #############################################
-    print "<td valign=\"top\" height=\"200px\"><div class=\"vindue\"><table border=\"0\" width=\"100%\"><tbody>"; # 
+    print "<td id='pcSecVariants' valign=\"top\" height=\"200px\"><div class=\"vindue\"><table border=\"0\" width=\"100%\"><tbody>"; #
     print "\n<!-- productCardIncludes/useVariants.php begin -->\n";
     include('productCardIncludes/useVariants.php');
     print "\n<!-- productCardIncludes/useVariants.php end -->\n";
     print "</tbody></table></div></td></tr>";#  <- Variant tabel
+
+    ####################################### UDLØBSDATO #############################################
+    print "<tr><td id='pcSecExpiry' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # Udløbsdato tabel ->
+    print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
+    include('productCardIncludes/showExpirySettings.php');
+    print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
+    print "</tbody></table></td><td></td><td></td></tr>";#  <- Udløbsdato tabel
 
     ####################################### NOTER/BESKRIVELSE #############################################
     print "\n<!-- productCardIncludes/notesEtc.php begin -->\n";
@@ -1912,7 +1942,7 @@ if (!$varenr) {
     # Vises hvis varen indegår i en stykliste
     if ($delvare == 'on') {
         if ($vis_samlevarer) {
-            print "<tr><td valign=top width=10%><span title='Klik her for at lukke oversigten'><a href=varekort.php?opener=$opener&id=$id&returside=$returside>Indg&aring;r i</a></td><td></td><td><table width=80% border=0><tbody>";
+            print "<tr><td valign=top width=10%><span title='Klik her for at lukke oversigten'><a href=varekort.php?{$productNavigationQuery}opener=$opener&id=$id&returside=$returside>Indg&aring;r i</a></td><td></td><td><table width=80% border=0><tbody>";
             print "<tr><td> Pos.</td><td width=80> V.nr.</td><td width=300> Beskrivelse</td><td> Antal</td></tr>";
             for ($x = 1; $x <= $ant_indg_i; $x++) {
                 print "<tr><td><input class=\"inputbox\" type = 'text' size=2 name=indg_i_ant[$x] value=$x></td><td><a href='?id=$indg_i_id[$x]'>$indg_i_vnr[$x]</a></td><td>$indg_i_beskrivelse[$x]</td><td align=\"right\">$indg_i_ant[$x]</td></tr>";
@@ -1920,7 +1950,7 @@ if (!$varenr) {
             print "<input type=\"hidden\" name=\"vis_samlevarer\" value=\"on\">";
         } else {
             print "<tr><td colspan=3><table width=100% border='0' cellspacing='1'><tbody>";
-            print "<tr><td width=100% align=center><a href=varekort.php?opener=$opener&id=$id&returside=$returside&vis_samlevarer=on>Denne vare indg&aring;r i andre varer - Klik for oversigt</a></td></tr>";
+            print "<tr><td width=100% align=center><a href=varekort.php?{$productNavigationQuery}opener=$opener&id=$id&returside=$returside&vis_samlevarer=on>Denne vare indg&aring;r i andre varer - Klik for oversigt</a></td></tr>";
         }
 
         #   print "<tr><td><input class=\"inputbox\" type = 'text' size=2 name=indg_i_ant[$x] value=$x></td><td colspan=2><SELECT class=\"inputbox\" NAME=indg_i_ant[0]>";
@@ -1989,6 +2019,12 @@ if ($id && $packagingModuleEnabled) {
 print "</form>";
 print "</tr></tbody></table></td></tr>";
 print "</tr></tbody></table></td></tr>";
+
+if ($varenr) {
+    print "\n<!-- productCardIncludes/fieldVisibility.php begin -->\n";
+    include('productCardIncludes/fieldVisibility.php');
+    print "\n<!-- productCardIncludes/fieldVisibility.php end -->\n";
+}
 
 
 function prisopdatx2($id, $diff)
@@ -2074,6 +2110,7 @@ function prisopdat_xx($id)
 
 function kategorier($x, $id, $kat_niveau, $kategori_antal, $kat_id, $kategori, $kat_beskrivelse, $kat_master)
 {
+    $productNavigationQuery = nav_popup_query($_GET, $_POST);
     global $sprog_id;
     $checked = "";
     for ($y = 0; $y <= $kategori_antal; $y++) {
@@ -2091,8 +2128,8 @@ function kategorier($x, $id, $kat_niveau, $kategori_antal, $kat_id, $kategori, $
     $tekst = findtekst('395|Afmærk her for at knytte $firmanavn til denne kategori', $sprog_id);
     #               $tekst=str_replace('$firmanavn',$firmanavn,$tekst); 
     print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"kat_valg[$x]\" $checked></td>\n";
-    print "<td title=\"".findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&    =$kat_id\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
-    print "<td title=\"".findtekst('397|Klik her for at slette denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+    print "<td title=\"".findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?{$productNavigationQuery}id=$id&    =$kat_id\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
+    print "<td title=\"".findtekst('397|Klik her for at slette denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?{$productNavigationQuery}id=$id&delete_category=$kat_id\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
     print "</tr>\n";
     print "<input type=\"hidden\" name=\"kat_id[$x]\" value=\"$kat_id\">\n";
 } # endfunc kategorier
@@ -2163,6 +2200,7 @@ function cirkeltjek($vare_id)
 ######################################################################################################################################
 function kontoopslag($sort, $fokus, $id)
 {
+    $productNavigationQuery = nav_popup_query($_GET, $_POST);
     global $bgcolor2;
     global $top_bund;
     global $returside;
@@ -2204,21 +2242,21 @@ function kontoopslag($sort, $fokus, $id)
 
     } else {
         print "<table width='100%'><tbody>";
-        print "<td width=\"10%\" $top_bund><a href=varekort.php?opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
+        print "<td width=\"10%\" $top_bund><a href=varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
         print "<td width=\"80%\" $top_bund align=\"center\">Varekort</td>";
         print "<td width=\"10%\" $top_bund align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"JavaScript:window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\"><u>Ny</u></td>";
         print "</tbody></table></td></tr>";
     }
     print "<table width='100%'><tbody>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=kontonr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontonr</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=firmanavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Navn</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=addr1&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=addr2&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse2</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=postnr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Postnr</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=bynavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>bynavn</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=land&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>land</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=kontonr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontonr</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=firmanavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Navn</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=addr1&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=addr2&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse2</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=postnr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Postnr</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=bynavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>bynavn</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=land&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>land</b></td>";
     #   print"<td><b><a href=varekort.php?opener=$opener&sort=kontakt&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontaktperson</b></td>";
-    print "<td><b><a href=varekort.php?opener=$opener&sort=tlf&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Telefon</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=tlf&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Telefon</b></td>";
     print " </tr>";
 
     if (!isset($_GET['sort']))
@@ -2232,7 +2270,7 @@ function kontoopslag($sort, $fokus, $id)
     while ($row = db_fetch_array($q)) {
         $kontonr = str_replace(" ", "", $row['kontonr']);
         print "<tr>";
-        print "<td><a href=varekort.php?id=$id&konto_id=$row[id]&returside=$returside&vare_lev_id=$row[id]>$row[kontonr]</a></td>";
+        print "<td><a href=varekort.php?{$productNavigationQuery}id=$id&konto_id=$row[id]&returside=$returside&vare_lev_id=$row[id]>$row[kontonr]</a></td>";
         print "<td>$row[firmanavn]</td>";
         print "<td>$row[addr1]</td>";
         print "<td>$row[addr2]</td>";

@@ -27,6 +27,7 @@
 // 20230316 PHR Replaced *1 by (int)
 // 20260127 PHR update settings value
 // 20260219 PHR Added employeeInitials
+// 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
 
 @session_start();
 $s_id=session_id();
@@ -130,6 +131,12 @@ if ($addUser || $updateUser) {
 		else $rettigheder.='0';
 	}
 	$brugernavn=trim($brugernavn);
+	if (is_input_too_long($brugernavn)) {
+		$alerttext=findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id);
+		print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
+		$brugernavn=NULL;
+		$ret_id=$id;
+	}
 	if ($kode && $kode != $kode2) {
 		$alerttext="Adgangskoder er ikke ens";
 		print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
@@ -305,7 +312,7 @@ if ($ret_id) {
 	print "<input type=hidden name=id value=$row[id]>";
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<input type=hidden name=random value=$tmp>";	#For at undgaa at browseren "husker" et forkert brugernavn.
-	print "<td><input class='inputbox' type='text' size=20 name='$tmp' value=\"$row[brugernavn]\"></td>";
+	print "<td><input class='inputbox' type='text' size=20 maxlength=80 name='$tmp' value=\"$row[brugernavn]\"></td>";
 	print "</tr><tr><td></td><td>Adgang til</td>\n";
 	for ($x=0;$x<16;$x++) {
 		(substr($row['rettigheder'],$x,1)>=1)?$checked='checked':$checked=NULL;
@@ -377,7 +384,7 @@ if ($ret_id) {
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<input type=hidden name=random value = $tmp>";
 	print "<tr><td> ".findtekst('333|Ny bruger', $sprog_id)."</td>";
-	print "<td><input class=\"inputbox\" type=\"text\" size='20' name='$tmp'></td>";
+	print "<td><input class=\"inputbox\" type=\"text\" size='20' maxlength='80' name='$tmp'></td>";
 	$s = findtekst('329|Adgang til', $sprog_id); $as = explode(" ", $s); 
 	print "</tr><tr><td></td><td>$as[0]</td>";
 	for ($x=0;$x<16;$x++) {

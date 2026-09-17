@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//../includes/orderFuncIncludes/grid_account_lookup.php rel. 5.0.0 20260513
+//--- includes/orderFuncIncludes/grid_account_lookup.php --- rel. 5.0.0 --- 20260513
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,8 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260513 CL/PHR Solved double order creation problem
+// 20260827 CDX/PHR Preserve KO in supplier lookup AJAX and POS navigation.
+// 20260901 CL/LH Pass o_art=KO along on AJAX row click so supplier choice survives
 
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -1589,14 +1591,16 @@ function render_ajax_search_script($id) {
     if ($account_lookup_href) {
         $href = $account_lookup_href;
     } else {
-        $href = ($o_art_global === 'PO')
+        $href = ($o_art_global === 'PO' || $o_art_global === 'KO')
             ? "pos_ordre.php"
             : "ordre.php";
     }
 
-    if ($o_art_global === 'PO') {
+    if ($o_art_global === 'PO' || $o_art_global === 'KO') {
         $fokus = 'kontonr';
     }
+
+    $o_art_param = ($o_art_global === 'KO') ? '&o_art=KO' : '';
 
     echo <<<SCRIPT
     <script>
@@ -1756,7 +1760,7 @@ function render_ajax_search_script($id) {
         var html = '';
         data.forEach(function(row, index) {
             var rowColor    = (index % 2 === 0) ? '{$bgcolor}' : '{$bgcolor5}';
-            var redirectUrl = '{$href}?fokus=kontonr&id={$ordre_id}&konto_id=' + (row.id || '');
+            var redirectUrl = '{$href}?fokus=kontonr&id={$ordre_id}&konto_id=' + (row.id || '') + '{$o_art_param}';
 
             html += '<tr style="background-color:' + rowColor + ';cursor:pointer;"' +
                     ' onclick="window.location.href=\'' + redirectUrl + '\'"' +
@@ -1823,6 +1827,7 @@ function render_ajax_search_script($id) {
         }
         params['ajax']    = '1';
         params['grid_id'] = '{$id}';
+        params['o_art']   = '{$o_art_global}';
 
         // Build query string
         var qs = Object.keys(params).map(function(k) {

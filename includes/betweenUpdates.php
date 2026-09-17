@@ -36,6 +36,10 @@
 //                  a nonexistent column, pg_query() failed, and the endpoint silently
 //                  returned zero rows regardless of any actual match. All statements below
 //                  are idempotent (existence/flag-checked), matching this file's pattern.
+// 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
+//                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
+//                     be resent in a later batch but never twice in the same batch.
+// 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
 
 
 
@@ -49,6 +53,15 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files(norm_amount)", __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='batch_kob' AND column_name='created_by' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_kob ADD COLUMN created_by TEXT", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='batch_salg' AND column_name='created_by' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_salg ADD COLUMN created_by TEXT", __FILE__ . " linje " . __LINE__);
 }
 
 // One-time backfill of norm_amount for rows written before this column existed.
@@ -75,6 +88,46 @@ if (!$already_backfilled) {
 	);
 }
 
+// Ongoing catch-up (unlike the one-time backfill above, this has no settings flag - it
+// stays cheap and self-limiting because the WHERE clause only ever matches rows still
+// missing norm_amount). Several other pool_files write paths (docPool.php's pulje-folder
+// sync and rename/edit flow, restapi/models/attachment/AttachmentModel.php's REST upload)
+// wrote `amount` without ever computing `norm_amount`, so rows written through them before
+// those call sites were fixed are still stuck at norm_amount = NULL - the same reason
+// Bilagsmatch's amount_score always scored 0 for them.
+include_once(__DIR__ . "/docsIncludes/poolAmountNormalizer.php");
+$q_norm_catchup = db_select("SELECT id, amount FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
+while ($r_norm_catchup = db_fetch_array($q_norm_catchup)) {
+	$normalized_catchup = normalizePoolAmount($r_norm_catchup['amount']);
+	if ($normalized_catchup !== null) {
+		db_modify(
+			"UPDATE pool_files SET norm_amount = " . db_escape_string((string) $normalized_catchup) . " WHERE id = " . (int) $r_norm_catchup['id'],
+			__FILE__ . " linje " . __LINE__
+		);
+	}
+}
+
+// Same reasoning as the norm_amount catch-up above, for currency: extractInvoiceHandler.php
+// and the REST attachment upload path stored whatever currency string the AI extraction API
+// returned verbatim (e.g. "kr" instead of "DKK") before normalizePoolCurrency() existed.
+// fetchbilagsmatch.php's currency hard gate is a plain UPPER(TRIM(...)) string match, so an
+// unrecognized alias silently excluded that file from every candidate regardless of score.
+// Self-limiting the same way: once a row's currency is already normalized, this is a no-op -
+// so scanning every non-empty row (rather than pre-filtering to "doesn't already look like a
+// 3-letter code") is what's correct here. That prefilter used to exclude DKR/NKR/SKR: they're
+// 3 uppercase letters too, so they matched "looks like a code already" and were skipped even
+// though normalizePoolCurrency() maps them to DKK/NOK/SEK.
+$q_currency_catchup = db_select("SELECT id, currency FROM pool_files WHERE currency IS NOT NULL AND currency != ''", __FILE__ . " linje " . __LINE__);
+while ($r_currency_catchup = db_fetch_array($q_currency_catchup)) {
+	$normalized_currency = normalizePoolCurrency($r_currency_catchup['currency']);
+	if ($normalized_currency !== null && $normalized_currency !== $r_currency_catchup['currency']) {
+		db_modify(
+			"UPDATE pool_files SET currency = '" . db_escape_string($normalized_currency) . "' WHERE id = " . (int) $r_currency_catchup['id'],
+			__FILE__ . " linje " . __LINE__
+		);
+	}
+}
+
 // Bilagsmatch text-similarity scoring uses pg_trgm when available; on tenants where
 // CREATE EXTENSION isn't permitted (managed hosting without superuser), fetchbilagsmatch.php
 // falls back to ILIKE/position() matching instead - this must never block the migration.
@@ -94,6 +147,37 @@ if (!$trgm_attempted) {
 		VALUES ('pg_trgm_extension_attempted', 'system', 'yes', 'Whether pg_trgm CREATE EXTENSION has been attempted for Bilagsmatch text scoring')",
 		__FILE__ . " linje " . __LINE__
 	);
+}
+
+// The Bilagsmatch tekst_id block was renumbered from 5032-5047 to 5040-5055 (see
+// finans/kassekladde_includes/bilagsmatch.php, "Renumber Bilagsmatch tekst_id block to
+// avoid collision with upstream") because upstream/master independently claimed 5032-5039
+// for unrelated GS1/POS strings. Tenants that had already exercised the feature under the
+// OLD numbering got those 16 rows inserted into `tekster` via findtekst()'s self-healing
+// insert - so the overlapping ids 5040-5047 still hold the OLD strings (Type/preview
+// tooltip/lookup tooltip/Bilagsmatch title/Dato/Bilag/Tekst/Beløb) while the current code
+// asks those same ids for the NEW strings (Konto/Modkonto/Valuta/Præcision/Annullér/summary
+// template/"0 fundet"/empty-message). findtekst() always prefers an existing DB row over
+// tekster.csv, so the Bilagsmatch popup silently showed the wrong label for all 8 ids -
+// e.g. "Voucher no." (old 5045) instead of the live "0 matches selected · 0 found" summary
+// (new 5045). Clear only rows still holding the exact old value (same pattern as the
+// Stillingsliste fix below) so the next findtekst() call re-reads the correct text from
+// tekster.csv (now at 5048-5055) and re-inserts it.
+$bilagsmatch_stale_tekster = [
+	[5040, 1, 'Type'], [5040, 2, 'Type'], [5040, 3, 'Type'],
+	[5041, 1, 'Klik for at forhåndsvise/åbne dokumentet'], [5041, 2, 'Click to preview/open the document'], [5041, 3, 'Klikk for å forhåndsvise/åpne dokumentet'],
+	[5042, 1, 'Slå konto op'], [5042, 2, 'Look up account'], [5042, 3, 'Slå opp konto'],
+	[5043, 1, 'Bilagsmatch'], [5043, 2, 'Voucher match'], [5043, 3, 'Bilagsmatch'],
+	[5044, 1, 'Dato'], [5044, 2, 'Date'], [5044, 3, 'Dato'],
+	[5045, 1, 'Bilag'], [5045, 2, 'Voucher no.'], [5045, 3, 'Bilag'],
+	[5046, 1, 'Tekst'], [5046, 2, 'Text'], [5046, 3, 'Tekst'],
+	[5047, 1, 'Beløb'], [5047, 2, 'Amount'], [5047, 3, 'Beløp'],
+];
+foreach ($bilagsmatch_stale_tekster as $stale) {
+	$qtxt = "select id from tekster where sprog_id = '$stale[1]' and tekst_id = '$stale[0]' and tekst = '" . db_escape_string($stale[2]) . "'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 $qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '38' and tekst = 'Stillingsliste'";
@@ -305,6 +389,22 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER TABLE moms_periode_luk ADD COLUMN note TEXT", __FILE__ . " linje " . __LINE__);
 }
 
+// 20260812 CL/SZ - Bilagsmatch's pinned-preview attachment icon tooltip (tekst_id 5071) was
+// reworded from "Click to open the document" to "Click to see attachment" now that the
+// hover preview is gone and this icon is the only way to view an attachment. findtekst()
+// always prefers an existing DB row over tekster.csv (same issue as the ids-5040-5047 block
+// above), so clear only rows still holding the exact old text - the next findtekst() call
+// re-reads the new text from tekster.csv and re-inserts it.
+$bilagsmatch_stale_tooltip_5071 = [
+	[5071, 1, 'Klik for at åbne dokumentet'], [5071, 2, 'Click to open the document'], [5071, 3, 'Klikk for å åpne dokumentet'],
+];
+foreach ($bilagsmatch_stale_tooltip_5071 as $stale) {
+	$qtxt = "select id from tekster where sprog_id = '$stale[1]' and tekst_id = '$stale[0]' and tekst = '" . db_escape_string($stale[2]) . "'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
+	}
+}
+
 // 20260807 CL/LH Stripe subscriptions: four tables + indexes for the native Stripe
 // integration (doc/stripe/INTERFACE_CONTRACT.md). Placed HERE and in admin/opret.php,
 // deliberately NOT in opdat_4.3.php - its opdat_to('4.3.0') gate has already run on
@@ -432,5 +532,93 @@ foreach ($cvr_gamle_tekster as $cvr_tekst) {
 db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast CVR-nr. efterfulgt%'", __FILE__ . " linje " . __LINE__);
 db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Enter the VAT no. followed%'", __FILE__ . " linje " . __LINE__);
 db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast inn org.nr. etterfulgt%'", __FILE__ . " linje " . __LINE__);
+
+// 20260908 CL/Sawaneh SST-763: one pbs_ordrer row per PBS attempt. New columns record who/when,
+// the Nets result registered by the user and which earlier attempt a resend replaces.
+// brugernavn is stored as text too: revisor/superuser logins have bruger_id = -1 (no brugere row).
+$pbs_ordrer_kolonner = array(
+	'oprettet' => 'timestamp', 'bruger_id' => 'integer', 'brugernavn' => 'text', 'gensendt_fra' => 'integer',
+	'resultat' => 'varchar(16)', 'resultat_ref' => 'text', 'resultat_dato' => 'date', 'resultat_bruger_id' => 'integer'
+);
+$pbs_mysql = ($db_type == 'mysql' || $db_type == 'mysqli');
+foreach ($pbs_ordrer_kolonner as $pbs_kolonne => $pbs_type) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pbs_ordrer' AND column_name = '$pbs_kolonne'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		# IF NOT EXISTS (Postgres/MariaDB, not MySQL) because betweenUpdates.php runs at login and two
+		# concurrent logins can both pass the check above.
+		$pbs_if_not_exists = $pbs_mysql ? '' : 'IF NOT EXISTS ';
+		db_modify("ALTER TABLE pbs_ordrer ADD COLUMN $pbs_if_not_exists$pbs_kolonne $pbs_type", __FILE__ . " linje " . __LINE__);
+	}
+}
+// Legacy pbsfakt() blocked any second row per invoice, so duplicates within a batch should not
+// exist; remove any (keep the oldest) before the unique index so the statement cannot fail.
+if ($pbs_mysql) {
+	$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pbs_ordrer' AND index_name = 'pbs_ordrer_liste_ordre_uidx'";
+	$pbs_dedupe = "DELETE a FROM pbs_ordrer a JOIN pbs_ordrer b ON a.liste_id = b.liste_id AND a.ordre_id = b.ordre_id AND a.id > b.id";
+	$pbs_index = "CREATE UNIQUE INDEX pbs_ordrer_liste_ordre_uidx ON pbs_ordrer (liste_id, ordre_id)";
+} else {
+	$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pbs_ordrer' AND indexname = 'pbs_ordrer_liste_ordre_uidx'";
+	$pbs_dedupe = "DELETE FROM pbs_ordrer a USING pbs_ordrer b WHERE a.liste_id = b.liste_id AND a.ordre_id = b.ordre_id AND a.id > b.id";
+	$pbs_index = "CREATE UNIQUE INDEX IF NOT EXISTS pbs_ordrer_liste_ordre_uidx ON pbs_ordrer (liste_id, ordre_id)";
+}
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify($pbs_dedupe, __FILE__ . " linje " . __LINE__);
+	db_modify($pbs_index, __FILE__ . " linje " . __LINE__);
+}
+
+// 20260910 CL/SZ SST-776 follow-up (root cause identified during the SST-740 trace on
+// 20260908, but PR #584 only shipped the FileReservation/session-tenant half - this closes
+// the other half): pool_files never had a uniqueness constraint on filename in the
+// schema paths that actually provision it (admin/opret.php, includes/opdat_4.1.php,
+// includes/opdat_4.2.php all create it without one - only docPool.php's own from-scratch
+// CREATE TABLE IF NOT EXISTS included one, which never runs against a tenant that already
+// has the table). Combined with docPool.php's pulje-folder sync only ever inserting a row
+// when the filename string isn't already known - never checking whether the tracked row
+// still corresponds to a file actually on disk - a row orphaned by any pulje-file removal
+// other than the guarded attach flow in includes/docsIncludes/insertDoc.php (a manual
+// delete, a failed move, etc.) could sit forever and later get silently re-attached to an
+// unrelated upload that happened to reuse the same generated filename (recurring vendor +
+// date names, e.g. NETS/META, collide easily). The customer then sees one document's real
+// PDF paired with a different document's vendor/amount/date/invoice number. Same
+// dedupe-then-constrain pattern as pbs_ordrer_liste_ordre_uidx above: existing duplicate
+// filenames are collapsed to the highest id (most recently inserted row) before the index
+// is added, so this cannot fail on data that predates the fix. The docPool.php sync itself
+// now also deletes any row whose file is no longer in the pulje folder, which is what
+// actually prevents new orphans going forward - this index is the backstop against a race
+// between two requests doing that same reconciliation concurrently.
+if ($db_type == 'mysql' || $db_type == 'mysqli') {
+	// Group by index_name and require exactly one column in the index - seq_in_index = 1
+	// alone would also match a composite index like UNIQUE(filename, account), which
+	// still permits duplicate filenames and must not be treated as covering this.
+	$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND non_unique = 0 GROUP BY index_name HAVING COUNT(*) = 1 AND MAX(column_name) = 'filename'";
+	$pool_files_dedupe = "DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id";
+	$pool_files_index = "CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)";
+} else {
+	// Checked against pg_index/pg_attribute directly (not a fixed index name, and not
+	// information_schema.table_constraints) because a tenant whose pool_files table
+	// didn't exist yet when docPool.php's own CREATE TABLE IF NOT EXISTS bootstrap first
+	// ran (its schema already includes an unnamed UNIQUE(filename) table constraint,
+	// which Postgres auto-names pool_files_filename_key) already has this covered under
+	// a different name - confirmed live against a real customer dump (saldi_821_verify,
+	// used for MB-39) that has exactly that constraint with zero duplicate filenames.
+	// Checking any single-column unique index on filename, regardless of name or
+	// whether it backs a formal constraint, avoids creating a second redundant index
+	// on tenants provisioned that way.
+	$qtxt = "
+		SELECT indexrelid::regclass AS idxname
+		FROM pg_index i
+		JOIN pg_class t ON t.oid = i.indrelid
+		WHERE t.relname = 'pool_files'
+			AND i.indisunique
+			AND i.indnatts = 1
+			AND i.indkey[0] = (SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename')
+	";
+	$pool_files_dedupe = "DELETE FROM pool_files a USING pool_files b WHERE a.filename = b.filename AND a.id < b.id";
+	$pool_files_index = "CREATE UNIQUE INDEX IF NOT EXISTS pool_files_filename_uidx ON pool_files (filename)";
+}
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify($pool_files_dedupe, __FILE__ . " linje " . __LINE__);
+	db_modify($pool_files_index, __FILE__ . " linje " . __LINE__);
+}
 
 ?>

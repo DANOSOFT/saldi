@@ -125,10 +125,6 @@ $link = $id;
 	else $account=$kto;
 }
 #if ($_SERVER['REMOTE_ADDR'] == '87.62.100.183') echo "db $db<br>";
-if (isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'],'debitor/debitor.php')) { # 20210505
-	$_SESSION['mySalePw'] = $s_id;
-	$_SESSION['mySaleAcId'] = $accountId;
-}
 
 if (file_exists('redirect.php')) include ('redirect.php');
 if ($id && !is_numeric($account)) {
@@ -158,6 +154,24 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 }
 $qtxt = "delete from online where rettigheder = '0' and regnskabsaar = '0' and logtime < '". $logtime ."'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+# 20260828 SST-743: staff access from debitor_kommission.php. Replaces the 20210505 referer bypass,
+# which stopped matching when kommissionslisten left debitor/debitor.php and the link became
+# cross-origin (browsers then send only the origin as referer). The list appends
+# st=sha256(bizsys session id); accept it when it matches a logged-in staff session for the same db.
+if (isset($_GET['st']) && $accountId && $db) {
+	$st = strtolower(preg_replace('/[^A-Fa-f0-9]/','',$_GET['st']));
+	if (strlen($st) == 64) {
+		$qtxt = "select session_id from online where db = '". db_escape_string($db) ."' and rettigheder <> '0'";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($rs=db_fetch_array($q)) {
+			if (hash_equals(hash('sha256',(string)$rs['session_id']),$st)) {
+				$_SESSION['mySalePw'] = $s_id;
+				$_SESSION['mySaleAcId'] = $accountId;
+				break;
+			}
+		}
+	}
+}
 if ($account && !$resetPW) {
 	setcookie("mylabel","$account|$db",time()-60,"/");
 	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='online' and column_name='sprog'";
