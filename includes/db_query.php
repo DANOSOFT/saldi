@@ -62,6 +62,16 @@ if (!function_exists('get_relative')) {
     }
 }
 
+if (!function_exists('db_log_append')) {
+    function db_log_append($path, $lines, $mode = 'a') {
+        $fp = @fopen($path, $mode);
+        if ($fp === false) return false;
+        foreach ((array)$lines as $line) fwrite($fp, $line);
+        fclose($fp);
+        return true;
+    }
+}
+
 if (!function_exists('db_connect')) {
 	function db_connect($l_host, $l_bruger, $l_password, $l_database="", $l_spor="") {
 		global $db_type;
@@ -192,19 +202,19 @@ if (!function_exists('db_modify')) {
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
-				$fp=fopen("$temp/.ht_modify.log","a");
-				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n");
-				fwrite($fp,$qtext.";\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n",
+				$qtext.";\n",
+			]);
 		}
 		if (!$db_query) { #20190704
 			#if ($db_type=="mysql")       $errtxt = mysql_error($connection);
 			if ($db_type=="mysqli") $errtxt = mysqli_error($use_connection); #20190704
 			else $errtxt=pg_last_error($use_connection);
-			$fp=fopen("$temp/.ht_modify.log","a");
-			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-			fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+				"-- Fejl!! ".$qtext." | $errtxt;\n",
+			]);
 			$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
 			if (strstr($spor,"includes/opdat")) {
 				if (file_exists("$temp/opdatfejl.txt")) {
@@ -218,9 +228,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Opdat fejl', $message, $headers);
 					}
-					$ff=fopen("$temp/opdatfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/opdatfejl.txt", date("U")."\n", 'w');
 				} 
 			} else {
 				if (file_exists("$temp/modifyfejl.txt")) {
@@ -234,9 +242,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - modify', $message, $headers);
 					}
-					$ff=fopen("$temp/modifyfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/modifyfejl.txt", date("U")."\n", 'w');
 				} 
 				// if ($db_type=="mysql") {
 				// 	mysql_query("ROLLBACK");
@@ -317,13 +323,11 @@ if (!function_exists('db_select')) {
 
 			$tmp.="_".date("h:i");
 			if ($linje != $tmp) {
-				$fp=fopen("$temp/lasterror.txt","a");
-				fwrite($fp,"$tmp");
-				fclose($fp);
-				$fp=fopen("$temp/lasterror.txt","a");
-				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-				fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
-				fclose($fp);
+				db_log_append("$temp/lasterror.txt", "$tmp");
+				db_log_append("$temp/lasterror.txt", [
+					"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+					"-- Fejl!! ".$qtext." | $errtxt;\n",
+				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
 				if (file_exists("$temp/selectfejl.txt")) {
 					$ff=fopen("$temp/selectfejl.txt","r");
@@ -337,9 +341,7 @@ if (!function_exists('db_select')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - select', $message, $headers);
 					}
-					$ff=fopen("$temp/selectfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/selectfejl.txt", date("U")."\n", 'w');
 				} 
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
@@ -352,10 +354,10 @@ if (!function_exists('db_select')) {
 				exit;
 			}
 		} else {
-			$fp=fopen("$temp/.ht_select.log","a");
-			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-			fwrite($fp,$qtext.";\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_select.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+				$qtext.";\n",
+			]);
 		}
 		return $query;
 	}
@@ -445,9 +447,10 @@ if (!function_exists('transaktion')) {
 		global $db_transaktion_depth; #20260804 SZ track nesting so an inner begin() (e.g. bogfor() calling transaktion('begin') again inside an already-open outer transaction) doesn't wipe out an earlier failure recorded by the outer transaction (SD-595)
 
 		$temp = get_relative() . 'temp/' . $db;
-		$fp=fopen("$temp/.ht_modify.log","a");
-		fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n");
-		fwrite($fp,$qtext.";\n");
+		db_log_append("$temp/.ht_modify.log", [
+			"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n",
+			$qtext.";\n",
+		]);
 		$qtext_trim = strtolower(trim($qtext));
 		if ($qtext_trim == 'begin') {
 			if (!$db_transaktion_depth) $db_modify_fejl = false; #20260729 SZ reset the write-failure flag only when opening the outermost transaction (SD-595)
@@ -568,10 +571,10 @@ if (!function_exists('injecttjek')) {
 					$s_id=session_id();
 					$txt="SQL injection registreret!!! - Handling logget & afbrudt";
 					alert("$txt");
-					$fp=fopen("$temp/.ht_modify.log","a");
-					fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n");
-					fwrite($fp,"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n");	
-					fclose($fp);
+					db_log_append("$temp/.ht_modify.log", [
+						"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n",
+						"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n",
+					]);
 					$s_id=session_id();
 					include("../includes/connect.php");
 					$db_modify("delete from online where session_id = '$s_id'");

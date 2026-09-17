@@ -39,6 +39,7 @@
 // 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
+// 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
 // 20260917 SZ MB-36: backfill the batch_kob/varer/ordrelinjer FEFO columns that
 //                     opdat_4.2.php's version-exact-match gate never re-runs for
 //                     already-upgraded tenants (see comment near the bottom of this file).
@@ -55,6 +56,15 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files(norm_amount)", __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='batch_kob' AND column_name='created_by' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_kob ADD COLUMN created_by TEXT", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='batch_salg' AND column_name='created_by' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_salg ADD COLUMN created_by TEXT", __FILE__ . " linje " . __LINE__);
 }
 
 // One-time backfill of norm_amount for rows written before this column existed.
