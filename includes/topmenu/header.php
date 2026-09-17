@@ -145,6 +145,9 @@ if ($menu=='T') {
                 <li>
                   <a href='../../../finans/rapport.php'><?php echo findtekst(603,$sprog_id) ?></a>
                 </li>
+                <li>
+                  <a href='../../../finans/moms_periode.php'>Momsperioder</a>
+                </li>
               </ul>
               <div class='menu-end'>&nbsp;</div>
             </div>

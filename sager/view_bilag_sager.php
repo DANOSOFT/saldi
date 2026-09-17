@@ -10,17 +10,17 @@ $id=if_isset($_GET['sag_id']);
 
 global $db;
 
-$url  = isset($_SERVER['HTTPS']) ? 'https://' : 'http://';
-$url .= $_SERVER['SERVER_NAME'];
-$url .= htmlspecialchars($_SERVER['REQUEST_URI']);
+$url    = isset($_SERVER['HTTPS']) ? 'https://' : 'http://';
+$url   .= $_SERVER['SERVER_NAME'];
+$url   .= htmlspecialchars($_SERVER['REQUEST_URI']);
 $urlstr = dirname(dirname($url));
 //echo $urlstr; exit();
-$x=0;
+$x = 0;
 	$q=db_select("select * from bilag where assign_to='sager' and assign_id='$id' order by datotid asc",__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
-		$bilag_id[$x]=$r['id'];
-		$bilag_title[$x]=$r['navn'];
-		$bilag_filtype[$x]=$r['filtype'];
+		$bilag_id[$x]      = $r['id'];
+		$bilag_title[$x]   = $r['navn'];
+		$bilag_filtype[$x] = $r['filtype'];
 		$x++;
 	}
 //print_r($bilag_filtype); exit();
@@ -29,7 +29,7 @@ $x=0;
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Stillads</title>
+  <title><?php echo findtekst('2783|Stillads', $sprog_id); ?></title>
   <link rel="stylesheet" href="../css/idangerous.swiper.css">
   <!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
@@ -192,7 +192,7 @@ body {
 					print "<div class=\"swiper-slide\">\n";
 							print "
 							<object data=\"http://docs.google.com/viewer?url=$urlstr%2Fbilag%2F$db%2F$id%2F$bilag_id[$y].$bilag_filtype[$y]&amp;embedded=true\" class=\"$style\">
-								<p>Din browser kan ikke vise denne fil. Hent filen herunder.</p>
+								<p>".findtekst('3254|Din browser kan ikke vise denne fil', $sprog_id).". ".findtekst('3255|Hent filen herunder', $sprog_id).".</p>
 								<a href=\"../bilag/$db/$id/$bilag_id[$y].$bilag_filtype[$y]\">$bilag_title[$y]</a> 
 							</object>\n";
 							/*
@@ -211,7 +211,7 @@ body {
 							if ($bilag_filtype[$y]=='pptx') $type = 'type="application/vnd.openxmlformats-officedocument.presentationml.presentation"';*/
 							print "
 							<object data=\"../bilag/$db/$id/$bilag_id[$y].$bilag_filtype[$y]\" class=\"$style\">
-								<p>Din browser kan ikke vise denne fil. Hent filen herunder.</p>
+								<p>".findtekst('3254|Din browser kan ikke vise denne fil', $sprog_id).". ".findtekst('3255|Hent filen herunder', $sprog_id).".</p>
 								<a href=\"../bilag/$db/$id/$bilag_id[$y].$bilag_filtype[$y]\">$bilag_title[$y]</a>
 							</object>\n";
 							/*

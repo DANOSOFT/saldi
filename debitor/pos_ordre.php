@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-02-11 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
@@ -88,10 +88,30 @@
 // 20250701 PHR Check if order exists. if not set id to 0
 // 20250806 PHR php8 issue in sizeof($_POST)
 // 20250816 PHR Compared and merged changes from ssl7
+// 20260827 CDX/PHR Use supplier account lookup from the customer button in test_31.
 // 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
 // 20260204 PHR Back button did not work if focus was 'Modtaget'
 // 20260211 PHR Updated cashCount 
-
+// 20260225 PHR Updated cashCount
+// 20260316 PHR Corrected Currency error in cashCount
+// 20260403 PHR Added && '$leveres[0] != 0' as leveres else is set to 0 if qty was changed and kokkelprint became reset.
+// 20260523 CL/PHR function posbogfor: Changed payment type query to LEFT JOIN with COALESCE(felt_1) so orders
+//                 without pos_betalinger rows are included when finding distinct betaling types
+// 20260523 CL/PHR function posbogfor: Changed order lookup query to LEFT JOIN with COALESCE(felt_1/valuta)
+//                 so art='DO' orders without pos_betalinger are passed to bogfor_nu
+// 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
+// 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
+// 20260707 MJ Add kasse to form action URL so drawer kasse is preserved on POST; restore commented-out drawer redirect in aabn_skuffe
+// 20260901 CL/LH opdater_konto: validated o_art mode from lookup row click; KO loads creditor
+//                 accounts only, and a missing/wrong-art account no longer wipes the order
+// 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
+// 20260907 CDX/LH Preserve popup context through POS forms, redirects and menu actions.
+// 20260914 CL/SZ SST-744: function posbogfor: on the $id (cash-line) branch, show bogfor_nu's
+//             actual return instead of a hardcoded generic uoverensstemmelse alert, which masked
+//             actionable errors (e.g. a missing VAT code on a posting account) from the user.
+// 20260914 CL/SZ SST-744: function posbogfor: CodeRabbit review - embed the alert text via
+//             json_encode() instead of a manual string-replace, matching index/login.php's
+//             existing pattern for the same problem.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -123,6 +143,12 @@ $ifs = $pfs * 1.3;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+$posIsPopup = !empty($_GET['popup']) || !empty($_POST['popup']);
+$posReturnTarget = nav_sanitize_returside($_GET['returside'] ?? $_POST['returside'] ?? null);
+$posNavigationQuery = $posIsPopup ? 'popup=1&' : '';
+if ($posReturnTarget !== '') {
+	$posNavigationQuery .= 'returside=' . rawurlencode($posReturnTarget) . '&';
+}
 include("../includes/ordrefunc.php");
 include("../includes/posmenufunc.php");
 include("../debitor/func/pos_ordre_itemscan.php"); # 20190215
@@ -148,6 +174,7 @@ include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510
 
 include("pos_ordre_includes/exitFunc/exit.php"); #20190510
 
+global $baseCurrency;
 $valuta = $baseCurrency;
 if(isset($_GET["payment_id"])){
 	$_SESSION["payment_id"] = $_GET['payment_id'];
@@ -158,7 +185,7 @@ if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi
 	$zoom = usdecimal(get_settings_value("mobilzoom", "POS", "1.0", null, $_COOKIE["saldi_pos"]));
 	print "<meta name='viewport' content='width=$width, initial-scale=$zoom, maximum-scale=$zoom, user-scalable=0'>";
 }
-
+global $menu;
 if ($menu == 'T') {
 	if (!$bgcolor)
 		$bgcolor = "#000000";
@@ -168,6 +195,7 @@ if ($menu == 'T') {
 	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
+	global $meta_returside;
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
 	if ($css)
@@ -210,7 +238,8 @@ if ($menu == 'T') {
 	<script type="text/javascript">
 		// jQuery funktion til autosize på textarea 
 		$(document).ready(function () {
-			$('.autosize').autosize();
+
+			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize();
 		});
 		// jQuery funktion til ordrelinjer i ordre.php. Ved tryk på enter submitter formen og ved shift+enter laver den ny linje i textarea
 		$(function () {
@@ -323,15 +352,17 @@ if ($bordvalg = if_isset($_POST['bordvalg'])) {
 		$bord = array();
 	}
 	if (count($bord) == 0) {
-		if ($bordnr || $bordnr == '0')
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?bordnr=$bordnr\">\n";
-		else
+		if ($bordnr || $bordnr == '0') {
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}bordnr=$bordnr\">\n";
+		} else {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../bordplaner/table_plan.php?id=$id\">\n";
+		}
 	} else {
-		if ($bordnr || $bordnr == '0')
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?bordnr=$bordnr\">\n";
-		else
+		if ($bordnr || $bordnr == '0') {
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}bordnr=$bordnr\">\n";
+		} else {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../bordplaner/bordplan.php?id=$id\">\n";
+		}
 	}
 	exit;
 }
@@ -361,7 +392,7 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 			$bordnr = $i;
 			$konto_id = if_isset($_GET['konto_id']);
 			setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30); #20150505-2
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?bordnr=$bordnr&konto_id=$konto_id\">\n"; #20150401
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}bordnr=$bordnr&konto_id=$konto_id\">\n"; #20150401
 			exit;
 			break 1;
 		}
@@ -440,7 +471,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 			}
 		}
 		transaktion('commit');
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$ny_id\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$ny_id\">\n";
 	} else {
 		$qtxt = "select id from ordrer where art='PO' and status < '3' and nr = '$bordnr'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -450,7 +481,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 		} else {
 			db_modify("update ordrer set nr='$bordnr',hvem='$brugernavn' where id='$id'", __FILE__ . " linje " . __LINE__);
 		}
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n";
 	}
 } elseif (!$id && (count($bord) < 1 || (count($bord) >= 1 && ($bordnr >= '0' || isset($_GET['bordnr']))))) { #20210623
 	if (isset($_GET['bordnr']))
@@ -579,12 +610,13 @@ if (!$id || $id == 0) {
 
 $r = db_fetch_array(db_select("select box2 from grupper where art='OreDif'", __FILE__ . " linje " . __LINE__));
 $difkto = if_isset($r['box2'], NULL);
-$returside = (if_isset($_GET['returside']));
+$returside = $posReturnTarget;
 if (!$returside) {
-	if ($popup)
+	if ($posIsPopup) {
 		$returside = "../includes/luk.php";
-	else
+	} else {
 		$returside = "../index/menu.php";
+	}
 }
 $qtxt = "select box3 from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'";
 ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $kundedisplay = $r['box3'] : $kundedisplay = NULL;
@@ -605,11 +637,11 @@ $kassebeholdning = if_isset($_GET['kassebeholdning']);
 if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 	$calc = findtekst('2390|Beregn',$sprog_id);
 	if (isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id))) {
-		$cookievalue = (int)$_POST['ore_10'] . chr(9) . (int)$_POST['ore_20'] . chr(9) . $_POST['ore_50'] . chr(9) . $_POST['kr_1'] . chr(9) . $_POST['kr_2'] . chr(9) . $_POST['kr_5'] .
-			chr(9) . $_POST['kr_10'] . chr(9) . $_POST['kr_20'] . chr(9) . $_POST['kr_50'] . chr(9) . $_POST['kr_100'] .
-			chr(9) . $_POST['kr_200'] . chr(9) . $_POST['kr_500'] . chr(9) . $_POST['kr_1000'] .
-			chr(9) . usdecimal($_POST['kr_andet'], 2) . chr(9) . if_isset($_POST['rappen_5'], 0) .
-			chr(9) . if_isset($_POST['rappen_10'], 0) . chr(9) . if_isset($_POST['rappen_20'], 0);
+		$cookievalue = (int)$_POST['ore_10'] . chr(9) . (int)$_POST['ore_20'] . chr(9) . (int)$_POST['ore_50'] . chr(9) . (int)$_POST['kr_1'] .
+		chr(9) . (int)$_POST['kr_2'] . chr(9) . (int)$_POST['kr_5'] . chr(9) . (int)$_POST['kr_10'] . chr(9) . (int)$_POST['kr_20'] .
+		chr(9) . (int)$_POST['kr_50'] . chr(9) . (int)$_POST['kr_100'] . chr(9) . (int)$_POST['kr_200'] . chr(9) . (int)$_POST['kr_500'] .
+		chr(9) . $_POST['kr_1000'] . chr(9) . usdecimal($_POST['kr_andet'], 2) . chr(9) . if_isset($_POST['rappen_5'], 0) .
+		chr(9) . if_isset($_POST['rappen_10'], 0) . chr(9) . if_isset($_POST['rappen_20'], 0);
 		$optval = if_isset($_POST['optval'], array());
 		$reportNumber = if_isset($_POST['reportNumber']);
 		if (count($optval)) {
@@ -633,7 +665,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 			(int) $_POST['kr_500'] * 500 +
 			(int) $_POST['kr_1000'] * 1000 +
 			(float) usdecimal($_POST['kr_andet'], 2);
-		(int) $_POST['rappen_5'] * 0.05 +
+			(int) $_POST['rappen_5'] * 0.05 +
 			(int) $_POST['rappen_10'] * 0.1 +
 			(int) $_POST['rappen_20'] * 0.2;
 		(isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id)) ? $godkendt = 1 : $godkendt = 0;
@@ -669,8 +701,9 @@ if (!isset($_COOKIE['saldi_pfs']) || !$_COOKIE['saldi_pfs'] || !$id) {
 		$pfs = $tmparray[$kasse - 1];
 	setcookie('saldi_pfs', $pfs, time() - 60);
 	setcookie('saldi_pfs', $pfs, time() + 60 * 60 * 24 * 365, '/');
-	if ($pfs && $pfs != $old_pfs)
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n"; # 20140424b
+	if ($pfs && $pfs != $old_pfs) {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n"; # 20140424b
+	}
 }
 $ifs = $pfs * 1.3;
 
@@ -798,8 +831,6 @@ if ($vare_id_ny && !$vare_id) {
 } elseif (($vare_id_ny && $vare_id) || (!$id && isset($_POST['afslut']) && $_POST['afslut'])) { #20161014-4
 	if (!$id || $id == 0)
 		$id = opret_posordre(NULL, $kasse);
-#		include("pos_ordre_includes/showPosLines/productLines.php");
-#echo "pos_ordre_includes/showPosLines/productLines.php<br>";
 	if (!isset($momssats)) { #20140526
 		$r = db_fetch_array(db_select("select momssats from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 		$momssats = $r['momssats'];
@@ -832,7 +863,7 @@ if ($vare_id_ny && !$vare_id) {
 		}
 	}
 	if ($id && !$vare_id_ny && !$folger && $initId == '0') { #20200112
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">";
 		exit;
 	}
 	$vare_id = $vare_id_ny;
@@ -921,9 +952,10 @@ if (!$kontonr)
 	$kontonr = '0';
 if (!$konto_id)
 	$konto_id = if_isset($_GET['konto_id']);
+$opslag_art = (if_isset($_GET, '', 'o_art') == 'KO') ? 'KO' : 'PO'; # validated lookup mode from account lookup row click
 if ($konto_id || $kontonr) {
 	$konto_id = (int)$konto_id;
-	$id = opdater_konto($konto_id, $kontonr, $id);
+	$id = opdater_konto($konto_id, $kontonr, $id, $opslag_art);
 	$r = db_fetch_array(db_select("select momssats,sum,betalt,betalingsbet from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 	$betalingsbet = $r['betalingsbet'];
 	$momssats = (float) $r['momssats'];
@@ -1086,7 +1118,7 @@ if ($vare_id) {
 		$pris_ny = $kr . "," . $ore;
 	}
 	if (isset($_POST['ny']) && $_POST['ny'] == "Ny kunde") {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}\">\n";
 		exit;
 		#		$id=0;
 #		$kontonr=0;
@@ -1152,11 +1184,11 @@ if ($vare_id) {
 	}
 	if (isset($_POST['krediter'])) {
 		list($ny_id, $samlet_pris) = explode(";", krediter_pos($id)); #20170622-1
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$ny_id&samlet_pris=$samlet_pris\">\n"; #20170622-1
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$ny_id&samlet_pris=$samlet_pris\">\n"; #20170622-1
 		$_SESSION['creditType'] = 'krediter';		# LN 20190206
 	} elseif (isset($_POST['return'])) {		# LN 20190206
 		list($ny_id, $samlet_pris) = explode(";", krediter_pos($id)); #20170622-1		
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$ny_id&samlet_pris=$samlet_pris\">\n"; #20170622-1		
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$ny_id&samlet_pris=$samlet_pris\">\n"; #20170622-1
 		$_SESSION['creditType'] = 'return';
 	} elseif (isset($_POST['Udskriv'])) {
 		$_SESSION['creditType'] = 'printReceipt';
@@ -1218,7 +1250,7 @@ if ($vare_id) {
 			print "<tr><td><br></td></tr>";
 			print "<tr><td align='center'><big>Bestillingen kan ikke nulstilles</big></td></tr>";
 			print "<tr><td><br></td></tr>";
-			print "<tr><td align='center'><input type=\"button\" style=\"width:100px;\" onclick=\"window.location.href='pos_ordre.php?id=$id'\" value=\"OK\"></td></tr>\n";
+			print "<tr><td align='center'><input type=\"button\" style=\"width:100px;\" onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id'\" value=\"OK\"></td></tr>\n";
 			print "</tbody></table>";
 			exit;
 		} elseif ($_POST['sum']) {
@@ -1271,7 +1303,7 @@ if ($vare_id) {
 		if (!$modtaget || !$kontonr)
 			pos_kontoopslag('PO', "", $fokus, $id, "", "", "");
 	} elseif (isset($_POST['debitoropslag']) || isset($_POST['kreditoropslag'])) {
-		(isset($_POST['debitoropslag'])) ? $tmp = 'PO' : $tmp = 'KO';
+		(isset($_POST['debitoropslag']) && $db != 'test_31') ? $tmp = 'PO' : $tmp = 'KO';
 		kontoopslag($tmp, "", "kontonr", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");
 	} elseif (isset($_POST['stamkunder']) || isset($_GET['stamkunder'])) {
 		stamkunder('PO', "", "varenr_ny", $id, "", "", "", "", "", "", "", $sum);
@@ -1285,7 +1317,7 @@ if ($vare_id) {
 
 	if ($indbetaling) {
 		if (substr($indbetaling, -1) == 't' || substr($modtaget, -1) == 't') { #20260204
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n";
 			exit;
 		}
 		$indbetaling = str_replace("a", "", $indbetaling);
@@ -1405,8 +1437,8 @@ if ($vare_id) {
 		#		if (!$modtaget2) $modtaget2=$sum;
 	} else
 		$modtaget = usdecimal($modtaget, 2);
-	$modtaget *= 1;
-	$betalt = $modtaget + $modtaget2;
+		$modtaget = floatval($modtaget);
+		$betalt   = $modtaget + $modtaget2;
 	if ($betaling == 'Konto' && $sum && !$modtaget * 1)
 		$modtaget = $sum;
 
@@ -1496,42 +1528,98 @@ if ($vare_id) {
 					$rabat_ny *= 1;
 					db_modify("update ordrelinjer set rabat='$rabat_ny' where ordre_id='$id' and vare_id >'0' and rabat=0", __FILE__ . " linje " . __LINE__);
 				}
-				$qtxt = "select id,samlevare from varer where varenr = '$varenr_ny' or stregkode = '$varenr_ny'"; #20200929
+				$qtxt = "select id,samlevare,varenr from varer where varenr = '$varenr_ny' or stregkode = '$varenr_ny'"; #20200929
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r['samlevare'])
-					opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny);
-				else {
-					($beskrivelse_ny) ? $textNew = $beskrivelse_ny : $textNew = $beskrivelse_old; #20210906
-					$svar = opret_ordrelinje($id, '', $varenr_ny, $antal_ny, $textNew, usdecimal($pris_ny, 2), usdecimal($rabat_ny, 2), 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226 + 20140814 + 20200603
+				#-- Out-of-stock warning gate (Håndtering af salg af udsolgte varer) --
+				$stockWarningConfirmed = (isset($_POST['stock_warning_confirmed']) && $_POST['stock_warning_confirmed'] == '1');
+				$stockWarningNote      = isset($_POST['stock_warning_note']) ? trim($_POST['stock_warning_note']) : '';
+				$stockWarningOn        = is_stock_warning_enabled();
+				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id'], $antal_ny) : array('out_of_stock' => false);
+				$swLogVareId           = $r['id'];
+				if ($stockWarningOn && empty($stockInfo['out_of_stock']) && trim($r['samlevare']) === 'on') {
+					$qSub = db_select("select vare_id, antal from styklister where indgaar_i = '" . (int)$r['id'] . "' and vare_id is not null and vare_id > 0", __FILE__ . " linje " . __LINE__);
+					while ($rSub = db_fetch_array($qSub)) {
+						$subAntal = (float)$rSub['antal'] * (float)$antal_ny;
+						$subInfo = check_stock_warning((int)$rSub['vare_id'], $subAntal);
+						$insufficient = ($subAntal > 0 && (float)$subInfo['beholdning'] < $subAntal);
+						if (!empty($subInfo['out_of_stock']) || $insufficient) {
+							$desc = trim((string)$subInfo['beskrivelse']) . ' (samlesæt: ' . (string)$r['varenr'];
+							if ($insufficient) $desc .= ', kræver ' . rtrim(rtrim(number_format($subAntal, 3, '.', ''), '0'), '.') . ' på lager: ' . rtrim(rtrim(number_format((float)$subInfo['beholdning'], 3, '.', ''), '0'), '.');
+							$desc .= ')';
+							$subInfo['beskrivelse']  = $desc;
+							$subInfo['out_of_stock'] = true;
+							$stockInfo   = $subInfo;
+							$swLogVareId = (int)$rSub['vare_id'];
+							break;
+						}
+					}
 				}
-				if (usdecimal($pris_ny, 2) == 0.00)
-					$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
-				if ($svar && !is_numeric($svar)) {
-					print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
-					$fokus = "pris_ny";
-				} else {
-					$r = db_fetch_array(db_select("select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'", __FILE__ . " linje " . __LINE__));
-					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]))
-						db_modify("update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'", __FILE__ . " linje " . __LINE__);
-					$varenr_ny = $next_varenr;
-					$tmp = $antal_ny; #Til kundedisplay
-					$antal_ny = NULL;
-					#			$sum=0;
+				$blockOnStockWarning   = ($stockWarningOn && $stockInfo['out_of_stock'] && !$stockWarningConfirmed);
+				if ($blockOnStockWarning) {
+					$swPayload = array(
+						'formName'    => 'pos_ordre',
+						'varenr'      => (string)$stockInfo['varenr'],
+						'beskrivelse' => (string)$stockInfo['beskrivelse'],
+						'extra' => array(
+							'varenr_ny' => (string)$varenr_ny,
+							'antal_ny'  => (string)$antal_ny,
+							'pris_ny'   => (string)$pris_ny,
+							'rabat_ny'  => (string)$rabat_ny,
+							'lager_ny'  => (string)$lager_ny,
+						),
+					);
+					$swPayloadJson = json_encode($swPayload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+					if ($swPayloadJson === false) $swPayloadJson = '{}';
+					$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+					if ($swTextsJson === false) $swTextsJson = '{}';
+					print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
+					print "<script type=\"application/json\" id=\"saldi-sw-pos-payload\">$swPayloadJson</script>\n";
+					print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
+					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['antal_ny'])f.elements['antal_ny'].value='';var vn=f.elements['varenr_ny'];if(vn){vn.value='';try{vn.focus();}catch(e2){}}}};SaldiStockWarning.show(__sw);});</script>\n";
 				}
-				/*
-											if ($kundedisplay) {
-												 kundedisplay($beskrivelse_ny,usdecimal($pris_ny,2)*$tmp,0);
-							#					kundedisplay('Subtotal',$sum+$pris_ny*$tmp,0);
-											}
-							*/
+				if (!$blockOnStockWarning) {
+					if ($r['samlevare'])
+						opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny);
+					else {
+						($beskrivelse_ny) ? $textNew = $beskrivelse_ny : $textNew = $beskrivelse_old; #20210906
+						$svar = opret_ordrelinje($id, '', $varenr_ny, $antal_ny, $textNew, usdecimal($pris_ny, 2), usdecimal($rabat_ny, 2), 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226 + 20140814 + 20200603
+					}
+					if ($stockWarningConfirmed && $stockWarningNote !== '' && $stockInfo['out_of_stock']) {
+						$swLinjeId = 0;
+						// Find the line for the item that was actually warned about (master or sub-item of a samlesæt).
+						$rSW = db_fetch_array(db_select("select max(id) as lid from ordrelinjer where ordre_id = '$id' and vare_id = '" . (int)$swLogVareId . "'", __FILE__ . " linje " . __LINE__));
+						if ($rSW && $rSW['lid']) $swLinjeId = $rSW['lid'];
+						log_stock_warning($id, $swLogVareId, $stockWarningNote, $swLinjeId);
+					}
+				}
+				if (!$blockOnStockWarning) {
+					if (usdecimal($pris_ny, 2) == 0.00)
+						$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
+					if ($svar && !is_numeric($svar)) {
+						print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
+						$fokus = "pris_ny";
+					} else {
+						$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
+						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
+							$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
+							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						}
+						$varenr_ny = $next_varenr;
+						$tmp = $antal_ny; #Til kundedisplay
+						$antal_ny = NULL;
+						#			$sum=0;
+					}
+				}
 			}
 		} elseif ($varenr_ny)
-			$sum = find_pris($varenr_ny);
-		#		else $sum=0;
+				$sum = find_pris($varenr_ny);
+		// else $sum=0;
 	}
 }
 
 ############################
+global $regnaar;
 $x = 0;
 if ($id) {
 	$qtxt = "select id from ordrer where id = '$id' and art = 'PO'";
@@ -1554,7 +1642,7 @@ if ($id && $gem) {
 	db_modify("update ordrelinjer set posnr=posnr*-1 where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
 	db_modify("update ordrelinjer set posnr=posnr+100 where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
 	#print "<BODY onLoad=\"javascript:alert('Tilbud gemt')\">\n";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}\">\n";
 }
 if (!$id || $id == 0) {
 	$r = db_fetch_array(db_select("select box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
@@ -1614,7 +1702,7 @@ if ($tilfravalgNy && ($delFrTfv || $delFrTfv == '0')) {
 	}
 	$tilfravalgNy = trim($tilfravalgNy, chr(9));
 } else $tilfravalgNy = if_isset($_POST['tilfravalgNy']); #20220614
-print "<form name='pos_ordre' action='pos_ordre.php?id=$id&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
+print "<form name='pos_ordre' action='pos_ordre.php?{$posNavigationQuery}id=$id&kasse=$kasse&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
 print "&del_bord=$del_bord&tilfravalgNy=" . str_replace(chr(9), '|', $tilfravalgNy) . "' method='post' autocomplete='off'>\n";
 print "<table width=\"100%\" height=\"100%\" bordercolor=\"#ffffff\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tbody>\n"; # Tabel 1 ->
 # 1 kvadrat.
@@ -1642,7 +1730,7 @@ if ($id && $betaling) {
 			if ($tracelog)
 				fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls: pos_txt_print($id,'','','','','')\n");
 			pos_txt_print($id, '', '', '', '', '');
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n";
 			exit;
 		}
 	} else {
@@ -1689,10 +1777,11 @@ if (strpos($betaling, onAmount())) {
 		$modtaget = $sum - $tmp;
 	}
 	$svar = afslut($id, $betaling, NULL, $modtaget, 0, NULL, NULL, NULL, NULL, $receipt_id, __LINE__);
-	if ($svar)
+	if ($svar) {
 		print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
-	else
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+	} else {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n";
+	}
 }
 if ($varenr_ny == 'fejl')
 	fejl($id, "$status");
@@ -1773,6 +1862,7 @@ if ($delayLoad == true) {
 }
 
 function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, $kasse) {
+	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	print "\n<!-- Function betaling (start)-->\n";
 	global $baseCurrency,$betalingsbet;
 	global $fokus;
@@ -1826,7 +1916,7 @@ function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, 
 		if ($status > 2) { #20150324
 			$alert1 = findtekst(1865, $sprog_id);
 			alert("$alert1 $ref");
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n";
 		}
 		if ($konto_id) {
 			print "<tr><td><b>$kontonr</b>\n";
@@ -1949,6 +2039,7 @@ function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, 
 } #endfunc betaling
 
 function skift_bruger($ny_bruger, $kode, $pwtjek) {
+	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	global $brugernavn;
 	global $s_id;
 	global $db;
@@ -1965,7 +2056,7 @@ function skift_bruger($ny_bruger, $kode, $pwtjek) {
 		}
 		print "<table><tbody>\n";
 		print "<tr><td colspan=\"2\" align=\"center\">\n";
-		print "<form name=pos_ordre action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
+		print "<form name=pos_ordre action=\"pos_ordre.php?{$posNavigationQuery}\" method=\"post\" autocomplete=\"off\">\n";
 		print "<big><b>" . findtekst('2251|Vælg brugernavn og angiv adgangskode', $sprog_id) . "</b></big>\n";
 		print "</td></tr>\n";
 		$stil = find_stil('select', 2, 0);
@@ -1998,11 +2089,11 @@ function skift_bruger($ny_bruger, $kode, $pwtjek) {
 			include("../includes/connect.php");
 			$qtxt = "update online set brugernavn='" . db_escape_string($brugernavn) . "' where session_id='$s_id' and db = '$db'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id&menu_id=$menu_id\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id&menu_id=$menu_id\">\n";
 		} else {
 			$alert1 = findtekst(1867, $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$ny_bruger $alert1')\">\n";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id&menu_id=$menu_id\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id&menu_id=$menu_id\">\n";
 		}
 	} else {
 		$r = db_fetch_array(db_select("select id from brugere where brugernavn ='$ny_bruger'", __FILE__ . " linje " . __LINE__));
@@ -2017,13 +2108,14 @@ function skift_bruger($ny_bruger, $kode, $pwtjek) {
 		} else {
 			$alert = findtekst(1868, $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?skift_bruger=1\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}skift_bruger=1\">\n";
 			exit;
 		}
 	}
 }
 
 function find_bon($bon) {
+	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	global $db;
 	global $sprog_id;
 
@@ -2054,7 +2146,7 @@ function find_bon($bon) {
 	} else {
 		print "<table><tbody>\n";
 		print "<tr><td colspan=\"2\" alingn=\"center\">\n";
-		print "<form name=find_bon action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
+		print "<form name=find_bon action=\"pos_ordre.php?{$posNavigationQuery}\" method=\"post\" autocomplete=\"off\">\n";
 		print "<big><b>" . findtekst('2249|Skriv bonnummer eller S for sidste bon', $sprog_id) . ":</b></big>\n";
 		print "</td></tr>\n";
 		#	if ($status>=3 && !$bon && $id) { #20140708
@@ -2077,6 +2169,7 @@ function find_bon($bon) {
 }
 
 function opret_posordre($konto_id, $kasse) {
+	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	global $baseCurrency, $bordnr, $bruger_id, $brugernavn;
 	global $db;
 	global $firmanavn;
@@ -2091,7 +2184,7 @@ function opret_posordre($konto_id, $kasse) {
 		$kasse = 1;
 
 	if (file_exists("../temp/$db/$kasse.tid") && file_get_contents("../temp/$db/$kasse.tid") >= date("U")) { #20181024
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}\">\n";
 		exit;
 	} else
 		file_put_contents("../temp/$db/$kasse.tid", date("U") + 1);
@@ -2132,7 +2225,7 @@ function opret_posordre($konto_id, $kasse) {
 	if (!$varenr_ny && ($bordnr || $bordnr == '0')) {
 		$qtxt = "select id from ordrer where art='PO' and nr = '$bordnr' and felt_5='$kasse' and status < '3'";
 		if ($r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$r[id]\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$r[id]\">\n";
 		}
 	}
 		$ordrenr = get_next_order_number('PO');
@@ -2295,7 +2388,7 @@ function indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling){
 } # function indbetaling
 
 
-function opdater_konto($konto_id, $kontonr, $id) {
+function opdater_konto($konto_id, $kontonr, $id, $o_art = 'PO') {
 	#Opdaterer kontoinformation på ordren
 	global $baseCurrency, $db, $kasse;
 	global $kundeordnr;
@@ -2307,10 +2400,17 @@ function opdater_konto($konto_id, $kontonr, $id) {
 	$r = db_fetch_array(db_select("select status from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 	$status = $r['status'];
 	if ($status < 3) {
-		if ($konto_id)
-			$r = db_fetch_array(db_select("select * from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
-		else
-			$r = db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__));
+		# In supplier lookup mode (KO) only accept creditor accounts
+		if ($konto_id) {
+			$art_filter = ($o_art == 'KO') ? " and art = 'K'" : "";
+			$r = db_fetch_array(db_select("select * from adresser where id = '$konto_id'$art_filter", __FILE__ . " linje " . __LINE__));
+		} else {
+			$adr_art = ($o_art == 'KO') ? 'K' : 'D';
+			$r = db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art = '$adr_art'", __FILE__ . " linje " . __LINE__));
+		}
+		if (!$r || !$r['id']) {
+			return ($id); # unknown or wrong-art account: leave the order untouched
+		}
 		$konto_id = $r['id'];
 		if ($r['lukket']) {
 			$betalingsbet = 'Kontant';
@@ -2335,6 +2435,7 @@ function opdater_konto($konto_id, $kontonr, $id) {
 
 function find_kasse($kasse)
 {
+	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	global $afd, $db, $id, $regnaar, $sprog_id;
 
 	$id = (int)$id;
@@ -2349,7 +2450,7 @@ function find_kasse($kasse)
 			return ($kasse);
 	}
 	if (!$kasse || $kasse == "?") {
-		print "<form name=pos_ordre action=\"pos_ordre.php?kasse=opdat&del_bord=$del_bord&id=$id\" method=\"post\" autocomplete=\"off\">\n";
+		print "<form name=pos_ordre action=\"pos_ordre.php?{$posNavigationQuery}kasse=opdat&del_bord=$del_bord&id=$id\" method=\"post\" autocomplete=\"off\">\n";
 		$qtxt = "select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$kasseantal = (int) $r['box1'];
@@ -2473,8 +2574,18 @@ function fejl($id, $fejltekst)
 
 }
 
+/**
+ * Closes out a POS cash-drawer count for $kasse: posts the day's pending orders via bogfor_nu(),
+ * then records cash/card/account totals to the report table.
+ *
+ * @param int $kasse Cash register (kasse) number being closed.
+ * @param string $regnstart Start-of-fiscal-year date, used to scope which orders are pending.
+ * @param int $reportNumber Report batch number this closing is filed under.
+ * @return void Ends the request via exit() on a posting failure; otherwise falls through to printing.
+ */
 function posbogfor($kasse, $regnstart, $reportNumber)
 {
+	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	global $afd;
 	global $baseCurrency,$bruger_id, $brugernavn;
 	global $db;
@@ -2588,9 +2699,10 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	for ($x = 0; $x < count($fakturadate); $x++) {
 		$y = 0;
 		$betaling[$x] = array();
-		$qtxt = "select distinct(pos_betalinger.betalingstype) as betaling from pos_betalinger,ordrer where ";
-		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' and ";
-		$qtxt.= "ordrer.id=pos_betalinger.ordre_id order by pos_betalinger.betalingstype";
+		$qtxt = "select distinct COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) as betaling ";
+		$qtxt.= "from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id where ";
+		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' ";
+		$qtxt.= "order by betaling";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($r['betaling']) {
@@ -2673,11 +2785,12 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 				$id = $kto_id = NULL;
 				$k = 0;
 
-				$qtxt = "select ordrer.id,ordrer.konto_id from ordrer,pos_betalinger where ordrer.felt_5='$kasse' ";
+				$qtxt = "select ordrer.id, ordrer.konto_id from ordrer ";
+				$qtxt .= "left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id ";
+				$qtxt .= "where ordrer.felt_5='$kasse' ";
 				$qtxt .= "and ordrer.fakturadate='$fakturadate[$x]' ";
-				$qtxt .= "and pos_betalinger.betalingstype='" . $betaling[$x][$y] . "' ";
-				$qtxt .= "and pos_betalinger.valuta='$valuta[$z]' and ordrer.status='3' ";
-				$qtxt .= "and ordrer.id=pos_betalinger.ordre_id"; #20150306 + 20150310
+				$qtxt .= "and COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) = '" . $betaling[$x][$y] . "' ";
+				$qtxt .= "and COALESCE(pos_betalinger.valuta, ordrer.valuta) = '$valuta[$z]' and ordrer.status='3'";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					if (strtolower($betaling[$x][$y]) == 'konto') {
@@ -2699,14 +2812,14 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					if ($svar == 'OK') {
 						echo '';
 					} else {
-						$alert1 = findtekst(1869, $sprog_id);
-						$txt1 = findtekst(1870, $sprog_id);
-						$txt2 = findtekst(1871, $sprog_id);
-						#						echo "$svar<br>\n";
-#						print "$txt1, ID $ordre_id ordre $ordrenr, d=$d_kontrol, k=$k_kontrol $txt2";
-						print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
-						exit;
-						print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+						# 20260914 CL/SZ SST-744: show bogfor_nu's actual return instead of the generic
+						# uoverensstemmelse alert (findtekst 1869), which masked actionable errors like a
+						# missing VAT code on a posting account; $txt1/$txt2 were assigned but never used.
+						# 20260914 CL/SZ CodeRabbit: use json_encode (with HEX flags) instead of a manual
+						# str_replace to embed $svar in the inline script - matches the existing pattern in
+						# index/login.php and safely handles quotes/backslashes/markup in one call.
+						echo "<br>Svar $svar<br>\n";
+						print "<script>alert(" . json_encode($svar, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
 						exit;
 					}
 				}
@@ -2936,12 +3049,14 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	# <-- 20140709
 	setcookie("saldi_kasseoptael", NULL, time() - 10); #20200112
 	$pfnavn = "../temp/" . $db . "/kasseopg" . str_replace("-", "", $kasse) . ".txt";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
 } #?id=$id&udskriv_kasseopg=$pfnavn&kasse=$kasse
 
-function kasseoptalling(
+function kasseoptalling( // Called from cashBalance.php
 	$kasse,
 	$optalt,
+	$ore_10,
+	$ore_20,
 	$ore_50,
 	$kr_1,
 	$kr_2,
@@ -2956,6 +3071,7 @@ function kasseoptalling(
 	$kr_andet,
 	$optval
 ) {
+	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	$ore_10 = (int) $ore_10;
 	$ore_20 = (int) $ore_20;
 	$ore_50 = (int) $ore_50;
@@ -3062,9 +3178,9 @@ function kasseoptalling(
 	$kortdiff = 0;
 	if ($change_cardvalue) {
 		for ($x = 0; $x < count($kortsum); $x++) {
-			$ny_kortsum[$x] = (float)$ny_kortsum[$x];
+			$ny_kortsum[$x] = usdecimal($ny_kortsum[$x], 2);
 			$kortsum[$x] = (float)$kortsum[$x];
-			$kortdiff += $kortsum[$x] - usdecimal($ny_kortsum[$x], 2);
+			$kortdiff += $kortsum[$x] - $ny_kortsum[$x];
 		}
 		$kortdiff = afrund($kortdiff, 2);
 	}
@@ -3090,7 +3206,7 @@ function kasseoptalling(
 	print "<table><tbody>\n";
 	print "<tr><td width='30%'>";
 	print "<table><tbody>\n";
-	print "<form name=\"optael\" action=\"pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr\" method=\"post\" autocomplete=\"off\">\n";
+	print "<form name=\"optael\" action=\"pos_ordre.php?{$posNavigationQuery}id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr\" method=\"post\" autocomplete=\"off\">\n";
 
 	
 	
@@ -3106,11 +3222,10 @@ function kasseoptalling(
 		$omsatning += $kortsum[$x];
 	}
 	if (!$optalt && $_COOKIE['saldi_kasseoptael']) {
-		$kr = array(0.1, 0,2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 1);
+		$kr = array(0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 1);
 		$ot = explode(chr(9), $_COOKIE['saldi_kasseoptael']);
 		for ($o = 0; $o < count($ot); $o++) {
-			if (!isset($kr[$o]))
-				$kr[$o] = 0;
+			if (!isset($kr[$o])) $kr[$o] = 0;
 			$optalt += (float) $kr[$o] * (float) $ot[$o];
 		}
 		$kr = $ot = NULL;
@@ -3381,9 +3496,7 @@ function aabn_skuffe($id, $kasse)
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$x = $kasse - 1;
 	$tmp = explode(chr(9), $r['box3']);
-	$printserver = trim($tmp[$x]);
-	if (!$printserver)
-		$printserver = 'localhost';
+	$printserver = isset($tmp[$x]) ? trim($tmp[$x]) : '';
 	if ($printserver == 'box' || $printserver == 'saldibox') {
 		$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
 		if ($fp = fopen($filnavn, 'r')) {
@@ -3397,6 +3510,15 @@ function aabn_skuffe($id, $kasse)
 		$url = "s" . $url;
 	$url = "http" . $url;
 	countDrawOpening($kasse);
+	// 20260902 CL/LH  L4 finding pos-day-close DEVY-4: with no print server configured for this
+	// register the page used to redirect to http://localhost/saldiprint.php, which is unreachable
+	// from a browser on any other machine (ERR_CONNECTION_REFUSED). Return to the POS instead.
+	if (!$printserver) {
+		if ($tracelog)
+			fwrite($tracelog, __FILE__ . " " . __LINE__ . " No printserver for box $kasse - skipping saldiprint (openDrawer)\n");
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$url/debitor/pos_ordre.php\">\n";
+		exit;
+	}
 	if ($tracelog)
 		fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls $printserver/saldiprint.php (openDrawer)\n");
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
@@ -3418,9 +3540,7 @@ function udskriv_kasseopg($id, $kasse, $pfnavn)
 	$r = db_fetch_array(db_select("select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
 	$x = $kasse - 1;
 	$tmp = explode(chr(9), $r['box3']);
-	$printserver = trim($tmp[$x]);
-	if (!$printserver)
-		$printserver = 'localhost';
+	$printserver = isset($tmp[$x]) ? trim($tmp[$x]) : '';
 	if ($printserver == 'box' || $printserver == 'saldibox') {
 		$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
 		if ($fp = fopen($filnavn, 'r')) {
@@ -3433,6 +3553,15 @@ function udskriv_kasseopg($id, $kasse, $pfnavn)
 	if ($_SERVER['HTTPS'])
 		$url = "s" . $url;
 	$url = "http" . $url;
+	// 20260902 CL/LH  L4 finding pos-day-close DEVY-4: the Z/X report is already persisted and
+	// written to $pfnavn at this point; with no print server configured, go back to the POS
+	// instead of redirecting the browser to an unreachable http://localhost/saldiprint.php.
+	if (!$printserver) {
+		if ($tracelog)
+			fwrite($tracelog, __FILE__ . " " . __LINE__ . " No printserver for box $kasse - skipping saldiprint (kasseopg)\n");
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$url/debitor/pos_ordre.php\">\n";
+		exit;
+	}
 	if ($tracelog)
 		fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls $printserver/saldiprint.php\n");
 	if ($printpopup) {
@@ -3471,8 +3600,9 @@ function posvaluta($modtaget) {
 	if ($betvalkurs != $prevalkurs) {
 		$modtaget = NULL;
 		$valmodt = NULL;
-	} elseif ($betvalkurs != 100)
+	} elseif ($betvalkurs != 100) {
 		$modtaget *= $betvalkurs / 100;
+	}
 
 	return ($modtaget . chr(9) . $valmodt . chr(9) . $betvaluta . chr(9) . $betvalkurs);
 }

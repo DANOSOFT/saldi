@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/glemt_kode.php ---  patch 4.1.0 --- 2025.06.16 ---
+// --- index/glemt_kode.php ---  patch 5.0.0 --- 2026.02.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20150127 tilføjet $bruger_id da man eller får en tom mail hvis brugernavnet ikke er en 
 //		mailadresse og der ikke er tilknyttet en mailadresse 20150137 
@@ -28,6 +28,7 @@
 // 20250312 LOE Added a Content Security Policy (CSP) header snippet to mitigate DOM-based XSS attacks.
 // 20250313 LOE // converts any special HTML characters (like <, >, &, etc.) into their corresponding HTML entities for $regnskab and $brugernavn and updated some others 
 // 20250616 PHR Removed preg_match as it prevented special chars in user / account name and enabled composer | phpmailer
+// 20260225 PHR Some enhancements...
 $nonce = base64_encode(random_bytes(16));
 header("Content-Security-Policy: script-src 'self' 'nonce-$nonce'; object-src 'none';");
 

@@ -135,6 +135,29 @@
     border-top: 1px solid #ccd9e8;
 }
 
+.account-autocomplete-table tbody tr.account-autocomplete-last-postings-heading {
+    background-color: #dfe7f2;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-last-postings-heading td {
+    color: #0d3366;
+    border-top: 0;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-last-posting-item td {
+    background-color: #f4f7fb;
+    border-bottom-color: #dbe4ef;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-last-posting-item:hover td,
+.account-autocomplete-table tbody tr.account-autocomplete-last-posting-item.selected td {
+    background-color: #cce0f5;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-account-heading td {
+    border-top: 2px solid #ccd9e8;
+}
+
 .account-autocomplete-table tbody td {
     padding: 6px;
     border-bottom: 1px solid #eee;

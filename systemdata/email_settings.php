@@ -19,6 +19,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Language-specific sender email settings
+// 20260710 SZ Added Settings search box to standalone/topmenu layouts (settingsSearch.php/.js/.css)
 
 @session_start();
 $s_id=session_id();
@@ -123,6 +124,19 @@ if ($menu=='T') {  # Top menu layout
 
 	print "<td width='76%' align='center' style='$topStyle'>Email Indstillinger</td>\n";
 	print "</tbody></table></td></tr>\n";
+
+	$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+	$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+	$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+	print "<script>
+	if (typeof window.saldiTranslations === 'undefined') {
+		window.saldiLanguage = " . (int)$sprog_id . ";
+		window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+	}
+	</script>";
+	print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+	print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+	print "<tr><td height='1%' align='left' valign='top'><div class=\"settings-search-standalone\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
 } else {
 	# Fallback for other menu types
 	print "<html>\n";
@@ -137,7 +151,7 @@ $qtxt = "select kodenr, box1 from grupper where art = 'VSPR' order by kodenr";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 
 $languages = array();
-$languages[0] = "Dansk (Default)"; # Add Danish as default
+$languages[0] = "Standard"; # Add Danish as default
 
 while ($r = db_fetch_array($q)) {
 	$languages[$r['kodenr']] = $r['box1'];
@@ -163,11 +177,11 @@ while ($r = db_fetch_array($q)) {
 
 print "<form method='post'>";
 print "<table width='100%' border='0' cellpadding='2' cellspacing='0'>";
-print "<tr><td colspan='3'><h2>Sprogspecifikke Afsender Email Indstillinger</h2></td></tr>";
-print "<tr><td colspan='3'><p>Konfigurer afsender email adresse og navn for hvert sprog. Emails vil blive sendt fra disse adresser med de angivne navne baseret på det sprog der er valgt for formularen.</p></td></tr>";
+print "<tr><td colspan='3'><h2>Baggrunds-specifikke Afsender Email Indstillinger</h2></td></tr>";
+print "<tr><td colspan='3'><p>Konfigurer afsender email adresse og navn for hver baggrund. Emails vil blive sendt fra disse adresser med de angivne navne baseret på den baggrund, der er valgt for formularen.</p></td></tr>";
 
 print "<tr>";
-print "<td width='200'><strong>Sprog</strong></td>";
+print "<td width='200'><strong>Baggrund</strong></td>";
 print "<td width='300'><strong>Email Adresse</strong></td>";
 print "<td><strong>Afsender Navn</strong></td>";
 print "</tr>";

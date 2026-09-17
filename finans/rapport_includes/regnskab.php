@@ -34,6 +34,11 @@
 // 20230829 MSC - Copy pasted new design into code
 // 20340226 PHR Budget error when "staggered financial year" if maaned_fra was in second year 
 // 20240614 PHR Fixed an error in budget
+// 20260907 NTR/CL $vis_kto now defaults to 0 and is set only for accounts with postings,
+//                 budget amounts or stock relation, and is added to the row filter so
+//                 accounts that balance out to 0 are still shown. Budget flag now checks
+//                 the summed amount, and lastYear sum uses $lastYearYear instead of
+//                 indexing the integer $lastYear.
 
 function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";
@@ -45,6 +50,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	global $prj_navn_fra;
 	global $prj_navn_til;
 	global $top_bund;
+	global $sprog_id;
 
 	$budget = $lastYear = $show0 = NULL;
 	$kto_periode = $periodesum = $varekob = $varelager_i = $varelager_u = array();
@@ -265,27 +271,55 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 	$csvfile = "../temp/$db/regnskab.csv";
 	$csv = fopen($csvfile, "w");
+
+	// load topline settings menu
+	include("../includes/topline_settings.php");
 	if ($menu == 'T') {
 		$title = "Rapport • $rapportart";
 
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
+		
+		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+		$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
+		$rightbutton = "<a href='$csvfile' title='CSV' style='color:#ffffff; text-decoration: none;'><i class='fa fa-download fa-lg'></i> CSV</a>";
+		
 		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
-		print "<div class=\"headerTxt\">$title</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
+		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
+		print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
 		print "</div>";
 		print "<div class='content-noside'>";
+		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
 		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
-#	} elseif ($menu == 'S') {
-#		include("../includes/sidemenu.php");
+	} elseif ($menu == 'S') {
+		$title = findtekst(895, $sprog_id);
+		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		
+		print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+		print "<tr><td colspan=8 align=center>";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+		
+		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+		
+		print "<td width=\"5%\"><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style='text-decoration: none;'>";
+		print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+		print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		
+		print "<td width='75%' align='center' style='$topStyle'>" . findtekst('895|Finansrapport', $sprog_id) . "</td>";
+		print "<td width='5%' align='center' style='$topStyle'><a href='$csvfile' style='color:#ffffff; text-decoration: none;'>csv</a></td>";
+		
+		print "</tbody></table>";
+		print "</td></tr></tbody></table>";
+		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 	} else {
 		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
 		print "<tr><td colspan=\"$cols6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
-		print "<td width=\"80%\" $top_bund> Rapport - $rapportart </td>";
-		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
+		print "<td width=\"10%\" $top_bund>&nbsp;</td>";
+		print "<td width=\"80%\" $top_bund>" . findtekst(895, $sprog_id) . "</td>";
+		print "<td width=\"10%\" $top_bund>&nbsp;</td>";
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";
 	}
@@ -348,6 +382,10 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 	print "<tr><td colspan=\"$cols6\"><hr></td></tr>";
 	fwrite($csv, "\"\";\"-------------------\"\n");
+	print "</tbody></table>";
+	print "</div>"; // close sticky wrapper
+	print "<div style=\"overflow-y: auto; max-height: calc(100vh - 115px);\">";
+	print "<table class='dataTable' border='0' cellspacing='1' width='100%'><tbody>";
 	$x = 0;
 	$query = db_select("select * from kontoplan where regnskabsaar='$regnaar' order by kontonr", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
@@ -363,7 +401,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		$aarsum[$x] = 0;
 		$kto_aar[$x] = 0;
 		$kto_periode[$x] = 0;
-		$vis_kto[$x] = 1;
+		$vis_kto[$x] = 0;
 		$kontovaluta[$x] = $row['valuta'];
 		$kontokurs[$x] = $row['valutakurs'];
 		if (!$dim && $kontotype[$x] == "S")
@@ -405,12 +443,10 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 			}
 		}
 		if ($aut_lager && $lagerbev) {
-			if (in_array($kontonr[$x], $varekob))
+			// 20260907 - NTR - Changed to single line instead of 3 if statements for performance.
+			if (in_array($kontonr[$x], $varekob) || in_array($kontonr[$x], $varelager_i) || in_array($kontonr[$x], $varelager_u)) {
 				$vis_kto[$x] = 1;
-			if (in_array($kontonr[$x], $varelager_i))
-				$vis_kto[$x] = 1;
-			if (in_array($kontonr[$x], $varelager_u))
-				$vis_kto[$x] = 1;
+			}
 		}
 		if ($kontotype[$x] == 'R')
 			$vis_kto[$x] = 1;
@@ -421,7 +457,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 			if (!$lukket[$x]) { #20120927	
 				$qtxt = "select sum(amount) as amount from budget where regnaar='$regnaar' and kontonr='$ktonr[$x]' ";
 				$qtxt .= "and md >= '$startmd' and md <= '$slutmd'";
-				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && $r['amount'] != 0) {
 					$vis_kto[$x] = 1;
 				}
 			}
@@ -508,7 +544,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		}
 	} elseif ($rapportart == 'budget') {
 		for ($x = 1; $x <= $kontoantal; $x++) {
-			if ($vis_kto[$x] && $kontotype[$x] == 'D') { #20120927 + 20181031
+			if (/*$vis_kto[$x] && */$kontotype[$x] == 'D') { #20120927 + 20181031 // commented out $vis_kto[$x] since previously that value was always 1, but now it starts at 0 and not lukket accounts gets set to 1 instead, so to keep the logic of "always be on".
 				$qtxt = "select sum(amount) as amount from budget where ";
 				$qtxt .= "regnaar='$regnaar' and kontonr='$ktonr[$x]' and md >= '$startmd' and md <= '$slutmd'";
 				$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -586,7 +622,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					$lastYearPeriod[$y] = 0;
 				if (($kontotype[$x] == 'D') || ($kontotype[$x] == 'S')) {
 					if ($kontonr[$x] == $ktonr[$y]) {
-						$lastYearYearSum[$x] += $lastYear[$y];
+						$lastYearYearSum[$x] += $lastYearYear[$y]; // 20260907 - NTR - Changed variable for the integer lastYear to lastYearYear as it was trying to access an array element.
 						$lastYearPeriodSum[$x] += $lastYearPeriod[$y];
 					}
 				} elseif ($kontotype[$x] == 'Z') {
@@ -601,7 +637,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 
 	for ($x = 1; $x <= $kontoantal; $x++) {
-		if ($kontonr[$x] >= $konto_fra && $kontonr[$x] <= $konto_til && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220
+		if ($kontonr[$x] >= $konto_fra && $kontonr[$x] <= $konto_til && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $vis_kto[$x] || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220 // 20260907 - NTR - Added $vis_kto[$x] to show accounts with postings but that's balanced out.
 			if ($kontotype[$x] == 'H') {
 				$linjebg = $bgcolor;
 				print "<tr><td><br></td></tr>";
@@ -724,6 +760,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	fclose($csv);
 	print "<tr><td colspan=\"$cols6\"><hr></td></tr>";
 	print "</tbody></table>";
+	print "</div>"; // close scrollable overflow wrapper
 
 	if ($menu == 'T') {
 		include_once '../includes/topmenu/footer.php';

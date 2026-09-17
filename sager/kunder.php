@@ -30,27 +30,27 @@
 // 20170119 PK - Tilføjet query der henter 'antal' af alle sager fra kunde i function ret_kunde, da limet ellers kun viser 100. Søg #20170119
 // 20170119 PK - Har indsat 'Ansvarlig' i listen med sager fra kunde.
 // 20230927 PHR Page title now set in online.php
-
+// 20260731 Sawaneh Loads cvrapiopslag.js so CVR lookup also works on the customer card under sager
 
 	@session_start();	# Skal angives oeverst i filen??!!
-	$s_id=session_id();
+	$s_id = session_id();
 
-	$bg="nix";
-	$header='nix';
+	$bg     = "nix";
+	$header = 'nix';
 
-	$konto_id = $kontoansvarlig_id = array();
-#	$kunder_sag_limit = $kunder_sager_ansvarlig = $kunder_sager_oprettet_af = $kunder_sager_tidspkt = array();
-#	$kunder_sager_sort = $kunder_sager_sagsnr = $kunder_sager_status = $kunder_sager_udf_addr1 = array();
-	$bank_konto = $bank_reg = $betalingsdage = $betalingsbet = NULL;
-	$cvrnr = NULL;
-	$fax = NULL;
-	$kontotype = $kreditmax = NULL;
-	$menu_sager = $menu_planlaeg = $menu_dagbog = $menu_loen = $menu_ansatte = NULL;
+	$konto_id           = $kontoansvarlig_id = array();
+#	$kunder_sag_limit   = $kunder_sager_ansvarlig = $kunder_sager_oprettet_af = $kunder_sager_tidspkt   = array();
+#	$kunder_sager_sort  = $kunder_sager_sagsnr    = $kunder_sager_status      = $kunder_sager_udf_addr1 = array();
+	$bank_konto         = $bank_reg = $betalingsdage = $betalingsbet = NULL;
+	$cvrnr              = NULL;
+	$mobile             = NULL;
+	$kontotype          = $kreditmax = NULL;
+	$menu_sager         = $menu_planlaeg = $menu_dagbog = $menu_loen = $menu_ansatte = NULL;
 	$menu_certificering = $menu_medarbejdermappe = NULL;
-	$menu_kunder ='id="menuActive"';
-	$pbs = NULL;
-	$tlf = NULL;
-	$modulnr=0;
+	$menu_kunder        ='id="menuActive"';
+	$pbs                = NULL;
+	$tlf                = NULL;
+	$modulnr            = 0;
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
@@ -60,8 +60,8 @@
 	
 	if (isset($_GET['konto_id']))      $konto_id = (int)$_GET['konto_id'];
 	elseif (isset($_POST['konto_id'])) $konto_id = (int)$_POST['konto_id'];
-	else $konto_id=(int)$_POST['id'];
-	$funktion=if_isset($_GET['funktion']);
+	else $konto_id = (int)if_isset($_POST,0,'id');
+	$funktion = if_isset($_GET['funktion']);
 	if (!$funktion)$funktion="kundeliste";
 	
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
@@ -90,14 +90,14 @@
 
 				<ul id=\"breadcrumb\">
 					<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-					else print "<a href=\"\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+					else print "<a href=\"\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 					print "</li>
 					<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>
 					<li><a href=\"#\" title=\"Sample page 2\">Sample page 2</a></li>
 					<li><a href=\"#\" title=\"Sample page 3\">Sample page 3</a></li>
 					<li>Current page</li>-->
-					<li>Kunder</li>
+					<li>".findtekst('991|Kunder', $sprog_id)."</li>
 				</ul>
 
 			</div><!-- end of breadcrumbbar -->
@@ -111,17 +111,32 @@
 			</div><!-- end of wrapper -->  
 		<!-- <div id=\"footer\"><p>Pluder | Pluder</p></div> -->
 		<script type=\"text/javascript\" src=\"../javascript/jquery.kunder.js\"></script>";
+		// These come from the tekster table, which administration can edit, and they are
+		// printed straight into a <script> block. Without JSON_HEX_TAG a translation holding
+		// "</script>" would close the block and everything after it would be parsed as html -
+		// stored XSS by way of a translation. The other three flags keep &, ' and " out of the
+		// output for the same reason, so the string cannot terminate an attribute either.
+		$cvr_tekster = json_encode(array(
+			'fejl'           => findtekst('3374|CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.', $sprog_id),
+			'QUOTA_EXCEEDED' => findtekst('3375|Kvoten for CVR-opslag er opbrugt.', $sprog_id),
+			'NOT_FOUND'      => findtekst('3376|CVR-nummeret blev ikke fundet.', $sprog_id),
+			'INVALID_VAT'    => findtekst('3377|CVR-nummeret er ikke gyldigt.', $sprog_id),
+			'soeger'         => findtekst('3378|Søger...', $sprog_id)
+		), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+		print "<script type=\"text/javascript\">var cvrLookupProxy = 'cvrLookupProxy.php'; var cvrAutoFelter = ['cvrnr']; var cvrTekster = $cvr_tekster;</script>
+		<script type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>";
 		print "</body></html>";
 		
 
 function kundeliste() {
+	global $sprog_id;
 	
-	$sortstyle=array();
-	$nysortstyle=if_isset($_GET['nysortstyle']);
-	$sortarray=array('kontonr','firmanavn','addr1','postnr','bynavn','kontakt','tlf');
-	$sort=if_isset($_GET['sort']);
-	$nysort=if_isset($_GET['nysort']);
-	$unsetsort=if_isset($_GET['unsetsort']);
+	$sortstyle   = array();
+	$nysortstyle = if_isset($_GET['nysortstyle']);
+	$sortarray   = array('kontonr','firmanavn','addr1','postnr','bynavn','kontakt','tlf');
+	$sort        = if_isset($_GET['sort']);
+	$nysort      = if_isset($_GET['nysort']);
+	$unsetsort   = if_isset($_GET['unsetsort']);
 	
 	
 	if ($nysort && $nysort==$sort) {
@@ -137,32 +152,32 @@ function kundeliste() {
 	}
 	
 	if ($_GET['nysortstyle']) {
-		$_SESSION['kunder_kontonr']=$sortstyle[0];
-		$_SESSION['kunder_firmanavn']=$sortstyle[1];
-		$_SESSION['kunder_addr1']=$sortstyle[2];
-		$_SESSION['kunder_postnr']=$sortstyle[3];
-		$_SESSION['kunder_bynavn']=$sortstyle[4];
-		$_SESSION['kunder_kontakt']=$sortstyle[5];
-		$_SESSION['kunder_tlf']=$sortstyle[6];
+		$_SESSION['kunder_kontonr']   = $sortstyle[0];
+		$_SESSION['kunder_firmanavn'] = $sortstyle[1];
+		$_SESSION['kunder_addr1']     = $sortstyle[2];
+		$_SESSION['kunder_postnr']    = $sortstyle[3];
+		$_SESSION['kunder_bynavn']    = $sortstyle[4];
+		$_SESSION['kunder_kontakt']   = $sortstyle[5];
+		$_SESSION['kunder_tlf']       = $sortstyle[6];
 	} else {
-		$sortstyle[0]=$_SESSION['kunder_kontonr'];
-		$sortstyle[1]=$_SESSION['kunder_firmanavn'];
-		$sortstyle[2]=$_SESSION['kunder_addr1'];
-		$sortstyle[3]=$_SESSION['kunder_postnr'];
-		$sortstyle[4]=$_SESSION['kunder_bynavn'];
-		$sortstyle[5]=$_SESSION['kunder_kontakt'];
-		$sortstyle[6]=$_SESSION['kunder_tlf'];
+		$sortstyle[0] = $_SESSION['kunder_kontonr'];
+		$sortstyle[1] = $_SESSION['kunder_firmanavn'];
+		$sortstyle[2] = $_SESSION['kunder_addr1'];
+		$sortstyle[3] = $_SESSION['kunder_postnr'];
+		$sortstyle[4] = $_SESSION['kunder_bynavn'];
+		$sortstyle[5] = $_SESSION['kunder_kontakt'];
+		$sortstyle[6] = $_SESSION['kunder_tlf'];
 	}
 	
 	if ($unsetsort) {
 		unset($_SESSION['kunder_sort'],
-					$_SESSION['kunder_kontonr'],$sortstyle[0],
-					$_SESSION['kunder_firmanavn'],$sortstyle[1],
-					$_SESSION['kunder_addr1'],$sortstyle[2],
-					$_SESSION['kunder_postnr'],$sortstyle[3],
-					$_SESSION['kunder_bynavn'],$sortstyle[4],
-					$_SESSION['kunder_kontakt'],$sortstyle[5],
-					$_SESSION['kunder_tlf'],$sortstyle[6]
+					$_SESSION['kunder_kontonr'],   $sortstyle[0],
+					$_SESSION['kunder_firmanavn'], $sortstyle[1],
+					$_SESSION['kunder_addr1'],     $sortstyle[2],
+					$_SESSION['kunder_postnr'],    $sortstyle[3],
+					$_SESSION['kunder_bynavn'],    $sortstyle[4],
+					$_SESSION['kunder_kontakt'],   $sortstyle[5],
+					$_SESSION['kunder_tlf'],       $sortstyle[6]
 				);
 	}
 		
@@ -170,13 +185,13 @@ function kundeliste() {
 	//print_r($sortarray);
 	//echo "sort: $sort";
 	
-	if ($sort) $_SESSION['kunder_sort']=$sort;
-	else $sort=$_SESSION['kunder_sort'];
-	if (!$sort) $sort="firmanavn";
+	if ($sort) $_SESSION['kunder_sort'] = $sort;
+	else $sort = $_SESSION['kunder_sort'];
+	if (!$sort) $sort = "firmanavn";
 	
-	$sqlsort=urldecode($sort);
+	$sqlsort = urldecode($sort);
 
-	$x=0;
+	$x = 0;
 	//$sort=if_isset($_GET['sort']);
 	//if (!$sort) $sort='firmanavn';
 	$konto_id = array();
@@ -201,9 +216,9 @@ function kundeliste() {
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
-						<th width=\"100\">Kundenr</th>
-						<th width=\"225\">Firmanavn</th>
-						<th width=\"385\">Adresse</th>
+						<th width=\"100\">".findtekst('357|Kundenr.', $sprog_id)."</th>
+						<th width=\"225\">".findtekst('28|Firmanavn', $sprog_id)."</th>
+						<th width=\"385\">".findtekst('140|Adresse', $sprog_id)."</th>
 						<th colspan=\"2\">&nbsp;</th>
 					</tr>
 				</thead>
@@ -214,14 +229,14 @@ function kundeliste() {
 						<td><input class=\"textinput firmanavn\" type=\"text\" value=\"\" id=\"firmanavn\" name=\"firmanavn\" tabindex=\"2\"/></td>
 						<td><input class=\"textinput firmaadresse\" type=\"text\" value=\"\" id=\"adresse\" name=\"adresse\" tabindex=\"3\"/></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"id\" value=\"\" name=\"id\"></td>
-						<td align=\"center\"><input type=\"submit\" value=\"Find kunde\" name=\"findkunde\" class=\"button gray small\" tabindex=\"4\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('2852|Find kunde', $sprog_id)."\" name=\"findkunde\" class=\"button gray small\" tabindex=\"4\"></td>
 						
 					</tr>
 				</tbody>
 			</table>
 		</form>
 			<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
-					<span style=\"float:left;\"><a href=\"kunder.php?funktion=kundeliste&amp;unsetsort=unset\" class=\"button gray small\">Slet sortering</a></span>
+					<span style=\"float:left;\"><a href=\"kunder.php?funktion=kundeliste&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>
 			</div>
 		</div><!-- end of contentsoeg -->\n";
 	(count($konto_id)<=50)?$abortlist="abort_small_list":$abortlist=NULL; // tallet sættes til det samme som 'items_per_page' i jquery.kunder.js, under pagination
@@ -231,13 +246,13 @@ function kundeliste() {
 	<div class=\"contentkundehead\">
 			<ul id=\"sort\">
 					<li>
-							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=kontonr&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:72px\">Kundenr</a>
-							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=firmanavn&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:175px\">Navn</a>
-							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:180px\">Addresse</a>
-							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=postnr&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:60px\">Postnr</a>
-							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=bynavn&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:105px\">By</a>       
-							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=kontakt&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:120px\">Kontaktperson</a>
-							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=tlf&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:85px\">Telefon</a>
+							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=kontonr&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:72px\">".findtekst('357|Kundenr.', $sprog_id)."</a>
+							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=firmanavn&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:175px\">".findtekst('138|Navn', $sprog_id)."</a>
+							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:180px\">".findtekst('140|Adresse', $sprog_id)."</a>
+							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=postnr&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:60px\">".findtekst('36|Postnr.', $sprog_id)."</a>
+							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=bynavn&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:105px\">".findtekst('46|By', $sprog_id)."</a>
+							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=kontakt&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:120px\">".findtekst('148|Kontaktperson', $sprog_id)."</a>
+							<a href=\"kunder.php?funktion=kundeliste&amp;nysort=tlf&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:85px\">".findtekst('37|Telefon', $sprog_id)."</a>
 					</li>
 			</ul>
 	</div><!-- end of contentkundehead -->
@@ -372,7 +387,7 @@ function ret_kunde($id) {
 	$sqlsort=urldecode($sort);
 	
 	$limitarray=array('100','250','500','1000','NULL');
-	$limitnavn=array('100','250','500','1000','Alle');
+	$limitnavn=array('100','250','500','1000',findtekst('2498|Alle', $sprog_id));
 	
 	($kunder_sag_limit)?$limit=$kunder_sag_limit:$limit='100';
 	
@@ -411,9 +426,9 @@ function ret_kunde($id) {
 
 	print "<div style=\"float:left; width:828px;\">\n";
 	print "<div class=\"contentA\" >\n";
-	print "<input type=\"submit\" accesskey=\"g\" value=\"Gem / opdat&eacute;r\" class=\"button gray medium\" name=\"gem_rettelse\" onclick=\"javascript:docChange = false;\">\n";
+	print "<input type=\"submit\" accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" class=\"button gray medium\" name=\"gem_rettelse\" onclick=\"javascript:docChange = false;\">\n";
 	if ($id && !$sag_id[$x]) {
-		print "<input class=\"button rosy medium\" style=\"float:right\" type=\"submit\" name=\"slet_kunde\" value=\"Slet kunde\" onclick=\"return confirm('Vil du slette denne kunde?');\">
+		print "<input class=\"button rosy medium\" style=\"float:right\" type=\"submit\" name=\"slet_kunde\" value=\"".findtekst('3204|Slet kunde', $sprog_id)."\" onclick=\"return confirm('".findtekst('3205|Vil du slette denne kunde', $sprog_id)."?');\">
 		</div><!-- end of contentA -->";
 	} else {
 		print "</div><!-- end of contentA -->\n";
@@ -427,14 +442,14 @@ function ret_kunde($id) {
 		print "<div class=\"clear\"></div>\n";
 		print "<hr>\n";
 		print "<div class=\"content\" id=\"sect\">\n";
-		print "<h3>liste med sager fra $firmanavn</h3>\n";
+		print "<h3>".findtekst('3206|Liste med sager fra', $sprog_id)." $firmanavn</h3>\n";
 		print "<form name=\"sagliste\" action=\"kunder.php?funktion=ret_kunde&amp;konto_id=$id#sect\" method=\"post\">
 				<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
-					<span style=\"float:left;width:260px;\"><a href=\"kunder.php?funktion=ret_kunde&amp;unsetsort=unset&amp;konto_id=$id#sect\" class=\"button gray small\">Slet sortering</a></span>\n";
+					<span style=\"float:left;width:260px;\"><a href=\"kunder.php?funktion=ret_kunde&amp;unsetsort=unset&amp;konto_id=$id#sect\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>\n";
 					($antal_sager_ialt<=100)?$display="display:none;":$display=NULL;
 					print "
 					<div style=\"float:right;$display\">
-						<p style=\"float:left;\">Vælg antal viste linjer:&nbsp;</p>
+						<p style=\"float:left;\">".findtekst('2797|Vælg antal viste linjer', $sprog_id).":&nbsp;</p>
 						<select name=\"kunder_sag_limit\" class=\"selectinputloen\" style=\"width:76px;\" onchange=\"this.form.submit()\">\n";
 						
 							for ($i=0;$i<count($limitarray);$i++) {
@@ -458,12 +473,12 @@ function ret_kunde($id) {
 		print "<div class=\"contentkundehead\">
 				<ul id=\"sort\">
 						<li>
-								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=sagsnr&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[0]#sect\" id=\"felt01\" class=\"felt01 $sortstyle[0]\" style=\"width:65px\">Sagsnr</a>
-								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=udf_addr1&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[1]#sect\" class=\"felt02 $sortstyle[1]\" style=\"width:315px\">Opstillings adresse</a>
-								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=tidspkt&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[2]#sect\" class=\"felt03 $sortstyle[2]\" style=\"width:130px\">Indtastet</a>
-								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=oprettet_af&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[3]#sect\" class=\"felt04 $sortstyle[3]\" style=\"width:100px\">Af</a>
-								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=ref&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[4]#sect\" class=\"felt05 $sortstyle[4]\" style=\"width:120px\">Ansvarlig</a>
-								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=status&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[5]#sect\" class=\"felt06 $sortstyle[5]\" style=\"width:75px\">Status</a>
+								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=sagsnr&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[0]#sect\" id=\"felt01\" class=\"felt01 $sortstyle[0]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
+								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=udf_addr1&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[1]#sect\" class=\"felt02 $sortstyle[1]\" style=\"width:315px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
+								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=tidspkt&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[2]#sect\" class=\"felt03 $sortstyle[2]\" style=\"width:130px\">".findtekst('3207|Indtastet', $sprog_id)."</a>
+								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=oprettet_af&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[3]#sect\" class=\"felt04 $sortstyle[3]\" style=\"width:100px\">".findtekst('638|Af', $sprog_id)."</a>
+								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=ref&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[4]#sect\" class=\"felt05 $sortstyle[4]\" style=\"width:120px\">".findtekst('2793|Ansvarlig', $sprog_id)."</a>
+								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=status&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[5]#sect\" class=\"felt06 $sortstyle[5]\" style=\"width:75px\">".findtekst('494|Status', $sprog_id)."</a>
 								
 						</li>
 				</ul>
@@ -499,7 +514,7 @@ function ret_kunde($id) {
 					print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id[$x]\">
 						<span class=\"felt01\" style=\"width:65px;\">$sag_nr[$x]&nbsp;</span>
 						<span class=\"felt02\" style=\"width:315px;\" title='$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]'>$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]&nbsp;</span>
-						<span class=\"felt03\" style=\"width:130px;\">$dato[$x] kl. $tid[$x]&nbsp;</span>
+						<span class=\"felt03\" style=\"width:130px;\">$dato[$x] ".findtekst('2883|kl.', $sprog_id)." $tid[$x]&nbsp;</span>
 						<span class=\"felt04\" style=\"width:100px;\" title='$oprettet_af[$x]'>$oprettet_af[$x]&nbsp;</span>
 						<span class=\"felt05\" style=\"width:120px;\" title='$sag_ansvarlig[$x]'>$sag_ansvarlig[$x]&nbsp;</span>
 						<span class=\"felt06\" style=\"width:75px;$statcolor\" title='$sag_status[$x]'>$sag_status[$x]&nbsp;</span>";
@@ -536,11 +551,11 @@ function ret_kunde_ansat($konto_id) {
 			$ret_kode=1;
 			if (!$kode1) {
 				$ret_kode=0;
-				print "<BODY onLoad=\"javascript:alert('Kodeord skal angives!')\">";
+				print "<BODY onLoad=\"javascript:alert('".findtekst('3077|Kodeord skal angives', $sprog_id)."!')\">";
 			} elseif ($kode1 == '********') $ret_kode=0;
 			elseif ($kode1 != $kode2) {
 				$ret_kode=0;
-				print "<BODY onLoad=\"javascript:alert('Kodeord ikke ens!')\">";
+				print "<BODY onLoad=\"javascript:alert('".findtekst('3078|Kodeord ikke ens', $sprog_id)."!')\">";
 			}
 			if ($ret_kode && $bruger_id) {
 				$kode1=md5($kode1);
@@ -590,7 +605,7 @@ function ret_kunde_ansat($konto_id) {
 	print "<hr>\n";
 	print "<div class=\"contentA\" style=\"text-align:center;\">\n";
 	#	print "<input type=submit accesskey=\"g\" value=\"Gem / opdat&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\">";
-	print "<input type=\"submit\" class=\"button gray medium\" accesskey=\"g\" value=\"Gem\" name=\"submit\"><input type=\"submit\" class=\"button rosy medium textSpaceLarge\" accesskey=\"s\" value=\"Slet\" onclick=\"return confirm('Er du sikker på du vil slette denne kontakt?');\" name=\"submit\">\n";
+	print "<input type=\"submit\" class=\"button gray medium\" accesskey=\"g\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"submit\"><input type=\"submit\" class=\"button rosy medium textSpaceLarge\" accesskey=\"s\" value=\"".findtekst('1099|Slet', $sprog_id)."\" onclick=\"return confirm('".findtekst('2901|Er du sikker på du vil slette denne kontakt', $sprog_id)."?');\" name=\"submit\">\n";
 	print "</div><!-- end of contentA -->\n";
 	print "	</form>\n";
 	print "</div><!-- end of content -->\n";

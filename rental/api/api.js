@@ -1,10 +1,27 @@
 // Getting information from php file
 const apiUrl = "rental.php?"
 
+const decodeHtml = (value) => {
+  const textarea = document.createElement("textarea")
+  textarea.innerHTML = value
+  return textarea.value
+}
+
+const extractServerAlert = (text) => {
+  const match = text.match(/alert\((['"])([\s\S]*?)\1\)/)
+  return match ? decodeHtml(match[2]) : ""
+}
+
 const fetchJson = async (url, options) => {
   const response = await fetch(url, options)
-  const json = await response.json()
-  return json
+  const text = await response.text()
+
+  try {
+    return JSON.parse(text)
+  } catch (error) {
+    const message = extractServerAlert(text) || text.trim() || "Der opstod en fejl ved kontakt til serveren."
+    throw new Error(message)
+  }
 }
 
 export const getCustomers = async (month, year) => {

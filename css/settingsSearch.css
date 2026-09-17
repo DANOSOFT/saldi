@@ -1,0 +1,122 @@
+/* css/settingsSearch.css
+   20260709 SZ Created: styling for Settings search box and result dropdown
+   20260710 SZ Added .settings-search-hint style for "Found via" match hint
+*/
+
+.settings-search-wrapper {
+    display: block;
+    width: 100%;
+    padding: 14px 0 10px;
+    box-sizing: border-box;
+}
+
+.settings-search-standalone {
+    display: block;
+    width: 170px;
+    max-width: 100%;
+    padding: 14px 0 10px;
+    box-sizing: border-box;
+}
+
+.settings-search-input {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+.settings-search-input:focus {
+    outline: none;
+    border-color: #114691;
+    box-shadow: 0 0 0 2px rgba(17, 70, 145, 0.2);
+}
+
+#settings-search-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 99999;
+}
+
+.settings-search-dropdown {
+    position: absolute;
+    pointer-events: auto;
+    z-index: 99999;
+    min-width: 320px;
+    max-width: 420px;
+    max-height: 380px;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border: 2px solid #114691;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    font-size: 12px;
+}
+
+.settings-search-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.settings-search-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.settings-search-item:last-child {
+    border-bottom: none;
+}
+
+.settings-search-item:hover,
+.settings-search-item.selected {
+    background-color: #cce0f5;
+}
+
+.settings-search-main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.settings-search-label {
+    font-weight: 500;
+    color: #114691;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-search-hint {
+    font-size: 11px;
+    color: #888;
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-search-category {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #666;
+    text-transform: capitalize;
+}
+
+.settings-search-no-results {
+    padding: 16px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}

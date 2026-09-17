@@ -32,7 +32,7 @@ if ($id > 0) {
 	$bynavn=htmlspecialchars($r['bynavn']);
 	$email=htmlspecialchars($r['email']);
 	$tlf=$r['tlf'];
-	$fax=$r['fax'];
+	$mobile=$r['mobile'];
 	$mobil=$r['mobil'];
 	$privattlf=$r['privattlf'];
 	$cprnr=$r['cprnr'];
@@ -68,6 +68,22 @@ while ($r = db_fetch_array($q)) {
 	$afd_nr[$x]=$r['kodenr'];
 	$afd_navn[$x]=$r['beskrivelse'];
 	$x++;
+}
+
+// Load available backgrounds from formularer table
+$bg_options = array();
+$q_bg = db_select("SELECT DISTINCT sprog FROM formularer ORDER BY sprog", __FILE__ . " linje " . __LINE__);
+while ($r_bg = db_fetch_array($q_bg)) {
+	$bg_options[] = $r_bg['sprog'];
+}
+if (!in_array('Dansk', $bg_options)) {
+	array_unshift($bg_options, 'Dansk');
+}
+
+// Load current employee's background setting
+$ansat_sprog = 'Dansk'; // default
+if ($id > 0 && isset($brugere_id) && $brugere_id) {
+	$ansat_sprog = get_settings_value('sprog', 'brugerSprog', 'Dansk', $brugere_id);
 }
 
 if ($r = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr='2' and box3='on'",__FILE__ . " linje " . __LINE__))) {

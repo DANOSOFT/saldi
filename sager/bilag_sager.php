@@ -24,48 +24,48 @@
 // 20170303	Tilføjet tilknytning af bilag til kontrolskema i funktion ret_bilag. Søg #20170303
 
 @session_start();
-$s_id=session_id();
+$s_id = session_id();
 
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$sag_id=if_isset($_GET['sag_id']);
-//$sag_id=if_isset($_POST['sag_id']);
-$konto_id=if_isset($_GET['konto_id']);
+$sag_id   = if_isset($_GET['sag_id']);
+//$sag_id = if_isset($_POST['sag_id']);
+$konto_id = if_isset($_GET['konto_id']);
 
 
-		$bg="nix";
-		$header='nix';
+		$bg     = "nix";
+		$header = 'nix';
 
-		$menu_sager='id="menuActive"';
-		$menu_dagbog=NULL;
-		$menu_kunder=NULL;
-		$menu_loen=NULL;
-		$menu_ansatte=NULL;
+		$menu_sager   = 'id="menuActive"';
+		$menu_dagbog  = NULL;
+		$menu_kunder  = NULL;
+		$menu_loen    = NULL;
+		$menu_ansatte = NULL;
 		
-		$modulnr=0;
+		$modulnr = 0;
 		
 		global $brugernavn;
 		global $db;
 		global $ansat_navn;
 		
-		$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__)); // mister sag_id når der oploades??
-		$sagsnr=$r['sagsnr'];
-		$sag_beskrivelse=htmlspecialchars($r['beskrivelse']);
-		$udf_addr1=htmlspecialchars($r['udf_addr1']);
-		$udf_postnr=$r['udf_postnr'];
-		$udf_bynavn=htmlspecialchars($r['udf_bynavn']);
+		$r               =  db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__)); // mister sag_id når der oploades??
+		$sagsnr          = $r['sagsnr'];
+		$sag_beskrivelse = htmlspecialchars($r['beskrivelse']);
+		$udf_addr1       = htmlspecialchars($r['udf_addr1']);
+		$udf_postnr      = $r['udf_postnr'];
+		$udf_bynavn      = htmlspecialchars($r['udf_bynavn']);
 		
 		include_once '../includes/top_header_sager_small.php';
 		include_once '../includes/top_sagsmenu.php';
 		print "<div id=\"breadcrumbbar\">
 
 			<ul id=\"breadcrumb\">
-				<li><a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+				<li><a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 				<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->
-				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"Sag: $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">Tilbage til sag $sagsnr</a></li>\n";
-				print "<li>Bilag</li>
+				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"".findtekst('2792|Sag', $sprog_id).": $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">".findtekst('2813|Tilbage til sag', $sprog_id)." $sagsnr</a></li>\n";
+				print "<li>".findtekst('671|Bilag', $sprog_id)."</li>
 			</ul>
 		</div><!-- end of breadcrumbbar -->\n";
 		
@@ -77,27 +77,27 @@ $filnavn = NULL;
 
 if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 	if ($_GET['kilde_id']) {
-		$kilde_id=if_isset($_GET['kilde_id']);
-		$kilde=if_isset($_GET['kilde']);
-		$bilag_id=if_isset($_GET['bilag_id']);
-		$bilag=if_isset($_GET['bilag']);
-		$fokus=if_isset($_GET['fokus']);
-		$ny=if_isset($_GET['ny']);
-		$vis=if_isset($_GET['vis']);
-		$filnavn=if_isset($_GET['filnavn']);
-		$fase=if_isset($_GET['fase']);
+		$kilde_id = if_isset($_GET['kilde_id']);
+		$kilde    = if_isset($_GET['kilde']);
+		$bilag_id = if_isset($_GET['bilag_id']);
+		$bilag    = if_isset($_GET['bilag']);
+		$fokus    = if_isset($_GET['fokus']);
+		$ny       = if_isset($_GET['ny']);
+		$vis      = if_isset($_GET['vis']);
+		$filnavn  = if_isset($_GET['filnavn']);
+		$fase     = if_isset($_GET['fase']);
 	} else {
-		$submit=$_POST['submit'];
-		$kilde_id=$_POST['kilde_id'];
-		$kilde=$_POST['kilde'];
-		$bilag_id=$_POST['bilag_id'];
-		$bilag=$_POST['bilag'];
-		$fokus=$_POST['fokus'];
-		$kategori=trim(if_isset($_POST['ny_kategori']));
-		if (!$kategori) $kategori=if_isset($_POST['kategori']);
-		$beskrivelse=if_isset($_POST['beskrivelse']);
-		$fase=if_isset($_POST['fase']);
-		$bilag_fase=if_isset($_POST['bilag_fase']);
+		$submit      = $_POST['submit'];
+		$kilde_id    = $_POST['kilde_id'];
+		$kilde       = $_POST['kilde'];
+		$bilag_id    = $_POST['bilag_id'];
+		$bilag       = $_POST['bilag'];
+		$fokus       = $_POST['fokus'];
+		$kategori    = trim(if_isset($_POST['ny_kategori']));
+		if (!$kategori) $kategori = if_isset($_POST['kategori']);
+		$beskrivelse = if_isset($_POST['beskrivelse']);
+		$fase        = if_isset($_POST['fase']);
+		$bilag_fase  = if_isset($_POST['bilag_fase']);
 	} 
 	
 	
@@ -114,16 +114,16 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 			//echo "beskrivelse: $beskrivelse";
 			//exit;
 			if ((empty($_FILES['uploadedfile']['name'][0])) && $beskrivelse){
-				$messages = "Vælg en eller flere filer der skal hentes";
+				$messages = findtekst('3146|Vælg én eller flere filer der skal uploades', $sprog_id);
 				upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 			} elseif ((empty($beskrivelse)) && $_FILES['uploadedfile']['name'][0]){
-				$messages = "Beskrivelse er ikke udfyldt";
+				$messages = findtekst('3147|Beskrivelse er ikke udfyldt', $sprog_id);
 				upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 			} elseif ((empty($_FILES['uploadedfile']['name'][0])) && (empty($beskrivelse))) {
-				$messages = "Der mangler både beskrivelse og filer!";
+				$messages = findtekst('3148|Der mangler både beskrivelse og filer', $sprog_id)."!";
 				upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 			} else {
-			$count=count($_FILES['uploadedfile']['name']);
+			$count = count($_FILES['uploadedfile']['name']);
 			
 			for($x =0; $x< $count;$x++){
 				$filnavn=basename($_FILES['uploadedfile']['name'][$x]);
@@ -192,7 +192,7 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 					print "<meta http-equiv=\"refresh\" content=\"1;URL=sager.php?sag_id=$kilde_id&funktion=vis_sag\">";
 					//$messages[] = $filnavn.' Uploaded."<br>"';
 				}	else {
-					$messages = "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
+					$messages = findtekst('3152|Der er sket en fejl under upload, prøv venligst igen', $sprog_id);
 					upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages);
 				}
 			}// her slutter løkke til opload 
@@ -245,6 +245,7 @@ if (isset($_POST['ret_bilag']) && $bilag_id) {
 ################################################################################################################
 function upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse){
 global $charset;
+global $sprog_id;
 
 
 if ($kilde=='sager') {
@@ -278,7 +279,7 @@ print "<tbody>\n";
 print "<tr><td width=\"100%\" align=\"center\">\n";
 print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid lightgray; #padding: 0pt 0pt 1px;\">\n";
 print "<tbody>\n";
-print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h3>Vedh&aelig;ft bilag</h3></td></tr>\n";
+print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h3>".findtekst('1411|Vedhæft bilag', $sprog_id)."</h3></td></tr>\n";
 print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 
 print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000000\">\n";
@@ -290,8 +291,8 @@ print "<input type=\"hidden\" name=\"fokus\" value=\"$fokus\">\n";
 print "<input type=\"hidden\" name=\"fase\" value=\"$fase\">\n";
 
 print "</td></tr>\n";
-print "<tr><td>Beskrivelse</td><td><input style=\"width:400px\" type=\"text\" name=\"beskrivelse\" value=\"$beskrivelse\"></td></tr>\n";
-print "<tr><td>Fase</td><td><select style=\"width:400px\" name=\"bilag_fase\">\n";
+print "<tr><td>".findtekst('914|Beskrivelse', $sprog_id)."</td><td><input style=\"width:400px\" type=\"text\" name=\"beskrivelse\" value=\"$beskrivelse\"></td></tr>\n";
+print "<tr><td>".findtekst('2836|Fase', $sprog_id)."</td><td><select style=\"width:400px\" name=\"bilag_fase\">\n";
 for($y=0;$y<=count($tjek_id);$y++) {
 		if ($bilag_status==$tjek_punkt[$y]) print "<option value=\"$tjek_punkt[$y]\">$tjek_punkt[$y]</option>";
 	}
@@ -300,7 +301,7 @@ for($y=0;$y<=count($tjek_id);$y++) {
 	}
 print "</select></td></tr>\n";
 if ($sags_kat[1]) {
-	print "<tr><td>Kategori</td><td><select style=\"width:400px\" name=\"kategori\">\n";
+	print "<tr><td>".findtekst('2837|Kategori', $sprog_id)."</td><td><select style=\"width:400px\" name=\"kategori\">\n";
 	print "<option value=\"\">&nbsp;</option>\n";
 	$x=1;
 	while ($sags_kat[$x]) {
@@ -309,15 +310,15 @@ if ($sags_kat[1]) {
 	}
 	print "</select></td></tr>\n";
 }
-print "<tr><td>Evt ny kategori</td><td><input style=\"width:400px\" type=\"text\" name=\"ny_kategori\"></td></tr>\n";
+print "<tr><td>".findtekst('3154|Evt. ny kategori', $sprog_id)."</td><td><input style=\"width:400px\" type=\"text\" name=\"ny_kategori\"></td></tr>\n";
 
 // Tilføj [] i name og multiple for at vælge flere filer til opload
-print "<tr><td>V&aelig;lg bilag:</td><td><input class=\"inputbox\" name=\"uploadedfile[]\" type=\"file\" multiple/><br /></td></tr>\n";
+print "<tr><td>".findtekst('3150|Vælg bilag', $sprog_id).":</td><td><input class=\"inputbox\" name=\"uploadedfile[]\" type=\"file\" multiple/><br /></td></tr>\n";
 print "<tr><td colspan=\"2\" align=\"center\"><i style=\"color:red;\">&nbsp;$messages</i></td></tr>\n";
 //print "<tr><td colspan=\"2\" align=\"center\"><i style=\"color:red;\">";
 //$count= count($messages); for ($i =0; $i < $count; $i++){echo $messages[$i]."<br>";}
 //print "</i></td></tr>\n";
-print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" class=\"button gray medium\" value=\"Hent\" /></td></tr>\n";
+print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('1078|Hent', $sprog_id)."\" /></td></tr>\n";
 print "</tbody>\n";
 print "</table>\n";
 print "</td></tr>\n";
@@ -419,6 +420,7 @@ function vis_bilag($kilde_id,$kilde,$bilag_id,$fokus,$filnavn){
 
 function ret_bilag() {
 	global $charset;
+	global $sprog_id;
 	
 	$bilag_id=if_isset($_GET['bilag_id']);
 	$kilde=if_isset($_GET['kilde']);
@@ -488,7 +490,7 @@ print "<tbody>\n";
 print "<tr><td width=\"100%\" align=\"center\">\n";
 print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
 print "<tbody>\n";
-print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\">Ret fase &amp; katgori i bilag</td></tr>\n";
+print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\">".findtekst('3151|Ret fase & kategori i bilag', $sprog_id)."</td></tr>\n";
 print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 
 print "<input type=\"hidden\" name=\"kilde_id\" value=\"$kilde_id\">\n";
@@ -497,9 +499,9 @@ print "<input type=\"hidden\" name=\"bilag_id\" value=\"$bilag_id\">\n";
 
 print "</td></tr>\n";
 if ($kilde=='sager') {
-	print "<tr><td>Beskrivelse</td><td><input style=\"width:400px\" type=\"text\" name=\"beskrivelse\" value=\"$bilag_beskrivelse\"></td></tr>\n";
-	//print "<tr><td>Beskrivelse</td><td><b>$bilag_beskrivelse</b></td></tr>\n";
-	print "<tr><td>Fase</td><td><select style=\"width:400px\" name=\"bilag_fase\">\n";
+	print "<tr><td>".findtekst('914|Beskrivelse', $sprog_id)."</td><td><input style=\"width:400px\" type=\"text\" name=\"beskrivelse\" value=\"$bilag_beskrivelse\"></td></tr>\n";
+	//print "<tr><td>".findtekst('914|Beskrivelse', $sprog_id)."</td><td><b>$bilag_beskrivelse</b></td></tr>\n";
+	print "<tr><td>".findtekst('2836|Fase', $sprog_id)."</td><td><select style=\"width:400px\" name=\"bilag_fase\">\n";
 	for($y=0;$y<=count($tjek_id);$y++) {
 			if ($bilag_fase==$tjek_punkt[$y]) print "<option value=\"$tjek_punkt[$y]\">$tjek_punkt[$y]&nbsp;</option>";
 		}
@@ -508,7 +510,7 @@ if ($kilde=='sager') {
 		}
 	print "</select></td></tr>\n";
 	if ($sags_kat[1]) {
-		print "<tr><td>Kategori</td><td><select style=\"width:400px\" name=\"kategori\">\n";
+		print "<tr><td>".findtekst('2837|Kategori', $sprog_id)."</td><td><select style=\"width:400px\" name=\"kategori\">\n";
 		if ($bilag_kategori==NULL) print "<option value=\"\">&nbsp;</option>\n";
 		$x=1;
 		while ($sags_kat[$x]) {
@@ -523,10 +525,10 @@ if ($kilde=='sager') {
 		if ($bilag_kategori!=NULL) print "<option value=\"\">&nbsp;</option>\n";
 		print "</select></td></tr>\n";
 	}
-	#print "<tr><td>Evt ny kategori</td><td><input style=\"width:400px\" type=\"text\" name=\"ny_kategori\"></td></tr>\n";
+	#print "<tr><td>".findtekst('3154|Evt. ny kategori', $sprog_id)."</td><td><input style=\"width:400px\" type=\"text\" name=\"ny_kategori\"></td></tr>\n";
 }
 
-#print "<tr><td>V&aelig;lg bilag:</td><td><input class=\"inputbox\" name=\"uploadedfile\" type=\"file\" /><br /></td></tr>\n";
+#print "<tr><td>".findtekst('3150|Vælg bilag', $sprog_id).":</td><td><input class=\"inputbox\" name=\"uploadedfile\" type=\"file\" /><br /></td></tr>\n";
 print "<tr><td colspan=\"2\"><br></td></tr>\n";
 print "</tbody>\n";
 print "</table>\n";
@@ -541,13 +543,13 @@ if ($tjekskema_id) { #20170303
 				</colgroup>-->
 				<tbody>
 					<tr>
-						<td colspan=\"5\"><p><b>Tilknyt bilag til skema:</b></p></td>
+						<td colspan=\"5\"><p><b>".findtekst('3155|Tilknyt bilag til skema', $sprog_id).":</b></p></td>
 					</tr>
 					<tr class=\"tableBilagSagerHead\">
-						<td><p>Skema</p></td>
-						<td><p>Opgave</p></td>
-						<td><p>Dato</p></td>
-						<td><p>Konduktør</p></td>
+						<td><p>".findtekst('2824|Skema', $sprog_id)."</p></td>
+						<td><p>".findtekst('2800|Opgave', $sprog_id)."</p></td>
+						<td><p>".findtekst('438|Dato', $sprog_id)."</p></td>
+						<td><p>".findtekst('3133|Konduktør', $sprog_id)."</p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
@@ -577,7 +579,7 @@ if ($tjekskema_id) { #20170303
 
 print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
 print "<tbody>\n";
-print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" name=\"ret_bilag\" class=\"button gray medium\" value=\"Gem\" /></td></tr>\n";
+print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" name=\"ret_bilag\" class=\"button gray medium\" value=\"".findtekst('3|Gem', $sprog_id)."\" /></td></tr>\n";
 print "</tbody>\n";
 print "</table>\n";
 print "</td></tr>\n";

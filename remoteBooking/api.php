@@ -246,6 +246,8 @@ if(isset($_GET["createCust"])){
 
 function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	global $db,$db_skriv_id,$regnaar;
+	global $db_modify_fejl; #20260729 SZ (SD-595)
+	global $webservice; #20260729 SZ was a local shadow, so db_modify() never saw webservice mode as active on write failure and exited hard instead of returning an error (SD-595)
 	$brugernavn = "Booking";
 	$webservice = 1;
 	
@@ -330,11 +332,15 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	if ($svar != 'OK') {
 		fwrite($log,__line__." Svar : $svar\n");
 		fclose($log);
+		transaktion('rollback'); #20260805 CL/SZ close the outer transaction on failure too, not just success - otherwise db_transaktion_depth never returns to 0 and the next invoice call in this request won't reset $db_modify_fejl (SD-595, CodeRabbit)
 		return($svar);
 	}
 	fclose ($log);
 	transaktion ('commit');
-	return($saldi_id); 
+	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; do not report success (SD-595)
+		return "Database write failed while posting order $saldi_id";
+	}
+	return($saldi_id);
 }
 
 if(isset($_GET["updateBooking"])){

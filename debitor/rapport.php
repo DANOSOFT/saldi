@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 4.1.1 ----2025-09-24--------------
-//                           LICENSE
+// -------debitor/rapport.php------patch 5.0.0 ----2026-07-06--------------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20121105 - Fejl ved "masseudligning (Klik på 0,00 i åbenpostoversigt) når kun 1 dato sat. Søg 20121105 
@@ -32,15 +32,50 @@
 // 20190815 - PHR
 // 20210805 - LOE Translated some texts 
 // 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart 
-
+// 20260513 PHR Cleanup
+// 20260702 CX/PHR Split comma-separated openpost autoudlign account list
+// 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
+// 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
+// 20260817 Sawaneh SST-717 Openpost GET requests keep their dato/konto filters, which the
+//                  async iframe and udlign links pass but the page previously dropped.
+// 20260807 CL/NTR Generalize the async report shell to kontokort/kontosaldo/accountChart (not just openpost), drop the shell's inline padding, and add Cache-Control: no-store + pageshow/persisted reload so the back button can't restore a frozen shell/iframe.
+// 20260807 CL/NTR Skip the async shell for requests already inside its own iframe (Sec-Fetch-Dest: iframe), so report links that don't carry the *_content flag forward don't nest a second shell+iframe inside the first.
+// 20260824 CL/NTR Prototype: openpost drops the iframe shell - the shell stream-fetches the report and document.write()s it over itself chunk by chunk (progressive rendering like the iframe had), so Back/bfcache can never restore a nested or frozen frame; Cache-Control: no-store now sent before any output on openpost requests.
+// 20260826 Sawaneh SD-140: kontonr GET branch keeps dato_fra/dato_til and accepts a fra:til range;
+//                  the aging filter/sort state rides along on the async shell's forwarded params.
+// 20260915 CL/SZ SST-786: openpost_csv GET requests buffer (and discard) the includes below before
+//                dispatching to openpost_export_csv() - online.php's page shell prints regardless of
+//                the async-shell logic further down, and openpost_export_csv() needs to send its own
+//                CSV headers with nothing else sent yet.
 
 @session_start();
 $s_id = session_id();
+ini_set('max_execution_time', 300);
 $css = "../css/std.css";
 $title = "Debitorrapport";
 $modulnr = 12;
 
 $tmp = NULL;
+$initialSubmitValue = isset($_POST['submit']) ? strtolower(trim($_POST['submit'])) : (isset($_GET['submit']) ? strtolower(trim($_GET['submit'])) : NULL);
+
+// Must run before the includes below - they print markup, and headers can't be sent
+// after output. no-store keeps both the shell and the report out of the back-forward
+// cache, so Back always re-runs the request instead of restoring a stale page.
+$openpostRequest = (isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpost')
+	|| isset($_POST['openpost'])
+	|| (isset($_POST['rapportart']) && (strtolower(trim($_POST['rapportart'])) == 'openpost' || strstr(strtolower(trim($_POST['rapportart'])), 'ben post')));
+if ($openpostRequest)
+	header('Cache-Control: no-store');
+
+// SST-786: "Vis alle poster" (all-posts, all-open) toggles the udlignet filter but the report stays
+// paginated, so the customer can never see a totals-reconciling overview spanning more than one
+// page. openpost_export_csv() bypasses pagination (batching its own queries instead) and sends its
+// own Content-Type/Content-Disposition headers, so nothing else may reach the browser first -
+// includes/online.php prints a page shell (doctype/head/body/button-color style) unconditionally
+// unless several separate flags line up just right, so buffering and discarding it here is more
+// robust than chasing every one of those flags individually.
+$openpostCsvRequest = $openpostRequest && isset($_GET['openpost_csv']);
+if ($openpostCsvRequest) ob_start();
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -48,9 +83,31 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
+
+if ($openpostCsvRequest) {
+	ob_end_clean();
+	$dato_fra = ifset($_GET, 'dato_fra');
+	$dato_til = ifset($_GET, 'dato_til');
+	$konto_fra = ifset($_GET, 'konto_fra');
+	$konto_til = ifset($_GET, 'konto_til');
+	if ($konto_fra === null && isset($_GET['kontonr'])) list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, 'D', ifset($_GET, 'kun_debet'), ifset($_GET, 'kun_kredit'), isset($_GET['vis_alle_poster']), ifset($_GET, 'showPBS', 1));
+	exit;
+}
 include("../includes/row-hover-style-with-links.js.php");
 
+if (!function_exists('autoudlign_liste')) {
+	function autoudlign_liste($udlign) {
+		$udlign = explode(",", $udlign);
+		for ($x = 0; $x < count($udlign); $x++) {
+			if ((float)$udlign[$x] > 0) autoudlign($udlign[$x]);
+		}
+	}
+}
 
+$skipPopupCheck = (isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpost') || isset($_POST['openpost']);
+
+if (!$skipPopupCheck) {
 ?>
 <script>
 function checkPopupBlocked() {
@@ -76,6 +133,7 @@ if (res) {
 }
 </script>
 <?php
+}
 
 print '
 <style>
@@ -128,6 +186,7 @@ if ($popup)
 else
 	$returside = $backUrl;
 
+$openpost = false;
 if(isset($_GET["rapportart"]) && $_GET["rapportart"] == "openpost") {
 	$openpost = true;
 }
@@ -155,17 +214,19 @@ if (isset($_GET['ny_rykker'])) {
 	$konto_fra = if_isset($_GET['konto_fra']);
 	$konto_til = if_isset($_GET['konto_til']);
 	$rapportart = $_GET['rapportart']; 
-	if (isset($_GET['udlign'])) {
-		$udlign = explode(",", $_GET['udlign']);
-		#		$autoudlign=array($udlign);
-		for ($x = 0; $x < count($udlign); $x++) {
-			autoudlign($udlign[$x]);
-		}
+	if ($_GET['udlign']) {
+		autoudlign_liste($_GET['udlign']);
+		unset($_GET['udlign']);
+	}
+	if ($rapportart == 'kontokort' && if_isset($_GET['layout']) == 'grid' && $konto_fra && $konto_fra == $konto_til) {
+		include_once 'generalLedger.php';
+		renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart);
+		exit;
 	}
 	if ($rapportart == 'accountChart')
 	include("../includes/row-hover-style-with-link-no-input.js.php");
-    else $rapportart = 'kontokort'; 
-	
+    else $rapportart = 'kontokort';
+
 	if ($rapportart == 'accountChart')
 		include_once("../includes/reportFunc/accountChart.php");
 	$rapportart($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
@@ -176,6 +237,14 @@ if (isset($_GET['ny_rykker'])) {
 $rapportart = NULL;
 if (isset($_POST['openpost']) || $openpost)
 	$rapportart = 'openpost';
+if ($openpost) {
+	# Openpost GET requests (0,00 links, Udlign alle, pagination, iframe reload) must keep
+	# their filters; escaped here because the values are also stored in the DRV row below.
+	if (!isset($dato_fra) && isset($_GET['dato_fra'])) $dato_fra = db_escape_string($_GET['dato_fra']);
+	if (!isset($dato_til) && isset($_GET['dato_til'])) $dato_til = db_escape_string($_GET['dato_til']);
+	if (!isset($konto_fra) && isset($_GET['konto_fra'])) $konto_fra = db_escape_string($_GET['konto_fra']);
+	if (!isset($konto_til) && isset($_GET['konto_til'])) $konto_til = db_escape_string($_GET['konto_til']);
+}
 if (isset($_POST['kontosaldo']))
 	$rapportart = 'kontosaldo';
 if (isset($_POST['kontokort']))
@@ -213,7 +282,7 @@ if (isset($_POST['konto'])) {
 	if (!is_numeric($konto_fra))
 		$konto_til = NULL;
 }
-$husk = if_isset($_POST['husk']);
+$husk = if_isset($_POST, NULL, 'husk');
 if (isset($_POST['salgsstat']) && $_POST['salgsstat']) {
 	if ($husk)
 		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
@@ -233,12 +302,18 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_fra = $_POST['dato_fra'];
 		$dato_til = $_POST['dato_til'];
 	} else {
-		db_modify("update grupper set box1='$husinputk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
 	#	if (isset($_POST['konto_fra']) && strpos($_POST['konto_fra'],":")) {
 	#		list ($konto_fra, $firmanavn) = explode(":", $_POST['konto_fra']);
+	// The in-report account search (open posts) sends kontonr - a single account, a fra:til range
+	// or a firm-name pattern - and carries rapportart=openpost, so it lands in this branch instead
+	// of the kontonr branch below. Derive the konto_fra/konto_til pair the report works with.
+	if (!isset($_POST['konto']) && !isset($_GET['konto_fra']) && isset($_GET['kontonr'])) {
+		list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	}
 	$konto_fra = trim(if_isset($konto_fra));
 	#	}
 	#	if (isset($_POST['konto_til']) && strpos($_POST['konto_til'],":")) {
@@ -247,7 +322,7 @@ if (isset($_POST['submit']) || $rapportart) {
 	#	}
 	#	if (isset($_POST['regnaar']) && strpos($_POST['regnaar'],"-")) {
 	#		list ($regnaar, $firmanavn)= explode("-", $_POST['regnaar']);
-	$firmanavn = trim(if_isset($firmanavn));
+	$firmanavn = trim(if_isset($firmanavn ?? NULL));
 	#	}
 	if (!isset($_POST['konto_id']))
 		$_POST['konto_id'] = NULL;
@@ -356,21 +431,25 @@ if (isset($_POST['submit']) || $rapportart) {
 	}
 	# echo "KF $konto_fra<br>";
 } elseif (isset($_GET['konto_fra'])) {
-	$rapportart = $_GET['rapportart'];
-	$dato_fra = $_GET['dato_fra'];
-	$dato_til = $_GET['dato_til'];
+	$rapportart = $_GET['rapportart'] ?? NULL;
+	$dato_fra = $_GET['dato_fra'] ?? NULL;
+	$dato_til = $_GET['dato_til'] ?? NULL;
 	$konto_fra = $_GET['konto_fra'];
-	$konto_til = $_GET['konto_til'];
+	$konto_til = $_GET['konto_til'] ?? NULL;
 	#	$regnaar=$_GET['regnaar'];
-	$submit = $_GET['submit'];
-	$returside = $_GET['returside'];
-	if ($udlign = $_GET['udlign'])
-		autoudlign($udlign);
+	$submit = $_GET['submit'] ?? NULL;
+	$returside = $_GET['returside'] ?? NULL;
+	if (($udlign = $_GET['udlign'])) {
+		autoudlign_liste($udlign);
+	}
+	unset($_GET['udlign']);
 } elseif (isset($_GET['kontonr'])) {
-	$konto_fra = $_GET['kontonr'];
-	$konto_til = $_GET['kontonr'];
+	list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	$dato_fra = $_GET['dato_fra'] ?? NULL;
+	$dato_til = $_GET['dato_til'] ?? NULL;
+	$returside = $_GET['returside'] ?? NULL;
 	$submit = "ok";
-	$rapportart = $_GET['rapportart'];
+	$rapportart = $_GET['rapportart'] ?? NULL;
 	/*
 				 $row = db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__));
 					 $start_md[$x]=$row['box1']*1;
@@ -384,8 +463,9 @@ if (isset($_POST['submit']) || $rapportart) {
 #if ($dato_fra) $dato_fra=find_maaned_nr($dato_fra); 
 #if ($dato_til) $dato_til=find_maaned_nr($dato_til); 
 
-if ($udlign = if_isset($_GET['udlign']))
-	echo "dada"; #autoudlign($udlign);
+if (($udlign = if_isset($_GET['udlign']))) {
+	autoudlign_liste($udlign);
+}
 if (strstr($rapportart, "ben post"))
 	$rapportart = "openpost";
 if (!isset($submit))
@@ -403,6 +483,83 @@ if (!isset($konto_fra))
 	$konto_fra = NULL;
 if (!isset($konto_til))
 	$konto_til = NULL;
+
+$asyncReports = array('openpost', 'kontokort', 'kontosaldo', 'accountChart');
+if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE && in_array($submit, $asyncReports)) {
+	session_write_close();
+}
+
+$asyncContentParam = $rapportart . '_content';
+// Any navigation happening inside the shell's own iframe (a link/form on the report that
+// forgot to carry the *_content flag forward) still reports Sec-Fetch-Dest: iframe, so this
+// catches it and renders content directly instead of nesting a second shell+iframe inside the first.
+$isInsideIframe = isset($_SERVER['HTTP_SEC_FETCH_DEST']) && $_SERVER['HTTP_SEC_FETCH_DEST'] == 'iframe';
+if (in_array($submit, $asyncReports) && !$isInsideIframe && !isset($_GET[$asyncContentParam]) && !isset($_POST[$asyncContentParam])) {
+	$writeActions = array('mail kontoudtog', 'opret rykker', 'ryk alle', 'slet', 'udskriv', 'ny rykker', 'afslut', 'inkasso');
+	$isWriteAction = in_array($initialSubmitValue, $writeActions) || strstr((string)$initialSubmitValue, 'bogf');
+	if (!$isWriteAction) {
+		// Forward every incoming filter/paging param as-is; each report type has its own set
+		// (openpost_page, showPBS, ...) so we don't hardcode a per-report field list here.
+		$params = array_merge($_GET, $_POST);
+		$params['rapportart'] = $rapportart;
+		$params['submit'] = 'ok';
+		$params[$asyncContentParam] = 1;
+		if ($rapportart == 'openpost') {
+			// Prototype (no iframe): stream-fetch the report and document.write() it over this
+			// shell chunk by chunk, so the top of the report (header bar, first rows) renders
+			// while the rest is still being generated - the same progressive behavior the
+			// iframe gave. The report ends up owning the whole document exactly as if
+			// navigated to directly, so there is no frame for Back/bfcache to restore or for
+			// inner links (with or without openpost_content) to nest a second shell into.
+			// Links inside the report navigate top-level; ones missing the *_content flag
+			// simply re-enter this shell and show the loading state again. Cache-Control:
+			// no-store was already sent at the top of this file, before any output.
+			$contentUrl = json_encode('rapport.php?' . http_build_query($params));
+			print "<div id='rapportAsyncStatus' style='padding:10px; text-align:center;'>Indl&aelig;ser...</div>";
+			print "<script>";
+			print "window.addEventListener('pageshow', function(e){ if (e.persisted) location.reload(); });";
+			// The written document loses this shell's listeners, so the bfcache guard rides
+			// along inside the report markup itself.
+			print "var guard = \"<script>window.addEventListener('pageshow', function(e){ if (e.persisted) location.reload(); });<\\/script>\";";
+			// document.open() wipes the loading indicator, so it waits for the first chunk.
+			print "var opened = false;";
+			print "function beginDoc(){ if (!opened) { opened = true; document.open(); } }";
+			print "fetch($contentUrl, {credentials: 'same-origin'}).then(function(r){";
+			print "if (!r.ok) throw new Error('HTTP ' + r.status);";
+			print "if (!r.body || !r.body.getReader) { return r.text().then(function(html){ beginDoc(); document.write(html + guard); document.close(); }); }";
+			print "var reader = r.body.getReader();";
+			print "var decoder = new TextDecoder();";
+			print "function pump(){ return reader.read().then(function(res){";
+			print "if (res.done) { beginDoc(); document.write(decoder.decode() + guard); document.close(); return; }";
+			print "beginDoc();";
+			print "document.write(decoder.decode(res.value, {stream: true}));";
+			print "return pump();";
+			print "}); }";
+			print "return pump();";
+			print "}).catch(function(err){";
+			print "var msg = 'Rapporten kunne ikke indlæses (' + err.message + '). Prøv at genindlæse siden.';";
+			print "var status = document.getElementById('rapportAsyncStatus');";
+			print "if (status) status.textContent = msg; else { document.write('<p>' + msg + '</p>'); document.close(); }";
+			print "});";
+			print "</script>";
+		} else {
+			$frameSrc = 'rapport.php?' . str_replace('&', '&amp;', http_build_query($params));
+			// Cache-Control: no-store keeps this transitional shell out of the back-forward cache,
+			// so navigating back triggers a fresh request instead of restoring a frozen shell/iframe.
+			header('Cache-Control: no-store');
+			print "<div id='rapportAsyncShell'>";
+			print "<div id='rapportAsyncStatus' style='padding:10px; text-align:center;'>Indl&aelig;ser...</div>";
+			print "<iframe id='rapportAsyncFrame' data-src='$frameSrc' style='width:100%; min-height:720px; border:0;' onload=\"document.getElementById('rapportAsyncStatus').style.display='none'; this.style.minHeight=Math.max(720, (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body ? this.contentWindow.document.body.scrollHeight + 40 : 720)) + 'px';\"></iframe>";
+			print "<script>";
+			print "setTimeout(function(){var frame=document.getElementById('rapportAsyncFrame'); if(frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.getAttribute('data-src'));}, 10);";
+			print "window.addEventListener('pageshow', function(e){ if (e.persisted) location.reload(); });";
+			print "</script>";
+			print "</div>";
+		}
+		print "</html>";
+		exit;
+	}
+}
 
 $submit($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D', $returside);
 

@@ -1,4 +1,4 @@
-// ----------javascript/cvrapiopslag.js------------------------------lap 3.5.0---2015.01.23---
+// --- javascript/cvrapiopslag.js --- patch 5.0.0 --- 2026-07-06 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,129 +17,289 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 2015.01.23 Hente virksomhedsdata fra CVR med CVRapi - tak Niels Rune https://github.com/nielsrune
+// 20260706 MJ Add plain 8-digit trigger, confirmation overlay with type="button" to prevent accidental form submission
+// 20260728 NTR CVR-nr. lookup now triggers on a trailing *, +, or /, or on 8 digits when "Auto-lookup CVR nr." is checked
+// 20260730 Sawaneh Read current values from the visible field when a form also emits a hidden
+//                  duplicate of the same name (sager/kunder.php), so overwrite detection works
+// 20260813 Sawaneh Review: only the newest lookup may write to the form. Answers do not come
+//                  back in the order they were sent, so a slower older reply used to land last -
+//                  raising the overwrite prompt for a lookup the user had already abandoned, and
+//                  writing its values if the prompt was accepted. The superseded request is
+//                  aborted and both its callbacks are guarded by the sequence number.
 
-// Use strict mode for better error handling and modern JS features
-'use strict';
+function cvrField(name) {
+	var visible = $("[name=" + name + "]").not("[type=hidden]");
+	return visible.length ? visible.first() : $("[name=" + name + "]").first();
+}
 
-// F2 key handler using event listener instead of jQuery handler
-document.addEventListener('keydown', (e) => {
-  // F2 key activates account number or CVR number field
-  if (e.key === 'F2' || e.keyCode === 113) {
-    e.preventDefault();
-    
-    const cvrnrField = document.querySelector('[name=cvrnr]');
-    if(cvrnrField) {
-      cvrnrField.select();
-    }
-  }
+function cvrValue(name) {
+	var el = cvrField(name);
+	return el.length ? (el.val() || '').trim() : '';
+}
+
+$(document).keydown(function(e){
+	// Tryk på F2 aktiverer rubrikken kundenr. eller CVR-nr., hvis kundenr. allerede er aktivt
+	if(e.which == '113'){	// F2
+		e.preventDefault();
+		if(cvrField('ny_kontonr').is(':focus')) cvrField('cvrnr').select();
+		else cvrField('ny_kontonr').select();
+	}
 });
 
-/**
- * Fetch company data from CVR API
- * @param {string} param - The search parameter (VAT number, phone, etc)
- * @param {string} country - Country code (dk, no, etc)
- * @param {string} type - Type of search (vat, phone, etc)
- * @returns {Promise} - Promise resolving with company data
- */
-const cvrapi = async (param, country, type) => {
-  try {
-    const response = await fetch(`https://cvrapi.dk/api?${type}=${param}&country=${country}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`CVR API request failed with status ${response.status}`);
-    }
-    
-    const data = await response.json();
-    updateFormFields(data);
-    return data;
-  } catch (error) {
-    console.error('Error fetching data from CVR API:', error);
-  }
+function getExistingFormData() {
+	return {
+		cvrnr:       cvrValue('cvrnr'),
+		firmanavn:   cvrValue('firmanavn'),
+		addr1:       cvrValue('addr1'),
+		addr2:       cvrValue('addr2'),
+		postnr:      cvrValue('postnr'),
+		bynavn:      cvrValue('bynavn'),
+		tlf:         cvrValue('tlf'),
+		email:       cvrValue('email'),
+		fax:         cvrValue('fax')
+	};
+}
+
+function normaliseApiData(b) {
+	var data = {};
+	if (b.hasOwnProperty("vat"))     data.cvrnr     = String(b.vat).trim();
+	if (b.hasOwnProperty("name"))    data.firmanavn  = String(b.name).trim();
+	if (b.hasOwnProperty("address")) {
+		if (b.hasOwnProperty("addressco") && b.addressco != null) {
+			data.addr1 = "c/o " + b.addressco;
+			data.addr2 = b.address;
+		} else {
+			data.addr1 = b.address;
+			data.addr2 = '';
+		}
+	}
+	if (b.hasOwnProperty("zipcode")) data.postnr    = String(b.zipcode).trim();
+	if (b.hasOwnProperty("city"))    data.bynavn    = String(b.city).trim();
+	if (b.hasOwnProperty("phone"))   data.tlf       = String(b.phone).trim();
+	if (b.hasOwnProperty("email"))   data.email     = String(b.email).trim();
+	if (b.hasOwnProperty("fax"))     data.fax       = String(b.fax).trim();
+	return data;
+}
+
+function detectConflicts(existing, incoming) {
+	var conflicts = false;
+	for (var key in incoming) {
+		if (!incoming.hasOwnProperty(key)) continue;
+		var cur = (existing[key] || '').trim();
+		var nw  = (incoming[key] || '').trim();
+		if (cur !== '' && nw !== '' && cur !== nw) {
+			conflicts = true;
+			break;
+		}
+	}
+	return conflicts;
+}
+
+function applyFormFields(data) {
+	for (var key in data) {
+		if (!data.hasOwnProperty(key)) continue;
+		var el = $("[name=" + key + "]");
+		if (el.length) el.val(data[key]);
+	}
+}
+
+function showConfirmOverlay(existingData, incomingData) {
+	$('#cvr-overlay').remove();
+
+	var overlay = $(
+		'<div id="cvr-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;' +
+		'background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">' +
+		'<div style="background:#fff;padding:24px;border-radius:6px;max-width:420px;width:90%;box-shadow:0 4px 16px rgba(0,0,0,0.3);">' +
+		'<p style="margin:0 0 16px;font-size:15px;">CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?</p>' +
+		'<div style="display:flex;gap:12px;justify-content:flex-end;">' +
+		'<button type="button" id="cvr-btn-no"  style="padding:8px 16px;">Nej, behold nuværende</button>' +
+		'<button type="button" id="cvr-btn-yes" style="padding:8px 16px;">Ja, opdater</button>' +
+		'</div></div></div>'
+	);
+
+	$('body').append(overlay);
+
+	$('#cvr-btn-yes').on('click', function() {
+		applyFormFields(incomingData);
+		$('#cvr-overlay').remove();
+	});
+	$('#cvr-btn-no').on('click', function() {
+		$('#cvr-overlay').remove();
+	});
+}
+
+// Only the newest lookup is allowed to write to the form. Two can be in flight at once -
+// a CVR number and a phone number, or the same field corrected while the first request is
+// still running - and answers do not come back in the order they were sent. Without this,
+// the slower older answer lands last and overwrites the newer one's values.
+var cvrLoebenummer = 0;
+var cvrAktivKald   = null;
+
+function cvrapi(param, country, type, felt, noegle){
+	var minTur   = ++cvrLoebenummer;
+	var erNyeste = function () { return minTur === cvrLoebenummer; };
+
+	// Drop the previous request rather than paying for an answer that may not be used. Its
+	// callbacks are guarded by their own erNyeste() as well, for the case where it already
+	// left the network and abort() comes too late.
+	if (cvrAktivKald && typeof cvrAktivKald.abort === 'function') cvrAktivKald.abort();
+
+	// A failed lookup must release the dedup key, otherwise retyping the same number never
+	// retries. Only the key belonging to this request is cleared, so a newer lookup started
+	// in the meantime keeps its own.
+	var frigivNoegle = function () {
+		if (noegle && cvrSidste === noegle) cvrSidste = null;
+	};
+
+	// A page can point at a server proxy by setting cvrLookupProxy before this script is
+	// loaded. cvrapi.dk answers 403 to the jsonp call because the browser cannot set the
+	// required User-Agent, so the proxy calls cvrapi.dk from the server instead.
+	var brugProxy = (typeof cvrLookupProxy !== 'undefined' && cvrLookupProxy);
+
+	cvrStatus(felt, cvrTekst('soeger'), false);
+
+	cvrAktivKald = jQuery.ajax
+	({
+		type: "GET",
+		dataType: brugProxy ? "json" : "jsonp",
+		url: brugProxy
+			? cvrLookupProxy+"?type="+encodeURIComponent(type)+"&param="+encodeURIComponent(param)+"&country="+encodeURIComponent(country)
+			: "//cvrapi.dk/api?"+type+"="+param+"&country="+country,
+		success: function (b)
+		{
+			// A newer lookup has been started since this one left: its answer is the one the
+			// user is waiting for, so this reply is stale and must not touch the form or the
+			// status line.
+			if (!erNyeste()) return;
+			if (!b || b.error) {
+				frigivNoegle();
+				cvrFejl(felt, b ? b.error : '');
+				return;
+			}
+			cvrStatus(felt, '', false);
+
+			var existing = getExistingFormData();
+			var incoming = normaliseApiData(b);
+
+			if (detectConflicts(existing, incoming)) {
+				showConfirmOverlay(existing, incoming);
+			} else {
+				applyFormFields(incoming);
+			}
+		},
+		error: function ()
+		{
+			// Also covers the abort above: the superseded request reports an error, and its
+			// message must not replace the newer lookup's "Søger..." line.
+			if (!erNyeste()) return;
+			frigivNoegle();
+			cvrFejl(felt, '');
+		}
+	});
+}
+
+// The lookup used to be completely silent - neither "searching" nor an error was shown.
+// The message is written next to the field rather than in a dialog, so auto lookup does
+// not interrupt typing. Only on pages that set cvrLookupProxy - Finans keeps its previous
+// behaviour unchanged.
+// cvrapi.dk always answers in English, so the error code is looked up in cvrTekster, which
+// the page fills using findtekst() in the user's language. Danish is used as the fallback.
+var cvrFejlTekst = {
+	fejl:           'CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.',
+	QUOTA_EXCEEDED: 'Kvoten for CVR-opslag er opbrugt.',
+	NOT_FOUND:      'CVR-nummeret blev ikke fundet.',
+	INVALID_VAT:    'CVR-nummeret er ikke gyldigt.',
+	soeger:         'Søger...'
 };
+function cvrTekst(noegle) {
+	if (typeof cvrTekster !== 'undefined' && cvrTekster && cvrTekster[noegle]) return cvrTekster[noegle];
+	return cvrFejlTekst[noegle] || '';
+}
 
-/**
- * Update form fields with company data
- * @param {Object} data - Company data from CVR API
- */
-const updateFormFields = (data) => {
-  // Use optional chaining and nullish coalescing for safer property access
-  if (data?.vat) document.querySelector('[name=cvrnr]').value = data.vat;
-  if (data?.name) document.querySelector('[name=firmanavn]').value = data.name;
-  
-  if (data?.address) {
-    if (data?.addressco) {
-      document.querySelector('[name=addr1]').value = `c/o ${data.addressco}`;
-      document.querySelector('[name=addr2]').value = data.address;
-    } else {
-      document.querySelector('[name=addr1]').value = data.address;
-      document.querySelector('[name=addr2]').value = '';
-    }
-  }
-  
-  if (data?.zipcode) document.querySelector('[name=postnr]').value = data.zipcode;
-  if (data?.city) document.querySelector('[name=bynavn]').value = data.city;
-  if (data?.phone) document.querySelector('[name=tlf]').value = data.phone;
-  if (data?.email) document.querySelector('[name=email]').value = data.email;
-  if (data?.fax) document.querySelector('[name=fax]').value = data.fax;
-};
+function cvrStatus(felt, tekst, fejl) {
+	if (typeof cvrLookupProxy === 'undefined' || !cvrLookupProxy) return;
+	if (!felt || !felt.length) return;
+	var boks = felt.parent().find('.cvr-status');
+	if (!boks.length) {
+		boks = $('<div class="cvr-status" style="font-size:11px;line-height:14px;padding-top:2px;"></div>');
+		felt.parent().append(boks);
+	}
+	boks.css('color', fejl ? '#c00000' : '#666666').text(tekst || '');
+}
 
-// Update the pattern matching function to process direct input
-/**
- * Process input field and make API call when appropriate
- * @param {HTMLElement} element - Input element
- * @param {string} type - API search type (vat, phone, etc)
- */
-const processInput = (element, type) => {
-  const value = element.value.trim();
-  
-  // Check if the value contains exactly 8 digits - direct input
-  if (/^\d{8}$/.test(value)) {
-    // Make API call immediately with direct 8-digit input
-    cvrapi(value, 'dk', type);
-    return;
-  }
-  
-  // Support the legacy special character format
-  if (/^[\*\/\+]\d{8}[\*\/\+]$/.test(value)) {
-    // Extract the 8 digits between special characters
-    const processedValue = value.slice(1, 9);
-    element.value = processedValue;
-    cvrapi(processedValue, 'dk', type);
-    return;
-  }
-};
+function cvrFejl(felt, kode) {
+	var aarsag = cvrTekst(kode);
+	cvrStatus(felt, aarsag ? aarsag : cvrTekst('fejl'), true);
+}
 
-// Add event listeners to form fields
-document.addEventListener('DOMContentLoaded', () => {
-  // Account number field
-  const nyKontonrField = document.querySelector('[name=ny_kontonr]');
-  if (nyKontonrField) {
-    nyKontonrField.addEventListener('input', () => {
-      processInput(nyKontonrField, 'vat');
-    });
-  }
+var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
+var plainCvr = /^\d{8}$/;
+var trailingSymbolCvr = /^(\d{8})[\*\/\+]$/;
 
-  // CVR number field  
-  const cvrnrField = document.querySelector('[name=cvrnr]');
-  if (cvrnrField) {
-    cvrnrField.addEventListener('input', () => {
-      processInput(cvrnrField, 'vat');
-    });
-  }
+// The lookup used to be sent on the keystroke itself, so typing on - a longer number, say -
+// fired off several calls. It now waits until typing has been still for a moment, and
+// tabbing or clicking out of the field looks up straight away.
+var cvrPause = 400;
+var cvrTimer = null;
+var cvrSidste = null;
 
-  // Phone number field
-  const tlfField = document.querySelector('[name=tlf]');
-  if (tlfField) {
-    tlfField.addEventListener('input', () => {
-      processInput(tlfField, 'phone');
-    });
-  }
+function cvrOpslag(felt, vaerdi, type){
+	if (cvrTimer) { clearTimeout(cvrTimer); cvrTimer = null; }
+	// The key must include the field name - otherwise the lookup is skipped when the same
+	// number is typed in both customer no. and CVR no., and the second field gets no message.
+	var noegle = (felt && felt.length ? felt.attr('name') : '')+'|'+type+'|'+vaerdi;
+	if (cvrSidste === noegle) return;
+	cvrSidste = noegle;
+	cvrapi(vaerdi, 'dk', type, felt, noegle);
+}
+
+// Auto lookup on 8 bare digits is only wanted in the fields the page names in
+// cvrAutoFelter. Under sager the customer no. is often the customer's own phone or CVR
+// number, and there 8 digits must not start a lookup by itself - it takes *, + or /.
+// If the page names nothing, it applies to every field as before.
+function cvrAutoTilladt(navn) {
+	if (typeof cvrAutoFelter === 'undefined' || !cvrAutoFelter) return true;
+	return $.inArray(navn, cvrAutoFelter) !== -1;
+}
+
+function cvrAutoOpslag(felt, vaerdi) {
+	return plainCvr.test(vaerdi) && cvrAutoTilladt(felt.attr('name')) && $("[name=auto_lookup_cvr]").is(':checked');
+}
+
+function cvrKeyupOpslag(e){
+	var felt = $(e.target);
+	var vaerdi = (felt.val() || '').trim();
+	var trailingMatch = trailingSymbolCvr.exec(vaerdi);
+
+	if (cvrTimer) { clearTimeout(cvrTimer); cvrTimer = null; }
+
+	if(trailingMatch){
+		felt.val(trailingMatch[1]);
+		cvrOpslag(felt, trailingMatch[1], 'vat');
+	} else if(cvrAutoOpslag(felt, vaerdi)){
+		cvrTimer = setTimeout(function(){ cvrOpslag(felt, vaerdi, 'vat'); }, cvrPause);
+	} else {
+		cvrSidste = null;
+		cvrStatus(felt, '', false);
+	}
+}
+
+function cvrBlurOpslag(e){
+	var felt = $(e.target);
+	var vaerdi = (felt.val() || '').trim();
+	if(cvrAutoOpslag(felt, vaerdi)) cvrOpslag(felt, vaerdi, 'vat');
+}
+
+cvrField('ny_kontonr').keyup(cvrKeyupOpslag).blur(cvrBlurOpslag);
+cvrField('cvrnr').keyup(cvrKeyupOpslag).blur(cvrBlurOpslag);
+
+cvrField('tlf').keyup(function(e){
+        var tlfnr = ($(e.target).val() || '').trim();
+        if(pattern.test(tlfnr)){
+                tlfnr = tlfnr.substr(1,8);
+                cvrOpslag($(e.target), tlfnr, 'phone');
+        }
 });

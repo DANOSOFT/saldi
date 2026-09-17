@@ -384,6 +384,11 @@
             var typingTimer = null;
 
             $input.on('focus', function() {
+                // Don't open picker when focus is gained via Tab, Shift+Tab, or Ctrl+Arrow navigation
+                if (window._dpFocusViaKeyboardNav) {
+                    window._dpFocusViaKeyboardNav = false;
+                    return;
+                }
                 openPicker($input);
             });
 
@@ -428,6 +433,14 @@
     $(window).on('scroll', function() {
         if (currentPicker) {
             positionPicker(currentPicker.$picker, currentPicker.$input);
+        }
+    });
+
+    // Track keyboard navigation (Tab, Shift+Tab, Ctrl+Arrow) to suppress
+    // datepicker opening when focus moves between fields via keyboard
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Tab' || (e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) {
+            window._dpFocusViaKeyboardNav = true;
         }
     });
 

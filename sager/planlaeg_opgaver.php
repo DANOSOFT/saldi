@@ -195,7 +195,7 @@
 				}
 				
 				$opg_omfangNy = str_replace(array("\n", "\r"), ' ', $opg_omfang[$z]); // Fjerner skjulte linebreaks i omfang (textarea), da ganttView ikke kan vise dem
-				($opg_omfangNy)?$n = "\\nBeskrivelse:\\n".$opg_omfangNy:$n = ''; // Hvis omfang, indsættes det i strengen
+				($opg_omfangNy)?$n = "\\n".findtekst('914|Beskrivelse', $sprog_id).":\\n".$opg_omfangNy:$n = ''; // Hvis omfang, indsættes det i strengen
 				
 				if ($ny_sag_nr == $sag_nr) {
 					$name_sag_nr = NULL;
@@ -204,14 +204,14 @@
 				}
 				
 				
-				$itemopg .= "{ opg_id: \"$opg_id[$z]\", $name_sag_nr title: \"Opgave nr:\t$opg_nr[$z]\\nNavn:\t\t$opg_beskrivelse[$z]\\nOprettet:\t$opg_dato[$z]\\nOprettet af:\t$opg_oprettet_af[$z]\\nStatus:\t\t$opg_status[$z]$n\\n\\nPlanlagt\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"},";
+				$itemopg .= "{ opg_id: \"$opg_id[$z]\", $name_sag_nr title: \"".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$z]\\n".findtekst('138|Navn', $sprog_id).":\t\t$opg_beskrivelse[$z]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$z]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$z]\\n".findtekst('494|Status', $sprog_id).":\t\t$opg_status[$z]$n\\n\\n".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"},";
 				
 				$ny_sag_nr = $sag_nr;
 			}
 		
 		$allitems = "$itemopg";// $itemsag,
 		//echo "$allitems";
-		$items .= "{ name: \"<a href='sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id' title='Sag:\t\t$sag_nr\\nKunde:\t\t$sag_firmanavn\\nUdf. adr.:\t$udf_addr1, $udf_postnr $udf_bynavn\\nAnsvarlig:\t$sag_ansvarlig\\nStatus:\t\t$status'>$udf_addr1<\/a>\", series: [$allitems]},";
+		$items .= "{ name: \"<a href='sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id' title='".findtekst('2792|Sag', $sprog_id).":\t\t$sag_nr\\n".findtekst('35|Kunde', $sprog_id).":\t\t$sag_firmanavn\\n".findtekst('3217|Udf. adr.', $sprog_id).":\t$udf_addr1, $udf_postnr $udf_bynavn\\n".findtekst('2793|Ansvarlig', $sprog_id).":\t$sag_ansvarlig\\n".findtekst('494|Status', $sprog_id).":\t\t$status'>$udf_addr1<\/a>\", series: [$allitems]},";
 	
 		
 	}
@@ -237,7 +237,7 @@
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
 		<![endif]-->
-		<title>Stillads</title>
+		<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 	</head>
 	<body>
 		<div id=\"wrapper\">";
@@ -247,10 +247,10 @@
 	print "<div id=\"breadcrumbbar\">
 
 				<ul id=\"breadcrumb\">
-					<li><a href=\"../sager/sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+					<li><a href=\"../sager/sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 					<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->";
-					print "<li><a href=\"planlaeg.php\" title=\"Tilbage til planlægning menu\">Planlægning</a></li>\n";
-					print "<li>Planlægning opgaver</li>\n";
+					print "<li><a href=\"planlaeg.php\" title=\"".findtekst('3208|Tilbage til planlægningsmenu', $sprog_id)."\">".findtekst('2775|Planlægning', $sprog_id)."</a></li>\n";
+					print "<li>".findtekst('3215|Planlægning: opgaver', $sprog_id)."</li>\n";
 				print "</ul>
 				
 	</div><!-- end of breadcrumbbar -->\n";
@@ -263,7 +263,7 @@
 	if ($opg_planfra || $opg_plantil) {
 		print "<div id=\"ganttChart\"></div>\n";
 	} else {
-		print "<div style=\"text-align: center;\"><h3>Planlægning til opgaver for sager med aktiv status!</h3><br><p style=\"font-size:14px;color:#cd3300;\">Her vises start og slut dato for aktive opgaver.</p><br><p>For at bruge planlægning til opgaver, skal sagerne til opgaverne der vises, have en aktiv status. Når status på en opgave er aktiv kan der vælges start og slut dato for opgavens løbetid under planlægnings information.</p></div>\n";
+		print "<div style=\"text-align: center;\"><h3>".findtekst('3218|Planlægning til opgaver for sager med aktiv status', $sprog_id)."!</h3><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3219|Her vises start- og slutdato for aktive opgaver', $sprog_id).".</p><br><p>".findtekst('3220|For at bruge Planlægning: opgaver skal sagerne til opgaverne der vises have en aktiv status. Når status på en opgave er aktiv kan der vælges start- og slutdato for opgavens løbetid under Planlægningsinformation.', $sprog_id)."</p></div>\n";
 	}
 	//print "<br/><br/>";
 	//print "<div id=\"eventMessage\"></div>";

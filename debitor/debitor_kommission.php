@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Kommission view - separate file for better grid differentiation
+// 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
 
 #ob_start();
 @session_start();
@@ -71,10 +72,11 @@ $nysort = if_isset($_GET, NULL, 'nysort');
 $invite=$mailTo=$mySale=array();
 
 // Handle POST for kommission email sending
-if (isset($_POST['kommission']) && $_POST['debId']) {
+if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 	$debId=$_POST['debId'];
-	if (isset($_POST['mySale'])) $mySale=$_POST['mySale'];
-	if (isset($_POST['invite'])) $invite=$_POST['invite'];
+	// mySale[] and invite[] now contain customer IDs of checked rows (not parallel arrays)
+	$mySaleChecked = isset($_POST['mySale']) ? array_flip($_POST['mySale']) : array();
+	$inviteChecked = isset($_POST['invite']) ? array_flip($_POST['invite']) : array();
 	if (isset($_POST['mailTo'])) $mailTo=$_POST['mailTo'];
 	$start*=1;
 	for ($i=0;$i<count($debId);$i++) {
@@ -84,8 +86,8 @@ if (isset($_POST['kommission']) && $_POST['debId']) {
 		$custNo[$i]   = $r['kontonr'];
 		$custName[$i] = $r['firmanavn'];
 		$custMail[$i] = $r['email'];
-		if (!isset($mySale[$i])) $mySale[$i]=NULL;
-		if (!isset($invite[$i])) $invite[$i]=NULL;
+		$mySale[$i]   = isset($mySaleChecked[$debId[$i]]) ? 1 : NULL;
+		$invite[$i]   = isset($inviteChecked[$debId[$i]]) ? 1 : NULL;
 		if ($mySale[$i] || $invite[$i]) {
 			$tmp=trim($_SERVER['PHP_SELF'],'/');
 			list ($folder,$tmp)=explode('/',$tmp,2);
@@ -99,7 +101,7 @@ if (isset($_POST['kommission']) && $_POST['debId']) {
 		}
 	}
 	include("../includes/connect.php");
-	
+
 	$x = 0;
 	$myAccId = array();
 	$qtxt="select * from mysale where db='$db'";
@@ -125,102 +127,42 @@ if (isset($_POST['kommission']) && $_POST['debId']) {
 		}
 	}
 	include("../includes/online.php");
-	if((count($invite) || count($mailTo)) && !class_exists('phpmailer')) {
-		ini_set("include_path", ".:../phpmailer");
-		require("class.phpmailer.php");
-	}
 	# Hent egen stamdata
 	$qtxt="select * from adresser where art='S'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$afsendermail=$r['email'];
 	$afsendernavn=$r['firmanavn'];
-	$from=$afsendermail;
-	
-	($r['felt_1'])?$smtp=$r['felt_1']:$smtp='localhost';
-	($r['felt_2'])?$smtp_user=$r['felt_2']:$smtp_user=NULL;
-	($r['felt_3'])?$smtp_pwd=$r['felt_3']:$smtp_pwd=NULL;
-	($r['felt_4'])?$smtp_enc=$row['felt_4']:$smtp_enc=NULL;
 
 	for ($i=0;$i<count($debId);$i++) {
-		if (!isset($invite[$i])) $invite[$i]=NULL;
-		if (!isset($mailTo[$i])) $mailTo[$i]=NULL;
-		if ($invite[$i] || $mailTo[$i]) {
-			if ($invite[$i]) db_modify("update adresser set mysale='$invite[$i]' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-			$qtxt="select * from adresser where art='S'";
-			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$mailToI = isset($mailTo[$i]) ? $mailTo[$i] : NULL;
+		if ($invite[$i] || $mailToI) {
+			if ($invite[$i]) db_modify("update adresser set mysale='1' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
 
-			if ($invite[$i]) { 
-				$myLink="<a href='$lnk[$i]'>Mit Salg</a>";
-				$mailText = "Kære $custName[$i],<br><br>Klik på nedestående link for at se dit salg.<br><br>";
-				$mailText.= "$myLink<br><br>";
-				$mailText.= "Bedste hilsner<br>$afsendernavn<br>";
-				$varGrp='mySale';
-			} else {
-				$varGrp='debitor';
-			}
-			$qtxt="select var_value from settings where var_name = 'mailSubject' and var_grp = '$varGrp'";
-			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			if ($r2['var_value']) $subject=$r2['var_value'];
-			else $subject = "Adgang til dit salg hos $afsendernavn";
-			$qtxt="select var_value from settings where var_name = 'mailText' and var_grp = '$varGrp'";
-			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			if ($r2['var_value']) {
-				$mailText=$r2['var_value'];
-				$mailText=str_replace("\n","<br>",$mailText);
-				$mailText=str_replace('$kunde',$custName[$i],$mailText);
-				$mailText=str_replace('$link',$myLink,$mailText);
-			}
-			$mail = new PHPMailer();
-			$mail->IsSMTP();
-			$mail->CharSet = "$charset";
-			$mail->SMTPDebug  = 2;
-			$mail->Host  = $smtp;
-			if ($smtp!='localhost') {
-				if ($smtp_user) {
-					$mail->SMTPAuth = true;
-					$mail->Username = $smtp_user;
-					$mail->Password = $smtp_pwd;
-					if ($smtp_enc) $mail->SMTPSecure = $smtp_enc;
-				}
-			} else {
-				$mail->SMTPAuth = false;
-				if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) {
-					$from = $db.'@'.$_SERVER['SERVER_NAME'];
-					$from = str_replace('bizsys','post',$from);
-				}
+			if ($invite[$i]) {
+				$url = $lnk[$i];
+				$subject = "Adgang til dit salg hos $afsendernavn";
+				$mailText  = "Kære {$custName[$i]},<br><br>";
+				$mailText .= "Klik på nedstående link for at se dit salg.<br><br>";
+				$mailText .= "<a href=\"{$url}\">{$url}</a><br><br>";
+				$mailText .= "Bedste hilsner<br>{$afsendernavn}<br>";
 			}
 			if ($subject && $mailText) {
-				$mail->SetFrom($from,$afsendernavn);
-				$mail->AddReplyTo($afsendermail);
-				$mail->AddAddress($custMail[$i]);
-				$mail->WordWrap = 50;
-				$mail->IsHTML(true);
-				$ren_text=html_entity_decode($mailText,ENT_COMPAT,$charset);
-				$ren_text=str_replace("<br>","\n",$ren_text);
-				$ren_text=str_replace("<b>","*",$ren_text);
-				$ren_text=str_replace("</b>","*",$ren_text);
-				$ren_text=str_replace("<a href='$lnk'>". $lnk ."</a>"," $lnk ",$ren_text);
-				$ren_text=str_replace("<hr>","------------------------------",$ren_text);
-				$mail->Subject  =  "$subject";
-				$mail->Body     =  "$mailText";
-				$mail->AltBody  =  "$ren_text";
-				$svar=NULL;
-				print "<!--";
-				if(!$mail->Send()){
-					$svar = "Mailer Error: " . $mail->ErrorInfo;
-				}
-				print "-->";
+				$headers  = "From: $afsendernavn <$afsendermail>\r\n";
+				$headers .= "Reply-To: $afsendermail\r\n";
+				$headers .= "MIME-Version: 1.0\r\n";
+				$headers .= "Content-Type: text/html; charset=$charset\r\n";
+				$svar = mail($custMail[$i], $subject, $mailText, $headers) ? NULL : "Mailer Error: mail() failed";
 				if ($svar) {
 					echo $svar."<br>";
 					exit;
 				}
 				echo "Mail sendt til $custName[$i] &lt;$custMail[$i]&gt;<br>";
 				flush();
-				usleep (250000);
+				usleep(250000);
 			}
 		} else {
-			if (!isset($mySale[$i])) $mySale[$i]=NULL;
-			db_modify("update adresser set mysale='$mySale[$i]' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
+			$mysaleVal = $mySale[$i] ? '1' : '';
+			db_modify("update adresser set mysale='$mysaleVal' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
 		}
 	}
 	print "<meta http-equiv='refresh' content='2'>";
@@ -270,7 +212,7 @@ if ($x == 0) {
 	if (!$sort) $sort=$r['box9'];
 	$find=explode("\n",$r['box10']);
 }
-	
+
 if ($popup) $returside= "../includes/luk.php";
 else $returside= "../index/menu.php";
 
@@ -465,6 +407,9 @@ $folder=trim($_SERVER['PHP_SELF'],'/');
 $folder=str_replace('debitor/debitor_kommission.php','',$folder);
 $myLink="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
 $myLink=str_replace('bizsys','mysale',$myLink);
+# 20260828 SST-743: mysale.php accepts sha256 of a logged-in staff session as proof the visitor is
+# staff, so a customer's own portal password no longer locks staff out of the commission view.
+$staffToken = hash('sha256', session_id());
 echo "<script>console.log('link: $myLink\n')</script>";
 
 // Add clickable row renderer for all columns (whole row is clickable)
@@ -475,7 +420,7 @@ foreach ($columns as &$column) {
 	
 	if ($field == 'kontonr') {
 		// kontonr keeps special MySale link handling
-		$column["render"] = function ($value, $row, $column) use ($myLink, $db) {
+		$column["render"] = function ($value, $row, $column) use ($myLink, $db, $staffToken) {
 			// Handle kommission links: if mysale is enabled, open MySale link, otherwise go to debitorkort
 			if (isset($row['mysale']) && $row['mysale']) {
 				// Build MySale link with encoded customer data
@@ -484,6 +429,7 @@ foreach ($columns as &$column) {
 				for ($x=0;$x<strlen($txt);$x++) {
 					$lnk.=dechex(ord(substr($txt,$x,1)));
 				}
+				$lnk.='&st='.$staffToken;
 				return "<td align='{$column['align']}' onclick=\"window.open('$lnk','_blank')\" style='cursor:pointer'>$value</td>"; // <a href='$lnk' target='_blank' class='kommission-link'>$value</a>
 			} else {
 				// Link to debitorkort for customers without MySale
@@ -493,7 +439,7 @@ foreach ($columns as &$column) {
 		};
 	} else {
 		// All other columns get onclick handler
-		$column["render"] = function ($value, $row, $column) use ($originalRender, $myLink, $db) {
+		$column["render"] = function ($value, $row, $column) use ($originalRender, $myLink, $db, $staffToken) {
 			// Determine URL based on mysale status
 			if (isset($row['mysale']) && $row['mysale']) {
 				$txt = $row['id'] .'|'. $row['kontonr'] .'@'. $db .'@'. $_SERVER['HTTP_HOST'];
@@ -501,6 +447,7 @@ foreach ($columns as &$column) {
 				for ($x=0;$x<strlen($txt);$x++) {
 					$url.=dechex(ord(substr($txt,$x,1)));
 				}
+				$url.='&st='.$staffToken;
 				$openInPage = ",'_blank'";
 			} else {
 				$url = "debitorkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_kommission.php";
@@ -524,21 +471,30 @@ unset($column); // break the reference
 // Build filters
 $filters = array();
 
-// Hide closed filter
+// Misc filter group
+$misc_options = array();
+
 if ($skjul_lukkede) {
-	$filters[] = array(
-		"filterName" => "Misc",
-		"joinOperator" => "and",
-		"options" => array(
-			array(
-				"name" => "Vis udgået",
-				"checked" => "",
-				"sqlOn" => "",
-				"sqlOff" => "(a.lukket IS NULL OR a.lukket = '0' or a.lukket = '')",
-			)
-		)
+	$misc_options[] = array(
+		"name" => "Vis udgået",
+		"checked" => "",
+		"sqlOn" => "",
+		"sqlOff" => "(a.lukket IS NULL OR a.lukket = '0' or a.lukket = '')",
 	);
 }
+
+$misc_options[] = array(
+	"name" => "Vis kun aktive",
+	"checked" => "",
+	"sqlOn" => "(a.mysale IS NOT NULL AND a.mysale != '' AND a.mysale != '0')",
+	"sqlOff" => "",
+);
+
+$filters[] = array(
+	"filterName" => "Misc",
+	"joinOperator" => "and",
+	"options" => $misc_options
+);
 
 // Debtor groups filter
 $q=db_select("select kodenr, MIN(beskrivelse) as beskrivelse from grupper where art = 'DG' group by kodenr order by kodenr",__FILE__ . " linje " . __LINE__);
@@ -617,12 +573,15 @@ $rowStyleFn = function ($row) {
 };
 
 // Meta column for kommission view
-$metaColumnFn = function ($row) {
+$chooseAllInvites = isset($_POST['chooseAll']) && $_POST['chooseAll'];
+$metaColumnFn = function ($row) use ($chooseAllInvites) {
 	$mySale = isset($row['mysale']) && $row['mysale'] ? "checked='checked'" : "";
 	$email = isset($row['email']) ? $row['email'] : '';
 	$disabled = $email ? "" : "disabled title='email mangler på konto'";
-	$html = "<td align='center'><input type='checkbox' name='mySale[]' value='{$row['id']}' $mySale onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
-	$html .= "<td align='center'><input type='checkbox' name='invite[]' value='{$row['id']}' $disabled onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
+	$invite = ($email && $chooseAllInvites) ? "checked='checked'" : "";
+	$html  = "<input type='hidden' name='debId[]' value='{$row['id']}' form='kommission-form'>";
+	$html .= "<td align='center'><input type='checkbox' name='mySale[]' value='{$row['id']}' $mySale form='kommission-form' onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
+	$html .= "<td align='center'><input type='checkbox' name='invite[]' value='{$row['id']}' $invite $disabled form='kommission-form' onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
 	return $html;
 };
 
@@ -649,7 +608,7 @@ $current_menu = if_isset($_GET["menu"][$table_id], "main");
 if ($current_menu == "main") {
 	$action="debitor_kommission.php";
 	print "<div style='text-align: right; padding: 10px;'>";
-	print "<form name='kommission' action='$action' method='post' style='display: inline;'>";
+	print "<form id='kommission-form' name='kommission' action='$action' method='post' style='display: inline;'>";
 	print "<input style='width:75px; margin-right: 5px;' type='submit' name='kommission' value='OK'>";
 	print "<input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'>";
 	print "</form>";
@@ -694,4 +653,3 @@ if ($menu=='T') {
 }
 
 ?>
-

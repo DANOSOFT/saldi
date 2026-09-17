@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-01-21 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,37 +21,9 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
-// 20130919 Tjekkede ikke om der var opdateringer ved login i "hovedregnskab" Søg 20130919
-// 20140106	Tilføjet opslag i tmp_kode. Søg tmp_kode
-// 20140920	Tilføjet db_escape_string foran brugernavn og regnskab så det også fungerer med apostrof i disse.
-// 20150104 Initerer variablen $nextver så den bypasser versionskontrol i online.php
-// 20150114 PK 	- Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
-// 20150129 PHR - Fjernet session_unset,session_destroy, da man bliver smidt af under login.
-// 20150129 PK 	- Tilføjet session_unset,session_destroy før session_start, som tømmer browser for sessions når man kommer ind på login siden.
-// 20150209 PHR - Rettigheder sættes nu også ved temp koder, elle smides man af igen : 20150209
-// 20151002	PHR - online.txt er omdøbt til .ht_online.txt
-// 20161104	PHR - Div ændringer relateret til bedre sikkerhed
-// 20170210	PHR - Aktivering af nyt API 20170217
-// 20170911	PHR	- Tilføjet db_type til global og rettet $sqdb til $db grundet db fejl ved login fra anden session uden logaf. 20170911 
-// 20180108	PHR	-	Udfaset gammelt API kald 20180108
-// 20180305	PHR	-	Opdateret API kald
-// 20181128 PHR - Timezone hentes nu fra tabellen settings.
-// 20190704 RG	-	(Rune Grysbæk) Mysqli implementation 
-// 20200622 PHR - Added include addrOpdat.php - can be removed after 3.9.3 (done 20210127)
-// 20210127 PHR - Added trim() to $r['lukket']
-// 20210826 PHR - Added squser & sqpass to function online.
-// 20210830 LOE - When a user successfuly logs in if their IP is not found in ip's table it is added
-// 20210902	PHR	- Added $regnskab to .ht_online.log 
-// 20211006 LOE - This is not available in develop database
-// 20211007 LOE - $_SESION changed to $_SESSION
-// 20211009 PHR - language settings. ($languageId)
-// 20211015 LOE - Modified some codes to adjust to IP moved to settings table 
-// 20211018 LOE - Fixed some bugs
-// 20211105 PHR - As above :o)
-// 20211205 PHR - Sets language to 1 of not found;
-// 20211215 PHR - moved call to online.php
+
 // 20220118 PHR - Added 'if ($db != $sqdb && $dbver > '4.0.4')'
 // 20200222 PHR - Added call to locator and added global_id;
 // 20200225 PHR - Added call to 'includes/betewwnUpdates';
@@ -69,8 +41,28 @@
 // 20250614 PHR - sanitize prevented login for users with, among other things, email as username
 // 20260114 PHR - column tlf will be added if it does not exist. Else twofactor crashes.
 // 20260120 PHR fetch from settings disabled if table settings does not exist
+// 20260320 PHR cleanup (pdftk)
+// 20260420 PHR Removed test codes// 20260422 PHR	Removed sanitize input from password at it sometimes changes the length of the password
+// 20260422 PHR Fixed cancel not working.
+// 20260422 LOE Updated sanitize_input function to allow more characters for email address like usernames.
+// 20260425 LOE Fixed a bug where same account name with different case could cause login issues. Now first tries to find exact match and only if that fails, it tries case-insensitive match.
+// 20260707 MJ Restore rykkertjek.php include at login (was commented out)
+// 20262707 PK Have outcomment rykkertjek.php again, as phpmailer is missing and you can't log in to the individual accounts. Can only log in as admin.
+// 20260908 CL/NTR sanitize_input: added 'u' modifier, escaped '-' and switched to \p{L}\p{M}\p{N} so letters
+//                  in any language (æøåÆØÅ, áé, ü ...) and hyphen are kept (previously '_-æ' was a byte range).
+//                  Widened whitelist to currency symbols and inert punctuation (£$€{}[]()#%!?,:=*^~|` /);
+//                  only < > " ' \ ; & and tab/newline are still stripped. Returns false on malformed UTF-8.
+// 20260908 NTR    sanitize_input: length check now counts characters (mb_strlen) instead of bytes, so æøå no longer
+//                  use up two positions each. Added $allowed_length parameter (default 80); regnskab is passed 60
+//                  to match varchar(60) on regnskab.regnskab.
+// 20260908 CL/NTR sanitize_input: input that is not valid UTF-8 is converted from ISO-8859-1 first, so æøå
+//                  posted from an ISO-8859-1 page is filtered instead of rejected, and the result is converted
+//                  back to the page charset so a non-UTF8 database still matches. Length check now uses the
+//                  shared is_input_too_long() from std_func.php.
+// 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
+// 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
 
-ob_start(); //Starter output buffering
+ob_start(); //Starter output buffering 
 @session_start();
 session_unset();
 session_destroy();
@@ -132,7 +124,6 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name = 'settings'";
 (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))?$useSettings=1:$useSettings=0;
 
-echo "US $useSettings";
 if ($useSettings) {
 	$r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
 	if (isset($r['var_value'])) $_SESSION['customAlertText']=$r['var_value'];
@@ -163,41 +154,82 @@ print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/login.css\" />";
 print "</head>";
 
 $dbMail=NULL;
-function sanitize_input($input) {
-	return $input; // No sanitization needed for this example, but you can add your own logic here.
-	/* // Trim the input to remove any leading/trailing whitespace
+/**
+ * Whitelist-filter a login form value (account name, username, error text) before it is
+ * looked up in the database or echoed back into the login form.
+ *
+ * Trims the value, removes every character outside the whitelist (letters in any language,
+ * digits, currency symbols, space and inert punctuation; see the comment above the regex for
+ * the exact list and why < > " ' \ ; & tab and newline are dropped), then enforces a maximum
+ * length in characters (not bytes), which is how Postgres measures varchar(n).
+ *
+ * This is defence in depth only: values must still go through db_escape_string() before
+ * being interpolated into SQL and htmlspecialchars() before being printed as HTML.
+ *
+ * @param string $input          Raw value in UTF-8 or ISO-8859-1 (the two page charsets this file
+ *                               serves); it is normalised to UTF-8 while filtering and handed back
+ *                               in the page charset ($charset).
+ * @param int    $allowed_length Maximum length in characters after filtering. Default 80;
+ *                               pass 60 for regnskab to match varchar(60) on regnskab.regnskab.
+ *
+ * @return string|false The filtered value in the page charset, or false if it is longer than
+ *                      $allowed_length or could not be read as UTF-8.
+ */
+function sanitize_input($input, $allowed_length = 80) {
+	global $charset;
+
+	// Trim the input to remove any leading/trailing whitespace
 	$input = trim($input);
-	
-	// Remove any special characters that might lead to SQL injection
-	$input = preg_replace('/[^\w\s\-]/', '', $input);
-	
-	if (strlen($input) > 80) {
+	// Normalise to UTF-8. The browser posts in the page charset, which is ISO-8859-1 when $db_encode
+	// is not UTF8. The whitelist regex ('u' modifier) and the length check both work on UTF-8, so an
+	// ISO-8859-1 æøå would otherwise be rejected as malformed. ISO-8859-1 is the only other charset
+	// this file serves (see where $charset is set), so any non-UTF-8 input is converted from that.
+	if (!mb_check_encoding($input, 'UTF-8')) {
+		$input = mb_convert_encoding($input, 'UTF-8', 'ISO-8859-1');
+	}
+	// Allow: letters in any language (\p{L} incl. æøåÆØÅ, áé, ü, ñ ...), combining accent marks (\p{M}),
+	// digits (\p{N}), currency symbols (\p{Sc}: £ $ € ...), a plain space, and the punctuation
+	// @ . _ + - ! # % ( ) * , : = ? [ ] ^ { | } ~ ` / which is inert inside a quoted SQL string or HTML attribute.
+	// Remove: < > " ' (break out of HTML text / attributes, ' also ends a SQL literal), \ (SQL/JS escape),
+	// ; (ends a SQL statement), & (starts an HTML entity; call sites run htmlspecialchars before this
+	// function, so a stray & would re-form entities), and tab/newline (tab is the cookie separator
+	// on the huskmig cookie and the value is written to log files).
+	// The 'u' modifier is required so UTF-8 input is matched as characters, not bytes,
+	// and '-' is escaped so it is a literal hyphen and not a range operator.
+	$input = preg_replace('/[^\p{L}\p{M}\p{N}\p{Sc} @._+\-!#%()*,:=?\[\]^{|}~`\/]/u', '', $input);
+
+	// preg_replace returns null on malformed UTF-8 (because of the 'u' modifier); treat that as invalid input.
+	if ($input === null) {
 		return false;
 	}
-	
-	return $input; */
+
+	if (mb_strlen($input, 'UTF-8') > $allowed_length) {
+		return false;
+	}
+
+	// Hand the value back in the page charset, so the database lookup, the huskmig cookie and the
+	// form echo see the same encoding they received: a non-UTF8 database stores ISO-8859-1.
+	// Characters ISO-8859-1 cannot represent (€, Cyrillic ...) become '?', which such a database
+	// could not have stored anyway.
+	if ($charset == 'ISO-8859-1') {
+		$input = mb_convert_encoding($input, 'ISO-8859-1', 'UTF-8');
+	}
+
+	return $input;
 }
 /* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
-if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
+if (isset($_POST['regnskab'])) {
 	if ($regnskab = trim($_POST['regnskab'])){
-		#	}	else {
-		#		 $regnskab = "test";
-		#		 $brugernavn = "test";
-		#		 $password = "test";
-
-		// Sanitize
-
 		$brugernavn = isset($_POST['brugernavn']) ? sanitize_input(htmlspecialchars(trim($_POST['brugernavn']), ENT_COMPAT, $charset)) : null;
-		$password = isset($_POST['password']) ? sanitize_input(htmlspecialchars(trim($_POST['password']), ENT_COMPAT, $charset)) : null;
+		$password = isset($_POST['password']) ? trim($_POST['password']) : null;
 		$timestamp = isset($_POST['timestamp']) ? sanitize_input(trim($_POST['timestamp'])) : null;
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
-
 	}
 	if (isset($_POST['huskmig'])) {
 		if ($_POST['huskmig']) setcookie("saldi_huskmig",$_POST['huskmig'].chr(9).$regnskab.chr(9).$brugernavn,time()+60*60*24*365*10);
 		else setcookie("saldi_huskmig",$huskmig.chr(9).$regnskab.chr(9).$brugernavn,time()-1);
 	}#20211018
-	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone'];
+	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone']; 
 	if (!isset($timezone)) $timezone='Europe/Copenhagen';
 	date_default_timezone_set($timezone);
 	$qtxt="select version from regnskab where id='1'"; 
@@ -230,11 +262,15 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	$up = str_replace('é','É',$up);
 	$up = db_escape_string($up);
 
-	$qtxt = "select * from regnskab where regnskab = '$asIs' or lower(regnskab) = '$low' or upper(regnskab) = '$up'";
-#	$qtxt = "select * from regnskab where regnskab = '$asIs'";
- #	$qtxt.= " or lower(regnskab) = '".db_escape_string(strtolower($regnskab))."'";
- # $qtxt.= " or upper(regnskab) = '".db_escape_string(strtoupper($regnskab))."'";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
+	//$qtxt = "select * from regnskab where regnskab = '$asIs' or lower(regnskab) = '$low' or upper(regnskab) = '$up'";
+	$qtxt = "select * from regnskab where regnskab = '$asIs'"; //former code failed sometimes for same account name with different case.
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	if (!$r) {
+		// Only fall back to case-insensitive if no exact match found
+		$qtxt = "select * from regnskab where lower(regnskab) = '$low'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	}
+	if ($r){
 		$dbuser = trim(if_isset($r['dbuser'], ''));
 		$dbver = trim(if_isset($r['version'], ''));
 		// $dbpass = trim(if_isset($r['dbpass'], ''));
@@ -308,7 +344,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		exit();
 		}
 		if ($regnskab) $fejltxt="Regnskab $regnskab findes ikke";
-		login(htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset),$fejltxt);
+		login($regnskab,$brugernavn,$fejltxt);
  	}
 } else {
 	
@@ -316,55 +352,6 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	login($regnskab,$brugernavn,$fejltxt);
 	exit;
 }
-
-
-#######20210930?
-// if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($regnskab=='demo')&&($brugernavn=='admin')))) {#if not admin this blocks seems not to work if brugernavn is different from the sub datatabase
-// 	$udlob=date("U")-36000;
-// 	$x=0;
-// 	$q=db_select("select distinct(brugernavn) from online where brugernavn != '".db_escape_string($brugernavn)."' and db = '$db' and session_id != '$s_id'  and logtime > '$udlob'",__FILE__ . " linje " . __LINE__);
-// 	while ($r=db_fetch_array($q)) {
-// 		$x++;
-// 		$aktiv[$x]=$r['brugernavn'];
-// 	}
-// 	$y=$x+1;
-// 	#	if ($y > $bruger_max) {
-// 	#		$headers = 'From: saldi@saldi.dk'."\r\n".'Reply-To: saldi@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
-// 	#		mail("saldi@saldi.dk", "Brugerantal ($x) overskredet for $regnskab / $db", "$brugernavn logget ind som bruger nr $y.", "$headers");
-// 	#		print "<BODY onLoad=\"javascript:alert('Max antal samtidige brugere ($x) er overskredet.')\">";
-// 	#	}
-// 	$asIs = db_escape_string($brugernavn);
-// 	$low = strtolower($brugernavn);
-// 	$low = str_replace('Æ','æ',$low);
-// 	$low = str_replace('Ø','ø',$low);
-// 	$low = str_replace('Å','å',$low);
-// 	$low = str_replace('É','é',$low);
-// 	$low = db_escape_string($low);
-// 	$up = strtoupper($brugernavn);
-// 	$up = str_replace('æ','Æ',$up);
-// 	$up = str_replace('ø','Ø',$up);
-// 	$up = str_replace('å','Å',$up);
-// 	$up = str_replace('é','É',$up);
-// 	$up = db_escape_string($up);
-// 	$qtxt = "select * from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
-// 	$qtxt.= "and db = '$db' and session_id != '$s_id'";
-// 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-// 	if ($r = db_fetch_array($q)){
-// 		$last_time=$r['logtime'];
-// 		if (!$fortsaet && $unixtime - $last_time < 3600) {
-// 			online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id);
-//  #			exit;
-// 		} elseif (!$fortsaet) {
-// 			$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
-// 			$qtxt.= "and db = '$db' and session_id != '$s_id'";
-// 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-// 		}
-// 	}
-// }
-
-/* 
-update table onlineUserTracker with timestamp and amount of users logged in
-*/
 
 $query = db_select("SELECT id, brugerantal FROM regnskab", __FILE__ . " linje " . __LINE__);
 while($row = db_fetch_array($query)) {
@@ -452,9 +439,9 @@ if (isset ($brug_timestamp)) {
 	$up = db_escape_string($up);
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$brugernavn = $r['brugernavn'];
-	$accepted_ips = if_isset($r["ip_address"],NULL);
-	$ip_address = $_SERVER['REMOTE_ADDR'];
+	$brugernavn = isset($r['brugernavn']) ? $r['brugernavn'] : $brugernavn;
+	$accepted_ips = isset($r["ip_address"]) ? $r["ip_address"] : NULL;
+	$ip_address = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
 	if ($accepted_ips != null && $accepted_ips != '') {
 		$accepted_ips = explode(',', $accepted_ips);
 		if (!in_array($ip_address, $accepted_ips)) {
@@ -467,11 +454,12 @@ if (isset ($brug_timestamp)) {
 		}
 	}
 	$pw1  = md5($password);
-	$pw2  = saldikrypt($r['id'],$password);
-	if ($r['kode']==$pw1 || $r['kode']==$pw2) {
-		$userId      = $r['id'];
+	$pw2  = saldikrypt(isset($r['id']) ? $r['id'] : null, $password);
+	$rkode = isset($r['kode']) ? $r['kode'] : null;
+	if ($rkode && ($rkode == $pw1 || $rkode == $pw2)) {
+		$userId      = isset($r['id']) ? $r['id'] : null;
 		$rettigheder = trim(if_isset($r['rettigheder'], ''));
-		$regnskabsaar = $r['regnskabsaar'];
+		$regnskabsaar = isset($r['regnskabsaar']) ? $r['regnskabsaar'] : '';
 		$ansat_id = isset($r['ansat_id']) ? ($db != $sqdb ? $r['ansat_id'] * 1 : NULL) : NULL; #20250325	
 	}
 	if ($ansat_id && $db!=$sqdb) {
@@ -527,7 +515,7 @@ if ($userId) {
 		include("../includes/connect.php"); #20111105
 
 	# Get 2fa keys for SMS
-	if ($useSettingsd) {
+	if (!empty($useSettings)) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='nexmo_api_key' AND var_grp='2fa'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if(isset($r["var_value"])) $nexmo_api_key = $r["var_value"]; //20240502 Checks first that it is set before assigning it
@@ -550,11 +538,7 @@ if ($userId) {
 		$userId = 0; // Default value if not found
 	} */
 	include("../includes/connect.php");
-	if (
-		!(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
-		!(($regnskab === 'demo' && $brugernavn === 'admin')) &&
-		$sqdb != $regnskab
-	) {
+	if ($sqdb != $regnskab) {
 		$udlob = time() - 14400; // 4 hours
 		// if mysql or mysqli
 		if($db_type == 'mysql' || $db_type == 'mysqli') {
@@ -911,8 +895,12 @@ if(!isset($afbryd)){
 			$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&globalId=$globalId&dbName=$db&dbMail=$mainMail";
 			$url.= "&dbAlias=". urlencode($regnskab) ."&dbLocation=$dbLocation&userId=$userId&userName=". urlencode($brugernavn);
 			$url.= "&usermail=". urlencode($usermail);;
-			$result = file_get_contents($url);
-			$a = explode(',',json_decode($result, true));
+			// 20260902 CL/LH  F-010: the locator call is synchronous on every login. Bound it so an
+			// unreachable saldi.dk cannot hang the login page, and tolerate a failed call.
+			$locatorCtx = stream_context_create(array('http' => array('timeout' => 5)));
+			$result = @file_get_contents($url, false, $locatorCtx);
+			if ($result === false) $result = '';
+			$a = explode(',', (string)json_decode($result, true));
 			if ($a[0] && (!$globalId || (!$dbMail && $mainMail))) {
 				$globalId = $a[0];
 				include("../includes/connect.php");
@@ -934,7 +922,7 @@ if(!isset($afbryd)){
 				}
 			}
 		}
-		#if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
+		// if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php"); #20262707
 		# Lager status mail
 		if (file_exists("../lager/lagerstatusmail.php")) {
 			$email = get_settings_value("mail", "lagerstatus", "");
@@ -949,7 +937,7 @@ if(!isset($afbryd)){
 			include("../includes/betweenUpdates.php");
 		}
 		hent_shop_ordrer(0,'');
-#if (!$sag_rettigheder&&$rettigheder) print "<meta http-equiv=\"refresh\" content=\"0;URL=sidemenu.php\">";
+if (!$sag_rettigheder && !$rettigheder && $brugernavn == 'kds?') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/kds/\">";
 if (!$sag_rettigheder&&$rettigheder) {
 
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/menu.php\">";
@@ -1042,7 +1030,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 	$timestamp = time(); //unix timestamp
 	global	$charset;
 	global 	$nonce;
-	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset)) : null;
+	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset), 60) : null;
 	$brugernavn = isset($brugernavn) ? sanitize_input(htmlspecialchars($brugernavn, ENT_COMPAT, $charset)) : null;
 	$fejltxt = isset($fejltxt) ? sanitize_input(htmlspecialchars($fejltxt, ENT_COMPAT, 'UTF-8')) : null;
 
@@ -1091,7 +1079,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 		}
 
 		if (isset($_GET['regnskab'])) {
-			$regnskab = sanitize_input(htmlspecialchars($_GET['regnskab'], ENT_COMPAT, $charset));
+			$regnskab = sanitize_input(htmlspecialchars($_GET['regnskab'], ENT_COMPAT, $charset), 60);
 		}
 
 		if (isset($_GET['tlf'])) {

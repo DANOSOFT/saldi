@@ -1078,7 +1078,7 @@ function ordreside($id,$regnskab)
 				elseif ($momsfri[$x]) $varemomssats[$x]=0;
 				$serienr[$x]=stripslashes(htmlentities($row['serienr'],ENT_COMPAT,$charset));
 				$kostpris[$x]=$row['kostpris'];
-				$projekt[$x]=$row['projekt']*1;
+				$projekt[$x] = (int) $row['projekt'];
 			}
 		}	
 		$linjeantal=$x;
@@ -1144,7 +1144,7 @@ function ordreside($id,$regnskab)
 				$dkrabat=dkdecimal($rabat[$x]);
 				if ($momsfri[$x]!='on') {
 					$moms+=afrund($ialt*$varemomssats[$x]/100,2);
-#					$momssum=$momssum+$ialt;
+					// $momssum=$momssum+$ialt;
 				  if($incl_moms)$dkpris=dkdecimal($pris[$x]+$pris[$x]*$varemomssats[$x]/100);
 				}
 				if ($antal[$x]) {
@@ -1823,8 +1823,8 @@ function batch ($linje_id) {
 		$rest=array();
 		$lev_rest=$leveres;
 		
-		if (isset($lager)) $query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by kobsdate",__FILE__ . " linje " . __LINE__);
-		else $query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by kobsdate",__FILE__ . " linje " . __LINE__);
+		if (isset($lager)) $query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by " . fefo_order_clause(),__FILE__ . " linje " . __LINE__);
+		else $query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by " . fefo_order_clause(),__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			$x++;
 			$batch_kob_id[$x]=$row['id'];
@@ -1872,7 +1872,7 @@ function indsaet_linjer($ordre_id,$linje_id,$posnr)
 function find_nextfakt($fakturadate,$nextfakt) 
 {
 // Denne funktion finder diff mellem fakturadate & nextfakt,tillï¿œgger diff til nextfakt og returnerer denne vaerdi. Hvis baade 
-// fakturadate og netffaxt er sidste dag i de respektive maaneder vaelges ogsï¿œ sidste dag i maaned i returvaerdien.
+// fakturadate og netfmobilet er sidste dag i de respektive maaneder vaelges ogsï¿œ sidste dag i maaned i returvaerdien.
 
 list($faktaar,$faktmd,$faktdag) = split("-",$fakturadate);
 list($nextfaktaar,$nextfaktmd,$nextfaktdag) = split("-",$nextfakt);

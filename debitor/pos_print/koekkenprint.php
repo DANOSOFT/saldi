@@ -25,7 +25,7 @@
 // 20210915 - PHR Replaced convert with iconv.
 // 20240521 - PHR PHP8
 
-function koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori) {
+function koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori,$kds_beskrivelse) {
 	global $besked,$bordnavn,$bruger_id,$brugernavn,$db;
 	global $kp;
 	global $FromCharset,$ToCharset;

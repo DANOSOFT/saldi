@@ -41,7 +41,8 @@
 		
 		/* jQuery funktion til autosize på textarea */
 		$(document).ready(function(){
-			$('.autosize').autosize();
+
+			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize();
 		});
 			
 		// function til datepicker 

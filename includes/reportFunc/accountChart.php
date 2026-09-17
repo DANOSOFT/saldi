@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.09.25 ---
+// --- includes/reportFunc/accountchart.php --- lap 5.0.0 --- 2026.04.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,21 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 - 2025 Saldi.dk ApS
+// Copyright (c) 2023 - 2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20250627 base currency anount was not calculated correct.
 // 2050923 LOE - Showing all records or only open records added.
 // 20251002 MS Removed "Width=80%" and added padding to allow the Print/Email buttons to have the intended size, while still centering the text
+// 20260423 PHR Corrected call to text number for text
+// 20260429 PHR Removed 'unalign' from Openpost / AllAcount
+// 20260824 CL/SZ Restore caller's dato_fra/dato_til (not just konto_fra/til)
+//                when the saved KRV/DRV filter overwrites them - detail view
+//                was silently running against a stale date range (SST-672)
+// 20260907 CL/LH MB-15: port the accountChart fix from PR #480 (landed in the dead
+//                top-level reportFunc/ copy) - exact kontonr match first, second
+//                firmanavn query line appended instead of overwriting, and
+//                konto_fra/kontoart escaped before SQL interpolation
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -59,6 +68,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		$qtxt = "update openpost set udlignet='0',udlign_id='0' where konto_id = '$unAlignAccount'";
 		if ($unAlign) $qtxt .= " and udlign_id='$unAlign'";
 		elseif ($unAlignId) $qtxt.= " and id = '$unAlignId'";
+if ($bruger_id == -1) echo "$qtxt<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	$r=db_fetch_array(db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__));
@@ -80,6 +90,8 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	else $returnpath="../debitor/";
 
 	$tmp=$konto_fra;
+	$tmpDatoFra=$dato_fra;
+	$tmpDatoTil=$dato_til;
 	($kontoart=='D')?$tekst='DRV':$tekst='KRV';
 	$qtxt = "select * from grupper where art = '$tekst' and kodenr = '$bruger_id'";
 	if(isset($_GET['returside'])) $returside= $_GET['returside'];
@@ -102,6 +114,8 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		$returside="rapport.php?rapportart=$rapportart"; //&submit=ok&regnaar=$regnaar&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 		$konto_fra=$tmp;
 		$konto_til=$konto_fra;
+		$dato_fra=$tmpDatoFra;
+		$dato_til=$tmpDatoTil;
 	} elseif (!$returside) $returside="rapport.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 
 	if ($dato_fra && $dato_til) {
@@ -113,9 +127,10 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	$kontonr=array();
 	$kto_id=array();
 	$x=0;
+	$kontoartSql=db_escape_string($kontoart);
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) { #changed 20210816
 #		$qtxt = "select id from adresser where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art = '$kontoart' order by ".nr_cast('kontonr')."";
-		$qtxt = "select id,kontonr from adresser where art = '$kontoart' order by kontonr";
+		$qtxt = "select id,kontonr from adresser where art = '$kontoartSql' order by kontonr";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($konto_fra <= $r['kontonr'] && $konto_til >= $r['kontonr']) {
@@ -124,17 +139,33 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			}
 		}
 	} else {
-		if ($konto_fra && $konto_fra!='*') {
-			$konto_fra=str_replace("*","%",$konto_fra);
-			$tmp1=strtolower($konto_fra);
-			$tmp2=strtoupper($konto_fra);
-			$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
-			$qtxt = "upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
-		}	else $qtxt = "select id from adresser where art = '$kontoart' order by firmanavn";
+		# 20260907 MB-15: alphanumeric kontonr (e.g. from the open-posts report) ended in the
+		# firmanavn search below and found nothing - try an exact kontonr match first.
+		if ($konto_fra && $konto_fra==$konto_til && strpos($konto_fra,'*')===false) {
+			$tmp=db_escape_string($konto_fra);
+			$qtxt = "select id from adresser where kontonr = '$tmp' and art = '$kontoartSql'";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$x++;
-			$konto_id[$x]=$r['id'];
+			while ($r = db_fetch_array($q)) {
+				$x++;
+				$konto_id[$x]=$r['id'];
+			}
+		}
+		if (!$x) {
+			if ($konto_fra && $konto_fra!='*') {
+				$konto_fra=str_replace("*","%",$konto_fra);
+				$tmp1=db_escape_string(strtolower($konto_fra));
+				$tmp2=db_escape_string(strtoupper($konto_fra));
+				$konto_fra=db_escape_string($konto_fra);
+				$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
+				$qtxt.= "upper(firmanavn) like '$tmp2') and art = '$kontoartSql' order by firmanavn";
+			} else {
+				$qtxt = "select id from adresser where art = '$kontoartSql' order by firmanavn";
+			}
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$x++;
+				$konto_id[$x]=$r['id'];
+			}
 		}
 	}
 	$kontoantal=$x;
@@ -305,7 +336,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		if ($kontoart=='K') $tekst = findtekst('1140|Kreditorrapport', $sprog_id) ." - ". findtekst('133|Kontokort', $sprog_id);
 		else $tekst = findtekst('1141|Debitorapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
 
-		print "<td align='center' style='$topStyle; padding-left: 10%'>$tekst</td>\n"; #251002
+		print "<td align='center' style='z$topStyle; padding-left: 10%'>$tekst</td>\n"; #251002
 		################
 			print "<td width='10%'>
 					<select name='typeSelect' style='$topStyle; width:100%; height:100%; font-size:inherit;'
@@ -319,12 +350,12 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			if ($OpenPost != 'on')
 				print "<option value='rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra
 					   &kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
-					   &submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]'>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
+					   &submit=ok'>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
 						
 			if ($AllAcount != 'on') 
 				print "<option value='rapport.php?rapportart=accountChart&kilde=show_all&kto_fra=$kto_fra
 					   &kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
-					   &submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]'>".findtekst('2699|Vis alle poster', $sprog_id)."</option>\n";
+					   &submit=ok'>".findtekst('2699|Vis alle poster', $sprog_id)."</option>\n";
 			print "</select>
 				</td>\n";
 
@@ -349,7 +380,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		print "<td width=\"10%\" $top_bund>$luk ".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 		if ($kontoart=='K') $tekst = findtekst('1140|Kreditorrapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
 		else $tekst= findtekst('1141|Debitorapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
-		print "<td width=\"80%\" $top_bund>$tekst</td>";
+		print "<td width=\"80%\" $top_bund>$kontoart -> $tekst</td>";
 		($kontoantal==1)?$w=5:$w=10;
 		print "<td width=\"$w%\" $top_bund onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kilde=$kilde&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."\">". findtekst('880|Udskriv', $sprog_id) ."</td>\n";
 		if ($kontoantal==1) { # 2019-11-07
@@ -395,7 +426,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		print "<th>".findtekst('635|Dato', $sprog_id)."</th>";
 		print "<th>".findtekst('671|Bilag', $sprog_id)."</th>";
 		print "<th>".findtekst('643|Faktura', $sprog_id)."</th>";
-		print "<th>".findtekst('1141|Tekst', $sprog_id)."</th>";
+		print "<th>".findtekst('1163|Tekst', $sprog_id)."</th>";
 		print "<th>$prj</th>";
 		print "<th>".findtekst('1164|Forfaldsdato', $sprog_id)."</th>";
 		print "<th align=right class='text-right'>".findtekst('1000|Debet', $sprog_id)."</th>";
@@ -533,7 +564,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			print "<tr><td>".(isset($sprog_id) ? findtekst('635|Dato', $sprog_id) : "")."</td>";
 			print "<td>".(isset($sprog_id) ? findtekst('671|Bilag', $sprog_id) : "")."</td>";
 			print "<td>".(isset($sprog_id) ? findtekst('643|Faktura', $sprog_id) : "")."</td>";
-			print "<td>".(isset($sprog_id) ? findtekst('1141|Tekst', $sprog_id) : "")."</td>";
+			print "<td>".(isset($sprog_id) ? findtekst('1163|Tekst', $sprog_id) : "")."</td>";
 			print "<td>$prj</td>";
 			print "<td>".(isset($sprog_id) ? findtekst('1164|Forfaldsdato', $sprog_id) : "")."</td>";
 			print "<td align=right>".(isset($sprog_id) ? findtekst('1000|Debet', $sprog_id) : "")."</td>";

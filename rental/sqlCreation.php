@@ -56,7 +56,7 @@
 	$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'day' => 'INTEGER'];
 	ensureTableAndColumns($db, 'rentalclosed', $expectedColumns);
 	
-	$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'booking_format' => 'INTEGER', 'search_cust_name' => 'INTEGER', 'search_cust_number' => 'INTEGER', 'search_cust_tlf' => 'INTEGER', 'start_day' => 'INTEGER', 'deletion' => 'INTEGER', 'find_weeks' => 'INTEGER', 'end_day' => 'INTEGER', 'put_together' => 'INTEGER', 'pass' => 'varchar(255)', 'use_password' => 'INTEGER', 'invoice_date' => 'INTEGER'];
+	$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'booking_format' => 'INTEGER', 'search_cust_name' => 'INTEGER', 'search_cust_number' => 'INTEGER', 'search_cust_tlf' => 'INTEGER', 'start_day' => 'INTEGER', 'deletion' => 'INTEGER', 'find_weeks' => 'INTEGER', 'end_day' => 'INTEGER', 'put_together' => 'INTEGER', 'pass' => 'varchar(255)', 'use_password' => 'INTEGER', 'invoice_date' => 'INTEGER', 'toggle_order' => 'INTEGER DEFAULT 1'];
 	ensureTableAndColumns($db, 'rentalsettings', $expectedColumns);
 
 	$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'host' => 'varchar(255)', 'username' => 'varchar(255)', 'password' => 'varchar(255)'];

@@ -27,7 +27,8 @@ if (!function_exists('updateProductPrice')) {
 function updateProductPrice($productId,$newCost,$deliveryDate) {
 	$qtxt=NULL;
 	if (!$deliveryDate) $deliveryDate=date("Y-m-d");
-	$r=db_fetch_array(db_select("select id,kostpris,transdate from kostpriser where id='$productId' order by transdate desc limit 1",__FILE__ . " linje " . __LINE__));
+	$qtxt = "select id,kostpris,transdate from kostpriser where id='$productId' order by transdate desc limit 1";
+	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['transdate'] != $deliveryDate && $r['kostpris'] != $newCost) {
 		$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$productId','$newCost','$deliveryDate')";
 	} elseif ($r['transdate'] == $deliveryDate && $r['kostpris'] != $newCost) {

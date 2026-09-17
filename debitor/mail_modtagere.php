@@ -44,6 +44,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
+include("../includes/stdFunc/getKontaktEmail.php");
 
 $emne=if_isset($_POST['emne']);
 $liste_id=if_isset($_GET['liste_id']);
@@ -104,10 +105,10 @@ if ($r['bilag_id']) {
 		$qtxt.="ordrelinjer.ordre_id = ordrer.id and ordrelinjer.varenr like '%$kontonr[$x]' and ordrelinjer.fast_db > '0'";
 		$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$antal[$x]=(float)$r2['antal'];
-		$qtxt="select id,firmanavn,email from adresser where kontonr='$kontonr[$x]' and art='D'	";
+		$qtxt="select id,firmanavn from adresser where kontonr='$kontonr[$x]' and art='D'	";
 		$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$modt_navn[$x]=$r2['firmanavn'];
-		$email[$x]=$r2['email'];
+		$email[$x]=getAllKontaktEmails($r2['id'], 'faktura');
 		$x++;
 	}
 } else {
@@ -129,10 +130,10 @@ if ($r['bilag_id']) {
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$antal[$x] = (float)if_isset($r2['antal']);
 		} else $start[$x] = $slut[$x] = $antal[$x] = NULL;
-		$qtxt="select id,firmanavn,email from adresser where kontonr='$kontonr[$x]' and art='D'";
+		$qtxt="select id,firmanavn from adresser where kontonr='$kontonr[$x]' and art='D'";
 		$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$modt_navn[$x]=$r2['firmanavn'];
-		$email[$x]=$r2['email'];
+		$email[$x]=getAllKontaktEmails($r2['id'], 'faktura');
 		$x++;
 	}
 }
@@ -282,7 +283,11 @@ if (file_exists(".:../phpmailer")) { #20250407
 		$mail->From = $from;
 		$mail->FromName = $afsendernavn;
 		$mail->ReturnPath = $afsendermail;
-		$mail->AddAddress($modtager); 
+		$ke_emails = preg_split('/[;,]/', $modtager);
+		foreach ($ke_emails as $ke_addr) {
+			$ke_addr = trim($ke_addr);
+			if ($ke_addr && strpos($ke_addr, '@')) $mail->AddAddress($ke_addr);
+		}
 		if ($from != $afsendermail) $mail->AddBCC($afsendermail); 
 		$mail->WordWrap = 50;                              // set word wrap
 #		$mail->AddAttachment("$tmpmappe/afregning.html");      // attachment

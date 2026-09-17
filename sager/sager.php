@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- lap 3.3.0 --- 2024-11-26 ---
+// --- sager/sager.php --- lap 5.0.0 --- 2026-08-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2012-2024 Saldi.dk ApS
+// Copyright (c) 2012-2026 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // Har lagt al javascript i en separat fil ved navn 'jquery.sager.js' + diverse html rettelser
 // HTML rettelser til liste-visning og oprettelse af sag
@@ -50,6 +50,8 @@
 // 20170421 Mulighed for at vælge en fra og til dato i funktion 'akkordliste'
 // 20240531 Addad $regnaar to function akkordliste()
 // 20241126 PHP8
+// 20260312 PHP8
+// 20260805 CX/PHR Cache-bust autocomplete scripts after adding safe field separators.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -96,9 +98,9 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 		<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery-ui-1.9.2.custom.min.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/ui.datepicker-da.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js\"></script>
+		<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js?v=20260805\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.pajinate.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/jquery.sager.js\"></script>
+		<script type=\"text/javascript\" src=\"../javascript/jquery.sager.js?v=20260805\"></script>
 		
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
@@ -201,7 +203,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 				item_container_id : '.paging_content',
 				num_page_links_to_display : 10,
 				abort_on_small_lists: true,
-				nav_label_info : 'Viser {0}-{1} af {2}',
+				nav_label_info : '".findtekst('2954|Viser', $sprog_id)." {0}-{1} ".lcfirst(findtekst('2767|Af', $sprog_id))." {2}',
 				nav_label_first : '<<',
 				nav_label_last : '>>',
 				nav_label_prev : '<',
@@ -609,8 +611,8 @@ function sagsliste() {
 	$sqlsort=urldecode($sort);
 	
 	$limitarray=array('500','1000','2500','5000','10000','NULL');
-	$limitnavn=array('500','1000','2500','5000','10000','Alle');
-	
+	$limitnavn=array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
+
 	($sag_limit)?$limit=$sag_limit:$limit='500';
 	
 	//if ($vis=='ordrebekraeftelse') $where="where status ='Ordrebekræftelse'"; 
@@ -795,7 +797,7 @@ function sagsliste() {
 							<th width=\"100\">".findtekst('46|By', $sprog_id)."</th>
 							<th width=\"80\">".findtekst('2793|Ansvarlig', $sprog_id)."</th>
 							<th width=\"80\">".findtekst('494|Status', $sprog_id)."</th>
-							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=off\">".findtekst('2851|Hurtigsøgning', $sprog_id)."&nbsp;</a></th>
+							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=off\">".findtekst('2851|Hurtigsøgning', $sprog_id)."</a></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -980,8 +982,8 @@ function sagsliste() {
 					<td><p><b>".findtekst('2793|Ansvarlig', $sprog_id).":</b></p></td>
 					<td><p>$sag_ansvarlig[$x]&nbsp;</p></td>
 					<td width=\"70\"><p><b>".findtekst('2129|Indtastet', $sprog_id).":</b></p></td>
-					<td><p>d.$dato[$x] kl. $tid[$x]</p></td>
-					<td width=\"25\"><p><b>Af:</b></p></td>
+					<td><p>".findtekst('2882|d.', $sprog_id)."$dato[$x] ".findtekst('2883|kl.', $sprog_id)." $tid[$x]</p></td>
+					<td width=\"25\"><p><b>".findtekst('638|Af', $sprog_id).":</b></p></td>
 					<td><p>$oprettet_af[$x]</p></td>
 				</tr>
 			</table>
@@ -1325,8 +1327,8 @@ function vis_sag() {
 		$bilag_filtype[$x]=$r['filtype'];
 		$bilag_kategori[$x]=$r['kategori'];
 		$bilag_beskrivelse[$x]=$r['beskrivelse'];
-		$bilag_dato[$x]=date("d-m-Y",$r['datotid']);
-		$bilag_tidspkt[$x]=date("H:i",$r['datotid']);
+		$bilag_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$bilag_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$bilag_datotid[$x]=$r['datotid'];
 		$bilag_fase[$x]=$r['fase']*1;
 		$bilag_hvem[$x]=$r['hvem'];
@@ -1346,8 +1348,8 @@ function vis_sag() {
 		//if (strlen($tmp)>20) $tmp=substr($tmp,0,20)."...";
 		$notat_beskrivelse[$x]=utf8_encode($tmp);
 #		$notat_overskrift[$x]=$r['overskrift'];
-		$notat_dato[$x]=date("d-m-Y",$r['datotid']);
-		$notat_tidspkt[$x]=date("H:i",$r['datotid']);
+		$notat_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$notat_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$notat_datotid[$x]=$r['datotid'];
 		$notat_fase[$x]=$r['fase']*1;
 		$notat_status[$x]=$r['status'];
@@ -1362,8 +1364,8 @@ function vis_sag() {
 	while ($r = db_fetch_array($q)) {
 		$kontrol_id[$x]=$r['id'];
 		$kontrol_tjek_id[$x]=$r['tjekliste_id'];
-		$kontrol_dato[$x]=date("d-m-Y",$r['datotid']);
-		$kontrol_tidspkt[$x]=date("H:i",$r['datotid']);
+		$kontrol_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$kontrol_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$kontrol_opg_art[$x]=$r['opg_art'];
 		$kontrol_opg_navn[$x]=$r['opg_navn'];
 		$kontrol_sjak[$x]=$r['sjak'];
@@ -1408,8 +1410,8 @@ function vis_sag() {
 		$tilbud_nr[$x]=$r['tilbudnr'];
 		$tilbud_beskrivelse[$x]=$r['beskrivelse'];
 		$tilbud_tekst[$x]=$r['tekst'];
-		$tilbud_dato[$x]=date("d-m-Y",$r['datotid']);
-		$tilbud_tidspkt[$x]=date("H:i",$r['datotid']);
+		$tilbud_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$tilbud_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$tilbud_hvem[$x]=$r['hvem'];
 		$x++;
 	}
@@ -1424,8 +1426,8 @@ function vis_sag() {
 		$ordrer_tilbudnr[$x]=$r['tilbudnr'];
 		$ordrer_ordrenr[$x]=$r['ordrenr'];
 		$ordrer_nr[$x]=$r['nr'];
-		$ordrer_dato[$x]=date("d-m-Y",$r['datotid']);
-		$ordrer_tidspkt[$x]=date("H:i",$r['datotid']);
+		$ordrer_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$ordrer_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$ordrer_ref[$x]=$r['ref'];
 		$ordrer_art[$x]=$r['art'];
 		$ordrer_status[$x]=$r['status'];
@@ -1449,11 +1451,11 @@ function vis_sag() {
 		$ot_tilbudnr[$x]=$r['tilbudnr'];
 		$ot_ordrenr[$x]=$r['ordrenr'];
 		$ot_nr[$x]=$r['nr'];
-		$ot_dato[$x]=date("d-m-Y",$r['datotid']);
-		$ot_tidspkt[$x]=date("H:i",$r['datotid']);
+		$ot_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$ot_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$ot_ref[$x]=$r['ref'];
 		$ot_status[$x]=$r['status'];
-		if ($ot_status[$x] == '0') $otstatus[$x] = "Tilbud";
+		if ($ot_status[$x] == '0') $otstatus[$x] = findtekst('812|Tilbud', $sprog_id);
 		$x++;
 	}
 	
@@ -1469,14 +1471,14 @@ function vis_sag() {
 		$faktura_tilbud_nr[$x]=$r['nr'];
 		$fakturadate[$x]=$r['fakturadate'];
 		$faktura_dato[$x] = date("d-m-Y", strtotime($fakturadate[$x]));
-		//$faktura_dato[$x]=date("d-m-Y",$r['datotid']);
-		//$faktura_tidspkt[$x]=date("H:i",$r['datotid']);
+		//$faktura_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		//$faktura_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$faktura_ref[$x]=$r['ref'];
 		$faktura_status[$x]=$r['status'];
 		//if ($ordrer_status[$x] == '0') $opgstatus[$x] = "Tilbud";
 		//if ($ordrer_status[$x] == '1') $opgstatus[$x] = "Ordrebekræftelse";
 		//if ($ordrer_status[$x] == '2') $opgstatus[$x] = "Levering";
-		if ($faktura_status[$x] >= '3') $faktstatus[$x] = "Faktura";
+		if ($faktura_status[$x] >= '3') $faktstatus[$x] = findtekst('643|Faktura', $sprog_id);
 		$x++;
 	}
 	
@@ -1491,14 +1493,14 @@ function vis_sag() {
 		$kreditnota_tilbud_nr[$x]=$r['nr'];
 		$kreditnotadate[$x]=$r['fakturadate'];
 		$kreditnota_dato[$x] = date("d-m-Y", strtotime($kreditnotadate[$x]));
-		//$faktura_dato[$x]=date("d-m-Y",$r['datotid']);
-		//$faktura_tidspkt[$x]=date("H:i",$r['datotid']);
+		//$faktura_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		//$faktura_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$kreditnota_ref[$x]=$r['ref'];
 		$kreditnota_status[$x]=$r['status'];
 		//if ($ordrer_status[$x] == '0') $opgstatus[$x] = "Tilbud";
 		//if ($ordrer_status[$x] == '1') $opgstatus[$x] = "Ordrebekræftelse";
 		//if ($ordrer_status[$x] == '2') $opgstatus[$x] = "Levering";
-		if ($kreditnota_status[$x] >= '3') $kreditnotastatus[$x] = "Kreditnota";
+		if ($kreditnota_status[$x] >= '3') $kreditnotastatus[$x] = findtekst('577|Kreditnota', $sprog_id);
 		$x++;
 	}
 	
@@ -1961,7 +1963,7 @@ function vis_sag() {
 					
 	print "<table border=\"0\" cellspacing=\"0\" class=\"tableSagerBorder\" style=\"width:100%;\">
 						<tr>
-							<td><a class=\"button gray small\" title=\"".findtekst('2914|klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
+							<td><a class=\"button gray small\" title=\"".findtekst('2914|Klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
 						</tr>
 					</table>";
 					
@@ -1982,7 +1984,7 @@ function vis_sag() {
 				</tbody>
 				<tbody>
 					<tr>
-						<td colspan=\"3\"><a class=\"button gray small\" title=\"".findtekst('2914|klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
+						<td colspan=\"3\"><a class=\"button gray small\" title=\"".findtekst('2914|Klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
 					</tr>
 				</tbody>
 			</table>
@@ -2211,7 +2213,7 @@ function vis_sag() {
 							<td colspan=\"1\" title=\"$bilag_beskrivelse[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:220px;\">$bilag_beskrivelse[$y]&nbsp;</p></td>
 							<td colspan=\"1\" title=\"$bilag_bilag_fase[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:94px;\">$bilag_bilag_fase[$y]&nbsp;</p></td>
 							<td colspan=\"1\" title=\"$bilag_kategori[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:100px;\">$bilag_kategori[$y]&nbsp;</p></td>
-							<td colspan=\"1\"><p>".date("d-m-Y",$bilag_datotid[$y])."</p></td>
+							<td colspan=\"1\"><p>".date("d-m-Y",(int)$bilag_datotid[$y])."</p></td>
 							<td colspan=\"1\"><p>$bilag_tidspkt[$y]</p></td>
 							<td colspan=\"1\" title=\"$bilag_hvem[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:80px;\">$bilag_hvem[$y]&nbsp;</p></td>";
 							print "<td colspan=\"1\" title=\"".findtekst('2841|Ret fase, kategori og tilknyt bilag til kontrolskema', $sprog_id)."\"><a href=\"bilag_sager.php?kilde=sager&amp;sag_id=$id&amp;konto_id=$konto_id&amp;kilde_id=$id&amp;bilag_id=$bilag_id[$y]\" class=\"cross\"></a></td>\n";
@@ -2469,8 +2471,8 @@ function ret_opgave($sag_id) {
 			$tilbud_nr[$x]=$r['tilbudnr'];
 			$tilbud_beskrivelse[$x]=$r['beskrivelse'];
 			$tilbud_tekst[$x]=$r['tekst'];
-			$tilbud_dato[$x]=date("d-m-Y",$r['datotid']);
-			$tilbud_tidspkt[$x]=date("H:i",$r['datotid']);
+			$tilbud_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+			$tilbud_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 			$tilbud_hvem[$x]=$r['hvem'];
 			$x++;
 		}
@@ -2492,7 +2494,7 @@ function ret_opgave($sag_id) {
 			if($opgave_id) {
 			print "<div class=\"row\">
 					<div class=\"left\">".findtekst('65|Oprettet', $sprog_id).":</div>
-					<div class=\"right\">d.$opgave_dato kl. $opgave_tid</div>
+					<div class=\"right\">".findtekst('2882|d.', $sprog_id)."$opgave_dato ".findtekst('2883|kl.', $sprog_id)." $opgave_tid</div>
 					<div class=\"clear\"></div>
 			</div>
 			<div class=\"row\">
@@ -2789,7 +2791,7 @@ function ret_sag() {
  	 	 	 	if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'",__FILE__ . " linje " . __LINE__);
  	 	 	 	elseif (($y=="-")&&($ans_id[$x])){db_modify("delete from ansatte 	where id = '$ans_id[$x]'",__FILE__ . " linje " . __LINE__);}
  	 	 	 	else {
-					$alerttekst=findtekst(352,$sprog_id);
+					$alerttekst=findtekst('352|Hint! Du skal sætte et - (minus) som pos.-nr. for at slette en kontaktperson',$sprog_id);
 					print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
 				}
  	 	 	}
@@ -3074,7 +3076,7 @@ function ret_sag() {
 	<div style=\"float:left; width:828px;\">
 		<h3>".findtekst('2892|Planlægningsinformation', $sprog_id).":</h3>
 		<div class=\"contentA\">
-			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('2886|Her tastes den planlagte start- og slut dato for sagen, som vises under planlægning', $sprog_id)."</i></p></div>
+			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('3353|Her tastes den planlagte start- og slutdato for sagen, som vises under planlægning', $sprog_id)."</i></p></div>
 		</div><!-- end of contentA -->
 	</div><!-- end of full container -->
 	<div class=\"clear\"></div>
@@ -3340,14 +3342,14 @@ print "<hr>
 			print "<div class=\"contentA\" style=\"float:right;\">\n";
 			//if (strpos($_SERVER['PHP_SELF'],"kunder.php")) $href="<a href=\"kunder.php?konto_id=$id&amp;ansat_id=0&amp;funktion=ret_kunde_ansat\" class=\"button blue small\">";
 			$href="<a href=\"sager.php?konto_id=$konto_id&amp;sag_id=$id&amp;funktion=sag_kontakt\" class=\"button blue small printDisplayNone\">";
-			print "$href".findtekst(669,$sprog_id)."<!--tekst 669--></a>\n";
+			print "$href".findtekst('669|Ny kontakt',$sprog_id)."<!--tekst 669--></a>\n";
 			print "</div>\n";
 		} else {
 			print "<h3 class=\"printDisplayNone\">".findtekst('2928|Opret kontaktperson her', $sprog_id)."</h3>\n";
 			print "<div class=\"contentA\" style=\"float:left;\">\n";
 			//if (strpos($_SERVER['PHP_SELF'],"kunder.php")) $href="<a href=\"kunder.php?konto_id=$id&amp;ansat_id=0&amp;funktion=ret_kunde_ansat\" class=\"button blue small\">";
 			$href="<a href=\"sager.php?konto_id=$konto_id&amp;sag_id=$id&amp;funktion=sag_kontakt\" class=\"button blue small printDisplayNone\">";
-			print "$href".findtekst(669,$sprog_id)."<!--tekst 669--></a>\n";
+			print "$href".findtekst('669|Ny kontakt',$sprog_id)."<!--tekst 669--></a>\n";
 			print "</div>\n";
 		}
 	
@@ -3572,8 +3574,8 @@ function kopi_ordre() {
 	$sqlsort=urldecode($sort);
 	
 	$limitarray=array('500','1000','2500','5000','10000','NULL');
-	$limitnavn=array('500','1000','2500','5000','10000','Alle');
-	
+	$limitnavn=array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
+
 	($kopi_ordre_limit)?$limit=$kopi_ordre_limit:$limit='500';
 	
 	//if ($vis=='ordrebekraeftelse') $where="where status ='Ordrebekræftelse'"; 
@@ -3735,7 +3737,7 @@ function sag_kontakt() {
 		$postnr=db_escape_string(trim($_POST['postnr']));
 		$bynavn=db_escape_string(trim($_POST['bynavn']));
 		$tlf=db_escape_string(trim($_POST['tlf']));
-		$fax=db_escape_string(trim($_POST['fax']));
+		$mobile=db_escape_string(trim($_POST['mobile']));
 		$mobil=db_escape_string(trim($_POST['mobil']));
 		$email=db_escape_string(trim($_POST['email']));
 		$notes=db_escape_string(trim($_POST['notes']));
@@ -3755,9 +3757,9 @@ function sag_kontakt() {
 		} else {
 
 			if ($ansat_id ) {
-				db_modify("update ansatte set navn='$navn',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',tlf='$tlf',fax='$fax',mobil='$mobil',email='$email',notes='$notes' where id='$ansat_id'",__FILE__ . " linje " . __LINE__);
+				db_modify("update ansatte set navn='$navn',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',tlf='$tlf',mobile='$mobile',mobil='$mobil',email='$email',notes='$notes' where id='$ansat_id'",__FILE__ . " linje " . __LINE__);
 			} else {
-				db_modify("insert into ansatte (navn,addr1,addr2,postnr,bynavn,tlf,fax,mobil,email,notes,posnr,sag_id)values('$navn','$addr1','$addr2','$postnr','$bynavn','$tlf','$fax','$mobil','$email','$notes','$posnr','$id')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into ansatte (navn,addr1,addr2,postnr,bynavn,tlf,mobile,mobil,email,notes,posnr,sag_id)values('$navn','$addr1','$addr2','$postnr','$bynavn','$tlf','$mobile','$mobil','$email','$notes','$posnr','$id')",__FILE__ . " linje " . __LINE__);
 				$r=db_fetch_array(db_select("select id from ansatte where sag_id='$id' and posnr='$posnr'",__FILE__ . " linje " . __LINE__));
 				$ansat_id=$r['id'];
 			}
@@ -3778,7 +3780,7 @@ function sag_kontakt() {
 		$bynavn=htmlentities($r['bynavn'],ENT_COMPAT,$charset);
 		$email=htmlentities($r['email'],ENT_COMPAT,$charset);
 		$tlf=htmlentities($r['tlf'],ENT_COMPAT,$charset);
-		$fax=htmlentities($r['fax'],ENT_COMPAT,$charset);
+		$mobile=htmlentities($r['mobile'],ENT_COMPAT,$charset);
 		$mobil=htmlentities($r['mobil'],ENT_COMPAT,$charset);
 		$notes=htmlentities($r['notes'],ENT_COMPAT,$charset);
 		$posnr=$r['posnr'];
@@ -3810,7 +3812,7 @@ function sag_kontakt() {
 	print "<div class=\"row\"><div class=\"left\">".findtekst('52|E-mail', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"email\" value=\"$email\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "<div class=\"row\"><div class=\"left\">".findtekst('401|Mobil', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"mobil\" value=\"$mobil\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "<div class=\"row\"><div class=\"left\">".findtekst('654|Lokalnr.', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"tlf\" value=\"$tlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal fax', $sprog_id)."</div><div class=\"right\"><input type=\"text\" class=\"text\" name=\"fax\" value=\"$fax\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal mobil', $sprog_id)."</div><div class=\"right\"><input type=\"text\" class=\"text\" name=\"mobile\" value=\"$mobile\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of right container -->\n";
 	print "<div style=\"float:left; width:828px;\">\n";
@@ -3876,7 +3878,7 @@ function akkordliste() {
 	
 	// Alle godkendte lønsedler på sagen, undtagen akkord afregning
 	$x=0; #20160303
-	$timer=array();
+	$timer = $timersum = array();
 	$qtxt="SELECT * FROM loen WHERE sag_id = '$id' AND godkendt >= '1' AND afvist = '' AND art != 'akk_afr' $where $where2 ORDER BY id";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -3893,6 +3895,7 @@ function akkordliste() {
 	
 	// Query til lønudgifter
 	$x=0; #20160729
+	$loen_sum = array();
 	$q = db_select("SELECT * FROM loen WHERE sag_id = '$id' AND godkendt >= '1' AND art != 'akktimer' $where $where2",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		//$loen_id[$x]=$r['id'];
@@ -3903,6 +3906,7 @@ function akkordliste() {
 	
 	// Alle godkendte lønsedler på sagen
 	$y=0;
+	$loen_id = array();
 	$q = db_select("SELECT * FROM loen WHERE sag_id = '$id' AND godkendt >= '1' AND afvist = '' $where $where2 ORDER BY id",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$loen_id[$y]=$r['id'];
@@ -4014,6 +4018,7 @@ function akkordliste() {
 	
 	// Her hentes de opgaver som er tilknyttet sagen 
 	$x=0;
+	$opgave_id = $opgave_id2 = array();
 	$q = db_select("SELECT * FROM opgaver WHERE assign_to = 'sager' AND assign_id = '$id' ORDER BY nr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$opgave_id[$x]=$r['id'];

@@ -1,6 +1,13 @@
 <?php
 //..includes/orderFuncIncludes/grid_order.php
 // 20260203 @LOE Updated build_query to return exact searches first before related matches.
+// 20260601 Sawaneh Applied sqlOverride in build_count_query so ORDER BY uses the qualified column and avoids ambiguous-column error
+// 20260612 pk - Changed the size of the arrow buttons in pagination so that they are the same size as the number buttons
+// 20260630 Sawaneh render_table_row now wraps render-less column values in a <td> so raw values no longer leak as text above the grid
+// 20260701 CDX/NTR - Changed DEFAULT_GENERATE_SEARCH to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260817 Sawaneh Sort descending columns NULLS LAST so rows without a date no longer
+//                  displace the newest rows, and validate the request-sourced sort value.
+// 20260911 CDX/LH SD-186 Escape search ordering with the DB driver; pass raw terms to search callbacks.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -117,6 +124,28 @@ function DEFAULT_GENERATE_SEARCH($column, $term) {
     }
     $term = str_replace(";", ":", $term);
     
+    // Numeric comparison searches: >10, >=10, <10, <=10, 10+ (10 or more) and 10- (10 or less).
+    if ($art == 'BELOB') {
+        $precision = isset($column['decimalPrecision']) ? $column['decimalPrecision'] : 2;
+        $numericField = "round(COALESCE({$field}::numeric, 0), {$precision})";
+
+        if (preg_match('/^(>=|<=|>|<)\s*(.+)$/', $term, $matches)) {
+            $operator = $matches[1];
+            $numValue = usdecimal(trim($matches[2]));
+            return "({$numericField} {$operator} $numValue)";
+        }
+
+        if (preg_match('/^(.+)\+$/', $term, $matches)) {
+            $numValue = usdecimal(trim($matches[1]));
+            return "({$numericField} >= $numValue)";
+        }
+
+        if (preg_match('/^(.+)-$/', $term, $matches)) {
+            $numValue = usdecimal(trim($matches[1]));
+            return "({$numericField} <= $numValue)";
+        }
+    }
+
     // Special handling for single BELOB (number) values - create narrow range
     if ($art == 'BELOB' && strpos($term, ':') === false) {
         $numValue = usdecimal($term);
@@ -138,7 +167,8 @@ function DEFAULT_GENERATE_SEARCH($column, $term) {
             $tmp1 = usdecimal($tmp1);
             $tmp2 = usdecimal($tmp2);
             $precision = $column['decimalPrecision'];
-            return "(round({$field}::numeric, {$precision}) >= $tmp1 AND round({$field}::numeric, {$precision}) <= $tmp2)";
+            $numericField = "round(COALESCE({$field}::numeric, 0), {$precision})";
+            return "({$numericField} >= $tmp1 AND {$numericField} <= $tmp2)";
             
         } elseif ($art == "NR") {
             $tmp1 = round($tmp1 * 1, 2);
@@ -398,7 +428,7 @@ function create_datagrid($id, $grid_data) {
     list($columns_setup, $search_setup, $filter_setup) = fetch_grid_setup(
         $id,
         $columns_filtered,
-        if_isset($_GET["search"][$id], array()),
+        isset($_GET["search"][$id]) ? $_GET["search"][$id] : array(),
         $filters
     );
     log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
@@ -410,7 +440,7 @@ function create_datagrid($id, $grid_data) {
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
-    $searchTerms = if_isset($_GET["search"][$id], $search_setup);
+    $searchTerms = isset($_GET["search"][$id]) ? $_GET["search"][$id] : $search_setup;
     $search_json  = db_escape_string(json_encode($searchTerms));
     log_grid_performance("JSON processing and search setup", $setup_processing_start);
 
@@ -421,8 +451,8 @@ function create_datagrid($id, $grid_data) {
     log_grid_performance("Grid settings query", $grid_settings_start);
 
     // Determine sorting, row count, and offset
-    $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
-    $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $sort = isset($_GET["sort"][$id]) ? $_GET["sort"][$id] : (isset($r["sort"]) ? $r["sort"] : get_default_sort($columns_updated));
+    $selectedrowcount = isset($_GET["rowcount"][$id]) ? $_GET["rowcount"][$id] : (isset($r["rowcount"]) ? $r["rowcount"] : 100);
 
     // Check if search has actually changed compared to stored values
     $stored_search_array = json_decode(if_isset($r, '{}', 'search_setup'), true);
@@ -484,10 +514,10 @@ function create_datagrid($id, $grid_data) {
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
-    $rowStyleFn = if_isset($grid_data['rowStyle'], null);
-    $metaColumnFn = if_isset($grid_data['metaColumn'], null);
+    $rowStyleFn = isset($grid_data['rowStyle']) ? $grid_data['rowStyle'] : null;
+    $metaColumnFn = isset($grid_data['metaColumn']) ? $grid_data['metaColumn'] : null;
     $totalWidth = calculate_total_width($columns_updated);
-    $menu = if_isset($_GET["menu"][$id], "main"); // ['main', 'kolonner', 'filtre']
+    $menu = isset($_GET["menu"][$id]) ? $_GET["menu"][$id] : "main"; // ['main', 'kolonner', 'filtre']
 
     $rows = array();
     $query = "";
@@ -510,7 +540,7 @@ function create_datagrid($id, $grid_data) {
         log_grid_performance("Main SQL query execution", $main_query_start);
         
         $fetch_rows_start = microtime(true);
-        $rows = fetch_rows_from_query($sqlquery);
+        $rows = $sqlquery ? fetch_rows_from_query($sqlquery) : [];
         log_grid_performance("Fetching rows from query", $fetch_rows_start);
 
         // Fetch total row count
@@ -520,7 +550,7 @@ function create_datagrid($id, $grid_data) {
         log_grid_performance("Built count query with length: {$count_query_length} characters");
         
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);
-        $totalItems = db_fetch_array($countResult)["total_items"];
+        $totalItems = $countResult ? db_fetch_array($countResult)["total_items"] : 0;
         $totalRows = count($rows);
         log_grid_performance("Count query execution", $count_query_start);
 
@@ -685,20 +715,30 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
  * @return array The first array with missing values filled from the second array.
  */
 function fill_missing_values($firstArray, $secondArray) {
-    foreach ($firstArray as &$firstItem) {
-        foreach ($secondArray as $secondItem) {
-            if ($firstItem['field'] === $secondItem['field']) {
-                foreach ($secondItem as $key => $value) {
-                    if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
-                        $firstItem[$key] = $value;
-                    }
-                }
-                break;
-            }
+    $columnsByField = array();
+    foreach ($secondArray as $secondItem) {
+        if (isset($secondItem['field'])) {
+            $columnsByField[$secondItem['field']] = $secondItem;
         }
     }
-    unset($firstItem);
-    return $firstArray;
+
+    $merged = array();
+    foreach ($firstArray as $firstItem) {
+        if (!isset($firstItem['field']) || !isset($columnsByField[$firstItem['field']])) {
+            continue;
+        }
+
+        $mergedItem = $columnsByField[$firstItem['field']];
+        foreach (array('headerName', 'description', 'width', 'align', 'hidden') as $key) {
+            if (isset($firstItem[$key]) && $firstItem[$key] !== "") {
+                $mergedItem[$key] = $firstItem[$key];
+            }
+        }
+
+        $merged[] = $mergedItem;
+    }
+
+    return $merged;
 }
 
 /**
@@ -773,20 +813,60 @@ function get_default_sort($columns) {
 }
 
 /**
+ * Builds the ORDER BY expression from the request-sourced sort value.
+ * Replaces the bare sort field with its sqlOverride when defined, so ORDER BY is unambiguous.
+ * The field must match a configured column or a plain identifier and the direction is
+ * normalized to asc/desc before either is placed into the query.
+ * Descending sorts append NULLS LAST because Postgres defaults DESC to NULLS FIRST,
+ * which would let rows without a value displace the newest rows at the top.
+ *
+ * @param string $sort The sort value, e.g. "field" or "field desc".
+ * @param array $columns The grid's column definitions.
+ * @return string The validated ORDER BY expression.
+ */
+function prepare_grid_order_sort($sort, $columns) {
+    if (!$sort || !is_array($columns)) return $sort;
+    $sortParts = preg_split('/\s+/', trim($sort), 2);
+    $sortField = $sortParts[0];
+    $sortDirection = isset($sortParts[1]) ? strtolower(trim($sortParts[1])) : '';
+    if ($sortDirection != 'asc' && $sortDirection != 'desc') {
+        $sortDirection = '';
+    }
+    $sortColumn = null;
+    foreach ($columns as $column) {
+        if (is_array($column) && isset($column['field']) && $column['field'] === $sortField) {
+            $sortColumn = $column;
+            break;
+        }
+    }
+    if (!$sortColumn && !preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/', $sortField)) {
+        return '1';
+    }
+    if ($sortColumn && !empty($sortColumn['sqlOverride'])) {
+        $sortField = $sortColumn['sqlOverride'];
+    }
+    $orderBy = trim($sortField . ' ' . $sortDirection);
+    if ($sortDirection == 'desc') {
+        $orderBy .= ' NULLS LAST';
+    }
+    return $orderBy;
+}
+
+/**
  * Builds a query string based on filters, search terms, sorting, pagination, and other parameters.
  *
  * @param string $id The ID used to reference the query.
  * @param array $grid_data An array containing the base query and other data for constructing the query.
  * @param array $columns An array of column definitions used for sorting, searching, and filtering.
  * @param array $filters An array of filter definitions.
- * @param array $searchTerms (optional) An associative array of search terms where the key is the column field name and the value is the search term.
+ * @param array $searchTerms An associative array of search terms where the key is the column field name and the value is the search term.
  * @param string $sort The sorting condition (e.g., "field ASC" or "field DESC").
  * @param int $rowCount The number of rows to return.
  * @param int $offset The starting point for the result set (used for pagination).
  * @return string The final SQL query with all conditions applied.
  *
  */
-function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $sort, $rowCount, $offset) {
+function build_query($id, $grid_data, $columns, $filters, $searchTerms, $sort, $rowCount, $offset) {
     $query = $grid_data['query'];
     
     $filterstring = "";
@@ -826,10 +906,10 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
-                $term = addslashes($searchTerms[$column['field']]);
+            if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
+                $term = $searchTerms[$column['field']];
                 // Convert both the column value and the search term to lowercase
-                if ($term) {
+                if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
             }
@@ -854,8 +934,8 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         
         $orderCases = array();
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
-                $term = addslashes($searchTerms[$column['field']]);
+            if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
+                $term = db_escape_string($searchTerms[$column['field']]);
                 $field = $column['sqlOverride'] == '' ? $column['field'] : $column['sqlOverride'];
                 
                 if ($term === '' && $term !== '0') {
@@ -896,17 +976,8 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     
     # Is always set due to get_default_sort
     # Translate sort field to sqlOverride if one exists for proper sorting (e.g., for varchar columns that need numeric sorting)
-    $sortParts = preg_split('/\s+/', trim($sort), 2);
-    $sortField = $sortParts[0];
-    $sortDirection = isset($sortParts[1]) ? ' ' . $sortParts[1] : '';
-    
-    foreach ($columns as $column) {
-        if ($column['field'] === $sortField && !empty($column['sqlOverride'])) {
-            $sort = $column['sqlOverride'] . $sortDirection;
-            break;
-        }
-    }
-    
+    $sort = prepare_grid_order_sort($sort, $columns);
+
     $finalSort = $exactMatchOrdering . $sort;
     $query = str_replace("{{SORT}}", $finalSort, $query);
     // ========================================================================
@@ -923,11 +994,11 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
  * @param array $grid_data An array containing the base query and other data for constructing the query.
  * @param array $columns An array of column definitions used for sorting, searching, and filtering.
  * @param array $filters An array of filter definitions.
- * @param array $searchTerms (optional) An associative array of search terms where the key is the column field name and the value is the search term.
+ * @param array $searchTerms An associative array of search terms where the key is the column field name and the value is the search term.
  * @param string $sort The sorting condition (although not needed for counting, it's included for consistency).
  * @return string The final count query to return the total number of rows.
  */
-function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $sort) {
+function build_count_query($grid_data, $columns, $filters, $searchTerms, $sort) {
     // Start with the original query and modify it for counting rows
     $query = $grid_data['query'];
 
@@ -968,9 +1039,9 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
-                $term = addslashes($searchTerms[$column['field']]);
-                if ($term) {
+            if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
+                $term = $searchTerms[$column['field']];
+                if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
             }
@@ -984,7 +1055,8 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
-    // Replace sort placeholder with an empty string (count query doesn't need sorting)
+    // Apply sqlOverride to sort field so ORDER BY uses the qualified column (mirrors build_query).
+    $sort = prepare_grid_order_sort($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     // Remove the LIMIT clause to count all rows
@@ -1119,6 +1191,7 @@ HTML;
     echo <<<HTML
                 </tfoot>
             </table>
+            </div>
         </form>
     </div>
 HTML;
@@ -1152,18 +1225,19 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
         if ($column["sortable"]) {
-            echo "<th 
-                class='$column[field] sortable-td' 
-                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
-                onclick=\"setSort$id('$column[field]')\"
+            $sort_dir = isset($column['defaultSortDirection']) ? $column['defaultSortDirection'] : 'asc';
+            echo "<th
+                class='{$column['field']} sortable-td'
+                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;'
+                onclick=\"setSort$id('{$column['field']}', '$sort_dir')\"
             >";
-            echo "<span class='sortable'>$column[headerName]</span>";
+            echo "<span class='sortable'>{$column['headerName']}</span>";
         } else {
-            echo "<th class='$column[field]' style='text-align: {$column['align']}; width: {$width}%;'>";
-            echo "<span>$column[headerName]</span>";
+            echo "<th class='{$column['field']}' style='text-align: {$column['align']}; width: {$width}%;'>";
+            echo "<span>{$column['headerName']}</span>";
         }
         if ($column["description"]) {
-            echo "<br><span style='font-weight: normal;'>$column[description]</span>";
+            echo "<br><span style='font-weight: normal;'>{$column['description']}</span>";
         }
         echo "</th>";
     }
@@ -1171,29 +1245,36 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
     print "</tr>";
    print "<tr style='background-color: #f4f4f4'>";
     foreach ($columns as $column) {
-        echo "<th class='$column[field]'>";
+        echo "<th class='{$column['field']}'>";
         if ($column["searchable"]) {
-            $columnSearchTerm = if_isset($searchTerms[$column['field']], '');
+            $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
+            $columnSearchTermSafe = htmlspecialchars($columnSearchTerm, ENT_QUOTES, 'UTF-8');
             
-            if ($column["type"] == "dropdown" && isset($column['dropdownOptions'])) {
+            if ($column["type"] == "dropdown" && isset($column['dropdownOptions']) && is_callable($column['dropdownOptions'])) {
                 // Dropdown select for ref/sælger field AND date fields
-                echo "<select class='inputbox' style='text-align: $column[align]; width: 100%;' name='search[$id][{$column['field']}]' onchange='this.form.submit()'>";
+                echo "<select class='inputbox' style='text-align: {$column['align']}; width: 100%;' name='search[$id][{$column['field']}]' onchange='this.form.submit()'>";
                 echo "<option value=''></option>";
                 
+                ob_start();
                 $options = $column['dropdownOptions']();
+                ob_end_clean();
+                if (!is_array($options)) {
+                    $options = array();
+                }
                 foreach ($options as $option) {
                     $selected = ($option == $columnSearchTerm) ? 'selected' : '';
-                    echo "<option value='$option' $selected>$option</option>";
+                    $optionSafe = htmlspecialchars($option, ENT_QUOTES, 'UTF-8');
+                    echo "<option value='$optionSafe' $selected>$optionSafe</option>";
                 }
                 echo "</select>";
                 
             } elseif ($column["type"] == "date") {
                 // Date field with date picker
-                // echo "<input class='inputbox date-picker' style='text-align: $column[align]; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder='dd-mm-yyyy eller dd-mm-yyyy:dd-mm-yyyy'>";
-                 echo "<input class='inputbox date-picker' style='text-align: $column[align]; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+                // echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder='dd-mm-yyyy eller dd-mm-yyyy:dd-mm-yyyy'>";
+                 echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTermSafe' placeholder=''>";
             } else {
                 // Regular text input
-                echo "<input class='inputbox' style='text-align: $column[align]; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+                echo "<input class='inputbox' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTermSafe' placeholder=''>";
             }
         }
         echo "</th>";
@@ -1352,11 +1433,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
                         |
                         <span id='navbuttons'>
                             <button type='submit' name='offset[$id]' value='$lastpage' $lastpagestatus>
-                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" height="22px" viewBox="0 -960 960 960" width="22px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
                             </button>
                             $pageLinks
                             <button type='submit' name='offset[$id]' value='$nextpage' $nextpagestatus>
-                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" height="22px" viewBox="0 -960 960 960" width="22px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                             </button>
                         </span>
                     </div>
@@ -1483,8 +1564,8 @@ function render_table_row($columns, $row, $searchTerms) {
             ? $column['valueGetter']($rawValue, $row, $column)
             : $rawValue;
 
-        // Optimize text search and highlighting
-        if ($column["type"] == "text" && $term !== '' && mb_stripos($value, $term, 0, 'UTF-8') !== false) {
+        // Highlight search terms in all column types (not just text)
+        if ($term !== '' && is_string($value) && $value !== '' && mb_stripos($value, $term, 0, 'UTF-8') !== false) {
             $value = preg_replace_callback(
                 '/' . preg_quote($term, '/') . '/iu',
                 function ($match) {
@@ -1494,10 +1575,12 @@ function render_table_row($columns, $row, $searchTerms) {
             );
         }
 
-        // Render the final data
+        // Wrap render-less column values in a <td>; otherwise the raw value is loose text
+        // inside the <tr> that the browser hoists out to above the table. #20260630
+        $align = isset($column['align']) ? $column['align'] : 'left';
         $data = isset($column['render']) && is_callable($column['render'])
             ? $column['render']($value, $row, $column)
-            : htmlspecialchars($value);
+            : "<td align='" . htmlspecialchars($align) . "'>" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "</td>";
 
         echo $data;
     }
@@ -1522,7 +1605,7 @@ function render_columns($id, $columns, $all_columns) {
     // Create all column options as a select
     $selectOptions = "";
     foreach ($all_columns as $column) {
-        $selectOptions .= "<option value='$column[field]'>$column[field]</option>";
+        $selectOptions .= "<option value='{$column['field']}'>{$column['field']}</option>";
     }
 
     $i = 0;
@@ -1551,7 +1634,7 @@ function render_columns($id, $columns, $all_columns) {
                 </td>
                 <td>
                     <select name='rows[$id][$i][field]' class="inputbox">
-                        <option value='$column[field]'>$column[field]</option>
+                        <option value='{$column['field']}'>{$column['field']}</option>
                         {$selectOptions}
                     </select>
                 </td>
@@ -1566,7 +1649,7 @@ function render_columns($id, $columns, $all_columns) {
                 </td>
                 <td align='left'>
                     <select name='rows[$id][$i][align]' class="inputbox">
-                        <option value='$column[align]'>$column[align]</option>
+                        <option value='{$column['align']}'>{$column['align']}</option>
                         <option value='left'>left</option>
                         <option value='center'>center</option>
                         <option value='right'>right</option>
@@ -1814,17 +1897,28 @@ function render_search_style() {
          * Modified 2025-11-25: Footer stays at bottom of viewport
          * ========================================================================== */
         .datatable-wrapper {
+            --debitor-grid-footer-space: 30px;
+            --debitor-grid-extra-footer-space: 52px;
+            --debitor-grid-page-padding: 8px;
+            box-sizing: border-box;
             margin-bottom: 5px;
-            overflow-x: auto;
-            overflow-y: auto;
+            overflow: hidden;
             position: relative;
             height: 100%;
             width: 100%;
         }
+        .datatable-wrapper form {
+            height: 100%;
+            margin: 0;
+        }
+        .datatable-search-wrapper {
+            height: calc(100% - var(--debitor-grid-footer-space) - var(--debitor-grid-extra-footer-space));
+            overflow: auto;
+            position: relative;
+        }
         .datatable {
             border-collapse: collapse;
             width: 100%;
-            height: 100%; /* Table fills the wrapper height */
         }
         .datatable thead {
             position: sticky;
@@ -1842,15 +1936,12 @@ function render_search_style() {
             /* No special styling needed - will expand naturally */
         }
         .datatable tfoot {
-            position: sticky;
-            bottom: 0;
-            z-index: 2;
-            background-color: #f4f4f4;
-            border-top: 2px solid #ddd;
+            background-color: transparent;
         }
         .datatable tfoot tr,
         .datatable tfoot td {
-            background-color: #f4f4f4;
+            background-color: transparent;
+            padding: 0;
         }
         /* ========================================================================== */
         .datatable tbody tr:nth-child(2n) {
@@ -1978,13 +2069,33 @@ function render_dropdown_style() {
             right: 0; /* Move to the right edge if needed */
         }
         tfoot tr td #footer-box {
+            position: fixed;
+            left: var(--debitor-grid-page-padding);
+            right: var(--debitor-grid-page-padding);
+            bottom: calc(var(--debitor-grid-extra-footer-space) + var(--debitor-grid-page-padding));
+            z-index: 999;
+            box-sizing: border-box;
             display: flex;
             align-items: center;
             gap: 10px;
             justify-content: flex-end;
+            min-height: 30px;
+            padding: 4px 8px;
+            background-color: #f4f4f4;
+            border-top: 2px solid #ddd;
         }
         tfoot tr td #footer-box button {
             padding: 0;
+        }
+        tfoot tr td #footer-box #navbuttons button {
+            background: #f0f0f0 !important;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border: 1px solid #b8bec8 !important;
+            border-radius: 4px;
+        }
+        tfoot tr td #footer-box #navbuttons button svg {
+            fill: #000000;
         }
 
         tfoot tr td #footer-box button:not(:disabled) {
@@ -2385,13 +2496,17 @@ SCRIPT;
 function render_sort_script($id) {
     echo <<<SCRIPT
     <script>
-        function setSort$id(header) {
+        function setSort$id(header, defaultDir) {
             const sortBox = document.getElementsByName('sort[$id]')[0];
-            if (sortBox.value !== header) {
-                sortBox.value=header;
-            } else if (sortBox.value === header) {
-                sortBox.value=header + " desc";
+            const parts = sortBox.value.trim().split(/\s+/);
+            const currentDir = (parts[1] || 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+            let dir;
+            if (parts[0] === header) {
+                dir = currentDir === 'desc' ? 'asc' : 'desc';
+            } else {
+                dir = defaultDir === 'desc' ? 'desc' : 'asc';
             }
+            sortBox.value = dir === 'desc' ? header + ' desc' : header;
             sortBox.form.submit();
         }
     </script>

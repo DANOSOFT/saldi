@@ -22,6 +22,7 @@
 // 20210223 Loe Replaced the text values on the table data with dynamic data with findtekst().
 // 20220103 PHR Checks for error in text id 778 - can be removed in 2023
 // 20250414 LOE Barcode button added for app
+// 20260710 SZ Added Settings search box to sidebar (settingsSearch.php/.js/.css)
 
 $small=NULL;
 if (!isset($css)) $css=NULL;
@@ -56,9 +57,23 @@ print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
 print "</tr></tbody></table></td></tr>
   <tr><td id='sidebar-base'  width=\"125px\" align=\"left\" valign=\"top\">";
 print "<table align=\"left\" border=\"0\" cellspacing=\"2\" cellpadding=\"2\"width=\"170px\"><tbody>"; #tabel 1.1.2
-print "<tr><td width=\"170px\"><br></td></tr>
 
-      <tr><td><a href=\"syssetup.php?valg=moms\" accesskey=\"M\">
+$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+print "<script>
+if (typeof window.saldiTranslations === 'undefined') {
+	window.saldiLanguage = " . (int)$sprog_id . ";
+	window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+}
+</script>";
+print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+print "<tr><td width=\"170px\"><div class=\"settings-search-wrapper\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>";
+
+print "<tr><td width=\"170px\"><br></td></tr>";
+
+print "      <tr><td><a href=\"syssetup.php?valg=moms\" accesskey=\"M\">
       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(770, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"syssetup.php?valg=debitor\" accesskey=\"D\">

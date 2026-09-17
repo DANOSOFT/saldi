@@ -102,12 +102,12 @@ if ($_POST['regnskabsantal']) {
 					fclose($fp);
 					if ($db_type=='mysql') system ("mysqldump -h $sqhost -u $squser --password=$sqpass -n $db_navn[$x] > $dump_filnavn");
 					else system ("export PGPASSWORD=$sqpass\npg_dump -h $sqhost -U $squser -f $dump_filnavn $db_navn[$x]");
-#					system("export PGPASSWORD=$sqpass\npg_dump -h $sqhost -U $squser -f $dump_filnavn $db_navn[$x]");
+					//system("export PGPASSWORD=$sqpass\npg_dump -h $sqhost -U $squser -f $dump_filnavn $db_navn[$x]");
 					system ("cd $mappe\ntar -pzcf $tgz_filnavn $db_navn[$x]\nmv $tgz_filnavn $dat_filnavn\nrm -r $tmpmappe");
 					if (file_exists("$mappe/$dat_filnavn")) {
-# 						print "Sletter regnskab: $regnskab[$x]<br>";
+ 						//print "Sletter regnskab: $regnskab[$x]<br>";
 						
-					if ($r=db_fetch_array(db_select("select id from kundedata where regnskab_id='$id[$x]'",__FILE__ . " linje " . __LINE__))) {
+						if ($r=db_fetch_array(db_select("select id from kundedata where regnskab_id='$id[$x]'",__FILE__ . " linje " . __LINE__))) {
 							$qtxt="update kundedata set slettet='on' where id='$r[id]'";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
 						} else {
@@ -119,7 +119,7 @@ if ($_POST['regnskabsantal']) {
 						$qtxt="DROP DATABASE IF EXISTS $db_navn[$x]";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$slettet_regnskab=$regnskab[$x];
-					} else "print Backupfejl - $regnskab[$x] ikke slettet";
+					} else print "Backupfejl - $regnskab[$x] ikke slettet";
 				}
 			}	
 		}
@@ -148,7 +148,7 @@ print "<tr><td colspan=3>F&oslash;lgende regnskaber er markeret som lukket</td><
 print "<form name=slet_regnskab action=slet_regnskab.php method=post>";
 for ($x=1; $x<=$regnskabsantal; $x++) {
 	print "<tr>";
-#	print "<td>X $x</td>";
+	//print "<td>X $x</td>";
 	print "<input type=\"hidden\" name=id[$x] value=\"$id[$x]\">";
 	print "<input type=\"hidden\" name=db_navn[$x] value=\"$db_navn[$x]\">";
 	print "<input type=\"hidden\" name=regnskab[$x] value=\"$regnskab[$x]\">";

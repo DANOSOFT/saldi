@@ -1,5 +1,5 @@
 <?php
-// -- ---------systemdata/stamdata.php---patch 4.0.8 ----2023-08-2--------
+// -- ---------systemdata/stamdata.php --- patch 5.0.0 --- 2026-04-24 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2012.08.21 Tilføjet leverandørservice - PBS
 // 2014.11.20 Opdater mastersystem ved ændring af email.
@@ -27,6 +27,8 @@
 // 20210628 LOE Translated some texts to English and Norsk
 // 20230530 PHR Employee no is now shown.
 // 20230803 LOE Initialized some varibles and made some modifications
+// 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
+// 20260820 Sawaneh Added IBAN and SWIFT fields (included on e-invoices when filled in)
 
 @session_start();
 $s_id=session_id();
@@ -59,7 +61,8 @@ if ($menu=='T') {  # 20150331 start
 
 
 if (!isset ($notes)) $notes = NULL;
-$id=$email=$firmanavn=$addr1=$addr2=$postnr=$bynavn=$bank_navn=$kontakt=$cvrnr=$tlf=$fax=$pbs_nr=$fi_nr=$bank_reg=$bank_konto=$countryConfig=NULL;
+$id=$email=$firmanavn=$addr1=$addr2=$postnr=$bynavn=$bank_navn=$kontakt=$cvrnr=$tlf=$mobile=$pbs_nr=$fi_nr=$bank_reg=$bank_konto=$countryConfig=NULL;
+$swift=$iban='';
 if ($_POST) {
     $country = isset($_POST['landeconfig']) ?  $_POST['landeconfig'] : getCountry();
     $id=$_POST['id'];
@@ -71,7 +74,7 @@ if ($_POST) {
 	$bynavn=addslashes(trim($_POST['bynavn']));
 	$kontakt=addslashes(trim($_POST['kontakt']));
 	$tlf=addslashes(trim($_POST['tlf']));
-	$fax=addslashes(trim($_POST['fax']));
+	$mobile=addslashes(trim($_POST['mobile']));
 	$cvrnr=addslashes(trim($_POST['cvrnr']));
 	$ans_id=if_isset($_POST['ans_id']);
 	$ans_ant=if_isset($_POST['ans_ant']);
@@ -80,31 +83,35 @@ if ($_POST) {
 	$bank_navn=addslashes(trim($_POST['bank_navn']));
 	$bank_reg=addslashes(trim($_POST['bank_reg']));
 	$bank_konto=addslashes(trim($_POST['bank_konto']));
+	$swift=substr(trim(if_isset($_POST,'','swift')),0,15);
+	$iban=substr(trim(if_isset($_POST,'','iban')),0,40);
 	$email=addslashes(trim($_POST['email']));
 	$ny_email=addslashes(trim($_POST['ny_email']));
 	$mailfakt=addslashes(trim(if_isset($_POST['mailfakt'])));
 	$vis_lukket=trim(if_isset($_POST['vis_lukket']));
 	$pbs_nr=trim($_POST['pbs_nr']);
 	$pbs=trim(if_isset($_POST['pbs']));
-	$gruppe=if_isset($_POST['gruppe'])*1;
+	$gruppe=(int)if_isset($_POST['gruppe'],0);
 	$fi_nr=trim($_POST['fi_nr']);
 	if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
 	if ($id==0) {
-		$qtxt="insert into adresser"; $qtxt.="(kontonr,firmanavn,addr1,addr2,postnr,bynavn, land,tlf,fax,cvrnr,art,bank_navn,bank_reg,bank_konto,";
-		$qtxt.="email,mailfakt,pbs_nr,pbs,bank_fi,gruppe,kontakt)";
-		$qtxt.="values"; $qtxt.="('$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',"; $qtxt.="'$country','$tlf','$fax','$cvrnr','S','$bank_navn','$bank_reg','$bank_konto',";
-		$qtxt.="'$ny_email','$mailfakt','$pbs_nr','$pbs','$fi_nr','$gruppe','$kontakt')";
+		$qtxt = "insert into adresser"; $qtxt.="(kontonr,firmanavn,addr1,addr2,postnr,bynavn, land,tlf,mobile,cvrnr,art,bank_navn,bank_reg,bank_konto,swift,iban,";
+		$qtxt.= "email,mailfakt,pbs_nr,pbs,bank_fi,gruppe,kontakt)";
+		$qtxt.= "values"; $qtxt.="('$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',"; $qtxt.="'$country','$tlf','$mobile','$cvrnr','S','$bank_navn','$bank_reg','$bank_konto',";
+		$qtxt.= "'". db_escape_string($swift) ."','". db_escape_string($iban) ."',";
+		$qtxt.= "'$ny_email','$mailfakt','$pbs_nr','$pbs','$fi_nr','$gruppe','$kontakt')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt="select id from adresser where art = 'S'";
-		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$id = $r['id'];
+		$qtxt = "select id from adresser where art = 'S'";
+		$r    = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$id   = $r['id'];
 	}	elseif ($id > 0) {
 		$qtxt = "update adresser set kontonr = '$kontonr',firmanavn = '". db_escape_string($firmanavn) ."',";
 		$qtxt.= "addr1 = '". db_escape_string($addr1) ."',addr2 = '". db_escape_string($addr2) ."',";
 		$qtxt.= "postnr = '". db_escape_string($postnr) ."',land = '". db_escape_string($country) ."',";
-		$qtxt.= "bynavn = '". db_escape_string($bynavn) ."',tlf = '". db_escape_string($tlf) ."',fax = '". db_escape_string($fax) ."',";
+		$qtxt.= "bynavn = '". db_escape_string($bynavn) ."',tlf = '". db_escape_string($tlf) ."',mobile = '". db_escape_string($mobile) ."',";
 		$qtxt.= "cvrnr = '". db_escape_string($cvrnr) ."',bank_navn='". db_escape_string($bank_navn) ."',";
 		$qtxt.= "bank_reg='". db_escape_string($bank_reg) ."',bank_konto='". db_escape_string($bank_konto) ."',";
+		$qtxt.= "swift='". db_escape_string($swift) ."',iban='". db_escape_string($iban) ."',";
 		$qtxt.= "email='". db_escape_string($ny_email) ."',mailfakt='". db_escape_string($mailfakt) ."',";
 		$qtxt.= "notes = '". db_escape_string($notes) ."',pbs_nr='". db_escape_string($pbs_nr) ."',pbs='". db_escape_string($pbs) ."',";
 		$qtxt.= "bank_fi='". db_escape_string($fi_nr) ."',gruppe='$gruppe',kontakt='". db_escape_string($kontakt) ."'";
@@ -126,45 +133,48 @@ if ($_POST) {
 	}
 }
 
-$saldinames=array('ssl.saldi.dk','ssl2.saldi.dk','ssl3.saldi.dk','ssl4.saldi.dk','udvikling.saldi.dk');
-$q = db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__);
-$r = db_fetch_array($q);
-if($r != false){
+$saldinames = array('ssl.saldi.dk','ssl2.saldi.dk','ssl3.saldi.dk','ssl4.saldi.dk','udvikling.saldi.dk');
+$q          = db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__);
+$r          = db_fetch_array($q);
+if ($r != false) {
 	$countryConfig = $r['land'];
-	$id=$r['id']*1;
-	$kontonr=$r['kontonr'];
-	$kontakt=$r['kontakt'];
-	$firmanavn=$r['firmanavn'];
-	$addr1=$r['addr1'];
-	$addr2=$r['addr2'];
-	$postnr=$r['postnr'];
-	$bynavn=$r['bynavn'];
-	#$kontakt=$r['kontakt'];
-	$tlf=$r['tlf'];
-	$fax=$r['fax'];
-	$cvrnr=$r['cvrnr'];
-	$bank_navn=$r['bank_navn'];
-	$bank_reg=$r['bank_reg'];
-	$bank_konto=$r['bank_konto'];
-	$email=$r['email'];
-	($r['mailfakt'])? $mailfakt='checked':$mailfakt='';
-	$pbs_nr=$r['pbs_nr']; 
-	$pbs=$r['pbs']; 
-	$fi_nr=$r['bank_fi'];
-	$smtp=$r['felt_1']; 
-	$gruppe=$r['gruppe'];
+	$id            = $r['id'] * 1;
+	$kontonr       = $r['kontonr'];
+	$kontakt       = $r['kontakt'];
+	$firmanavn     = $r['firmanavn'];
+	$addr1         = $r['addr1'];
+	$addr2         = $r['addr2'];
+	$postnr        = $r['postnr'];
+	$bynavn        = $r['bynavn'];
+#	$kontakt       = $r['kontakt'];
+	$tlf           = $r['tlf'];
+	$mobile        = $r['mobile'];
+	$cvrnr         = $r['cvrnr'];
+	$bank_navn     = $r['bank_navn'];
+	$bank_reg      = $r['bank_reg'];
+	$bank_konto    = $r['bank_konto'];
+	$swift         = htmlspecialchars(trim($r['swift'] ?? ''), ENT_QUOTES);
+	$iban          = htmlspecialchars(trim($r['iban'] ?? ''), ENT_QUOTES);
+	$email         = $r['email'];
+	($r['mailfakt']) ? $mailfakt = 'checked' : $mailfakt = '';
+	$pbs_nr = $r['pbs_nr']; 
+	$pbs    = $r['pbs']; 
+	$fi_nr  = $r['bank_fi'];
+	$smtp   = $r['felt_1']; 
+	$gruppe = $r['gruppe'];
 }
 if (!isset($gruppe)) $gruppe=1;
 while(strlen($gruppe)<5) $gruppe='0'.$gruppe; 
 #	$id=0;
 
 print "<form name=stamkort action=stamkort.php method=post>";
+print "<input TYPE = 'HIDDEN' NAME = 'thisDb' VALUE = '$db'>";
 print "<tr><td valign=\"top\">\n"; # 20150331
 print "<table border=\"0\" cellspacing=\"0\" class=\"dataTable\"><tbody>"; # 20150331
 print "<input type=hidden name=id value='$id'><input type=\"hidden\" name=\"kontonr\" value=\"0\"><input type=hidden name=email value='$email'>";
-print "<tr><td>".findtekst('28|Firmanavn', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"firmanavn\" value=\"$firmanavn\"></td></tr>";
-print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"addr1\" value=\"$addr1\"></td></tr>";
-print "<tr><td>".findtekst('649|Adresse 2', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"addr2\" value=\"$addr2\"></td></tr>";
+print "<tr><td>".findtekst( '28|Firmanavn',  $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"firmanavn\" value=\"$firmanavn\"></td></tr>";
+print "<tr><td>".findtekst('648|Adresse',    $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"addr1\" value=\"$addr1\"></td></tr>";
+print "<tr><td>".findtekst('649|Adresse 2',  $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"addr2\" value=\"$addr2\"></td></tr>";
 print "<tr><td>".findtekst('363|Postnr./By', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" size=\"3\" name=\"postnr\" value=\"$postnr\"><input class=\"inputbox\" type=\"text\" size=19 name=bynavn value=\"$bynavn\"></td></tr>";
 if(isset($id) & $id != NULL){
 	
@@ -177,8 +187,8 @@ if(isset($id) & $id != NULL){
 } else {
 	print "<tr><td>".findtekst('52|E-mail', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:180;' name=\"ny_email\" value=\"$email\"></td></tr>";
 }
-print "<tr><td>".findtekst('662|Bank', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"bank_navn\" value=\"$bank_navn\"></td></tr>\n";
-print "<tr><td>".findtekst('52|E-mail', $sprog_id)." ".findtekst('594|dataansvarlig', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"kontakt\" value=\"$kontakt\"></td></tr>";
+print "<tr><td>".findtekst('662|Bank',   $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"bank_navn\" value=\"$bank_navn\"></td></tr>\n";
+print "<tr><td>".findtekst( '52|E-mail', $sprog_id)." ".findtekst('594|dataansvarlig', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"kontakt\" value=\"$kontakt\"></td></tr>";
 if (in_array($_SERVER["SERVER_NAME"],$saldinames)) {
 #	if (substr($db,0,6)=='bizsys' || substr($db,0,7)=='grillbar') {
 #		$href='https://bizsys.dk/wp-content/uploads/2018/05/Bizsys-databehandleraftale.pdf';
@@ -190,10 +200,10 @@ print "</tbody></table>\n"; # 20150331
 print "</td>\n"; # 20150331
 print "<td valign=\"top\">\n"; # 20150331
 print "<table border=\"0\" cellspacing=\"0\" class=\"dataTable\"><tbody>"; # 20150331
-print "<tr><td>".findtekst('376|CVR-nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"cvrnr\" value=\"$cvrnr\" title=\"".findtekst('2488|Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)', $sprog_id)."\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
-print "<tr><td>".findtekst('37|Telefon', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"tlf\" value=\"$tlf\" title=\"".findtekst('2489|Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)', $sprog_id)."\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
-print "<tr><td>".findtekst('378|Telefax', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fax\" value=\"$fax\"></td></tr>";
-print "<tr><td>".findtekst('385|BS', $sprog_id)." ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"pbs_nr\" value=\"$pbs_nr\">";
+print "<tr><td>".findtekst('376|CVR-nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"cvrnr\"  value=\"$cvrnr\" title=\"".findtekst('2488|Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)',    $sprog_id)."\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
+print "<tr><td>".findtekst( '37|Telefon', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"tlf\"    value=\"$tlf\"   title=\"".findtekst('2489|Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)', $sprog_id)."\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
+print "<tr><td>".findtekst('378|Mobil',   $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"mobile\" value=\"$mobile\"></td></tr>";
+print "<tr><td>".findtekst('385|BS',      $sprog_id)." ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"pbs_nr\" value=\"$pbs_nr\">";
 if ($pbs_nr) {
 	print "<select class=\"inputbox\" name=\"pbs\">";
 	if ($pbs=='B') print "<option value=\"B\">".findtekst('2485|Basisløsning', $sprog_id)."</option><option value=\"\">".findtekst('2486|Totalløsning', $sprog_id)."</option><option value=\"L\">".findtekst('2487|Lev. service', $sprog_id)."</option>";
@@ -202,9 +212,9 @@ if ($pbs_nr) {
 	print "</select></td></tr>";
 	print "<tr><td>".findtekst('385|BS', $sprog_id)." ".findtekst('374|Debitorgruppe', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"gruppe\" value=\"$gruppe\">";
 }
-if (!isset ($returside)) $returside = NULL;
-if (!isset ($ordre_id)) $ordre_id = NULL;
-if (!isset ($fokus)) $fokus = NULL;
+if (!isset ($returside))  $returside  = NULL;
+if (!isset ($ordre_id))   $ordre_id   = NULL;
+if (!isset ($fokus))      $fokus      = NULL;
 if (!isset ($vis_lukket)) $vis_lukket = NULL;
 
 
@@ -213,6 +223,9 @@ print "</td></tr>";
 print "<tr><td>FI ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fi_nr\" value=\"$fi_nr\"></td></tr>";
 print "<td>Reg./".findtekst('592|Konto', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:50;' name=\"bank_reg\" value=\"$bank_reg\">";
 print "<input class=\"inputbox\" type=\"text\" style='width:100;' name=\"bank_konto\" value=\"$bank_konto\"></td></tr>";
+$tekst=findtekst('3367|Medtages på eFaktura når udfyldt', $sprog_id);
+print "<tr><td title=\"$tekst\">IBAN</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' maxlength=\"40\" name=\"iban\" value=\"$iban\" title=\"$tekst\"></td></tr>";
+print "<tr><td title=\"$tekst\">".findtekst('2228|SWIFT nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' maxlength=\"15\" name=\"swift\" value=\"$swift\" title=\"$tekst\"></td></tr>";
 
 checkUserAndSetCountryConfig($countryConfig, $superUserPermission);
 
@@ -255,7 +268,7 @@ if ($id) {
 	}
 	print "<tbody></table></td></tr>";
 } else {
-	$href='http://saldi.dk/dok/saldi_gdpr_20180525.pdf';
+	$href='http://saldi.dk/dok/saldi_gdpr_20180525.pdf'; 
 	print "<tr><td>".findtekst('2484|Databehandleraftale', $sprog_id)."</td><td><a href=\"$href\" target=\"blank\"><button type='button' style='width:200px;'>".findtekst('2484|Databehandleraftale', $sprog_id)."</button></a></td></tr>";
 }
 
@@ -266,5 +279,5 @@ print "<tr><td colspan=2 align=center><input type=\"submit\" accesskey=\"g\" val
 </table>
 </td></tr>
 </tbody></table>
-<script language="javascript" type="text/javascript" src="../javascript/cvrapiopslag.js"></script>
+<script language="javascript" type="text/javascript" src="../javascript/cvrapiopslag.js?v=1.2.1"></script> 
 </body></html>

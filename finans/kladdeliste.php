@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026.01.26 --- 
+// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // -----------------------------------------------------------------------------------
 // 20150722 PHR Vis alle/egne gemmes nu som cookie. 
 // 20181220 MSC - Rettet ny kladde knap til Ny
@@ -34,6 +34,8 @@
 // 16/05/2025 make sure the back button redirect too the previous page rather than going back to the dashboard
 // 20251021 LOE Added pagination and static header and footer
 // 20260126 PHR fixed $exitDraft
+// 20260706 MJ Optimized cash journal list entry counts for large databases.
+// 20260904 Sawaneh WP-1.4: pass GET returside (sanitised) to topLineFinans; exitDraft cast to int
 
 @session_start();
 $s_id=session_id();
@@ -179,7 +181,7 @@ if (isset($_POST['delete_kladde'])) {
         exit;
     }
 }
-	
+
 $css="../css/standard.css";		
 $modulnr=2;	
 $title="kladdeliste";	
@@ -198,7 +200,7 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></scr
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
-$exitDraft = if_isset($_GET['exitDraft']);
+$exitDraft = isset($_GET['exitDraft']) ? (int)$_GET['exitDraft'] : null;
 if ($exitDraft) {
 	$qtxt = "update kladdeliste set hvem = '', tidspkt = NULL where id = '$exitDraft'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -210,6 +212,10 @@ if (strpos(findtekst('639|Kladdeliste', $sprog_id),'undtrykke')) {
 }
 
 $valg = "Kladdeliste";
+// 20260904 Sawaneh WP-1.4: hand the incoming returside to the topline — topLineFinans
+// reads $returside, which was never populated here, so the menu's popup Luk
+// (returside=../includes/luk.php) never reached nav_back_url().
+$returside = isset($_GET['returside']) ? nav_sanitize_returside($_GET['returside']) : null;
 include("topLineFinans.php");
 include("../includes/grid.php");
 
@@ -546,8 +552,7 @@ SELECT
     k.bogfort_af,
     k.tidspkt,
     k.hvem,
-    -- Count entries in kassekladde to determine if journal is empty
-    (SELECT COUNT(*) FROM kassekladde kk WHERE kk.kladde_id = k.id) as entry_count,
+    COALESCE(kk.entry_count, 0) as entry_count,
     -- Sort order: non-posted first (- and !), then simulated (S), then posted (V, etc)
     CASE 
         WHEN k.bogfort IN ('-', '!') THEN 0
@@ -555,6 +560,11 @@ SELECT
         ELSE 2
     END as sort_group
 FROM kladdeliste k
+LEFT JOIN (
+    SELECT kladde_id, COUNT(*) as entry_count
+    FROM kassekladde
+    GROUP BY kladde_id
+) kk ON kk.kladde_id = k.id
 WHERE $sqlWhere AND {{WHERE}}
 ORDER BY sort_group, k.id DESC
 ",

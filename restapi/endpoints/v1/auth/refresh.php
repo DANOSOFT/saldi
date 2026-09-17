@@ -1,6 +1,6 @@
 <?php
 /**
- * POST /auth/refresh
+ * POST /auth/refresh.php
  * Refresh access token using refresh token
  * 
  * Request body:
@@ -59,12 +59,49 @@ class AuthRefreshEndpoint extends BaseEndpoint
             return;
         }
         
-        // Verify user still exists
+        // Resolve the account from the refresh token. Tokens issued before the
+        // account ID was added can temporarily fall back to X-Tenant-ID.
+        $tenant_id = isset($payload['tenant_id']) ? (int)$payload['tenant_id'] : 0;
+        if (!$tenant_id) {
+            $headers = getallheaders();
+            if ($headers) {
+                $headers = array_change_key_case($headers, CASE_LOWER);
+                $tenant_id = isset($headers['x-tenant-id']) ? (int)$headers['x-tenant-id'] : 0;
+            }
+        }
+
+        if (!$tenant_id) {
+            $this->sendResponse(false, null, 'Account ID (tenant_id) is missing from refresh token. Login again to obtain a new refresh token.', 400);
+            return;
+        }
+
+        // Look up the account in the registry database.
         global $sqhost, $squser, $sqpass, $sqdb;
         $connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
         
         if (!$connection) {
             $this->sendResponse(false, null, 'Database connection failed', 500);
+            return;
+        }
+
+        $qtxt = "select db, lukket from regnskab where id='$tenant_id' limit 1";
+        $tenant = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+
+        if (!$tenant || empty($tenant['db'])) {
+            $this->sendResponse(false, null, 'Account not found', 401);
+            return;
+        }
+
+        if ($tenant['lukket'] == 'on') {
+            $this->sendResponse(false, null, 'Account is closed', 403);
+            return;
+        }
+
+        // Users are stored in the account database, not the registry database.
+        $tenant_connection = db_connect($sqhost, $squser, $sqpass, $tenant['db'], __FILE__ . " linje " . __LINE__);
+
+        if (!$tenant_connection) {
+            $this->sendResponse(false, null, 'Account database connection failed', 500);
             return;
         }
         
@@ -81,7 +118,8 @@ class AuthRefreshEndpoint extends BaseEndpoint
         $accessTokenPayload = [
             'user_id' => $user['id'],
             'username' => $user['brugernavn'],
-            'type' => 'access'
+            'type' => 'access',
+            'tenant_id' => $tenant_id
         ];
         
         $accessToken = JWT::encode($accessTokenPayload, 3600); // 1 hour
@@ -92,17 +130,16 @@ class AuthRefreshEndpoint extends BaseEndpoint
             'expires_in' => 3600
         ];
         
-        write_log("Token refreshed for user: {$user['brugernavn']} (ID: {$user['id']})", '', 'INFO');
+        write_log("Token refreshed for user: {$user['brugernavn']} (ID: {$user['id']})", $tenant['db'], 'INFO');
         
         $this->sendResponse(true, $response, 'Token refreshed successfully', 200);
     }
     
     protected function handleGet($id = null)
     {
-        $this->sendResponse(false, null, 'GET method not supported. Use POST to refresh token.', 405);
+        $this->sendResponse(false, null, 'GET method not supported. Use POST /auth/refresh.php to refresh token.', 405);
     }
 }
 
 $endpoint = new AuthRefreshEndpoint();
 $endpoint->handleRequestMethod();
-

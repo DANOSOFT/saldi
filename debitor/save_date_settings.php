@@ -174,10 +174,35 @@ if ($action == 'get_date_preference') {
     ob_end_clean();
     
     if ($r) {
-        // Try date_range_meta first
+        // First check search_setup for the field value set by the grid framework.
+        // If the grid framework has cleared it (empty/missing), respect that —
+        // the user cleared the date via the grid, so don't restore from date_range_meta.
+        $grid_field_value = null;
+        $search_setup = null;
+        if ($r['search_setup']) {
+            $search_setup = json_decode($r['search_setup'], true);
+            if (is_array($search_setup)) {
+                // Check if the grid's main search field exists and what its value is
+                if (array_key_exists($field, $search_setup)) {
+                    $grid_field_value = $search_setup[$field];
+                }
+            }
+        }
+        
+        // If the grid framework has the field set to empty, the user cleared it — return empty
+        if ($grid_field_value !== null && trim($grid_field_value) === '') {
+            echo json_encode(array(
+                'range_type' => null,
+                'date_value' => '',
+                'debug' => 'Grid search field is empty, date was cleared'
+            ));
+            exit;
+        }
+        
+        // Try date_range_meta for range type info
         if ($r['date_range_meta']) {
             $date_range_meta = json_decode($r['date_range_meta'], true);
-            if (is_array($date_range_meta) && isset($date_range_meta[$field])) {
+            if (is_array($date_range_meta) && isset($date_range_meta[$field]) && !empty($date_range_meta[$field]['date_value'])) {
                 $meta = $date_range_meta[$field];
                 echo json_encode(array(
                     'range_type' => $meta['range_type'],
@@ -187,29 +212,25 @@ if ($action == 'get_date_preference') {
             }
         }
         
-        // Try search_setup
-        if ($r['search_setup']) {
-            $search_setup = json_decode($r['search_setup'], true);
-            if (is_array($search_setup)) {
-                // Check _date_range_meta
-                if (isset($search_setup['_date_range_meta'][$field])) {
-                    $meta = $search_setup['_date_range_meta'][$field];
-                    echo json_encode(array(
-                        'range_type' => $meta['range_type'],
-                        'date_value' => $meta['date_value'],
-                        'debug' => 'From _date_range_meta'
-                    ));
-                    exit;
-                }
-                // Check plain value
-                else if (isset($search_setup[$field]) && !empty($search_setup[$field])) {
-                    echo json_encode(array(
-                        'range_type' => null,
-                        'date_value' => $search_setup[$field],
-                        'debug' => 'Plain value, no range type'
-                    ));
-                    exit;
-                }
+        // Try search_setup _date_range_meta
+        if (is_array($search_setup)) {
+            if (isset($search_setup['_date_range_meta'][$field]) && !empty($search_setup['_date_range_meta'][$field]['date_value'])) {
+                $meta = $search_setup['_date_range_meta'][$field];
+                echo json_encode(array(
+                    'range_type' => $meta['range_type'],
+                    'date_value' => $meta['date_value'],
+                    'debug' => 'From _date_range_meta'
+                ));
+                exit;
+            }
+            // Check plain value
+            if (isset($search_setup[$field]) && !empty($search_setup[$field])) {
+                echo json_encode(array(
+                    'range_type' => null,
+                    'date_value' => $search_setup[$field],
+                    'debug' => 'Plain value, no range type'
+                ));
+                exit;
             }
         }
         

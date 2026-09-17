@@ -1,10 +1,13 @@
 <?php
+// 20260908 CDX/LH Require an exact customer/supplier filter for automatic settlement.
+// 20260911 Sawaneh Return the order payment ID (ordrer.betalings_id) with each open post and
+//                  allow searching on it, so auto settlement can show it again.
 
 ob_start();
 
 @session_start();
 $s_id = session_id();
-$title = "invoiceSearch"; 
+$title = "invoiceSearch";  
 $modulnr = 0;
 $bg = "nix";  
 $header = "nix";
@@ -12,21 +15,29 @@ $webservice = true;
 
 chdir(dirname(__FILE__) . '/..');
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
+include(__DIR__ . "/../../includes/connect.php");
+include(__DIR__ . "/../../includes/online.php");
+include(__DIR__ . "/../../includes/std_func.php");
+
+include_once(__DIR__ . '/autoSettlement.php');
 
 ob_end_clean();
 
 header('Content-Type: application/json; charset=utf-8');
 
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-$accountNr = isset($_GET['account']) ? trim($_GET['account']) : '';
-$accountType = isset($_GET['accountType']) ? trim($_GET['accountType']) : ''; // D or K
+$accountNr = is_string($_GET['account'] ?? null) ? trim($_GET['account']) : '';
+$accountType = is_string($_GET['accountType'] ?? null) ? trim($_GET['accountType']) : ''; // D or K
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $limit = 50; 
 $offset = ($page - 1) * $limit;
 
+$currentAmount = isset($_GET['currentAmount']) ? trim($_GET['currentAmount']) : '';
+$mode = isset($_GET['mode']) ? $_GET['mode'] : '';
+
+// JS already sends clean decimal format (e.g. "4999.00"), just cast directly
+$currentAmountNormalized = $currentAmount;
+$currentAmountFloat = ($currentAmount !== '') ? floatval($currentAmount) : null;
 if (!isset($regnaar) || empty($regnaar)) {
     echo json_encode(array('error' => 'Session expired'));
     exit;
@@ -36,32 +47,49 @@ $results = array();
 $totalCount = 0;
 
 $search_escaped = db_escape_string($search);
-$accountNr_escaped = db_escape_string($accountNr);
 // Sanitize accountType - only allow 'D' or 'K'
-$accountType = strtoupper(substr($accountType, 0, 1));
+$accountType = strtoupper($accountType);
 if ($accountType !== 'D' && $accountType !== 'K') {
     $accountType = '';
 }
 
 $baseWhere = "(openpost.udlignet != '1' OR openpost.udlignet IS NULL)";
 
-if ($accountNr !== '' && $accountType !== '') {
-    $baseWhere .= " AND openpost.konto_nr = '$accountNr_escaped'";
-    $ktoQuery = db_select("SELECT id FROM adresser WHERE kontonr = '$accountNr_escaped' AND art = '$accountType'", __FILE__ . " line " . __LINE__);
-    if ($ktoRow = db_fetch_array($ktoQuery)) {
-        $konto_id = $ktoRow['id'];
-        $baseWhere .= " AND openpost.konto_id = '$konto_id'";
-    }
+// Payment ID lives on the invoiced order, never on the open post itself
+$paymentIdMatch = "ordrer.konto_id = openpost.konto_id AND ordrer.fakturanr = openpost.faktnr"
+    . " AND COALESCE(openpost.faktnr, '') != '' AND ordrer.art IN ('DO', 'DK', 'KO', 'KK')"
+    . " AND COALESCE(ordrer.betalings_id, '') != ''";
+$paymentIdSelect = "(SELECT MAX(ordrer.betalings_id) FROM ordrer WHERE $paymentIdMatch) AS betalings_id";
+
+if ($mode === 'open_post' || $accountNr !== '') {
+    $baseWhere .= ' AND (' . autoSettlementAccountWhere($accountNr, $accountType) . ')';
+}
+
+if ($mode === 'open_post') {
+    $baseWhere .= " AND TRIM(COALESCE(openpost.faktnr, '')) != ''";
 }
 
 // Add search filter
 if ($search !== '') {
-    $baseWhere .= " AND (
-        CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%' 
-        OR adresser.firmanavn ILIKE '%$search_escaped%'
-        OR CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'
-        OR openpost.beskrivelse ILIKE '%$search_escaped%'
-    )";
+    $searchConds = array(
+        "CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%'",
+        "adresser.firmanavn ILIKE '%$search_escaped%'",
+        "CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'",
+        "openpost.beskrivelse ILIKE '%$search_escaped%'",
+        "EXISTS (SELECT 1 FROM ordrer WHERE $paymentIdMatch AND ordrer.betalings_id ILIKE '%$search_escaped%')"
+    );
+    $amountSearch = str_replace(' ', '', $search);
+    if (strpos($amountSearch, ',') !== false) {
+        // Danish format: "2.985,00" -> "2985.00"
+        $amountSearch = str_replace('.', '', $amountSearch);
+        $amountSearch = str_replace(',', '.', $amountSearch);
+    }
+    if (preg_match('/^-?\d+(\.\d+)?$/', $amountSearch)) {
+        // Prefix match on the absolute amount, so "985" does not hit "2985,00"
+        $amountSearch_escaped = db_escape_string(ltrim($amountSearch, '-'));
+        $searchConds[] = "CAST(ABS(openpost.amount) AS TEXT) LIKE '$amountSearch_escaped%'";
+    }
+    $baseWhere .= " AND (" . implode(" OR ", $searchConds) . ")";
 }
 
 $countQuery = db_select("
@@ -76,6 +104,146 @@ if ($countQuery) {
     $totalCount = intval($countRow['cnt']);
 }
 
+//#########
+if ($mode === 'open_post') {
+    // --- open_post mode: fetch all, score, sort, then paginate ---
+    $hintTokens = isset($_GET['hintTokens']) ? json_decode($_GET['hintTokens'], true) : [];
+    $descWords  = isset($_GET['descWords'])  ? json_decode($_GET['descWords'], true)  : [];
+    if (!is_array($hintTokens)) $hintTokens = [];
+    if (!is_array($descWords))  $descWords  = [];
+
+    $currentAmountFloat = ($currentAmount !== '') ? floatval($currentAmount) : null;
+
+    // Fetch all matching rows (no LIMIT)
+    $qtxt = "
+        SELECT 
+            openpost.id,
+            openpost.konto_nr,
+            openpost.konto_id,
+            openpost.faktnr,
+            openpost.amount,
+            openpost.transdate,
+            openpost.beskrivelse,
+            adresser.firmanavn,
+            adresser.art,
+            $paymentIdSelect
+        FROM openpost 
+        LEFT JOIN adresser ON openpost.konto_id = adresser.id
+        WHERE $baseWhere
+        ORDER BY openpost.transdate DESC, openpost.faktnr
+    ";
+    $query = db_select($qtxt, __FILE__ . " line " . __LINE__);
+
+    $allRows = [];
+    while ($row = db_fetch_array($query)) {
+        $rowAmount = floatval($row['amount']);
+        
+        // --- Score calculation (mirrors client side) ---
+        $score = 0;
+        
+        // 1. Amount match
+        $amountMatch = autoSettlementAmountMatches($rowAmount, $currentAmountFloat);
+        if ($amountMatch) $score += 40;
+        
+        // 2. Company name words in description words
+        $firmanavn = trim($row['firmanavn']);
+        if ($firmanavn && !empty($descWords)) {
+            $nameWords = preg_split('/[\s\-\/\\.,;:_()[\]{}]+/', strtoupper($firmanavn));
+            $nameWords = array_filter($nameWords, fn($w) => strlen($w) >= 3);
+            $matchCount = 0;
+            foreach ($nameWords as $nw) {
+                if (in_array($nw, $descWords)) $matchCount++;
+            }
+            if ($matchCount > 0) $score += 30 + ($matchCount * 5);
+        }
+        
+        // 3. Invoice number contains any hint token or description word (mirrors client scoring)
+        $faktnr = trim($row['faktnr']);
+        if ($faktnr && (!empty($hintTokens) || !empty($descWords))) {
+            $faktnrUpper = strtoupper($faktnr);
+            $invoiceHit = false;
+            foreach ($hintTokens as $tok) {
+                if (strpos($faktnrUpper, (string)$tok) !== false) {
+                    $invoiceHit = true;
+                    break;
+                }
+            }
+            if (!$invoiceHit) {
+                foreach ($descWords as $dw) {
+                    $dw = strtoupper((string)$dw);
+                    if (strlen($dw) >= 3 && strpos($faktnrUpper, $dw) !== false) {
+                        $invoiceHit = true;
+                        break;
+                    }
+                }
+            }
+            if ($invoiceHit) {
+                $score += 20;
+            }
+        }
+        
+        // 4. Account number contains any hint token
+        $kontonr = trim($row['konto_nr']);
+        if ($kontonr && !empty($hintTokens)) {
+            $kontonrUpper = strtoupper($kontonr);
+            foreach ($hintTokens as $tok) {
+                if (strpos($kontonrUpper, $tok) !== false) {
+                    $score += 10;
+                    break;
+                }
+            }
+        }
+        
+        $allRows[] = [
+            'id'          => $row['id'],
+            'kontonr'     => $kontonr,
+            'konto_id'    => $row['konto_id'],
+            'faktnr'      => $faktnr,
+            'betalings_id' => trim((string)$row['betalings_id']),
+            'amount'      => $rowAmount,
+            'transdate'   => $row['transdate'],
+            'firmanavn'   => stripslashes($firmanavn),
+            'beskrivelse' => stripslashes($row['beskrivelse']),
+            'art'         => trim($row['art']),
+            'amountMatch' => $amountMatch,
+            '_score'      => $score
+        ];
+    }
+    
+    // Sort by score DESC, then date DESC, then faktnr
+    usort($allRows, function($a, $b) {
+        if ($a['_score'] != $b['_score']) return $b['_score'] - $a['_score'];
+        if ($a['transdate'] != $b['transdate']) return strcmp($b['transdate'], $a['transdate']);
+        return strcmp($a['faktnr'], $b['faktnr']);
+    });
+    
+    $autoSelectId = autoSettlementBestCandidateId($allRows);
+    $totalCount = count($allRows);
+    $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+    $limit = 50;
+    $offset = ($page - 1) * $limit;
+    $pageResults = array_slice($allRows, $offset, $limit);
+    
+    // Remove temporary _score
+    foreach ($pageResults as &$r) unset($r['_score']);
+    
+    $response = [
+        'results' => $pageResults,
+        'autoSelectId' => $autoSelectId,
+        'pagination' => [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => $totalCount,
+            'hasMore' => ($offset + count($pageResults)) < $totalCount
+        ]
+    ];
+    echo json_encode($response);
+    exit;
+}
+
+
+//########
+
 $qtxt = "
     SELECT 
         openpost.id,
@@ -87,7 +255,8 @@ $qtxt = "
         openpost.beskrivelse,
         openpost.valuta,
         adresser.firmanavn,
-        adresser.art
+        adresser.art,
+        $paymentIdSelect
     FROM openpost 
     LEFT JOIN adresser ON openpost.konto_id = adresser.id
     WHERE $baseWhere
@@ -117,18 +286,24 @@ if ($query) {
             }
         }
         
+        $rowAmount = floatval($row['amount']);
+        $amountMatch = ($currentAmountFloat !== null) && (abs(abs($rowAmount) - abs($currentAmountFloat)) < 0.001);
+
+
         $results[] = array(
             'id' => $row['id'],
             'kontonr' => trim($row['konto_nr']),
             'konto_id' => $row['konto_id'],
             'faktnr' => trim($row['faktnr']),
-            'amount' => floatval($row['amount']),
+            'betalings_id' => trim((string)$row['betalings_id']),
+            'amount' => $rowAmount,
             'transdate' => $row['transdate'],
             'firmanavn' => trim(stripslashes($row['firmanavn'])),
             'beskrivelse' => isset($row['beskrivelse']) ? trim(stripslashes($row['beskrivelse'])) : '',
             'art' => $accountArt,
             'valuta' => isset($row['valuta']) ? trim($row['valuta']) : '',
-            'offsetAccount' => $offsetAccount
+            'offsetAccount' => $offsetAccount,
+            'amountMatch' => $amountMatch
         );
     }
 }

@@ -59,6 +59,7 @@ include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style.js.php");
 include(get_relative() . "includes/grid.php");
+include("../includes/stdFunc/getKontaktEmail.php");
 
 $id = if_isset($_GET,NULL,'id');
 $returside=if_isset($_GET,NULL,'returside');
@@ -76,12 +77,12 @@ if (isset($_POST['historik']) && $_POST['debId']) {
 	if (isset($_POST['mailTo'])) $mailTo=$_POST['mailTo'];
 	$start*=1;
 	for ($i=0;$i<count($debId);$i++) {
-		$qtxt="select id,kontonr,firmanavn,email from adresser where id='$debId[$i]'";
+		$qtxt="select id,kontonr,firmanavn from adresser where id='$debId[$i]'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$custId[$i]   = $r['id'];
 		$custNo[$i]   = $r['kontonr'];
 		$custName[$i] = $r['firmanavn'];
-		$custMail[$i] = $r['email'];
+		$custMail[$i] = getAllKontaktEmails($r['id'], 'hoved');
 		if (!isset($invite[$i])) $invite[$i]=NULL;
 	}
 	include("../includes/connect.php");
@@ -140,7 +141,11 @@ if (isset($_POST['historik']) && $_POST['debId']) {
 			if ($subject && $mailText) {
 				$mail->SetFrom($from,$afsendernavn);
 				$mail->AddReplyTo($afsendermail);
-				$mail->AddAddress($custMail[$i]);
+				$ke_emails = preg_split('/[;,]/', $custMail[$i]);
+				foreach ($ke_emails as $ke_addr) {
+					$ke_addr = trim($ke_addr);
+					if ($ke_addr && strpos($ke_addr, '@')) $mail->AddAddress($ke_addr);
+				}
 				$mail->WordWrap = 50;
 				$mail->IsHTML(true);
 				$ren_text=html_entity_decode($mailText,ENT_COMPAT,$charset);

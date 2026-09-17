@@ -7,8 +7,8 @@ require_once __DIR__ . '/../../../core/JWTAuth.php';
 
 class AttachmentEndpoint extends BaseEndpoint
 {
-    private $userId;
-    private $username;
+    protected $userId;
+    protected $username;
     
     public function __construct()
     {
@@ -18,24 +18,11 @@ class AttachmentEndpoint extends BaseEndpoint
     protected function checkAuthorization()
     {
         try {
-            $payload = JWTAuth::validateToken();
-            
-            if (!$payload) {
-                $this->sendResponse(false, null, 'Invalid or expired token', 401);
+            if (!parent::checkAuthorization()) {
                 return false;
             }
             
-            $this->userId = $payload['user_id'];
-            $this->username = $payload['username'];
-            
-            // Set database from tenant (from JWT token or X-Tenant-ID header)
-            $db = JWTAuth::getTenantDatabase();
-            if (!$db) {
-                $this->sendResponse(false, null, 'Tenant database not found. Provide database during login or set X-Tenant-ID header.', 400);
-                return false;
-            }
-            
-            AttachmentModel::setDatabase($db);
+            AttachmentModel::setDatabase($this->db);
             
             return true;
         } catch (Exception $e) {
@@ -106,8 +93,9 @@ class AttachmentEndpoint extends BaseEndpoint
             $invoiceDate = null;
             $invoiceNumber = null;
             $invoiceDescription = null;
-            
-            // Extract total_amount, invoice_date, invoice_number, and invoice_description from extracted_data
+            $currency = null;
+
+            // Extract total_amount, invoice_date, invoice_number, invoice_description and currency from extracted_data
             if (isset($data->extracted_data)) {
                 if (isset($data->extracted_data->total_amount)) {
                     $totalAmount = $data->extracted_data->total_amount;
@@ -120,6 +108,9 @@ class AttachmentEndpoint extends BaseEndpoint
                 }
                 if (isset($data->extracted_data->invoice_description)) {
                     $invoiceDescription = $data->extracted_data->invoice_description;
+                }
+                if (isset($data->extracted_data->currency)) {
+                    $currency = $data->extracted_data->currency;
                 }
             }
             
@@ -167,7 +158,8 @@ class AttachmentEndpoint extends BaseEndpoint
                 'amount' => $totalAmount,
                 'accountnr' => isset($data->accountnr) ? $data->accountnr : '',
                 'invoiceNumber' => $invoiceNumber !== null ? $invoiceNumber : '',
-                'invoiceDescription' => $invoiceDescription !== null ? $invoiceDescription : ''
+                'invoiceDescription' => $invoiceDescription !== null ? $invoiceDescription : '',
+                'currency' => $currency !== null ? $currency : ''
             ];
             
             $attachment = new AttachmentModel();

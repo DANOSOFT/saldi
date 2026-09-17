@@ -67,11 +67,13 @@ if ($id==-1){	# Saa er der flere fakturaer
 	$ordre_antal=1;	
 }
 if ($formular==3) $folgeseddel=1;
+
+$showBothAddrExtra = get_settings_value("showBothAddrExtra", "ordre", "off") === "on";
 if ($formular!=3 && $folgeseddel) {
 	for ($q=0; $q<$ordre_antal; $q++) {
 		$form[$q]=$formular;
-		$r=db_fetch_array(db_select("select lev_addr1, lev_postnr from ordrer where id = $ordre_id[$q]",__FILE__ . " linje " . __LINE__));
-		if ($r['lev_addr1'] && $r['lev_postnr']) {
+		$r=db_fetch_array(db_select("select lev_addr1, lev_postnr, vis_lev_addr from ordrer where id = $ordre_id[$q]",__FILE__ . " linje " . __LINE__));
+		if ($r['lev_addr1'] && $r['lev_postnr'] && (!$showBothAddrExtra || $r['vis_lev_addr']=='on')) {
 			$form[$q]=3;
 			$ordre_antal++;
 			for ($z=$ordre_antal; $z>$q; $z--) {

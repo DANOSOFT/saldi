@@ -28,6 +28,24 @@ $search = db_escape_string($search);
 
 $results = array();
 
+// Get the base/default currency from settings
+$baseCurrency = 'DKK';
+$qtxt = "SELECT var_value FROM settings WHERE var_name = 'baseCurrency'";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+if ($r && $r['var_value']) {
+    $baseCurrency = $r['var_value'];
+}
+
+// Include base currency in results if it matches the search (or search is empty)
+$baseCurrencyLabel = $baseCurrency . ' (standard)';
+if ($search === '' || stripos($baseCurrency, $search) !== false || stripos('standard', $search) !== false) {
+    $results[] = array(
+        'id' => 0,
+        'code' => $baseCurrency,
+        'description' => $baseCurrencyLabel
+    );
+}
+
 // Search currencies - by code (box1) or description
 $qtxt = "SELECT kodenr, box1, beskrivelse 
          FROM grupper 

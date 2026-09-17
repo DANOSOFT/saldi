@@ -26,7 +26,7 @@ if ($id > 0){
 	$lev_email=trim($r['lev_email']);
 	$lev_kontakt=htmlentities(trim($r['lev_kontakt']));
 	$tlf=trim($r['tlf']);
-	$fax=trim($r['fax']);
+	$mobile=trim($r['mobile']);
 	$email=trim($r['email']);
 	$mailfakt=trim($r['mailfakt']);
 	$web=trim($r['web']);
@@ -79,7 +79,19 @@ if ($id > 0){
 	$kategori_antal=0;
 	#if (!isset($vis_lev_addr)) $vis_lev_addr='checked';
 	#print "<BODY onLoad=\"javascript:docChange = true;\">\n";
-	
+
+	if (!$kontonr) {	# Assign the lowest free customer no. right away so it shows before the customer is saved
+		$ktoliste=array();
+		$q=db_select("select kontonr from adresser where art = 'D'",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			$ktoliste[]=$r['kontonr'];
+		}
+		$kontonr=1000;
+		while (in_array($kontonr,$ktoliste)) {
+			$kontonr++;
+		}
+		$auto_kontonr=$kontonr;
+	}
 }
 $kreditmax=dkdecimal($kreditmax);
 
@@ -109,6 +121,7 @@ $q = db_select("select id from ansatte where konto_id = '$id'",__FILE__ . " linj
 if (db_fetch_array($q)) $slet="NO";
 
 print "<input type=hidden name=id value='$id'>\n";
+if (isset($auto_kontonr)) print "<input type=hidden name=\"auto_kontonr\" value='$auto_kontonr'>\n";
 print "<input type=hidden name=\"addr1\" value='$addr1'>\n";
 print "<input type=hidden name=\"addr2\" value='$addr2'>\n";
 print "<input type=hidden name=\"bank_konto\" value='$bank_konto'>\n";
@@ -120,7 +133,7 @@ print "<input type=hidden name=\"cvrnr\" value='$cvrnr'>\n";
 print "<input type=hidden name=\"ean\" value='$ean'>\n";
 print "<input type=hidden name=\"efternavn\" value='$efternavn'>\n";
 print "<input type=hidden name=\"email\" value='$email'>\n";
-print "<input type=hidden name=\"fax\" value='$fax'>\n";
+print "<input type=hidden name=\"mobile\" value='$mobile'>\n";
 print "<input type=hidden name=\"firmanavn\" value='$firmanavn'>\n";
 print "<input type=hidden name=\"fornavn\" value='$fornavn'>\n";
 print "<input type=hidden name=\"gruppe\" value='$gruppe'>\n";
