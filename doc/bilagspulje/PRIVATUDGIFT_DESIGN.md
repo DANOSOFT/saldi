@@ -188,8 +188,12 @@ user reviews and posts through the normal flow, which also means the period lock
    credit, amount and date from the pool record, description from the document.
 4. The document is attached to that line by the same `insertDoc.php` path that created it, so a
    `documents` row records filename, source, source_id, user and timestamp.
-5. The source document **stays in the pool** and is marked as transferred. It is not moved or
-   deleted.
+5. The transfer **takes the document out of the pool.** The reused `insertDoc.php` path renames
+   the file from the pulje folder into `/finance/<kladde>/<source>/` (`:384`), then deletes its
+   `pool_files` row and any `.info` file (`:445-:451`). After the transfer the document is
+   reachable from the journal line through `documents`, not from the pool list. Keeping a
+   transferred copy visible in the pool would require a transfer path that does not reuse
+   `insertDoc.php`, and is **out of scope** for the first implementation — Q7 in §8.
 6. User reviews and posts the journal when ready.
 
 Nothing reaches `transaktioner` without an explicit post.
@@ -270,6 +274,42 @@ This mirrors the idempotency rule in `doc/valuta/KURSREGULERING_DESIGN.md` §5.3
 already referenced is not offered again — but the identity of "the thing" has to be something
 that cannot be recycled.
 
+### 4.5 Open risks, and how they are mitigated
+
+Raised in review. None of them blocks agreement on the accounting behaviour, but each has to be
+answered before implementation starts.
+
+**The hash check is a lookup, not a lock.** Two confirmations of the same document in flight at
+once can both read "no matching hash" and both write a line. Mitigation: do what SST-740 did for
+`pool_files.filename` — add a UNIQUE index, here on `documents (content_hash)` restricted to
+journal sources, created idempotently in `includes/betweenUpdates.php` the same way
+`pool_files_filename_uidx` is (`:571-621`), and let the insert's conflict be the decision point
+rather than the SELECT before it. The explicit override of §4 (two expenses on one receipt) then
+cannot ride the same key: it writes its second row with the hash deliberately left NULL and an
+explicit marker, so the index never sees it. That makes the override a visible act rather than a
+silent bypass.
+
+**Legacy `documents` rows carry no hash.** Every row written before the column exists has
+`content_hash = NULL`, so an identical re-upload does not match it and can still produce a second
+journal line. §4.3 calls that "degrades to today's behaviour", which is true but understates it
+against the exactly-once requirement. Mitigation: backfill in the same `betweenUpdates.php` pass —
+the file is still on disk under `documents.filepath`/`filename`, so `hash_file()` can fill the
+column for every row whose file is readable, gated on a `settings` marker exactly as the
+`pool_files_norm_amount_backfilled` flag already is (`includes/betweenUpdates.php:69-88`). Rows
+whose file is gone stay NULL and remain out of the check's reach; that residue should be measured
+on a real tenant before implementation rather than assumed small.
+
+**The transfer is not atomic across filesystem and database.** `insertDoc.php` renames the pool
+file first (`:384`), then inserts `documents` (`:398`), then deletes the `pool_files` row and the
+`.info` file (`:445-:451`). Only the middle step is a database write, so a failure after the
+rename leaves the file at its destination with nothing pointing at it, and the pool row gone.
+Mitigation: order the work so the irreversible filesystem step comes last — allocate the line and
+write the `documents` row inside one transaction, rename after it commits, and let the
+`pool_files` row go last. A crash between commit and rename then leaves a row whose file is still
+in the pulje folder, which is recoverable and which SST-740's sync pass with its 60-second grace
+window already tolerates (`docPool.php:200-216`). Prodtest scenario 11 covers the mid-flight case;
+a failure-point test per step belongs with the implementation.
+
 ---
 
 ## 5. Cancellation and failure
@@ -278,9 +318,9 @@ that cannot be recycled.
 |---|---|
 | User cancels the dialog | Nothing written. Document untouched in the pool |
 | No open journal exists | Say so and stop, as `ompost()` does. Do not create one |
-| Journal line write fails | No `documents` row, no partial state. The two writes belong in one transaction |
+| Journal line write fails | No `documents` row, no partial state. The two writes belong in one transaction, and the file rename must follow that commit rather than precede it (§4.5) |
 | Journal is posted, then the user wants it undone | Not a new mechanism — the line is in `transaktioner` and is corrected by `ompost()` like any other posting |
-| Document deleted from the pool after transfer | The journal line and its `documents` row stand. The line is accounting; the pool is a staging area |
+| Document no longer in the pool after transfer | Expected — the transfer moved it (§3 step 5). The journal line and its `documents` row stand and resolve the file at its `/finance/…` path. The line is accounting; the pool is a staging area |
 | Pool row deleted by folder sync while the dialog is open | Re-read inside the transaction and fail cleanly (§4.4). Never write a line for a document that has left the pool |
 | Same filename reappears from a different document | Transfers normally — the content hash differs (§4.3). This is the case the filename key got wrong |
 | Hash matches an existing transfer | Show the existing line. Whether this hard-blocks or warns depends on Q8 |
@@ -296,7 +336,8 @@ Employee buys printer paper for 250,00 DKK incl. VAT, photographs the receipt in
 Ticks privatudgift → employee = herself, expense account = office supplies, journal = the
 open August journal, VAT = as the account implies. One draft line: office supplies debit,
 employee payable credit, 250,00, dated from the receipt. She posts the journal. The receipt
-stays in the pool, marked transferred, and is reachable from the posting via `documents`.
+leaves the pool as part of the transfer (§3 step 5) and is reachable from the posting via
+`documents`.
 
 ### 6.2 Bookkeeper entering someone else's receipt
 
@@ -339,8 +380,9 @@ Concrete, per the ticket's acceptance criteria:
    employee.
 7. Transfer a receipt whose expense account implies no VAT deduction; confirm the VAT
    treatment of the resulting line.
-8. Delete the document from the pool after posting; confirm the posting and its `documents`
-   row survive.
+8. **Pool removal on transfer (§3 step 5).** Transfer and post a receipt; confirm the file is
+   gone from the pulje folder along with its `pool_files` row and `.info` file, and that the
+   posting and its `documents` row still resolve the file at its `/finance/…` path.
 9. **Filename reuse (§4.1).** Transfer a document, let the pulje sync remove its `pool_files`
    row, then upload a *different* document that generates the same filename — a recurring
    vendor plus date, the NETS/META case SST-740 names. Confirm the second one transfers.
@@ -363,8 +405,11 @@ Concrete, per the ticket's acceptance criteria:
    developer's.
 5. **§2.3** Pick an open journal, rather than creating one per transfer?
 6. **§6.5** Does the first implementation need to split one receipt across several lines?
-7. Should a transferred document be hidden from the pool's default view, or stay visible with
-   a marker? §3 assumes the latter.
+7. A transferred document leaves the pool entirely (§3 step 5), because the reused
+   `insertDoc.php` path moves the file and drops the `pool_files` row. Is that acceptable, or
+   does finance need the document to stay visible in the pool list with a transferred marker?
+   The latter is out of scope for the first implementation and would need a transfer path that
+   does not reuse `insertDoc.php`.
 8. **§4.3** Are two byte-identical receipts from the same vendor on the same day one expense
    or two? A content hash cannot tell them apart, so this decides whether a hash match hard-
    blocks the transfer or is a warning the user can confirm past.
@@ -381,7 +426,7 @@ Not part of this ticket's estimate; listed so the estimate has something to pric
 | Draft line creation | **Mostly reuse.** `insertDoc.php` already creates the line, allocates the voucher and writes the `documents` row (§1.1). The work is setting the two account sides, the employee and the VAT treatment instead of the `F`/`F`/0 placeholder |
 | Payable account setting | `settings` table; no migration if an existing group is reused |
 | Exactly-once check (§4) | One query against `documents`, plus a `content_hash` column and its idempotent migration in `includes/betweenUpdates.php`, plus hashing at transfer time |
-| Transferred marker in the pool list | Depends on Q7 |
+| Transferred-but-visible pool entry | Out of scope (§3 step 5). Only in play if Q7 is answered against the move behaviour, and then it is a new transfer path, not a marker |
 | `findtekst` ids for the dialog | Coordinate with open branches — PR #447 (`feature/udfoert-af`) holds 5151–5152, SST-769 holds 5153–5155 |
 
 ### 9.1 Estimate
@@ -393,9 +438,9 @@ it holds only under the assumptions below.
 |---|---|
 | Checkbox, dialog, labels via `findtekst()` | 1.0 |
 | Transfer path — setting the two account sides, employee and VAT in place of the `F`/`F`/0 placeholder, reusing `insertDoc.php` (§1.1) | 1.0–1.5 |
-| Exactly-once: `content_hash` column, migration, hashing, the check and its UI response (§4) | 1.0 |
+| Exactly-once: `content_hash` column, its unique index, the legacy backfill, hashing, the check and its UI response (§4, §4.5) | 1.0 |
 | Permissions (§2.5) and the payable-account setting | 0.5 |
-| Automated coverage and the eight Prodtest scenarios in §7 | 1.0 |
+| Automated coverage and the eleven Prodtest scenarios in §7 | 1.0 |
 | **Total** | **4.5–5.0 dev-days** |
 
 Assumptions, each of which moves the number if wrong:
@@ -403,8 +448,12 @@ Assumptions, each of which moves the number if wrong:
 - One expense per receipt. The mixed receipt in §6.5 is excluded; allowing it adds a split UI
   and turns the §4 hash match into a per-line question rather than a per-document one.
 - One payable account, reusing an existing `settings` group — no new settings UI.
-- `insertDoc.php` is reused as-is rather than refactored. If the accounting decisions force a
-  second caller through it, add roughly a day.
+- `insertDoc.php` is reused as-is rather than refactored — including its move-out-of-the-pool
+  behaviour (§3 step 5). If the accounting decisions force a second caller through it, or Q7 is
+  answered against the move, add roughly a day.
+- The §4.5 mitigations fit inside the 1.0 above as long as the legacy backfill is a single pass
+  over readable files. If legacy rows whose file is gone need a controlled block or a
+  confirmation flow of their own, add roughly half a day.
 - The §8 questions are answered before implementation starts. They are not sequencing detail:
   Q2 (offset account) and Q4 (VAT) determine what the transfer writes, so the 1.0–1.5 above
   cannot start without them.
