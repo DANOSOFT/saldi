@@ -26,6 +26,11 @@
 // ----------------------------------------------------------------------
 //
 // 20260526 NTR - Initial version. Shows the authentication status icon.
+// 20260915 CL/NTR Render nothing unless the bank integration API credentials are
+//                 configured (bankIntegrationEnabled()).
+
+    include_once(__DIR__ . '/enabled.php');
+    if (!bankIntegrationEnabled()) return;
 
     include_once(__DIR__ . '/auth_check.php');
 

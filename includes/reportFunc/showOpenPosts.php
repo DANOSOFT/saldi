@@ -62,6 +62,27 @@
 // 20260828 Sawaneh SD-140: the SST-717/SST-730 open-balance rules (visY/visKontrol, reminder
 //                  amounts skip settled posts) live in the shared helpers, so the filter/sort
 //                  pre-pass judges accounts exactly like the rendered page.
+// 20260915 CL/SZ SST-786: "Vis alle poster" only lifted the udlignet filter, pagination stayed in
+//                force, so the customer could never see a totals-reconciling overview spanning more
+//                than one page. Extracted vis_aabne_poster()'s account/post filter SQL into
+//                openpost_account_query_parts() and added openpost_export_csv(), an "Eksporter CSV"
+//                link next to the account search that streams every matching account across
+//                batched queries, bypassing pagination while still bounding resource use.
+// 20260915 CL/SZ SST-786 CodeRabbit fixes: initialized vis_aabne_poster()'s $currentdate (was
+//                undefined, so an explicit dato_til of today could disagree with the CSV export on
+//                which accounts/totals to show); added a konto_id tiebreaker to the export's batch
+//                ordering (accountOrder alone isn't unique, so accounts could be skipped/repeated
+//                across batches); quoted formula-leading kontonr/firmanavn values before writing
+//                them to CSV (CWE-1236); documented vis_aabne_poster().
+// 20260916 CL/SZ SST-786 review fixes (Lui): openpost_account_query_parts()'s HAVING predicates
+//                used the kurs=100 placeholder rate as-is instead of the valuta-table-resolved rate
+//                openpost_account_aging() uses (SST-672), so a foreign-currency account could be
+//                dropped from both the report and the export's candidate set even though its real,
+//                resolved balance would have passed openpost_account_visible() - any account with
+//                such an ambiguous-rate row now always bypasses these predicates, deferring entirely
+//                to the PHP-side resolution. openpost_export_csv() now also honours an active
+//                aging-bucket filter (read straight from the request, like the display path), so a
+//                bucket-filtered on-screen total matches the exported total - it did not before.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -349,7 +370,250 @@ function openpost_account_visible(&$aging, $todate, $currentdate, $kun_debet, $k
 }
 }
 
+if (!function_exists('openpost_account_query_parts')) {
+/**
+ * Builds the SQL fragments that enumerate accounts and posts of the open posts report, shared by
+ * the paginated on-screen report (vis_aabne_poster()) and the "export all" CSV
+ * (openpost_export_csv()), so both operate over exactly the same account/post superset and a
+ * filter never diverges between what a page shows and what the export reconciles to.
+ *
+ * @param string|null $konto_fra    Start of the account range, or a firm-name search pattern.
+ * @param string|null $konto_til    End of the account range.
+ * @param string      $kontoart     'D' for debtors, 'K' for creditors.
+ * @param bool        $showPBS      False excludes accounts carrying a pbs_nr.
+ * @param string      $todate       Report date, Y-m-d.
+ * @param string      $currentdate  Today, Y-m-d.
+ * @param bool        $vis_alle     True when settled posts are included too (Vis alle poster).
+ * @param string      $kun_debet    'on' to keep only accounts in debit.
+ * @param string      $kun_kredit   'on' to keep only accounts in credit.
+ * @param string      $db_type      Active DB backend, from includes/connect.php.
+ * @return array{
+ *   accountWhere: string,   Predicate on adresser, safe to interpolate into a query.
+ *   accountOrder: string,   Expression accounts are ordered by.
+ *   postWhere: string,      Predicate on openpost rows, safe to interpolate into a query.
+ *   accountGroup: string,   Subquery selecting the konto_id superset that passes accountHaving.
+ *   accountSource: string,  accountGroup wrapped and aliased, ready to join against adresser.
+ * }
+ */
+function openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPBS, $todate, $currentdate, $vis_alle, $kun_debet, $kun_kredit, $db_type) {
+	global $baseCurrency;
+	$accountFilter = openpost_account_filter($konto_fra,$konto_til,$kontoart);
+	$accountWhere = $accountFilter['where'];
+	if (!$showPBS) $accountWhere.= " and (adresser.pbs_nr is NULL or adresser.pbs_nr = '' or adresser.pbs_nr = '0')";
+	if ($vis_alle || $todate != $currentdate) {
+		$postWhere = "1=1";
+	} elseif ($db_type == 'postgresql') {
+		$postWhere = "openpost.udlignet IS DISTINCT FROM '1'";
+	} else {
+		$postWhere = "(openpost.udlignet is NULL or openpost.udlignet != '1')";
+	}
+	if ($todate != $currentdate) $postWhere = "openpost.transdate<='$todate' and $postWhere";
+	// The display loop only shows an account when its selected posts net to something
+	// (abs($y) >= 0.01), contain an unaligned post, or (kun_debet/kun_kredit) fall on the wanted
+	// side of zero. When showing all posts or a past date that hides most accounts, the count,
+	// page and export queries must apply the same rule - otherwise the pages are cut from the
+	// unfiltered superset and come out (nearly) empty ("Viser 401-500 af 5548" with 3 rows). The
+	// amount is converted like $kontrolAmount, but a kurs=100 foreign-currency row is left at that
+	// placeholder rate here instead of being re-derived from the valuta table (SST-672) - that
+	// lookup needs PHP/valuta-table access this aggregate can't reach - so an account whose true,
+	// resolved balance clears the threshold or debit/credit sign can still fail this SQL predicate.
+	// Rather than exclude it outright (silently dropping it from both the report and the CSV export),
+	// any account holding such an ambiguous-rate row bypasses these predicates entirely and is always
+	// kept in the candidate set; openpost_account_visible() still judges it correctly afterwards, once
+	// openpost_account_aging() has resolved the real rate.
+	$baseAmount = "openpost.amount*(case when coalesce(openpost.valutakurs,0)=0 then 100 else openpost.valutakurs end)/100";
+	$baseCurrencyEsc = db_escape_string($baseCurrency);
+	$ambiguousRate = "sum(case when openpost.valuta is not null and openpost.valuta <> '' and openpost.valuta <> '$baseCurrencyEsc' and coalesce(openpost.valutakurs,0) in (0,100) then 1 else 0 end) > 0";
+	$accountHaving = array();
+	if ($vis_alle || $todate != $currentdate) {
+		$having = "abs(sum($baseAmount)) >= 0.01";
+		if ($todate == $currentdate) $having = "sum(case when openpost.udlignet is null or openpost.udlignet != '1' then 1 else 0 end) > 0 or $having";
+		$accountHaving[] = "($having)";
+	}
+	if ($kun_debet) $accountHaving[] = "sum($baseAmount) > 0";
+	elseif ($kun_kredit) $accountHaving[] = "sum($baseAmount) < 0";
+	$accountHaving = $accountHaving ? " having (".implode(" and ", $accountHaving).") or ($ambiguousRate)" : "";
+	$accountGroup = "select openpost.konto_id from openpost where $postWhere group by openpost.konto_id$accountHaving";
+	return array(
+		'accountWhere' => $accountWhere,
+		'accountOrder' => $accountFilter['order'],
+		'postWhere' => $postWhere,
+		'accountGroup' => $accountGroup,
+		'accountSource' => "($accountGroup) account_posts"
+	);
+}
+}
+
+if (!function_exists('openpost_csv_safe_field')) {
+/**
+ * Prefixes a value with a single quote when it begins with a character a spreadsheet would treat as
+ * the start of a formula (=, +, -, @, tab or carriage return), so a crafted account number or firm
+ * name is shown as literal text instead of evaluated when the export is opened in Excel/Sheets
+ * (CWE-1236, CSV injection).
+ *
+ * @param string $value  Raw field value.
+ * @return string  The value, quote-prefixed when formula-leading.
+ */
+function openpost_csv_safe_field($value) {
+	$value = (string)$value;
+	if ($value !== '' && strpbrk($value[0], "=+-@\t\r") !== false) return "'".$value;
+	return $value;
+}
+}
+
+if (!function_exists('openpost_export_csv')) {
+/**
+ * Streams every account matching the open posts report's current filters as CSV, bypassing the
+ * on-screen report's pagination (SST-786: "Vis alle poster" only lifted the udlignet filter, the
+ * page size/LIMIT/OFFSET stayed in force, so the customer could never see a totals-reconciling
+ * overview spanning more than one page).
+ *
+ * Accounts are still fetched in bounded batches (not one unbounded query) so a large tenant's
+ * export doesn't hold the whole account/post set in memory at once - the same bounded-resource-use
+ * concern the pagination in vis_aabne_poster() was originally added for. Each batch reuses
+ * openpost_account_query_parts()/openpost_account_aging()/openpost_account_visible(), the exact
+ * same filtering the paginated report applies, so the export never diverges from what the report
+ * would show across all of its pages, and the trailing total row reconciles to the report's own
+ * "I alt (viste)" footer. Also honours an active aging-bucket filter (read from the request via
+ * openpost_report_state(), same as the display path), so a filtered on-screen total still matches
+ * the export; row order is not re-sorted by amount even when the report is (see inline comment).
+ *
+ * Sends CSV headers and writes directly to php://output, then exits. Must be called before any
+ * other output has been sent.
+ *
+ * @param string|null $dato_fra    Report period start, or null.
+ * @param string|null $dato_til    Report date (to-date), or null for today.
+ * @param string|null $konto_fra   Start of the account range, or a firm-name search pattern.
+ * @param string|null $konto_til   End of the account range.
+ * @param string      $kontoart    'D' for debtors, 'K' for creditors.
+ * @param string      $kun_debet   'on' to keep only accounts in debit.
+ * @param string      $kun_kredit  'on' to keep only accounts in credit.
+ * @param bool        $vis_alle    True to include settled posts too (Vis alle poster).
+ * @param bool        $showPBS     False excludes accounts carrying a pbs_nr.
+ * @return void
+ */
+function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kontoart, $kun_debet, $kun_kredit, $vis_alle, $showPBS) {
+	global $db_type, $sprog_id;
+	$currentdate = date('Y-m-d');
+	if ($dato_fra && $dato_til) $todate = usdate($dato_til);
+	elseif ($dato_fra && !$dato_til) $todate = usdate($dato_fra);
+	else $todate = $currentdate;
+
+	// SST-786 (Lui's review): honour the report's active aging-bucket filter so the export's account
+	// set and total agree with what's on screen - it's what the customer reconciles against. Reading
+	// the state straight from the request (same as the display path) means the CSV link only has to
+	// carry &aging_bucket=... and every caller (debitor and kreditor's rapport.php) gets this for
+	// free. order_by/order_dir are deliberately NOT applied here: they only reorder rows within a
+	// page, they never change which accounts or totals show, and re-sorting the export would mean
+	// buffering every matching account in memory first - exactly what the batched export exists to
+	// avoid on a large tenant.
+	$state = openpost_report_state();
+	$agingBucket = $state['aging_bucket'];
+	$bucketKey = $agingBucket ? openpost_aging_buckets()[$agingBucket]['key'] : null;
+
+	$parts = openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPBS, $todate, $currentdate, $vis_alle, $kun_debet, $kun_kredit, $db_type);
+	$accountWhere = $parts['accountWhere'];
+	$accountOrder = $parts['accountOrder'];
+	$postWhere = $parts['postWhere'];
+	$accountGroup = $parts['accountGroup'];
+
+	header('Content-Type: text/csv; charset=utf-8');
+	header('Content-Disposition: attachment; filename="aabne_poster_'.date('Y-m-d').'.csv"');
+	$fp = fopen('php://output', 'w');
+	fputcsv($fp, array('Kontonr.', findtekst(360,$sprog_id), '>90', '60-90', '30-60', '8-30', '0-8', findtekst('5019|I alt', $sprog_id)), ';');
+
+	$batchSize = 200;
+	$batchOffset = 0;
+	$agingDateCache = array();
+	$forfaldsum_plus90 = $forfaldsum_plus60 = $forfaldsum_plus30 = $forfaldsum_plus8 = $forfaldsum = 0;
+	$sum = $kontrolsum = 0;
+
+	do {
+		$idQtxt = "select account_posts.konto_id, adresser.kontonr as account_kontonr, adresser.firmanavn as account_firmanavn ";
+		$idQtxt.= "from ($accountGroup) account_posts ";
+		if ($db_type == 'postgresql') $idQtxt.= "cross join lateral (select id, kontonr, firmanavn from adresser where id=account_posts.konto_id and $accountWhere offset 0) adresser ";
+		else $idQtxt.= ", adresser where account_posts.konto_id=adresser.id and $accountWhere ";
+		// $accountOrder (firmanavn, or nr_cast(kontonr) for a numeric range) is not unique, so a
+		// bare LIMIT/OFFSET over it can skip or repeat accounts across batches when several share
+		// the same order value - konto_id as a tiebreaker keeps the paging stable.
+		$idQtxt.= "order by $accountOrder, account_posts.konto_id limit $batchSize offset $batchOffset";
+		$batchIds = array();
+		$accountInfo = array();
+		$q = db_select($idQtxt,__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$batchIds[] = (int)$r['konto_id'];
+			$accountInfo[$r['konto_id']] = $r;
+		}
+		if (!$batchIds) break;
+
+		$postQtxt = "select openpost.* from openpost where openpost.konto_id in (".implode(',', $batchIds).") and $postWhere ";
+		$postQtxt.= "order by openpost.konto_id, openpost.faktnr, openpost.amount";
+		$accountRows = array();
+		$qPosts = db_select($postQtxt,__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($qPosts)) $accountRows[$r['konto_id']][] = $r;
+
+		foreach ($batchIds as $accountId) {
+			$posts = isset($accountRows[$accountId]) ? $accountRows[$accountId] : array();
+			$aging = openpost_account_aging($posts, $todate, $currentdate, $kontoart, $agingDateCache);
+			if (!openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle)) continue;
+			if ($agingBucket && abs(afrund($aging[$bucketKey],2)) < 0.01) continue;
+			$info = $accountInfo[$accountId];
+			fputcsv($fp, array(
+				openpost_csv_safe_field(trim($info['account_kontonr'])),
+				openpost_csv_safe_field(stripslashes($info['account_firmanavn'])),
+				number_format(afrund($aging['forfalden_plus90'],2), 2, ',', ''),
+				number_format(afrund($aging['forfalden_plus60'],2), 2, ',', ''),
+				number_format(afrund($aging['forfalden_plus30'],2), 2, ',', ''),
+				number_format(afrund($aging['forfalden_plus8'],2), 2, ',', ''),
+				number_format(afrund($aging['forfalden'],2), 2, ',', ''),
+				number_format(afrund($aging['visY'],2), 2, ',', '')
+			), ';');
+			$forfaldsum_plus90+= $aging['forfalden_plus90'];
+			$forfaldsum_plus60+= $aging['forfalden_plus60'];
+			$forfaldsum_plus30+= $aging['forfalden_plus30'];
+			$forfaldsum_plus8+= $aging['forfalden_plus8'];
+			$forfaldsum+= $aging['forfalden'];
+			$sum+= $aging['visY'];
+			$kontrolsum+= $aging['visKontrol'];
+		}
+		$batchOffset+= $batchSize;
+	} while (count($batchIds) == $batchSize);
+
+	fputcsv($fp, array(
+		'', findtekst('5019|I alt', $sprog_id),
+		number_format(afrund($forfaldsum_plus90,2), 2, ',', ''),
+		number_format(afrund($forfaldsum_plus60,2), 2, ',', ''),
+		number_format(afrund($forfaldsum_plus30,2), 2, ',', ''),
+		number_format(afrund($forfaldsum_plus8,2), 2, ',', ''),
+		number_format(afrund($forfaldsum,2), 2, ',', ''),
+		number_format(afrund(($sum<=$kontrolsum) ? $kontrolsum : $sum,2), 2, ',', '')
+	), ';');
+	fclose($fp);
+	exit;
+}
+}
+
 if (!function_exists('vis_aabne_poster')) {
+/**
+ * Renders one page of the open posts report (Debitor/Kreditor -> Rapporter -> Åbne poster): the
+ * account/PBS toggle header, the paginated account grid with aging-bucket columns, and the
+ * "Mail kontoudtog"/"Opret rykker"/"Udlign alle" actions for the accounts on the current page.
+ *
+ * Account/post filtering is built by openpost_account_query_parts() (shared with
+ * openpost_export_csv(), SST-786's CSV export of every page's accounts in one file) and rendered
+ * per account via openpost_account_aging()/openpost_account_visible().
+ *
+ * @param string|null $dato_fra    Report period start, or null.
+ * @param string|null $dato_til    Report date (to-date), or null for today.
+ * @param string|null $konto_fra   Start of the account range, or a firm-name search pattern.
+ * @param string|null $konto_til   End of the account range.
+ * @param string      $rapportart  Report type, echoed into links back to rapport.php.
+ * @param string      $kontoart    'D' for debtors, 'K' for creditors.
+ * @param string      $kun_debet   'on' to keep only accounts in debit.
+ * @param string      $kun_kredit  'on' to keep only accounts in credit.
+ * @param bool        $vis_alle    True to include settled posts too (Vis alle poster).
+ * @return void  Prints HTML directly.
+ */
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
 	global $baseCurrency,$bgcolor,$bgcolor5,$bruger_id;
 	global $db;
@@ -372,8 +636,12 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$padding = "";
 	}
 	$forfaldsum=$forfaldsum_plus8=$forfaldsum_plus30=$forfaldsum_plus60=$forfaldsum_plus90=$fromdate=$linjebg=$popup=$todate=NULL;
-	
-	
+	// SST-786: $currentdate must be real, not NULL - openpost_export_csv() sets it to today's date
+	// too, and the two must agree whenever $dato_til is today, or openpost_account_query_parts()
+	// takes different branches (historical vs. current-date) for the report and its CSV export.
+	$currentdate=date('Y-m-d');
+
+
 	$dato_fraUrl=rawurlencode((string)$dato_fra);
 	$dato_tilUrl=rawurlencode((string)$dato_til);
 	$konto_fraUrl=rawurlencode((string)$konto_fra);
@@ -414,6 +682,14 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$reportUrl.="&$modeParam=on";
 	if (!$showPBS) $reportUrl.="&showPBS=0";
 	$basePageUrl=$reportUrl.$stateUrl;
+	// SST-786: exports every account matching the report's current filters (dato/konto range/mode/
+	// showPBS), without pagination - an active aging-bucket filter still applies (openpost_export_csv()
+	// re-reads it from the request), so the exported total matches what's on screen; the amount sort
+	// is display-only and is not carried over (see openpost_export_csv()'s own comment on why).
+	$csvUrl=$reportUrl."&openpost_csv=1";
+	if ($agingBucket) $csvUrl.= "&aging_bucket=".rawurlencode($agingBucket);
+	$csvLabel=htmlspecialchars(findtekst('5151|Eksporter CSV (alle sider)',$sprog_id),ENT_QUOTES);
+	$csvTitle=htmlspecialchars(findtekst('5152|Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling',$sprog_id),ENT_QUOTES);
 
 	$filterTitle=htmlspecialchars(findtekst('5121|Vis kun konti med beløb i denne kolonne',$sprog_id),ENT_QUOTES);
 	$clearTitle=htmlspecialchars(findtekst('5120|Ryd filter',$sprog_id),ENT_QUOTES);
@@ -445,6 +721,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	if ($orderBy) $searchRow.="<input type='hidden' name='order_by' value='$orderBy'><input type='hidden' name='order_dir' value='$orderDir'>";
 	$searchRow.="<input class='inputbox' type='text' name='kontonr' value=\"$searchValue\" style='width:180px;' title=\"".htmlspecialchars(findtekst('5123|Kontonr., interval (fra:til) eller firmanavn (* = jokertegn)',$sprog_id),ENT_QUOTES)."\"> ";
 	$searchRow.="<input type='submit' value=\"".htmlspecialchars(findtekst(913,$sprog_id),ENT_QUOTES)."\"></form>";
+	$searchRow.=" &nbsp; <a href=\"$csvUrl\" title=\"$csvTitle\">$csvLabel</a>";
 	if ($agingBucket) {
 		$searchRow.=" &nbsp; <b>".htmlspecialchars(findtekst('5124|Filter',$sprog_id),ENT_QUOTES).":</b> ".$buckets[$agingBucket]['label']." <a href=\"$clearUrl\">".htmlspecialchars(findtekst('5120|Ryd filter',$sprog_id),ENT_QUOTES)."</a>";
 	}
@@ -486,39 +763,16 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	}
 
 	$accountPosts=$accountIndex=array();
-	$accountFilter = openpost_account_filter($konto_fra,$konto_til,$kontoart);
-	$accountWhere = $accountFilter['where'];
-	$accountOrder = $accountFilter['order'];
-	if (!$showPBS) $accountWhere.= " and (adresser.pbs_nr is NULL or adresser.pbs_nr = '' or adresser.pbs_nr = '0')";
 	if ($kontoart=='D') $tmp="";
 	else $tmp="desc";
-	if ($vis_alle || $todate != $currentdate) {
-		$postWhere = "1=1";
-	} elseif ($db_type == 'postgresql') {
-		$postWhere = "openpost.udlignet IS DISTINCT FROM '1'";
-	} else {
-		$postWhere = "(openpost.udlignet is NULL or openpost.udlignet != '1')";
-	}
-	if ($todate != $currentdate) $postWhere = "openpost.transdate<='$todate' and $postWhere";
-	// The display loop below only prints an account when its selected posts net to something
-	// (abs($y) >= 0.01), contain an unaligned post, or (kun_debet/kun_kredit) fall on the wanted
-	// side of zero. When showing all posts or a past date that hides most accounts, so the count
-	// and page queries must apply the same rule - otherwise the pages are cut from the unfiltered
-	// superset and come out (nearly) empty ("Viser 401-500 af 5548" with 3 rows). The amount is
-	// converted like $kontrolAmount (valutakurs falls back to 100); the per-date re-derivation of
-	// placeholder rates is not repeated here, which only moves sub-øre rounding residues.
-	$baseAmount = "openpost.amount*(case when coalesce(openpost.valutakurs,0)=0 then 100 else openpost.valutakurs end)/100";
-	$accountHaving = array();
-	if ($vis_alle || $todate != $currentdate) {
-		$having = "abs(sum($baseAmount)) >= 0.01";
-		if ($todate == $currentdate) $having = "sum(case when openpost.udlignet is null or openpost.udlignet != '1' then 1 else 0 end) > 0 or $having";
-		$accountHaving[] = "($having)";
-	}
-	if ($kun_debet) $accountHaving[] = "sum($baseAmount) > 0";
-	elseif ($kun_kredit) $accountHaving[] = "sum($baseAmount) < 0";
-	$accountHaving = $accountHaving ? " having ".implode(" and ", $accountHaving) : "";
-	$accountGroup = "select openpost.konto_id from openpost where $postWhere group by openpost.konto_id$accountHaving";
-	$accountSource = "($accountGroup) account_posts";
+	// Same account/post filtering openpost_export_csv() applies for the "export all" CSV, so a
+	// page of this report and the export always agree on which accounts qualify (SST-786).
+	$parts = openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPBS, $todate, $currentdate, $vis_alle, $kun_debet, $kun_kredit, $db_type);
+	$accountWhere = $parts['accountWhere'];
+	$accountOrder = $parts['accountOrder'];
+	$postWhere = $parts['postWhere'];
+	$accountGroup = $parts['accountGroup'];
+	$accountSource = $parts['accountSource'];
 	$totalKontoantal=0;
 	$agingDateCache=array();
 	$pageAccountIds=NULL;

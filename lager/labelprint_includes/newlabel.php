@@ -42,6 +42,13 @@
 //                 $page print (any template with $rows) fills the grid again from the item's
 //                 own description/price; the mylabel sheet query stays inside
 //                 if ($account && $condition) where MB-16 needs it.
+// 20260914 CL/NTR The one-cell gate is a specific label ($labels[$l]) or single=1, no longer
+//                 $page: only the mit salg sheet print ever sends page, so gating on it made
+//                 every item-card/order-line print one cell instead of the template's grid.
+// 20260914 CDX/LH Port ssl3 blank description and price fields for unused commission cells.
+// 20260914 LOE SST-790: a zero price is left blank on the label ($pris and $minpris),
+//                 the mylabel price is tested on its raw value, not the formatted "0,00".
+// 20260916 LOE SST-790: $dkkpris is blanked on a zero price too (review follow-up).
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -49,7 +56,7 @@ $cols=$rows=1;
 $txtlen=100;
 $endbottom=$endtop=0;
 $createdate=$ip=$ipLine=NULL;
-$barcode=$description=$price=$createdate=$firstprint=$lastprint=$hasMyLabelRow=array();
+$barcode=$description=$price=$rawprice=$createdate=$firstprint=$lastprint=$hasMyLabelRow=array();
 for ($x=0;$x<count($line);$x++) {
 	if (substr($line[$x],0,3)=='$ip') {
 		list($tmp,$ip)=explode("=",$line[$x]);
@@ -106,15 +113,15 @@ if (($varenr || $stregkode) && (!$account || !$condition)) {
 $fp=fopen($filename,'w');
 fwrite ($fp, $top);
 for ($l=0;$l<count($labels);$l++) {
-	// $rows/$cols describe the physical sheet layout, meant to be filled with
-	// ONE mylabel row per (row,col) - see the $page branch below, the only one
-	// that legitimately populates more than cell (1,1). Printing a specific
-	// label ($labels[$l] set - a plain item-card print, or one entry of a
-	// printIds batch) must render exactly that one cell, not the whole sheet -
-	// otherwise every other cell in the grid renders with fallback/blank data
-	// nobody asked for (MB-16: a single-label print produced a second,
-	// effectively blank label). 20260826 CL/SZ.
-	$sheetPrint = (!$labels[$l] && $page);
+	// $rows/$cols describe the physical sheet layout and a print fills the whole grid
+	// unless it asks for one cell. The mit salg sheet print fills it with ONE mylabel
+	// row per (row,col) - the $page branch below; any other print (item card, order
+	// line, ...) fills every cell from the item's own data. Printing a specific label
+	// ($labels[$l] set - one mit salg cell, or one entry of a printIds batch) or
+	// passing single=1 renders exactly one cell, otherwise every other cell in the
+	// grid renders with fallback/blank data nobody asked for (MB-16: a single-label
+	// print produced a second, effectively blank label). 20260826 CL/SZ, 20260914 CL/NTR.
+	$sheetPrint = (!$labels[$l] && !$single && $rows > 0 && $cols > 0);
 	$cellRows = $sheetPrint ? $rows : 1;
 	$cellCols = $sheetPrint ? $cols : 1;
 	for ($a=1;$a<=$cellRows;$a++) {
@@ -122,6 +129,7 @@ for ($l=0;$l<count($labels);$l++) {
 			$barcode[$a][$b]=NULL;
 			$description[$a][$b]=NULL;
 			$price[$a][$b]=NULL;
+			$rawprice[$a][$b]=NULL;
 			$hasMyLabelRow[$a][$b]=false;
 		}
 	}
@@ -164,6 +172,7 @@ for ($l=0;$l<count($labels);$l++) {
 				if ($r['lastprint']) $lastprint[$row][$col]=date("dmy",$r['lastprint']);
 				else $lastprint[$row][$col] = NULL;
 				$price[$row][$col]=$r['price'];
+				$rawprice[$row][$col]=$r['price'];
 				if ($price[$row][$col]) {
 					$price[$row][$col]=dkdecimal($price[$row][$col]);
 					$qtxt="update mylabel set lastprint='". date('U') ."' where id = '$r[id]'";
@@ -201,15 +210,31 @@ for ($l=0;$l<count($labels);$l++) {
 	for ($a=1;$a<=$cellRows;$a++) {
 		for ($b=1;$b<=$cellCols;$b++) {
 			$labelTxt=$txt;
-			$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
+			# SST-790: a zero price leaves the label field empty instead of printing "0,00"/"0,-".
+			# Tested on the raw value: the formatted "0,00" is not == 0 under PHP 8.
+			if (is_numeric($salgspris) && $salgspris == 0) {
+				$vispris="";
+				$dkkpris="";
+			} else {
+				$vispris=dkdecimal($salgspris,2);
+				$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
+			}
 			# Uden mit salg data - et print uden konto - ville labelen komme ud tom, så
 			# $minbeskrivelse/$minpris falder tilbage til varens egen beskrivelse og pris.
-			if ($hasMyLabelRow[$a][$b]) {
+			// Unused commission cells stay blank for handwritten descriptions and prices.
+			if (!$hasMyLabelRow[$a][$b] && $account && $condition) {
+				$minbeskrivelse = '';
+				$minpris = '';
+			} elseif ($hasMyLabelRow[$a][$b]) {
 				$minbeskrivelse=$description[$a][$b];
-				$minpris=$price[$a][$b];
+				if ($rawprice[$a][$b] === NULL || $rawprice[$a][$b] === '' || (is_numeric($rawprice[$a][$b]) && $rawprice[$a][$b] == 0)) {
+					$minpris = "";
+				} else {
+					$minpris=$price[$a][$b];
+				}
 			} else {
 				$minbeskrivelse=$r['beskrivelse'];
-				$minpris=dkdecimal($salgspris,2);
+				$minpris=$vispris;
 			}
 			$labelTxt=str_replace('$minbeskrivelse',$minbeskrivelse,$labelTxt);
 			$labelTxt=str_replace('$beskrivelse',$r['beskrivelse'],$labelTxt);
@@ -222,8 +247,8 @@ for ($l=0;$l<count($labels);$l++) {
 			$labelTxt=str_replace('$firstprint',if_isset($firstprint, null, [$a, $b]),$labelTxt);
 			$labelTxt=str_replace('$lastprint',if_isset($lastprint, null, [$a, $b]),$labelTxt);
 			if ($brotherTD) $labelTxt=str_replace('$stregkode',$barcode[$a][$b],$labelTxt);
-			elseif ($stregkode) {
-				$labelTxt=str_replace('$stregkode',$stregkode,$labelTxt);
+			elseif ($barcode[$a][$b]) {
+				$labelTxt=str_replace('$stregkode',$barcode[$a][$b],$labelTxt);
 			} else {
 				if ($r['stregkode']) $labelTxt=str_replace('$stregkode',$r['stregkode'],$labelTxt);
 				else $labelTxt=str_replace('$stregkode',$r['varenr'],$labelTxt);
@@ -272,7 +297,7 @@ for ($l=0;$l<count($labels);$l++) {
 					$labelTxt=str_replace('$img',$myImg,$labelTxt);
 			} else $labelTxt=str_replace('$img',$img,$labelTxt);
 			if ($price[$a][$b]) $labelTxt=str_replace('$beskrivelse',$price[$a][$b],$labelTxt);
-			$labelTxt=str_replace('$pris',dkdecimal($salgspris,2),$labelTxt);
+			$labelTxt=str_replace('$pris',$vispris,$labelTxt);
 			$labelTxt=str_replace('$dkkpris',$dkkpris,$labelTxt);
 			$labelTxt=str_replace('$enhed',$r['enhed'],$labelTxt);
 			$labelTxt=str_replace('$location','$lokation',$labelTxt); #20170628
