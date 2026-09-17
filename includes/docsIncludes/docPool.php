@@ -65,6 +65,7 @@
 //                     fields the user left empty on a new line. A typed "0" counts as typed, and
 //                     other checked saved lines are saved via the Save path before the attach.
 // 20260916 CDX/LAH Keep the selected new voucher row visible above collapsed existing lines.
+// 20260917 CDX/LAH Preserve new voucher fields, including accounts, when opening a pool preview.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -417,6 +418,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$projekt     = if_isset($_POST,NULL,'projekt')     ?? if_isset($_GET,NULL,'projekt');
 	$sag         = if_isset($_POST,NULL,'sag')         ?? if_isset($_GET,NULL,'sag');
 	$sum         = if_isset($_POST,NULL,'sum')         ?? if_isset($_GET,NULL,'sum');
+	$valuta      = if_isset($_POST,NULL,'valuta')      ?? if_isset($_GET,NULL,'valuta');
+	$momsfri     = if_isset($_POST,NULL,'momsfri')     ?? if_isset($_GET,NULL,'momsfri');
+	$forfald     = if_isset($_POST,NULL,'forfald')     ?? if_isset($_GET,NULL,'forfald');
 	#########################################
 
 	if ($insertFile) {
@@ -1342,17 +1346,17 @@ if ($source == 'kassekladde') {
 			if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
 		}
 		$displayBilag       = $bilag ?? '';
-		$displayDato        = htmlspecialchars($dato ?? '');
-		$displayFaktura     = htmlspecialchars($fakturanr ?? '');
-		$displayBeskrivelse = htmlspecialchars($beskrivelse ?? '');
-		$displayDebet       = htmlspecialchars($debet ?? '');
-		$displayKredit      = htmlspecialchars($kredit ?? '');
-		$displayAmount      = htmlspecialchars($sum ?? '');
-		$displayAfd         = '';
-		$displayProjekt     = '';
-		$displayValuta      = '';
-		$displayMomsfri     = 0;
-		$displayForfald     = '';
+		$displayDato        = $dato ?? '';
+		$displayFaktura     = $fakturanr ?? '';
+		$displayBeskrivelse = $beskrivelse ?? '';
+		$displayDebet       = $debet ?? '';
+		$displayKredit      = $kredit ?? '';
+		$displayAmount      = $sum ?? '';
+		$displayAfd         = $afd ?? '';
+		$displayProjekt     = $projekt ?? '';
+		$displayValuta      = $valuta ?? '';
+		$displayMomsfri     = !empty($momsfri) ? 1 : 0;
+		$displayForfald     = $forfald ?? '';
 		$pfx = 'newEntry';
 	}
 
@@ -2337,7 +2341,7 @@ print <<<JS
 				(isAmountMatch && !isPerfectMatch ? "data-amount-match='true' " : "") + 
 				(isDateMatch && !isAmountMatch ? "data-date-match='true' " : "") +
 				(isCombinationMatch ? "data-combination-match='true' " : "");
-				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
+				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); openPoolFile('" + row.href + "'); }\">" +
 					"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(formattedAmount) + "'>" + amountCell + "</td>" +
@@ -4940,6 +4944,20 @@ HTML;
             forfald:     getVal(pfx + 'Forfald'),
         };
     }
+
+    /** Open a document preview without dropping the unsaved new voucher's fields. */
+    window.openPoolFile = function(href) {
+        var url = new URL(href, window.location.href);
+        if (document.getElementById('bilagEntry_new')) {
+            var values = _collectRow('new');
+            Object.keys(values).forEach(function(field) {
+                // The page loader uses different names than the Save endpoint.
+                var parameter = field === 'bilagsnr' ? 'bilag' : (field === 'amount' ? 'sum' : field);
+                url.searchParams.set(parameter, values[field]);
+            });
+        }
+        window.location.href = url.href;
+    };
 
     function _buildFormData(rowId, kladdeId, bilag, includeSourceId) {
         var v = _collectRow(rowId);
