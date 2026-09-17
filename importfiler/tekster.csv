@@ -602,7 +602,7 @@
 602	Regnskab	Financial Accounting	Finansregnskap
 603	Rapporter	Reports	Rapporter
 604	Debitor	Debtor	Debitor
-605	Ordre	Order	Rekkefølge
+605	Ordre	Order	Ordrene
 606	Konti	Accounts	Kontoer
 607	Kreditorer	Creditors	Kreditorer
 608	Lager	Inventory	Lager
@@ -5098,4 +5098,7 @@
 5153	Gem kurs uden bogføring	Save rate without posting	Lagre kurs uten bokføring
 5154	Kursen bogføres automatisk som kursregulering på alle konti i valutaen. Brug Gem kurs uden bogføring, hvis du selv vil bogføre reguleringen.	The rate is posted automatically as an exchange rate adjustment on every account in the currency. Use Save rate without posting if you want to post the adjustment yourself.	Kursen bokføres automatisk som kursregulering på alle kontoer i valutaen. Bruk Lagre kurs uten bokføring hvis du selv vil bokføre reguleringen.
 5155	Kursregulering bogført i DKK	Rate adjustment posted in DKK	Kursregulering bokført i DKK
+5151	Eksporter CSV (alle sider)	Export CSV (all pages)	Eksporter CSV (alle sider)
+5152	Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling	Export all accounts under the selected filters to CSV, without pagination	Eksporter alle kontoer under de valgte filtrene til CSV, uten sideinndeling
 
+5231	Udført af	Performed by	Utført av
