@@ -40,6 +40,7 @@
 //                 ordre.php?inframe=1 = empty new order. Track the shell-written hash explicitly and
 //                 ignore the inframe flag when deciding whether the iframe already shows the target.
 // 20260914 CDX/LH Removed the Guides sidebar entry and its popup.
+// 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
 @session_start();
 $s_id = session_id();
 
@@ -234,7 +235,7 @@ function brightenColor($color, $amount = 0.2) {
         <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(5))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';

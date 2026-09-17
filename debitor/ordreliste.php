@@ -58,6 +58,7 @@
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260917 CL/LH Menu entry restores the last used tab instead of forcing Ordrer (Havemoebelland).
 
 @session_start();
 $s_id = session_id();
@@ -318,10 +319,9 @@ if (!$returside && $konto_id && !$popup) {
 }
 
 // View selection - stored in database settings for persistence
-// Priority: 1) forced plain entry, 2) URL parameter, 3) Database setting, 4) Default
-if ($is_plain_entry) {
-    $valg = 'ordrer';
-} elseif (isset($_GET['valg']) && $_GET['valg']) {
+// Priority: 1) URL parameter, 2) Database setting (last used tab), 3) Default
+// 20260917 CL/LH A plain menu entry only clears the account context; it no longer forces the Ordrer tab.
+if (isset($_GET['valg']) && $_GET['valg']) {
     // User explicitly clicked a tab - use this value
     $valg = strtolower($_GET['valg']);
 } else {
