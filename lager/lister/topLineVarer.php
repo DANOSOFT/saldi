@@ -81,13 +81,13 @@
 		if ($valg=="Serienumre") {
 			print "<td width = '200px' align=center id='serial'>
 				<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_serialnumber Serienumre
+				$icon_serialnumber Serienumre 
 				</button></td>";
 		} else {
 			print "<td width = '200px' align=center id='serial'>
 				<a href='serialnumber.php?returside=$returside'>
 				<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_serialnumber Serienumre
+				$icon_serialnumber Serienumre 
 				</button></a></td>";
 		}
 

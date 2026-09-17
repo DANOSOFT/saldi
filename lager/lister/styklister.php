@@ -23,6 +23,8 @@
 // Copyright (c) 2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20260220 LOE  - Created: Vareliste view filtered to samlevare (stykliste) items.
+// 20260917 CL/LH Sanitise the request-supplied returside through nav_sanitize_returside()
+//                before it reaches the topLineVarer.php nav links.
 
 @session_start();
 $s_id = session_id();
@@ -35,7 +37,10 @@ include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 
 $valg = "Styklister";
-$returside = if_isset($_GET, get_relative()."index/menu.php", "returside");
+$returside = nav_sanitize_returside(if_isset($_GET, "", "returside"));
+if ($returside === "") {
+    $returside = get_relative() . "index/menu.php";
+}
 include("topLineVarer.php");
 
 include(get_relative() . "includes/grid.php");
