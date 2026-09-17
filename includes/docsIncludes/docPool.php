@@ -58,6 +58,12 @@
 //                 ON CONFLICT DO NOTHING now that includes/betweenUpdates.php adds a unique
 //                 index on filename.
 // 20260914 CDX/LAH Resolve transfer targets from their checkboxes so unsaved voucher lines receive data.
+// 20260915 CL/Sawaneh Attach selected (chooseMultipleBilag) still read the pre-multi-line field ids
+//                     (newEntry*/existingEntry*), so typed date/description/accounts/amount were never
+//                     sent and file data replaced them. Now collects every row_<id>_* field of the first
+//                     checked line via _collectRow(), and file data (JS, pool_files, .info) only fills
+//                     fields the user left empty on a new line. A typed "0" counts as typed, and
+//                     other checked saved lines are saved via the Save path before the attach.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -428,14 +434,19 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			
 		docPoolLog($logMessage);
 
+		// A typed value wins over file data; only a missing or blank field may be filled ("0" counts as typed)
+		$postedBlank = function($key) {
+			return !isset($_POST[$key]) || trim((string)$_POST[$key]) === '';
+		};
+
 		// Debug: Log all POST values we receive
 		$postDebugMsg = "docPool INSERT - sourceId: " . ($sourceId ?? 'NOT SET') . "\n" .
 			"docPool INSERT - newDate: " . ($newDate ?? 'NOT SET') . "\n" .
 			"docPool INSERT - newAmount: " . ($newAmount ?? 'NOT SET');
 		docPoolLog($postDebugMsg);
 		
-		// Only set date from pool file if sourceId is empty (new entry) and newDate is valid
-		if (!$sourceId && $newDate && strtotime($newDate) !== false && strtotime($newDate) > 0) {
+		// File data only fills fields the user left empty, and only on a new line (typed values win)
+		if (!$sourceId && $postedBlank('dato') && $newDate && strtotime($newDate) !== false && strtotime($newDate) > 0) {
 			$formattedDate = date("d-m-Y", strtotime($newDate));
 			$dato = $formattedDate;
 			$_POST['dato'] = $dato;
@@ -444,8 +455,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			docPoolLog("docPool INSERT - NOT setting date. sourceId=$sourceId, newDate=$newDate, strtotime result=" . (strtotime($newDate ?? '') ?: 'false'));
 		}
 		
-		// Only set amount from pool file if sourceId is empty (new entry) and newAmount is set
-		if (!$sourceId && $newAmount) {
+		if (!$sourceId && $postedBlank('sum') && $newAmount) {
 			// Normalize amount format from US/API format to Danish format for usdecimal()
 			// usdecimal() expects Danish format: dot=thousands, comma=decimal (e.g. "19.455,00")
 			// API returns US format: comma=thousands, dot=decimal (e.g. "19,455.00" or "61.13")
@@ -466,18 +476,15 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			docPoolLog("docPool INSERT - NOT setting amount. sourceId=$sourceId, newAmount=$newAmount");
 		}
 		
-		// Set invoice number from pool file if sourceId is empty (new entry) and newInvoiceNumber is set
-		if (!$sourceId && $newInvoiceNumber) {
+		if (!$sourceId && $postedBlank('fakturanr') && $newInvoiceNumber) {
 			$_POST['fakturanr'] = $newInvoiceNumber;
 		}
 		
-		// Set description from pool file if sourceId is empty (new entry) and newInvoiceDescription is set
-		if (!$sourceId && $newInvoiceDescription) {
+		if (!$sourceId && $postedBlank('beskrivelse') && $newInvoiceDescription) {
 			$_POST['beskrivelse'] = $newInvoiceDescription;
 		}
 
-		// Set valuta from pool file currency if sourceId is empty (new entry) and newCurrency is set
-		if (!$sourceId && $newCurrency) {
+		if (!$sourceId && $postedBlank('valuta') && $newCurrency) {
 			// Look up the grupper kodenr for this currency code (e.g. "DKK" -> kodenr integer)
 			$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($newCurrency)) . "'";
 			$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -529,14 +536,14 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$poolData = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 			if ($poolData) {
-				if (!$sourceId && empty($newDate) && $poolData['file_date']) {
+				if (!$sourceId && $postedBlank('dato') && $poolData['file_date']) {
 					// format date from Y-m-d H:i:s to d-m-Y
 					$ts = strtotime($poolData['file_date']);
 					if ($ts !== false && $ts > 0) {
 						$_POST['dato'] = date("d-m-Y", $ts);
 					}
 				}
-				if (!$sourceId && empty($newAmount) && $poolData['amount']) {
+				if (!$sourceId && $postedBlank('sum') && $poolData['amount']) {
 					$poolAmt = $poolData['amount'];
 					$cPos = strrpos($poolAmt, ','); $dPos = strrpos($poolAmt, '.');
 					if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
@@ -548,20 +555,20 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					}
 					$_POST['sum'] = $poolAmt;
 				}
-				if (!$sourceId && empty($newInvoiceNumber) && $poolData['invoice_number']) {
+				if (!$sourceId && $postedBlank('fakturanr') && $poolData['invoice_number']) {
 					$_POST['fakturanr'] = $poolData['invoice_number'];
 				}
-				if (!$sourceId && empty($newInvoiceDescription) && $poolData['description']) {
+				if (!$sourceId && $postedBlank('beskrivelse') && $poolData['description']) {
 					$_POST['beskrivelse'] = $poolData['description'];
 				}
-				if (!$sourceId && empty($newCurrency) && $poolData['currency']) {
+				if (!$sourceId && $postedBlank('valuta') && $poolData['currency']) {
 					$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($poolData['currency'])) . "'";
 					$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					if ($currRow && $currRow['kodenr']) {
 						$_POST['valuta'] = $currRow['kodenr'];
 					}
 				}
-			} elseif (!$sourceId && empty($newDate) && !empty($poolFiles)) {
+			} elseif (!$sourceId && !empty($poolFiles)) {
 				// Fallback to .info file if not in DB
 				$firstPoolFile = reset($poolFiles);
 				$baseName = pathinfo($firstPoolFile, PATHINFO_FILENAME);
@@ -570,7 +577,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				if (file_exists($infoFile)) {
 					$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
 					// Line 0: subject, Line 1: account, Line 2: amount, Line 3: date, Line 4: invoiceNumber, Line 5: invoiceDescription
-					if (isset($infoLines[3]) && !empty(trim($infoLines[3]))) {
+					if ($postedBlank('dato') && isset($infoLines[3]) && !empty(trim($infoLines[3]))) {
 						$infoDate = trim($infoLines[3]);
 						// Try to parse the date
 						$timestamp = strtotime($infoDate);
@@ -579,7 +586,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$_POST['dato'] = $formattedDate;
 						}
 					}
-					if (isset($infoLines[2]) && !empty(trim($infoLines[2])) && empty($newAmount)) {
+					if ($postedBlank('sum') && isset($infoLines[2]) && !empty(trim($infoLines[2]))) {
 						$infoAmt = trim($infoLines[2]);
 						$cPos = strrpos($infoAmt, ','); $dPos = strrpos($infoAmt, '.');
 						if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
@@ -592,11 +599,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						$_POST['sum'] = $infoAmt;
 					}
 					// Get invoice_number from line 4
-					if (isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
+					if ($postedBlank('fakturanr') && isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
 						$_POST['fakturanr'] = trim($infoLines[4]);
 					}
 					// Get invoice_description from line 5
-					if (isset($infoLines[5]) && !empty(trim($infoLines[5]))) {
+					if ($postedBlank('beskrivelse') && isset($infoLines[5]) && !empty(trim($infoLines[5]))) {
 						$_POST['beskrivelse'] = trim($infoLines[5]);
 					}
 				}
@@ -2970,8 +2977,44 @@ print <<<JS
 			formData.append(key, value);
 		});
 		
-		// If sourceId is empty (0 or not set), transfer date and amount from the first selected file
+		// Typed values of the line being saved: the first checked line, else the line the
+		// window was opened for, else the unsaved line. Fields are row_<id>_*.
 		const sourceId = url.searchParams.get('sourceId') || '';
+		let typedRowId = null;
+		if (targetCheckboxes.length > 0) {
+			const firstEntry = targetCheckboxes[0].closest('.kassebilag-entry');
+			if (firstEntry) typedRowId = firstEntry.id.replace('bilagEntry_', '');
+		}
+		if (typedRowId === null) {
+			if (sourceId && sourceId !== '0' && document.getElementById('bilagEntry_' + sourceId)) {
+				typedRowId = sourceId;
+			} else if (document.getElementById('bilagEntry_new')) {
+				typedRowId = 'new';
+			}
+		}
+		const typed = (typedRowId !== null && typeof _collectRow === 'function') ? _collectRow(typedRowId) : {};
+		const typedFields = {
+			bilagsnr:    typed.bilagsnr,
+			dato:        typed.dato,
+			beskrivelse: typed.beskrivelse,
+			debet:       typed.debet,
+			kredit:      typed.kredit,
+			fakturanr:   typed.fakturanr,
+			sum:         typed.amount,
+			afd:         typed.afd,
+			projekt:     typed.projekt,
+			valuta:      typed.valuta,
+			momsfri:     typed.momsfri,
+			forfald:     typed.forfald,
+		};
+		Object.keys(typedFields).forEach(key => {
+			const val = (typedFields[key] === undefined || typedFields[key] === null) ? '' : String(typedFields[key]).trim();
+			if (val !== '' || key === 'debet' || key === 'kredit') formData.append(key, val);
+		});
+		console.log('Typed values from row', typedRowId, ':', typedFields);
+		const typedEmpty = key => !typedFields[key] || String(typedFields[key]).trim() === '';
+
+		// New line: fill fields the user left empty with data from the first selected file
 		console.log('sourceId from URL:', sourceId, 'Is empty:', !sourceId || sourceId === '0' || sourceId === '');
 		
 		if (!sourceId || sourceId === '0' || sourceId === '') {
@@ -3005,35 +3048,35 @@ print <<<JS
 			
 			if (fileData) {
 				// Transfer date if available
-				if (fileData.date) {
+				if (fileData.date && typedEmpty('dato')) {
 					formData.append('newDate', fileData.date);
 					console.log('Transferring date from pool file:', fileData.date);
 				} else {
 					console.log('No date in fileData');
 				}
 				// Transfer amount if available
-				if (fileData.amount) {
+				if (fileData.amount && typedEmpty('sum')) {
 					formData.append('newAmount', fileData.amount);
 					console.log('Transferring amount from pool file:', fileData.amount);
 				} else {
 					console.log('No amount in fileData');
 				}
 				// Transfer invoice number if available
-				if (fileData.invoiceNumber) {
+				if (fileData.invoiceNumber && typedEmpty('fakturanr')) {
 					formData.append('newInvoiceNumber', fileData.invoiceNumber);
 					console.log('Transferring invoice number from pool file:', fileData.invoiceNumber);
 				} else {
 					console.log('No invoiceNumber in fileData');
 				}
 				// Transfer invoice description if available
-				if (fileData.description) {
+				if (fileData.description && typedEmpty('beskrivelse')) {
 					formData.append('newInvoiceDescription', fileData.description);
 					console.log('Transferring invoice description from pool file:', fileData.description);
 				} else {
 					console.log('No description in fileData');
 				}
 				// Transfer currency if available
-				if (fileData.currency) {
+				if (fileData.currency && typedEmpty('valuta')) {
 					formData.append('newCurrency', fileData.currency);
 					console.log('Transferring currency from pool file:', fileData.currency);
 				} else {
@@ -3044,57 +3087,6 @@ print <<<JS
 			}
 		}
 		
-		// Always read beskrivelse from the editable input field (both new and existing entries)
-		const beskrivelseInputNew = document.getElementById('newEntryBeskrivelse');
-		const beskrivelseInputExisting = document.getElementById('existingEntryBeskrivelse');
-		const beskrivelseValue = (beskrivelseInputNew && beskrivelseInputNew.value.trim()) ? beskrivelseInputNew.value.trim() : 
-								 (beskrivelseInputExisting && beskrivelseInputExisting.value.trim()) ? beskrivelseInputExisting.value.trim() : '';
-		
-		if (beskrivelseValue) {
-			formData.append('beskrivelse', beskrivelseValue);
-			console.log('Using beskrivelse from input field:', beskrivelseValue);
-		}
-		
-		// Read manual input fields for both new and existing entries
-		
-		// Helper to get value from either new or existing input
-		const getInputValue = (newId, existingId) => {
-			const newIn = document.getElementById(newId);
-			const existIn = document.getElementById(existingId);
-			return (newIn && newIn.value.trim()) ? newIn.value.trim() : 
-				   (existIn && existIn.value.trim()) ? existIn.value.trim() : '';
-		};
-
-		const debetVal = getInputValue('newEntryDebet', 'existingEntryDebet');
-		if (debetVal) {
-			formData.append('debet', debetVal);
-			console.log('Using debet from input field:', debetVal);
-		}
-		
-		const kreditVal = getInputValue('newEntryKredit', 'existingEntryKredit');
-		if (kreditVal) {
-			formData.append('kredit', kreditVal);
-			console.log('Using kredit from input field:', kreditVal);
-		}
-		
-		// Extra fields for existing entries (new entries might not have these inputs exposed in the same way, or handled differently)
-		const datoVal = document.getElementById('existingEntryDato') ? document.getElementById('existingEntryDato').value.trim() : '';
-		if (datoVal) {
-			formData.append('dato', datoVal);
-			console.log('Using dato from input field:', datoVal);
-		}
-		
-		const fakturaVal = document.getElementById('existingEntryFaktura') ? document.getElementById('existingEntryFaktura').value.trim() : '';
-		if (fakturaVal) {
-			formData.append('fakturanr', fakturaVal);
-			console.log('Using fakturanr from input field:', fakturaVal);
-		}
-		
-		const amountVal = document.getElementById('existingEntryAmount') ? document.getElementById('existingEntryAmount').value.trim() : '';
-		if (amountVal) {
-			formData.append('sum', amountVal);
-			console.log('Using sum from input field:', amountVal);
-		}
 		// Debug: log what we're sending
 		console.log('FormData poolFiles:', formData.get('poolFiles'));
 		console.log('FormData poolFile[]:', formData.getAll('poolFile[]'));
@@ -3103,12 +3095,28 @@ print <<<JS
 		const loadingMsg = selectedFiles.length > 1 ? 'Indsætter ' + selectedFiles.length + ' filer...' : 'Indsætter fil...';
 		console.log(loadingMsg);
 
+		// The attach request saves the fields of the first checked line only. Save every other
+		// checked saved line through the normal Save path first so its edits are not lost.
+		const otherCheckedRowIds = Array.from(targetCheckboxes)
+			.map(cb => cb.closest('.kassebilag-entry'))
+			.filter(Boolean)
+			.map(entry => entry.id.replace('bilagEntry_', ''))
+			.filter(rowId => rowId !== 'new' && rowId !== typedRowId);
+		const preSave = (otherCheckedRowIds.length > 0 && typeof _saveRowFetch === 'function')
+			? Promise.all(otherCheckedRowIds.map(rowId => _saveRowFetch(rowId, url.searchParams.get('kladde_id') || 0, url.searchParams.get('bilag') || 0)))
+				.then(results => {
+					const failed = results.find(d => !d || !d.success);
+					if (failed) throw new Error(failed && failed.message ? failed.message : 'Save failed for line');
+					console.log('Saved other checked lines before attach:', otherCheckedRowIds);
+				})
+			: Promise.resolve();
+
 		// Send AJAX request - backend handles attaching to all targetSourceIds
-		fetch(url.toString(), {
+		preSave.then(() => fetch(url.toString(), {
 			method: 'POST',
 			body: formData,
 			redirect: 'follow'
-		})
+		}))
 		.then(response => {
 			console.log('Insert response status:', response.status, response.ok, response.redirected);
 
