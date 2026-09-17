@@ -45,6 +45,8 @@
 // 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
 // 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
 //             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
+// 20260917 CL/LH Tilbage after printing from an order returns to that order again, not the order list
+//             (Havemoebelland). Removed the dead area-file check that nothing ever wrote.
 
 @session_start();
 $s_id=session_id();
@@ -435,10 +437,6 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			global $menu;
 
 			include("../includes/topline_settings.php");
-            ############
-			$path = "../temp/$db/area$bruger_id.txt";
-			$value = file_exists($path) ? file_get_contents($path) : null;
-			###########
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>"; 
 				if ($returside) {
@@ -446,20 +444,13 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 					$href = "../debitor/rykker.php?rykker_id=" . (int)$id;
 				 } elseif (substr($art,0,1)=='K'){
 					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside) . "\" accesskey=\"L\"";
-				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
+				 } elseif (in_array($art, array('DO', 'PO')) && $locat && strpos($returside, "ordreliste.php") !== false) {
+					// Bulk print started from the order list (locat=1): back to the list.
 					$href = "../debitor/ordreliste.php";
 				 } else {
-					if($art == 'DO'){
-						if($value == 'faktura'){
-							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=" . urlencode($returside);
-
-						}else{
-							$href = "../debitor/ordreliste.php";
-						}
-					}else{
-					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside);
-					}
-				 }  
+					// Print started from the order itself (e.g. right after invoicing): back to that order.
+					$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside);
+				 }
 				} else { 
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 				} 
