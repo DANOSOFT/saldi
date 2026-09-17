@@ -3,6 +3,12 @@
 	include(get_relative()."/includes/topline_settings.php");
 	$returside = nav_back_url(if_isset($returside, null));
 
+	// 20260917 CL/LH Remember the goods tab the user last opened so Lager -> Varer reopens it (Havemoebelland).
+	$goodsTabKeys = array('Vareliste' => 'vareliste', 'Ordrevisning' => 'ordrestatus', 'Indkøb' => 'indkob', 'Serienumre' => 'serialnumber');
+	if (isset($valg, $bruger_id) && isset($goodsTabKeys[$valg]) && (int)$bruger_id > 0) {
+		update_settings_value('vareliste_valg', 'lager', $goodsTabKeys[$valg], 'Last used tab in the goods list', (int)$bruger_id);
+	}
+
 	$border = 'border:1px';
 	$TableBG = "bgcolor=$bgcolor";
 
