@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-16------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-17------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -106,6 +106,7 @@
 //                 are configured (bankIntegrationEnabled()).
 // 20260916 CDX/PHR Reset additional account data and skip tables absent from the installed schema.
 // 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
+// 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
 
 @session_start();
 $s_id = session_id();
@@ -124,7 +125,9 @@ $diffkto    = NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
+if (is_file(__DIR__ . '/../bank_integration/includes/enabled.php')) {
+	include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
+}
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 
@@ -2203,7 +2206,7 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
 
-		if (bankIntegrationEnabled()) {
+		if (function_exists('bankIntegrationEnabled') && bankIntegrationEnabled()) {
 			// TODO: findtekst. // TODO: Translation Tekst til bank integration
 			print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
