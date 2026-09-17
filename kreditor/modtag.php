@@ -47,6 +47,8 @@
 //             group has box9='on' - box9 governs lot/batch tracking independently of expiry
 //             tracking, and item_has_due_date() itself used to query box9 before this PR,
 //             so box9-only items already relied on this validation (MB-36).
+// 20260917 SZ Guard the box9 lookup above against a missing grupper row (CodeRabbit,
+//             PR #608) - degrades to "not tracked" instead of a PHP warning.
 
 @session_start();
 $s_id=session_id();
@@ -169,7 +171,7 @@ if ($fejl==0) {
 			"select g.box9 from varer v join grupper g on g.kodenr = v.gruppe and g.art = 'VG' and g.fiscal_year = '$regnaar' where v.id = '$vare_id[$x]'",
 			__FILE__ . " linje " . __LINE__
 		));
-		$batchNoTracked = $dueDateTracked || (trim($r['box9']) == 'on');
+		$batchNoTracked = $dueDateTracked || (trim((string) ($r['box9'] ?? '')) == 'on');
 		$batchDueDateEmpty = ($batch_due_date[$x] === null || $batch_due_date[$x] === '');
 		$batchBatchNoEmpty = ($batch_batch_no[$x] === null || $batch_batch_no[$x] === '');
 		if (($leveres[$x]>0)&&($art!='KK')&&(($dueDateTracked&&$batchDueDateEmpty)||($batchNoTracked&&$batchBatchNoEmpty))){
