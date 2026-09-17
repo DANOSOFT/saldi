@@ -58,6 +58,7 @@
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
 
 @session_start();
 $s_id = session_id();
@@ -1013,7 +1014,7 @@ $custom_columns = array(
     
     "hvem" => array(
         "field" => "hvem",
-        "headerName" => 'Udført af', // TODO findtekst.
+        "headerName" => findtekst('5231|Udført af', $sprog_id),
         "width" => "1",
         "type" => "text",
         "sqlOverride" => "o.hvem",
