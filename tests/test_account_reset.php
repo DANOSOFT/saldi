@@ -4,6 +4,7 @@
 // 20260916 CDX/PHR Verify reset scope and preservation options without database writes.
 // 20260916 CDX/PHR Verify item texts follow the keep-items option.
 // 20260916 CDX/PHR Verify user year reset and tenant-scoped session updates.
+// 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -42,8 +43,13 @@ function db_escape_string($value) {
 	return str_replace("'", "''", $value);
 }
 function db_modify($sql, $trace, $global = false) {
+	$GLOBALS['resetStatementsIssued'][] = $sql;
 	$GLOBALS['resetSessionTestCall'] = array($sql, $global);
 	return "0\tquery accepted";
+}
+function db_select($sql, $trace) {
+	$GLOBALS['resetStatementsIssued'][] = $sql;
+	return null;
 }
 resetAccountSessionYear('test_41');
 resetCheck($GLOBALS['resetSessionTestCall'] === array("UPDATE online SET regnskabsaar='1' WHERE db='test_41'", true), 'Session update must target only this tenant in the master database');
@@ -71,3 +77,18 @@ resetCheck(in_array("DELETE FROM kontoplan WHERE regnskabsaar!='21'", $sql, true
 resetCheck(in_array("UPDATE kontoplan SET regnskabsaar='1' WHERE regnskabsaar='21'", $sql, true), 'Renumber latest chart');
 resetCheck(in_array("UPDATE grupper SET fiscal_year=1 WHERE fiscal_year=21", $sql, true), 'Renumber latest year settings');
 echo "OK: latest valid year, deleted/missing year 1, date ordering and year renumbering.\n";
+
+// MySQL/MariaDB commits implicitly on TRUNCATE, so the reset must be refused up front rather than
+// risk a half-reset account that transaktion('rollback') cannot undo.
+foreach (array('mysql', 'mysqli', 'MySQLi') as $dbType) {
+	$GLOBALS['resetStatementsIssued'] = array();
+	$refused = '';
+	try {
+		resetAccount(false, false, $dbType, 'test_41');
+	} catch (RuntimeException $e) {
+		$refused = $e->getMessage();
+	}
+	resetCheck(strpos($refused, 'MySQL/MariaDB') !== false, 'Reset must be refused on ' . $dbType . ' with a Danish explanation');
+	resetCheck($GLOBALS['resetStatementsIssued'] === array(), 'Reset on ' . $dbType . ' must refuse before issuing any statement');
+}
+echo "OK: MySQL/MariaDB reset refused before any statement is issued.\n";

@@ -107,6 +107,7 @@
 // 20260916 CDX/PHR Reset additional account data and skip tables absent from the installed schema.
 // 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
 // 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
+// 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
 
 @session_start();
 $s_id = session_id();
@@ -2041,9 +2042,13 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 		} elseif (isset($_POST['nulstil']) && $_POST['nulstil']) { #20170731
 			require_once(__DIR__ . '/resetAccount.php');
-			resetAccount(!empty($_POST['behold_debkred']), !empty($_POST['behold_varer']), $db_type, $db);
-			$regnaar = 1;
-			print tekstboks('regnskab nulstillet');
+			try {
+				resetAccount(!empty($_POST['behold_debkred']), !empty($_POST['behold_varer']), $db_type, $db);
+				$regnaar = 1;
+				print tekstboks('regnskab nulstillet');
+			} catch (Throwable $error) { # 20260917 en fejl må ikke ende som en hvid fejlside
+				print tekstboks('Regnskabet blev ikke nulstillet: ' . $error->getMessage());
+			}
 		} elseif (isset($_POST['slet'])) {
 			if ($_POST['slet_regnskab'] == 'on') { #20185024
 				include("../includes/connect.php");

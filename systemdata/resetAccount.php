@@ -5,6 +5,8 @@
 // 20260916 CDX/PHR Clear item texts when items are not retained.
 // 20260916 CDX/PHR Activate year 1 for all users and current account sessions after reset.
 // 20260916 CDX/PHR Retain the latest undeleted financial year and renumber it and its setup to 1.
+// 20260917 CL/LH Refuse the reset on MySQL/MariaDB, where TRUNCATE auto-commits and the
+//                transaction cannot be rolled back.
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -78,9 +80,13 @@ function accountResetStatements(array $existingTables, $keepAccounts, $keepItems
 
 /** Execute only the reset plan for the currently connected account. */
 function resetAccount($keepAccounts, $keepItems, $dbType, $database) {
-	$mysql = in_array(strtolower($dbType), array('mysql', 'mysqli'), true);
-	$schema = $mysql ? 'DATABASE()' : 'current_schema()';
-	$q = db_select("SELECT table_name FROM information_schema.tables WHERE table_schema=$schema AND table_type='BASE TABLE'", __FILE__ . ' linje ' . __LINE__);
+	// TRUNCATE forces an implicit commit on MySQL/MariaDB, so transaktion('rollback') cannot undo
+	// a reset that fails midway and the account would be left half emptied. Refuse before any
+	// statement is issued; only the PostgreSQL path can roll the whole reset back. #20260917
+	if (in_array(strtolower((string)$dbType), array('mysql', 'mysqli'), true)) {
+		throw new RuntimeException('Nulstilling af regnskab er ikke muligt på MySQL/MariaDB, fordi TRUNCATE ikke kan rulles tilbage og regnskabet ville kunne ende halvt nulstillet. Kontakt support.');
+	}
+	$q = db_select("SELECT table_name FROM information_schema.tables WHERE table_schema=current_schema() AND table_type='BASE TABLE'", __FILE__ . ' linje ' . __LINE__);
 	$existing = array();
 	while ($row = db_fetch_array($q)) {
 		$existing[] = $row['table_name'];
