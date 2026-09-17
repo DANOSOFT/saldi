@@ -19,6 +19,7 @@
 //
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ------------------------------------------------------------------------------
+// 20260907 CDX/LH Restrict record unlocking to supported tables and escape refresh targets.
 ?>
 <head>
 
@@ -51,34 +52,42 @@ function closeIE() {
 </head> 
 
 <?php
-include("../includes/std_func.php");
-include("../includes/connect.php");
-$kilde=if_isset($_GET['kilde']);
+include(__DIR__ . "/std_func.php");
+include(__DIR__ . "/connect.php");
+require_once __DIR__ . '/stdFunc/unlockRecord.php';
+$kilde = $_GET['kilde'] ?? null;
 if ($kilde!='online.php') {
-	include("../includes/online.php");
+	include(__DIR__ . "/online.php");
 }
 $browser=NULL;
 if (strpos($_SERVER['HTTP_USER_AGENT'],'Chrome')) $browser='chrome';
 elseif (strpos($_SERVER['HTTP_USER_AGENT'],'Firefox')) $browser='ff';
 elseif (strpos($_SERVER['HTTP_USER_AGENT'],'MSIE')) $browser='ie';
 
-$returside=if_isset($_GET['returside']);
-$tabel=if_isset($_GET['tabel']);
-$id=if_isset($_GET['id']);
-if($tabel && $id) {
-	if ($tabel == 'ordrer') {
-		db_modify("update ordrer set tidspkt='', hvem = case when art in ('DO','DK') then hvem else '' end where id=$id",__FILE__ . " linje " . __LINE__);
-	} else {
-		db_modify("update $tabel set tidspkt='', hvem='' where id=$id",__FILE__ . " linje " . __LINE__);
-	}
+// 20260904 Sawaneh WP-1: returside sanitised (was reflected XSS/open redirect), popup=1
+//                  request flag also closes, blocked-close fallback goes to the returside
+//                  instead of the login page, and the unlock SQL params are cast/whitelisted.
+if (!function_exists('nav_sanitize_returside')) {
+	include(__DIR__ . "/stdFunc/navStack.php");
 }
+$returside = nav_sanitize_returside($_GET['returside'] ?? null);
+$tabel = $_GET['tabel'] ?? null;
+$id = (int)($_GET['id'] ?? 0);
+unlock_record($tabel, $id);
+if (!isset($popup)) $popup = NULL;
+if (!empty($_GET['popup'])) $popup = 1; // request flag: this window IS a popup regardless of the user's popup preference
 if ($popup || !$returside) {
-	if ($browser=='chrome') print  "<body onload=\"javascript:closeChrome();\">";	
-	if ($browser=='ff') print  "<body onload=\"javascript:closeFF();\">";	
-	if ($browser=='ie') print  "<body onload=\"javascript:closeIE();\">";	
+	if ($browser=='chrome') print  "<body onload=\"javascript:closeChrome();\">";
+	if ($browser=='ff') print  "<body onload=\"javascript:closeFF();\">";
+	if ($browser=='ie') print  "<body onload=\"javascript:closeIE();\">";
 	print "<body onload=\"javascript:window.opener.focus();window.close();\">";
-	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/index.php\">";
+	// When window.close() is blocked (page not script-opened, e.g. inside the
+	// new-design iframe), fall back to the returside instead of the login page.
+	$lukFallback = $returside ? $returside : "../index/index.php";
+	$lukFallback = htmlspecialchars($lukFallback, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=$lukFallback\">";
 } elseif ($returside) {
+	$returside = htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 }
 ?>

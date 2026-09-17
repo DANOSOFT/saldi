@@ -28,6 +28,10 @@
 // 20251125 LOE Datagrid used to handle the main tables.
 // 20260501 PHR fidscal_year
 // 20260604 Sawaneh  redesign kreditor account card
+// 20260905 SZ MB-32: blank account no. popped a false "must be integers" alert under PHP 8 -
+//             (int)'' compared to '' is now a string comparison ("0" != ""), true, where PHP 7
+//             compared both as 0. Skip the check when the field is blank, same fix as
+//             debitor/debkort_save.php (SD-513)
 
 
 @session_start();
@@ -123,7 +127,7 @@ if ($_POST) {
 			$tmp2 = $tmp2 . $y;
 		}
 		$tmp2 = (int)$tmp2;
-		if ($tmp2 != $ny_kontonr) {
+		if ($ny_kontonr !== '' && $tmp2 != $ny_kontonr) {	# MB-32 - an empty field is not an error, the number is assigned automatically further down (same fix as debitor/debkort_save.php, SD-513)
 			print "<BODY onLoad=\"javascript:alert('" . findtekst('345|Kontonummer må kun bestå af heltal uden mellemrum', $sprog_id) . "')\">\n";
 		}
 		$ny_kontonr = $tmp2;

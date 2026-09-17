@@ -59,6 +59,9 @@
 //                :199-200, in the same valuta-loading loop) still warns on any tenant
 //                with more than one historical rate per currency - out of scope here
 //                (ticket named only :72 and :530); filed as a follow-up.
+// 20260902 CL/NTR Added tutorial steps + create_tutorial("regnskab") so the Hjælp button in the
+//                top bar works (it had no tutorial to restart); ids budget-link/csv-export added
+//                as anchors. Texts 3500-3503 added to importfiler/tekster.csv.
 
 @session_start();
 $s_id=session_id();
@@ -140,7 +143,7 @@ print "<td width='200px' align='center'>
 
 print "<td>&nbsp;</td>";
 
-print "<td width='200px' align='center'>
+print "<td id='budget-link' width='200px' align='center'>
     <a href='budget.php?returside=$backUrl'>
     <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
     $icon_budget Budget
@@ -577,7 +580,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 }
 print "</tbody>";
 print "<tfoot>";
-print "<tr><td colspan='$cols' align='center'><input type='button' style='width: 200px; margin: 10px;' onclick=\"document.location='../temp/$db/regnskab.csv'\" value='".findtekst('2595|Regnskab', $sprog_id).".csv'></input></td></tr>";
+print "<tr><td colspan='$cols' align='center'><input type='button' id='csv-export' style='width: 200px; margin: 10px;' onclick=\"document.location='../temp/$db/regnskab.csv'\" value='".findtekst('2595|Regnskab', $sprog_id).".csv'></input></td></tr>";
 print "</tfoot>";
 print "</table>";
 print "</div>"; 
@@ -590,6 +593,28 @@ if ($menu=='T') {
 } else {
 	include_once '../includes/oldDesign/footer.php';
 }
+
+// Tutorial setup - the help button in the top bar (#tutorial-help) does nothing without this
+$steps = array();
+$steps[] = array(
+	"selector" => "#budget-link",
+	"content" => findtekst('3500|Klik her for at gå til budgettet', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => ".dataTable tbody tr:nth-child(-n+12) td[onclick]",
+	"content" => findtekst('3501|Klik på et kontonummer for at vise kontoens bevægelser som en graf', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => ".dataTable tbody tr:nth-child(-n+12) a[href^='kontospec.php']",
+	"content" => findtekst('3502|Klik på et beløb for at se kontospecifikationen for den pågældende måned', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => "#csv-export",
+	"content" => findtekst('3503|Klik her for at hente regnskabet som en CSV-fil', $sprog_id).".",
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("regnskab", $steps);
 
 function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 	/**

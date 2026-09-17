@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- debitor/func/pos_ordre_itemscan.php ---- lap 4.1.1 -- 2025.10.07 --
+// -------- debitor/func/pos_ordre_itemscan.php ---- lap 5.1.0 -- 2026.09.17 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2014-2025 saldi.dk aps
+// Copyright (c) 2014-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 //
 // 2014.05.08 - Indsat diverse til bordhåndtering, bruger nr fra ordrer til bordnummer (PHR - Danosoft) Søg 20140508 eller $bordnr 
@@ -67,6 +67,8 @@
 // 20231220 PHR added htmlentities to #20210829
 // 20240112 PHR Set $myDe to '-' if empty 
 // 20251007 PHR Now looking for varenr_alias
+// 20260914 CDX/LH Port ssl3 extended mylabel barcodes; keep full IDs in fallback lookup.
+// 20260917 CDX/PHR Normalize zero prices for PHP 8 and set price focus before rendering inputs.
 
 function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny) {
 	print "\n<!-- Function varescan (start)-->\n";
@@ -209,11 +211,66 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 				$varenr_ny = 'LOT'.substr($varenr_ny,0,6);
 			}
 		}
-		if (strlen($varenr_ny)==12 && ctype_xdigit(substr($varenr_ny,-6)) && is_numeric(substr($varenr_ny,0,6))) {
+		if (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='a' &&  ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '10'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='b' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '11'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='c' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '12'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='d' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '13'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='e' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '14'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='f' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '15'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='g' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '16'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='h' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '17'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='i' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '18'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='j' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '19'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='k' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '20'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='l' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '21'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='m' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '22'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='n' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '23'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='o' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '24'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='p' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '25'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='q' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '26'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='r' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '27'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='s' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '28'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='t' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '29'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='u' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '30'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='v' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '31'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='w' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '32'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='x' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '33'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='y' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '34'.substr($varenr_ny,1);
+		} elseif (strlen($varenr_ny) == 12 && substr($varenr_ny,0,1)=='z' && ctype_digit(substr($varenr_ny,1,5))) {
+			$varenr_ny = '35'.substr($varenr_ny,1);
+		}
+		if ((strlen($varenr_ny) == 13 && ctype_xdigit(substr($varenr_ny,-6)) && ctype_digit(substr($varenr_ny,0,7)))
+			|| (strlen($varenr_ny) == 12 && ctype_xdigit(substr($varenr_ny,-6)) && ctype_digit(substr($varenr_ny,0,6)))) {
+			$myLabelId = (int)substr($varenr_ny, 0, -6);
 			$low=hexdec(substr($varenr_ny,-6))/100 - 0.01; #20211024 Can be replaced by exact amount in 2023
 			$high=hexdec(substr($varenr_ny,-6))/100 + 0.01;#20211024 Can be replaced by exact amount in 2023
 			$qtxt = "select * from mylabel where barcode='$varenr_ny' and price >= '$low'  and price <= '$high' ";
-			$qtxt.= " and id='". substr($varenr_ny,0,6)*1 ."'";
+			$qtxt.= " and id = '$myLabelId'";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$myAc    = $r['account_id'];
 				$myPr    = $r['price'];
@@ -223,7 +280,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 				$barcodeNew = $r['barcode'];
 				$qtxt    = "select kontonr from adresser where id='$myAc'";
 			} else {
-				$qtxt = "select * from mylabel where id='". substr($varenr_ny,0,6)*1 ."' and price >= '$low'  and price <= '$high'";
+				$qtxt = "select * from mylabel where id='$myLabelId' and price >= '$low'  and price <= '$high'";
 				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) { #20211021
 					$myAc    = $r['account_id'];
 					$myPr    = $r['price'];
@@ -394,6 +451,12 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			$pris_old=$pris_ny; #20140702
 			$leveret[0]=0;
 		}
+		// Zero prices are displayed as an empty string; compare numerically on PHP 8.
+		if ($varenr_ny && $jump2price && (float)usdecimal($pris[0], 2) === 0.0) {
+			$antal_ny = 1;
+			$fokus    = 'pris_ny';
+			$pris_old = '';
+		}
 		$bgColor = 'white';
 		$qtyTitle = '';
 		if (isset($itemGroup[0]) && in_array($itemGroup[0],$stockGrp) && $beholdning[0] < $min_lager[0]) { #20210503
@@ -432,11 +495,6 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 					if ($lagernr[$l]==$lager_ny && strlen($lagernavn[$l])==1) $lager_ny=$lagernavn[$l]; 
 				}
 				print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right;font-size:$ifs;width:40px\" name=\"lager_ny\" placeholder=\"$lager_ny\" value=\"$lager_ny\"></td>\n";
-			}
-			if ($jump2price && $pris[0] == 0) {
-				$antal_ny = 1;
-				$fokus    = 'pris_ny';
-				$pris_old = '';
 			}
 			if ($antal_ny) {
 				if ($textNew) {
