@@ -56,6 +56,7 @@
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260826 LOE Added a new setting to hide revenue on ordreliste for users based on the db who don't want to see it. This is stored in the settings table 
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
 // 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
@@ -2652,25 +2653,30 @@ print "</div>";  // END LEFT
 
 
 
-// ------------------------------------------------------------
+// ------------------------------------------------------------ 
 // CENTER — Turnover Summary
-// ------------------------------------------------------------
+// ------------------------------------------------------------ 
+$hideRevenueOnOrdreliste = get_settings_value("hideRevenueOnOrdreliste", "ordreliste", "off") === "on";
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
-print "<div>";
-    print "<a href='ordreliste.php?genberegn=1&valg=$valg'>
-                <b>" . findtekst('878|Samlet omsætning / db / dg (ekskl. moms.)', $sprog_id) . "</b>
-           </a><br>";
-    print "$ialt_formatted / $dk_db / $dk_dg%<br>";
-    print "<b>" . findtekst('877|Samlet omsætning inkl. moms', $sprog_id)
-          . ": $ialt_m_moms_formatted</b>";
+    print "<div>";
+    if(!$hideRevenueOnOrdreliste) {
+        print "<a href='ordreliste.php?genberegn=1&valg=$valg'>
+                    <b>" . findtekst('878|Samlet omsætning / db / dg (ekskl. moms.)', $sprog_id) . "</b>
+            </a><br>";
+        print "$ialt_formatted / $dk_db / $dk_dg%<br>";
+        print "<b>" . findtekst('877|Samlet omsætning inkl. moms', $sprog_id)
+            . ": $ialt_m_moms_formatted</b>";
+    }
 } else {
 print "<div id='center-turnover' style='flex:1; text-align:center;'>";
 print "<div style='display:flex;'>";
-    print findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id) . "<br>";
-    print findtekst('2772|db / dg (ekskl. moms)', $sprog_id) . "<br>";
-    print "<b style='margin-left: 20px;'>$ialt_m_moms_formatted ($ialt_formatted)<br>
-           $dk_db / $dk_dg%</b>";
+    if(!$hideRevenueOnOrdreliste) {
+        print findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id) . "<br>";
+        print findtekst('2772|db / dg (ekskl. moms)', $sprog_id) . "<br>";
+        print "<b style='margin-left: 20px;'>$ialt_m_moms_formatted ($ialt_formatted)<br>
+            $dk_db / $dk_dg%</b>";
+    }
 }
 
 print "</div>";
