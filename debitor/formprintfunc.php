@@ -18,6 +18,7 @@
 // Copyright (c) 2004-2010 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260917 CL/LH Delivery note no longer depends on the Show-delivery-address flag (Havemoebelland).
 
 function formularprint($id,$formular,$lev_nr,$charset) {
 	
@@ -68,12 +69,13 @@ if ($id==-1){	# Saa er der flere fakturaer
 }
 if ($formular==3) $folgeseddel=1;
 
-$showBothAddrExtra = get_settings_value("showBothAddrExtra", "ordre", "off") === "on";
 if ($formular!=3 && $folgeseddel) {
 	for ($q=0; $q<$ordre_antal; $q++) {
 		$form[$q]=$formular;
-		$r=db_fetch_array(db_select("select lev_addr1, lev_postnr, vis_lev_addr from ordrer where id = $ordre_id[$q]",__FILE__ . " linje " . __LINE__));
-		if ($r['lev_addr1'] && $r['lev_postnr'] && (!$showBothAddrExtra || $r['vis_lev_addr']=='on')) {
+		// 20260917 CL/LH The delivery note follows the invoice whenever the order has a delivery address,
+		// regardless of the Show-delivery-address flag.
+		$r=db_fetch_array(db_select("select lev_addr1, lev_postnr from ordrer where id = $ordre_id[$q]",__FILE__ . " linje " . __LINE__));
+		if ($r['lev_addr1'] && $r['lev_postnr']) {
 			$form[$q]=3;
 			$ordre_antal++;
 			for ($z=$ordre_antal; $z>$q; $z--) {
