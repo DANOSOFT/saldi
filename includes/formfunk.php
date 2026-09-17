@@ -71,6 +71,8 @@
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
 // 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
 //             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
+// 20260924 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
+//                holds the last printed order by then.
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
 // 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
 // 20260930 CDX/PHR Fit descriptions using actual font and neighbouring field widths; share wrapping with page preflight.
@@ -1106,6 +1108,7 @@ if (!function_exists('formularprint')) {
 		if ($vis_saet)
 			$brugsamletpris = 'on';
 
+		$bulkPrint = ($id == -1);
 		if ($id == -1) {	# Saa er der flere fakturaer
 			$ordre_antal = $_GET['ordre_antal'];
 			$ordreliste = $_GET['skriv'];
@@ -2408,7 +2411,7 @@ if (!function_exists('formularprint')) {
 			}
 			// 20260807 MJ urlencode returside saa search-parametre ikke laekaer som separate GET-parametre i udskriv.php
 			// 20260812 MJ Brug is_string-guard saa array-input ikke giver PHP-advarsel (null/array -> tom streng)
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art" . ($bulkPrint ? '&amp;bulk=1' : '') . "&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
