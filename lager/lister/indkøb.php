@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
+// 20260909 CDX/LH SST-783: Return orders opened from Indkøb to the purchase tab.
 
 @session_start();
 $s_id = session_id();
@@ -251,7 +252,7 @@ function renderColumn($value, $row, $column, $type, $idField, $orderField, $amou
             $id = $idList[$index];
             $antal = $antalList[$index];
             $date = $dateList[$index];
-            $url = "../../$type/ordre.php?id=$id&returside=../lager/lister/ordrestatus.php";
+            $url = "../../$type/ordre.php?id=$id&returside=../lager/lister/indkøb.php";
             $details .= "<tr><td><a href='$url'>$ordrenr</a></td><td>".dkdecimal($antal)."</td><td colspan=2>".dkdato($date)."</td></tr>";
         }
         $details .= '</tbody></table>';

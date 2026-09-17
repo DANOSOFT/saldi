@@ -215,6 +215,7 @@ final class NewlabelCharacterizationTest extends TestCase
         $stregkode = null;
         $varenr = null;
         $page = null;
+        $single = 0;
         $qty = null;
         $brotherTD = 0;
         $filename = tempnam(sys_get_temp_dir(), 'mb16_char_') . '.html';

@@ -61,6 +61,8 @@
 // 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
 //                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
 //                  Supplier orders no longer print VAT-inclusive prices (customer setting).
+// 20260911 CDX/LH SD-186 Load performed-by value when printing or emailing order documents.
+// 20260915 CDX/PHR Preserve discount line price when no numeric set price is stored in lev_varenr.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1175,7 +1177,7 @@ if (!function_exists('formularprint')) {
 				$email[0] = 'Kundens email';
 				$pbs = '';
 			} else {
-				$qtxt = "select afd,status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,sprog,udskriv_til,mail_subj,mail_text,dokument,procenttillag ";
+				$qtxt = "select afd,status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,hvem,sprog,udskriv_til,mail_subj,mail_text,dokument,procenttillag ";
 				$qtxt .= "from ordrer where id = '$ordre_id[$o]'";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($q);
@@ -1898,8 +1900,12 @@ if (!function_exists('formularprint')) {
 									}
 								}
 								if ($rvnr) {
-									if ($varenr[$x] == $rabatvarenr)
-										list($pris[$x]) = explode("|", $row['lev_varenr']);
+									if ($varenr[$x] == $rabatvarenr) {
+										$setPrice = explode('|', (string)$row['lev_varenr'])[0];
+										if (is_numeric($setPrice)) {
+											$pris[$x] = (float)$setPrice;
+										}
+									}
 									$rabat[$x] = 0;
 									$linjesum[$x] = ($pris[$x] - $rabat[$x]) * $antal[$x];
 								}
