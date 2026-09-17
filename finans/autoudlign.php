@@ -39,6 +39,7 @@
 //                  invoice scoring mirrors the client, amount search is a
 //                  prefix match on the absolute amount.
 // 20260908 CDX/LH Require an account before matching and validate selected open posts on save.
+// 20260911 Sawaneh Show the order payment ID as a column in the open post list again.
 
 ob_start();
 @session_start();
@@ -769,7 +770,7 @@ print "</tbody></table></td></tr></tbody></table>";
           class="search-input"
           type="text"
           id="searchInput"
-          placeholder="Search by invoice no., name, account no. …"
+          placeholder="Search by invoice no., payment ID, name, account no. …"
           autocomplete="off"
           autofocus
         >
@@ -785,12 +786,13 @@ print "</tbody></table></td></tr></tbody></table>";
               <th>Account</th>
               <th>Company name</th>
               <th>Invoice no.</th>
+              <th>Payment ID</th>
               <th>Date</th>
               <th class="r">Amount</th>
             </tr>
           </thead>
           <tbody id="candidateBody">
-            <tr><td colspan="6"><div class="state-msg loading">Loading…</div></td></tr>
+            <tr><td colspan="7"><div class="state-msg loading">Loading…</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -978,7 +980,7 @@ print "</tbody></table></td></tr></tbody></table>";
     setLoading();
     if (!accountSelect.value) {
       candidates = [];
-      candidateBody.innerHTML = '<tr><td colspan="6"><div class="state-msg">Choose a customer or supplier to see their open entries.</div></td></tr>';
+      candidateBody.innerHTML = '<tr><td colspan="7"><div class="state-msg">Choose a customer or supplier to see their open entries.</div></td></tr>';
       return;
     }
     fetch(getSearchUrl(search, page))
@@ -995,7 +997,7 @@ print "</tbody></table></td></tr></tbody></table>";
       })
       .catch(() => {
         if (seq !== fetchSeq) return;
-        candidateBody.innerHTML = '<tr><td colspan="6"><div class="state-msg">Error loading results. Please try again.</div></td></tr>';
+        candidateBody.innerHTML = '<tr><td colspan="7"><div class="state-msg">Error loading results. Please try again.</div></td></tr>';
       });
   }
 
@@ -1017,7 +1019,7 @@ print "</tbody></table></td></tr></tbody></table>";
   /* ── Render table ───────────────────────────────────────── */
   function render(search) {
     if (candidates.length === 0) {
-      candidateBody.innerHTML = '<tr><td colspan="6">' +
+      candidateBody.innerHTML = '<tr><td colspan="7">' +
         '<div class="state-msg">No open entries match.</div></td></tr>';
       setSelected(-1);
       updatePagination();
@@ -1033,14 +1035,14 @@ print "</tbody></table></td></tr></tbody></table>";
     if (scored.length > 0) {
       if (unscored.length > 0) {
         // Label for top group only when there are two groups
-        html += `<tr class="group-divider-label"><td colspan="6">Best matches</td></tr>`;
+        html += `<tr class="group-divider-label"><td colspan="7">Best matches</td></tr>`;
       }
       html += scored.map((c, i) => candidateRow(c, i)).join('');
     }
 
     if (unscored.length > 0 && scored.length > 0) {
-      html += `<tr class="group-divider"><td colspan="6"></td></tr>`;
-      html += `<tr class="group-divider-label"><td colspan="6">Other open entries</td></tr>`;
+      html += `<tr class="group-divider"><td colspan="7"></td></tr>`;
+      html += `<tr class="group-divider-label"><td colspan="7">Other open entries</td></tr>`;
       html += unscored.map((c, i) => candidateRow(c, scored.length + i)).join('');
     } else if (unscored.length > 0) {
       html += unscored.map((c, i) => candidateRow(c, i)).join('');
@@ -1072,6 +1074,7 @@ print "</tbody></table></td></tr></tbody></table>";
       <td class="mono">${esc(c.kontonr)}${signalBadges(c._signals)}</td>  <!-- add badges here -->
       <td>${esc(c.firmanavn)}</td>
       <td class="mono">${esc(c.faktnr)}</td>
+      <td class="mono">${esc(c.betalings_id || '')}</td>
       <td class="mono">${fmtDate(c.transdate)}</td>
       <td class="r mono">${fmtNum(c.amount)}</td>
     </tr>`;
@@ -1183,7 +1186,7 @@ print "</tbody></table></td></tr></tbody></table>";
   /* ── Loading state ───────────────────────────────────────── */
   function setLoading() {
     candidateBody.innerHTML =
-      '<tr><td colspan="6"><div class="state-msg loading">Searching…</div></td></tr>';
+      '<tr><td colspan="7"><div class="state-msg loading">Searching…</div></td></tr>';
     paginationBar.style.display = 'none';
     setSelected(-1);
     matchHint.textContent = '';

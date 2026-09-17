@@ -79,6 +79,10 @@
 // 20260908 CL/NTR Added is_input_too_long(): character-count (mb_strlen) limit check shared by every
 //                  place that creates or renames a username (80) or account name (60), matching login.php
 // 20260908 CDX/LH Let order-number allocation retain a caller-owned transaction (SST-765).
+// 20260911 Sawaneh Added strip_placeholder_value() / strip_placeholder_sql_literals(): blank the
+//                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
+// 20260914 CL/NTR barcode(): no horizontal padding in the SVG so the bars span the full 285 px
+//                  (vertical padding kept at 2 px) as we want to control padding in the print.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -259,6 +263,48 @@ if (!function_exists('if_isset')) {
          */
 		return ifset($arrayOrVar, $key, $default);
     }
+}
+
+if (!function_exists('integration_placeholder_values')) {
+	/**
+	 * Literal placeholder strings some integrations send for fields the shop
+	 * customer left empty. Saldi must never store them (JOB-115).
+	 *
+	 * @return string[] lowercase placeholders
+	 */
+	function integration_placeholder_values() {
+		return array('dummyvalue');
+	}
+}
+
+if (!function_exists('strip_placeholder_value')) {
+	/**
+	 * Returns '' when the value is a known integration placeholder such as
+	 * "dummyvalue" (trimmed, case-insensitive); otherwise the value untouched.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	function strip_placeholder_value($value) {
+		if (is_string($value) && in_array(strtolower(trim($value)), integration_placeholder_values(), true)) {
+			return '';
+		}
+		return $value;
+	}
+}
+
+if (!function_exists('strip_placeholder_sql_literals')) {
+	/**
+	 * Blanks quoted placeholder literals ('dummyvalue') inside a raw SQL
+	 * fragment supplied by a client, for the generic SOAP insert/update facade.
+	 *
+	 * @param string $sql
+	 * @return string
+	 */
+	function strip_placeholder_sql_literals($sql) {
+		$pattern = "/'\\s*(" . implode('|', array_map('preg_quote', integration_placeholder_values())) . ")\\s*'/i";
+		return preg_replace($pattern, "''", $sql);
+	}
 }
 
 if (!function_exists('usdate')) {
@@ -2491,6 +2537,7 @@ if (!function_exists('barcode')) {
 				'w'  => 285,
 				'h'  => 32,
 				'p'  => 2,
+				'ph' => 0,
 				'th' => 0,
 				'ts' => 0,
 				'bc' => '',
