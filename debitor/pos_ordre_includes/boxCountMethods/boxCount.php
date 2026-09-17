@@ -196,7 +196,7 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	$countInv    = findtekst('2395|Optalt beholdning',$sprog_id);
 	$diff        = findtekst('2396|Difference',$sprog_id);
 	$fromBox     = findtekst('2397|Udtag fra kasse',$sprog_id);
-	$history     = findtekst('5153|Tidligere optællinger',$sprog_id);
+	$history     = findtekst('5240|Tidligere optællinger',$sprog_id);
 
 	print "<tr><td align=\"center\" colspan=\"3\">";
 	print "<span onclick='window.open(\"http://$printserver/saldiprint.php?skuffe=1\")'>";
