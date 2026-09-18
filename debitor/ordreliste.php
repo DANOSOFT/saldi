@@ -60,6 +60,10 @@
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
 // 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
+// 20260917 CL/LH Lagerstatus: centrale farvekonstanter, status-ikoner og fremhævet
+//                 forklaring i popup'en, restordrer vises også, Vis lagerstatus/Tilbage
+//                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
+//                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
 
 @session_start();
 $s_id = session_id();
@@ -114,6 +118,12 @@ function ordreliste_safe_output($value) {
     return htmlspecialchars($value);
 }
 
+// Lagerstatus colors
+define('LS_IN_STOCK', '#B5DDB7');       // In stock, not yet delivered
+define('LS_ITEMS_ORDERED', '#F2DFA0');  // Low stock, but a purchase order covers the shortage
+define('LS_OUT_OF_STOCK', '#E8A0A0');   // Out of stock
+define('LS_SEND_ORDER', '#DDB0DD');     // Needs a send order / all delivered
+
 /**
  * Returns color + tooltip line data for an order, with static per-request cache.
  * Both the rowStyle callback and the tooltip render callback share this result,
@@ -128,7 +138,7 @@ function get_order_lagerstatus_cache($ordre_id, $ls_vgr, $preseed = null) {
     }
     if (isset($cache[$ordre_id])) return $cache[$ordre_id];
 
-    $result = ['color' => '#FF33FF', 'lines' => []];
+    $result = ['color' => LS_SEND_ORDER, 'lines' => []];
     $linjebg = null;
 
     $q = db_select(
@@ -153,22 +163,24 @@ function get_order_lagerstatus_cache($ordre_id, $ls_vgr, $preseed = null) {
         $tmp         = find_beholdning($r['vare_id'], NULL);
 
         if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
-            $linjefarve = '#FFFF66';
+            $linjefarve = LS_ITEMS_ORDERED;
         } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-            $linjefarve = '#FF4D4D';
+            $linjefarve = LS_OUT_OF_STOCK;
         } elseif ($antal != $leveret) {
-            $linjefarve = '#66FF66';
+            $linjefarve = LS_IN_STOCK;
         } else {
-            $linjefarve = '#FF33FF';
+            $linjefarve = LS_SEND_ORDER;
         }
 
         // Row color priority: red > yellow > green > magenta
-        if ($linjefarve === '#FF4D4D') {
-            $linjebg = '#FF4D4D';
-        } elseif ($linjefarve === '#FFFF66' && $linjebg !== '#FF4D4D') {
-            if ($linjebg === null || $linjebg === '#66FF66') $linjebg = '#FFFF66';
-        } elseif ($linjefarve === '#66FF66' && $linjebg === null) {
-            $linjebg = '#66FF66';
+        if ($linjefarve === LS_OUT_OF_STOCK) {
+            $linjebg = LS_OUT_OF_STOCK;
+        } elseif ($linjefarve === LS_ITEMS_ORDERED && $linjebg !== LS_OUT_OF_STOCK) {
+            if ($linjebg === null || $linjebg === LS_IN_STOCK) {
+                $linjebg = LS_ITEMS_ORDERED;
+            }
+        } elseif ($linjefarve === LS_IN_STOCK && $linjebg === null) {
+            $linjebg = LS_IN_STOCK;
         }
 
         $result['lines'][] = [
@@ -181,7 +193,7 @@ function get_order_lagerstatus_cache($ordre_id, $ls_vgr, $preseed = null) {
         ];
     }
 
-    $result['color'] = $linjebg ?: '#FF33FF';
+    $result['color'] = $linjebg ?: LS_SEND_ORDER;
     $cache[$ordre_id] = $result;
     return $result;
 }
@@ -792,30 +804,47 @@ $custom_columns = array(
             }
 
             // vis_lagerstatus: wrap display in overlib span with stock details tooltip
-            if ($vis_lagerstatus && $row['art'] != 'DK' && $row['restordre'] != '1') {
+            // Restordrer are included too - their stock details are just as relevant.
+            $lagerstatus_tooltip = false;
+            if ($vis_lagerstatus && $row['art'] != 'DK') {
                 $id = $row['id'];
                 $cached_ls = get_order_lagerstatus_cache($id, $ls_vgr);
+                $overall_bg = $cached_ls['color'];
                 $spantxt = "<table><tbody>";
                 $spantxt .= "<tr><td>Varenr</td><td>" . findtekst('948|Beholdning', $sprog_id) . "</td><td>" . findtekst('916|Antal', $sprog_id) . "</td><td>" . findtekst('1190|Leveret', $sprog_id) . "</td><td>" . findtekst('1428|Bestilt', $sprog_id) . "</td><td>" . findtekst('1429|Reserveret', $sprog_id) . "</td><td>" . findtekst('1430|I bestilling', $sprog_id) . "</td><td>" . findtekst('976|Disponibel', $sprog_id) . "</td></tr>";
                 foreach ($cached_ls['lines'] as $line) {
                     $spanbg = $line['linjefarve'];
-                    if ($spanbg != '#FF33FF' && $spanbg != '#66FF66') {
+                    if ($spanbg != LS_SEND_ORDER && $spanbg != LS_IN_STOCK) {
                         $tmp_ls = $line['tmp'];
                         $spantxt .= "<tr bgcolor=$spanbg><td>{$line['varenr']}</td><td align=right>" . dkdecimal($line['beholdning'] * 1, 0) . "</td>";
                         $spantxt .= "<td align=right>" . dkdecimal($line['antal'] * 1, 0) . "</td><td align=right>" . dkdecimal($line['leveret'] * 1, 0) . "</td>";
                         $spantxt .= "<td align=right>$tmp_ls[1]</td><td align=right>$tmp_ls[2]</td><td align=right>$tmp_ls[3]</td><td align=right>$tmp_ls[4]</td></tr>";
                     }
                 }
+                $icon_map = array(
+                    LS_IN_STOCK => '../ikoner/in-stock.svg',
+                    LS_ITEMS_ORDERED => '../ikoner/item-pending.svg',
+                    LS_OUT_OF_STOCK => '../ikoner/no-stock.svg',
+                    LS_SEND_ORDER => '../ikoner/send-order.svg',
+                );
+                if (isset($icon_map[$overall_bg])) {
+                    $display .= "<img src='{$icon_map[$overall_bg]}' style='width:20px;height:20px;vertical-align:middle;margin-left:4px;'>";
+                }
+                // Highlight the legend row matching this order's overall status
                 $spantxt .= "<tr><td colspan=100><hr></td></tr>";
-                $spantxt .= "<tr><td>Magenta</td><td colspan=7>" . findtekst('2403|Alt leveret', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Grøn</td><td colspan=7>" . findtekst('1431|På lager', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Gul</td><td colspan=7>" . findtekst('1432|Delvist på lager', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Rød</td><td colspan=7>" . findtekst('1433|Ikke på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_OUT_OF_STOCK  ? " bgcolor=" . LS_OUT_OF_STOCK  : "") . "><td>Rød</td><td colspan=7>"     . findtekst('1433|Ikke på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_ITEMS_ORDERED ? " bgcolor=" . LS_ITEMS_ORDERED : "") . "><td>Gul</td><td colspan=7>"     . findtekst('1432|Delvist på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_IN_STOCK      ? " bgcolor=" . LS_IN_STOCK      : "") . "><td>Grøn</td><td colspan=7>"    . findtekst('1431|På lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_SEND_ORDER    ? " bgcolor=" . LS_SEND_ORDER    : "") . "><td>Magenta</td><td colspan=7>" . findtekst('1425|Alt leveret', $sprog_id) . "</td></tr>";
                 $spantxt .= "</tbody></table>";
                 $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
+                $lagerstatus_tooltip = true;
             }
             
-            return "<td align='{$column['align']}' style='$style' title='$title'><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
+            // The native title tooltip suppresses the lagerstatus overlib popup, so it is
+            // only dropped on the cells that actually carry that popup.
+            $td_title = $lagerstatus_tooltip ? "" : " title='$title'";
+            return "<td align='{$column['align']}' style='$style'$td_title><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
         }
     ),
     
@@ -1870,20 +1899,22 @@ $data = array(
                 $is_lagerfrt = in_array($r['gruppe'], $ls_vgr);
                 $tmp         = find_beholdning($r['vare_id'], NULL); // O(1) — Tier-1 cache
                 if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
-                    $linjefarve = '#FFFF66';
+                    $linjefarve = LS_ITEMS_ORDERED;
                 } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-                    $linjefarve = '#FF4D4D';
+                    $linjefarve = LS_OUT_OF_STOCK;
                 } elseif ($antal != $leveret) {
-                    $linjefarve = '#66FF66';
+                    $linjefarve = LS_IN_STOCK;
                 } else {
-                    $linjefarve = '#FF33FF';
+                    $linjefarve = LS_SEND_ORDER;
                 }
-                if ($linjefarve === '#FF4D4D') {
-                    $linjebg = '#FF4D4D';
-                } elseif ($linjefarve === '#FFFF66' && $linjebg !== '#FF4D4D') {
-                    if ($linjebg === null || $linjebg === '#66FF66') $linjebg = '#FFFF66';
-                } elseif ($linjefarve === '#66FF66' && $linjebg === null) {
-                    $linjebg = '#66FF66';
+                if ($linjefarve === LS_OUT_OF_STOCK) {
+                    $linjebg = LS_OUT_OF_STOCK;
+                } elseif ($linjefarve === LS_ITEMS_ORDERED && $linjebg !== LS_OUT_OF_STOCK) {
+                    if ($linjebg === null || $linjebg === LS_IN_STOCK) {
+                        $linjebg = LS_ITEMS_ORDERED;
+                    }
+                } elseif ($linjefarve === LS_IN_STOCK && $linjebg === null) {
+                    $linjebg = LS_IN_STOCK;
                 }
                 $result_lines[] = [
                     'varenr'     => $r['varenr'],
@@ -1895,7 +1926,7 @@ $data = array(
                 ];
             }
             get_order_lagerstatus_cache($ordre_id, $ls_vgr, [
-                'color' => $linjebg ?: '#FF33FF',
+                'color' => $linjebg ?: LS_SEND_ORDER,
                 'lines' => $result_lines,
             ]);
         }
@@ -2622,8 +2653,13 @@ print "<div id='top-control-bar'>";
 print "<div id='left-controls' >";
 
 if ($valg == "ordrer" && !$vis_lagerstatus) {
-    print "<a href='ordreliste.php?vis_lagerstatus=on&valg=$valg'>"
-          . findtekst('810|Vis lagerstatus', $sprog_id) . "</a> | ";
+    print "<button type='button' class='button blue small' style='cursor: pointer' onclick=\"location.href='ordreliste.php?vis_lagerstatus=on&valg=$valg'\">"
+          . findtekst('810|Vis lagerstatus', $sprog_id) . "</button>  ";
+}
+
+if ($valg == "ordrer" && $vis_lagerstatus) {
+    print "<button type='button' class='button blue small' style='cursor: pointer' onclick=\"location.href='ordreliste.php?valg=$valg'\">"
+          . findtekst('30|Tilbage', $sprog_id) . "</button>  ";
 }
 
 if ($valg == "ordrer") {
