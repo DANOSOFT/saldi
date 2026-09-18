@@ -1,4 +1,6 @@
 <?php
+// 20260914 CDX/LH Expose metadata versions and manual acceptance for document-pool editing.
+require_once __DIR__ . '/docsIncludes/poolMetadata.php';
 // Start output buffering FIRST to capture any output from includes
 ob_start();
 
@@ -44,7 +46,7 @@ $data = [];
 $fil_nr = 0;
 
 // Query all files from the pool_files table (database is the source of truth)
-$qtxt = "SELECT filename, subject, account, amount, file_date, invoice_number, description, currency
+$qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency, updated, manually_edited
          FROM pool_files ORDER BY file_date DESC, updated DESC";
 $result = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
@@ -54,7 +56,7 @@ while ($row = db_fetch_array($result)) {
     
     $subject = $row['subject'] ?: $base;
     $account = $row['account'] ?: '';
-    $amount = $row['amount'] ?: '';
+    $amount = $row['amount'] ?? '';
     $modDate = $row['file_date'] ?: '';
     $invoiceNumber = $row['invoice_number'] ?: '';
     $description = $row['description'] ?: '';
@@ -78,6 +80,8 @@ while ($row = db_fetch_array($result)) {
         'description' => $description,
         'currency' => $currency,
         'fil_nr' => $fil_nr,
+        'version' => poolMetadataVersion($row),
+        'manuallyEdited' => poolMetadataIsManual($row),
     ];
 }
 
