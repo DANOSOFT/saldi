@@ -2866,16 +2866,37 @@ if ($kladde_id) {
 		if (!empty($GLOBALS['kk_new_line_ids'])) {
 			$kk_new_last = "CASE WHEN id IN (" . implode(',', array_map('intval', $GLOBALS['kk_new_line_ids'])) . ") THEN 1 ELSE 0 END, ";
 		}
+		// The render that follows a save keeps the order the user was looking at, so nothing moves under
+		// them while they check what they changed - an edited amount would otherwise jump to its new place
+		// in the active sort, which is exactly the "where did it go?" the report is about. The submitted
+		// rows carry the on-screen order in their id[] hidden fields; anything not in that list (a line
+		// this save created) is NULL here and sorts last, where the user typed it. The sort itself is
+		// untouched and applies again on the next load.
+		$kk_post_order = '';
+		if (strstr((string) $submit, 'save') && !empty($_POST['id']) && is_array($_POST['id'])) {
+			$kk_order_ids = array();
+			foreach ($_POST['id'] as $kkPostedId) {
+				if ($kkPostedId !== '' && $kkPostedId !== NULL) $kk_order_ids[] = (int) $kkPostedId;
+			}
+			if ($kk_order_ids) {
+				if (!isset($GLOBALS['db_type']) || ($GLOBALS['db_type'] != 'mysql' && $GLOBALS['db_type'] != 'mysqli')) {
+					$kk_post_order = "array_position(ARRAY[" . implode(',', $kk_order_ids) . "]::int[], id), ";
+				} else {
+					// FIELD() answers 0 for a row that is not in the list, which would sort first.
+					$kk_post_order = "(FIELD(id, " . implode(',', $kk_order_ids) . ") = 0), FIELD(id, " . implode(',', $kk_order_ids) . "), ";
+				}
+			}
+		}
 		if ($kksort == 'pos') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'bilag,transdate') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'transdate,bilag') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last transdate $_dir, bilag $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order transdate $_dir, bilag $_dir, id $_dir";
 		} elseif ($kksort == 'amount') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} else {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		}
 	##################
 	}
