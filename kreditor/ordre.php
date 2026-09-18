@@ -68,6 +68,9 @@
 // 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup navigates here by GET, see accountLookup.php selectAccount) into the new order header. 
 //                 usdate('') returns today, so only convert values that were actually supplied.
 // 20260908 CDX/LH Lock creditor order status before saving, deleting or adding lines.
+// 20260914 CL/SZ Persist batch_due_date/batch_batch_no from the order-line form to
+//                ordrelinjer on save; they were read back and used at goods receipt
+//                but never written, so batches always saved blank (MB-36).
 
 @session_start();
 $s_id=session_id();
@@ -436,6 +439,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$serienr = if_isset($_POST, NULL, 'serienr');
 		$omvbet = if_isset($_POST, NULL, 'omvbet');
 		$omlev = if_isset($_POST, NULL, 'omlev');
+		$batch_due_date = ifset($_POST, 'batch_due_date', NULL);
+		$batch_batch_no = ifset($_POST, 'batch_batch_no', NULL);
 		$email = db_escape_string(trim(if_isset($_POST, NULL, 'email')));
 		$udskriv_til = trim(if_isset($_POST, NULL, 'udskriv_til'));
 		$mail_subj   = db_escape_string(if_isset($_POST,NULL,'mail_subj')); #20230105
@@ -868,10 +873,14 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if (! $tidl_lev[$x]) $tidl_lev[$x]=0;
 						if ($omvbet[$x]) $omvbet[$x]='on';
-					if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
-					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
+						$_batch_due_date_raw = ifset($batch_due_date, $x);
+						$_batch_batch_no_raw = ifset($batch_batch_no, $x);
+						$_batch_due_date = ($_batch_due_date_raw !== null && $_batch_due_date_raw !== '') ? "'" . db_escape_string($_batch_due_date_raw) . "'" : 'NULL';
+						$_batch_batch_no = ($_batch_batch_no_raw !== null && $_batch_batch_no_raw !== '') ? "'" . db_escape_string($_batch_batch_no_raw) . "'" : 'NULL';
+						if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
+						$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
-						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager' where id='$linje_id[$x]'";
+						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager', batch_due_date=$_batch_due_date, batch_batch_no=$_batch_batch_no where id='$linje_id[$x]'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {

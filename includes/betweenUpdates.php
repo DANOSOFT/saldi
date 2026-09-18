@@ -40,6 +40,9 @@
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
+// 20260917 SZ MB-36: backfill the batch_kob/varer/ordrelinjer FEFO columns that
+//                     opdat_4.2.php's version-exact-match gate never re-runs for
+//                     already-upgraded tenants (see comment near the bottom of this file).
 
 
 
@@ -619,6 +622,40 @@ if ($db_type == 'mysql' || $db_type == 'mysqli') {
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($pool_files_dedupe, __FILE__ . " linje " . __LINE__);
 	db_modify($pool_files_index, __FILE__ . " linje " . __LINE__);
+}
+
+// 20260917 SZ MB-36: opdat_4.2.php's opdat_4_2() only runs its whole body for a tenant whose
+// stored version is exactly at $b==2 in tjek4opdat.php's stepper - a tenant already past that
+// step (the common case for any live install) never runs it, so the FEFO/batch-expiry columns
+// it adds (batch_kob.due_date/batch_no, varer.has_due_date/default_shelf_life_days,
+// ordrelinjer.batch_due_date/batch_batch_no) can be permanently missing even though the
+// tenant's version implies the feature should be available. Same dead-gate class of bug as the
+// pool_files.norm_amount fix above; backfilled here unconditionally so the feature degrades to
+// "off" instead of silently failing partway through (e.g. ordre.php's save UPDATE referencing a
+// nonexistent ordrelinjer column).
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='batch_kob' AND column_name='due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_kob ADD COLUMN due_date DATE NULL", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='batch_kob' AND column_name='batch_no'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_kob ADD COLUMN batch_no VARCHAR(100) NULL", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' AND column_name='has_due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE varer ADD COLUMN has_due_date BOOLEAN DEFAULT FALSE", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' AND column_name='default_shelf_life_days'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE varer ADD COLUMN default_shelf_life_days INTEGER NULL", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' AND column_name='batch_due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE ordrelinjer ADD COLUMN batch_due_date DATE NULL", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' AND column_name='batch_batch_no'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE ordrelinjer ADD COLUMN batch_batch_no VARCHAR(100) NULL", __FILE__ . " linje " . __LINE__);
 }
 
 ?>
