@@ -30,6 +30,7 @@
 // 20260415 LOE  - Added Categories column with search functionality in vareliste. 
 // 20260908 CDX/LH Keep missing stock blank while preserving numeric stock search and sorting (SST-767).
 // 20260910 CDX/PHR Added optional purchased and sold quantity totals from the purchase/sales report sources.
+// 20260916 CDX/LH Sort DG by its selected alias so DISTINCT queries accept the expression.
 
 @session_start();
 $s_id = session_id();
@@ -411,11 +412,7 @@ $columns[] = array(
     "headerName" => "DG",
     "type" => "number",
     "align" => "right",
-    "sqlOverride" => "
-    ROUND(CASE 
-               WHEN v.salgspris = 0 THEN 0 
-               ELSE (v.salgspris - v.kostpris) / v.salgspris * 100 
-           END, 2)",
+    "sqlOverride" => "dg",
     "width" => "0.5",
     "valueGetter" => function ($value, $row, $column) {
         return dkdecimal($value, 1) . "%";

@@ -22,6 +22,7 @@ Regards:) 20260220 LOE
 // 20260817 Sawaneh Sort descending columns NULLS LAST, honor defaultSortDirection on
 //                  first header click and validate the request-sourced sort value.
 // 20260910 CDX/PHR Preserve a literal zero search in both row and count queries.
+// 20260916 CDX/LH Reject unknown or malformed sort fields before building grid SQL.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -778,7 +779,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
  * @return string The validated ORDER BY expression.
  */
 function apply_sort_sqlOverride($sort, $columns) {
-    if (!$sort || !is_array($columns)) return $sort;
+    if (!is_string($sort) || trim($sort) === '' || !is_array($columns)) return '1';
     $parts = preg_split('/\s+/', trim($sort), 2);
     $field = $parts[0];
     $dir   = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
@@ -797,7 +798,7 @@ function apply_sort_sqlOverride($sort, $columns) {
             }
         }
     }
-    if (!$sortColumn && !preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/', $field)) {
+    if (!$sortColumn || (isset($sortColumn['sortable']) && !$sortColumn['sortable'])) {
         return '1';
     }
     if ($sortColumn && !empty($sortColumn['sqlOverride'])) {
