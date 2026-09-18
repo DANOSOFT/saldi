@@ -120,6 +120,11 @@ require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 # could win.
 $kk_new_line_ids = array();
 
+/**
+ * Remember a line this request created, so the render can place it last and the focus can follow it.
+ * The id comes from the connection that did the insert (see the caller in opdater()) - never from
+ * MAX(id), which a concurrent insert in another session could win.
+ */
 function kk_note_new_line($id) {
 	global $kk_new_line_ids;
 	$id = (int) $id;
@@ -4116,6 +4121,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$prebilag = $bilag;
 	} # endfunc kontroller
 	######################################################################################################################################
+	/**
+	 * Apply every posted kladde row for this request: rows that carry an id are updated, rows that do
+	 * not are inserted at the position their bilag/transdate belong to (shifting the rows after them),
+	 * and a row whose bilag was set to "-" is deleted by kontroller() before this runs. Lines created
+	 * here are reported through kk_note_new_line() so the render can pin them last and move the focus
+	 * to the new blank line.
+	 */
 	function opdater($kladde_id)
 	{
 		global $baseCurrency,$egen_kto_id;
