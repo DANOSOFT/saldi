@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.06.15
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260717 Live-import reconciliation: most of production's pending betweenUpdates.php
 // content was already relocated into includes/opdat_4.3.php (see commit 74634e46); only the
@@ -40,8 +40,14 @@
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
+// 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
 
 
+
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='performed_by'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE ordrer ADD COLUMN performed_by TEXT", __FILE__ . " linje " . __LINE__);
+}
 
 // Bilagsmatch scoring engine: pool_files.amount is a free-form string ("1.234,56",
 // "1,234.56", etc). Add a real NUMERIC column so matching can join on it directly

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-28 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-09-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240201 PBLM - Made some adjustments to EasyUBL
@@ -132,6 +132,8 @@
 //                actually present on this request; otherwise leave the previously-written
 //                value alone.
 // 20260916 CDX/LH Preserve optional performer saves and translate the existing employee fields.
+// 20260918 CDX/PHR Preserve the previous reference when the order form omits ref.
+// 20260918 CDX/PHR Store Udført af in performed_by independently of the system field hvem.
 
 @session_start();
 $s_id = session_id();
@@ -149,7 +151,7 @@ $nextfakt = $notes = NULL;
 $oioxml = $oioubl = $ordrenr = NULL;
 $pbs = $phone = $prev_id = $pris[0] = $procenttillag = $procentvare = NULL;
 $qtext = NULL;
-$ref = $restordre = $hvem = $rvnr = NULL;
+$ref = $restordre = $performed_by = $rvnr = NULL;
 $sourceStatus = $status = $swap_account = NULL;
 $tdlv = NULL;
 $valgt = $varenr[0] = $valuta = $vis_lev_addr = $vis_projekt = NULL;
@@ -819,12 +821,12 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
-	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,hvem,";
+	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,performed_by,";
 	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
 	$qtxt .= "lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,procenttillag,omvbet)";
 	$qtxt .= " values ";
 	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
-	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $hvem) . "',";
+	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "',";
 	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
 	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -843,9 +845,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) $id = $row['id'];
 } elseif ($status < 3 && $id && $firmanavn) {
-	// if(!$hvem) $hvem = $brugernavn;
-	if(!$hvem) $hvem = "";
-	// 'hvem' (Performed by) is display-only and must not gate the order. Match on id only. #20260629
+	// The selected employee is independent of order ownership. Match on id only.
 	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		if (!$row['firmanavn']) { # <- 2009.05.13 Eller overskrives v. kontaktopslag.
@@ -1162,8 +1162,9 @@ if ($b_submit) {
 	($restordre) ? $restordre = "1" : $restordre = "0";
 	$omdan_t_fakt = if_isset($_POST, NULL, 'omdan_t_fakt');
 	$kreditnota   = if_isset($_POST, NULL, 'kreditnota');
-	$ref          = trim(if_isset($_POST, NULL, 'ref'));
-	$hvem         = isset($_POST['hvem']) && is_string($_POST['hvem']) ? $_POST['hvem'] : null;
+	// Older forms omit ref when no employees are available or the field is disabled.
+	$ref          = trim((string) ($_POST['ref'] ?? $_POST['oldRef'] ?? ''));
+	$performed_by = isset($_POST['performed_by']) && is_string($_POST['performed_by']) ? $_POST['performed_by'] : null;
 	$oldRef       = trim(if_isset($_POST, NULL, 'oldRef'));
 	$extAfd       = if_isset($_POST, NULL, 'extAfd');
 	$afd          = if_isset($_POST, NULL, 'afd');
@@ -1277,7 +1278,7 @@ if ($b_submit) {
 			$qtxt .= "notes,ordrenr,sum,momssats,status,ref,fakturanr,";
 			if ($r['modtagelse']) $qtxt .= "modtagelse,";
 			if ($r['kred_ord_id']) $qtxt .= "kred_ord_id,";
-			$qtxt .= "lev_adr,kostpris,moms,hvem,tidspkt,betalt,";
+			$qtxt .= "lev_adr,kostpris,moms,hvem,performed_by,tidspkt,betalt,";
 			if ($r['nextfakt']) $qtxt .= "nextfakt,";
 			$qtxt .= "pbs,afd,mail,mail_cc,mail_bcc,mail_subj,mail_text,";
 			$qtxt .= "felt_1,felt_2,felt_3,felt_4,felt_5,vis_lev_addr,restordre,sag_id,tilbudnr,datotid,nr,returside,sagsnr,betalings_id,mail_bilag,";
@@ -1305,7 +1306,7 @@ if ($b_submit) {
 			if ($r['modtagelse'])  $qtxt .= "'" . db_escape_string($r['modtagelse']) . "',";
 			if ($r['kred_ord_id']) $qtxt .= "'" . db_escape_string($r['kred_ord_id']) . "',";
 			$qtxt .= "'" . db_escape_string($r['lev_adr']) . "',";
-			$qtxt .= "'" . db_escape_string($r['kostpris']) . "','" . db_escape_string($r['moms']) . "','" . db_escape_string($r['hvem']) . "',";
+			$qtxt .= "'" . db_escape_string($r['kostpris']) . "','" . db_escape_string($r['moms']) . "','" . db_escape_string($r['hvem']) . "','" . db_escape_string((string) ifset($r, 'performed_by')) . "',";
 			$qtxt .= "'" . db_escape_string($r['tidspkt']) . "','" . db_escape_string($r['betalt']) . "',";
 			if ($r['nextfakt']) $qtxt .= "'" . db_escape_string($r['nextfakt']) . "',";
 			$qtxt .= "'" . db_escape_string($r['pbs']) . "','" . db_escape_string($r['afd'] * 1) . "',";
@@ -1800,14 +1801,14 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$qtxt .= "bynavn, land, kontakt, lev_navn, lev_addr1, lev_addr2, lev_postnr, ";
 		$qtxt .= "lev_bynavn, lev_kontakt, lev_land, lev_email, betalingsdage, betalingsbet, ";
 		$qtxt .= "cvrnr, ean, institution, email, mail_fakt, phone, notes, art, ordredate,";
-		$qtxt .= " momssats, status, ref,hvem, lev_adr, valuta, projekt, sprog, pbs, afd, restordre, ";
+		$qtxt .= " momssats, status, ref,performed_by, lev_adr, valuta, projekt, sprog, pbs, afd, restordre, ";
 		$qtxt .= "felt_1, felt_2, felt_3, felt_4, felt_5, vis_lev_addr";
 		$qtxt .= ") VALUES (";
 		$qtxt .= "'$ordrenr', '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', ";
 		$qtxt .= "'$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', ";
 		$qtxt .= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', ";
 		$qtxt .= "'$cvrnr', '$ean', '$institution', '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', ";
-		$qtxt .= "'$momssats', $status, '" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $hvem) . "', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
+		$qtxt .= "'$momssats', $status, '" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
 		$qtxt .= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -2385,7 +2386,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 
 		if ($id) {
 			$timestamp = $who = NULL;
-			// 'hvem' (Performed by) is display-only and must NOT lock the order; concurrent-edit
+			// The selected employee must not lock the order; concurrent-edit
 			// locking is handled by the ref-based lock when the order is opened. #20260629
 			if ($tidspkt && $who) {
 				if ($tidspkt - $timestamp < 3600 && $who) {
@@ -2396,10 +2397,10 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			} else {
 				$tmp = "";
 				// A missing field preserves the stored name; an explicit blank clears it.
-				if ($hvem === null) {
+				if ($performed_by === null) {
 					$orderId = intval($id);
-					$r = db_fetch_array(db_select("select hvem from ordrer where id = '$orderId'", __FILE__ . " linje " . __LINE__));
-					$hvem = $r['hvem'] ?? '';
+					$r = db_fetch_array(db_select("select performed_by from ordrer where id = '$orderId'", __FILE__ . " linje " . __LINE__));
+					$performed_by = $r['performed_by'] ?? '';
 				}
 				if (strlen($levdate) > 6) $tmp = ",levdate='$levdate'";
 				if (strlen($fakturadate) > 6) $tmp = $tmp . ",fakturadate='$fakturadate'";
@@ -2415,7 +2416,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='$mail_fakt',";
 				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='" . db_escape_string($notes) . "', ";
 				$qtxt .= "ordredate='$ordredate',status='$status',ref='" . db_escape_string((string) $ref) . "',";
-				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',hvem='" . db_escape_string((string) $hvem) . "',tidspkt='$tidspkt',projekt='$projekt[0]',";
+				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',performed_by='" . db_escape_string((string) $performed_by) . "',tidspkt='$tidspkt',projekt='$projekt[0]',";
 				$qtxt .= "sprog='$formularsprog',pbs='$pbs',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
 				$qtxt .= "where id=$id";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -2594,12 +2595,12 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$qtxt = "insert into ordrer";
 		$qtxt .= "(ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,";
 		$qtxt .= "lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,lev_email,lev_land,betalingsdage,betalingsbet,cvrnr,ean,institution,";
-		$qtxt .= "email,mail_fakt,phone,notes,art,ordredate,momssats,status,ref,hvem,lev_adr,valuta,projekt,sprog,";
+		$qtxt .= "email,mail_fakt,phone,notes,art,ordredate,momssats,status,ref,performed_by,lev_adr,valuta,projekt,sprog,";
 		$qtxt .= "pbs,afd,restordre,procenttillag,sag_id,sagsnr,tilbudnr,datotid,nr,returside,omvbet,felt_1,felt_2,felt_3,felt_4,felt_5)";
 		$qtxt .= " values ";
 		$qtxt .= "($ordrenr,'$konto_id','$kontonr','$kundeordnr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt',";
 		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','$betalingsdage','$betalingsbet',";
-		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $hvem) . "','$lev_adr',";
+		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "','$lev_adr',";
 		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs',".($afd==""?"NULL":"'$afd'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'$datotid',";
 		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','$omkunde',";
 		($art == 'PO') ? $qtxt .= "'','','','','')" : $qtxt .= "'$felt_1','$felt_2','$felt_3','$felt_4','$felt_5')"; #20191004
@@ -3103,7 +3104,7 @@ if ($b_submit == 'del_ordre') {
 	$r = db_fetch_array(db_select("select * from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__)); #20210312
 	$qtxt = "insert into ordrer ";
 	$qtxt .= "(ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,kundeordnr,";
-	$qtxt .= "betalingsdage,betalingsbet,cvrnr,ean,institution,notes,art,ordredate,momssats,tidspkt,ref,hvem,status,";
+	$qtxt .= "betalingsdage,betalingsbet,cvrnr,ean,institution,notes,art,ordredate,momssats,tidspkt,ref,hvem,performed_by,status,";
 	$qtxt .= "lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,valuta,projekt,sprog,email,mail_fakt,";
 	$qtxt .= "phone,pbs,afd,restordre,omvbet,felt_1,felt_2,felt_3,felt_4,felt_5) ";
 	$qtxt .= "values ";
@@ -3114,7 +3115,7 @@ if ($b_submit == 'del_ordre') {
 	$qtxt .= "'" . db_escape_string($r['kundeordnr']) . "','$r[betalingsdage]','$r[betalingsbet]',";
 	$qtxt .= "'" . db_escape_string($r['cvrnr']) . "','" . db_escape_string($r['ean']) . "',";
 	$qtxt .= "'" . db_escape_string($r['institution']) . "','" . db_escape_string($r['notes']) . "','$r[art]',";
-	$qtxt .= "'$r[ordredate]','$r[momssats]','$r[tidspkt]','" . db_escape_string($r['ref']) . "','" . db_escape_string((string)$r['hvem']) . "','$r[status]',";
+	$qtxt .= "'$r[ordredate]','$r[momssats]','$r[tidspkt]','" . db_escape_string($r['ref']) . "','" . db_escape_string((string) $r['hvem']) . "','" . db_escape_string((string) ifset($r, 'performed_by')) . "','$r[status]',";
 	$qtxt .= "'" . db_escape_string($r['lev_navn']) . "','" . db_escape_string($r['lev_addr1']) . "',";
 	$qtxt .= "'" . db_escape_string($r['lev_addr2']) . "','" . db_escape_string($r['lev_postnr']) . "',";
 	$qtxt .= "'" . db_escape_string($r['lev_bynavn']) . "','" . db_escape_string($r['lev_kontakt']) . "',";
@@ -3432,7 +3433,7 @@ function ordreside($id, $regnskab)
 		$sum = if_isset($row, NULL, 'sum');
 		$moms = if_isset($row, NULL, 'moms');
 		$ref = trim(if_isset($row, NULL, 'ref'));
-		$hvem = if_isset($row, NULL, 'hvem');
+		$performed_by = ifset($row, 'performed_by');
 		$fakturanr = if_isset($row, NULL, 'fakturanr');
 		$lev_adr = if_isset($row, NULL, 'lev_adr');
 		$ordrenr = if_isset($row, NULL, 'ordrenr');
@@ -3914,7 +3915,7 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"incl_moms\" value=\"$incl_moms\">";
 		print "<input type=\"hidden\" name=\"procenttillag\" value=\"" . dkdecimal($procenttillag, 2) . "\">";
 		print "<input type=\"hidden\" name=\"ref\" value=\"$ref\">";
-		print "<input type=\"hidden\" name=\"hvem\" value=\"" . htmlspecialchars((string)$hvem, ENT_QUOTES, 'UTF-8') . "\">";
+		print "<input type=\"hidden\" name=\"performed_by\" value=\"" . htmlspecialchars((string) $performed_by, ENT_QUOTES, 'UTF-8') . "\">";
 		print "<input type=\"hidden\" name=\"fakturanr\" value=\"$fakturanr\">";
 		print "<input type=\"hidden\" name=\"lev_adr\" value=\"$lev_adr\">";
 		print "<input type=\"hidden\" name=\"valuta\" value=\"$valuta\">";
@@ -4082,7 +4083,7 @@ function ordreside($id, $regnskab)
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td>";
-		print "<td><b>" . findtekst('5231|Udført af', $sprog_id) . "</b></td><td>" . htmlspecialchars((string) $hvem, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
+		print "<td><b>" . findtekst('5231|Udført af', $sprog_id) . "</b></td><td>" . htmlspecialchars((string) $performed_by, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td><td>$fakturanr</td></tr>\n";
 		$tmp = dkdecimal($valutakurs, 2);
 		if ($valuta) print "<tr class='tableTexting2'><td><b>" . findtekst('552|Valuta / Kurs', $sprog_id) . "</b></td><td>$valuta / $tmp</td></tr>\n";
@@ -4696,7 +4697,7 @@ function ordreside($id, $regnskab)
 		if ($art == 'OT') { // Når input fields er 'disabled' bliver de ikke opdateret, derfor tilføjes hidden fields #20140716
 			print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">\n";
 			print "<input type=\"hidden\" name=\"ref\" value=\"$ref\">\n";
-			print "<input type=\"hidden\" name=\"hvem\" value=\"" . htmlspecialchars((string)$hvem, ENT_QUOTES, 'UTF-8') . "\">\n";
+			print "<input type=\"hidden\" name=\"performed_by\" value=\"" . htmlspecialchars((string) $performed_by, ENT_QUOTES, 'UTF-8') . "\">\n";
 			print "<input type=\"hidden\" name=\"procenttillag\" value=\"" . dkdecimal($procenttillag, 2) . "\">";
 
 			print "<input type=\"hidden\" name=\"felt_1\" style=\"width:200px\" value=\"$felt_1\">\n";
@@ -5158,7 +5159,7 @@ function ordreside($id, $regnskab)
 			}
 		}
 		include_once(__DIR__ . '/orderIncludes/renderEmployeeFields.php');
-		print renderOrderEmployeeFields($ansat, $ref, $hvem, findtekst(1097, $sprog_id), !empty($disabled), findtekst('5231|Udført af', $sprog_id));
+		print renderOrderEmployeeFields($ansat, $ref, $performed_by, findtekst(1097, $sprog_id), !empty($disabled), findtekst('5231|Udført af', $sprog_id));
 		$x = 0;
 		$afd_navn = array();
 		$afd_nr[$x] = array();
