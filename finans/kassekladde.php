@@ -112,17 +112,18 @@
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 
-# A line saved during this request is rendered last, whatever the list is sorted by, so the line the
+# A line created during this request is rendered last, whatever the list is sorted by, so the line the
 # user just typed stays where they are working instead of jumping to its sorted position (with
 # kksort=amount a line with amount 0 would otherwise lead the list). The pin lasts for this render
-# only - on the next load the line sits in its sorted place.
+# only - on the next load the line sits in its sorted place. The id is captured from the connection
+# that did the insert (see the caller), never inferred with MAX(id), which another session's insert
+# could win.
 $kk_new_line_ids = array();
 
-function kk_note_new_line($kladde_id) {
+function kk_note_new_line($id) {
 	global $kk_new_line_ids;
-	if (!$kladde_id) return;
-	$r = db_fetch_array(db_select("SELECT MAX(id) AS id FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
-	if ($r && $r['id']) $kk_new_line_ids[] = (int) $r['id'];
+	$id = (int) $id;
+	if ($id) $kk_new_line_ids[] = $id;
 }
 
 ob_start(); //Starter output buffering  
@@ -3309,17 +3310,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	$x++;
 	$belob = "";
-	# MB-41: a save that creates a line moves the focus to the new blank line, whatever field Enter
-	# was pressed in. A save that only updates an existing line leaves the focus where it was, so the
-	# change can be checked. The blank line is rendered after a creation (see the gate below), so the
-	# focus can never point at a field that does not exist - and the same $x < 3000 bound as the gate
-	# keeps that true on a kladde long enough for the blank line to be skipped.
+	# MB-41: a save that creates a line moves the focus to the new blank line, whatever field Enter was
+	# pressed in. A save that only updates an existing line leaves the focus where it was, so the change
+	# can be checked - there is deliberately no fallback advance here. The blank line is rendered after a
+	# creation (see the gate below), so the focus can never point at a field that does not exist - and the
+	# same $x < 3000 bound as the gate keeps that true on a kladde long enough for the blank line to be
+	# skipped.
 	if (strstr($submit, 'save') && !empty($GLOBALS['kk_new_line_ids']) && $x < 3000) {
 		$fokus = 'bila' . $x;
-	} elseif ($fokus && strstr($submit, 'save') && preg_match('/^[a-z_]+(\d+)$/', $fokus, $fm)) {
-		$tmp = (int) $fm[1] + 1;
-		if ($tmp <= $x && !isset($debet[$tmp]) && !isset($kredit[$tmp]))
-			$fokus = 'bila' . $tmp;
 	}
 	print "</tr>\n";
 
@@ -4243,7 +4241,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 					if ($qtxt) {
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-						kk_note_new_line($kladde_id);
+						# Only an insert creates a row to pin and to move the focus to; an update must leave
+						# the caret where the user was. The generated id comes from this connection, so a
+						# concurrent insert in another session cannot be picked up instead.
+						if (stripos(trim($qtxt), 'insert') === 0) {
+							# currval() needs a sequence, so it is Postgres only - on a MySQL install the
+							# query would only fill the error log, and the pin and focus would simply not
+							# fire (the guards below skip it), never break the save.
+							if (!isset($GLOBALS['db_type']) || ($GLOBALS['db_type'] != 'mysql' && $GLOBALS['db_type'] != 'mysqli')) {
+								$kkIdRow = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kassekladde', 'id')) AS id", __FILE__ . " linje " . __LINE__));
+								if (isset($kkIdRow['id'])) kk_note_new_line($kkIdRow['id']);
+							}
+							unset($kkIdRow);
+						}
 					}
 				}
 			}
