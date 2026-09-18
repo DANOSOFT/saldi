@@ -860,6 +860,90 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+
+  /debitor/external-paid-invoices/:
+    post:
+      tags:
+        - External Paid Invoices
+      summary: Import one externally paid Stripe invoice as a posted and settled debtor invoice
+      description: |
+        Imports one Stripe-paid invoice atomically and idempotently.
+        The endpoint only accepts DKK invoices, rejects EAN/OIOUBL data, requires exact ore reconciliation,
+        and returns the existing posted result when the same externalInvoiceId and payloadHash are replayed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalPaidInvoiceImportRequest'
+            examples:
+              stripe_paid_invoice:
+                summary: Stripe paid invoice import
+                value:
+                  externalInvoiceId: in_1Qwerty123456789
+                  payloadHash: 4f7a1b6a9d8c2e1f
+                  invoiceDate: '2026-07-15'
+                  currency: DKK
+                  totals:
+                    netOre: 100000
+                    vatOre: 25000
+                    grossOre: 125000
+                  customer:
+                    companyName: ACME ApS
+                    contactName: Jane Doe
+                    address1: Main Street 123
+                    address2: Suite 4
+                    postalCode: '2100'
+                    city: Copenhagen
+                    country: Denmark
+                    cvr: '12345678'
+                    email: billing@acme.example
+                    phone: '+4511223344'
+                    groupCode: 1
+                  lines:
+                    - sku: STRIPE-SERVICE
+                      description: Consulting July 2026
+                      quantity: '2'
+                      netOre: 80000
+                      vatOre: 20000
+                      grossOre: 100000
+                    - sku: STRIPE-SUPPORT
+                      description: Support retainer
+                      quantity: '1'
+                      netOre: 20000
+                      vatOre: 5000
+                      grossOre: 25000
+      responses:
+        '200':
+          description: The same externalInvoiceId and payloadHash was already imported; existing posted result returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalPaidInvoiceImportResponse'
+        '201':
+          description: Invoice imported, delivered and posted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalPaidInvoiceImportResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: externalInvoiceId already exists with a different payloadHash or conflicting legacy state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation or accounting prerequisite failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   # Order Lines - Debitor
   /debitor/orderlines/:
     get:
@@ -3500,36 +3584,36 @@ components:
         - `vatRate` (or `momssats`) - VAT rate
         
         **Common fields:**
-        - `accountId` → `konto_id`
-        - `companyName` → `firmanavn`
-        - `phone` → `telefon`
-        - `vatRate` → `momssats`
-        - `orderNumber` → `ordrenr`
-        - `orderDate` → `ordredate`
-        - `invoiceDate` → `fakturadate`
-        - `paid` → `betalt`
-        - `costPrice` → `kostpris`
-        - `vat` → `moms`
-        - `currency` → `valuta`
-        - `currencyRate` → `valutakurs`
-        - `paymentTerms` → `betalingsbet`
-        - `paymentDays` → `betalingsdage`
-        - `accountNumber` → `kontonr`
-        - `reference` → `ref`
-        - `type` → `art`
-        - `address1` → `addr1`
-        - `address2` → `addr2`
-        - `postalCode` → `postnr`
-        - `city` → `bynavn`
-        - `country` → `land`
-        - `deliveryName` → `lev_navn`
-        - `deliveryAddress1` → `lev_addr1`
-        - `deliveryAddress2` → `lev_addr2`
-        - `deliveryPostalCode` → `lev_postnr`
-        - `deliveryCity` → `lev_bynavn`
-        - `deliveryCountry` → `lev_land`
-        - `cvrNo` → `cvrnr`
-        - `customerGroup` → `kundegruppe`
+        - `accountId` Ã¢â€ â€™ `konto_id`
+        - `companyName` Ã¢â€ â€™ `firmanavn`
+        - `phone` Ã¢â€ â€™ `telefon`
+        - `vatRate` Ã¢â€ â€™ `momssats`
+        - `orderNumber` Ã¢â€ â€™ `ordrenr`
+        - `orderDate` Ã¢â€ â€™ `ordredate`
+        - `invoiceDate` Ã¢â€ â€™ `fakturadate`
+        - `paid` Ã¢â€ â€™ `betalt`
+        - `costPrice` Ã¢â€ â€™ `kostpris`
+        - `vat` Ã¢â€ â€™ `moms`
+        - `currency` Ã¢â€ â€™ `valuta`
+        - `currencyRate` Ã¢â€ â€™ `valutakurs`
+        - `paymentTerms` Ã¢â€ â€™ `betalingsbet`
+        - `paymentDays` Ã¢â€ â€™ `betalingsdage`
+        - `accountNumber` Ã¢â€ â€™ `kontonr`
+        - `reference` Ã¢â€ â€™ `ref`
+        - `type` Ã¢â€ â€™ `art`
+        - `address1` Ã¢â€ â€™ `addr1`
+        - `address2` Ã¢â€ â€™ `addr2`
+        - `postalCode` Ã¢â€ â€™ `postnr`
+        - `city` Ã¢â€ â€™ `bynavn`
+        - `country` Ã¢â€ â€™ `land`
+        - `deliveryName` Ã¢â€ â€™ `lev_navn`
+        - `deliveryAddress1` Ã¢â€ â€™ `lev_addr1`
+        - `deliveryAddress2` Ã¢â€ â€™ `lev_addr2`
+        - `deliveryPostalCode` Ã¢â€ â€™ `lev_postnr`
+        - `deliveryCity` Ã¢â€ â€™ `lev_bynavn`
+        - `deliveryCountry` Ã¢â€ â€™ `lev_land`
+        - `cvrNo` Ã¢â€ â€™ `cvrnr`
+        - `customerGroup` Ã¢â€ â€™ `kundegruppe`
       properties:
         # Customer identification (either accountId OR customer details required)
         accountId:
@@ -5845,6 +5929,179 @@ components:
           description: Response data
 
 
+
+    ExternalPaidInvoiceImportRequest:
+      type: object
+      required:
+        - externalInvoiceId
+        - payloadHash
+        - invoiceDate
+        - currency
+        - totals
+        - customer
+        - lines
+      properties:
+        externalInvoiceId:
+          type: string
+          example: in_1Qwerty123456789
+        payloadHash:
+          type: string
+          example: 4f7a1b6a9d8c2e1f
+        invoiceDate:
+          type: string
+          format: date
+        currency:
+          type: string
+          enum: [DKK]
+        totals:
+          $ref: '#/components/schemas/ExternalPaidInvoiceTotals'
+        customer:
+          $ref: '#/components/schemas/ExternalPaidInvoiceCustomer'
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ExternalPaidInvoiceRequestLine'
+
+    ExternalPaidInvoiceTotals:
+      type: object
+      required:
+        - netOre
+        - vatOre
+        - grossOre
+      properties:
+        netOre:
+          type: integer
+          example: 100000
+        vatOre:
+          type: integer
+          example: 25000
+        grossOre:
+          type: integer
+          example: 125000
+
+    ExternalPaidInvoiceCustomer:
+      type: object
+      required:
+        - address1
+        - postalCode
+        - city
+        - country
+        - cvr
+        - groupCode
+      properties:
+        companyName:
+          type: string
+        contactName:
+          type: string
+        address1:
+          type: string
+        address2:
+          type: string
+        postalCode:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        cvr:
+          type: string
+          example: '12345678'
+        email:
+          type: string
+        phone:
+          type: string
+        groupCode:
+          type: integer
+          example: 1
+
+    ExternalPaidInvoiceRequestLine:
+      type: object
+      required:
+        - sku
+        - quantity
+        - netOre
+        - vatOre
+        - grossOre
+      properties:
+        sku:
+          type: string
+        description:
+          type: string
+        quantity:
+          oneOf:
+            - type: string
+            - type: number
+        netOre:
+          type: integer
+        vatOre:
+          type: integer
+        grossOre:
+          type: integer
+
+    ExternalPaidInvoiceLineSummary:
+      type: object
+      properties:
+        sku:
+          type: string
+        description:
+          type: string
+        quantity:
+          type: string
+        netOre:
+          type: integer
+        vatOre:
+          type: integer
+        grossOre:
+          type: integer
+
+    ExternalPaidInvoiceImportData:
+      type: object
+      properties:
+        idempotent:
+          type: boolean
+        orderId:
+          type: integer
+        invoiceId:
+          type: integer
+        invoiceNumber:
+          type: integer
+        externalInvoiceId:
+          type: string
+        status:
+          type: integer
+          example: 4
+        paid:
+          type: boolean
+          example: true
+        paidState:
+          type: string
+          example: settled
+        currency:
+          type: string
+          example: DKK
+        netOre:
+          type: integer
+        vatOre:
+          type: integer
+        grossOre:
+          type: integer
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalPaidInvoiceLineSummary'
+
+    ExternalPaidInvoiceImportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: External paid invoice imported successfully
+        data:
+          $ref: '#/components/schemas/ExternalPaidInvoiceImportData'
 tags:
   - name: Authentication
     description: Obtain and refresh JWT access tokens
@@ -5872,3 +6129,5 @@ tags:
     description: Operations for fiscal year information
   - name: Attachments
     description: Operations for file attachment management (upload, download, delete)
+  - name: External Paid Invoices
+    description: Import externally paid Stripe invoices as posted debtor invoices
