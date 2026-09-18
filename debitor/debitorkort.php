@@ -101,6 +101,8 @@
 // 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
 // 20260820 Sawaneh Save no longer rewrites kontakt_emails/adresser.email when the POST lacks the
 //                kontakt_email fields, so partial or stale submits cannot wipe stored email addresses
+// 20260903 LOE SD-525: the card's mobile field now has its own textId (5230) so it reads
+//                "Mobilnummer" without changing textId 378 used by the other cards.
 // 20260905 SZ MB-32: blank Customer no. popped a false "must be integers" alert under PHP 8 - (float)''
 //             compared to '' is now a string comparison ("0" != ""), true, where PHP 7 compared both as
 //             0. Skip the check when the field is blank, matching debitor/debkort_save.php's SD-513 fix
@@ -1852,7 +1854,7 @@ print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst('378|Mobil', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('5230|Mobilnummer', $sprog_id) . "<!--tekst 5230--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";
