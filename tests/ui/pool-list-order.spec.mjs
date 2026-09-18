@@ -86,7 +86,7 @@ test('the bilag open in the preview pane keeps its place in the list', async ({ 
         .toEqual(['kvittering.pdf']);
 });
 
-test('search text and column sort survive the reload that opening a bilag performs', async ({ page }) => {
+test('the search text survives the reload that opening a bilag performs, the column sort does not', async ({ page }) => {
     await openPool(page);
     await page.locator('#poolSearchBox').fill('bilag');
     await page.evaluate(() => window.sortFiles('amount'));
@@ -96,7 +96,45 @@ test('search text and column sort survive the reload that opening a bilag perfor
     await loadPool(page);
 
     await expect(page.locator('#poolSearchBox')).toHaveValue('bilag');
-    expect(await renderedOrder(page)).toEqual(['bilag-C.pdf', 'bilag-B.pdf', 'bilag-A.pdf']);
+    // Still filtered, but back in _docPoolData.php order: keeping the sort re-sorted the list after
+    // an edit had changed the sorted field, so a row the user had just worked on came back elsewhere.
+    expect(await renderedOrder(page)).toEqual(['bilag-A.pdf', 'bilag-B.pdf', 'bilag-C.pdf']);
+});
+
+test('a sort left in the tab by an older version of the page is ignored', async ({ page }) => {
+    await openPool(page);
+
+    // The storage key is the script's own, so let it write an entry first and then put the payload an
+    // older build would have left behind in its place.
+    await page.evaluate(() => {
+        window.savePoolListView();
+        sessionStorage.setItem(
+            Object.keys(sessionStorage)[0],
+            JSON.stringify({ search: '', sort: { field: 'amount', asc: true }, scroll: 0 }),
+        );
+    });
+
+    await page.reload();
+    await loadPool(page);
+
+    expect(await renderedOrder(page)).toEqual(poolRows.map(row => row.filename));
+});
+
+test('the column the list is sorted by is marked in its header', async ({ page }) => {
+    const headers = page => page.$$eval('#fileListContainer th[data-sort-field]', cells => cells.map(cell => {
+        const sorted = getComputedStyle(cell).backgroundColor === 'rgb(220, 53, 69)';
+        const arrow = cell.querySelector('span:last-child');
+        return cell.dataset.sortField + (sorted ? ':sorted' : ':plain') + ':' + (arrow ? arrow.textContent.trim() : '');
+    }));
+
+    await openPool(page);
+    expect(await headers(page)).toEqual(['subject:plain:⇵', 'amount:plain:⇵', 'invoiceNumber:plain:⇵', 'date:plain:⇵']);
+
+    await page.evaluate(() => window.sortFiles('amount'));
+    expect(await headers(page)).toEqual(['subject:plain:⇵', 'amount:sorted:▲', 'invoiceNumber:plain:⇵', 'date:plain:⇵']);
+
+    await page.evaluate(() => window.sortFiles('amount'));
+    expect(await headers(page)).toEqual(['subject:plain:⇵', 'amount:sorted:▼', 'invoiceNumber:plain:⇵', 'date:plain:⇵']);
 });
 
 test('the scroll position of the list survives the reload', async ({ page }) => {

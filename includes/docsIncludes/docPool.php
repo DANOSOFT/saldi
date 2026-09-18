@@ -1738,8 +1738,7 @@ print <<<JS
 <script>
 (() => {
     let docData     = [];
-    let currentSort = { field: 'date', asc: false };
-    let sortApplied = false; // true once the user has sorted by a column, never for the default order
+    let currentSort = null; // null until the user sorts by a column: the list is in _docPoolData.php order
 
     
     // Helper: parse amount string to float, handling English format (1,000.00) correctly
@@ -1879,7 +1878,9 @@ print <<<JS
 	// Keep the list the user was looking at. Opening a document, inserting a bilag or deleting
 	// one all reload the page, and the table is built here after an async fetch, so the browser
 	// has no rendered content to restore a scroll position to. Per tab (sessionStorage) and per
-	// tenant: the search text, the column sort and the scroll offset.
+	// tenant: the search text and the scroll offset. The column sort is deliberately NOT kept:
+	// it re-sorted the list after an edit had changed the sorted field, so a row the user had
+	// just worked on came back somewhere else - the opposite of what this is for.
 	function poolListViewKey() {
 		return 'docPoolList_' + db;
 	}
@@ -1899,13 +1900,32 @@ print <<<JS
 		try {
 			sessionStorage.setItem(poolListViewKey(), JSON.stringify({
 				search: searchBox ? searchBox.value : '',
-				sort:   sortApplied ? currentSort : null,
 				scroll: container ? container.scrollTop : 0
 			}));
 		} catch (e) {}
 	};
 
-	// Sort docData without rendering, so a stored sort can be applied before the first render.
+	// Mark the column the list is sorted by, so a sorted list never looks unsorted. Runs after the
+	// table is in the DOM: the header markup cannot call these directly, because this script is
+	// printed from a PHP heredoc, where a dollar-brace sequence is PHP interpolation and would be
+	// evaluated on the server. No sort - the default _docPoolData.php order - means no marker and
+	// a neutral arrow on every sortable header.
+	function markPoolSortHeaders() {
+		const cells = document.querySelectorAll('#' + containerId + ' th[data-sort-field]');
+
+		for (let i = 0; i < cells.length; i++) {
+			const cell   = cells[i];
+			const active = currentSort && currentSort.field === cell.getAttribute('data-sort-field');
+			const arrow  = cell.querySelector('span:last-child');
+
+			if (active) cell.classList.add('pool-sort-active');
+			else cell.classList.remove('pool-sort-active');
+
+			if (arrow) arrow.innerHTML = active ? (currentSort.asc ? '&#9650;' : '&#9660;') : '&#8693;';
+		}
+	}
+
+	// Sort docData without rendering, so the column header and the render share one comparator.
 	function applyPoolSort(sort) {
 		if (!sort || !sort.field) return;
 		const field = sort.field;
@@ -1931,10 +1951,9 @@ print <<<JS
 		});
 
 		currentSort = { field: field, asc: asc };
-		sortApplied = true;
 	}
 
-	// Re-apply the search text and the column sort before the first render after a reload.
+	// Re-apply the search text before the first render after a reload.
 	function applyStoredPoolListView() {
 		const state = readPoolListView();
 		if (!state) return;
@@ -1944,7 +1963,6 @@ print <<<JS
 			searchBox.value = state.search;
 			searchFilter    = state.search.toLowerCase();
 		}
-		if (state.sort) applyPoolSort(state.sort);
 	}
 
 	// The row that is open in the preview pane, scrolled into view without moving the list
@@ -2117,28 +2135,28 @@ print <<<JS
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 40px; color:${buttonTxtColor};" onclick="event.stopPropagation();">
 						<input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" title="{$txt3}" style="cursor: pointer; width: 18px; height: 18px;">
 					</th>
-					<th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('subject')" data-sort-field="subject" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt23}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('amount')" data-sort-field="amount" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt10}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('invoiceNumber')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('invoiceNumber')" data-sort-field="invoiceNumber" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt8}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('date')" data-sort-field="date" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt5}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 90px; color:${buttonTxtColor};">
@@ -2566,9 +2584,11 @@ print <<<JS
 			table tbody tr:hover td { background-color:  }\
 			.edit-input { border-color: " + buttonColor + "; }\
 			.edit-input:focus { outline-color: " + buttonColor + "; }\
+			#fileListContainer th[data-sort-field].pool-sort-active { background-color: #dc3545 !important; color: #ffffff !important; font-weight: bold; }\
 		</style>";
 
 		document.getElementById(containerId).innerHTML = html;
+		markPoolSortHeaders();
 		
 		// Restore checkbox states from sessionStorage
 		const checkboxes = document.querySelectorAll('.file-checkbox');
@@ -2978,7 +2998,7 @@ print <<<JS
 
 	
 	function sortFiles(field) {
-		applyPoolSort({ field: field, asc: currentSort.field === field ? !currentSort.asc : true });
+		applyPoolSort({ field: field, asc: currentSort && currentSort.field === field ? !currentSort.asc : true });
 		renderCurrentView();
 		savePoolListView();
 	}
