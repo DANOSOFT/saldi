@@ -4278,14 +4278,22 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# the caret where the user was. The generated id comes from this connection, so a
 						# concurrent insert in another session cannot be picked up instead.
 						if (stripos(trim($qtxt), 'insert') === 0) {
-							# currval() needs a sequence, so it is Postgres only - on a MySQL install the
-							# query would only fill the error log, and the pin and focus would simply not
-							# fire (the guards below skip it), never break the save.
-							if (!isset($GLOBALS['db_type']) || ($GLOBALS['db_type'] != 'mysql' && $GLOBALS['db_type'] != 'mysqli')) {
+							# The id has to be read from this connection, so that a concurrent insert in
+							# another session cannot be picked up instead. db_modify() picks its query
+							# function from $db_type, so the same test is repeated here: mysqli_insert_id()
+							# for a MySQL/MySQLi install, currval() for Postgres, which needs a sequence.
+							$kk_insert_id = 0;
+							if (isset($GLOBALS['db_type']) && ($GLOBALS['db_type'] == 'mysql' || $GLOBALS['db_type'] == 'mysqli')) {
+								$kk_insert_id = mysqli_insert_id(db_query_connection(false));
+							} else {
 								$kkIdRow = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kassekladde', 'id')) AS id", __FILE__ . " linje " . __LINE__));
-								if (isset($kkIdRow['id'])) kk_note_new_line($kkIdRow['id']);
+								if (isset($kkIdRow['id'])) $kk_insert_id = $kkIdRow['id'];
+								unset($kkIdRow);
 							}
-							unset($kkIdRow);
+							# A failed insert, or an install whose id is not auto generated, only means the
+							# pin and the focus do not fire - never a broken save.
+							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id);
+							unset($kk_insert_id);
 						}
 					}
 				}
