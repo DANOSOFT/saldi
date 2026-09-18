@@ -108,8 +108,22 @@
 //                  other menu styles keep the floating button; panel now opens just below the button.
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
 //                  with customer/supplier evidence; isolate journal history queries for regression tests.
+// 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
+
+# A line saved during this request is rendered last, whatever the list is sorted by, so the line the
+# user just typed stays where they are working instead of jumping to its sorted position (with
+# kksort=amount a line with amount 0 would otherwise lead the list). The pin lasts for this render
+# only - on the next load the line sits in its sorted place.
+$kk_new_line_ids = array();
+
+function kk_note_new_line($kladde_id) {
+	global $kk_new_line_ids;
+	if (!$kladde_id) return;
+	$r = db_fetch_array(db_select("SELECT MAX(id) AS id FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
+	if ($r && $r['id']) $kk_new_line_ids[] = (int) $r['id'];
+}
 
 ob_start(); //Starter output buffering  
 
@@ -2797,7 +2811,13 @@ if ($kladde_id) {
 	print "<script>
 		document.addEventListener('DOMContentLoaded', function() {
 			var element = document.querySelector('.kassekladde-scroll-container');
-			var focusName = " . json_encode((string)$fokus) . ";
+			// MB-41: this block is printed before the row loop advances the focus field with
+			// nextfokus(), so the value baked in below is the field the user came from - the
+			// amount field of the line just saved. The inline script at the end of the page
+			// focuses the advanced field, and this handler runs after it, so without preferring
+			// that field the handler pulled focus back up on every save. savedFocus is the
+			// field the page finally focuses.
+			var focusName = window.savedFocus || " . json_encode((string)$fokus) . ";
 			var focusField = focusName && document.forms[0] ? document.forms[0].elements[focusName] : null;
 			if (focusField) {
 				focusField.focus();
@@ -2835,16 +2855,21 @@ if ($kladde_id) {
 	} else {
 	################### 
 		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
+		// Lines saved in this request are pinned to the end of the list, whatever it is sorted by.
+		$kk_new_last = '';
+		if (!empty($GLOBALS['kk_new_line_ids'])) {
+			$kk_new_last = "CASE WHEN id IN (" . implode(',', array_map('intval', $GLOBALS['kk_new_line_ids'])) . ") THEN 1 ELSE 0 END, ";
+		}
 		if ($kksort == 'pos') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'bilag,transdate') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'transdate,bilag') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last transdate $_dir, bilag $_dir, id $_dir";
 		} elseif ($kksort == 'amount') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} else {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		}
 	##################
 	}
@@ -3284,10 +3309,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	$x++;
 	$belob = "";
-	if ($fokus && (strstr($fokus, "belo") || strstr($fokus, "afd")) && strstr($submit, 'save')) {
-		$tmp = substr($fokus, 4) + 1;
-		if (!$debet[$tmp] && !$kredit[$tmp])
-			$fokus = nextfokus($fokus);
+	# MB-41: a save that creates a line moves the focus to the new blank line, whatever field Enter
+	# was pressed in. A save that only updates an existing line leaves the focus where it was, so the
+	# change can be checked. The blank line is rendered after a creation (see the gate below), so the
+	# focus can never point at a field that does not exist - and the same $x < 3000 bound as the gate
+	# keeps that true on a kladde long enough for the blank line to be skipped.
+	if (strstr($submit, 'save') && !empty($GLOBALS['kk_new_line_ids']) && $x < 3000) {
+		$fokus = 'bila' . $x;
+	} elseif ($fokus && strstr($submit, 'save') && preg_match('/^[a-z_]+(\d+)$/', $fokus, $fm)) {
+		$tmp = (int) $fm[1] + 1;
+		if ($tmp <= $x && !isset($debet[$tmp]) && !isset($kredit[$tmp]))
+			$fokus = 'bila' . $tmp;
 	}
 	print "</tr>\n";
 
@@ -3307,7 +3339,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
 	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
-	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1)) {
+	# The blank line at the end is where the next line gets typed, so it is rendered after any save
+	# that created a line - including a line that carries only a description, which has no
+	# debit/credit and so used to leave the user with no row to type in and no field to focus.
+	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1 || !empty($GLOBALS['kk_new_line_ids']))) {
 		if (!isset($id[$x]))          $id[$x]          = NULL;
 		if (!isset($dato[$x]))        $dato[$x]        = NULL;
 		if (!isset($beskrivelse[$x])) $beskrivelse[$x] = NULL;
@@ -4208,6 +4243,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 					if ($qtxt) {
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						kk_note_new_line($kladde_id);
 					}
 				}
 			}
