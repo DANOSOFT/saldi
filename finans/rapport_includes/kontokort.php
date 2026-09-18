@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----patch 5.0.0 ----2026-04-30----- 
+// --- finans/rapport_includes/kontokort.php-----patch 5.0.0 ----2026-09-18-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0'
@@ -36,6 +36,7 @@
 //                  running balance was only accumulated for rows skipped by
 //                  pagination, never for the printed rows.
 // 20260915 CDX/PHR Include simulated rows in pagination and keep merged row metadata aligned.
+// 20260918 CDX/PHR Keep all ledger rows available for print; paginate only the screen view.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -50,6 +51,25 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	global $prj_navn_fra, $prj_navn_til;
 	global $top_bund;
 	global $sprog_id;
+
+	print <<<'HTML'
+<style>
+@media screen {
+    #datapg .ledger-print-only { display: none; }
+}
+@media print {
+    html, body, .ledger-scroll {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    #datapg .ledger-print-only { display: table-row !important; }
+    .ledger-pagination { display: none !important; }
+    .ledger-heading, #datapg thead { position: static !important; }
+}
+</style>
+HTML;
+
 	$query = db_select("select firmanavn, cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query))
 		$firmanavn = $row['firmanavn'];
@@ -175,7 +195,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	$title = "Rapport • Kontokort";
 
 	include("../includes/topline_settings.php");
-#print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: white;\">";
+#print "<div class='ledger-heading' style=\"position: sticky; top: 0; z-index: 100; background-color: white;\">";
 
 	#	print "  <a accesskey=L href=\"rapport.php?rapportart=Kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
 	$csvfile = "../temp/$db/rapport.csv";
@@ -409,7 +429,7 @@ print "</div>";
 
 
 	######
-print "<div style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
+print "<div class='ledger-scroll' style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
 print "<table style=\"width:100%; border-collapse:collapse;\" class='dataTable' id='datapg'>";
 
 // Sticky header
@@ -446,22 +466,22 @@ print "<tbody>";
 		}
 	}
 	$total_pages = max(1, ceil($total_rows / $per_page));
-	$rows_to_skip = ($page - 1) * $per_page;
-	$rows_printed = 0;
+	$first_screen_row = ($page - 1) * $per_page;
+	$last_screen_row = $first_screen_row + $per_page;
+	$rows_seen = 0;
 
 	for ($x = 0; $x < count($kontonr); $x++) {
 		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
 			$linjebg = $bgcolor5;
 			$acct_cnt = $accountRows[$x];
 
-            if ($rows_to_skip >= $acct_cnt) {
-                $rows_to_skip -= $acct_cnt;
-                continue;  // skip header, primosaldo, everything for this account
-            }
+            // Headers/opening balances for other pages remain available when printing.
+            $account_class = ($rows_seen + $acct_cnt <= $first_screen_row || $rows_seen >= $last_screen_row)
+                ? 'ledger-print-only' : '';
 
-			print "<tr><td colspan=6><hr></td></tr>";
+			print "<tr class='$account_class'><td colspan=6><hr></td></tr>";
 			fwrite($csv, "-----------\n");
-			print "<tr bgcolor=\"$bgcolor5\">
+			print "<tr class='$account_class' bgcolor=\"$bgcolor5\">
 					<td></td>
 					<td></td>
 					<td colspan=4>
@@ -473,7 +493,7 @@ print "<tbody>";
 
 			fwrite($csv, ";;$kontonr[$x] : " . mb_convert_encoding($kontobeskrivelse[$x], 'ISO-8859-1', 'UTF-8') . " : $kontomoms[$x]\n");
 
-			print "<tr><td colspan=6><hr></td></tr>";
+			print "<tr class='$account_class'><td colspan=6><hr></td></tr>";
 			fwrite($csv, "-----------\n");
 			$kontosum = $primo[$x];
 			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,pos,bilag,id", __FILE__ . " linje " . __LINE__);
@@ -489,7 +509,7 @@ print "<tbody>";
 			else
 				$tmp = $kontosum;
 			#if (!$dim) #20180226 
-			print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>" . dkdecimal($tmp, 2) . "</td></tr>";
+			print "<tr class='$account_class' bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>" . dkdecimal($tmp, 2) . "</td></tr>";
 			fwrite($csv, ";;Primosaldo;;;" . dkdecimal($tmp, 2) . "\n");
 			$print = 1;
 			$tr = 0;
@@ -784,22 +804,16 @@ print "<tbody>";
 			for ($tr = 0; $tr < count($transdate); $tr++) {
 			if ($transdate[$tr] && ($debet[$tr] || $kredit[$tr])) {
 
-                // Always accumulate kontosum — even for skipped rows
-                // (moved up so it runs before the skip check)
+                // Calculate every running balance; pagination only controls screen visibility.
                 $debet_val  = afrund($debet[$tr], 2);
                 $kredit_val = afrund($kredit[$tr], 2);
                 $kontosum += $debet_val - $kredit_val;
-
-                if ($rows_to_skip > 0) {
-                    $rows_to_skip--;
-                    continue;
-                }
-                if ($rows_printed >= $per_page) {
-                    break;
-                }
+                $row_class = ($rows_seen < $first_screen_row || $rows_seen >= $last_screen_row)
+                    ? 'ledger-print-only' : '';
+                $rows_seen++;
 
 				($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
-				print "<tr bgcolor=\"$linjebg\"><td>  " . dkdato($transdate[$tr]) . " </td>";
+				print "<tr class='$row_class' bgcolor=\"$linjebg\"><td>  " . dkdato($transdate[$tr]) . " </td>";
 					fwrite($csv, dkdato($transdate[$tr]) . ";");
 					($kladde_id[$tr]) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&visipop=on')\"" : $js = NULL;
 					print "<td title='Kladde: $kladde_id[$tr]' $js>$bilag[$tr]</td><td>$kontonr[$x] : $beskrivelse[$tr] </td>";
@@ -838,11 +852,9 @@ print "<tbody>";
 					}
 					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td></tr>";
 					fwrite($csv, dkdecimal($tmp, 2) . "\n");
-                $rows_printed++;
 			}
 			
 		}
-          if ($rows_printed >= $per_page) break; // stop processing more rows once we've printed enough for the current page
 		}
 	}
 				   			   
@@ -910,7 +922,7 @@ print "<tbody>";
     }
 
     echo "
-    <div style='position:fixed; bottom:0; left:0; width:100%; background:#f4f4f4;
+    <div class='ledger-pagination' style='position:fixed; bottom:0; left:0; width:100%; background:#f4f4f4;
                 border-top:2px solid #ddd; z-index:200; box-shadow:0 -2px 6px rgba(0,0,0,0.1);'>
         <div id='footer-box' style='display:flex; align-items:center; gap:10px;
                                     justify-content:flex-end; padding:6px 16px;'>
