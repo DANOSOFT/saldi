@@ -30,6 +30,13 @@
 //                  of packing the first chunk into the space left on the current line. Caught in
 //                  review on PR #623; the original differential test never generated a word
 //                  longer than the width, so the case could not come up.
+// 20260919 CDX/MJ SST-784 Stop reimplementing wordwrap()'s rules and delegate to it instead. Three
+//                  attempts to reproduce the line breaking by hand each looked right and each
+//                  diverged: on an over-long word after other text (Saul on #623), on runs of
+//                  spaces (CodeRabbit on #623), and again on space runs at narrow widths. Every
+//                  character now maps to one placeholder byte, so wordwrap()'s own byte arithmetic
+//                  on the placeholder is character arithmetic on the original, and the breaks it
+//                  chooses are mapped back onto the real characters.
 
 if (!function_exists('mb_wordwrap')) {
 	/**
@@ -63,43 +70,50 @@ if (!function_exists('mb_wordwrap')) {
 		// C implementation - that keeps every existing non-Danish printout byte-identical.
 		if (!preg_match('/[\x80-\xFF]/', $tekst)) return wordwrap($tekst, $width, $break, $cut);
 
-		$ud = array();
-		// wordwrap() treats an existing newline as a hard break; splitting on it first and
-		// wrapping each piece reproduces that, instead of measuring across the break.
-		foreach (explode("\n", $tekst) as $afsnit) {
-			$linje = '';
-			foreach (explode(' ', $afsnit) as $ord) {
-				// A word too long for a line of its own is chopped, but only when wordwrap()
-				// would chop it too. wordwrap() always starts chopping from a BLANK line: it
-				// flushes whatever is on the current line first and never packs the first
-				// chunk into the space left over. Getting that wrong does not overflow the
-				// column, it just breaks in different places than wordwrap() would - which
-				// contradicts the whole point of this function.
-				//   wordwrap('ab loooongword', 5) with cut -> ab | loooo | ngwor | d
-				// The remainder after the last chunk is shorter than $width and stays on the
-				// line, so a following word can still join it ('... | d ab').
-				if ($cut && mb_strlen($ord, 'UTF-8') > $width) {
-					if ($linje !== '') {
-						$ud[]  = $linje;
-						$linje = '';
-					}
-					while (mb_strlen($ord, 'UTF-8') > $width) {
-						$ud[] = mb_substr($ord, 0, $width, 'UTF-8');
-						$ord  = mb_substr($ord, $width, NULL, 'UTF-8');
-					}
-				}
-				if ($linje === '') {
-					$linje = $ord;
-				} elseif (mb_strlen($linje, 'UTF-8') + 1 + mb_strlen($ord, 'UTF-8') <= $width) {
-					$linje .= ' ' . $ord;
-				} else {
-					$ud[]  = $linje;
-					$linje = $ord;
-				}
-			}
-			$ud[] = $linje;
+		// Only a single-character break can be handled below, because the placeholder has to
+		// represent it in one byte. Anything else is left to the C implementation.
+		if ($break === '' || mb_strlen($break, 'UTF-8') !== 1 || !function_exists('mb_str_split')) {
+			return wordwrap($tekst, $width, $break, $cut);
 		}
-		return implode($break, $ud);
+
+		// Let wordwrap() make every line-breaking decision, and change only the unit it counts.
+		//
+		// Reimplementing the rules was tried three times and diverged three times - on an
+		// over-long word following other text, and on runs of spaces at narrow widths. They are
+		// not reliably reconstructible from the outside, so none of them is reconstructed here.
+		//
+		// Instead each character becomes exactly one placeholder BYTE, so wordwrap()'s byte
+		// arithmetic on the placeholder is character arithmetic on the original. Only spaces and
+		// the break are significant to wordwrap(); every other character is opaque to it and can
+		// be stood in for by 'x'. The breaks wordwrap() then chooses are mapped back onto the
+		// real characters. Parity is therefore structural rather than something to be tested for.
+		$tegn     = mb_str_split($tekst, 1, 'UTF-8');
+		$MARKOER  = "\x01";   // stands in for $break; cannot occur in the placeholder
+		$skygge   = '';
+		foreach ($tegn as $t) {
+			if ($t === ' ')         $skygge .= ' ';
+			elseif ($t === $break)  $skygge .= $MARKOER;
+			else                    $skygge .= 'x';
+		}
+
+		$brudt = wordwrap($skygge, $width, $MARKOER, $cut);
+
+		// Walk the wrapped placeholder and re-emit the original characters. wordwrap() either
+		// inserts a break (a cut mid-word, consuming nothing) or replaces the single space it
+		// breaks at, so a marker consumes the current character only when that character is a
+		// space or was itself a break.
+		$ud = '';
+		$i  = 0;
+		for ($j = 0, $n = strlen($brudt); $j < $n; $j++) {
+			if ($brudt[$j] === $MARKOER) {
+				$ud .= $break;
+				if (isset($tegn[$i]) && ($tegn[$i] === ' ' || $tegn[$i] === $break)) $i++;
+			} else {
+				$ud .= isset($tegn[$i]) ? $tegn[$i] : '';
+				$i++;
+			}
+		}
+		return $ud;
 	}
 }
 ?>
