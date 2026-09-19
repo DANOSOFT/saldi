@@ -41,6 +41,13 @@ final class GridSearchTermEscapingTest extends TestCase
         return $fn;
     }
 
+    /**
+     * Renders the header and search row for a single searchable column with $searchTerm already
+     * in the box, which is the state a user is returned to after searching.
+     *
+     * @param string $searchTerm The term as it would arrive from the request or the saved setup.
+     * @return string The emitted HTML.
+     */
     private function headerHtml(string $searchTerm): string
     {
         $columns = ['hvem' => [
@@ -74,12 +81,28 @@ final class GridSearchTermEscapingTest extends TestCase
         );
     }
 
+    /**
+     * Each payload must not survive in the one shape that would mean it worked.
+     *
+     * Asserting on absence rather than on the exact escaped output keeps the test about the
+     * vulnerability instead of about htmlspecialchars()' choice of entities.
+     *
+     * @param string $payload The hostile search term.
+     * @param string $mustNotContain The markup that would prove the attribute was broken out of.
+     */
     #[DataProvider('payloads')]
     public function testPayloadsAreNeutralised(string $payload, string $mustNotContain): void
     {
         self::assertStringNotContainsString($mustNotContain, $this->headerHtml($payload));
     }
 
+    /**
+     * Payload paired with the markup that would indicate it escaped the attribute. The first is
+     * the one that was live before this fix; the others cover the neighbouring shapes an attacker
+     * would reach for - a tag, the double-quote variant, and a bare ampersand.
+     *
+     * @return array<string, array{string, string}>
+     */
     public static function payloads(): array
     {
         return [
@@ -97,6 +120,13 @@ final class GridSearchTermEscapingTest extends TestCase
         self::assertStringContainsString("value='$expectedInValue'", $this->headerHtml($term));
     }
 
+    /**
+     * Ordinary terms, with what must still appear inside value='...'. Escaping that also mangled
+     * normal input would break the search box, so these guard against over-correcting - Danish
+     * letters in particular must pass through untouched.
+     *
+     * @return array<string, array{string, string}>
+     */
     public static function benignTerms(): array
     {
         return [
