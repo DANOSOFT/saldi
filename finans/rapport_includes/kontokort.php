@@ -812,7 +812,7 @@ print "<tbody>";
 						if ($transvaluta[$tr] == '-1') {
 							$csvval = $debet[$tr] * 1;
 							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
-							$title  = findtekst('5155|Kursregulering bogført i DKK', $sprog_id);
+							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
 						} else {
 							$csvval = $debet[$tr] * 100 / $transkurs[$tr];
 							$vis    = dkdecimal($csvval, 2);
@@ -829,7 +829,7 @@ print "<tbody>";
 						if ($transvaluta[$tr] == '-1') {
 							$csvval = $kredit[$tr] * 1;
 							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
-							$title  = findtekst('5155|Kursregulering bogført i DKK', $sprog_id);
+							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
 						} else {
 							$csvval = $kredit[$tr] * 100 / $transkurs[$tr];
 							$vis    = dkdecimal($csvval, 2);
