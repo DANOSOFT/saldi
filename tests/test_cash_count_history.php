@@ -1,9 +1,10 @@
 <?php
-// --- tests/test_cash_count_history.php --- 2026-09-17 ---
+// --- tests/test_cash_count_history.php --- 2026-09-18 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20260917 CDX/PHR Exercise historical decimal repair and ambiguous/unsupported reports.
 // 20260917 CDX/PHR Check receipts omit repair annotations.
+// 20260918 CDX/PHR Cover reports with many unused payment methods.
 // 20260917 CL/LH Cover surviving warnings and the latin9 receipt charset.
 require_once __DIR__ . '/../debitor/cashCountHistoryData.php';
 function historyCheck($condition, $message)
@@ -128,3 +129,22 @@ if ($testDatabase) {
     rmdir($testLogDirectory);
     echo "OK: temporary-table persistence, scope, idempotence and rollback tests\n";
 }
+
+// Report 5368 (test_12): many configured methods, only six nonzero amounts.
+$payments = ['Mobilepay' => 514695, 'MasterCard' => 1058685, 'Debit MasterCard' => 2998,
+    'Visa Debit' => 204009, 'Dankort' => 37414, 'Nordea Pay' => 19995];
+for ($i = 0; $i < 16; $i++) {
+    $payments['Unused payment ' . $i] = 0;
+}
+$rows = historyFixture(82144.60, $payments);
+$rows[3]['total'] = 5397.95;
+$result = cashCountHistoryPrepare($rows, '2026-07-31');
+$expected = ['Mobilepay' => 5146.95, 'MasterCard' => 10586.85, 'Debit MasterCard' => 2998,
+    'Visa Debit' => 20400.90, 'Dankort' => 37414, 'Nordea Pay' => 199.95];
+foreach (array_slice($result['rows'], 8) as $row) {
+    historyCheck(abs((float)$row['total'] - ($expected[$row['description']] ?? 0)) < 0.001,
+        'Many payment methods: ' . $row['description']);
+}
+$again = cashCountHistoryPrepare($result['rows'], '2026-07-31');
+historyCheck($again['rows'] === $result['rows'], 'Many payment methods: idempotent result');
+echo "OK: 22 payment methods with unique decimal correction\n";

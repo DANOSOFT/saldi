@@ -1,10 +1,11 @@
 <?php
-// --- debitor/cashCountHistoryData.php --- 2026-09-17 ---
+// --- debitor/cashCountHistoryData.php --- 2026-09-18 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20260917 CDX/PHR Reconstruct saved cash counts and reconcile historical decimal errors.
 // 20260917 CDX/PHR Persist unambiguous decimal repairs atomically before presentation.
 // 20260917 CL/LH Keep manual-control warnings when no decimal repair was persisted.
+// 20260918 CDX/PHR Ignore zero payment methods when bounding decimal repair combinations.
 
 /**
  * Work on a copy only. report.total holds piece counts for denominations.
@@ -39,7 +40,7 @@ function cashCountHistoryPrepare(array $rows, $date)
         }
     }
     $payments = array_slice($rows, $start + 7, null, true);
-    if (!$payments || count($payments) > 8) {
+    if (!$payments) {
         return $result;
     }
     foreach ($payments as $row) {
@@ -62,6 +63,16 @@ function cashCountHistoryPrepare(array $rows, $date)
     }
     // Old usdecimal(raw PHP float) removed the decimal point. Only integer
     // stored amounts can originate from that bug. Count all matching solutions.
+    $variablePayments = 0;
+    foreach ($payments as $row) {
+        $cents = (int)round((float)$row['total'] * 100);
+        if ($cents !== 0 && $cents % 100 === 0) {
+            $variablePayments++;
+        }
+    }
+    if ($variablePayments > 8) {
+        return $result;
+    }
     $solutions = [[]];
     foreach ($payments as $index => $row) {
         $cents = (int)round((float)$row['total'] * 100);
