@@ -249,15 +249,16 @@ transfer*.
 ### 4.3 Recommendation: key on content, not on name
 
 Store a content hash of the file at transfer time and make that the exactly-once key —
-"already transferred" means a `documents` row exists with journal source and this hash.
+"already transferred" means a transfer has been recorded under this hash.
 
 - Durable: unaffected by the pool row disappearing, by renaming, and by filename reuse.
 - Correct in both directions: October's NETS invoice hashes differently from September's, so
   it transfers; a genuine re-click on the same file matches and is caught.
 - Cheap: one `hash_file('sha256', ...)` per transfer, on invoice-sized PDFs.
-- Idempotent migration: a nullable `content_hash` column on `documents`, added in
-  `includes/betweenUpdates.php` per the ticket's own constraint. Existing rows stay NULL and
-  are simply never matched, which degrades to today's behaviour rather than to a wrong answer.
+- Idempotent migration: a `pool_transfers` table added in `includes/betweenUpdates.php` per the
+  ticket's own constraint, with the hash under a real UNIQUE constraint so the database decides
+  rather than a `SELECT` (§4.5). The record deliberately does **not** live as a column on
+  `documents` — §4.5 explains why that cannot work.
 
 Open for product/finance, added to §8: whether two byte-identical receipts from the same
 vendor on the same day are one expense or two. The hash cannot distinguish them, and the
@@ -280,24 +281,52 @@ Raised in review. None of them blocks agreement on the accounting behaviour, but
 answered before implementation starts.
 
 **The hash check is a lookup, not a lock.** Two confirmations of the same document in flight at
-once can both read "no matching hash" and both write a line. Mitigation: do what SST-740 did for
-`pool_files.filename` — add a UNIQUE index, here on `documents (content_hash)` restricted to
-journal sources, created idempotently in `includes/betweenUpdates.php` the same way
-`pool_files_filename_uidx` is (`:571-621`), and let the insert's conflict be the decision point
-rather than the SELECT before it. The explicit override of §4 (two expenses on one receipt) then
-cannot ride the same key: it writes its second row with the hash deliberately left NULL and an
-explicit marker, so the index never sees it. That makes the override a visible act rather than a
-silent bypass.
+once can both read "no matching hash" and both write a line. The right shape of the fix is
+SST-740's: let a UNIQUE constraint decide, not the `SELECT` before the insert.
 
-**Legacy `documents` rows carry no hash.** Every row written before the column exists has
-`content_hash = NULL`, so an identical re-upload does not match it and can still produce a second
-journal line. §4.3 calls that "degrades to today's behaviour", which is true but understates it
-against the exactly-once requirement. Mitigation: backfill in the same `betweenUpdates.php` pass —
-the file is still on disk under `documents.filepath`/`filename`, so `hash_file()` can fill the
-column for every row whose file is readable, gated on a `settings` marker exactly as the
-`pool_files_norm_amount_backfilled` flag already is (`includes/betweenUpdates.php:69-88`). Rows
-whose file is gone stay NULL and remain out of the check's reach; that residue should be measured
-on a real tenant before implementation rather than assumed small.
+But the key cannot be `documents (content_hash)` restricted to journal sources, which is what an
+earlier revision of this section proposed. That does not work, for two reasons, recorded here so
+it is not tried again:
+
+- **`documents` holds several rows per file by design.** `insertDoc.php` attaches the same file to
+  every sibling `kassekladde` line sharing a bilag (`:432`), or to each line named in
+  `targetSourceIds` (`:420`) — all with `source = 'kassekladde'` and the same `filename`, so the
+  same hash. A unique index on that key would reject the second sibling and break a shipped
+  feature halfway through a transfer.
+- **A restricted index is PostgreSQL-only.** MySQL and MariaDB accept no predicate on
+  `CREATE INDEX`, which is exactly why SST-740's migration branches on `$db_type` and creates a
+  plain unique index on that side (`includes/betweenUpdates.php:589-595`). "Restricted to journal
+  sources" cannot be expressed there, and an unrestricted `UNIQUE (content_hash)` on `documents`
+  would be worse still: it would forbid attaching one file to two different vouchers, which is
+  legitimate today.
+
+So the exactly-once key does not belong on `documents` at all. It needs a row that exists once per
+*transfer*, not once per attachment: a small `pool_transfers` table — `content_hash`, `forsoeg`
+(smallint, default 1), `kassekladde_id`, `user_id`, `timestamp` — with a plain, unrestricted
+`UNIQUE (content_hash, forsoeg)`, which is portable to both engines and can be added idempotently
+in `includes/betweenUpdates.php` the same way `pool_files_filename_uidx` is (`:571-621`).
+
+Two simultaneous confirmations then both contend for `forsoeg = 1` and one loses on the
+constraint. The §4 explicit override (two expenses on one receipt) inserts `forsoeg = 2`
+deliberately, so it stays a visible act rather than a silent bypass — and unlike the NULL-hash
+trick the earlier revision suggested, the override is still recorded and still queryable.
+
+**Nothing before this feature is recorded as a transfer.** `pool_transfers` starts empty, so the
+constraint only knows about transfers made through this action. That is mostly the right answer —
+the requirement is that *this* action be exactly-once, and it has never run before — but it leaves
+one real case open, and it is a product question rather than a technical one:
+
+> A document that was already attached to a journal line by the ordinary attach flow, and is then
+> transferred again as a private expense. There is no `pool_transfers` row, so nothing blocks it.
+
+Whether that should be blocked, warned about, or allowed is Q9 in §8. If it must be blocked, the
+check needs a second arm that looks for an existing `documents` row for the same file — which can
+be a `SELECT` rather than a constraint, because it is advisory and not the race-critical path.
+
+A backfill of historical `documents` rows was considered and rejected: it would require hashing
+every attached file on every tenant at migration time, and it cannot distinguish "attached
+normally" from "transferred as a private expense", which is the only distinction the constraint
+cares about.
 
 **The transfer is not atomic across filesystem and database.** `insertDoc.php` renames the pool
 file first (`:384`), then inserts `documents` (`:398`), then deletes the `pool_files` row and the
@@ -413,6 +442,11 @@ Concrete, per the ticket's acceptance criteria:
 8. **§4.3** Are two byte-identical receipts from the same vendor on the same day one expense
    or two? A content hash cannot tell them apart, so this decides whether a hash match hard-
    blocks the transfer or is a warning the user can confirm past.
+9. **§4.5** A document already attached to a journal line by the ordinary attach flow, then
+   transferred again as a private expense: block, warn, or allow? `pool_transfers` has no row
+   for it, so nothing stops it today. Blocking it needs a second, advisory check against
+   `documents`, which is cheap but changes the rule from "transferred once" to "attached at
+   most once anywhere".
 
 ---
 
@@ -425,7 +459,7 @@ Not part of this ticket's estimate; listed so the estimate has something to pric
 | Checkbox and dialog in the pool UI | `includes/docsIncludes/docPool.php`, and `finans/pulje_review.php` if the mobile screen gets it too |
 | Draft line creation | **Mostly reuse.** `insertDoc.php` already creates the line, allocates the voucher and writes the `documents` row (§1.1). The work is setting the two account sides, the employee and the VAT treatment instead of the `F`/`F`/0 placeholder |
 | Payable account setting | `settings` table; no migration if an existing group is reused |
-| Exactly-once check (§4) | One query against `documents`, plus a `content_hash` column and its idempotent migration in `includes/betweenUpdates.php`, plus hashing at transfer time |
+| Exactly-once check (§4) | A `pool_transfers` table with `UNIQUE (content_hash, forsoeg)` and its idempotent migration in `includes/betweenUpdates.php`, hashing at transfer time, and the insert conflict handled as the decision point rather than a `SELECT` (§4.5) |
 | Transferred-but-visible pool entry | Out of scope (§3 step 5). Only in play if Q7 is answered against the move behaviour, and then it is a new transfer path, not a marker |
 | `findtekst` ids for the dialog | Coordinate with open branches — PR #447 (`feature/udfoert-af`) holds 5151–5152, SST-769 holds 5153–5155 |
 
@@ -438,7 +472,7 @@ it holds only under the assumptions below.
 |---|---|
 | Checkbox, dialog, labels via `findtekst()` | 1.0 |
 | Transfer path — setting the two account sides, employee and VAT in place of the `F`/`F`/0 placeholder, reusing `insertDoc.php` (§1.1) | 1.0–1.5 |
-| Exactly-once: `content_hash` column, its unique index, the legacy backfill, hashing, the check and its UI response (§4, §4.5) | 1.0 |
+| Exactly-once: the `pool_transfers` table and its migration, hashing, conflict handling, the override path, and the UI response (§4, §4.5) | 1.0 |
 | Permissions (§2.5) and the payable-account setting | 0.5 |
 | Automated coverage and the eleven Prodtest scenarios in §7 | 1.0 |
 | **Total** | **4.5–5.0 dev-days** |
@@ -451,9 +485,9 @@ Assumptions, each of which moves the number if wrong:
 - `insertDoc.php` is reused as-is rather than refactored — including its move-out-of-the-pool
   behaviour (§3 step 5). If the accounting decisions force a second caller through it, or Q7 is
   answered against the move, add roughly a day.
-- The §4.5 mitigations fit inside the 1.0 above as long as the legacy backfill is a single pass
-  over readable files. If legacy rows whose file is gone need a controlled block or a
-  confirmation flow of their own, add roughly half a day.
+- The §4.5 mitigations fit inside the 1.0 above because `pool_transfers` is a new table with no
+  history to migrate. If Q9 is answered "block", the advisory second check against `documents`
+  and its confirmation flow add roughly half a day.
 - The §8 questions are answered before implementation starts. They are not sequencing detail:
   Q2 (offset account) and Q4 (VAT) determine what the transfer writes, so the 1.0–1.5 above
   cannot start without them.
@@ -464,7 +498,7 @@ Not included: any change to the extraction pipeline, and the mixed-receipt case.
 
 ## 10. Status
 
-Draft. Blocked on the answers in §8 — now eight questions, not seven.
+Draft. Blocked on the answers in §8 — now nine questions, not seven.
 
 **No longer blocked on SST-740.** It merged as `e852d8c5` (PR #596) and has been reviewed;
 §1.5 records what it shipped and §4 is rewritten because of it. That was the gap this
