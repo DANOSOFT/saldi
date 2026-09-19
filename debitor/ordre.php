@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-28 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-09-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240201 PBLM - Made some adjustments to EasyUBL
@@ -139,6 +139,7 @@
 //                      popup=1 flag) like the Foelgeseddel buttons; stored ordrer.returside values
 //                      are html_entity_decode()d before nav_sanitize_returside() so &amp;-escaped
 //                      multi-parameter return targets are no longer dropped to ordreliste.php.
+// 20260919 CDX/PHR Preserve three-decimal unit prices when displaying and saving orders.
 
 @session_start();
 $s_id = session_id();
@@ -1573,7 +1574,7 @@ if ($b_submit) {
 		if ($x != 0 || (isset($_POST[$y]) && strlen($_POST[$y]))) {
 			if (strpos($_POST[$y], "(") && strpos($_POST[$y], ")")) {
 				list($pris[$x], $kp) = explode("(", $_POST[$y]);
-				$pris[$x] = usdecimal($pris[$x], 2);
+				$pris[$x] = usdecimal($pris[$x], 3);
 				$kp = str_replace(")", "", $kp);
 				if ($kp == "!") {
 					if ($vare_id[$x]) { #20170906
@@ -1584,7 +1585,7 @@ if ($b_submit) {
 				#        if ($kostpris[$x] && $linje_id[$x]) {
 				#          db_modify("update ordrelinjer set kostpris='$kostpris[$x]' where id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
 				#        }
-			} else $pris[$x] = usdecimal($_POST[$y], 2);
+			} else $pris[$x] = usdecimal($_POST[$y], 3);
 			if ($incl_moms && !$momsfri[$x] && !$omvbet[$x]) {
 				$pris[$x] = afrund(($pris[$x] / (100 + $varemomssats[$x]) * 100), 3);
 			}
@@ -4396,11 +4397,11 @@ function ordreside($id, $regnskab)
 					$dk_db[$x] = dkdecimal($dbi[$x] * -1, 2);
 					$dk_lineCost[$x] = dkdecimal($lineCost[$x] * -1, 2);
 				}
-				$dkpris = dkdecimal($pris[$x], 2);
+				$dkpris = formatOrderUnitPrice($pris[$x]);
 				($rabat[$x]) ? $dkrabat = dkdecimal($rabat[$x], 5) : $dkrabat = NULL;
 				$dkprocent = dkdecimal($procent[$x], 2);
 				if ($momsfri[$x] != 'on' && !$omvbet[$x]) {
-					if ($incl_moms) $dkpris = dkdecimal($pris[$x] + $pris[$x] * $varemomssats[$x] / 100, 2);
+					if ($incl_moms) $dkpris = formatOrderUnitPrice($pris[$x] + $pris[$x] * $varemomssats[$x] / 100);
 				}
 				if ($antal[$x]) {
 					if ($art == 'DK') $dkantal[$x] = dkdecimal($antal[$x] * -1, 2);
@@ -6170,7 +6171,7 @@ function ordreside($id, $regnskab)
 					print "<input class = 'inputbox' type = 'text' style=\"text-align:right;width:35px\" name=\"lagr0\" placeholder=\"$lager[0]\"></td>\n";
 				}
 				print "<td valign = 'top'><textarea class=\"autosize inputbox ordreText comment\" id=\"comment\" rows=\"1\" cols=\"58\" name=\"beskrivelse0\" placeholder=\"" . $beskrivelse[0] . "\" onfocus=\"document.forms[0].fokus.value=this.name; var val=this.value; this.value=''; this.value= val;\"></textarea></td>\n"; #2013.11.27 Ændret til textarea, så hele texten vises #2013.11.29 indsat ny onfocus da chrome ikke satte curser efter tekst
-				print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right\" size=\"10\" name=\"pris0\" placeholder=\"" . dkdecimal($pris[0], 2) . "\"></td>\n";
+				print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right\" size=\"10\" name=\"pris0\" placeholder=\"" . formatOrderUnitPrice($pris[0]) . "\"></td>\n";
 				print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right\" size=\"4\" name=\"raba0\">\n";
 				if ($procentfakt) print "</td><td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right\" size=\"4\" name=\"proc0\" value=\"100,00\">\n";
 				else print "<input type=\"hidden\" name=\"proc0\" value=\"100,00\">\n";
@@ -6680,6 +6681,21 @@ function ordreside($id, $regnskab)
 	print "<!--Function ordreside slut-->";
 }
 
+/**
+ * Keep the stored unit-price precision in form values, with at least two decimals.
+ * Totals and VAT continue to use their existing monetary rounding.
+ *
+ * @return string Danish unit price with two or three decimal places.
+ */
+function formatOrderUnitPrice($price)
+{
+	if (!is_numeric($price)) {
+		return (string)$price;
+	}
+	$formatted = dkdecimal($price, 3);
+	return substr($formatted, -1) === '0' ? substr($formatted, 0, -1) : $formatted;
+}
+
 function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $leveres_ialt, $tidl_lev_ialt, $levdiff, $masterprojekt, $linje_id, $kred_linje_id, $posnr, $varenr, $beskrivelse, $enhed, $lager, $pris, $rabat, $rabatart, $procent, $antal, $leveres, $leveret, $vare_id, $momsfri, $rabatgruppe, $m_rabat, $varemomssats, $serienr, $samlevare, $folgevare, $projekt, $kdo, $kobs_ordre_pris, $ko_ant, $kostpris, $dkb, $dg, $dk_db, $dk_dg, $readonly, $omvbet, $saet, $saetnr, $grossWeight, $netWeight, $itemLength, $itemWidth, $itemHeight, $volume, $linje)
 {
 	print "<!--function ordrelinjer start-->";
@@ -6729,7 +6745,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		# Hovedvaren (samlevare='on') is display-only for sæt collections - sub-items already add to $sum
 		# Wait, the comment says sub-items already add to $sum, but for "samlevare=on", the user's issue implies the total is wrong because these items are NOT adding to the sum, and the sub-items are missing or not calculating. The debug log shows saet=0, so it's NOT a saet, but just an item with samlevare=on. In that case, we MUST add to $sum!
 		if (!$saet || $samlevare != 'on' || $saet == 0) $sum += $ialt;
-		$dkpris = dkdecimal($pris, 2);
+		$dkpris = formatOrderUnitPrice($pris);
 		$dkrabat = dkdecimal($rabat, 5);
 		while (substr($dkrabat, -1) == '0') $dkrabat = trim($dkrabat, '0');
 		if ((substr($dkrabat, 0, 1) == ','))  $dkrabat = '0' . $dkrabat;
@@ -6740,7 +6756,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		if ($momsfri != 'on') {
 			$moms += afrund($ialt * $varemomssats / 100, 3); # 20150130 rettet til 3 decimaler
 			if ($varemomssats != $momssats) $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
-			if ($incl_moms) $dkpris = dkdecimal($pris + $pris * $varemomssats / 100, 2);
+			if ($incl_moms) $dkpris = formatOrderUnitPrice($pris + $pris * $varemomssats / 100);
 		} else $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 		if ($antal) {
 			if ($art == 'DK') $dkantal = dkdecimal($antal * -1, 2);
