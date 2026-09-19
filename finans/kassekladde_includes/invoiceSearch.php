@@ -1,5 +1,7 @@
 <?php
 // 20260908 CDX/LH Require an exact customer/supplier filter for automatic settlement.
+// 20260911 Sawaneh Return the order payment ID (ordrer.betalings_id) with each open post and
+//                  allow searching on it, so auto settlement can show it again.
 
 ob_start();
 
@@ -53,6 +55,12 @@ if ($accountType !== 'D' && $accountType !== 'K') {
 
 $baseWhere = "(openpost.udlignet != '1' OR openpost.udlignet IS NULL)";
 
+// Payment ID lives on the invoiced order, never on the open post itself
+$paymentIdMatch = "ordrer.konto_id = openpost.konto_id AND ordrer.fakturanr = openpost.faktnr"
+    . " AND COALESCE(openpost.faktnr, '') != '' AND ordrer.art IN ('DO', 'DK', 'KO', 'KK')"
+    . " AND COALESCE(ordrer.betalings_id, '') != ''";
+$paymentIdSelect = "(SELECT MAX(ordrer.betalings_id) FROM ordrer WHERE $paymentIdMatch) AS betalings_id";
+
 if ($mode === 'open_post' || $accountNr !== '') {
     $baseWhere .= ' AND (' . autoSettlementAccountWhere($accountNr, $accountType) . ')';
 }
@@ -67,7 +75,8 @@ if ($search !== '') {
         "CAST(openpost.faktnr AS TEXT) ILIKE '%$search_escaped%'",
         "adresser.firmanavn ILIKE '%$search_escaped%'",
         "CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'",
-        "openpost.beskrivelse ILIKE '%$search_escaped%'"
+        "openpost.beskrivelse ILIKE '%$search_escaped%'",
+        "EXISTS (SELECT 1 FROM ordrer WHERE $paymentIdMatch AND ordrer.betalings_id ILIKE '%$search_escaped%')"
     );
     $amountSearch = str_replace(' ', '', $search);
     if (strpos($amountSearch, ',') !== false) {
@@ -116,7 +125,8 @@ if ($mode === 'open_post') {
             openpost.transdate,
             openpost.beskrivelse,
             adresser.firmanavn,
-            adresser.art
+            adresser.art,
+            $paymentIdSelect
         FROM openpost 
         LEFT JOIN adresser ON openpost.konto_id = adresser.id
         WHERE $baseWhere
@@ -189,6 +199,7 @@ if ($mode === 'open_post') {
             'kontonr'     => $kontonr,
             'konto_id'    => $row['konto_id'],
             'faktnr'      => $faktnr,
+            'betalings_id' => trim((string)$row['betalings_id']),
             'amount'      => $rowAmount,
             'transdate'   => $row['transdate'],
             'firmanavn'   => stripslashes($firmanavn),
@@ -244,7 +255,8 @@ $qtxt = "
         openpost.beskrivelse,
         openpost.valuta,
         adresser.firmanavn,
-        adresser.art
+        adresser.art,
+        $paymentIdSelect
     FROM openpost 
     LEFT JOIN adresser ON openpost.konto_id = adresser.id
     WHERE $baseWhere
@@ -283,6 +295,7 @@ if ($query) {
             'kontonr' => trim($row['konto_nr']),
             'konto_id' => $row['konto_id'],
             'faktnr' => trim($row['faktnr']),
+            'betalings_id' => trim((string)$row['betalings_id']),
             'amount' => $rowAmount,
             'transdate' => $row['transdate'],
             'firmanavn' => trim(stripslashes($row['firmanavn'])),

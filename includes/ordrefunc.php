@@ -130,6 +130,10 @@
 // 20260908 CDX/MJ JOB-106 Validate the date against the effective order type: an all-negative DO
 //             order is turned into a DK credit note by bogfor(), but only after the date checks
 //             had already run, so a valid return date was still rejected for that case
+// 20260914 CL/SZ SST-744: function bogfor_nu: moved the vat_account/findAccountVat check for a VAT-liable
+//             line to before $d_kontrol/$k_kontrol are incremented for it, so a missing VAT code on the
+//             posting account can never inflate the control totals without a matching posting; the
+//             returned error now names the offending account and order instead of a bare generic string.
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -2388,6 +2392,14 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
 	return $diff;
 }
 ######################################################################################################################################
+/**
+ * Posts one or more orders' lines to the ledger (transaktioner/kontoplan), validating VAT/account
+ * setup and control-total balance before writing anything.
+ *
+ * @param int|string $id A single ordrer.id, or a comma-separated list of ids to post together.
+ * @param string $kilde Caller context; 'Dagsafslutning' forces POS (cash-drawer) posting rules.
+ * @return string 'OK' on success, otherwise a user-facing description of why posting failed.
+ */
 function bogfor_nu($id, $kilde) {
 
 	include("../includes/genberegn.php");
@@ -3031,6 +3043,16 @@ function bogfor_nu($id, $kilde) {
 					$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$bogf_konto[$y]' and regnskabsaar='$regnaar'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					if ($linjemoms[$y]) {
+						if (!$vat_account[$y]) {
+							include_once('../includes/stdFunc/findAccountVat.php');
+							$vat_account[$y] = findAccountVat($bogf_konto[$y]);
+						}
+						if (!$vat_account[$y]) {
+							# 20260914 CL/SZ SST-744: bail out before $d_kontrol/$k_kontrol are touched for this
+							# line, so a VAT/account setup problem can never leave the control totals holding an
+							# amount that was never actually posted anywhere.
+							return ("Kontroller moms & momsopsætning: kontonr $bogf_konto[$y] har ingen momskode, men ordre $id har en linje med moms");
+						}
 						if ($linjemoms[$y] > 0) {
 							$kredit = $linjemoms[$y];
 							$debet = 0;
@@ -3048,14 +3070,6 @@ function bogfor_nu($id, $kilde) {
 						$k_kontrol = $k_kontrol + $kredit;
 						$debet = afrund($debet, 2);
 						$kredit = afrund($kredit, 2);
-						if (!$vat_account[$y]) {
-							include_once('../includes/stdFunc/findAccountVat.php');
-							$vat_account[$y] = findAccountVat($bogf_konto[$y]);
-						}
-						if (!$vat_account[$y]) {
-							return ("Kontroller moms & momsopsætning");
-							exit;
-						}
 						if (is_numeric($id)) {
 							$qtxt = "insert into transaktioner ";
 							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";

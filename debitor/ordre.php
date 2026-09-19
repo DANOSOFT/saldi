@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-07 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,13 +111,39 @@
 // 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
 // 20260908 CL/Sawaneh SST-763: PBS button on posted PBS invoices opens debitor/pbs_gensend.php
 //                     (attempt history + resend after a Nets rejection).
+// 20260909 Sawaneh JOB-124: partial-delivery packing-slip buttons pass a returside back to the order.
 // 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
+// 20260910 Sawaneh Back button: luk.php returside only on the popup=1 request flag (was the popup
+//                  preference, which sent inline/iframe users to the login page); GET, POST and stored returside sanitised.
 // 20260911 CDX/MJ JOB-106 Approval guard validates the effective order type: an all-negative DO
 //             order only becomes a DK credit note in bogfor(), long after this runs, so a valid
 //             return date was refused at approval.
 // 20260911 CDX/LH SD-186 Place Udført af beside Vor ref. using the same employee options.
 //                  Escape employee selections when saving names containing apostrophes.
 // 20260914 CDX/LH Preserve credit-note approval validation alongside the current employee fields.
+// 20260828 CL/SZ SD-660: Fixed $tpm/$tmp typo in the pile (prev/next arrows) block - $tpm never
+//                existed so the guard from SD-368 (line ~3722, "sets tmp to value_type if set for
+//                navigation") always fired unconditionally; harmless in effect since $tmp/$value_type
+//                here only ever fed the already-commented-out OLV lookup, but confirmed via history
+//                (SD-368) this is genuinely a typo, not a differently-named variable. Added isset()
+//                bounds guards to the prev/next $ordrlst[$i-1]/$ordrlst[$i+1] reads; boundary
+//                behaviour (NULL at both ends) is unchanged, just no longer warns. Restored the
+//                $opValue assignment (and its area$bruger_id.txt write) that #356's plukliste-
+//                condition merge accidentally deleted - includes/udskriv.php:423 reads that file to
+//                pick the post-print redirect target, so this wasn't just a warning, it silently
+//                broke that redirect for every order since #356 merged.
+// 20260828 CL/SZ SD-660 (CodeRabbit, PR #526): the invoice form posts to ordre.php without
+//                valg, so the unconditional file_put_contents above was clearing the
+//                remembered redirect target on every invoice save - the exact same
+//                unconditional-overwrite behaviour the original pre-#356 code had, just
+//                newly visible now that it's restored. Only write the file when valg is
+//                actually present on this request; otherwise leave the previously-written
+//                value alone.
+// 20260916 CDX/LH Preserve optional performer saves and translate the existing employee fields.
+// 20260917 CL/Sawaneh JOB-124 review: both Print plukliste buttons pass a returside (and the
+//                      popup=1 flag) like the Foelgeseddel buttons; stored ordrer.returside values
+//                      are html_entity_decode()d before nav_sanitize_returside() so &amp;-escaped
+//                      multi-parameter return targets are no longer dropped to ordreliste.php.
 
 @session_start();
 $s_id = session_id();
@@ -419,11 +445,15 @@ if (isset($_GET['kundeordnr']) && $_GET['kundeordnr']) { #20200407
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 }
-$returside = if_isset($_GET, NULL, 'returside');
+$returside = nav_sanitize_returside(ifset($_GET, 'returside'));
 if (isset($sag_id)) { // Returside sættes til 'sager' fra sager.php #20210715
 	#  $returside=urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id");
 }
-if ($popup) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
+// luk.php only when THIS window is a popup (popup=1 flag), not on the user's popup
+// preference: inside the new-design iframe luk.php cannot close anything and
+// used to end on the login page.
+$isPopupRequest = ifset($_GET, 'popup') === '1' || ifset($_POST, 'popup') === '1';
+if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
 
 if (($ret_tekst = if_isset($_GET, NULL, 'ret_tekst')) && ($id = if_isset($_GET, NULL, 'id'))) tekstopslag($sort, $id);
 
@@ -841,7 +871,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 			$qtxt .= "lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt',lev_land='$lev_land',lev_email='$lev_email',vis_lev_addr='$vis_lev_addr',";
 			$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',betalingsdage='$betalingsdage',";
 			$qtxt .= "betalingsbet='$betalingsbet',cvrnr='$cvrnr',ean='$ean',momssats='$momssats',institution='$institution',email='$email',";
-			$qtxt .= "mail_fakt='$mail_fakt',phone='$phone',udskriv_til='$udskriv_til',notes='$notes',hvem = '" . db_escape_string((string) $hvem) . "',tidspkt='$tidspkt',";
+			$qtxt .= "mail_fakt='$mail_fakt',phone='$phone',udskriv_til='$udskriv_til',notes='$notes',tidspkt='$tidspkt',";
 			$qtxt .= "pbs='$pbs',afd='$afd',restordre='$restordre' where id='$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
@@ -1141,7 +1171,7 @@ if ($b_submit) {
 	$datotid         = if_isset($_POST, NULL, 'datotid');
 	$nr              = if_isset($_POST, NULL, 'nr');
 
-	$returside = if_isset($_POST, NULL, 'returside');
+	$returside = nav_sanitize_returside(ifset($_POST, 'returside'));
 	if ($status < 3) $status = if_isset($_POST, NULL, 'status');
 	$godkend = if_isset($_POST, NULL, 'godkend');
 	$restordre = if_isset($_POST, NULL, 'restordre');
@@ -1149,7 +1179,7 @@ if ($b_submit) {
 	$omdan_t_fakt = if_isset($_POST, NULL, 'omdan_t_fakt');
 	$kreditnota   = if_isset($_POST, NULL, 'kreditnota');
 	$ref          = trim(if_isset($_POST, NULL, 'ref'));
-	$hvem		 = if_isset($_POST, NULL, 'hvem');
+	$hvem         = isset($_POST['hvem']) && is_string($_POST['hvem']) ? $_POST['hvem'] : null;
 	$oldRef       = trim(if_isset($_POST, NULL, 'oldRef'));
 	$extAfd       = if_isset($_POST, NULL, 'extAfd');
 	$afd          = if_isset($_POST, NULL, 'afd');
@@ -1607,7 +1637,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		if ($sag_id) { #20140507-2
 			header("location:../sager/sager.php?funktion=vis_sag&sag_id=$sag_id");
 		} else {
-			if (!$returside) $returside = if_isset($_GET['returside']);
+			if (!$returside) $returside = nav_sanitize_returside(ifset($_GET, 'returside'));
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">\n";
 			exit;
 		}
@@ -2381,13 +2411,11 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 			} else {
 				$tmp = "";
-				// Respect the submitted 'hvem' even when blank; only fall back to the stored value
-				// when the field was not submitted, so clearing it to blank persists. #20260630
-				if (isset($_POST['hvem'])) {
-					$hvem = $_POST['hvem'];
-				} elseif (!$hvem) {
-					$r = db_fetch_array(db_select("select hvem from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-					if ($r) $hvem = $r['hvem'];
+				// A missing field preserves the stored name; an explicit blank clears it.
+				if ($hvem === null) {
+					$orderId = intval($id);
+					$r = db_fetch_array(db_select("select hvem from ordrer where id = '$orderId'", __FILE__ . " linje " . __LINE__));
+					$hvem = $r['hvem'] ?? '';
 				}
 				if (strlen($levdate) > 6) $tmp = ",levdate='$levdate'";
 				if (strlen($fakturadate) > 6) $tmp = $tmp . ",fakturadate='$fakturadate'";
@@ -3102,7 +3130,7 @@ if ($b_submit == 'del_ordre') {
 	$qtxt .= "'" . db_escape_string($r['kundeordnr']) . "','$r[betalingsdage]','$r[betalingsbet]',";
 	$qtxt .= "'" . db_escape_string($r['cvrnr']) . "','" . db_escape_string($r['ean']) . "',";
 	$qtxt .= "'" . db_escape_string($r['institution']) . "','" . db_escape_string($r['notes']) . "','$r[art]',";
-	$qtxt .= "'$r[ordredate]','$r[momssats]','$r[tidspkt]','" . db_escape_string($r['ref']) . "','$r[hvem]','$r[status]',";
+	$qtxt .= "'$r[ordredate]','$r[momssats]','$r[tidspkt]','" . db_escape_string($r['ref']) . "','" . db_escape_string((string)$r['hvem']) . "','$r[status]',";
 	$qtxt .= "'" . db_escape_string($r['lev_navn']) . "','" . db_escape_string($r['lev_addr1']) . "',";
 	$qtxt .= "'" . db_escape_string($r['lev_addr2']) . "','" . db_escape_string($r['lev_postnr']) . "',";
 	$qtxt .= "'" . db_escape_string($r['lev_bynavn']) . "','" . db_escape_string($r['lev_kontakt']) . "',";
@@ -3309,7 +3337,7 @@ function ordreside($id, $regnskab)
 	global $incl_moms;
 	global $lagerantal, $lagernavn, $lagernr, $localPrint;
 	global $oio, $oioubl, $omkunde, $ordresum;
-	global $popup, $procentfakt, $procenttillag, $procentvare;
+	global $popup, $isPopupRequest, $procentfakt, $procenttillag, $procentvare;
 	global $regnaar, $returside, $rvid, $rvnr;
 	global $samlet_pris, $samlet_rabat, $samlet_rabatpct, $showLocalPrint, $sprog_id, $sprog, $svnr, $jsvars;
 	global $txt370, $txt283;
@@ -3348,7 +3376,7 @@ function ordreside($id, $regnskab)
 		$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 	}
 	if (!$returside) {
-		if ($popup) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
+		if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
 		else $returside = "ordreliste.php";
 	}
 	$addr1 = $addr2 = NULL;
@@ -3428,6 +3456,10 @@ function ordreside($id, $regnskab)
 		$restordre = if_isset($row, NULL, 'restordre');
 		$digitalStatus = if_isset($row, NULL, 'digital_status');
 		$ordredate = if_isset($row, null, 'ordredate') ?? date("y-m-d");
+		$opValue = if_isset($_GET, NULL, 'valg');
+		if ($opValue !== NULL) {
+			file_put_contents("../temp/$db/area$bruger_id.txt", $opValue, LOCK_EX);
+		}
 		$ordredato = dkdato($ordredate);
 		if (if_isset($row, NULL, 'levdate')) {
 			$levdato = dkdato(if_isset($row, NULL, 'levdate'));
@@ -3664,7 +3696,10 @@ function ordreside($id, $regnskab)
 		$datotid = if_isset($row, '', 'datotid');
 		$nr = if_isset($row, 0, 'nr') * 1;
 		if (!$returside && if_isset($row, false, 'returside')) {
-			$returside = $row['returside'];
+			// Stored retursides were written with HTML-escaped separators (&amp;), which
+			// nav_sanitize_returside() rejects outright - decode them back to '&' first so
+			// legitimate multi-parameter return targets survive instead of being dropped.
+			$returside = nav_sanitize_returside(html_entity_decode($row['returside'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 		}
 		$omkunde = if_isset($row, '', 'omvbet') ? 'on' : '';
 		$betalt = if_isset($row, 0, 'betalt');
@@ -3733,7 +3768,7 @@ function ordreside($id, $regnskab)
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
 	$value_type = if_isset($_GET, 'ordrer', 'valg');
-	if($tpm != $value_type) $tmp = $value_type; 
+	if($tmp != $value_type) $tmp = $value_type;
 	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
 	#$ordreliste = explode(",", if_isset($r['box1']));
 	$ordrlst=array();
@@ -3744,9 +3779,9 @@ function ordreside($id, $regnskab)
 	$next_id = 0;
 	for ($i=0;$i<count($ordrlst);$i++) {
 		if ($ordrlst[$i] == $id) {
-			if ($ordrlst[$i - 1]) $prev_id = $ordrlst[$i - 1];
+			if (isset($ordrlst[$i - 1]) && $ordrlst[$i - 1]) $prev_id = $ordrlst[$i - 1];
 			else $prev_id = NULL;
-			if ($ordrlst[$i + 1]) $next_id = $ordrlst[$i + 1];
+			if (isset($ordrlst[$i + 1]) && $ordrlst[$i + 1]) $next_id = $ordrlst[$i + 1];
 			else $next_id = NULL;
 		}
 	}
@@ -3898,7 +3933,7 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"incl_moms\" value=\"$incl_moms\">";
 		print "<input type=\"hidden\" name=\"procenttillag\" value=\"" . dkdecimal($procenttillag, 2) . "\">";
 		print "<input type=\"hidden\" name=\"ref\" value=\"$ref\">";
-		print "<input type=\"hidden\" name=\"hvem\" value=\"$hvem\">";
+		print "<input type=\"hidden\" name=\"hvem\" value=\"" . htmlspecialchars((string)$hvem, ENT_QUOTES, 'UTF-8') . "\">";
 		print "<input type=\"hidden\" name=\"fakturanr\" value=\"$fakturanr\">";
 		print "<input type=\"hidden\" name=\"lev_adr\" value=\"$lev_adr\">";
 		print "<input type=\"hidden\" name=\"valuta\" value=\"$valuta\">";
@@ -4066,7 +4101,7 @@ function ordreside($id, $regnskab)
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td>";
-		print "<td><b>Udført af</b></td><td>" . htmlspecialchars((string) $hvem, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
+		print "<td><b>" . findtekst('5231|Udført af', $sprog_id) . "</b></td><td>" . htmlspecialchars((string) $hvem, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td><td>$fakturanr</td></tr>\n";
 		$tmp = dkdecimal($valutakurs, 2);
 		if ($valuta) print "<tr class='tableTexting2'><td><b>" . findtekst('552|Valuta / Kurs', $sprog_id) . "</b></td><td>$valuta / $tmp</td></tr>\n";
@@ -4150,10 +4185,12 @@ function ordreside($id, $regnskab)
 				// Merged conditions to avoid duplicate code for pluklisteEmail check
 				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud")) {
 					$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+					$printPopupQuery = nav_popup_query($_GET, $_POST);
+					$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
 					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
 					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 					if ($pluklisteEmail && (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud"))) {
 						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
@@ -4177,9 +4214,11 @@ function ordreside($id, $regnskab)
 			}
 		}
 		if ($lev_max > 0) {
+			$printPopupQuery = nav_popup_query($_GET, $_POST);
+			$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
 			print "<tr class='tableTexting2'><td colspan=\"2\">&nbsp;</td></tr>\n";
 			for ($levnr = 1; $levnr <= $lev_max; $levnr++) {
-				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=$levnr&formular=3&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
 			}
 		}
 		
@@ -4680,7 +4719,7 @@ function ordreside($id, $regnskab)
 		if ($art == 'OT') { // Når input fields er 'disabled' bliver de ikke opdateret, derfor tilføjes hidden fields #20140716
 			print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">\n";
 			print "<input type=\"hidden\" name=\"ref\" value=\"$ref\">\n";
-			print "<input type=\"hidden\" name=\"hvem\" value=\"$hvem\">\n";
+			print "<input type=\"hidden\" name=\"hvem\" value=\"" . htmlspecialchars((string)$hvem, ENT_QUOTES, 'UTF-8') . "\">\n";
 			print "<input type=\"hidden\" name=\"procenttillag\" value=\"" . dkdecimal($procenttillag, 2) . "\">";
 
 			print "<input type=\"hidden\" name=\"felt_1\" style=\"width:200px\" value=\"$felt_1\">\n";
@@ -5142,7 +5181,7 @@ function ordreside($id, $regnskab)
 			}
 		}
 		include_once(__DIR__ . '/orderIncludes/renderEmployeeFields.php');
-		print renderOrderEmployeeFields($ansat, $ref, $hvem, findtekst(1097, $sprog_id), !empty($disabled));
+		print renderOrderEmployeeFields($ansat, $ref, $hvem, findtekst(1097, $sprog_id), !empty($disabled), findtekst('5231|Udført af', $sprog_id));
 		$x = 0;
 		$afd_navn = array();
 		$afd_nr[$x] = array();
@@ -5597,10 +5636,12 @@ function ordreside($id, $regnskab)
 			}
 		}
 		if ($lev_max > 0) {
+			$printPopupQuery = nav_popup_query($_GET, $_POST);
+			$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
 			print "<tr class='tableTexting2'><td colspan=\"2\">&nbsp;</td></tr>\n";
 			for ($levnr = 1; $levnr <= $lev_max; $levnr++) {
 				include("../includes/topline_settings.php");
-				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=$levnr&formular=3&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
 			}
 		}
 		print "</td></tr></tbody></table></td></tr>\n"; #<- Tabel 4.3
@@ -6406,8 +6447,10 @@ function ordreside($id, $regnskab)
 			if (!$sag_id) {
 				include("../includes/topline_settings.php");
 				$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+				$printPopupQuery = nav_popup_query($_GET, $_POST);
+				$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
 				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != 'tilbud')) {
-					print "<td align=\"center\"><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;'>Print plukliste</button></td>\n";
+					print "<td align=\"center\"><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;'>Print plukliste</button></td>\n";
 				}
 				// Writing field: only when this is a real order (sag_id null/0) and a plukliste email is configured.
 				if ($pluklisteEmail) {
