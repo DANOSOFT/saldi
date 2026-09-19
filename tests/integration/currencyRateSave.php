@@ -13,9 +13,25 @@ set_error_handler(function ($severity, $message, $file, $line) {
 function db_select($query, $source) {
 	global $fixture;
 	$rows = match (true) {
-		// The $id-to-$kodenr binding lookup. Answering it "no row" is how a mismatched pair,
-		// or an $id belonging to another currency, gets rejected.
-		str_contains($query, 'and gruppe =') => $fixture['bound'] ? [['id' => $fixture['id']]] : [],
+		// The $id-to-$kodenr binding lookup.
+		//
+		// 20260919 CDX/MJ This used to answer from a fixture flag without looking at the query, so
+		// a regression that changed either predicate still got the bound row back and the test
+		// passed. Raised by CodeRabbit on #598. It now models the data instead: the tenant holds
+		// one rate row, $fixture['id'], belonging to currency $fixture['rateRowCurrency'], and the
+		// lookup matches only if the request asks for exactly that pair. Rejection is therefore a
+		// consequence of the data, not something the fixture asserts directly.
+		str_contains($query, 'and gruppe =') => (static function () use ($query, $fixture): array {
+			// The binding is only meaningful if it constrains BOTH the row and the currency, so a
+			// lookup that has lost either predicate fails the run rather than being answered.
+			if (!preg_match("/\bid = '([^']*)'/", $query, $mId)
+				|| !preg_match("/\bgruppe = '([^']*)'/", $query, $mGruppe)) {
+				throw new RuntimeException('Binding lookup lost a predicate: ' . $query);
+			}
+			$matches = $mId[1] === (string)$fixture['id']
+				&& $mGruppe[1] === (string)$fixture['rateRowCurrency'];
+			return $matches ? [['id' => $fixture['id']]] : [];
+		})(),
 		str_contains($query, 'max(transdate)') => [['transdate' => $fixture['lastPosting']]],
 		str_contains($query, "kontotype = 'D'") => $fixture['validAccount'] ? [['id' => 1]] : [],
 		str_contains($query, 'select id,kurs from valuta') => [],
@@ -86,17 +102,19 @@ $cases = [
 	// The IDOR the binding exists to stop: an $id from one currency paired with another
 	// currency's $kodenr. $id must be discarded, so the write degrades to an insert against the
 	// currency actually being edited rather than updating the other currency's rate row.
-	'id from another currency is discarded' => ['button' => 'submit_uden_bogf', 'id' => 7, 'kodenr' => 1, 'bound' => false,
+	'id from another currency is discarded' => ['button' => 'submit_uden_bogf', 'id' => 7, 'kodenr' => 1,
 		'oldRate' => 700, 'expectedRateWrite' => 'insert', 'expectedPostings' => 0, 'forbidTouchingId' => 7],
 	// No $kodenr at all skips the lookup, so "no currency given" must not mean "no check".
-	'id without a currency is discarded' => ['button' => 'submit_uden_bogf', 'id' => 7, 'kodenr' => null, 'bound' => false,
+	'id without a currency is discarded' => ['button' => 'submit_uden_bogf', 'id' => 7, 'kodenr' => null,
 		'oldRate' => 700, 'expectedRateWrite' => 'insert', 'expectedPostings' => 0, 'forbidTouchingId' => 7],
 	// And the posting path must be protected the same way, not just the rate-only one.
-	'id from another currency cannot be posted against' => ['button' => 'submit', 'id' => 7, 'kodenr' => 1, 'bound' => false,
+	'id from another currency cannot be posted against' => ['button' => 'submit', 'id' => 7, 'kodenr' => 1,
 		'oldRate' => 700, 'expectedRateWrite' => 'insert', 'expectedPostings' => 2, 'forbidTouchingId' => 7]
 ];
 foreach ($cases as $name => $case) {
-	$fixture = $case + ['lastPosting' => '2026-01-01', 'validAccount' => true, 'bound' => true, 'kodenr' => 2];
+	// rateRowCurrency is the currency the stored rate row actually belongs to. A case that pairs a
+	// different kodenr with it is the cross-currency request the binding has to reject.
+	$fixture = $case + ['lastPosting' => '2026-01-01', 'validAccount' => true, 'rateRowCurrency' => 2, 'kodenr' => 2];
 	$writes = $transactions = [];
 	$recalculations = 0;
 	$_POST = [$case['button'] => 'save', 'dato' => '14-09-2026', 'kurs' => '750,00', 'valuta' => 'USD', 'beskrivelse' => 'US dollar', 'difkto' => '8040'];
