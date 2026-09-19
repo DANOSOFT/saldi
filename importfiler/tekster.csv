@@ -5095,6 +5095,9 @@
 5148	Forstået	Got it	Skjønner
 5149	Brugernavnet må højst være 80 tegn	The username may be at most 80 characters	Brukernavnet kan høyst være 80 tegn
 5150	Regnskabsnavnet må højst være 60 tegn	The account name may be at most 60 characters	Regnskapsnavnet kan høyst være 60 tegn
+5153	Gem kurs uden bogføring	Save rate without posting	Lagre kurs uten bokføring
+5154	Kursen bogføres automatisk som kursregulering på alle konti i valutaen. Brug Gem kurs uden bogføring, hvis du selv vil bogføre reguleringen.	The rate is posted automatically as an exchange rate adjustment on every account in the currency. Use Save rate without posting if you want to post the adjustment yourself.	Kursen bokføres automatisk som kursregulering på alle kontoer i valutaen. Bruk Lagre kurs uten bokføring hvis du selv vil bokføre reguleringen.
+5234	Kursregulering bogført i DKK	Rate adjustment posted in DKK	Kursregulering bokført i DKK
 5151	Eksporter CSV (alle sider)	Export CSV (all pages)	Eksporter CSV (alle sider)
 5152	Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling	Export all accounts under the selected filters to CSV, without pagination	Eksporter alle kontoer under de valgte filtrene til CSV, uten sideinndeling
 

@@ -35,6 +35,9 @@
 // 20260901 CL/LAH Fixed Saldo column showing the same value on every line:
 //                  running balance was only accumulated for rows skipped by
 //                  pagination, never for the printed rows.
+// 20260911 CDX/MJ SST-769 Rate-adjustment rows (valuta = -1) showed 0,00 in debet/kredit while
+//                  still moving the balance, because the DKK amount only went into the cell title.
+//                  Show it as a labelled DKK figure so currency accounts can be reconciled.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -799,30 +802,46 @@ print "<tbody>";
 					($kladde_id[$tr]) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&visipop=on')\"" : $js = NULL;
 					print "<td title='Kladde: $kladde_id[$tr]' $js>$bilag[$tr]</td><td>$kontonr[$x] : $beskrivelse[$tr] </td>";
 					fwrite($csv, "$bilag[$tr];$kontonr[$x] : " . mb_convert_encoding($beskrivelse[$tr], 'ISO-8859-1', 'UTF-8') . ";");
+					// SST-769 A rate adjustment is posted in DKK only (valuta = -1, valutakurs = 100),
+					// so there is no foreign-currency amount to convert. Showing 0,00 left a row that
+					// moved the balance with no visible amount, which is why MEDSHOP could not
+					// reconcile their currency accounts. Show the DKK figure, labelled in the column
+					// so it is never read as an amount in the account's own currency, and export the
+					// bare number so the CSV still reconciles.
 					if ($kontovaluta[$x]) {
-						if ($transvaluta[$tr] == '-1')
-							$tmp = 0;
-						else
-							$tmp = $debet[$tr] * 100 / $transkurs[$tr];
-						$title = "DKK " . dkdecimal($debet[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						if ($transvaluta[$tr] == '-1') {
+							$csvval = $debet[$tr] * 1;
+							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
+							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
+						} else {
+							$csvval = $debet[$tr] * 100 / $transkurs[$tr];
+							$vis    = dkdecimal($csvval, 2);
+							$title  = "DKK " . dkdecimal($debet[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						}
 					} else {
-						$tmp = $debet[$tr];
-						$title = NULL;
+						$csvval = $debet[$tr];
+						$vis    = dkdecimal($csvval, 2);
+						$title  = NULL;
 					}
-					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td>";
-					fwrite($csv, dkdecimal($tmp, 2) . ";");
+					print "<td align=\"right\" title=\"$title\">$vis</td>";
+					fwrite($csv, dkdecimal($csvval, 2) . ";");
 					if ($kontovaluta[$x]) {
-						if ($transvaluta[$tr] == '-1')
-							$tmp = 0;
-						else
-							$tmp = $kredit[$tr] * 100 / $transkurs[$tr];
-						$title = "DKK " . dkdecimal($kredit[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						if ($transvaluta[$tr] == '-1') {
+							$csvval = $kredit[$tr] * 1;
+							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
+							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
+						} else {
+							$csvval = $kredit[$tr] * 100 / $transkurs[$tr];
+							$vis    = dkdecimal($csvval, 2);
+							$title  = "DKK " . dkdecimal($kredit[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						}
 					} else {
-						$tmp = $kredit[$tr];
-						$title = NULL;
+						$csvval = $kredit[$tr];
+						$vis    = dkdecimal($csvval, 2);
+						$title  = NULL;
 					}
-					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td>";
-					fwrite($csv, dkdecimal($tmp, 2) . ";");
+					print "<td align=\"right\" title=\"$title\">$vis</td>";
+					fwrite($csv, dkdecimal($csvval, 2) . ";");
 					#$kontosum = $kontosum + afrund($debet[$tr], 2) - afrund($kredit[$tr], 2);
 					if ($kontovaluta[$x]) {
 						$tmp = $kontosum * 100 / $transkurs[$tr];
