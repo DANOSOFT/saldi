@@ -141,30 +141,65 @@ final class DeliveryAddressSaveTransactionTest extends TestCase
         self::assertLessThan($commit, $begin, 'begin should precede commit');
 
         $loopDepth = 0;
-        $pendingLoop = false;
-        $braceIsLoop = [];
+        $stack = [];
+        $expectDoTail = false;
+        $i = $begin;
 
-        for ($i = $begin; $i < $commit; $i++) {
+        while ($i < $commit) {
             [$id, $text] = $tokens[$i];
 
-            if (in_array($id, [T_FOR, T_FOREACH, T_WHILE, T_DO, T_SWITCH], true)) {
-                $pendingLoop = true;
+            // The while of `do { ... } while (...);` closes a loop, it does not open one.
+            if ($id === T_WHILE && $expectDoTail) {
+                $expectDoTail = false;
+                $i = self::skipParens($tokens, $i + 1, $commit);
+                if ($i < $commit && $tokens[$i][1] === ';') {
+                    $i++;
+                }
                 continue;
             }
+
+            // Bind each loop keyword to its own body by stepping over the header first. Without
+            // this a pending flag survives to the next unrelated '{' and inflates the depth, so a
+            // break that really does escape the region passes the check below.
+            if (in_array($id, [T_FOR, T_FOREACH, T_WHILE, T_SWITCH], true)) {
+                $body = self::skipParens($tokens, $i + 1, $commit);
+                self::assertTrue(
+                    $body < $commit && $tokens[$body][1] === '{',
+                    "unbraced body after '$text' is not modelled by this check - brace it, or extend the check"
+                );
+                $stack[] = 'loop';
+                $loopDepth++;
+                $i = $body + 1;
+                continue;
+            }
+            if ($id === T_DO) {
+                self::assertTrue(
+                    isset($tokens[$i + 1]) && $tokens[$i + 1][1] === '{',
+                    "unbraced body after 'do' is not modelled by this check - brace it, or extend the check"
+                );
+                $stack[] = 'do';
+                $loopDepth++;
+                $i += 2;
+                continue;
+            }
+
             if ($text === '{') {
-                $braceIsLoop[] = $pendingLoop;
-                if ($pendingLoop) {
-                    $loopDepth++;
-                }
-                $pendingLoop = false;
+                $stack[] = 'plain';
+                $i++;
                 continue;
             }
             if ($text === '}') {
-                if (array_pop($braceIsLoop)) {
+                $kind = array_pop($stack);
+                if ($kind === 'loop' || $kind === 'do') {
                     $loopDepth--;
                 }
+                if ($kind === 'do') {
+                    $expectDoTail = true;
+                }
+                $i++;
                 continue;
             }
+
             if ($id === T_RETURN || $id === T_EXIT) {
                 self::fail("a '$text' between begin and commit would skip the commit");
             }
@@ -178,6 +213,7 @@ final class DeliveryAddressSaveTransactionTest extends TestCase
                     "'$text $level' escapes the transaction region and would skip the commit"
                 );
             }
+            $i++;
         }
 
         // The alternative syntax has no braces, so the nesting count above would not see it.
@@ -186,6 +222,33 @@ final class DeliveryAddressSaveTransactionTest extends TestCase
                 self::assertNotSame($alt, $token[0], 'alternative loop syntax is not handled by this check');
             }
         }
+    }
+
+    /**
+     * Index just past the balanced parenthesis group starting at $i.
+     *
+     * @param list<array{0:int|string,1:string}> $tokens
+     * @param int $i Index of the opening '(' (or of whatever precedes it, if there is none).
+     * @param int $limit Index to stop at.
+     * @return int Index of the first token after the group, or $limit.
+     */
+    private static function skipParens(array $tokens, int $i, int $limit): int
+    {
+        if ($i >= $limit || $tokens[$i][1] !== '(') {
+            return $i;
+        }
+        $depth = 0;
+        for (; $i < $limit; $i++) {
+            if ($tokens[$i][1] === '(') {
+                $depth++;
+            } elseif ($tokens[$i][1] === ')') {
+                $depth--;
+                if ($depth === 0) {
+                    return $i + 1;
+                }
+            }
+        }
+        return $limit;
     }
 
     /**
