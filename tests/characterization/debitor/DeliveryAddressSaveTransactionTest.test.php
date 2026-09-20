@@ -12,7 +12,10 @@ use PHPUnit\Framework\TestCase;
 //
 //                  That is a real invariant, not a restatement of the diff: adding a db_modify()
 //                  after the commit, or an early exit inside the block, silently reintroduces the
-//                  partial-save this fixed, and both would fail here.
+//                  partial save this fixed, and both fail here.
+// 20260920 CDX/MJ The control-flow and rollback checks were regexes and missed real cases -
+//                  "return $value;", "break 2;" and a rollback guarded by some other condition all
+//                  passed. Both now work on tokens. Raised by CodeRabbit on the PR.
 final class DeliveryAddressSaveTransactionTest extends TestCase
 {
     /** @return string The delivery-address save block, start comment to end comment. */
@@ -27,9 +30,31 @@ final class DeliveryAddressSaveTransactionTest extends TestCase
     }
 
     /**
-     * The block with comments removed. Needed because the explanatory comments in the source name
-     * db_modify() and transaktion() themselves, and a text scan would otherwise match those.
+     * The block's tokens, comments and whitespace removed.
+     *
+     * Comments have to go because the explanatory comments in the source name db_modify() and
+     * transaktion() themselves, and any scan would otherwise match those.
+     *
+     * @return list<array{0:int|string,1:string}> Normalised tokens: [id, text], id being a T_*
+     *         constant or the literal character for single-character tokens.
      */
+    private static function blockTokens(): array
+    {
+        $out = [];
+        foreach (token_get_all('<?php ' . self::saveBlock()) as $token) {
+            if (is_array($token)) {
+                if (in_array($token[0], [T_COMMENT, T_DOC_COMMENT, T_WHITESPACE, T_OPEN_TAG], true)) {
+                    continue;
+                }
+                $out[] = [$token[0], $token[1]];
+            } else {
+                $out[] = [$token, $token];
+            }
+        }
+        return $out;
+    }
+
+    /** @return string The block as code, comments stripped, for plain text assertions. */
     private static function saveBlockCode(): string
     {
         $code = '';
@@ -46,6 +71,26 @@ final class DeliveryAddressSaveTransactionTest extends TestCase
         return $code;
     }
 
+    /**
+     * Index of the transaktion('<$action>') call in the token list.
+     *
+     * @param list<array{0:int|string,1:string}> $tokens
+     * @param string $action begin, commit or rollback.
+     * @return int Token index of the transaktion identifier itself.
+     */
+    private static function transaktionCall(array $tokens, string $action): int
+    {
+        foreach ($tokens as $i => $token) {
+            if ($token[0] === T_STRING && $token[1] === 'transaktion'
+                && isset($tokens[$i + 2]) && $tokens[$i + 1][1] === '('
+                && trim($tokens[$i + 2][1], "'\"") === $action) {
+                return $i;
+            }
+        }
+        self::fail("transaktion('$action') not found in the save block");
+    }
+
+    /** The block must open and close exactly one transaction, with one rollback arm. */
     public function testTheBlockOpensAndClosesExactlyOneTransaction(): void
     {
         $block = self::saveBlockCode();
@@ -54,6 +99,7 @@ final class DeliveryAddressSaveTransactionTest extends TestCase
         self::assertSame(1, substr_count($block, "transaktion('rollback')"), 'exactly one rollback');
     }
 
+    /** Every write must sit between the begin and the commit, or it is outside the transaction. */
     public function testEveryWriteHappensInsideTheTransaction(): void
     {
         $block = self::saveBlockCode();
@@ -79,34 +125,84 @@ final class DeliveryAddressSaveTransactionTest extends TestCase
     }
 
     /**
-     * An exit, return or break between begin and commit would leave the transaction open and the
-     * save half-applied for the rest of the request.
+     * Nothing between begin and commit may jump past the commit and leave the transaction open.
+     *
+     * Token-based rather than a regex: the previous regex matched only `return;`/`exit;`/`exit(`
+     * and so missed `return $value;`, `break 2;` and `return $x ? 1 : 2;`.
+     *
+     * break and continue are judged against the loop nesting inside the region, so an ordinary
+     * `break` in an inner foreach is fine while `break 2` out of the region is not.
      */
     public function testNothingCanSkipTheCommit(): void
     {
-        $block = self::saveBlockCode();
-        $begin = strpos($block, "transaktion('begin')");
-        $commit = strpos($block, "transaktion('commit')");
-        $between = substr($block, $begin, $commit - $begin);
+        $tokens = self::blockTokens();
+        $begin = self::transaktionCall($tokens, 'begin');
+        $commit = self::transaktionCall($tokens, 'commit');
+        self::assertLessThan($commit, $begin, 'begin should precede commit');
 
-        // 'continue' is fine: the only loop here is inside the block, so it cannot escape it.
-        foreach (['exit', 'die', 'return', 'break'] as $keyword) {
-            self::assertSame(
-                0,
-                preg_match('/\b' . $keyword . '\b\s*[;(]/', $between),
-                "found a '$keyword' between begin and commit, which would skip it"
-            );
+        $loopDepth = 0;
+        $pendingLoop = false;
+        $braceIsLoop = [];
+
+        for ($i = $begin; $i < $commit; $i++) {
+            [$id, $text] = $tokens[$i];
+
+            if (in_array($id, [T_FOR, T_FOREACH, T_WHILE, T_DO, T_SWITCH], true)) {
+                $pendingLoop = true;
+                continue;
+            }
+            if ($text === '{') {
+                $braceIsLoop[] = $pendingLoop;
+                if ($pendingLoop) {
+                    $loopDepth++;
+                }
+                $pendingLoop = false;
+                continue;
+            }
+            if ($text === '}') {
+                if (array_pop($braceIsLoop)) {
+                    $loopDepth--;
+                }
+                continue;
+            }
+            if ($id === T_RETURN || $id === T_EXIT) {
+                self::fail("a '$text' between begin and commit would skip the commit");
+            }
+            if ($id === T_BREAK || $id === T_CONTINUE) {
+                $level = (isset($tokens[$i + 1]) && $tokens[$i + 1][0] === T_LNUMBER)
+                    ? (int)$tokens[$i + 1][1]
+                    : 1;
+                self::assertLessThanOrEqual(
+                    $loopDepth,
+                    $level,
+                    "'$text $level' escapes the transaction region and would skip the commit"
+                );
+            }
+        }
+
+        // The alternative syntax has no braces, so the nesting count above would not see it.
+        foreach ([T_ENDFOR, T_ENDFOREACH, T_ENDWHILE, T_ENDSWITCH] as $alt) {
+            foreach (array_slice($tokens, $begin, $commit - $begin) as $token) {
+                self::assertNotSame($alt, $token[0], 'alternative loop syntax is not handled by this check');
+            }
         }
     }
 
-    /** The webservice path returns instead of exiting, so the failure flag must be consulted. */
+    /**
+     * The rollback must be guarded by the write-failure flag specifically.
+     *
+     * The webservice path returns from db_modify() instead of exiting, so without this guard a
+     * half-written save would commit. Asserted as the exact construct: the previous regex allowed
+     * any condition to sit between the flag and the rollback, so a rollback guarded by something
+     * unrelated would have passed.
+     */
     public function testTheWriteFailureFlagGatesTheCommit(): void
     {
-        $block = self::saveBlockCode();
-        self::assertMatchesRegularExpression(
-            '/db_modify_fejl.*\)\s*\{\s*(\/\/[^\n]*\n\s*)*transaktion\(\'rollback\'\)/s',
-            $block,
-            'the rollback should be guarded by $db_modify_fejl'
+        $normalised = preg_replace('/\s+/', ' ', self::saveBlockCode());
+        self::assertStringContainsString(
+            "if (!empty(\$db_modify_fejl)) { transaktion('rollback'); } else { transaktion('commit'); }",
+            $normalised,
+            'the rollback/commit choice should be made by !empty($db_modify_fejl) and nothing else'
         );
     }
 }
