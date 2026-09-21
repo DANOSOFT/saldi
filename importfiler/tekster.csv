@@ -5100,3 +5100,5 @@
 
 5230	Mobilnummer	Mobile number	Mobilnummer
 5231	Udført af	Performed by	Utført av
+5241	Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager	The cost price was estimated from an open purchase order, as the item was not in stock	Kostprisen er anslått ut fra en åpen innkjøpsordre, da varen ikke var på lager
+5242	Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre	The cost price was estimated from the item card, as the item was neither in stock nor on an open purchase order	Kostprisen er anslått ut fra varekortet, da varen verken var på lager eller på en åpen innkjøpsordre
