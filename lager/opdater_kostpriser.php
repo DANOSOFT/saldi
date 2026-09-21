@@ -17,21 +17,36 @@
 // Copyright (c) 2004-2005 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
+// 20260920 CDX/LUI Require an authenticated CSRF-checked POST before updating supplier costs.
 @session_start();
-$s_id=session_id();
+$s_id = session_id();
+$modulnr = 9;
+$title = "Opdater kostpriser";
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/online.php");
+require_once(__DIR__ . "/../includes/std_func.php");
 
-$modulnr=9;
-
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/dkdecimal.php");
-include("../includes/usdecimal.php");
-# include("../includes/db_query.php");
- 
- 
-
-$query = db_select("select vare_id, kostpris from vare_lev");
-while ($row = db_fetch_array($query)) {
-  db_modify("update varer set kostpris = '$row[kostpris]' where id = '$row[vare_id]'");
+if (empty($_SESSION['cost_update_csrf'])) {
+    $_SESSION['cost_update_csrf'] = bin2hex(random_bytes(32));
 }
-?>
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = (string)ifset($_POST, 'csrf_token', '');
+    if (!hash_equals($_SESSION['cost_update_csrf'], $token)) {
+        http_response_code(403);
+        print "<p>Ugyldig formular. Åbn siden igen og prøv på ny.</p></body></html>";
+        exit;
+    }
+    $query = db_select("select vare_id, kostpris from vare_lev", __FILE__ . " linje " . __LINE__);
+    while ($row = db_fetch_array($query)) {
+        $itemId = (int)$row['vare_id'];
+        $costPrice = (float)$row['kostpris'];
+        db_modify("update varer set kostpris = $costPrice where id = $itemId", __FILE__ . " linje " . __LINE__);
+    }
+    $_SESSION['cost_update_csrf'] = bin2hex(random_bytes(32));
+    print "<p>Kostpriser er opdateret.</p>";
+}
+$token = htmlspecialchars($_SESSION['cost_update_csrf'], ENT_QUOTES, 'UTF-8');
+print "<h1>Opdater kostpriser</h1><p>Opdater varernes kostpriser fra leverandørernes priser.</p>";
+print "<form method='post'><input type='hidden' name='csrf_token' value='$token'>";
+print "<button type='submit'>Opdater kostpriser</button></form>";
+print "<p><a href='varer.php'>Tilbage til varer</a></p></body></html>";

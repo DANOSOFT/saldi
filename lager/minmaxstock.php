@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260920 CDX/LUI Initialize empty report collections and normalize optional filters with ifset.
 
 @session_start();
 $s_id=session_id();
@@ -37,15 +38,15 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$afd=if_isset($_GET['afd']);
-$vgrp=if_isset($_GET['vgrp']);
-$vnr=if_isset($_GET['vnr']);
-$vname=if_isset($_GET['vname']);
+$afd = ifset($_GET, 'afd');
+$vgrp = ifset($_GET, 'vgrp');
+$vnr = ifset($_GET, 'vnr');
+$vname = ifset($_GET, 'vname');
 
 if ($popup) $returside="../includes/luk.php";
-else $returside="rapport.php?varenr=$vnr&afd=$afd&varegruppe=$vrgp&varenavn=$vname";
+else $returside="rapport.php?varenr=$vnr&afd=$afd&varegruppe=$vgrp&varenavn=$vname";
 
-$lokMinMax=if_isset($_POST['lokMinMax']);
+$lokMinMax = ifset($_POST, 'lokMinMax');
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -66,6 +67,10 @@ if ($menu=='T') {
 	print "</tbody></table></td></tr>"; #B slut
 	print "</tr><tr><td height=\"99%\" \"width=100%\" align=\"center\" valign=\"middle\">";
 }
+$vGr = $vGrDescription = $stk = $stkDescription = [];
+$itemId = $itemNo = $itemGrp = $itemMin = $itemMax = $itemDescription = [];
+$location = $stockItemId = $variant_id = $stockNo = $stock = [];
+$stocksum = 0;
 $x=0;
 $qtxt = "select kodenr,beskrivelse from grupper where art = 'VG' and box8 = 'on' ";
 if ($vgrp) $qtxt.= " and kodenr='$vgrp' ";

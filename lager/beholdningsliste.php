@@ -16,32 +16,37 @@
 //
 // Copyright (c) 2004-2006 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260920 CDX/LUI Keep missing-warehouse reports authenticated and rendering read-only.
 
 @session_start();
 $s_id = session_id();
 
-print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>SALDI - beholdningsliste</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
+$modulnr = 9;
+$title = "Beholdningsliste";
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/online.php");
+require_once(__DIR__ . "/../includes/std_func.php");
 
-# $modulnr=9;
-
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/stdFunc/dkDecimal.php");
-# include("../includes/db_query.php");
-
-$vis_lev = $_GET['vis_lev'];
-$vis_kost = $_GET['vis_kost'];
-$sort = $_GET['sort'];
-if (!$sort) {
-    $sort = "varenr";
+$vis_lev = ifset($_GET, 'vis_lev', '');
+$vis_kost = ifset($_GET, 'vis_kost', '');
+$sort = ifset($_GET, 'sort', 'varenr');
+if (!in_array($sort, ['varenr', 'beskrivelse', 'salgspris', 'beholdning'], true)) {
+    $sort = 'varenr';
 }
+$lager = null;
+$lagernavn = '';
+$linjebg = '';
+$x = (int)ifset($_GET, 'x', 0);
+$id = (int)ifset($_GET, 'id', 0);
+$fokus = htmlspecialchars((string)ifset($_GET, 'fokus', ''), ENT_QUOTES, 'UTF-8');
 
 if (!isset($_GET["lager"])) {
-    $row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
-    if ($row["ansat_id"]) {
+    $escapedUser = db_escape_string($brugernavn);
+    $row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$escapedUser'", __FILE__ . " linje " . __LINE__));
+    if (!empty($row["ansat_id"])) {
         $row = db_fetch_array(db_select("select navn from ansatte where id = $row[ansat_id]", __FILE__ . " linje " . __LINE__));
-        if ($row["navn"]) {
-            $ref = $row['navn'];
+        if (!empty($row["navn"])) {
+            $ref = db_escape_string($row['navn']);
             if ($row = db_fetch_array(db_select("select afd from ansatte where navn = '$ref'", __FILE__ . " linje " . __LINE__))) {
                 if ($row = db_fetch_array(db_select("select beskrivelse, kodenr from grupper where box1='$row[afd]' and art='LG'", __FILE__ . " linje " . __LINE__))) {
                     $lager = $row['kodenr'] * 1;
@@ -51,12 +56,22 @@ if (!isset($_GET["lager"])) {
         }
     }
 } else {
-    $lager = $_GET["lager"];
+    $lager = (int)$_GET["lager"];
 }
 if (!$lager) {
-    print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/logud.php\">";
+    print "<h1>Beholdningsliste</h1><p>Der er ikke valgt eller tilknyttet et lager. Vælg lager fra varerapporten, eller få din lagertilknytning opdateret.</p>";
+    print "<p><a href='rapport.php'>Tilbage til varerapporter</a></p></body></html>";
     exit;
 }
+if ($lager > 0) {
+    $warehouse = db_fetch_array(db_select("SELECT beskrivelse FROM grupper WHERE art='LG' AND kodenr=$lager", __FILE__ . " linje " . __LINE__));
+    if (!$warehouse) {
+        print "<h1>Beholdningsliste</h1><p>Det valgte lager findes ikke.</p></body></html>";
+        exit;
+    }
+    $lagernavn = htmlspecialchars((string)$warehouse['beskrivelse'], ENT_QUOTES, 'UTF-8');
+}
+
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
@@ -72,17 +87,17 @@ print "<tbody>\n";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0	\" width=\"100%\" valign = \"top\">";
 print "<tbody><tr>";
 if ($vis_kost) {
-    print "<tr><td colspan=8 align=center><a href=beholdningsliste.php?sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id>$font<small>Udelad kostpriser</a></td></tr>";
+    print "<tr><td colspan=8 align=center><a href=beholdningsliste.php?lager=$lager&sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id>$font<small>Udelad kostpriser</a></td></tr>";
 } else {
-    print "<tr><td colspan=4 align=center><a href=beholdningsliste.php?sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=on>$font<small>Vis kostpriser</a></td></tr>";
+    print "<tr><td colspan=4 align=center><a href=beholdningsliste.php?lager=$lager&sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=on>$font<small>Vis kostpriser</a></td></tr>";
 }
-print "<td><small><b>$font<a href=beholdningsliste.php?sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Varenr</a></b></small></td>";
-print "<td><small><b>$font<a href=beholdningsliste.php?sort=beskrivelse&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Beskrivelse</a></b></small></td>";
-print "<td align=right><small><b>$font<a href=beholdningsliste.php?sort=salgspris&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id>Salgspris</a></b></small></td>";
+print "<td><small><b>$font<a href=beholdningsliste.php?lager=$lager&sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Varenr</a></b></small></td>";
+print "<td><small><b>$font<a href=beholdningsliste.php?lager=$lager&sort=beskrivelse&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Beskrivelse</a></b></small></td>";
+print "<td align=right><small><b>$font<a href=beholdningsliste.php?lager=$lager&sort=salgspris&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id>Salgspris</a></b></small></td>";
 if ($vis_kost) {
     print "<td align=right><small><b>$font Kostpris</b></small></td>";
 }
-print "<td align=right><small><b>$font<a href=beholdningsliste.php?sort=beholdning&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Beh.</a></b></small></td>";
+print "<td align=right><small><b>$font<a href=beholdningsliste.php?lager=$lager&sort=beholdning&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Beh.</a></b></small></td>";
 print "<td><br></td>";
 #  print"<td><br></td><td><small><b>$fontKunde</b></small></td>";
 print " </tr>\n";
@@ -93,15 +108,10 @@ if (!$sort) {
 
 $query = db_select("select * from varer where lukket != '1' order by $sort", __FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
-    $query2 = db_select("select box8 from grupper where art='VG' and kodenr='$row[gruppe]'", __FILE__ . " linje " . __LINE__);
-    $row2 = db_fetch_array($query2);
-    if (($row2["box8"] == 'on') || ($row["samlevare"] == 'on')) {
-        if (($row["beholdning"] != '0') and (!$row["beholdning"])) {
-            db_modify("update varer set beholdning=0 where id=$row[id]", __FILE__ . " linje " . __LINE__);
-        }
-    } elseif ($row["beholdning"]) {
-        db_modify("update varer set beholdning='' where id=$row[id]", __FILE__ . " linje " . __LINE__);
-    }
+    // A report must not repair stock records as a side effect of viewing them.
+    // Keep absent amounts local to this rendering; inventory writes belong to
+    // the stock adjustment and receipt workflows.
+    $row['beholdning'] = $row['beholdning'] ?? 0;
 
     if ($linjebg != $bgcolor) {
         $linjebg = $bgcolor;
@@ -118,7 +128,7 @@ while ($row = db_fetch_array($query)) {
     if ($vis_kost == 'on') {
         $query2 = db_select("select kostpris from vare_lev where vare_id = $row[id] order by posnr", __FILE__ . " linje " . __LINE__);
         $row2 = db_fetch_array($query2);
-        $kostpris = dkdecimal($row2["kostpris"]);
+        $kostpris = dkdecimal($row2["kostpris"] ?? 0);
         print "<td align=right><small>$font $kostpris<br></small></td>";
     }
     $reserveret = 0;
