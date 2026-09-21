@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  * History:
  * 20260914 Sawaneh Created (JOB-141, EXIT-SOUND invoice 129629 "tomt eller ugyldigt svar").
  * 20260915 Sawaneh PR #619 review: errNo != 0 with a document is an error, not a success.
+ * 20260921 Sawaneh PR #619 review: a bare 'message' without errNo is informational when a document came.
  */
 final class EasyUblResponseTest extends TestCase
 {
@@ -48,6 +49,18 @@ final class EasyUblResponseTest extends TestCase
         $out = easyubl_interpret_response(200, self::reply(['message' => 'OK', 'base64EncodedDocumentXml' => base64_encode(self::XML)]));
         self::assertSame('ok', $out['kind']);
         self::assertSame('OK', $out['message']);
+    }
+
+    public function testMessageWithoutErrNoIsOnlyAnErrorWhenNoDocumentCame(): void
+    {
+        $out = easyubl_interpret_response(200, '{"message":"Document queued","base64EncodedDocumentXml":"' . base64_encode(self::XML) . '"}');
+        self::assertSame('ok', $out['kind']);
+        self::assertNull($out['err_no']);
+        self::assertSame(self::XML, $out['xml']);
+
+        $out = easyubl_interpret_response(200, '{"message":"CompanyID unknown"}');
+        self::assertSame('api_error', $out['kind']);
+        self::assertSame('CompanyID unknown', $out['message']);
     }
 
     public function testValidJsonErrorCarriesEasyUblMessage(): void

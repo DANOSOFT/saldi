@@ -8,6 +8,8 @@
 //                     without the network. The classification is a pure function here.
 // 20260915 Sawaneh    PR #619 review: an explicit errNo/message is an error even when a document
 //                     is returned alongside it.
+// 20260921 Sawaneh    PR #619 review: without errNo a bare 'message' is informational when a document
+//                     came with it; errorMessage/error still always mean an error.
 
 /**
  * Classify a reply from EasyUBL's SendDocuments endpoints.
@@ -56,8 +58,10 @@ function easyubl_interpret_response($httpCode, $rawBody, $curlErrno = 0, $curlEr
 		$out['err_no'] = (int) $decoded['errNo'];
 	}
 	// errNo/message is the documented shape; errorMessage/error are kept for older replies
+	$messageKey = '';
 	foreach (array('message', 'errorMessage', 'error') as $key) {
 		if (!empty($decoded[$key])) {
+			$messageKey = $key;
 			$out['message'] = is_array($decoded[$key])
 				? json_encode($decoded[$key], JSON_UNESCAPED_UNICODE)
 				: trim((string) $decoded[$key]);
@@ -70,10 +74,16 @@ function easyubl_interpret_response($httpCode, $rawBody, $curlErrno = 0, $curlEr
 	}
 	$xml = ($base64 !== '') ? base64_decode($base64, true) : false;
 	$httpOk = ($out['http_code'] >= 200 && $out['http_code'] < 300);
-	// An explicit error wins even when a document came along with it
-	$apiError = ($out['err_no'] !== null && $out['err_no'] != 0) || ($out['err_no'] === null && $out['message'] !== '');
+	$hasDocument = ($xml !== false && trim($xml) !== '');
+	// An explicit error wins even when a document came along with it. Without errNo the legacy
+	// errorMessage/error keys always mean an error; a bare 'message' only does when no document came.
+	if ($out['err_no'] !== null) {
+		$apiError = ($out['err_no'] != 0);
+	} else {
+		$apiError = ($out['message'] !== '' && ($messageKey !== 'message' || !$hasDocument));
+	}
 
-	if ($httpOk && !$apiError && $xml !== false && trim($xml) !== '') {
+	if ($httpOk && !$apiError && $hasDocument) {
 		$out['kind'] = 'ok';
 		$out['base64'] = $base64;
 		$out['xml'] = $xml;
