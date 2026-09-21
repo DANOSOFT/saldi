@@ -99,16 +99,16 @@ foreach (array('8col', 'product_id_header', 'cost', 'qty', 'qty_crlf', 'qty_head
     }
 }
 // Identity conflicts must leave both products and housekeeping mappings unchanged.
-foreach (['incoming-sku', 'incoming-normalized-sku', 'incoming-shop-id', 'existing-sku', 'existing-shop-id', 'existing-product-binding', 'conflicting-binding'] as $conflict) {
+foreach (['incoming-sku', 'incoming-normalized-sku', 'incoming-shop-id', 'existing-sku', 'existing-shop-id', 'existing-product-binding', 'existing-remapped-product-binding', 'conflicting-binding'] as $conflict) {
     db_modify('TRUNCATE varer,shop_varer,variant_typer,variant_varer,varianter RESTART IDENTITY');
     db_modify("INSERT INTO varer(varenr,beskrivelse,salgspris,kostpris,stregkode) VALUES ('EXISTING','Keep',10,4,'')");
     db_modify("INSERT INTO shop_varer(saldi_id,shop_id,saldi_variant,shop_variant) VALUES (1,99,NULL,NULL)");
     if ($conflict === 'existing-sku') db_modify("INSERT INTO varer(varenr,beskrivelse) VALUES ('EXISTING','Also keep')");
-    if (in_array($conflict, ['existing-shop-id', 'existing-product-binding'], true)) {
+    if (in_array($conflict, ['existing-shop-id', 'existing-product-binding', 'existing-remapped-product-binding'], true)) {
         db_modify("INSERT INTO varer(varenr,beskrivelse) VALUES ('OTHER-OLD','Also keep')");
         db_modify("INSERT INTO shop_varer(saldi_id,shop_id,saldi_variant,shop_variant) VALUES (2,99,NULL,NULL)");
     }
-    $firstSku = in_array($conflict, ['existing-sku', 'existing-shop-id', 'existing-product-binding'], true) ? 'EXISTING' : 'NEW';
+    $firstSku = in_array($conflict, ['existing-sku', 'existing-shop-id', 'existing-product-binding', 'existing-remapped-product-binding'], true) ? 'EXISTING' : 'NEW';
     $secondSku = $conflict === 'incoming-sku' ? 'NEW' : ($conflict === 'incoming-normalized-sku' ? ' NEW ' : 'OTHER');
     $secondShop = $conflict === 'incoming-shop-id' ? 101 : 102;
     $firstShop = in_array($conflict, ['conflicting-binding', 'existing-shop-id'], true) ? 99 : ($conflict === 'existing-product-binding' ? 0 : 101);
@@ -119,6 +119,9 @@ foreach (['incoming-sku', 'incoming-normalized-sku', 'incoming-shop-id', 'existi
     ob_start();
     try { $failed = varesync(1) === false; } finally { $diagnostic = ob_get_clean(); }
     checkCsv(str_contains($diagnostic, 'role="alert"') && str_contains($diagnostic, 'CSV row'), "$conflict reports a visible row diagnostic without uncaught exception");
+    if ($conflict === 'existing-remapped-product-binding') {
+        checkCsv(str_contains($diagnostic, 'CSV row 2, SKU EXISTING:'), 'shared historical binding diagnostic identifies incoming product instead of header');
+    }
     $after = csvScalar("SELECT md5(string_agg(row_to_json(v)::text,',' ORDER BY id)) FROM varer v") . csvScalar("SELECT md5(string_agg(row_to_json(s)::text,',' ORDER BY id)) FROM shop_varer s");
     checkCsv($failed && $before === $after, "$conflict rejects complete batch before product or mapping writes");
 }
