@@ -18,6 +18,8 @@
 // ----------------------------------------------------------------------
 
 // 20260920 CDX/LUI Require an authenticated CSRF-checked POST before updating supplier costs.
+// 20260921 CDX/LUI Retain headers until the authenticated CSRF decision is complete.
+ob_start();
 @session_start();
 $s_id = session_id();
 $modulnr = 9;
