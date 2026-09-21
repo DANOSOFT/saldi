@@ -43,6 +43,7 @@
 //                 which the very next INSERT/UPDATE in each of those code paths already
 //                 references - a brand-new tenant's first pool file would fail with
 //                 "column norm_amount does not exist". Added the column to both.
+// 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 // 20260910 CL/SZ SST-776 follow-up (root cause identified during the SST-740 trace on
 //                 20260908, but PR #584 only shipped the FileReservation/session-tenant half -
 //                 this closes the other half): syncPuljeFilesToDatabase() only ever inserted a
@@ -64,6 +65,8 @@
 //                     checked line via _collectRow(), and file data (JS, pool_files, .info) only fills
 //                     fields the user left empty on a new line. A typed "0" counts as typed, and
 //                     other checked saved lines are saved via the Save path before the attach.
+// 20260916 CDX/LAH Keep the selected new voucher row visible above collapsed existing lines.
+// 20260917 CDX/LAH Preserve new voucher fields, including accounts, when opening a pool preview.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -416,6 +419,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$projekt     = if_isset($_POST,NULL,'projekt')     ?? if_isset($_GET,NULL,'projekt');
 	$sag         = if_isset($_POST,NULL,'sag')         ?? if_isset($_GET,NULL,'sag');
 	$sum         = if_isset($_POST,NULL,'sum')         ?? if_isset($_GET,NULL,'sum');
+	$valuta      = if_isset($_POST,NULL,'valuta')      ?? if_isset($_GET,NULL,'valuta');
+	$momsfri     = if_isset($_POST,NULL,'momsfri')     ?? if_isset($_GET,NULL,'momsfri');
+	$forfald     = if_isset($_POST,NULL,'forfald')     ?? if_isset($_GET,NULL,'forfald');
 	#########################################
 
 	if ($insertFile) {
@@ -1341,17 +1347,17 @@ if ($source == 'kassekladde') {
 			if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
 		}
 		$displayBilag       = $bilag ?? '';
-		$displayDato        = htmlspecialchars($dato ?? '');
-		$displayFaktura     = htmlspecialchars($fakturanr ?? '');
-		$displayBeskrivelse = htmlspecialchars($beskrivelse ?? '');
-		$displayDebet       = htmlspecialchars($debet ?? '');
-		$displayKredit      = htmlspecialchars($kredit ?? '');
-		$displayAmount      = htmlspecialchars($sum ?? '');
-		$displayAfd         = '';
-		$displayProjekt     = '';
-		$displayValuta      = '';
-		$displayMomsfri     = 0;
-		$displayForfald     = '';
+		$displayDato        = $dato ?? '';
+		$displayFaktura     = $fakturanr ?? '';
+		$displayBeskrivelse = $beskrivelse ?? '';
+		$displayDebet       = $debet ?? '';
+		$displayKredit      = $kredit ?? '';
+		$displayAmount      = $sum ?? '';
+		$displayAfd         = $afd ?? '';
+		$displayProjekt     = $projekt ?? '';
+		$displayValuta      = $valuta ?? '';
+		$displayMomsfri     = !empty($momsfri) ? 1 : 0;
+		$displayForfald     = $forfald ?? '';
 		$pfx = 'newEntry';
 	}
 
@@ -1489,9 +1495,29 @@ if ($source == 'kassekladde') {
 
 	print "<div id='bilagRowsContainer'>";
 
+	// Keep the selected new row first so transfer data remains visible when other rows are collapsed.
+	if (!$sourceId) {
+		print "<div class='bilag-row-wrapper'>";
+		$renderBilagRow('new', [
+			'bilag'       => $displayBilag,
+			'dato'        => $displayDato,
+			'faktura'     => $displayFaktura,
+			'beskrivelse' => $displayBeskrivelse,
+			'debet'       => $displayDebet,
+			'kredit'      => $displayKredit,
+			'amount'      => $displayAmount,
+			'afd'         => $displayAfd,
+			'projekt'     => $displayProjekt,
+			'valuta'      => $displayValuta,
+			'momsfri'     => $displayMomsfri,
+			'forfald'     => $displayForfald,
+		], true);
+		print "</div>";
+	}
+
 	// Render all existing lines for this bilag
 	foreach ($bilagLines as $blIdx => $bl) {
-		$hiddenClass = ($collapsible && $blIdx >= 1) ? " style='display:none;'" : "";
+		$hiddenClass = ($collapsible && (!$sourceId || $blIdx >= 1)) ? " style='display:none;'" : "";
 		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
 		$renderBilagRow($bl['id'], [
 			'bilag'       => $bl['bilag'],
@@ -1506,29 +1532,7 @@ if ($source == 'kassekladde') {
 			'valuta'      => $bl['valuta'] ?? '',
 			'momsfri'     => $bl['momsfri'] ?? 0,
 			'forfald'     => $bl['forfaldsdate'] ? dkdato($bl['forfaldsdate']) : '',
-		], $blIdx === 0);
-		print "</div>";
-	}
-
-	// New entry row: always shown when sourceId=0
-	if (!$sourceId) {
-		$newIdx = count($bilagLines);
-		$hiddenClass = ($collapsible && $newIdx >= 1) ? " style='display:none;'" : "";
-		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
-		$renderBilagRow('new', [
-			'bilag'       => $displayBilag,
-			'dato'        => $displayDato,
-			'faktura'     => $displayFaktura,
-			'beskrivelse' => $displayBeskrivelse,
-			'debet'       => $displayDebet,
-			'kredit'      => $displayKredit,
-			'amount'      => $displayAmount,
-			'afd'         => $displayAfd,
-			'projekt'     => $displayProjekt,
-			'valuta'      => $displayValuta,
-			'momsfri'     => $displayMomsfri,
-			'forfald'     => $displayForfald,
-		], empty($bilagLines));
+		], $sourceId && $blIdx === 0);
 		print "</div>";
 	}
 
@@ -2338,7 +2342,7 @@ print <<<JS
 				(isAmountMatch && !isPerfectMatch ? "data-amount-match='true' " : "") + 
 				(isDateMatch && !isAmountMatch ? "data-date-match='true' " : "") +
 				(isCombinationMatch ? "data-combination-match='true' " : "");
-				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
+				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); openPoolFile('" + row.href + "'); }\">" +
 					"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(formattedAmount) + "'>" + amountCell + "</td>" +
@@ -3901,7 +3905,7 @@ JS;
 	print "<div style='padding: 12px;'>";
 	
 	// Unified upload zone (click to select or drag and drop)
-	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png' multiple style='display:none'>";
+	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png,.xml' multiple style='display:none'>";
 	print "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' onclick='document.getElementById(\"fileUploadInput\").click()' style='width: 100%; border: 2px dashed #bbb; border-radius: 10px; padding: 90px 16px; background-color: #f8f8f8; cursor: pointer; transition: all 0.3s ease; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;'>";
 	print "<div id='dropText' style='display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; text-align: center;'>";
 	print "<svg viewBox='0 0 24 24' fill='none' stroke='#7ab3d4' stroke-width='1.5' width='44' height='44'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg>";
@@ -3939,7 +3943,7 @@ JS;
 	}
 
 	function uploadFiles(files) {
-		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.xml'];
 		var validFiles = [];
 		for (var i = 0; i < files.length; i++) {
 			var fileName = files[i].name.toLowerCase();
@@ -4941,6 +4945,20 @@ HTML;
             forfald:     getVal(pfx + 'Forfald'),
         };
     }
+
+    /** Open a document preview without dropping the unsaved new voucher's fields. */
+    window.openPoolFile = function(href) {
+        var url = new URL(href, window.location.href);
+        if (document.getElementById('bilagEntry_new')) {
+            var values = _collectRow('new');
+            Object.keys(values).forEach(function(field) {
+                // The page loader uses different names than the Save endpoint.
+                var parameter = field === 'bilagsnr' ? 'bilag' : (field === 'amount' ? 'sum' : field);
+                url.searchParams.set(parameter, values[field]);
+            });
+        }
+        window.location.href = url.href;
+    };
 
     function _buildFormData(rowId, kladdeId, bilag, includeSourceId) {
         var v = _collectRow(rowId);
