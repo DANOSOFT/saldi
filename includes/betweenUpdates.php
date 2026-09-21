@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.06.15
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.21
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260717 Live-import reconciliation: most of production's pending betweenUpdates.php
 // content was already relocated into includes/opdat_4.3.php (see commit 74634e46); only the
@@ -40,8 +40,37 @@
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
+// 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
+// 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
 
+/**
+ * Injected by includes/connect.php via the entry page that includes this file:
+ * @var string $db_type
+ */
 
+$performedByMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
+$qtxt .= $performedByMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if ($performedByMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS. Serialize this migration per tenant.
+		$performedByLock = "CONCAT('saldi:performed_by:', MD5(DATABASE()))";
+		$lockResult = db_fetch_array(db_select("SELECT GET_LOCK($performedByLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($lockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the performed_by migration lock.');
+		}
+		try {
+			// Another login may have added the column while this connection waited.
+			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				db_modify("ALTER TABLE ordrer ADD COLUMN performed_by TEXT", __FILE__ . " linje " . __LINE__);
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($performedByLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		db_modify("ALTER TABLE ordrer ADD COLUMN IF NOT EXISTS performed_by TEXT", __FILE__ . " linje " . __LINE__);
+	}
+}
 
 // Bilagsmatch scoring engine: pool_files.amount is a free-form string ("1.234,56",
 // "1,234.56", etc). Add a real NUMERIC column so matching can join on it directly

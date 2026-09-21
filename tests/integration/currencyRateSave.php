@@ -15,7 +15,7 @@ function db_select($query, $source) {
 	$rows = match (true) {
 		// The $id-to-$kodenr binding lookup.
 		//
-		// 20260919 CDX/MJ This used to answer from a fixture flag without looking at the query, so
+		// 20260919 MJ This used to answer from a fixture flag without looking at the query, so
 		// a regression that changed either predicate still got the bound row back and the test
 		// passed. Raised by CodeRabbit on #598. It now models the data instead: the tenant holds
 		// one rate row, $fixture['id'], belonging to currency $fixture['rateRowCurrency'], and the
@@ -71,7 +71,7 @@ function findtekst($text, $language) {
 // Execute the page's entire POST controller, including its tail after the rate-write branches.
 // SQL calls are observed rather than executed; no account or tenant database is accessed.
 //
-// 20260919 CDX/MJ The span used to start at the POST dispatch, which left the $id/$kodenr
+// 20260919 MJ The span used to start at the POST dispatch, which left the $id/$kodenr
 // binding above it unexecuted - so the IDOR fix this PR exists for was the one thing the test
 // could not see, and a regression that updated another currency's row by $id alone would still
 // have passed. The span now starts at the parameter read, and $_GET drives it instead of $id

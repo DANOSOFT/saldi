@@ -66,6 +66,7 @@
 // 20260914 CDX/LH SST-784: Escape parentheses and backslashes only in PostScript output.
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
+// 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -326,7 +327,7 @@ if (!function_exists('skriv')) {
 							$ny_str = $str;
 						# udskrivning af formular variabler
 						if ($row['xa']) {
-							fwrite($psfp, "/$form_font\n$row[str] scalefont\nsetfont\nnewpath\n" . $row['xa'] * 2.86 . " " . $row['ya'] * 2.86 . " moveto (" . utf8_iso8859($ny_streng) . ") $format show\n");
+							fwrite($psfp, "/$form_font\n$row[str] scalefont\nsetfont\nnewpath\n" . $row['xa'] * 2.86 . " " . $row['ya'] * 2.86 . " moveto (" . strtr(utf8_iso8859($ny_streng), array('\\' => '\\\\', '(' => '\\(', ')' => '\\)')) . ") $format show\n");
 							#	fwrite($htmfp,"<div style=\"position:absolute;top:".$row['xa']."mm;left:".$row['xb']."mm;\">".__line__."$ny_streng</div>\n");
 							$a = $row['xa'];
 							$b = 297 - $row['ya'];

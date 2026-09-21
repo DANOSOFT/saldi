@@ -35,9 +35,10 @@
 // 20260901 CL/LAH Fixed Saldo column showing the same value on every line:
 //                  running balance was only accumulated for rows skipped by
 //                  pagination, never for the printed rows.
-// 20260911 CDX/MJ SST-769 Rate-adjustment rows (valuta = -1) showed 0,00 in debet/kredit while
+// 20260911 MJ SST-769 Rate-adjustment rows (valuta = -1) showed 0,00 in debet/kredit while
 //                  still moving the balance, because the DKK amount only went into the cell title.
 //                  Show it as a labelled DKK figure so currency accounts can be reconciled.
+// 20260915 CDX/PHR Include simulated rows in pagination and keep merged row metadata aligned.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -431,33 +432,30 @@ print "<tbody>";
 	fwrite($csv, "\"Dato\";\"Bilag\";\"Tekst\";\"Debet\";\"Kredit\";\"Saldo\"\n");
 	####
 	$total_rows = 0;
-    for ($x = 0; $x < count($kontonr); $x++) {
-        if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
-            $cnt = db_fetch_array(db_select(
-                "SELECT COUNT(*) as c FROM transaktioner 
-                 WHERE kontonr=$kontonr[$x] 
-                   AND transdate>='$regnstart' AND transdate<='$regnslut' $dim",
-                __FILE__ . " linje " . __LINE__
-            ));
-            $total_rows += (int)$cnt['c'];
-        }
-    }
-    $total_pages  = max(1, ceil($total_rows / $per_page));
-   
-    $rows_to_skip = ($page - 1) * $per_page;
-    $rows_printed = 0;
-	####
-	
-   for ($x = 0; $x < count($kontonr); $x++) {
-	if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
- 		$linjebg = $bgcolor5;
-            // Count rows for this account to see if we can skip it entirely
-            $acct_cnt = (int)db_fetch_array(db_select(
-                "SELECT COUNT(*) as c FROM transaktioner
-                 WHERE kontonr=$kontonr[$x]
-                   AND transdate>='$regnstart' AND transdate<='$regnslut' $dim",
-                __FILE__ . " linje " . __LINE__
-            ))['c'];
+	$accountRows = array();
+	for ($x = 0; $x < count($kontonr); $x++) {
+		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+			$accountRows[$x] = 0;
+			$tables = $simulering ? array('transaktioner', 'simulering') : array('transaktioner');
+			foreach ($tables as $table) {
+				$qtxt = "SELECT COUNT(*) as c FROM $table WHERE kontonr=" . intval($kontonr[$x]);
+				$qtxt .= " AND transdate>='" . db_escape_string($regnstart) . "'";
+				$qtxt .= " AND transdate<='" . db_escape_string($regnslut) . "' $dim";
+				$qtxt .= " AND (COALESCE(debet,0) <> 0 OR COALESCE(kredit,0) <> 0)";
+				$cnt = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$accountRows[$x] += (int)$cnt['c'];
+			}
+			$total_rows += $accountRows[$x];
+		}
+	}
+	$total_pages = max(1, ceil($total_rows / $per_page));
+	$rows_to_skip = ($page - 1) * $per_page;
+	$rows_printed = 0;
+
+	for ($x = 0; $x < count($kontonr); $x++) {
+		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+			$linjebg = $bgcolor5;
+			$acct_cnt = $accountRows[$x];
 
             if ($rows_to_skip >= $acct_cnt) {
                 $rows_to_skip -= $acct_cnt;
@@ -760,26 +758,33 @@ print "<tbody>";
 					$sim_debet[$sim] = $r['debet'];
 					$sim_kredit[$sim] = $r['kredit'];
 					$a = 0;
-					while ($a <= count($transdate) and $sim_transdate[$sim] > $transdate[$a])
+					while ($a < count($transdate) && $sim_transdate[$sim] > $transdate[$a]) {
 						$a++;
+					}
 					for ($b = count($transdate); $b > $a; $b--) {
 						$transdate[$b] = $transdate[$b - 1];
 						$bilag[$b] = $bilag[$b - 1];
 						$beskrivelse[$b] = $beskrivelse[$b - 1];
 						$debet[$b] = $debet[$b - 1];
 						$kredit[$b] = $kredit[$b - 1];
+						$kladde_id[$b] = $kladde_id[$b - 1] ?? null;
+						$transvaluta[$b] = $transvaluta[$b - 1] ?? null;
+						$transkurs[$b] = $transkurs[$b - 1] ?? 100;
 					}
 					$transdate[$b] = $sim_transdate[$sim];
 					$bilag[$b] = $sim_bilag[$sim];
 					$beskrivelse[$b] = $sim_beskrivelse[$sim] . "(Simuleret)";
 					$debet[$b] = $sim_debet[$sim];
 					$kredit[$b] = $sim_kredit[$sim];
+					$kladde_id[$b] = $r['kladde_id'];
+					$transvaluta[$b] = $r['valuta'];
+					$transkurs[$b] = $r['valutakurs'] ?: 100;
 					$sim_transdate[$sim] = NULL;
 					$sim++;
 				}
 			}
 		
-			for ($tr = 0; $tr < count($transdate) + count($sim_transdate); $tr++) {
+			for ($tr = 0; $tr < count($transdate); $tr++) {
 			if ($transdate[$tr] && ($debet[$tr] || $kredit[$tr])) {
 
                 // Always accumulate kontosum — even for skipped rows
