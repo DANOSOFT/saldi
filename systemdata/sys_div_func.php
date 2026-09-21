@@ -1776,7 +1776,6 @@ function ordre_valg() {
 	global $bgcolor5;
 	global $regnaar;
 	global $bruger_id;
-	global $db;
 
 	$hurtigfakt = $incl_moms_private = $incl_moms_business = $folge_s_tekst = $negativt_lager = $straks_bogf = $vis_nul_lev = $orderNoteEnabled = NULL;
 
@@ -1854,7 +1853,7 @@ function ordre_valg() {
 	$stockWarningEnabled = get_settings_value("stockWarningEnabled", "ordre", "off") === "on" ? "checked" : "";
 	$showBothAddrExtra   = get_settings_value("showBothAddrExtra", "ordre", "off") === "on" ? "checked" : "";
 	$hideRevenueOnOrdreliste = get_settings_value("hideRevenueOnOrdreliste", "ordreliste", "off") === "on" ? "checked" : "";
-	
+
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
 		$qtxt = "select varenr from varer where id = '$rabatvareid'";
@@ -1931,9 +1930,8 @@ function ordre_valg() {
 	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
-	
-	$titleRev = "Hide revenue on order list"; 
-	print "<tr><td title='$titleRev'>Hide revenue on order List</td><td><INPUT title= '$titleRev' class='inputbox' type='checkbox' name='hideRevenueOnOrdreliste' $hideRevenueOnOrdreliste></td></tr>";
+
+	print "<tr><td title='Hide revenue on order list'>Hide revenue on order list</td><td><INPUT title='Hide revenue on order list' class='inputbox' type='checkbox' name='hideRevenueOnOrdreliste' $hideRevenueOnOrdreliste></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td><td align = center><input class='button green medium' type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'></td>";

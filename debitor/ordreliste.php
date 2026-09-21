@@ -2658,9 +2658,9 @@ print "</div>";  // END LEFT
 
 
 
-// ------------------------------------------------------------ 
+// ------------------------------------------------------------
 // CENTER — Turnover Summary
-// ------------------------------------------------------------ 
+// ------------------------------------------------------------
 $hideRevenueOnOrdreliste = get_settings_value("hideRevenueOnOrdreliste", "ordreliste", "off") === "on";
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
