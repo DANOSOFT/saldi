@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LH Bound list limits to integers before composing SQL.
 
 include_once __DIR__."/VatModel.php";
 
@@ -202,7 +203,15 @@ class AccountModel {
      * @param string $orderDirection Sort direction (default: ASC)
      * @return AccountModel[] Array of Account objects
      */
-    public static function getAllItems($orderBy = 'kontonr', $orderDirection = 'ASC', $limit) {
+    public static function getAllItems($orderBy = 'kontonr', $orderDirection = 'ASC', $limit = 50) {
+        // Query-string limits must be whole decimal integers, never SQL fragments.
+        if (!is_int($limit) && !(is_string($limit) && ctype_digit($limit))) {
+            $limit = 50;
+        }
+        $limit = (int)$limit;
+        if ($limit < 1 || $limit > 200) {
+            $limit = 50;
+        }
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['id', 'kontonr', 'beskrivelse', 'kontotype', 'regnskabsaar'];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'kontonr';

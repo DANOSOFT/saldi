@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2025 Saldi.DK ApS
 // -----------------------------------------------------------------------
 // Kaldes fra systemdata/diverse.php
+// 20260921 CDX/LH Match API actor policy: a single-zero bitmap bypasses online.php permission guard.
 // 2013.11.01 Tilføjet fravalg af tjek for forskellige datoer på samme bilag i kasseklasse. Søg 20131101
 // 2013.12.10	Tilføjet valg om kort er betalingskort som aktiver betalingsterminal. Søg 21031210
 // 2013.12.13	Tilføjet "intern" bilagsopbevaring (box6 under ftp)
@@ -2220,6 +2221,7 @@ function variant_valg() {
 // 	print "<tr><td colspan='6'><hr></td></tr>";
 // } # endfunc shop_valg
 
+// 20260921 CDX/LH Offer only the explicit rights-free users accepted by API authentication.
 function api_valg() {
 	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id, $buttonStyle;
 	$r          = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
@@ -2235,7 +2237,8 @@ function api_valg() {
 	$userId = array();
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (strpos($r['rettigheder'], '1') === false) {
+		if (trim((string)($r['brugernavn'] ?? '')) !== '' &&
+			preg_match('/^0{2,}$/D', trim((string)($r['rettigheder'] ?? '')))) {
 			$userId[$x] = $r['id'];
 			$userName[$x] = $r['brugernavn'];
 			$x++;

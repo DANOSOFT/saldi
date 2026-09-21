@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LUI Use inherited authentication properties to allow PHP 8 endpoint startup.
 /**
  * GET /vat-codes
  * Get list of VAT codes (momskoder)
@@ -14,7 +15,6 @@ include_once __DIR__ . '/../../../../includes/connect.php';
 
 class VatCodesEndpoint extends BaseEndpoint
 {
-    private $db;
     
     public function __construct()
     {

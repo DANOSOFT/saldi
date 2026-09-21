@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LH Reject invalid sales prices before casting and bound list limits to integers.
 
 include_once __DIR__ . "/VareGruppeModel.php";
 include_once __DIR__ . "/LagerModel.php";
@@ -116,8 +117,16 @@ class VareModel
     /**
      * Get all products
      */
-    public static function getAllItems($orderBy = 'id', $orderDirection = 'ASC', $limit)
+    public static function getAllItems($orderBy = 'id', $orderDirection = 'ASC', $limit = 20)
     {
+        // Query-string limits must be whole decimal integers, never SQL fragments.
+        if (!is_int($limit) && !(is_string($limit) && ctype_digit($limit))) {
+            $limit = 20;
+        }
+        $limit = (int)$limit;
+        if ($limit < 1 || $limit > 100) {
+            $limit = 20;
+        }
         // Validate orderBy to prevent SQL injection
         $allowedOrderBy = ['id', 'varenr', 'beskrivelse', 'modtime'];
         $allowedDirection = ['ASC', 'DESC'];
@@ -471,8 +480,18 @@ class VareModel
         $this->description = $description;
     }
 
+    /**
+     * Accept the non-negative JSON number defined by the product API contract.
+     * Locale-formatted strings must be converted by the client before submission.
+     *
+     * @return void
+     * @throws InvalidArgumentException
+     */
     public function setSalesPrice($salesPrice)
     {
+        if ((!is_int($salesPrice) && !is_float($salesPrice)) || !is_finite((float)$salesPrice) || $salesPrice < 0) {
+            throw new InvalidArgumentException('salesPrice must be a non-negative finite JSON number; use 1.50, not "1,50"');
+        }
         $this->salesPrice = (float) $salesPrice;
     }
 

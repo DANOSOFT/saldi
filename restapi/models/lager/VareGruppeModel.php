@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LH Resolve REST product-group year from tenant configuration while retaining active year context.
 include_once __DIR__ . "/../finans/AccountModel.php";
 
 class VareGruppeModel
@@ -37,6 +38,24 @@ class VareGruppeModel
         if ($kodenr !== null) {
             $this->loadFromKodenr($kodenr);
         }
+    }
+
+    /** Resolve the authenticated tenant's latest year when no page context exists. */
+    private static function resolveFiscalYear()
+    {
+        global $regnaar;
+        if (isset($regnaar) && $regnaar !== '') {
+            if (!ctype_digit((string)$regnaar) || (int)$regnaar < 1) {
+                throw new InvalidArgumentException('Invalid fiscal year context');
+            }
+            return (int)$regnaar;
+        }
+        $query = db_select("SELECT kodenr FROM grupper WHERE art = 'RA' ORDER BY kodenr DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
+        $row = db_fetch_array($query);
+        if (!$row) return null;
+        // AccountModel reads this context when expanding the group's posting accounts.
+        $regnaar = (int)$row['kodenr'];
+        return $regnaar;
     }
 
     /**
@@ -232,7 +251,8 @@ class VareGruppeModel
      */
     public static function getAllItems($orderBy = 'kodenr', $orderDirection = 'ASC')
     {
-        global $regnaar;
+        $regnaar = self::resolveFiscalYear();
+        if ($regnaar === null) return [];
 
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['id', 'kodenr', 'beskrivelse', 'fiscal_year'];
@@ -260,7 +280,8 @@ class VareGruppeModel
      */
     public static function findBy($field, $value)
     {
-        global $regnaar;
+        $regnaar = self::resolveFiscalYear();
+        if ($regnaar === null) return [];
 
         // Whitelist allowed search fields
         $allowedFields = ['id', 'kodenr', 'beskrivelse', 'fiscal_year'];

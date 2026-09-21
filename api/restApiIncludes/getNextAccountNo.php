@@ -23,33 +23,40 @@
 // Copyright (c) 2016-2022 saldi.dk aps
 // ----------------------------------------------------------------------
 
+// 20260920 CDX/LH Allocate within validated bounds and report exhausted account ranges.
+/** @return int|string Next account number, or an actionable validation error. */
 function getNextAccountNo($accountType) {
-	global $db;
-
-	$log=fopen("../temp/$db/rest_api.log","a");
-	
-	$minNo    = if_isset($_GET['minNo']);
-	$maxNo    = if_isset($_GET['maxNo']);
-	if (isset($_GET['accountType'])) $accountType = $_GET['accountType'];
-
-	
-	fwrite($log,__line__." minNo $minNo maxNo $maxNo\n");
-	if (!$accountType) $accountType = 'D';
-	if (!$minNo)       $kontonr     = 0;
-	if (!$maxNo)       $kontonr     = 999999;
-	
-	fwrite($log,__line__." minNo $minNo maxNo $maxNo\n");
-
-	$qtxt = "select kontonr from adresser where art = '$accountType'";
-	fwrite($log,__line__." $qtxt\n");
-	$q= db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		if ($r['kontonr'] < 10000 && $r['kontonr'] >= $kontonr) {
-			$kontonr = $r['kontonr']+1;
+	$accountType = $accountType ?: ifset($_GET, 'accountType', 'D');
+	if (!in_array($accountType, array('D', 'K'), true)) {
+		return 'Invalid accountType; use D or K';
+	}
+	$minNo = ifset($_GET, 'minNo');
+	$maxNo = ifset($_GET, 'maxNo');
+	$minNo = ($minNo === null || $minNo === '' || $minNo === '0') ? '1' : (string)$minNo;
+	$maxNo = ($maxNo === null || $maxNo === '' || $maxNo === '0') ? '999999' : (string)$maxNo;
+	foreach (array($minNo, $maxNo) as $bound) {
+		if (!preg_match('/^[0-9]+$/D', $bound) || filter_var(ltrim($bound, '0'), FILTER_VALIDATE_INT) === false || (int)$bound < 1) {
+			return 'Invalid account number range; use positive whole numbers';
 		}
 	}
-	fwrite($log,__line__." kontonr $kontonr\n");
-	fclose ($log);
-	return ($kontonr);
+	$minNo = (int)$minNo;
+	$maxNo = (int)$maxNo;
+	if ($minNo > $maxNo) {
+		return 'Invalid account number range; minNo exceeds maxNo';
+	}
+	$next = $minNo;
+	$q = db_select("SELECT kontonr FROM adresser WHERE art='$accountType'", __FILE__ . ' linje ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$number = trim((string)$row['kontonr']);
+		if (preg_match('/^[0-9]+$/D', $number) && filter_var(ltrim($number, '0'), FILTER_VALIDATE_INT) !== false) {
+			$number = (int)$number;
+			if ($number >= $minNo && $number <= $maxNo && $number >= $next) {
+				if ($number === $maxNo) {
+					return "No available account number in range $minNo-$maxNo";
+				}
+				$next = $number + 1;
+			}
+		}
+	}
+	return $next;
 }
-?>

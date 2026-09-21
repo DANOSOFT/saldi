@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LUI Use inherited authentication properties to allow PHP 8 endpoint startup.
 /**
  * POST /notifications/register - Register device token for push notifications
  * DELETE /notifications/register - Unregister device token
@@ -14,8 +15,6 @@ include_once __DIR__ . '/../../../../includes/connect.php';
 
 class NotificationsRegisterEndpoint extends BaseEndpoint
 {
-    private $userId;
-    private $db;
     
     public function __construct()
     {

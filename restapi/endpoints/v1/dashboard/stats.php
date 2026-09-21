@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LUI Use inherited authentication properties to allow PHP 8 endpoint startup.
 /**
  * GET /dashboard/stats
  * Get dashboard statistics
@@ -15,7 +16,6 @@ include_once __DIR__ . '/../../../../includes/connect.php';
 
 class DashboardStatsEndpoint extends BaseEndpoint
 {
-    private $db;
     
     public function __construct()
     {

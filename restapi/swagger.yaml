@@ -4296,7 +4296,7 @@ components:
         salesPrice:
           type: number
           format: float
-          description: Sales price
+          description: Non-negative sales price as a JSON number. Strings (including locale-formatted prices such as "1,50") are rejected with HTTP 400.
           example: 250.00
           minimum: 0
         costPrice:
@@ -4433,7 +4433,7 @@ components:
         salesPrice:
           type: number
           format: float
-          description: Sales price
+          description: Non-negative sales price as a JSON number. Strings (including locale-formatted prices such as "1,50") are rejected with HTTP 400.
           example: 250.00
           minimum: 0
         costPrice:

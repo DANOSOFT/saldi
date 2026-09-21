@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LH Preserve a new customer primary email when no contact list was supplied.
 
 class CustomerModel
 {
@@ -247,8 +248,10 @@ class CustomerModel
                 $this->id = (int)$r['id'];
             }
 
-            // Save kontakt_emails for new customer
-            $this->saveKontaktEmails();
+            // An omitted contact list must not erase the primary email just inserted.
+            if (!empty($this->kontakt_emails)) {
+                $this->saveKontaktEmails();
+            }
             return true;
         }
 
