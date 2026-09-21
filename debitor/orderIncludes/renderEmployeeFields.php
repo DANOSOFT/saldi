@@ -1,5 +1,10 @@
 <?php
+// debitor/orderIncludes/renderEmployeeFields.php --- 2026-09-18
+// Copyright (c) 2026 Danosoft ApS
 // 20260911 CDX/LH SD-186 Render independent employee fields beside each other.
+// 20260916 CDX/LH Accept the translated performed-by label from the order page.
+// 20260918 CDX/PHR Submit Udført af as performed_by.
+// 20260918 CDX/PHR Align Udført af below Valuta using the order table's column spans.
 
 /**
  * Render the order's two employee selections from the same master-data list.
@@ -9,14 +14,15 @@
  * @param string|null $reference Current Vor ref. value.
  * @param string|null $performedBy Current Udført af value.
  * @param string $referenceLabel Translated Vor ref. label.
+ * @param string $performedByLabel Translated Udført af label.
  * @param bool $disabled Whether the order fields are locked for editing.
  * @return string HTML table row with independent, optional employee selections.
  */
-function renderOrderEmployeeFields($employees, $reference, $performedBy, $referenceLabel, $disabled = false)
+function renderOrderEmployeeFields($employees, $reference, $performedBy, $referenceLabel, $disabled = false, $performedByLabel = 'Udført af')
 {
     $fields = array(
         'ref' => array('label' => $referenceLabel, 'value' => $reference, 'old' => 'oldRef'),
-        'hvem' => array('label' => 'Udført af', 'value' => $performedBy, 'old' => 'oldhvem'),
+        'performed_by' => array('label' => $performedByLabel, 'value' => $performedBy, 'old' => 'oldPerformedBy'),
     );
     $html = '<tr>';
     foreach ($fields as $name => $field) {
@@ -27,7 +33,7 @@ function renderOrderEmployeeFields($employees, $reference, $performedBy, $refere
         }
         $label = htmlspecialchars($field['label'], ENT_QUOTES, 'UTF-8');
         $oldValue = htmlspecialchars($selected, ENT_QUOTES, 'UTF-8');
-        $html .= "<td style='white-space:nowrap'><label for='order-$name'>$label</label></td><td>";
+        $html .= "<td style='white-space:nowrap'><label for='order-$name'>$label</label></td><td colspan='2'>";
         $html .= "<input type='hidden' name='{$field['old']}' value='$oldValue'>";
         $html .= "<select id='order-$name' name='$name' class='inputbox' style='width:130px;'";
         $html .= " onchange='docChange = true;'" . ($disabled ? ' disabled' : '') . '>';

@@ -31,6 +31,8 @@
 // 20260102 LOE Added department support for background files
 // 20260309 PHR Fixed error in $returside after printing
 // 20260309 PHR Fixed another error in $returside after printing
+// 20260909 Sawaneh JOB-124: accept returside from GET as well as POST.
+// 20260917 CL/Sawaneh JOB-124: honour the popup=1 request flag when closing after a print.
 
 
 session_start();
@@ -89,8 +91,13 @@ function find_background_file($background, $file_type, $department) {
 
     return null;
 }
-//check Post for returside
-$returside = if_isset($_POST['returside']);
+$returside = ifset($_POST, 'returside');
+if (!$returside) {
+    $returside = nav_sanitize_returside(ifset($_GET, 'returside'));
+}
+// A popup print window closes through luk.php; udskriftsvalg.php forwards the
+// popup=1 request flag so this does not depend on the popup preference alone.
+$isPopupRequest = nav_popup_query($_GET, $_POST) !== '';
 $sag_id = 0;
 $sag_q = '';
 if (isset($_GET['id']) && $_GET['id']){
@@ -152,7 +159,7 @@ if ($returside) {
         $url .= "&sag_id=$sag_id";
     }
     print "<meta http-equiv=\"refresh\" content=\"1;URL=$url\">";
-} elseif ($popup) {
+} elseif ($isPopupRequest || $popup) {
     print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/luk.php\">";
     exit;
 } elseif (is_numeric($id) && $id > 1) {
