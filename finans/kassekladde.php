@@ -108,8 +108,10 @@
 //                  other menu styles keep the floating button; panel now opens just below the button.
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
 //                  with customer/supplier evidence; isolate journal history queries for regression tests.
+// 20260920 CDX/LH Redirect successful journal saves to GET so refresh and Back cannot replay the POST.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
+require_once __DIR__ . '/kassekladde_includes/journalSaveRedirect.php';
 
 ob_start(); //Starter output buffering  
 
@@ -1549,8 +1551,17 @@ if ($r = db_fetch_array(db_select("select id from adresser where art = 'S'", __F
 }
 if (!$fejl && $kladde_id) {
 	opdater($kladde_id);
-    initializePositions($kladde_id);
+	initializePositions($kladde_id);
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+	if ($_POST && $submit === 'save' && !ifset($db_modify_fejl)) {
+		$_SESSION['journal_save_notice'][(int) $kladde_id] = $vat_reset_notice;
+		header('Location: ' . journalSaveRedirectUrl($kladde_id, $fokus, $_GET), true, 303);
+		exit;
+	}
+}
+if (!$_POST && $kladde_id && isset($_SESSION['journal_save_notice'][(int) $kladde_id])) {
+	$vat_reset_notice = $_SESSION['journal_save_notice'][(int) $kladde_id];
+	unset($_SESSION['journal_save_notice'][(int) $kladde_id]);
 }
 /*
 if (strlen($kontrolkonto)==1) {

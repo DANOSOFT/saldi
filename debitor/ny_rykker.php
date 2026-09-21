@@ -36,6 +36,7 @@
 //                  dagen efter forfald. Fristen regnes nu som dags dato minus ffdage1, som ved ffdage2/3.
 // 20260828 Sawaneh Review: the three cutoffs use calendar-day arithmetic (dunning_cutoff_date) instead of
 //                  date('U') - days*86400, which shifted eligibility by a day around the DST switches.
+// 20260920 CDX/LH Advance reminders only after atomic posting succeeds.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -139,8 +140,9 @@ if ($konto_id[0]=="alle") {
 	$q=db_select("select id,konto_id from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2'",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$x++;
-		db_modify("update ordrer set betalt = 'on' where id = '$r[id]'",__FILE__ . " linje " . __LINE__); 
-		bogfor_rykker($r['id']);
+		if (!bogfor_rykker($r['id'], true)) {
+			exit; // Failure must not create the next reminder.
+		}
 		$rykker_id[$x]=$r['id'];
 	}
 	$rykkerfrist3=dunning_cutoff_date($ffdage3);
@@ -148,8 +150,9 @@ if ($konto_id[0]=="alle") {
 	$q=db_select("select id,konto_id from ordrer where art = 'R2' and status < '3' and ordredate < '$rykkerfrist3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$x++;
-		db_modify("update ordrer set betalt = 'on' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
-		bogfor_rykker($r['id']);
+		if (!bogfor_rykker($r['id'], true)) {
+			exit; // Failure must not create the next reminder.
+		}
 		$rykker_id[$x]=$r['id'];
 	}
 	$konto_antal=$x;

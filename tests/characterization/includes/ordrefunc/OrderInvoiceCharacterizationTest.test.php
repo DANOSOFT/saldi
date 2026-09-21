@@ -5,7 +5,7 @@
 //
 // Pins the CURRENT behavior of includes/ordrefunc.php bogfor($ordre_id,'on')
 // as production drives it (remoteBooking/api.php:296-337): deliver the lines,
-// convert to invoice, assign fakturanr, set status 3. Also pins the guard
+// convert to invoice, assign fakturanr, immediately post to status 4. Also pins the guard
 // against invoicing twice.
 //
 // Fixture orders are created the way remoteBooking/api.php CreateOrder does
@@ -133,9 +133,10 @@ final class OrderInvoiceCharacterizationTest extends TestCase
         );
         $this->assertNotEmpty($lines);
         foreach ($lines as $line) {
-            // Observed: levering() consumes the pending quantity (leveres was
-            // set to antal before the call, and is 0 after); leveret is not
-            // stamped on this path.
+            // 20260921 CDX/LUI A NULL initial delivered count must accumulate
+            // from zero, while the pending quantity is consumed.
+            $this->assertNotNull($line['leveret'], 'delivery persists a quantity for a newly created line');
+            $this->assertEqualsWithDelta(2.0, (float)$line['leveret'], 0.001, 'delivered quantity matches the real delivery');
             $this->assertEqualsWithDelta(0.0, (float)$line['leveres'], 0.001, 'pending delivery quantity consumed');
             $this->assertEqualsWithDelta(2.0, (float)$line['antal'], 0.001, 'ordered quantity unchanged');
         }

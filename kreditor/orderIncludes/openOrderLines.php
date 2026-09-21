@@ -35,6 +35,9 @@
 // 20250524 PHR Bogfor now set to 0 if tidl_lev (Delivered) differs from antal (qty)
 // 20251113 PHR Corrected error in $tidl_lev for creditnotas
 // 20260611 MJ Changed creditor print button fallback text to English.
+// 20260921 CDX/LH Store purchase VAT in cents using the same totals as posting.
+
+require_once __DIR__ . '/../../includes/creditorPostingTotals.php';
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 
@@ -54,8 +57,7 @@ $kreditmax=NULL;
 if (!isset($bogfor)) $bogfor = 1;
 for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) {
-    $ialt=($pris[$x]-($pris[$x]/100*$rabat[$x]))*$antal[$x];
-    $ialt=afrund($ialt,2);
+    $ialt=creditorLineNet($pris[$x], $antal[$x], $rabat[$x]);
     $sum=$sum+$ialt;
     if ($momsfri[$x]!='on' && !$omvbet[$x]) $momssum=$momssum+$ialt;
     #$ialt=dkdecimal($ialt,2);
@@ -268,11 +270,10 @@ print "<td><input class='inputbox' type='text' style='background: none repeat sc
 print "<td></td>";
 print "</tr>\n";
 print "<input type='hidden' name='sum' value='$sum'>";
-$moms=floatval($momssum)/100*floatval($momssats);
-if ($art=='KK') $moms=$moms-0.0001; #Ellers runder den op istedet for ned?
-else $moms=$moms+0.0001; #Ellers runder den ned istedet for op?
-$moms=afrund($moms,3);
-if ($id) db_modify("update ordrer set sum='$sum', moms='$moms' where id='$id'",__FILE__ . " linje " . __LINE__);
+$moms=creditorVatTotal($momssum, $momssats);
+if ($id) {
+  db_modify("update ordrer set sum='$sum', moms='$moms' where id='$id'",__FILE__ . " linje " . __LINE__);
+}
 if ($art=='KK') {
   $sum=$sum*-1;
   $moms=$moms*-1;
