@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-05-15 --- 
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-09-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250510 PHR Added 'w' to $legalChars
 // 20250519 PHR '&' replaced by '_' in filenames 
@@ -67,6 +67,7 @@
 //                     other checked saved lines are saved via the Save path before the attach.
 // 20260916 CDX/LAH Keep the selected new voucher row visible above collapsed existing lines.
 // 20260917 CDX/LAH Preserve new voucher fields, including accounts, when opening a pool preview.
+// 20260921 CDX/PHR Preserve commas in selected document filenames by preferring poolFile arrays.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -507,13 +508,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		// file being VIEWED, not the file the user wants to INSERT
 		$poolFiles = array();
 		
-		// First priority: poolFiles as comma-separated string (most reliable from JavaScript)
-		if (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
+		// Use the lossless array sent by the picker: a filename may contain commas.
+		if (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
+			$poolFiles = $_POST['poolFile'];
+		// Retain comma-separated input only for older callers without an array.
+		} elseif (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
 			$poolFiles = explode(',', $_POST['poolFiles']);
 			$poolFiles = array_map('trim', $poolFiles);
-		// Second priority: poolFile[] as array from POST
-		} elseif (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
-			$poolFiles = $_POST['poolFile'];
 		// Third priority: Single poolFile from POST (string)
 		} elseif (isset($_POST['poolFile']) && !empty($_POST['poolFile']) && is_string($_POST['poolFile'])) {
 			$poolFiles = array($_POST['poolFile']);
