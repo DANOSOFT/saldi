@@ -30,17 +30,26 @@
 // 20260710 MJ ABS(sn.kobslinje_id) i JOIN så negative kobslinje_id (retur til leverandør) også viser indkøbsordren.
 // 20260710 MJ Ekstra COALESCE-fallbacks via ordrelinjer.vare_id→varer og batch_kob/batch_salg.vare_id→varer så serienr med tom/manglende ordrelinjer.varenr stadig søges.
 // 20260813 Sawaneh - "Not sold" filter: sn.salgslinje_id = 0 instead of <= 0, so negative history rows (credited sales) are no longer shown as available. Credited return serials still appear via the fresh row with salgslinje_id = 0 from krediter().
+// 20260917 CL/LH Column headers, filters and the rename/delete dialogs pulled from findtekst().
+// 20260917 CL/LH Translated values interpolated into JavaScript string literals are addslashes()'d, and the page title follows the language via document.title.
 
 @session_start();
 $s_id = session_id();
 
 $css = "../../css/standard.css?v=20";
-$title = "Serienr";
+// Danish fallback only: online.php prints <head><title>$title</title> while it is being
+// included, i.e. before it has resolved the session language into $sprog_id. The translated
+// title is set further down.
+$title = "Serienr.";
 
 include ("../../includes/std_func.php");
 include ("../../includes/connect.php");
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
+
+// $sprog_id is known from here on. index/main.php copies the iframe title into the browser
+// tab when the frame loads, so correcting document.title here makes the tab follow the language.
+print "<script>document.title = '".addslashes(findtekst('5232|Serienr.', $sprog_id))."';</script>\n";
 
 $valg = "Serienumre";
 include ("topLineVarer.php");
@@ -67,17 +76,17 @@ $columns = array();
 
 $columns[] =    array(
     "field" => "id",
-    "headerName" => "Serienummer ID",
+    "headerName" => findtekst('1497|Serienummer', $sprog_id)." ID", #Serienummer ID
     "sqlOverride" => "sn.id",
     "type" => "number",
     "valueGetter" => function ($value, $row, $column) {
         return $value; 
     },
-    "hidden" => true
+    "hidden" => true,
 );
 $columns[] =    array(
     "field" => "varenr",
-    "headerName" => "Vare Nr.",
+    "headerName" => findtekst('917|Varenr.', $sprog_id),
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[vare_id]&returside=../lager/lister/serialnumber.php";
         return "<td align='$column[align]'><a href='$url'>$value</a></td>";
@@ -91,18 +100,18 @@ $columns[] =    array(
 );
 $columns[] =    array(
     "field" => "beskrivelse",
-    "headerName" => "Vare navn",
+    "headerName" => findtekst('967|Varenavn', $sprog_id),
     "width" => "3",
     "sqlOverride" => "COALESCE(v.beskrivelse, kl.beskrivelse, sl.beskrivelse, klv.beskrivelse, slv.beskrivelse, bkv.beskrivelse, bsv.beskrivelse)"
 );
 $columns[] =    array(
     "field" => "stregkode",
-    "headerName" => "Stregkode",
+    "headerName" => findtekst('2016|Stregkode', $sprog_id),
     "sqlOverride" => "v.stregkode"
 );
 $columns[] =    array(
     "field" => "serienr",
-    "headerName" => "Serienummer",
+    "headerName" => findtekst('1497|Serienummer', $sprog_id),
     "sqlOverride" => "sn.serienr"
 );
 /*$columns[] =    array(
@@ -143,7 +152,7 @@ $columns[] = array(
 );*/
 $columns[] = array(
     "field" => "kobs_kontonr",
-    "headerName" => "Leverandør",
+    "headerName" => findtekst('951|Leverandør', $sprog_id),
     "width" => "1.5",
     "sqlOverride" => "LOWER(ko.kontonr)",
     "generateSearch" => function ($column, $term) {
@@ -161,7 +170,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "kobs_ordre",
-    "headerName" => "Ordre",
+    "headerName" => findtekst('605|Ordre', $sprog_id),
     "sqlOverride" => "ko.ordrenr",
     "render" => function ($value, $row, $column) {
         $url = "../../kreditor/ordre.php?id=$row[kobs_ordre]&returside=../lager/lister/serialnumber.php";
@@ -176,7 +185,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "salgs_kontonr",
-    "headerName" => "Køber",
+    "headerName" => findtekst('4995|Køber', $sprog_id),
     "width" => "1.5",
     "sqlOverride" => "LOWER(so.kontonr)",
     "generateSearch" => function ($column, $term) {
@@ -194,7 +203,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "salgs_ordre_nr",
-    "headerName" => "Ordre",
+    "headerName" => findtekst('605|Ordre', $sprog_id),
     "render" => function ($value, $row, $column) {
         $url = "../../debitor/ordre.php?id=$row[salgs_ordre]&returside=../lager/lister/serialnumber.php";
         return "<td align='$column[align]'><a href='$url'>$row[salgs_ordre_nr]</a></td>";
@@ -208,6 +217,8 @@ $columns[] = array(
 );
 
 
+// TODO: filterName og valgenes "name" står bevidst på dansk. grid.php bruger dem som nøgle
+//       til brugerens gemte filtervalg, så en oversættelse nulstiller fluebenene.
 $filters = array();
 
 // Vargrupper
@@ -224,22 +235,26 @@ while ($row = db_fetch_array($q)) {
 }
 $filters[] = array(
     "filterName" => "Varegrupper",
+#   "filterName" => findtekst('774|Varegrupper', $sprog_id),
     "joinOperator" => "or",
     "options" => $VGs
 );
 
 $filters[] = array(
     "filterName" => "Misc",
+#   "filterName" => findtekst('782|Diverse', $sprog_id),
     "joinOperator" => "and",
     "options" => array(
         array(
             "name" => "Vis tomme serienr værdier",
+#           "name" => findtekst('4998|Vis rækker uden serienummer', $sprog_id),
             "checked" => "",
             "sqlOn" => "",
             "sqlOff" => "sn.serienr != '' AND sn.serienr IS NOT NULL",
         ),
         array(
             "name" => "Vis kun serienumre der ikke er solgt",
+#           "name" => findtekst('4999|Vis kun serienumre der ikke er solgt', $sprog_id),
             "checked" => "",
             "sqlOn" => "sn.salgslinje_id = 0",
             "sqlOff" => "",
@@ -300,20 +315,28 @@ ORDER BY
     },
     // Only show metaColumn if settings rettighedder
     'metaColumn' => substr($rettigheder,1,1) ? function ($row) {
+        global $sprog_id;
         if ($row['salgs_ordre'] == "") {
+            // The three strings below end up inside single-quoted JavaScript string literals in the
+            // onclick handlers, so every interpolated value is addslashes()'d - an apostrophe in a
+            // translation (or in a serial number) would otherwise break the dialog.
+            $serienr       = addslashes($row['serienr']);
+            $renamePrompt  = addslashes(findtekst('4996|Hvad skal serienummeret omdøbes til?', $sprog_id))."\\n".addslashes(findtekst('1497|Serienummer', $sprog_id)).": {$serienr}";
+            $renameConfirm = addslashes(findtekst('4997|Omdøb', $sprog_id))." {$serienr} ".addslashes(findtekst('904|til', $sprog_id));
+            $deleteConfirm = addslashes(findtekst('1099|Slet', $sprog_id))." {$serienr}";
 
             return <<<HTML
             <td class='filler-row'> <!-- Automatically gets removed on export -->
                 <div style='display: flex;'>
                     <svg
                         onclick="
-                            const name = prompt('Hvad skal serienummeret omnavngives til?\\nSerienummer: {$row['serienr']}');
+                            const name = prompt('{$renamePrompt}');
 
                             document.getElementsByName('serienr_id')[0].value='{$row['id']}';
                             document.getElementsByName('vare_id')[0].value='{$row['vare_id']}';
                             document.getElementsByName('rename')[0].value=name;
 
-                            if (confirm('Omdøb {$row['serienr']} til '+name+'?')) {
+                            if (confirm('{$renameConfirm} '+name+'?')) {
                                 document.getElementsByName('rename')[0].form.submit();
                             } else {
                                 document.getElementsByName('rename')[0].value='';
@@ -329,7 +352,7 @@ ORDER BY
                             document.getElementsByName('vare_id')[0].value='{$row['vare_id']}';
                             document.getElementsByName('delete')[0].value=1;
 
-                            if (confirm('Slet {$row['serienr']}?')) {
+                            if (confirm('{$deleteConfirm}?')) {
                                 document.getElementsByName('rename')[0].form.submit();
                             } else {
                                 document.getElementsByName('delete')[0].value='';
@@ -390,7 +413,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => ".salgs_kontonr,.salgs_ordre_nr,#tmp",
-    "content" => "Hvis serienummeret ikke er solgt, kan du slette eller redigere det."
+    "content" => findtekst('2658|Hvis serienummeret ikke er solgt, kan du slette eller redigere det', $sprog_id)."."
 );
 
 
