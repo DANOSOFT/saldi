@@ -1,4 +1,5 @@
 <?php
+// 20260921 CDX/LUI Surface web writes as catchable failures while restoring caller error policy.
 // 20260920 CDX/LUI Parse legacy item files once and validate all rows before transactional writes.
 
 /** @return list<list<string>> */
@@ -98,7 +99,15 @@ function legacyItemImportPrepare(array $rows, array $labels, int $defaultGroup, 
 /** @return void Throw on a rejected write so the enclosing import rolls back. */
 function legacyItemImportWrite(string $sql): void
 {
-    $result = db_modify($sql, __FILE__ . ' linje ' . __LINE__);
+    $hadWebservice = array_key_exists('webservice', $GLOBALS);
+    $previousWebservice = $GLOBALS['webservice'] ?? null;
+    $GLOBALS['webservice'] = true;
+    try {
+        $result = db_modify($sql, __FILE__ . ' linje ' . __LINE__);
+    } finally {
+        if ($hadWebservice) { $GLOBALS['webservice'] = $previousWebservice; }
+        else { unset($GLOBALS['webservice']); }
+    }
     if (!is_string($result) || !str_starts_with($result, "0\t")) {
         throw new RuntimeException('Importen kunne ikke gemmes. Ingen varer er importeret.');
     }

@@ -39,6 +39,7 @@
 // 20260921 CDX/LH Scope identity validation and mapping cleanup to the incoming product catalog.
 // 20260921 CDX/LUI Reject invalid price/group/shop identity atomically with CSV row diagnostics.
 // 20260921 CDX/LUI Validate optional cost prices before product or mapping writes.
+// 20260921 CDX/LUI Diagnose identity conflicts, repair scoped orphan bindings and audit returning inserts.
 // 20260921 CDX/LH Report product barcode collisions before variant download can terminate synchronization.
 
 
@@ -57,7 +58,7 @@ function varesyncInsertedId(string $sql, string $table): int {
     } else {
         // RETURNING identifies this statement even when an insert trigger advances
         // the same sequence; currval/max(id)/a SKU lookup cannot make that promise.
-        $row = db_fetch_array(db_select($sql . ' RETURNING id', __FILE__ . ' linje ' . __LINE__));
+        $row = db_fetch_array(db_modify($sql . ' RETURNING id', __FILE__ . ' linje ' . __LINE__, false, true));
     }
     if (empty($row['id']) || (int)$row['id'] < 1) { throw new \RuntimeException('Missing inserted synchronization ID'); }
     return (int)$row['id'];
@@ -171,7 +172,7 @@ function varesync($valg) {
 		return strtolower((string)$value);
 	}, $csvHeader), true);
 	$headerFields = array_map(static function ($value) { return strtolower(trim((string)$value)); }, $csvHeader);
-	$hasProductHeader = in_array($headerFields[0] ?? '', ['id', 'shop_id', 'products_id'], true)
+	$hasProductHeader = in_array($headerFields[0] ?? '', ['id', 'shop_id', 'product_id', 'products_id'], true)
 		&& ($headerFields[1] ?? '') === 'varenr' && ($headerFields[3] ?? '') === 'salgspris'
 		&& ($headerFields[$useCost ? 6 : 5] ?? '') === 'gruppe';
 	$shop_encode='';
@@ -241,14 +242,16 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		}
 		if (!$shop_id[$y] && $missingShopRow === null) { $missingShopRow = $y; }
 		$sku = db_escape_string($varenr[$y]);
-		if ($sku === '' || isset($incomingSkus[$sku])) { throw new \RuntimeException('Missing or duplicate incoming product number: ' . $varenr[$y]); }
-		$incomingSkus[$sku] = true;
+		if ($sku === '' || isset($incomingSkus[$sku])) {
+			return varesyncRejectRow($csvRowNumbers[$y], $varenr[$y], 'missing or duplicate product number');
+		}
+		$incomingSkus[$sku] = $y;
 		if ($shop_id[$y]) {
 			if (!ctype_digit((string)$shop_id[$y]) || (int)$shop_id[$y] < 1 || (float)$shop_id[$y] > 2147483647) {
 				return varesyncRejectRow($csvRowNumbers[$y], $varenr[$y], 'shop_id');
 			}
 			if (isset($incomingShopIds[(int)$shop_id[$y]])) {
-				throw new \RuntimeException('Invalid or duplicate incoming shop product ID');
+				return varesyncRejectRow($csvRowNumbers[$y], $varenr[$y], 'duplicate shop_id');
 			}
 			$incomingShopIds[(int)$shop_id[$y]] = $sku;
 		}
@@ -259,7 +262,8 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 			continue;
 		}
 		if (isset($knownSkuIds[$sku])) {
-			throw new \RuntimeException('Ambiguous existing product number: ' . $sku);
+			$rowIndex = $incomingSkus[$sku];
+			return varesyncRejectRow($csvRowNumbers[$rowIndex], $varenr[$rowIndex], 'ambiguous existing product number');
 		}
 		$knownSkuIds[$sku] = (int)$sProductId[$index];
 	}
@@ -273,6 +277,11 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		}
 	}
 	$knownShopIds = [];
+	$existingProductIds = array_fill_keys($sProductId, true);
+	$relevantProductRows = [];
+	foreach ($knownSkuIds as $sku => $productId) {
+		$relevantProductRows[$productId] = $incomingSkus[$sku];
+	}
 	foreach ($svSaldiId as $index => $saldiId) {
 		if (($svShopVariant[$index] ?? 0) || ($svSaldiVariant[$index] ?? 0)) {
 			continue;
@@ -281,12 +290,16 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		if (!isset($relevantShopIds[$shopId])) {
 			continue;
 		}
+		if (!isset($existingProductIds[(int)$saldiId])) {
+			continue; // A deleted product cannot own a live incoming shop identity.
+		}
+		$rowIndex = isset($incomingShopIds[$shopId]) ? $incomingSkus[$incomingShopIds[$shopId]] : ($relevantProductRows[(int)$saldiId] ?? $missingShopRow ?? 0);
 		if (isset($knownShopIds[$shopId]) && $knownShopIds[$shopId] !== (int)$saldiId) {
-			throw new \RuntimeException('Ambiguous existing shop product ID');
+			return varesyncRejectRow($csvRowNumbers[$rowIndex], $varenr[$rowIndex], 'ambiguous existing shop_id');
 		}
 		$knownShopIds[$shopId] = (int)$saldiId;
 		if (isset($incomingShopIds[$shopId]) && ($knownSkuIds[$incomingShopIds[$shopId]] ?? null) !== (int)$saldiId) {
-			throw new \RuntimeException('Shop product ID belongs to a different product number');
+			return varesyncRejectRow($csvRowNumbers[$rowIndex], $varenr[$rowIndex], 'shop_id owned by another product number');
 		}
 	}
 	if ($missingShopRow !== null) {
@@ -302,6 +315,8 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		$cleanupParts[] = 'shop_id IN (' . implode(',', array_keys($relevantShopIds)) . ')';
 	}
 	$cleanupScope = $cleanupParts ? '(' . implode(' OR ', $cleanupParts) . ')' : '1=0';
+	// Remove only non-variant orphan bindings in this incoming catalog's scope.
+	db_modify("DELETE FROM shop_varer WHERE $cleanupScope AND COALESCE(saldi_variant,0)=0 AND COALESCE(shop_variant,0)=0 AND NOT EXISTS (SELECT 1 FROM varer WHERE varer.id=shop_varer.saldi_id)", __FILE__ . ' linje ' . __LINE__);
 	db_modify("update shop_varer set saldi_variant='0' where saldi_variant is NULL AND $cleanupScope",__FILE__ . " linje " . __LINE__);
 	db_modify("update shop_varer set shop_variant='0' where shop_variant is NULL AND $cleanupScope",__FILE__ . " linje " . __LINE__);
 	$x=0;
