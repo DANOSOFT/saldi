@@ -1,5 +1,6 @@
 <?php
 // 20260920 CDX/LH Exercise the page's actual save-completion block through HTTP redirects.
+// 20260921 CDX/LH Exercise absent and explicit database-error flags with strict HTTP error visibility.
 // Starts an isolated local PHP server and uses temporary files instead of tenant data.
 error_reporting(E_ALL);
 $root = dirname(__DIR__);
@@ -15,11 +16,16 @@ $bootstrap = '<?php' . "\n" .
     'require_once ' . var_export($root . '/finans/kassekladde_includes/journalSaveRedirect.php', true) . ';' . "\n";
 $fixture = <<<'CODE'
 error_reporting(E_ALL);
+set_error_handler(static function ($severity, $message) { throw new RuntimeException($message); });
 ob_start();
 session_start();
 $kladde_id = 42;
 $fejl = isset($_POST['invalid']);
-$db_modify_fejl = isset($_POST['write_error']);
+if (isset($_POST['write_error'])) {
+    $db_modify_fejl = true;
+} elseif (isset($_POST['explicit_success'])) {
+    $db_modify_fejl = false;
+}
 $submit = $_POST['submit'] ?? null;
 $fokus = $_POST['fokus'] ?? '';
 $vat_reset_notice = $_POST['notice'] ?? '';
@@ -88,6 +94,13 @@ try {
     foreach (['invalid','write_error'] as $failure) {
         $rejected = journalRequest($base . 'kassekladde.php', ['submit'=>'save',$failure=>1], $cookie);
         if ($rejected['status'] !== 200 || isset($rejected['headers']['location'])) throw new RuntimeException('Failed save redirected away from its errors');
+    }
+    $explicit = journalRequest($base . 'kassekladde.php', ['submit'=>'save','explicit_success'=>1], $cookie);
+    if ($explicit['status'] !== 303 || !isset($explicit['headers']['location'])) {
+        throw new RuntimeException('Explicit false database-error flag blocked a valid save');
+    }
+    if (preg_match('/(?:Warning|Fatal error|Uncaught)/', file_get_contents($dir . '/server.log'))) {
+        throw new RuntimeException('Save completion emitted a PHP error with an absent or false database-error flag');
     }
     $lookup = journalRequest($base . 'kassekladde.php', ['submit'=>'lookup'], $cookie);
     if (isset($lookup['headers']['location'])) throw new RuntimeException('Lookup was redirected');

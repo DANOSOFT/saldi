@@ -1,5 +1,6 @@
 <?php
 // 20260921 CDX/LH Actual controller, invoice split and settlement with PostgreSQL rollback controls.
+// 20260921 CDX/LH Exercise screen-derived FX rounding for signed historical thousandths and stale forms.
 if (PHP_SAPI !== 'cli') exit('CLI only');
 error_reporting(E_ALL);
 set_error_handler(static function ($severity, $message) { throw new RuntimeException($message); });
@@ -97,6 +98,34 @@ resetSplit(-504);db_select("UPDATE adresser SET art='K' WHERE id=7");requestSpli
 checkSplit(scalarSplit("SELECT faktnr FROM openpost WHERE id=4")==='101','Creditor invoice remainder retains original invoice number');
 resetSplit(100,'EUR',745);requestSplit(1,745,74.5,'101','Opdater',7.45,'EUR');checkSplit(scalarSplit("SELECT string_agg(amount::text||':'||valuta||':'||valutakurs,',' ORDER BY id) FROM openpost WHERE id IN(1,4)")==='10.000:EUR:745,90.000:EUR:745','Foreign display conversion preserves source total and exchange rate');
 resetSplit(504.001);requestSplit(1,504,4);checkSplit(scalarSplit('SELECT SUM(amount) FROM openpost WHERE id IN(1,4)')==='504.001','Historical thousandth is conserved in remainder');
+// Execute the page's source rounding and DKK conversion statements themselves.
+foreach (['-326.563', '326.563'] as $historical) {
+    resetSplit($historical, 'EUR', 745);
+    $row = ['amount'=>$historical]; $valutakurs = [745];
+    $start = strpos($source, "\$amount[0]=afrund(\$row['amount'],2);");
+    $end = strpos($source, ';', $start) + 1;
+    eval(substr($source, $start, $end-$start));
+    $start = strpos($source, '$dkkamount[0]=afrund($amount[0]*$valutakurs[0]/100,2);');
+    $end = strpos($source, ';', $start) + 1;
+    eval(substr($source, $start, $end-$start));
+    $displayed = $dkkamount[0];
+    foreach (['Opdater','Udlign','Find modposter'] as $submitAction) {
+        $before = splitState();
+        [$action,$output] = requestSplit(1,$displayed,$displayed,'101',$submitAction,7.45,'EUR');
+        checkSplit($output === '' && splitState() === $before, "historical $historical EUR accepts unchanged $submitAction using actual displayed rounded amount");
+    }
+    $signedNew = (float)$historical < 0 ? -745 : 745;
+    [$action,$output] = requestSplit(1,$displayed,$signedNew,'101','Opdater',7.45,'EUR');
+    checkSplit($output === '' && scalarSplit('SELECT SUM(amount) FROM openpost WHERE id IN(1,4)') === $historical, 'foreign historical split preserves every source-currency thousandth');
+    $after = splitState();
+    requestSplit(1,$displayed,$signedNew,'changed','Udlign',7.45,'EUR');
+    checkSplit(splitState() === $after, 'historical foreign stale form remains rejected after successful split');
+    resetSplit($historical,'EUR',745);
+    db_select('UPDATE openpost SET amount=amount+1 WHERE id=1');
+    $before = splitState();
+    [$action,$output] = requestSplit(1,$displayed,$displayed,'changed','Udlign',7.45,'EUR');
+    checkSplit($output !== '' && splitState() === $before, 'actual changed foreign balance still rejects reference and settlement mutation');
+}
 // Default PHP precision14 must not truncate a valid NUMERIC(15,3) amount in SQL.
 $oldPrecision=ini_get('precision');ini_set('precision','14');
 foreach (['','-'] as $sign) {
