@@ -53,7 +53,14 @@
 		if (($ym<$aarstart || $ym>$aarslut))	{ #20140505
 			
 			print "<BODY onLoad=\"javascript:alert('Udligningsdato ($ym) udenfor regnskabs&aring;r ($aarstart - $aarslut)')\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udlign_openpost.php?post_id=$post_id[0]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=$retur&layout=$layout\">";
+			// Encoded because $returside carries a query string of its own - unencoded, its ?id=..&konto=..
+			// merged into this URL and truncated returside for the page we are handing back to.
+			$tilbage  = "../includes/udlign_openpost.php?post_id=" . (int) $post_id[0];
+			$tilbage .= "&dato_fra=" . urlencode($dato_fra) . "&dato_til=" . urlencode($dato_til);
+			$tilbage .= "&konto_fra=" . urlencode($konto_fra) . "&konto_til=" . urlencode($konto_til);
+			$tilbage .= "&returside=" . urlencode($returside) . "&retur=" . urlencode($retur);
+			$tilbage .= "&layout=" . urlencode($layout);
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=$tilbage\">";
 			exit;
 	}
 	// <- 20121106
