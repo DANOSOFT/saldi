@@ -1,5 +1,7 @@
 <?php
 // filepath: ../index/dashboardIncludes/weekly_graph_data.php
+// 20260921 CL/SZ MB-50: int-cast kontomin/kontomaks/regnaar before SQL interpolation
+//                so a missing/malformed request no longer produces a raw DB error alert.
 
 // Start with a clean output buffer to avoid any other content
 ob_clean();
@@ -13,9 +15,9 @@ require_once('../includes/connect.php');
 require_once('../includes/online.php');
 
 
-$kontomin = $_GET['kontomin'] ?? null;
-$kontomaks = $_GET['kontomaks'] ?? null;
-$regnaar = $_GET['regnaar'] ?? null;
+$kontomin = intval($_GET['kontomin'] ?? 0);
+$kontomaks = intval($_GET['kontomaks'] ?? 0);
+$regnaar = intval($_GET['regnaar'] ?? 0);
 $regnstart = $_GET['regstart'] ?? null; //start of fiscal year
 $regnslut = $_GET['regslut'] ?? null; //end of fiscal year
 
