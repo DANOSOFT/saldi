@@ -1,5 +1,6 @@
 <?php
 // 20260920 CDX/LUI Verify CSV mapping and optional isolated PostgreSQL import/rollback.
+// 20260921 CDX/LH Honor the native gate DSN, including authentication and nondefault ports.
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) { throw new ErrorException($message, 0, $severity, $file, $line); });
 require_once __DIR__ . '/../includes/legacyItemImport.php';
@@ -38,11 +39,23 @@ try {
     checkImport(legacyItemImportRead($path, 'Brdr. Dahl')[0][0] === 'FIXED', 'Fixed-width Brdr. Dahl format remains readable');
 } finally { unlink($path); }
 
-if (!getenv('SALDI_ITEM_IMPORT_PGHOST')) {
-    echo "SKIP: PostgreSQL write/rollback checks need SALDI_ITEM_IMPORT_PGHOST (use an isolated test database)\n";
+$dsn = getenv('SALDI_CHAR_PG_DSN') ?: getenv('SALDI_TEST_DSN');
+if (!$dsn && getenv('SALDI_ITEM_IMPORT_PGHOST')) {
+    $parts = [];
+    $defaults = ['dbname' => 'postgres', 'user' => 'postgres'];
+    foreach (['host' => 'PGHOST', 'port' => 'PGPORT', 'dbname' => 'PGDATABASE', 'user' => 'PGUSER', 'password' => 'PGPASSWORD'] as $key => $suffix) {
+        $value = getenv('SALDI_ITEM_IMPORT_' . $suffix) ?: ($defaults[$key] ?? false);
+        if ($value !== false && $value !== '') {
+            $parts[] = $key . "='" . str_replace(['\\', "'"], ['\\\\', "\\'"], $value) . "'";
+        }
+    }
+    $dsn = implode(' ', $parts);
+}
+if (!$dsn || !extension_loaded('pgsql')) {
+    echo "SKIP: PostgreSQL write/rollback checks need pgsql and SALDI_CHAR_PG_DSN (use an isolated test database)\n";
     exit;
 }
-$connection = pg_connect('host=' . getenv('SALDI_ITEM_IMPORT_PGHOST') . ' dbname=' . (getenv('SALDI_ITEM_IMPORT_PGDATABASE') ?: 'postgres') . ' user=' . (getenv('SALDI_ITEM_IMPORT_PGUSER') ?: 'postgres'));
+$connection = pg_connect($dsn);
 if (!$connection) { throw new RuntimeException('Isolated test database unavailable'); }
 function db_escape_string($value) { return pg_escape_string($GLOBALS['connection'], $value); }
 function db_select($sql, $source = '') { return pg_query($GLOBALS['connection'], $sql); }
