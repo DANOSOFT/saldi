@@ -293,7 +293,7 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		if (!isset($existingProductIds[(int)$saldiId])) {
 			continue; // A deleted product cannot own a live incoming shop identity.
 		}
-		$rowIndex = isset($incomingShopIds[$shopId]) ? $incomingSkus[$incomingShopIds[$shopId]] : ($relevantProductRows[(int)$saldiId] ?? $missingShopRow ?? 0);
+		$rowIndex = isset($incomingShopIds[$shopId]) ? $incomingSkus[$incomingShopIds[$shopId]] : ($relevantProductRows[(int)$saldiId] ?? $relevantProductRows[$knownShopIds[$shopId] ?? 0] ?? $missingShopRow ?? 0);
 		if (isset($knownShopIds[$shopId]) && $knownShopIds[$shopId] !== (int)$saldiId) {
 			return varesyncRejectRow($csvRowNumbers[$rowIndex], $varenr[$rowIndex], 'ambiguous existing shop_id');
 		}

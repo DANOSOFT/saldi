@@ -1,6 +1,7 @@
 <?php
 // 20260921 CDX/LH Execute real receipt posting, including two independent PostgreSQL workers.
 // 20260921 CDX/LH Preserve exact thousandths at large positive and negative stock balances.
+// 20260921 CDX/LH Cover unrestricted numeric stock, exact fine-scale rollback and legacy default warehouses.
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message) {
     throw new RuntimeException($message);
@@ -224,6 +225,58 @@ INSERT INTO batch_kob(kobsdate,vare_id,variant_id,linje_id,ordre_id,antal,rest,l
     postingCheck(modtag(1) && (int)$GLOBALS['db_transaktion_depth'] === 1, 'nested receipt keeps ownership with the outer transaction');
     transaktion('rollback');
     postingCheck(receiptSnapshot() === $before, 'outer rollback reverses successful nested receipt completely');
+    // Production stock/order/batch columns are unrestricted NUMERIC, unlike variants.
+    foreach (['modtagelser' => ['antal','lager'], 'varer' => ['beholdning'], 'ordrelinjer' => ['antal','leveres'], 'batch_kob' => ['antal','rest'], 'lagerstatus' => ['beholdning']] as $table => $columns) {
+        foreach ($columns as $column) {
+            db_select("ALTER TABLE $table ALTER COLUMN $column TYPE numeric");
+        }
+    }
+    foreach (['7.1665', '-7.1665', '10000000000000000.123456'] as $balance) {
+        postingReset();
+        db_select("UPDATE varer SET beholdning=$balance;UPDATE lagerstatus SET beholdning=$balance,lager=1;UPDATE modtagelser SET antal=0.0005 WHERE id=1;UPDATE ordrelinjer SET antal=1.123956,leveres=0.0005;INSERT INTO batch_kob(linje_id,antal,rest) VALUES(1,1.123456,1.123456)");
+        postingCheck(modtag(1), 'existing staged fine-scale receipt posts against unrestricted decimal balances');
+        postingCheck(receiptValue("SELECT beholdning=($balance+0.0005) FROM varer") === 't' && receiptValue("SELECT beholdning=($balance+0.0005) FROM lagerstatus") === 't' && receiptValue('SELECT SUM(antal)=1.123956 AND SUM(rest)=1.123956 FROM batch_kob') === 't' && receiptValue('SELECT leveres=0 FROM ordrelinjer') === 't', 'item warehouse historical batch and outstanding quantities conserve all digits exactly');
+        $before = receiptSnapshot();
+        postingCheck(modtag(1) && receiptSnapshot() === $before, 'fine-scale completed receipt replay makes no changes');
+    }
+    postingReset();
+    db_select("UPDATE modtagelser SET antal=0.001 WHERE id=1;UPDATE ordrelinjer SET antal=0.000123,leveres=0.000123;INSERT INTO ordrelinjer VALUES(2,1,1,0.000877,0.000877,3,0,NULL,NULL)");
+    postingCheck(modtag(1) && receiptValue('SELECT beholdning=7.001 FROM varer') === 't' && receiptValue('SELECT COUNT(*) FROM batch_kob WHERE (linje_id=1 AND antal=0.000123 AND rest=0.000123) OR (linje_id=2 AND antal=0.000877 AND rest=0.000877)') === '2' && receiptValue('SELECT COUNT(*) FROM ordrelinjer WHERE leveres=0') === '2', 'FIFO allocation preserves sub-thousandth outstanding amounts across separate warehouses');
+
+    postingReset();
+    db_select('UPDATE modtagelser SET antal=0.0005 WHERE id=1;UPDATE ordrelinjer SET variant_id=2;INSERT INTO variant_varer VALUES(2,1,3)');
+    $before = receiptSnapshot();
+    ob_start();
+    $result = modtag(1);
+    $diagnostic = ob_get_clean();
+    postingCheck(!$result && receiptSnapshot() === $before && strpos($diagnostic, 'Variant 2:') !== false, 'fixed-scale variant cannot silently round a fine-scale receipt and rolls back with an identified diagnostic');
+
+    db_select("CREATE FUNCTION corrupt_millionth_quantity() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN IF TG_TABLE_NAME=''batch_kob'' THEN NEW.antal=NEW.antal+0.000001; ELSE NEW.beholdning=NEW.beholdning+0.000001; END IF; RETURN NEW; END'");
+    foreach (['varer','lagerstatus','batch_kob'] as $table) {
+        postingReset();
+        db_select('UPDATE lagerstatus SET lager=1;UPDATE varer SET beholdning=7.1665;UPDATE modtagelser SET antal=0.0005 WHERE id=1');
+        $event = $table === 'batch_kob' ? 'INSERT' : 'UPDATE';
+        db_select("CREATE TRIGGER corrupt_millionth BEFORE $event ON $table FOR EACH ROW EXECUTE FUNCTION corrupt_millionth_quantity()");
+        $before = receiptSnapshot();
+        ob_start();
+        $result = modtag(1);
+        ob_end_clean();
+        postingCheck(!$result && receiptSnapshot() === $before, "$table one-millionth mismatch rejects with full rollback rather than a tolerance");
+        db_select("DROP TRIGGER corrupt_millionth ON $table");
+    }
+    foreach ([0,1] as $purchaseWarehouse) {
+        postingReset();
+        db_select("UPDATE ordrelinjer SET lager=$purchaseWarehouse;INSERT INTO lagerstatus(vare_id,variant_id,lager,beholdning) VALUES(1,0,0,2),(1,2,0,5);UPDATE varer SET beholdning=14");
+        $legacyId = receiptValue('SELECT id FROM lagerstatus WHERE lager=0 AND variant_id=0');
+        postingCheck(modtag(1) && receiptValue("SELECT beholdning=3 AND lager=0 FROM lagerstatus WHERE id=$legacyId") === 't' && receiptValue('SELECT COUNT(*) FROM lagerstatus WHERE lager<=1 AND variant_id=0') === '1' && receiptValue('SELECT lager FROM batch_kob') === '1' && receiptValue('SELECT beholdning=5 FROM lagerstatus WHERE variant_id=2') === 't' && receiptValue('SELECT beholdning=7 FROM lagerstatus WHERE lager=9') === 't', 'legacy default warehouse is updated in place without duplicating or touching another variant or warehouse');
+    }
+    postingReset();
+    db_select('INSERT INTO lagerstatus(vare_id,variant_id,lager,beholdning) VALUES(1,0,0,2),(1,0,1,3)');
+    $before = receiptSnapshot();
+    ob_start();
+    $result = modtag(1);
+    ob_end_clean();
+    postingCheck(!$result && receiptSnapshot() === $before, 'ambiguous simultaneous legacy and normalized default rows reject with full rollback');
 } finally {
     if (pg_transaction_status($connection) !== PGSQL_TRANSACTION_IDLE) {
         db_select('ROLLBACK');
