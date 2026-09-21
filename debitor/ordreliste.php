@@ -56,6 +56,7 @@
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260910 Sawaneh Order links carry the popup=1 request flag so a real popup window still closes on Back.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
 // 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
@@ -767,7 +768,7 @@ $custom_columns = array(
 
             file_put_contents("../temp/$db/ordrlst$bruger_id.txt","$row[id];",FILE_APPEND);
 
-            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&valg=$valg&returside=" . urlencode($_SERVER["REQUEST_URI"]);
+            $href = "ordre.php?" . nav_popup_query($_GET, $_POST) . "tjek={$row['id']}&id={$row['id']}&valg=$valg&returside=" . urlencode($_SERVER["REQUEST_URI"]);
             
             $timestamp = $row['tidspkt'];
             if (strpos($timestamp, ':')) {
