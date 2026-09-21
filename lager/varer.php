@@ -61,6 +61,9 @@
 // 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
+// 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
+//                  even when it already carried a wildcard, so "123*" and "*123" both searched
+//                  "contains" and never narrowed the list the price-tag print is built from.
 
 @session_start();
 $s_id=session_id();
@@ -599,34 +602,22 @@ if (!$makeSuggestion && !$csv) {
 }
 #$udvalg="";
 if ($varenummer) {
-/* 	if (strstr($varenummer, "*")) {
-		if (substr($varenummer,0,1)=='*'){
-			$varenummer="%".substr($varenummer,1);
-#			$v_startstjerne=1;
-		}
-		if (substr($varenummer,-1,1)=='*') {
-			$varenummer=substr($varenummer,0,strlen($varenummer)-1)."%";
-#			$v_slutstjerne=1;
-		}
-	$v_strlen=strlen($varenummer);
-#	$udvalg=$udvalg." and varenr LIKE '$varenummer'";
-#	else $udvalg=$udvalg." and (varenr ~ '$varenummer' or stregkode ~ '$varenummer')"; 
-	} else { # 20180112
-		$qtxt="select vare_id from variant_varer where upper(variant_stregkode)='".strtoupper($varenummer)."'";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$qtxt="select varenr from varer where id='$r[vare_id]'";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $varenummer=$r['varenr']; 
-		}
-	} */
+	// 20260921 CDX/MJ MB-54 Only wrap the term in %..% when the user supplied no *. Wrapping it
+	//             unconditionally cancelled the wildcard - "123*" became LIKE '%123%%' and "*123"
+	//             became LIKE '%%123%', so both behaved as "contains" and the list was never
+	//             narrowed. With a * present the converted term is used as it stands, which is what
+	//             the header line from 2015.03.03 describes and what the code removed in 656b85ee
+	//             did. A term without * still matches anywhere, unchanged.
+	$harJokertegn = strpos($varenummer, '*') !== false;
 	$searchTerm = str_replace("*", "%", $varenummer); // Replace wildcards
 	$searchTerm = db_escape_string($searchTerm); // Escape special chars
 	$lowTerm = strtolower($searchTerm);
-	$uppTerm = strtoupper($searchTerm);
+	$likeTerm = $harJokertegn ? $lowTerm : "%$lowTerm%";
 
 	$udvalg .= " and (
-		LOWER(varenr) LIKE '%$lowTerm%' or 
+		LOWER(varenr) LIKE '$likeTerm' or
 		stregkode = '$searchTerm'
-		or LOWER(varenr_alias) LIKE '%$lowTerm%'";
+		or LOWER(varenr_alias) LIKE '$likeTerm'";
 
 	// Only search description and trademark if no wildcards used
 	if (!strstr($searchTerm, '%')) {
