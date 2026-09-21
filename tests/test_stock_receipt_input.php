@@ -1,5 +1,6 @@
 <?php
 // 20260921 CDX/LH Exercise actual receipt request handling against isolated PostgreSQL tables.
+// 20260921 CDX/LH Cover explicit precision rejection, punctuated scans and exact outstanding quantities.
 if (PHP_SAPI !== 'cli') {
     exit('CLI only');
 }
@@ -112,3 +113,34 @@ foreach (['51234567890123', '5 1234567890123'] as $barcode) {
 }
 $result = receiptRequest(['varenr' => 'SKU', 'antal_ny' => '', 'modtag' => 'modtag'], 0, 1);
 receiptCheck($GLOBALS['postedReceipt'] === 1, 'receive button remains available when no row is being edited');
+
+// Fable review regressions: input precision is checked before staging or posting.
+foreach (['0,0005', '1.23456', '1234567890123,0001'] as $input) {
+    resetReceipt();
+    $before = db_fetch_array(db_select('SELECT row_to_json(m)::text AS state FROM modtagelser m WHERE id=1'))['state'];
+    $result = receiptRequest(['varenr' => 'SKU', 'antal_ny' => $input, 'modtag' => 'modtag']);
+    receiptCheck($GLOBALS['receiptWrites'] === [] && $GLOBALS['postedReceipt'] === null && $before === db_fetch_array(db_select('SELECT row_to_json(m)::text AS state FROM modtagelser m WHERE id=1'))['state'] && strpos($result['output'], 'højst 3 decimaler') !== false, 'excess manual precision is explicitly rejected before any write or posting');
+}
+foreach (['0,001' => '0.001', '1.23000' => '1.23'] as $input => $expected) {
+    resetReceipt();
+    receiptRequest(['varenr' => 'SKU', 'antal_ny' => $input]);
+    receiptCheck(db_fetch_array(db_select("SELECT antal=$expected AS exact FROM modtagelser WHERE id=1"))['exact'] === 't', 'supported fractional input is stored exactly, allowing insignificant trailing zeros');
+}
+foreach (['ABC-12345678', 'ABC.12345678', 'ABC/12345678', 'ABC_12345678', "ABC'12345678"] as $index => $sku) {
+    $escaped = db_escape_string($sku);
+    $itemId = 20 + $index;
+    db_select("INSERT INTO varer VALUES($itemId,'$escaped','Punctuated scanner item');INSERT INTO ordrelinjer VALUES($itemId,1,'$escaped',2)");
+    foreach (["5 $sku", "5$sku", "$sku 5"] as $scan) {
+        db_select("DELETE FROM modtagelser WHERE varenr='$escaped'");
+        $result = receiptRequest(['varenr' => 'SKU', 'antal_ny' => $scan, 'antal' => '5'], 1, 1);
+        $row = db_fetch_array(db_select('SELECT varenr,antal=2 AS exact FROM modtagelser WHERE id=' . $result['id']));
+        receiptCheck($row['varenr'] === $sku && $row['exact'] === 't' && $result['fokus'] === 'antal_ny', 'spaced, appended and reversed punctuated scans retain the exact existing SKU');
+    }
+}
+resetReceipt();
+db_select('UPDATE ordrelinjer SET antal=90000000000000001.123456 WHERE id=1;UPDATE ordrelinjer SET antal=0.000123 WHERE id=2');
+receiptRequest(['varenr' => 'SKU', 'antal_ny' => '50000000000000000', 'antal' => '5']);
+receiptCheck(db_fetch_array(db_select('SELECT antal=50000000000000000 AND leveres=0.000123 AND lager=49999999999999999.999877 AS exact FROM modtagelser WHERE id=1'))['exact'] === 't', 'large true integer input is not a scan and preserves fine-scale reservations exactly');
+db_select('DELETE FROM modtagelser');
+$result = receiptRequest(['varenr' => 'SKU', 'antal_ny' => '', 'antal' => ''], 0, 1);
+receiptCheck(db_fetch_array(db_select('SELECT antal=90000000000000001.123456 AND leveres=0.000123 AND lager=90000000000000001.123333 AS exact FROM modtagelser WHERE id=' . $result['id']))['exact'] === 't', 'automatic outstanding receipt preserves existing unrestricted decimal quantity and reservations');
