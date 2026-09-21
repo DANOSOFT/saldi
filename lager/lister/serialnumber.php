@@ -29,6 +29,7 @@
 // 20260710 MJ Use COALESCE(v.varenr, kl.varenr, sl.varenr) so serienr records with stale/missing vare_id still appear and are searchable by varenr.
 // 20260710 MJ ABS(sn.kobslinje_id) i JOIN så negative kobslinje_id (retur til leverandør) også viser indkøbsordren.
 // 20260710 MJ Ekstra COALESCE-fallbacks via ordrelinjer.vare_id→varer og batch_kob/batch_salg.vare_id→varer så serienr med tom/manglende ordrelinjer.varenr stadig søges.
+// 20260813 Sawaneh - "Not sold" filter: sn.salgslinje_id = 0 instead of <= 0, so negative history rows (credited sales) are no longer shown as available. Credited return serials still appear via the fresh row with salgslinje_id = 0 from krediter().
 
 @session_start();
 $s_id = session_id();
@@ -240,7 +241,7 @@ $filters[] = array(
         array(
             "name" => "Vis kun serienumre der ikke er solgt",
             "checked" => "",
-            "sqlOn" => "sn.salgslinje_id <= 0",
+            "sqlOn" => "sn.salgslinje_id = 0",
             "sqlOff" => "",
         )
     )

@@ -44,6 +44,9 @@
 // 20260303 PHR removed call to old phpmailer
 // 20260602 PHR Removed echo "Mail sent to ...";
 // 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
+// 20260819 Sawaneh Show a confirmation per sent mail instead of a blank page when
+//                  sending account statements with 'Send mail(s)'.
+// 20260908 CDX/LH Initialize statement date before sending, compare ISO dates and close spans.
 
 @session_start();
 $s_id=session_id();
@@ -65,6 +68,7 @@ $forfaldsum=$fra=$fromdate=NULL;
 $konto_id=$kontoantal=$kontoliste=NULL;
 $send_mails=$send_pdfs=NULL;
 $til=NULL;
+$currentdate=date("Y-m-d");
 
 if (isset($_POST['retur']) && $_POST['retur']) {
 	print "<body onload=\"javascript:opener.focus();window.close();\">";
@@ -95,9 +99,18 @@ else {
 }
 
 if ($send_mails) {
-	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	$sent_emails = send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	print "<div style=\"text-align: center;\"><br>";
+	if ($sent_emails) {
+		$senttxt = findtekst('3370|Mail sendt til', $sprog_id);
+		foreach ($sent_emails as $sent_email) {
+			print $senttxt." ".htmlspecialchars($sent_email, ENT_QUOTES)."<br>";
+		}
+	} else {
+		print findtekst('3371|Ingen mails afsendt', $sprog_id)."<br>";
+	}
 	print "<form name=luk action=../includes/luk.php method=post>";
-	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
+	print "<br><input type=submit value=\"Luk\" name=\"luk\">";
 	print "</form></div>";
 	exit;
 } elseif ($send_pdfs) {
@@ -105,7 +118,7 @@ if ($send_mails) {
 		$qtxt="select kontonr,art from adresser where id='$konto_id[$x]'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		#		echo "kontoprint($r[kontonr],$r[kontonr],$fra[$x],$til[$x],$r[art],$email[$x])<br>";
-		$svar=kontoprint($r['kontonr'],$r['kontonr'],$fra[$x],$til[$x],$r['art'],$email[$x]);
+		kontoprint($r['kontonr'],$r['kontonr'],$fra[$x],$til[$x],$r['art'],$email[$x]);
 	}
 	print "<form name=luk action=../includes/luk.php method=post>";
 	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
@@ -152,7 +165,6 @@ print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbo
  * $slutaar=$r['box4']*1;
  * $slutdato=31;
  */
-$currentdate=date("Y-m-d");
 /*
  * if ($maaned_fra) {$startmaaned=$maaned_fra;}
  * if ($maaned_til) {$slutmaaned=$maaned_til;}
@@ -308,7 +320,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 			if (($r['udlignet']!='1')&&($forfaldsdate<$currentdate)) $stil="<span style='color: rgb(255, 0, 0);'>";
 			else $stil="<span style='color: rgb(0, 0, 0);'>";
 			if ($DKKamount > 0) {
-				print "<td>$stil"."$forfaldsdag</td><td align=right>$stil $tmp</td><td></td>";
+				print "<td>$stil$forfaldsdag</span></td><td align=right>$stil $tmp</span></td><td></td>";
 				$forfaldsum+=$DKKamount;
 			}
 			else {print "<td></td><td></td><td align=right> $tmp</td>";}
@@ -455,7 +467,8 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				}
 
 				$forfaldsdag=NULL;
-				if ($r['forfaldsdate']) $forfaldsdag=dkdato($r['forfaldsdate']);
+				$forfaldsdate=$r['forfaldsdate'];
+				if ($forfaldsdate) $forfaldsdag=dkdato($forfaldsdate);
 				if ($r['transdate']<$fromdate[$x]) {
 					$primoprint=0;
 					$kontosum=$kontosum+$DKKamount;
@@ -476,14 +489,17 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 					if ($DKKamount < 0) $tmp=0-$DKKamount;
 					else $tmp=$DKKamount;
 					$tmp=dkdecimal($tmp,2);
-					if (!$forfaldsdag) $forfaldsdag=forfaldsdag($r['transdate'], $betalingsbet, $betalingsdage);
-					if ($r['udlignet'] != '1' && $forfaldsdag<$currentdate) $stil="<span style='color: rgb(255, 0, 0);'>";
+					if (!$forfaldsdag) {
+						$forfaldsdag=forfaldsdag($r['transdate'], $betalingsbet, $betalingsdage);
+						$forfaldsdate=usdate($forfaldsdag);
+					}
+					if ($r['udlignet'] != '1' && $forfaldsdate<$currentdate) $stil="<span style='color: rgb(255, 0, 0);'>";
 					else {$stil="<span style='color: rgb(0, 0, 0);'>";}
 					if ($DKKamount > 0) {
-						$mailtext .= "<td>$stil$forfaldsdag</td><td align=right>$stil $tmp</td><td></td>\n";
+						$mailtext .= "<td>$stil$forfaldsdag</span></td><td align=right>$stil $tmp</span></td><td></td>\n";
 						$forfaldsum=$forfaldsum+$DKKamount;
 					}
-					else $mailtext .= "<td></td><td></td><td align=right>$stil$tmp</td>\n";
+					else $mailtext .= "<td></td><td></td><td align=right>$stil$tmp</span></td>\n";
 
 					$kontosum=$kontosum+$DKKamount;
 					$tmp=dkdecimal($kontosum,2);
@@ -594,11 +610,8 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				exit;
 			}
 			$sent_emails[] = $email[$x];
-			#echo "Kontoudtog sendt til $email[$x]<br>";
-
 		}
 	}
 	return $sent_emails;
 }
 ?>
-

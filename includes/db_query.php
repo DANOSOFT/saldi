@@ -37,6 +37,14 @@
 // 20260804 SZ transaktion(): only reset $db_modify_fejl on the outermost 'begin' (track nesting
 //             depth), so bogfor()'s own inner begin/commit no longer erases a failure recorded
 //             by the caller's outer transaction before bogfor() ran (SD-595)
+// 20260820 Sawaneh The fallback alert text used the HTML entity &aelig;, which JS alert() shows
+//                  literally; replaced with a literal æ like the rest of the string
+// 20260824 CL/SZ db_select(): ROLLBACK the connection on a Postgres query error - reproduced
+// 20260907 CL/LH db_select(): drop the pg ROLLBACK from #503 - it turned failed postings into partial commits
+//                that without it, one failed query inside an open transaction ("current
+//                transaction is aborted...") silently fails every later query on that same
+//                connection for the rest of the request; confirmed harmless when no
+//                transaction is open (SST-672)
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -51,6 +59,16 @@ if (!function_exists('get_relative')) {
         $relativePath = str_repeat('../', max(0, $slashCount - 2));
 
         return $relativePath;
+    }
+}
+
+if (!function_exists('db_log_append')) {
+    function db_log_append($path, $lines, $mode = 'a') {
+        $fp = @fopen($path, $mode);
+        if ($fp === false) return false;
+        foreach ((array)$lines as $line) fwrite($fp, $line);
+        fclose($fp);
+        return true;
     }
 }
 
@@ -184,19 +202,19 @@ if (!function_exists('db_modify')) {
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
-				$fp=fopen("$temp/.ht_modify.log","a");
-				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n");
-				fwrite($fp,$qtext.";\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n",
+				$qtext.";\n",
+			]);
 		}
 		if (!$db_query) { #20190704
 			#if ($db_type=="mysql")       $errtxt = mysql_error($connection);
 			if ($db_type=="mysqli") $errtxt = mysqli_error($use_connection); #20190704
 			else $errtxt=pg_last_error($use_connection);
-			$fp=fopen("$temp/.ht_modify.log","a");
-			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-			fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+				"-- Fejl!! ".$qtext." | $errtxt;\n",
+			]);
 			$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
 			if (strstr($spor,"includes/opdat")) {
 				if (file_exists("$temp/opdatfejl.txt")) {
@@ -210,9 +228,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Opdat fejl', $message, $headers);
 					}
-					$ff=fopen("$temp/opdatfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/opdatfejl.txt", date("U")."\n", 'w');
 				} 
 			} else {
 				if (file_exists("$temp/modifyfejl.txt")) {
@@ -226,9 +242,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - modify', $message, $headers);
 					}
-					$ff=fopen("$temp/modifyfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/modifyfejl.txt", date("U")."\n", 'w');
 				} 
 				// if ($db_type=="mysql") {
 				// 	mysql_query("ROLLBACK");
@@ -239,7 +253,7 @@ if (!function_exists('db_modify')) {
 					#mysqli_query($connection, "ROLLBACK");
 				#}
 						
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208";
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if ($webservice) {
 					global $db_modify_fejl; #20260729 SZ surface write failures so posting-path callers can detect a failed statement even though they don't check this return value (SD-595)
 					$db_modify_fejl = true;
@@ -283,7 +297,14 @@ if (!function_exists('db_select')) {
 			$qtext = str_replace(' like ', ' ilike ', $qtext);
 			$query = pg_query($use_connection, $qtext);
 			$errtxt = pg_last_error($use_connection);
-			if ($errtxt) error_log("db_select failed: $qtext");
+			if ($errtxt) {
+				error_log("db_select failed: $qtext");
+				// 20260907 CL/LH Removed the ROLLBACK added 20260824 (#503, SST-672): db_select() only alerts and
+				// continues on the first error, so the rollback discarded the work already done inside a
+				// transaktion('begin') block and every later write autocommitted - a failed posting became a
+				// partial posting instead of the previous all-or-nothing failure. The aborted transaction is
+				// the caller's to roll back (SD-595 $db_modify_fejl pattern, finans/bogfor.php).
+			}
 		}
 
 		if ($errtxt)	{		
@@ -302,13 +323,11 @@ if (!function_exists('db_select')) {
 
 			$tmp.="_".date("h:i");
 			if ($linje != $tmp) {
-				$fp=fopen("$temp/lasterror.txt","a");
-				fwrite($fp,"$tmp");
-				fclose($fp);
-				$fp=fopen("$temp/lasterror.txt","a");
-				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-				fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
-				fclose($fp);
+				db_log_append("$temp/lasterror.txt", "$tmp");
+				db_log_append("$temp/lasterror.txt", [
+					"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+					"-- Fejl!! ".$qtext." | $errtxt;\n",
+				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
 				if (file_exists("$temp/selectfejl.txt")) {
 					$ff=fopen("$temp/selectfejl.txt","r");
@@ -322,25 +341,23 @@ if (!function_exists('db_select')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - select', $message, $headers);
 					}
-					$ff=fopen("$temp/selectfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/selectfejl.txt", date("U")."\n", 'w');
 				} 
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
 				alert("$alerttekst");
 			} else {
 				#	$customAlertText saettes i connect.php;
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				echo $fejltxt; 
 				alert("$alerttekst");
 				exit;
 			}
 		} else {
-			$fp=fopen("$temp/.ht_select.log","a");
-			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-			fwrite($fp,$qtext.";\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_select.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+				$qtext.";\n",
+			]);
 		}
 		return $query;
 	}
@@ -430,9 +447,10 @@ if (!function_exists('transaktion')) {
 		global $db_transaktion_depth; #20260804 SZ track nesting so an inner begin() (e.g. bogfor() calling transaktion('begin') again inside an already-open outer transaction) doesn't wipe out an earlier failure recorded by the outer transaction (SD-595)
 
 		$temp = get_relative() . 'temp/' . $db;
-		$fp=fopen("$temp/.ht_modify.log","a");
-		fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n");
-		fwrite($fp,$qtext.";\n");
+		db_log_append("$temp/.ht_modify.log", [
+			"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n",
+			$qtext.";\n",
+		]);
 		$qtext_trim = strtolower(trim($qtext));
 		if ($qtext_trim == 'begin') {
 			if (!$db_transaktion_depth) $db_modify_fejl = false; #20260729 SZ reset the write-failure flag only when opening the outermost transaction (SD-595)
@@ -486,18 +504,39 @@ if (!function_exists('tbl_exists')) {
 	function tbl_exists($table) {
  		global $connection,$db,$db_type;
 		if ($db_type=="mysql") {
-			$qtxt="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
+			# 20260812 CL/LH (SD-644): COUNT(*) returnerer altid en raekke - tjek vaerdien, ikke om der kom en raekke
+			# 20260827 CL/NTR (SD-644): SELECT 1 i stedet for COUNT(*) - COUNT(*) gav altid en raekke, saa "kom der en raekke" sagde intet om tabellen findes
+			$qtxt="SELECT 1 FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
 			(db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$tbl_exists=1:$tbl_exists=0;
 		}	elseif ($db_type=="mysqli") {
-			$qtxt="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
+			$qtxt="SELECT 1 FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
 			(db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$tbl_exists=1:$tbl_exists=0;
 		} else {
 			$qtxt="SELECT tablename FROM pg_tables where tablename='$table'";
-#			$r=db_fetch_array(
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			($r['tablename'])?$tbl_exists=1:$tbl_exists=0;
 		}
 		return($tbl_exists);
+	}
+}
+
+if (!function_exists('check_periode_luk')) {
+	# 20260812 CL/LH (SD-644) PHP-side periodelaas: PR #402 tilfoejede kaldene i finans/bogfor.php:227
+	# og includes/ordrefunc.php:1187 (og DB-triggeren i includes/betweenUpdates.php), men aldrig selve
+	# PHP-funktionen, saa al kassekladde-bogfoering fatalede. Returnerer en fejltekst hvis maaneden for
+	# $transdate er lukket i moms_periode_luk, ellers false. Triggeren er fortsat den haarde haandhaevelse;
+	# dette er den venlige forhaandskontrol.
+	function check_periode_luk($transdate) {
+		if (!$transdate || !tbl_exists('moms_periode_luk')) return false;
+		$transdate = db_escape_string($transdate);
+		$qtxt  = "SELECT kalender_aar, kalender_maaned FROM moms_periode_luk ";
+		$qtxt .= "WHERE kalender_aar = EXTRACT(YEAR FROM CAST('$transdate' AS DATE)) ";
+		$qtxt .= "AND kalender_maaned = EXTRACT(MONTH FROM CAST('$transdate' AS DATE)) ";
+		$qtxt .= "AND status = 'closed'";
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			return "Perioden ".sprintf('%02d',$r['kalender_maaned'])."-".$r['kalender_aar']." er lukket for bogfoering - kontakt bogholder for at genaabne.";
+		}
+		return false;
 	}
 }
 
@@ -532,10 +571,10 @@ if (!function_exists('injecttjek')) {
 					$s_id=session_id();
 					$txt="SQL injection registreret!!! - Handling logget & afbrudt";
 					alert("$txt");
-					$fp=fopen("$temp/.ht_modify.log","a");
-					fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n");
-					fwrite($fp,"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n");	
-					fclose($fp);
+					db_log_append("$temp/.ht_modify.log", [
+						"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n",
+						"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n",
+					]);
 					$s_id=session_id();
 					include("../includes/connect.php");
 					$db_modify("delete from online where session_id = '$s_id'");

@@ -52,15 +52,19 @@
 // 20210824 PHR Set $id to 0 if NULL;
 // 20210827 PHR Removed changed made 21020812 as it does not make sense.
 // 20220209 PHR  
+// 20260907 CDX/LH Preserve explicit popup context in POS navigation and close the correct window.
 
-include("posmenufunc_includes/buttonFunc.php");
+include(__DIR__ . "/posmenufunc_includes/buttonFunc.php");
+require_once __DIR__ . '/stdFunc/navStack.php';
 
 
 if (!function_exists('menubuttons')) {
 	function menubuttons($id, $menu_id, $vare_id, $plads)
 	{
+		$posNavigationQuery = nav_popup_query($_GET, $_POST);
+		$posCloseUrl = $posNavigationQuery !== '' ? '../includes/luk.php?popup=1' : '../index/menu.php';
 
-		isset($_GET['returside']) ? $returside = $_GET['returside'] : $returside = NULL;
+		$returside = nav_sanitize_returside($_GET['returside'] ?? null);
 		global $afd, $afd_navn, $afd_lager;
 		global $betalingsbet, $bgcolor, $bgcolor2, $bgcolor4, $bgcolor5, $betvaluta, $bon, $bord, $bordnr, $bordnavn, $brugernavn;
 		global $fokus, $folger;
@@ -264,20 +268,20 @@ if (!function_exists('menubuttons')) {
 						#					print "<td><a style=\"text-decoration:none\" href=pos_ordre.php?id=$id&$menu=$menu_id&vare_id=$vare_id&vare_id_ny=$c";
 #					print "&antal_ny=$antal&varenr_ny=$varenr_ny&pris_ny=$pris_ny&folger=$folger&fokus=$fokus&bordnr=$bordnr&lager=$afd_lager";
 #					print "&tilfravalgNy=". str_replace(chr(9),'|',$tilfravalgNy) .">$knap</a>\n";
-						print "<td><span onclick = \"location.href = 'pos_ordre.php?id=$id&$menu=$menu_id&vare_id=$vare_id&vare_id_ny=$c";
+						print "<td><span onclick = \"location.href = 'pos_ordre.php?{$posNavigationQuery}id=$id&$menu=$menu_id&vare_id=$vare_id&vare_id_ny=$c";
 						print "&antal_ny=$antal&varenr_ny=$varenr_ny&pris_ny=$pris_ny&folger=$folger&fokus=$fokus&bordnr=$bordnr&lager=$afd_lager";
 						print "&tilfravalgNy=" . str_replace(chr(9), '|', $tilfravalgNy) . "'\">$knap</span>\n";
 					} elseif ($d == 2) {
 						# print "<td><a style=\"text-decoration:none\" href=pos_ordre.php?id=$id&vare_id=$vare_id&$menu=$c&varenr_ny=$varenr_ny&pris_ny=$pris_ny&folger=$folger&fokus=$fokus&bordnr=$bordnr&lager=$afd_lager>$knap</a>\n";
-						print "<td><span onclick = \"location.href = 'pos_ordre.php?id=$id&vare_id=$vare_id&$menu=$c";
+						print "<td><span onclick = \"location.href = 'pos_ordre.php?{$posNavigationQuery}id=$id&vare_id=$vare_id&$menu=$c";
 						print "&varenr_ny=$varenr_ny&pris_ny=$pris_ny&folger=$folger&fokus=$fokus&bordnr=$bordnr&lager=$afd_lager'\">$knap</span>\n";
 					} elseif ($d == 3) {
 						#					print "<td><a style=\"text-decoration:none\" href=pos_ordre.php?id=$id&konto_id=$c&varenr_ny=$varenr_ny&pris_ny=$pris_ny&folger=$folger&fokus=$fokus&bordnr=$bordnr&lager=$afd_lager>$knap</a>\n";
-						print "<td><span onclick = \"location.href = 'pos_ordre.php?id=$id&konto_id=$c&varenr_ny=$varenr_ny";
+						print "<td><span onclick = \"location.href = 'pos_ordre.php?{$posNavigationQuery}id=$id&konto_id=$c&varenr_ny=$varenr_ny";
 						print "&pris_ny=$pris_ny&folger=$folger&fokus=$fokus&bordnr=$bordnr&lager=$afd_lager'\">$knap</span>\n";
 					} elseif ($d == 4) {
 						#					print "<td><a style=\"text-decoration:none\" href=pos_ordre.php?id=$id&spec_func=spec_$c&varenr_ny=$varenr_ny&pris_ny=$pris_ny&folger=$folger&fokus=$fokus&bordnr=$bordnr&lager=$afd_lager>$knap</a>\n";
-						print "<td><span onclick = \"location.href = 'pos_ordre.php?id=$id&spec_func=spec_$c&varenr_ny=$varenr_ny";
+						print "<td><span onclick = \"location.href = 'pos_ordre.php?{$posNavigationQuery}id=$id&spec_func=spec_$c&varenr_ny=$varenr_ny";
 						print "&pris_ny=$pris_ny&folger=$folger&fokus=$fokus&bordnr=$bordnr&lager=$afd_lager'\">$knap</span>\n";
 					} elseif ($d == 5) {
 						$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
@@ -324,7 +328,7 @@ if (!function_exists('menubuttons')) {
 						} elseif ($c == '2') {
 							$txt = str_replace('$brugernavn', $brugernavn, $a);
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
-							print "<td><INPUT $disabled onclick=\"window.location.href='pos_ordre.php?id=$id&skift_bruger=1&bordnr=$bordnr'\" type=\"button\" $tmp value= \"$txt\">\n";
+							print "<td><INPUT $disabled onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&skift_bruger=1&bordnr=$bordnr'\" type=\"button\" $tmp value= \"$txt\">\n";
 						} elseif ($c == '3') {
 							$txt = findtekst('2259|Del bord', $sprog_id);
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
@@ -335,7 +339,7 @@ if (!function_exists('menubuttons')) {
 						} elseif ($c == '5') {
 							$txt = findtekst('2258|Find bon', $sprog_id);
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
-							print "<td><input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?id=$id&find_bon=1'\" $tmp value=\"$txt\">\n";
+							print "<td><input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&find_bon=1'\" $tmp value=\"$txt\">\n";
 							#						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 #						print "<td>".$knap;
 						} elseif ($c == '6') {
@@ -344,11 +348,11 @@ if (!function_exists('menubuttons')) {
 							print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"flyt_bord\" VALUE=\"$txt\">";
 						} elseif ($c == '7') {
 							$txt = findtekst('2261|Kasseoptælling', $sprog_id);
-							$knap = "<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr'\" $stil value=\"$txt\">\n";
+							$knap = "<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr'\" $stil value=\"$txt\">\n";
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 						} elseif ($c == '8') {
-							$knap = "<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?id=$id&kasse=?&bordnr=$bordnr'\" $stil value=\"" . findtekst('931|Kasse', $sprog_id) . " $kasse\">\n";
+							$knap = "<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&kasse=?&bordnr=$bordnr'\" $stil value=\"" . findtekst('931|Kasse', $sprog_id) . " $kasse\">\n";
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 						} elseif ($c == '9' || $c == '23') {
@@ -366,7 +370,7 @@ if (!function_exists('menubuttons')) {
 							}
 						} elseif ($c == '10') { #Luk
 							$txt = findtekst('2172|Luk', $sprog_id);
-							$knap = "<input $disabled type=\"button\" onclick=\"window.location.href='../index/menu.php'\" $stil value=\"$txt\">\n";
+							$knap = "<input $disabled type=\"button\" onclick=\"window.location.href='$posCloseUrl'\" $stil value=\"$txt\">\n";
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 						} elseif ($c == '11') {
@@ -382,7 +386,7 @@ if (!function_exists('menubuttons')) {
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
 							print "<td onclick=\"return confirm('" . findtekst('2398|Slet alt og start forfra', $sprog_id) . "?')\"><INPUT TYPE=\"submit\" $tmp NAME=\"forfra\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'f';pos_ordre.$fokus.focus();\">\n";
 						} elseif ($c == '14') {
-							$knap = "<input $disabled onclick=\"window.location.href='pos_ordre.php?id=$id&skift_bruger=2&brugernavn=$a&bordnr=$bordnr&$menu=$menu_id'\" type=\"button\" $stil value= \"$a\">\n";
+							$knap = "<input $disabled onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&skift_bruger=2&brugernavn=$a&bordnr=$bordnr&$menu=$menu_id'\" type=\"button\" $stil value= \"$a\">\n";
 							if (strtolower($brugernavn) == strtolower($a))
 								$knap = str_replace("background-color: ;", "background-color: #00ff00;", $knap);
 							else
@@ -411,7 +415,7 @@ if (!function_exists('menubuttons')) {
 							#						print "<TD onclick=\"return confirm('Tilbage til varescanning')\"><INPUT TYPE=\"submit\" $stil NAME=\"tilbage\" VALUE=\"Tilbage\" OnClick=\"pos_ordre.$fokus.value += 't';pos_ordre.$fokus.focus();\">\n";
 						} elseif ($c == '20') {
 							$txt = findtekst('2262|Ny kunde', $sprog_id);
-							$knap = "<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php'\" $stil value=\"$txt\">\n";
+							$knap = "<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}'\" $stil value=\"$txt\">\n";
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 							$r = db_fetch_array(db_select("select box13 from grupper where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
@@ -426,11 +430,13 @@ if (!function_exists('menubuttons')) {
 									$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 									if ($r['kodenr']) {
 										#20201109 Added '& skift_bruger=1' as skift_bruger (forced user select) was not called 
-										print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?id=0&menuvalg=$r[kodenr]&skift_bruger=1\">\n";
-									} else
-										print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?id=0&skift_bruger=1\">\n";
-								} else
-									print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?id=0\">\n";
+										print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?{$posNavigationQuery}id=0&menuvalg=$r[kodenr]&skift_bruger=1\">\n";
+									} else {
+										print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?{$posNavigationQuery}id=0&skift_bruger=1\">\n";
+									}
+								} else {
+									print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?{$posNavigationQuery}id=0\">\n";
+								}
 							}
 						} elseif ($c == '21') {
 							$txt = findtekst('2263|Korrektion', $sprog_id);
@@ -543,12 +549,12 @@ if (!function_exists('menubuttons')) {
 							print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"kopi\" VALUE=\"$txt\">";
 						} elseif ($c == '44') {
 							$txt = findtekst('2264|Hent bestilling', $sprog_id);
-							$knap = "<input type=\"submit\" name=\"getOrder\" onclick=\"window.location.href='pos_ordre.php?id=$id&getOrder=true\" $disabled $tmp value=\"$txt\">\n";
+							$knap = "<input type=\"submit\" name=\"getOrder\" onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&getOrder=true\" $disabled $tmp value=\"$txt\">\n";
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 						} elseif ($c == '45') {
 							$txt = findtekst('2265|Gem bestilling', $sprog_id);
-							$knap = "<input type=\"submit\" name=\"saveOrder\" onclick=\"window.location.href='pos_ordre.php?id=$id&saveOrder=true\" $disabled $tmp value=\"$txt\">\n";
+							$knap = "<input type=\"submit\" name=\"saveOrder\" onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&saveOrder=true\" $disabled $tmp value=\"$txt\">\n";
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 						} elseif ($c == '46') {
@@ -635,6 +641,7 @@ if (!function_exists('menubuttons')) {
 if (!function_exists('systemknap')) {
 	function systemknap($system_id)
 	{
+		$posNavigationQuery = nav_popup_query($_GET, $_POST);
 		global $id;
 		global $kasse;
 		global $bord;
@@ -642,10 +649,10 @@ if (!function_exists('systemknap')) {
 		global $sprog_id;
 
 		if ($system_id == 2) {
-			$href = "pos_ordre.php?id=$id&skift_bruger=1&bordnr=$bordnr";
+			$href = "pos_ordre.php?{$posNavigationQuery}id=$id&skift_bruger=1&bordnr=$bordnr";
 			$return = "onclick=\"window.location.href='$href'\"";
 		} elseif ($system_id == 7) {
-			$href = "pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr";
+			$href = "pos_ordre.php?{$posNavigationQuery}id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr";
 			$return = "onclick=\"window.location.href='$href'\"";
 		} elseif ($system_id == 8) {
 			$tmp = 'Bord';
@@ -653,10 +660,10 @@ if (!function_exists('systemknap')) {
 				if ($bordnr == $x)
 					$tmp = $bord[$x];
 			}
-			$href = "pos_ordre.php?id=$id&kasse=?&bordnr=$tmp";
+			$href = "pos_ordre.php?{$posNavigationQuery}id=$id&kasse=?&bordnr=$tmp";
 			$return = "onclick=\"window.location.href='$href'\"";
 		} elseif ($system_id == 10) {
-			$href = "../index/menu.php";
+			$href = $posNavigationQuery !== '' ? '../includes/luk.php?popup=1' : '../index/menu.php';
 			$return = "onclick=\"window.location.href='$href'\"";
 		} elseif ($system_id == 11) {
 			$txt = findtekst('2391|Skuffe', $sprog_id);
@@ -676,6 +683,7 @@ if (!function_exists('systemknap')) {
 if (!function_exists('tastatur')) {
 	function tastatur($kasse, $status)
 	{
+		$posNavigationQuery = nav_popup_query($_GET, $_POST);
 		print "\n<!-- Function tastatur (start)-->\n";
 
 		global $afd_lager;
@@ -725,13 +733,13 @@ if (!function_exists('tastatur')) {
 		if (!strpos($url, $_SERVER['PHP_SELF']))
 			$url .= $_SERVER['PHP_SELF'];
 		print "<tr>\n";
-		$href = "pos_ordre.php?id=$id&kasse=?&bordnr=$bordnr";
+		$href = "pos_ordre.php?{$posNavigationQuery}id=$id&kasse=?&bordnr=$bordnr";
 		print "<td width=\"$width\"><input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"" . findtekst('931|Kasse', $sprog_id) . ": $kasse\"></td>\n";
-		$href = "pos_ordre.php?id=$id&skift_bruger=1&bordnr=$bordnr";
+		$href = "pos_ordre.php?{$posNavigationQuery}id=$id&skift_bruger=1&bordnr=$bordnr";
 		print "<td width=\"$width\"><input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"$brugernavn\"></td>\n";
 		print "<td width=\"$width\">\n";
 		#	if ($optalassist) {
-		$href = "pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr";
+		$href = "pos_ordre.php?{$posNavigationQuery}id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr";
 		print "<input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"Kasse\n opt&aelig;lling\">\n";
 		#	} else {
 #	}
@@ -758,13 +766,14 @@ if (!function_exists('tastatur')) {
 			#		print "<td><a href=http://$terminal_ip/pointd/point.php?url=$url&id=$id&kasse=$kasse>Kortterminal</a></td>\n"; #20131205
 		} else
 			print "<td width=\"$width\"></td>\n";
-		$href = "pos_ordre.php?id=$id&find_bon=1;";
+		$href = "pos_ordre.php?{$posNavigationQuery}id=$id&find_bon=1;";
 		print "<td width=\"$width\"><input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"Find\n bon\"></td>\n";
 		$tmp = str_replace("background-color: $bgcolor5", 'background-color:#ff0000', $stil);
-		if ($popup)
-			$href = "../includes/luk.php";
-		else
+		if ($posNavigationQuery !== '') {
+			$href = "../includes/luk.php?popup=1";
+		} else {
 			$href = "../index/menu.php";
+		}
 		print "<td><input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $tmp value=\"Luk\"></td>\n";
 		#	print "<td width=\"$width\" align=\"right\" valign=\"top\"><a href='pos_ordre.php?luk=1&returside=$returside'><div class=\"luk\"></div></a></td></tr>\n";
 		print "</tr>\n";
@@ -963,8 +972,9 @@ if (!function_exists('tastatur')) {
 			print "<TD COLSPAN=\"2\"><INPUT TYPE=\"submit\" $stil2 NAME=\"krediter\"VALUE=\"Korrektion\"></TD>\n";
 			print "<TD COLSPAN=\"2\"><INPUT TYPE=\"submit\" $stil2 NAME=\"return\"VALUE=\"Returnering\"></TD>\n"; # LN 20190205
 #		print "<TD COLSPAN=\"2\"><INPUT TYPE=\"submit\" $stil2 NAME=\"ny\"VALUE=\"Ny kunde\"></TD>\n";
-			if ($timeout && !$bon)
-				print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?id=0\">\n";
+			if ($timeout && !$bon) {
+				print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?{$posNavigationQuery}id=0\">\n";
+			}
 		}
 		print "</tr>\n";
 

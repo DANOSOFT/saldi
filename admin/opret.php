@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------/admin/opret.php-----patch 4.1.1 ----2025-08-04--------------
+// ------------/admin/opret.php-----patch 4.1.1 ----2026-09-18--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 
 // 2013.05.14 Slutmd blev sat til 1 ved oprettelse af regnskabsår
@@ -107,6 +107,10 @@
 //                $_POST handling (SD-615)
 // 20260804 SZ Also terminate on the webservice "Session expired" include return,
 //             instead of relying only on $db != $sqdb (SD-615)
+// 20260818 CL/LH Corrected Stripe table boolean default definitions
+// 20260908 CL/NTR Reject account names over 60 and usernames over 80 characters (is_input_too_long)
+//                  before creating the account, matching login.php and varchar(60) on regnskab.regnskab
+// 20260918 CDX/PHR Add ordrer.performed_by when creating a new account.
 
 @session_start();
 $s_id=session_id();
@@ -166,6 +170,16 @@ if ($_POST){
 	(isset($_POST['posteringer']))?$posteringer=(int)$_POST['posteringer']:$posteringer=0;
 	(isset($_POST['brugerantal']))?$brugerantal=(int)$_POST['brugerantal']:$brugerantal=0;
 	(isset($_POST['std_kto_plan']))?$std_kto_plan=$_POST['std_kto_plan']:$std_kto_plan=NULL;
+	if (is_input_too_long(trim($_POST['regnskab']), 60)) {
+		print "<BODY onLoad=\"javascript:alert('".findtekst('5150|Regnskabsnavnet må højst være 60 tegn', $sprog_id)."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
+	}
+	if (is_input_too_long(trim($_POST['brugernavn']))) {
+		print "<BODY onLoad=\"javascript:alert('".findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id)."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
+	}
 	if ((($revisorregnskab && $passwd) || !$revisorregnskab)  && $passwd!=$passwd2 ) {
 		print "<BODY onLoad=\"javascript:alert('Adgangskoder er ikke ens')\">";
 		forside($regnskab,$brugernavn);
@@ -235,8 +249,8 @@ function forside($regnskab,$brugernavn) {
 	global $sprog_id;
 
 	print "<form name=debitorkort action=opret.php method=post>";
-	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=regnskab value='$regnskab'></td></tr>";
-	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=brugernavn value='$brugernavn'></td></tr>";
+	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=60 name=regnskab value='$regnskab'></td></tr>";
+	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=80 name=brugernavn value='$brugernavn'></td></tr>";
 	print "<tr><td>".findtekst('2687|Administrators adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd></td></tr>";
 	print "<tr><td>".findtekst('2688|Gentag adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd2></td></tr>";
 	print "<tr><td>".findtekst('2689|Opret standardkontoplan', $sprog_id)."</td><td><br></td><td><input type=checkbox name=std_kto_plan checked></td></tr>";
@@ -313,6 +327,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // MySQL-specific adjustments
     $id_column = 'id INT AUTO_INCREMENT NOT NULL';
     $boolean_type = 'TINYINT(1) DEFAULT 0';
+    $stripe_active_type = 'TINYINT(1) NOT NULL DEFAULT 1';
     $decimal_type = 'DECIMAL';
     $text_type = 'TEXT';
 	$longlat = "`long` $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -325,6 +340,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // PostgreSQL-specific adjustments
     $id_column = 'id SERIAL NOT NULL';
     $boolean_type = 'BOOLEAN DEFAULT FALSE';
+    $stripe_active_type = 'BOOLEAN NOT NULL DEFAULT true';
     $decimal_type = 'NUMERIC';
     $text_type = 'TEXT';
 	$longlat = "\"long\" $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -349,7 +365,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "pbs_nr text,pbs_date date,mailfakt varchar(2),udskriv_til varchar(10),felt_1 text,felt_2 text,";
 	$qtxt.= "felt_3 text,felt_4 text,felt_5 text,vis_lev_addr varchar(2),kontotype varchar(15),fornavn varchar(60),";
 	$qtxt.= "efternavn varchar(60),lev_firmanavn varchar(90),lev_fornavn varchar(60),lev_efternavn varchar(60),lev_addr1 varchar(60),"; $qtxt.= "lev_addr2 varchar(60),lev_postnr varchar(15),lev_bynavn varchar(60),lev_land varchar(60),lev_kontakt varchar(60),";
-	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
+	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),stripe_fravalg varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
 	$qtxt.= "invoiced date,mysale varchar(2),hidden varchar(2),medlem text,$longlat,PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -396,7 +412,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "institution text,betalingsbet text,betalingsdage integer,kontonr varchar(30),cvrnr text,art varchar(2),";
 	$qtxt.= "valuta text,valutakurs $decimal_type(15,3),sprog text,projekt text,ordredate date,levdate date,fakturadate date,";
 	$qtxt.= "notes text,ordrenr integer,sum $decimal_type(15,3),momssats $decimal_type(15,3),status integer,ref text,fakturanr text,";
-	$qtxt.= "modtagelse integer,kred_ord_id integer,lev_adr text,kostpris $decimal_type(15,3),moms $decimal_type(15,3),hvem text,";
+	$qtxt.= "modtagelse integer,kred_ord_id integer,lev_adr text,kostpris $decimal_type(15,3),moms $decimal_type(15,3),hvem text,performed_by text,";
 	$qtxt.= "tidspkt text,betalt varchar(12),nextfakt date,pbs varchar(2),mail varchar(2),mail_cc text,mail_bcc text,";
 	$qtxt.= "mail_subj text,mail_text text,felt_1 text,felt_2 text,felt_3 text,felt_4 text,felt_5 text,"; 
 	$qtxt.= "vis_lev_addr varchar(2),restordre $decimal_type(2,0), betalings_id text,sag_id integer,tilbudnr $decimal_type(15,0),";
@@ -635,6 +651,30 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	$qtxt = "CREATE TABLE kds_records ($id_column, data text, bumped $boolean_type, timestamp integer, ";
 	$qtxt.= "time_to_complete integer, rush $boolean_type, last_undo $boolean_type, sort_timestamp integer, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	######## Stripe subscriptions (doc/stripe/INTERFACE_CONTRACT.md; indexes live in includes/betweenUpdates.php) ########
+	$qtxt = "CREATE TABLE stripe_catalog ($id_column, varenr text, stripe_price_id varchar(255), ";
+	$qtxt.= "stripe_product_id varchar(255), unit_ore integer, billing_interval varchar(10) NOT NULL DEFAULT 'month', ";
+	$qtxt.= "interval_count integer NOT NULL DEFAULT 1, currency varchar(3) NOT NULL DEFAULT 'DKK', ";
+	$qtxt.= "active $stripe_active_type, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_events ($id_column, event_id varchar(255) NOT NULL, event_type varchar(100), ";
+	$qtxt.= "payload text, status varchar(30) NOT NULL DEFAULT 'received', saldi_order_id integer, ";
+	$qtxt.= "invoice_number varchar(30), error text, received_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "processed_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_customers ($id_column, stripe_customer_id varchar(255) NOT NULL, ";
+	$qtxt.= "stripe_subscription_id varchar(255), konto_id integer, kontonr varchar(30), order_id integer, ";
+	$qtxt.= "status varchar(30) NOT NULL DEFAULT 'active', created_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "updated_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_import_failures ($id_column, event_id varchar(255), stripe_invoice_id varchar(255), ";
+	$qtxt.= "reason varchar(50), http_code integer, message text, payload_json text, ";
+	$qtxt.= "created_at timestamp DEFAULT CURRENT_TIMESTAMP, resolved_at timestamp, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE notifications ($id_column, msg varchar(255), read_status integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);

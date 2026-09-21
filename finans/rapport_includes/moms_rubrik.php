@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_rubrik.php --- patch 5.0.0 --- 2026-07-28 ---
+// --- finans/rapport_includes/moms_rubrik.php --- patch 5.0.0 --- 2026-07-28 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 //                  A-varer/A-ydelser: splittet paa VG.box5 (varer/ydelser-type).
 // 20260728 MJ  Q1/Q2/Q3/Q4/Hele-aaret genveje poster nu direkte (submit=ok) fremfor
 //                  GET-link til forside.
+// 20260813 LOE Corrected wrong text and link that should have valg as debitor. 
 
 function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                      $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -270,11 +271,11 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         . " AND NULLIF(TRIM(COALESCE(box10,'')), '') IS NOT NULL LIMIT 1",
         __FILE__." linje ".__LINE__));
     if (!$has_mapping) {
-        print "<div style='padding:16px 12px; color:#c00;'>";
+        print "<div style='padding:16px 12px; color:#c00;'>"; 
         print "<b>Rubrik-konfiguration mangler.</b><br>";
-        print "Gaa til <a href='../systemdata/syssetup.php?valg=debitorer'>Indstillinger &rarr; Debitorgrupper</a> ";
+        print "Gå til <a href='../systemdata/syssetup.php?valg=debitor'>Indstillinger &rarr; Debitorgrupper</a> ";
         print "og udfyld feltet <b>EU-zone</b> for dine kundegrupper.<br>";
-        print "S&aelig;t ogs&aring; <b>Varer/ydelser</b>-typen paa dine ";
+        print "S&aelig;t ogs&aring; <b>Varer/ydelser</b>-typen på dine ";
         print "<a href='../systemdata/syssetup.php?valg=varer'>Varegrupper</a>.";
         print "</div>";
     }
@@ -315,7 +316,7 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     print "EU-zone p&aring; <a href='../systemdata/syssetup.php?valg=kreditorer'>Kreditorgrupper</a> ";
     print "+ Varer/ydelser-type p&aring; <a href='../systemdata/syssetup.php?valg=varer'>Varegrupper</a>.<br>";
     print "Rubrik B + C afledes fra fakturerede salgsordrer: ";
-    print "EU-zone p&aring; <a href='../systemdata/syssetup.php?valg=debitorer'>Debitorgrupper</a> ";
+    print "EU-zone p&aring; <a href='../systemdata/syssetup.php?valg=debitor'>Debitorgrupper</a> ";
     print "+ Varer/ydelser-type p&aring; Varegrupper. ";
     print "Manuelle finansposteringer uden ordretilknytning indg&aring;r ikke.";
     print "</div>";

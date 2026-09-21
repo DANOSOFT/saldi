@@ -23,6 +23,7 @@
 //
 // Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 
 // 2013.01.15 Wildcard forsvinder efter søgning - tak til Henrik Thomsen fra Basslab for rettelse - søg 20130115
 // 2014.07.28 Timeout ændret fra 30 til 60 - Søg timeout.
@@ -58,6 +59,8 @@
 // 2023.04.14 LOE - Minor modifications
 // 2023.06.03 PHR - php8
 // 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
+// 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
+// 20260907 CDX/LH Mark new and existing product-card windows as popups.
 
 @session_start();
 $s_id=session_id();
@@ -107,9 +110,16 @@ if ($menu == "S") {
 	exit;
 }
 	
-if ($popup) $returside="../includes/luk.php";
-else $returside=(if_isset($_GET['returside']));
-if (!$returside) $returside="../index/menu.php";
+// 20260904 Sawaneh WP-1.3c: luk.php only when THIS window is a popup (popup=1 flag),
+// not on the user's popup preference — inline/iframe use otherwise ends on luk.php.
+$isPopupRequest = !empty($_GET['popup']);
+$returside = $isPopupRequest ? '../includes/luk.php' : nav_sanitize_returside($_GET['returside'] ?? null);
+if (!$returside) $returside = '../index/menu.php';
+// Keep this context in the URL rather than the session, so inline and popup tabs stay independent.
+$listNavigationQuery = 'returside=' . rawurlencode($returside) . ($isPopupRequest ? '&popup=1' : '');
+$listReturnQuery = rawurlencode('varer.php?' . $listNavigationQuery);
+$listNavigationQuery = htmlspecialchars($listNavigationQuery . '&', ENT_QUOTES | ENT_SUBSTITUTE, $charset);
+$retursideHref = htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, $charset);
 $lev_id = array();
 /*
 $qtxt="select * from grupper where art='VV' and box1='$brugernavn'";
@@ -396,16 +406,16 @@ if ($menu=='T') {
 	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
 	print "<tr><td height = '25' align='center' valign='top'>\n";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
-	print "<tr><td width='10%'><a href='$returside' accesskey=L>
+	print "<tr><td width='10%'><a href='$retursideHref' accesskey=L>
 		   <button style='$buttonStyle; width:100%' title='$backTitle' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
 	if ($start<$linjeantal) {
 		if ($makeSuggestion) {
-			print "<td width='10%'><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>";
+			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>";
 			print "<button style='$buttonStyle; width:100%' title='$txt2113' onMouseOver=\"this.style.cursor='pointer'\">";
 			print "$txt159</button></a></td>\n";
 		} else {
 			print "<td width='10%'>
-				   <a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&find=$find'>
+				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&find=$find'>
 				   <button style='$buttonStyle; width:100%' title='$txt3105'
 				   onMouseOver=\"this.style.cursor='pointer'\">
 				   $txt954</button></a></td>\n";
@@ -415,25 +425,25 @@ if ($menu=='T') {
 
 	if ($start<$linjeantal) {
 		if ($stock && !$makeSuggestion) {
-			print "<td width='10%'><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>
+			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
 		} elseif ($stock && $makeSuggestion && !$alle_varer) {
 			print "<td width='10%'>
-				   <a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'>
+				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Medtager alle varer fra valgte leverand&amp;oslash;rer, uanset ordrestatus'>$txt955</button></a></td>\n";
 		} elseif ($stock && $makeSuggestion && $alle_varer) {
 			print "<td width='10%'>
-				   <a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'>
+				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Medtager kun varer fra valgte leverand&amp;oslash;rer, som vil komme under minimum udfra ordrer & tilbud'>Kun mangler</button></a></td>\n";
 		} else {
-			print "<td width='10%'><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'>
+			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Viser status for tilbud, salgsordrer og indk&oslash;bsordrer'>$txt953</button></a></td>\n";
 		}
 	} #else print "<td width='80%' $top_bund> Visning</td>\n";
 
 	print "<td width='5%'><a href='varevisning.php'>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$txt3101'>$txt813</button></a></td>";
-	print "<td width='5%'><a href='varekort.php?returside=varer.php'>
+	print "<td width='5%'><a href='varekort.php?returside={$listReturnQuery}'>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Opret en ny vare'>Ny</button></a></td>";
 
 	print "</tr>\n";
@@ -443,34 +453,34 @@ if ($menu=='T') {
 	print "<table style=\"width:100%;height:100%;\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
-	print "<tr><td width=\"10%\" $top_bund><a href=\"$returside\" accesskey=L><span title='Luk varelisten og g&aring; tilbage til hovedmenuen'>Luk</span></a></td>\n";
+	print "<tr><td width=\"10%\" $top_bund><a href=\"$retursideHref\" accesskey=L><span title='Luk varelisten og g&aring; tilbage til hovedmenuen'>Luk</span></a></td>\n";
 	if ($start<$linjeantal) {
-		if ($makeSuggestion) print "<td width=\"10%\" $top_bund><a href=\"varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal\"><span title='Tilbage til varelisten uden at bestille'>Fortryd</span></a></td>\n";
-		else print "<td width=\"10%\" $top_bund><a href=\"varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse\"><span title='Opret indk&oslash;bsforslag udfra igangv&aelig;rende tilbud og ordrebeholdning'>Indk&oslash;bsforslag</span></a></td>\n";
+		if ($makeSuggestion) print "<td width=\"10%\" $top_bund><a href=\"varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal\"><span title='Tilbage til varelisten uden at bestille'>Fortryd</span></a></td>\n";
+		else print "<td width=\"10%\" $top_bund><a href=\"varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse\"><span title='Opret indk&oslash;bsforslag udfra igangv&aelig;rende tilbud og ordrebeholdning'>Indk&oslash;bsforslag</span></a></td>\n";
 	}	
 	print "<td width=\"60%\" $top_bund> Vareliste</td>\n";
 	if ($start<$linjeantal) {
-		if ($stock && !$makeSuggestion) print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>Tilbage</a></td>\n";
-		elseif ($stock && $makeSuggestion && !$alle_varer) print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'><span title='Medtager alle varer fra valgte leverand&amp;oslash;rer, uanset ordrestatus'>Alle varer fra lev.</span></a></td>\n"; 
-		elseif ($stock && $makeSuggestion && $alle_varer) print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'><span title='Medtager kun varer fra valgte leverand&amp;oslash;rer, som vil komme under minimum udfra ordrer & tilbud'>Kun mangler</span></a></td>\n"; 
-		else print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'><span title='Viser status for tilbud, salgsordrer og indk&oslash;bsordrer'>Ordrebeholdning</span></a></td>\n";
+		if ($stock && !$makeSuggestion) print "<td width=\"10%\" $top_bund><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>Tilbage</a></td>\n";
+		elseif ($stock && $makeSuggestion && !$alle_varer) print "<td width=\"10%\" $top_bund><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'><span title='Medtager alle varer fra valgte leverand&amp;oslash;rer, uanset ordrestatus'>Alle varer fra lev.</span></a></td>\n";
+		elseif ($stock && $makeSuggestion && $alle_varer) print "<td width=\"10%\" $top_bund><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'><span title='Medtager kun varer fra valgte leverand&amp;oslash;rer, som vil komme under minimum udfra ordrer & tilbud'>Kun mangler</span></a></td>\n";
+		else print "<td width=\"10%\" $top_bund><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'><span title='Viser status for tilbud, salgsordrer og indk&oslash;bsordrer'>Ordrebeholdning</span></a></td>\n";
 	} #else print "<td width=\"80%\" $top_bund> Visning</td>\n";
 	if ($popup) {
 		print "<td width=\"5%\"$top_bund onClick=\"javascript:vare_vis=window.open('varevisning.php','vare_vis','scrollbars=1,resizable=1');vare_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></td>";
-		print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:window.open('varekort.php?opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');ordre.focus();\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
+		print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:var productWindow=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');if(productWindow){productWindow.focus();}\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
 	} else {
 		print "<td width=\"5%\" $top_bund><a href=\"varevisning.php\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></a></td>";
-		print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside=varer.php\"><span title='Opret en ny vare'>Ny</span></a></td>";
+		print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside={$listReturnQuery}\"><span title='Opret en ny vare'>Ny</span></a></td>";
 	}
 	print "</tr>\n";
 	print "</tbody></table>\n";
 }
 print "<tr><td valign=\"top\">\n";
 if (!$makeSuggestion) {
-	print "<form name=\"vareliste\" action=\"varer.php?sort=$sort&amp;beholdning=$stock&amp;forslag=$makeSuggestion&lev_kto_navn=$lev_kto_navn\" method=\"post\">";
+	print "<form name=\"vareliste\" action=\"varer.php?{$listNavigationQuery}sort=$sort&amp;beholdning=$stock&amp;forslag=$makeSuggestion&lev_kto_navn=$lev_kto_navn\" method=\"post\">";
 	print "<input type=\"hidden\" name=\"valg\">";
 	print "<input type=\"hidden\" name=\"start\" value=\"$start\">";
-} else 	print "<form name=\"vareliste\" action=\"varer.php?sort=$sort\" method=\"post\">";
+} else 	print "<form name=\"vareliste\" action=\"varer.php?{$listNavigationQuery}sort=$sort\" method=\"post\">";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\"><tbody>\n";
 $x=0;
 $query = db_select("select beskrivelse, kodenr from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
@@ -492,7 +502,7 @@ if (!$makeSuggestion) {
 	print "<tr><td colspan='2' width='20%'>";
 	if ($start>=$linjeantal) {
 		$tmp=$start-$linjeantal;
-		print "<a href='varer.php?sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;varenummer=$varenummer&amp;beskrivelse=$beskrivelse&amp;beholdning=$stock'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a>&nbsp;";
+		print "<a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;varenummer=$varenummer&amp;beskrivelse=$beskrivelse&amp;beholdning=$stock'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a>&nbsp;";
 	}
 	if ($vis_lev_felt) {
 #		print "<div class=\"ui-widget\">";
@@ -510,7 +520,7 @@ if (!$makeSuggestion) {
 	$colspan=$lagerantal;
 	print "<td colspan='$colspan'></td>";
 	if ($next>=$slut) {
-		print "<td align=right><a href='varer.php?sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;beholdning=$stock'><img src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
+		print "<td align=right><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;beholdning=$stock'><img src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
 	}
 	else print "<td colspan=2></td>";
 	print "</tr>\n";
@@ -519,10 +529,10 @@ if (!$makeSuggestion) {
 if ($csv) fwrite($csvfil,"\"Varenr\";\"Enhed\";\"Varemrk.\";\"Beskrivelse\";");
 else {
 print "<tr>";
-print "<td><b><a href=\"varer.php?sort=varenr&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(917,$sprog_id).".</a></b></td>\n"; #20210401
-print "<td><b><a href=\"varer.php?sort=enhed&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(945,$sprog_id)."</a></b></td>\n";
-print "<td><b><a href=\"varer.php?sort=beskrivelse&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(914,$sprog_id)."</a></b></td>\n";
-if ($showTrademark) print "<td><b><a href=\"varer.php?sort=trademark&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(946,$sprog_id)."</a></b></td>\n";
+print "<td><b><a href=\"varer.php?{$listNavigationQuery}sort=varenr&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(917,$sprog_id).".</a></b></td>\n"; #20210401
+print "<td><b><a href=\"varer.php?{$listNavigationQuery}sort=enhed&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(945,$sprog_id)."</a></b></td>\n";
+print "<td><b><a href=\"varer.php?{$listNavigationQuery}sort=beskrivelse&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(914,$sprog_id)."</a></b></td>\n";
+if ($showTrademark) print "<td><b><a href=\"varer.php?{$listNavigationQuery}sort=trademark&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(946,$sprog_id)."</a></b></td>\n";
 }
 if (!$vis_lev){
 	if ($lagerantal>1 && !$makeSuggestion) {
@@ -538,14 +548,14 @@ if (!$vis_lev){
 			}
 		}
 		if ($csv) fwrite($csvfil,"\"Ialt\";");
-		else print "<td align=right><b><a href=\"varer.php?sort=beholdning&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(947,$sprog_id)."</a></b></td>\n";
+		else print "<td align=right><b><a href=\"varer.php?{$listNavigationQuery}sort=beholdning&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(947,$sprog_id)."</a></b></td>\n";
 	} else {
 		if ($stock) {	
 			print "<td align=right><b> I tilbud</b></td>\n";
 			print "<td align=right><b> I ordre</b></td>\n";
 			print "<td align=right><b> Bestilt</b></td>\n";
 		}
-		print "<td align=right><b><a href=\"varer.php?sort=beholdning&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(948,$sprog_id)."</a></b></td>\n";
+		print "<td align=right><b><a href=\"varer.php?{$listNavigationQuery}sort=beholdning&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(948,$sprog_id)."</a></b></td>\n";
 	}
 }
 if ($makeSuggestion) {
@@ -555,9 +565,9 @@ if ($makeSuggestion) {
 	if ($csv) fwrite($csvfil,"\"Kostpris\";\"Salgspris\"\n");
 	else {
 		($vatOnItemCard)?$tekst="<br>(incl.moms)":$tekst="";
-		print "<td align=\"right\" valign=\"top\" rowspan=\"2\"><b><a href=\"varer.php?sort=salgspris&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(949,$sprog_id)."</a></b>$tekst</td>\n";
+		print "<td align=\"right\" valign=\"top\" rowspan=\"2\"><b><a href=\"varer.php?{$listNavigationQuery}sort=salgspris&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(949,$sprog_id)."</a></b>$tekst</td>\n";
 		if ($vis_kostpriser) print "<td align=\"right\" valign=\"top\" rowspan=\"2\"><b>".findtekst(950,$sprog_id)."</b></td>\n";
-		if ($show_dg) print "<td align=\"right\" valign=\"top\" rowspan=\"2\"><b><a href=\"varer.php?sort=dg_percentage". ($sort == "dg_percentage" ? " desc":"") ."&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">DG</a></b></td>\n";
+		if ($show_dg) print "<td align=\"right\" valign=\"top\" rowspan=\"2\"><b><a href=\"varer.php?{$listNavigationQuery}sort=dg_percentage". ($sort == "dg_percentage" ? " desc":"") ."&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">DG</a></b></td>\n";
 	}
 }
 if ($vis_lev) {
@@ -636,20 +646,20 @@ if ($csv) {
 	if ($next > 25 && $linjeantal > 25) {
 		if ($start>=$linjeantal){
 			$tmp=$start-$linjeantal;
-			print "<tr><td><a href='varer.php?sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;varenummer=$varenummer&amp;beskrivelse=$beskrivelse&amp;beholdning=$stock'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
+			print "<tr><td><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;varenummer=$varenummer&amp;beskrivelse=$beskrivelse&amp;beholdning=$stock'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
 		}
 		else print  "<td></td>";
 		print "<td colspan=3></td>";
 		$tmp=$start+$linjeantal;
 		if ($showTrademark) $colspan++;
 		if ($next>=$slut && !$makeSuggestion) {
-			print "<td colspan='$colspan' align=right><a href='varer.php?sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;beholdning=$stock'><img src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
+			print "<td colspan='$colspan' align=right><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;beholdning=$stock'><img src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
 		}
 		else print  "<td></td>"; 
 		print "</tr>\n";
 	}
 	print "<tr><td colspan='3'>";
-	print "<a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;varenummer=$varenummer&amp;beskrivelse=$beskrivelse&amp;beholdning=$stock&amp;csv=1'>csv</a>";
+	print "<a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;varenummer=$varenummer&amp;beskrivelse=$beskrivelse&amp;beholdning=$stock&amp;csv=1'>csv</a>";
 }
 print "</td></tr>";
 print "</tbody></table>";
@@ -833,7 +843,7 @@ for ($v=0;$v<count($varenr);$v++) {
 			print "<tr bgcolor=\"$linjebg\">";
 			if ($popup) { #20170920
 				$kort="kort".$id[$v];
-				$js="onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kort=window.open('varekort.php?opener=varer.php&amp;id=$id[$v]&amp;returside=../includes/luk.php','".$jsvars."');$kort.focus();\"";
+				$js="onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kort=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;id=$id[$v]&amp;returside=../includes/luk.php','".$jsvars."');$kort.focus();\"";
 			} elseif ($href_vnr) $js=NULL; 
 			else $js="onMouseOver=\"this.style.cursor = 'pointer'\"; onclick=\"javascript:location.href='varekort.php?id=$id[$v]'\"";
 #			if ($popup) print "<td </td>";

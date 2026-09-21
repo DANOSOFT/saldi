@@ -94,6 +94,7 @@ class CustomerModel
             $this->lev_land = $r['lev_land'];
             $this->kontakt = $r['kontakt'];
             $this->kontonr = $r['kontonr'];
+            $this->gruppe = (int)$r['gruppe']; // 20260812 CL/LH (SD-621): gruppe was never hydrated, so toArray() returned null and the group was lost on API read-back
 
             // Load kontakt_emails
             $this->kontakt_emails = [];

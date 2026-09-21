@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2025-11-24------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-17------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2013.01.19 funktioner lagt i selvstændig fil (../includes/sys_div_func.php)
@@ -94,6 +94,20 @@
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
 // 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+// 20260818 CL/LH Use stable Stripe settings include paths.
+// 20260819 CL/NTR Label saving routed through saveLabelText() so 'Standard' also reaches the labels
+//                 table that lager/labelprint.php prints from, and new labels get account_id 0.
+// 20260824 CL/NTR Label deletion only removes global rows (account_id 0 or null), matching what the
+//                 label editor shows.
+// 20260826 CL/SZ  saveLabel now refuses to save when the label's current template isn't reproducible
+//                 by the visual editor's field model - it was silently discarding formatting it
+//                 doesn't understand on every save (MB-18).
+// 20260915 CL/NTR Bank Integration settings button only shown when the API credentials
+//                 are configured (bankIntegrationEnabled()).
+// 20260916 CDX/PHR Reset additional account data and skip tables absent from the installed schema.
+// 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
+// 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
+// 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
 
 @session_start();
 $s_id = session_id();
@@ -112,6 +126,9 @@ $diffkto    = NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+if (is_file(__DIR__ . '/../bank_integration/includes/enabled.php')) {
+	include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
+}
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 
@@ -1195,6 +1212,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		if ($qtxt)
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
+	} elseif ($sektion == 'stripe_valg') {
+		include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
+		stripeValgSave();
+		#######################################################################################
 	} elseif ($sektion == 'labels') {
 		// Generate template from form data
 		$valg           = if_isset($_GET['valg']);
@@ -1216,110 +1237,38 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
         $templateFile = "../importfiler/$labelTemplate";
         if (file_exists($templateFile)) {
             $templateContent = file_get_contents($templateFile);
-            $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$newLabelName', 'sheet', '" . db_escape_string($templateContent) . "')";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            saveLabelText($valg, $newLabelName, $templateContent, 'sheet');
             $labelName = $newLabelName;
         }
     } elseif ($saveRawHTML) {
         // Save raw HTML
-        $rawHTML = if_isset($_POST['rawHTML'], '');
-        $labelType = if_isset($_POST['labelType'], 'sheet');
-        
-        if ($labelName == 'Standard') {
-            // Update the standard label in grupper table
-            $qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($rawHTML) . "' WHERE id = '$r[id]'";
-            } else {
-                $qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($rawHTML) . "')";
-            }
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        } else {
-            // Update or create custom label in labels table
-            $qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($rawHTML) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
-            } else {
-                $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($rawHTML) . "')";
-            }
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-
+        $rawHTML   = if_isset($_POST['rawHTML'], '');
+        $labelType = if_isset($_POST, 'sheet', ['labelType']);
+        saveLabelText($valg, $labelName, $rawHTML, $labelType);
     } elseif ($switchToVisual) {
 		// When switching from raw HTML to visual editor, we need to save the raw HTML first
 		$rawHTML   = if_isset($_POST['rawHTML'], '');
 		$labelType = if_isset($_POST['labelType'], 'sheet');
-		
-		if ($labelName == 'Standard') {
-			// Update the standard label in grupper table
-			$qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($rawHTML) . "' WHERE id = '$r[id]'";
-			} else {
-				$qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($rawHTML) . "')";
-			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} else {
-			// Update or create custom label in labels table
-			$qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($rawHTML) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
-			} else {
-				$qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($rawHTML) . "')";
-			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
+		saveLabelText($valg, $labelName, $rawHTML, $labelType);
 	} elseif ($saveLabel) {
-            // Generate template from form data (visual editor)
-    $formData = array(
-        'cols'                  => if_isset($_POST['cols'], 1),
-        'rows'                  => if_isset($_POST['rows'], 1),
-        'txtlen'                => if_isset($_POST['txtlen'], 50),
-        'width'                 => if_isset($_POST['width'], '38.1'),
-        'height'                => if_isset($_POST['height'], '21.2'),
-        'font_size'             => if_isset($_POST['font_size'], '12'),
-        'margin_top'            => if_isset($_POST['margin_top'], '7'),
-        'margin_left'           => if_isset($_POST['margin_left'], '3'),
-        'show_varenr'           => if_isset($_POST['show_varenr'])      == 'on',
-        'show_varemrk'          => if_isset($_POST['show_varemrk'])     == 'on',
-        'show_beskrivelse'      => if_isset($_POST['show_beskrivelse']) == 'on',
-        'show_pris'             => if_isset($_POST['show_pris'])        == 'on',
-        'show_barcode'          => if_isset($_POST['show_barcode'])     == 'on',
-        // Individual font sizes for each element
-        'varenr_font_size'      => if_isset($_POST['varenr_font_size'],      if_isset($_POST['font_size'], '12')),
-        'varemrk_font_size'     => if_isset($_POST['varemrk_font_size'],     if_isset($_POST['font_size'], '12')),
-        'beskrivelse_font_size' => if_isset($_POST['beskrivelse_font_size'], if_isset($_POST['font_size'], '12')),
-        'pris_font_size'        => if_isset($_POST['pris_font_size'],        if_isset($_POST['font_size'], '12'))
-    );
-    
-    // Add custom text lines with individual font sizes
-    for ($i = 1; $i <= 5; $i++) {
-        $formData["custom_text_$i"] = if_isset($_POST["custom_text_$i"], '');
-        $formData["custom_text_{$i}_size"] = if_isset($_POST["custom_text_{$i}_size"], $formData['font_size']);
-    }
-    
-    $generatedTemplate = generateLabelTemplate($formData);
-    $labelType = if_isset($_POST['labelType'], 'sheet');
-    
-        $qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
-        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-            $qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($generatedTemplate) . "' WHERE id = '$r[id]'";
-        } else {
-            $qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($generatedTemplate) . "')";
-        }
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-        // Update or create custom label in labels table
-        $qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
-        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-            $qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($generatedTemplate) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
-        } else {
-            $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($generatedTemplate) . "')";
-        }
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-    
+		// saveVisualLabelEdit() (sys_div_func.php) refuses when the label's CURRENT template
+		// has formatting the visual editor's field model can't reproduce (imported Brother/Dymo
+		// templates, hand-written raw HTML, ...) - regenerating from that narrow model would
+		// silently discard whatever it doesn't understand, which is exactly MB-18 ("changing
+		// any setting destroys the whole configuration"). The UI already hides the visual
+		// editor for such labels (see labels() in sys_div_func.php); this is the authoritative
+		// check a form submit cannot bypass.
+		if (!saveVisualLabelEdit($valg, $labelName, $_POST)) {
+			// Refused - the template changed underneath this submit (e.g. another tab/admin, or
+			// a back-button re-post) into something the visual editor can no longer safely
+			// regenerate. Nothing is saved; labels() below re-renders the current stored
+			// template in raw-HTML mode with an explicit "not saved" message instead of silently
+			// discarding the user's submitted values (MB-18 review).
+			$saveLabelRefused = true;
+		}
 		} elseif ($deleteLabel && $labelName != 'Standard') {
-			$qtxt = "DELETE FROM labels WHERE labelname = '$labelName'";
+			$qtxt = "DELETE FROM labels WHERE labelname = '" . db_escape_string($labelName) . "'";
+			$qtxt.= " and (account_id = '0' or account_id is null)";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$labelName = 'Standard';
 		}
@@ -2092,41 +2041,14 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				setcookie("timezone", $timezone, time() + 60 * 60 * 24 * 30, '/');
 			}
 		} elseif (isset($_POST['nulstil']) && $_POST['nulstil']) { #20170731
-			$qtxt = "TRUNCATE ansatmappe,ansatmappebilag,batch_kob,batch_salg,betalinger,betalingsliste,bilag,bilag_tjekskema,";
-			$qtxt.= "budget,corrections,crm,deleted_order,drawer,gavekort,gavekortbrug,historik,jobkort,jobkort_felter,";
-			$qtxt.= "kassekladde,kladdeliste,kontokort,kostpriser,loen,loen_enheder,lagerstatus,mappe,mappebilag,misc_meta_data,";
-			$qtxt.= "modtageliste,modtagelser,navigator,noter,openpost,opgaver,ordrelinjer,ordrer,ordretekster,";
-			$qtxt.= "pbs_kunder,pbs_linjer,pbs_liste,pbs_ordrer,pos_betalinger,price_correction,proforma,provision,queries,rabat,";
-			$qtxt.= "regulering,reservation,returnings,sager,sagstekster,serienr,shop_adresser,shop_ordrer,shop_varer,";
-			$qtxt.= "simulering,tabeller,tidsreg,tjekpunkter,tmpkassekl,transaktioner,report,valuta restart identity";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='RA' and kodenr !='1'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE fiscal_year > 1", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='USET'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='DLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='KLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='DRV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='KRV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='VV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='OLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM kontoplan WHERE regnskabsaar!='1'", __FILE__ . " linje " . __LINE__);
-			db_modify("UPDATE varer SET beholdning = '0'", __FILE__ . " linje " . __LINE__);
-			$qtxt = "DELETE From settings where (var_grp = 'debitor' or var_grp = 'mySale') and (var_name = 'mailSubject' or var_name = 'mailText')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($_POST['behold_debkred'] == '') {
-				$qtxt    = "select id from adresser WHERE art='S'";
-				$r       = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$eget_id = $r['id'];
-				$qtxt    = "DELETE FROM adresser WHERE id!='$eget_id'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				$qtxt = "TRUNCATE ansatte,ansatmappe,ansatmappebilag,vare_lev,shop_adresser restart identity";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			require_once(__DIR__ . '/resetAccount.php');
+			try {
+				resetAccount(!empty($_POST['behold_debkred']), !empty($_POST['behold_varer']), $db_type, $db);
+				$regnaar = 1;
+				print tekstboks('regnskab nulstillet');
+			} catch (Throwable $error) { # 20260917 en fejl må ikke ende som en hvid fejlside
+				print tekstboks('Regnskabet blev ikke nulstillet: ' . $error->getMessage());
 			}
-			if ($_POST['behold_varer'] == '') {
-				$qtxt = "TRUNCATE shop_varer,styklister,varer,vare_lev,varetilbud,variant_typer,variant_varer,varianter restart identity";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-			print tekstboks('regnskab nulstillet');
 		} elseif (isset($_POST['slet'])) {
 			if ($_POST['slet_regnskab'] == 'on') { #20185024
 				include("../includes/connect.php");
@@ -2255,6 +2177,10 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			   API</button></a></td></tr>\n";
 
+		print "<tr><td align=left><a href=diverse.php?sektion=stripe_valg>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			   Stripe abonnement</button></a></td></tr>\n";
+
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('791|Mærkater', $sprog_id)."</button></a></td></tr>\n";
@@ -2285,10 +2211,12 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
 
-			   // TODO: Translation Tekst til bank integration
-		print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   ."Bank Integration" ."</button></a></td></tr>\n";
+		if (function_exists('bankIntegrationEnabled') && bankIntegrationEnabled()) {
+			// TODO: findtekst. // TODO: Translation Tekst til bank integration
+			print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   ."Bank Integration" ."</button></a></td></tr>\n";
+		}
 
 		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
@@ -2329,6 +2257,7 @@ if ($menu != 'T') {
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst('788|Variantrelaterede valg', $sprog_id)."</a></td></tr>\n";
 		// print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=stripe_valg>Stripe abonnement</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
@@ -2368,6 +2297,10 @@ if ($sektion == "productOptions" || $sektion == "label") {
 if ($sektion == "variant_valg") variant_valg();
 // if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
+if ($sektion == "stripe_valg") {
+	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
+	stripeValg();
+}
 if ($sektion == "labels") labels($valg);
 if ($sektion == "pricelists") {
 	include("diverseIncludes/pricelists.php");

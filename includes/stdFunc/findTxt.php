@@ -5,14 +5,11 @@
  // 20250909 LOE checks first that db functions exist and error log added
  // 20260320 LOE Updated $sessionVar to only allow values that won't corrupt the session array.
  // 20260512 PHR CL/PHR Enabled cache.
-
  // 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
+ // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
+ // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
-		
-	$sessionVar = 'text_'. $textId .'_'. $languageID;
-	$sessionVar = preg_replace('/[^a-zA-Z0-9_]/','_','text_'. $textId .'_'. $languageID); 
-	if (isset($_SESSION[$sessionVar])) return ($_SESSION[$sessionVar]);
 		global $bruger_id;
 		global $db, $db_encode;
 		global $sqdb;
@@ -22,12 +19,14 @@ if (!function_exists('findtekst')) {
 		if (strpos($textId,'|')) {
 			list($a,$b) = explode('|',$textId);
 			if (preg_match('/^[0-9]+$/', $a)) $textId = $a;
-		} #else $a = $textId;
-		 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster'";
-		// if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		// 	if ($b) return $b;
-		// 	else return $textId;
-		// }
+		}
+		
+		$sessionVar = 'text_'. $textId .'_'. $languageID;
+		$sessionVar = preg_replace('/[^a-zA-Z0-9_]/','_','text_'. $textId .'_'. $languageID); 
+		if (isset($_SESSION[$sessionVar])) {
+			return ($_SESSION[$sessionVar]);
+		}
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster'";
 
 		########################
 		if (function_exists('db_fetch_array') && function_exists('db_select')) {
@@ -43,29 +42,29 @@ if (!function_exists('findtekst')) {
 		######################
 
 		if (!preg_match('/^[0-9]+$/', $textId)) {
-		$qtxt = "select tekst_id from tekster where tekst = '$textId'";
-		if ($r = db_fetch_array(db_select($qtxt, ''))) {
-			$textId = $r['tekst_id'];
-		} else {
-			$txtlines = array();
-			if (file_exists("../importfiler/egnetekster.csv")) $fileName = "../importfiler/egnetekster.csv";
-			else $fileName = "../importfiler/tekster.csv";
-			$txtlines = explode("\n",file_get_contents($fileName));
-			for ($i = 0; $i < count($txtlines); $i++) {
-				$texts = explode("\t",$txtlines[$i]);
-				if (in_array($textId,$texts)) {
-					for ($i2 = 1; $i2 < count($texts); $i2++) {
-						if ($textId == $texts[$i2]) $textId = $texts[0];
-						break 2;
+			$qtxt = "select tekst_id from tekster where tekst = '$textId'";
+			if ($r = db_fetch_array(db_select($qtxt, ''))) {
+				$textId = $r['tekst_id'];
+			} else {
+				$txtlines = array();
+				if (file_exists("../importfiler/egnetekster.csv")) $fileName = "../importfiler/egnetekster.csv";
+				else $fileName = "../importfiler/tekster.csv";
+				$txtlines = explode("\n",file_get_contents($fileName));
+				for ($i = 0; $i < count($txtlines); $i++) {
+					$texts = explode("\t",$txtlines[$i]);
+					if (in_array($textId,$texts)) {
+						for ($i2 = 1; $i2 < count($texts); $i2++) {
+							if ($textId == $texts[$i2]) $textId = $texts[0];
+							break 2;
+						}
 					}
 				}
 			}
 		}
-	}
 
-	if (!preg_match('/^[0-9]+$/', $textId)) {
-		return $textId; # If other characters than digits in textID then return textID - used when developing # 20230224
-	}
+		if (!preg_match('/^[0-9]+$/', $textId)) {
+			return $textId; # If other characters than digits in textID then return textID - used when developing # 20230224
+		}
 		#echo "L $languageID B $bruger_id<br>";
 
 		$linje = $newTxt = $tekst = $tmp = NULL;
@@ -74,8 +73,9 @@ if (!function_exists('findtekst')) {
 			$languageID = 1;
 			$qtxt = "update brugere set language_id = '$languageID' where id = '$bruger_id'";
 		}
-		if (!is_numeric($textId))
+		if (!is_numeric($textId)){
 			$textId = 0;
+		}
 		$qtxt = "select id,tekst from tekster where tekst_id='$textId' and sprog_id = '$languageID'";
 		if ($db != $sqdb && $r = db_fetch_array(db_select($qtxt, ''))) {
 			$tekst = $r['tekst'];
@@ -125,8 +125,9 @@ if (!function_exists('findtekst')) {
 			}
 		}
 		if ($db != $sqdb && $newTxt && $newTxt != '-') {
-			if ($db_encode != "UTF8")
+			if ($db_encode != "UTF8") {
 				$newTxt = mb_convert_encoding($newTxt, 'ISO-8859-1', 'UTF-8');
+			}
 			$newTxt = str_replace('\n\n', "\n\n", $newTxt);
 			$tmp = db_escape_string($newTxt); #20140505
 			if ($id)
@@ -135,12 +136,15 @@ if (!function_exists('findtekst')) {
 				$qtxt = "insert into tekster(sprog_id,tekst_id,tekst) values ('$languageID','$textId','$tmp')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$tekst = $newTxt;
-		} elseif ($db == $sqdb)
+		} elseif ($db == $sqdb) {
 			$tekst = $newTxt;
-		if (!$tekst)
+		}
+		if (!$tekst) {
 			$tekst = "Tekst nr: $textId";
-		elseif ($tekst == "-")
+		}
+		elseif ($tekst == "-") {
 			$tekst = '';
+		}
 		$_SESSION[$sessionVar] = $tekst;
 		return ($tekst);
 	} //end of findtekst

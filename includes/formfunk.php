@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,19 @@
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
+// 20260814 LH Rykkerprint: pass rykker ordre-id to send_mails (was hardcoded 0) so mail-template variables like $kontonr work in rykker mails
+// 20260819 Sawaneh kontoprint: removed debug output and duplicate 'Mail sent to'
+//                  confirmation when mailing account statements as PDF.
+// 20260820 CDX/PHR Keep reminder amounts unchanged when the open item and reminder use the same currency.
+// 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
+//                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
+//                  Supplier orders no longer print VAT-inclusive prices (customer setting).
+// 20260911 CDX/LH SD-186 Load performed-by value when printing or emailing order documents.
+// 20260915 CDX/PHR Preserve discount line price when no numeric set price is stored in lev_varenr.
+// 20260914 CDX/LH SST-784: Escape parentheses and backslashes only in PostScript output.
+// 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
+// 20260916 CDX/LH Initialize the page count on every appended print-batch document.
+// 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -118,8 +131,6 @@ if (!function_exists('skriv')) {
 			$incr_y = 0;
 
 		$format = strtoupper($format);
-		$tekst = str_replace("(", "\\(", $tekst);
-		$tekst = str_replace(")", "\\)", $tekst);
 
 		if (substr($tekst, 0, 3) == "<b>") {
 			$startfed = 'on';
@@ -316,7 +327,7 @@ if (!function_exists('skriv')) {
 							$ny_str = $str;
 						# udskrivning af formular variabler
 						if ($row['xa']) {
-							fwrite($psfp, "/$form_font\n$row[str] scalefont\nsetfont\nnewpath\n" . $row['xa'] * 2.86 . " " . $row['ya'] * 2.86 . " moveto (" . utf8_iso8859($ny_streng) . ") $format show\n");
+							fwrite($psfp, "/$form_font\n$row[str] scalefont\nsetfont\nnewpath\n" . $row['xa'] * 2.86 . " " . $row['ya'] * 2.86 . " moveto (" . strtr(utf8_iso8859($ny_streng), array('\\' => '\\\\', '(' => '\\(', ')' => '\\)')) . ") $format show\n");
 							#	fwrite($htmfp,"<div style=\"position:absolute;top:".$row['xa']."mm;left:".$row['xb']."mm;\">".__line__."$ny_streng</div>\n");
 							$a = $row['xa'];
 							$b = 297 - $row['ya'];
@@ -378,9 +389,10 @@ if (!function_exists('skriv')) {
 			$i2 = NULL;
 		}
 		if ($x && $tekst && $y2 / 2.86 > $Opkt) {
-			#			if ($tekst == '891,42')	exit;
-			if ($x != '22')
-				fwrite($psfp, "/$form_font\n$str scalefont\nsetfont\nnewpath\n$x $y2 moveto (" . utf8_iso8859($tekst) . ") $format show\n");
+			if ($x != '22') {
+				$psTekst = strtr(utf8_iso8859($tekst), array('\\' => '\\\\', '(' => '\\(', ')' => '\\)'));
+				fwrite($psfp, "/$form_font\n$str scalefont\nsetfont\nnewpath\n$x $y2 moveto (" . $psTekst . ") $format show\n");
+			}
 			$a = $x / 2.86;
 			$b = 297 - $y2 / 2.86;
 			$c = $ny_str * 1.2;
@@ -411,9 +423,7 @@ if (!function_exists('ombryd')) {
 			$lokation = $parts[1] ?? NULL;
 			$vare_note = $parts[2] ?? NULL;
 		}
-		error_log("tekst before wrap: " . json_encode($tekst) . " length: " . strlen($tekst) . " laengde: " . $laengde);
 		$tekst = wordwrap($tekst, $laengde, "\n", true);
-		error_log("tekst after wrap: " . json_encode($tekst));
 		$nytekst = "";
 		if (strstr($tekstinfo, 'ordrelinjer')) {
 			list($tmp, $Opkt) = explode("_", $tekstinfo);
@@ -668,10 +678,12 @@ if (!function_exists('find_form_tekst')) {
 						$qtxt = "select * from openpost where konto_id='$id' and udlignet='0'";
 						$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						while ($r2 = db_fetch_array($q2)) {
-							if (!$r2['valuta'])
+							if (!$r2['valuta']) {
 								$r2['valuta'] = 'DKK';
-							if (!$r2['valutakurs'])
+							}
+							if (!$r2['valutakurs']) {
 								$r2['valutakurs'] = 100;
+							}
 							$valuta = $r2['valuta'];
 							$valutakurs = (float) $r2['valutakurs'];
 							$dkkamount = $r2['amount'] * $valutakurs / 100;
@@ -1137,7 +1149,11 @@ if (!function_exists('formularprint')) {
 			#		$psfp1=fopen("$mappe/$printfilnavn.ps","w");
 			#		$htmfp1=fopen("$mappe/$printfilnavn.htm","w");
 		}
+		$printBatchName = $printfilnavn ?? 'udskrift';
+		$printBatchDocuments = array();
+		unset($_SESSION['printBatch']);
 		for ($o = 0; $o < $ordre_antal; $o++) {
+			$printBatchIndex = null;
 			#		$psfp=$psfp1;
 			#		$htmfp=$htmfp1;
 			$ordre_id[$o] *= 1;
@@ -1168,7 +1184,7 @@ if (!function_exists('formularprint')) {
 				$email[0] = 'Kundens email';
 				$pbs = '';
 			} else {
-				$qtxt = "select afd,status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,sprog,udskriv_til,mail_subj,mail_text,dokument,procenttillag ";
+				$qtxt = "select afd,status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,hvem,sprog,udskriv_til,mail_subj,mail_text,dokument,procenttillag ";
 				$qtxt .= "from ordrer where id = '$ordre_id[$o]'";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($q);
@@ -1656,6 +1672,8 @@ if (!function_exists('formularprint')) {
 				$pfnavn = $mappe . "/" . $printfilnavn;
 				$psfp = fopen("$pfnavn.ps", "w");
 				$htmfp = fopen("$pfnavn.htm", "w");
+				$printBatchDocuments[] = array('name' => $printfilnavn, 'background' => $background_pdf_path ?? '', 'pages' => 1);
+				$printBatchIndex = count($printBatchDocuments) - 1;
 				#		} else {
 				#			fclose ($htmfp);
 				#			$pfnavn=$mappe."/".$printfilnavn.".".$ordrenr;
@@ -1876,11 +1894,12 @@ if (!function_exists('formularprint')) {
 									$linjesum[$x] = afrund($linjesum[$x] - ($linjesum[$x] * (100 - $procent[$x]) / 100), 2);
 									$linjemoms[$x] = afrund($linjemoms[$x] - ($linjemoms[$x] * (100 - $procent[$x]) / 100), 2);
 								}
-								$sum += $linjesum[$x];
+								if ($art == 'KO' || $art == 'KK') $sum += $l_sum[$x]; #20260820 Kreditorordrer: summen skal svare til de udskrevne (afrundede) linjesummer
+								else $sum += $linjesum[$x];
 								if ($momsfri[$x] != 'on' && !$omvbet[$x]) {
 									$moms += afrund($l_sum[$x] * $varemomssats[$x] / 100, 3); #Decimaltal aendret til 3 2010.12.17 grundet momsdiff (0,01 kr) i ordre id 371 i saldi_297
 									$momssum += afrund($linjesum[$x], 2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
-									if ($incl_moms && !$b2b) {
+									if ($incl_moms && !$b2b && $art != 'KO' && $art != 'KK') { #20260820 Kunde-momsindstillingen gaelder ikke leverandoerordrer
 										$tmp = afrund($pris[$x] + $pris[$x] * $varemomssats[$x] / 100, 2);
 										if ($rabatart[$x] == "amount")
 											$linjesum[$x] = ($tmp - $rabat[$x]) * $antal[$x];
@@ -1890,8 +1909,12 @@ if (!function_exists('formularprint')) {
 									}
 								}
 								if ($rvnr) {
-									if ($varenr[$x] == $rabatvarenr)
-										list($pris[$x]) = explode("|", $row['lev_varenr']);
+									if ($varenr[$x] == $rabatvarenr) {
+										$setPrice = explode('|', (string)$row['lev_varenr'])[0];
+										if (is_numeric($setPrice)) {
+											$pris[$x] = (float)$setPrice;
+										}
+									}
 									$rabat[$x] = 0;
 									$linjesum[$x] = ($pris[$x] - $rabat[$x]) * $antal[$x];
 								}
@@ -2075,22 +2098,37 @@ if (!function_exists('formularprint')) {
 								break;
 							}
 						}
-						if ($beskriv_z && isset($laengde[$beskriv_z]) && $laengde[$beskriv_z] > 0) {
+						// 20260818 LH MB-19: a template laengde wider than the physical span to the next
+						// column (typically antal) let long description lines print into the quantity
+						// column. Cap the wrap width by the span in points (xa is mm, x2.86 in skriv()),
+						// reserving room for a right-aligned neighbour's value.
+						$beskriv_laengde = ($beskriv_z && isset($laengde[$beskriv_z])) ? (int)$laengde[$beskriv_z] : 0;
+						if ($beskriv_z && $str[$beskriv_z] > 0) {
+							$next_xa = 0; $next_str = 0; $next_just = '';
+							for ($z_tmp = 1; $z_tmp <= $var_antal; $z_tmp++) {
+								if ($z_tmp != $beskriv_z && $xa[$z_tmp] > $xa[$beskriv_z] && (!$next_xa || $xa[$z_tmp] < $next_xa)
+									&& $variabel[$z_tmp] != 'lokation' && $variabel[$z_tmp] != 'vare_note' && substr($variabel[$z_tmp], 0, 8) != 'fritekst') {
+									$next_xa = $xa[$z_tmp]; $next_str = $str[$z_tmp]; $next_just = $justering[$z_tmp];
+								}
+							}
+							if ($next_xa) {
+								$reserve = ($next_just == 'H') ? 8 * 0.55 * ($next_str > 0 ? $next_str : $str[$beskriv_z]) : 0;
+								$span_chars = max(12, (int)(((($next_xa - $xa[$beskriv_z]) * 2.86) - $reserve) / (0.55 * $str[$beskriv_z])));
+								$beskriv_laengde = ($beskriv_laengde > 0) ? min($beskriv_laengde, $span_chars) : $span_chars;
+							}
+						}
+						if ($beskriv_z && $beskriv_laengde > 0) {
 							// Get the description text (handle tab-separated lokation/vare_note)
 							$check_tekst = $beskrivelse[$x];
 							if (strpos($check_tekst, chr(9)) !== false) {
 								list($check_tekst) = explode(chr(9), $check_tekst);
 							}
-							$wrappedText = wordwrap($check_tekst, $laengde[$beskriv_z], "\n", true);
+							$wrappedText = wordwrap($check_tekst, $beskriv_laengde, "\n", true);
 							$descLines = count(explode("\n", $wrappedText));
 							$totalHeightNeeded = ($descLines - 1) * $linjeafstand;
 
-							// DEBUG: Log to file
-							file_put_contents("../temp/debug_pagebreak.txt", "DEBUG line $x: y=$y, Opkt=$Opkt, descLines=$descLines, totalHeight=$totalHeightNeeded, laengde=".$laengde[$beskriv_z].", check=".($y - $totalHeightNeeded)."\n", FILE_APPEND);
-
 							// If description would spill to next page, move entire line to next page first
 							if ($descLines > 1 && ($y - $totalHeightNeeded) <= $Opkt && $y >= $Opkt) {
-								file_put_contents("../temp/debug_pagebreak.txt", "FORCING PAGE BREAK for line $x\n", FILE_APPEND);
 								// Force a page break before writing any fields
 								$y = skriv($id, "$str[$beskriv_z]", "$fed[$beskriv_z]", "$kursiv[$beskriv_z]", "$color[$beskriv_z]", "", "ordrelinjer_" . $Opkt, "$xa[$beskriv_z]", $Opkt - 1, "$justering[$beskriv_z]", "$form_font[$beskriv_z]", "$formular", __LINE__);
 							}
@@ -2108,11 +2146,15 @@ if (!function_exists('formularprint')) {
 							if ($variabel[$z] == "posnr")
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$posnr[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
 							elseif ($variabel[$z] == "varenr") {
-								// Determine wrap width from configured laengde, or compute from column span to beskrivelse
-								$vn_wrap = ($laengde[$z] > 0) ? (int)$laengde[$z]
-									: (($beskriv_z && $str[$z] > 0)
-										? max(12, (int)(($xa[$beskriv_z] - $xa[$z]) / (0.55 * $str[$z])))
-										: 0);
+								// 20260818 LH MB-20: xa positions are template units (mm, x2.86 -> points in skriv())
+								// but str is a point size - the missing 2.86 factor made the span ~3x too small, so
+								// item numbers wrapped after 12-15 chars although the column fits more. Compute the
+								// span in points, and never wrap earlier than the widest of the configured laengde
+								// and the physical span.
+								$vn_span = ($beskriv_z && $str[$z] > 0)
+									? max(12, (int)((($xa[$beskriv_z] - $xa[$z]) * 2.86) / (0.55 * $str[$z])))
+									: 0;
+								$vn_wrap = max((int)$laengde[$z], $vn_span);
 								if ($vn_wrap > 0 && mb_strlen($varenr[$x]) > $vn_wrap) {
 									$vn_wrapped = explode("\n", wordwrap($varenr[$x], $vn_wrap, "\n", true));
 								} else {
@@ -2180,7 +2222,7 @@ if (!function_exists('formularprint')) {
 							}
 						}
 						if ($z = $skriv_beskriv[$x]) {
-							$y2 = ombryd($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskrivelse[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", $laengde[$z], $formular, $linjeafstand);
+							$y2 = ombryd($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskrivelse[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", ($beskriv_laengde > 0 ? $beskriv_laengde : $laengde[$z]), $formular, $linjeafstand);
 						}
 						// Use the lowest y (most wrapped lines wins)
 						$y2 = min($y_after_varenr, $y2 ?? $y);
@@ -2189,6 +2231,10 @@ if (!function_exists('formularprint')) {
 							$y = $ya;
 						$y = $y - $linjeafstand;
 					}
+				}
+				if (!$preview && ($art == 'KO' || $art == 'KK')) { #20260820 Kreditorordrer: moms af totalen som ved skaerm og bogfoering (kreditor/orderIncludes/openOrderLines.php)
+					($art == 'KK') ? $moms = $momssum / 100 * $momssats - 0.0001 : $moms = $momssum / 100 * $momssats + 0.0001;
+					$moms = afrund($moms, 3);
 				}
 				if ($brugsamletpris) {
 					$r = db_fetch_array(db_select("select sum,moms from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
@@ -2204,14 +2250,18 @@ if (!function_exists('formularprint')) {
 				$sum = dkdecimal($sum, 2);
 			}
 
-			if ($id)
+			if ($id) {
 				find_form_tekst($id, 'S', $formular, 0, $linjeafstand, ""); # Sum paa sidste side.
+			}
 
-				if ($ordre_id[$o])
-					bundtekst($ordre_id[$o]); # Uden denne skrives kun  side 1
-					#		if ($mail_fakt) fclose($psfp2);
-					fclose($psfp);
-				fclose($htmfp);
+			if ($ordre_id[$o]) {
+				bundtekst($ordre_id[$o]); # Uden denne skrives kun side 1
+			}
+			fclose($psfp);
+			fclose($htmfp);
+			if ($printBatchIndex !== null) {
+				$printBatchDocuments[$printBatchIndex]['pages'] = max(1, (int)$side - 1);
+			}
 		}
 		// UDSKRIVNING
 		if ($mailantal > 0) {
@@ -2260,7 +2310,16 @@ if (!function_exists('formularprint')) {
 		} elseif ($nomailantal > 0) {
 			print "<big><b>Vent - Udskrift genereres</b></big><br>";
 			$mappe = str_replace('../temp/', '', $mappe);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=$returside\">";
+			if (count($printBatchDocuments) > 1) {
+				$printfilnavn = $printBatchName . '-batch';
+				$_SESSION['printBatch'] = array(
+					'file' => $mappe . '/' . $printfilnavn,
+					'documents' => $printBatchDocuments
+				);
+			}
+			// 20260807 MJ urlencode returside saa search-parametre ikke laekaer som separate GET-parametre i udskriv.php
+			// 20260812 MJ Brug is_string-guard saa array-input ikke giver PHP-advarsel (null/array -> tom streng)
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
@@ -2611,6 +2670,7 @@ if (!function_exists('rykkerprint')) {
 					#				if ($r['felt_5']) $email[$mailantal]=$r['felt_5'];
 					$email[$mailantal] = $r['email'];
 					$mailsprog[$mailantal] = strtolower($r['sprog']);
+					$mailRykkerId[$mailantal] = $rykker_id[$q]; // 20260814 LH
 					#			$form_nr[$mailantal]=$formular;
 				} else
 					$nomailantal++;
@@ -2662,10 +2722,13 @@ if (!function_exists('rykkerprint')) {
 							$valuta = $r2['valuta'];
 							$valutakurs = (float) $r2['valutakurs'];
 							$dkkamount = $r2['amount'] * $valutakurs / 100;
-							if ($deb_valuta != "DKK")
-								$amount = $dkkamount * 100 / $deb_valutakurs;
-							else
+							if ($deb_valuta == $valuta) {
 								$amount = $r2['amount'];
+							} elseif ($deb_valuta != "DKK") {
+								$amount = $dkkamount * 100 / $deb_valutakurs;
+							} else {
+								$amount = $dkkamount;
+							}
 						}
 					} else {
 						$faktnr = '';
@@ -2739,7 +2802,7 @@ if (!function_exists('rykkerprint')) {
 					return ("../temp/$db/$pfliste[$x].pdf");
 					exit;
 				} else
-				$svar = send_mails(0, "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], '', '', '', 0);
+				$svar = send_mails($mailRykkerId[$x], "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], '', '', '', 0);
 			}
 		}
 		if ($nomailantal > 0) {
@@ -2862,10 +2925,6 @@ if (!function_exists('kontoprint')) {
 					if (!$kontovaluta)
 						$kontovaluta = 'DKK';
 
-					// Debug output to see what currency is detected
-					if ($bruger_id == '-1') {
-						echo "Customer ID: $konto_id[$i], Group: $r[gruppe], Currency: $kontovaluta<br>";
-					}
 					if ($email)
 						$mailantal++;
 					else
@@ -2880,31 +2939,17 @@ if (!function_exists('kontoprint')) {
 						$dagskurs = 100;
 					else {
 						$qtxt = "select kodenr from grupper where box1 = '$kontovaluta' and art='VK'";
-						if ($bruger_id == '-1')
-							echo "Currency lookup query: $qtxt<br>";
 						$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						$valutakode = $r1['kodenr'];
-
-						if ($bruger_id == '-1') {
-							echo "Currency: $kontovaluta, Valutakode: $valutakode<br>";
-						}
 
 						// Check if valutakode is valid before proceeding
 						if (!empty($valutakode) && is_numeric($valutakode)) {
 							$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$dato_til' order by valdate desc limit 1";
-							if ($bruger_id == '-1')
-								echo "Exchange rate query: $qtxt<br>";
 							$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$dagskurs = $r1['kurs'];
-							if ($bruger_id == '-1') {
-								echo "Exchange rate found: $dagskurs<br>";
-							}
 						} else {
 							// Fallback: use default exchange rate
 							$dagskurs = 100;
-							if ($bruger_id == '-1') {
-								echo "Using fallback exchange rate: $dagskurs<br>";
-							}
 						}
 					}
 					if ($dato_fra > '1970-01-01') {
@@ -3000,23 +3045,16 @@ if (!function_exists('kontoprint')) {
 					elseif ($deb_valuta==$valuta) $amount=$r2['amount'];
 					else $amount=$dkkamount;
 					*/
-						if ($bruger_id == '-1') {
-							echo "$kontovaluta==$r1[valuta] - $baseCurrency<br>";
-						}
 						if ($kontovaluta == $r1['valuta'])
 							$saldo += afrund($r1['amount'], 2);
 						elseif ($kontovaluta != $baseCurrency) {
 							$qtxt = "select kodenr from grupper where box1 = '$kontovaluta' and art='VK'";
-							if ($bruger_id == '-1')
-								echo "$qtxt<br>";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$valutakode = $r2['kodenr'];
 
 							// Check if valutakode is valid before proceeding
 							if (!empty($valutakode) && is_numeric($valutakode)) {
 								$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r1[transdate]' order by valdate desc limit 1";
-								if ($bruger_id == '-1')
-									echo "$qtxt<br>";
 								$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 								if ($r2 && !empty($r2['kurs'])) {
 									$saldo += afrund($r1['amount'] * $r1['valutakurs'] / $r2['kurs'], 2);
@@ -3033,10 +3071,6 @@ if (!function_exists('kontoprint')) {
 							$saldo += afrund($r1['amount'], 2);
 						}
 						#			$saldo+=$amount; 20150316
-						if ($bruger_id == '-1') {
-							echo "$saldo<br>";
-							#exit;
-						}
 						$dkkforfalden += $dkkamount;
 						$belob = dkdecimal($amount, 2);
 						for ($z = 1; $z <= $var_antal; $z++) {
@@ -3120,8 +3154,7 @@ if (!function_exists('kontoprint')) {
 					#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
 					#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
 				}
-				$svar = send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
-				echo "$svar<br>";
+				send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
 			}
 		}
 		if ($nomailantal > 0) {

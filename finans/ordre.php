@@ -1078,7 +1078,7 @@ function ordreside($id,$regnskab)
 				elseif ($momsfri[$x]) $varemomssats[$x]=0;
 				$serienr[$x]=stripslashes(htmlentities($row['serienr'],ENT_COMPAT,$charset));
 				$kostpris[$x]=$row['kostpris'];
-				$projekt[$x]=$row['projekt']*1;
+				$projekt[$x] = (int) $row['projekt'];
 			}
 		}	
 		$linjeantal=$x;
@@ -1144,7 +1144,7 @@ function ordreside($id,$regnskab)
 				$dkrabat=dkdecimal($rabat[$x]);
 				if ($momsfri[$x]!='on') {
 					$moms+=afrund($ialt*$varemomssats[$x]/100,2);
-#					$momssum=$momssum+$ialt;
+					// $momssum=$momssum+$ialt;
 				  if($incl_moms)$dkpris=dkdecimal($pris[$x]+$pris[$x]*$varemomssats[$x]/100);
 				}
 				if ($antal[$x]) {

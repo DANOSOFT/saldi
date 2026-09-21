@@ -46,6 +46,12 @@ print "<style>
 </style>";
 
 $kreditmax=NULL;
+// 20260812 CL/LH (SD-645): $bogfor (posting eligibility) was only initialised in the POST flow
+// (kreditor/ordre.php:542, and kreditor/ordreM.php:412 does it unconditionally), so a reopened
+// fully-received order never got 'Bogfoer nu' offered below and could not be posted. Initialise
+// it like the POST flow does; the per-line check below (antal != tidl_lev => $bogfor = 0) still
+// clears it on any delivery mismatch, so nothing unreceived becomes postable.
+if (!isset($bogfor)) $bogfor = 1;
 for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) {
     $ialt=($pris[$x]-($pris[$x]/100*$rabat[$x]))*$antal[$x];

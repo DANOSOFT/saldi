@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- patch 5.0.0 --- 2026-05-12 ---
+// --- debitor/api.php --- patch 5.0.0 --- 2026-08-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,9 @@
 // 20260703 NTR - Added filtering out lines with 0 amount and not just empty description, so if either is empty, the line will be skipped. This is to avoid sending empty lines to EasyUBL, which I suspect crashes their code.
 // 20260706 CL/NTR - Changed the way headers are captured from EasyUBL responses, using CURLOPT_HEADERFUNCTION instead of splitting the header string, which can mis-split on HTTP/2 responses. This should improve reliability of header capture.
 // 20260722 NTR - Changed logic of antal 0 lines, from dropping the lines to changing their antal to 1 as well as changing price to 0, to try and avoid errors.
+// 20260825 NTR - Set isAllowanceCharge based on price sign (negative price indicates allowance/charge)
+// 20260825 CL/NTR - Added 0184 (Danish CVR) to the Peppol scheme map so an "0184:xxxxxxxx" EAN gets the DK prefix and correct country code instead of falling through unprefixed.
+// &&       Also added "0088" as a swedish prefix.
 
     @session_start();
     $s_id=session_id();
@@ -166,6 +169,9 @@
 
         // Send update request to EasyUBL with the actual company ID
         $ch = curl_init();
+        // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$companyId");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
@@ -220,6 +226,9 @@
             $guid = "00000000-0000-0000-0000-000000000000";
             $data = createCompany($apiKey);
             $ch = curl_init();
+            // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
             curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$guid");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
@@ -261,6 +270,9 @@
 
                 // Send the company id to ssl2.saldi.dk for storage
                 $ch = curl_init();
+                // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
                 curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=insertCompanyId&companyId=$companyId&globalId=$globalid");
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json"));
@@ -424,6 +436,9 @@
         file_put_contents("../temp/$db/xml-$fileId.xml", $xml);
         curl_close($ch);
         $ch = curl_init();
+        // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         $data = [
             "language" => "",
             "base64EncodedDocumentXml" => $result["base64EncodedDocumentXml"]
@@ -492,7 +507,9 @@
             $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
             if(is_numeric($endpointType)){
                 $peppolSchemes = [
+                    "0184" => ["prefix" => "DK", "type" => "DK:CVR"],
                     "0007" => ["prefix" => "SE", "type" => "SE:ORGNR"],
+                    "0088" => ["prefix" => "SE", "type" => "SE:ORGNR"],
                     "9908" => ["prefix" => "NO", "type" => "NO:ORGNR"],
                     "0192" => ["prefix" => "NO", "type" => "NO:ORG"],
                     "0037" => ["prefix" => "FI", "type" => "FI:OVT"],
@@ -789,7 +806,7 @@
                 "description" => $beskrivelse,
                 "accountingCost" => "",
                 "commodityCode" => "",
-                "isAllowanceCharge" => false,
+                "isAllowanceCharge" => $price >= 0 ? false : true, // 20260825 - NTR - Set isAllowanceCharge based on price sign (negative price indicates allowance/charge)
                 "item" => [
                     "buyersItemID" => "",
                     "sellersItemID" => ($res["varenr"] != "" && $res["varenr"] != null && $res["varenr"] != "null") ? strval($res["varenr"]) : "",
