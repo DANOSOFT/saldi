@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 5.0.1 --- 2026.09.07 ---
+// ---------------finans/bogfor.php---------- patch 5.0.1 --- 2026.09.21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,7 @@
 // 20260907 CDX/PHR Update following fiscal years' opening balances within the journal posting transaction.
 // 20260907 CDX/LH Share the difference predicate with the read-only assistant checks.
 // 20260920 CDX/LH Preserve unfinished entries, date settlements correctly and reject rounded ledger imbalances.
+// 20260921 CDX/LH Post negative small currency differences as positive debits; retain generated-ledger balance validation.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -1048,7 +1049,11 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			if ($b_sum[$i] && abs($b_sum[$i]) < 0.1 && !$bvSum[$i] && $b_diffkonto[$i]) {
 					$debet=$kredit=0;
 					$beskrivelse ='valutadiff';
-					($b_sum[$i] < 0)?$debet=$b_sum[$i]:$kredit=$b_sum[$i];
+					if ($b_sum[$i] < 0) {
+						$debet = -$b_sum[$i];
+					} else {
+						$kredit = $b_sum[$i];
+					}
 					$qtxt = "insert into $tabel "; 
 					$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,";
 					$qtxt.= "valuta,valutakurs,ordre_id,moms)";
