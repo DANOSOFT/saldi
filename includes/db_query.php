@@ -45,6 +45,7 @@
 //                transaction is aborted...") silently fails every later query on that same
 //                connection for the rest of the request; confirmed harmless when no
 //                transaction is open (SST-672)
+// 20260921 CDX/LUI Support audited INSERT RETURNING without changing existing write callers.
 // 20260920 CDX/LH Commit only outer transactions and retain rollback-only state on nested failure.
 
 if (!function_exists('get_relative')) {
@@ -171,7 +172,7 @@ if (!function_exists('db_close')) {
 }
 
 if (!function_exists('db_modify')) {
-	function db_modify($qtext, $spor, $global = false) {
+	function db_modify($qtext, $spor, $global = false, $returnResult = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_skriv_id,$db_type;
@@ -264,6 +265,8 @@ if (!function_exists('db_modify')) {
 				exit;
 			}
 		}
+		// 20260921 CDX/LUI Keep INSERT RETURNING on the audited write path.
+		if ($returnResult) { return $db_query; }
 		return ('0'.chr(9).'query accepted');
 	}
 }
