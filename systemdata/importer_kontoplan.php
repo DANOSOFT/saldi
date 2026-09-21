@@ -38,6 +38,8 @@
 //                  cookie separator that does not occur in a freshly uploaded file loses to the
 //                  detected one, so the preview is not garbled by the previous import's choice.
 // 20260921 Sawaneh JOB-086 review 3: text ids renumbered 5080-5087 -> 5222-5229 (id range clash).
+// 20260921 Sawaneh JOB-086 review 3: find_splitter() stops at EOF, so a file with fewer than three
+//                  rows still gets its separator detected and its columns can be mapped.
 
 @session_start();
 $s_id=session_id();
@@ -164,7 +166,13 @@ function find_splitter($filnavn) {
 	$antal = array();
 	$fp = fopen($filnavn, "r");
 	if (!$fp) return array('', array());
-	for ($y = 1; $y < 4; $y++) $linje = fgets($fp);
+	# The third line is preferred (past any heading), but a file with only one or two rows
+	# must not end on fgets()'s false - the last line actually read is used.
+	for ($y = 1; $y < 4; $y++) {
+		$laest = fgets($fp);
+		if ($laest === false) break;
+		$linje = $laest;
+	}
 	fclose($fp);
 	foreach ($splitters as $navn => $tegn) $antal[$navn] = substr_count((string)$linje, $tegn);
 	arsort($antal);
