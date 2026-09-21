@@ -814,6 +814,21 @@ while ($r = db_fetch_array($q)) {
 	$vatPrice[$v]=$salgspris[$v];
 	$v++;
 }
+// 20260921 CDX/MJ SST-801 The render loop below looked up lagerstatus once per item, plus once per
+//             warehouse per item. Searching sets $slut=999999 further up, which turns pagination
+//             off, so that ran for every matching row rather than the fifty on screen - measured at
+//             7,3 ms per item on a dev tenant loaded to Dyre-Loppen's volume, about 300 s for their
+//             41.381 varer. Both lookups are read-only and keyed by vare_id, so they are built once
+//             here instead. Behaviour is unchanged: same rows, same numbers, same page contents.
+$lagerSum = array();
+$lagerRow = array();
+if ($lagerantal > 1 && !$makeSuggestion && !$vis_lev) {
+	$q2 = db_select("select vare_id, sum(beholdning) as lagersum from lagerstatus group by vare_id",__FILE__ . " linje " . __LINE__);
+	while ($r2 = db_fetch_array($q2)) $lagerSum[$r2['vare_id']] = $r2['lagersum'];
+	$q2 = db_select("select vare_id, lager, id, lok1, beholdning from lagerstatus",__FILE__ . " linje " . __LINE__);
+	while ($r2 = db_fetch_array($q2)) $lagerRow[$r2['vare_id']][$r2['lager']] = $r2;
+}
+
 if(isset($varenr)){// 20230414
 for ($v=0;$v<count($varenr);$v++) {
 	$z++;	# $z bruges som taeller til at kontrollere hvor mange linjer der indgaar i listen.
@@ -864,11 +879,10 @@ for ($v=0;$v<count($varenr);$v++) {
 			}
 			if (!$vis_lev){
 				if ($lagerantal>1 && !$makeSuggestion) {
-					$r2=db_fetch_array(db_select("select sum(beholdning) as lagersum from lagerstatus where vare_id = $id[$v]",__FILE__ . " linje " . __LINE__));
-					$diff=$beholdning[$v]-$r2['lagersum'];
+					// SST-801 read from the totals built before this loop, not a query per item
+					$diff=$beholdning[$v]-(isset($lagerSum[$id[$v]])?$lagerSum[$id[$v]]:0);
 					for ($x=1;$x<=$lagerantal; $x++) {
-						$qtxt = "select id, lager,lok1,beholdning from lagerstatus where vare_id = '$id[$v]' and lager = '$x'";
-						if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+						if ($r2=(isset($lagerRow[$id[$v]][$x])?$lagerRow[$id[$v]][$x]:false)) {
 							$y = (float)$r2['beholdning'];
 							$lok=trim(utf8_decode($r2['lok1']));
 						} else {
