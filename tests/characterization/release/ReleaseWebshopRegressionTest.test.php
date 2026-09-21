@@ -15,6 +15,8 @@ final class ReleaseWebshopRegressionTest extends TestCase
             'creditor posting precision' => ['test_creditor_posting_precision.php', true],
             'dunning atomic posting' => ['test_dunning_posting.php', true],
             'credit atomicity and metadata' => ['test_webshop_credit_note.php', true],
+            'currency difference posting and rollback' => ['test_journal_currency_difference.php', true],
+            'import production database audit and rollback' => ['test_import_database_policy.php', true],
             'reference client safe server rejection' => ['test_rest_client_rejection_contract.php', true],
             'legacy API dispatch diagnostics' => ['test_legacy_api_dispatch.php', false],
             'CSV barcode collision diagnostics' => ['test_varesync_barcode_diagnostics.php', true],
