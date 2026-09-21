@@ -38,9 +38,48 @@
 // 20220530 PHR resetPW was newer hit and no mail sent. Added '&& !$resetPW' to if ($account)  
 // 20230311 PHR Various updates according to PHP8 
 // 20230918 PHR Check if db exists 
+// 20260915 CDX/PHR Resolve the shop from a logged-in Saldi session before customer lookup.
+// 20260915 CDX/PHR Customer logout returns to customer-number entry and preserves the staff session.
 
 @session_start();
 $s_id=session_id();
+header('Cache-Control: no-store, private');
+require_once(__DIR__ . '/shopLookup.php');
+
+if (($_POST['action'] ?? '') === 'logout_customer') {
+	$logoutToken = $_POST['logoutToken'] ?? null;
+	if (!mySaleCustomerLogout($_SESSION, $logoutToken)) {
+		http_response_code(403);
+		echo 'Sessionen er ændret. Genindlæs siden og prøv igen.';
+		exit;
+	}
+	include(__DIR__ . '/../includes/connect.php');
+	mySaleRemoveCustomerSession($s_id);
+	setcookie('mylabel', '', time() - 3600, '/');
+	header('Location: mysale.php', true, 303);
+	exit;
+}
+
+if (empty($_GET['id']) && empty($_GET['tmpcode'])) {
+	$sessionCookie = $_COOKIE[session_name()] ?? null;
+	if (!is_string($sessionCookie) || $sessionCookie !== $s_id) {
+		header('Location: ../index/index.php', true, 303);
+		exit;
+	}
+	$customerNumber = is_string($_POST['kundenummer'] ?? null) ? trim($_POST['kundenummer']) : '';
+	include(__DIR__ . '/../includes/connect.php');
+	$lookup = mySaleShopLookup($s_id, $customerNumber, $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'],
+		function ($tenant) use ($sqhost, $squser, $sqpass, &$db) {
+			$db = $tenant;
+			return db_connect($sqhost, $squser, $sqpass, $tenant);
+		});
+	if ($lookup['redirect'] !== '') {
+		header('Location: ' . $lookup['redirect'], true, 303);
+		exit;
+	}
+	mySaleShopLookupForm($customerNumber, $lookup);
+	exit;
+}
 
 $accountId=$f=$t=$tmpcode=$s=NULL;
 if (!isset($_SESSION['mySalePw'])) $_SESSION['mySalePw'] = NULL;
@@ -52,6 +91,13 @@ print "<html>";
 print "	<head><title>Mit Salg</title><meta http-equiv='content-type' content='text/html; charset=UTF-8;'>
 	<meta http-equiv='content-language' content='da'>
 </head><body>";
+
+if (!empty($_GET['id'])) {
+	if (empty($_SESSION['mySaleLogoutToken'])) {
+		$_SESSION['mySaleLogoutToken'] = bin2hex(random_bytes(32));
+	}
+	mySaleCustomerLogoutButton($_SESSION['mySaleLogoutToken']);
+}
 
 $menu = 'mySale';
 if(isMobileDevice()) {
@@ -125,10 +171,6 @@ $link = $id;
 	else $account=$kto;
 }
 #if ($_SERVER['REMOTE_ADDR'] == '87.62.100.183') echo "db $db<br>";
-if (isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'],'debitor/debitor.php')) { # 20210505
-	$_SESSION['mySalePw'] = $s_id;
-	$_SESSION['mySaleAcId'] = $accountId;
-}
 
 if (file_exists('redirect.php')) include ('redirect.php');
 if ($id && !is_numeric($account)) {
@@ -158,6 +200,24 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 }
 $qtxt = "delete from online where rettigheder = '0' and regnskabsaar = '0' and logtime < '". $logtime ."'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+# 20260828 SST-743: staff access from debitor_kommission.php. Replaces the 20210505 referer bypass,
+# which stopped matching when kommissionslisten left debitor/debitor.php and the link became
+# cross-origin (browsers then send only the origin as referer). The list appends
+# st=sha256(bizsys session id); accept it when it matches a logged-in staff session for the same db.
+if (isset($_GET['st']) && $accountId && $db) {
+	$st = strtolower(preg_replace('/[^A-Fa-f0-9]/','',$_GET['st']));
+	if (strlen($st) == 64) {
+		$qtxt = "select session_id from online where db = '". db_escape_string($db) ."' and rettigheder <> '0'";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($rs=db_fetch_array($q)) {
+			if (hash_equals(hash('sha256',(string)$rs['session_id']),$st)) {
+				$_SESSION['mySalePw'] = $s_id;
+				$_SESSION['mySaleAcId'] = $accountId;
+				break;
+			}
+		}
+	}
+}
 if ($account && !$resetPW) {
 	setcookie("mylabel","$account|$db",time()-60,"/");
 	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='online' and column_name='sprog'";

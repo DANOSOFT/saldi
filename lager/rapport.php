@@ -99,6 +99,10 @@
 //             the correct per-supplier quantity, consistently with the 'per item number' view.
 //             Verified against all 6 acceptance criteria in the spec. Confirmed working on the
 //             production server (no blank page) after the performance fixes above.
+// 20260901 CL/SZ MB-31: added a standardised per-column search row directly under the sticky
+//             column-title row (matching lager/lister/vareliste.php's create_datagrid() search
+//             row), reusing the existing Varenr./Varenavn fields that already fed the query further
+//             down (previously only on the front page) - no change to that query/caching logic
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -156,6 +160,14 @@ $kun_salg   = isset($_GET['kun_salg'])   ? $_GET['kun_salg']   : null;
 $lagertal   = isset($_GET['lagertal'])   ? $_GET['lagertal']   : null;
 $vk_kost    = isset($_GET['vk_kost'])    ? $_GET['vk_kost']    : null; #20260715 CL/SZ - vk_kost was missing from the GET baseline (only ever read from $_POST below), so every GET-only pagination request reset it to NULL regardless of the original submit's value, permanently mismatching the chunk-cache key and defeating the cache on every page 2+ click
 $submit     = isset($_GET['submit'])     ? $_GET['submit']     : null;
+// MB-31 - one search box per grid column, matching every other list in the app (create_datagrid()).
+// Varenr./Beskrivelse above stay their own named GET/POST fields (unchanged, SQL-level filter); every
+// other column here is a computed/aggregated value with no matching DB column to filter on directly, so
+// these are read into one array and matched against each item's already-computed value further down
+// (see $vrRowValues/$vrMatchIndices in varegruppe()), never touching the query itself.
+$vrSFields = array('enhed','varenr_alias','beskrivelse_alias','kostpris','bestilt','kobt','kobspris','solgt','salgspris','moms','regul','db','dg','behold','vaerdi','palager');
+$vrS = array();
+foreach ($vrSFields as $vrSField) $vrS[$vrSField] = isset($_GET['vrs_'.$vrSField]) ? trim($_GET['vrs_'.$vrSField]) : null;
 
 if (isset($_POST['submit']) && $_POST['submit']) {
 	$submit=strtolower(trim($_POST['submit']));
@@ -174,6 +186,7 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 	$vk_kost      = isset($_POST['vk_kost']) ? $_POST['vk_kost'] : null;
 	$varenr       = trim($varenr);
 	$varenavn     = trim($varenavn);
+	foreach ($vrSFields as $vrSField) $vrS[$vrSField] = isset($_POST['vrs_'.$vrSField]) ? trim($_POST['vrs_'.$vrSField]) : null;
 }
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
@@ -187,6 +200,36 @@ elseif ($inventoryCount) print "<meta http-equiv=\"refresh\" content=\"0;URL=opt
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
 #############################################################################################################
+// MB-31 - one <input> per grid search column (see $vrSFields above); every such box uses this same markup.
+function vrSearchInput($name, $value) {
+	return "<input class='inputbox' type='text' name='vrs_$name' value='" . htmlspecialchars((string)$value, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
+}
+// MB-31 - matches one item's already-computed $values (see $vrRowValues) against every non-blank term in
+// $search (the $vrS array): text columns are a case-insensitive substring match, everything else is an
+// exact numeric match (rounded to 2 decimals, same as the report already displays) or a "min:max" range if
+// the box contains a colon - the same two conventions includes/grid.php's own generic search uses for its
+// 'text'/'number' column types. A term for a column this mode/branch doesn't have (not in $values at all)
+// is ignored rather than excluding every row, since that search box was never rendered for the user in
+// the first place.
+function vrRowMatchesSearch($values, $search) {
+	$textFields = array('enhed', 'varenr_alias', 'beskrivelse_alias');
+	foreach ($search as $field => $term) {
+		$term = trim((string)$term);
+		if ($term === '' || !array_key_exists($field, $values)) continue;
+		$value = $values[$field];
+		if (in_array($field, $textFields)) {
+			if (mb_stripos((string)$value, $term) === false) return false;
+		} elseif (strpos($term, ':') !== false) {
+			list($lo, $hi) = explode(':', $term, 2);
+			$lo = trim((string)$lo) === '' ? -INF : usdecimal($lo);
+			$hi = trim((string)$hi) === '' ? INF : usdecimal($hi);
+			if (round((float)$value, 2) < $lo || round((float)$value, 2) > $hi) return false;
+		} elseif (round((float)$value, 2) != usdecimal($term)) {
+			return false;
+		}
+	}
+	return true;
+}
 function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref) {
 
 	#global $connection;
@@ -198,8 +241,6 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 #	$regnaar=$regnaar*1; #fordi den er i tekstformat og skal vaere numerisk
 	($date_from)?$dato_fra=dkdato($date_from):$dato_fra="01-01-".date("Y");
 	($date_to)?$dato_til=dkdato($date_to):$dato_til=date("d-m-Y");
-	if (!$varenr) $varenr="*";
-	if (!$varenavn) $varenavn="*";
 	if ($detaljer) $detaljer='checked';
 	if ($kun_salg) $kun_salg='checked';
 	if ($lagertal) $lagertal='checked';
@@ -549,8 +590,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	} elseif ($vrGridMode) {
 		// Full header bar now that $vrTitleExtra/$luk are known - back button (with icon, matching
 		// includes/salgsstat.php) / title / CSV export (reuses the existing CSV feature as the header's
-		// 3rd button, in place of salgsstat's "advanced search" button, since this report's own filter
-		// form lives on the front page (forside()), reached via Back).
+		// 3rd button).
 		$vrTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
 		print "<td width='10%' align='left'>$luk
@@ -596,25 +636,25 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	$x=0;
 	$tmp="";
 	if ($gruppenr) $tmp = "where gruppe = '$gruppenr'";
-	if ($varenr && $varenr != '*') {
-		if (strstr($varenr, "*")) {
-			if (substr($varenr,0,1)=='*') $varenr="%".substr($varenr,1);
-			if (substr($varenr,-1,1)=='*') $varenr=substr($varenr,0,strlen($varenr)-1)."%";
-		}
-		$low=strtolower($varenr);
-		$upp=strtoupper($varenr);
-		if ($tmp) $tmp.=" and (varenr LIKE '".db_escape_string($varenr)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
-		else $tmp =  "where (varenr LIKE '".db_escape_string($varenr)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
+	if ($varenr) {
+		// MB-31 - always a plain substring match, same as every other per-column search box in this
+		// grid row and in the ordreliste.php sample - no special '*' wildcard syntax to remember.
+		// Pattern built into its own variable (not $varenr itself) so the search box, cache key,
+		// hidden fields and pagination links all keep showing what the user actually typed instead
+		// of the wrapped '%...%' SQL pattern.
+		$varenrPattern = "%".$varenr."%";
+		$low=strtolower($varenrPattern);
+		$upp=strtoupper($varenrPattern);
+		if ($tmp) $tmp.=" and (varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
+		else $tmp =  "where (varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
 	}
-	if ($varenavn && $varenavn != '*') {
-		if (strstr($varenavn, "*")) {
-			if (substr($varenavn,0,1)=='*') $varenavn="%".substr($varenavn,1);
-			if (substr($varenavn,-1,1)=='*') $varenavn=substr($varenavn,0,strlen($varenavn)-1)."%";
-		}
-		$low=strtolower($varenavn);
-		$upp=strtoupper($varenavn);
-		if ($tmp) $tmp.=" and (beskrivelse LIKE '".db_escape_string($varenavn)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";
-		else $tmp =  "where (beskrivelse LIKE '".db_escape_string($varenavn)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";
+	if ($varenavn) {
+		// MB-31 - same plain substring match as Varenr. above, same reason for a separate pattern var.
+		$varenavnPattern = "%".$varenavn."%";
+		$low=strtolower($varenavnPattern);
+		$upp=strtoupper($varenavnPattern);
+		if ($tmp) $tmp.=" and (beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";
+		else $tmp =  "where (beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";
 	}
 	$vare_id=array();
 	$x=0;
@@ -737,7 +777,11 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			$vrCacheRaw = @file_get_contents($vrCacheFile);
 			if ($vrCacheRaw !== false) {
 				$vrCacheTry = @unserialize($vrCacheRaw);
-				if (is_array($vrCacheTry) && isset($vrCacheTry['totalRows']) && $vrCacheTry['totalRows'] == count($v_id)) {
+				// MB-31/CodeRabbit - also require 'values': a cache entry written before this ticket's
+				// deploy has no 'values' key, and without this check it would still pass as a hit, silently
+				// disabling every computed-column search for up to 20 minutes post-deploy (vrRowMatchesSearch()
+				// skips any term whose field is missing from an empty $values array instead of filtering).
+				if (is_array($vrCacheTry) && isset($vrCacheTry['totalRows']) && $vrCacheTry['totalRows'] == count($v_id) && isset($vrCacheTry['values'])) {
 					$vrCacheData = $vrCacheTry;
 				}
 			}
@@ -769,6 +813,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		$vrPageStart=($vrPage-1)*$vrPerPage;
 		$vrPageEnd=$vrPageStart+$vrPerPage;
 	}
+	$vrSearchFormOpen = false; // MB-31 - set true only in the summary (!$vrDetailMode) branch below, which is the only one that opens the <form> wrapping the search row
 	if ($vrDetailMode) {
 		// Detaljeret has no single shared column set - each item prints its own Køb (6 cols), Salg
 		// (9 cols) and Lagerreguleret (2 cols) sub-sections, each with its own column-title row, exactly
@@ -799,11 +844,75 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		print "<style>
 #vrGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
 #vrGridTable { border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; }
-#vrGridTable th { position:sticky; top:0; z-index:10; padding:6px 4px; background-color:$bgcolor; box-sizing:border-box; text-align:left; }
+/* This page's legacy doctype puts the browser in quirks mode, where two independently
+   position:sticky <tr>s in one table both lose their stickiness the moment there are two of
+   them - confirmed live (hiding the search row on its own made the title row stick again).
+   Sticking the whole <thead> as a single unit sidesteps that and keeps both rows pinned
+   together, same as includes/grid.php's own .datatable thead { position:sticky } does. */
+#vrGridTable thead { position:sticky; top:0; z-index:10; }
+#vrGridTable th { padding:6px 4px; background-color:$bgcolor; box-sizing:border-box; text-align:left; }
 #vrGridTable td { box-sizing:border-box; padding:4px; overflow-wrap:anywhere; word-break:break-word; }
 #vrGridTable th.text-right { text-align:right; }
+#vrGridTable tr.vr-search-row th { background-color:$bgcolor; font-weight:normal; padding:2px 4px; }
+/* .inputbox (css/standard.css) doesn't style :disabled, so the placeholder boxes on columns with
+   no real search field looked identical to the two working ones (Varenr./Beskrivelse) - blend
+   them into the row instead so it's visually clear only those two are actually searchable. */
+#vrGridTable tr.vr-search-row input:disabled { background-color:$bgcolor; border-color:$bgcolor; cursor:default; }
 </style>\n";
-		print "<div id='vrGridWrapper'><table id='vrGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$vrColgroupHtml<tbody>";
+		// MB-31 - standardised per-column search row (matches lager/lister/vareliste.php's
+		// create_datagrid()/includes/grid.php render_table_headers(): a second <tr> of <th> search
+		// inputs inside the same sticky <thead> as the column-title row, not a row below it). A
+		// <form> wraps the whole grid so the Varenr./Beskrivelse inputs resubmit to this same
+		// varegruppe() with every other current filter preserved as hidden fields. Only these two
+		// columns are wired up - the rest are derived per-item further down in this same request
+		// (the report-speed optimisation this ticket says not to disturb), not simple DB columns a
+		// search box could filter on without re-touching that code.
+		// display:flex/flex:1/min-height:0 here make the <form> a transparent pass-through in the
+		// #vrPageFlex flex column: without them the form (a plain block box) breaks the flex chain
+		// between #vrPageFlex and #vrGridWrapper, #vrGridWrapper's own flex:1 has no effect, it grows
+		// to its full content height instead of the viewport, and the sticky header/search rows have
+		// no scrolling ancestor to stick within - this is what broke the header/search scroll-pinning.
+		print "<form name='vrInlineSearch' action='rapport.php' method='post' style='display:flex;flex-direction:column;flex:1 1 auto;min-height:0;'>";
+		print "<input type='hidden' name='varegruppe' value='" . htmlspecialchars((string)$varegruppe, ENT_QUOTES) . "'>";
+		print "<input type='hidden' name='afd' value='" . htmlspecialchars((string)$afd, ENT_QUOTES) . "'>";
+		print "<input type='hidden' name='lev' value='" . htmlspecialchars((string)$lev, ENT_QUOTES) . "'>";
+		print "<input type='hidden' name='ref' value='" . htmlspecialchars((string)$ref, ENT_QUOTES) . "'>";
+		// MB-31/CodeRabbit - $date_from/$date_to come straight from $_GET with no format validation;
+		// dkdato() doesn't escape its output, so an unescaped value here is a reflected-XSS vector.
+		print "<input type='hidden' name='dato_fra' value='" . htmlspecialchars(dkdato($date_from), ENT_QUOTES, 'UTF-8') . "'>";
+		print "<input type='hidden' name='dato_til' value='" . htmlspecialchars(dkdato($date_to), ENT_QUOTES, 'UTF-8') . "'>";
+		print "<input type='hidden' name='detaljer' value='" . htmlspecialchars((string)$detaljer, ENT_QUOTES) . "'>";
+		print "<input type='hidden' name='kun_salg' value='" . htmlspecialchars((string)$kun_salg, ENT_QUOTES) . "'>";
+		print "<input type='hidden' name='lagertal' value='" . htmlspecialchars((string)$lagertal, ENT_QUOTES) . "'>";
+		print "<input type='hidden' name='vk_kost' value='" . htmlspecialchars((string)$vk_kost, ENT_QUOTES) . "'>";
+		print "<input type='hidden' name='submit' value='ok'>";
+		print "<input type='submit' style='position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;'>";
+		$vrSearchFormOpen = true;
+		$vrSearchVarenr   = "<input class='inputbox' type='text' name='varenr' value='" . htmlspecialchars((string)$varenr, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
+		$vrSearchVarenavn = "<input class='inputbox' type='text' name='varenavn' value='" . htmlspecialchars((string)$varenavn, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
+		// MB-31 - every other column below is a computed/aggregated value (not a plain DB column), so
+		// unlike Varenr./Beskrivelse above these can't filter via SQL without touching the per-item
+		// aggregation this ticket says not to disturb - instead each $vrS[...] term is matched against
+		// the item's already-computed value after the fact, right before pagination/totals are worked
+		// out further down (see the $vrRowValues/$vrMatchIndices block after the item loop).
+		global $vrS;
+		$vrSearchEnhed     = vrSearchInput('enhed', $vrS['enhed']);
+		$vrSearchVAlias    = vrSearchInput('varenr_alias', $vrS['varenr_alias']);
+		$vrSearchBAlias    = vrSearchInput('beskrivelse_alias', $vrS['beskrivelse_alias']);
+		$vrSearchKostpris  = vrSearchInput('kostpris', $vrS['kostpris']);
+		$vrSearchBestilt   = vrSearchInput('bestilt', $vrS['bestilt']);
+		$vrSearchKobt      = vrSearchInput('kobt', $vrS['kobt']);
+		$vrSearchKobspris  = vrSearchInput('kobspris', $vrS['kobspris']);
+		$vrSearchSolgt     = vrSearchInput('solgt', $vrS['solgt']);
+		$vrSearchSalgspris = vrSearchInput('salgspris', $vrS['salgspris']);
+		$vrSearchMoms      = vrSearchInput('moms', $vrS['moms']);
+		$vrSearchRegul     = vrSearchInput('regul', $vrS['regul']);
+		$vrSearchDb        = vrSearchInput('db', $vrS['db']);
+		$vrSearchDg        = vrSearchInput('dg', $vrS['dg']);
+		$vrSearchBehold    = vrSearchInput('behold', $vrS['behold']);
+		$vrSearchVaerdi    = vrSearchInput('vaerdi', $vrS['vaerdi']);
+		$vrSearchPalager   = vrSearchInput('palager', $vrS['palager']);
+		print "<div id='vrGridWrapper'><table id='vrGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$vrColgroupHtml<thead>";
 		if ($kun_salg) {
 			print "<tr class='vr-col-title-row'><th>".findtekst('917|Varenr.', $sprog_id)."</th>
 			<th>(alias)</th>
@@ -816,6 +925,8 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<th class='text-right'>DB</th>
 			<th class='text-right'>DG</th>
 			<th class='text-right'>".findtekst('975|På lager', $sprog_id)."</th></tr>\n"; #20210402
+			print "<tr class='vr-search-row'><th>$vrSearchVarenr</th><th>$vrSearchVAlias</th><th>$vrSearchEnhed</th><th>$vrSearchVarenavn</th><th>$vrSearchBAlias</th>
+			<th>$vrSearchKostpris</th><th>$vrSearchSolgt</th><th>$vrSearchSalgspris</th><th>$vrSearchDb</th><th>$vrSearchDg</th><th>$vrSearchPalager</th></tr>\n";
 			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". 'På lager' ."\r\n");
 		} else {
 			print "<tr class='vr-col-title-row'><th>".findtekst('917|Varenr.', $sprog_id)."</th>
@@ -835,14 +946,22 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<th class='text-right'>DG</th>";
 			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Bestilt;". 'Købt' .";". 'Købspris' .";");
 			fwrite($csvfile, "Solgt;Salgspris;". '+moms' .";Reguleret;DB;DG");
+			// The search row's cell count always matches the header row's regardless of branch: the
+			// Beholdning/Værdi search boxes only appear when those columns themselves do.
+			$vrSearchRowExtraCells = "<th>$vrSearchDb</th><th>$vrSearchDg</th>";
 			if ($lagertal && count($lagergruppe)) {
 				print "<th class='text-right'>".findtekst('980|Beholdning', $sprog_id)."</th>
 				<th class='text-right'>".findtekst('476|Værdi', $sprog_id)."</th>";
 				fwrite($csvfile,";Beholdning;". 'Værdi');
+				$vrSearchRowExtraCells = "<th>$vrSearchDb</th><th>$vrSearchDg</th><th>$vrSearchBehold</th><th>$vrSearchVaerdi</th>";
 			}
 			print "</tr>\n";
 			fwrite($csvfile,"\r\n");
+			print "<tr class='vr-search-row'><th>$vrSearchVarenr</th><th>$vrSearchVAlias</th><th>$vrSearchEnhed</th><th>$vrSearchVarenavn</th><th>$vrSearchBAlias</th>
+			<th>$vrSearchKostpris</th><th>$vrSearchBestilt</th><th>$vrSearchKobt</th><th>$vrSearchKobspris</th><th>$vrSearchSolgt</th><th>$vrSearchSalgspris</th><th>$vrSearchMoms</th><th>$vrSearchRegul</th>
+			$vrSearchRowExtraCells</tr>\n";
 		}
+		print "</thead><tbody>";
 	} elseif (!$detaljer) {
 		if ($kun_salg) {
 			print "<tr><td><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
@@ -895,11 +1014,13 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		$tt_k_pris=$vrCacheData['tt_k_pris']; $tt_s_pris=$vrCacheData['tt_s_pris']; $tt_moms=$vrCacheData['tt_moms'];
 		$tt_kost=$vrCacheData['tt_kost']; $tt_dkBi=$vrCacheData['tt_dkBi']; $tt_stockvalue=$vrCacheData['tt_stockvalue'];
 		$vrAllChunks = $vrCacheData['chunks'];
+		// MB-31 - per-item raw values needed for the new search boxes: cached alongside the chunks
+		// (not part of the cache key - see below) so a search doesn't cost a full recompute, only a
+		// fresh filter pass over already-known values. Printing itself is deferred to the unified
+		// filter+paginate step after this if/else, shared with the cache-miss branch.
+		$vrRowValues = isset($vrCacheData['values']) ? $vrCacheData['values'] : array();
 		$x = count($v_id);
 		$linjebg = $vrCacheData['linjebg'];
-		for ($vrCi=$vrPageStart; $vrCi<min($vrPageEnd,count($vrAllChunks)); $vrCi++) {
-			if (isset($vrAllChunks[$vrCi])) print $vrAllChunks[$vrCi];
-		}
 	} else {
 	$tt_kobt=$tt_solgt=$tt_regul=$tt_k_pris=$tt_s_pris=$tt_moms=$tt_kost=$tt_dkBi=$tt_stockvalue=0;
 	// 20260714 SZ - renamed from $varenr to $v_varenr: this per-row array was shadowing the function's
@@ -1485,6 +1606,19 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "<tr bgcolor='$linjebg'><td colspan=\"$cols\"><hr></td></tr>\n";
 			fwrite($csvfile, "-------------\r\n");
 		}
+		if ($vrGridMode && !$vrDetailMode) {
+			// MB-31 - snapshot of this item's already-computed values, used only to filter/paginate/total
+			// below (see the unified filter block after this loop) - never re-queried, so a search costs
+			// nothing beyond a plain comparison against numbers the report was already computing anyway.
+			$vrRowValues[$x] = array(
+				'enhed' => $enhed[$x], 'varenr_alias' => $varenr_alias[$x], 'beskrivelse_alias' => $beskrivelse_alias[$x],
+				'kostpris' => $v_kostpris[$x], 'bestilt' => isset($ov_qty[$x]) ? $ov_qty[$x] : 0,
+				'kobt' => $t_kobt, 'kobspris' => $t_k_pris, 'solgt' => $t_solgt, 'salgspris' => $t_s_pris,
+				'moms' => $t_moms, 'regul' => $t_regul, 'kost' => $t_kost, 'db' => $t_dkBi, 'dg' => $t_dg,
+				'behold' => $beholdning[$x], 'vaerdi' => $beholdning[$x]*$v_kostpris[$x],
+				'palager' => $beholdning[$x], 'stockvalue' => isset($t_stockvalue) ? $t_stockvalue : 0,
+			);
+		}
 		if ($vrGridMode) {
 			$vrAllChunks[$x] = ob_get_clean();
 		}
@@ -1492,20 +1626,61 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	if ($vrGridMode) {
 		// 20260715 CL/SZ - loop finished computing every item (needed regardless of page, to get correct
 		// grand totals) - save what it produced so a later page-click with the exact same filters can
-		// skip straight to printing instead of recomputing. Only the current page's chunks print now;
-		// the rest were still captured above (ob_get_clean ran for every item, not just this page's).
-		for ($vrCi=$vrPageStart; $vrCi<min($vrPageEnd,count($vrAllChunks)); $vrCi++) {
-			if (isset($vrAllChunks[$vrCi])) print $vrAllChunks[$vrCi];
-		}
+		// skip straight to printing instead of recomputing. Printing itself is deferred to the unified
+		// filter+paginate step below, shared with the cache-hit branch.
+		// MB-31 - 'values' persists $vrRowValues alongside the chunks; not part of $vrCacheFile's key,
+		// since none of the new search boxes change what gets computed here, only what gets shown from
+		// it - so a search never has to wait for this whole loop to run again, cache hit or not.
 		@file_put_contents($vrCacheFile, serialize(array(
 			'totalRows' => count($v_id),
 			'chunks' => $vrAllChunks,
+			'values' => isset($vrRowValues) ? $vrRowValues : array(),
 			'tt_kobt' => $tt_kobt, 'tt_solgt' => $tt_solgt, 'tt_regul' => $tt_regul,
 			'tt_k_pris' => $tt_k_pris, 'tt_s_pris' => $tt_s_pris, 'tt_moms' => $tt_moms,
 			'tt_kost' => $tt_kost, 'tt_dkBi' => $tt_dkBi, 'tt_stockvalue' => $tt_stockvalue,
 			'linjebg' => $linjebg,
 		)));
 	}
+	}
+	if ($vrGridMode && !$vrDetailMode) {
+		// MB-31 - unified filter/paginate/grand-total step for the summary grid, run once here whether
+		// $vrAllChunks/$vrRowValues just came from a fresh computation above or a cache hit earlier -
+		// overrides the provisional (unfiltered) $vrTotalRows/$vrPageStart/$vrPageEnd computed early on
+		// (that early version is still what $vrDetailMode's own pagination below uses unchanged, since
+		// it has no search boxes of its own to filter by). $tt_*/$vrRowValues are unavailable for actual
+		// detail rows, so nothing here touches or is used by the Detaljeret branch.
+		$vrMatchIndices = array();
+		for ($vrI = 0; $vrI < count($vrAllChunks); $vrI++) {
+			if (vrRowMatchesSearch(isset($vrRowValues[$vrI]) ? $vrRowValues[$vrI] : array(), $vrS)) {
+				$vrMatchIndices[] = $vrI;
+			}
+		}
+		$vrTotalRows = count($vrMatchIndices);
+		$vrTotalPages = max(1, ceil($vrTotalRows / $vrPerPage));
+		if ($vrPage > $vrTotalPages) $vrPage = $vrTotalPages;
+		$vrPageStart = ($vrPage - 1) * $vrPerPage;
+		$vrPageEnd = $vrPageStart + $vrPerPage;
+		$tt_kobt=$tt_solgt=$tt_regul=$tt_k_pris=$tt_s_pris=$tt_moms=$tt_kost=$tt_dkBi=$tt_stockvalue=0;
+		foreach ($vrMatchIndices as $vrI) {
+			$vrV = isset($vrRowValues[$vrI]) ? $vrRowValues[$vrI] : array();
+			$tt_kobt += isset($vrV['kobt']) ? $vrV['kobt'] : 0;
+			$tt_solgt += isset($vrV['solgt']) ? $vrV['solgt'] : 0;
+			$tt_regul += isset($vrV['regul']) ? $vrV['regul'] : 0;
+			$tt_k_pris += isset($vrV['kobspris']) ? $vrV['kobspris'] : 0;
+			$tt_s_pris += isset($vrV['salgspris']) ? $vrV['salgspris'] : 0;
+			$tt_moms += isset($vrV['moms']) ? $vrV['moms'] : 0;
+			$tt_kost += isset($vrV['kost']) ? $vrV['kost'] : 0;
+			$tt_dkBi += isset($vrV['db']) ? $vrV['db'] : 0;
+			$tt_stockvalue += isset($vrV['stockvalue']) ? $vrV['stockvalue'] : 0;
+		}
+		for ($vrCi = $vrPageStart; $vrCi < min($vrPageEnd, count($vrMatchIndices)); $vrCi++) {
+			print $vrAllChunks[$vrMatchIndices[$vrCi]];
+		}
+	} elseif ($vrGridMode) {
+		// $vrDetailMode - no search boxes of its own, so no filtering: same behavior as before MB-31.
+		for ($vrCi = $vrPageStart; $vrCi < min($vrPageEnd, count($vrAllChunks)); $vrCi++) {
+			if (isset($vrAllChunks[$vrCi])) print $vrAllChunks[$vrCi];
+		}
 	}
 	if (!$detaljer) {
 		if ($tt_s_pris && $tt_dkBi) $tt_dg=$tt_dkBi*100/$tt_s_pris;
@@ -1623,6 +1798,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		// includes/salgsstat.php uses for its own #ssPageFooterBar.
 		print "</tbody></table>"; // close #vrGridTable
 		print "</div>\n"; // close #vrGridWrapper
+		if ($vrSearchFormOpen) print "</form>";
 
 		$vrTxt1 = lcfirst(findtekst('2767|Af', $sprog_id));
 		$vrTxt2 = findtekst('2125|Linjer pr. side', $sprog_id);

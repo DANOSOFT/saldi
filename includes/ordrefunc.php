@@ -113,6 +113,10 @@
 //             elseif(!$svar) branch, right after $fejl (which is never reassigned), making it
 //             dead code and leaving the committed-success path unchecked; moved it back to
 //             sit unconditionally before the shared return (SD-595)
+// 20260813 Sawaneh function krediter: replacement serial row insert interpolated the whole
+//             $batch_kob_id array as literal "Array" causing a SQL syntax error, so the fresh
+//             salgslinje_id=0 row was never created on credit; insert batch_kob_id '0' like the
+//             credit path in linjeopdat, and initialize $batch_kob_id as array
 // 20260824 Sawaneh JOB-056 function momsupdat: free-text lines (vare_id=0) with their own bogf_konto/momssats
 //             were invisible to the mixed-VAT detection, so the flat header-rate recalculation overwrote
 //             ordrer.moms with header rate on the whole order while bogfor_nu posts VAT per line rate
@@ -124,6 +128,11 @@
 // 20260811 Sawaneh function batch: automatic batch reservation now uses fefo_order_clause() instead
 //                  of 'order by kobsdate', so the batch expiring first is drawn first (FEFO).
 //                  Items without due dates are unaffected - they still come out in kobsdate order.
+// 20260908 CL/Sawaneh SST-763: duplicate pbsfakt() removed; includes/pbsfunc.php is included instead.
+// 20260914 CL/SZ SST-744: function bogfor_nu: moved the vat_account/findAccountVat check for a VAT-liable
+//             line to before $d_kontrol/$k_kontrol are incremented for it, so a missing VAT code on the
+//             posting account can never inflate the control totals without a matching posting; the
+//             returned error now names the offending account and order instead of a bare generic string.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -804,6 +813,7 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 	$kobsbelob = 0;
 	$a = 0;
 	$res_sum = 0;
+	$batch_kob_id = array();
 
 	$row = db_fetch_array(db_select("select posnr, kred_linje_id from ordrelinjer where id='$linje_id'", __FILE__ . " linje " . __LINE__));
 	$kred_linje_id = $row['kred_linje_id'];
@@ -844,7 +854,7 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 		$q = db_select("select * from serienr where salgslinje_id=-$kred_linje_id", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$serienr = $r['serienr'];
-			db_modify("insert into serienr (kobslinje_id, vare_id, batch_kob_id, serienr, batch_salg_id, salgslinje_id) values ('$linje_id','$vare_id', $batch_kob_id, '$r[serienr]','0','0')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into serienr (kobslinje_id, vare_id, batch_kob_id, serienr, batch_salg_id, salgslinje_id) values ('$linje_id','$vare_id', '0', '$r[serienr]','0','0')", __FILE__ . " linje " . __LINE__);
 		}
 	}
 	#xit;
@@ -2330,6 +2340,14 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
 	return $diff;
 }
 ######################################################################################################################################
+/**
+ * Posts one or more orders' lines to the ledger (transaktioner/kontoplan), validating VAT/account
+ * setup and control-total balance before writing anything.
+ *
+ * @param int|string $id A single ordrer.id, or a comma-separated list of ids to post together.
+ * @param string $kilde Caller context; 'Dagsafslutning' forces POS (cash-drawer) posting rules.
+ * @return string 'OK' on success, otherwise a user-facing description of why posting failed.
+ */
 function bogfor_nu($id, $kilde) {
 
 	include("../includes/genberegn.php");
@@ -2973,6 +2991,16 @@ function bogfor_nu($id, $kilde) {
 					$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$bogf_konto[$y]' and regnskabsaar='$regnaar'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					if ($linjemoms[$y]) {
+						if (!$vat_account[$y]) {
+							include_once('../includes/stdFunc/findAccountVat.php');
+							$vat_account[$y] = findAccountVat($bogf_konto[$y]);
+						}
+						if (!$vat_account[$y]) {
+							# 20260914 CL/SZ SST-744: bail out before $d_kontrol/$k_kontrol are touched for this
+							# line, so a VAT/account setup problem can never leave the control totals holding an
+							# amount that was never actually posted anywhere.
+							return ("Kontroller moms & momsopsætning: kontonr $bogf_konto[$y] har ingen momskode, men ordre $id har en linje med moms");
+						}
 						if ($linjemoms[$y] > 0) {
 							$kredit = $linjemoms[$y];
 							$debet = 0;
@@ -2990,14 +3018,6 @@ function bogfor_nu($id, $kilde) {
 						$k_kontrol = $k_kontrol + $kredit;
 						$debet = afrund($debet, 2);
 						$kredit = afrund($kredit, 2);
-						if (!$vat_account[$y]) {
-							include_once('../includes/stdFunc/findAccountVat.php');
-							$vat_account[$y] = findAccountVat($bogf_konto[$y]);
-						}
-						if (!$vat_account[$y]) {
-							return ("Kontroller moms & momsopsætning");
-							exit;
-						}
 						if (is_numeric($id)) {
 							$qtxt = "insert into transaktioner ";
 							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
@@ -4861,31 +4881,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 }
 
 ######################################################################################################################################
-if (!function_exists('pbsfakt')) {
-	function pbsfakt($id)
-	{
-
-		if ($id && $id > 0) {
-			if ($r = db_fetch_array(db_select("select id from pbs_liste where afsendt = ''", __FILE__ . " linje " . __LINE__)))
-				$liste_id = $r['id'];
-			else {
-				$liste_date = date("Y-m-d");
-				$afsendt = NULL;
-				db_modify("insert into pbs_liste (liste_date,afsendt) values ('$liste_date','$afsendt')", __FILE__ . " linje " . __LINE__);
-				$r = db_fetch_array(db_select("select id from pbs_liste where afsendt = ''", __FILE__ . " linje " . __LINE__));
-				$liste_id = $r['id'];
-			}
-			if (db_fetch_array(db_select("select id from pbs_ordrer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__))) {
-				print "<tr><td>Faktura nr $r[fakturanr] findes allerede i PBS liste</td></tr>";
-			} else {
-				$r = db_fetch_array(db_select("select fakturanr, konto_id from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-				$konto_id = $r['konto_id'];
-				db_modify("insert into pbs_ordrer (liste_id,ordre_id) values ('$liste_id','$id')", __FILE__ . " linje " . __LINE__);
-				print "<tr><td>Faktura nr $r[fakturanr] tilf&oslash;jet til PBS liste</td></tr>";
-			}
-		}
-	}
-}
+include_once(__DIR__ . '/pbsfunc.php'); # pbsfakt() lives there now (SST-763)
 ##################################################
 function pos_afrund($sum, $difkto, $kurs)
 {
