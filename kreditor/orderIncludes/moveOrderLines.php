@@ -33,6 +33,22 @@
 //             POST strings in arithmetic - '1,5' in arithmetic is a PHP8 TypeError = blank page;
 //             guard/int-cast $linje_id (count(null) is likewise fatal); cap posnr bump with LEAST()
 //             so repeated splits cannot overflow the smallint posnr column mid-transaction.
+// 20260905 SZ MB-38: splitting to "Opret ny ordre" cloned the source row into temp_table and only
+//             rewrote id before the INSERT, so ordrenr (and every other header field) came along
+//             verbatim - two orders ended up sharing the same number, breaking ordrenr-based
+//             lookups/matching. Now also assign the temp row the next free kreditor ordrenr
+//             (scoped to art IN ('KO','KK'), same scope kreditor/ublimport.php already uses).
+// 20260905 SZ MB-38/CodeRabbit: the MAX(ordrenr)+1 read is a plain snapshot, so two concurrent
+//             splits could still compute the same "next" number. Serialize new-order creation with
+//             an advisory lock (pg_advisory_xact_lock, auto-released on commit; GET_LOCK/RELEASE_LOCK
+//             on MySQL, released explicitly after commit since MySQL locks aren't transaction-scoped).
+// 20260905 SZ MB-38/CodeRabbit: GET_LOCK() returns 0 on timeout / NULL on error, which the earlier
+//             fix ignored - check for a return of 1 and abort the split with an alert instead of
+//             risking a duplicate ordrenr if the lock wasn't actually acquired.
+// 20260910 Sawaneh JOB-128: reverted the MB-38 ordrenr reassignment (and its advisory lock). MEDSHOP
+//                 splits supplier orders so the back-ordered lines can be received later on the
+//                 ORIGINAL order number; a split-off order must therefore keep the source ordrenr,
+//                 exactly as the restordre flow in kreditor/ordre.php already does at partial delivery.
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
@@ -73,7 +89,7 @@ else {
 		$newId = $r['new_id'] + 1;
 		$qtxt = "CREATE TEMPORARY TABLE temp_table AS SELECT * FROM ordrer WHERE id='$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "UPDATE temp_table SET id='$newId' WHERE id='$id'";
+		$qtxt = "UPDATE temp_table SET id='$newId' WHERE id='$id'";	# JOB-128 - the split-off order keeps the source ordrenr on purpose (same as restordre in ordre.php)
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "INSERT INTO ordrer SELECT * FROM temp_table";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);

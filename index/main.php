@@ -31,6 +31,15 @@
 // 20260730 NTR - Added translation to momsperioder.
 // 20260730 MJ Fjernede Momsperioder-link fra Finans-sidebaren; linket er nu en knap i regnskabsaar.php
 // 20260902 CL/LH Indlejrede chaty_V2 support-chatbot (wuweiworkai.com/chaty-v2) i skallen
+// 20260904 Sawaneh WP-1.6: update_iframe() tags iframe navigations with inframe=1 (context flag for hosted pages)
+// 20260907 CDX/LH Fjernede gammel widget-loader, saa SALDI Assist kun indlaeses en gang
+// 20260907 CDX/LH Preserve iframe navigation while merging the current shell integration.
+// 20260907 CDX/LH Enable the saved-record bridge when the installation opts in.
+// 20260910 Sawaneh JOB-128: hash sync raced its setTimeout(0) guard, so a page rendered on a POST
+//                 response (kreditor split view, bare ordre.php URL) got reloaded from the hash as
+//                 ordre.php?inframe=1 = empty new order. Track the shell-written hash explicitly and
+//                 ignore the inframe flag when deciding whether the iframe already shows the target.
+// 20260914 CDX/LH Removed the Guides sidebar entry and its popup.
 @session_start();
 $s_id = session_id();
 
@@ -374,16 +383,6 @@ function brightenColor($color, $amount = 0.2) {
 
   <ul class="nav-links">
     <li>
-      <a href="#" onclick="document.getElementById('guideOverlay').classList.add('active'); return false;">
-        <i class='bx bx-book-open'></i>
-        <span class="link_name">Guides</span>
-      </a>
-      <ul class="sub-menu blank">
-        <li><a href="#" onclick="document.getElementById('guideOverlay').classList.add('active'); return false;">Guides</a></li>
-      </ul>
-    </li>
-
-    <li>
       <a href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">
         <i class='bx bx-envelope'></i>
         <span class="link_name"><?php print findtekst('398|Kontakt', $sprog_id); ?></span>
@@ -411,35 +410,6 @@ function brightenColor($color, $amount = 0.2) {
     <a href="#" onclick="window.frames['iframe_a'].focus();
                            window.frames['iframe_a'].print();">Print</a>
     <p title="DB nummer <?php print $db; ?>">Saldi version <?php print $version; ?></p>
-  </div>
-</div>
-
-<!-- Guide Overlay -->
-<div class="guide-overlay" id="guideOverlay" onclick="if(event.target===this) this.classList.remove('active');">
-  <div class="guide-modal">
-    <div class="guide-modal-header">
-      <h2><i class='bx bx-book-open'></i> Guides</h2>
-      <button class="guide-modal-close" onclick="document.getElementById('guideOverlay').classList.remove('active');">&times;</button>
-    </div>
-    <div class="guide-modal-body">
-      <p><?php echo ($sprog_id == 1) ? 'Vælg en guide for at åbne den i en ny fane.' : 'Select a guide to open it in a new tab.'; ?></p>
-      <ul class="guide-list">
-        <li>
-          <a href="../guides/pdf/finance_guide_da.pdf" target="_blank" onclick="document.getElementById('guideOverlay').classList.remove('active');">
-            <i class='bx bx-coin-stack'></i>
-            <?php echo ($sprog_id == 1) ? 'Regnskab (Finance)' : 'Finance Guide'; ?>
-            <i class='bx bx-link-external guide-arrow'></i>
-          </a>
-        </li>
-        <li>
-          <a href="../guides/pdf/scaffolding_guide_da.pdf" target="_blank" onclick="document.getElementById('guideOverlay').classList.remove('active');">
-            <i class='bx bx-layer'></i>
-            <?php echo ($sprog_id == 1) ? 'Stillads (Scaffolding)' : 'Scaffolding Guide'; ?>
-            <i class='bx bx-link-external guide-arrow'></i>
-          </a>
-        </li>
-      </ul>
-    </div>
   </div>
 </div>
 
@@ -525,14 +495,32 @@ function brightenColor($color, $amount = 0.2) {
     }
   }
 
+  // Compare shell paths without the inframe flag: a page reached by an in-frame
+  // redirect (ordre.php?id=X) has no inframe=1 yet still is the requested page.
+  const strip_inframe = (path) => {
+    try {
+      const url = new URL(path, location.origin);
+      url.searchParams.delete('inframe');
+      return url.pathname + url.search;
+    } catch (e) {
+      return path;
+    }
+  }
+
   const update_iframe = (uri) => {
     const iframe = document.querySelector(".content-iframe")
     const baseUrl = (location + "").split("/").splice(0, 4).join("/");
     const targetUrl = baseUrl + (uri.startsWith("/") ? uri : "/" + uri);
     const parsedTargetUrl = new URL(targetUrl);
+    // Context flag for the loaded page: it runs inside the shell's iframe, so
+    // window.close()-based flows (luk.php) can't work and back targets must stay
+    // in-frame. Set centrally here instead of on every menu link.
+    if (!parsedTargetUrl.searchParams.has('inframe')) {
+      parsedTargetUrl.searchParams.set('inframe', '1');
+    }
     const targetPath = parsedTargetUrl.pathname + parsedTargetUrl.search;
 
-    if (get_iframe_path() === targetPath) {
+    if (strip_inframe(get_iframe_path()) === strip_inframe(targetPath)) {
       return;
     }
 
@@ -542,7 +530,7 @@ function brightenColor($color, $amount = 0.2) {
       }
     }
 
-    iframe.src = targetUrl
+    iframe.src = parsedTargetUrl.href
   }
 
   const redirect_uri = (uri) => {
@@ -552,13 +540,20 @@ function brightenColor($color, $amount = 0.2) {
   // Check for page reloads and manage inital load of iframe
   update_iframe(window.location.hash == "" ? "/index/dashboard.php" : window.location.hash.replace("#", ""));
 
-  let manualHashChange = true;
+  // Hash the shell wrote itself from an iframe load. hashchange is dispatched
+  // asynchronously, so a timer-based flag could reset before the event arrived
+  // and the shell would then reload the iframe from the hash - fatal for pages
+  // rendered straight on a POST response (e.g. kreditor split view), whose URL
+  // carries no id and reloads as an empty form.
+  let shellWrittenHash = null;
   addEventListener("hashchange", (event) => {
-    if (manualHashChange) {
-      const newHash = event.newURL.split("#")[1];
-      if (newHash && newHash !== "/") {
-        update_iframe(newHash);
-      }
+    const newHash = event.newURL.split("#")[1];
+    if (shellWrittenHash !== null && newHash === shellWrittenHash) {
+      shellWrittenHash = null;
+      return;
+    }
+    if (newHash && newHash !== "/") {
+      update_iframe(newHash);
     }
   });
 
@@ -567,14 +562,8 @@ function brightenColor($color, $amount = 0.2) {
     const path = "/" + iframe.contentWindow.document.location.href.split("/").slice(4).join("/");
 
     if (window.location.hash !== "#" + path) {
-      // Prevent iframe load hashchange from triggering update_iframe
-      manualHashChange = false;
+      shellWrittenHash = path;
       window.location.hash = path;
-
-      // Reset manualHashChange flag after the hash has been set
-      setTimeout(() => {
-        manualHashChange = true;
-      }, 0);
     }
 
     setCookie('last-sidebar-location', path, 1);
@@ -612,15 +601,6 @@ function brightenColor($color, $amount = 0.2) {
     iframe.contentWindow.onbeforeunload = startLoading;
   };
 
-  // Close guide overlay with Escape key
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      var overlay = document.getElementById('guideOverlay');
-      if (overlay && overlay.classList.contains('active')) {
-        overlay.classList.remove('active');
-      }
-    }
-  });
 </script>
 
 <style>
@@ -667,15 +647,26 @@ function brightenColor($color, $amount = 0.2) {
 </style>
 
 <?php
-// Chat-widget serveres lokalt fra chaty_V2's docker-compose ved udvikling paa localhost
-$chatyHost = strtolower((string) parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST));  
-$chatyBase = in_array($chatyHost, ['localhost', '127.0.0.1'], true)	? 'http://localhost:3000' : 'https://wuweiworkai.com/chaty-v2';
+/* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
+   endpointet ligger i includes/saldi_assist_token.php. SALDI_ASSIST_WIDGET_URL
+   kan saettes i webserverens miljoe til en test-instans; standard er produktion. */
+$assistWidgetUrl = getenv('SALDI_ASSIST_WIDGET_URL') ?: 'https://wuweiworkai.com/chaty-v2/widget.js';
+$assistVersion = isset($version) ? (string)$version : '';
 ?>
-<script async
-  src="<?php print $chatyBase; ?>/widget.js"
-  data-widget-id="saldi-erp"
-  data-brand="SALDI.dk"
-  data-lang="<?php print ($sprog_id == 2) ? 'en' : 'da'; ?>"
-  data-theme-color="#2872fa"></script>
-
+<script src="../javascript/saldi-assist-navigate.js"></script>
+<script>
+  // update_iframe er en const i sidens script; goer den tilgaengelig for
+  // navigate-hook'en, saa "Gaa dertil" gaar gennem SALDIs egen navigation
+  // (inkl. advarslen om ugemte aendringer).
+  if (typeof update_iframe === 'function') { window.update_iframe = update_iframe; }
+</script>
+<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+<script>window.SaldiAssist = { appVersion: <?= json_encode($assistVersion) ?>, correlationId: <?= json_encode($assist_correlation_id ?? null) ?>, errorCategory: <?= json_encode($assist_error_category ?? null) ?>, getContextToken: function (sessionHash) { return fetch('../includes/saldi_assist_token.php?embed_session=' + encodeURIComponent(sessionHash), {credentials:'same-origin'}).then(function (r) { return r.ok ? r.json() : null }).then(function (j) { return j && j.token ? j.token : null }) }, navigate: window.SaldiAssistNavigate };</script>
+<?php if (getenv('SALDI_ASSIST_RECORDS_ENABLED') === '1') { ?>
+<script src="../javascript/saldi-assist-records.js"></script>
+<script>
+  window.SaldiAssist.getRecordContext = window.SaldiAssistRecords.getRecordContext;
+  window.SaldiAssist.highlightRows = window.SaldiAssistRecords.highlightRows;
+</script>
+<?php } ?>
 </html>

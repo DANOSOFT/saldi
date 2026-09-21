@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_4.2.php --- patch 5.0.0 --- 2026-09-01 ---
+// --- includes/opdat_4.2.php --- patch 5.0.1 --- 2026-09-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,11 +25,11 @@
 // ----------------------------------------------------------------------
 // Expiry date handling (FEFO) - batch_kob: due_date, batch_no
 //                                varer: has_due_date, default_shelf_life_days
-//
+// 20260908 PHR Corrected error in 4.3.0 	$subNo < '1' changed to $subNo < '3'
 
 if (!function_exists('opdat_4_2')) {
 function opdat_4_2($majorNo, $subNo, $fixNo){
-	global $version;
+	global $bruger_id,$version;
 	global $db;
 	global $db_id;
 	global $regnskab;
@@ -873,7 +873,7 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	$nextver='4.3.0';
-	if ($subNo < '1'){
+	if ($subNo < '3') {
 		include("../includes/connect.php");
 		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
 		$tmp=$r['version'];

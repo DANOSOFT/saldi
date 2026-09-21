@@ -61,6 +61,12 @@
 // 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
 //                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
 //                  Supplier orders no longer print VAT-inclusive prices (customer setting).
+// 20260911 CDX/LH SD-186 Load performed-by value when printing or emailing order documents.
+// 20260915 CDX/PHR Preserve discount line price when no numeric set price is stored in lev_varenr.
+// 20260914 CDX/LH SST-784: Escape parentheses and backslashes only in PostScript output.
+// 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
+// 20260916 CDX/LH Initialize the page count on every appended print-batch document.
+// 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -125,8 +131,6 @@ if (!function_exists('skriv')) {
 			$incr_y = 0;
 
 		$format = strtoupper($format);
-		$tekst = str_replace("(", "\\(", $tekst);
-		$tekst = str_replace(")", "\\)", $tekst);
 
 		if (substr($tekst, 0, 3) == "<b>") {
 			$startfed = 'on';
@@ -323,7 +327,7 @@ if (!function_exists('skriv')) {
 							$ny_str = $str;
 						# udskrivning af formular variabler
 						if ($row['xa']) {
-							fwrite($psfp, "/$form_font\n$row[str] scalefont\nsetfont\nnewpath\n" . $row['xa'] * 2.86 . " " . $row['ya'] * 2.86 . " moveto (" . utf8_iso8859($ny_streng) . ") $format show\n");
+							fwrite($psfp, "/$form_font\n$row[str] scalefont\nsetfont\nnewpath\n" . $row['xa'] * 2.86 . " " . $row['ya'] * 2.86 . " moveto (" . strtr(utf8_iso8859($ny_streng), array('\\' => '\\\\', '(' => '\\(', ')' => '\\)')) . ") $format show\n");
 							#	fwrite($htmfp,"<div style=\"position:absolute;top:".$row['xa']."mm;left:".$row['xb']."mm;\">".__line__."$ny_streng</div>\n");
 							$a = $row['xa'];
 							$b = 297 - $row['ya'];
@@ -385,9 +389,10 @@ if (!function_exists('skriv')) {
 			$i2 = NULL;
 		}
 		if ($x && $tekst && $y2 / 2.86 > $Opkt) {
-			#			if ($tekst == '891,42')	exit;
-			if ($x != '22')
-				fwrite($psfp, "/$form_font\n$str scalefont\nsetfont\nnewpath\n$x $y2 moveto (" . utf8_iso8859($tekst) . ") $format show\n");
+			if ($x != '22') {
+				$psTekst = strtr(utf8_iso8859($tekst), array('\\' => '\\\\', '(' => '\\(', ')' => '\\)'));
+				fwrite($psfp, "/$form_font\n$str scalefont\nsetfont\nnewpath\n$x $y2 moveto (" . $psTekst . ") $format show\n");
+			}
 			$a = $x / 2.86;
 			$b = 297 - $y2 / 2.86;
 			$c = $ny_str * 1.2;
@@ -1144,7 +1149,11 @@ if (!function_exists('formularprint')) {
 			#		$psfp1=fopen("$mappe/$printfilnavn.ps","w");
 			#		$htmfp1=fopen("$mappe/$printfilnavn.htm","w");
 		}
+		$printBatchName = $printfilnavn ?? 'udskrift';
+		$printBatchDocuments = array();
+		unset($_SESSION['printBatch']);
 		for ($o = 0; $o < $ordre_antal; $o++) {
+			$printBatchIndex = null;
 			#		$psfp=$psfp1;
 			#		$htmfp=$htmfp1;
 			$ordre_id[$o] *= 1;
@@ -1175,7 +1184,7 @@ if (!function_exists('formularprint')) {
 				$email[0] = 'Kundens email';
 				$pbs = '';
 			} else {
-				$qtxt = "select afd,status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,sprog,udskriv_til,mail_subj,mail_text,dokument,procenttillag ";
+				$qtxt = "select afd,status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,hvem,sprog,udskriv_til,mail_subj,mail_text,dokument,procenttillag ";
 				$qtxt .= "from ordrer where id = '$ordre_id[$o]'";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($q);
@@ -1663,6 +1672,8 @@ if (!function_exists('formularprint')) {
 				$pfnavn = $mappe . "/" . $printfilnavn;
 				$psfp = fopen("$pfnavn.ps", "w");
 				$htmfp = fopen("$pfnavn.htm", "w");
+				$printBatchDocuments[] = array('name' => $printfilnavn, 'background' => $background_pdf_path ?? '', 'pages' => 1);
+				$printBatchIndex = count($printBatchDocuments) - 1;
 				#		} else {
 				#			fclose ($htmfp);
 				#			$pfnavn=$mappe."/".$printfilnavn.".".$ordrenr;
@@ -1898,8 +1909,12 @@ if (!function_exists('formularprint')) {
 									}
 								}
 								if ($rvnr) {
-									if ($varenr[$x] == $rabatvarenr)
-										list($pris[$x]) = explode("|", $row['lev_varenr']);
+									if ($varenr[$x] == $rabatvarenr) {
+										$setPrice = explode('|', (string)$row['lev_varenr'])[0];
+										if (is_numeric($setPrice)) {
+											$pris[$x] = (float)$setPrice;
+										}
+									}
 									$rabat[$x] = 0;
 									$linjesum[$x] = ($pris[$x] - $rabat[$x]) * $antal[$x];
 								}
@@ -2235,14 +2250,18 @@ if (!function_exists('formularprint')) {
 				$sum = dkdecimal($sum, 2);
 			}
 
-			if ($id)
+			if ($id) {
 				find_form_tekst($id, 'S', $formular, 0, $linjeafstand, ""); # Sum paa sidste side.
+			}
 
-				if ($ordre_id[$o])
-					bundtekst($ordre_id[$o]); # Uden denne skrives kun  side 1
-					#		if ($mail_fakt) fclose($psfp2);
-					fclose($psfp);
-				fclose($htmfp);
+			if ($ordre_id[$o]) {
+				bundtekst($ordre_id[$o]); # Uden denne skrives kun side 1
+			}
+			fclose($psfp);
+			fclose($htmfp);
+			if ($printBatchIndex !== null) {
+				$printBatchDocuments[$printBatchIndex]['pages'] = max(1, (int)$side - 1);
+			}
 		}
 		// UDSKRIVNING
 		if ($mailantal > 0) {
@@ -2291,6 +2310,13 @@ if (!function_exists('formularprint')) {
 		} elseif ($nomailantal > 0) {
 			print "<big><b>Vent - Udskrift genereres</b></big><br>";
 			$mappe = str_replace('../temp/', '', $mappe);
+			if (count($printBatchDocuments) > 1) {
+				$printfilnavn = $printBatchName . '-batch';
+				$_SESSION['printBatch'] = array(
+					'file' => $mappe . '/' . $printfilnavn,
+					'documents' => $printBatchDocuments
+				);
+			}
 			// 20260807 MJ urlencode returside saa search-parametre ikke laekaer som separate GET-parametre i udskriv.php
 			// 20260812 MJ Brug is_string-guard saa array-input ikke giver PHP-advarsel (null/array -> tom streng)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
