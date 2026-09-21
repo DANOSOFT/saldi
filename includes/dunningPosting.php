@@ -1,5 +1,6 @@
 <?php
 // 20260920 CDX/LH Share atomic, VAT-exempt reminder posting between manual and automatic paths.
+// 20260921 CDX/LH Scope duplicate receivables to the reminder identity, excluding unrelated journal vouchers.
 require_once __DIR__ . '/salesPostingVat.php';
 
 /** Post one reminder, including optional automatic advancement, as one unit. */
@@ -45,7 +46,12 @@ function saldiPostReminder($id, $markPaid = false)
             $open = false;
             return array('ok' => !$db_modify_fejl, 'id' => $id, 'error' => 'Rykker kunne ikke bogføres');
         }
-        if ($one("SELECT id FROM transaktioner WHERE ordre_id=$id") || $one("SELECT id FROM openpost WHERE refnr=$id")) {
+        // refnr also stores journal voucher numbers. Only this reminder's
+        // customer, invoice and non-journal origin identify its receivable.
+        $customerId = (int)$order['konto_id'];
+        $invoice = db_escape_string((string)$order['fakturanr']);
+        if ($one("SELECT id FROM transaktioner WHERE ordre_id=$id")
+            || $one("SELECT id FROM openpost WHERE refnr=$id AND konto_id=$customerId AND faktnr='$invoice' AND kladde_id=0")) {
             throw new RuntimeException('Rykker har allerede posteringer; kontrollér bogføringen');
         }
         $fiscal = $one("SELECT box1,box2,box3,box4 FROM grupper WHERE art='RA' AND kodenr=$year");
@@ -61,7 +67,6 @@ function saldiPostReminder($id, $markPaid = false)
         if ($date < $start || $date > $end) {
             throw new RuntimeException('Rykkerdato udenfor regnskabsår');
         }
-        $customerId = (int)$order['konto_id'];
         $customer = $one("SELECT gruppe FROM adresser WHERE id=$customerId AND art='D'");
         $customerGroup = (int)($customer['gruppe'] ?? 0);
         $debtor = $one("SELECT box2 FROM grupper WHERE art='DG' AND kodenr=$customerGroup AND fiscal_year=$year");
@@ -126,7 +131,6 @@ function saldiPostReminder($id, $markPaid = false)
         foreach ($lineAccounts as $lineId => $revenue) {
             $write("UPDATE ordrelinjer SET bogf_konto=$revenue WHERE id=$lineId");
         }
-        $invoice = db_escape_string((string)$order['fakturanr']);
         $customerNumber = db_escape_string(str_replace(' ', '', (string)$order['kontonr']));
         $description = 'Gebyr mm. fra tidligere rykker';
         $employee = db_escape_string((string)($order['ref'] ?? ''));

@@ -6,7 +6,7 @@ set_error_handler(function ($severity, $message, $file, $line) {
 });
 $scenario = $argv[1] ?? '';
 if ($scenario === '') {
-    foreach (['units-get', 'units-post', 'materials-post', 'bom-empty', 'import-get', 'cost-get', 'cost-post', 'cost-forged', 'balance-unassigned', 'balance-selected', 'balance-invalid'] as $case) {
+    foreach (['units-get', 'units-post', 'materials-post', 'bom-empty', 'import-get', 'cost-get', 'cost-post', 'cost-forged', 'balance-unassigned', 'balance-selected', 'balance-latin1', 'balance-invalid'] as $case) {
         $pipes = [];
         $child = proc_open([PHP_BINARY, __FILE__, $case], [1=>['pipe','w'],2=>['pipe','w']], $pipes);
         $output = stream_get_contents($pipes[1]); $errors = stream_get_contents($pipes[2]);
@@ -48,7 +48,7 @@ function db_select($query, $source) {
     } elseif ($query === "select ansat_id from brugere where brugernavn = 'Fixture''s user'") {
         $rows = [['ansat_id'=>null]];
     } elseif ($query === "SELECT beskrivelse FROM grupper WHERE art='LG' AND kodenr=7") {
-        $rows = [['beskrivelse'=>'Fixture warehouse']];
+        $rows = [['beskrivelse'=>$GLOBALS['scenario'] === 'balance-latin1' ? iconv('UTF-8', 'ISO-8859-1', 'Fjernlager Ærø & <syd>') : 'Fixture warehouse']];
     } elseif ($query === "SELECT beskrivelse FROM grupper WHERE art='LG' AND kodenr=999") {
         $rows = [];
     } elseif ($query === "select * from varer where lukket != '1' order by varenr") {
@@ -73,7 +73,8 @@ if ($scenario === 'units-post') {
 } elseif ($scenario === 'cost-post') {
     $_POST = ['csrf_token'=>$fixtureToken];
 }
-if ($scenario === 'balance-selected') { $_GET = ['lager'=>7]; }
+if ($scenario === 'balance-latin1') { $charset = 'ISO-8859-1'; }
+if (in_array($scenario, ['balance-selected','balance-latin1'], true)) { $_GET = ['lager'=>7]; }
 if ($scenario === 'balance-invalid') { $_GET = ['lager'=>999]; }
 $page = str_starts_with($scenario, 'cost-') ? 'opdater_kostpriser.php' : (
     $scenario === 'bom-empty' ? 'fuld_stykliste.php' : ($scenario === 'import-get' ? 'vareimport.php' : 'enheder.php'));
@@ -88,6 +89,9 @@ register_shutdown_function(function () use ($fixture, $pages, $scenario, $origin
     foreach (['connect.php','online.php','std_func.php','fuld_stykliste.php','legacyItemImport.php'] as $file) { unlink($fixture . '/includes/' . $file); }
     rmdir($fixture . '/lager'); rmdir($fixture . '/includes'); rmdir($fixture);
     if ($last && in_array($last['type'], [E_ERROR,E_PARSE,E_CORE_ERROR,E_COMPILE_ERROR])) { return; }
+    if ($scenario === 'balance-latin1' && !str_contains($html, iconv('UTF-8', 'ISO-8859-1', 'Fjernlager Ærø &amp; &lt;syd&gt;'))) {
+        throw new RuntimeException('Latin-1 warehouse name was lost or not escaped');
+    }
     $writes = $GLOBALS['writes'];
     $expectedCount = in_array($scenario, ['units-post','materials-post']) ? 1 : ($scenario === 'cost-post' ? 2 : 0);
     if (count($writes) !== $expectedCount || !str_contains($html, '</html>')) {

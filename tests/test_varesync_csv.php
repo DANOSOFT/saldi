@@ -55,10 +55,10 @@ db_modify("CREATE TEMP TABLE varianter (id serial PRIMARY KEY,beskrivelse text)"
 db_modify("CREATE TEMP TABLE variant_typer (id serial PRIMARY KEY,variant_id int,beskrivelse text)");
 db_modify("CREATE TEMP TABLE variant_varer (id serial PRIMARY KEY,vare_id int,variant_type int,variant_beholdning numeric,variant_stregkode text,lager int,variant_salgspris numeric,variant_kostpris numeric,variant_vejlpris numeric,variant_id int)");
 $variantHeader = '"varenr";"parent_id";"variant_id";"stregkode";"variant";"variant_type";"variant_text"';
-foreach (array('8col', 'cost', 'qty', 'qty_crlf', 'qty_headerless', 'empty', 'variants') as $dialect) {
+foreach (array('8col', 'product_id_header', 'cost', 'qty', 'qty_crlf', 'qty_headerless', 'empty', 'variants') as $dialect) {
     foreach (array('UTF-8', 'ISO-8859-1') as $encoding) {
         db_modify('TRUNCATE varer,shop_varer,variant_typer,variant_varer,varianter RESTART IDENTITY');
-        $fields = array('id', 'varenr', 'stregkode', 'salgspris');
+        $fields = array($dialect === 'product_id_header' ? 'product_id' : 'id', 'varenr', 'stregkode', 'salgspris');
         if ($dialect === 'cost') $fields[] = 'kostpris';
         $fields = array_merge($fields, array('beskrivelse', 'gruppe', 'tilbud', 'notes'));
         if (in_array($dialect, array('qty', 'qty_crlf', 'qty_headerless'), true)) $fields[] = 'qty';
@@ -117,7 +117,8 @@ foreach (['incoming-sku', 'incoming-normalized-sku', 'incoming-shop-id', 'existi
     $before = csvScalar("SELECT md5(string_agg(row_to_json(v)::text,',' ORDER BY id)) FROM varer v") . csvScalar("SELECT md5(string_agg(row_to_json(s)::text,',' ORDER BY id)) FROM shop_varer s");
     $failed = false;
     ob_start();
-    try { varesync(1); } catch (\RuntimeException $error) { $failed = true; } finally { ob_end_clean(); }
+    try { $failed = varesync(1) === false; } finally { $diagnostic = ob_get_clean(); }
+    checkCsv(str_contains($diagnostic, 'role="alert"') && str_contains($diagnostic, 'CSV row'), "$conflict reports a visible row diagnostic without uncaught exception");
     $after = csvScalar("SELECT md5(string_agg(row_to_json(v)::text,',' ORDER BY id)) FROM varer v") . csvScalar("SELECT md5(string_agg(row_to_json(s)::text,',' ORDER BY id)) FROM shop_varer s");
     checkCsv($failed && $before === $after, "$conflict rejects complete batch before product or mapping writes");
 }
@@ -137,6 +138,15 @@ foreach (['sku', 'shop-id', 'both'] as $historical) {
     checkCsv(csvScalar("SELECT count(*) FROM varer v JOIN shop_varer s ON s.saldi_id=v.id WHERE v.varenr='NEW' AND v.beholdning=5 AND s.shop_id=101") === '1', "unrelated historical $historical ambiguity permits exact new product/stock/binding import");
     checkCsv($oldProducts === csvScalar("SELECT md5(string_agg(row_to_json(v)::text,',' ORDER BY id)) FROM varer v WHERE id<=2") && $oldMappings === csvScalar("SELECT md5(string_agg(row_to_json(s)::text,',' ORDER BY id)) FROM shop_varer s WHERE id<=3"), "unrelated historical $historical rows remain byte-for-byte unchanged, including nullable duplicate mappings");
 }
+// Orphan rows in the selected catalog can be replaced; unrelated and variant rows survive.
+db_modify('TRUNCATE varer,shop_varer,variant_typer,variant_varer,varianter RESTART IDENTITY');
+db_modify("INSERT INTO shop_varer(saldi_id,shop_id,saldi_variant,shop_variant) VALUES (900,101,NULL,NULL),(901,999,NULL,NULL),(902,101,77,88)");
+$GLOBALS['csvProducts'] = "id;varenr;stregkode;salgspris;beskrivelse;gruppe;tilbud;notes\n101;REST-DELETED;B1;100;Recreated;1;;\n";
+$GLOBALS['csvVariants'] = $variantHeader . "\n";
+ob_start();
+try { varesync(1); varesync(1); } finally { ob_end_clean(); }
+checkCsv(csvScalar("SELECT count(*) FROM shop_varer s JOIN varer v ON v.id=s.saldi_id WHERE v.varenr='REST-DELETED' AND s.shop_id=101") === '1', 'orphan shop binding recovers exactly once on repeated import');
+checkCsv(csvScalar("SELECT count(*) FROM shop_varer WHERE saldi_id=900") === '0' && csvScalar("SELECT count(*) FROM shop_varer WHERE saldi_id IN (901,902)") === '2', 'orphan repair preserves unrelated and variant mappings');
 db_modify('TRUNCATE varer,shop_varer,variant_typer,variant_varer,varianter RESTART IDENTITY');
 // A pre-existing row with a different ID verifies that linking never selects an arbitrary matching row.
 db_modify("INSERT INTO varer(id,varenr,beskrivelse,salgspris,kostpris,stregkode) VALUES (50,'OTHER','Keep',1,1,'')");

@@ -1,6 +1,7 @@
 <?php
 // 20260921 CDX/LH Split either invoice or payment atomically without changing its sign or total claim.
 // 20260921 CDX/LH Retain invoice references on invoice remainders; keep payment surplus unallocated.
+// 20260921 CDX/LH Compare stale forms using the screen's source-cent rounding before currency conversion.
 
 /**
  * Save an open-item reference and optionally reduce its displayed amount.
@@ -49,7 +50,7 @@ function saldiSaveOpenpostSplit($postId, $expectedAmount, $newAmount, $invoice, 
         $result = db_select("SELECT * FROM openpost WHERE id=$id FOR UPDATE", __FILE__ . ' linje ' . __LINE__);
         $row = $result ? db_fetch_array($result) : false;
         if (!$row || (string)$row['udlignet'] === '1' || (int)$row['udlign_id'] > 0
-            || afrund((float)$row['amount'] * $conversionRate, 2) != $expectedAmount) {
+            || afrund(afrund((float)$row['amount'], 2) * $conversionRate, 2) != $expectedAmount) {
             throw new RuntimeException('Posteringen er ændret eller udlignet; genindlæs før opdatering');
         }
         $write = static function ($sql) use ($error) {

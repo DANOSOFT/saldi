@@ -16,6 +16,7 @@
 //
 // Copyright (c) 2004-2006 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260921 CDX/LUI Escape warehouse names using the authenticated tenant charset.
 // 20260920 CDX/LUI Keep missing-warehouse reports authenticated and rendering read-only.
 
 @session_start();
@@ -38,7 +39,7 @@ $lagernavn = '';
 $linjebg = '';
 $x = (int)ifset($_GET, 'x', 0);
 $id = (int)ifset($_GET, 'id', 0);
-$fokus = htmlspecialchars((string)ifset($_GET, 'fokus', ''), ENT_QUOTES, 'UTF-8');
+$fokus = htmlspecialchars((string)ifset($_GET, 'fokus', ''), ENT_QUOTES | ENT_SUBSTITUTE, $charset ?? 'UTF-8');
 
 if (!isset($_GET["lager"])) {
     $escapedUser = db_escape_string($brugernavn);
@@ -69,7 +70,7 @@ if ($lager > 0) {
         print "<h1>Beholdningsliste</h1><p>Det valgte lager findes ikke.</p></body></html>";
         exit;
     }
-    $lagernavn = htmlspecialchars((string)$warehouse['beskrivelse'], ENT_QUOTES, 'UTF-8');
+    $lagernavn = htmlspecialchars((string)$warehouse['beskrivelse'], ENT_QUOTES | ENT_SUBSTITUTE, $charset ?? 'UTF-8');
 }
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
