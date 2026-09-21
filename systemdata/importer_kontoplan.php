@@ -37,6 +37,7 @@
 //                  quotes are only stripped when both ends carry the same quote character; a stale
 //                  cookie separator that does not occur in a freshly uploaded file loses to the
 //                  detected one, so the preview is not garbled by the previous import's choice.
+// 20260921 Sawaneh JOB-086 review 3: text ids renumbered 5080-5087 -> 5222-5229 (id range clash).
 
 @session_start();
 $s_id=session_id();
@@ -99,7 +100,7 @@ if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['
 	if (move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
 		vis_data(find_file_charset($filnavn), $filnavn, $splitter, $feltnavn, 1);
 	} else {
-		print findtekst('5084|Der er sket en fejl under hentningen, prøv venligst igen', $sprog_id);
+		print findtekst('5226|Der er sket en fejl under hentningen, prøv venligst igen', $sprog_id);
 	}
 } elseif ((isset($_POST['vis']) || isset($_POST['import'])) && file_exists($filnavn)) {
 	if (!$file_charset) $file_charset = find_file_charset($filnavn);
@@ -108,7 +109,7 @@ if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['
 } else {
 	$qtxt = "select box1, box2, beskrivelse from grupper where art='RA' order by box2 desc,box1 desc";
 	if (!$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		alert(findtekst('5087|Der er ikke oprettet et regnskabsår', $sprog_id));
+		alert(findtekst('5229|Der er ikke oprettet et regnskabsår', $sprog_id));
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 		exit;
 	}
@@ -178,7 +179,7 @@ function tjek_kolonner($feltnavn, $feltantal) {
 	for ($y = 0; $y <= $feltantal; $y++) {
 		$navn = $feltnavn[$y] ?? '';
 		if ($navn && in_array($navn, $brugt)) {
-			alert(findtekst('5083|Der kan kun være 1 kolonne med', $sprog_id)." ".$navn);
+			alert(findtekst('5225|Der kan kun være 1 kolonne med', $sprog_id)." ".$navn);
 			$navn = '';
 		} elseif ($navn) {
 			$brugt[] = $navn;
@@ -281,7 +282,7 @@ function vis_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal) {
 			if (!$linje) continue;
 			$tjek = tjek_linje($linje, $file_charset, $splitTegn, $feltnavn, $feltantal, $kontonumre);
 			if ($tjek['fejl'] && !$advaret) {
-				alert(findtekst('5081|Røde linjer indeholder fejl og bliver ikke importeret', $sprog_id));
+				alert(findtekst('5223|Røde linjer indeholder fejl og bliver ikke importeret', $sprog_id));
 				$advaret = 1;
 			}
 			$farve = $tjek['fejl'] ? "#e00000" : "#000000";
@@ -304,7 +305,7 @@ function overfoer_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal
 
 	$feltnavn = tjek_kolonner($feltnavn, $feltantal);
 	if (!in_array('Kontonr', $feltnavn) || !in_array('Beskrivelse', $feltnavn) || !in_array('Kontotype', $feltnavn)) {
-		alert(findtekst('5085|Kontonr, Beskrivelse og Kontotype skal være valgt', $sprog_id));
+		alert(findtekst('5227|Kontonr, Beskrivelse og Kontotype skal være valgt', $sprog_id));
 		vis_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal);
 		return;
 	}
@@ -326,7 +327,7 @@ function overfoer_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal
 		fclose($fp);
 	}
 	if (!$linjer) {
-		alert(findtekst('5086|Ingen konti importeret - kontoplanen er uændret', $sprog_id));
+		alert(findtekst('5228|Ingen konti importeret - kontoplanen er uændret', $sprog_id));
 		vis_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal);
 		return;
 	}
@@ -349,7 +350,7 @@ function overfoer_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal
 	db_modify("update kontoplan set til_kto=kontonr where kontotype='Z' and regnskabsaar='$regnskabsaar'", __FILE__ . " linje " . __LINE__);
 	transaktion('commit');
 
-	if ($regnaar == 1 && round($balance, 2) != 0) alert(findtekst('5080|Åbningsbalance stemmer ikke - kontroller sum', $sprog_id));
-	else alert(count($linjer)." ".findtekst('5082|konti importeret - husk at overføre åbningstal', $sprog_id));
+	if ($regnaar == 1 && round($balance, 2) != 0) alert(findtekst('5222|Åbningsbalance stemmer ikke - kontroller sum', $sprog_id));
+	else alert(count($linjer)." ".findtekst('5224|konti importeret - husk at overføre åbningstal', $sprog_id));
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 }
