@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-08-19 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-09-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -109,6 +109,7 @@
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
 //                  with customer/supplier evidence; isolate journal history queries for regression tests.
 // 20260920 CDX/LH Redirect successful journal saves to GET so refresh and Back cannot replay the POST.
+// 20260921 CDX/LH Read the optional database-error flag safely when redirecting a successful save.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/journalSaveRedirect.php';
@@ -1553,7 +1554,7 @@ if (!$fejl && $kladde_id) {
 	opdater($kladde_id);
 	initializePositions($kladde_id);
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
-	if ($_POST && $submit === 'save' && !ifset($db_modify_fejl)) {
+	if ($_POST && $submit === 'save' && !ifset($GLOBALS, 'db_modify_fejl', false)) {
 		$_SESSION['journal_save_notice'][(int) $kladde_id] = $vat_reset_notice;
 		header('Location: ' . journalSaveRedirectUrl($kladde_id, $fokus, $_GET), true, 303);
 		exit;
