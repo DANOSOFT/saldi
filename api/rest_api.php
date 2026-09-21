@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-07-17 ---
+// --- api/rest_api.php --- lap 5.0.0 --- 2026-09-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -78,6 +78,7 @@
 // 20260920 CDX/LH Preserve reverse-charge and bundle markers; align preflight totals with invoice calculation.
 // 20260920 CDX/LH Validate shop identities, totals and currency before writes; serialize order ingestion.
 // 20260921 CDX/LH Bind tenant API attribution to its configured rights-free service user.
+// 20260921 CDX/LH Return unknown-SKU rejection without reading a missing lookup row; resolve the line include locally.
 
 
 // ----------------------------------------------------------------------
@@ -549,7 +550,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		$qtxt=chk4utf8($qtxt);
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$vare_id=$r['id'];
+		$vare_id=ifset($r, 'id');
 	} elseif ($shop_vare_id) {
 		$qtxt="select saldi_id from shop_varer where shop_id='$shop_vare_id'";
 		fwrite($log,__line__." $qtxt\n");
@@ -566,7 +567,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	}
 	fwrite($log,__line__." Vare ID $vare_id\n");
 	fwrite($log,__line__." Stregkode $stregkode\n");
-	include("../includes/ordrefunc.php");
+	include(__DIR__ . '/../includes/ordrefunc.php');
 	if ($vare_id) {
 		$qtxt="select varenr,samlevare from varer where id='$vare_id'";
 		fwrite($log,__line__." $qtxt\n");
@@ -617,8 +618,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			else $qtxt="select id,samlevare from varer where varenr='$shop_vare_id' or varenr_alias='$shop_vare_id' or stregkode='$shop_vare_id'";
 			fwrite($log,__line__." $qtxt\n");
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$vare_id=$r['id'];
-			$samlevare=$r['samlevare'];
+			$vare_id=ifset($r, 'id');
+			$samlevare=ifset($r, 'samlevare');
 			fwrite($log,__line__." Vare_id $vare_id - Samlevare $samlevare\n");
 		}	
 /*
