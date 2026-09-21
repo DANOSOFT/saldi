@@ -42,6 +42,9 @@
 // 20260911 Sawaneh Show the order payment ID as a column in the open post list again.
 // 20260921 CL/SZ   Route the screen's UI text through findtekst() so it
 //                  renders correctly in Danish (was hardcoded English).
+// 20260921 CL/SZ   Address CodeRabbit findings: UTF-8-normalize findtekst()
+//                  output before json_encode(), localize the selected-entry
+//                  invoice label, and set <html lang> from $sprog_id.
 
 ob_start();
 @session_start();
@@ -178,9 +181,11 @@ $progress_total = $total_unsettled + $settled; // total that needed settling whe
 
 // Restart URL: go back to id=0 with skipped/settled reset
 $restart_url = 'autoudlign.php?kladde_id=' . urlencode($kladde_id) . '&id=0&skipped=0&settled=0';
+
+$htmlLang = ['1' => 'da', '2' => 'en', '3' => 'no'][(string)$sprog_id] ?? 'da';
 ?>
 <!DOCTYPE html>
-<html lang="da">
+<html lang="<?= $htmlLang ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -831,13 +836,8 @@ print "</tbody></table></td></tr></tbody></table>";
 
 </div><!-- /.page -->
 
-<?php if ($entry): ?>
-<script>
-(function () {
-  'use strict';
-
-  /* ── PHP data passed to JS ──────────────────────────────── */
-  const T = <?= json_encode([
+<?php if ($entry):
+  $uiText = [
     'chooseAccountFirst' => findtekst('5316', $sprog_id),
     'errorLoading'       => findtekst('5317', $sprog_id),
     'noMatches'          => findtekst('5318', $sprog_id),
@@ -850,7 +850,20 @@ print "</tbody></table></td></tr></tbody></table>";
     'bestMatches'        => findtekst('5322', $sprog_id),
     'otherOpenEntries'   => findtekst('5323', $sprog_id),
     'noneSelected'       => findtekst('5304', $sprog_id),
-  ]) ?>;
+    'invoiceLabel'       => findtekst('828', $sprog_id),
+  ];
+  // findtekst() returns ISO-8859-1 text when $db_encode isn't UTF8; json_encode()
+  // requires valid UTF-8 input or it silently returns false (const T = ;).
+  if ($db_encode != 'UTF8') {
+      $uiText = array_map(function ($v) { return mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1'); }, $uiText);
+  }
+?>
+<script>
+(function () {
+  'use strict';
+
+  /* ── PHP data passed to JS ──────────────────────────────── */
+  const T = <?= json_encode($uiText) ?>;
   const KLADDE_ID   = <?= json_encode($kladde_id) ?>;
   const TOKEN       = <?= json_encode($_SESSION['autoudlign_token']) ?>;
   const SNAPSHOT    = <?= json_encode(autoSettlementSnapshot($entry)) ?>;
@@ -1131,7 +1144,7 @@ print "</tbody></table></td></tr></tbody></table>";
       const c = candidates[idx];
       udlignBtn.disabled = false;
       selInfo.innerHTML =
-        `<strong>${esc(c.firmanavn)}</strong> — inv. <strong>${esc(c.faktnr)}</strong> — ${fmtNum(c.amount)}`;
+        `<strong>${esc(c.firmanavn)}</strong> — ${esc(T.invoiceLabel.toLowerCase())} <strong>${esc(c.faktnr)}</strong> — ${fmtNum(c.amount)}`;
     } else {
       udlignBtn.disabled = true;
       selInfo.textContent = T.noneSelected;
