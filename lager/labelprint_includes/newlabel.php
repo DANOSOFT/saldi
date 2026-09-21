@@ -46,6 +46,9 @@
 //                 $page: only the mit salg sheet print ever sends page, so gating on it made
 //                 every item-card/order-line print one cell instead of the template's grid.
 // 20260914 CDX/LH Port ssl3 blank description and price fields for unused commission cells.
+// 20260914 LOE SST-790: a zero price is left blank on the label ($pris and $minpris),
+//                 the mylabel price is tested on its raw value, not the formatted "0,00".
+// 20260916 LOE SST-790: $dkkpris is blanked on a zero price too (review follow-up).
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -53,7 +56,7 @@ $cols=$rows=1;
 $txtlen=100;
 $endbottom=$endtop=0;
 $createdate=$ip=$ipLine=NULL;
-$barcode=$description=$price=$createdate=$firstprint=$lastprint=$hasMyLabelRow=array();
+$barcode=$description=$price=$rawprice=$createdate=$firstprint=$lastprint=$hasMyLabelRow=array();
 for ($x=0;$x<count($line);$x++) {
 	if (substr($line[$x],0,3)=='$ip') {
 		list($tmp,$ip)=explode("=",$line[$x]);
@@ -126,6 +129,7 @@ for ($l=0;$l<count($labels);$l++) {
 			$barcode[$a][$b]=NULL;
 			$description[$a][$b]=NULL;
 			$price[$a][$b]=NULL;
+			$rawprice[$a][$b]=NULL;
 			$hasMyLabelRow[$a][$b]=false;
 		}
 	}
@@ -168,6 +172,7 @@ for ($l=0;$l<count($labels);$l++) {
 				if ($r['lastprint']) $lastprint[$row][$col]=date("dmy",$r['lastprint']);
 				else $lastprint[$row][$col] = NULL;
 				$price[$row][$col]=$r['price'];
+				$rawprice[$row][$col]=$r['price'];
 				if ($price[$row][$col]) {
 					$price[$row][$col]=dkdecimal($price[$row][$col]);
 					$qtxt="update mylabel set lastprint='". date('U') ."' where id = '$r[id]'";
@@ -205,7 +210,15 @@ for ($l=0;$l<count($labels);$l++) {
 	for ($a=1;$a<=$cellRows;$a++) {
 		for ($b=1;$b<=$cellCols;$b++) {
 			$labelTxt=$txt;
-			$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
+			# SST-790: a zero price leaves the label field empty instead of printing "0,00"/"0,-".
+			# Tested on the raw value: the formatted "0,00" is not == 0 under PHP 8.
+			if (is_numeric($salgspris) && $salgspris == 0) {
+				$vispris="";
+				$dkkpris="";
+			} else {
+				$vispris=dkdecimal($salgspris,2);
+				$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
+			}
 			# Uden mit salg data - et print uden konto - ville labelen komme ud tom, så
 			# $minbeskrivelse/$minpris falder tilbage til varens egen beskrivelse og pris.
 			// Unused commission cells stay blank for handwritten descriptions and prices.
@@ -214,18 +227,14 @@ for ($l=0;$l<count($labels);$l++) {
 				$minpris = '';
 			} elseif ($hasMyLabelRow[$a][$b]) {
 				$minbeskrivelse=$description[$a][$b];
-				if($price[$a][$b] == 0) {
-					$minpris = "_______";
+				if ($rawprice[$a][$b] === NULL || $rawprice[$a][$b] === '' || (is_numeric($rawprice[$a][$b]) && $rawprice[$a][$b] == 0)) {
+					$minpris = "";
 				} else {
 					$minpris=$price[$a][$b];
-				}	
+				}
 			} else {
 				$minbeskrivelse=$r['beskrivelse'];
-				if($salgspris == 0) {
-					$minpris = "_______";
-				} else {
-					$minpris=dkdecimal($salgspris,2);
-				}
+				$minpris=$vispris;
 			}
 			$labelTxt=str_replace('$minbeskrivelse',$minbeskrivelse,$labelTxt);
 			$labelTxt=str_replace('$beskrivelse',$r['beskrivelse'],$labelTxt);
@@ -288,7 +297,7 @@ for ($l=0;$l<count($labels);$l++) {
 					$labelTxt=str_replace('$img',$myImg,$labelTxt);
 			} else $labelTxt=str_replace('$img',$img,$labelTxt);
 			if ($price[$a][$b]) $labelTxt=str_replace('$beskrivelse',$price[$a][$b],$labelTxt);
-			$labelTxt=str_replace('$pris',dkdecimal($salgspris,2),$labelTxt);
+			$labelTxt=str_replace('$pris',$vispris,$labelTxt);
 			$labelTxt=str_replace('$dkkpris',$dkkpris,$labelTxt);
 			$labelTxt=str_replace('$enhed',$r['enhed'],$labelTxt);
 			$labelTxt=str_replace('$location','$lokation',$labelTxt); #20170628

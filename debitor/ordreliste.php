@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-09--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-09-18--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -56,8 +56,11 @@
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260910 Sawaneh Order links carry the popup=1 request flag so a real popup window still closes on Back.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
+// 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
 
 @session_start();
 $s_id = session_id();
@@ -765,7 +768,7 @@ $custom_columns = array(
 
             file_put_contents("../temp/$db/ordrlst$bruger_id.txt","$row[id];",FILE_APPEND);
 
-            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&valg=$valg&returside=" . urlencode($_SERVER["REQUEST_URI"]);
+            $href = "ordre.php?" . nav_popup_query($_GET, $_POST) . "tjek={$row['id']}&id={$row['id']}&valg=$valg&returside=" . urlencode($_SERVER["REQUEST_URI"]);
             
             $timestamp = $row['tidspkt'];
             if (strpos($timestamp, ':')) {
@@ -1013,10 +1016,10 @@ $custom_columns = array(
     
     "hvem" => array(
         "field" => "hvem",
-        "headerName" => 'Udført af', // TODO findtekst.
+        "headerName" => findtekst('5231|Udført af', $sprog_id),
         "width" => "1",
         "type" => "text",
-        "sqlOverride" => "o.hvem",
+        "sqlOverride" => "o.performed_by",
         "searchable" => true,
         "render" => function ($value, $row, $column) {
             // caused issues due to our use of <span> for highlighting each match in the value, so we will not escape it for now
@@ -1718,7 +1721,10 @@ $debug_log[] = "base_where_conditions: $base_where_conditions";
 // IMPORTANT: Update the SQL query to include ALL columns dynamically
 $select_fields = "o.id as id";
 foreach ($all_db_columns as $field_name => $column_info) {
-    if ($field_name != 'id') {
+    if ($field_name == 'hvem') {
+        // Keep the existing grid key so saved layouts/searches continue to work.
+        $select_fields .= ", o.performed_by as hvem";
+    } elseif ($field_name != 'id') {
         $select_fields .= ", o.$field_name as $field_name";
     }
 }

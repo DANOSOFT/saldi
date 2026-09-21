@@ -5095,10 +5095,15 @@
 5148	Forstået	Got it	Skjønner
 5149	Brugernavnet må højst være 80 tegn	The username may be at most 80 characters	Brukernavnet kan høyst være 80 tegn
 5150	Regnskabsnavnet må højst være 60 tegn	The account name may be at most 60 characters	Regnskapsnavnet kan høyst være 60 tegn
+5151	Eksporter CSV (alle sider)	Export CSV (all pages)	Eksporter CSV (alle sider)
+5152	Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling	Export all accounts under the selected filters to CSV, without pagination	Eksporter alle kontoer under de valgte filtrene til CSV, uten sideinndeling
 5155	Digital afsendelse fejlede	Digital sending failed	Digital sending mislyktes
 5156	EasyUBL svarede tomt eller ugyldigt (HTTP <variable>). Fakturaen er ikke registreret som sendt.	EasyUBL returned an empty or invalid reply (HTTP <variable>). The invoice is not registered as sent.	EasyUBL svarte tomt eller ugyldig (HTTP <variable>). Fakturaen er ikke registrert som sendt.
 5157	EasyUBL afviste dokumentet:	EasyUBL rejected the document:	EasyUBL avviste dokumentet:
 5158	Forbindelsesfejl til EasyUBL:	Connection error to EasyUBL:	Tilkoblingsfeil til EasyUBL:
 5159	Kontrollér hos EasyUBL om dokumentet alligevel er modtaget, før du sender igen. Kontakt saldi.dk support med oplysningerne nedenfor.	Check with EasyUBL whether the document was received anyway before sending again. Contact saldi.dk support with the details below.	Sjekk hos EasyUBL om dokumentet likevel er mottatt før du sender på nytt. Kontakt saldi.dk support med opplysningene nedenfor.
 5160	Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?	The last digital sending of this document failed. EasyUBL may have received it anyway - check the status at EasyUBL before sending again. Send again?	Siste digitale sending av dette dokumentet mislyktes. EasyUBL kan likevel ha mottatt det - sjekk status hos EasyUBL før du sender på nytt. Send på nytt?
+5240	Tidligere optællinger	Previous cash counts	Tidligere opptellinger
 
+5230	Mobilnummer	Mobile number	Mobilnummer
+5231	Udført af	Performed by	Utført av
