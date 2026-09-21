@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 5.0.0 --- 2026-03-06 ---
+// --- finans/rapport.php --- lap 5.1.0 --- 2026-09-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20210110 PHR some minor changes related til 'deferred financial year'
@@ -31,6 +31,7 @@
 // 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header
 // 20260306 LOE Updated some variables with if_isset() to avoid excessive undefined variable notices in error logs.
 // 20260915 CDX/PHR Keep submitted simulation selection instead of overriding it with the form URL; support older installs.
+// 20260918 CDX/PHR Expand scrollable financial reports and hide pagination when printing.
 @session_start();
 $s_id = session_id();
 
@@ -320,8 +321,32 @@ if ($submit == 'saft') {
 	header("Location: bankReconcile.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
 } else {
-	include("../includes/row-hover-style.js.php");
-	include("rapport_includes/$submit.php");
+	include(__DIR__ . "/../includes/row-hover-style.js.php");
+	// Report tables have viewport-limited scroll wrappers on screen. Printing must
+	// allow their full height, including when the document is hosted in an iframe.
+	print <<<'HTML'
+<style>
+@media print {
+    html, body {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    div[style*="max-height"], div[style*="overflow-x"], div[style*="overflow-y"] {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    [style*="position: sticky"], [style*="position:sticky"] {
+        position: static !important;
+    }
+    .hover-preview-tooltip, .ledger-pagination {
+        display: none !important;
+    }
+}
+</style>
+HTML;
+	include(__DIR__ . "/rapport_includes/$submit.php");
 }
 if (function_exists($submit)) {
 	$submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev);
