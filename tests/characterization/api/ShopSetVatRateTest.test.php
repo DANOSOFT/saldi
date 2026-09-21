@@ -99,15 +99,64 @@ final class ShopSetVatRateTest extends TestCase
         self::assertEqualsWithDelta($shopPrice, $new, 0.0000001);
     }
 
+    /**
+     * Every executable opret_saet() call in a file, reconstructed from tokens.
+     *
+     * 20260921 CDX/MJ This was a regex over the raw source, which also matched the opret_saet(...)
+     * text inside rest_api.php's own fwrite() log string - so removing the real call left the test
+     * passing on the log line alone. Raised by CodeRabbit. Scanning tokens fixes that by
+     * construction: inside a double-quoted string the text is T_ENCAPSED_AND_WHITESPACE and inside
+     * a comment it is T_COMMENT, so neither is ever a T_STRING named opret_saet.
+     *
+     * @param string $file Repo-relative path.
+     * @return list<string> One "opret_saet(...)" per executable call.
+     */
+    private static function opretSaetCalls(string $file): array
+    {
+        $tokens = token_get_all(file_get_contents(__DIR__ . '/../../../' . $file));
+        $calls = [];
+        $count = count($tokens);
+
+        for ($i = 0; $i < $count; $i++) {
+            if (!is_array($tokens[$i]) || $tokens[$i][0] !== T_STRING || $tokens[$i][1] !== 'opret_saet') {
+                continue;
+            }
+            // Skip whitespace and comments to find the opening parenthesis of the call.
+            $j = $i + 1;
+            while ($j < $count && is_array($tokens[$j])
+                && in_array($tokens[$j][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                $j++;
+            }
+            if ($j >= $count || $tokens[$j] !== '(') {
+                continue;   // a mention, not a call
+            }
+
+            $text = 'opret_saet';
+            $depth = 0;
+            for (; $j < $count; $j++) {
+                $piece = is_array($tokens[$j]) ? $tokens[$j][1] : $tokens[$j];
+                $text .= $piece;
+                if ($piece === '(') {
+                    $depth++;
+                } elseif ($piece === ')') {
+                    $depth--;
+                    if ($depth === 0) {
+                        break;
+                    }
+                }
+            }
+            $calls[] = $text;
+        }
+        return $calls;
+    }
+
     /** Both shop importers must pass the order's rate, not a literal 25. */
     public function testNeitherImporterHardcodesTheRate(): void
     {
         foreach (['api/rest_api.php', 'api/hent_ordrer.php'] as $file) {
-            $src = file_get_contents(__DIR__ . '/../../../' . $file);
-            $calls = [];
-            preg_match_all('/opret_saet\([^;]*\);/', $src, $calls);
-            self::assertNotEmpty($calls[0], "no opret_saet() call found in $file");
-            foreach ($calls[0] as $call) {
+            $calls = self::opretSaetCalls($file);
+            self::assertNotEmpty($calls, "no executable opret_saet() call found in $file");
+            foreach ($calls as $call) {
                 self::assertStringNotContainsString('*1.25', $call, "$file still grosses up by a hardcoded 1.25");
                 self::assertStringNotContainsString(',25,', $call, "$file still passes a hardcoded 25% rate");
                 self::assertStringContainsString('momssats', $call, "$file should pass the order's momssats");
@@ -142,11 +191,11 @@ final class ShopSetVatRateTest extends TestCase
     /** The bare `on` in hent_ordrer.php was an undefined constant, fatal under PHP 8. */
     public function testHentOrdrerPassesQuotedOnAndAllSevenArguments(): void
     {
-        $src = file_get_contents(__DIR__ . '/../../../api/hent_ordrer.php');
-        preg_match('/opret_saet\([^;]*\);/', $src, $call);
-        self::assertNotEmpty($call, 'no opret_saet() call found');
-        self::assertStringNotContainsString(",on)", $call[0], 'bare `on` is an undefined constant on PHP 8');
-        self::assertStringContainsString("'on'", $call[0], "the incl_moms flag should be the string 'on'");
-        self::assertSame(7, self::argumentCount($call[0]), 'opret_saet() takes seven arguments');
+        $calls = self::opretSaetCalls('api/hent_ordrer.php');
+        self::assertCount(1, $calls, 'expected exactly one executable opret_saet() call');
+        $call = $calls[0];
+        self::assertStringNotContainsString(",on)", $call, 'bare `on` is an undefined constant on PHP 8');
+        self::assertStringContainsString("'on'", $call, "the incl_moms flag should be the string 'on'");
+        self::assertSame(7, self::argumentCount($call), 'opret_saet() takes seven arguments');
     }
 }
