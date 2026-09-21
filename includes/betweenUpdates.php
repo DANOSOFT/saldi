@@ -55,6 +55,8 @@
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
 // 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
 // 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
+// 20260921 Sawaneh  Review: an empty webhook_base_url is no longer seeded from webhook_reconciled_url -
+//                  older markers came from SERVER_NAME, so that made an untrusted host canonical.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -356,37 +358,21 @@ if ($mp_client_id) {
 	// UseCanonicalName Off that follows the request's Host header, so a crafted Host on a
 	// login request could make this code delete the real webhook and register the payment
 	// callback at an attacker's address. It is read from settings instead.
-	$q = db_select("SELECT id, var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_base_url'", __FILE__ . " linje " . __LINE__);
+	$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_base_url'", __FILE__ . " linje " . __LINE__);
 	$mp_base_row = db_fetch_array($q);
 	$mp_webhook_base = trim((string)($mp_base_row['var_value'] ?? ''));
 
-	// Installations reconciled before this change have no setting yet, and their marker
-	// holds a url Vipps has already accepted. Adopting it keeps them working instead of
-	// silently stopping every POS tenant's reconciliation until someone fills the setting
-	// in, and it is logged so an operator can see what was adopted.
-	if ($mp_webhook_base === '' && $mp_reconciled_url) {
-		$mp_seed = parse_url($mp_reconciled_url);
-		if (!empty($mp_seed['scheme']) && !empty($mp_seed['host'])) {
-			$mp_webhook_base = $mp_seed['scheme'] . '://' . $mp_seed['host'] . (isset($mp_seed['port']) ? ':' . $mp_seed['port'] : '');
-			$mp_seed_value = db_escape_string($mp_webhook_base);
-			// The row may already exist with an empty value, which is what got us here, so
-			// insert only when there is nothing to update - two rows for the same
-			// var_grp/var_name would make every later read pick one of them at random.
-			if (!empty($mp_base_row['id'])) {
-				db_modify("UPDATE settings SET var_value = '$mp_seed_value' WHERE id = " . (int)$mp_base_row['id'], __FILE__ . " linje " . __LINE__);
-			} else {
-				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_base_url', 'mobilepay', '$mp_seed_value', 'Canonical https base url for the MobilePay webhook callback, e.g. https://pos.example.dk')", __FILE__ . " linje " . __LINE__);
-			}
-			error_log("betweenUpdates.php: MobilePay webhook_base_url was not configured - adopted '$mp_webhook_base' from the existing reconciled url");
-		}
-	}
-
+	// An existing webhook_reconciled_url is NOT adopted as the base url: markers written before
+	// 20260812 were built from $_SERVER['SERVER_NAME'], so adopting one would make a host taken
+	// from request metadata canonical. Its host is only named in the log as a hint for whoever
+	// fills in the setting.
 	$mp_base_parts = $mp_webhook_base !== '' ? parse_url($mp_webhook_base) : false;
 	if (!$mp_base_parts || empty($mp_base_parts['host']) || strtolower($mp_base_parts['scheme'] ?? '') !== 'https') {
 		// Without a configured base url there is nothing safe to reconcile against, so no
 		// webhook is deleted or registered. Vipps keeps delivering to whatever is already
 		// registered; only reconciliation waits.
-		error_log("betweenUpdates.php: MobilePay webhook reconciliation skipped - set settings var_grp 'mobilepay', var_name 'webhook_base_url' to the canonical https base url for this installation");
+		$mp_hint = $mp_reconciled_url ? (string)parse_url($mp_reconciled_url, PHP_URL_HOST) : '';
+		error_log("betweenUpdates.php: MobilePay webhook reconciliation skipped - set settings var_grp 'mobilepay', var_name 'webhook_base_url' to the canonical https base url for this installation" . ($mp_hint !== '' ? " (last reconciled host, unverified: " . preg_replace('/[^A-Za-z0-9.:-]/', '', $mp_hint) . ")" : ''));
 		$expected_url = null;
 	} else {
 		$expected_url = rtrim($mp_webhook_base, '/') . '/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db;

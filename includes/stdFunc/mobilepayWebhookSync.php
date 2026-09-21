@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/mobilepayWebhookSync.php --- patch 5.0.0 --- 2026-08-12 ---
+// --- includes/stdFunc/mobilepayWebhookSync.php --- patch 5.0.0 --- 2026-09-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Reconciles the MobilePay/Vipps webhook registration for one account with the callback
 // url this installation expects: fetches an access token, lists the registered webhooks,
@@ -34,6 +34,9 @@
 // 20260812 Sawaneh Extracted from includes/betweenUpdates.php so the reconciliation can be
 //                  tested: happy path, 4xx/5xx from each of the four calls, a 2xx list with
 //                  an unexpected payload, and a stale webhook that cannot be deleted.
+// 20260921 Sawaneh Those tests now exist: tests/characterization/includes/MobilepayWebhookSyncTest.test.php
+//                  against a local stub. They showed the body-less token POST stalling 1 s in libcurl;
+//                  it is sent with an empty body now.
 
 if (!function_exists('mobilepay_webhook_call')) {
 	/**
@@ -64,9 +67,9 @@ if (!function_exists('mobilepay_webhook_call')) {
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 		if ($method === 'POST') {
 			curl_setopt($ch, CURLOPT_POST, true);
-			if ($body !== null) {
-				curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-			}
+			// Always set, also when empty: a POST without POSTFIELDS makes libcurl announce a
+			// body and wait a full second for "100 Continue" before it sends the request.
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $body === null ? '' : $body);
 		} elseif ($method !== 'GET') {
 			curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
 		}
