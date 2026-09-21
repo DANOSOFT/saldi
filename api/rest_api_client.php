@@ -6,7 +6,7 @@ echo '<html><body>';
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------dht_saldi_api_client.php---ver. 1.0---2017-02-07--------------
+// ----------dht_saldi_api_client.php---ver. 1.0---2026-09-21--------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,9 +25,10 @@ echo '<html><body>';
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2017 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260921 CDX/LUI Validate complete exports and persist acknowledged/unknown hops before removing a source.
+// 20260921 CDX/LH Accept new exports at reused paths and retry only explicit no-write line rejections.
 
 
 if(!ini_get('allow_url_fopen') ) {
@@ -158,14 +159,29 @@ function restClientSaveState($journal, array $state): void {
     }
 }
 
+/**
+ * Exact action-specific response whose production branch returns before mutations.
+ * HTTP success, arbitrary JSON errors and bundle result 0 do not prove no writes.
+ *
+ * @return bool Whether this response permits retrying the identical request.
+ */
+function restClientSafeRejection(array $params, $value): bool {
+    return isset($params['action']) && $params['action'] === 'insert_shop_orderline'
+        && $value === 'Unknown item identity; no line created';
+}
+
 /** @return int Acknowledged remote object ID. An unknown outcome must never be replayed automatically. */
 function restClientHop(string $endpoint, array $auth, array $params, string $step, &$state, $journal): int {
     $fingerprint = hash('sha256', json_encode($params, JSON_THROW_ON_ERROR));
     if (isset($state['steps'][$step])) {
         $saved = $state['steps'][$step];
         if (($saved['fingerprint'] ?? '') !== $fingerprint) { throw new RuntimeException('Import request changed; source retained for reconciliation.'); }
-        if (($saved['status'] ?? '') !== 'done') { throw new RuntimeException('An earlier request has an unknown outcome; reconcile the pending import before retrying. Source retained.'); }
-        return (int)$saved['id'];
+        if (($saved['status'] ?? '') === 'done') {
+            return (int)$saved['id'];
+        }
+        if (($saved['status'] ?? '') !== 'rejected' || !isset($saved['reason']) || !restClientSafeRejection($params, $saved['reason'])) {
+            throw new RuntimeException('An earlier request has an unknown outcome; reconcile the pending import before retrying. Source retained.');
+        }
     }
     $state['steps'][$step] = ['fingerprint'=>$fingerprint,'status'=>'pending'];
     restClientSaveState($journal, $state);
@@ -177,6 +193,11 @@ function restClientHop(string $endpoint, array $auth, array $params, string $ste
     finally { restore_error_handler(); }
     $status = $http_response_header[0] ?? '';
     $value = json_decode((string)$response, true);
+    if (preg_match('/^HTTP\/\S+ 200(?: |$)/', $status) && restClientSafeRejection($params, $value)) {
+        $state['steps'][$step] = ['fingerprint'=>$fingerprint,'status'=>'rejected','reason'=>$value];
+        restClientSaveState($journal, $state);
+        throw new RuntimeException('API rejected request: ' . $value . '. Correct the item catalog and retry the unchanged source; source retained.');
+    }
     if (!preg_match('/^HTTP\/\S+ 2[0-9]{2}(?: |$)/', $status) || (!is_int($value) && !is_string($value)) || !ctype_digit((string)$value) || (int)$value < 1) {
         throw new RuntimeException('API request was not acknowledged with a positive ID; source retained for reconciliation.');
     }
@@ -200,8 +221,23 @@ function restClientTransferOrders(string $contents, string $sourceIdentity, stri
         $data = stream_get_contents($journal);
         $hash = hash('sha256', $contents);
         $state = $data === '' ? ['source_hash'=>$hash,'steps'=>[]] : json_decode($data, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($state) || ($state['source_hash'] ?? '') !== $hash || !isset($state['steps']) || !is_array($state['steps'])) {
+        if (!is_array($state) || !isset($state['source_hash'], $state['steps']) || !is_string($state['source_hash']) || !is_array($state['steps'])) {
             throw new RuntimeException('Source or import journal changed; source retained for reconciliation.');
+        }
+        if ($state['source_hash'] !== $hash) {
+            if (!isset($state['complete']) || $state['complete'] !== true) {
+                throw new RuntimeException('Source or import journal changed; source retained for reconciliation.');
+            }
+            $completed = isset($state['completed_hashes']) ? $state['completed_hashes'] : [];
+            if (!is_array($completed)) {
+                throw new RuntimeException('Invalid completed import history; source retained for reconciliation.');
+            }
+            if (isset($completed[$hash]) && $completed[$hash] === true) {
+                return; // An older consumed export must not repeat remote writes.
+            }
+            $completed[$state['source_hash']] = true;
+            $state = ['source_hash'=>$hash,'steps'=>[],'completed_hashes'=>$completed];
+            restClientSaveState($journal, $state);
         }
         foreach ($orders as $orderId => $lines) {
             $r = $lines[0];

@@ -1,5 +1,6 @@
 <?php
 // 20260921 CDX/LUI Exercise the actual reference client against a disposable HTTP peer.
+// 20260921 CDX/LH Cover filename reuse, historical replays and safe rejection retries.
 if (PHP_SAPI !== 'cli') { exit('CLI only'); }
 error_reporting(E_ALL);
 set_error_handler(static function ($severity, $message, $file, $line) { throw new ErrorException($message, 0, $severity, $file, $line); });
@@ -110,6 +111,75 @@ try {
         $output=runActualClient($directory);
         checkClient(is_file($directory . '/owned.csv') && count(clientCalls())===2 && str_contains($output,'not acknowledged'), "$name is never mistaken for a successful line insert");
     }
+    $directory = $fixture . '/case-0';
+    $source = $directory . '/owned.csv';
+    $third = $row; $third[0] = '103';
+    $fresh = makeClientCsv([$third]);
+    file_put_contents($source, $fresh);
+    file_put_contents($fixture . '/peer.json', '{}');
+    $before = count(clientCalls());
+    $output = runActualClient($directory);
+    checkClient(!is_file($source) && str_contains($output, 'Done') && count(clientCalls()) === $before + 3, 'new order export reusing a completed filename imports exactly once');
+    foreach ([$contents, $fresh, $contents] as $replay) {
+        file_put_contents($source, $replay);
+        $before = count(clientCalls());
+        runActualClient($directory);
+        checkClient(!is_file($source) && count(clientCalls()) === $before, 'both current and historical completed payloads remain deduplicated after filename reuse');
+    }
+    $fourth = $row; $fourth[0] = '104';
+    file_put_contents($source, makeClientCsv([$fourth]));
+    $before = count(clientCalls());
+    file_put_contents($fixture . '/peer.json', json_encode(['fail_at'=>$before+1]));
+    runActualClient($directory);
+    $journal = json_decode(file_get_contents(glob($directory . '/state/*.json')[0]), true);
+    checkClient(count(clientCalls()) === $before+1 && $journal['steps']['104:header']['status'] === 'pending' && count($journal['completed_hashes']) === 2, 'new filename generation persists old completed hashes even when its first request is ambiguous');
+    file_put_contents($source, $contents);
+    $output = runActualClient($directory);
+    checkClient(is_file($source) && count(clientCalls()) === $before+1 && str_contains($output, 'Source or import journal changed'), 'historical completed payload cannot bypass a newer unresolved generation at the same path');
+    $directory = $fixture . '/safe-rejection'; mkdir($directory, 0700);
+    $source = $directory . '/owned.csv'; file_put_contents($source, $contents);
+    unlink($fixture . '/calls.jsonl');
+    $reason = 'Unknown item identity; no line created';
+    file_put_contents($fixture . '/peer.json', json_encode(['fail_at'=>2, 'status'=>200, 'body'=>json_encode($reason)]));
+    $output = runActualClient($directory);
+    $journal = json_decode(file_get_contents(glob($directory . '/state/*.json')[0]), true);
+    checkClient(is_file($source) && count(clientCalls()) === 2 && str_contains($output, $reason), 'explicit no-write line rejection preserves source and reports the server reason');
+    checkClient($journal['steps']['101:header']['status'] === 'done' && $journal['steps']['101:line:0']['status'] === 'rejected' && $journal['steps']['101:line:0']['reason'] === $reason, 'journal retains acknowledged header and distinguishes exact safe rejection');
+    file_put_contents($fixture . '/peer.json', json_encode(['fail_at'=>3, 'status'=>200, 'body'=>json_encode($reason)]));
+    $output = runActualClient($directory);
+    checkClient(count(clientCalls()) === 3 && str_contains($output, $reason) && clientCalls()[2] === clientCalls()[1], 'unchanged missing item can be rejected again without repeating the header');
+    $changed = $row; $changed[13] = 'REPLACED';
+    file_put_contents($source, makeClientCsv([$changed]));
+    $output = runActualClient($directory);
+    checkClient(count(clientCalls()) === 3 && str_contains($output, 'Source or import journal changed'), 'safe rejection does not authorize editing a partially acknowledged export');
+    file_put_contents($source, $contents);
+    file_put_contents($fixture . '/peer.json', '{}');
+    $output = runActualClient($directory);
+    $calls = clientCalls();
+    checkClient(!is_file($source) && str_contains($output, 'Done') && count($calls) === 9 && $calls[3] === $calls[1], 'catalog correction retries only the rejected hop and completes remaining rows and freight');
+    checkClient(count(array_filter($calls, static fn($call) => $call['action'] === 'insert_shop_order')) === 2, 'retry of rejected line never duplicates either acknowledged order header');
+    foreach (['arbitrary-error'=>[2,200,json_encode('Error after mutation')], 'wrong-action'=>[1,200,json_encode($reason)], 'wrong-status'=>[2,503,json_encode($reason)], 'bundle-zero'=>[2,200,'0'], 'near-match'=>[2,200,json_encode($reason . ' with extra details')]] as $name => [$at,$status,$body]) {
+        $directory = $fixture . '/' . $name; mkdir($directory, 0700);
+        $source = $directory . '/owned.csv'; file_put_contents($source, $contents);
+        unlink($fixture . '/calls.jsonl');
+        file_put_contents($fixture . '/peer.json', json_encode(['fail_at'=>$at,'status'=>$status,'body'=>$body]));
+        runActualClient($directory);
+        file_put_contents($fixture . '/peer.json', '{}');
+        $output = runActualClient($directory);
+        $journal = json_decode(file_get_contents(glob($directory . '/state/*.json')[0]), true);
+        checkClient(is_file($source) && count(clientCalls()) === $at && str_contains($output, 'unknown outcome') && count(array_filter($journal['steps'], static fn($step) => $step['status'] === 'pending')) === 1, "$name remains ambiguous and cannot replay after recovery");
+    }
+    $directory = $fixture . '/rejection-then-ambiguous'; mkdir($directory, 0700);
+    $source = $directory . '/owned.csv'; file_put_contents($source, $contents);
+    unlink($fixture . '/calls.jsonl');
+    file_put_contents($fixture . '/peer.json', json_encode(['fail_at'=>2,'status'=>200,'body'=>json_encode($reason)]));
+    runActualClient($directory);
+    file_put_contents($fixture . '/peer.json', json_encode(['fail_at'=>3,'status'=>503,'body'=>'unavailable']));
+    runActualClient($directory);
+    file_put_contents($fixture . '/peer.json', '{}');
+    $output = runActualClient($directory);
+    $journal = json_decode(file_get_contents(glob($directory . '/state/*.json')[0]), true);
+    checkClient(is_file($source) && count(clientCalls()) === 3 && str_contains($output, 'unknown outcome') && $journal['steps']['101:line:0']['status'] === 'pending', 'retryable rejection becomes pending before retry so a later ambiguous failure remains blocked');
     $directory=$fixture . '/case-2';
     $changed=$row; $changed[16]='999';
     file_put_contents($directory . '/owned.csv',makeClientCsv([$changed]));
