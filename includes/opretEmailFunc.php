@@ -161,12 +161,12 @@ if (!function_exists('opret_email_placeholders')) {
 	function opret_email_placeholders()
 	{
 		return array(
-			'pakke_navn' => 5062, // Package name
-			'pakke_pris' => 5063, // Package price
-			'navn'       => 5073, // Customer name
-			'cvrnr'      => 5074, // Company registration number
+			'pakke_navn' => 5406, // Package name
+			'pakke_pris' => 5407, // Package price
+			'navn'       => 5417, // Customer name
+			'cvrnr'      => 5418, // Company registration number
 			'tlf'        => 37,   // Telephone
-			'email'      => 5075, // Email address
+			'email'      => 5419, // Email address
 		);
 	}
 }
@@ -858,10 +858,10 @@ if (!function_exists('opret_email_error_textid')) {
 	function opret_email_error_textid($code)
 	{
 		$ids = array(
-			'invalid_email'   => 5091,
-			'unknown_package' => 5087,
-			'empty_template'  => 5092,
-			'mail_failed'     => 5093,
+			'invalid_email'   => 5435,
+			'unknown_package' => 5431,
+			'empty_template'  => 5436,
+			'mail_failed'     => 5437,
 		);
 		return isset($ids[$code]) ? $ids[$code] : 0;
 	}

@@ -46,6 +46,13 @@
 // 20230209 PHR Enhanced 'Kopi fra' (copy from') 
 // 20230405 PHR Added price option.
 // 20230928 PHR added "'"art='POSBUT' and " to fetch.
+// 20260827 CL/SZ "Luk" now uses nav_back_url() and the standard blue
+//                back-button style instead of a hardcoded link to
+//                diverse.php?sektion=pos_valg. See MB-23.
+// 20260827 CL/SZ Fixed pos_menu_location cookie write order (was
+//                menu_id-ret_col-ret_row, callers read it as
+//                menu_id-ret_row-ret_col) and a $bud_id/$but_id typo that
+//                made a re-fetch guard always fire.
 
 @session_start();
 $s_id = session_id();
@@ -59,8 +66,11 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/posmenufunc_includes/buttonFunc.php");
+include("../includes/topline_settings.php");
 
 $title = findtekst(1940, $sprog_id);
+$returside = nav_back_url(if_isset($_GET, NULL, 'returside'));
+$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
 $buttonTextArr = setAccordinglyLanguage();
 
 #$systemknap=array('Afslut','Bordvalg','Brugervalg','Del bord','Enter','Find bon','Flyt bord','Kasseoptælling','Kassevalg','Køkkenprint','Luk','Skuffe','Udskriv','Forfra','Ekspedient','Ryd','Afslut','Pris','Rabat','Tilbage','Ny kunde','Korrektion','Kortterminal','Send til køkken','Kør bord');
@@ -98,7 +108,7 @@ $copyFromCol = if_isset($_POST['copyFromCol']);
 $copyFromRow = if_isset($_POST['copyFromRow']);
 $folgevarer = if_isset($_POST['folgevarer']);
 
-setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_col]-$_GET[ret_row]", time() + (86400 * 30), "/");
+setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_row]-$_GET[ret_col]", time() + (86400 * 30), "/");
 
 if ($menu_id) {
 	if (!$beskrivelse)
@@ -288,7 +298,7 @@ if ($menuvalg == 'ny') {
 			$ny_col = ord(substr($byt, 0, 1)) - 96;
 			$ny_row = substr($byt, 1);
 			if (is_numeric($ny_col) && is_numeric($ny_row)) {
-				if (!$bud_id) {
+				if (!$but_id) {
 					$qtxt = "select id from pos_buttons where menu_id='$menu_id' and row='$ret_row' and col='$ret_col'";
 					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					$but_id = $r['id'];
@@ -368,11 +378,23 @@ if (!$radius)
 if (!$fontsize)
 	$fontsize = 20;
 
+print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
+print "<tr><td align='center' valign='top'>\n";
+print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>\n";
+print "<td width='10%'>
+	<a href='" . htmlspecialchars($returside, ENT_QUOTES) . "' accesskey='L'>
+	<button type='button' class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+	. $icon_back . findtekst('2172|Luk', $sprog_id) . "</button></a></td>\n";
+print "<td width='80%' style='$topStyle' align='center'>" . $title . "</td>\n";
+print "<td width='10%' style='$buttonStyle'></td>\n";
+print "</tr></tbody></table>\n";
+print "</td></tr></tbody></table>\n";
+print "<style>.center-btn{display:flex;align-items:center;text-decoration:none;gap:5px;}</style>\n";
+
 print "<table border = '1'><tbody><tr><td>\n";
 print "<form name='posmenuer' action='posmenuer.php' method='post'>\n";
 // Vindue 1 - >
 print "<table border='0'><tbody>\n";
-print "<tr><td><a href=diverse.php?sektion=pos_valg>" . findtekst('2172|Luk', $sprog_id) . "</a></td></tr>\n";
 if (($menu_id) && $ret_col && $ret_row) {
 	$qtxt = "select * from pos_buttons where menu_id='$menu_id' and row='$ret_row' and col='$ret_col'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));

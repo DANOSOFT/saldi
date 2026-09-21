@@ -28,6 +28,7 @@
 // 20250113 PHR fiscal_year
 // 20251203 LOE Updated the file to use grid framework
 // 20260821 CL/SZ Faktura column now links to ordre.php/pos_ordre.php via ordre_id
+// 20260826 LOE Linked to debitor/ordre.php instead of finans/ordre.php
 
 
 $fakturanr = array();
@@ -450,7 +451,7 @@ $columns = [
     ],
     [
         'field' => 'faktura',
-        'headerName' => findtekst(828, $sprog_id), // "Faktura"
+        'headerName' => findtekst(828, $sprog_id), // "Faktura"  
         'type' => 'text',
         'width' => '1',
         'sortable' => true,
@@ -460,8 +461,8 @@ $columns = [
             $title = isset($row['ordrenr']) && $row['ordrenr'] ? "title='Ordrenr: {$row['ordrenr']}'" : '';
             $ordre_id = isset($row['ordre_id']) ? intval($row['ordre_id']) : 0;
             if ($value !== '' && $value !== null && $ordre_id > 0) {
-                $target = (isset($row['pos']) && $row['pos']) ? '../debitor/pos_ordre.php' : 'ordre.php';
-                return "<td align='right' $title><a href='{$target}?id={$ordre_id}&returside=kontospec.php' style='text-decoration: underline;'>$value</a></td>";
+                $target = (isset($row['pos']) && $row['pos']) ? '../debitor/pos_ordre.php' : '../debitor/ordre.php';
+                return "<td align='right' $title><a href='{$target}?id={$ordre_id}&returside=../finans/kontospec.php' style='text-decoration: underline;'>$value</a></td>";
             }
             return "<td align='right' $title>$value</td>";
         }
@@ -476,7 +477,7 @@ $columns = [
         'align' => 'right',
         'render' => function($value, $row, $column) {
 			if ($value) {
-				return "<td align='right'><a href='kassekladde.php?kladde_id=" . urlencode($value) . "&returside=kontospec.php' style='text-decoration: underline;'>$value</a></td>";
+				return "<td align='right'><a href='kassekladde.php?kladde_id=" . urlencode($value) . "&returside=../finans/kontospec.php' style='text-decoration: underline;'>$value</a></td>";
 			}
 			return "<td align='right'></td>";
        }

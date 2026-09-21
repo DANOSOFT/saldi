@@ -29,7 +29,7 @@ ob_start();
 // admin/opret_email_send.php through includes/opretEmailFunc.php.
 //
 // 20260804 Sawaneh New file. Every text comes from findtekst() - see new rows
-//                  5056-5113 in importfiler/tekster.csv.
+//                  5400-5457 in importfiler/tekster.csv.
 // 20260804 Sawaneh Language selector in the editor, so each language version of the
 //                  welcome email can be edited on its own (?sprog=1|2|3).
 // 20260804 Sawaneh The key is no longer written into the page. The 'Connection from
@@ -86,10 +86,10 @@ function opret_email_tekst($textId)
 function opret_email_eksempeldata()
 {
 	return array(
-		'navn'  => opret_email_tekst(5106),
+		'navn'  => opret_email_tekst(5450),
 		'cvrnr' => '12345678',
 		'tlf'   => '12345678',
-		'email' => opret_email_tekst(5107),
+		'email' => opret_email_tekst(5451),
 	);
 }
 
@@ -106,7 +106,7 @@ if (isset($_GET['ajax'])) {
 	}
 
 	if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-		echo json_encode(array('error' => opret_email_tekst(5090)), JSON_UNESCAPED_UNICODE);
+		echo json_encode(array('error' => opret_email_tekst(5434)), JSON_UNESCAPED_UNICODE);
 		exit;
 	}
 
@@ -116,7 +116,7 @@ if (isset($_GET['ajax'])) {
 	// covered without anyone having to remember it.
 	if (!opret_email_csrf_ok()) {
 		http_response_code(403);
-		echo json_encode(array('error' => opret_email_tekst(5098)), JSON_UNESCAPED_UNICODE);
+		echo json_encode(array('error' => opret_email_tekst(5442)), JSON_UNESCAPED_UNICODE);
 		exit;
 	}
 
@@ -138,11 +138,11 @@ if (isset($_GET['ajax'])) {
 		$navn = trim((string) if_isset($input, '', 'navn'));
 		$pris = opret_email_parse_price(if_isset($input, '', 'pris'));
 		if (!$id || $navn === '') {
-			echo json_encode(array('error' => opret_email_tekst(5083)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5427)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		if ($pris === null) {
-			echo json_encode(array('error' => opret_email_tekst(5084)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5428)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		$qtxt = "UPDATE opret_pakker SET navn = '" . db_escape_string($navn) . "', pris = " . $pris;
@@ -158,19 +158,19 @@ if (isset($_GET['ajax'])) {
 		$pris = opret_email_parse_price(if_isset($input, '', 'pris'));
 	
 		if (!preg_match('/^[a-z0-9_-]{2,30}$/', $kode)) {
-			echo json_encode(array('error' => opret_email_tekst(5085)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5429)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		if ($navn === '') {
-			echo json_encode(array('error' => opret_email_tekst(5083)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5427)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		if ($pris === null) {
-			echo json_encode(array('error' => opret_email_tekst(5084)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5428)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		if (opret_email_package($kode)) {
-			echo json_encode(array('error' => opret_email_tekst(5086)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5430)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		$r = db_fetch_array(db_select("SELECT max(sorteringnr) AS hoejest FROM opret_pakker", __FILE__ . " linje " . __LINE__));
@@ -185,12 +185,12 @@ if (isset($_GET['ajax'])) {
 	if ($handling === 'delete_package') {
 		$id = (int) if_isset($input, 0, 'id');
 		if (!$id) {
-			echo json_encode(array('error' => opret_email_tekst(5087)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5431)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		$r = db_fetch_array(db_select("SELECT count(*) AS antal FROM opret_pakker", __FILE__ . " linje " . __LINE__));
 		if ((int) $r['antal'] <= 1) {
-			echo json_encode(array('error' => opret_email_tekst(5088)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5432)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		// The website posts its package code to opret_email_send.php. Deleting one
@@ -199,7 +199,7 @@ if (isset($_GET['ajax'])) {
 		// remain editable.
 		$r = db_fetch_array(db_select("SELECT kode FROM opret_pakker WHERE id = $id", __FILE__ . " linje " . __LINE__));
 		if ($r && in_array(strtolower(trim($r['kode'])), opret_email_beskyttede_koder(), true)) {
-			echo json_encode(array('error' => opret_email_tekst(5114)), JSON_UNESCAPED_UNICODE);
+			echo json_encode(array('error' => opret_email_tekst(5458)), JSON_UNESCAPED_UNICODE);
 			exit;
 		}
 		db_modify("DELETE FROM opret_pakker WHERE id = $id", __FILE__ . " linje " . __LINE__);
@@ -245,7 +245,7 @@ if (isset($_GET['ajax'])) {
 		exit;
 	}
 
-	echo json_encode(array('error' => opret_email_tekst(5089)), JSON_UNESCAPED_UNICODE);
+	echo json_encode(array('error' => opret_email_tekst(5433)), JSON_UNESCAPED_UNICODE);
 	exit;
 }
 
@@ -266,7 +266,7 @@ $test_email = (string) if_isset($r, '', 'email');
 <!DOCTYPE html>
 <html lang="<?php echo $sprog_id == 2 ? 'en' : ($sprog_id == 3 ? 'no' : 'da'); ?>">
 <head>
-    <title><?php echo htmlspecialchars(opret_email_tekst(5056)); ?></title>
+    <title><?php echo htmlspecialchars(opret_email_tekst(5400)); ?></title>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8;">
     <link rel="stylesheet" type="text/css" href="../css/standard.css">
     <link rel="stylesheet" type="text/css" href="../javascript/quill/quill.snow.css">
@@ -424,10 +424,10 @@ $test_email = (string) if_isset($r, '', 'email');
 <body>
 
 <div class="top-bar">
-    <h1>✉️ <?php echo htmlspecialchars(opret_email_tekst(5056)); ?></h1>
+    <h1>✉️ <?php echo htmlspecialchars(opret_email_tekst(5400)); ?></h1>
     <div>
         <a href="admin_panel.php" style="margin-right: 20px;">← Admin Panel</a>
-        <a href="../index/admin_menu.php">← <?php echo htmlspecialchars(opret_email_tekst(5104)); ?></a>
+        <a href="../index/admin_menu.php">← <?php echo htmlspecialchars(opret_email_tekst(5448)); ?></a>
     </div>
 </div>
 
@@ -439,7 +439,7 @@ $test_email = (string) if_isset($r, '', 'email');
 
     <div>
         <div class="card">
-            <div class="card-head"><h2><?php echo htmlspecialchars(opret_email_tekst(5057)); ?></h2></div>
+            <div class="card-head"><h2><?php echo htmlspecialchars(opret_email_tekst(5401)); ?></h2></div>
             <div class="card-body">
                 <div id="packages">
 <?php foreach ($packages as $package) { ?>
@@ -447,14 +447,14 @@ $test_email = (string) if_isset($r, '', 'email');
                         <div class="package-top">
                             <span class="package-code"><?php echo htmlspecialchars($package['kode']); ?></span>
 <?php if (in_array($package['kode'], $live_koder, true)) { ?>
-                            <span class="badge badge-active" title="<?php echo htmlspecialchars(opret_email_tekst(5060)); ?>"><?php echo htmlspecialchars(opret_email_tekst(5058)); ?></span>
+                            <span class="badge badge-active" title="<?php echo htmlspecialchars(opret_email_tekst(5404)); ?>"><?php echo htmlspecialchars(opret_email_tekst(5402)); ?></span>
 <?php } else { ?>
-                            <span class="badge badge-prepared" title="<?php echo htmlspecialchars(opret_email_tekst(5061)); ?>"><?php echo htmlspecialchars(opret_email_tekst(5059)); ?></span>
+                            <span class="badge badge-prepared" title="<?php echo htmlspecialchars(opret_email_tekst(5405)); ?>"><?php echo htmlspecialchars(opret_email_tekst(5403)); ?></span>
 <?php } ?>
                         </div>
                         <div class="package-row">
-                            <input type="text" class="pkg-navn" value="<?php echo htmlspecialchars($package['navn']); ?>" maxlength="100" aria-label="<?php echo htmlspecialchars(opret_email_tekst(5062)); ?>">
-                            <input type="text" class="pkg-pris" value="<?php echo htmlspecialchars(dkdecimal($package['pris'], 2)); ?>" aria-label="<?php echo htmlspecialchars(opret_email_tekst(5063)); ?>">
+                            <input type="text" class="pkg-navn" value="<?php echo htmlspecialchars($package['navn']); ?>" maxlength="100" aria-label="<?php echo htmlspecialchars(opret_email_tekst(5406)); ?>">
+                            <input type="text" class="pkg-pris" value="<?php echo htmlspecialchars(dkdecimal($package['pris'], 2)); ?>" aria-label="<?php echo htmlspecialchars(opret_email_tekst(5407)); ?>">
                         </div>
                         <div class="package-actions">
                             <button type="button" class="btn btn-small" onclick="savePackage(this)"><?php echo htmlspecialchars(opret_email_tekst(3)); ?></button>
@@ -467,7 +467,7 @@ $test_email = (string) if_isset($r, '', 'email');
         </div>
 
         <div class="card">
-            <div class="card-head"><h2><?php echo htmlspecialchars(opret_email_tekst(5064)); ?></h2></div>
+            <div class="card-head"><h2><?php echo htmlspecialchars(opret_email_tekst(5408)); ?></h2></div>
             <div class="card-body">
                 <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(3338)); ?></span>
                     <input type="text" id="ny-kode" placeholder="premium" maxlength="30">
@@ -478,8 +478,8 @@ $test_email = (string) if_isset($r, '', 'email');
                 <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(915)); ?></span>
                     <input type="text" id="ny-pris" value="0,00">
                 </label>
-                <button type="button" class="btn btn-outline" onclick="addPackage()">+ <?php echo htmlspecialchars(opret_email_tekst(5064)); ?></button>
-                <div class="hint"><?php echo htmlspecialchars(opret_email_tekst(5066)); ?></div>
+                <button type="button" class="btn btn-outline" onclick="addPackage()">+ <?php echo htmlspecialchars(opret_email_tekst(5408)); ?></button>
+                <div class="hint"><?php echo htmlspecialchars(opret_email_tekst(5410)); ?></div>
             </div>
         </div>
     </div>
@@ -487,7 +487,7 @@ $test_email = (string) if_isset($r, '', 'email');
     <div>
         <div class="card">
             <div class="card-head">
-                <h2><?php echo htmlspecialchars(opret_email_tekst(5067)); ?></h2>
+                <h2><?php echo htmlspecialchars(opret_email_tekst(5411)); ?></h2>
                 <div class="toolbar-row">
                     <label for="sprog-valg" class="sr-only"><?php echo htmlspecialchars(opret_email_tekst(801)); ?></label>
                     <select id="sprog-valg" onchange="skiftSprog(this.value)" title="<?php echo htmlspecialchars(opret_email_tekst(801)); ?>">
@@ -495,40 +495,40 @@ $test_email = (string) if_isset($r, '', 'email');
                         <option value="<?php echo $sprog_nr; ?>"<?php echo $sprog_nr === $rediger_sprog ? ' selected' : ''; ?>><?php echo htmlspecialchars(findtekst(1, $sprog_nr)); ?></option>
 <?php } ?>
                     </select>
-                    <button type="button" class="btn btn-small btn-outline" id="source-toggle" onclick="toggleSource()"><?php echo htmlspecialchars(opret_email_tekst(5068)); ?></button>
-                    <button type="button" class="btn btn-small" onclick="saveTemplate()"><?php echo htmlspecialchars(opret_email_tekst(5070)); ?></button>
+                    <button type="button" class="btn btn-small btn-outline" id="source-toggle" onclick="toggleSource()"><?php echo htmlspecialchars(opret_email_tekst(5412)); ?></button>
+                    <button type="button" class="btn btn-small" onclick="saveTemplate()"><?php echo htmlspecialchars(opret_email_tekst(5414)); ?></button>
                 </div>
             </div>
             <div class="card-body">
 <?php if ($settings['fallback']) { ?>
-                <div class="message info" style="margin-bottom:16px;">ℹ️ <?php echo htmlspecialchars(opret_email_tekst(5109)); ?></div>
+                <div class="message info" style="margin-bottom:16px;">ℹ️ <?php echo htmlspecialchars(opret_email_tekst(5453)); ?></div>
 <?php } ?>
-                <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(5071)); ?></span>
+                <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(5415)); ?></span>
                     <input type="text" id="emne" value="<?php echo htmlspecialchars($settings['emne']); ?>" maxlength="200">
                 </label>
-                <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(5072)); ?></span>
+                <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(5416)); ?></span>
                     <input type="text" id="afsender" value="<?php echo htmlspecialchars($settings['afsender']); ?>" maxlength="200">
                 </label>
 
                 <div id="editor-wrap">
                     <div id="editor"></div>
                 </div>
-                <textarea id="source" spellcheck="false" aria-label="<?php echo htmlspecialchars(opret_email_tekst(5068)); ?>"></textarea>
+                <textarea id="source" spellcheck="false" aria-label="<?php echo htmlspecialchars(opret_email_tekst(5412)); ?>"></textarea>
 
                 <div class="placeholders">
 <?php foreach ($placeholders as $navn => $textId) { ?>
                     <button type="button" class="chip" onclick="insertPlaceholder('<?php echo htmlspecialchars($navn, ENT_QUOTES); ?>')" title="{{<?php echo htmlspecialchars($navn); ?>}}"><?php echo htmlspecialchars(opret_email_tekst($textId)); ?></button>
 <?php } ?>
                 </div>
-                <div class="hint"><?php echo htmlspecialchars(opret_email_tekst(5076)); ?></div>
+                <div class="hint"><?php echo htmlspecialchars(opret_email_tekst(5420)); ?></div>
             </div>
         </div>
 
         <div class="card">
             <div class="card-head">
-                <h2><?php echo htmlspecialchars(opret_email_tekst(5077)); ?></h2>
+                <h2><?php echo htmlspecialchars(opret_email_tekst(5421)); ?></h2>
                 <div class="toolbar-row">
-                    <select id="pakke-valg" aria-label="<?php echo htmlspecialchars(opret_email_tekst(5105)); ?>">
+                    <select id="pakke-valg" aria-label="<?php echo htmlspecialchars(opret_email_tekst(5449)); ?>">
 <?php foreach ($packages as $package) { ?>
                         <option value="<?php echo htmlspecialchars($package['kode'], ENT_QUOTES); ?>"><?php echo htmlspecialchars($package['navn']); ?></option>
 <?php } ?>
@@ -542,31 +542,31 @@ $test_email = (string) if_isset($r, '', 'email');
                      the administrator's session. Any administrator can save a
                      template, so this is not limited to whoever is looking at it.
                      The preview only needs to render markup and inline styles. -->
-                <iframe id="preview-frame" sandbox="" title="<?php echo htmlspecialchars(opret_email_tekst(3276) . ' - ' . opret_email_tekst(5067)); ?>"></iframe>
+                <iframe id="preview-frame" sandbox="" title="<?php echo htmlspecialchars(opret_email_tekst(3276) . ' - ' . opret_email_tekst(5411)); ?>"></iframe>
                 <div class="toolbar-row" style="margin-top:16px;">
-                    <input type="email" id="test-email" style="max-width:280px;" value="<?php echo htmlspecialchars($test_email); ?>" placeholder="<?php echo htmlspecialchars(opret_email_tekst(5107)); ?>">
-                    <button type="button" class="btn btn-small" onclick="sendTest()"><?php echo htmlspecialchars(opret_email_tekst(5078)); ?></button>
+                    <input type="email" id="test-email" style="max-width:280px;" value="<?php echo htmlspecialchars($test_email); ?>" placeholder="<?php echo htmlspecialchars(opret_email_tekst(5451)); ?>">
+                    <button type="button" class="btn btn-small" onclick="sendTest()"><?php echo htmlspecialchars(opret_email_tekst(5422)); ?></button>
                 </div>
-                <div class="hint"><?php echo htmlspecialchars(opret_email_tekst(5079)); ?></div>
+                <div class="hint"><?php echo htmlspecialchars(opret_email_tekst(5423)); ?></div>
             </div>
         </div>
 
    
         <details class="card">
             <summary class="card-head">
-                <h2><?php echo htmlspecialchars(opret_email_tekst(5080)); ?></h2>
-                <span class="hint" style="margin:0;"><?php echo htmlspecialchars(opret_email_tekst(5110)); ?></span>
+                <h2><?php echo htmlspecialchars(opret_email_tekst(5424)); ?></h2>
+                <span class="hint" style="margin:0;"><?php echo htmlspecialchars(opret_email_tekst(5454)); ?></span>
             </summary>
             <div class="card-body">
-                <div class="hint" style="margin-top:0;margin-bottom:12px;"><?php echo htmlspecialchars(opret_email_tekst(5081)); ?></div>
-                <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(5103)); ?></span>
+                <div class="hint" style="margin-top:0;margin-bottom:12px;"><?php echo htmlspecialchars(opret_email_tekst(5425)); ?></div>
+                <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(5447)); ?></span>
                     <input type="text" readonly value="<?php echo htmlspecialchars($endpoint_url); ?>" onclick="this.select()">
                 </label>
-                <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(5082)); ?></span>
+                <label class="field"><span><?php echo htmlspecialchars(opret_email_tekst(5426)); ?></span>
                     <span class="toolbar-row">
                         <input type="text" id="api-key" readonly value="••••••••••••••••••••••••••••••••••••••••" onclick="this.select()">
                         <button type="button" class="btn btn-small btn-outline" onclick="visNoegle()"><?php echo htmlspecialchars(opret_email_tekst(1133)); ?></button>
-                        <button type="button" class="btn btn-small btn-danger" onclick="skiftNoegle()"><?php echo htmlspecialchars(opret_email_tekst(5111)); ?></button>
+                        <button type="button" class="btn btn-small btn-danger" onclick="skiftNoegle()"><?php echo htmlspecialchars(opret_email_tekst(5455)); ?></button>
                     </span>
                 </label>
                 <?php 
@@ -577,7 +577,7 @@ curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER =&gt; true,
     CURLOPT_TIMEOUT        =&gt; 10,
     CURLOPT_POSTFIELDS     =&gt; http_build_query([
-        'key'   =&gt; $opretEmailKey,   // <?php echo htmlspecialchars(opret_email_tekst(5082)); ?> - hentes fra .ht_keys.txt
+        'key'   =&gt; $opretEmailKey,   // <?php echo htmlspecialchars(opret_email_tekst(5426)); ?> - hentes fra .ht_keys.txt
         'pakke' =&gt; 'finans',         // pakkens kode - identificerer hvilken opret.php der koerte
         'email' =&gt; $email,
         'navn'  =&gt; $firmanavn,
@@ -599,20 +599,20 @@ curl_close($ch);</code>
 <script>
 
 var TXT = <?php echo json_encode(array(
-	'imageUrl'       => opret_email_tekst(5099),
-	'sourceWarning'  => opret_email_tekst(5100),
-	'sessionExpired' => opret_email_tekst(5098),
-	'templateSaved'  => opret_email_tekst(5094),
-	'packageSaved'   => opret_email_tekst(5095),
-	'needEmail'      => opret_email_tekst(5096),
-	'testSentTo'     => opret_email_tekst(5097),
-	'deletePackage'  => opret_email_tekst(5101),
-	'deleteWarning'  => opret_email_tekst(5102),
-	'unsavedSwitch'  => opret_email_tekst(5108),
-	'rotateConfirm'  => opret_email_tekst(5112),
-	'rotateDone'     => opret_email_tekst(5113),
-	'sourceView'     => opret_email_tekst(5068),
-	'visualEditor'   => opret_email_tekst(5069),
+	'imageUrl'       => opret_email_tekst(5443),
+	'sourceWarning'  => opret_email_tekst(5444),
+	'sessionExpired' => opret_email_tekst(5442),
+	'templateSaved'  => opret_email_tekst(5438),
+	'packageSaved'   => opret_email_tekst(5439),
+	'needEmail'      => opret_email_tekst(5440),
+	'testSentTo'     => opret_email_tekst(5441),
+	'deletePackage'  => opret_email_tekst(5445),
+	'deleteWarning'  => opret_email_tekst(5446),
+	'unsavedSwitch'  => opret_email_tekst(5452),
+	'rotateConfirm'  => opret_email_tekst(5456),
+	'rotateDone'     => opret_email_tekst(5457),
+	'sourceView'     => opret_email_tekst(5412),
+	'visualEditor'   => opret_email_tekst(5413),
 ), JSON_UNESCAPED_UNICODE); ?>;
 // Sent as X-CSRF-Token on every ajax call. Only this page can read it, which is
 // what separates our own request from one started by another site.

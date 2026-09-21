@@ -25,6 +25,11 @@
 //
 // 20201103 PHR Switches $kontonr[$y],$beskrivelse[$y] in list | explode
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260831 Sawaneh Corrected misplaced parenthesis in mb_convert_encoding calls from 20250130
+// 20260831 Sawaneh Removed duplicate fclose() in flyt_data - fatal TypeError on PHP 8
+// 20260831 Sawaneh Restrict $filnavn from POST to the user's own upload - path traversal in fopen/unlink
+// 20260831 Sawaneh Convert $linje before branch selection so the non-preSetNo path also gets UTF-8
+// 20260831 Sawaneh Cast date parts with (int) instead of *=1 - fatal TypeError on non-numeric header row
 
 @session_start();
 $s_id=session_id();
@@ -51,6 +56,7 @@ if(($_GET)||($_POST)) {
 		$submit=$_POST['submit'];
 		$kladde_id=$_POST['kladde_id'];
 		$filnavn=$_POST['filnavn'];
+		if ($filnavn && $filnavn !== "../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv") $filnavn=NULL; # kun brugerens egen uploadfil
 #		$modkonto=$_POST['modkonto'];
 #		$feltnavn=$_POST['feltnavn'];
 #		$feltantal=$_POST['feltantal'];
@@ -91,7 +97,7 @@ function vis_data($kladde_id, $filnavn, $bilag){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-#			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
+#			$linje=trim(mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1'));
 			if ($linje) {
 				$y++;
 				$skriv_linje[$y]=1;
@@ -102,7 +108,8 @@ function vis_data($kladde_id, $filnavn, $bilag){
 						while(!is_numeric(substr($linje,0,1)) && $linje) $linje=substr($linje,1);	
 					}
 				}
-				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
+				$linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",$linje);
 				else list($dato[$y],$kontonr[$y],$beskrivelse[$y],$belob[$y])=explode(";",$linje);
 				if (!is_numeric($kontonr[$y]) && is_numeric($beskrivelse[$y])) {
 					list($dato[$y],$beskrivelse[$y],$kontonr[$y],$belob[$y])=explode(";",$linje);
@@ -111,7 +118,7 @@ function vis_data($kladde_id, $filnavn, $bilag){
 				$amount[$y]=usdecimal($belob[$y])*1;
 				if (!$amount[$y]) $skriv_linje[$y]=0;
 				list($dag,$maaned,$aar)=explode(".",$dato[$y]);
-				$maaned*=1; $dag*=1; $aar*=1;
+				$maaned=(int)$maaned; $dag=(int)$dag; $aar=(int)$aar;
 				if (checkdate($maaned,$dag,$aar)) $date[$y]=usdate($dato[$y]);
 				else $skriv_linje[$y]=0;
 			}
@@ -162,7 +169,7 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-#			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
+#			$linje=trim(mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1'));
 			if ($linje = trim($linje)) {
 				$y++;
 				$skriv_linje[$y]=1;
@@ -173,7 +180,8 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 						while(!is_numeric(substr($linje,0,1)) && $linje) $linje=substr($linje,1);	
 					}
 				}
-				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
+				$linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",$linje);
 				else {
 					list($dato[$y],$kontonr[$y],$beskrivelse[$y],$belob[$y])=explode(";",$linje);
 					if (!is_numeric($kontonr[$y]) && is_numeric($beskrivelse[$y])) {
@@ -187,7 +195,7 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 				$dato[$y]   = str_replace("/","-",$dato[$y]);
 				if (!$amount[$y]) $skriv_linje[$y]=0;
 				list($dag,$maaned,$aar)=explode("-",$dato[$y]);
-				$maaned*=1; $dag*=1; $aar*=1;
+				$maaned=(int)$maaned; $dag=(int)$dag; $aar=(int)$aar;
 				if (checkdate($maaned,$dag,$aar)) $date[$y]=usdate($dato[$y]);
 				else $skriv_linje[$y]=0;
 			}
@@ -202,7 +210,6 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}	
-	fclose($fp);
 	unlink($filnavn); # sletter filen.
 #	transaktion('commit');
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
