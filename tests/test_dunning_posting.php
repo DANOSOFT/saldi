@@ -1,5 +1,6 @@
 <?php
 // 20260920 CDX/LH Exercise both actual reminder posting paths and their rollback boundaries in PostgreSQL.
+// 20260921 CDX/LH Distinguish unrelated refnr collisions from true partial reminder postings.
 if (PHP_SAPI !== 'cli') exit('CLI only');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message) { throw new RuntimeException($message); });
@@ -173,3 +174,23 @@ checkDunning(callDunning(true)===false && $db_transaktion_depth===1,'inner valid
 db_modify('UPDATE ordrer SET sum=999');transaktion('commit');
 checkDunning(fingerprintDunning()===$before,'later outer writes cannot escape a failed reminder rollback');
 resetDunning();checkDunning(callDunning(false,true)===1,'direct legacy bogfor_nu entry also uses atomic validation');
+
+// Journal voucher numbers share refnr's integer space with reminder order IDs.
+foreach ([['other customer',9,'R1-001',0], ['other invoice',1,'UNRELATED',0], ['same customer/invoice journal voucher',1,'R1-001',71]] as [$label,$account,$invoice,$journal]) {
+    resetDunning();
+    db_select("INSERT INTO openpost(konto_id,konto_nr,faktnr,refnr,amount,beskrivelse,udlignet,transdate,kladde_id,valuta,valutakurs) VALUES($account,'1000','$invoice',1,33,'Unrelated voucher','1','2026-09-19',$journal,'DKK',100)");
+    $oldId = scalarDunning('SELECT max(id) FROM openpost');
+    $oldRow = scalarDunning("SELECT row_to_json(o)::text FROM openpost o WHERE id=$oldId");
+    checkDunning(callDunning(true) === 1, "refnr collision with $label does not block reminder advancement");
+    checkDunning(scalarDunning("SELECT row_to_json(o)::text FROM openpost o WHERE id=$oldId") === $oldRow && scalarDunning("SELECT COUNT(*) FROM openpost WHERE beskrivelse='Gebyr mm. fra tidligere rykker'") === '1' && scalarDunning("SELECT betalt FROM ordrer WHERE id=1") === 'on', 'collision preserves unrelated receivable and creates exactly one paid reminder');
+}
+foreach (['receivable','ledger'] as $partial) {
+    resetDunning();
+    if ($partial === 'receivable') {
+        db_select("INSERT INTO openpost(konto_id,faktnr,refnr,amount,kladde_id) VALUES(1,'R1-001',1,100,0)");
+    } else {
+        db_select('INSERT INTO transaktioner(ordre_id,debet,kredit) VALUES(1,100,0)');
+    }
+    $before = fingerprintDunning();
+    checkDunning(callDunning(true) === false && fingerprintDunning() === $before, "actual prior reminder $partial still blocks duplicate posting without paid-state mutation");
+}
