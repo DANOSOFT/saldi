@@ -1,6 +1,7 @@
 <?php
 // 20260920 CDX/LH Exercise the complete CSV importer with local transport and temporary PostgreSQL tables.
 // 20260921 CDX/LH Distinguish referenced identity conflicts from unrelated historical duplicates.
+// 20260922 CDX/LH Identify the incoming CSV row across every three-binder ordering before any write.
 namespace SaldiVaresyncTest;
 if (PHP_SAPI !== 'cli') exit('CLI only');
 error_reporting(E_ALL);
@@ -17,7 +18,7 @@ function db_select($sql, $location = '') {
     if (!$result) throw new \RuntimeException(pg_last_error($GLOBALS['csvConnection']));
     return $result;
 }
-function db_modify($sql, $location = '') { return db_select($sql, $location); }
+function db_modify($sql, $location = '') { $GLOBALS['csvWriteCalls'][] = $sql; return db_select($sql, $location); }
 function db_fetch_array($result) { return pg_fetch_assoc($result); }
 function db_num_rows($result) { return pg_num_rows($result); }
 function db_escape_string($value) { return pg_escape_string($GLOBALS['csvConnection'], (string)$value); }
@@ -169,3 +170,66 @@ $GLOBALS['csvVariants'] = $variantHeader . "\n";
 ob_start();
 try { varesync(1); } finally { ob_end_clean(); }
 checkCsv(csvScalar("SELECT count(*) FROM shop_varer s JOIN varer v ON v.id=s.saldi_id WHERE v.varenr='TRIGGER-MAIN' AND s.shop_id=101") === '1', 'RETURNING binds the inserted row even when a trigger advances the same sequence');
+
+// Three live products share99; diagnostics must be based on incoming rows,
+// not the first pair encountered in existing-product order.
+$permutations = [[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]];
+foreach ($permutations as $productOrder) {
+    foreach ($permutations as $bindingInsertOrder) {
+        foreach ([false,true] as $incomingLast) {
+            db_modify('TRUNCATE varer,shop_varer,variant_typer,variant_varer,varianter RESTART IDENTITY');
+            foreach ($productOrder as $index => $productId) {
+                $sku = ['A','X1','X2'][$index];
+                db_modify("INSERT INTO varer(id,varenr,beskrivelse,salgspris,kostpris,stregkode,beholdning) VALUES($productId,'$sku','Keep',10,4,'',5)");
+            }
+            foreach ($bindingInsertOrder as $productId) {
+                db_modify("INSERT INTO shop_varer(saldi_id,shop_id,saldi_variant,shop_variant) VALUES($productId,99,0,0)");
+            }
+            $rows = ['101;A;B1;100;Changed;1;;','102;CLEAN;B2;200;New;1;;'];
+            if ($incomingLast) {
+                $rows = array_reverse($rows);
+            }
+            $GLOBALS['csvProducts'] = "id;varenr;stregkode;salgspris;beskrivelse;gruppe;tilbud;notes\n\n" . implode("\n",$rows) . "\n";
+            $GLOBALS['csvVariants'] = $variantHeader . "\n";
+            $before = csvScalar("SELECT json_build_object('products',(SELECT json_agg(v ORDER BY id) FROM varer v),'bindings',(SELECT json_agg(s ORDER BY id) FROM shop_varer s))::text");
+            $GLOBALS['csvWriteCalls'] = [];
+            $GLOBALS['stockCalls'] = [];
+            ob_start();
+            try {
+                $result = varesync(1);
+            } finally {
+                $diagnostic = ob_get_clean();
+            }
+            $expectedRow = $incomingLast ? 4 : 3;
+            checkCsv(str_contains($diagnostic,"CSV row $expectedRow, SKU A: invalid ambiguous existing shop_id; no products imported.") && !str_contains($diagnostic,'SKU varenr:'), 'three-binder permutations identify the actual physical incoming row even when both earlier binders are absent');
+            $after = csvScalar("SELECT json_build_object('products',(SELECT json_agg(v ORDER BY id) FROM varer v),'bindings',(SELECT json_agg(s ORDER BY id) FROM shop_varer s))::text");
+            checkCsv($result === false && $before === $after && $GLOBALS['csvWriteCalls'] === [] && $GLOBALS['stockCalls'] === [], 'three-binder rejection performs no product, mapping, variant or stock writes including earlier valid CSV rows');
+        }
+    }
+}
+// Multiple incoming products can make the same historical shop ID relevant.
+// Select the earliest physical CSV row, independently of existing-product order.
+foreach ($permutations as $productOrder) {
+    foreach ([false,true] as $reverseIncoming) {
+        db_modify('TRUNCATE varer,shop_varer,variant_typer,variant_varer,varianter RESTART IDENTITY');
+        foreach ($productOrder as $index => $productId) {
+            $sku = ['A','B','X'][$index];
+            db_modify("INSERT INTO varer(id,varenr,beskrivelse,salgspris,kostpris,stregkode) VALUES($productId,'$sku','Keep',10,4,'')");
+            db_modify("INSERT INTO shop_varer(saldi_id,shop_id,saldi_variant,shop_variant) VALUES($productId,99,0,0)");
+        }
+        $rows = ['101;A;B1;100;ChangedA;1;;','102;B;B2;200;ChangedB;1;;'];
+        if ($reverseIncoming) {
+            $rows = array_reverse($rows);
+        }
+        $expectedSku = $reverseIncoming ? 'B' : 'A';
+        $GLOBALS['csvProducts'] = "id;varenr;stregkode;salgspris;beskrivelse;gruppe;tilbud;notes\n\n" . implode("\n",$rows) . "\n";
+        $GLOBALS['csvWriteCalls'] = [];
+        ob_start();
+        try {
+            $result = varesync(1);
+        } finally {
+            $diagnostic = ob_get_clean();
+        }
+        checkCsv($result === false && str_contains($diagnostic,"CSV row 3, SKU $expectedSku: invalid ambiguous existing shop_id;") && $GLOBALS['csvWriteCalls'] === [], 'shared relevant identity reports earliest incoming row independently of binder ordering without writes');
+    }
+}

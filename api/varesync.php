@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- lap 4.1.0 --- 2024.03.18 ---
+// --- api/varesync.php --- lap 4.1.0 --- 2026.09.22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2018.04.24 Omskrevet variant delen så det inditificeres på variant_id i stedet for på stregkode så det er muligt at ændre stregkode på shop.
@@ -41,6 +41,7 @@
 // 20260921 CDX/LUI Validate optional cost prices before product or mapping writes.
 // 20260921 CDX/LUI Diagnose identity conflicts, repair scoped orphan bindings and audit returning inserts.
 // 20260921 CDX/LH Report product barcode collisions before variant download can terminate synchronization.
+// 20260922 CDX/LH Precompute incoming-row diagnostics for all relevant shop identities before inspecting conflicts.
 
 
 /** Return the ID allocated by this connection, never an arbitrary matching SKU. */
@@ -270,18 +271,30 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 	// Also inspect existing bindings of incoming products, even when the CSV
 	// omits their shop ID. A shared shop identity must never select a winner.
 	$relevantProductIds = array_fill_keys(array_values($knownSkuIds), true);
-	$relevantShopIds = array_fill_keys(array_keys($incomingShopIds), true);
-	foreach ($svSaldiId as $index => $saldiId) {
-		if (isset($relevantProductIds[(int)$saldiId]) && (int)$svShopId[$index] > 0) {
-			$relevantShopIds[(int)$svShopId[$index]] = true;
-		}
-	}
-	$knownShopIds = [];
-	$existingProductIds = array_fill_keys($sProductId, true);
 	$relevantProductRows = [];
 	foreach ($knownSkuIds as $sku => $productId) {
 		$relevantProductRows[$productId] = $incomingSkus[$sku];
 	}
+	$relevantShopIds = array_fill_keys(array_keys($incomingShopIds), true);
+	$relevantShopRows = [];
+	foreach ($incomingShopIds as $shopId => $sku) {
+		$relevantShopRows[$shopId] = $incomingSkus[$sku];
+	}
+	// Complete the row map before examining any pair of existing binders.
+	// Direct incoming shop IDs take precedence; historical bindings point to
+	// the earliest affected CSV row, independent of existing-product order.
+	foreach ($svSaldiId as $index => $saldiId) {
+		$shopId = (int)$svShopId[$index];
+		if (isset($relevantProductRows[(int)$saldiId]) && $shopId > 0) {
+			$relevantShopIds[$shopId] = true;
+			$rowIndex = $relevantProductRows[(int)$saldiId];
+			if (!isset($incomingShopIds[$shopId]) && (!isset($relevantShopRows[$shopId]) || $rowIndex < $relevantShopRows[$shopId])) {
+				$relevantShopRows[$shopId] = $rowIndex;
+			}
+		}
+	}
+	$knownShopIds = [];
+	$existingProductIds = array_fill_keys($sProductId, true);
 	foreach ($svSaldiId as $index => $saldiId) {
 		if (($svShopVariant[$index] ?? 0) || ($svSaldiVariant[$index] ?? 0)) {
 			continue;
@@ -293,7 +306,7 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		if (!isset($existingProductIds[(int)$saldiId])) {
 			continue; // A deleted product cannot own a live incoming shop identity.
 		}
-		$rowIndex = isset($incomingShopIds[$shopId]) ? $incomingSkus[$incomingShopIds[$shopId]] : ($relevantProductRows[(int)$saldiId] ?? $relevantProductRows[$knownShopIds[$shopId] ?? 0] ?? $missingShopRow ?? 0);
+		$rowIndex = $relevantShopRows[$shopId];
 		if (isset($knownShopIds[$shopId]) && $knownShopIds[$shopId] !== (int)$saldiId) {
 			return varesyncRejectRow($csvRowNumbers[$rowIndex], $varenr[$rowIndex], 'ambiguous existing shop_id');
 		}
