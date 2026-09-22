@@ -588,10 +588,7 @@ class AttachmentModel
             $vendorColumns = [];
             if ($metadata !== null && is_array($metadata) && isset($metadata['vendorIdentity']) && is_array($metadata['vendorIdentity'])
                 && (!empty($metadata['subject']) || array_filter($metadata['vendorIdentity']))) {
-                global $db_type;
-                $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = 'vendor_match'"
-                    . (in_array($db_type, ['mysql', 'mysqli'], true) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()");
-                if (db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+                if (poolVendorColumnsExist()) {
                     $vendorColumns = poolVendorColumnValues($this->matchVendor($metadata['subject'] ?? null, $metadata['vendorIdentity']));
                 }
             }

@@ -268,6 +268,13 @@ if ($action === 'save') {
 	// Match the scanned vendor against kreditorer on the server, so the frontend never
 	// carries the match result back and forth. The name as read stays in subject as before.
 	$vendorMatch = null;
+	if ($vendorScan && !poolVendorColumnsExist()) {
+		// Migration not applied on this tenant yet (see poolVendorColumnsExist): save the
+		// ordinary fields as before rather than failing the request; the file is matched
+		// on the next scan or when the pool opens after the columns exist.
+		error_log("extractInvoiceHandler: pool_files.vendor_* columns missing on $db - vendor match skipped for $poolFile");
+		$vendorScan = false;
+	}
 	if ($vendorScan) {
 		$vendorMatch = extractInvoiceMatchVendor(array(
 			'name' => $newSubject,

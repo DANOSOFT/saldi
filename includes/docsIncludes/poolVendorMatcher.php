@@ -436,6 +436,25 @@ if (!function_exists('poolVendorRowFromIban')) {
 // from includes/db_query.php on an open tenant connection.
 // ---------------------------------------------------------------------------
 
+if (!function_exists('poolVendorColumnsExist')) {
+	/**
+	 * Whether pool_files carries the vendor_* columns on the current tenant. The columns are
+	 * added by includes/betweenUpdates.php at login; a request that arrives before that
+	 * (branch switched under a live session, MySQL tenant mid-migration) must degrade to the
+	 * pre-vendor behaviour instead of failing the whole save with a db error. vendor_match is
+	 * the last column the migration adds, so its presence implies the others.
+	 *
+	 * @return bool
+	 */
+	function poolVendorColumnsExist() {
+		global $db_type;
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = 'vendor_match'"
+			. (in_array($db_type, array('mysql', 'mysqli'), true) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()");
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		return (bool) ($q ? db_fetch_array($q) : false);
+	}
+}
+
 if (!function_exists('poolVendorLoadIndex')) {
 	/**
 	 * Load the tenant's open kreditorer (adresser.art = 'K', not lukket) into a match index.
