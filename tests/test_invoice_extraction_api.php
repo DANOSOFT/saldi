@@ -65,9 +65,11 @@ $dbSelectResult = array('var_value' => 'https://ai.saldi.dk/extract-invoice');
 check(invoiceExtractionApiResolveUrl() === 'https://ai.saldi.dk/extract-invoice', 'uses the extract_url setting when present');
 $dbSelectResult = array('var_value' => 'not a url');
 check(invoiceExtractionApiResolveUrl() === 'https://wuweiworkai.com/extract-invoice', 'falls back to the default when the setting is not a URL');
+$dbSelectResult = array('var_value' => 'http://ai.saldi.dk/extract-invoice');
+check(invoiceExtractionApiResolveUrl() === 'https://wuweiworkai.com/extract-invoice', 'ignores a plain-http setting (the request carries the API key)');
 $dbSelectResult = false;
 check(invoiceExtractionApiResolveUrl() === 'https://wuweiworkai.com/extract-invoice', 'falls back to the default when no setting exists');
-check(count($dbSelectCalls) === 4 && $dbSelectCalls[3][2] === true && strpos($dbSelectCalls[3][0], "var_name = 'extract_url'") !== false, 'reads extract_url from the global settings table');
+check(count($dbSelectCalls) === 5 && $dbSelectCalls[4][2] === true && strpos($dbSelectCalls[4][0], "var_name = 'extract_url'") !== false, 'reads extract_url from the global settings table');
 
 $captured = array();
 $invoiceExtractionApiDependencies = array(

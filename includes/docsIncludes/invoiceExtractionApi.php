@@ -31,7 +31,8 @@ function invoiceExtractionApiResolveApiKey() {
 
 /**
  * Endpoint of the extract-invoice service. Overridable per install through the global
- * settings row var_grp='app_api', var_name='extract_url' (next to the 'apikey' row).
+ * settings row var_grp='app_api', var_name='extract_url' (next to the 'apikey' row);
+ * only https values are honoured.
  * note: setting is not a user-facing setting, so it can't be changed by the user.
  *
  * @return string
@@ -45,8 +46,7 @@ function invoiceExtractionApiResolveUrl() {
 	if (!$query || !($row = db_fetch_array($query))) return $default;
 
 	$url = trim($row['var_value'] ?? '');
-	// Only allow HTTPS URLs to avoid sending invoice data over unencrypted HTTP.
-	// If we in the future we can change it.
+	// https only: the transport sends the API key and the invoice with every request.
 	return preg_match('#^https://#i', $url) ? $url : $default;
 }
 
