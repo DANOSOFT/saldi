@@ -17,7 +17,8 @@ certs/*
 # Vendor / third-party libraries
 vendor
 logolib/
-phpmailer/
+# docker-entrypoint.sh also creates this legacy dependency path as a symlink.
+/phpmailer
 phpmailer/*
 */phpmailer/*
 phpmailerOld/

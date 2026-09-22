@@ -18,11 +18,15 @@
 // Copyright (c) 2004-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2025.09-25 PHR PHP8
+// 20260920 CDX/LUI Initialize empty bill-of-material totals before PHP 8 calculations.
 
 if (!function_exists('fuld_stykliste')) {
 	function fuld_stykliste($id, $udskriv, $udvalg) {
 	global $charset;
 
+	$id = (int)$id;
+	$ialt = 0;
+	$vare_id = $antal = [];
 	$x=0;
 	$qtxt = "select * from styklister where indgaar_i='$id' order by posnr";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);

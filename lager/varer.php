@@ -61,6 +61,7 @@
 // 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
+// 20260921 CDX/LUI Preserve supplier filter semantics when its saved array is absent.
 
 @session_start();
 $s_id=session_id();
@@ -747,7 +748,7 @@ if ($lev_kto || $lev_navn) {
 	if (isset($vis_K[1]) && $vis_K[1]) $vis_K[0]=NULL;
 }
 
-if (!$vis_K[0]) {	
+if (empty($vis_K[0])) {
 	$lev_vare_liste=array();	
 	$x=1; 
 	if (isset($vis_K[1])) {
@@ -825,10 +826,10 @@ for ($v=0;$v<count($varenr);$v++) {
 		} else $vis1=0;
 	}
 	// Her frasorteres varer som ikke kommer fra den valgte lev.	
-	if ((isset($vis_K[1]) && $vis1==1 && isset($lev_vare_liste) && in_array($id[$v],$lev_vare_liste)) || $vis_K[0]); #gor intet
+	if ((isset($vis_K[1]) && $vis1==1 && isset($lev_vare_liste) && in_array($id[$v],$lev_vare_liste)) || !empty($vis_K[0])); #gor intet
 	elseif (!isset($vis_K[1]) && $vis1==1 && isset($lev_vare_liste) && !in_array($id[$v],$lev_vare_liste)); #gor intet
 	elseif(!$makeSuggestion) {$vis1=0; $z--;}
-	if ((isset($vis_K[1]) && $vis2==1 && isset($lev_vare_liste) && in_array($id[$v],$lev_vare_liste)) || $vis_K[0]); #gor intet
+	if ((isset($vis_K[1]) && $vis2==1 && isset($lev_vare_liste) && in_array($id[$v],$lev_vare_liste)) || !empty($vis_K[0])); #gor intet
 	elseif (!isset($vis_K[1]) && $vis2==1 && isset($lev_vare_liste) && !in_array($id[$v],$lev_vare_liste)); #gor intet
 	else $vis2=0;
 	// Her frasorteres varer i bestillingsforslag som ikke lagerfoerte - skal staa nederst i frasortering.	

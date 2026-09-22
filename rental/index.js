@@ -1,3 +1,4 @@
+// 20260921 CDX/LUI Render the default calendar for shell-only query parameters.
 
 // Make sure you're in an async context
 (async () => {
@@ -2845,6 +2846,9 @@ if (queryString !== "") {
     }else if(urlParams.has("singleItem")){
         const value = urlParams.get("singleItem")
         singleProductOverview(value)
+    } else {
+        // Shell context (inframe=1) does not select a rental view.
+        createCalendar()
     }
 } else {
     createCalendar()

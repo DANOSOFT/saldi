@@ -1,4 +1,5 @@
 <?php
+// 20260921 CDX/LUI Verify cost-update CSRF rejection over HTTP after a large page header.
 // 20260920 CDX/LUI Exercise real upload/session/preview requests without shared tenant mutations.
 error_reporting(E_ALL);
 set_error_handler(static function ($severity, $message, $file, $line) {
@@ -8,9 +9,10 @@ $root = dirname(__DIR__);
 $fixture = sys_get_temp_dir() . '/saldi-import-http-' . bin2hex(random_bytes(6));
 foreach (['lager','includes','sessions'] as $directory) { mkdir($fixture . '/' . $directory, 0700, true); }
 copy($root . '/lager/vareimport.php', $fixture . '/lager/vareimport.php');
+copy($root . '/lager/opdater_kostpriser.php', $fixture . '/lager/opdater_kostpriser.php');
 copy($root . '/includes/legacyItemImport.php', $fixture . '/includes/legacyItemImport.php');
 file_put_contents($fixture . '/includes/std_func.php', '<?php require_once ' . var_export($root . '/includes/std_func.php', true) . ';');
-file_put_contents($fixture . '/includes/online.php', '<?php $db="fixture"; $regnaar=1; print "<html><body>";');
+file_put_contents($fixture . '/includes/online.php', '<?php $db="fixture"; $regnaar=1; print "<html><body>" . str_repeat("<!-- header output -->", 1000);');
 file_put_contents($fixture . '/includes/connect.php', <<<'STUB'
 <?php
 function db_escape_string($value) { return str_replace("'", "''", (string)$value); }
@@ -30,16 +32,16 @@ STUB
 $socket = stream_socket_server('tcp://127.0.0.1:0');
 $address = stream_socket_get_name($socket, false);
 fclose($socket);
-$process = proc_open([PHP_BINARY, '-d', 'display_errors=1', '-d', 'error_reporting=32767', '-d', 'session.save_path=' . $fixture . '/sessions', '-S', $address, '-t', $fixture],
+$process = proc_open([PHP_BINARY, '-d', 'output_buffering=0', '-d', 'display_errors=1', '-d', 'error_reporting=32767', '-d', 'session.save_path=' . $fixture . '/sessions', '-S', $address, '-t', $fixture],
     [0=>['pipe','r'],1=>['file',$fixture . '/server.log','a'],2=>['file',$fixture . '/server.log','a']], $pipes);
 if (!is_resource($process)) { throw new RuntimeException('Could not start fixture HTTP server'); }
 fclose($pipes[0]);
 $cookie = '';
-function requestImport(string $method, string $body = '', string $type = 'application/x-www-form-urlencoded'): array {
+function requestImport(string $method, string $body = '', string $type = 'application/x-www-form-urlencoded', string $page = 'vareimport.php'): array {
     global $address, $cookie;
     $headers = "Content-Type: $type\r\n" . ($cookie ? "Cookie: $cookie\r\n" : '');
     $context = stream_context_create(['http'=>['method'=>$method,'content'=>$body,'header'=>$headers,'ignore_errors'=>true,'follow_location'=>0,'timeout'=>5]]);
-    $html = file_get_contents('http://' . $address . '/lager/vareimport.php', false, $context);
+    $html = file_get_contents('http://' . $address . '/lager/' . $page, false, $context);
     $responseHeaders = $http_response_header;
     foreach ($responseHeaders as $header) {
         if (preg_match('/^Set-Cookie: ([^;]+)/i', $header, $match)) { $cookie = $match[1]; }
@@ -96,6 +98,8 @@ try {
     assertImportHttp(str_contains($status, '303') && str_starts_with($writes, "begin\n") && str_ends_with($writes, "commit\n") && str_contains($writes, "Owner''s; <item>") && str_contains($writes, "VALUES (3,7,'',75.5)") && !is_file($ownedFiles[0]), 'valid import commits mapped supplier ID and removes owned upload');
     [$status, $html] = requestImport('GET');
     assertImportHttp(str_contains($html, '1 varelinjer er importeret.') && !str_contains($html, "name='filnavn'"), 'redirect shows completion and clears upload session');
+    [$status, $html] = requestImport('POST', 'csrf_token=forged', 'application/x-www-form-urlencoded', 'opdater_kostpriser.php');
+    assertImportHttp(str_contains($status, '403') && str_contains($html, 'Ugyldig formular') && file_get_contents($fixture . '/writes.log') === $writes, 'cost update returns HTTP 403 with output_buffering=0 and oversized authenticated header');
 } finally {
     proc_terminate($process);
     proc_close($process);

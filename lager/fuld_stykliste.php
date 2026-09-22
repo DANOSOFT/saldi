@@ -1,4 +1,3 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head><title>SALDI - varekort</title><meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head>
 <?php
 
 // ----------------------------------------------------------------------050306----------
@@ -18,6 +17,7 @@
 //
 // Copyright (c) 2004-2006 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260920 CDX/LUI Validate the selected item and reuse the current decimal formatter.
 
 
 @session_start();
@@ -25,10 +25,16 @@ $s_id=session_id();
 
 $modulnr=9;
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/dkdecimal.php");
- include("../includes/fuld_stykliste.php");
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/online.php");
+require_once(__DIR__ . "/../includes/std_func.php");
+require_once(__DIR__ . "/../includes/fuld_stykliste.php");
 
-fuld_stykliste($_GET['id'], 'udskriv', '')
-?>
+$id = (int)ifset($_GET, 'id', 0);
+if ($id > 0 && db_fetch_array(db_select("SELECT id FROM varer WHERE id=$id", __FILE__ . " linje " . __LINE__))) {
+    fuld_stykliste($id, 'udskriv', '');
+} else {
+    print "<h1>Fuld stykliste</h1><p>Vælg en vare fra varekortet for at se den fulde stykliste.</p>";
+    print "<p><a href='varer.php'>Tilbage til varer</a></p>";
+}
+print "</body></html>";
