@@ -12,6 +12,9 @@
 //                  (var_grp 'app_api', var_name 'extract_url', global db) with that host as the
 //                  default, so the next move is a settings row instead of a code change.
 // 20260922 CL/LAH UBL line names that are only punctuation (".") no longer end up in description.
+// 20260922 NTR - disallow http urls in invoiceExtractionApiResolveUrl() to avoid sending invoice data over unencrypted HTTP.
+//                This shouldn't be a problem, since we only have https calls and it's a setting that's not accessable to the user.
+
 function invoiceExtractionApiResolveApiKey() {
 	if (!function_exists('db_select') || !function_exists('db_fetch_array')) {
 		error_log("Invoice extraction API key lookup is unavailable");
@@ -29,6 +32,7 @@ function invoiceExtractionApiResolveApiKey() {
 /**
  * Endpoint of the extract-invoice service. Overridable per install through the global
  * settings row var_grp='app_api', var_name='extract_url' (next to the 'apikey' row).
+ * note: setting is not a user-facing setting, so it can't be changed by the user.
  *
  * @return string
  */
@@ -41,7 +45,9 @@ function invoiceExtractionApiResolveUrl() {
 	if (!$query || !($row = db_fetch_array($query))) return $default;
 
 	$url = trim($row['var_value'] ?? '');
-	return preg_match('#^https?://#i', $url) ? $url : $default;
+	// Only allow HTTPS URLs to avoid sending invoice data over unencrypted HTTP.
+	// If we in the future we can change it.
+	return preg_match('#^https://#i', $url) ? $url : $default;
 }
 
 function invoiceExtractionApiCurlTransport($apiUrl, $headers, $body, $options) {
