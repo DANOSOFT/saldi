@@ -236,7 +236,8 @@ if ($mode === 'open_post') {
     usort($signalRows, function($a, $b) {
         if ($a['_score'] != $b['_score']) return $b['_score'] - $a['_score'];
         if ($a['transdate'] != $b['transdate']) return strcmp($b['transdate'], $a['transdate']);
-        return strcmp($a['faktnr'], $b['faktnr']);
+        if ($a['faktnr'] != $b['faktnr']) return strcmp($a['faktnr'], $b['faktnr']);
+        return $a['id'] - $b['id'];
     });
 
     $autoSelectId = autoSettlementBestCandidateId($signalRows);
@@ -266,7 +267,7 @@ if ($mode === 'open_post') {
             FROM openpost
             LEFT JOIN adresser ON openpost.konto_id = adresser.id
             WHERE $fillerWhere
-            ORDER BY openpost.transdate DESC, openpost.faktnr
+            ORDER BY openpost.transdate DESC, openpost.faktnr, openpost.id
             LIMIT $remaining OFFSET $fillerOffset
         ";
         $fillerQuery = db_select($fillerQtxt, __FILE__ . " line " . __LINE__);
