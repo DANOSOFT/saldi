@@ -1,5 +1,6 @@
 <?php
 // 20260921 CDX/LH Verify exact bundle acknowledgements and unchanged monetary return using real PostgreSQL.
+// 20260922 CDX/LH Pin taxable and VAT-free fractional-cost compatibility for legacy and identity callers.
 if (PHP_SAPI !== 'cli') { exit('CLI only'); }
 error_reporting(E_ALL);
 set_error_handler(static function ($severity, $message, $file, $line) { throw new ErrorException($message, 0, $severity, $file, $line); });
@@ -90,6 +91,42 @@ SQL
     bundleCheck($legacySum===$sum, 'legacy callers still receive the monetary sum');
     bundleCheck(str_contains(json_encode($audits), 'RETURNING id'), 'exact identity uses audited db_modify INSERT RETURNING');
     bundleCheck(db_modify('UPDATE ordrer SET status=0 WHERE id=1', __FILE__ . ':' . __LINE__) === "0\tquery accepted", 'legacy db_modify result remains unchanged');
+    // Pin legacy fractional-cost semantics through the actual line writer, both return contracts.
+    // VAT lookup previously replaced the product row before testing salgspris; taxable lines
+    // therefore used the fraction even when the product had a nonzero list price.
+    $cases = [
+        ['taxable-listed',100,0.15,'','',100,10,2,0,13.5,0.15,25],
+        ['taxable-catalog-price',100,0.15,'','',null,10,2,0,13.5,0.15,25],
+        ['taxable-zero-list',0,0.15,'','',100,10,2,0,13.5,0.15,25],
+        ['taxable-including-vat',100,0.15,'','',125,10,2,1,13.5,0.15,25],
+        ['taxable-credit',100,0.15,'','',100,10,-2,0,13.5,0.15,25],
+        ['taxable-zero-cost',100,0,'','',100,10,2,0,0,0,25],
+        ['taxable-unit-cost',100,1,'','',100,10,2,0,1,0,25],
+        ['taxable-normal-cost',100,20,'','',100,10,2,0,20,0,25],
+        ['exempt-listed',100,0.15,'on','',100,10,2,0,0.15,0,0],
+        ['exempt-zero-list',0,0.15,'on','',100,10,2,0,13.5,0.15,0],
+        ['group-exempt-listed',100,0.15,'','on',100,10,2,0,0.15,0,0],
+        ['group-exempt-zero-list',0,0.15,'','on',100,10,2,0,13.5,0.15,0],
+    ];
+    foreach ($cases as $case) {
+        [$name,$listPrice,$cost,$exempt,$groupExempt,$inputPrice,$discount,$quantity,$inclVat,$expectedCost,$expectedRate,$expectedVat] = $case;
+        pg_query_params($connection, 'UPDATE varer SET salgspris=$1,kostpris=$2 WHERE id=2', [$listPrice,$cost]);
+        pg_query_params($connection, "UPDATE grupper SET box7=$1 WHERE art='VG'", [$groupExempt]);
+        foreach ([false,true] as $capture) {
+            $description = $name . ($capture ? '-identity' : '-legacy');
+            $args = [1,2,'PART',$quantity,$description,$inputPrice,$discount,100,'PO',$exempt,100,0,$inclVat,'','',0,20,0,'',1,__LINE__];
+            $captured = null;
+            if ($capture) { $args[] =& $captured; }
+            $sum = opret_ordrelinje(...$args);
+            $row = pg_fetch_assoc(pg_query_params($connection, 'SELECT id,pris,kostpris,fast_db,momssats,antal,rabat FROM ordrelinjer WHERE beskrivelse=$1', [$description]));
+            bundleCheck($row && (float)$row['kostpris']===$expectedCost*1.0 && (float)$row['fast_db']===$expectedRate*1.0,
+                $description . ' preserves cost and commission rate: ' . json_encode($row));
+            bundleCheck((float)$row['pris']===100.0 && (float)$row['momssats']===$expectedVat*1.0 && (float)$row['antal']===$quantity*1.0 && (float)$row['rabat']===$discount*1.0 && (float)$sum===100.0*$quantity && (!$capture || $captured===(int)$row['id']),
+                $description . ' preserves net price, VAT, signed quantity, discount and return identity');
+        }
+    }
+    pg_query($connection, "UPDATE varer SET salgspris=100,kostpris=20 WHERE id=2");
+    pg_query($connection, "UPDATE grupper SET box7='' WHERE art='VG'");
     // A component rejected before INSERT must never yield a positive bundle acknowledgement.
     pg_query($connection, "UPDATE ordrer SET status=4 WHERE id=1");
     $beforeRejected=bundleRows('SELECT * FROM ordrelinjer ORDER BY id');
