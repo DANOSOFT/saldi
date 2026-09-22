@@ -9,12 +9,26 @@
 //             CVR/IBAN/bank details and a server-side kreditor match (vendorMatch); 'save'
 //             re-runs the match from the posted identity fields (vendorScan=1) and stores
 //             the pool_files.vendor_* columns. Match logic lives in poolVendorMatcher.php.
+// 20260922 CL/LAH A fatal is reported as a JSON error instead of an empty body; the vendor
+//             match is wrapped so it can never fail the scan; JSON_INVALID_UTF8_SUBSTITUTE
+//             on the responses because legacy adresser rows can hold non-UTF-8 bytes.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
 
 // Start output buffering to capture any unwanted output
 ob_start();
+
+// A fatal error anywhere below would otherwise leave the browser with an empty body
+// ("Unexpected end of JSON input", seen on ssl3 2026-09-22). Report it as JSON instead,
+// and log it, so the cause is visible.
+register_shutdown_function(function () {
+	$error = error_get_last();
+	if ($error === null || !in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_RECOVERABLE_ERROR), true)) return;
+	while (ob_get_level() > 0) ob_end_clean();
+	error_log("extractInvoiceHandler fatal: {$error['message']} in {$error['file']}:{$error['line']}");
+	echo json_encode(array('success' => false, 'error' => 'Serverfejl: ' . basename($error['file']) . ':' . $error['line'] . ' ' . $error['message']), JSON_INVALID_UTF8_SUBSTITUTE);
+});
 
 // Start session so the tenant db can be resolved from it below - a POSTed
 // db name must never be trusted directly (it would let a tampered request
@@ -71,6 +85,16 @@ ob_end_clean();
  * @return array See poolVendorMatch().
  */
 function extractInvoiceMatchVendor(array $identity) {
+	try {
+		return extractInvoiceMatchVendorUnsafe($identity);
+	} catch (Throwable $e) {
+		// The match is a bonus on top of the scan; never let it take the scan down.
+		error_log("extractInvoiceHandler vendor match failed: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+		return null;
+	}
+}
+
+function extractInvoiceMatchVendorUnsafe(array $identity) {
 	$ownCvr = poolVendorLoadOwnCvr();
 	// The buyer's CVR on the invoice is a second way to know which number is not the seller's.
 	$customerCvr = normalizePoolVendorCvr($identity['customerCvr'] ?? null);
@@ -178,7 +202,7 @@ if ($action === 'extract') {
 				'customerCvr' => $result['customerCvr'] ?? null,
 				'vendorMatch' => $vendorMatch
 			]
-		]);
+		], JSON_INVALID_UTF8_SUBSTITUTE);
 	} else {
 		echo json_encode(['success' => false, 'error' => 'Kunne ikke udtrække data fra fakturaen']);
 	}
@@ -320,7 +344,7 @@ if ($action === 'save') {
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 	
-	echo json_encode(['success' => true, 'vendor' => $vendorMatch]);
+	echo json_encode(['success' => true, 'vendor' => $vendorMatch], JSON_INVALID_UTF8_SUBSTITUTE);
 	exit;
 }
 
