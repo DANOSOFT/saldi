@@ -92,10 +92,13 @@ function autoSettlementCandidateSignalWhere($amount, array $hintTokens, array $d
     $tokens = array_unique($tokens);
 
     foreach ($tokens as $tok) {
-        $escaped = db_escape_string($tok);
-        $conds[] = "CAST(openpost.faktnr AS TEXT) ILIKE '%$escaped%'";
-        $conds[] = "CAST(openpost.konto_nr AS TEXT) ILIKE '%$escaped%'";
-        $conds[] = "adresser.firmanavn ILIKE '%$escaped%'";
+        // Escape ILIKE wildcards (%, _) and the escape character itself so a token containing
+        // them is matched as a literal substring, not a pattern.
+        $likeSafe = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $tok);
+        $escaped = db_escape_string($likeSafe);
+        $conds[] = "CAST(openpost.faktnr AS TEXT) ILIKE '%$escaped%' ESCAPE '\\'";
+        $conds[] = "CAST(openpost.konto_nr AS TEXT) ILIKE '%$escaped%' ESCAPE '\\'";
+        $conds[] = "adresser.firmanavn ILIKE '%$escaped%' ESCAPE '\\'";
     }
 
     return $conds ? implode(' OR ', $conds) : '1 = 0';

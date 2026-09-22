@@ -223,11 +223,18 @@ if ($mode === 'open_post') {
 
     $query = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
+    // autoSettlementCandidateSignalWhere() is a deliberately loose SQL superset of the exact
+    // PHP scoring rules, so some matched rows re-score to 0 here. Those are false positives of
+    // the SQL predicate, not real signal rows: keep them out of $signalRows/$signalIds so they
+    // stay eligible for the ordinary, transdate-ordered filler pagination below instead of
+    // permanently occupying a page slot ahead of it.
     $signalRows = [];
     $signalIds = [];
     while ($row = db_fetch_array($query)) {
+        $scored = $scoreRow($row);
+        if ($scored['_score'] <= 0) continue;
         $signalIds[] = $row['id'];
-        $signalRows[] = $scoreRow($row);
+        $signalRows[] = $scored;
     }
 
     // Signal rows always sort ahead of zero-signal rows (a positive score beats 0), so they own
