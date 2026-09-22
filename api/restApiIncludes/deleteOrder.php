@@ -1,4 +1,4 @@
- 
+
 <?php
 //          ___   _   _   ___  _     ___  _ _
 //         / __| / \ | | |   \| |   |   \| / /
@@ -24,42 +24,47 @@
 // Copyright (c) 2016-2022 saldi.dk aps
 // ----------------------------------------------------------------------
 
+// 20260920 CDX/LH Remove order mappings atomically and preserve all rows on deletion failure.
 function deleteOrder($id) {
-	global $db;
-
-	$log=fopen("../temp/$db/rest_api.log","a");
-	fwrite($log,__line__." ". date("H:i:s") ." deleteOrder($id)\n");
-	
+	global $db_modify_fejl;
 	if (!$id) {
-		return ("Missing orderID");
-		exit;
+		return 'Missing orderID';
 	}
-	
-	$qtxt = "select status from ordrer where id = '$id'";
- 	fwrite($log,__line__." $qtxt\n");
-  if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		if ($r['status'] > 2) {
-			return ("Order ID $id is invoiced and can't be deleted");
-			exit;
+	if (!preg_match('/^[0-9]+$/D', (string)$id) || filter_var(ltrim((string)$id, '0'), FILTER_VALIDATE_INT) === false) {
+		return 'Invalid orderID';
+	}
+	$id = (int)$id;
+	if (!transaktion('begin')) {
+		return 'Failed to start order deletion';
+	}
+	$finished = false;
+	try {
+		$r = db_fetch_array(db_select("SELECT status FROM ordrer WHERE id='$id' FOR UPDATE", __FILE__ . ' linje ' . __LINE__));
+		if (!$r) {
+			return "Order ID $id not found";
 		}
-	} else {
-		return ("Order ID $id not found");
-		exit;
+		if ($r['status'] > 2) {
+			return "Order ID $id is invoiced and can't be deleted";
+		}
+		$r = db_fetch_array(db_select("SELECT id FROM batch_salg WHERE ordre_id='$id'", __FILE__ . ' linje ' . __LINE__));
+		if ($r) {
+			return "Items from order ID $id has beed delivered, order can't be deleted";
+		}
+		foreach (array("DELETE FROM ordrelinjer WHERE ordre_id='$id'", "DELETE FROM shop_ordrer WHERE saldi_id='$id'", "DELETE FROM ordrer WHERE id='$id'") as $sql) {
+			db_modify($sql, __FILE__ . ' linje ' . __LINE__);
+			if ($db_modify_fejl) {
+				return "Failed to delete order ID $id; no rows removed";
+			}
+		}
+		$commitResult = transaktion('commit');
+		$finished = true;
+		if (!$commitResult || $db_modify_fejl) {
+			return "Failed to commit deletion of order ID $id";
+		}
+		return 0;
+	} finally {
+		if (!$finished) {
+			transaktion('rollback');
+		}
 	}
-	$qtxt = "select id from batch_salg where ordre_id = '$id'";
- 	fwrite($log,__line__." $qtxt\n");
-  $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-  if ($r['id']) {
-		return ("Items from order ID $id has beed delivered, order can't be deleted");
-		exit;
-	}
-	$qtxt = "delete from ordrelinjer where ordre_id = '$id'";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "delete from ordrer where id = '$id'";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	
-	return (0);
 }
-
-?>
- 

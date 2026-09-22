@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LH Return HTTP 400 for invalid sales-price values without persisting a partial product.
 
 require_once '../../../models/lager/VareModel.php';
 require_once '../../../core/BaseEndpoint.php';
@@ -63,7 +64,7 @@ class ProductsEndpoint extends BaseEndpoint
             if (isset($data->sku)) $product->setSku($data->sku);
             if (isset($data->barcode)) $product->setBarcode($data->barcode);
             if (isset($data->description)) $product->setDescription($data->description);
-            if (isset($data->salesPrice)) $product->setSalesPrice($data->salesPrice);
+            if (property_exists($data, 'salesPrice')) $product->setSalesPrice($data->salesPrice);
             if (isset($data->costPrice)) $product->setCostPrice($data->costPrice);
             
             // Set additional properties
@@ -93,6 +94,8 @@ class ProductsEndpoint extends BaseEndpoint
             } else {
                 $this->sendResponse(false, null, is_string($result) ? $result : 'Failed to create product', 400);
             }
+        } catch (InvalidArgumentException $e) {
+            $this->handleError(new ApiException($e->getMessage(), 400));
         } catch (Exception $e) {
             $this->handleError($e);
         }
@@ -114,7 +117,7 @@ class ProductsEndpoint extends BaseEndpoint
             if (isset($data->sku)) $product->setSku($data->sku);
             if (isset($data->barcode)) $product->setBarcode($data->barcode);
             if (isset($data->description)) $product->setDescription($data->description);
-            if (isset($data->salesPrice)) $product->setSalesPrice($data->salesPrice);
+            if (property_exists($data, 'salesPrice')) $product->setSalesPrice($data->salesPrice);
             if (isset($data->costPrice)) $product->setCostPrice($data->costPrice);
             
             // Set additional properties
@@ -144,6 +147,8 @@ class ProductsEndpoint extends BaseEndpoint
             } else {
                 $this->sendResponse(false, null, is_string($result) ? $result : 'Failed to update product', 400);
             }
+        } catch (InvalidArgumentException $e) {
+            $this->handleError(new ApiException($e->getMessage(), 400));
         } catch (Exception $e) {
             $this->handleError($e);
         }

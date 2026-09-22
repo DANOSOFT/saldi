@@ -1,4 +1,5 @@
 <?php
+// 20260920 CDX/LUI Preserve stored order costs in API output and escape order lookup inputs.
 
 class OrderModel
 {
@@ -59,6 +60,8 @@ class OrderModel
      */
     private function loadFromId($id, $art)
     {
+        $id = (int)$id;
+        $art = db_escape_string((string)$art);
         $qtxt = "SELECT * FROM ordrer WHERE id = $id AND art = '$art'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -87,7 +90,7 @@ class OrderModel
             $this->notes = $r['notes'];
             $this->betalt = $r['betalt'];
             $this->sum = (float)$r['sum'];
-            $this->kostpris = (float)$r['costkostprisPrice'];
+            $this->kostpris = (float)$r['kostpris'];
             $this->moms = (float)$r['moms'];
             $this->valuta = $r['valuta'];
             $this->betalingsbet = $r['betalingsbet'];

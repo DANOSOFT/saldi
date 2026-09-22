@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-07-17 ---
+// --- api/rest_api.php --- lap 5.0.0 --- 2026-09-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,9 @@
 //
 // Copyright (c) 2016-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20260921 CDX/LH Preserve actionless null responses without reading an absent request key.
+// 20260921 CDX/LH Exclude falsey single-zero permissions from API service actors.
+// 20260921 CDX/LH Acknowledge bundle imports with the exact created master-line ID.
 // 20180307 Tilføjet 'pos_betaling' i 'fakturer_ordre' 
 // 20180316 Tilføjet 'lagerstatus' i '$allowed_tables' i funktion 'fetch_from_table'
 // 20180406 tidspkt indsættes nu ved oprettelse af ordrer og genbruges ved fakturering. 
@@ -72,6 +75,11 @@
 // 20260911 Sawaneh insert_shop_order dispatch: blank the literal "dummyvalue" Shoptech
 //                     sends for empty address fields via strip_placeholder_value(); if_isset
 //                     calls in that block converted to ifset (JOB-115)
+// 20260920 CDX/LH Create and post credit notes atomically, preserve line metadata, defer mail until commit.
+// 20260920 CDX/LH Preserve reverse-charge and bundle markers; align preflight totals with invoice calculation.
+// 20260920 CDX/LH Validate shop identities, totals and currency before writes; serialize order ingestion.
+// 20260921 CDX/LH Bind tenant API attribution to its configured rights-free service user.
+// 20260921 CDX/LH Return unknown-SKU rejection without reading a missing lookup row; resolve the line include locally.
 
 
 // ----------------------------------------------------------------------
@@ -81,6 +89,7 @@ date_default_timezone_set('Europe/Copenhagen');
 include("../includes/connect.php");
 include("../includes/db_query.php");
 include("../includes/std_func.php");
+require_once __DIR__ . "/../includes/shopOrderInput.php";
 
 $db=NULL;
 $db_skriv_id=1;
@@ -139,294 +148,347 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	global $webservice;
 	global $regnaar;
 
-	$betalingsdage=(int)$betalingsdage;
-	// havemøbelland
-	if($db == "pos_50"){
-		$lager = 10;
+	global $db_type, $db_modify_fejl;
+	if (!saldiShopIntegerId($shopOrderId) ||
+		($shop_addr_id !== '' && $shop_addr_id !== null && !saldiShopIntegerId($shop_addr_id, true))) {
+		return 'Invalid shop order or customer identifier';
 	}
-	if(strtolower($ekstra1) == "betalingskort") {
-		$ekstra1 = "Ukendt kort";
+	$nettosum = saldiShopDecimal($nettosum === '' || $nettosum === null ? 0 : $nettosum);
+	$momssum = saldiShopDecimal($momssum === '' || $momssum === null ? 0 : $momssum);
+	if ($nettosum === null || $momssum === null) {
+		return 'Invalid order amount: use an ungrouped decimal number';
 	}
-	// to be removed in 4.0.2 -->
-	$qtxt = "select data_type from information_schema.columns where table_name = 'ordrer' and column_name = 'shop_status'";
-	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		if ($r['data_type'] == 'integer') {
-			db_modify("ALTER table ordrer alter column shop_status TYPE varchar(20)",__FILE__ . " linje " . __LINE__);
+	$valuta = strtoupper(trim((string)$valuta));
+	if ($valuta === '') {
+		$valuta = 'DKK';
+	}
+	if (!preg_match('/^[A-Z]{3}$/D', $valuta)) {
+		return 'Unsupported currency';
+	}
+	$valutakurs = 100;
+	if ($valuta !== 'DKK') {
+		$currency = db_fetch_array(db_select("select box2 from grupper where art='VK' and box1='$valuta' order by id desc limit 1", __FILE__ . ' linje ' . __LINE__));
+		$valutakurs = saldiShopDecimal($currency['box2'] ?? null);
+		if ($valutakurs === null || $valutakurs <= 0) {
+			return 'Unsupported currency or missing positive exchange rate';
 		}
 	}
-	// <--
-	// Add afd column to shop_adresser if not exists (multi-shop support)
-	$qtxt = "select column_name from information_schema.columns where table_name = 'shop_adresser' and column_name = 'afd'";
-	if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		db_modify("ALTER TABLE shop_adresser ADD COLUMN afd integer DEFAULT 0",__FILE__ . " linje " . __LINE__);
+	$finished = false;
+	if (!transaktion('begin')) {
+		return 'Cannot begin order transaction';
 	}
-	list($master,$db_skriv_id)=explode('_',$db);
-	$log=fopen("../temp/$db/rest_api.log","a");
-	fwrite($log,__line__." Ordredate: $ordredate\n");
-/*	
-	if (strpos('',$ordredate)) list($ordredate,$tidspkt)=explode(' ',$ordredate);
-	else $tidspkt=(date('H:i')); 
-	$tidspkt=substr($tidspkt,0,5);
-*/
-	// if ip is 172.105.246.144 set afd to 4
-	if (get_ip() == '172.105.246.144') {
-		$afd = 4;
-	}
+	$writeOrder = static function ($sql, $location) {
+		$result = db_modify($sql, $location);
+		if (!$result || $GLOBALS['db_modify_fejl']) {
+			throw new RuntimeException('Order transaction failed; no order created');
+		}
+		return $result;
+	};
+	$saldi_addr_id = 0;
+	$kontonr = null;
+	try {
+		if ($db_type !== 'mysql' && $db_type !== 'mysqli') {
+			if (!$writeOrder('LOCK TABLE ordrer, adresser, shop_ordrer, shop_adresser IN SHARE ROW EXCLUSIVE MODE', __FILE__ . ' linje ' . __LINE__)) {
+				return 'Cannot lock order allocation';
+			}
+		}
+		$betalingsdage=(int)$betalingsdage;
+		// havemøbelland
+		if($db == "pos_50"){
+			$lager = 10;
+		}
+		if(strtolower($ekstra1) == "betalingskort") {
+			$ekstra1 = "Ukendt kort";
+		}
+		// to be removed in 4.0.2 -->
+		$qtxt = "select data_type from information_schema.columns where table_name = 'ordrer' and column_name = 'shop_status'";
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			if ($r['data_type'] == 'integer') {
+				$writeOrder("ALTER table ordrer alter column shop_status TYPE varchar(20)",__FILE__ . " linje " . __LINE__);
+			}
+		}
+		// <--
+		// Add afd column to shop_adresser if not exists (multi-shop support)
+		$qtxt = "select column_name from information_schema.columns where table_name = 'shop_adresser' and column_name = 'afd'";
+		if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$writeOrder("ALTER TABLE shop_adresser ADD COLUMN afd integer DEFAULT 0",__FILE__ . " linje " . __LINE__);
+		}
+		list($master,$db_skriv_id)=explode('_',$db);
+		$log=fopen("../temp/$db/rest_api.log","a");
+		fwrite($log,__line__." Ordredate: $ordredate\n");
+	/*
+		if (strpos('',$ordredate)) list($ordredate,$tidspkt)=explode(' ',$ordredate);
+		else $tidspkt=(date('H:i'));
+		$tidspkt=substr($tidspkt,0,5);
+	*/
+		// if ip is 172.105.246.144 set afd to 4
+		if (($_SERVER['REMOTE_ADDR'] ?? '') === '172.105.246.144') {
+			$afd = 4;
+		}
 
-	if (strlen($ordredate)>10) { #20210107
-		$tidspkt=substr($ordredate,11); 
-		#list($ordredate,$tidspkt)=explode(' ',$ordredate);
-	}	else $tidspkt=(date('H:i')); 
-	$tidspkt=substr($tidspkt,0,5);
-	fwrite($log,__line__." Ordredate: $ordredate\n");
-	fwrite($log,__line__." Tidspkt: $tidspkt\n");
-	
-	fwrite($log,__line__." Ordredate: $ordredate\n");
-	fwrite($log,__line__." Tidspkt: $tidspkt\n");
-	
-	fwrite($log,__line__." $brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog\n");
-	fwrite($log,__line__." Brugernavn: $brugernavn\n");
-	fwrite($log,__line__." Shop Ordre id: $shopOrderId afd $afd\n");
-	fwrite($log,__line__." Shop Kunde id: $shop_addr_id\n");
-	fwrite($log,__line__." Saldi konto nr: $saldi_kontonr\n");
-	
-	if (!is_numeric($shopOrderId)) {
-		fwrite($log,__line__." Ordernumber not numeric ($shopOrderId)\n");
-		return "Ordernumber not numeric ($shopOrderId)";
-		exit;
-	}
-	$tlf=str_replace(" ","",$tlf);
-	$num_tlf=(int)str_replace("+","",$tlf);
+		if (strlen($ordredate)>10) { #20210107
+			$tidspkt=substr($ordredate,11);
+			#list($ordredate,$tidspkt)=explode(' ',$ordredate);
+		}	else $tidspkt=(date('H:i'));
+		$tidspkt=substr($tidspkt,0,5);
+		fwrite($log,__line__." Ordredate: $ordredate\n");
+		fwrite($log,__line__." Tidspkt: $tidspkt\n");
 
-	// Convert to integers
-	fwrite($log,__line__." Shop Ordre id: $shopOrderId\n");
-	$shopOrderId = (int)$shopOrderId;
-    $shop_addr_id = (int)$shop_addr_id;
-	fwrite($log,__line__." Shop Ordre id: $shopOrderId\n");
+		fwrite($log,__line__." Ordredate: $ordredate\n");
+		fwrite($log,__line__." Tidspkt: $tidspkt\n");
 
-	if (!$shopOrderId || !is_integer($shopOrderId)) {
-		fwrite($log,__line__." Illegal order id ($shopOrderId)\n");
-		fclose ($log);
-		return "Illegal order id ($shopOrderId)";
-		exit;
-	}
+		fwrite($log,__line__." $brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog\n");
+		fwrite($log,__line__." Brugernavn: $brugernavn\n");
+		fwrite($log,__line__." Shop Ordre id: $shopOrderId afd $afd\n");
+		fwrite($log,__line__." Shop Kunde id: $shop_addr_id\n");
+		fwrite($log,__line__." Saldi konto nr: $saldi_kontonr\n");
 
-#	if (!$shop_addr_id || !is_integer($shop_addr_id)) {
-#		fwrite($log,__line__." Illegal customer id ($shop_addr_id)\n");
-#		fclose ($log);
-#		return "Illegal customer id ($shop_addr_id)";
-#		exit;
-#	}
+		if (!is_numeric($shopOrderId)) {
+			fwrite($log,__line__." Ordernumber not numeric ($shopOrderId)\n");
+			return "Ordernumber not numeric ($shopOrderId)";
+			exit;
+		}
+		$tlf=str_replace(" ","",$tlf);
+		$num_tlf=(int)str_replace("+","",$tlf);
 
-	if (!$firmanavn) {
-		$firmanavn=$kontakt;
-		$kontakt='';
-	}
-	if (!$lev_firmanavn) {
-		$lev_firmanavn=$lev_kontakt;
-		$lev_kontakt='';
-	}
-	sleep (1);
-	
-	// Enhanced duplication prevention checks
-	if ($shopOrderId) {
-		// Primary check: Check if shop order ID already exists with same art type
-		fwrite($log,__line__." Checking for existing shop order: $shopOrderId (art: $art)\n");
-		$qtxt = "select so.id,so.saldi_id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='$shopOrderId' and o.art='$art'";
-		fwrite($log,__line__." $qtxt\n");
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		if ($r['id']) {
-			fwrite($log,__line__." DUPLICATE DETECTED: Order id $shopOrderId (art: $art) already exists in saldi (saldi_id: $r[saldi_id])\n");
+		// Convert to integers
+		fwrite($log,__line__." Shop Ordre id: $shopOrderId\n");
+		$shopOrderId = (int)$shopOrderId;
+	    $shop_addr_id = (int)$shop_addr_id;
+		fwrite($log,__line__." Shop Ordre id: $shopOrderId\n");
+
+		if (!$shopOrderId || !is_integer($shopOrderId)) {
+			fwrite($log,__line__." Illegal order id ($shopOrderId)\n");
 			fclose ($log);
-			return "Order id: $shopOrderId exists in saldi (internal ID: $r[saldi_id])";
+			return "Illegal order id ($shopOrderId)";
+			exit;
 		}
-		
-		// Additional check: Verify no duplicate orders with same customer details and total amount
-		if ($nettosum > 0 && $saldi_addr_id) {
-			$duplicate_window = date('Y-m-d', strtotime('-1 day')); // Check last 24 hours
-			$qtxt = "select o.id, o.ordrenr, o.sum from ordrer o ";
-			$qtxt.= "where o.konto_id='$saldi_addr_id' and o.sum='$nettosum' ";
-			$qtxt.= "and o.ordredate >= '$duplicate_window' and o.art='DO'";
-			fwrite($log,__line__." Checking for potential duplicate by amount and customer: $qtxt\n");
-			$duplicate_check = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			$duplicate_count = 0;
-			while ($dup_r = db_fetch_array($duplicate_check)) {
-				$duplicate_count++;
-				fwrite($log,__line__." Found potential duplicate: Order $dup_r[ordrenr] (ID: $dup_r[id]) with same amount $dup_r[sum]\n");
-			}
-			if ($duplicate_count > 2) { // Allow max 2 orders with same amount per day per customer
-				fwrite($log,__line__." POTENTIAL DUPLICATE WARNING: Customer $saldi_addr_id has $duplicate_count orders with amount $nettosum in last 24h\n");
-				// Log warning but don't block - this could be legitimate
-			}
+
+	#	if (!$shop_addr_id || !is_integer($shop_addr_id)) {
+	#		fwrite($log,__line__." Illegal customer id ($shop_addr_id)\n");
+	#		fclose ($log);
+	#		return "Illegal customer id ($shop_addr_id)";
+	#		exit;
+	#	}
+
+		if (!$firmanavn) {
+			$firmanavn=$kontakt;
+			$kontakt='';
 		}
-	}
-	$qtxt="select saldi_id from shop_adresser where shop_id='$shop_addr_id' and afd='$afd'";
-	fwrite($log,__line__." $qtxt\n");
-	$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$saldi_addr_id=$r['saldi_id'];
-	fwrite($log,__line__." saldi_addr_id='$saldi_addr_id'\n");
-	if (!$saldi_addr_id) {
-		if ($saldi_kontonr) {
-			$qtxt="select id, kontonr from adresser where kontonr='$saldi_kontonr'";
-			fwrite($log,__line__." $qtxt\n");
-			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$saldi_addr_id=$r['id'];
-				$kontonr=$r['kontonr']; #20190822
-				fwrite($log,__line__." saldi_addr_id $saldi_addr_id\n");
-				fwrite($log,__line__." kontonr $kontonr\n");
-			} else $kontonr=$saldi_kontonr;
-			fwrite($log,__line__." Kontonr $kontonr=$saldi_kontonr\n");
-		} elseif ($tlf) {
-			$qtxt="select id,kontonr from adresser where art = 'D' and "; 
-			$qtxt.="tlf='$tlf'";
-			fwrite($log,__line__." $qtxt\n");
-			$qtxt=chk4utf8($qtxt);
-			if ($r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$saldi_addr_id=$r['id']*1;
-				$kontonr=$saldi_kontonr=$r['kontonr']; #20190822
-				fwrite($log,__line__." saldi_addr_id $saldi_addr_id\n");
-				fwrite($log,__line__." kontonr $saldi_kontonr\n");
-			}
+		if (!$lev_firmanavn) {
+			$lev_firmanavn=$lev_kontakt;
+			$lev_kontakt='';
 		}
-		if ($saldi_addr_id && $shop_addr_id) {
-			$qtxt="insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_addr_id','$shop_addr_id','$afd')";
+
+		// Enhanced duplication prevention checks
+		if ($shopOrderId) {
+			// Primary check: Check if shop order ID already exists with same art type
+			fwrite($log,__line__." Checking for existing shop order: $shopOrderId (art: $art)\n");
+			$qtxt = "select so.id,so.saldi_id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='$shopOrderId' and o.art='$art'";
 			fwrite($log,__line__." $qtxt\n");
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
-		} elseif (!$saldi_addr_id) { #if ($shop_addr_id) {
-				$qtxt="select id from adresser where art = 'D' and kontonr='$num_tlf'";
-				fwrite($log,__line__." $qtxt\n");
-				if ($tlf && !$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					if (!$kontonr) $kontonr=$num_tlf;
-					fwrite($log,__line__." kontonr $kontonr\n");
-				} elseif (!$kontonr) { 
-					$x=0;
-					$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
-					fwrite($log,__line__." $qtxt\n");
-					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-					while($r=db_fetch_array($q)) {
-						$ktonr[$x]=$r['kontonr'];
-#						fwrite($log,__line__." kontonr $kontonr\n");
-						$x++;
-					}
-					$kontonr=1000;
-					while(in_array($kontonr,$ktonr)) $kontonr++;
+			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			if ($r && $r['id']) {
+				fwrite($log,__line__." DUPLICATE DETECTED: Order id $shopOrderId (art: $art) already exists in saldi (saldi_id: $r[saldi_id])\n");
+				fclose ($log);
+				return "Order id: $shopOrderId exists in saldi (internal ID: $r[saldi_id])";
+			}
+
+			// Additional check: Verify no duplicate orders with same customer details and total amount
+			if ($nettosum > 0 && $saldi_addr_id) {
+				$duplicate_window = date('Y-m-d', strtotime('-1 day')); // Check last 24 hours
+				$qtxt = "select o.id, o.ordrenr, o.sum from ordrer o ";
+				$qtxt.= "where o.konto_id='$saldi_addr_id' and o.sum='$nettosum' ";
+				$qtxt.= "and o.ordredate >= '$duplicate_window' and o.art='DO'";
+				fwrite($log,__line__." Checking for potential duplicate by amount and customer: $qtxt\n");
+				$duplicate_check = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+				$duplicate_count = 0;
+				while ($dup_r = db_fetch_array($duplicate_check)) {
+					$duplicate_count++;
+					fwrite($log,__line__." Found potential duplicate: Order $dup_r[ordrenr] (ID: $dup_r[id]) with same amount $dup_r[sum]\n");
 				}
-				fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
-				$qtxt = "insert into adresser";
-				$qtxt.= "(kontonr,firmanavn,addr1,addr2,";
-				$qtxt.= "postnr,bynavn,land,cvrnr,ean,email,tlf,";
-				$qtxt.= "gruppe,art,betalingsbet,betalingsdage,kontakt,";
-				$qtxt.= "lev_firmanavn,lev_addr1,lev_addr2,";
-				$qtxt.= "lev_postnr,lev_bynavn,lev_land,";
-				$qtxt.= "lev_kontakt,lev_tlf,lev_email,lukket)";
-				$qtxt.= " values ";
-				$qtxt.="('$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
-				$qtxt.="'".db_escape_string($postnr)."','".db_escape_string($bynavn)."','".db_escape_string($land)."',";
-				$qtxt.="'".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
-				$qtxt.="'$gruppe','D','$betalingsbet','$betalingsdage','".db_escape_string($kontakt)."',";
-				$qtxt.="'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
-				$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
-				$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
+				if ($duplicate_count > 2) { // Allow max 2 orders with same amount per day per customer
+					fwrite($log,__line__." POTENTIAL DUPLICATE WARNING: Customer $saldi_addr_id has $duplicate_count orders with amount $nettosum in last 24h\n");
+					// Log warning but don't block - this could be legitimate
+				}
+			}
+		}
+		$qtxt="select saldi_id from shop_adresser where shop_id='$shop_addr_id' and afd='$afd'";
+		fwrite($log,__line__." $qtxt\n");
+		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$saldi_addr_id=$r ? $r['saldi_id'] : null;
+		fwrite($log,__line__." saldi_addr_id='$saldi_addr_id'\n");
+		if (!$saldi_addr_id) {
+			if ($saldi_kontonr) {
+				$qtxt="select id, kontonr from adresser where kontonr='$saldi_kontonr'";
+				fwrite($log,__line__." $qtxt\n");
+				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					$saldi_addr_id=$r['id'];
+					$kontonr=$r['kontonr']; #20190822
+					fwrite($log,__line__." saldi_addr_id $saldi_addr_id\n");
+					fwrite($log,__line__." kontonr $kontonr\n");
+				} else $kontonr=$saldi_kontonr;
+				fwrite($log,__line__." Kontonr $kontonr=$saldi_kontonr\n");
+			} elseif ($tlf) {
+				$qtxt="select id,kontonr from adresser where art = 'D' and ";
+				$qtxt.="tlf='$tlf'";
 				fwrite($log,__line__." $qtxt\n");
 				$qtxt=chk4utf8($qtxt);
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__));
-				$saldi_addr_id=$r['id'];
-			} 
-			if ($shop_addr_id) {
-				fwrite($log,__line__." insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')\n");
-				db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_addr_id','$shop_addr_id','$afd')",__FILE__ . " linje " . __LINE__);  
+				if ($r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					$saldi_addr_id=$r['id']*1;
+					$kontonr=$saldi_kontonr=$r['kontonr']; #20190822
+					fwrite($log,__line__." saldi_addr_id $saldi_addr_id\n");
+					fwrite($log,__line__." kontonr $saldi_kontonr\n");
+				}
 			}
-	} else {
-		fwrite($log,__line__." select kontonr from adresser where id = '$saldi_addr_id'\n");
-		$r=db_fetch_array(db_select("select kontonr from adresser where id = '$saldi_addr_id'",__FILE__ . " linje " . __LINE__));
-		$kontonr=$r['kontonr'];
-		fwrite($log,__line__." kontonr $kontonr\n");
-	}
-	$ordrenr = get_next_order_number("DO");
-	$projektnr=0;
-	$qtxt = "select box1 from grupper where art='DG' and kodenr = '$gruppe' ";
-	$qtxt.= "order by fiscal_year desc limit 1";
-	fwrite($log,__line__." $qtxt\n");
-	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-	$momsgruppe=str_replace('S','',$r['box1']);
-	$qtxt = "select box2 from grupper where art='SM' and kodenr = '$momsgruppe' ";
-	$qtxt.= "order by fiscal_year desc limit 1";
-	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-	$momssats=$r['box2']*1;
-	if (!$valuta)$valuta='DKK';
-	if ($valuta=='DKK') {
-		$valutakurs=100;
-	} else {
-		$qtxt="select box2 from grupper where art='VK' and box1 = '$valuta'";
-		fwrite($log,__line__." $qtxt\n");
-		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $valutakurs=$r['box2']; #20260223
-		else $valutakurs=100;
-		fwrite($log,__line__." Valutakurs $valutakurs\n");
-		if (strpos($valutakurs,',')) $valutakurs = usdecimal($valutakurs);
-		$valutakurs = (float)$valutakurs;
-	}
-	if (strtolower($betalingsbet) == 'kreditkort') $betalingsbet = 'Kreditkort';
-	fwrite($log,__line__." afd $afd\n");
-	$qtxt = "insert into ordrer ";
-	$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,";
-	$qtxt.= "addr2,postnr,bynavn,land,";
-	$qtxt.= "kontakt,email,udskriv_til,art,projekt,momssats,betalingsbet,";
-	$qtxt.= "betalingsdage,betalings_id,status,ordredate,valuta,valutakurs,afd,ref,hvem,";
-	$qtxt.= "felt_1,felt_2,felt_3,felt_4,felt_5,kundeordnr,cvrnr,ean,sum,moms,"; 
-	$qtxt.= "lev_navn,lev_addr1,lev_addr2,";
-	$qtxt.= "lev_postnr,lev_bynavn,lev_kontakt,";
-	$qtxt.= "tidspkt,phone,shop_status,shop_id,notes,sprog)";
-	$qtxt.= " values ";
-	$qtxt.= "('$ordrenr','$saldi_addr_id','$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
-	$qtxt.= "'".db_escape_string($addr2)."','".db_escape_string($postnr)."','".db_escape_string($bynavn)."',";
-	$qtxt.= "'".db_escape_string($land)."','".db_escape_string($kontakt)."','".db_escape_string($email)."',";
-	$initial_status = ($art == 'DK') ? '1' : '0';
-	$qtxt.= "'$udskriv_til','$art','$projektnr','$momssats','$betalingsbet','$betalingsdage','$betalings_id','$initial_status',";
-	$qtxt.= "'$ordredate','$valuta','$valutakurs','$afd','$ref','','$ekstra1','$ekstra2','$ekstra3',";
-	$qtxt.= "'$ekstra4','$ekstra5','$shop_fakturanr','$cvrnr','$ean','$nettosum','$momssum',";
-	$qtxt.= "'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
-	$qtxt.= "'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_kontakt)."',";
-	$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','$shop_status',";
-	$qtxt.= "'$shopOrderId','".db_escape_string($notes)."','$sprog')";
-	fwrite($log,__line__." $qtxt\n");
-	$qtxt=chk4utf8 ($qtxt);
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt="select id from ordrer where ordrenr='$ordrenr' and kontonr='$kontonr'";
-	fwrite($log,__line__." $qtxt\n");
-	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-	$saldi_ordre_id=$r['id'];
-	fwrite($log,__line__."saldi_ordre_id: $saldi_ordre_id\n");
-	
-	// Enhanced shop_ordrer insertion with duplicate prevention
-	if ($saldi_ordre_id && $shopOrderId) {
-		// Final check before inserting into shop_ordrer table
-		$qtxt_check="select so.id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='$shopOrderId' and o.art='$art'";
-		$check_r=db_fetch_array(db_select($qtxt_check,__FILE__ . " linje " . __LINE__));
-		if ($check_r['id']) {
-			fwrite($log,__line__." ERROR: Race condition detected - shop_id $shopOrderId (art: $art) already exists in shop_ordrer\n");
-			// Clean up the order we just created since it's a duplicate
-			db_modify("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
-			fclose ($log);
-			return "Error: Duplicate shop order detected during insertion";
+			if ($saldi_addr_id && $shop_addr_id) {
+				$qtxt="insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_addr_id','$shop_addr_id','$afd')";
+				fwrite($log,__line__." $qtxt\n");
+				$writeOrder($qtxt,__FILE__ . " linje " . __LINE__);
+			} elseif (!$saldi_addr_id) { #if ($shop_addr_id) {
+					$qtxt="select id from adresser where art = 'D' and kontonr='$num_tlf'";
+					fwrite($log,__line__." $qtxt\n");
+					if ($tlf && !$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+						if (!$kontonr) $kontonr=$num_tlf;
+						fwrite($log,__line__." kontonr $kontonr\n");
+					} elseif (!$kontonr) {
+						$x=0;
+						$ktonr = [];
+						$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
+						fwrite($log,__line__." $qtxt\n");
+						$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+						while($r=db_fetch_array($q)) {
+							$ktonr[$x]=$r['kontonr'];
+	#						fwrite($log,__line__." kontonr $kontonr\n");
+							$x++;
+						}
+						$kontonr=1000;
+						while(in_array($kontonr,$ktonr)) $kontonr++;
+					}
+					fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
+					$qtxt = "insert into adresser";
+					$qtxt.= "(kontonr,firmanavn,addr1,addr2,";
+					$qtxt.= "postnr,bynavn,land,cvrnr,ean,email,tlf,";
+					$qtxt.= "gruppe,art,betalingsbet,betalingsdage,kontakt,";
+					$qtxt.= "lev_firmanavn,lev_addr1,lev_addr2,";
+					$qtxt.= "lev_postnr,lev_bynavn,lev_land,";
+					$qtxt.= "lev_kontakt,lev_tlf,lev_email,lukket)";
+					$qtxt.= " values ";
+					$qtxt.="('$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
+					$qtxt.="'".db_escape_string($postnr)."','".db_escape_string($bynavn)."','".db_escape_string($land)."',";
+					$qtxt.="'".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
+					$qtxt.="'$gruppe','D','$betalingsbet','$betalingsdage','".db_escape_string($kontakt)."',";
+					$qtxt.="'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
+					$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
+					$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
+					fwrite($log,__line__." $qtxt\n");
+					$qtxt=chk4utf8($qtxt);
+					$writeOrder($qtxt,__FILE__ . " linje " . __LINE__);
+					$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__));
+					$saldi_addr_id=$r['id'];
+				}
+				if ($shop_addr_id) {
+					fwrite($log,__line__." insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')\n");
+					$writeOrder("insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_addr_id','$shop_addr_id','$afd')",__FILE__ . " linje " . __LINE__);
+				}
+		} else {
+			fwrite($log,__line__." select kontonr from adresser where id = '$saldi_addr_id'\n");
+			$r=db_fetch_array(db_select("select kontonr from adresser where id = '$saldi_addr_id'",__FILE__ . " linje " . __LINE__));
+			$kontonr=$r['kontonr'];
+			fwrite($log,__line__." kontonr $kontonr\n");
 		}
-		
-		$qtxt="insert into shop_ordrer(saldi_id,shop_id)values('$saldi_ordre_id','$shopOrderId')";
+		$ordrenr = get_next_order_number("DO", false);
+		$projektnr=0;
+		$qtxt = "select box1 from grupper where art='DG' and kodenr = '$gruppe' ";
+		$qtxt.= "order by fiscal_year desc limit 1";
 		fwrite($log,__line__." $qtxt\n");
-		$insert_result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		
-		if (!$insert_result) {
-			fwrite($log,__line__." ERROR: Failed to insert into shop_ordrer table\n");
-			// Clean up the order we just created
-			db_modify("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
-			fclose ($log);
-			return "Error: Failed to create shop order mapping";
+		$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
+		if (!$r) {
+			return 'Missing debtor group VAT configuration';
 		}
-		
-		fwrite($log,__line__." Successfully created order mapping: saldi_id=$saldi_ordre_id, shop_id=$shopOrderId\n");
-	}  
-	fclose ($log);
-	return $saldi_ordre_id;
+		$momsgruppe=str_replace('S','',$r['box1']);
+		$qtxt = "select box2 from grupper where art='SM' and kodenr = '$momsgruppe' ";
+		$qtxt.= "order by fiscal_year desc limit 1";
+		$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
+		if (!$r) {
+			return 'Missing sales VAT configuration';
+		}
+		$momssats=$r['box2']*1;
+		if (strtolower($betalingsbet) == 'kreditkort') $betalingsbet = 'Kreditkort';
+		fwrite($log,__line__." afd $afd\n");
+		$qtxt = "insert into ordrer ";
+		$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,";
+		$qtxt.= "addr2,postnr,bynavn,land,";
+		$qtxt.= "kontakt,email,udskriv_til,art,projekt,momssats,betalingsbet,";
+		$qtxt.= "betalingsdage,betalings_id,status,ordredate,valuta,valutakurs,afd,ref,hvem,";
+		$qtxt.= "felt_1,felt_2,felt_3,felt_4,felt_5,kundeordnr,cvrnr,ean,sum,moms,";
+		$qtxt.= "lev_navn,lev_addr1,lev_addr2,";
+		$qtxt.= "lev_postnr,lev_bynavn,lev_kontakt,";
+		$qtxt.= "tidspkt,phone,shop_status,shop_id,notes,sprog)";
+		$qtxt.= " values ";
+		$qtxt.= "('$ordrenr','$saldi_addr_id','$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
+		$qtxt.= "'".db_escape_string($addr2)."','".db_escape_string($postnr)."','".db_escape_string($bynavn)."',";
+		$qtxt.= "'".db_escape_string($land)."','".db_escape_string($kontakt)."','".db_escape_string($email)."',";
+		$initial_status = ($art == 'DK') ? '1' : '0';
+		$qtxt.= "'$udskriv_til','$art','$projektnr','$momssats','$betalingsbet','$betalingsdage','$betalings_id','$initial_status',";
+		$qtxt.= "'$ordredate','$valuta','$valutakurs','$afd','$ref','".db_escape_string($brugernavn)."','$ekstra1','$ekstra2','$ekstra3',";
+		$qtxt.= "'$ekstra4','$ekstra5','$shop_fakturanr','$cvrnr','$ean','$nettosum','$momssum',";
+		$qtxt.= "'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
+		$qtxt.= "'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_kontakt)."',";
+		$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','$shop_status',";
+		$qtxt.= "'$shopOrderId','".db_escape_string($notes)."','$sprog')";
+		fwrite($log,__line__." $qtxt\n");
+		$qtxt=chk4utf8 ($qtxt);
+		$writeOrder($qtxt,__FILE__ . " linje " . __LINE__);
+		$qtxt="select id from ordrer where ordrenr='$ordrenr' and kontonr='$kontonr'";
+		fwrite($log,__line__." $qtxt\n");
+		$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
+		$saldi_ordre_id=$r['id'];
+		fwrite($log,__line__."saldi_ordre_id: $saldi_ordre_id\n");
+
+		// Enhanced shop_ordrer insertion with duplicate prevention
+		if ($saldi_ordre_id && $shopOrderId) {
+			// Final check before inserting into shop_ordrer table
+			$qtxt_check="select so.id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='$shopOrderId' and o.art='$art'";
+			$check_r=db_fetch_array(db_select($qtxt_check,__FILE__ . " linje " . __LINE__));
+			if ($check_r && $check_r['id']) {
+				fwrite($log,__line__." ERROR: Race condition detected - shop_id $shopOrderId (art: $art) already exists in shop_ordrer\n");
+				// Clean up the order we just created since it's a duplicate
+				$writeOrder("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
+				fclose ($log);
+				return "Error: Duplicate shop order detected during insertion";
+			}
+
+			$qtxt="insert into shop_ordrer(saldi_id,shop_id)values('$saldi_ordre_id','$shopOrderId')";
+			fwrite($log,__line__." $qtxt\n");
+			$insert_result = $writeOrder($qtxt,__FILE__ . " linje " . __LINE__);
+
+			if (!$insert_result) {
+				fwrite($log,__line__." ERROR: Failed to insert into shop_ordrer table\n");
+				// Clean up the order we just created
+				$writeOrder("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
+				fclose ($log);
+				return "Error: Failed to create shop order mapping";
+			}
+
+			fwrite($log,__line__." Successfully created order mapping: saldi_id=$saldi_ordre_id, shop_id=$shopOrderId\n");
+		}
+		fclose ($log);
+		if ($db_modify_fejl || !$saldi_ordre_id) {
+			return 'Order transaction failed; no order created';
+		}
+		$commitResult = transaktion('commit');
+		$finished = true;
+		return $commitResult && !$db_modify_fejl ? $saldi_ordre_id : 'Order commit failed';
+	} catch (Throwable $error) {
+		return 'Order transaction failed; no order created';
+	} finally {
+		if (!$finished) {
+			transaktion('rollback');
+		}
+		if (isset($log) && is_resource($log)) {
+			fclose($log);
+		}
+	}
 }
 
 function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$varegruppe,$discountType) {
@@ -443,6 +505,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	}
 
 	$varenr = NULL;
+	$saldi_variant = 0;
+	$samlevare = '';
 	$linje_id = $ordresum = 0;
 	$shop_varenr = trim($shop_varenr);
 
@@ -452,10 +516,14 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
 	
 	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
-	if ($ordre_id && is_numeric($ordre_id)) {
+	if (saldiShopIntegerId($ordre_id)) {
 		$qtxt="select status,momssats,valutakurs,art from ordrer where id='$ordre_id'";
 		fwrite($log,__line__." ".$qtxt."\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if (!$r) {
+			fclose($log);
+			return 'Invalid order ID';
+		}
 		$momssats=$r['momssats'];
 		$ordre_valutakurs=$r['valutakurs']*1;
 		if (!$ordre_valutakurs) $ordre_valutakurs=100;
@@ -485,7 +553,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		$qtxt=chk4utf8($qtxt);
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$vare_id=$r['id'];
+		$vare_id=ifset($r, 'id');
 	} elseif ($shop_vare_id) {
 		$qtxt="select saldi_id from shop_varer where shop_id='$shop_vare_id'";
 		fwrite($log,__line__." $qtxt\n");
@@ -502,7 +570,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	}
 	fwrite($log,__line__." Vare ID $vare_id\n");
 	fwrite($log,__line__." Stregkode $stregkode\n");
-	include("../includes/ordrefunc.php");
+	include(__DIR__ . '/../includes/ordrefunc.php');
 	if ($vare_id) {
 		$qtxt="select varenr,samlevare from varer where id='$vare_id'";
 		fwrite($log,__line__." $qtxt\n");
@@ -553,8 +621,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			else $qtxt="select id,samlevare from varer where varenr='$shop_vare_id' or varenr_alias='$shop_vare_id' or stregkode='$shop_vare_id'";
 			fwrite($log,__line__." $qtxt\n");
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$vare_id=$r['id'];
-			$samlevare=$r['samlevare'];
+			$vare_id=ifset($r, 'id');
+			$samlevare=ifset($r, 'samlevare');
 			fwrite($log,__line__." Vare_id $vare_id - Samlevare $samlevare\n");
 		}	
 /*
@@ -596,6 +664,10 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 		}
 	}
+	if (!$vare_id && ($shop_varenr || $shop_vare_id || $shop_variant || $stregkode)) {
+		fclose($log);
+		return 'Unknown item identity; no line created';
+	}
 	if (($vare_id)) {
 		$qtxt="update varer set publiceret='on' where id = '$vare_id'";
 		fwrite($log,__line__." $qtxt\n");
@@ -611,7 +683,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	if ($samlevare && $samlevare == 'on') {
 		fwrite($log,__line__." Samlevare = $samlevare\n");
 		fwrite($log,__line__." opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,on,$lager)\n");
-		opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,'on',$lager);
+		$linje_id = opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,'on',$lager);
 	} elseif($vare_id) {
 		fwrite ($log,__line__." Antal: $antal\n");
 		fwrite ($log,__line__." Beskrivelse: $beskrivelse\n");
@@ -659,7 +731,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	return $linje_id;
 } # endfunc - insert_shop_orderline
 
-function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null) {
+function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null,$sendEmail = true) {
 	global $db,$db_skriv_id;
 	global $baseCurrency,$brugernavn;
 	global $webservice;
@@ -667,7 +739,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	global $db_modify_fejl; #20260729 SZ (SD-595)
 	#return "$nettosum,$momssum";
 	
-	include("../includes/ordrefunc.php");
+	include_once(__DIR__ . '/../includes/ordrefunc.php');
 	
 	$log=fopen("../temp/$db/rest_api.log","a");
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
@@ -680,15 +752,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 
 	fwrite($log,__line__." base currency: $baseCurrency \n");
 
-	$qtxt="select * from ordrelinjer where ordre_id='$saldi_id'";
-	fwrite($log,__line__." $qtxt\n");
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	$linjesum=0;
-	while ($r=db_fetch_array($q)) {
-		$linjesum+=$r['antal']*$r['pris']-($r['antal']*$r['pris']*$r['rabat']/100);
-		fwrite($log,__line__." $linjesum+=$r[antal]*$r[pris]-($r[antal]*$r[pris]*$r[rabat]/100)\n");
-	}
-	$qtxt="select betalingsbet,tidspkt,sum,moms,felt_1,felt_2 from ordrer where id='$saldi_id'";
+	$qtxt="select betalingsbet,tidspkt,sum,moms,felt_1,felt_2,momssats,art from ordrer where id='$saldi_id'";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$ordresum=$r['sum'];
@@ -697,21 +761,21 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	$betalingstype=$r['felt_1'];
 	$betalingsum=$r['felt_2'];
 	$tidspkt=$r['tidspkt'];
+	$invoiceVatRate = (float)$r['momssats'];
+	$invoiceArt = $r['art'];
 #	$r=db_fetch_array(db_select("select * from ordrer where id = '$saldi_id'",__FILE__ . " linje " . __LINE__));
 #	$betalt=$r['sum']+$r['moms'];
 #	$korttype=$r['felt_1'];
-	$varesum=$varemoms=0;
-	$qtxt="select antal,pris,rabat,momssats from ordrelinjer where ordre_id='$saldi_id' and vare_id >= 0";
-	fwrite($log,__line__." $qtxt\n");
+	require_once(__DIR__ . '/../includes/orderInvoiceTotals.php');
+	$qtxt="select * from ordrelinjer where ordre_id='$saldi_id' and posnr >= 0";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while($r=db_fetch_array($q)) {
-		$linjepris=$r['antal']*($r['pris']-$r['pris']*$r['rabat']/100);
-		fwrite($log,__line__." Svar : $linjepris=$r[antal]*($r[pris]-$r[pris]*$r[rabat]/100)\n");
-		$linjemoms=$linjepris*$r['momssats']/100;
-		$varesum+=afrund($linjepris,3);
-		$varemoms+=afrund($linjemoms,3);
-		fwrite($log,__line__." $varesum -> $varemoms\n");
+	$invoiceLines = array();
+	while ($line = db_fetch_array($q)) {
+		$invoiceLines[] = $line;
 	}
+	$totals = orderInvoiceTotals($invoiceLines, $invoiceVatRate, $invoiceArt);
+	$varesum = $totals['net'];
+	$varemoms = $totals['vat'];
 	fwrite($log,__line__." abs($ordresum-$varesum)>0.01 || abs($ordremoms-$varemoms)>0.01)\n");
 	if (abs($ordresum-$varesum)>0.01 || abs($ordremoms-$varemoms)>0.01) {
 		$svar='Error in amount ('.$ordresum.'+'.$ordremoms.') vs. item amount ('.$varesum.'+'.$varemoms.')';
@@ -719,6 +783,16 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		fclose($log);
 		return($svar);
 		exit;
+	}
+	if ($pos_betaling && !in_array($betalingsbet, array('Forud', 'Lb. Md', 'Netto'), true)) {
+		$validatedPayment = saldiShopDecimal($betalingsum);
+		$paidAmount = $validatedPayment === null ? 0 : $validatedPayment;
+		$paymentDifference = abs($ordresum + $ordremoms - $paidAmount);
+		if ($validatedPayment === null || $paymentDifference >= 0.01) {
+			fclose($log);
+			return 'Error in amount ('.$ordresum.'+'.$ordremoms.') vs. paid amount ('.$paidAmount.') : diff '.$paymentDifference;
+		}
+		$betalingsum = $validatedPayment;
 	}
 	transaktion('begin');
 	if ($fakturadate) {
@@ -750,7 +824,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	$svar=levering($saldi_id,'on',NULL,'on');
 	fwrite($log,__line__." Betalingsbet: $betalingsbet\n");
-	if ($betalingsbet!='Forud' && $betalingsbet!='Lb. Md' && $betalingsbet!='Netto') {
+	if ($pos_betaling && $betalingsbet!='Forud' && $betalingsbet!='Lb. Md' && $betalingsbet!='Netto') {
 		$betalingsdiff=abs($ordresum+$ordremoms-$betalingsum);
 		if ($pos_betaling && $betalingsdiff >= 0.01) {
 			fwrite($log,__line__." Ordresum : $ordresum\n");
@@ -786,139 +860,153 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		fclose($log);
 		return "Database write failed while posting order $saldi_id";
 	}
-	// Send invoice email to customer if enabled - after the commit/failure check
-	// so a failed posting write never triggers a customer email (SD-595, CodeRabbit) #20260805 CL/SZ
-	try {
-		$email_result = send_api_invoice_email($saldi_id);
-		fwrite($log,__line__." Invoice email result: $email_result\n");
-	} catch (Exception $e) {
-		fwrite($log,__line__." Invoice email error: " . $e->getMessage() . "\n");
-	} catch (Error $e) {
-		fwrite($log,__line__." Invoice email fatal error: " . $e->getMessage() . "\n");
+	// Credit-note creation owns the outer commit and sends its email afterwards.
+	if ($sendEmail) {
+		try {
+			$email_result = send_api_invoice_email($saldi_id);
+			fwrite($log,__line__." Invoice email result: $email_result\n");
+		} catch (Throwable $e) {
+			fwrite($log,__line__." Invoice email error: " . $e->getMessage() . "\n");
+		}
 	}
 	fclose ($log);
 
 	return($saldi_id);
 }
 
+/**
+ * Credit an invoiced webshop order, including its posting, in one transaction.
+ *
+ * @return int|string The posted credit-note ID, or an error with no partial credit note.
+ */
 function create_credit_note($shop_ordre_id) {
-	global $db, $db_skriv_id, $brugernavn, $webservice, $regnaar;
+	global $db, $db_modify_fejl;
 
-	$log = fopen("../temp/$db/rest_api.log", "a");
-	fwrite($log, __line__ . " create_credit_note($shop_ordre_id)\n");
-
-	if (!$shop_ordre_id || !is_numeric($shop_ordre_id)) {
-		fwrite($log, __line__ . " Invalid shop_ordre_id ($shop_ordre_id)\n");
+	if (!preg_match('/^[1-9][0-9]*$/D', (string)$shop_ordre_id)) {
+		return "Invalid shop_ordre_id";
+	}
+	$shop_ordre_id = (int)$shop_ordre_id;
+	$log = fopen(__DIR__ . "/../temp/$db/rest_api.log", 'a');
+	$credit_saldi_id = 0;
+	$initialDepth = (int)($GLOBALS['db_transaktion_depth'] ?? 0);
+	$transactionStarted = false;
+	try {
+		if (!transaktion('begin')) {
+			throw new RuntimeException('Could not start credit-note transaction');
+		}
+		$transactionStarted = true;
+		$r = db_fetch_array(db_select("SELECT saldi_id FROM shop_ordrer WHERE shop_id='$shop_ordre_id'", __FILE__ . " linje " . __LINE__));
+		$original_saldi_id = (int)($r['saldi_id'] ?? 0);
+		if (!$original_saldi_id) {
+			throw new RuntimeException("Original order not found for shop_id $shop_ordre_id");
+		}
+		// The number generator retains its table lock until our outer commit.
+		$new_ordrenr = (int)get_next_order_number('DK', false);
+		$orig = db_fetch_array(db_select("SELECT * FROM ordrer WHERE id='$original_saldi_id' FOR UPDATE", __FILE__ . " linje " . __LINE__));
+		if (!$orig) {
+			throw new RuntimeException("Original order $original_saldi_id not found");
+		}
+		if ((int)$orig['status'] < 3) {
+			throw new RuntimeException("Original order $original_saldi_id is not yet invoiced");
+		}
+		if ($orig['art'] !== 'DO') {
+			throw new RuntimeException("Original order $original_saldi_id is not a DO order");
+		}
+		$dup = db_fetch_array(db_select("SELECT id FROM ordrer WHERE kred_ord_id='$original_saldi_id' AND art='DK'", __FILE__ . " linje " . __LINE__));
+		if ($dup) {
+			throw new RuntimeException("Credit note already exists for order $original_saldi_id");
+		}
+		$today = date('Y-m-d');
+		$copyColumns = array('konto_id', 'kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'land',
+			'kontakt', 'email', 'projekt', 'momssats', 'betalingsbet', 'betalingsdage', 'valuta', 'valutakurs',
+			'afd', 'ref', 'kundeordnr', 'cvrnr', 'ean', 'lev_navn', 'lev_addr1', 'lev_addr2', 'lev_postnr',
+			'lev_bynavn', 'lev_kontakt', 'tidspkt', 'phone', 'notes', 'sprog', 'omvbet');
+		$columns = implode(',', $copyColumns);
+		$qtxt = "INSERT INTO ordrer ($columns,ordrenr,art,kred_ord_id,status,ordredate,fakturadate,sum,moms,shop_id) ";
+		$qtxt .= "SELECT $columns,$new_ordrenr,'DK',id,0,'$today','$today',-sum,-moms,0 FROM ordrer WHERE id=$original_saldi_id";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if ($db_modify_fejl) {
+			throw new RuntimeException('Failed to create credit note order');
+		}
+		$r = db_fetch_array(db_select("SELECT id FROM ordrer WHERE ordrenr=$new_ordrenr AND kred_ord_id=$original_saldi_id AND art='DK'", __FILE__ . " linje " . __LINE__));
+		$credit_saldi_id = (int)($r['id'] ?? 0);
+		if (!$credit_saldi_id) {
+			throw new RuntimeException('Failed to retrieve credit note order');
+		}
+		// Preserve invoiced pricing, VAT, discount and variant metadata. Negative
+		// bookkeeping positions are generated again by delivery/posting.
+		$q = db_select("SELECT * FROM ordrelinjer WHERE ordre_id=$original_saldi_id AND posnr >= 0 ORDER BY id", __FILE__ . " linje " . __LINE__);
+		$lineIds = array();
+		$parents = array();
+		$lineColumns = array('varenr', 'beskrivelse', 'posnr', 'vare_id', 'pris', 'rabat', 'momssats', 'lager',
+			'momsfri', 'procent', 'rabatart', 'variant_id', 'kostpris', 'bogf_konto', 'vat_account', 'enhed',
+			'lev_varenr', 'serienr', 'projekt', 'rabatgruppe', 'm_rabat', 'folgevare', 'kdo', 'saet', 'fast_db', 'barcode',
+			'omvbet', 'samlevare');
+		while ($line = db_fetch_array($q)) {
+			$originalLineId = (int)$line['id'];
+			$columns = array('ordre_id', 'antal', 'kred_linje_id', 'leveres', 'leveret');
+			$values = array($credit_saldi_id, -(float)$line['antal'], $originalLineId, 0, 0);
+			foreach ($lineColumns as $column) {
+				if (array_key_exists($column, $line)) {
+					$columns[] = $column;
+					$values[] = $line[$column] === null ? 'NULL' : "'" . db_escape_string((string)$line[$column]) . "'";
+				}
+			}
+			db_modify('INSERT INTO ordrelinjer (' . implode(',', $columns) . ') VALUES (' . implode(',', $values) . ')', __FILE__ . " linje " . __LINE__);
+			if ($db_modify_fejl) {
+				throw new RuntimeException('Failed to copy credit note lines');
+			}
+			$newLine = db_fetch_array(db_select("SELECT id FROM ordrelinjer WHERE ordre_id=$credit_saldi_id AND kred_linje_id=$originalLineId", __FILE__ . " linje " . __LINE__));
+			$lineIds[$originalLineId] = (int)($newLine['id'] ?? 0);
+			$parent = (string)($line['samlevare'] ?? '');
+			$parents[$originalLineId] = ctype_digit($parent) ? (int)$parent : 0;
+		}
+		if (!$lineIds || in_array(0, $lineIds, true)) {
+			throw new RuntimeException('No credit note lines were created');
+		}
+		foreach ($parents as $originalLineId => $parentId) {
+			if ($parentId && !isset($lineIds[$parentId])) {
+				throw new RuntimeException('Credit note bundle parent is missing from the original invoice lines');
+			}
+			if ($parentId) {
+				db_modify("UPDATE ordrelinjer SET samlevare=" . $lineIds[$parentId] . " WHERE id=" . $lineIds[$originalLineId], __FILE__ . " linje " . __LINE__);
+			}
+		}
+		if ($db_modify_fejl) {
+			throw new RuntimeException('Failed to link credit note lines');
+		}
+		$result = fakturer_ordre($credit_saldi_id, '', '', null, false);
+		if ($result != $credit_saldi_id || $db_modify_fejl) {
+			throw new RuntimeException("Credit note invoicing failed: $result");
+		}
+		$committed = transaktion('commit');
+		$transactionStarted = false;
+		if (!$committed || $db_modify_fejl) {
+			throw new RuntimeException('Credit note transaction failed');
+		}
+	} catch (Throwable $e) {
+		if ($transactionStarted) {
+			while ((int)($GLOBALS['db_transaktion_depth'] ?? 0) > $initialDepth) {
+				transaktion('rollback');
+			}
+		}
+		fwrite($log, "Credit note failed for shop order $shop_ordre_id: " . $e->getMessage() . "\n");
 		fclose($log);
-		return "Invalid shop_ordre_id ($shop_ordre_id)";
+		return $e->getMessage();
 	}
-
-	// 1. Look up original Saldi order via shop_ordrer
-	$r = db_fetch_array(db_select("SELECT saldi_id FROM shop_ordrer WHERE shop_id='$shop_ordre_id'", __FILE__ . " linje " . __LINE__));
-	if (!$r['saldi_id']) {
-		fwrite($log, __line__ . " Original order not found in Saldi for shop_id $shop_ordre_id\n");
+	// A caller-owned transaction is responsible for sending mail after its commit.
+	if ($initialDepth > 0) {
 		fclose($log);
-		return "Original order not found for shop_id $shop_ordre_id";
+		return $credit_saldi_id;
 	}
-	$original_saldi_id = (int)$r['saldi_id'];
-	fwrite($log, __line__ . " Found original Saldi order id: $original_saldi_id\n");
-
-	// 2. Load original order details
-	$orig = db_fetch_array(db_select("SELECT * FROM ordrer WHERE id='$original_saldi_id'", __FILE__ . " linje " . __LINE__));
-	if (!$orig['id']) {
-		fwrite($log, __line__ . " Original order id $original_saldi_id not found in ordrer table\n");
-		fclose($log);
-		return "Original order $original_saldi_id not found";
+	// Mail must only describe a committed credit note.
+	try {
+		$email_result = send_api_invoice_email($credit_saldi_id);
+		fwrite($log, "Credit note $credit_saldi_id email result: $email_result\n");
+	} catch (Throwable $e) {
+		fwrite($log, "Credit note email error: " . $e->getMessage() . "\n");
 	}
-	if ((int)$orig['status'] < 3) {
-		fwrite($log, __line__ . " Original order $original_saldi_id is not yet invoiced (status=$orig[status])\n");
-		fclose($log);
-		return "Original order $original_saldi_id is not yet invoiced";
-	}
-	if ($orig['art'] != 'DO') {
-		fwrite($log, __line__ . " Original order $original_saldi_id is not a DO order (art=$orig[art])\n");
-		fclose($log);
-		return "Original order $original_saldi_id is not a DO order (art=$orig[art])";
-	}
-
-	// 3. Duplicate check - only one credit note per original order
-	$dup = db_fetch_array(db_select("SELECT id FROM ordrer WHERE kred_ord_id='$original_saldi_id' AND art='DK'", __FILE__ . " linje " . __LINE__));
-	if ($dup['id']) {
-		fwrite($log, __line__ . " Credit note already exists (id=$dup[id]) for order $original_saldi_id\n");
-		fclose($log);
-		return "Credit note already exists for order $original_saldi_id";
-	}
-
-	// 4. Generate next order number for DK
-	$new_ordrenr = get_next_order_number('DK');
-	fwrite($log, __line__ . " New credit note ordrenr: $new_ordrenr\n");
-
-	$today = date('Y-m-d');
-	$credit_sum  = (float)$orig['sum']  * -1;
-	$credit_moms = (float)$orig['moms'] * -1;
-
-	// 5. Insert new DK credit note order copying customer/address from original
-	$qtxt  = "INSERT INTO ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land,";
-	$qtxt .= " kontakt, email, art, kred_ord_id, projekt, momssats, betalingsbet, betalingsdage, betalings_id,";
-	$qtxt .= " status, ordredate, fakturadate, valuta, valutakurs, afd, ref, hvem,";
-	$qtxt .= " felt_1, felt_2, felt_3, felt_4, felt_5, kundeordnr, cvrnr, ean, sum, moms,";
-	$qtxt .= " lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt,";
-	$qtxt .= " tidspkt, phone, shop_status, shop_id, notes, sprog)";
-	$qtxt .= " VALUES ";
-	$qtxt .= "('$new_ordrenr','$orig[konto_id]','$orig[kontonr]','".db_escape_string($orig['firmanavn'])."','".db_escape_string($orig['addr1'])."','".db_escape_string($orig['addr2'])."',";
-	$qtxt .= "'".db_escape_string($orig['postnr'])."','".db_escape_string($orig['bynavn'])."','".db_escape_string($orig['land'])."',";
-	$qtxt .= "'".db_escape_string($orig['kontakt'])."','".db_escape_string($orig['email'])."',";
-	$qtxt .= "'DK','$original_saldi_id','$orig[projekt]','$orig[momssats]','$orig[betalingsbet]','$orig[betalingsdage]','',";
-	$qtxt .= "'0','$today','$today','$orig[valuta]','$orig[valutakurs]','$orig[afd]','$orig[ref]','',";
-	$qtxt .= "'','','','','','$orig[kundeordnr]','".db_escape_string($orig['cvrnr'])."','".db_escape_string($orig['ean'])."','$credit_sum','$credit_moms',";
-	$qtxt .= "'".db_escape_string($orig['lev_navn'])."','".db_escape_string($orig['lev_addr1'])."','".db_escape_string($orig['lev_addr2'])."',";
-	$qtxt .= "'".db_escape_string($orig['lev_postnr'])."','".db_escape_string($orig['lev_bynavn'])."','".db_escape_string($orig['lev_kontakt'])."',";
-	$qtxt .= "'$orig[tidspkt]','".db_escape_string($orig['phone'])."','','0','".db_escape_string($orig['notes'])."','$orig[sprog]')";
-	fwrite($log, __line__ . " $qtxt\n");
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-	// 6. Get new credit note id
-	$r2 = db_fetch_array(db_select("SELECT id FROM ordrer WHERE ordrenr='$new_ordrenr'", __FILE__ . " linje " . __LINE__));
-	$credit_saldi_id = (int)$r2['id'];
-	if (!$credit_saldi_id) {
-		fwrite($log, __line__ . " Failed to retrieve credit note id after insert\n");
-		fclose($log);
-		return "Failed to create credit note order";
-	}
-	fwrite($log, __line__ . " Credit note order id: $credit_saldi_id\n");
-
-	// 7. Copy order lines with negated antal
-	$q = db_select("SELECT * FROM ordrelinjer WHERE ordre_id='$original_saldi_id'", __FILE__ . " linje " . __LINE__);
-	$line_count = 0;
-	while ($line = db_fetch_array($q)) {
-		$neg_antal = (float)$line['antal'] * -1;
-		$orig_line_id = (int)$line['id'];
-		$lqtxt  = "INSERT INTO ordrelinjer (ordre_id, varenr, beskrivelse, posnr, vare_id, antal, pris, rabat, momssats, lager, momsfri, varegruppe, kred_linje_id)";
-		$lqtxt .= " VALUES ";
-		$lqtxt .= "('$credit_saldi_id','".db_escape_string($line['varenr'])."','".db_escape_string($line['beskrivelse'])."',";
-		$lqtxt .= "'$line[posnr]','$line[vare_id]','$neg_antal','$line[pris]','$line[rabat]','$line[momssats]',";
-		$lqtxt .= "'$line[lager]','$line[momsfri]','$line[varegruppe]','$orig_line_id')";
-		fwrite($log, __line__ . " $lqtxt\n");
-		db_modify($lqtxt, __FILE__ . " linje " . __LINE__);
-		$line_count++;
-	}
-	fwrite($log, __line__ . " Copied $line_count order lines\n");
-
-	// 8. Invoice the credit note
 	fclose($log);
-	$result = fakturer_ordre($credit_saldi_id, '', '', null);
-
-	$log = fopen("../temp/$db/rest_api.log", "a");
-	fwrite($log, __line__ . " fakturer_ordre result: $result\n");
-	fclose($log);
-
-	// fakturer_ordre() returns $credit_saldi_id back verbatim on success, or an
-	// error string on failure - propagate the failure instead of reporting the
-	// credit note as posted when it is still unposted (SD-595, CodeRabbit) #20260805 CL/SZ
-	if ($result != $credit_saldi_id) {
-		return "Credit note $credit_saldi_id created but invoicing failed: $result";
-	}
-
 	return $credit_saldi_id;
 }
 
@@ -985,6 +1073,7 @@ function access_check(){
 	global $brugernavn;
 	global $webservice;
 	global $regnaar;
+	$brugernavn = null;
 
 	if (isset($_GET['db']) && is_string($_GET['db'])) {
 		$db=$_GET['db'];
@@ -1038,9 +1127,8 @@ function access_check(){
 		return( "Unable to connect to $db");
 		exit;
 	}
-	if (isset($_GET['saldiuser'])) {
-		$brugernavn=$_GET['saldiuser'];
-		fwrite($log,__line__." saldibruger: $brugernavn\n");
+	if (isset($_GET['saldiuser']) && is_string($_GET['saldiuser'])) {
+		$requestedUser = $_GET['saldiuser'];
 	}	else {
 		fwrite($log,__line__." Missing saldiuser\n");
 		fclose($log);
@@ -1075,12 +1163,35 @@ function access_check(){
 			fwrite($log,__line__." Access denied (key) ($ip) != $r[box2]\n");
 			return "Access denied (ip)";
 		} else {
-			fwrite($log,__line__." Access granted $ip\n");
+			// API configuration stores a brugere.id. The caller's legacy label
+			// remains required, but cannot choose the actor recorded on orders.
+			$actorId = trim((string)($r['box3'] ?? ''));
+			if (!preg_match('/^[1-9][0-9]{0,9}$/D', $actorId) || (float)$actorId > 2147483647) {
+				fwrite($log,__line__." Access denied (user)\n");
+				fclose($log);
+				return 'Access denied (user)';
+			}
+			$actor = db_fetch_array(db_select("select id,brugernavn,rettigheder from brugere where id='$actorId'", __FILE__ . " linje " . __LINE__));
+			// 1 grants write access and 2 grants read access. An API-only user
+			// must explicitly have neither. A single "0" is also unsafe because
+			// online.php treats that PHP-falsey string like unknown/blank rights.
+			if (!$actor || trim((string)($actor['brugernavn'] ?? '')) === '' ||
+				!preg_match('/^0{2,}$/D', trim((string)($actor['rettigheder'] ?? '')))) {
+				fwrite($log,__line__." Access denied (user)\n");
+				fclose($log);
+				return 'Access denied (user)';
+			}
+			$brugernavn = $actor['brugernavn'];
+			fwrite($log,__line__." Access granted $ip; configured API actor $brugernavn\n");
+			fclose($log);
 			return 'OK';
 		}
 		fclose ($log);
 		exit;
 	} elseif ($ip != '91.235.100.32') return 'Wrong IP';
+	// Preserve the separate established master-registry integration path.
+	$brugernavn = $requestedUser;
+	fclose($log);
 	return 'OK';
 }
 $possible_url = array("fetch_from_table,insert_shop_order,insert_shop_orderline");
@@ -1169,8 +1280,8 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$valuta         = ifset($_GET, 'valuta');
 			$valutakurs     = ifset($_GET, 'valutakurs');
 			$gruppe         = ifset($_GET, 'gruppe');
-			$nettosum       = ifset($_GET, 'nettosum')*1;
-			$momssum        = ifset($_GET, 'momssum')*1;
+			$nettosum       = ifset($_GET, 'nettosum');
+			$momssum        = ifset($_GET, 'momssum');
 			$projekt        = ifset($_GET, 'projekt');
 			$ekstra1        = ifset($_GET, 'ekstra1');
 			$ekstra2        = ifset($_GET, 'ekstra2');
@@ -1185,9 +1296,6 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$art            = ifset($_GET, 'art');
 			if (!$art) $art = 'DO';
 
-			$fil = fopen('../temp/addr1.php','w');
-			fwrite($fil,"<?php $"."addr1='$addr1' ?>\n");
-			fclose($fil);
 			$log=fopen("../temp/$db/rest_api.log","a");
 			fwrite($log,__line__." Saldi kontonr $saldi_kontonr -> ");
 			$saldi_kontonr = str_replace('+45','',$saldi_kontonr);  //20240423
@@ -1250,7 +1358,9 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			fclose ($log);
 		}
 	} else $value=$svar;
-} else $value= if_isset($_GET['action']);
+} else {
+	$value = null;
+}
 
 function chk4utf8 ($text) {
 	$enc='IS0-8859';
