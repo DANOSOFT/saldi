@@ -42,6 +42,9 @@
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
 // 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
 // 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
+//                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
+//                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -648,6 +651,32 @@ if ($db_type == 'mysql' || $db_type == 'mysqli') {
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($pool_files_dedupe, __FILE__ . " linje " . __LINE__);
 	db_modify($pool_files_index, __FILE__ . " linje " . __LINE__);
+}
+
+// 20260922 CL/LAH Leverandørforslag fra AI-scan (kravspec Bilagsflow AI-3): the vendor read on a
+// scanned invoice and its match against kreditorer (adresser art='K'), written by
+// includes/docsIncludes/extractInvoiceHandler.php and read back by includes/_docPoolData.php.
+// Guarded per column so the block is idempotent on both Postgres and MySQL; betweenUpdates.php
+// runs at every login.
+$poolVendorMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$poolVendorColumns = array(
+	'vendor_name' => 'text',
+	'vendor_cvr' => 'varchar(20)',
+	'vendor_iban' => 'varchar(40)',
+	'vendor_konto_id' => 'integer',
+	'vendor_match' => 'varchar(10)',
+	'vendor_score' => 'numeric(4,3)',
+);
+foreach ($poolVendorColumns as $poolVendorColumn => $poolVendorType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolVendorColumn'";
+	$qtxt .= $poolVendorMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		// IF NOT EXISTS on Postgres because two concurrent logins can both pass the check above.
+		$qtxt = $poolVendorMysql
+			? "ALTER TABLE pool_files ADD COLUMN $poolVendorColumn $poolVendorType"
+			: "ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolVendorColumn $poolVendorType";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
 }
 
 ?>

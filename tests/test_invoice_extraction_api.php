@@ -1,5 +1,7 @@
 <?php
 // 20260910 CDX/PHR Cover local UBL extraction without an API key and reject unsafe XML.
+// 20260922 CL/LAH Cover the seller/buyer identity fields (vendorCvr, vendorIban, vendorBankReg,
+//                  vendorBankKonto, customerCvr) from the API response and from UBL XML.
 /**
  * Focused tests for includes/docsIncludes/invoiceExtractionApi.php.
  * Run: php tests/test_invoice_extraction_api.php
@@ -7,6 +9,9 @@
 
 $passed = 0;
 $failed = 0;
+
+// Every extraction result carries the party identity keys; null when the source has none.
+$noIdentity = array('vendorCvr' => null, 'vendorIban' => null, 'vendorBankReg' => null, 'vendorBankKonto' => null, 'customerCvr' => null);
 
 function check($condition, $message) {
 	global $passed, $failed;
@@ -72,7 +77,33 @@ check(in_array('Authorization: Bearer test-key', $captured[1], true), 'sends bea
 check($captured[2]['id'] === 'invoice-test' && $captured[2]['skip_classification'] === true, 'sends required payload fields');
 check(base64_decode($captured[2]['image']) === $pdfBytes, 'passes original multi-page PDF bytes unchanged');
 check($captured[3] === array('connect_timeout' => 10, 'timeout' => 120), 'uses required timeouts');
-check($result === array('amount' => '123.45', 'date' => '2026-01-26', 'vendor' => 'Acme', 'invoiceNumber' => 'A-1', 'description' => 'Widgets', 'currency' => 'DKK'), 'accepts partial success and preserves SALDI fields');
+check($result === array('amount' => '123.45', 'date' => '2026-01-26', 'vendor' => 'Acme', 'invoiceNumber' => 'A-1', 'description' => 'Widgets', 'currency' => 'DKK') + $noIdentity, 'accepts partial success and preserves SALDI fields');
+
+// Party identity from the extract-invoice service (fields added 2026-09-22). Values are
+// passed through as printed; normalization happens in poolVendorMatcher.php.
+$invoiceExtractionApiDependencies['transport'] = function () {
+	return array('response' => json_encode(array(
+		'status' => 'success',
+		'extracted_data' => array(
+			'total_amount' => '1862.50', 'currency' => 'DKK', 'vendor' => 'Dan Group Alarm ApS',
+			'vendor_vat_number' => 'DK 12 34 56 78', 'vendor_iban' => 'DK50 0040 0440 1162 43',
+			'vendor_bank_reg' => '0040', 'vendor_bank_account' => '0440116243',
+			'customer_name' => 'MEDshop.dk ApS', 'customer_vat_number' => 'DK31500362'
+		)
+	)), 'http_code' => 200);
+};
+$result = extractInvoiceData($pdfPath, 'identity-test');
+check($result !== null && $result['vendorCvr'] === 'DK 12 34 56 78' && $result['customerCvr'] === 'DK31500362', 'returns seller and buyer VAT numbers separately');
+check($result !== null && $result['vendorIban'] === 'DK50 0040 0440 1162 43' && $result['vendorBankReg'] === '0040' && $result['vendorBankKonto'] === '0440116243', 'returns the seller bank details');
+
+$invoiceExtractionApiDependencies['transport'] = function () {
+	return array('response' => json_encode(array(
+		'status' => 'success',
+		'extracted_data' => array('total_amount' => '10.00', 'currency' => 'DKK', 'vendor' => 'Kiosk', 'vendor_vat_number' => 'null', 'vendor_iban' => '', 'customer_vat_number' => 'N/A')
+	)), 'http_code' => 200);
+};
+$result = extractInvoiceData($pdfPath, 'identity-null-test');
+check($result !== null && $result['vendorCvr'] === null && $result['vendorIban'] === null && $result['customerCvr'] === null, 'treats empty/"null"/"N/A" identity values as absent');
 
 $transportCalls = 0;
 $invoiceExtractionApiDependencies = array(
@@ -80,7 +111,23 @@ $invoiceExtractionApiDependencies = array(
 	'transport' => function () use (&$transportCalls) { $transportCalls++; return array(); }
 );
 $xmlResult = extractInvoiceData($xmlPath, 'xml-test');
-check($xmlResult === array('amount' => '1250.00', 'date' => '2026-07-23', 'vendor' => 'Leverandør ApS', 'invoiceNumber' => 'INV-42', 'description' => 'Konsulentydelse', 'currency' => 'DKK'), 'extracts standard OIOUBL/Peppol fields locally');
+check($xmlResult === array('amount' => '1250.00', 'date' => '2026-07-23', 'vendor' => 'Leverandør ApS', 'invoiceNumber' => 'INV-42', 'description' => 'Konsulentydelse', 'currency' => 'DKK') + $noIdentity, 'extracts standard OIOUBL/Peppol fields locally');
+
+$identityXml = str_replace(
+	'<cac:AccountingSupplierParty><cac:Party><cac:PartyName><cbc:Name>Leverandør ApS</cbc:Name></cac:PartyName></cac:Party></cac:AccountingSupplierParty>',
+	'<cac:AccountingSupplierParty><cac:Party><cac:PartyName><cbc:Name>Leverandør ApS</cbc:Name></cac:PartyName><cac:PartyTaxScheme><cbc:CompanyID>DK12345678</cbc:CompanyID></cac:PartyTaxScheme></cac:Party></cac:AccountingSupplierParty>'
+	. '<cac:AccountingCustomerParty><cac:Party><cac:PartyLegalEntity><cbc:RegistrationName>Køber A/S</cbc:RegistrationName><cbc:CompanyID>DK31500362</cbc:CompanyID></cac:PartyLegalEntity></cac:Party></cac:AccountingCustomerParty>'
+	. '<cac:PaymentMeans><cac:PayeeFinancialAccount><cbc:ID>0001001348</cbc:ID><cac:FinancialInstitutionBranch><cbc:ID>0892</cbc:ID></cac:FinancialInstitutionBranch></cac:PayeeFinancialAccount></cac:PaymentMeans>',
+	$xmlBytes
+);
+file_put_contents($xmlPath, $identityXml);
+$identityResult = extractInvoiceData($xmlPath, 'xml-identity');
+check($identityResult !== null && $identityResult['vendorCvr'] === 'DK12345678' && $identityResult['customerCvr'] === 'DK31500362', 'reads supplier and customer CompanyID from UBL');
+check($identityResult !== null && $identityResult['vendorIban'] === null && $identityResult['vendorBankReg'] === '0892' && $identityResult['vendorBankKonto'] === '0001001348', 'reads a Danish reg/konto payee account from UBL');
+file_put_contents($xmlPath, str_replace('<cbc:ID>0001001348</cbc:ID>', '<cbc:ID schemeID="IBAN">DK50 0040 0440 1162 43</cbc:ID>', $identityXml));
+$identityResult = extractInvoiceData($xmlPath, 'xml-iban');
+check($identityResult !== null && $identityResult['vendorIban'] === 'DK5000400440116243' && $identityResult['vendorBankKonto'] === null, 'reads an IBAN payee account from UBL');
+file_put_contents($xmlPath, $xmlBytes);
 check($transportCalls === 0, 'does not call the AI transport for XML invoices');
 
 $unsafeXmlPath = $tempDir . '/unsafe.xml';

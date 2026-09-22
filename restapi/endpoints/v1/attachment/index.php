@@ -94,6 +94,10 @@ class AttachmentEndpoint extends BaseEndpoint
             $invoiceNumber = null;
             $invoiceDescription = null;
             $currency = null;
+            // 20260922 CL/LAH Leverandørforslag fra AI-scan: the seller's name goes to subject and
+            // its CVR/IBAN/bank details are matched against kreditorer in AttachmentModel.
+            $vendorName = null;
+            $vendorIdentity = [];
 
             // Extract total_amount, invoice_date, invoice_number, invoice_description and currency from extracted_data
             if (isset($data->extracted_data)) {
@@ -112,6 +116,18 @@ class AttachmentEndpoint extends BaseEndpoint
                 if (isset($data->extracted_data->currency)) {
                     $currency = $data->extracted_data->currency;
                 }
+                if (isset($data->extracted_data->vendor) && is_scalar($data->extracted_data->vendor)) {
+                    $vendorName = trim((string) $data->extracted_data->vendor);
+                }
+                foreach (['vendor_vat_number' => 'cvr', 'vendor_iban' => 'iban', 'vendor_bank_reg' => 'bank_reg',
+                          'vendor_bank_account' => 'bank_konto', 'customer_vat_number' => 'customerCvr'] as $field => $key) {
+                    if (isset($data->extracted_data->$field) && is_scalar($data->extracted_data->$field)) {
+                        $vendorIdentity[$key] = trim((string) $data->extracted_data->$field);
+                    }
+                }
+            }
+            if ($vendorName === null && isset($data->subject) && is_scalar($data->subject)) {
+                $vendorName = trim((string) $data->subject);
             }
             
             // Validate required fields
@@ -159,7 +175,9 @@ class AttachmentEndpoint extends BaseEndpoint
                 'accountnr' => isset($data->accountnr) ? $data->accountnr : '',
                 'invoiceNumber' => $invoiceNumber !== null ? $invoiceNumber : '',
                 'invoiceDescription' => $invoiceDescription !== null ? $invoiceDescription : '',
-                'currency' => $currency !== null ? $currency : ''
+                'currency' => $currency !== null ? $currency : '',
+                'subject' => $vendorName !== null && $vendorName !== '' ? $vendorName : null,
+                'vendorIdentity' => $vendorIdentity
             ];
             
             $attachment = new AttachmentModel();
