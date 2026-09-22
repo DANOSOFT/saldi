@@ -1,6 +1,7 @@
 <?php
 // 20260921 CDX/LUI Exercise the actual reference client against a disposable HTTP peer.
 // 20260921 CDX/LH Cover filename reuse, historical replays and safe rejection retries.
+// 20260921 CDX/LH Preserve bounded redacted response evidence while keeping ambiguous hops blocked.
 if (PHP_SAPI !== 'cli') { exit('CLI only'); }
 error_reporting(E_ALL);
 set_error_handler(static function ($severity, $message, $file, $line) { throw new ErrorException($message, 0, $severity, $file, $line); });
@@ -15,7 +16,7 @@ $calls = is_file($log) ? count(file($log)) : 0;
 file_put_contents($log, json_encode($_GET) . "\n", FILE_APPEND);
 if (($config['fail_at'] ?? 0) === $calls + 1) {
     // A write may have happened before this HTTP failure: the client cannot safely replay it.
-    http_response_code($config['status'] ?? 503); echo $config['body'] ?? 'unavailable'; exit;
+    http_response_code($config['status'] ?? 503); echo !empty($config['body_base64']) ? base64_decode($config['body']) : ($config['body'] ?? 'unavailable'); exit;
 }
 header('Content-Type: application/json');
 echo json_encode(1000 + $calls + 1);
@@ -168,6 +169,29 @@ try {
         $output = runActualClient($directory);
         $journal = json_decode(file_get_contents(glob($directory . '/state/*.json')[0]), true);
         checkClient(is_file($source) && count(clientCalls()) === $at && str_contains($output, 'unknown outcome') && count(array_filter($journal['steps'], static fn($step) => $step['status'] === 'pending')) === 1, "$name remains ambiguous and cannot replay after recovery");
+    }
+    $credentialEcho = clientCalls()[0]['key'];
+    foreach ([
+        'duplicate-diagnostic'=>[200, json_encode('Order id: 101 exists in saldi (internal ID: 4711)'), 'Order id: 101 exists in saldi'],
+        'http-diagnostic'=>[503, 'Provider unavailable', 'Provider unavailable'],
+        'bounded-diagnostic'=>[200, json_encode('Detail ' . $credentialEcho . ' ' . rawurlencode($credentialEcho) . "\n" . str_repeat('æ', 1000)), 'Detail [REDACTED]'],
+        'object-diagnostic'=>[200, json_encode(['error'=>'Rejected','echo'=>$credentialEcho]), '{"error":"Rejected","echo":"[REDACTED]"}'],
+        'binary-diagnostic'=>[200, "\xff\xfe", '[non-text response sha256:'],
+    ] as $name => [$httpStatus, $body, $expectedReason]) {
+        $directory = $fixture . '/' . $name; mkdir($directory, 0700);
+        $source = $directory . '/owned.csv'; file_put_contents($source, $contents);
+        unlink($fixture . '/calls.jsonl');
+        file_put_contents($fixture . '/peer.json', json_encode(['fail_at'=>1,'status'=>$httpStatus,'body'=>base64_encode($body),'body_base64'=>true]));
+        $output = runActualClient($directory);
+        $journalText = file_get_contents(glob($directory . '/state/*.json')[0]);
+        $journal = json_decode($journalText, true);
+        $step = $journal['steps']['101:header'];
+        checkClient($step['status']==='pending' && $step['response_status']===$httpStatus && str_starts_with($step['response_reason'],$expectedReason), "$name preserves server status and reason without making it retryable");
+        checkClient(strlen($step['response_reason'])<=2048 && !str_contains($journalText,$credentialEcho) && preg_match('//u',$step['response_reason'])===1, "$name diagnostic remains bounded UTF-8 and excludes credentials");
+        checkClient(str_contains(html_entity_decode($output),$expectedReason) && is_file($source), "$name reason reaches operator while source remains");
+        file_put_contents($fixture . '/peer.json', '{}');
+        $again=runActualClient($directory);
+        checkClient(count(clientCalls())===1 && str_contains(html_entity_decode($again),$expectedReason) && str_contains($again,'unknown outcome'), "$name retry preserves diagnostic and cannot send another request");
     }
     $directory = $fixture . '/rejection-then-ambiguous'; mkdir($directory, 0700);
     $source = $directory . '/owned.csv'; file_put_contents($source, $contents);
