@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-07-29 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-09-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -131,6 +131,7 @@
 //             posting account can never inflate the control totals without a matching posting; the
 //             returned error now names the offending account and order instead of a bare generic string.
 // 20260920 CDX/LH Allocate invoice VAT across tax/revenue/project groups and use actual posted control amounts.
+// 20260921 CDX/LH Return exact bundle master identity while preserving order-line monetary returns.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -3800,8 +3801,14 @@ function ansatopslag($sort, $fokus, $id)
 	exit;
 }
 ######################################################################################################################################
-function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $rabat_ny, $procent, $art, $momsfri, $posnr, $linje_id, $incl_moms, $kdo, $rabatart, $kopi, $saet, $fast_db, $lev_varenr, $lager, $linje)
+/**
+ * @param int|null $createdLineId Optional output: exact new row ID, or zero when no row was inserted.
+ * @return float|int|string|null Legacy line sum or validation outcome; unchanged by identity capture.
+ */
+function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $rabat_ny, $procent, $art, $momsfri, $posnr, $linje_id, $incl_moms, $kdo, $rabatart, $kopi, $saet, $fast_db, $lev_varenr, $lager, $linje, &$createdLineId = null)
 { #20140426
+	$captureCreatedLineId = func_num_args() > 21;
+	$createdLineId = 0;
 
 	if (!$id)
 		return ("missing ordre ID");
@@ -4140,7 +4147,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			$kostpris = $productCost * 1;
 		}
 		#		fwrite($log,__line__." Pris $pris\n");
-		if ($pris && $r['salgspris'] == 0 && $kostpris < 1 && $kostpris > 0) {
+		if ($pris && $productPrice == 0 && $kostpris < 1 && $kostpris > 0) {
 			$fast_db = $kostpris;
 			$kostpris = ($pris - $pris * $rabat_ny / 100) * $kostpris;
 		} else
@@ -4307,7 +4314,23 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			$qtxt .= "'$omvbet','$saet','$fast_db','$lev_varenr','$tilfravalgNy','$lager','$barcodeNew')";
 			#			fwrite($log, __line__." $qtxt\n");
 			if (abs($antal) < 100000000000) {
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				if ($captureCreatedLineId) {
+					global $db_type, $connection;
+					if ($db_type === 'mysql' || $db_type === 'mysqli') {
+						$inserted = db_modify($qtxt, __FILE__ . " linje " . __LINE__, false, true);
+						if ($inserted === true) {
+							$createdLineId = (int)mysqli_insert_id($connection);
+						}
+					} else {
+						$inserted = db_modify($qtxt . ' RETURNING id', __FILE__ . " linje " . __LINE__, false, true);
+						if (is_resource($inserted) || is_object($inserted)) {
+							$created = db_fetch_array($inserted);
+							$createdLineId = (int)ifset($created, 'id', 0);
+						}
+					}
+				} else {
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				}
 				if ($kundedisplay) {
 					kundedisplay($beskrivelse, $VatPrice * $antal, 0); #20201206
 				}
@@ -5472,6 +5495,7 @@ function saet_afrund($id,$sum,$moms,$difkto) {
 	db_modify("update ordrer set sum = sum+$afrunding,moms=moms+$afrundingsmoms where id='$id'",__FILE__ . " linje " . __LINE__);
 }
 */
+/** @return int Exact inserted bundle master ID; zero if the bundle was not fully acknowledged. */
 function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms, $lager)
 {
 	global $regnaar;
@@ -5537,7 +5561,11 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 	$rabat = afrund($rabat * 100 / $normalsum, 3);
 	$tjeksum = 0;
 	for ($x = 0; $x < count($vare_id); $x++) {
-		opret_ordrelinje($id, $vare_id[$x], $varenr[$x], $antal[$x], '', $pris[$x], $rabat, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__);
+		$componentLineId = 0;
+		opret_ordrelinje($id, $vare_id[$x], $varenr[$x], $antal[$x], '', $pris[$x], $rabat, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__, $componentLineId);
+		if ($componentLineId < 1) {
+			return 0;
+		}
 
 		$linjesum = $antal[$x] * $pris[$x];
 		$linjesum -= afrund($linjesum * $rabat / 100, 3);
@@ -5547,12 +5575,17 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 	$r = db_fetch_array(db_select("select id,varenr,salgspris,beskrivelse from varer where id = '$master_id'", __FILE__ . " linje " . __LINE__));
 	$lineDiscount = $momssats * 100 / (100 + $momssats); // Giver umiddelbart ikke mening, men det skyldes at selve samlevaren ikke er momsbelagt.
 	$lineDiscount = 0; #20220602
-	opret_ordrelinje($id, $r['id'], $r['varenr'], 1, '', $diff, $lineDiscount, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__);
+	$masterLineId = 0;
+	opret_ordrelinje($id, $r['id'], $r['varenr'], 1, '', $diff, $lineDiscount, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__, $masterLineId);
+	if ($masterLineId < 1) {
+		return 0;
+	}
 	$lev_varenr = $saetpris . "|" . $rabat;
-	db_modify("update ordrelinjer set samlevare='on',lev_varenr='$lev_varenr',kostpris='0' where ordre_id='$id' and saet='$saetnr' and vare_id='$master_id'", __FILE__ . " linje " . __LINE__);
-	$qtxt = "select antal,pris,rabat from ordrelinjer where ordre_id='$id' and saet='$saetnr' and vare_id='$master_id'<br>";
-
-
+	$updated = db_modify("update ordrelinjer set samlevare='on',lev_varenr='$lev_varenr',kostpris='0' where id='$masterLineId' and ordre_id='$id' and vare_id='$master_id'", __FILE__ . " linje " . __LINE__);
+	if (strpos((string)$updated, "0\t") !== 0) {
+		return 0;
+	}
+	return $masterLineId;
 } #endfunc opret_saet
 
 function gendan_saet($id)
