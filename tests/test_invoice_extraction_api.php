@@ -129,6 +129,11 @@ $identityXml = str_replace(
 	. '<cac:PaymentMeans><cac:PayeeFinancialAccount><cbc:ID>0001001348</cbc:ID><cac:FinancialInstitutionBranch><cbc:ID>0892</cbc:ID></cac:FinancialInstitutionBranch></cac:PayeeFinancialAccount></cac:PaymentMeans>',
 	$xmlBytes
 );
+$placeholderXml = str_replace('<cac:InvoiceLine><cac:Item><cbc:Name>Konsulentydelse</cbc:Name></cac:Item></cac:InvoiceLine>',
+	'<cac:InvoiceLine><cac:Item><cbc:Description>.</cbc:Description><cbc:Name>.</cbc:Name></cac:Item></cac:InvoiceLine><cac:InvoiceLine><cac:Item><cbc:Name>-</cbc:Name></cac:Item></cac:InvoiceLine><cac:InvoiceLine><cac:Item><cbc:Name>Konsulentydelse</cbc:Name></cac:Item></cac:InvoiceLine>', $xmlBytes);
+file_put_contents($xmlPath, $placeholderXml);
+$placeholderResult = extractInvoiceData($xmlPath, 'xml-placeholder');
+check($placeholderResult !== null && $placeholderResult['description'] === 'Konsulentydelse', 'drops punctuation-only UBL line names from the description');
 file_put_contents($xmlPath, $identityXml);
 $identityResult = extractInvoiceData($xmlPath, 'xml-identity');
 check($identityResult !== null && $identityResult['vendorCvr'] === 'DK12345678' && $identityResult['customerCvr'] === 'DK31500362', 'reads supplier and customer CompanyID from UBL');
