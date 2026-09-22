@@ -1,4 +1,5 @@
 <?php
+// 20260922 CDX/LUI Skip input focus after a receipt has been completed.
 // 20260922 CDX/LUI Display received quantities exactly, including thousandths.
 // 20260922 CDX/LUI Initialize receipt demand for products without sales orders and reuse the decimal helper.
 // 20260921 CDX/LH Render receipt descriptions as text rather than numeric quantities.
@@ -503,5 +504,7 @@ function modtag($liste_id)
 
 </html>
 <script language="javascript">
-	document.modtagelse.<?php echo $fokus ?>.focus();
+	var receiptForm = document.forms['modtagelse'];
+	var receiptFocus = receiptForm && receiptForm.elements[<?php echo json_encode($fokus, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>];
+	if (receiptFocus) receiptFocus.focus();
 </script>
