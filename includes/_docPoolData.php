@@ -18,6 +18,11 @@ header('Expires: 0');
 //                  (see poolVendorMatcher.php / kravspec afsnit 5) or null, and files with
 //                  vendor identity but no kreditor are matched again on every open (AI-6).
 
+/**
+ * Injected by includes/connect.php, included below:
+ * @var string $db_type
+ */
+
 // Include database connection and online.php to get $db
 include_once(__DIR__ . "/connect.php");
 include_once(__DIR__ . "/std_func.php");
@@ -51,8 +56,10 @@ $fil_nr = 0;
 // Kreditor index for the vendor contract (one query, reused for every file). Built lazily
 // so a tenant whose betweenUpdates.php has not yet added the vendor_* columns costs nothing.
 $vendorIndex = null;
+// Scoped to the tenant's own schema: on MySQL information_schema spans every tenant database.
 $vendorColumnsExist = (bool) db_fetch_array(db_select(
-    "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = 'vendor_match'",
+    "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = 'vendor_match'"
+    . (in_array($db_type, ['mysql', 'mysqli'], true) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()"),
     __FILE__ . " line " . __LINE__
 ));
 

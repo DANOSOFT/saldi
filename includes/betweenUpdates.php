@@ -659,23 +659,46 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // Guarded per column so the block is idempotent on both Postgres and MySQL; betweenUpdates.php
 // runs at every login.
 $poolVendorMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+// vendor_match last on purpose: _docPoolData.php and the REST AttachmentModel probe for that
+// column before selecting/inserting the others, so once it exists the rest are guaranteed.
 $poolVendorColumns = array(
 	'vendor_name' => 'text',
 	'vendor_cvr' => 'varchar(20)',
 	'vendor_iban' => 'varchar(40)',
 	'vendor_konto_id' => 'integer',
-	'vendor_match' => 'varchar(10)',
 	'vendor_score' => 'numeric(4,3)',
+	'vendor_match' => 'varchar(10)',
 );
+$poolVendorMissing = array();
 foreach ($poolVendorColumns as $poolVendorColumn => $poolVendorType) {
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolVendorColumn'";
 	$qtxt .= $poolVendorMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		// IF NOT EXISTS on Postgres because two concurrent logins can both pass the check above.
-		$qtxt = $poolVendorMysql
-			? "ALTER TABLE pool_files ADD COLUMN $poolVendorColumn $poolVendorType"
-			: "ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolVendorColumn $poolVendorType";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$poolVendorMissing[$poolVendorColumn] = $qtxt;
+	}
+}
+if ($poolVendorMissing) {
+	if ($poolVendorMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the
+		// check above; serialize per tenant and recheck under the lock (same as performed_by).
+		$poolVendorLock = "CONCAT('saldi:pool_files_vendor:', MD5(DATABASE()))";
+		$poolVendorLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolVendorLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($poolVendorLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the pool_files vendor migration lock.');
+		}
+		try {
+			foreach ($poolVendorMissing as $poolVendorColumn => $poolVendorProbe) {
+				if (!db_fetch_array(db_select($poolVendorProbe, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE pool_files ADD COLUMN $poolVendorColumn " . $poolVendorColumns[$poolVendorColumn], __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($poolVendorLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($poolVendorMissing as $poolVendorColumn => $poolVendorProbe) {
+			db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolVendorColumn " . $poolVendorColumns[$poolVendorColumn], __FILE__ . " linje " . __LINE__);
+		}
 	}
 }
 

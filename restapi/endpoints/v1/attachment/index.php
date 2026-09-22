@@ -126,7 +126,7 @@ class AttachmentEndpoint extends BaseEndpoint
                     }
                 }
             }
-            if ($vendorName === null && isset($data->subject) && is_scalar($data->subject)) {
+            if (($vendorName === null || $vendorName === '') && isset($data->subject) && is_scalar($data->subject)) {
                 $vendorName = trim((string) $data->subject);
             }
             

@@ -438,13 +438,15 @@ if (!function_exists('poolVendorRowFromIban')) {
 
 if (!function_exists('poolVendorLoadIndex')) {
 	/**
-	 * Load the tenant's kreditorer (adresser.art = 'K') into a match index. One query.
+	 * Load the tenant's open kreditorer (adresser.art = 'K', not lukket) into a match index.
+	 * One query. A kreditor closed after a match therefore reads as "deleted" in
+	 * poolVendorFromRow() and is matched again.
 	 *
 	 * @return array See poolVendorBuildIndex().
 	 */
 	function poolVendorLoadIndex() {
 		$rows = array();
-		$qtxt = "SELECT id, kontonr, firmanavn, cvrnr, iban, bank_reg, bank_konto FROM adresser WHERE art = 'K'";
+		$qtxt = "SELECT id, kontonr, firmanavn, cvrnr, iban, bank_reg, bank_konto FROM adresser WHERE art = 'K' AND (lukket IS NULL OR lukket != 'on')";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($q && ($r = db_fetch_array($q))) {
 			$rows[] = $r;
