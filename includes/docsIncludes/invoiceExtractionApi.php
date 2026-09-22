@@ -3,6 +3,18 @@
 // Helper functions for invoice extraction API integration
 
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: return the seller's CVR/VAT number, IBAN and
+//                  reg.nr./kontonr. plus the buyer's CVR (vendorCvr, vendorIban, vendorBankReg,
+//                  vendorBankKonto, customerCvr) from both the extract-invoice API and UBL XML,
+//                  so extractInvoiceHandler.php can match the vendor against kreditorer.
+// 20260922 CL/LAH The extraction service moved from ai.saldi.dk to https://wuweiworkai.com
+//                  (same container, same key). The URL is now read from settings
+//                  (var_grp 'app_api', var_name 'extract_url', global db) with that host as the
+//                  default, so the next move is a settings row instead of a code change.
+// 20260922 CL/LAH UBL line names that are only punctuation (".") no longer end up in description.
+// 20260922 NTR - disallow http urls in invoiceExtractionApiResolveUrl() to avoid sending invoice data over unencrypted HTTP.
+//                This shouldn't be a problem, since we only have https calls and it's a setting that's not accessable to the user.
+
 function invoiceExtractionApiResolveApiKey() {
 	if (!function_exists('db_select') || !function_exists('db_fetch_array')) {
 		error_log("Invoice extraction API key lookup is unavailable");
@@ -15,6 +27,27 @@ function invoiceExtractionApiResolveApiKey() {
 
 	$apiKey = trim($row['var_value'] ?? '');
 	return $apiKey !== '' ? $apiKey : null;
+}
+
+/**
+ * Endpoint of the extract-invoice service. Overridable per install through the global
+ * settings row var_grp='app_api', var_name='extract_url' (next to the 'apikey' row);
+ * only https values are honoured.
+ * note: setting is not a user-facing setting, so it can't be changed by the user.
+ *
+ * @return string
+ */
+function invoiceExtractionApiResolveUrl() {
+	$default = 'https://wuweiworkai.com/extract-invoice';
+	if (!function_exists('db_select') || !function_exists('db_fetch_array')) return $default;
+
+	$qtxt = "SELECT var_value FROM settings WHERE var_name = 'extract_url' AND var_grp = 'app_api'";
+	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__, true);
+	if (!$query || !($row = db_fetch_array($query))) return $default;
+
+	$url = trim($row['var_value'] ?? '');
+	// https only: the transport sends the API key and the invoice with every request.
+	return preg_match('#^https://#i', $url) ? $url : $default;
 }
 
 function invoiceExtractionApiCurlTransport($apiUrl, $headers, $body, $options) {
@@ -63,7 +96,12 @@ function invoiceExtractionApiDependencies() {
  *   vendor: string|null,
  *   invoiceNumber: string|null,
  *   description: string|null,
- *   currency: string|null
+ *   currency: string|null,
+ *   vendorCvr: string|null,        Seller's CompanyID (PartyTaxScheme, else PartyLegalEntity), as written.
+ *   vendorIban: string|null,       PayeeFinancialAccount/ID when it is an IBAN.
+ *   vendorBankReg: string|null,    FinancialInstitutionBranch/ID for a Danish reg.nr./kontonr. account.
+ *   vendorBankKonto: string|null,  PayeeFinancialAccount/ID when it is not an IBAN.
+ *   customerCvr: string|null       Buyer's CompanyID, so the caller can tell the two apart.
  * }|null SALDI invoice fields, or null when the XML is not a supported UBL invoice.
  */
 function extractUblInvoiceData($filePath) {
@@ -127,7 +165,10 @@ function extractUblInvoiceData($filePath) {
 	if ($descriptionNodes) {
 		foreach ($descriptionNodes as $descriptionNode) {
 			$value = trim($descriptionNode->textContent);
-			if ($value !== '' && !in_array($value, $descriptionValues, true)) $descriptionValues[] = $value;
+			// Placeholder lines ("." / "-") carry no text worth showing; some ERPs emit one per
+			// empty invoice line (seen in an OIOUBL invoice from Gregershus ApS, 2026-09-22).
+			if ($value === '' || !preg_match('/[\p{L}\p{N}]/u', $value)) continue;
+			if (!in_array($value, $descriptionValues, true)) $descriptionValues[] = $value;
 		}
 	}
 	if (empty($descriptionValues)) {
@@ -135,6 +176,35 @@ function extractUblInvoiceData($filePath) {
 		if ($note !== null) $descriptionValues[] = $note;
 	}
 	$description = !empty($descriptionValues) ? implode('; ', $descriptionValues) : null;
+
+	// Party identity: CVR/VAT numbers sit in PartyTaxScheme/CompanyID (with the DK prefix)
+	// or PartyLegalEntity/CompanyID; the seller's account in PaymentMeans.
+	$partyCompanyId = function ($party) use ($getValue) {
+		$value = $getValue('/*/*[local-name()="' . $party . '"]//*[local-name()="PartyTaxScheme"]/*[local-name()="CompanyID"][1]');
+		if ($value === null) {
+			$value = $getValue('/*/*[local-name()="' . $party . '"]//*[local-name()="PartyLegalEntity"]/*[local-name()="CompanyID"][1]');
+		}
+		return $value;
+	};
+	$vendorCvr = $partyCompanyId('AccountingSupplierParty');
+	$customerCvr = $partyCompanyId('AccountingCustomerParty');
+	$vendorIban = null;
+	$vendorBankReg = null;
+	$vendorBankKonto = null;
+	$accountNodes = $xpath->query('/*/*[local-name()="PaymentMeans"]/*[local-name()="PayeeFinancialAccount"]/*[local-name()="ID"][1]');
+	if ($accountNodes && $accountNodes->length > 0) {
+		$accountNode = $accountNodes->item(0);
+		$accountId = preg_replace('/\s+/', '', trim($accountNode->textContent));
+		$scheme = strtoupper(trim($accountNode->getAttribute('schemeID')));
+		if ($accountId !== '') {
+			if ($scheme === 'IBAN' || preg_match('/^[A-Za-z]{2}\d{2}[A-Za-z0-9]{11,30}$/', $accountId)) {
+				$vendorIban = strtoupper($accountId);
+			} else {
+				$vendorBankKonto = $accountId;
+				$vendorBankReg = $getValue('/*/*[local-name()="PaymentMeans"]/*[local-name()="PayeeFinancialAccount"]/*[local-name()="FinancialInstitutionBranch"]/*[local-name()="ID"][1]');
+			}
+		}
+	}
 
 	if ($amount === null && $date === null && $vendor === null && $invoiceNumber === null && $description === null && $currency === null) {
 		return null;
@@ -146,7 +216,12 @@ function extractUblInvoiceData($filePath) {
 		'vendor' => $vendor,
 		'invoiceNumber' => $invoiceNumber,
 		'description' => $description,
-		'currency' => $currency
+		'currency' => $currency,
+		'vendorCvr' => $vendorCvr,
+		'vendorIban' => $vendorIban,
+		'vendorBankReg' => $vendorBankReg,
+		'vendorBankKonto' => $vendorBankKonto,
+		'customerCvr' => $customerCvr
 	);
 }
 
@@ -155,7 +230,19 @@ function extractUblInvoiceData($filePath) {
  *
  * @param string $filePath Full path to an XML, PDF, or image file (jpg, jpeg, png).
  * @param string $invoiceId Unique ID for the invoice (e.g., "invoice-001")
- * @return array|null Returns SALDI invoice fields on success, null on failure
+ * @return array{
+ *   amount: string|null,
+ *   date: string|null,
+ *   vendor: string|null,           Seller's name as printed on the invoice.
+ *   invoiceNumber: string|null,
+ *   description: string|null,
+ *   currency: string|null,
+ *   vendorCvr: string|null,        Seller's CVR/VAT number as printed (not normalized).
+ *   vendorIban: string|null,       Seller's IBAN as printed.
+ *   vendorBankReg: string|null,    Seller's Danish reg.nr., if printed.
+ *   vendorBankKonto: string|null,  Seller's Danish kontonr., if printed.
+ *   customerCvr: string|null       Buyer's CVR/VAT number as printed, or null.
+ * }|null SALDI invoice fields on success, null on failure.
  */
 function extractInvoiceData($filePath, $invoiceId = null) {
 	$fileExt = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
@@ -168,6 +255,9 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$transport = isset($dependencies['transport']) && is_callable($dependencies['transport'])
 		? $dependencies['transport']
 		: 'invoiceExtractionApiCurlTransport';
+	$urlResolver = isset($dependencies['url_resolver']) && is_callable($dependencies['url_resolver'])
+		? $dependencies['url_resolver']
+		: 'invoiceExtractionApiResolveUrl';
 
 	if (!file_exists($filePath)) {
 		error_log("File not found: $filePath");
@@ -221,7 +311,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		'Authorization: Bearer ' . $apiKey
 	);
 	$options = array('connect_timeout' => 10, 'timeout' => 120);
-	$transportResult = call_user_func($transport, 'https://ai.saldi.dk/extract-invoice', $headers, $requestBody, $options);
+	$transportResult = call_user_func($transport, call_user_func($urlResolver), $headers, $requestBody, $options);
 
 	if (!is_array($transportResult)) {
 		error_log("Invoice extraction API transport returned an invalid result");
@@ -260,6 +350,11 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$invoiceNumber = null;
 	$description = null;
 	$currency = null;
+	$vendorCvr = null;
+	$vendorIban = null;
+	$vendorBankReg = null;
+	$vendorBankKonto = null;
+	$customerCvr = null;
 	if (isset($responseData['extracted_data'])) {
 		$extractedData = $responseData['extracted_data'];
 		if (isset($extractedData['total_amount'])) $amount = $extractedData['total_amount'];
@@ -280,6 +375,19 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 
 		if (isset($extractedData['vendor'])) $vendor = $extractedData['vendor'];
 		if (isset($extractedData['currency'])) $currency = $extractedData['currency'];
+
+		// Party identity fields (added to the extract-invoice service 2026-09-22); older
+		// service versions simply don't return them and every value stays null.
+		$identityField = function ($key) use ($extractedData) {
+			if (!isset($extractedData[$key]) || is_array($extractedData[$key])) return null;
+			$value = trim((string) $extractedData[$key]);
+			return ($value === '' || in_array(strtolower($value), array('null', 'none', 'n/a', 'unknown'), true)) ? null : $value;
+		};
+		$vendorCvr = $identityField('vendor_vat_number');
+		$vendorIban = $identityField('vendor_iban');
+		$vendorBankReg = $identityField('vendor_bank_reg');
+		$vendorBankKonto = $identityField('vendor_bank_account');
+		$customerCvr = $identityField('customer_vat_number');
 	}
 
 	if ($amount !== null || $date !== null || $vendor !== null || $invoiceNumber !== null || $description !== null || $currency !== null) {
@@ -289,7 +397,12 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 			'vendor' => $vendor,
 			'invoiceNumber' => $invoiceNumber,
 			'description' => $description,
-			'currency' => $currency
+			'currency' => $currency,
+			'vendorCvr' => $vendorCvr,
+			'vendorIban' => $vendorIban,
+			'vendorBankReg' => $vendorBankReg,
+			'vendorBankKonto' => $vendorBankKonto,
+			'customerCvr' => $customerCvr
 		);
 	}
 
