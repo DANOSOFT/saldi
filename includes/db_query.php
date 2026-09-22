@@ -45,6 +45,7 @@
 //                transaction is aborted...") silently fails every later query on that same
 //                connection for the rest of the request; confirmed harmless when no
 //                transaction is open (SST-672)
+// 20260920 CDX/LH Commit only outer transactions and retain rollback-only state on nested failure.
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -452,17 +453,39 @@ if (!function_exists('transaktion')) {
 			$qtext.";\n",
 		]);
 		$qtext_trim = strtolower(trim($qtext));
-		if ($qtext_trim == 'begin') {
-			if (!$db_transaktion_depth) $db_modify_fejl = false; #20260729 SZ reset the write-failure flag only when opening the outermost transaction (SD-595)
-			$db_transaktion_depth = ($db_transaktion_depth ?: 0) + 1;
-		} elseif (($qtext_trim == 'commit' || $qtext_trim == 'rollback') && $db_transaktion_depth) {
-			$db_transaktion_depth--;
+		$depth = (int)$db_transaktion_depth;
+		if ($qtext_trim === 'begin') {
+			$db_transaktion_depth = $depth + 1;
+			if ($depth > 0) {
+				return true;
+			}
+			$db_modify_fejl = false;
+		} elseif ($qtext_trim === 'commit' || $qtext_trim === 'rollback') {
+			$db_transaktion_depth = max(0, $depth - 1);
+			if ($qtext_trim === 'rollback') {
+				// A nested failure makes the entire unit of work rollback-only.
+				// Keep the backend transaction open so later writes cannot autocommit.
+				$db_modify_fejl = true;
+			}
+			if ($depth > 1) {
+				return true;
+			}
+			if ($db_modify_fejl) {
+				$qtext = 'rollback';
+			}
 		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			$query = mysqli_query($connection, $qtext);
 		} else {
 			$query = pg_query($connection, $qtext);
 		}
+		if (!$query) {
+			$db_modify_fejl = true;
+			if ($qtext_trim === 'begin') {
+				$db_transaktion_depth = $depth;
+			}
+		}
+		return $query;
 
 	}
 }

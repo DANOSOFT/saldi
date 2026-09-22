@@ -86,6 +86,7 @@
 // 20260824 CL/NTR Flush the openpost topline to the client (ob_flush + flush, draining php.ini's output_buffering) before vis_aabne_poster's heavy queries run, so it renders while the SQL is still working.
 // 20260826 Sawaneh SD-140: openpost() no longer overwrites dato/konto with the stored DRV row when the request
 //                  itself carries konto_fra or kontonr (pagination, filter links and the in-report account search).
+// 20260920 CDX/LH Post reminders atomically through the shared VAT-exempt posting path.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -463,215 +464,16 @@ a:link{text-decoration:none;}</style>\n";
 }
 
 //--------------------------------------------------------------------------------------
-function bogfor_rykker($id)
+function bogfor_rykker($id, $markPaid = false)
 {
-	global $bgcolor, $bgcolor5;
-	global $regnaar;
-	global $fakturadate;
-	global $dato_fra;
-	global $dato_til;
-	global $konto_fra;
-	global $konto_til;
-
-
-	// Bemaerk at der ikke traekkes moms ved bogfoering af rykkergebyr - heller ikke selvom gebyret tilhorer en momsbelagt varegruppe.
-	// 20121106 ->
-	$r = db_fetch_array(db_select("select fakturadate from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-	$rykkerdate = $r['fakturadate'];
-	$q = db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'", __FILE__ . " linje " . __LINE__);
-	if ($r = db_fetch_array($q)) {
-		$year = trim($r['box2']);
-		$aarstart = str_replace(" ", "", $year . $r['box1']);
-		$year = trim($r['box4']);
-		$aarslut = str_replace(" ", "", $year . $r['box3']);
-	}
-	list($year, $month, $day) = explode('-', $rykkerdate);
-	$year = trim($year);
-	$ym = $year . $month;
-	if (($ym < $aarstart || $ym > $aarslut)) {
-		print "<BODY onLoad=\"javascript:alert('Rykkerdato udenfor regnskabs&aring;r')\">";
-		print "<meta http-equiv=\"refresh\" content=\"0;rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\">";
-		exit;
-	}
-	// <- 20121106
-
-	$fejl = 0;
-	$sum = 0;
-	$q = db_select("select antal, pris, rabat from ordrelinjer where ordre_id = '$id' and vare_id > '0'", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q))
-		$sum = $sum + ($r['antal'] * $r['pris']) - ($r['antal'] * $r['pris'] / 100 * $r['rabat']);
-	if ($sum)
-		db_modify("update ordrer set sum=$sum where id = '$id'", __FILE__ . " linje " . __LINE__);
-	$x = 0;
-	$q = db_select("select id, vare_id from ordrelinjer where ordre_id = '$id' and vare_id > '0'", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$x++;
-		$ordre_linje_id[$x] = $r['id'];
-		$pris[$x] = $r['pris'];
-		if ($vare_id[$x] = $r['vare_id']) {
-			$q2 = db_select("select gruppe from varer where id = $vare_id[$x]", __FILE__ . " linje " . __LINE__);
-			$r2 = db_fetch_array($q2);
-			$gruppe[$x] = $r2['gruppe'];
-			$q2 = db_select("select * from grupper where art='VG' and kodenr='$gruppe[$x]'", __FILE__ . " linje " . __LINE__);
-			$r2 = db_fetch_array($q2);
-			$box1[$x] = trim($r2['box1']);
-			$box2[$x] = trim($r2['box2']);
-			$box3[$x] = trim($r2['box3']);
-			$box4[$x] = trim($r2['box4']);
-			$box8[$x] = trim($r2['box8']);
-			$box9[$x] = trim($r2['box9']);
-			if ($box8[$x] != 'on') {
-				db_modify("update ordrelinjer set bogf_konto=$box4[$x] where id=$ordre_linje_id[$x]", __FILE__ . " linje " . __LINE__);
-				db_modify("update ordrer set status=3 where id=$id", __FILE__ . " linje " . __LINE__);
-			} else {
-				$fejl = 1;
-				print "<BODY onLoad=\"javascript:alert('Der er anvendt en lagerf&oslash;rt vare som gebyr - rykker kan ikke bogf&oslash;res')\">";
-			}
-		}
-	}
-	if (!$fejl) {
-		transaktion('begin');
-		bogfor_nu($id);
-		transaktion('commit');
-	}
+    require_once __DIR__ . '/dunningPosting.php';
+    return saldiPostReminderForUi($id, $markPaid);
 }
 
 function bogfor_nu($id)
 {
-
-	$d_kontrol = 0;
-	$k_kontrol = 0;
-	$logdate = date("Y-m-d");
-	$logtime = date("H:i");
-	/*	
-																																																		   $q = db_select("select box1, box2, box3, box4, box5 from grupper where art='RB'",__FILE__ . " linje " . __LINE__);
-																																																		   if ($r = db_fetch_array($q)) {
-																																																			   if (trim($r['box3'])=="on") $faktbill=1; 
-																																																			   else {$faktbill=0;}
-																																																			   if (trim($r['box4'])=="on") $modtbill=1; 
-																																																			   else $modtbill=0;
-																																																			   if (trim($r['box5'])=="on") {
-																																																				   $no_faktbill=1;
-																																																				   $faktbill=0;
-																																																			   }	 
-																																																			   else $no_faktbill=0;
-																																																		   }
-																																																	   */
-	$x = 0;
-	$q = db_select("select * from ordrer where id='$id'", __FILE__ . " linje " . __LINE__);
-	if ($r = db_fetch_array($q)) {
-		$kontoart = $r['art'];
-		$konto_id = $r['konto_id'];
-		$kontonr = str_replace(" ", "", $r['kontonr']);
-		$firmanavn = trim($r['firmanavn']);
-		$modtagelse = $r['modtagelse'];
-		$transdate = ($r['fakturadate']);
-		$fakturanr = $r['fakturanr'];
-		$fakturadate = $r['fakturadate'];
-		$ordrenr = $r['ordrenr'];
-		$valutakurs = $r['valutakurs'];
-		$valuta = $r['valuta'];
-		$projekt = $r['projekt'] * 1;
-		$refnr;
-		if ($r['moms']) {
-			$moms = $r['moms'];
-		} else {
-			$moms = afrund($r['sum'] * $r['momssats'] / 100, 2);
-		}
-		$sum = $r['sum'] + $moms;
-		$ordreantal = $x;
-		if ($r = db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'", __FILE__ . " linje " . __LINE__)))
-			$afd = $r['afd'];
-		$afd = $afd * 1; //sikkerhed for at 'afd' har en vaerdi 
-
-		$bilag = 0;
-		if (!$valutakurs && $valuta != 'DKK') { //20140628
-			if ($r2 = db_fetch_array(db_select("select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = " . nr_cast("grupper.kodenr") . " and valuta.valdate <= '$fakturadate' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
-				$valutakurs = $r2['kurs'];
-			} else {
-				print "<BODY onLoad=\"javascript:alert('Ups - ingen valutakurs i $valuta d. $fakturadate')\">";
-				return ("Ups - ingen valutakurs i $valuta d. $fakturadate");
-			}
-		}
-
-		if ($valutakurs && $valutakurs != 100)
-			$sum = $sum * $valutakurs / 100; // Omregning til DKK.
-		$beskrivelse = "Gebyr mm. fra tidligere rykker";
-
-		$qtxt = "select id from openpost where konto_id = '$konto_id' and faktnr = '$fakturanr' and refnr = '$id' and amount = '$sum' ";
-		$qtxt .= "and beskrivelse = '$beskrivelse' and udlignet = '0' and transdate = '$transdate' and kladde_id = '0'";
-		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) { #20200109
-			return ($id);
-			exit;
-		}
-		if ($sum) {
-			$qtxt = "insert into openpost ";
-			$qtxt .= " (konto_id, konto_nr, faktnr, refnr, amount, beskrivelse, udlignet, transdate, kladde_id,valuta,valutakurs)";
-			$qtxt .= " values "; #20210422 - Addad afrund in next line
-			$qtxt .= "('$konto_id', '$kontonr', '$fakturanr', '$id','" . afrund($sum, 2) . "', '$beskrivelse', '0', '$transdate', '0','DKK','100')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'", __FILE__ . " linje " . __LINE__));
-		$r = db_fetch_array(db_select("select box2 from grupper where art = 'DG' and kodenr='$r[gruppe]'", __FILE__ . " linje " . __LINE__));
-		$kontonr = $r['box2']; // Kontonr ændres fra at være leverandørkontonr til finanskontonr
-
-		if ($sum > 0) {
-			$debet = $sum;
-			$kredit = '0';
-		} else {
-			$debet = '0';
-			$kredit = $sum * -1;
-		}
-		$d_kontrol = $d_kontrol + $debet;
-		$k_kontrol = $k_kontrol + $kredit;
-		if ($sum)
-			db_modify("insert into transaktioner (bilag, transdate, beskrivelse, kontonr, faktura, debet, kredit, kladde_id, afd, logdate, logtime, projekt, ordre_id) values ('$bilag', '$transdate', '$beskrivelse', '$kontonr', '$fakturanr', '$debet', '$kredit', '0', $afd, '$logdate', '$logtime', '$projekt', '$id')", __FILE__ . " linje " . __LINE__);
-		$y = 0;
-		$bogf_konto = array();
-		$q = db_select("select * from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__); // 20151019
-		while ($r = db_fetch_array($q)) {
-			if (!in_array($r['bogf_konto'], $bogf_konto)) {
-				$y++;
-				$bogf_konto[$y] = $r['bogf_konto'];
-				$pris[$y] = $r['pris'] * $r['antal'] - afrund(($r['pris'] * $r['antal'] * $r['rabat'] / 100), 2);
-			} else {
-				for ($a = 1; $a <= $y; $a++) {
-					if ($bogf_konto[$a] == $r['bogf_konto']) {
-						$pris[$a] = $pris[$a] + ($r['pris'] * $r['antal'] - afrund(($r['pris'] * $r['antal'] * $r['rabat'] / 100), 2));
-					}
-				}
-			}
-		}
-		$ordrelinjer = $y;
-		for ($y = 1; $y <= $ordrelinjer; $y++) {
-			if ($bogf_konto[$y]) {
-				if ($pris[$y] > 0) {
-					$kredit = $pris[$y];
-					$debet = 0;
-				} else {
-					$kredit = 0;
-					$debet = $pris[$y] * -1;
-				}
-				if ($valutakurs) {
-					$kredit = $kredit * $valutakurs / 100;
-					$debet = $debet * $valutakurs / 100;
-				} // Omregning til DKR.
-				$d_kontrol = $d_kontrol + $debet;
-				$k_kontrol = $k_kontrol + $kredit;
-				if ($pris[$y])
-					db_modify("insert into transaktioner (bilag, transdate, beskrivelse, kontonr, faktura, debet, kredit, kladde_id, afd, logdate, logtime, projekt, ordre_id) values ('$bilag', '$transdate', '$beskrivelse', '$bogf_konto[$y]', '$fakturanr', '$debet', '$kredit', '0','$afd', '$logdate', '$logtime', '$projekt', '$id')", __FILE__ . " linje " . __LINE__);
-			}
-		}
-		db_modify("update ordrer set status=4 where id=$id", __FILE__ . " linje " . __LINE__);
-		db_modify("delete from ordrelinjer where ordre_id=$id and posnr < 0", __FILE__ . " linje " . __LINE__);
-	}
-	$d_kontrol = afrund($d_kontrol, 2);
-	$k_kontrol = afrund($k_kontrol, 2);
-	if ($d_kontrol != $k_kontrol) {
-		print "<BODY onLoad=\"javascript:alert('Der er konstateret en uoverensstemmelse i posteringssummen, kontakt administrator')\">";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?id=$id\">";
-		exit;
-	}
+    require_once __DIR__ . '/dunningPosting.php';
+    return saldiPostReminderForUi($id);
 }
 
 if (!function_exists('find_maaned_nr')) {

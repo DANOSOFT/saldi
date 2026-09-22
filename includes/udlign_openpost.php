@@ -46,6 +46,7 @@
 // 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst(). 
 // 2026.05.07 CL findMatch.php køres ikke længere automatisk ved sideload - tilføjet knap 'Find modposter'.
 // 2026.05.18 LOE Updated close link location for credit and debit if coming from debitorkort.php or rapport.php.
+// 20260921 CDX/LH Allow invoice reductions, reject sign changes and save splits atomically; use null-safe request reads.
  
 @session_start();
 $s_id=session_id();
@@ -63,11 +64,12 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
+require_once __DIR__ . '/openpostSplit.php';
 if (isset($_POST['submit'])) {
  	$submit=strtolower(trim($_POST['submit']));
-	$post_id=if_isset($_POST['post_id']);
-	$konto_id=if_isset($_POST['konto_id']);
-	$udlign=if_isset($_POST['udlign']);
+	$post_id=ifset($_POST, 'post_id');
+	$konto_id=ifset($_POST, 'konto_id');
+	$udlign=ifset($_POST, 'udlign');
 	(isset($_POST['kontrol']))?$kontrol = $_POST['kontrol']:$kontrol = array();
 	$dato_fra=$_POST['dato_fra'];
 	$dato_til=$_POST['dato_til'];
@@ -75,12 +77,12 @@ if (isset($_POST['submit'])) {
 	$konto_til=$_POST['konto_til']; 
 	$retur=$_POST['retur'];
 	$returside=$_POST['returside'];
-	$layout=if_isset($_POST['layout']);
+	$layout=ifset($_POST, 'layout');
 	$diff=$_POST['diff'];
 	$dkkdiff=$_POST['dkkdiff'];
 	$maxdiff=$_POST['maxdiff'];
 	$diffkto=$_POST['diffkto'];
-	$diffdato=if_isset($_POST['diffdato']);
+	$diffdato=ifset($_POST, 'diffdato');
 	($diffdato)?$diffDate=usdate($diffdato):$diffDate=NULL;
 	$diffbilag=$_POST['diffbilag'];
 	$faktnr=$_POST['faktnr'];
@@ -88,39 +90,30 @@ if (isset($_POST['submit'])) {
 	$basisvaluta=$_POST['basisvaluta'];
 	$valuta=$_POST['valuta'];
 	$omregningskurs=$_POST['omregningskurs'];
-	$belob=if_isset($_POST['belob']);
+	$belob=ifset($_POST, 'belob');
 	$id = $_POST['id'] ?? null; 
 	if ($belob) $ny_amount = usdecimal($belob);
 	else $ny_amount = 0;
-	$faktnr[0]=trim($faktnr[0]);
-	db_modify("update openpost set faktnr='$faktnr[0]' where id = '$post_id[0]'",__FILE__ . " linje " . __LINE__	);
-	if ($submit=='udlign') {
-		for($x=1;$x<=count($kontrol);$x++) {
-			if ($udlign[$x] && !$kontrol[$x]) $submit="opdater";
-			if (!$udlign[$x] && $kontrol[$x]) $submit="opdater";
+	$conversionRate = ($basisvaluta != $valuta[0] && !empty($omregningskurs[0])) ? $omregningskurs[0] : 1;
+	$splitResult = saldiSaveOpenpostSplit($post_id[0], $amount[0], $ny_amount, $faktnr[0], $conversionRate);
+	if (!$splitResult['ok']) {
+		// An invalid edit must not continue into doAlign, even on a crafted Udlign POST.
+		$submit = 'opdater';
+		$udlign = [];
+		$kontrol = [];
+		$alerttekst = $splitResult['error'];
+		print '<p role="alert">' . htmlspecialchars($alerttekst, ENT_QUOTES, 'UTF-8') . '</p>';
+	} elseif ($splitResult['split']) {
+		// Splitting is an explicit save; inspect the new rows before committing settlement.
+		$submit = 'opdater';
+	}
+	if ($submit == 'udlign') {
+		for ($x = 1; $x <= count($kontrol); $x++) {
+			if (!empty($udlign[$x]) != !empty($kontrol[$x])) {
+				$submit = 'opdater';
+			}
 		}
 	}
-	if (afrund($ny_amount,2) != afrund($amount[0],2)) {
-		$alerttekst="";
-		if (($amount[0]>0 && $amount[0]-$ny_amount>0) || ($amount[0]<0 && $amount[0]-$ny_amount<0)) {
-			if (trim($faktnr[0])) {
-				if ($basisvaluta!=$valuta[0] && $omregningskurs[0]) { #20130529 indsat && $omregningskurs[0]
-					$ny_amount=afrund($ny_amount/$omregningskurs[0],2);
-					$amount[0]=afrund($amount[0]/$omregningskurs[0],2);
-				}
-				$tmp=$amount[0]-$ny_amount;
-				if ($r=db_fetch_array(db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__))) {
-					$r['bilag_id']*=1; 
-					if ($r['forfaldsdate']) $qtxt="insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,valuta,valutakurs,bilag_id,projekt,forfaldsdate) values ('$r[konto_id]','$r[konto_nr]','','$tmp','$r[refnr]','$r[beskrivelse]','0','$r[transdate]','$r[kladde_id]','0','$r[valuta]','$r[valutakurs]','$r[bilag_id]','$r[projekt]','$r[forfaldsdate]')";
-					else $qtxt="insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,valuta,valutakurs,bilag_id,projekt) values ('$r[konto_id]','$r[konto_nr]','','$tmp','$r[refnr]','$r[beskrivelse]','0','$r[transdate]','$r[kladde_id]','0','$r[valuta]','$r[valutakurs]','$r[bilag_id]','$r[projekt]')"; #20130525
-					db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
-					$qtxt="update openpost set amount='$ny_amount' where id = '$post_id[0]'<br>";
-					db_modify ("update openpost set amount='$ny_amount' where id = '$post_id[0]'",__FILE__ . " linje " . __LINE__);
-				} else $alerttekst="Fakturanummer ikke gyldigt, postering ikke opsplittet";
-			}	else $alerttekst="For at opsplitte en betaling skal posteringen tilknyttes et gyldigt fakturanummer";
-		}	else $alerttekst="Bel&oslash;b m&aring; ikke &oslash;ges";
-		if ($alerttekst) print "<BODY onLoad=\"javascript:alert('$alerttekst')\">";
-	} 
 } else {
 	$post_id[0]=$_GET['post_id']*1;
 	$dato_fra=$_GET['dato_fra'];
@@ -186,8 +179,9 @@ if ($basisvaluta != $valuta[0]) {
 		$r2=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate desc",__FILE__ . " linje " . __LINE__));
 		$dagskurs=$r2['kurs']*1;
 		$beskrivelse[0].=" $valuta[0] ".dkdecimal($amount[0])." Kurs $valutakurs[0]";
-		$amount[0]*=$valutakurs[0]/$dagskurs;
-		$dkkamount[0]=$amount[0]*$valutakurs[0]/100;
+		$omregningskurs[0]=$valutakurs[0]/$dagskurs;
+		$amount[0]*=$omregningskurs[0];
+		// $dkkamount[0] already represents the original source amount at its source rate.
 	} elseif ($basisvaluta=='DKK') {
 		$omregningskurs[0]=$valutakurs[0]/100;
 		$amount[0]=$dkkamount[0];
@@ -376,7 +370,7 @@ else {
 }
 $spantekst="Hvis der skrives et andet bel&oslash;b i dette felt, kan posteringen splittes i 2. Kr&aelig;ver at der er påf&oslash;rt fakturanummer";
 print "<td>$beskrivelse[0]</td><td align=right  title='$spantekst'><span style='color: rgb(0, 0, 0);'>";
-if (($art=='DG' && $amount[0] < 0) || ($art=='KG' && $amount[0] > 0))	print "<input  class=\"inputbox\" type = \"text\" style=\"text-align:right;width:90px;\" name=belob value =\"".dkdecimal($amount[0])."\"></td></tr>";
+if (($art=='DG' || $art=='KG') && $amount[0] != 0)	print "<input  class=\"inputbox\" type = \"text\" style=\"text-align:right;width:90px;\" name=belob value =\"".dkdecimal($amount[0])."\"></td></tr>";
 else print dkdecimal($amount[0])."<input type=hidden name=belob value =\"".dkdecimal($amount[0])."\"></td></tr>";
 if ($diff!=0) print "<tr><td colspan=6><hr></td></tr>";
 if ($diff!=0) {

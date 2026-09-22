@@ -44,6 +44,7 @@ $s_id=session_id();
 // 20260304 PHR Costprice is from now only updated on positive qty og price.
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 // 20260908 CDX/LH Lock creditor orders before posting and update split purchase batches once (SST-765).
+// 20260921 CDX/LH Validate source invoice totals and keep creditor postings in exact cents.
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -302,13 +303,16 @@ if (!$row['levdate']){
 		$r = db_fetch_array(db_select("select box5 from grupper where art='DIV' and kodenr='3'",__FILE__ . " linje " . __LINE__));
 	if (strstr($r['box5'],';')) list($tmp,$straksbogfor)=explode(';',$r['box5']); # 20170404
 		else $straksbogfor=$r['box5'];
-		if ($straksbogfor) bogfor($id);
+		if ($straksbogfor && bogfor($id) === false) {
+			exit;
+		}
 		transaktion("commit");
 	}
 }
 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 
 function bogfor($id) {
+	require_once __DIR__ . '/../includes/creditorPostingTotals.php';
 	
 	global $difkto;
 	global $regnaar;
@@ -348,6 +352,26 @@ function bogfor($id) {
 		$momssats=$r['momssats']*1;
 		$sum=$r['sum'];
 		$omlev=$r['omvbet'];
+		$sourceLines = array();
+		$sourceQuery = db_select("SELECT * FROM ordrelinjer WHERE ordre_id=" . (int)$id . " ORDER BY id", __FILE__ . ' linje ' . __LINE__);
+		while ($sourceLine = db_fetch_array($sourceQuery)) {
+			$sourceLines[] = $sourceLine;
+		}
+		try {
+			$sourceTotals = creditorPostingTotals($sourceLines, $momssats);
+			if (!$sourceLines || abs(afrund($sum, 2) - $sourceTotals['net']) > 0.00001
+				|| abs(afrund($moms, 2) - $sourceTotals['vat']) > 0.00001) {
+				throw new RuntimeException('Købsfakturaens sum eller moms stemmer ikke med linjerne');
+			}
+		} catch (Throwable $error) {
+			transaktion('rollback');
+			print '<script>alert(' . json_encode($error->getMessage(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) . ');</script>';
+			return false;
+		}
+		$sum = $sourceTotals['net'];
+		$moms = $sourceTotals['vat'];
+		db_modify("UPDATE ordrer SET sum=$sum,moms=$moms WHERE id=" . (int)$id, __FILE__ . ' linje ' . __LINE__);
+
 		$ordreantal=$x;
 		$qtxt = "select id,afd from ansatte where navn = '$r[ref]'";
 		if ($r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -388,7 +412,10 @@ function bogfor($id) {
 		}
 		if ($sum>0) {$kredit=$sum; $debet='0';}
 		else {$kredit='0'; $debet=$sum*-1;}
-		if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
+		if ($valutakurs) {
+			$kredit=afrund($kredit*$valutakurs/100,2);
+			$debet=afrund($debet*$valutakurs/100,2);
+		} # Omregning til DKK.
 		$debet=afrund($debet,2);
 		$kredit=afrund($kredit,2);
 		$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
@@ -398,7 +425,9 @@ function bogfor($id) {
 		if ($sum) {
 			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
 		}
-		if ($valutakurs) $maxdif=2; #Der tillades 2 oeres afrundingsdiff 
+		if ($valutakurs) {
+			$maxdif=0.02; #Der tillades 2 oeres afrundingsdiff
+		}
 		$p=0;
 		$projektliste='';
 		$q = db_select("select distinct(projekt) from ordrelinjer where ordre_id=$id and vare_id >	'0'",__FILE__ . " linje " . __LINE__);
@@ -420,7 +449,9 @@ function bogfor($id) {
 					$q = db_select("select * from ordrelinjer where ordre_id=$id and posnr<0 and projekt='$projekt[$p]'",__FILE__ . " linje " . __LINE__);
 				}
 				while ($r = db_fetch_array($q)) {
-					if ($valutakurs) $maxdif=$maxdif+2; #Og yderligere 2 pr ordrelinje.
+					if ($valutakurs) {
+						$maxdif=$maxdif+0.01; #Og yderligere 1 oere pr ordrelinje.
+					}
 					if (!in_array($r['bogf_konto'],$bogf_konto)) {
 						$y++;
 						$bogf_konto[$y]=$r['bogf_konto'];
@@ -443,7 +474,10 @@ function bogfor($id) {
 						if ($pris[$y]>0) {$debet=$pris[$y];$kredit=0;}
 						else {$debet=0; $kredit=$pris[$y]*-1;}	
 						$tmp1=$kredit*$valutakurs/100;$tmp2=$debet*$valutakurs/100;					
-						if ($t==1 && $valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
+						if ($t==1 && $valutakurs) {
+							$kredit=afrund($kredit*$valutakurs/100,2);
+							$debet=afrund($debet*$valutakurs/100,2);
+						} # Omregning til DKK.
 						$debet=afrund($debet,2);
 						$kredit=afrund($kredit,2);
 						$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
@@ -471,14 +505,17 @@ function bogfor($id) {
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$kmomskto=trim($r['box3']); # Ser lidt forvirrende ud,men den er go nok - fordi koebsmomsen ligger i box 3 v. udenlandsmoms.
 			$emomskto=$r['box1'];
-			$moms=$sum/100*$r['box2']; #moms af varekoeb i udland beregnes
+			$moms=creditorVatTotal($sum, $r['box2']); #moms af varekoeb i udland beregnes
 			if ($moms > 0) {$kredit=$moms; $debet='0';}
 			else {$kredit='0'; $debet=$moms*-1;} 
-			if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
+			if ($valutakurs) {
+				$kredit=afrund($kredit*$valutakurs/100,2);
+				$debet=afrund($debet*$valutakurs/100,2);
+			} # Omregning til DKK.
 			$momssum+=$debet-$kredit;
 			$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 			if ($moms) {
-				db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$emomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[$p]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$emomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
 			}
 
 #################### EU ydelseskoeb moms ################
@@ -487,14 +524,17 @@ function bogfor($id) {
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$kmomskto=trim($r['box3']); # Ser lidt forvirrende ud,men den er go nok - fordi koebsmomsen ligger i box 3 v. udenlandsmoms.
 			$emomskto=$r['box1'];
-			$moms=$sum/100*$r['box2']; #moms af varekoeb i udland beregnes
+			$moms=creditorVatTotal($sum, $r['box2']); #moms af varekoeb i udland beregnes
 			if ($moms > 0) {$kredit=$moms; $debet='0';}
 			else {$kredit='0'; $debet=$moms*-1;} 
-			if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
+			if ($valutakurs) {
+				$kredit=afrund($kredit*$valutakurs/100,2);
+				$debet=afrund($debet*$valutakurs/100,2);
+			} # Omregning til DKK.
 			$momssum+=$debet-$kredit;
 			$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 			if ($moms) {
-				db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$emomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[$p]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$emomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
 			}
 ####################
 		} else {
@@ -512,8 +552,11 @@ function bogfor($id) {
 			$moms+=$smoms;
 			if ($smoms > 0) {$kredit=$smoms; $debet='0';}
 			else {$kredit='0'; $debet=$smoms*-1;} 
-			if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
-			$kredit=afrund($kredit,3);$debet=afrund($debet,3);
+			if ($valutakurs) {
+				$kredit=afrund($kredit*$valutakurs/100,2);
+				$debet=afrund($debet*$valutakurs/100,2);
+			} # Omregning til DKK.
+			$kredit=afrund($kredit,2);$debet=afrund($debet,2);
 			$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 			if ($smoms) {
 			$tmp=$beskrivelse." (Omvendt betaling)";	
@@ -525,8 +568,11 @@ function bogfor($id) {
 		}			
 		if ($moms > 0) {$debet=$moms; $kredit='0';}
 		else {$debet='0'; $kredit=$moms*-1;} 
-		if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
-		$kredit=afrund($kredit,3);$debet=afrund($debet,3);
+		if ($valutakurs) {
+			$kredit=afrund($kredit*$valutakurs/100,2);
+			$debet=afrund($debet*$valutakurs/100,2);
+		} # Omregning til DKK.
+		$kredit=afrund($kredit,2);$debet=afrund($debet,2);
 		$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 		$momssum+=$debet-$kredit;
 		$moms=afrund($moms,2);
@@ -547,6 +593,8 @@ function bogfor($id) {
 			$debet=afrund($debet,2);
 			$kredit=afrund($kredit,2);
 			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$difkto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
+			$d_kontrol += $debet;
+			$k_kontrol += $kredit;
 
 		} else {
 			print "<BODY onLoad=\"javascript:alert('Der er konstateret en uoverensstemmelse i posteringssummen, kontakt DANOSOFT p&aring; telefon 4690 2208')\">";
@@ -555,9 +603,16 @@ function bogfor($id) {
 			exit;
 		}
 	} 
-#print "<BODY onLoad=\"javascript:alert('xxxxxxxxxxxxxxxxxxxx')\">";
-#xit;
-#	genberegn($regnaar);
+	$posted = db_fetch_array(db_select("SELECT COALESCE(SUM(debet),0) AS debit,COALESCE(SUM(kredit),0) AS credit,COALESCE(SUM(CASE WHEN debet<>ROUND(debet,2) OR kredit<>ROUND(kredit,2) THEN 1 ELSE 0 END),0) AS fractional FROM transaktioner WHERE ordre_id=" . (int)$id, __FILE__ . ' linje ' . __LINE__));
+	if (!$posted || (int)$posted['fractional'] !== 0
+		|| abs((float)$posted['debit'] - (float)$posted['credit']) > 0.000001
+		|| abs((float)$posted['debit'] - $d_kontrol) > 0.000001
+		|| abs((float)$posted['credit'] - $k_kontrol) > 0.000001) {
+		transaktion('rollback');
+		print '<script>alert("Købsfakturaens posteringer balancerer ikke");</script>';
+		return false;
+	}
+	return true;
 }
 
 ?>

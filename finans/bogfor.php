@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 5.0.1 --- 2026.09.07 ---
+// ---------------finans/bogfor.php---------- patch 5.0.1 --- 2026.09.21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,9 +63,12 @@
 //                  print icon on the simulation/posting view prints just the report
 // 20260907 CDX/PHR Update following fiscal years' opening balances within the journal posting transaction.
 // 20260907 CDX/LH Share the difference predicate with the read-only assistant checks.
+// 20260920 CDX/LH Preserve unfinished entries, date settlements correctly and reject rounded ledger imbalances.
+// 20260921 CDX/LH Post negative small currency differences as positive debits; retain generated-ledger balance validation.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
+require_once __DIR__ . '/kassekladde_includes/journalPostingGuard.php';
 
 @session_start();
 $s_id=session_id();
@@ -94,7 +97,15 @@ function get_saved_vat_override($row, $field) {
 
 $funktion=if_isset($_GET['funktion']);
 $kladde_id=if_isset($_GET['kladde_id']);
-if (($_POST) && ($_POST['kladde_id'])) $kladde_id = $_POST['kladde_id'];
+if ($_POST && ifset($_POST, 'kladde_id')) {
+	$kladde_id = (int) $_POST['kladde_id'];
+}
+$kladde_id = (int) $kladde_id;
+if ($kladde_id && ($incompleteError = journalPostingIncompleteError($kladde_id))) {
+	print '<p>' . htmlspecialchars($incompleteError, ENT_QUOTES, 'UTF-8') . '</p>';
+	print '<p><a href="kassekladde.php?kladde_id=' . $kladde_id . '">Tilbage til kladden</a></p>';
+	exit;
+}
 
 if (!isset ($onclick)) $onclick = NULL;
 
@@ -715,6 +726,11 @@ if (!$fejl) { #20140228
 print "</td></tr></tbody></table>";
 ######################################################################################################################################
 function bogfor($kladde_id,$kladdenote,$simuler) {
+	if ($incompleteError = journalPostingIncompleteError($kladde_id)) {
+		transaktion('rollback');
+		print '<p>' . htmlspecialchars($incompleteError, ENT_QUOTES, 'UTF-8') . '</p>';
+		exit;
+	}
 	global $connection;
 	global $regnaar;
 	global $brugernavn;
@@ -1033,7 +1049,11 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			if ($b_sum[$i] && abs($b_sum[$i]) < 0.1 && !$bvSum[$i] && $b_diffkonto[$i]) {
 					$debet=$kredit=0;
 					$beskrivelse ='valutadiff';
-					($b_sum[$i] < 0)?$debet=$b_sum[$i]:$kredit=$b_sum[$i];
+					if ($b_sum[$i] < 0) {
+						$debet = -$b_sum[$i];
+					} else {
+						$kredit = $b_sum[$i];
+					}
 					$qtxt = "insert into $tabel "; 
 					$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,";
 					$qtxt.= "valuta,valutakurs,ordre_id,moms)";
@@ -1074,6 +1094,11 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				exit;
 			}
 		}
+	}
+	if ($postingBalanceError = journalPostedBalanceError($kladde_id, $simuler)) {
+		transaktion('rollback');
+		print '<p>' . htmlspecialchars($postingBalanceError, ENT_QUOTES, 'UTF-8') . '</p>';
+		exit;
 	}
 	if (abs($tjeksum)<=0.01) { # && $transtjek==$transantal){
 		$dato=date("Y-m-d");
@@ -1139,7 +1164,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		} else $invoices[0] = $faktura; 
 		
 # 20121122 >>and projekt='$projekt'<< indsat herunder.
-		if ($udlign_date<$transdate) $udlign_date=$transdate;
+		$udlign_date = $transdate;
 		for ($x=0;$x<count($invoices);$x++) {
 			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and projekt='$projekt' and udlignet!='1' and ";
 			$qtxt.= " faktnr='$invoices[$x]'";
@@ -1147,7 +1172,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($r = db_fetch_array($q)) {
 # $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
-				$udlign_date=$r['transdate'];
+				$udlign_date = max($transdate, $r['transdate']);
 				$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
 				$qtxt.= "where id = '$r[id]'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
