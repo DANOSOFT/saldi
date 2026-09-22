@@ -1,4 +1,5 @@
 <?php
+// 20260922 CDX/LUI Run exact bundle acknowledgement against the PostgreSQL fixture.
 // 20260921 CDX/LUI Cover the production no-write rejection used by reference-client retries.
 // 20260920 CDX/LH Discover webshop, price and SQL-limit regressions in the ordinary characterization suite.
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -17,6 +18,7 @@ final class ReleaseWebshopRegressionTest extends TestCase
             'credit atomicity and metadata' => ['test_webshop_credit_note.php', true],
             'currency difference posting and rollback' => ['test_journal_currency_difference.php', true],
             'import production database audit and rollback' => ['test_import_database_policy.php', true],
+            'bundle exact line acknowledgement' => ['test_bundle_line_identity.php', true],
             'reference client safe server rejection' => ['test_rest_client_rejection_contract.php', true],
             'legacy API dispatch diagnostics' => ['test_legacy_api_dispatch.php', false],
             'CSV barcode collision diagnostics' => ['test_varesync_barcode_diagnostics.php', true],
