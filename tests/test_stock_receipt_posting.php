@@ -2,6 +2,7 @@
 // 20260921 CDX/LH Execute real receipt posting, including two independent PostgreSQL workers.
 // 20260921 CDX/LH Preserve exact thousandths at large positive and negative stock balances.
 // 20260921 CDX/LH Cover unrestricted numeric stock, exact fine-scale rollback and legacy default warehouses.
+// 20260922 CDX/LH Prefer literal warehouse1, preserve legacy0 fallback and reject only selected-literal duplicates.
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message) {
     throw new RuntimeException($message);
@@ -270,13 +271,31 @@ INSERT INTO batch_kob(kobsdate,vare_id,variant_id,linje_id,ordre_id,antal,rest,l
         $legacyId = receiptValue('SELECT id FROM lagerstatus WHERE lager=0 AND variant_id=0');
         postingCheck(modtag(1) && receiptValue("SELECT beholdning=3 AND lager=0 FROM lagerstatus WHERE id=$legacyId") === 't' && receiptValue('SELECT COUNT(*) FROM lagerstatus WHERE lager<=1 AND variant_id=0') === '1' && receiptValue('SELECT lager FROM batch_kob') === '1' && receiptValue('SELECT beholdning=5 FROM lagerstatus WHERE variant_id=2') === 't' && receiptValue('SELECT beholdning=7 FROM lagerstatus WHERE lager=9') === 't', 'legacy default warehouse is updated in place without duplicating or touching another variant or warehouse');
     }
+    // Literal warehouse1 is authoritative when legacy0 and normalized1 coexist.
+    foreach ([0,1] as $purchaseWarehouse) {
+        postingReset();
+        db_select("UPDATE ordrelinjer SET lager=$purchaseWarehouse;INSERT INTO lagerstatus(vare_id,variant_id,lager,beholdning) VALUES(1,0,0,2.1665),(1,0,1,3.123456);UPDATE varer SET beholdning=12.289956");
+        $legacyBefore = receiptValue('SELECT row_to_json(s)::text FROM lagerstatus s WHERE lager=0');
+        postingCheck(modtag(1) && receiptValue('SELECT beholdning=4.123456 FROM lagerstatus WHERE lager=1') === 't' && receiptValue('SELECT row_to_json(s)::text FROM lagerstatus s WHERE lager=0') === $legacyBefore && receiptValue('SELECT beholdning=13.289956 FROM varer') === 't' && receiptValue('SELECT COUNT(*) FROM lagerstatus WHERE lager IN (0,1)') === '2' && receiptValue('SELECT lager=1 AND antal=1 AND rest=1 FROM batch_kob') === 't', 'simultaneous legacy0 and literal1 route one exact increment to literal1 only');
+        $before = receiptSnapshot();
+        postingCheck(modtag(1) && receiptSnapshot() === $before, 'receipt replay with both default warehouse representations is a no-op');
+    }
     postingReset();
-    db_select('INSERT INTO lagerstatus(vare_id,variant_id,lager,beholdning) VALUES(1,0,0,2),(1,0,1,3)');
-    $before = receiptSnapshot();
-    ob_start();
-    $result = modtag(1);
-    ob_end_clean();
-    postingCheck(!$result && receiptSnapshot() === $before, 'ambiguous simultaneous legacy and normalized default rows reject with full rollback');
+    db_select('INSERT INTO lagerstatus(vare_id,variant_id,lager,beholdning) VALUES(1,0,0,2),(1,0,0,3),(1,0,1,4)');
+    $legacyBefore = receiptValue('SELECT json_agg(s ORDER BY id)::text FROM lagerstatus s WHERE lager=0');
+    postingCheck(modtag(1) && receiptValue('SELECT beholdning=5 FROM lagerstatus WHERE lager=1') === 't' && receiptValue('SELECT json_agg(s ORDER BY id)::text FROM lagerstatus s WHERE lager=0') === $legacyBefore, 'unselected legacy duplicate rows stay unchanged when literal1 is unambiguous');
+    foreach ([0,1] as $duplicateWarehouse) {
+        postingReset();
+        db_select("INSERT INTO lagerstatus(vare_id,variant_id,lager,beholdning) VALUES(1,0,$duplicateWarehouse,2),(1,0,$duplicateWarehouse,3)");
+        if ($duplicateWarehouse === 1) {
+            db_select('INSERT INTO lagerstatus(vare_id,variant_id,lager,beholdning) VALUES(1,0,0,4)');
+        }
+        $before = receiptSnapshot();
+        ob_start();
+        $result = modtag(1);
+        ob_end_clean();
+        postingCheck(!$result && receiptSnapshot() === $before, 'duplicates of the selected literal warehouse reject fully without falling back or updating all');
+    }
 } finally {
     if (pg_transaction_status($connection) !== PGSQL_TRANSACTION_IDLE) {
         db_select('ROLLBACK');
