@@ -1,5 +1,6 @@
 <?php
 // 20260920 CDX/LH Test draft preservation and settlement dates using disposable connection-local tables.
+// 20260921 CDX/LH Preserve full PostgreSQL DSN authentication in the PDO fixture.
 // Defaults to SQLite memory; SALDI_CHAR_DSN/PGUSER/PGPASS may point to isolated PostgreSQL.
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -8,13 +9,13 @@ set_error_handler(function ($severity, $message, $file, $line) {
 require_once __DIR__ . '/../includes/genberegn.php';
 require_once __DIR__ . '/../finans/kassekladde_includes/journalPostingGuard.php';
 $testDsn = getenv('SALDI_CHAR_DSN') ?: 'sqlite::memory:';
-if (getenv('SALDI_CHAR_PG_DSN')) {
-    $probe = pg_connect(getenv('SALDI_CHAR_PG_DSN'));
-    if (!$probe) throw new RuntimeException('Gate PostgreSQL connection is unavailable');
-    $testDsn = 'pgsql:host=' . pg_host($probe) . ';port=' . pg_port($probe) . ';dbname=' . pg_dbname($probe);
-    pg_close($probe);
+$postgresDsn = getenv('SALDI_CHAR_PG_DSN') ?: getenv('SALDI_TEST_DSN');
+if ($postgresDsn) {
+    require_once __DIR__ . '/characterization/support/RegressionPostgres.php';
+    $db = regressionPostgresPdo($postgresDsn);
+} else {
+    $db = new PDO($testDsn, getenv('SALDI_CHAR_PGUSER') ?: null, getenv('SALDI_CHAR_PGPASS') ?: null);
 }
-$db = new PDO($testDsn, getenv('SALDI_CHAR_PGUSER') ?: null, getenv('SALDI_CHAR_PGPASS') ?: null);
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 function db_select($sql, $trace = '') { return $GLOBALS['db']->query($sql); }
 function db_fetch_array($rows) { return $rows->fetch(PDO::FETCH_ASSOC); }

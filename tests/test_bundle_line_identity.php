@@ -28,7 +28,7 @@ $end = strpos($source, "\nfunction fakturer_ordre(", $start);
 eval(str_replace('__DIR__', var_export(dirname(__DIR__) . '/api', true), substr($source, $start, $end - $start)));
 function bundleCheck($condition, $message) {
     if (!$condition) { throw new RuntimeException($message); }
-    echo "PASS bundle: $message\n";
+    echo "PASS: bundle $message\n";
 }
 function bundleRows($sql) { return pg_fetch_all(pg_query($GLOBALS['connection'], $sql)); }
 try {
