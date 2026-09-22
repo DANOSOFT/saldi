@@ -38,12 +38,14 @@ if ($requestEnd === false) {
     $requestEnd = strpos($source, "\n############################", $requestStart);
 }
 $request = substr($source, $requestStart, $requestEnd - $requestStart);
+$initializerStart = strpos($source, '$antal_ny = NULL;');
+$initializer = substr($source, $initializerStart, strpos($source, '$modulnr =', $initializerStart) - $initializerStart);
 function receiptRequest($input, $rowId = 1, $listId = 1) {
-    global $request;
+    global $request, $initializer;
     $_POST = $input;
     $id = $rowId;
     $liste_id = $listId;
-    $i_ordre = 0;
+    eval($initializer);
     $brugernavn = "fixture's operator";
     $fokus = 'varenr';
     $GLOBALS['receiptWrites'] = [];
