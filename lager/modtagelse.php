@@ -1,4 +1,5 @@
 <?php
+// 20260922 CDX/LUI Display received quantities exactly, including thousandths.
 // 20260922 CDX/LUI Initialize receipt demand for products without sales orders and reuse the decimal helper.
 // 20260921 CDX/LH Render receipt descriptions as text rather than numeric quantities.
 // 20260921 CDX/LH Receive lists once and conserve purchase batch/item/warehouse quantities atomically.
@@ -333,7 +334,7 @@ $x = 0;
 $q = db_select("select * from modtagelser where liste_id=$liste_id and id!=$id", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	$x++;
-	print "<tr><td>$r[varenr]</td><td align=right>".dkDecimal($r['antal'])."</td><td>".htmlspecialchars((string)$r['beskrivelse'], ENT_QUOTES, 'UTF-8')."</td><td align=right>".dkDecimal($r['leveres'])."</td><td align=right>$r[lager]</td>";
+	print "<tr><td>$r[varenr]</td><td align=right>".str_replace('.', ',', receiptStockNumber($r['antal']))."</td><td>".htmlspecialchars((string)$r['beskrivelse'], ENT_QUOTES, 'UTF-8')."</td><td align=right>".str_replace('.', ',', receiptStockNumber($r['leveres']))."</td><td align=right>$r[lager]</td>";
 	if ($modtaget == '-')
 		print "<td align=center><a href=modtagelse.php?liste_id=$liste_id&id=$r[id]>ret</a></td></tr>";
 	else
