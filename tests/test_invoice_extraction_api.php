@@ -60,6 +60,15 @@ check(invoiceExtractionApiResolveApiKey() === 'global-key', 'resolves the global
 check(count($dbSelectCalls) === 1 && $dbSelectCalls[0][2] === true, 'uses db_select global connection');
 check(strpos($dbSelectCalls[0][0], "var_name = 'apikey'") !== false && strpos($dbSelectCalls[0][0], "var_grp = 'app_api'") !== false, 'queries the app_api key setting');
 
+// Endpoint: settings row wins when it is a URL, otherwise the wuweiworkai.com default.
+$dbSelectResult = array('var_value' => 'https://ai.saldi.dk/extract-invoice');
+check(invoiceExtractionApiResolveUrl() === 'https://ai.saldi.dk/extract-invoice', 'uses the extract_url setting when present');
+$dbSelectResult = array('var_value' => 'not a url');
+check(invoiceExtractionApiResolveUrl() === 'https://wuweiworkai.com/extract-invoice', 'falls back to the default when the setting is not a URL');
+$dbSelectResult = false;
+check(invoiceExtractionApiResolveUrl() === 'https://wuweiworkai.com/extract-invoice', 'falls back to the default when no setting exists');
+check(count($dbSelectCalls) === 4 && $dbSelectCalls[3][2] === true && strpos($dbSelectCalls[3][0], "var_name = 'extract_url'") !== false, 'reads extract_url from the global settings table');
+
 $captured = array();
 $invoiceExtractionApiDependencies = array(
 	'key_resolver' => function () { return 'test-key'; },
@@ -72,7 +81,7 @@ $invoiceExtractionApiDependencies = array(
 	}
 );
 $result = extractInvoiceData($pdfPath, 'invoice-test');
-check($captured[0] === 'https://ai.saldi.dk/extract-invoice', 'uses the extraction route');
+check($captured[0] === 'https://wuweiworkai.com/extract-invoice', 'posts to the resolved extraction route (default host)');
 check(in_array('Authorization: Bearer test-key', $captured[1], true), 'sends bearer authentication');
 check($captured[2]['id'] === 'invoice-test' && $captured[2]['skip_classification'] === true, 'sends required payload fields');
 check(base64_decode($captured[2]['image']) === $pdfBytes, 'passes original multi-page PDF bytes unchanged');

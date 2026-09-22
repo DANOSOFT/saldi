@@ -7,6 +7,10 @@
 //                  reg.nr./kontonr. plus the buyer's CVR (vendorCvr, vendorIban, vendorBankReg,
 //                  vendorBankKonto, customerCvr) from both the extract-invoice API and UBL XML,
 //                  so extractInvoiceHandler.php can match the vendor against kreditorer.
+// 20260922 CL/LAH The extraction service moved from ai.saldi.dk to https://wuweiworkai.com
+//                  (same container, same key). The URL is now read from settings
+//                  (var_grp 'app_api', var_name 'extract_url', global db) with that host as the
+//                  default, so the next move is a settings row instead of a code change.
 function invoiceExtractionApiResolveApiKey() {
 	if (!function_exists('db_select') || !function_exists('db_fetch_array')) {
 		error_log("Invoice extraction API key lookup is unavailable");
@@ -19,6 +23,24 @@ function invoiceExtractionApiResolveApiKey() {
 
 	$apiKey = trim($row['var_value'] ?? '');
 	return $apiKey !== '' ? $apiKey : null;
+}
+
+/**
+ * Endpoint of the extract-invoice service. Overridable per install through the global
+ * settings row var_grp='app_api', var_name='extract_url' (next to the 'apikey' row).
+ *
+ * @return string
+ */
+function invoiceExtractionApiResolveUrl() {
+	$default = 'https://wuweiworkai.com/extract-invoice';
+	if (!function_exists('db_select') || !function_exists('db_fetch_array')) return $default;
+
+	$qtxt = "SELECT var_value FROM settings WHERE var_name = 'extract_url' AND var_grp = 'app_api'";
+	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__, true);
+	if (!$query || !($row = db_fetch_array($query))) return $default;
+
+	$url = trim($row['var_value'] ?? '');
+	return preg_match('#^https?://#i', $url) ? $url : $default;
 }
 
 function invoiceExtractionApiCurlTransport($apiUrl, $headers, $body, $options) {
@@ -223,6 +245,9 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$transport = isset($dependencies['transport']) && is_callable($dependencies['transport'])
 		? $dependencies['transport']
 		: 'invoiceExtractionApiCurlTransport';
+	$urlResolver = isset($dependencies['url_resolver']) && is_callable($dependencies['url_resolver'])
+		? $dependencies['url_resolver']
+		: 'invoiceExtractionApiResolveUrl';
 
 	if (!file_exists($filePath)) {
 		error_log("File not found: $filePath");
@@ -276,7 +301,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		'Authorization: Bearer ' . $apiKey
 	);
 	$options = array('connect_timeout' => 10, 'timeout' => 120);
-	$transportResult = call_user_func($transport, 'https://ai.saldi.dk/extract-invoice', $headers, $requestBody, $options);
+	$transportResult = call_user_func($transport, call_user_func($urlResolver), $headers, $requestBody, $options);
 
 	if (!is_array($transportResult)) {
 		error_log("Invoice extraction API transport returned an invalid result");
