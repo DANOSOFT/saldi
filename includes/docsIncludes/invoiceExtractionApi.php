@@ -11,6 +11,7 @@
 //                  (same container, same key). The URL is now read from settings
 //                  (var_grp 'app_api', var_name 'extract_url', global db) with that host as the
 //                  default, so the next move is a settings row instead of a code change.
+// 20260922 CL/LAH UBL line names that are only punctuation (".") no longer end up in description.
 function invoiceExtractionApiResolveApiKey() {
 	if (!function_exists('db_select') || !function_exists('db_fetch_array')) {
 		error_log("Invoice extraction API key lookup is unavailable");
@@ -158,7 +159,10 @@ function extractUblInvoiceData($filePath) {
 	if ($descriptionNodes) {
 		foreach ($descriptionNodes as $descriptionNode) {
 			$value = trim($descriptionNode->textContent);
-			if ($value !== '' && !in_array($value, $descriptionValues, true)) $descriptionValues[] = $value;
+			// Placeholder lines ("." / "-") carry no text worth showing; some ERPs emit one per
+			// empty invoice line (seen in an OIOUBL invoice from Gregershus ApS, 2026-09-22).
+			if ($value === '' || !preg_match('/[\p{L}\p{N}]/u', $value)) continue;
+			if (!in_array($value, $descriptionValues, true)) $descriptionValues[] = $value;
 		}
 	}
 	if (empty($descriptionValues)) {
