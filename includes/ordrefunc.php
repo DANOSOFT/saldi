@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-09-21 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-09-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -132,6 +132,7 @@
 //             returned error now names the offending account and order instead of a bare generic string.
 // 20260920 CDX/LH Allocate invoice VAT across tax/revenue/project groups and use actual posted control amounts.
 // 20260921 CDX/LH Return exact bundle master identity while preserving order-line monetary returns.
+// 20260922 CDX/LH Preserve taxable fractional-cost and commission rates without reading the overwritten VAT row.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -4147,7 +4148,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			$kostpris = $productCost * 1;
 		}
 		#		fwrite($log,__line__." Pris $pris\n");
-		if ($pris && $productPrice == 0 && $kostpris < 1 && $kostpris > 0) {
+		// Historically VAT lookup replaced the product row: taxable fractional costs
+		// were rates regardless of list price. Keep that behavior explicit and warning-free.
+		if ($pris && (!$momsfri || $productPrice == 0) && $kostpris < 1 && $kostpris > 0) {
 			$fast_db = $kostpris;
 			$kostpris = ($pris - $pris * $rabat_ny / 100) * $kostpris;
 		} else
