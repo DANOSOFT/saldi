@@ -1,4 +1,5 @@
 <?php
+// 20260922 CDX/LUI Initialize receipt demand for products without sales orders and reuse the decimal helper.
 // 20260921 CDX/LH Render receipt descriptions as text rather than numeric quantities.
 // 20260921 CDX/LH Receive lists once and conserve purchase batch/item/warehouse quantities atomically.
 // 20260921 CDX/LH Compare and allocate NUMERIC(15,3) stock using exact integer thousandths.
@@ -110,7 +111,8 @@ $s_id = session_id();
 $antal_ny = NULL;
 $modtag = NULL;
 $varenr = NULL;
-$i_ordre = NULL;
+$i_ordre = '0';
+$antal = null;
 
 $modulnr = 6;
 $title = "Varemodtagelse";
@@ -119,10 +121,9 @@ $css = "../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include("../includes/std_funk/dkDecimal.php");
 include("../includes/topline_settings.php");
 
-$returside = (if_isset($_GET['returside']));
+$returside = ifset($_GET, 'returside', '');
 if (!$returside) {
 	// 20260904 Sawaneh WP-1.3c: request flag instead of popup preference
 	if (!empty($_GET['popup']))
@@ -339,7 +340,8 @@ while ($r = db_fetch_array($q)) {
 		print "</tr>";
 }
 if ($modtaget == '-') {
-	$r = db_fetch_array(db_select("select * from modtagelser where liste_id=$liste_id and id=$id", __FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select * from modtagelser where liste_id=$liste_id and id=$id", __FILE__ . " linje " . __LINE__))
+		?: array('varenr' => '', 'antal' => '', 'beskrivelse' => '');
 	# do not remove spaces around $r[antal] in next line 
 	print "<tr><td><input type=\"text\" size=\"15\" name=\"varenr\" value=\"$r[varenr]\"></td><td><input style=text-align:right type=\"text\" size=\"3\" name=\"antal_ny\" value=\" $r[antal] \"></td><td>$r[beskrivelse]</td><td></td><td></td><td><input type=submit value=\"OK\" name=\"ok\"></td></tr>";
 	if ($x)
