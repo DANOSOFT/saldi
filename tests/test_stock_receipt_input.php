@@ -1,6 +1,7 @@
 <?php
 // 20260921 CDX/LH Exercise actual receipt request handling against isolated PostgreSQL tables.
 // 20260921 CDX/LH Cover explicit precision rejection, punctuated scans and exact outstanding quantities.
+// 20260922 CDX/LH Verify numeric EAN-first ordering against an existing quantity-shaped SKU.
 if (PHP_SAPI !== 'cli') {
     exit('CLI only');
 }
@@ -144,3 +145,12 @@ receiptCheck(db_fetch_array(db_select('SELECT antal=50000000000000000 AND levere
 db_select('DELETE FROM modtagelser');
 $result = receiptRequest(['varenr' => 'SKU', 'antal_ny' => '', 'antal' => ''], 0, 1);
 receiptCheck(db_fetch_array(db_select('SELECT antal=90000000000000001.123456 AND leveres=0.000123 AND lager=90000000000000001.123333 AS exact FROM modtagelser WHERE id=' . $result['id']))['exact'] === 't', 'automatic outstanding receipt preserves existing unrestricted decimal quantity and reservations');
+
+// 20260922 CDX/LH Numeric EAN-first scans must not select a quantity-shaped SKU.
+db_select("INSERT INTO varer VALUES(99,'5','Quantity-shaped SKU');INSERT INTO ordrelinjer VALUES(99,1,'5',9)");
+foreach (['1234567890123 5', '5 1234567890123', '1234567890123 1,50'] as $scan) {
+    db_select("DELETE FROM modtagelser WHERE varenr IN ('1234567890123','5')");
+    $result = receiptRequest(['varenr' => 'SKU', 'antal_ny' => $scan, 'antal' => '5'], 1, 1);
+    $row = db_fetch_array(db_select('SELECT varenr,antal=2 AS exact FROM modtagelser WHERE id=' . $result['id']));
+    receiptCheck($row && $row['varenr'] === '1234567890123' && $row['exact'] === 't' && (int)db_fetch_array(db_select("SELECT COUNT(*) AS n FROM modtagelser WHERE varenr='5'"))['n'] === 0, 'numeric EAN-first and quantity-first scans select the EAN even when quantity is another purchasable SKU');
+}
