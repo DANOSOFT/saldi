@@ -7,6 +7,7 @@
 // 20260922 CDX/PHR Search across customer/supplier accounts when no filter is requested.
 // 20260922 CL/NTR Bound the unfiltered open_post query with a SQL-level candidate signal
 //                 and paged filler rows, instead of pulling every open post into PHP.
+// 20260922 CDX/PHR Aggregate payment IDs once per query instead of scanning orders per open post.
 
 ob_start();
 
@@ -60,11 +61,19 @@ if ($accountType !== 'D' && $accountType !== 'K') {
 
 $baseWhere = "(openpost.udlignet != '1' OR openpost.udlignet IS NULL)";
 
-// Payment ID lives on the invoiced order, never on the open post itself
-$paymentIdMatch = "ordrer.konto_id = openpost.konto_id AND ordrer.fakturanr = openpost.faktnr"
-    . " AND COALESCE(openpost.faktnr, '') != '' AND ordrer.art IN ('DO', 'DK', 'KO', 'KK')"
-    . " AND COALESCE(ordrer.betalings_id, '') != ''";
-$paymentIdSelect = "(SELECT MAX(ordrer.betalings_id) FROM ordrer WHERE $paymentIdMatch) AS betalings_id";
+// Aggregate once per account/invoice instead of scanning orders for every open post.
+// Search all payment IDs, including IDs other than the MAX displayed in the result.
+$paymentSearchSelect = $search !== ''
+    ? ", MAX(CASE WHEN betalings_id ILIKE '%$search_escaped%' THEN 1 ELSE 0 END) AS search_match"
+    : '';
+$paymentIdJoin = "LEFT JOIN (
+    SELECT konto_id, fakturanr, MAX(betalings_id) AS betalings_id $paymentSearchSelect
+    FROM ordrer
+    WHERE art IN ('DO', 'DK', 'KO', 'KK') AND COALESCE(betalings_id, '') != ''
+    GROUP BY konto_id, fakturanr
+) payment_ids ON payment_ids.konto_id = openpost.konto_id
+    AND payment_ids.fakturanr = openpost.faktnr AND COALESCE(openpost.faktnr, '') != ''";
+$paymentIdSelect = "payment_ids.betalings_id";
 
 if ($mode === 'open_post') {
     $baseWhere .= ' AND (' . autoSettlementSearchWhere($_GET['account'] ?? '', $_GET['accountType'] ?? '') . ')';
@@ -83,7 +92,7 @@ if ($search !== '') {
         "adresser.firmanavn ILIKE '%$search_escaped%'",
         "CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'",
         "openpost.beskrivelse ILIKE '%$search_escaped%'",
-        "EXISTS (SELECT 1 FROM ordrer WHERE $paymentIdMatch AND ordrer.betalings_id ILIKE '%$search_escaped%')"
+        "payment_ids.search_match = 1"
     );
     $amountSearch = str_replace(' ', '', $search);
     if (strpos($amountSearch, ',') !== false) {
@@ -99,10 +108,12 @@ if ($search !== '') {
     $baseWhere .= " AND (" . implode(" OR ", $searchConds) . ")";
 }
 
+$paymentCountJoin = $search !== '' ? $paymentIdJoin : '';
 $countQuery = db_select("
     SELECT COUNT(*) as cnt 
     FROM openpost 
     LEFT JOIN adresser ON openpost.konto_id = adresser.id
+    $paymentCountJoin
     WHERE $baseWhere
 ", __FILE__ . " line " . __LINE__);
 
@@ -144,6 +155,7 @@ if ($mode === 'open_post') {
             $paymentIdSelect
         FROM openpost
         LEFT JOIN adresser ON openpost.konto_id = adresser.id
+        $paymentIdJoin
         WHERE $baseWhere AND ($signalWhere)
         ORDER BY openpost.transdate DESC, openpost.faktnr
     ";
@@ -273,6 +285,7 @@ if ($mode === 'open_post') {
                 $paymentIdSelect
             FROM openpost
             LEFT JOIN adresser ON openpost.konto_id = adresser.id
+            $paymentIdJoin
             WHERE $fillerWhere
             ORDER BY openpost.transdate DESC, openpost.faktnr, openpost.id
             LIMIT $remaining OFFSET $fillerOffset
@@ -318,6 +331,7 @@ $qtxt = "
         $paymentIdSelect
     FROM openpost 
     LEFT JOIN adresser ON openpost.konto_id = adresser.id
+    $paymentIdJoin
     WHERE $baseWhere
     ORDER BY openpost.transdate DESC, openpost.faktnr
     LIMIT $limit OFFSET $offset

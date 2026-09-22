@@ -41,6 +41,7 @@
 // 20260908 CDX/LH Require an account before matching and validate selected open posts on save.
 // 20260911 Sawaneh Show the order payment ID as a column in the open post list again.
 // 20260922 CDX/PHR Restore cross-account suggestions while retaining validated journal assignment.
+// 20260922 CDX/PHR Limit the optional account selector to accounts with eligible open invoices.
 
 ob_start();
 @session_start();
@@ -140,6 +141,13 @@ if ($entry) {
         $number = db_escape_string($entryContext['account']);
         $type = db_escape_string($entryContext['accountType']);
         $accountWhere = "kontonr = '$number' AND art = '$type'";
+    } else {
+        $accountWhere .= " AND EXISTS (
+            SELECT 1 FROM openpost
+            WHERE openpost.konto_id=adresser.id AND openpost.konto_nr=adresser.kontonr
+                AND (openpost.udlignet!='1' OR openpost.udlignet IS NULL)
+                AND TRIM(COALESCE(openpost.faktnr,''))!=''
+        )";
     }
     $query = db_select("SELECT id, kontonr, art, firmanavn FROM adresser WHERE $accountWhere ORDER BY firmanavn, kontonr", __FILE__ . ' line ' . __LINE__);
     while ($account = db_fetch_array($query)) {
