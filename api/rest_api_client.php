@@ -29,6 +29,7 @@ echo '<html><body>';
 // ----------------------------------------------------------------------
 // 20260921 CDX/LUI Validate complete exports and persist acknowledged/unknown hops before removing a source.
 // 20260921 CDX/LH Accept new exports at reused paths and retry only explicit no-write line rejections.
+// 20260921 CDX/LH Retain bounded redacted server diagnostics without authorizing ambiguous retries.
 
 
 if(!ini_get('allow_url_fopen') ) {
@@ -170,6 +171,33 @@ function restClientSafeRejection(array $params, $value): bool {
         && $value === 'Unknown item identity; no line created';
 }
 
+/** @return string Bounded plain-text server reason with connection credentials removed. */
+function restClientResponseReason(string $response, array $auth): string {
+    $decoded = json_decode($response, true);
+    $text = is_string($decoded) ? $decoded : $response;
+    if (is_array($decoded)) {
+        $text = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    foreach ($auth as $credential) {
+        if (is_scalar($credential) && (string)$credential !== '') {
+            $text = str_replace([(string)$credential, rawurlencode((string)$credential), urlencode((string)$credential)], '[REDACTED]', $text);
+        }
+    }
+    $text = preg_replace('/[\x00-\x1F\x7F]/', ' ', $text);
+    if (!preg_match('/^.{0,512}/us', $text, $match)) {
+        return '[non-text response sha256:' . hash('sha256', $response) . ']';
+    }
+    return $match[0];
+}
+
+/** @return string Previously persisted diagnostic; never a retry decision. */
+function restClientResponseDetail(array $step): string {
+    if (!isset($step['response_status'], $step['response_reason'])) {
+        return '';
+    }
+    return ' Server HTTP ' . (int)$step['response_status'] . ': ' . $step['response_reason'];
+}
+
 /** @return int Acknowledged remote object ID. An unknown outcome must never be replayed automatically. */
 function restClientHop(string $endpoint, array $auth, array $params, string $step, &$state, $journal): int {
     $fingerprint = hash('sha256', json_encode($params, JSON_THROW_ON_ERROR));
@@ -180,7 +208,7 @@ function restClientHop(string $endpoint, array $auth, array $params, string $ste
             return (int)$saved['id'];
         }
         if (($saved['status'] ?? '') !== 'rejected' || !isset($saved['reason']) || !restClientSafeRejection($params, $saved['reason'])) {
-            throw new RuntimeException('An earlier request has an unknown outcome; reconcile the pending import before retrying. Source retained.');
+            throw new RuntimeException('An earlier request has an unknown outcome; reconcile the pending import before retrying. Source retained.' . restClientResponseDetail($saved));
         }
     }
     $state['steps'][$step] = ['fingerprint'=>$fingerprint,'status'=>'pending'];
@@ -193,13 +221,17 @@ function restClientHop(string $endpoint, array $auth, array $params, string $ste
     finally { restore_error_handler(); }
     $status = $http_response_header[0] ?? '';
     $value = json_decode((string)$response, true);
+    preg_match('/^HTTP\/\S+ ([0-9]{3})(?: |$)/', $status, $statusMatch);
+    $diagnostic = ['response_status'=>(int)($statusMatch[1] ?? 0), 'response_reason'=>restClientResponseReason((string)$response, $auth)];
     if (preg_match('/^HTTP\/\S+ 200(?: |$)/', $status) && restClientSafeRejection($params, $value)) {
-        $state['steps'][$step] = ['fingerprint'=>$fingerprint,'status'=>'rejected','reason'=>$value];
+        $state['steps'][$step] = ['fingerprint'=>$fingerprint,'status'=>'rejected','reason'=>$value] + $diagnostic;
         restClientSaveState($journal, $state);
         throw new RuntimeException('API rejected request: ' . $value . '. Correct the item catalog and retry the unchanged source; source retained.');
     }
     if (!preg_match('/^HTTP\/\S+ 2[0-9]{2}(?: |$)/', $status) || (!is_int($value) && !is_string($value)) || !ctype_digit((string)$value) || (int)$value < 1) {
-        throw new RuntimeException('API request was not acknowledged with a positive ID; source retained for reconciliation.');
+        $state['steps'][$step] += $diagnostic;
+        restClientSaveState($journal, $state);
+        throw new RuntimeException('API request was not acknowledged with a positive ID; source retained for reconciliation.' . restClientResponseDetail($state['steps'][$step]));
     }
     $state['steps'][$step] = ['fingerprint'=>$fingerprint,'status'=>'done','id'=>(int)$value];
     restClientSaveState($journal, $state);
