@@ -2,7 +2,7 @@
 // 20260921 CDX/LH Render receipt descriptions as text rather than numeric quantities.
 // 20260921 CDX/LH Receive lists once and conserve purchase batch/item/warehouse quantities atomically.
 // 20260921 CDX/LH Compare and allocate NUMERIC(15,3) stock using exact integer thousandths.
-// ------------- kreditor/modtagelse.php ----- (modul nr 6)------ lap 2.0.4----2026-09-21-------
+// ------------- kreditor/modtagelse.php ----- (modul nr 6)------ lap 2.0.4----2026-09-22-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -22,6 +22,7 @@
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20260921 CDX/LH Validate receipt quantities, use inserted IDs and migrate edited request lookups to ifset.
 // 20260921 CDX/LH Preserve unrestricted database decimals, validate input scale and accept punctuated scans and legacy default warehouses.
+// 20260922 CDX/LH Preserve numeric EAN-first scans and prefer literal warehouse1 before legacy0 fallback.
 
 /** Parse new nonnegative input, accepting at most three meaningful decimals.
  * @return string|null Exact decimal text; null is invalid and zero deletes an edited row.
@@ -151,10 +152,12 @@ if ($_POST) {
 	// the identifier is valid; SQL escaping happens after identifying the item.
 	$scannedItem = null;
 	if (strlen($antal_ny) > 10 && preg_match('/^(\S+)\s+(\S+)$/D', $antal_ny, $scan)) {
-		if (receiptQuantity($scan[1]) !== null) {
-			$scannedItem = $scan[2];
-		} elseif (strlen($scan[1]) > 10 && receiptQuantity($scan[2]) !== null) {
+		// A numeric EAN also parses as a quantity: preserve the legacy
+		// long-item-first rule before considering quantity-first input.
+		if (strlen($scan[1]) > 10 && receiptQuantity($scan[2]) !== null) {
 			$scannedItem = $scan[1];
+		} elseif (receiptQuantity($scan[1]) !== null) {
+			$scannedItem = $scan[2];
 		}
 	} elseif (strlen($antal_ny) > 10 && $antal !== null
 		&& !preg_match('/^\d+[.,]\d+$/D', $antal_ny)
@@ -415,9 +418,20 @@ function modtag($liste_id)
 				if ($warehouse < 1 || $variantId < 0) {
 					throw new RuntimeException('Ugyldigt lager eller variant på købslinjen');
 				}
-				$warehouseCondition = $warehouse === 1 ? 'lager<=1' : "lager=$warehouse";
+				// Other stock writers can legitimately create both literal 0 and 1.
+				// Prefer the requested literal; only fall back to legacy 0 if 1 is absent.
+				$warehouseCondition = "lager=$warehouse";
 				$stockQuery = db_select("SELECT id,beholdning FROM lagerstatus WHERE vare_id=$productId AND COALESCE(variant_id,0)=$variantId AND $warehouseCondition ORDER BY id FOR UPDATE", __FILE__ . ' linje ' . __LINE__);
 				$stock = db_fetch_array($stockQuery);
+				if (!$stock && $warehouse === 1) {
+					$legacyQuery = db_select("SELECT id,beholdning FROM lagerstatus WHERE vare_id=$productId AND COALESCE(variant_id,0)=$variantId AND lager=0 ORDER BY id FOR UPDATE", __FILE__ . ' linje ' . __LINE__);
+					$legacyStock = db_fetch_array($legacyQuery);
+					if ($legacyStock) {
+						$warehouseCondition = 'lager=0';
+						$stockQuery = $legacyQuery;
+						$stock = $legacyStock;
+					}
+				}
 				if (db_fetch_array($stockQuery)) {
 					throw new RuntimeException('Flere lagerbeholdninger for samme vare og lager');
 				}
