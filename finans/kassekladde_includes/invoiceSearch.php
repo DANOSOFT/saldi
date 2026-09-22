@@ -1,7 +1,10 @@
 <?php
+// finans/kassekladde_includes/invoiceSearch.php --- 2026-09-22
+// Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Require an exact customer/supplier filter for automatic settlement.
 // 20260911 Sawaneh Return the order payment ID (ordrer.betalings_id) with each open post and
 //                  allow searching on it, so auto settlement can show it again.
+// 20260922 CDX/PHR Search across customer/supplier accounts when no filter is requested.
 
 ob_start();
 
@@ -61,7 +64,9 @@ $paymentIdMatch = "ordrer.konto_id = openpost.konto_id AND ordrer.fakturanr = op
     . " AND COALESCE(ordrer.betalings_id, '') != ''";
 $paymentIdSelect = "(SELECT MAX(ordrer.betalings_id) FROM ordrer WHERE $paymentIdMatch) AS betalings_id";
 
-if ($mode === 'open_post' || $accountNr !== '') {
+if ($mode === 'open_post') {
+    $baseWhere .= ' AND (' . autoSettlementSearchWhere($_GET['account'] ?? '', $_GET['accountType'] ?? '') . ')';
+} elseif ($accountNr !== '') {
     $baseWhere .= ' AND (' . autoSettlementAccountWhere($accountNr, $accountType) . ')';
 }
 

@@ -1,5 +1,8 @@
 <?php
+// finans/kassekladde_includes/autoSettlement.php --- 2026-09-22
+// Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Scope automatic settlement to the chosen account and validate live rows before saving.
+// 20260922 CDX/PHR Allow unfiltered suggestions without broadening malformed account filters.
 
 /**
  * Identify the customer/supplier side, or the empty side of an imported bank line.
@@ -46,6 +49,17 @@ function autoSettlementAccountWhere($account, $type) {
     if ($account === '' || !in_array($type, ['D', 'K'], true)) return '1 = 0';
     $account = db_escape_string($account);
     return "openpost.konto_nr = '$account' AND adresser.kontonr = '$account' AND adresser.art = '$type'";
+}
+
+/** @return string SQL predicate for an optional customer/supplier search filter. */
+function autoSettlementSearchWhere($account, $type) {
+    if (!is_string($account) || !is_string($type)) return '1 = 0';
+    $account = trim($account);
+    $type = strtoupper(trim($type));
+    if ($account === '' && $type === '') {
+        return "adresser.art IN ('D', 'K') AND openpost.konto_nr = adresser.kontonr";
+    }
+    return autoSettlementAccountWhere($account, $type);
 }
 
 /** @return bool Whether an automatic match has the same amount and payment direction. */
