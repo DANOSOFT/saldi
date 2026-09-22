@@ -3,6 +3,8 @@
 // Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Scope automatic settlement to the chosen account and validate live rows before saving.
 // 20260922 CDX/PHR Allow unfiltered suggestions without broadening malformed account filters.
+// 20260922 CL/NTR Add autoSettlementCandidateSignalWhere() so the unfiltered open_post search
+//                 can bound its SQL fetch without dropping any row the ranking could select.
 
 /**
  * Identify the customer/supplier side, or the empty side of an imported bank line.
@@ -60,6 +62,43 @@ function autoSettlementSearchWhere($account, $type) {
         return "adresser.art IN ('D', 'K') AND openpost.konto_nr = adresser.kontonr";
     }
     return autoSettlementAccountWhere($account, $type);
+}
+
+/**
+ * SQL predicate matching every open post that could score above zero in the PHP/JS ranking
+ * (autoSettlementAmountMatches, plus hint-token/description-word matches on invoice number,
+ * account number and company name). It over-matches rather than under-matches: PHP re-applies
+ * the exact rules afterwards, but a row excluded here would never reach that scoring pass,
+ * so this must stay a superset of every rule it mirrors.
+ *
+ * @param float|null $amount Exact amount to match, or null to skip the amount signal.
+ * @param array $hintTokens Uppercased-in-JS tokens checked against invoice/account numbers.
+ * @param array $descWords Uppercased-in-JS words checked against invoice numbers and company names.
+ * @return string
+ */
+function autoSettlementCandidateSignalWhere($amount, array $hintTokens, array $descWords) {
+    $conds = [];
+
+    if ($amount !== null) {
+        $amountLiteral = db_escape_string((string)(float)$amount);
+        $conds[] = "ABS(ABS(openpost.amount) - ABS($amountLiteral)) < 0.001";
+    }
+
+    $tokens = [];
+    foreach (array_merge($hintTokens, $descWords) as $tok) {
+        $tok = trim((string)$tok);
+        if ($tok !== '') $tokens[] = $tok;
+    }
+    $tokens = array_unique($tokens);
+
+    foreach ($tokens as $tok) {
+        $escaped = db_escape_string($tok);
+        $conds[] = "CAST(openpost.faktnr AS TEXT) ILIKE '%$escaped%'";
+        $conds[] = "CAST(openpost.konto_nr AS TEXT) ILIKE '%$escaped%'";
+        $conds[] = "adresser.firmanavn ILIKE '%$escaped%'";
+    }
+
+    return $conds ? implode(' OR ', $conds) : '1 = 0';
 }
 
 /** @return bool Whether an automatic match has the same amount and payment direction. */

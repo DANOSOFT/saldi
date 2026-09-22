@@ -5,6 +5,8 @@
 // 20260911 Sawaneh Return the order payment ID (ordrer.betalings_id) with each open post and
 //                  allow searching on it, so auto settlement can show it again.
 // 20260922 CDX/PHR Search across customer/supplier accounts when no filter is requested.
+// 20260922 CL/NTR Bound the unfiltered open_post query with a SQL-level candidate signal
+//                 and paged filler rows, instead of pulling every open post into PHP.
 
 ob_start();
 
@@ -111,7 +113,7 @@ if ($countQuery) {
 
 //#########
 if ($mode === 'open_post') {
-    // --- open_post mode: fetch all, score, sort, then paginate ---
+    // --- open_post mode: fetch candidates, score, sort, then paginate ---
     $hintTokens = isset($_GET['hintTokens']) ? json_decode($_GET['hintTokens'], true) : [];
     $descWords  = isset($_GET['descWords'])  ? json_decode($_GET['descWords'], true)  : [];
     if (!is_array($hintTokens)) $hintTokens = [];
@@ -119,9 +121,17 @@ if ($mode === 'open_post') {
 
     $currentAmountFloat = ($currentAmount !== '') ? floatval($currentAmount) : null;
 
-    // Fetch all matching rows (no LIMIT)
+    // Without an account filter, $baseWhere spans every customer/supplier, so pulling every
+    // row into PHP for scoring does not scale. Every scoring signal (autoSettlementAmountMatches
+    // plus the hint-token/description-word checks below) can be restated as a SQL predicate that
+    // is a superset of what would score >0, so a row that could ever beat the current best is
+    // never excluded here; PHP re-applies the exact scoring rules afterwards. Zero-signal rows
+    // can never win auto-selection or outrank a signal row, so they are paged directly in SQL
+    // instead of being pulled into PHP in full.
+    $signalWhere = autoSettlementCandidateSignalWhere($currentAmountFloat, $hintTokens, $descWords);
+
     $qtxt = "
-        SELECT 
+        SELECT
             openpost.id,
             openpost.konto_nr,
             openpost.konto_id,
@@ -132,24 +142,20 @@ if ($mode === 'open_post') {
             adresser.firmanavn,
             adresser.art,
             $paymentIdSelect
-        FROM openpost 
+        FROM openpost
         LEFT JOIN adresser ON openpost.konto_id = adresser.id
-        WHERE $baseWhere
+        WHERE $baseWhere AND ($signalWhere)
         ORDER BY openpost.transdate DESC, openpost.faktnr
     ";
-    $query = db_select($qtxt, __FILE__ . " line " . __LINE__);
-
-    $allRows = [];
-    while ($row = db_fetch_array($query)) {
+    // Build a single scored row (mirrors client-side scoreCandidate()).
+    $scoreRow = function($row) use ($currentAmountFloat, $descWords, $hintTokens) {
         $rowAmount = floatval($row['amount']);
-        
-        // --- Score calculation (mirrors client side) ---
         $score = 0;
-        
+
         // 1. Amount match
         $amountMatch = autoSettlementAmountMatches($rowAmount, $currentAmountFloat);
         if ($amountMatch) $score += 40;
-        
+
         // 2. Company name words in description words
         $firmanavn = trim($row['firmanavn']);
         if ($firmanavn && !empty($descWords)) {
@@ -161,7 +167,7 @@ if ($mode === 'open_post') {
             }
             if ($matchCount > 0) $score += 30 + ($matchCount * 5);
         }
-        
+
         // 3. Invoice number contains any hint token or description word (mirrors client scoring)
         $faktnr = trim($row['faktnr']);
         if ($faktnr && (!empty($hintTokens) || !empty($descWords))) {
@@ -186,7 +192,7 @@ if ($mode === 'open_post') {
                 $score += 20;
             }
         }
-        
+
         // 4. Account number contains any hint token
         $kontonr = trim($row['konto_nr']);
         if ($kontonr && !empty($hintTokens)) {
@@ -198,8 +204,8 @@ if ($mode === 'open_post') {
                 }
             }
         }
-        
-        $allRows[] = [
+
+        return [
             'id'          => $row['id'],
             'kontonr'     => $kontonr,
             'konto_id'    => $row['konto_id'],
@@ -213,22 +219,62 @@ if ($mode === 'open_post') {
             'amountMatch' => $amountMatch,
             '_score'      => $score
         ];
+    };
+
+    $query = db_select($qtxt, __FILE__ . " line " . __LINE__);
+
+    $signalRows = [];
+    $signalIds = [];
+    while ($row = db_fetch_array($query)) {
+        $signalIds[] = $row['id'];
+        $signalRows[] = $scoreRow($row);
     }
-    
-    // Sort by score DESC, then date DESC, then faktnr
-    usort($allRows, function($a, $b) {
+
+    // Signal rows always sort ahead of zero-signal rows (a positive score beats 0), so they own
+    // the front of every page; only once a page runs past them do zero-signal rows appear, and
+    // they are fetched with their own SQL LIMIT/OFFSET rather than in full.
+    usort($signalRows, function($a, $b) {
         if ($a['_score'] != $b['_score']) return $b['_score'] - $a['_score'];
         if ($a['transdate'] != $b['transdate']) return strcmp($b['transdate'], $a['transdate']);
         return strcmp($a['faktnr'], $b['faktnr']);
     });
-    
-    $autoSelectId = autoSettlementBestCandidateId($allRows);
-    $totalCount = count($allRows);
+
+    $autoSelectId = autoSettlementBestCandidateId($signalRows);
     $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
     $limit = 50;
     $offset = ($page - 1) * $limit;
-    $pageResults = array_slice($allRows, $offset, $limit);
-    
+
+    $signalCount = count($signalRows);
+    $pageResults = array_slice($signalRows, $offset, $limit);
+    $remaining = $limit - count($pageResults);
+    if ($remaining > 0) {
+        $fillerOffset = max(0, $offset - $signalCount);
+        $excludeIds = $signalIds ? implode(',', array_map('intval', $signalIds)) : '-1';
+        $fillerWhere = "$baseWhere AND openpost.id NOT IN ($excludeIds)";
+        $fillerQtxt = "
+            SELECT
+                openpost.id,
+                openpost.konto_nr,
+                openpost.konto_id,
+                openpost.faktnr,
+                openpost.amount,
+                openpost.transdate,
+                openpost.beskrivelse,
+                adresser.firmanavn,
+                adresser.art,
+                $paymentIdSelect
+            FROM openpost
+            LEFT JOIN adresser ON openpost.konto_id = adresser.id
+            WHERE $fillerWhere
+            ORDER BY openpost.transdate DESC, openpost.faktnr
+            LIMIT $remaining OFFSET $fillerOffset
+        ";
+        $fillerQuery = db_select($fillerQtxt, __FILE__ . " line " . __LINE__);
+        while ($row = db_fetch_array($fillerQuery)) {
+            $pageResults[] = $scoreRow($row);
+        }
+    }
+
     // Remove temporary _score
     foreach ($pageResults as &$r) unset($r['_score']);
     
