@@ -16,6 +16,15 @@ const values = {KLADDE_ID:99, ENTRY_ID:1, TOKEN:'fixture-session', SNAPSHOT:'fix
     settle:'Settle', showing:'Showing', of:'of', bestMatches:'Best matches',
     otherOpenEntries:'Other open entries', noneSelected:'None selected — use ↑↓ or click to choose',
     invoiceLabel:'Invoice'}};
+// 20260923 CL/SZ (CodeRabbit): assert the PHP $uiText keys against the T fixture above -
+// without this, a missing/renamed key in PHP would leave the fixture's extra key silently
+// covering for it and the test would keep passing with an incomplete real T object.
+const uiTextSource = page.match(/\$uiText\s*=\s*\[([\s\S]*?)\];/)?.[1];
+assert.ok(uiTextSource, 'Missing PHP $uiText map');
+const phpTKeys = [...uiTextSource.matchAll(/['"]([^'"]+)['"]\s*=>\s*findtekst\(/g)]
+  .map(([, key]) => key)
+  .sort();
+assert.deepEqual(phpTKeys, Object.keys(values.T).sort(), 'PHP T keys differ from fixture');
 script = script.replace(/(const|let)\s+(\w+)\s*=\s*<\?= .*? \?>;/g, (_,kind,name) => {
   assert.ok(Object.hasOwn(values, name), `Missing PHP fixture for ${name}`);
   return `${kind} ${name} = ${JSON.stringify(values[name])};`;

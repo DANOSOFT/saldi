@@ -53,9 +53,22 @@ $s_id = session_id();
 
 #$css = "../css/standard.css";
 include(__DIR__ . "/../includes/connect.php");
+// 20260923 CL/SZ (CodeRabbit): online.php prints a legacy ISO-8859-1 <meta> charset
+// declaration before this page's own UTF-8 one - send the real header first so browsers
+// use it (a <meta> only wins when no HTTP charset header is present).
+header('Content-Type: text/html; charset=UTF-8');
 include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/kassekladde_includes/autoSettlement.php");
+
+// 20260923 CL/SZ (CodeRabbit): findtekst() returns ISO-8859-1 text when $db_encode isn't
+// UTF8; htmlspecialchars(..., 'UTF-8') silently returns '' for invalid UTF-8 input, which
+// would blank this text rather than garble it. Same conversion $uiText already gets below.
+function autoudlign_findtekst_utf8($key, $sprog_id) {
+    global $db_encode;
+    $text = findtekst($key, $sprog_id);
+    return $db_encode != 'UTF8' ? mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1') : $text;
+}
 
 $kladde_id = intval($_GET['kladde_id'] ?? 0);
 $id        = intval(if_isset($_GET, 0, ['id']));
@@ -778,7 +791,7 @@ print "</tbody></table></td></tr></tbody></table>";
           class="search-input"
           type="text"
           id="searchInput"
-          placeholder="<?= htmlspecialchars(findtekst('5303', $sprog_id), ENT_QUOTES, 'UTF-8') ?>"
+          placeholder="<?= htmlspecialchars(autoudlign_findtekst_utf8('5303', $sprog_id), ENT_QUOTES, 'UTF-8') ?>"
           autocomplete="off"
           autofocus
         >
