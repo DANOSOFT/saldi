@@ -31,6 +31,10 @@
 //                  quantity no batch_kob covers - the normal-sale one and the negative/credit-note
 //                  one - and both read varer.kostpris. Sharing one resolver keeps them from
 //                  disagreeing, which is what they did when only the first was fixed.
+// 20260923 MJ SST-796 Open-line eligibility now follows lager/modtagelse.php exactly - antal less
+//                  the batch_kob booked against the line - instead of ordrelinjer.leveret, which the
+//                  receipt path never writes on a kreditorordre. Also matches on variant, as two
+//                  variants of one item can be bought at different prices.
 
 if (!function_exists('find_open_purchase_cost')) {
 	/**
@@ -63,18 +67,27 @@ if (!function_exists('find_open_purchase_cost')) {
 	 * Takes no warehouse: a purchase order line carries none of its own, and the goods-receipt screen
 	 * does not narrow by one either when it decides what is still outstanding.
 	 *
-	 * @param int|string $vare_id The item being sold.
+	 * It does match on variant, because kreditor/ordre.php:984 writes variant_id onto purchase lines
+	 * and two variants of one item can be bought at different prices. The match is strict: if nothing
+	 * open exists for this variant the caller falls back to varer.kostpris rather than borrow another
+	 * variant's price, since a wrong cost from a different variant is harder to spot than a stale one.
+	 * Comparison is on the integer value, as ordrelinjer.variant_id is a text column that legacy rows
+	 * carry as '' while batch_kob.variant_id is an int defaulting to 0.
+	 *
+	 * @param int|string $vare_id    The item being sold.
+	 * @param int|string $variant_id Variant of that item, '' or 0 when it has none.
 	 * @return array|null ['pris' => float, 'ordre_id' => int, 'linje_id' => int, 'ordrenr' => string]
-	 *                    or null when no open purchase line covers this item.
+	 *                    or null when no open purchase line covers this item and variant.
 	 */
-	function find_open_purchase_cost($vare_id)
+	function find_open_purchase_cost($vare_id, $variant_id = 0)
 	{
 		$vare_id = (int) $vare_id;
 		if (!$vare_id) {
 			return NULL;
 		}
+		$variant_id = (int) $variant_id;
 
-		$qtxt  = "select ol.id as linje_id, ol.ordre_id, ol.pris, ol.rabat, ol.antal, ";
+		$qtxt  = "select ol.id as linje_id, ol.ordre_id, ol.pris, ol.rabat, ol.antal, ol.variant_id, ";
 		$qtxt .= "coalesce((select sum(bk.antal) from batch_kob bk where bk.linje_id = ol.id), 0) as modtaget, ";
 		$qtxt .= "o.valutakurs, o.ordrenr ";
 		$qtxt .= "from ordrelinjer ol, ordrer o ";
@@ -84,6 +97,12 @@ if (!function_exists('find_open_purchase_cost')) {
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
 		while ($r = db_fetch_array($q)) {
+			// Filtered here rather than in SQL: variant_id is a text column holding '', NULL and
+			// numbers across tenants, so casting it in the query would be the fragile part.
+			if ((int) (isset($r['variant_id']) ? $r['variant_id'] : 0) !== $variant_id) {
+				continue;   // a different variant of the same item, bought at its own price
+			}
+
 			$antal    = (float) $r['antal'];
 			$modtaget = (float) $r['modtaget'];
 			if ($antal - $modtaget <= 0) {
@@ -129,6 +148,7 @@ if (!function_exists('deficit_cost_price')) {
 	 *
 	 * @param int|string   $vare_id  The item.
 	 * @param int|string   $linje_id The order line being priced, for the log only.
+	 * @param int|string   $variant_id Variant of the item, '' or 0 when it has none.
 	 * @param resource|null $fp      Open order log handle, or NULL when the caller has none.
 	 * @param int|string   $sprog_id Language for the warning text.
 	 * @param string       $kontekst Short label naming the calling branch, for the log.
@@ -138,12 +158,12 @@ if (!function_exists('deficit_cost_price')) {
 	 *                            since that is where an API caller can see what happened at all.
 	 * @return float The cost price, in base currency.
 	 */
-	function deficit_cost_price($vare_id, $linje_id, $fp, $sprog_id, $kontekst, $webservice = false)
+	function deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, $kontekst, $webservice = false)
 	{
 		// One warning per request. A delivery is a single request, so this is "once per delivery".
 		static $advaret = 0;
 
-		$kostkilde = find_open_purchase_cost($vare_id);
+		$kostkilde = find_open_purchase_cost($vare_id, $variant_id);
 		if ($kostkilde) {
 			$kostpris      = $kostkilde['pris'];
 			$kostkilde_txt = "open purchase line " . $kostkilde['linje_id'] . " on order " . $kostkilde['ordrenr'];

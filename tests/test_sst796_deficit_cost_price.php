@@ -75,6 +75,7 @@ function poLine(array $over = []): array
         'rabat'      => '0.000',
         'antal'      => '1.000',
         'modtaget'   => '0.000',
+        'variant_id'  => '',
         'valutakurs' => '750.000',
         'ordrenr'    => '355',
     ];
@@ -128,6 +129,38 @@ foreach ($GLOBALS['sst796_queries'] as $q) {
 }
 check('and modtagelser is not consulted at all', false, $touchedModtagelser);
 
+// Two variants of one item, bought at different prices: the sale must be costed from its own
+// variant's line, never from whichever line happens to be newest. Both lines here are open, and the
+// wrong one is first in the result set, so picking by vare_id alone would return it.
+$GLOBALS['sst796_rows'] = [
+    poLine(['variant_id' => '7', 'pris' => '9000.000', 'linje_id' => 701]),
+    poLine(['variant_id' => '3', 'pris' => '18500.000', 'linje_id' => 703]),
+];
+$hit = find_open_purchase_cost(1096, 3);
+check('a variant is priced from its own purchase line', 703, $hit['linje_id']);
+check('and not from the other variant', 138750.0, $hit['pris']);
+
+$GLOBALS['sst796_rows'] = [
+    poLine(['variant_id' => '7', 'pris' => '9000.000', 'linje_id' => 701]),
+    poLine(['variant_id' => '3', 'pris' => '18500.000', 'linje_id' => 703]),
+];
+check('the other variant gets its own price', 67500.0, find_open_purchase_cost(1096, 7)['pris']);
+
+// Nothing open for this variant: fall back to varer.kostpris rather than borrow another variant's
+// price. A wrong cost taken from a different variant is harder to spot than a stale one.
+$GLOBALS['sst796_rows'] = [poLine(['variant_id' => '7', 'pris' => '9000.000'])];
+check('an unmatched variant does not borrow another line', NULL, find_open_purchase_cost(1096, 3));
+
+// Legacy rows carry variant_id as '' rather than 0, on a text column, and non-variant sales pass 0.
+$GLOBALS['sst796_rows'] = [poLine(['variant_id' => ''])];
+check("a legacy '' variant matches a non-variant sale", 138750.0, find_open_purchase_cost(1096, 0)['pris']);
+
+$GLOBALS['sst796_rows'] = [poLine(['variant_id' => '0'])];
+check("a '0' variant matches a non-variant sale", 138750.0, find_open_purchase_cost(1096, '')['pris']);
+
+$GLOBALS['sst796_rows'] = [poLine(['variant_id' => '3'])];
+check('a variant line is not used for a non-variant sale', NULL, find_open_purchase_cost(1096, 0));
+
 // a zero-priced line tells us nothing; keep looking rather than writing 0 onto the invoice
 $GLOBALS['sst796_rows'] = [poLine(['pris' => '0.000']), poLine(['pris' => '2000.000', 'linje_id' => 999])];
 $hit = find_open_purchase_cost(1096);
@@ -154,6 +187,7 @@ check("only status 1 or 2 count as open", true, strpos($q, "o.status = '1' or o.
 check("newest order first", true, strpos($q, 'order by o.ordredate desc') !== false);
 check("outstanding quantity comes from batch_kob, as the receipt path measures it", true, strpos($q, 'from batch_kob bk where bk.linje_id = ol.id') !== false);
 check("ordrelinjer.leveret is not consulted", false, strpos($q, 'leveret') !== false);
+check("the variant is selected so it can be matched", true, strpos($q, 'ol.variant_id') !== false);
 
 // ---------------------------------------------------------------------------------------------
 // deficit_cost_price(): the resolver both of linjeopdat()'s deficit branches now share. While only
@@ -166,7 +200,7 @@ function runResolver($vare_id, $linje_id, $kontekst)
 {
     $fp = fopen('php://memory', 'w+');
     ob_start();
-    $pris = deficit_cost_price($vare_id, $linje_id, $fp, 2, $kontekst);
+    $pris = deficit_cost_price($vare_id, $linje_id, 0, $fp, 2, $kontekst);
     $printed = ob_get_clean();
     rewind($fp);
     $log = stream_get_contents($fp);
@@ -184,7 +218,7 @@ function runResolver($vare_id, $linje_id, $kontekst)
 $GLOBALS['sst796_rows'] = [poLine()];
 $fp = fopen('php://memory', 'w+');
 ob_start();
-$ws = deficit_cost_price(1096, 44005, $fp, 2, 'salg fra negativ lagerbeholdning', 'on');
+$ws = deficit_cost_price(1096, 44005, 0, $fp, 2, 'salg fra negativ lagerbeholdning', 'on');
 $wsPrinted = ob_get_clean();
 rewind($fp);
 $wsLog = stream_get_contents($fp);
@@ -224,7 +258,7 @@ check('and logs varer.kostpris as the source', true, strpos($fallback['log'], 's
 // A caller without an order log handle must not fatal.
 $GLOBALS['sst796_rows'] = [poLine()];
 ob_start();
-$noLog = deficit_cost_price(1096, 44004, NULL, 2, 'negativt salg/kreditnota');
+$noLog = deficit_cost_price(1096, 44004, 0, NULL, 2, 'negativt salg/kreditnota');
 ob_end_clean();
 check('a NULL log handle is tolerated', 138750.0, $noLog);
 
