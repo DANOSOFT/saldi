@@ -14,6 +14,10 @@
 // 20260909 CDX/MJ SST-775 Moved normalizeDateFormat() to poolDateNormalizer.php so the date
 //             handling is testable - this file connects to a database and exits when included.
 //             Behaviour is unchanged here; the fixes live in that file.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: 'extract' now also returns the seller's
+//             CVR/IBAN/bank details and a server-side kreditor match (vendorMatch); 'save'
+//             re-runs the match from the posted identity fields (vendorScan=1) and stores
+//             the pool_files.vendor_* columns. Match logic lives in poolVendorMatcher.php.
 
 // 20260914 CDX/LH Share atomic metadata saves and reject stale confirmations.
 
@@ -35,6 +39,7 @@ include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolDateNormalizer.php");
 require_once __DIR__ . "/poolMetadata.php";
 require_once __DIR__ . "/../std_func.php";
+include_once(__DIR__ . "/poolVendorMatcher.php");
 
 // Resolve the tenant db from the session's online-table entry, same pattern
 // as includes/_docPoolData.php and includes/online.php - never from $_POST['db'].
@@ -72,6 +77,23 @@ include_once(__DIR__ . "/invoiceExtractionApi.php");
 
 // Discard any buffered output from includes
 ob_end_clean();
+
+/**
+ * Match the vendor identity of a scanned invoice against the tenant's kreditorer.
+ * Two database reads (adresser art='K' and the tenant's own CVR from art='S'), no API calls.
+ *
+ * @param array{name?:string|null,cvr?:string|null,iban?:string|null,bank_reg?:string|null,bank_konto?:string|null,customerCvr?:string|null} $identity
+ * @return array See poolVendorMatch().
+ */
+function extractInvoiceMatchVendor(array $identity) {
+	$ownCvr = poolVendorLoadOwnCvr();
+	// The buyer's CVR on the invoice is a second way to know which number is not the seller's.
+	$customerCvr = normalizePoolVendorCvr($identity['customerCvr'] ?? null);
+	if ($customerCvr !== null && $ownCvr === null) $ownCvr = $customerCvr;
+	$vendorCvr = normalizePoolVendorCvr($identity['cvr'] ?? null);
+	if ($vendorCvr !== null && $customerCvr !== null && $vendorCvr === $customerCvr) $identity['cvr'] = null;
+	return poolVendorMatch($identity, poolVendorLoadIndex(), array('ownCvr' => $ownCvr, 'nameScan' => 'full'));
+}
 
 
 // Get action and poolFile from POST
@@ -148,6 +170,15 @@ if ($action === 'extract') {
 		// Normalize date format (handles Danish months like "17.oktober.2025")
 		$normalizedDate = isset($result['date']) ? normalizeDateFormat($result['date']) : null;
 		
+		$vendorMatch = extractInvoiceMatchVendor(array(
+			'name' => $result['vendor'] ?? null,
+			'cvr' => $result['vendorCvr'] ?? null,
+			'iban' => $result['vendorIban'] ?? null,
+			'bank_reg' => $result['vendorBankReg'] ?? null,
+			'bank_konto' => $result['vendorBankKonto'] ?? null,
+			'customerCvr' => $result['customerCvr'] ?? null,
+		));
+
 		echo json_encode([
 			'success' => true,
 			'version' => $metadataVersion,
@@ -157,7 +188,13 @@ if ($action === 'extract') {
 				'vendor' => $result['vendor'] ?? null,
 				'invoiceNumber' => $result['invoiceNumber'] ?? null,
 				'description' => $result['description'] ?? null,
-				'currency' => $result['currency'] ?? null
+				'currency' => $result['currency'] ?? null,
+				'vendorCvr' => $result['vendorCvr'] ?? null,
+				'vendorIban' => $result['vendorIban'] ?? null,
+				'vendorBankReg' => $result['vendorBankReg'] ?? null,
+				'vendorBankKonto' => $result['vendorBankKonto'] ?? null,
+				'customerCvr' => $result['customerCvr'] ?? null,
+				'vendorMatch' => $vendorMatch
 			]
 		]);
 	} else {
@@ -181,7 +218,39 @@ if ($action === 'save') {
 		if ($version !== null && !is_string($version)) {
 			throw new InvalidArgumentException('Invalid version', 422);
 		}
-		echo json_encode(poolMetadataSave($poolFile, $input, ($_POST['manual'] ?? '') === '1', $version, $regnaar));
+		$result = poolMetadataSave($poolFile, $input, ($_POST['manual'] ?? '') === '1', $version, $regnaar);
+
+		// Vendor identity is only (re)matched when the caller is one of the scanning paths
+		// (vendorScan=1); a plain metadata save/correction leaves the vendor_* columns
+		// untouched. Best-effort, like the rest of this handler - a failed or skipped match
+		// never fails the save itself, it just reports vendor: null.
+		$vendorMatch = null;
+		if (($_POST['vendorScan'] ?? '') === '1') {
+			if (!poolVendorColumnsExist()) {
+				// Migration not applied on this tenant yet: the ordinary fields are already
+				// saved above; the file is matched on the next scan or when the pool opens
+				// after the columns exist.
+				error_log("extractInvoiceHandler: pool_files.vendor_* columns missing on $db - vendor match skipped for $poolFile");
+			} else {
+				$vendorMatch = extractInvoiceMatchVendor(array(
+					'name' => $_POST['newSubject'] ?? '',
+					'cvr' => $_POST['newVendorCvr'] ?? '',
+					'iban' => $_POST['newVendorIban'] ?? '',
+					'bank_reg' => $_POST['newVendorBankReg'] ?? '',
+					'bank_konto' => $_POST['newVendorBankKonto'] ?? '',
+					'customerCvr' => $_POST['newCustomerCvr'] ?? '',
+				));
+				if ($vendorMatch !== null) {
+					db_modify(
+						"UPDATE pool_files SET " . poolVendorUpdateSql($vendorMatch) . " WHERE filename = '" . db_escape_string($poolFile) . "'",
+						__FILE__ . " linje " . __LINE__
+					);
+				}
+			}
+		}
+
+		$result['vendor'] = $vendorMatch;
+		echo json_encode($result);
 	} catch (RuntimeException | InvalidArgumentException $error) {
 		$status = $error->getCode() === 409 ? 409 : 422;
 		http_response_code($status);
