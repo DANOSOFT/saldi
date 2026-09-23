@@ -21,9 +21,14 @@ foreach([
  [[],['poolFile'=>$receipt],[$receipt]],
  [[],['poolFiles'=>'a.pdf,b.pdf'],['a.pdf','b.pdf']],
  [[],[],[]],
+ // A single-value legacy poolFiles caller (no poolFile[] at all - e.g. bilagsmatch.php's
+ // AttachAll before it was switched to poolFile[]) still splits a comma-containing filename
+ // apart. This is why every caller must send poolFile[] instead of poolFiles for a filename
+ // that may contain a comma; it documents the bug this PR fixes, it doesn't fix this branch.
+ [['poolFiles'=>$receipt],[],array_map('trim',explode(',',$receipt))],
 ] as [$post,$get,$expected]) {
  $_POST=$post;$_GET=$get;$poolFile='currently-viewed.pdf';
  eval($code);
  if(array_values($poolFiles)!==$expected)throw new RuntimeException('Wrong selected filenames: '.json_encode($poolFiles));
 }
-echo "OK: 9 filename selection cases.\n";
+echo "OK: 10 filename selection cases.\n";
