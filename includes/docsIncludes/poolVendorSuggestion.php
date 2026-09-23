@@ -49,12 +49,13 @@ if (!function_exists('poolVendorSuggestion')) {
 		if ($match === 'ambiguous') {
 			$candidates = array();
 			foreach ((array) ($vendor['candidates'] ?? array()) as $c) {
-				if (!isset($c['kontonr']) || trim((string) $c['kontonr']) === '') continue;
+				$candidateNr = isset($c['kontonr']) ? trim((string) $c['kontonr']) : '';
+				if ($candidateNr === '') continue;
 				$candidates[] = array(
 					'kontoId' => (int) ($c['kontoId'] ?? 0),
-					'kontonr' => (string) $c['kontonr'],
+					'kontonr' => $candidateNr,
 					'firmanavn' => (string) ($c['firmanavn'] ?? ''),
-					'kredit' => 'K' . $c['kontonr'],
+					'kredit' => 'K' . $candidateNr,
 				);
 			}
 			if (!$candidates) return $none;

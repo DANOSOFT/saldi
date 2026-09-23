@@ -75,7 +75,8 @@
 // 20260922 CL/LAH Kreditor-forslag (kravspec afsnit 6): "Overfør data" fills Kredit with K+kontonr for
 //                 cvr/bank/name>=0.80 matches, offers a one-click suggestion below that, and a picker
 //                 for ambiguous; "Indsæt valgte" defaults Kredit the same way. A Kredit the user
-//                 already typed is never overwritten.
+//                 already typed is never overwritten. Every value shown in the popup is HTML-escaped
+//                 (invoice text from a scan could otherwise inject markup; found in Astra's review).
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolVendorSuggestion.php");
@@ -5364,17 +5365,20 @@ HTML;
 		const transferSubject     = sourceData.subject       || '';
 
 		// Kreditor-forslag (kravspec afsnit 6) from the vendor object on the file. Mirrors
-		// poolVendorSuggestion() in poolVendorMatcher.php.
+		// poolVendorSuggestion() in poolVendorSuggestion.php.
 		function vendorSuggestion(vendor) {
 			const none = { mode: 'none', kredit: null, firmanavn: null, score: 0, candidates: [] };
 			if (!vendor || typeof vendor !== 'object') return none;
-			const score = Number(vendor.score) || 0;
+			// Same normalisation as PHP: score rounded to 3 decimals, kontonr trimmed.
+			const score = Math.round((Number(vendor.score) || 0) * 1000) / 1000;
+			const trimNr = (v) => (v == null ? '' : String(v).trim());
 			if (vendor.match === 'ambiguous') {
-				const candidates = (vendor.candidates || []).filter(c => c && c.kontonr).map(c => ({ kontoId: c.kontoId, kontonr: String(c.kontonr), firmanavn: c.firmanavn || '', kredit: 'K' + c.kontonr }));
+				const candidates = (vendor.candidates || []).filter(c => c && trimNr(c.kontonr) !== '').map(c => ({ kontoId: c.kontoId, kontonr: trimNr(c.kontonr), firmanavn: c.firmanavn || '', kredit: 'K' + trimNr(c.kontonr) }));
 				return candidates.length ? { mode: 'choose', kredit: null, firmanavn: null, score: 0, candidates } : none;
 			}
-			if (!vendor.kontonr || ['cvr', 'bank', 'name'].indexOf(vendor.match) < 0) return none;
-			return { mode: (vendor.match === 'name' && score < 0.80) ? 'suggest' : 'auto', kredit: 'K' + vendor.kontonr, firmanavn: vendor.firmanavn || null, score, candidates: [] };
+			const kontonr = trimNr(vendor.kontonr);
+			if (kontonr === '' || ['cvr', 'bank', 'name'].indexOf(vendor.match) < 0) return none;
+			return { mode: (vendor.match === 'name' && score < 0.80) ? 'suggest' : 'auto', kredit: 'K' + kontonr, firmanavn: vendor.firmanavn || null, score, candidates: [] };
 		}
 		const vendorTxt = <?php echo json_encode(array(
 			'kreditor' => findtekst('1169|Kreditor', $sprog_id),
@@ -5396,10 +5400,10 @@ HTML;
 			overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center;';
 
 			const lines = [];
-			if (transferAmount)      lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beløb</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferAmount + '</td></tr>');
-			if (transferDate)        lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Dato</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferDate + '</td></tr>');
-			if (transferInvoice)     lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Faktura</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferInvoice + '</td></tr>');
-			if (transferDescription) lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beskrivelse</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferDescription + '</td></tr>');
+			if (transferAmount)      lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beløb</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferAmount) + '</td></tr>');
+			if (transferDate)        lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Dato</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferDate) + '</td></tr>');
+			if (transferInvoice)     lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Faktura</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferInvoice) + '</td></tr>');
+			if (transferDescription) lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beskrivelse</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferDescription) + '</td></tr>');
 			if (suggestion.mode === 'auto') {
 				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(suggestion.kredit) + ' <span style="font-weight:400;color:#666;">' + esc(suggestion.firmanavn || '') + '</span> <span style="font-weight:400;color:#17a2b8;font-size:11px;">(' + esc(vendorTxt.forslag) + ')</span></td></tr>');
 			} else if (suggestion.mode === 'suggest') {

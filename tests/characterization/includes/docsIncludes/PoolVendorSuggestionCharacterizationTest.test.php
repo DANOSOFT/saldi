@@ -55,6 +55,18 @@ final class PoolVendorSuggestionCharacterizationTest extends TestCase
         self::assertSame('none', poolVendorSuggestion(['match' => 'ambiguous', 'candidates' => []])['mode']);
     }
 
+    public function testScoreIsRoundedAndKontonrTrimmedLikeTheJavascriptMirror(): void
+    {
+        // Boundary cases shared with vendorSuggestion() in docPool.php (checked against it with node).
+        self::assertSame('auto', poolVendorSuggestion(['match' => 'name', 'score' => 0.7996, 'kontonr' => '1010'])['mode'], '0.7996 rounds to 0.800');
+        self::assertSame('suggest', poolVendorSuggestion(['match' => 'name', 'score' => 0.7994, 'kontonr' => '1010'])['mode']);
+        self::assertSame('K1010', poolVendorSuggestion(['match' => 'cvr', 'score' => 1, 'kontonr' => ' 1010 '])['kredit']);
+        self::assertSame('none', poolVendorSuggestion(['match' => 'cvr', 'score' => 1, 'kontonr' => '   '])['mode']);
+        $s = poolVendorSuggestion(['match' => 'ambiguous', 'candidates' => [['kontoId' => 1, 'kontonr' => ' 30500 ', 'firmanavn' => 'A'], ['kontoId' => 2, 'kontonr' => '  ', 'firmanavn' => 'B']]]);
+        self::assertSame(['K30500'], array_column($s['candidates'], 'kredit'));
+        self::assertSame('30500', $s['candidates'][0]['kontonr']);
+    }
+
     public function testNoMatchNullOrMissingKontonrDoesNothing(): void
     {
         self::assertSame('none', poolVendorSuggestion(null)['mode']);
