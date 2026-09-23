@@ -3108,10 +3108,8 @@ print <<<JS
 			formData.append('targetSourceIds', targetSourceIds.join(','));
 		}
 		
-		// Add selected files - ONLY use poolFiles (comma-separated) as it's most reliable
-		formData.append('poolFiles', selectedFiles.join(','));
-		
-		// Also add as array for compatibility
+		// poolFile[] (not poolFiles) so a filename containing a comma isn't split apart
+		// by docPool.php's legacy poolFiles=<comma-joined string> branch.
 		selectedFiles.forEach(file => {
 			formData.append('poolFile[]', file);
 		});
@@ -3236,7 +3234,6 @@ print <<<JS
 		}
 		
 		// Debug: log what we're sending
-		console.log('FormData poolFiles:', formData.get('poolFiles'));
 		console.log('FormData poolFile[]:', formData.getAll('poolFile[]'));
 		
 		// Show loading indicator
