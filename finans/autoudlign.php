@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.09.21----------
+// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.09.23----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // 20260921 CL/SZ   Address CodeRabbit findings: UTF-8-normalize findtekst()
 //                  output before json_encode(), localize the selected-entry
 //                  invoice label, and set <html lang> from $sprog_id.
+// 20260922 CDX/PHR Restore cross-account suggestions while retaining validated journal assignment.
 
 ob_start();
 @session_start();
@@ -759,7 +760,7 @@ print "</tbody></table></td></tr></tbody></table>";
       <div class="search-row">
         <label for="accountSelect"><?= findtekst('592', $sprog_id) ?></label>
         <select id="accountSelect" class="search-input" <?= $entryContext['account'] !== '' ? 'disabled' : '' ?>>
-          <option value=""><?= findtekst('5302', $sprog_id) ?></option>
+          <option value=""><?= findtekst('5324', $sprog_id) ?></option>
           <?php foreach ($accountOptions as $account): ?>
           <option value="<?= (int)$account['id'] ?>"
             data-account="<?= htmlspecialchars($account['kontonr'], ENT_QUOTES, 'UTF-8') ?>"
@@ -1007,11 +1008,6 @@ print "</tbody></table></td></tr></tbody></table>";
 
     const seq = ++fetchSeq;
     setLoading();
-    if (!accountSelect.value) {
-      candidates = [];
-      candidateBody.innerHTML = '<tr><td colspan="7"><div class="state-msg">' + esc(T.chooseAccountFirst) + '</div></td></tr>';
-      return;
-    }
     fetch(getSearchUrl(search, page))
       .then(r => r.json())
       .then(data => {
@@ -1111,7 +1107,7 @@ print "</tbody></table></td></tr></tbody></table>";
 
   /* ── Auto-select best candidate ─────────────────────────── */
   function autoSelectBest() {
-    if (!accountSelect.value || candidates.length === 0) return;
+    if (candidates.length === 0) return;
 
     const bestIndex = candidates.findIndex(c => String(c.id) === String(autoSelectId));
     const best = candidates[bestIndex];
@@ -1153,14 +1149,14 @@ print "</tbody></table></td></tr></tbody></table>";
 
   /* ── Do udlign ───────────────────────────────────────────── */
   function doUdlign() {
-    if (saving || !accountSelect.value || selectedIndex < 0 || !candidates[selectedIndex]) return;
+    if (saving || selectedIndex < 0 || !candidates[selectedIndex]) return;
     const c = candidates[selectedIndex];
 
     const formData = new FormData();
     formData.append('action',   'udlign');
     formData.append('entry_id', ENTRY_ID);
     formData.append('openpost_id', c.id);
-    formData.append('account_id', accountSelect.value);
+    formData.append('account_id', c.konto_id);
     formData.append('snapshot', SNAPSHOT);
     formData.append('token', TOKEN);
     saving = true;
@@ -1300,7 +1296,7 @@ print "</tbody></table></td></tr></tbody></table>";
   }
 
   /* ── Boot ────────────────────────────────────────────────── */
-  // Only fetch open posts after an account has been selected.
+  // Fetch across accounts unless the journal line or user supplies an account filter.
   // Using the raw description as a literal filter hides the real matches.
   fetchCandidates('', 1);
 
