@@ -1,5 +1,6 @@
 <?php
 // 20260907 CDX/LH Verify unlock-table authorization and retained sales-order responsibility.
+// 20260923 SZ SST-755 (CodeRabbit): cover lock_token matching and refresh_lock_token().
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -23,8 +24,8 @@ final class UnlockRecordRegressionTest extends TestCase
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $GLOBALS['unlockRecordTestDb'] = $this->db;
         foreach (['kladdeliste', 'ordrer', 'ordrelinjer'] as $table) {
-            $this->db->exec("CREATE TABLE $table (id INTEGER, art TEXT, tidspkt TEXT, hvem TEXT)");
-            $this->db->exec("INSERT INTO $table VALUES (1, 'DO', '123', 'salesperson'), (2, 'KO', '456', 'buyer'), (3, 'DK', '789', 'salesperson')");
+            $this->db->exec("CREATE TABLE $table (id INTEGER, art TEXT, tidspkt TEXT, hvem TEXT, lock_token TEXT)");
+            $this->db->exec("INSERT INTO $table VALUES (1, 'DO', '123', 'salesperson', 'tokA'), (2, 'KO', '456', 'buyer', 'tokB'), (3, 'DK', '789', 'salesperson', 'tokC')");
         }
     }
 
@@ -93,5 +94,55 @@ final class UnlockRecordRegressionTest extends TestCase
     {
         unlock_record('ordrer', 1, 'salesperson', '123');
         self::assertSame(['', 'salesperson'], $this->db->query('SELECT tidspkt,hvem FROM ordrer WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testUnlockClearsLockToken(): void
+    {
+        unlock_record('kladdeliste', 1, 'salesperson', '123');
+        self::assertSame('', $this->db->query('SELECT lock_token FROM kladdeliste WHERE id=1')->fetchColumn());
+    }
+
+    // 20260923 SZ SST-755 (CodeRabbit): lock_token distinguishes a second, still-open tab on
+    // the same record from the tab that most recently rendered - unlike tidspkt, which only
+    // changes on an explicit acquire/save and so is still shared by both tabs at this point.
+
+    public function testStaleLockTokenDoesNotUnlock(): void
+    {
+        unlock_record('kladdeliste', 1, null, null, 'not-the-current-token');
+        self::assertSame(['123', 'salesperson'], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testMatchingLockTokenUnlocks(): void
+    {
+        unlock_record('kladdeliste', 1, null, null, 'tokA');
+        self::assertSame(['', ''], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testLockTokenAndTidspktBothMustMatchWhenBothGiven(): void
+    {
+        // A stale tab's cached link only ever carries the lockToken it was rendered with, but
+        // this guards the combination too: either mismatching alone must block the release.
+        unlock_record('kladdeliste', 1, 'salesperson', '123', 'not-the-current-token');
+        self::assertSame(['123', 'salesperson'], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testRefreshLockTokenStampsCurrentOwnersRow(): void
+    {
+        refresh_lock_token('kladdeliste', 1, 'salesperson', 'fresh-token');
+        self::assertSame('fresh-token', $this->db->query('SELECT lock_token FROM kladdeliste WHERE id=1')->fetchColumn());
+        // The row's tidspkt/hvem are untouched - refresh_lock_token() only ever stamps the token.
+        self::assertSame(['123', 'salesperson'], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
+    }
+
+    public function testRefreshLockTokenIgnoresDifferentOwner(): void
+    {
+        refresh_lock_token('kladdeliste', 1, 'someone-else', 'fresh-token');
+        self::assertSame('tokA', $this->db->query('SELECT lock_token FROM kladdeliste WHERE id=1')->fetchColumn());
+    }
+
+    public function testRefreshLockTokenRejectsUnsupportedTable(): void
+    {
+        refresh_lock_token('ordrelinjer', 1, 'salesperson', 'fresh-token');
+        self::assertSame('tokA', $this->db->query('SELECT lock_token FROM ordrelinjer WHERE id=1')->fetchColumn());
     }
 }

@@ -74,6 +74,9 @@
 // 20260910 SZ SST-755 (CodeRabbit): the unload beacon now checks sendBeacon()'s return
 //                 value before treating the lock as released, falling back to the sync
 //                 XHR when it fails (same fix as finans/ordre.php and kassekladde.php).
+// 20260923 SZ SST-755 (CodeRabbit): Luk links and the unload beacon now carry a per-render
+//                 lockToken instead of tidspkt, since tidspkt alone didn't distinguish two
+//                 tabs open on the same order before either one saved.
 
 @session_start();
 $s_id=session_id();
@@ -112,6 +115,10 @@ $valg=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
+// 20260923 SZ SST-755 (CodeRabbit): one random per-render token, reused by both sidehoved()'s
+// exit link and the unload beacon further down (see refresh_lock_token() in unlockRecord.php).
+$sessionLockToken = bin2hex(random_bytes(16));
 
 $returside = if_isset($_GET,NULL,'returside');
 ########
@@ -1656,18 +1663,26 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $sprog_id;
 	global $top_bund;
 	global $valg;
+	global $sessionLockToken;
 
 	$title= 'Leverandør ordre';
 	$alerttekst=findtekst(154,$sprog_id);
 
 	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
 	// includes/luk.php can confirm this tab still holds the lock before releasing it.
-	$sidehovedTidspkt = NULL;
+	// 20260923 SZ SST-755 (CodeRabbit): now appends &lockToken instead - $sessionLockToken is
+	// one random value per render, reused for the unload beacon too, so a second tab on the
+	// same order that hasn't saved anything yet (and so still shares this tab's tidspkt) no
+	// longer shares a valid release credential.
+	$sidehovedLockToken = NULL;
 	if ($id) {
 		$sidehovedLockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
-		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) $sidehovedTidspkt = $sidehovedLockRow['tidspkt'];
+		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) {
+			$sidehovedLockToken = $sessionLockToken;
+			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sidehovedLockToken);
+		}
 	}
-	$sidehovedTidspktQs = $sidehovedTidspkt !== null ? "&tidspkt=" . urlencode($sidehovedTidspkt) : "";
+	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) : "";
 
 	include("../includes/topline_settings.php");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -1860,12 +1875,18 @@ if ($menu=='T') {
 // 20260908 SZ SST-755: added table+tidspkt (required by the now-generalized, whitelisted
 // unlock_order.php) - re-read fresh here rather than trusting an earlier-computed value, since
 // $id can be reassigned by insertAccount() etc. earlier in this same render.
-$beaconTidspkt = NULL;
+// 20260923 SZ SST-755 (CodeRabbit): beacon now sends lockToken instead of tidspkt, reusing the
+// same $sessionLockToken minted at the top of this file (and re-stamping it here too, in case
+// $id changed since then) - see sidehoved()'s exit link earlier in this file for why.
+$beaconLockToken = NULL;
 if ($id) {
 	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
-	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) $beaconTidspkt = $beaconRow['tidspkt'];
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
+		$beaconLockToken = $sessionLockToken;
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken);
+	}
 }
-if ($beaconTidspkt) {
+if ($beaconLockToken) {
 ?>
 <script>
 let isSubmitting = false;
@@ -1882,7 +1903,7 @@ function unlockOrderBeacon(evtName) {
         let data = new URLSearchParams();
         data.append("table", "ordrer");
         data.append("id", "<?php echo (int)$id; ?>");
-        data.append("tidspkt", "<?php echo htmlspecialchars($beaconTidspkt, ENT_QUOTES); ?>");
+        data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
         data.append("event", evtName);
         // sendBeacon() can return false (queue full/rejected) without sending anything - only
         // treat the lock as released, and skip the sync XHR fallback, once one of the two has

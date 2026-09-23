@@ -45,6 +45,7 @@
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
 //                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
 //                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
+// 20260923 SZ SST-755 (CodeRabbit): kladdeliste.lock_token/ordrer.lock_token, Postgres and MySQL.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -698,6 +699,48 @@ if ($poolVendorMissing) {
 	} else {
 		foreach ($poolVendorMissing as $poolVendorColumn => $poolVendorProbe) {
 			db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolVendorColumn " . $poolVendorColumns[$poolVendorColumn], __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+
+// SST-755 (CodeRabbit follow-up): kladdeliste.lock_token / ordrer.lock_token hold a fresh
+// per-render token (see refresh_lock_token() in includes/stdFunc/unlockRecord.php), separate
+// from tidspkt - tidspkt only changes on an explicit acquire/save, so two tabs open on the
+// same record before either saved shared the same tidspkt and could release each other's
+// lock. lock_token changes on every render, so only the most recently rendered tab's exit
+// link/beacon still matches.
+$lockTokenMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$lockTokenTables = ['kladdeliste', 'ordrer'];
+$lockTokenMissing = array();
+foreach ($lockTokenTables as $lockTokenTable) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$lockTokenTable' AND column_name = 'lock_token'";
+	$qtxt .= $lockTokenMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$lockTokenMissing[] = $lockTokenTable;
+	}
+}
+if ($lockTokenMissing) {
+	if ($lockTokenMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the
+		// check above; serialize per tenant and recheck under the lock (same as performed_by).
+		$lockTokenLock = "CONCAT('saldi:lock_token:', MD5(DATABASE()))";
+		$lockTokenLockResult = db_fetch_array(db_select("SELECT GET_LOCK($lockTokenLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($lockTokenLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the lock_token migration lock.');
+		}
+		try {
+			foreach ($lockTokenMissing as $lockTokenTable) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$lockTokenTable' AND column_name = 'lock_token' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE $lockTokenTable ADD COLUMN lock_token TEXT", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($lockTokenLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($lockTokenMissing as $lockTokenTable) {
+			db_modify("ALTER TABLE $lockTokenTable ADD COLUMN IF NOT EXISTS lock_token TEXT", __FILE__ . " linje " . __LINE__);
 		}
 	}
 }

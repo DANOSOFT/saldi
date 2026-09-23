@@ -20,6 +20,9 @@
 // id/tabel params entirely, and there was no unload beacon at all).
 // 20260910 SZ SST-755 (CodeRabbit): the unload beacon now checks sendBeacon()'s return value
 // before treating the lock as released, falling back to the sync XHR when it fails.
+// 20260923 SZ SST-755 (CodeRabbit): returside and the unload beacon now carry a per-render
+// lockToken instead of tidspkt, since tidspkt alone didn't distinguish two tabs open on the
+// same order before either one saved.
 
 @session_start();
 $s_id=session_id();
@@ -56,6 +59,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
 
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 $tidspkt=date("U");
@@ -80,12 +84,18 @@ if ($tjek=if_isset($_GET['tjek'])){
 // *current* DB tidspkt (read fresh, not the request's own "now" value - prev/next navigation
 // re-renders without re-acquiring) so a stale tab's release can't clobber a lock a newer tab
 // has since acquired. $lockTidspkt is also reused for the unload beacon further down.
+// 20260923 SZ SST-755 (CodeRabbit): returside now carries &lockToken instead of &tidspkt.
+// $sessionLockToken is one random value per render, reused below for the unload beacon too
+// (via refresh_lock_token()), so a second tab on the same order that hasn't saved anything
+// yet (and so still shares this tab's tidspkt) no longer shares a valid release credential.
+$sessionLockToken = bin2hex(random_bytes(16));
 $lockTidspkt = NULL;
 if ($popup && $id) {
 	$lockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
 	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
 		$lockTidspkt = $lockRow['tidspkt'];
-		$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&tidspkt=" . urlencode($lockTidspkt);
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $sessionLockToken);
+		$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken);
 	}
 }
 
@@ -1959,12 +1969,18 @@ if ($fokus) {
 // debitor). Re-read the lock fresh here (not the early $lockTidspkt) since $id can change later
 // in this script (POST-created order, etc.) - the beacon must reference whatever is actually
 // locked by the time the page finishes rendering, not what was locked at request start.
-$beaconTidspkt = NULL;
+// 20260923 SZ SST-755 (CodeRabbit): beacon now sends lockToken instead of tidspkt, reusing the
+// same $sessionLockToken minted above (and re-stamping it here too, in case $id changed since
+// then) - see the exit-link block earlier in this file for why.
+$beaconLockToken = NULL;
 if ($id) {
 	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
-	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) $beaconTidspkt = $beaconRow['tidspkt'];
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
+		$beaconLockToken = $sessionLockToken;
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken);
+	}
 }
-if ($beaconTidspkt) {
+if ($beaconLockToken) {
 ?>
 <script>
 let isSubmittingFinansOrdre = false;
@@ -1979,7 +1995,7 @@ function unlockFinansOrdreBeacon(evtName) {
         let data = new URLSearchParams();
         data.append("table", "ordrer");
         data.append("id", "<?php echo (int)$id; ?>");
-        data.append("tidspkt", "<?php echo htmlspecialchars($beaconTidspkt, ENT_QUOTES); ?>");
+        data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
         data.append("event", evtName);
         // sendBeacon() can return false (queue full/rejected) without sending anything - only
         // treat the lock as released, and skip the sync XHR fallback, once one of the two has

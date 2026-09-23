@@ -116,6 +116,9 @@
 // 20260910 SZ SST-755 (CodeRabbit): popup/visipop Luk link now carries a returside fallback
 //                  too, and the unload beacon checks sendBeacon()'s return value before
 //                  treating the lock as released, falling back to the sync XHR when it fails.
+// 20260923 SZ SST-755 (CodeRabbit): exit link and beacon now carry a per-render lockToken
+//                  instead of tidspkt, since tidspkt alone didn't distinguish two tabs open on
+//                  the same kladde before either one saved.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 
@@ -193,6 +196,7 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
 
 include("./kassekladde_includes/bilagsmatch.php");
 
@@ -1606,12 +1610,23 @@ if ($kladde_id) {
 // (dead for the "Ny" button, since kassekladde.php never read exitDraft; and skipped entirely
 // whenever the back target wasn't kladdeliste.php). $kladdeLukBase is reused below for every
 // exit link, with &returside=<target> appended per link.
+// 20260923 SZ SST-755 (CodeRabbit): exit links now carry &lockToken instead of &tidspkt.
+// $sessionLockToken is one random value per render, reused below for the unload beacon too
+// (via refresh_lock_token()), so a second tab on the same kladde that hasn't saved anything
+// yet (and so still shares this tab's tidspkt) no longer shares a valid release credential -
+// only the most recently rendered tab's link/beacon still matches.
+$sessionLockToken = bin2hex(random_bytes(16));
 $lockTidspkt = NULL;
+$lockToken = NULL;
 if ($kladde_id) {
 	$lockRow = db_fetch_array(db_select("select tidspkt from kladdeliste where id=" . (int)$kladde_id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
-	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) $lockTidspkt = $lockRow['tidspkt'];
+	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
+		$lockTidspkt = $lockRow['tidspkt'];
+		$lockToken = $sessionLockToken;
+		refresh_lock_token('kladdeliste', (int)$kladde_id, $brugernavn, $lockToken);
+	}
 }
-$kladdeLukBase = "../includes/luk.php?tabel=kladdeliste&id=" . (int)$kladde_id . ($lockTidspkt !== null ? "&tidspkt=" . urlencode($lockTidspkt) : "");
+$kladdeLukBase = "../includes/luk.php?tabel=kladdeliste&id=" . (int)$kladde_id . ($lockToken !== null ? "&lockToken=" . urlencode($lockToken) : "");
 $x = 0;
 ($visipop) ? $ny = NULL : $ny = findtekst('39|Ny', $sprog_id); #20210628
 
@@ -5646,13 +5661,19 @@ document.addEventListener('DOMContentLoaded', function() {
 // fresh here (not the earlier $lockTidspkt) since $kladde_id can change later in this script
 // (e.g. a newly created kladde) - the beacon must reference whatever is actually locked by the
 // time the page finishes rendering.
+// 20260923 SZ SST-755 (CodeRabbit): beacon now sends lockToken instead of tidspkt, reusing the
+// same $sessionLockToken minted above (and re-stamping it here too, in case $kladde_id changed
+// since then) - see the exit-link block earlier in this file for why.
 $beaconKladdeId = (int)if_isset($kladde_id, 0);
-$beaconTidspkt = NULL;
+$beaconLockToken = NULL;
 if ($beaconKladdeId) {
 	$beaconRow = db_fetch_array(db_select("select tidspkt from kladdeliste where id=" . $beaconKladdeId . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
-	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) $beaconTidspkt = $beaconRow['tidspkt'];
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
+		$beaconLockToken = $sessionLockToken;
+		refresh_lock_token('kladdeliste', $beaconKladdeId, $brugernavn, $beaconLockToken);
+	}
 }
-if ($beaconTidspkt) {
+if ($beaconLockToken) {
 ?>
 <script>
 let isSubmittingKassekladde = false;
@@ -5676,7 +5697,7 @@ function unlockKassekladdeBeacon(evtName) {
         let data = new URLSearchParams();
         data.append("table", "kladdeliste");
         data.append("id", "<?php echo $beaconKladdeId; ?>");
-        data.append("tidspkt", "<?php echo htmlspecialchars($beaconTidspkt, ENT_QUOTES); ?>");
+        data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
         data.append("event", evtName);
         // sendBeacon() can return false (queue full/rejected) without sending anything - only
         // treat the lock as released, and skip the sync XHR fallback, once one of the two has

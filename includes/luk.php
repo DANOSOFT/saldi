@@ -77,6 +77,11 @@ elseif (strpos($_SERVER['HTTP_USER_AGENT'],'MSIE')) $browser='ie';
 //                  includes/online.php include above, leaving $brugernavn null, and
 //                  unlock_record() silently drops the owner check entirely when null,
 //                  falling back to id+tidspkt-only matching (CWE-862: missing authorization).
+// 20260923 SZ SST-755 (CodeRabbit): also accept $lockToken - the pages now send this instead
+//                  of $tidspkt for their own exit links (see refresh_lock_token() in
+//                  unlockRecord.php), since $tidspkt alone didn't distinguish two tabs open on
+//                  the same record before either one saved. A stale cached link from before
+//                  this change still sends only $tidspkt, which still works exactly as before.
 if (!function_exists('nav_sanitize_returside')) {
 	include(__DIR__ . "/stdFunc/navStack.php");
 }
@@ -84,15 +89,16 @@ $returside = nav_sanitize_returside($_GET['returside'] ?? null);
 $tabel = $_GET['tabel'] ?? null;
 $id = (int)($_GET['id'] ?? 0);
 $tidspkt = $_GET['tidspkt'] ?? null;
+$lockToken = $_GET['lockToken'] ?? null;
 $isLockingTable = in_array($tabel, ['ordrer', 'kladdeliste'], true);
-// A locking table's release must carry both the tab's own tidspkt and a real, authenticated
-// owner - skip the unlock entirely rather than release the lock without verifying either
-// (SST-755). Anything else (most callers, which don't hold a lock at all) is unaffected -
-// unlock_record() already no-ops for a $tabel outside its own allowlist.
+// A locking table's release must carry a real, authenticated owner plus at least one of the
+// two release tokens - skip the unlock entirely rather than release the lock without
+// verifying either (SST-755). Anything else (most callers, which don't hold a lock at all)
+// is unaffected - unlock_record() already no-ops for a $tabel outside its own allowlist.
 if (!$isLockingTable) {
-	unlock_record($tabel, $id, $brugernavn ?? null, $tidspkt);
-} elseif ($tidspkt && !empty($brugernavn)) {
-	unlock_record($tabel, $id, $brugernavn, $tidspkt);
+	unlock_record($tabel, $id, $brugernavn ?? null, $tidspkt, $lockToken);
+} elseif (($tidspkt || $lockToken) && !empty($brugernavn)) {
+	unlock_record($tabel, $id, $brugernavn, $tidspkt, $lockToken);
 }
 if (!isset($popup)) $popup = NULL;
 if (!empty($_GET['popup'])) $popup = 1; // request flag: this window IS a popup regardless of the user's popup preference
