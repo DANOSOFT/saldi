@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// --- includes/alignOpenpostIncludes/doAlign.php --- ver 4.0.8 --- 2016-14-04--------
+// --- includes/alignOpenpostIncludes/doAlign.php --- ver 4.0.8 --- 2026-09-23--------
 // LICENS>
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,8 +23,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2016 DANOSOFT ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20260923 CDX/PHR Save invoice references with settlement only when explicitly requested.
 // 20260921 CDX/MJ MB-57 Success redirect: when the udligning was opened from the debtor card the
 //                  target was ../debitor/debitorkort.php with no id, which renders an empty card -
 //                  the blank page MEDshop reported. Those callers now land on the kontokort report.
@@ -166,8 +167,11 @@
 		}
 	}
 	for ($x=0; $x<=$postantal; $x++) {
-		if ($udlign[$x]=='on') {
-			db_modify("UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='$alignDate' where id = '" . (int) $post_id[$x] . "'",__FILE__ . " linje " . __LINE__);
+		if (isset($udlign[$x]) && $udlign[$x]=='on') {
+			$referenceUpdate = $x === 0 && !empty($insertInvoiceNumbers) ? ", faktnr='" . db_escape_string($faktnr[0]) . "'" : '';
+			$qtxt = "UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='$alignDate'";
+			$qtxt .= $referenceUpdate . " where id = " . (int)$post_id[$x];
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 	}
 	transaktion('commit');
