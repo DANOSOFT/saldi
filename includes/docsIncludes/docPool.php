@@ -72,8 +72,14 @@
 //                 CREATE TABLE IF NOT EXISTS fallbacks; the three scanning paths (single scan,
 //                 'Opdatér alle', auto-extract on upload) now post the seller's CVR/IBAN/bank
 //                 details with vendorScan=1 so extractInvoiceHandler.php can match the kreditor.
+// 20260922 CL/LAH Kreditor-forslag (kravspec afsnit 6): "Overfør data" fills Kredit with K+kontonr for
+//                 cvr/bank/name>=0.80 matches, offers a one-click suggestion below that, and a picker
+//                 for ambiguous; "Indsæt valgte" defaults Kredit the same way. A Kredit the user
+//                 already typed is never overwritten. Every value shown in the popup is HTML-escaped
+//                 (invoice text from a scan could otherwise inject markup; found in Astra's review).
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
+include_once(__DIR__ . "/poolVendorSuggestion.php");
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -578,6 +584,19 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				}
 				if (!$sourceId && $postedBlank('beskrivelse') && $poolData['description']) {
 					$_POST['beskrivelse'] = $poolData['description'];
+				}
+				// Kreditor-forslag (kravspec afsnit 6): only the automatic tier - a typed Kredit wins.
+				if (!$sourceId && $postedBlank('kredit') && !empty($poolData['vendor_konto_id']) && !empty($poolData['vendor_match'])) {
+					$insertKontonr = poolVendorKontonrById($poolData['vendor_konto_id']);
+					$insertSuggestion = poolVendorSuggestion(array(
+						'match' => $poolData['vendor_match'],
+						'score' => $poolData['vendor_score'] ?? 0,
+						'kontonr' => $insertKontonr,
+					));
+					if ($insertSuggestion['mode'] === 'auto') {
+						$_POST['kredit'] = $insertSuggestion['kredit'];
+						docPoolLog("docPool INSERT - Setting kredit from vendor match: " . $insertSuggestion['kredit'] . " (" . $poolData['vendor_match'] . ")");
+					}
 				}
 				if (!$sourceId && $postedBlank('valuta') && $poolData['currency']) {
 					$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($poolData['currency'])) . "'";
@@ -5345,6 +5364,33 @@ HTML;
 		const transferDescription = sourceData.description || sourceData.subject || '';
 		const transferSubject     = sourceData.subject       || '';
 
+		// Kreditor-forslag (kravspec afsnit 6) from the vendor object on the file. Mirrors
+		// poolVendorSuggestion() in poolVendorSuggestion.php.
+		function vendorSuggestion(vendor) {
+			const none = { mode: 'none', kredit: null, firmanavn: null, score: 0, candidates: [] };
+			if (!vendor || typeof vendor !== 'object') return none;
+			// Same normalisation as PHP: score rounded to 3 decimals, kontonr trimmed.
+			const score = Math.round((Number(vendor.score) || 0) * 1000) / 1000;
+			const trimNr = (v) => (v == null ? '' : String(v).trim());
+			if (vendor.match === 'ambiguous') {
+				const candidates = (vendor.candidates || []).filter(c => c && trimNr(c.kontonr) !== '').map(c => ({ kontoId: c.kontoId, kontonr: trimNr(c.kontonr), firmanavn: c.firmanavn || '', kredit: 'K' + trimNr(c.kontonr) }));
+				return candidates.length ? { mode: 'choose', kredit: null, firmanavn: null, score: 0, candidates } : none;
+			}
+			const kontonr = trimNr(vendor.kontonr);
+			if (kontonr === '' || ['cvr', 'bank', 'name'].indexOf(vendor.match) < 0) return none;
+			return { mode: (vendor.match === 'name' && score < 0.80) ? 'suggest' : 'auto', kredit: 'K' + kontonr, firmanavn: vendor.firmanavn || null, score, candidates: [] };
+		}
+		const vendorTxt = <?php echo json_encode(array(
+			'kreditor' => findtekst('1169|Kreditor', $sprog_id),
+			'forslag' => findtekst('5241|Forslag fra AI-scan', $sprog_id),
+			'brug' => findtekst('5242|Brug forslag', $sprog_id),
+			'vaelg' => findtekst('5243|Vælg kreditor', $sprog_id),
+			'ikkeFundet' => findtekst('5244|Kreditoren findes ikke i regnskabet', $sprog_id),
+			'ikkeOverskrevet' => findtekst('5245|Kredit var allerede udfyldt og blev ikke ændret', $sprog_id),
+		), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+		const suggestion = vendorSuggestion(sourceData.vendor);
+		const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 		// Populate each target entry
 		const existing = document.getElementById('transferConfirmPopup');
 			if (existing) existing.remove();
@@ -5354,10 +5400,20 @@ HTML;
 			overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center;';
 
 			const lines = [];
-			if (transferAmount)      lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beløb</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferAmount + '</td></tr>');
-			if (transferDate)        lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Dato</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferDate + '</td></tr>');
-			if (transferInvoice)     lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Faktura</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferInvoice + '</td></tr>');
-			if (transferDescription) lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beskrivelse</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferDescription + '</td></tr>');
+			if (transferAmount)      lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beløb</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferAmount) + '</td></tr>');
+			if (transferDate)        lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Dato</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferDate) + '</td></tr>');
+			if (transferInvoice)     lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Faktura</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferInvoice) + '</td></tr>');
+			if (transferDescription) lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beskrivelse</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferDescription) + '</td></tr>');
+			if (suggestion.mode === 'auto') {
+				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(suggestion.kredit) + ' <span style="font-weight:400;color:#666;">' + esc(suggestion.firmanavn || '') + '</span> <span style="font-weight:400;color:#17a2b8;font-size:11px;">(' + esc(vendorTxt.forslag) + ')</span></td></tr>');
+			} else if (suggestion.mode === 'suggest') {
+				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;"><label style="cursor:pointer;"><input type="checkbox" id="transferUseKredit" style="vertical-align:middle;margin-right:6px;"> ' + esc(vendorTxt.brug) + ': <b>' + esc(suggestion.kredit) + '</b> ' + esc(suggestion.firmanavn || '') + ' <span style="color:#666;font-size:11px;">(' + Math.round(suggestion.score * 100) + ' %)</span></label></td></tr>');
+			} else if (suggestion.mode === 'choose') {
+				const opts = suggestion.candidates.map(c => '<option value="' + esc(c.kredit) + '">' + esc(c.kredit) + ' ' + esc(c.firmanavn) + '</option>').join('');
+				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;"><select id="transferChooseKredit" style="font-size:13px;padding:3px 6px;"><option value="">' + esc(vendorTxt.vaelg) + '</option>' + opts + '</select></td></tr>');
+			} else if (sourceData.vendor && sourceData.vendor.name && sourceData.vendor.match === 'none') {
+				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;color:#666;">' + esc(sourceData.vendor.name) + ' <span style="font-size:11px;">(' + esc(vendorTxt.ikkeFundet) + ')</span></td></tr>');
+			}
 
 			overlay.innerHTML = `
 				<div style="background:#fff;border-radius:10px;padding:24px;min-width:320px;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
@@ -5380,9 +5436,20 @@ HTML;
 
 			// OK — populate fields
 			document.getElementById('transferOkBtn').addEventListener('click', function() {
+				// Resolve the kreditor choice before the popup (and its inputs) go away.
+				let transferKredit = '';
+				if (suggestion.mode === 'auto') transferKredit = suggestion.kredit;
+				else if (suggestion.mode === 'suggest') {
+					const cb = document.getElementById('transferUseKredit');
+					if (cb && cb.checked) transferKredit = suggestion.kredit;
+				} else if (suggestion.mode === 'choose') {
+					const sel = document.getElementById('transferChooseKredit');
+					if (sel && sel.value) transferKredit = sel.value;
+				}
 				overlay.remove();
 
 				let populated = 0;
+				let kreditKept = 0;
 				entriesToFill.forEach(function(entry) {
 					const rowId = entry.id.replace('bilagEntry_', '');
 					const pfx   = 'row_' + rowId + '_';
@@ -5399,9 +5466,22 @@ HTML;
 					if (transferDate)        setField(pfx + 'Dato',        transferDate);
 					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
 					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
+					if (transferKredit) {
+						// A Kredit the user typed is never overwritten by a suggestion.
+						const kreditEl = document.getElementById(pfx + 'Kredit');
+						if (kreditEl && kreditEl.value.trim() !== '' && kreditEl.value.trim() !== transferKredit) {
+							kreditKept++;
+						} else if (kreditEl) {
+							setField(pfx + 'Kredit', transferKredit);
+							kreditEl.title = vendorTxt.forslag + (suggestion.firmanavn ? ': ' + suggestion.firmanavn : '');
+							kreditEl.style.boxShadow = 'inset 0 0 0 2px #17a2b8';
+							kreditEl.addEventListener('input', function() { kreditEl.style.boxShadow = ''; kreditEl.title = ''; }, { once: true });
+						}
+					}
 
 					populated++;
 				});
+				if (kreditKept) console.info(vendorTxt.ikkeOverskrevet + ' (' + kreditKept + ')');
 
 				// Visual feedback on the button
 				const btn = document.getElementById('transferDataBtn');
