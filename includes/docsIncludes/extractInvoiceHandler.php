@@ -5,6 +5,10 @@
 // 20260909 CDX/MJ SST-775 Moved normalizeDateFormat() to poolDateNormalizer.php so the date
 //             handling is testable - this file connects to a database and exits when included.
 //             Behaviour is unchanged here; the fixes live in that file.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: 'extract' now also returns the seller's
+//             CVR/IBAN/bank details and a server-side kreditor match (vendorMatch); 'save'
+//             re-runs the match from the posted identity fields (vendorScan=1) and stores
+//             the pool_files.vendor_* columns. Match logic lives in poolVendorMatcher.php.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -22,6 +26,7 @@ $s_id = session_id();
 include_once(__DIR__ . "/../connect.php");
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolDateNormalizer.php");
+include_once(__DIR__ . "/poolVendorMatcher.php");
 
 // Resolve the tenant db from the session's online-table entry, same pattern
 // as includes/_docPoolData.php and includes/online.php - never from $_POST['db'].
@@ -57,6 +62,23 @@ include_once("invoiceExtractionApi.php");
 
 // Discard any buffered output from includes
 ob_end_clean();
+
+/**
+ * Match the vendor identity of a scanned invoice against the tenant's kreditorer.
+ * Two database reads (adresser art='K' and the tenant's own CVR from art='S'), no API calls.
+ *
+ * @param array{name?:string|null,cvr?:string|null,iban?:string|null,bank_reg?:string|null,bank_konto?:string|null,customerCvr?:string|null} $identity
+ * @return array See poolVendorMatch().
+ */
+function extractInvoiceMatchVendor(array $identity) {
+	$ownCvr = poolVendorLoadOwnCvr();
+	// The buyer's CVR on the invoice is a second way to know which number is not the seller's.
+	$customerCvr = normalizePoolVendorCvr($identity['customerCvr'] ?? null);
+	if ($customerCvr !== null && $ownCvr === null) $ownCvr = $customerCvr;
+	$vendorCvr = normalizePoolVendorCvr($identity['cvr'] ?? null);
+	if ($vendorCvr !== null && $customerCvr !== null && $vendorCvr === $customerCvr) $identity['cvr'] = null;
+	return poolVendorMatch($identity, poolVendorLoadIndex(), array('ownCvr' => $ownCvr, 'nameScan' => 'full'));
+}
 
 
 // Get action and poolFile from POST
@@ -131,6 +153,15 @@ if ($action === 'extract') {
 		// Normalize date format (handles Danish months like "17.oktober.2025")
 		$normalizedDate = isset($result['date']) ? normalizeDateFormat($result['date']) : null;
 		
+		$vendorMatch = extractInvoiceMatchVendor(array(
+			'name' => $result['vendor'] ?? null,
+			'cvr' => $result['vendorCvr'] ?? null,
+			'iban' => $result['vendorIban'] ?? null,
+			'bank_reg' => $result['vendorBankReg'] ?? null,
+			'bank_konto' => $result['vendorBankKonto'] ?? null,
+			'customerCvr' => $result['customerCvr'] ?? null,
+		));
+
 		echo json_encode([
 			'success' => true,
 			'data' => [
@@ -139,7 +170,13 @@ if ($action === 'extract') {
 				'vendor' => $result['vendor'] ?? null,
 				'invoiceNumber' => $result['invoiceNumber'] ?? null,
 				'description' => $result['description'] ?? null,
-				'currency' => $result['currency'] ?? null
+				'currency' => $result['currency'] ?? null,
+				'vendorCvr' => $result['vendorCvr'] ?? null,
+				'vendorIban' => $result['vendorIban'] ?? null,
+				'vendorBankReg' => $result['vendorBankReg'] ?? null,
+				'vendorBankKonto' => $result['vendorBankKonto'] ?? null,
+				'customerCvr' => $result['customerCvr'] ?? null,
+				'vendorMatch' => $vendorMatch
 			]
 		]);
 	} else {
@@ -157,6 +194,14 @@ if ($action === 'save') {
 	$newInvoiceNumber = isset($_POST['newInvoiceNumber']) ? $_POST['newInvoiceNumber'] : '';
 	$newDescription = isset($_POST['newDescription']) ? $_POST['newDescription'] : '';
 	$newCurrency = isset($_POST['newCurrency']) ? $_POST['newCurrency'] : '';
+	// Vendor identity is only (re)matched when the caller is one of the scanning paths
+	// (vendorScan=1); a plain metadata save leaves the vendor_* columns untouched.
+	$vendorScan = isset($_POST['vendorScan']) && $_POST['vendorScan'] === '1';
+	$newVendorCvr = isset($_POST['newVendorCvr']) ? $_POST['newVendorCvr'] : '';
+	$newVendorIban = isset($_POST['newVendorIban']) ? $_POST['newVendorIban'] : '';
+	$newVendorBankReg = isset($_POST['newVendorBankReg']) ? $_POST['newVendorBankReg'] : '';
+	$newVendorBankKonto = isset($_POST['newVendorBankKonto']) ? $_POST['newVendorBankKonto'] : '';
+	$newCustomerCvr = isset($_POST['newCustomerCvr']) ? $_POST['newCustomerCvr'] : '';
 	
 	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
 	
@@ -220,6 +265,27 @@ if ($action === 'save') {
 	$finalNormAmount = normalizePoolAmount($finalAmount);
 	$normAmountSql = ($finalNormAmount === null) ? 'NULL' : db_escape_string((string) $finalNormAmount);
 
+	// Match the scanned vendor against kreditorer on the server, so the frontend never
+	// carries the match result back and forth. The name as read stays in subject as before.
+	$vendorMatch = null;
+	if ($vendorScan && !poolVendorColumnsExist()) {
+		// Migration not applied on this tenant yet (see poolVendorColumnsExist): save the
+		// ordinary fields as before rather than failing the request; the file is matched
+		// on the next scan or when the pool opens after the columns exist.
+		error_log("extractInvoiceHandler: pool_files.vendor_* columns missing on $db - vendor match skipped for $poolFile");
+		$vendorScan = false;
+	}
+	if ($vendorScan) {
+		$vendorMatch = extractInvoiceMatchVendor(array(
+			'name' => $newSubject,
+			'cvr' => $newVendorCvr,
+			'iban' => $newVendorIban,
+			'bank_reg' => $newVendorBankReg,
+			'bank_konto' => $newVendorBankKonto,
+			'customerCvr' => $newCustomerCvr,
+		));
+	}
+
 	// Update or Insert into Database
 	if ($existingRow) {
 		$qtxt = "UPDATE pool_files SET
@@ -231,11 +297,15 @@ if ($action === 'save') {
 			description = '". db_escape_string($finalDescription) ."',
 			currency = '". db_escape_string($finalCurrency) ."',
 			file_date = '". db_escape_string($finalDate) ."',
-			updated = CURRENT_TIMESTAMP
+			updated = CURRENT_TIMESTAMP";
+		if ($vendorMatch !== null) $qtxt .= ",\n\t\t\t" . poolVendorUpdateSql($vendorMatch);
+		$qtxt .= "
 			WHERE filename = '". db_escape_string($poolFile) ."'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	} else {
-		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency) VALUES (
+		$vendorColumns = $vendorMatch !== null ? poolVendorColumnValues($vendorMatch) : array();
+		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency"
+			. ($vendorColumns ? ', ' . implode(', ', array_keys($vendorColumns)) : '') . ") VALUES (
 			'". db_escape_string($poolFile) ."',
 			'". db_escape_string($finalSubject) ."',
 			'". db_escape_string($finalAccount) ."',
@@ -244,12 +314,13 @@ if ($action === 'save') {
 			'". db_escape_string($finalDate) ."',
 			'". db_escape_string($finalInvoiceNumber) ."',
 			'". db_escape_string($finalDescription) ."',
-			'". db_escape_string($finalCurrency) ."'
+			'". db_escape_string($finalCurrency) ."'"
+			. ($vendorColumns ? ', ' . implode(', ', array_values($vendorColumns)) : '') . "
 		)";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 	
-	echo json_encode(['success' => true]);
+	echo json_encode(['success' => true, 'vendor' => $vendorMatch]);
 	exit;
 }
 
