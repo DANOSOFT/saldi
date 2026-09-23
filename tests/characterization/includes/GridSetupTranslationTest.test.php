@@ -3,6 +3,7 @@
 // 20260916 LOE Cover SD-685 review: legacy headers are kept unless the code produces them.
 //                filter selections keyed independently of their labels, and column
 //                headers/description following the code (translations included).
+// 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -172,14 +173,99 @@ final class GridSetupTranslationTest extends TestCase
         self::assertSame('right', $merged[1]['align']);
     }
 
-    public function testAColumnAddedToTheCodeAppearsForExistingUsers(): void
+    /**
+     * SD-685 review: a setup saved after the editor started writing the per-row 'visible' flag is
+     * current, so a column the code has added since does reach the user.
+     */
+    public function testAColumnAddedToTheCodeAppearsOnceTheSetupCarriesVisibilityFlags(): void
     {
         $code = array($this->codeColumn('varenr', 'Item No.'), $this->codeColumn('kategori', 'Categories'));
-        $saved = array(array('field' => 'varenr', 'width' => 1, 'align' => 'left'));
+        $saved = array(array('field' => 'varenr', 'visible' => true, 'width' => 1, 'align' => 'left'));
 
         $merged = merge_column_setup($saved, $code);
 
         self::assertContains('kategori', array_column($merged, 'field'));
+    }
+
+    /**
+     * SD-685 review: rows saved before the flag existed cannot say "removed" - the editor dropped
+     * the row instead - so an absent code column was removed by the user and must stay out. Such a
+     * setup is normalised once when the grid loads, which writes the flags and ends this state.
+     */
+    public function testAColumnTheUserRemovedBeforeTheFlagsExistedStaysHidden(): void
+    {
+        $code = array($this->codeColumn('varenr', 'Item No.'), $this->codeColumn('kategori', 'Categories'));
+        $saved = array(array('field' => 'varenr', 'headerName' => 'Item No.', 'width' => 1, 'align' => 'left'));
+
+        $merged = merge_column_setup($saved, $code);
+
+        self::assertSame(array('varenr'), array_column($merged, 'field'));
+    }
+
+    public function testALegacySetupIsNormalisedWithTheColumnsTheUserRemovedRecorded(): void
+    {
+        $code = array($this->codeColumn('varenr', 'Item No.'), $this->codeColumn('kategori', 'Categories'));
+        $saved = array(array('field' => 'varenr', 'headerName' => 'Mit navn', 'width' => 2, 'align' => 'right'));
+
+        $rows = normalize_legacy_column_setup($saved, $code);
+
+        self::assertSame(array('varenr', 'kategori'), array_column($rows, 'field'));
+        self::assertTrue($rows[0]['visible'], 'the user keeps what the setup already had');
+        self::assertSame('Mit navn', $rows[0]['headerName'], 'and their own wording with it');
+        self::assertSame(2, $rows[0]['width']);
+        self::assertFalse($rows[1]['visible'], 'a code column the setup did not have is recorded as removed');
+        self::assertTrue($rows[1]['addedSinceSetup'], 'and is marked as such: it is not the same as a deletion');
+    }
+
+    public function testNormalisingALegacySetupIsIdempotent(): void
+    {
+        $code = array($this->codeColumn('varenr', 'Item No.'), $this->codeColumn('kategori', 'Categories'));
+        $rows = normalize_legacy_column_setup(array(array('field' => 'varenr')), $code);
+
+        self::assertSame($rows, normalize_legacy_column_setup($rows, $code));
+        self::assertFalse(grid_setup_is_legacy($rows), 'once written, the setup is current and is not normalised again');
+    }
+
+    /**
+     * A grid without a column editor cannot contain a deletion, so its merge keeps appending the
+     * columns the code has (grid_account_lookup.php passes the flag as false).
+     */
+    public function testAGridWithNoEditorAppendsColumnsEvenForALegacySetup(): void
+    {
+        $code = array($this->codeColumn('varenr', 'Item No.'), $this->codeColumn('kategori', 'Categories'));
+        $saved = array(array('field' => 'varenr', 'width' => 1, 'align' => 'left'));
+
+        self::assertSame(array('varenr'), array_column(merge_column_setup($saved, $code), 'field'));
+        self::assertSame(array('varenr', 'kategori'), array_column(merge_column_setup($saved, $code, false), 'field'));
+    }
+
+    /**
+     * SD-685 review: the editor lists the columns the normalisation hid, and only those - a column
+     * the user removed on purpose keeps its absence, because that absence was their own choice.
+     */
+    public function testOnlyTheColumnsTheMigrationInventedAreOfferedBack(): void
+    {
+        $setup = array(
+            array('field' => 'varenr', 'visible' => true),
+            array('field' => 'kategori', 'visible' => false, 'addedSinceSetup' => true),
+            array('field' => 'pris', 'visible' => false),
+        );
+
+        $offered = grid_setup_added_since_setup($setup);
+
+        self::assertSame(array('kategori'), array_column($offered, 'field'));
+        self::assertSame(array(), grid_setup_added_since_setup(array()));
+        self::assertSame(array(), grid_setup_added_since_setup(array(array('field' => 'pris', 'visible' => false))));
+    }
+
+    public function testALegacySetupIsRecognisedByTheMissingVisibilityFlags(): void
+    {
+        self::assertFalse(grid_setup_is_legacy(array()), 'a user without a stored setup has nothing to normalise');
+        self::assertTrue(grid_setup_is_legacy(array(array('field' => 'varenr'))));
+        self::assertFalse(grid_setup_is_legacy(array(
+            array('field' => 'varenr'),
+            array('field' => 'kategori', 'visible' => false),
+        )), 'one row with the flag means the setup was written by the current editor');
     }
 
     public function testAColumnTheUserRemovedStaysHidden(): void
@@ -198,7 +284,9 @@ final class GridSetupTranslationTest extends TestCase
     public function testAStoredFieldThatNoLongerExistsInTheCodeIsDropped(): void
     {
         $code = array($this->codeColumn('varenr', 'Item No.'));
-        $saved = array(array('field' => 'gammelt', 'width' => 1, 'align' => 'left'));
+        // A current row, so the assertion is about the stale stored field and not about the
+        // legacy rule: this setup has the flag, so 'varenr' is expected to be appended.
+        $saved = array(array('field' => 'gammelt', 'visible' => true, 'width' => 1, 'align' => 'left'));
 
         $merged = merge_column_setup($saved, $code);
 

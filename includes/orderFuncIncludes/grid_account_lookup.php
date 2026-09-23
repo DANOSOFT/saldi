@@ -29,6 +29,7 @@
 // 20260911 LOE SD-686: grid filter defaults declared with "checked" are honoured.
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
+// 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
 
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -339,7 +340,12 @@ function create_datagrid($id, $grid_data) {
     }
     // SD-685: the code's columns define which columns exist and what they are called;
     // the stored row contributes the user's preferences only (matched on 'field').
-    $columns_updated = merge_column_setup($columns_setup, $columns);
+    // SD-685 review: this implementation has no column editor, so a stored row here can only be a
+    // snapshot of the code's columns and the "the user removed it" reading cannot arise - the
+    // absent column means the code did not have it yet. It is therefore appended, as before, and
+    // nothing is normalised or written. If this grid ever gains a column editor the decision and
+    // the stored rows have to be revisited, because the ambiguity arrives with the editor.
+    $columns_updated = merge_column_setup($columns_setup, $columns, false);
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
@@ -663,7 +669,27 @@ function grid_known_header_texts($column) {
 
     return array_values(array_unique(array_merge($known, $cache[$tekstId])));
 }
-function merge_column_setup(array $setup, array $codeColumns) {
+/**
+ * SD-685 review: does this stored setup predate the per-row 'visible' flag?
+ *
+ * The column editor used to record a removal by dropping the row, so in a setup without the
+ * flag an absent code column was removed by the user rather than added to the code since.
+ * merge_column_setup() keeps those columns out; the first save writes the flags, after which
+ * code columns added later surface again.
+ *
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @return bool True when the setup has rows and none of them carries a 'visible' flag.
+ */
+function grid_setup_is_legacy(array $setup) {
+    if (empty($setup)) return false;
+    foreach ($setup as $row) {
+        if (is_array($row) && array_key_exists('visible', $row)) return false;
+    }
+    return true;
+}
+
+
+function merge_column_setup(array $setup, array $codeColumns, $honourRemovedColumns = true) {
     $prefs = array();
     $order = array();
     foreach (array_values($setup) as $index => $row) {
@@ -673,6 +699,10 @@ function merge_column_setup(array $setup, array $codeColumns) {
         $prefs[$row['field']] = $row;
         $order[$row['field']] = $index;
     }
+
+    // SD-685 review: see grid_setup_is_legacy() - in a setup saved before the flags existed an
+    // absent code column was removed by the user, so it stays out until the setup is saved once.
+    $legacySetup = grid_setup_is_legacy($setup);
 
     $merged = array();
     foreach (array_values($codeColumns) as $index => $column) {
@@ -686,6 +716,9 @@ function merge_column_setup(array $setup, array $codeColumns) {
         }
         // A stored column the user removed stays hidden.
         if (isset($saved['visible']) && $saved['visible'] === false) {
+            continue;
+        }
+        if ($honourRemovedColumns && $legacySetup && !$surfaced) {
             continue;
         }
 
