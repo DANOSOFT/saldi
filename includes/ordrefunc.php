@@ -126,11 +126,13 @@
 //             imbalance was detected after posting, with no rollback for callers outside bogfor).
 //             Also guarded the vatAccount rounding loops against infinite loop on empty SM account list
 // 20260908 CL/Sawaneh SST-763: duplicate pbsfakt() removed; includes/pbsfunc.php is included instead.
-// 20260921 CDX/MJ SST-796 linjeopdat(): when a sale runs off negative stock the deficit batch_kob
+// 20260921 MJ SST-796 linjeopdat(): when a sale runs off negative stock the deficit batch_kob
 //             was priced from the static varer.kostpris. Prefer the price on an open, unreceived
 //             kreditorordre line for the same item (pris, less line discount, x the order's
 //             valutakurs), keep varer.kostpris as the last resort, log which was used, and warn the
 //             user once per delivery without blocking it.
+// 20260923 MJ SST-796 Same fix applied to the negative-quantity/kreditnota deficit branch, which
+//             read varer.kostpris too. Both branches now share deficit_cost_price().
 // 20260914 CL/SZ SST-744: function bogfor_nu: moved the vat_account/findAccountVat check for a VAT-liable
 //             line to before $d_kontrol/$k_kontrol are incremented for it, so a missing VAT code on the
 //             posting account can never inflate the control totals without a matching posting; the
@@ -437,7 +439,6 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 	global $regnaar, $ref;
 	global $sn_id;
 	global $sprog_id;            # SST-796 for findtekst() on the estimated-cost warning
-	global $sst796_advaret;      # SST-796 warn once per delivery, not once per line
 
 	$antal *= 1;
 
@@ -587,8 +588,15 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				}
 
 				if ($tmp) { # F.eks negativt salg uden købsreference
-					$r = db_fetch_array(db_select("select kostpris from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
-					$kostpris = $r['kostpris'] * 1;
+					// 20260923 MJ SST-796 Same stale-cost-price exposure as the normal-sale branch
+					//             below: this quantity has no batch_kob behind it, so its cost was
+					//             taken from the static varer.kostpris. $kred_linje_id zeroes $tmp
+					//             above, so a return booked against a specific original sale line
+					//             never reaches here - there is no historical cost to inherit, and an
+					//             open purchase line is the better estimate. Shared resolver so the
+					//             two branches cannot drift apart again.
+					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
+					$kostpris = deficit_cost_price($vare_id, $linje_id, $lager, $fp, $sprog_id, 'negativt salg/kreditnota');
 					$tmp2 = $tmp * -1;
 					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
 					#db_modify("insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) values ('$vare_id', '0', '0','0','$tmp','$kostpris','$lager','$variant_id')",__FILE__ . " linje " . __LINE__);
@@ -623,7 +631,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					db_modify("update batch_kob set rest='$ny_rest' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
 				}
 				if ($tmp) {
-					// 20260921 CDX/MJ SST-796 Selling off negative stock: no batch_kob with rest > 0
+					// 20260921 MJ SST-796 Selling off negative stock: no batch_kob with rest > 0
 					//             covers this quantity, so a deficit batch is written below. Its price
 					//             used to come straight from the static varer.kostpris, which at
 					//             Den-Tec was three years old - a machine bought at EUR 18.500 (kurs
@@ -631,31 +639,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					//             real price sitting on an open purchase line for the same item the
 					//             whole time. Prefer that line; keep varer.kostpris as the last resort.
 					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
-					$kostkilde = find_open_purchase_cost($vare_id, $lager);
-					if ($kostkilde) {
-						$kostpris = $kostkilde['pris'];
-						$kostkilde_txt = "open purchase line " . $kostkilde['linje_id'] . " on order " . $kostkilde['ordrenr'];
-					} else {
-						$r = db_fetch_array(db_select("select kostpris from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
-						$kostpris = $r['kostpris'] * 1;
-						$kostkilde_txt = "varer.kostpris";
-					}
-					// Logged either way so a stale cost price can be traced afterwards rather than
-					// only surfacing on a customer's invoice.
-					if ($fp) {
-						fwrite($fp, date("Y-m-d H:i:s") . " SST-796 deficit cost price: vare_id $vare_id, linje_id $linje_id, source $kostkilde_txt, pris $kostpris\n");
-					}
-					// Non-blocking: the delivery goes through either way, but the user is told the
-					// cost price was estimated rather than taken from stock. Same alert idiom this
-					// function already uses for the serial-number warning above. Once per delivery,
-					// not once per line, so a big order does not produce a row of dialogs.
-					if (!$sst796_advaret) {
-						$sst796_advaret = 1;
-						$sst796_txt = $kostkilde
-							? findtekst('5241|Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager', $sprog_id)
-							: findtekst('5242|Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre', $sprog_id);
-						print "<BODY onLoad=\"javascript:alert('" . str_replace("'", "\\'", $sst796_txt) . "')\">";
-					}
+					$kostpris = deficit_cost_price($vare_id, $linje_id, $lager, $fp, $sprog_id, 'salg fra negativ lagerbeholdning');
 					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
 					$tmp2 = $tmp * -1;
 					$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) ";

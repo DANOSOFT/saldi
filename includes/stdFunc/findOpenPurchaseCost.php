@@ -22,11 +22,15 @@
 //
 // Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
-// 20260921 CDX/MJ SST-796 Added find_open_purchase_cost(): the real purchase price for an item that
+// 20260921 MJ SST-796 Added find_open_purchase_cost(): the real purchase price for an item that
 //                  is being sold off negative stock, taken from an open, unreceived kreditorordre
 //                  line. linjeopdat()'s deficit fallback used the static varer.kostpris instead,
 //                  which at Den-Tec was three years stale - a machine bought at EUR 18.500 (kurs
 //                  7,50 = 138.750 kr) invoiced out at a cost price of 88.100,93 kr.
+// 20260923 MJ SST-796 Added deficit_cost_price(): linjeopdat() has two branches that price a
+//                  quantity no batch_kob covers - the normal-sale one and the negative/credit-note
+//                  one - and both read varer.kostpris. Sharing one resolver keeps them from
+//                  disagreeing, which is what they did when only the first was fixed.
 
 if (!function_exists('find_open_purchase_cost')) {
 	/**
@@ -37,6 +41,13 @@ if (!function_exists('find_open_purchase_cost')) {
 	 * receivable. A line counts only while it still has quantity outstanding, either because it has
 	 * not been fully delivered (leveret < antal) or because a receipt is queued for it in
 	 * modtagelser.
+	 *
+	 * Newest qualifying line wins, which is deliberately the opposite of the FIFO consumption loop
+	 * in linjeopdat() just above the caller. That loop spends real stock, where FIFO is the correct
+	 * valuation. This function is not valuing stock - there is none, the item is on negative
+	 * beholdning - it is estimating what the quantity will cost once an incoming order covers it, so
+	 * the most recently ordered price is the closest estimate available. Den-Tec's case is exactly
+	 * that shape: the machine had just been bought, and the stale figure was the old one.
 	 *
 	 * The conversion mirrors includes/ordrefunc.php:1925, the path a real receipt takes:
 	 * (pris - pris * rabat / 100) * valutakurs / 100. Note that line then converts back into the
@@ -102,6 +113,62 @@ if (!function_exists('find_open_purchase_cost')) {
 			);
 		}
 		return NULL;
+	}
+}
+
+if (!function_exists('deficit_cost_price')) {
+	/**
+	 * Cost price for a quantity that no batch_kob covers, for both of linjeopdat()'s deficit paths.
+	 *
+	 * Prefers an open purchase line (see find_open_purchase_cost()) and falls back to the static
+	 * varer.kostpris. Either way the choice is written to the order log so a stale cost price can be
+	 * traced afterwards instead of first surfacing on a customer's invoice, and the user is warned
+	 * once per delivery - not once per line, so a large order does not produce a row of dialogs.
+	 *
+	 * Both callers reach their deficit branch only when there is no purchase reference to inherit a
+	 * cost from: the negative/credit-note branch zeroes its remainder whenever $kred_linje_id is set,
+	 * so a return booked against a specific original sale line never lands here. That is why an open
+	 * purchase line is the better estimate in both places and not just on the sale path.
+	 *
+	 * @param int|string   $vare_id  The item.
+	 * @param int|string   $linje_id The order line being priced, for the log only.
+	 * @param int|string   $lager    Warehouse, 0 for any.
+	 * @param resource|null $fp      Open order log handle, or NULL when the caller has none.
+	 * @param int|string   $sprog_id Language for the warning text.
+	 * @param string       $kontekst Short label naming the calling branch, for the log.
+	 * @return float The cost price, in base currency.
+	 */
+	function deficit_cost_price($vare_id, $linje_id, $lager, $fp, $sprog_id, $kontekst)
+	{
+		// One warning per request. A delivery is a single request, so this is "once per delivery".
+		static $advaret = 0;
+
+		$kostkilde = find_open_purchase_cost($vare_id, $lager);
+		if ($kostkilde) {
+			$kostpris      = $kostkilde['pris'];
+			$kostkilde_txt = "open purchase line " . $kostkilde['linje_id'] . " on order " . $kostkilde['ordrenr'];
+		} else {
+			$r             = db_fetch_array(db_select("select kostpris from varer where id = '" . (int) $vare_id . "'", __FILE__ . " linje " . __LINE__));
+			$kostpris      = $r['kostpris'] * 1;
+			$kostkilde_txt = "varer.kostpris";
+		}
+
+		if ($fp) {
+			fwrite($fp, date("Y-m-d H:i:s") . " SST-796 deficit cost price ($kontekst): vare_id $vare_id, linje_id $linje_id, source $kostkilde_txt, pris $kostpris\n");
+		}
+
+		// Non-blocking: the delivery goes through either way, but the user is told the cost price was
+		// estimated rather than taken from stock. Same alert idiom linjeopdat() already uses for its
+		// serial-number warning.
+		if (!$advaret) {
+			$advaret = 1;
+			$txt = $kostkilde
+				? findtekst('5241|Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager', $sprog_id)
+				: findtekst('5242|Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre', $sprog_id);
+			print "<BODY onLoad=\"javascript:alert('" . str_replace("'", "\\'", $txt) . "')\">";
+		}
+
+		return $kostpris;
 	}
 }
 ?>

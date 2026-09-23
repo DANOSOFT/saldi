@@ -23,6 +23,13 @@ ini_set('display_errors', 'stderr');
 $GLOBALS['sst796_rows'] = [];      // rows the double returns for the purchase-line query
 $GLOBALS['sst796_modtag'] = null;  // row the double returns for the modtagelser query
 $GLOBALS['sst796_queries'] = [];
+$GLOBALS['sst796_varekostpris'] = '88100.930'; // Den-Tec's three-year-old varekort figure
+
+/** findtekst() is not under test here; return the fallback text carried by the id. */
+function findtekst($key, $sprog_id)
+{
+    return explode('|', $key, 2)[1];
+}
 
 /** @return object{rows: array} */
 function db_select($query, $source)
@@ -30,6 +37,9 @@ function db_select($query, $source)
     $GLOBALS['sst796_queries'][] = $query;
     if (stripos($query, 'from modtagelser') !== false) {
         return (object)['rows' => $GLOBALS['sst796_modtag'] === null ? [] : [$GLOBALS['sst796_modtag']]];
+    }
+    if (stripos($query, 'from varer') !== false) {
+        return (object)['rows' => [['kostpris' => $GLOBALS['sst796_varekostpris']]]];
     }
     return (object)['rows' => $GLOBALS['sst796_rows']];
 }
@@ -129,6 +139,108 @@ $q = $GLOBALS['sst796_queries'][0];
 check("only kreditorordrer are considered", true, strpos($q, "o.art = 'KO'") !== false);
 check("only status 1 or 2 count as open", true, strpos($q, "o.status = '1' or o.status = '2'") !== false);
 check("newest order first", true, strpos($q, 'order by o.ordredate desc') !== false);
+
+// ---------------------------------------------------------------------------------------------
+// deficit_cost_price(): the resolver both of linjeopdat()'s deficit branches now share. While only
+// the normal-sale branch was fixed, the negative-quantity/kreditnota branch still read
+// varer.kostpris, so the two returned different cost prices for the same item. These cases pin the
+// shared behaviour, including the log label that tells the two branches apart.
+
+/** Call the resolver, capturing what it prints and what it writes to the order log. */
+function runResolver($vare_id, $linje_id, $kontekst)
+{
+    $fp = fopen('php://memory', 'w+');
+    ob_start();
+    $pris = deficit_cost_price($vare_id, $linje_id, 1, $fp, 2, $kontekst);
+    $printed = ob_get_clean();
+    rewind($fp);
+    $log = stream_get_contents($fp);
+    fclose($fp);
+    return ['pris' => $pris, 'printed' => $printed, 'log' => $log];
+}
+
+// The sale branch, Den-Tec's shape: the open purchase line must beat the stale varekort figure.
+$GLOBALS['sst796_rows'] = [poLine()];
+$GLOBALS['sst796_modtag'] = null;
+$salg = runResolver(1096, 44001, 'salg fra negativ lagerbeholdning');
+check('sale branch prices from the open purchase line', 138750.0, $salg['pris']);
+check('sale branch does not use the stale varekort figure', false, abs($salg['pris'] - 88100.93) < 0.0005);
+check('sale branch logs the purchase line as the source', true, strpos($salg['log'], 'source open purchase line 27083 on order 355') !== false);
+check('sale branch logs its own context label', true, strpos($salg['log'], '(salg fra negativ lagerbeholdning)') !== false);
+check('sale branch warns the user', true, strpos($salg['printed'], 'indkøbsordre') !== false);
+
+// The negative/kreditnota branch, same item and same open line, must reach the same price. This is
+// the gap ZaynSaul found: before this change it returned 88.100,93 for the item above.
+$GLOBALS['sst796_rows'] = [poLine()];
+$GLOBALS['sst796_modtag'] = null;
+$kredit = runResolver(1096, 44002, 'negativt salg/kreditnota');
+check('kreditnota branch prices from the same open purchase line', 138750.0, $kredit['pris']);
+check('both branches agree on the same item', true, abs($salg['pris'] - $kredit['pris']) < 0.0005);
+check('kreditnota branch logs its own context label', true, strpos($kredit['log'], '(negativt salg/kreditnota)') !== false);
+check('kreditnota branch logs the line it priced', true, strpos($kredit['log'], 'linje_id 44002') !== false);
+
+// Warned once per delivery, not once per line: the first call warned, later ones must stay silent.
+check('the warning is not repeated for later lines', '', $kredit['printed']);
+
+// No open purchase line: varer.kostpris is still the last resort, for both branches.
+$GLOBALS['sst796_rows'] = [];
+$GLOBALS['sst796_modtag'] = null;
+$fallback = runResolver(1096, 44003, 'negativt salg/kreditnota');
+check('falls back to varer.kostpris when nothing is open', 88100.93, $fallback['pris']);
+check('and logs varer.kostpris as the source', true, strpos($fallback['log'], 'source varer.kostpris') !== false);
+
+// A caller without an order log handle must not fatal.
+$GLOBALS['sst796_rows'] = [poLine()];
+ob_start();
+$noLog = deficit_cost_price(1096, 44004, 1, NULL, 2, 'negativt salg/kreditnota');
+ob_end_clean();
+check('a NULL log handle is tolerated', 138750.0, $noLog);
+
+// ---------------------------------------------------------------------------------------------
+// The resolver being correct is not enough: linjeopdat() has to actually call it from both deficit
+// branches. Only the normal-sale branch was converted at first, and the unit tests above passed the
+// whole time - nothing tied them to the call sites. This scans linjeopdat()'s own body, using
+// token_get_all() so that commented-out code and the surrounding functions cannot satisfy it.
+
+$tokens = token_get_all(file_get_contents(__DIR__ . '/../includes/ordrefunc.php'));
+$body = '';
+$depth = null;
+for ($i = 0; $i < count($tokens); $i++) {
+    $t = $tokens[$i];
+    if (is_array($t) && $t[0] === T_FUNCTION) {
+        // Look ahead for the name, skipping whitespace, so only linjeopdat() is captured.
+        for ($j = $i + 1; $j < count($tokens); $j++) {
+            if (is_array($tokens[$j]) && $tokens[$j][0] === T_WHITESPACE) continue;
+            $isTarget = is_array($tokens[$j]) && $tokens[$j][0] === T_STRING && $tokens[$j][1] === 'linjeopdat';
+            break;
+        }
+        if (!empty($isTarget)) $depth = 0;
+        continue;
+    }
+    if ($depth === null) continue;
+    $text = is_array($t) ? $t[1] : $t;
+    // Comments and doc comments are dropped, so a commented-out call cannot pass this check.
+    if (!is_array($t) || ($t[0] !== T_COMMENT && $t[0] !== T_DOC_COMMENT)) {
+        $body .= $text;
+    }
+    if ($text === '{') $depth++;
+    if ($text === '}') {
+        $depth--;
+        if ($depth === 0) break;   // end of linjeopdat()
+    }
+}
+
+check('linjeopdat() body was located', true, strlen($body) > 2000);
+check(
+    'both deficit branches call the shared resolver',
+    2,
+    preg_match_all('/deficit_cost_price\s*\(/', $body)
+);
+check(
+    'no deficit branch reads varer.kostpris directly any more',
+    0,
+    preg_match_all('/select\s+kostpris\s+from\s+varer/i', $body)
+);
 
 printf("\n%s\n", $failures ? "$failures FAILURE(S)" : 'All SST-796 cost-price cases passed.');
 exit($failures ? 1 : 0);
