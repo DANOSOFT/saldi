@@ -190,32 +190,43 @@ if (!function_exists('ifset')) {
          * - `0`: Considered a valid value, returned as-is (0 is treated as set).
          * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
          * - Arrays: If the key exists, it returns the value. If not, it returns the default value.
+         * - Closures: If `$default` is a `Closure`, it is only invoked (with no arguments) when
+         *   the value is actually missing, so an expensive/mutable default (e.g. `array(...)`,
+         *   a fresh object) can be passed as `fn() => array(...)` and built lazily instead of on
+         *   every call regardless of whether it's used.
          * #############USECASE####################
 		 * $sektion = ifset($_GET,'sektion', 0);
 		 * $sektion = ifset($_GET,'sektion');
 		 * $user = ifset($user);
 		 * $id = ifset($id, null, 0);
+		 * $rows = ifset($cache, 'key', fn() => expensive_lookup());
 		 * ########################################
-		 * 
+		 *
+		 * Prefer if_isset() over this function for a plain-variable check with a non-null default
+		 * (`if_isset($id, 0)` vs. `ifset($id, null, 0)`) - the explicit `null` middle argument this
+		 * form requires makes if_isset() the shorter, clearer call for that one case. For everything
+		 * else (array/object key lookups, nested keys, no default, Closure defaults) use ifset().
+		 *
          * @param mixed $arrayOrVar The array or variable to check.
          * @param mixed $key        The key (if array is passed).
-         * @param mixed $default    The default value to return if the variable or array's key is not set.
-         * @return mixed           The actual value or the default.
+         * @param mixed $default    The default value to return if the variable or array's key is not
+         *                          set, or a zero-arg Closure that produces it lazily.
+         * @return mixed           The actual value or the (resolved) default.
          */
 
         // Case 1: One/Two argument — treat as a single variable fallback
         if ($key === null) {
             // If key is not provided, we're dealing with just a single variable.
-			return isset($arrayOrVar) ? $arrayOrVar : $default;
+			return isset($arrayOrVar) ? $arrayOrVar : ifset_resolve_default($default);
         }
 
         // Case 2: Three arguments — array + key or object + property
 		if(!is_array($key)){
 			if (isset($arrayOrVar) && is_array($arrayOrVar)) {
-				return array_key_exists($key, $arrayOrVar) ? $arrayOrVar[$key] : $default;
+				return array_key_exists($key, $arrayOrVar) ? $arrayOrVar[$key] : ifset_resolve_default($default);
 			}
 			if (is_object($arrayOrVar)) {
-				return property_exists($arrayOrVar, $key) ? $arrayOrVar->$key : $default;
+				return property_exists($arrayOrVar, $key) ? $arrayOrVar->$key : ifset_resolve_default($default);
 			}
 		} else {
 			// Case 3: If $key is an array, we want to check nested keys
@@ -226,14 +237,28 @@ if (!function_exists('ifset')) {
 				} elseif (is_object($current) && property_exists($current, $k)) {
 					$current = $current->$k;
 				} else {
-					return $default; // Key doesn't exist at some level
+					return ifset_resolve_default($default); // Key doesn't exist at some level
 				}
 			}
 			return $current; // All keys exist, return the final value
 		}
 
         // Default case: Return the default value
-        return $default;
+        return ifset_resolve_default($default);
+	}
+}
+
+if (!function_exists('ifset_resolve_default')) {
+	/**
+	 * Resolves an ifset()/if_isset() default: a `Closure` is called (with no arguments) to produce
+	 * the value lazily, any other value is returned as-is. Kept separate from ifset() so it's usable
+	 * standalone and so ifset() itself stays free of the `instanceof Closure` check at every call site.
+	 *
+	 * @param mixed $default A plain default value, or a zero-arg Closure producing one.
+	 * @return mixed         The resolved default value.
+	 */
+	function ifset_resolve_default($default) {
+		return ($default instanceof Closure) ? $default() : $default;
 	}
 }
 
@@ -252,17 +277,50 @@ if (!function_exists('if_isset')) {
          * - `0`: Considered a valid value, returned as-is (0 is treated as set).
          * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
          * - Arrays: If the key exists, it returns the value. If not, it returns the default value.
+         * - Closures: `$default` may be a zero-arg Closure, resolved lazily - see ifset().
          * #############USECASE####################
 		 * $sektion = if_isset($_GET,null,'sektion');
+		 * $id = if_isset($id, 0);   // plain-variable check with a default - shorter than ifset($id, null, 0)
 		 * ########################################
-		 * 
+		 *
+		 * New code should use ifset() for array/object key lookups (it takes the key before the
+		 * default, so it reads naturally and needs no placeholder argument). This function is still
+		 * the better choice for a plain-variable check against a non-null default, since ifset()
+		 * needs an explicit `null` key argument for that same call (`ifset($id, null, 0)`) - use
+		 * if_isset($id, 0) instead. Never write a new call in the `if_isset($arr, $default, $key)`
+		 * three-argument key-lookup form; convert those to ifset($arr, $key, $default) instead, since
+		 * that argument order is the one easy to get backwards.
+		 *
          * @param mixed $arrayOrVar The array or variable to check.
-         * @param mixed $default    The default value to return if the variable or array's key is not set.
+         * @param mixed $default    The default value to return if the variable or array's key is not
+         *                          set, or a zero-arg Closure that produces it lazily.
          * @param mixed $key        The key (if array is passed).
-         * @return mixed           The actual value or the default.
+         * @return mixed           The actual value or the (resolved) default.
          */
 		return ifset($arrayOrVar, $key, $default);
     }
+}
+
+if (!function_exists('if_array')) {
+	/**
+	 * ifset() shorthand for the common "give me an array" case: same lookup rules as ifset(),
+	 * but the default is always a fresh empty array() instead of null - so callers that only ever
+	 * want an iterable back don't need to spell out `ifset(..., fn() => array())` or add their own
+	 * `?? array()` afterwards.
+	 *
+	 * #############USECASE####################
+	 * $items = if_array($_POST, 'konto_id');   // array of posted checkboxes, or array() if none
+	 * $items = if_array($items);               // same idea for a plain variable
+	 * $items = if_array($data, ['a', 'b']);     // nested-key form, like ifset()
+	 * ########################################
+	 *
+	 * @param mixed $arrayOrVar The array or variable to check.
+	 * @param mixed $key        The key (or nested-key array), same as ifset()'s $key.
+	 * @return array            The actual value, or array() if it wasn't set.
+	 */
+	function if_array($arrayOrVar, $key = null) {
+		return ifset($arrayOrVar, $key, fn() => array());
+	}
 }
 
 if (!function_exists('integration_placeholder_values')) {
