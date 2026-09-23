@@ -108,6 +108,7 @@
 //                  other menu styles keep the floating button; panel now opens just below the button.
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
 //                  with customer/supplier evidence; isolate journal history queries for regression tests.
+// 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
@@ -117,6 +118,25 @@
 //                  treating the lock as released, falling back to the sync XHR when it fails.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
+
+# A line created during this request is rendered last, whatever the list is sorted by, so the line the
+# user just typed stays where they are working instead of jumping to its sorted position (with
+# kksort=amount a line with amount 0 would otherwise lead the list). The pin lasts for this render
+# only - on the next load the line sits in its sorted place. The id is captured from the connection
+# that did the insert (see the caller), never inferred with MAX(id), which another session's insert
+# could win.
+$kk_new_line_ids = array();
+
+/**
+ * Remember a line this request created, so the render can place it last and the focus can follow it.
+ * The id comes from the connection that did the insert (see the caller in opdater()) - never from
+ * MAX(id), which a concurrent insert in another session could win.
+ */
+function kk_note_new_line($id) {
+	global $kk_new_line_ids;
+	$id = (int) $id;
+	if ($id) $kk_new_line_ids[] = $id;
+}
 
 ob_start(); //Starter output buffering
 
@@ -2819,7 +2839,13 @@ if ($kladde_id) {
 	print "<script>
 		document.addEventListener('DOMContentLoaded', function() {
 			var element = document.querySelector('.kassekladde-scroll-container');
-			var focusName = " . json_encode((string)$fokus) . ";
+			// MB-41: this block is printed before the row loop advances the focus field with
+			// nextfokus(), so the value baked in below is the field the user came from - the
+			// amount field of the line just saved. The inline script at the end of the page
+			// focuses the advanced field, and this handler runs after it, so without preferring
+			// that field the handler pulled focus back up on every save. savedFocus is the
+			// field the page finally focuses.
+			var focusName = window.savedFocus || " . json_encode((string)$fokus) . ";
 			var focusField = focusName && document.forms[0] ? document.forms[0].elements[focusName] : null;
 			if (focusField) {
 				focusField.focus();
@@ -2857,16 +2883,42 @@ if ($kladde_id) {
 	} else {
 	################### 
 		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
+		// Lines saved in this request are pinned to the end of the list, whatever it is sorted by.
+		$kk_new_last = '';
+		if (!empty($GLOBALS['kk_new_line_ids'])) {
+			$kk_new_last = "CASE WHEN id IN (" . implode(',', array_map('intval', $GLOBALS['kk_new_line_ids'])) . ") THEN 1 ELSE 0 END, ";
+		}
+		// The render that follows a save keeps the order the user was looking at, so nothing moves under
+		// them while they check what they changed - an edited amount would otherwise jump to its new place
+		// in the active sort, which is exactly the "where did it go?" the report is about. The submitted
+		// rows carry the on-screen order in their id[] hidden fields; anything not in that list (a line
+		// this save created) is NULL here and sorts last, where the user typed it. The sort itself is
+		// untouched and applies again on the next load.
+		$kk_post_order = '';
+		if (strstr((string) $submit, 'save') && !empty($_POST['id']) && is_array($_POST['id'])) {
+			$kk_order_ids = array();
+			foreach ($_POST['id'] as $kkPostedId) {
+				if ($kkPostedId !== '' && $kkPostedId !== NULL) $kk_order_ids[] = (int) $kkPostedId;
+			}
+			if ($kk_order_ids) {
+				if (!isset($GLOBALS['db_type']) || ($GLOBALS['db_type'] != 'mysql' && $GLOBALS['db_type'] != 'mysqli')) {
+					$kk_post_order = "array_position(ARRAY[" . implode(',', $kk_order_ids) . "]::int[], id), ";
+				} else {
+					// FIELD() answers 0 for a row that is not in the list, which would sort first.
+					$kk_post_order = "(FIELD(id, " . implode(',', $kk_order_ids) . ") = 0), FIELD(id, " . implode(',', $kk_order_ids) . "), ";
+				}
+			}
+		}
 		if ($kksort == 'pos') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'bilag,transdate') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'transdate,bilag') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order transdate $_dir, bilag $_dir, id $_dir";
 		} elseif ($kksort == 'amount') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} else {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		}
 	##################
 	}
@@ -3306,10 +3358,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	$x++;
 	$belob = "";
-	if ($fokus && (strstr($fokus, "belo") || strstr($fokus, "afd")) && strstr($submit, 'save')) {
-		$tmp = substr($fokus, 4) + 1;
-		if (!$debet[$tmp] && !$kredit[$tmp])
-			$fokus = nextfokus($fokus);
+	# MB-41: a save that creates a line moves the focus to the new blank line, whatever field Enter was
+	# pressed in. A save that only updates an existing line leaves the focus where it was, so the change
+	# can be checked - there is deliberately no fallback advance here. The blank line is rendered after a
+	# creation (see the gate below), so the focus can never point at a field that does not exist - and the
+	# same $x < 3000 bound as the gate keeps that true on a kladde long enough for the blank line to be
+	# skipped.
+	if (strstr($submit, 'save') && !empty($GLOBALS['kk_new_line_ids']) && $x < 3000) {
+		$fokus = 'bila' . $x;
 	}
 	print "</tr>\n";
 
@@ -3329,7 +3385,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
 	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
-	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1)) {
+	# The blank line at the end is where the next line gets typed, so it is rendered after any save
+	# that created a line - including a line that carries only a description, which has no
+	# debit/credit and so used to leave the user with no row to type in and no field to focus.
+	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1 || !empty($GLOBALS['kk_new_line_ids']))) {
 		if (!isset($id[$x]))          $id[$x]          = NULL;
 		if (!isset($dato[$x]))        $dato[$x]        = NULL;
 		if (!isset($beskrivelse[$x])) $beskrivelse[$x] = NULL;
@@ -4105,6 +4164,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$prebilag = $bilag;
 	} # endfunc kontroller
 	######################################################################################################################################
+	/**
+	 * Apply every posted kladde row for this request: rows that carry an id are updated, rows that do
+	 * not are inserted at the position their bilag/transdate belong to (shifting the rows after them),
+	 * and a row whose bilag was set to "-" is deleted by kontroller() before this runs. Lines created
+	 * here are reported through kk_note_new_line() so the render can pin them last and move the focus
+	 * to the new blank line.
+	 */
 	function opdater($kladde_id)
 	{
 		global $baseCurrency,$egen_kto_id;
@@ -4230,6 +4296,27 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 					if ($qtxt) {
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						# Only an insert creates a row to pin and to move the focus to; an update must leave
+						# the caret where the user was. The generated id comes from this connection, so a
+						# concurrent insert in another session cannot be picked up instead.
+						if (stripos(trim($qtxt), 'insert') === 0) {
+							# The id has to be read from this connection, so that a concurrent insert in
+							# another session cannot be picked up instead. db_modify() picks its query
+							# function from $db_type, so the same test is repeated here: mysqli_insert_id()
+							# for a MySQL/MySQLi install, currval() for Postgres, which needs a sequence.
+							$kk_insert_id = 0;
+							if (isset($GLOBALS['db_type']) && ($GLOBALS['db_type'] == 'mysql' || $GLOBALS['db_type'] == 'mysqli')) {
+								$kk_insert_id = mysqli_insert_id(db_query_connection(false));
+							} else {
+								$kkIdRow = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kassekladde', 'id')) AS id", __FILE__ . " linje " . __LINE__));
+								if (isset($kkIdRow['id'])) $kk_insert_id = $kkIdRow['id'];
+								unset($kkIdRow);
+							}
+							# A failed insert, or an install whose id is not auto generated, only means the
+							# pin and the focus do not fire - never a broken save.
+							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id);
+							unset($kk_insert_id);
+						}
 					}
 				}
 			}
@@ -4440,10 +4527,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!empty($kk_editable_view)) {
 		# Balance-status: genbruger de summer loekken allerede har akkumuleret - visning alene, blokerer intet
 		$kladde_diff = afrund($kladde_debetsum, 2) - afrund($kladde_kreditsum, 2);
+		$hovertxt_kladde_diff = findtekst('3369|differencen mellem debet og kredit i kladden', $sprog_id);
 		if (abs($kladde_diff) < 0.005) {
-			$balance_txt = "<span style='color:#1a7a1a;'>" . findtekst('5144|Kladden balancerer', $sprog_id) . "</span>";
+			$balance_txt = "<span style='color:#1a7a1a;' title='$hovertxt_kladde_diff'>" . findtekst('5144|Kladden balancerer', $sprog_id) . "</span>";
 		} else {
-			$balance_txt = "<span style='color:#cc0000;font-weight:bold;'>" . findtekst('2396|Difference', $sprog_id) . ": " . dkdecimal($kladde_diff, 2) . " $baseCurrency</span>";
+			$balance_txt = "<span style='color:#cc0000;font-weight:bold;' title='$hovertxt_kladde_diff'>" . findtekst('2396|Difference', $sprog_id) . ": " . dkdecimal($kladde_diff, 2) . " $baseCurrency</span>";
 		}
 		# Fyldes ind i det tomme felt til venstre for bemaerkningslinjen - summerne kendes foerst efter loekken
 		$balance_pill = "<span style='display:inline-block;white-space:nowrap;background:#fff;border:1px solid #ddd;border-radius:4px;padding:2px 10px;font-size:12px;'>$balance_txt</span>";
@@ -4966,6 +5054,10 @@ document.addEventListener('click', function(e) {
 	$steps[] = array(
 		"selector" => "[name=bila1]",
 		"content" => findtekst('2606|Du kan slette linjen ved at skrive \'-\' i feltet i stedet for et tal og trykke Enter', $sprog_id).".",
+	);
+	$steps[] = array(
+		"selector" => "#kk-balance-status",
+		"content" => findtekst('3369|Differencen mellem debit og kredit på denne kassekladde', $sprog_id).".",
 	);
 
 

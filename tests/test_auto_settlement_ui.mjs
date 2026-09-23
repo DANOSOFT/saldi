@@ -1,4 +1,5 @@
 // 20260908 CDX/LH Exercise the actual settlement-page JavaScript with an isolated DOM and transport.
+// 20260911 Sawaneh Cover the payment ID column in the candidate list.
 // Run: node tests/test_auto_settlement_ui.mjs
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -41,7 +42,7 @@ function boot(initialAccount = '', used = []) {
   const account = nodes.get('accountSelect');
   function choose(id, number = '1009', type = 'K') {
     account.value = id;
-    account.selectedOptions = [{dataset:{account:number,type}}];
+    account.selectedOptions = [{dataset:id ? {account:number,type} : {}}];
     account.dispatch('change');
   }
   account.value = initialAccount;
@@ -66,13 +67,12 @@ async function saveResponse(request, data) {
 }
 
 let ui = boot();
-assert.equal(ui.requests.length,0,'Unassigned line fetched cross-account suggestions');
-ui.key('Enter');
-assert.equal(ui.requests.length,0,'Enter submitted without an account');
-ui.choose('29');
+assert.equal(ui.requests.length,1,'Unassigned line did not fetch cross-account suggestions');
 let query = new URL(ui.requests[0].url,'https://fixture.invalid').searchParams;
-assert.equal(query.get('account'),'1009');
-assert.equal(query.get('accountType'),'K');
+assert.equal(query.get('account'),'');
+assert.equal(query.get('accountType'),'');
+ui.key('Enter');
+assert.equal(ui.requests.length,1,'Enter submitted without a selected invoice');
 await respond(ui.requests[0],[candidate()]);
 assert.equal(ui.nodes.get('udlignBtn').disabled,false,'Unique exact amount should be selectable');
 ui.key('Enter');
@@ -88,8 +88,8 @@ ui.key('Enter');
 await saveResponse(ui.requests[2],{success:true});
 assert.match(ui.location.href,/settled=1/);
 
-ui=boot('29');
-await respond(ui.requests[0],[candidate(101),candidate(102)]);
+ui=boot();
+await respond(ui.requests[0],[candidate(101),{...candidate(102),konto_id:31,kontonr:'2000'}]);
 assert.equal(ui.nodes.get('udlignBtn').disabled,true,'Tied amount matches were automatically selected');
 ui.key('Enter');
 assert.equal(ui.requests.length,1);
@@ -98,6 +98,16 @@ assert.equal(ui.nodes.get('udlignBtn').disabled,true,'Account chooser arrow key 
 ui.key('ArrowDown');
 ui.key('Enter');
 assert.equal(ui.requests.length,2,'Explicit keyboard selection did not submit');
+assert.equal(ui.requests[1].options.body.get('account_id'),'29');
+
+ui=boot('29');
+ui.choose('31','2000','K');
+query = new URL(ui.requests[1].url,'https://fixture.invalid').searchParams;
+assert.equal(query.get('account'),'2000');
+assert.equal(query.get('accountType'),'K');
+await respond(ui.requests[1],[{...candidate(),konto_id:31,kontonr:'2000'}]);
+ui.key('Enter');
+assert.equal(ui.requests[2].options.body.get('account_id'),'31');
 
 ui=boot('29');
 await respond(ui.requests[0],[candidate(101,false)]);
@@ -113,8 +123,7 @@ assert.equal(ui.requests.length,1);
 assert.equal(ui.nodes.get('udlignBtn').disabled,true);
 assert.match(ui.nodes.get('candidateBody').innerHTML,/No open entries match/);
 
-ui=boot();
-ui.choose('29');
+ui=boot('29');
 ui.choose('31','2000','K');
 await respond(ui.requests[1],[]);
 await respond(ui.requests[0],[candidate()]);
@@ -136,7 +145,9 @@ assert.equal(ui.nodes.get('udlignBtn').disabled,true);
 ui=boot('29');
 ui.choose('');
 await respond(ui.requests[0],[candidate()]);
-assert.match(ui.nodes.get('candidateBody').innerHTML,/Choose a customer or supplier/);
+assert.equal(ui.requests.length,2,'Clearing the account must fetch across accounts');
+await respond(ui.requests[1],[candidate(), {...candidate(102),konto_id:31,kontonr:'2000'}]);
+assert.equal(ui.nodes.get('candidateBody').rows.length,2);
 assert.equal(ui.nodes.get('udlignBtn').disabled,true);
 ui=boot('29');
 await respond(ui.requests[0],[{...candidate(),amount:-500}]);
@@ -156,4 +167,9 @@ ui.nodes.get('nextBtn').dispatch('click');
 await respond(ui.requests[1],[candidate(151)],{autoSelectId:null,pagination:{total:51,hasMore:false}});
 assert.equal(ui.nodes.get('udlignBtn').disabled,true,'Last-page single row hid global ambiguity');
 
-console.log('PASS: account choice, typed search parameters, keyboard confirmation, ambiguous/partial/no matches, duplicate submit guard, save errors and stale responses.');
+ui=boot('29');
+await respond(ui.requests[0],[{...candidate(),betalings_id:'000521422'},{...candidate(102,false),betalings_id:''}]);
+assert.match(ui.nodes.get('candidateBody').innerHTML,/000521422/,'Payment ID from the order was not rendered in the candidate list');
+assert.doesNotMatch(ui.nodes.get('candidateBody').innerHTML,/undefined|null/,'Blank payment ID rendered as a literal');
+
+console.log('PASS: account choice, typed search parameters, keyboard confirmation, ambiguous/partial/no matches, duplicate submit guard, save errors, stale responses and payment ID column.');
