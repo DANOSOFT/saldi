@@ -13,7 +13,8 @@
 //             match is wrapped so it can never fail the scan; JSON_INVALID_UTF8_SUBSTITUTE
 //             on the responses because legacy adresser rows can hold non-UTF-8 bytes.
 // 20260923 CL/LAH Output stays buffered until shutdown, so a warning, a late fatal or
-//             db_query.php's alert() can no longer corrupt the JSON (Astra review).
+//             db_query.php's alert() can no longer corrupt the JSON (Astra review). The buffer
+//             is never closed early, so this also covers the session/db checks at startup.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -29,9 +30,6 @@ ob_start();
 register_shutdown_function(function () {
 	$error = error_get_last();
 	$fatal = $error !== null && in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_RECOVERABLE_ERROR), true);
-	// Before the guarded buffer is opened (session/db checks) responses are echoed directly;
-	// only a fatal needs handling there.
-	if (empty($GLOBALS['extractInvoiceOutputGuard']) && !$fatal) return;
 	$out = '';
 	while (ob_get_level() > 0) $out = ob_get_clean() . $out;
 	$trimmed = trim($out);
@@ -87,14 +85,14 @@ $onlineRow = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
 $db = trim($onlineRow['db'] ?? '');
 
 if (empty($db)) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Session udløbet - log ind igen']);
 	exit;
 }
 
 // Validate db name (only allow alphanumeric and underscore)
 if (!preg_match('/^[a-zA-Z0-9_]+$/', $db)) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Ugyldig database navn']);
 	exit;
 }
@@ -104,7 +102,7 @@ global $sqhost, $squser, $sqpass;
 $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
 
 if (!$connection) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
 	exit;
 }
@@ -112,11 +110,9 @@ if (!$connection) {
 // Include the extraction API
 include_once("invoiceExtractionApi.php");
 
-// Discard any buffered output from includes, then keep buffering until shutdown (see the
+// Discard any buffered output from includes but keep buffering until shutdown (see the
 // shutdown handler at the top) so nothing can reach the browser outside the JSON response.
-ob_end_clean();
-ob_start();
-$GLOBALS['extractInvoiceOutputGuard'] = true;
+ob_clean();
 
 /**
  * Match the vendor identity of a scanned invoice against the tenant's kreditorer.
