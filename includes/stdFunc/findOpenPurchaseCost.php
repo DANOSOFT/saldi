@@ -36,11 +36,17 @@ if (!function_exists('find_open_purchase_cost')) {
 	/**
 	 * Cost price for $vare_id from the newest open, unreceived purchase order line, in base currency.
 	 *
-	 * "Open" is defined exactly as lager/modtagelse.php:254 defines it for the goods-receipt screen -
-	 * ordrer.art = 'KO' and status 1 or 2 - so this cannot disagree with what a user sees as
-	 * receivable. A line counts only while it still has quantity outstanding, either because it has
-	 * not been fully delivered (leveret < antal) or because a receipt is queued for it in
-	 * modtagelser.
+	 * "Open" is defined exactly as lager/modtagelse.php defines it for the goods-receipt screen, so
+	 * this cannot disagree with what a user sees as receivable: ordrer.art = 'KO' with status 1 or 2
+	 * (:254), and a line still outstanding by that screen's own measure - ordrelinjer.antal less the
+	 * batch_kob rows already booked against the line (:258-261).
+	 *
+	 * Note it is batch_kob and not ordrelinjer.leveret that decides this. The receipt path never
+	 * touches leveret: it writes batch_kob (:277) and decrements leveres (:284), and on the purchase
+	 * side the "update ordrelinjer set leveret" statements in kreditor/ordre.php and ordreM.php are
+	 * commented out. Reading leveret would therefore see 0 on every KO line and treat fully received
+	 * orders as open. leveres is not the answer either - it holds the remaining quantity, not the
+	 * delivered one.
 	 *
 	 * Newest qualifying line wins, which is deliberately the opposite of the FIFO consumption loop
 	 * in linjeopdat() just above the caller. That loop spends real stock, where FIFO is the correct
@@ -54,20 +60,22 @@ if (!function_exists('find_open_purchase_cost')) {
 	 * sales order's currency; this one deliberately does not, because the fallback it feeds writes
 	 * varer.kostpris unconverted, so ordrelinjer.kostpris is a base-currency figure there.
 	 *
+	 * Takes no warehouse: a purchase order line carries none of its own, and the goods-receipt screen
+	 * does not narrow by one either when it decides what is still outstanding.
+	 *
 	 * @param int|string $vare_id The item being sold.
-	 * @param int|string $lager   Warehouse, 0 for any. Purchase lines carry no warehouse of their
-	 *                            own, so this only narrows the modtagelser check.
 	 * @return array|null ['pris' => float, 'ordre_id' => int, 'linje_id' => int, 'ordrenr' => string]
 	 *                    or null when no open purchase line covers this item.
 	 */
-	function find_open_purchase_cost($vare_id, $lager = 0)
+	function find_open_purchase_cost($vare_id)
 	{
 		$vare_id = (int) $vare_id;
 		if (!$vare_id) {
 			return NULL;
 		}
 
-		$qtxt  = "select ol.id as linje_id, ol.ordre_id, ol.pris, ol.rabat, ol.antal, ol.leveret, ";
+		$qtxt  = "select ol.id as linje_id, ol.ordre_id, ol.pris, ol.rabat, ol.antal, ";
+		$qtxt .= "coalesce((select sum(bk.antal) from batch_kob bk where bk.linje_id = ol.id), 0) as modtaget, ";
 		$qtxt .= "o.valutakurs, o.ordrenr ";
 		$qtxt .= "from ordrelinjer ol, ordrer o ";
 		$qtxt .= "where ol.vare_id = '$vare_id' and ol.ordre_id = o.id ";
@@ -76,21 +84,10 @@ if (!function_exists('find_open_purchase_cost')) {
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
 		while ($r = db_fetch_array($q)) {
-			$antal   = (float) $r['antal'];
-			$leveret = (float) $r['leveret'];
-			$udestaaende = $antal - $leveret;
-			if ($udestaaende <= 0) {
-				// Fully delivered on the line itself, but a receipt may still be queued for it.
-				$linje_id = (int) $r['linje_id'];
-				$mqtxt  = "select sum(antal) as antal from modtagelser where vare_id = '$vare_id' ";
-				$mqtxt .= "and ordre_id = '" . (int) $r['ordre_id'] . "'";
-				if ($lager) {
-					$mqtxt .= " and lager = '" . (int) $lager . "'";
-				}
-				$m = db_fetch_array(db_select($mqtxt, __FILE__ . " linje " . __LINE__));
-				if (!$m || (float) $m['antal'] <= 0) {
-					continue;
-				}
+			$antal    = (float) $r['antal'];
+			$modtaget = (float) $r['modtaget'];
+			if ($antal - $modtaget <= 0) {
+				continue;   // nothing outstanding on this line
 			}
 
 			$pris = (float) $r['pris'];
@@ -132,7 +129,6 @@ if (!function_exists('deficit_cost_price')) {
 	 *
 	 * @param int|string   $vare_id  The item.
 	 * @param int|string   $linje_id The order line being priced, for the log only.
-	 * @param int|string   $lager    Warehouse, 0 for any.
 	 * @param resource|null $fp      Open order log handle, or NULL when the caller has none.
 	 * @param int|string   $sprog_id Language for the warning text.
 	 * @param string       $kontekst Short label naming the calling branch, for the log.
@@ -142,12 +138,12 @@ if (!function_exists('deficit_cost_price')) {
 	 *                            since that is where an API caller can see what happened at all.
 	 * @return float The cost price, in base currency.
 	 */
-	function deficit_cost_price($vare_id, $linje_id, $lager, $fp, $sprog_id, $kontekst, $webservice = false)
+	function deficit_cost_price($vare_id, $linje_id, $fp, $sprog_id, $kontekst, $webservice = false)
 	{
 		// One warning per request. A delivery is a single request, so this is "once per delivery".
 		static $advaret = 0;
 
-		$kostkilde = find_open_purchase_cost($vare_id, $lager);
+		$kostkilde = find_open_purchase_cost($vare_id);
 		if ($kostkilde) {
 			$kostpris      = $kostkilde['pris'];
 			$kostkilde_txt = "open purchase line " . $kostkilde['linje_id'] . " on order " . $kostkilde['ordrenr'];

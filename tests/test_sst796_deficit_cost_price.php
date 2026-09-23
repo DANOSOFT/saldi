@@ -21,7 +21,6 @@ error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
 
 $GLOBALS['sst796_rows'] = [];      // rows the double returns for the purchase-line query
-$GLOBALS['sst796_modtag'] = null;  // row the double returns for the modtagelser query
 $GLOBALS['sst796_queries'] = [];
 $GLOBALS['sst796_varekostpris'] = '88100.930'; // Den-Tec's three-year-old varekort figure
 
@@ -35,9 +34,6 @@ function findtekst($key, $sprog_id)
 function db_select($query, $source)
 {
     $GLOBALS['sst796_queries'][] = $query;
-    if (stripos($query, 'from modtagelser') !== false) {
-        return (object)['rows' => $GLOBALS['sst796_modtag'] === null ? [] : [$GLOBALS['sst796_modtag']]];
-    }
     if (stripos($query, 'from varer') !== false) {
         return (object)['rows' => [['kostpris' => $GLOBALS['sst796_varekostpris']]]];
     }
@@ -78,7 +74,7 @@ function poLine(array $over = []): array
         'pris'       => '18500.000',
         'rabat'      => '0.000',
         'antal'      => '1.000',
-        'leveret'    => '0.000',
+        'modtaget'   => '0.000',
         'valutakurs' => '750.000',
         'ordrenr'    => '355',
     ];
@@ -86,8 +82,7 @@ function poLine(array $over = []): array
 
 // (b) the Den-Tec case: open purchase line, EUR 18.500 at kurs 7,50
 $GLOBALS['sst796_rows'] = [poLine()];
-$GLOBALS['sst796_modtag'] = null;
-$hit = find_open_purchase_cost(1096, 1);
+$hit = find_open_purchase_cost(1096);
 check('open purchase line is used', true, $hit !== NULL);
 check('Den-Tec price: EUR 18.500 x 7,50 = 138.750', 138750.0, $hit['pris']);
 check('the source is reported for the log', 27083, $hit['linje_id']);
@@ -95,36 +90,54 @@ check('the order number is reported', '355', $hit['ordrenr']);
 
 // (c) nothing open: the caller keeps varer.kostpris
 $GLOBALS['sst796_rows'] = [];
-check('no purchase line means no override', NULL, find_open_purchase_cost(1096, 1));
+check('no purchase line means no override', NULL, find_open_purchase_cost(1096));
 
 // a line discount must be applied, as includes/ordrefunc.php:1925 does on a real receipt
 $GLOBALS['sst796_rows'] = [poLine(['rabat' => '10.000'])];
-check('line discount is applied', 124875.0, find_open_purchase_cost(1096, 1)['pris']);
+check('line discount is applied', 124875.0, find_open_purchase_cost(1096)['pris']);
 
 // a missing kurs must not zero the price
 $GLOBALS['sst796_rows'] = [poLine(['valutakurs' => '0', 'pris' => '1234.000'])];
-check('missing valutakurs is treated as 100', 1234.0, find_open_purchase_cost(1096, 1)['pris']);
+check('missing valutakurs is treated as 100', 1234.0, find_open_purchase_cost(1096)['pris']);
 
-// a fully delivered line is not an open line, unless a receipt is still queued
-$GLOBALS['sst796_rows'] = [poLine(['leveret' => '1.000'])];
-$GLOBALS['sst796_modtag'] = null;
-check('fully delivered line is skipped', NULL, find_open_purchase_cost(1096, 1));
+// A line is outstanding by the goods-receipt screen's own measure: ordrelinjer.antal less the
+// batch_kob already booked against it (lager/modtagelse.php:258-261). Not ordrelinjer.leveret - the
+// receipt path never writes it, and on the purchase side the statements that would are commented
+// out in kreditor/ordre.php and ordreM.php, so leveret reads 0 on every KO line and a fully
+// received order would look open forever.
+$GLOBALS['sst796_rows'] = [poLine(['modtaget' => '1.000'])];
+check('a fully received line is skipped', NULL, find_open_purchase_cost(1096));
 
-$GLOBALS['sst796_rows'] = [poLine(['leveret' => '1.000'])];
-$GLOBALS['sst796_modtag'] = ['antal' => '1.000'];
-check('fully delivered but queued in modtagelser is used', 138750.0, find_open_purchase_cost(1096, 1)['pris']);
+$GLOBALS['sst796_rows'] = [poLine(['antal' => '3.000', 'modtaget' => '3.000'])];
+check('received in several batches still counts as closed', NULL, find_open_purchase_cost(1096));
+
+$GLOBALS['sst796_rows'] = [poLine(['antal' => '3.000', 'modtaget' => '1.000'])];
+check('a partly received line is still open', 138750.0, find_open_purchase_cost(1096)['pris']);
+
+$GLOBALS['sst796_rows'] = [poLine(['antal' => '1.000', 'modtaget' => '2.000'])];
+check('over-receipt does not resurrect the line', NULL, find_open_purchase_cost(1096));
+
+// A receipt queued but not yet booked has written no batch_kob, so the line is still outstanding on
+// its own and needs no separate modtagelser lookup.
+$GLOBALS['sst796_rows'] = [poLine(['modtaget' => '0.000'])];
+$GLOBALS['sst796_queries'] = [];
+check('a queued, unbooked receipt leaves the line open', 138750.0, find_open_purchase_cost(1096)['pris']);
+$touchedModtagelser = false;
+foreach ($GLOBALS['sst796_queries'] as $q) {
+    if (stripos($q, 'from modtagelser') !== false) $touchedModtagelser = true;
+}
+check('and modtagelser is not consulted at all', false, $touchedModtagelser);
 
 // a zero-priced line tells us nothing; keep looking rather than writing 0 onto the invoice
 $GLOBALS['sst796_rows'] = [poLine(['pris' => '0.000']), poLine(['pris' => '2000.000', 'linje_id' => 999])];
-$GLOBALS['sst796_modtag'] = null;
-$hit = find_open_purchase_cost(1096, 1);
+$hit = find_open_purchase_cost(1096);
 check('a zero-priced line is skipped', 15000.0, $hit['pris']);
 check('and the next line is used instead', 999, $hit['linje_id']);
 
 // the item id reaches SQL, so it must be cast
 $GLOBALS['sst796_rows'] = [];
 $GLOBALS['sst796_queries'] = [];
-find_open_purchase_cost("1096' or '1'='1", 1);
+find_open_purchase_cost("1096' or '1'='1");
 $injected = false;
 foreach ($GLOBALS['sst796_queries'] as $q) {
     if (strpos($q, "or '1'='1") !== false) $injected = true;
@@ -134,11 +147,13 @@ check('the vare_id is int-cast before it reaches SQL', false, $injected);
 // the open-line definition must match lager/modtagelse.php:254
 $GLOBALS['sst796_rows'] = [poLine()];
 $GLOBALS['sst796_queries'] = [];
-find_open_purchase_cost(1096, 1);
+find_open_purchase_cost(1096);
 $q = $GLOBALS['sst796_queries'][0];
 check("only kreditorordrer are considered", true, strpos($q, "o.art = 'KO'") !== false);
 check("only status 1 or 2 count as open", true, strpos($q, "o.status = '1' or o.status = '2'") !== false);
 check("newest order first", true, strpos($q, 'order by o.ordredate desc') !== false);
+check("outstanding quantity comes from batch_kob, as the receipt path measures it", true, strpos($q, 'from batch_kob bk where bk.linje_id = ol.id') !== false);
+check("ordrelinjer.leveret is not consulted", false, strpos($q, 'leveret') !== false);
 
 // ---------------------------------------------------------------------------------------------
 // deficit_cost_price(): the resolver both of linjeopdat()'s deficit branches now share. While only
@@ -151,7 +166,7 @@ function runResolver($vare_id, $linje_id, $kontekst)
 {
     $fp = fopen('php://memory', 'w+');
     ob_start();
-    $pris = deficit_cost_price($vare_id, $linje_id, 1, $fp, 2, $kontekst);
+    $pris = deficit_cost_price($vare_id, $linje_id, $fp, 2, $kontekst);
     $printed = ob_get_clean();
     rewind($fp);
     $log = stream_get_contents($fp);
@@ -167,10 +182,9 @@ function runResolver($vare_id, $linje_id, $kontekst)
 // This runs FIRST, while the once-per-request flag is still unset. Run after the interactive cases
 // below it would pass even with the suppression removed, because the flag would already be spent.
 $GLOBALS['sst796_rows'] = [poLine()];
-$GLOBALS['sst796_modtag'] = null;
 $fp = fopen('php://memory', 'w+');
 ob_start();
-$ws = deficit_cost_price(1096, 44005, 1, $fp, 2, 'salg fra negativ lagerbeholdning', 'on');
+$ws = deficit_cost_price(1096, 44005, $fp, 2, 'salg fra negativ lagerbeholdning', 'on');
 $wsPrinted = ob_get_clean();
 rewind($fp);
 $wsLog = stream_get_contents($fp);
@@ -182,7 +196,6 @@ check('a webservice delivery is still logged', true, strpos($wsLog, 'source open
 // The sale branch, Den-Tec's shape: the open purchase line must beat the stale varekort figure.
 // Reaching here with the flag unspent also proves the webservice call above did not consume it.
 $GLOBALS['sst796_rows'] = [poLine()];
-$GLOBALS['sst796_modtag'] = null;
 $salg = runResolver(1096, 44001, 'salg fra negativ lagerbeholdning');
 check('sale branch prices from the open purchase line', 138750.0, $salg['pris']);
 check('sale branch does not use the stale varekort figure', false, abs($salg['pris'] - 88100.93) < 0.0005);
@@ -193,7 +206,6 @@ check('sale branch warns the user', true, strpos($salg['printed'], 'indkøbsordr
 // The negative/kreditnota branch, same item and same open line, must reach the same price. This is
 // the gap ZaynSaul found: before this change it returned 88.100,93 for the item above.
 $GLOBALS['sst796_rows'] = [poLine()];
-$GLOBALS['sst796_modtag'] = null;
 $kredit = runResolver(1096, 44002, 'negativt salg/kreditnota');
 check('kreditnota branch prices from the same open purchase line', 138750.0, $kredit['pris']);
 check('both branches agree on the same item', true, abs($salg['pris'] - $kredit['pris']) < 0.0005);
@@ -205,7 +217,6 @@ check('the warning is not repeated for later lines', '', $kredit['printed']);
 
 // No open purchase line: varer.kostpris is still the last resort, for both branches.
 $GLOBALS['sst796_rows'] = [];
-$GLOBALS['sst796_modtag'] = null;
 $fallback = runResolver(1096, 44003, 'negativt salg/kreditnota');
 check('falls back to varer.kostpris when nothing is open', 88100.93, $fallback['pris']);
 check('and logs varer.kostpris as the source', true, strpos($fallback['log'], 'source varer.kostpris') !== false);
@@ -213,7 +224,7 @@ check('and logs varer.kostpris as the source', true, strpos($fallback['log'], 's
 // A caller without an order log handle must not fatal.
 $GLOBALS['sst796_rows'] = [poLine()];
 ob_start();
-$noLog = deficit_cost_price(1096, 44004, 1, NULL, 2, 'negativt salg/kreditnota');
+$noLog = deficit_cost_price(1096, 44004, NULL, 2, 'negativt salg/kreditnota');
 ob_end_clean();
 check('a NULL log handle is tolerated', 138750.0, $noLog);
 

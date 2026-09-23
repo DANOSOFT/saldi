@@ -596,7 +596,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					//             open purchase line is the better estimate. Shared resolver so the
 					//             two branches cannot drift apart again.
 					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
-					$kostpris = deficit_cost_price($vare_id, $linje_id, $lager, $fp, $sprog_id, 'negativt salg/kreditnota', $webservice);
+					$kostpris = deficit_cost_price($vare_id, $linje_id, $fp, $sprog_id, 'negativt salg/kreditnota', $webservice);
 					$tmp2 = $tmp * -1;
 					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
 					#db_modify("insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) values ('$vare_id', '0', '0','0','$tmp','$kostpris','$lager','$variant_id')",__FILE__ . " linje " . __LINE__);
@@ -639,7 +639,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					//             real price sitting on an open purchase line for the same item the
 					//             whole time. Prefer that line; keep varer.kostpris as the last resort.
 					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
-					$kostpris = deficit_cost_price($vare_id, $linje_id, $lager, $fp, $sprog_id, 'salg fra negativ lagerbeholdning', $webservice);
+					$kostpris = deficit_cost_price($vare_id, $linje_id, $fp, $sprog_id, 'salg fra negativ lagerbeholdning', $webservice);
 					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
 					$tmp2 = $tmp * -1;
 					$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) ";
