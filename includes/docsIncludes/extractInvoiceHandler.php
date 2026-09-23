@@ -12,6 +12,8 @@
 // 20260922 CL/LAH A fatal is reported as a JSON error instead of an empty body; the vendor
 //             match is wrapped so it can never fail the scan; JSON_INVALID_UTF8_SUBSTITUTE
 //             on the responses because legacy adresser rows can hold non-UTF-8 bytes.
+// 20260923 CL/LAH Output stays buffered until shutdown, so a warning, a late fatal or
+//             db_query.php's alert() can no longer corrupt the JSON (Astra review).
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -19,15 +21,51 @@ header('Content-Type: application/json');
 // Start output buffering to capture any unwanted output
 ob_start();
 
-// A fatal error anywhere below would otherwise leave the browser with an empty body
-// ("Unexpected end of JSON input", seen on ssl3 2026-09-22). Report it as JSON instead,
-// and log it, so the cause is visible.
+// Every response of this handler must be one JSON document. A fatal error, a warning printed
+// with display_errors on, or db_query.php's alert() on a failed query would otherwise reach
+// the browser as an empty or non-JSON body ("Unexpected end of JSON input", seen on ssl3
+// 2026-09-22). All output stays buffered until shutdown; if the buffer is not valid JSON by
+// then, it is replaced by a JSON error naming the cause, which is also written to the log.
 register_shutdown_function(function () {
 	$error = error_get_last();
-	if ($error === null || !in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_RECOVERABLE_ERROR), true)) return;
-	while (ob_get_level() > 0) ob_end_clean();
-	error_log("extractInvoiceHandler fatal: {$error['message']} in {$error['file']}:{$error['line']}");
-	echo json_encode(array('success' => false, 'error' => 'Serverfejl: ' . basename($error['file']) . ':' . $error['line'] . ' ' . $error['message']), JSON_INVALID_UTF8_SUBSTITUTE);
+	$fatal = $error !== null && in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_RECOVERABLE_ERROR), true);
+	// Before the guarded buffer is opened (session/db checks) responses are echoed directly;
+	// only a fatal needs handling there.
+	if (empty($GLOBALS['extractInvoiceOutputGuard']) && !$fatal) return;
+	$out = '';
+	while (ob_get_level() > 0) $out = ob_get_clean() . $out;
+	$trimmed = trim($out);
+	if (!$fatal && $trimmed !== '') {
+		json_decode($trimmed);
+		if (json_last_error() === JSON_ERROR_NONE) {
+			echo $trimmed;
+			return;
+		}
+		// Valid JSON with stray output in front of it (a warning, a debug echo): send the JSON.
+		$jsonStart = strrpos($trimmed, '{"success"');
+		if ($jsonStart !== false) {
+			$tail = substr($trimmed, $jsonStart);
+			json_decode($tail);
+			if (json_last_error() === JSON_ERROR_NONE) {
+				error_log("extractInvoiceHandler: stray output before JSON: " . substr(strip_tags(substr($trimmed, 0, $jsonStart)), 0, 500));
+				echo $tail;
+				return;
+			}
+		}
+	}
+	if ($fatal) {
+		$reason = basename($error['file']) . ':' . $error['line'] . ' ' . $error['message'];
+	} elseif ($trimmed === '') {
+		$reason = 'tomt svar';
+	} elseif (preg_match('#alert\((["\'])(.*?)\1\)#s', $trimmed, $alertMatch)) {
+		// db_query.php's alert() after a failed query: its text is the user-facing message.
+		$reason = $alertMatch[2];
+		error_log("extractInvoiceHandler: output before alert: " . substr(strip_tags($trimmed), 0, 500));
+	} else {
+		$reason = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($trimmed), ENT_QUOTES, 'UTF-8')));
+	}
+	error_log("extractInvoiceHandler: non-JSON response replaced: " . substr($reason, 0, 500));
+	echo json_encode(array('success' => false, 'error' => 'Serverfejl: ' . mb_substr($reason, 0, 300, 'UTF-8')), JSON_INVALID_UTF8_SUBSTITUTE);
 });
 
 // Start session so the tenant db can be resolved from it below - a POSTed
@@ -74,8 +112,11 @@ if (!$connection) {
 // Include the extraction API
 include_once("invoiceExtractionApi.php");
 
-// Discard any buffered output from includes
+// Discard any buffered output from includes, then keep buffering until shutdown (see the
+// shutdown handler at the top) so nothing can reach the browser outside the JSON response.
 ob_end_clean();
+ob_start();
+$GLOBALS['extractInvoiceOutputGuard'] = true;
 
 /**
  * Match the vendor identity of a scanned invoice against the tenant's kreditorer.
