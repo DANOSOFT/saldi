@@ -159,7 +159,28 @@ function runResolver($vare_id, $linje_id, $kontekst)
     return ['pris' => $pris, 'printed' => $printed, 'log' => $log];
 }
 
+// An API delivery must not print markup: rest_api.php, mysale/api.php, remoteBooking/api.php and
+// soapserver/invoice.php all reach levering() with webservice on and then emit JSON or XML, which
+// printed HTML would precede and invalidate. The log line still has to be written, because that is
+// the only place an API caller can see the cost price was estimated.
+//
+// This runs FIRST, while the once-per-request flag is still unset. Run after the interactive cases
+// below it would pass even with the suppression removed, because the flag would already be spent.
+$GLOBALS['sst796_rows'] = [poLine()];
+$GLOBALS['sst796_modtag'] = null;
+$fp = fopen('php://memory', 'w+');
+ob_start();
+$ws = deficit_cost_price(1096, 44005, 1, $fp, 2, 'salg fra negativ lagerbeholdning', 'on');
+$wsPrinted = ob_get_clean();
+rewind($fp);
+$wsLog = stream_get_contents($fp);
+fclose($fp);
+check('a webservice delivery still gets the right price', 138750.0, $ws);
+check('a webservice delivery prints nothing', '', $wsPrinted);
+check('a webservice delivery is still logged', true, strpos($wsLog, 'source open purchase line') !== false);
+
 // The sale branch, Den-Tec's shape: the open purchase line must beat the stale varekort figure.
+// Reaching here with the flag unspent also proves the webservice call above did not consume it.
 $GLOBALS['sst796_rows'] = [poLine()];
 $GLOBALS['sst796_modtag'] = null;
 $salg = runResolver(1096, 44001, 'salg fra negativ lagerbeholdning');
@@ -195,6 +216,13 @@ ob_start();
 $noLog = deficit_cost_price(1096, 44004, 1, NULL, 2, 'negativt salg/kreditnota');
 ob_end_clean();
 check('a NULL log handle is tolerated', 138750.0, $noLog);
+
+$guard = file_get_contents(__DIR__ . '/../includes/stdFunc/findOpenPurchaseCost.php');
+check(
+    'the warn-once flag is guarded by the webservice flag, not set before it',
+    true,
+    (bool)preg_match('/if\s*\(\s*!\$webservice\s*&&\s*!\$advaret\s*\)/', $guard)
+);
 
 // ---------------------------------------------------------------------------------------------
 // The resolver being correct is not enough: linjeopdat() has to actually call it from both deficit
@@ -240,6 +268,24 @@ check(
     'no deficit branch reads varer.kostpris directly any more',
     0,
     preg_match_all('/select\s+kostpris\s+from\s+varer/i', $body)
+);
+// Both call sites must forward the webservice flag, or the API paths print markup again. A global
+// would not do here: only api/rest_api.php sets a request-scope $webservice, while mysale/api.php,
+// remoteBooking/api.php and soapserver/invoice.php pass it to levering() as an argument only.
+check(
+    'both call sites forward the webservice flag',
+    2,
+    preg_match_all('/deficit_cost_price\s*\([^;]*\$webservice\s*\)/', $body)
+);
+check(
+    'linjeopdat() accepts the flag from levering()',
+    true,
+    (bool)preg_match('/function\s+linjeopdat\s*\([^)]*\$webservice/', file_get_contents(__DIR__ . '/../includes/ordrefunc.php'))
+);
+check(
+    'levering() passes its own flag down to linjeopdat()',
+    true,
+    (bool)preg_match('/linjeopdat\([^;]*\$webservice\s*\)\s*;/', file_get_contents(__DIR__ . '/../includes/ordrefunc.php'))
 );
 
 printf("\n%s\n", $failures ? "$failures FAILURE(S)" : 'All SST-796 cost-price cases passed.');

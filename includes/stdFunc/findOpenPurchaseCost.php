@@ -136,9 +136,13 @@ if (!function_exists('deficit_cost_price')) {
 	 * @param resource|null $fp      Open order log handle, or NULL when the caller has none.
 	 * @param int|string   $sprog_id Language for the warning text.
 	 * @param string       $kontekst Short label naming the calling branch, for the log.
+	 * @param bool|string  $webservice Truthy on an API/SOAP delivery, where the HTML warning must be
+	 *                            suppressed: those callers emit JSON or XML, and printed markup would
+	 *                            precede and invalidate the response. The log line is still written,
+	 *                            since that is where an API caller can see what happened at all.
 	 * @return float The cost price, in base currency.
 	 */
-	function deficit_cost_price($vare_id, $linje_id, $lager, $fp, $sprog_id, $kontekst)
+	function deficit_cost_price($vare_id, $linje_id, $lager, $fp, $sprog_id, $kontekst, $webservice = false)
 	{
 		// One warning per request. A delivery is a single request, so this is "once per delivery".
 		static $advaret = 0;
@@ -159,8 +163,10 @@ if (!function_exists('deficit_cost_price')) {
 
 		// Non-blocking: the delivery goes through either way, but the user is told the cost price was
 		// estimated rather than taken from stock. Same alert idiom linjeopdat() already uses for its
-		// serial-number warning.
-		if (!$advaret) {
+		// serial-number warning. There is nobody to show a dialog to on an API delivery, and the
+		// markup would corrupt the JSON/XML response, so the flag is left untouched as well - a later
+		// interactive delivery in the same request still gets its one warning.
+		if (!$webservice && !$advaret) {
 			$advaret = 1;
 			$txt = $kostkilde
 				? findtekst('5241|Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager', $sprog_id)
