@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026-07-06 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026-09-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,9 @@
 // 20260225 PHR Updated cashCount
 // 20260604 PHR setCreditCards: dkdecimal() tilføjet til visning af ny_kortsum — konvertering sker nu i pos_ordre.php via usdecimal()
 // 20260706 CX/PHR setCreditCards: sort VAT rate/amount pairs defensively to avoid array_multisort fatal on uneven arrays
+// 20260917 CDX/PHR Link to saved cash count history.
+// 20260917 CDX/PHR Replace Print last with a same-tab cash count history button.
+// 20260917 CL/LH Translate the cash count history button label (text 5153).
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -187,13 +190,13 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	 *	$curr = $txtArray['currency'];
 	 */
 	$curr        = $baseCurrency;
-	$printLast   = findtekst('2392|Udskriv sidste',$sprog_id);
 	$portfolio   = findtekst('2389|Morgenbeholdning',$sprog_id);
 	$dayApproach = findtekst('2393|Dagens kontanttilgang',$sprog_id);
 	$expInv      = findtekst('2394|Forventet beholdning',$sprog_id);
 	$countInv    = findtekst('2395|Optalt beholdning',$sprog_id);
 	$diff        = findtekst('2396|Difference',$sprog_id);
 	$fromBox     = findtekst('2397|Udtag fra kasse',$sprog_id);
+	$history     = findtekst('5240|Tidligere optællinger',$sprog_id);
 
 	print "<tr><td align=\"center\" colspan=\"3\">";
 	print "<span onclick='window.open(\"http://$printserver/saldiprint.php?skuffe=1\")'>";
@@ -204,10 +207,7 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	print "<tr><td align=\"center\" colspan=\"3\">";
 	print "<a href=pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&printXreport=1>";
 	print "<input style='width:100px' type=\"button\" name=\"xReport\" value=\"X-rapport\"></a>\n";
-	if (file_exists("$pfnavn")) {
-		print "<a href=pos_ordre.php?id=$id&kasse=$kasse&udskriv_kasseopg=$pfnavn>";
-		print "<input style='width:100px' type=\"button\" name=\"optael\" value=\"$printLast\"></a>\n";
-	} else print "<td></td>";
+	echo '<button type="button" style="min-width:100px" onclick="window.location.href=\'cashCountHistory.php?kasse=' . (int)$kasse . '\'">' . $history . '</button>';
 	print "<td></td>";
 
 	$txt1 = "         ----- X-report -----";

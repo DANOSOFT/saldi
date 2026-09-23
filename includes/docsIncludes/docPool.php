@@ -43,6 +43,7 @@
 //                 which the very next INSERT/UPDATE in each of those code paths already
 //                 references - a brand-new tenant's first pool file would fail with
 //                 "column norm_amount does not exist". Added the column to both.
+// 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 // 20260910 CL/SZ SST-776 follow-up (root cause identified during the SST-740 trace on
 //                 20260908, but PR #584 only shipped the FileReservation/session-tenant half -
 //                 this closes the other half): syncPuljeFilesToDatabase() only ever inserted a
@@ -67,6 +68,11 @@
 // 20260916 CDX/LAH Keep the selected new voucher row visible above collapsed existing lines.
 // 20260917 CDX/LAH Preserve new voucher fields, including accounts, when opening a pool preview.
 // 20260918 LOE SD-700 Keep the pool list order and position when opening a bilag.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: vendor_* columns added to both pool_files
+//                 CREATE TABLE IF NOT EXISTS fallbacks; the three scanning paths (single scan,
+//                 'Opdatér alle', auto-extract on upload) now post the seller's CVR/IBAN/bank
+//                 details with vendorScan=1 so extractInvoiceHandler.php can match the kreditor.
+
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -151,6 +157,12 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			invoice_number varchar(100),
 			description text,
 			updated timestamp DEFAULT CURRENT_TIMESTAMP,
+			vendor_name text,
+			vendor_cvr varchar(20),
+			vendor_iban varchar(40),
+			vendor_konto_id integer,
+			vendor_match varchar(10),
+			vendor_score numeric(4,3),
 			PRIMARY KEY (id),
 			UNIQUE(filename)
 		)";
@@ -914,6 +926,12 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								invoice_number varchar(100),
 								description text,
 								updated timestamp DEFAULT CURRENT_TIMESTAMP,
+								vendor_name text,
+								vendor_cvr varchar(20),
+								vendor_iban varchar(40),
+								vendor_konto_id integer,
+								vendor_match varchar(10),
+								vendor_score numeric(4,3),
 								PRIMARY KEY (id),
 								UNIQUE(filename)
 							)";
@@ -3473,6 +3491,18 @@ window.isAutoExtractEnabled = function() {
 	return toggle ? toggle.checked : true;
 };
 
+// Forward the seller's identity from an extraction result to the save action, and flag
+// the save as a scan (vendorScan=1) so extractInvoiceHandler.php matches the kreditor
+// server-side and stores pool_files.vendor_*. A plain metadata edit never sets the flag.
+window.appendVendorIdentity = function(formData, extracted) {
+	formData.append('vendorScan', '1');
+	if (extracted.vendorCvr) formData.append('newVendorCvr', extracted.vendorCvr);
+	if (extracted.vendorIban) formData.append('newVendorIban', extracted.vendorIban);
+	if (extracted.vendorBankReg) formData.append('newVendorBankReg', extracted.vendorBankReg);
+	if (extracted.vendorBankKonto) formData.append('newVendorBankKonto', extracted.vendorBankKonto);
+	if (extracted.customerCvr) formData.append('newCustomerCvr', extracted.customerCvr);
+};
+
 // Extract invoice data from pool file via API
 window.extractPoolFile = function(poolFile) {
 	// Show loading state
@@ -3521,6 +3551,7 @@ window.extractPoolFile = function(poolFile) {
 				if (extracted.description) saveData.append('newDescription', extracted.description);
 				if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
 				if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+				appendVendorIdentity(saveData, extracted);
 
 				fetch('docsIncludes/extractInvoiceHandler.php', {
 					method: 'POST',
@@ -3616,6 +3647,7 @@ window.extractAllPoolFiles = async function() {
 						if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
 						if (extracted.description) saveData.append('newDescription', extracted.description);
 						if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+						appendVendorIdentity(saveData, extracted);
 
 						const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
 							method: 'POST',
@@ -4018,7 +4050,7 @@ JS;
 	print "<div style='padding: 12px;'>";
 	
 	// Unified upload zone (click to select or drag and drop)
-	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png' multiple style='display:none'>";
+	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png,.xml' multiple style='display:none'>";
 	print "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' onclick='document.getElementById(\"fileUploadInput\").click()' style='width: 100%; border: 2px dashed #bbb; border-radius: 10px; padding: 90px 16px; background-color: #f8f8f8; cursor: pointer; transition: all 0.3s ease; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;'>";
 	print "<div id='dropText' style='display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; text-align: center;'>";
 	print "<svg viewBox='0 0 24 24' fill='none' stroke='#7ab3d4' stroke-width='1.5' width='44' height='44'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg>";
@@ -4056,7 +4088,7 @@ JS;
 	}
 
 	function uploadFiles(files) {
-		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.xml'];
 		var validFiles = [];
 		for (var i = 0; i < files.length; i++) {
 			var fileName = files[i].name.toLowerCase();
@@ -4163,6 +4195,7 @@ JS;
 							if (extracted.invoiceNumber) svData.append('newInvoiceNumber', extracted.invoiceNumber);
 							if (extracted.description) svData.append('newDescription', extracted.description);
 							if (extracted.currency) svData.append('newCurrency', extracted.currency);
+							appendVendorIdentity(svData, extracted);
 							console.time('[Upload] File ' + (index+1) + ' save extracted data');
 							const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
 							console.timeEnd('[Upload] File ' + (index+1) + ' save extracted data');
