@@ -15,6 +15,9 @@
 // 20260923 CL/LAH Output stays buffered until shutdown, so a warning, a late fatal or
 //             db_query.php's alert() can no longer corrupt the JSON (Astra review). The buffer
 //             is never closed early, so this also covers the session/db checks at startup.
+// 20260923 CL/NTR The non-JSON fallback no longer echoes the raw error/alert text to the
+//             client (CodeRabbit); it now sends a short random ref id and logs the full
+//             reason against that same id, so the incident can still be found in the log.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -62,8 +65,9 @@ register_shutdown_function(function () {
 	} else {
 		$reason = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($trimmed), ENT_QUOTES, 'UTF-8')));
 	}
-	error_log("extractInvoiceHandler: non-JSON response replaced: " . substr($reason, 0, 500));
-	echo json_encode(array('success' => false, 'error' => 'Serverfejl: ' . mb_substr($reason, 0, 300, 'UTF-8')), JSON_INVALID_UTF8_SUBSTITUTE);
+	$errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+	error_log("extractInvoiceHandler: non-JSON response replaced [$errorId]: " . substr($reason, 0, 500));
+	echo json_encode(array('success' => false, 'error' => "Serverfejl (ref: $errorId) - kontakt support"), JSON_INVALID_UTF8_SUBSTITUTE);
 });
 
 // Start session so the tenant db can be resolved from it below - a POSTed
