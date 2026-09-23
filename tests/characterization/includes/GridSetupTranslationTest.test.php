@@ -258,6 +258,19 @@ final class GridSetupTranslationTest extends TestCase
         self::assertSame(array(), grid_setup_added_since_setup(array(array('field' => 'pris', 'visible' => false))));
     }
 
+    /**
+     * SD-685 review: the row fetch_grid_setup() writes for a new user carries the flag, so a fresh
+     * grid is never normalised on its first load and its headers keep following the code's language.
+     */
+    public function testANewUserRowIsWrittenInTheCurrentFormat(): void
+    {
+        $fresh = array(array('field' => 'varenr', 'visible' => true, 'width' => 1, 'align' => 'left'));
+
+        self::assertFalse(grid_setup_is_legacy($fresh));
+        self::assertSame(array(), grid_setup_added_since_setup($fresh), 'nothing to offer back on a fresh row');
+        self::assertSame('Item No.', merge_column_setup($fresh, array($this->codeColumn('varenr', 'Item No.')))[0]['headerName']);
+    }
+
     public function testALegacySetupIsRecognisedByTheMissingVisibilityFlags(): void
     {
         self::assertFalse(grid_setup_is_legacy(array()), 'a user without a stored setup has nothing to normalise');

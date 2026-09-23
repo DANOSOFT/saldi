@@ -651,8 +651,14 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
             function ($column) {
                 return [
                     'field' => if_isset($column['field'], null),
-                    'headerName' => if_isset($column['headerName'], null),
-                    'description' => if_isset($column['description'], null),
+                    // SD-685 review: a setup written now is current from the start. It carries the
+                    // per-row 'visible' flag, so grid_setup_is_legacy() never sees it as a snapshot
+                    // and the first load does not normalise (or write) anything for a new user. The
+                    // code's own headerName/description are deliberately not stored: they follow the
+                    // session language through the code instead of freezing the language this row
+                    // happened to be created in. A rename is stored as customHeaderName when the
+                    // user sets one.
+                    'visible' => true,
                     'width' => if_isset($column['width'], null),
                     'align' => if_isset($column['align'], null),
                 ];
