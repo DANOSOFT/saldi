@@ -56,6 +56,10 @@
 //                widened the clickable area to the whole title (not just the small count text),
 //                and added a hover highlight + tooltip so it reads as a toggle at a glance
 // 20260720 SZ The page's global "a:link{text-decoration:none}" rule was making the toggle look
+// 20260919 CDX/MJ Delivery-address save is one transaction: the upsert loop, the delete of rows
+//                  removed in the UI and the primary sync to adresser.lev_* commit together, so a
+//                  failure part-way can no longer leave the account with no primary address or
+//                  with lev_* fields pointing at a row that was just deleted.
 //                like plain black text, not a link, so the chevron alone wasn't enough of a
 //                hint; styled the whole toggle bar as a colored, underlined link and added an
 //                explicit "Show/Hide" text label next to the chevron on all three sections
@@ -785,6 +789,15 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				
 				//####
 				// ---- Save delivery_addresses ----
+				// 20260919 CDX/MJ One transaction for the whole save. The upsert loop, the delete of
+				//             rows removed in the UI and the primary sync back to adresser.lev_* are
+				//             one unit: a failure part-way through used to leave the account with
+				//             zero primary addresses, or with the adresser lev_* fields describing
+				//             an address that had just been deleted. db_modify() alerts and exits on
+				//             a failed write, so without a transaction those earlier statements were
+				//             already committed; with one, the server discards them when the
+				//             connection closes.
+				transaktion('begin');
 				$da_json  = isset($_POST['delivery_addresses_json']) ? $_POST['delivery_addresses_json'] : '[]';
 				$da_rows  = json_decode($da_json, true);
 				if (!is_array($da_rows)) $da_rows = []; 
@@ -926,6 +939,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 							lev_email     = '$s_em'
 						WHERE id = '$id'
 					", __FILE__ . " linje " . __LINE__);
+				}
+				// $db_modify_fejl is only set on the webservice path, where db_modify() returns
+				// instead of exiting; checking it keeps that path from committing a half-written
+				// save. Everywhere else a failed write has already exited above.
+				if (!empty($db_modify_fejl)) {
+					transaktion('rollback');
+				} else {
+					transaktion('commit');
 				}
 				// ---- END Save delivery_addresses ----
 

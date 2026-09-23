@@ -60,6 +60,8 @@
 // 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 // 20260911 CDX/LH SD-186 Use the Danish Udført af label for the invoice field.
+// 20260921 CDX/MJ SST-745 Match VSPR sprog case-insensitively when saving et formularkort, so a
+//                          different capitalisation no longer creates a duplicate sprogrække.
 @session_start();
 $s_id=session_id();
 
@@ -166,7 +168,16 @@ if (isset($_POST) && $_POST) {
 
 	#tjekker om sprog_id er sat og hvis ikke, oprettes sprog_id
 	if ($formularsprog && $formularsprog!='Dansk') {
-		$qtxt = "select kodenr from grupper where art = 'VSPR' and box1='$formularsprog'";
+		// 20260921 CDX/MJ SST-745 Match the language case-insensitively, as the explicit "opret sprog"
+		//             path further down this file already does. Comparing box1 exactly meant that
+		//             saving a formularkort with a different capitalisation - "engelsk" where
+		//             "Engelsk" existed - found no row and inserted a second one, so each spelling
+		//             added a VSPR row. lager/varekort.php lists every VSPR row on every varekort,
+		//             which is the "engelsk three times" BASSLAB reported. This is the only VSPR
+		//             lookup that inserts on a miss; the exact-match ones elsewhere only read.
+		//             A row that matched exactly still resolves to the same kodenr, so existing
+		//             formularer and varetekster keep pointing where they did.
+		$qtxt = "select kodenr from grupper where art = 'VSPR' and lower(box1) = lower('$formularsprog') order by kodenr";
 		if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$form_sprog_id = $r['kodenr'];
 		} else {

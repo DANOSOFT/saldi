@@ -5760,6 +5760,26 @@ components:
             currency:
               type: string
               example: DKK
+            vendor:
+              type: string
+              description: Seller's name as printed; stored as the pool file's subject
+              example: Dan Group Alarm ApS
+            vendor_vat_number:
+              type: string
+              description: Seller's CVR/VAT number as printed; matched against kreditorer (adresser.cvrnr)
+              example: DK12345678
+            vendor_iban:
+              type: string
+              description: Seller's IBAN as printed; matched against kreditorer (adresser.iban)
+            vendor_bank_reg:
+              type: string
+              description: Seller's Danish reg.nr., matched with vendor_bank_account against adresser.bank_reg/bank_konto
+            vendor_bank_account:
+              type: string
+              description: Seller's Danish kontonr.
+            customer_vat_number:
+              type: string
+              description: Buyer's CVR/VAT number as printed, so it is never taken as the seller's
 
     Attachment:
       type: object

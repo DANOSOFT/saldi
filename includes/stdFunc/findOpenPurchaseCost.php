@@ -185,8 +185,8 @@ if (!function_exists('deficit_cost_price')) {
 		if (!$webservice && !$advaret) {
 			$advaret = 1;
 			$txt = $kostkilde
-				? findtekst('5241|Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager', $sprog_id)
-				: findtekst('5242|Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre', $sprog_id);
+				? findtekst('5246|Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager', $sprog_id)
+				: findtekst('5247|Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('" . str_replace("'", "\\'", $txt) . "')\">";
 		}
 
