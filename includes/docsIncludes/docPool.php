@@ -67,10 +67,12 @@
 //                     other checked saved lines are saved via the Save path before the attach.
 // 20260916 CDX/LAH Keep the selected new voucher row visible above collapsed existing lines.
 // 20260917 CDX/LAH Preserve new voucher fields, including accounts, when opening a pool preview.
+// 20260918 LOE SD-700 Keep the pool list order and position when opening a bilag.
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: vendor_* columns added to both pool_files
 //                 CREATE TABLE IF NOT EXISTS fallbacks; the three scanning paths (single scan,
 //                 'Opdatér alle', auto-extract on upload) now post the seller's CVR/IBAN/bank
 //                 details with vendorScan=1 so extractInvoiceHandler.php can match the kreditor.
+
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -1754,7 +1756,7 @@ print <<<JS
 <script>
 (() => {
     let docData     = [];
-    let currentSort = { field: 'date', asc: false };
+    let currentSort = null; // null until the user sorts by a column: the list is in _docPoolData.php order
 
     
     // Helper: parse amount string to float, handling English format (1,000.00) correctly
@@ -1891,11 +1893,134 @@ print <<<JS
 		}
 	}
 	
+	// Keep the list the user was looking at. Opening a document, inserting a bilag or deleting
+	// one all reload the page, and the table is built here after an async fetch, so the browser
+	// has no rendered content to restore a scroll position to. Per tab (sessionStorage) and per
+	// tenant: the search text and the scroll offset. The column sort is deliberately NOT kept:
+	// it re-sorted the list after an edit had changed the sorted field, so a row the user had
+	// just worked on came back somewhere else - the opposite of what this is for.
+	function poolListViewKey() {
+		return 'docPoolList_' + db;
+	}
+
+	function readPoolListView() {
+		try {
+			const raw = sessionStorage.getItem(poolListViewKey());
+			return raw ? JSON.parse(raw) : null;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	window.savePoolListView = function() {
+		const container = document.getElementById(containerId);
+		const searchBox = document.getElementById('poolSearchBox');
+		try {
+			sessionStorage.setItem(poolListViewKey(), JSON.stringify({
+				search: searchBox ? searchBox.value : '',
+				scroll: container ? container.scrollTop : 0
+			}));
+		} catch (e) {}
+	};
+
+	// Mark the column the list is sorted by, so a sorted list never looks unsorted. Runs after the
+	// table is in the DOM: the header markup cannot call these directly, because this script is
+	// printed from a PHP heredoc, where a dollar-brace sequence is PHP interpolation and would be
+	// evaluated on the server. No sort - the default _docPoolData.php order - means no marker and
+	// a neutral arrow on every sortable header.
+	function markPoolSortHeaders() {
+		const cells = document.querySelectorAll('#' + containerId + ' th[data-sort-field]');
+
+		for (let i = 0; i < cells.length; i++) {
+			const cell   = cells[i];
+			const active = currentSort && currentSort.field === cell.getAttribute('data-sort-field');
+			const arrow  = cell.querySelector('span:last-child');
+
+			if (active) cell.classList.add('pool-sort-active');
+			else cell.classList.remove('pool-sort-active');
+
+			if (arrow) arrow.innerHTML = active ? (currentSort.asc ? '&#9650;' : '&#9660;') : '&#8693;';
+		}
+	}
+
+	// Sort docData without rendering, so the column header and the render share one comparator.
+	function applyPoolSort(sort) {
+		if (!sort || !sort.field) return;
+		const field = sort.field;
+		const asc   = !!sort.asc;
+
+		docData.sort((a, b) => {
+			let valA = a[field];
+			let valB = b[field];
+
+			if (field === 'amount') {
+					valA = parseFloat(valA) || 0;
+					valB = parseFloat(valB) || 0;
+			} else if (field === 'date') {
+					valA = new Date(valA).getTime() || 0;
+					valB = new Date(valB).getTime() || 0;
+			} else {
+					if (typeof valA === 'string') valA = valA.toLowerCase();
+					if (typeof valB === 'string') valB = valB.toLowerCase();
+			}
+
+			if (valA === valB) return 0;
+			return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+		});
+
+		currentSort = { field: field, asc: asc };
+	}
+
+	// Re-apply the search text before the first render after a reload.
+	function applyStoredPoolListView() {
+		const state = readPoolListView();
+		if (!state) return;
+		const searchBox = document.getElementById('poolSearchBox');
+
+		if (searchBox && state.search) {
+			searchBox.value = state.search;
+			searchFilter    = state.search.toLowerCase();
+		}
+	}
+
+	// The row that is open in the preview pane, scrolled into view without moving the list
+	// more than necessary - this is what used to keep the clicked row visible by moving it to
+	// the top of the table.
+	function revealSelectedRow() {
+		const selected = document.querySelector('#' + containerId + " [data-selected='true']");
+		if (!selected || typeof selected.scrollIntoView !== 'function') return;
+		selected.scrollIntoView({ block: 'nearest' });
+	}
+
+	// Put the list back where it was and make sure the open document is on screen.
+	function restorePoolScroll() {
+		const state     = readPoolListView();
+		const container = document.getElementById(containerId);
+
+		if (container && state && state.scroll) container.scrollTop = state.scroll;
+		revealSelectedRow();
+	}
+
+	// Keep the stored offset current while the user scrolls the list.
+	function attachPoolScrollSaver() {
+		const container = document.getElementById(containerId);
+		if (!container) return;
+		let timer = null;
+		container.addEventListener('scroll', function() {
+			if (timer) clearTimeout(timer);
+			timer = setTimeout(savePoolListView, 150);
+		});
+	}
+
+	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attachPoolScrollSaver);
+	else attachPoolScrollSaver();
+	
 	// Filter pool files based on search input
 	window.filterPoolFiles = function() {
 		const searchBox = document.getElementById('poolSearchBox');
 		searchFilter = searchBox ? searchBox.value.toLowerCase() : '';
 		renderCurrentView();
+		savePoolListView();
 	};
 	
 	// Preview popup functions for card view
@@ -1993,7 +2118,9 @@ print <<<JS
 
             docData = data;
 			window.docData = docData;
+            applyStoredPoolListView();
             renderCurrentView();
+            restorePoolScroll();
         } catch (error) {
             document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
             console.error(error);
@@ -2026,28 +2153,28 @@ print <<<JS
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 40px; color:${buttonTxtColor};" onclick="event.stopPropagation();">
 						<input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" title="{$txt3}" style="cursor: pointer; width: 18px; height: 18px;">
 					</th>
-					<th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('subject')" data-sort-field="subject" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt23}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('amount')" data-sort-field="amount" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt10}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('invoiceNumber')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('invoiceNumber')" data-sort-field="invoiceNumber" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt8}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('date')" data-sort-field="date" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt5}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 90px; color:${buttonTxtColor};">
@@ -2059,7 +2186,6 @@ print <<<JS
 		`;
 
 
-		let activeRows         = '';
 		let perfectMatchRows   = '';
 		let matchingAmountRows = '';
 		let dateMatchRows      = '';
@@ -2358,7 +2484,7 @@ print <<<JS
 				(isAmountMatch && !isPerfectMatch ? "data-amount-match='true' " : "") + 
 				(isDateMatch && !isAmountMatch ? "data-date-match='true' " : "") +
 				(isCombinationMatch ? "data-combination-match='true' " : "");
-				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); openPoolFile('" + row.href + "'); }\">" +
+				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); savePoolListView(); openPoolFile('" + row.href + "'); }\">" +
 					"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(formattedAmount) + "'>" + amountCell + "</td>" +
@@ -2367,10 +2493,10 @@ print <<<JS
 					"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
 					"</tr>";
 			
-			// Categorize rows by match type (priority order)
-			if (isMatch) {
-				activeRows += rowHTML;
-			} else if (isPerfectMatch) {
+			// Categorize rows by match type (priority order). The document that is open in the
+			// preview pane is deliberately NOT hoisted to the top any more: doing that moved a
+			// row on every click, so the list the user was reading reordered itself (SD-700).
+			if (isPerfectMatch) {
 				perfectMatchRows += rowHTML;
 			} else if (isAmountMatch) {
 				matchingAmountRows += rowHTML;
@@ -2441,8 +2567,8 @@ print <<<JS
 				"</td></tr>";
 		}
 
-		// Ensure rows are ordered by priority: active, perfect match, amount match, date match, combination, others
-		html += activeRows + perfectMatchHeader + perfectMatchRows + matchingHeader + matchingAmountRows + dateMatchHeader + dateMatchRows + combinationHeader + combinationRows + otherRows;
+		// Rows are ordered by priority: perfect match, amount match, date match, combination, others
+		html += perfectMatchHeader + perfectMatchRows + matchingHeader + matchingAmountRows + dateMatchHeader + dateMatchRows + combinationHeader + combinationRows + otherRows;
 
 		html += "</tbody></table>";
 		
@@ -2476,9 +2602,11 @@ print <<<JS
 			table tbody tr:hover td { background-color:  }\
 			.edit-input { border-color: " + buttonColor + "; }\
 			.edit-input:focus { outline-color: " + buttonColor + "; }\
+			#fileListContainer th[data-sort-field].pool-sort-active { background-color: #dc3545 !important; color: #ffffff !important; font-weight: bold; }\
 		</style>";
 
 		document.getElementById(containerId).innerHTML = html;
+		markPoolSortHeaders();
 		
 		// Restore checkbox states from sessionStorage
 		const checkboxes = document.querySelectorAll('.file-checkbox');
@@ -2888,29 +3016,9 @@ print <<<JS
 
 	
 	function sortFiles(field) {
-		const asc = currentSort.field === field ? !currentSort.asc : true;
-
-		docData.sort((a, b) => {
-			let valA = a[field];
-			let valB = b[field];
-
-			if (field === 'amount') {
-					valA = parseFloat(valA) || 0;
-					valB = parseFloat(valB) || 0;
-			} else if (field === 'date') {
-					valA = new Date(valA).getTime() || 0;
-					valB = new Date(valB).getTime() || 0;
-			} else {
-					if (typeof valA === 'string') valA = valA.toLowerCase();
-					if (typeof valB === 'string') valB = valB.toLowerCase();
-			}
-
-			if (valA === valB) return 0;
-			return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-		});
-
-		currentSort = { field, asc };
+		applyPoolSort({ field: field, asc: currentSort && currentSort.field === field ? !currentSort.asc : true });
 		renderCurrentView();
+		savePoolListView();
 	}
 
 
@@ -3147,6 +3255,9 @@ print <<<JS
 						sessionStorage.removeItem('docPool_checked_' + file);
 					});
 
+					// Leaving the pool for the kassekladde: keep the list position for the way back.
+					savePoolListView();
+
 					const redirectMatch = text.match(/window\.location\.(replace|href)\s*=\s*['"]([^'"]+)['"]/);
 					if (redirectMatch) {
 						window.location.replace(redirectMatch[2]);
@@ -3356,6 +3467,7 @@ const row = button.closest('tr[data-editing="true"]');
 window.deletePoolFile = function(poolFile, subject, deleteUrl) {
 	const confirmMsg = "{$txt35} \"" + subject + "\"?";
 	if (confirm(confirmMsg)) {
+		savePoolListView();
 		window.location.href = deleteUrl;
 	}
 };
@@ -3449,6 +3561,7 @@ window.extractPoolFile = function(poolFile) {
 				.then(saveResult => {
 					if (saveResult.success) {
 						// Reload the page while preserving the current URL (keeps poolFile selection)
+						savePoolListView();
 						window.location.href = window.location.href;
 					} else {
 						alert('{$txt31}: ' + (saveResult.error || '{$txt38}'));
@@ -3583,6 +3696,7 @@ window.extractAllPoolFiles = async function() {
 		
 		// Reload the page to show updated data
 		if (successful > 0) {
+			savePoolListView();
 			window.location.reload();
 		}
 	});
@@ -3668,6 +3782,7 @@ window.deleteSelectedFiles = async function() {
 	
 	// Reload the page to show updated list
 	if (deleted > 0) {
+		savePoolListView();
 		window.location.reload();
 	}
 };
@@ -4019,6 +4134,7 @@ JS;
 				if (failedCount > 0) message += '\\n' + failedCount + ' ".addslashes(lcfirst(findtekst('3331|Fil(er) fejlet', $sprog_id)))."';
 				alert(message);
 
+				savePoolListView();
 				if (lastUploadedFilename) {
 					var currentUrl = new URL(window.location.href);
 					currentUrl.searchParams.set('poolFile', lastUploadedFilename);
@@ -5029,6 +5145,7 @@ HTML;
         .then(data => {
             if (data.success) {
                 if (rowId === 'new' && data.sourceId) {
+                    savePoolListView();
                     var url = new URL(window.location.href);
                     url.searchParams.set("sourceId", data.sourceId);
                     window.location.href = url.href;
@@ -5075,6 +5192,7 @@ HTML;
                 alert("<?php echo $txt31 ?>: " + (failed.message || "<?php echo $txt38 ?>"));
                 if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt72 ?>"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
             } else if (newSourceId) {
+                savePoolListView();
                 var url = new URL(window.location.href);
                 url.searchParams.set("sourceId", newSourceId);
                 window.location.href = url.href;
@@ -5106,6 +5224,7 @@ HTML;
         .then(r => r.json())
         .then(data => {
             if (data.success && data.sourceId) {
+                savePoolListView();
                 var url = new URL(window.location.href);
                 url.searchParams.set("sourceId", data.sourceId);
                 window.location.href = url.href;
