@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-04-24---
+// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-09-23---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af ørediff Søg 20121106
@@ -46,6 +46,9 @@
 // 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst(). 
 // 2026.05.07 CL findMatch.php køres ikke længere automatisk ved sideload - tilføjet knap 'Find modposter'.
 // 2026.05.18 LOE Updated close link location for credit and debit if coming from debitorkort.php or rapport.php.
+// 20260923 CDX/PHR Escape invoice references and cast the settlement post identifier.
+// 20260923 CDX/PHR Limit displayed and matched open posts to the selected month range.
+// 20260923 CDX/PHR Keep the anchor post selected when rebuilding period-filtered candidates.
  
 @session_start();
 $s_id=session_id();
@@ -63,6 +66,10 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
+require_once __DIR__ . '/alignOpenpostIncludes/period.php';
+$periodRequest = isset($_POST['submit']) ? $_POST : $_GET;
+$requestedPeriodFrom = ifset($periodRequest, 'period_from');
+$requestedPeriodTo = ifset($periodRequest, 'period_to');
 if (isset($_POST['submit'])) {
  	$submit=strtolower(trim($_POST['submit']));
 	$post_id=if_isset($_POST['post_id']);
@@ -93,7 +100,8 @@ if (isset($_POST['submit'])) {
 	if ($belob) $ny_amount = usdecimal($belob);
 	else $ny_amount = 0;
 	$faktnr[0]=trim($faktnr[0]);
-	db_modify("update openpost set faktnr='$faktnr[0]' where id = '$post_id[0]'",__FILE__ . " linje " . __LINE__	);
+	$qtxt = "update openpost set faktnr='" . db_escape_string($faktnr[0]) . "' where id = " . (int)$post_id[0];
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($submit=='udlign') {
 		for($x=1;$x<=count($kontrol);$x++) {
 			if ($udlign[$x] && !$kontrol[$x]) $submit="opdater";
@@ -203,10 +211,31 @@ $titlesum=$sum;
 $konto_id[0]*=1;
 $udlign_date="$transdate[0]";
 $x=0;
-$qtxt="select * from openpost where id!='$post_id[0]' and konto_id='$konto_id[0]' and udlignet != '1' order by transdate";
+$qtxt = "SELECT MIN(transdate) AS first_date, MAX(transdate) AS last_date FROM openpost ";
+$qtxt .= "WHERE konto_id=" . (int)$konto_id[0] . " AND COALESCE(udlignet,'0')<>'1'";
+$periodBounds = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+$settlementPeriod = openpostSettlementPeriod(
+	$periodBounds['first_date'], $periodBounds['last_date'],
+	$requestedPeriodFrom, $requestedPeriodTo, $transdate[0] ?: date('Y-m-d')
+);
+$qtxt = openpostSettlementCandidateQuery($konto_id[0], $post_id[0], $settlementPeriod);
+// Preserve selections by database ID, not row position, when the candidate list changes.
+$selectedPostIds = [];
+foreach (ifset($_POST, 'candidate_id', []) as $candidateIndex => $candidateId) {
+	if (isset($udlign[$candidateIndex]) && $udlign[$candidateIndex] === 'on') {
+		$selectedPostIds[(int)$candidateId] = true;
+	}
+}
+// The anchor is always part of settlement, even outside the candidate period.
+$udlign = [0 => 'on'];
+$post_id = [$post_id[0]];
+$amount = [$amount[0]];
 $query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)){
 	$x++;
+	if (isset($selectedPostIds[(int)$row['id']])) {
+		$udlign[$x] = 'on';
+	}
 	$post_id[$x]=$row['id'];
 	$refnr[$x]=$row['refnr'];
 	$amount[$x]=$row['amount'];
@@ -270,7 +299,14 @@ if (!$diffkto) $maxdiff=0;
 
 $findMatchTimeLimit = (isset($_POST['findmatch_timelimit']) && intval($_POST['findmatch_timelimit']) > 60) ? intval($_POST['findmatch_timelimit']) : 60;
 $findMatchTimeout = false;
-if (isset($submit) && $submit=='find modposter') include ("../includes/alignOpenpostIncludes/findMatch.php");
+if (isset($submit) && $submit=='find modposter') {
+	if ($postantal > 0) {
+		include __DIR__ . '/alignOpenpostIncludes/findMatch.php';
+	} else {
+		$findMatchNoResult = true;
+		$findMatchElapsed = 0;
+	}
+}
 
 if ($menu=='S') {
 	#########
@@ -353,7 +389,14 @@ print "<tr><td><br></td></tr>";
 if (isset($submit) && $submit=='udlign') {
 	include ("../includes/alignOpenpostIncludes/doAlign.php");
 }
+renderOpenpostSettlementPeriod($settlementPeriod, [
+	'post_id' => $post_id[0], 'dato_fra' => $dato_fra, 'dato_til' => $dato_til,
+	'konto_fra' => $konto_fra, 'konto_til' => $konto_til,
+	'retur' => $retur, 'returside' => $returside, 'layout' => $layout,
+]);
 print "<form name='alignOpenpost' action='../includes/udlign_openpost.php' method='post'>";
+print "<input type='hidden' name='period_from' value='{$settlementPeriod['from']}'>";
+print "<input type='hidden' name='period_to' value='{$settlementPeriod['to']}'>";
 if (isset($findMatchTimeout) && $findMatchTimeout) {
 	$nextLimit = $findMatchTimeLimit * 2;
 	print "<tr><td colspan=6 style='color:#900'><b>S&oslash;gning stoppede efter {$findMatchTimeLimit} sekunder - ingen modpost fundet automatisk.</b>&nbsp;";
@@ -428,6 +471,11 @@ print "<input type = hidden name=omregningskurs[0] value=$omregningskurs[0]>";
 print "<input type = hidden name=konto_id[0] value=$konto_id[0]>";
 print "<input type = hidden name=post_id[0] value=$post_id[0]>";
 print "<input type = hidden name=amount[0] value=$amount[0]>";
+foreach ($post_id as $candidateIndex => $candidateId) {
+	if ($candidateIndex > 0) {
+		print "<input type='hidden' name='candidate_id[$candidateIndex]' value='" . (int)$candidateId . "'>";
+	}
+}
 print "<input type = hidden name=dato_fra value=$dato_fra>";
 print "<input type = hidden name=dato_til value=$dato_til>";
 print "<input type = hidden name=konto_fra value=$konto_fra>";
