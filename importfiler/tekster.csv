@@ -5118,3 +5118,62 @@
 5243	Vælg kreditor	Choose creditor	Velg kreditor
 5244	Kreditoren findes ikke i regnskabet	The creditor does not exist in the accounts	Kreditoren finnes ikke i regnskapet
 5245	Kredit var allerede udfyldt og blev ikke ændret	Credit was already filled in and was not changed	Kredit var allerede fylt ut og ble ikke endret
+5400	Opret email	Create email	Opprett e-post
+5401	Regnskabspakker	Accounting packages	Regnskapspakker
+5402	I brug	In use	I bruk
+5403	Forberedt	Prepared	Forberedt
+5404	Hjemmesiden linker til denne pakke i dag	The website links to this package today	Nettsiden lenker til denne pakken i dag
+5405	Hjemmesiden viser endnu ikke denne pakke	The website does not show this package yet	Nettsiden viser ennå ikke denne pakken
+5406	Pakkens navn	Package name	Pakkens navn
+5407	Pakkens pris	Package price	Pakkens pris
+5408	Tilføj pakke	Add package	Legg til pakke
+5409	Hjemmesiden kan endnu ikke vise nye pakker automatisk. Tilføj og slet er forberedt til fremtidig brug.	The website cannot show new packages automatically yet. Add and delete are prepared for future use.	Nettsiden kan ennå ikke vise nye pakker automatisk. Legg til og slett er forberedt for fremtidig bruk.
+5410	Koden sendes fra opret.php og kan ikke rettes bagefter.	The code is sent from opret.php and cannot be changed afterwards.	Koden sendes fra opret.php og kan ikke endres etterpå.
+5411	Velkomstmail	Welcome email	Velkomst-e-post
+5412	HTML-kilde	HTML source	HTML-kilde
+5413	Grafisk editor	Visual editor	Grafisk editor
+5414	Gem skabelon	Save template	Lagre mal
+5415	Emne	Subject	Emne
+5416	Afsender	Sender	Avsender
+5417	Kundens navn	Customer name	Kundens navn
+5418	CVR-nummer	Company reg. no.	Organisasjonsnummer
+5419	Emailadresse	Email address	E-postadresse
+5420	Klik på en markør for at indsætte den. Der er én fælles skabelon til alle pakker - kun pakkens navn og pris skifter. Billeder skal indsættes som en offentlig URL; mailprogrammer blokerer indlejrede billeder.	Click a placeholder to insert it. One shared template serves all packages - only the package name and price differ. Insert images as a public URL; mail clients block embedded images.	Klikk på en markør for å sette den inn. Én felles mal brukes til alle pakker - bare pakkens navn og pris endres. Bilder må settes inn som en offentlig URL; e-postklienter blokkerer innebygde bilder.
+5421	Forhåndsvisning og test	Preview and test	Forhåndsvisning og test
+5422	Send testmail	Send test email	Send test-e-post
+5423	Testmailen sendes med den gemte skabelon - gem først, hvis du har rettet noget.	The test email uses the saved template - save first if you have made changes.	Test-e-posten sendes med den lagrede malen - lagre først hvis du har endret noe.
+5424	Kobling fra hjemmesiden	Connection from the website	Kobling fra nettsiden
+5425	De enkelte opret.php-filer sender ikke selv mailen mere. De kalder i stedet dette endpoint med pakkens kode, så teksten og prisen altid kommer herfra.	The individual opret.php files no longer send the email themselves. They call this endpoint with the package code instead, so the text and price always come from here.	De enkelte opret.php-filene sender ikke lenger e-posten selv. De kaller i stedet dette endepunktet med pakkens kode, slik at teksten og prisen alltid kommer herfra.
+5426	Nøgle	Key	Nøkkel
+5427	Pakken skal have et navn.	The package must have a name.	Pakken må ha et navn.
+5428	Prisen skal skrives som et tal, fx 1.299,50.	The price must be written as a number, e.g. 1.299,50.	Prisen må skrives som et tall, f.eks. 1.299,50.
+5429	Koden må kun indeholde a-z, 0-9, bindestreg og understreg (2-30 tegn).	The code may only contain a-z, 0-9, hyphen and underscore (2-30 characters).	Koden kan bare inneholde a-z, 0-9, bindestrek og understrek (2-30 tegn).
+5430	Der findes allerede en pakke med denne kode.	A package with this code already exists.	Det finnes allerede en pakke med denne koden.
+5431	Ukendt pakke.	Unknown package.	Ukjent pakke.
+5432	Den sidste pakke kan ikke slettes.	The last package cannot be deleted.	Den siste pakken kan ikke slettes.
+5433	Ukendt handling.	Unknown action.	Ukjent handling.
+5434	Kun POST er tilladt.	Only POST is allowed.	Bare POST er tillatt.
+5435	Ugyldig emailadresse.	Invalid email address.	Ugyldig e-postadresse.
+5436	Skabelonen er tom - mailen blev ikke sendt.	The template is empty - the email was not sent.	Malen er tom - e-posten ble ikke sendt.
+5437	Mailserveren afviste beskeden.	The mail server rejected the message.	E-postserveren avviste meldingen.
+5438	Skabelonen er gemt.	The template has been saved.	Malen er lagret.
+5439	Pakken er gemt.	The package has been saved.	Pakken er lagret.
+5440	Angiv en emailadresse til testmailen.	Enter an email address for the test email.	Angi en e-postadresse for test-e-posten.
+5441	Testmail sendt til	Test email sent to	Test-e-post sendt til
+5442	Din session er udløbet - log ind igen.	Your session has expired - please log in again.	Sesjonen din er utløpt - logg inn igjen.
+5443	Indsæt billedets URL (skal kunne hentes offentligt):	Insert the image URL (must be publicly accessible):	Sett inn bildets URL (må være offentlig tilgjengelig):
+5444	Markup som editoren ikke kender kan blive forenklet. Fortsæt?	Markup the editor does not recognise may be simplified. Continue?	Markup som editoren ikke kjenner kan bli forenklet. Fortsett?
+5445	Slet pakken	Delete the package	Slett pakken
+5446	Hvis hjemmesiden stadig opretter regnskaber med denne pakke, kan velkomstmailen ikke sendes bagefter.	If the website still creates accounts with this package, the welcome email cannot be sent afterwards.	Hvis nettsiden fortsatt oppretter regnskap med denne pakken, kan velkomst-e-posten ikke sendes etterpå.
+5447	Endpoint	Endpoint	Endepunkt
+5448	Admin menu	Admin menu	Admin-meny
+5449	Pakke	Package	Pakke
+5450	Eksempel ApS	Example Ltd	Eksempel AS
+5451	navn@eksempel.dk	name@example.com	navn@eksempel.no
+5452	Der er ændringer, der ikke er gemt. Skift sprog alligevel?	There are unsaved changes. Switch language anyway?	Det er endringer som ikke er lagret. Bytt språk likevel?
+5453	Denne sprogversion er tom - den danske skabelon sendes, indtil du gemmer en tekst her.	This language version is empty - the Danish template is sent until you save text here.	Denne språkversjonen er tom - den danske malen sendes til du lagrer en tekst her.
+5454	Kun til udvikleren, der kobler opret.php-filerne til. Noeglen er en adgangskode - del den ikke.	Only for the developer wiring up the opret.php files. The key is a password - do not share it.	Bare for utvikleren som kobler opret.php-filene til. Noekkelen er et passord - ikke del den.
+5455	Skift noegle	Change key	Bytt noekkel
+5456	Skift noeglen? De opret.php-filer, der bruger den nuvaerende noegle, holder op med at kunne sende, indtil de faar den nye.	Change the key? Any opret.php file using the current key stops being able to send until it gets the new one.	Bytt noekkelen? Opret.php-filene som bruker den naavaerende noekkelen kan ikke sende foer de faar den nye.
+5457	Noeglen er skiftet. Husk at opdatere opret.php-filerne.	The key has been changed. Remember to update the opret.php files.	Noekkelen er byttet. Husk aa oppdatere opret.php-filene.
+5458	Pakken bruges af opret.php paa hjemmesiden og kan ikke slettes. Navn og pris kan stadig rettes.	The package is used by opret.php on the website and cannot be deleted. Name and price can still be changed.	Pakken brukes av opret.php paa nettsiden og kan ikke slettes. Navn og pris kan fortsatt endres.
