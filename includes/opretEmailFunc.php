@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretEmailFunc.php --- patch 5.0.0 --- 2026.08.04 ---
+// --- includes/opretEmailFunc.php --- patch 5.0.0 --- 2026.09.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Central welcome-email module for accounts created from the website. The
 // template, subject, sender and package names/prices are maintained by
@@ -42,6 +42,9 @@
 //                  The subject decodes entities after strip_tags(). Added CSRF, log
 //                  masking and protected-package helpers used by the editor and the
 //                  send endpoint.
+// 20260924 Sawaneh PR #458 review: the empty-template check looked at the wrapped document,
+//                  which always holds the SALDI header and footer, so it never fired. It now
+//                  checks the body's own text. Covered by tests/characterization/admin/OpretEmailTest.
 
 if (!defined('OPRET_EMAIL_SETTINGS_GRP')) {
 	define('OPRET_EMAIL_SETTINGS_GRP', 'opret_email');
@@ -917,7 +920,9 @@ if (!function_exists('opret_email_send')) {
 		if (!$mail['pakke']) {
 			return $fejl('unknown_package');
 		}
-		if (trim(strip_tags($mail['html'])) === '') {
+		// The body's own text, not $mail['html']: the wrapped document always holds the
+		// SALDI header and the footer, so an empty template would never be caught there.
+		if ($mail['tekst'] === '') {
 			return $fejl('empty_template');
 		}
 
