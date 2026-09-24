@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- lap 5.0.0 --- 2026-02-13 ---
+// --- lager/varekort.php --- lap 5.0.0 --- 2026-09-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20131007 Kontrol for cirkulær reference indsat. Søg 20131007
@@ -124,6 +124,8 @@
 // 20260907 CDX/LH Retain popup context through product-card saves and local navigation.
 // 20260921 Sawaneh Merge with the 20260902 layout: the batchExpiryEnabled/box9 condition now wraps the
 //                  pcSecExpiry box instead of the old include inside the Diverse box.
+// 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
+//
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -230,11 +232,23 @@ $qtxt = "select box4 from grupper where art = 'API'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
     $shopurl = trim($r['box4']);
 
-$qtxt = "select count(id) as stocks from grupper where art='LG'";
-if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-    $numberOfStocks = $r['stocks'];
-if (!$numberOfStocks)
-    $numberOfStocks = 1;
+// Warehouse definitions are copied between fiscal years; stock uses the warehouse number.
+$warehouseNames = array();
+$qtxt = "select kodenr,beskrivelse from grupper where art='LG' ";
+$qtxt .= "order by case when fiscal_year=" . (int)$regnaar . " then 0 else 1 end, ";
+$qtxt .= "coalesce(fiscal_year,0) desc,id desc";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+    $warehouseNumber = (int)$r['kodenr'];
+    if ($warehouseNumber > 0 && !array_key_exists($warehouseNumber, $warehouseNames)) {
+        $warehouseNames[$warehouseNumber] = $r['beskrivelse'];
+    }
+}
+if (!$warehouseNames) {
+    $warehouseNames = array(1 => '');
+}
+ksort($warehouseNames, SORT_NUMERIC);
+$numberOfStocks = count($warehouseNames);
 
 $opener = if_isset($_GET, NULL, 'opener');
 $id = (int) if_isset($_GET, NULL, 'id');
@@ -303,7 +317,10 @@ if ($acceptStockChange) {
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
     $lagerbeh = if_isset($_POST, array(), 'lagerbeh');
     $ny_lagerbeh = if_isset($_POST, array(), 'ny_lagerbeh');
-    for ($x = 1; $x <= count($ny_lagerbeh); $x++) {
+    foreach ($warehouseNames as $x => $warehouseName) {
+        if (!isset($ny_lagerbeh[$x])) {
+            continue;
+        }
         #       if ($ny_lagerbeh[$x]!=$lagerbeh[$x]) {
         lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
         #       }
@@ -405,7 +422,6 @@ if ($saveItem || $submit = trim($submit)) {
     $campaign_cost = usdecimal(if_isset($_POST, NULL, 'campaign_cost'), 2);
     $folgevarenr = db_escape_string(trim(if_isset($_POST, NULL, 'folgevarenr')));
     $location = db_escape_string(trim(if_isset($_POST, NULL, 'location')));
-    $numberOfStocks = if_isset($_POST, NULL, 'lagerantal');
     $lagerid = if_isset($_POST, NULL, 'lagerid');
     $lagerlok = if_isset($_POST, NULL, 'lagerlok');
     $m_type = if_isset($_POST, NULL, 'm_type');
@@ -538,7 +554,10 @@ if ($saveItem || $submit = trim($submit)) {
         }
     }
     if ($id && is_array($lagerlok)) {
-        for ($x = 1; $x <= count($lagerlok); $x++) {
+        foreach ($warehouseNames as $x => $warehouseName) {
+            if (!isset($lagerlok[$x])) {
+                continue;
+            }
             $qtxt = "select id from lagerstatus where vare_id='$id' and lager='$x' limit 1";
             if ($r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
                 $qtxt = "update lagerstatus set lok1='" . db_escape_string($lagerlok[$x]) . "' where vare_id='$id' and lager='$x'";
@@ -562,9 +581,13 @@ if ($saveItem || $submit = trim($submit)) {
     }
 */
     for ($x = 0; $x < count($variant_vare_id); $x++) {
-        if (!isset($variantVarerQty[$x]))
+        if (!isset($variantVarerQty[$x])) {
             $variantVarerQty[$x] = array();
-        for ($l = 1; $l <= count($variantVarerQty[$x]); $l++) {
+        }
+        foreach ($warehouseNames as $l => $warehouseName) {
+            if (!isset($variantVarerQty[$x][$l])) {
+                continue;
+            }
             $variantVarerQty[$x][$l] = (float)usdecimal($variantVarerQty[$x][$l], 2);
             if ($variant_vare_stregkode[$x]) {
                 $qtxt = "select vare_id from variant_varer where variant_stregkode='$variant_vare_stregkode[$x]' and id !='$variant_vare_id[$x]'";
@@ -1163,14 +1186,19 @@ if ($saveItem || $submit = trim($submit)) {
     $qtxt = "update varer set beskrivelse='$newDecsription' where id='$id'";
   db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-for ($x = 1; $x <= count($ny_lagerbeh); $x++) {
-    $ny_beholdning += $ny_lagerbeh[$x];
+foreach ($warehouseNames as $x => $warehouseName) {
+    if (isset($ny_lagerbeh[$x])) {
+        $ny_beholdning += $ny_lagerbeh[$x];
+    }
 }
 if ($confirmStockChange && !$changeStock && $ny_beholdning != $beholdning) {
     include("productCardIncludes/confirmStockChange.php");
 }
 if ($stockItem) {
-    for ($x = 1; $x <= $numberOfStocks; $x++) {
+    foreach ($warehouseNames as $x => $warehouseName) {
+        if (!isset($ny_lagerbeh[$x], $lagerbeh[$x])) {
+            continue;
+        }
         if ($ny_lagerbeh[$x] != $lagerbeh[$x]) {
             if ($samlevare) {
                 print "<meta http-equiv=\"refresh\" content=\"0;URL=vareproduktion.php?id=$id&antal=1&lager=$x&ny_beholdning=$ny_lagerbeh[$x]&samlevare=$samlevare\">";
@@ -1178,7 +1206,7 @@ if ($stockItem) {
             } elseif (!count($variant_vare_id)) { #20210208
                 lagerreguler($id, $ny_lagerbeh[$x], $kostpris[0], $x, date("Y-m-d"), '0');
             }
-        } elseif ($api_fil && !count($variant_vare_id) && $x == $numberOfStocks) { #20170210 - fixed typo
+        } elseif ($api_fil && !count($variant_vare_id) && $x == array_key_last($warehouseNames)) { #20170210 - fixed typo
             sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above 
         }
     }
@@ -1424,7 +1452,7 @@ if ($id > 0) {
         $variantVarerText[$x] = $r['variant_text'];
         $variantVarerVariantId[$x] = $r['variant_id'];
         $var_beh[$x] = 0;
-        for ($l = 1; $l <= $numberOfStocks; $l++) {
+        foreach ($warehouseNames as $l => $warehouseName) {
             $variantVarerQty[$x][$l] = 0;
             $qtxt = "select beholdning from lagerstatus ";
             $qtxt .= "where vare_id='$id' and lager='$l' and variant_id='$variantVarerId[$x]'";
