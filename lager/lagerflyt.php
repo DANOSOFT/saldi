@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------patch 5.0.0-------2026-06-03------
+// ------------------lager/lagerflyt.php-----------patch 5.0.0-------2026-09-23------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2014-2026 Danosoft aps
+// Copyright (c) 2014-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20170425 - total omskrivning
 // 20260526 PHR Fixed bug. In rare cases qty was not removed from the giving stock but just added to the recieving stock
 // 20260603 PHR Fixed: $nyt_antal[$x] → $nyt_antal (array-access på scalar gav kun første ciffer → commit fejlede ved antal ≥ 10)
+// 20260923 CDX/PHR List each transfer destination once across fiscal years.
 /* 
 Ved flytning af varer fra et lager et andet nedskrives rest for disse i det nødvendige antal batch_kob linjer for 
 det lager der flyttes fra, 
@@ -178,15 +179,19 @@ transaktion("begin");
 		transaktion('commit');
 	}
 }
-$x=0;
-$qtxt="select beskrivelse, kodenr from grupper where art='LG' order by kodenr";
-$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+// Warehouse numbers identify stock independently of fiscal-year definitions.
+$warehouseNames = array();
+$qtxt = "select beskrivelse,kodenr from grupper where art='LG' ";
+$qtxt .= "order by case when fiscal_year=" . (int)$regnaar . " then 0 else 1 end, ";
+$qtxt .= "coalesce(fiscal_year,0) desc,id desc";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-  $x++;
-  $lagernavn[$x]=$r['beskrivelse'];       
-  $lagernr[$x]=$r['kodenr'];
+	$warehouseNumber = (int)$r['kodenr'];
+	if ($warehouseNumber > 0 && !array_key_exists($warehouseNumber, $warehouseNames)) {
+		$warehouseNames[$warehouseNumber] = $r['beskrivelse'];
+	}
 }
-$lagerantal=$x;
+ksort($warehouseNames, SORT_NUMERIC);
 
 $qtxt="select varenr from varer where id=$vare_id";
 $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -202,8 +207,10 @@ print "<tr><td colspan=4><hr></td></tr>";
 print "<tr><td align=\"right\">".dkdecimal($max_antal,2)."</td><td></td>";
 print "<td align=\"center\"><input type=text size=\"2\" name=\"antal\" style=\"text-align:right\" value=\"0\"></td>";
 print "<td align=\"center\"><SELECT NAME=nyt_lager>";
-for ($x=1; $x<=$lagerantal; $x++) {
-  if ($lagernr[$x] != $lager) print "<option value=\"$lagernr[$x]\">$lagernr[$x] : $lagernavn[$x]</option>";
+foreach ($warehouseNames as $warehouseNumber => $warehouseName) {
+	if ($warehouseNumber != $lager) {
+		print "<option value='$warehouseNumber'>$warehouseNumber : " . htmlspecialchars($warehouseName, ENT_QUOTES, 'UTF-8') . "</option>";
+	}
 }
 print "</select></td></tr>";
 print "<input type=hidden name='vare_id' value='$vare_id'>";

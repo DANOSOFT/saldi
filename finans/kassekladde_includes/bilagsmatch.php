@@ -399,8 +399,11 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
                 sourceId:   primary.kasse_id,
                 openPool:   '1',
                 insertFile: '1',
-                poolFiles:  filename,
             });
+            // poolFile[] (not poolFiles) so docPool.php takes the lossless-array branch -
+            // a filename containing a comma would otherwise be split apart by the legacy
+            // poolFiles=<comma-joined string> branch.
+            body.append('poolFile[]', filename);
             if (otherIds) body.set('targetSourceIds', otherIds);
             await fetch(`../includes/documents.php`, {
                 method:  'POST',

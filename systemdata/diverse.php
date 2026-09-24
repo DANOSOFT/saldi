@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2025-11-24------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-17------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2013.01.19 funktioner lagt i selvstændig fil (../includes/sys_div_func.php)
@@ -99,11 +99,16 @@
 //                 table that lager/labelprint.php prints from, and new labels get account_id 0.
 // 20260824 CL/NTR Label deletion only removes global rows (account_id 0 or null), matching what the
 //                 label editor shows.
+// 20260811 Sawaneh Save 'batchExpiryEnabled' setting (batch/expiry date section on the item card)
 // 20260826 CL/SZ  saveLabel now refuses to save when the label's current template isn't reproducible
 //                 by the visual editor's field model - it was silently discarding formatting it
 //                 doesn't understand on every save (MB-18).
 // 20260915 CL/NTR Bank Integration settings button only shown when the API credentials
 //                 are configured (bankIntegrationEnabled()).
+// 20260916 CDX/PHR Reset additional account data and skip tables absent from the installed schema.
+// 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
+// 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
+// 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
 
 @session_start();
 $s_id = session_id();
@@ -122,7 +127,9 @@ $diffkto    = NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
+if (is_file(__DIR__ . '/../bank_integration/includes/enabled.php')) {
+	include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
+}
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 
@@ -781,6 +788,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			include_once("../includes/emballage_schema.php");
 			ensure_emballage_schema();
 		}
+		# Normalised to a fixed literal - never interpolate the posted value into the settings query.
+		$batchExpiryEnabled = (if_isset($_POST, null, 'batchExpiryEnabled') === 'on') ? 'on' : 'off';
+		update_settings_value("batchExpiryEnabled", "items", $batchExpiryEnabled, "Enable batch and expiry date handling on the item card");
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
@@ -2035,41 +2045,14 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				setcookie("timezone", $timezone, time() + 60 * 60 * 24 * 30, '/');
 			}
 		} elseif (isset($_POST['nulstil']) && $_POST['nulstil']) { #20170731
-			$qtxt = "TRUNCATE ansatmappe,ansatmappebilag,batch_kob,batch_salg,betalinger,betalingsliste,bilag,bilag_tjekskema,";
-			$qtxt.= "budget,corrections,crm,deleted_order,drawer,gavekort,gavekortbrug,historik,jobkort,jobkort_felter,";
-			$qtxt.= "kassekladde,kladdeliste,kontokort,kostpriser,loen,loen_enheder,lagerstatus,mappe,mappebilag,misc_meta_data,";
-			$qtxt.= "modtageliste,modtagelser,navigator,noter,openpost,opgaver,ordrelinjer,ordrer,ordretekster,";
-			$qtxt.= "pbs_kunder,pbs_linjer,pbs_liste,pbs_ordrer,pos_betalinger,price_correction,proforma,provision,queries,rabat,";
-			$qtxt.= "regulering,reservation,returnings,sager,sagstekster,serienr,shop_adresser,shop_ordrer,shop_varer,";
-			$qtxt.= "simulering,tabeller,tidsreg,tjekpunkter,tmpkassekl,transaktioner,report,valuta restart identity";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='RA' and kodenr !='1'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE fiscal_year > 1", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='USET'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='DLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='KLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='DRV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='KRV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='VV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM grupper WHERE art='OLV'", __FILE__ . " linje " . __LINE__);
-			db_modify("DELETE FROM kontoplan WHERE regnskabsaar!='1'", __FILE__ . " linje " . __LINE__);
-			db_modify("UPDATE varer SET beholdning = '0'", __FILE__ . " linje " . __LINE__);
-			$qtxt = "DELETE From settings where (var_grp = 'debitor' or var_grp = 'mySale') and (var_name = 'mailSubject' or var_name = 'mailText')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($_POST['behold_debkred'] == '') {
-				$qtxt    = "select id from adresser WHERE art='S'";
-				$r       = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$eget_id = $r['id'];
-				$qtxt    = "DELETE FROM adresser WHERE id!='$eget_id'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				$qtxt = "TRUNCATE ansatte,ansatmappe,ansatmappebilag,vare_lev,shop_adresser restart identity";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			require_once(__DIR__ . '/resetAccount.php');
+			try {
+				resetAccount(!empty($_POST['behold_debkred']), !empty($_POST['behold_varer']), $db_type, $db);
+				$regnaar = 1;
+				print tekstboks('regnskab nulstillet');
+			} catch (Throwable $error) { # 20260917 en fejl må ikke ende som en hvid fejlside
+				print tekstboks('Regnskabet blev ikke nulstillet: ' . $error->getMessage());
 			}
-			if ($_POST['behold_varer'] == '') {
-				$qtxt = "TRUNCATE shop_varer,styklister,varer,vare_lev,varetilbud,variant_typer,variant_varer,varianter restart identity";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-			print tekstboks('regnskab nulstillet');
 		} elseif (isset($_POST['slet'])) {
 			if ($_POST['slet_regnskab'] == 'on') { #20185024
 				include("../includes/connect.php");
@@ -2232,7 +2215,7 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
 
-		if (bankIntegrationEnabled()) {
+		if (function_exists('bankIntegrationEnabled') && bankIntegrationEnabled()) {
 			// TODO: findtekst. // TODO: Translation Tekst til bank integration
 			print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
