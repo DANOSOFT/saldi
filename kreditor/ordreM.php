@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- lap 4.0.7 --- 2022.11.06 ---
+// --- kreditor/ordreM.php --- lap 4.0.7 --- 2026.09.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20120814 søg 20120814
@@ -58,6 +58,10 @@
 // 20260811 Sawaneh Save batch_due_date/batch_batch_no on the order line - the expiry date and
 //                  batch no fields were rendered and read back, but never written on save.
 // 20260908 CDX/LH Lock creditor order status before saving, deleting or adding lines.
+// 20260924 SZ SST-755 (CodeRabbit): this file's own sidehoved() (a duplicate of, but not
+//                 shared with, kreditor/ordre.php's) never stamped a lock_token, so two tabs
+//                 open on the same M-menu order before either saved still shared a valid
+//                 release credential. Now mints and refreshes one, same as ordre.php.
 
 @session_start();
 $s_id=session_id();
@@ -97,6 +101,9 @@ $batch=array();
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
+// SST-755: one random per-render token, reused by sidehoved()'s exit link below.
+$sessionLockToken = bin2hex(random_bytes(16));
 
 $returside = if_isset($_GET['returside']);
 
@@ -1581,18 +1588,26 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $menu;
 	global $sprog_id;
 	global $top_bund;
+	global $sessionLockToken;
 
 	$title= 'Leverandør ordre';
 	$alerttekst=findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 
 	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
 	// includes/luk.php can confirm this tab still holds the lock before releasing it.
-	$sidehovedTidspkt = NULL;
+	// 20260924 SZ SST-755 (CodeRabbit): now appends &lockToken instead - $sessionLockToken is
+	// one random value per render, so a second tab on the same M-menu order that hasn't saved
+	// anything yet (and so still shares this tab's tidspkt) no longer shares a valid release
+	// credential.
+	$sidehovedLockToken = NULL;
 	if ($id) {
 		$sidehovedLockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
-		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) $sidehovedTidspkt = $sidehovedLockRow['tidspkt'];
+		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) {
+			$sidehovedLockToken = $sessionLockToken;
+			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sidehovedLockToken, $sidehovedLockRow['tidspkt']);
+		}
 	}
-	$sidehovedTidspktQs = $sidehovedTidspkt !== null ? "&tidspkt=" . urlencode($sidehovedTidspkt) : "";
+	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) : "";
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-08-19 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-09-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -119,6 +119,10 @@
 // 20260923 SZ SST-755 (CodeRabbit): exit link and beacon now carry a per-render lockToken
 //                  instead of tidspkt, since tidspkt alone didn't distinguish two tabs open on
 //                  the same kladde before either one saved.
+// 20260924 SZ SST-755 (CodeRabbit): both refresh_lock_token() calls now also pass the
+//                  observed tidspkt, so a stale render can't overwrite a token a concurrent
+//                  tidspkt change has since replaced (unlockRecord.php's refresh_lock_token()
+//                  now requires it).
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 
@@ -1623,7 +1627,7 @@ if ($kladde_id) {
 	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
 		$lockTidspkt = $lockRow['tidspkt'];
 		$lockToken = $sessionLockToken;
-		refresh_lock_token('kladdeliste', (int)$kladde_id, $brugernavn, $lockToken);
+		refresh_lock_token('kladdeliste', (int)$kladde_id, $brugernavn, $lockToken, $lockTidspkt);
 	}
 }
 $kladdeLukBase = "../includes/luk.php?tabel=kladdeliste&id=" . (int)$kladde_id . ($lockToken !== null ? "&lockToken=" . urlencode($lockToken) : "");

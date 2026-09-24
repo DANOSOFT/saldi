@@ -21,6 +21,12 @@
 // 20251203 LOE Created file to standardize top used for managing S menu in kreditor/ordre.php
 // 20260908 SZ SST-755: Luk links now release the lock properly (tidspkt added; the $valg
 //           branch had no tabel/id at all, and a '?' where it needed '&').
+// 20260924 SZ SST-755 (CodeRabbit): this file is include()d from kreditor/ordre.php's
+//           sidehoved() partway through, after that function already computed
+//           $sidehovedTidspktQs (a &lockToken=... query string, stamped via
+//           refresh_lock_token()) - reuse it instead of independently re-querying tidspkt and
+//           building a separate, token-less query string, which let this menu's own Luk links
+//           bypass the whole per-render-token protection sidehoved() otherwise provides.
 
 
 
@@ -48,12 +54,11 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 	// fixed the $valg branch below, which had no tabel/id at all (release was a pure no-op)
 	// and built its query string with '?' instead of '&' (returside=$returside?valg=... -
 	// the '?valg=' part was silently dropped by anything parsing returside as a URL).
-	$topLineSTidspkt = NULL;
-	if ($id) {
-		$topLineSLockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
-		if ($topLineSLockRow && $topLineSLockRow['tidspkt'] !== '' && $topLineSLockRow['tidspkt'] !== null) $topLineSTidspkt = $topLineSLockRow['tidspkt'];
-	}
-	$topLineSTidspktQs = $topLineSTidspkt !== null ? "&tidspkt=" . urlencode($topLineSTidspkt) : "";
+	// 20260924 SZ SST-755 (CodeRabbit): reuse sidehoved()'s own $sidehovedTidspktQs (despite
+	// its name, a &lockToken=... string - see the comment there) instead of independently
+	// re-deriving one from a bare tidspkt lookup, which never carried a lock_token at all and
+	// so let this menu's Luk links bypass the per-render-token protection entirely.
+	$topLineSTidspktQs = $sidehovedTidspktQs ?? '';
 
 	if ($kort) print "<td width=\"5%\">$color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
 					  <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";

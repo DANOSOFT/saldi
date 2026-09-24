@@ -23,6 +23,12 @@
 // 20260923 SZ SST-755 (CodeRabbit): returside and the unload beacon now carry a per-render
 // lockToken instead of tidspkt, since tidspkt alone didn't distinguish two tabs open on the
 // same order before either one saved.
+// 20260924 SZ SST-755 (CodeRabbit): refresh_lock_token() now also requires the observed
+// tidspkt, so a stale render can't overwrite a token a concurrent tidspkt change has since
+// replaced. Also rebuild $returside again once the order is fully created (see the second
+// popup-lock block below): a new order's id is 0 here, so this first attempt is a no-op for
+// that case, and $returside used to keep pointing at plain luk.php with no id/lockToken at
+// all, meaning the popup close link for a brand new order could never actually release it.
 
 @session_start();
 $s_id=session_id();
@@ -94,7 +100,7 @@ if ($popup && $id) {
 	$lockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
 	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
 		$lockTidspkt = $lockRow['tidspkt'];
-		refresh_lock_token('ordrer', (int)$id, $brugernavn, $sessionLockToken);
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $sessionLockToken, $lockTidspkt);
 		$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken);
 	}
 }
@@ -900,7 +906,22 @@ function ordreside($id,$regnskab)
 		$r=db_fetch_array(db_select("select ansatte.navn as ref from ansatte,brugere where ansatte.id = ".nr_cast("brugere.ansat_id")." and brugere.brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
 		$ref=$r['ref'];
 	}
-	
+
+	// 20260924 SZ SST-755 (CodeRabbit): a new order's $id was 0 the first time this popup-lock
+	// block ran (near the top of this file), so $returside was left pointing at plain
+	// includes/luk.php with no id/tabel/lockToken - a popup opened for a brand new order could
+	// never actually release its lock. $id is stable by this point (this whole file's other
+	// $id reassignments all happen earlier), so rebuild $returside now, before sidehoved()
+	// renders the close control that prints it.
+	if ($popup && $id) {
+		$lockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+		if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
+			$lockTidspkt = $lockRow['tidspkt'];
+			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sessionLockToken, $lockTidspkt);
+			$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken);
+		}
+	}
+
 ######### pile ########## tilfoejet 20080210
 		if ($status==0) $tmp="tilbud";
 		elseif($status>=3) $tmp="faktura";
@@ -1977,7 +1998,7 @@ if ($id) {
 	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
 	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
 		$beaconLockToken = $sessionLockToken;
-		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken);
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken, $beaconRow['tidspkt']);
 	}
 }
 if ($beaconLockToken) {

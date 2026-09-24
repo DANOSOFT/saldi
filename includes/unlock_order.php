@@ -17,12 +17,17 @@ require_once __DIR__ . '/stdFunc/unlockRecord.php';
 // 20260923 SZ SST-755 (CodeRabbit): also accept lockToken - the pages now send this instead
 // of tidspkt in their beacon payload (see refresh_lock_token() in unlockRecord.php), since
 // tidspkt alone didn't distinguish two tabs open on the same record before either one saved.
+// 20260924 SZ SST-755 (CodeRabbit): a beacon cached before this feature carries no lockToken
+// at all, and unlock_record() used to skip the token check entirely whenever lockToken was
+// null - so it could still clear a lock a newer, tokenized render now holds. Pass
+// requireTokenForTokenized so a no-token beacon only matches a row that itself has no active
+// token.
 $allowedTables = array('ordrer', 'kladdeliste');
 $table = isset($_POST['table']) ? $_POST['table'] : 'ordrer';
 $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 $tidspkt = isset($_POST['tidspkt']) ? $_POST['tidspkt'] : '';
 $lockToken = isset($_POST['lockToken']) ? $_POST['lockToken'] : '';
 if ($id > 0 && ($tidspkt !== '' || $lockToken !== '') && !empty($brugernavn) && in_array($table, $allowedTables)) {
-    unlock_record($table, $id, $brugernavn, $tidspkt !== '' ? $tidspkt : null, $lockToken !== '' ? $lockToken : null);
+    unlock_record($table, $id, $brugernavn, $tidspkt !== '' ? $tidspkt : null, $lockToken !== '' ? $lockToken : null, true);
 }
 ?>

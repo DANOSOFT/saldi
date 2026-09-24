@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-02-19---------
+// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-09-24---------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2014.03.19 addslashes erstattet med db_escape_string
 // 2104.09.16   Tilføjet oioublimport i bunden
@@ -171,12 +171,17 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // instead of clearing by id alone - a row selected as stale here could be re-acquired by
 // anyone between this SELECT and the loop reaching it, and an id-only release would still
 // clobber that fresh lock, which is exactly the race this whole ticket exists to close.
+// 20260924 SZ SST-755 (CodeRabbit): also select and pass lock_token - the same race applies to
+// a row that's been re-tokenized (not just re-acquired) between this SELECT and the loop
+// reaching it. A legacy NULL column value is passed through as '', which unlock_record()
+// matches against NULL-or-empty at the point of the actual UPDATE, so a concurrently-stamped
+// real token still blocks the release.
 $kOrdreSweepNow = time();
-$qtxt = "select id, hvem, tidspkt from ordrer where art like 'K%' and status < '3' and hvem is not null and hvem != '' and tidspkt is not null and tidspkt != ''";
+$qtxt = "select id, hvem, tidspkt, lock_token from ordrer where art like 'K%' and status < '3' and hvem is not null and hvem != '' and tidspkt is not null and tidspkt != ''";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
     if (($kOrdreSweepNow - (int)$r['tidspkt']) > 3600) {
-        unlock_record('ordrer', (int)$r['id'], $r['hvem'], $r['tidspkt']);
+        unlock_record('ordrer', (int)$r['id'], $r['hvem'], $r['tidspkt'], $r['lock_token'] ?? '');
     }
 }
 

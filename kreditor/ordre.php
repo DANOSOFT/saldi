@@ -79,6 +79,9 @@
 // 20260923 SZ SST-755 (CodeRabbit): Luk links and the unload beacon now carry a per-render
 //                 lockToken instead of tidspkt, since tidspkt alone didn't distinguish two
 //                 tabs open on the same order before either one saved.
+// 20260924 SZ SST-755 (CodeRabbit): both refresh_lock_token() calls now also pass the
+//                 observed tidspkt, so a stale render can't overwrite a token a concurrent
+//                 tidspkt change has since replaced.
 
 @session_start();
 $s_id=session_id();
@@ -1700,7 +1703,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 		$sidehovedLockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
 		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) {
 			$sidehovedLockToken = $sessionLockToken;
-			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sidehovedLockToken);
+			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sidehovedLockToken, $sidehovedLockRow['tidspkt']);
 		}
 	}
 	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) : "";
@@ -1904,7 +1907,7 @@ if ($id) {
 	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
 	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
 		$beaconLockToken = $sessionLockToken;
-		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken);
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken, $beaconRow['tidspkt']);
 	}
 }
 if ($beaconLockToken) {

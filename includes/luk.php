@@ -2,7 +2,7 @@
 <?php
   @session_start();
   $s_id=session_id();
- // -------------------includes/luk.php-----lap 3.1.67----2011.03.28------------------
+ // -------------------includes/luk.php-----lap 3.1.67----2026.09.24------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,7 +17,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ------------------------------------------------------------------------------
 // 20260907 CDX/LH Restrict record unlocking to supported tables and escape refresh targets.
 // 20260910 Sawaneh Blocked-close fallback without returside goes to nav_back_url(), not the login page.
@@ -82,6 +82,12 @@ elseif (strpos($_SERVER['HTTP_USER_AGENT'],'MSIE')) $browser='ie';
 //                  unlockRecord.php), since $tidspkt alone didn't distinguish two tabs open on
 //                  the same record before either one saved. A stale cached link from before
 //                  this change still sends only $tidspkt, which still works exactly as before.
+// 20260924 SZ SST-755 (CodeRabbit): that "still works exactly as before" was the bug - a link
+//                  cached before this feature carries no lockToken at all, and unlock_record()
+//                  skipped the token check entirely whenever $lockToken was null, so it could
+//                  still clear a lock a newer, tokenized render now holds. Pass
+//                  requireTokenForTokenized so a no-token request only matches a row that
+//                  itself has no active token.
 if (!function_exists('nav_sanitize_returside')) {
 	include(__DIR__ . "/stdFunc/navStack.php");
 }
@@ -98,7 +104,7 @@ $isLockingTable = in_array($tabel, ['ordrer', 'kladdeliste'], true);
 if (!$isLockingTable) {
 	unlock_record($tabel, $id, $brugernavn ?? null, $tidspkt, $lockToken);
 } elseif (($tidspkt || $lockToken) && !empty($brugernavn)) {
-	unlock_record($tabel, $id, $brugernavn, $tidspkt, $lockToken);
+	unlock_record($tabel, $id, $brugernavn, $tidspkt, $lockToken, true);
 }
 if (!isset($popup)) $popup = NULL;
 if (!empty($_GET['popup'])) $popup = 1; // request flag: this window IS a popup regardless of the user's popup preference
