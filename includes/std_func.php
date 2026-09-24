@@ -2920,22 +2920,22 @@ if (!function_exists('input_ip')) { #20210908
 }
 
 if(!function_exists('get_settings_value')){
+	/**
+	 * Retrieves a settings value from the database or returns a default value if the setting does not exist.
+	 *
+	 * - Searches for a specific setting based on its name, group, and optional user or POS ID.
+	 * - If the setting is found, its value is returned.
+	 * - If the setting is not found, a default value is returned.
+	 *
+	 * @param string $var_name - The name of the variable to retrieve.
+	 * @param string $var_grp - The group/category of the variable.
+	 * @param mixed $default - The default value to return if the setting is not found.
+	 * @param string|null $user - (Optional) The user ID associated with the variable.
+	 * @param string|null $kasse - (Optional) The POS ID associated with the variable.
+	 *
+	 * @return mixed - The value of the setting if found, otherwise the default value.
+	 */
 	function get_settings_value($var_name, $var_grp, $default, $user=NULL, $kasse=NULL) {
-		/**
-		 * Retrieves a settings value from the database or returns a default value if the setting does not exist.
-		 *
-		 * - Searches for a specific setting based on its name, group, and optional user or POS ID.
-		 * - If the setting is found, its value is returned.
-		 * - If the setting is not found, a default value is returned.
-		 *
-		 * @param $var_name - The name of the variable to retrieve.
-		 * @param $var_grp - The group/category of the variable.
-		 * @param $default - The default value to return if the setting is not found.
-		 * @param $user - (Optional) The user ID associated with the variable.
-		 * @param $kasse - (Optional) The POS ID associated with the variable.
-		 *
-		 * @return mixed - The value of the setting if found, otherwise the default value.
-		 */
 
 		$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
 
@@ -2961,9 +2961,9 @@ if(!function_exists('check_and_sanitize_input')){
 		 * - If the input is valid, it returns the sanitized input.
 		 * - If the input is not found, it returns null.
 		 *
-		 * @param $input_name - The name of the input field to check.
-		 * @param $message - The message to display in case of invalid input.
-		 * @param $nonce - The nonce value to use in the scripts for security.
+		 * @param string $input_name - The name of the input field to check.
+		 * @param string $message - The message to display in case of invalid input.
+		 * @param string $nonce - The nonce value to use in the scripts for security.
 		 *
 		 * @return string|null - The sanitized input if valid, or null if not found.
 		 */
@@ -3017,12 +3017,12 @@ if(!function_exists('update_settings_value')){
 		 * - If the setting already exists, its value is updated.
 		 * - If the setting does not exist, a new row is created.
 		 *
-		 * @param $var_name - The name of the variable being updated/inserted.
-		 * @param $var_grp - The group/category of the variable.
-		 * @param $var_value - The value to be stored for the variable.
-		 * @param $var_description - A description of the variable.
-		 * @param $user - (Optional) The user ID associated with the variable.
-		 * @param $posid - (Optional) The POS ID associated with the variable.
+		 * @param string $var_name - The name of the variable being updated/inserted.
+		 * @param string $var_grp - The group/category of the variable.
+		 * @param string $var_value - The value to be stored for the variable.
+		 * @param string $var_description - A description of the variable.
+		 * @param string|null $user - (Optional) The user ID associated with the variable.
+		 * @param string|null $posid - (Optional) The POS ID associated with the variable.
 		 *
 		 * @return void
 		 */
@@ -3062,8 +3062,8 @@ if (!function_exists('clean_phone_number')) {
 		 * - Removes spaces, plus signs, and any non-numeric characters.
 		 * - Ensures the phone number includes the correct country code.
 		 *
-		 * @param $phoneNumber - The raw phone number to be cleaned.
-		 * @param $countryCode - The country code to prepend if missing (default is "45" for Denmark).
+		 * @param string $phoneNumber - The raw phone number to be cleaned.
+		 * @param string $countryCode - The country code to prepend if missing (default is "45" for Denmark).
 		 *
 		 * @return string - The cleaned phone number, ready for use.
 		 */
@@ -3083,9 +3083,9 @@ if (!function_exists('send_sms')) {
 		/**
 		* Sends a message to a phone number, automatically updates the db message counter
 		*
-		* @param $from - The text that will appear as the sender for the message
-		* @param $to - Where the message gets sent to, automatically gets clearned
-		* @param $message - The message to send, the longer the messaee the more the cost increases
+		* @param string $from - The text that will appear as the sender for the message
+		* @param string $to - Where the message gets sent to, automatically gets clearned
+		* @param string $message - The message to send, the longer the messaee the more the cost increases
 		*
 		* @return bool - If the system was able to send the message or not
 		*/
@@ -3169,9 +3169,9 @@ if (!function_exists('send_email')) {
 		/**
 		* Sends an email to a recipient
 		*
-		* @param $to - The email address of the recipient
-		* @param $subject - The subject of the email
-		* @param $message - The message to send
+		* @param string $to - The email address of the recipient
+		* @param string $subject - The subject of the email
+		* @param string $message - The message to send
 		*
 		* @return bool - If the system was able to send the email or not
 		*/
