@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- patch 5.0.0 --- 2026-07-13 ---
+// --- kreditor/orderIncludes/openOrderData.php --- patch 5.0.0 --- 2026-09-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20221104 MLH added lookup function for the delivery address fields
@@ -33,6 +33,10 @@
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
 // 20260521 LOE Added check to set afd based on first employee if no match is found for ref in employees list
 // 20260713 MJ Fix ref SELECT: add selected='selected', preserve stored ref when not in active employee list, fix </select> typo. Same fix for afd SELECT.
+// 20260923 CL/SZ Include varer.has_due_date in the has_expiry_items check, not just group-level
+//                 box9 (CodeRabbit, PR #608): an item flagged has_due_date under a group without
+//                 box9='on' was skipping the whole batch input block and saving NULL over any
+//                 existing batch data.
 
 /*
 $attachId    = null;
@@ -318,7 +322,7 @@ if ($omlev) print "<td title ='".findtekst(1512, $sprog_id)."'>O/B</td>";
 // (grupper.box9 = 'on' for art='VG'). Query DB directly since line data is loaded after this header.
 $has_expiry_items = false;
 if ($id) {
-	$_eq = db_select("SELECT ol.vare_id FROM ordrelinjer ol JOIN varer v ON v.id = ol.vare_id JOIN grupper g ON g.kodenr = v.gruppe AND g.art = 'VG' AND g.fiscal_year = '$regnaar' WHERE ol.ordre_id = '$id' AND g.box9 = 'on' LIMIT 1", __FILE__ . " linje " . __LINE__);
+	$_eq = db_select("SELECT ol.vare_id FROM ordrelinjer ol JOIN varer v ON v.id = ol.vare_id JOIN grupper g ON g.kodenr = v.gruppe AND g.art = 'VG' AND g.fiscal_year = '$regnaar' WHERE ol.ordre_id = '$id' AND (g.box9 = 'on' OR v.has_due_date = TRUE) LIMIT 1", __FILE__ . " linje " . __LINE__);
 	if (db_fetch_array($_eq)) $has_expiry_items = true;
 }
 if ($has_expiry_items) {

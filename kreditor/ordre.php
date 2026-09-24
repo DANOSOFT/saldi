@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-07-28---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-09-23---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20200827 PHR Added protection against delete if items recieved. 20200827
@@ -71,6 +71,11 @@
 // 20260914 CL/SZ Persist batch_due_date/batch_batch_no from the order-line form to
 //                ordrelinjer on save; they were read back and used at goods receipt
 //                but never written, so batches always saved blank (MB-36).
+// 20260923 CL/SZ Only set batch_due_date/batch_batch_no on a line when that line's form
+//                input was actually submitted, instead of unconditionally (CodeRabbit, PR
+//                #608): a line whose tracking flag turned off no longer renders those
+//                inputs, and the unconditional SET was wiping its stored batch data on
+//                every subsequent save.
 
 @session_start();
 $s_id=session_id();
@@ -873,14 +878,27 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if (! $tidl_lev[$x]) $tidl_lev[$x]=0;
 						if ($omvbet[$x]) $omvbet[$x]='on';
+						// CodeRabbit (PR #608): only touch batch_due_date/batch_batch_no when this
+						// line actually submitted that input - openOrderLines.php doesn't render
+						// them for a line whose tracking flag is off, and ifset() can't tell
+						// "not submitted" apart from "submitted empty" once it's flattened to
+						// NULL, so an unconditional SET was wiping stored batch data for any line
+						// whose tracking flag changed since it was last saved.
 						$_batch_due_date_raw = ifset($batch_due_date, $x);
 						$_batch_batch_no_raw = ifset($batch_batch_no, $x);
-						$_batch_due_date = ($_batch_due_date_raw !== null && $_batch_due_date_raw !== '') ? "'" . db_escape_string($_batch_due_date_raw) . "'" : 'NULL';
-						$_batch_batch_no = ($_batch_batch_no_raw !== null && $_batch_batch_no_raw !== '') ? "'" . db_escape_string($_batch_batch_no_raw) . "'" : 'NULL';
+						$_batch_sql = '';
+						if ($_batch_due_date_raw !== null) {
+							$_batch_due_date = ($_batch_due_date_raw !== '') ? "'" . db_escape_string($_batch_due_date_raw) . "'" : 'NULL';
+							$_batch_sql .= ", batch_due_date=$_batch_due_date";
+						}
+						if ($_batch_batch_no_raw !== null) {
+							$_batch_batch_no = ($_batch_batch_no_raw !== '') ? "'" . db_escape_string($_batch_batch_no_raw) . "'" : 'NULL';
+							$_batch_sql .= ", batch_batch_no=$_batch_batch_no";
+						}
 						if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
 						$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
-						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager', batch_due_date=$_batch_due_date, batch_batch_no=$_batch_batch_no where id='$linje_id[$x]'";
+						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'$_batch_sql where id='$linje_id[$x]'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {

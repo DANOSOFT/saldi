@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.21
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,8 @@
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
 //                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
 //                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
+// 20260923 CL/SZ Serialize the FEFO column backfill the same way as performed_by/pool_files
+//                 vendor columns above (CodeRabbit, PR #608).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -665,29 +667,51 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // pool_files.norm_amount fix above; backfilled here unconditionally so the feature degrades to
 // "off" instead of silently failing partway through (e.g. ordre.php's save UPDATE referencing a
 // nonexistent ordrelinjer column).
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='batch_kob' AND column_name='due_date'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE batch_kob ADD COLUMN due_date DATE NULL", __FILE__ . " linje " . __LINE__);
+//
+// 20260923 CL/SZ Serialize these ALTER TABLEs the same way as performed_by/pool_files vendor
+// columns above (CodeRabbit, PR #608): two tenant logins racing this backfill could both pass
+// the existence check before either ALTER TABLE committed, and the second would fail on a
+// duplicate column mid-login.
+$fefoMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$fefoColumns = array(
+	'batch_kob' => array('due_date' => 'DATE NULL', 'batch_no' => 'VARCHAR(100) NULL'),
+	'varer' => array('has_due_date' => 'BOOLEAN DEFAULT FALSE', 'default_shelf_life_days' => 'INTEGER NULL'),
+	'ordrelinjer' => array('batch_due_date' => 'DATE NULL', 'batch_batch_no' => 'VARCHAR(100) NULL'),
+);
+$fefoMissing = array();
+foreach ($fefoColumns as $fefoTable => $fefoTableColumns) {
+	foreach ($fefoTableColumns as $fefoColumn => $fefoType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$fefoTable' AND column_name = '$fefoColumn'";
+		$qtxt .= $fefoMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$fefoMissing[] = array('table' => $fefoTable, 'column' => $fefoColumn, 'type' => $fefoType);
+		}
+	}
 }
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='batch_kob' AND column_name='batch_no'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE batch_kob ADD COLUMN batch_no VARCHAR(100) NULL", __FILE__ . " linje " . __LINE__);
-}
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' AND column_name='has_due_date'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE varer ADD COLUMN has_due_date BOOLEAN DEFAULT FALSE", __FILE__ . " linje " . __LINE__);
-}
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' AND column_name='default_shelf_life_days'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE varer ADD COLUMN default_shelf_life_days INTEGER NULL", __FILE__ . " linje " . __LINE__);
-}
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' AND column_name='batch_due_date'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE ordrelinjer ADD COLUMN batch_due_date DATE NULL", __FILE__ . " linje " . __LINE__);
-}
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' AND column_name='batch_batch_no'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE ordrelinjer ADD COLUMN batch_batch_no VARCHAR(100) NULL", __FILE__ . " linje " . __LINE__);
+if ($fefoMissing) {
+	if ($fefoMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the
+		// check above; serialize per tenant and recheck under the lock (same as performed_by).
+		$fefoLock = "CONCAT('saldi:fefo_columns:', MD5(DATABASE()))";
+		$fefoLockResult = db_fetch_array(db_select("SELECT GET_LOCK($fefoLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($fefoLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the FEFO columns migration lock.');
+		}
+		try {
+			foreach ($fefoMissing as $fefoPending) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '{$fefoPending['table']}' AND column_name = '{$fefoPending['column']}' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE {$fefoPending['table']} ADD COLUMN {$fefoPending['column']} {$fefoPending['type']}", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($fefoLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($fefoMissing as $fefoPending) {
+			db_modify("ALTER TABLE {$fefoPending['table']} ADD COLUMN IF NOT EXISTS {$fefoPending['column']} {$fefoPending['type']}", __FILE__ . " linje " . __LINE__);
+		}
+	}
 }
 
 // 20260922 CL/LAH Leverandørforslag fra AI-scan (kravspec Bilagsflow AI-3): the vendor read on a
