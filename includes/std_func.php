@@ -1263,8 +1263,8 @@ if (!function_exists('find_varemomssats')) {
 		$r = db_fetch_array(db_select("select gruppe from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
 		$gruppe = $r['gruppe'];
 		$r = db_fetch_array(db_select("select box4,box6,box7,box8 from grupper where art = 'VG' and kodenr = '$gruppe'", __FILE__ . " linje " . __LINE__));
-		$bogfkto = if_isset($r2['box4']); #20190605 + 1 line
-		$momsfri = if_isset($r2['box7']);
+		$bogfkto = if_isset($r['box4']); #20190605 + 1 line
+		$momsfri = if_isset($r['box7']);
 		if ($momsfri) {
 			db_modify("update ordrelinjer set momssats='0' where id = '$linje_id'", __FILE__ . " linje " . __LINE__);
 			return ('0');
@@ -1272,7 +1272,7 @@ if (!function_exists('find_varemomssats')) {
 		}
 		if ($bogfkto) {
 			$r = db_fetch_array(db_select("select moms from kontoplan where kontonr = '$bogfkto' and regnskabsaar = '$regnaar'", __FILE__ . " linje " . __LINE__));
-			if ($tmp = trim($r2['moms'])) { # f.eks S3
+			if ($tmp = trim($r['moms'])) { # f.eks S3
 				$tmp = substr($tmp, 1); #f.eks 3
 				$r2 = db_fetch_array(db_select("select box2 from grupper where art = 'SM' and kodenr = '$tmp'", __FILE__ . " linje " . __LINE__));
 				if ($r2['box2'])
