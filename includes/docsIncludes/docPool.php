@@ -925,7 +925,19 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		// amount/date still passed straight through to the raw UPDATE/INSERT further below,
 		// AFTER the file had already been renamed on disk, leaving a renamed file paired with
 		// unusable metadata. Reject both up front too, same as poolMetadataSave()'s own checks.
+		// 20260924 SZ SST-777 (CodeRabbit): a physical rename bypassed poolMetadataSave() (and so
+		// its poolVersion check) entirely - a stale row/card view could rename a document and
+		// overwrite a newer correction, still marking the result manually_edited. Check the
+		// row's current version here too, before any rename or write.
 		try {
+			$currentRow = db_fetch_array(db_select("SELECT * FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'", __FILE__ . " linje " . __LINE__));
+			$submittedVersion = $_POST['poolVersion'] ?? null;
+			if ($submittedVersion !== null && !is_string($submittedVersion)) {
+				throw new InvalidArgumentException('Invalid version', 422);
+			}
+			if (!$currentRow || $submittedVersion === null || !hash_equals(poolMetadataVersion($currentRow), $submittedVersion)) {
+				throw new RuntimeException('Document changed', 409);
+			}
 			$newAccount = poolMetadataAccount($newAccount, (int)$regnaar);
 			if ($newAmount !== '' && $newAmount !== null && normalizePoolAmount($newAmount) === null) {
 				throw new InvalidArgumentException('Invalid amount', 422);
@@ -933,9 +945,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			if ($newDate !== '' && $newDate !== null && normalizeDateFormat($newDate) === '') {
 				throw new InvalidArgumentException('Invalid date', 422);
 			}
-		} catch (InvalidArgumentException $error) {
-			http_response_code(422);
-			print htmlspecialchars(findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id), ENT_QUOTES, 'UTF-8');
+		} catch (RuntimeException | InvalidArgumentException $error) {
+			$status = $error->getCode() === 409 ? 409 : 422;
+			http_response_code($status);
+			$message = $status === 409
+				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
+				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
 			return;
 		}
 
@@ -3785,8 +3801,9 @@ window.extractAllPoolFiles = async function() {
 				if (extractResult.success && extractResult.data) {
 					const extracted = extractResult.data;
 					
-					// Only save if we got some data
-					if (extracted.amount || extracted.date || extracted.vendor) {
+					// Only save if we got some data. amount uses a null/undefined check (not
+					// truthiness) so an explicit 0 still counts as extracted data (CodeRabbit).
+					if ((extracted.amount !== null && extracted.amount !== undefined) || extracted.date || extracted.vendor) {
 						// Save the extracted data to the .info file
 						const saveData = new FormData();
 						saveData.append('action', 'save');

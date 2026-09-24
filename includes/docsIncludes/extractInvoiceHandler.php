@@ -289,8 +289,12 @@ if ($action === 'save') {
 		// (vendorScan=1); a plain metadata save/correction leaves the vendor_* columns
 		// untouched. Best-effort, like the rest of this handler - a failed or skipped match
 		// never fails the save itself, it just reports vendor: null.
+		// 20260924 SZ SST-777 (CodeRabbit): skip the rematch when poolMetadataSave() itself
+		// skipped (the row is manually_edited and this was an automatic re-extraction) - it
+		// would otherwise match on the stale OCR $_POST['newSubject'] and overwrite vendor_*
+		// with a vendor that disagrees with the user's kept correction.
 		$vendorMatch = null;
-		if (($_POST['vendorScan'] ?? '') === '1') {
+		if (($_POST['vendorScan'] ?? '') === '1' && empty($result['skipped'])) {
 			if (!poolVendorColumnsExist()) {
 				// Migration not applied on this tenant yet: the ordinary fields are already
 				// saved above; the file is matched on the next scan or when the pool opens
