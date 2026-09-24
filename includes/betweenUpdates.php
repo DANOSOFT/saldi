@@ -702,4 +702,19 @@ if ($poolVendorMissing) {
 	}
 }
 
+// 20260923 CL/NTR Tekst 242 (Ryk alle hover on the debtor openpost report) was an unclosed
+// <big>/<UL>/<LI> fragment - overly bureaucratic-looking for a one-line explanation. Delete rows
+// still holding the old text so findtekst() re-seeds them from tekster.csv with plain text.
+// Guarded on the old values because betweenUpdates.php runs at every login and customer-edited
+// texts must not be wiped.
+$gamle_242 = array(
+	'<big>Denne funktion gør følgende:<UL><LI>udligner alle konti',
+	'<big>This feature does the following: <UL> <LI> settles all accounts',
+	'<big> Denne funksjonen gjør følgende: <UL> <LI> gjør opp alle kontoer'
+);
+foreach ($gamle_242 as $gammel) {
+	$gammel = db_escape_string($gammel);
+	db_modify("delete from tekster where tekst_id = '242' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
+}
+
 ?>
