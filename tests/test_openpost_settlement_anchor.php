@@ -70,6 +70,8 @@ check(count($settlementUpdates) === 2 && strpos(implode(' ', $settlementUpdates)
 $start = strpos($controller, '$insertInvoiceNumbers = ifset');
 $end = strpos($controller, ';', $start);
 $_POST = [];
+$_GET = [];
+$periodRequest = isset($_POST['submit']) ? $_POST : $_GET;
 eval(substr($controller, $start, $end - $start + 1));
 check($insertInvoiceNumbers === false, 'Invoice insertion defaults to unchecked on a fresh request');
 $start = strpos($controller, '// Also prepare references for exact matches');
