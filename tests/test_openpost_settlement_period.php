@@ -6,7 +6,7 @@ set_error_handler(function ($severity, $message, $file, $line) {
 });
 function check($condition, $message) {
     if (!$condition) { throw new RuntimeException($message); }
-    echo "PASS: $message\n";
+    echo "PASS: $message<br/>\n";
 }
 function db_escape_string($value) { return str_replace("'", "''", $value); }
 $period = openpostSettlementPeriod('2025-12-31', '2026-03-04', null, null, '2026-01-01');

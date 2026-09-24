@@ -8,7 +8,7 @@ function db_escape_string($value) { return str_replace("'", "''", $value); }
 function db_modify($sql, $context) { $GLOBALS['settlementUpdates'][] = $sql; }
 function check($condition, $message) {
     if (!$condition) { throw new RuntimeException($message); }
-    echo "PASS: $message\n";
+    echo "PASS: $message<br/>\n";
 }
 $controller = file_get_contents(__DIR__ . '/../includes/udlign_openpost.php');
 $start = strpos($controller, '// Preserve selections by database ID');
