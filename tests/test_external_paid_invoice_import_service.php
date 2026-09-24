@@ -141,11 +141,12 @@ function configureImportPrerequisites()
         array(
             'id' => '10', 'varenr' => 'STRIPE-SERVICE', 'varenr_alias' => '',
             'beskrivelse' => 'Stripe service', 'gruppe' => '1', 'samlevare' => '',
-            'm_antal' => '', 'm_rabat' => '',
+            'm_antal' => '', 'm_rabat' => '', 'serienr' => '',
         ),
     ));
+    $mockDb->addResponse("FROM variant_varer WHERE vare_id", array());
     $mockDb->addResponse("FROM grupper WHERE art = 'VG'", array(
-        array('box4' => '1000'),
+        array('box4' => '1000', 'box9' => ''),
     ));
     $mockDb->addResponse("FROM kontoplan WHERE kontonr = '1000'", array(
         array('moms' => 'S1'),
@@ -203,6 +204,8 @@ function expectApiException($callable, $statusCode, $messagePart)
             $exception->getStatusCode() === $statusCode && strpos($exception->getMessage(), $messagePart) !== false,
             'Throws ApiException ' . $statusCode . ' containing "' . $messagePart . '"'
         );
+    } catch (\Throwable $exception) {
+        fail('Expected ApiException but got ' . get_class($exception) . ': ' . $exception->getMessage());
     }
 }
 
@@ -225,7 +228,10 @@ expectApiException(function () use ($service, $forbidden) {
 }, 422, 'EAN and OIOUBL');
 
 resetMocks();
-configureImportPrerequisites();
+// Deliberately not calling configureImportPrerequisites(): a valid replay must not depend on
+// the current fiscal year, card-clearing account, debtor group or product configuration, only
+// on the persisted order it is replaying (finding: replay must be resolved before mutable
+// import prerequisites).
 $mockDb->addResponse("SELECT id, betalings_id, status, valuta FROM ordrer WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'", array(
     array('id' => 55, 'betalings_id' => '4f7a1b6a9d8c2e1f', 'status' => '4', 'valuta' => 'DKK'),
 ));
@@ -260,15 +266,24 @@ $mockDb->addResponse("FROM ordrelinjer WHERE ordre_id = '55'", array(
 ));
 $mockDb->addResponse("SELECT id FROM pos_betalinger WHERE ordre_id = '55'", array());
 $mockDb->addResponse("SELECT id FROM openpost WHERE refnr = '55'", array());
-$mockDb->addResponse("SELECT id FROM transaktioner WHERE ordre_id = '55' AND kontonr = '5820'", array(
+$mockDb->addResponse("SELECT id FROM transaktioner WHERE ordre_id = '55' AND kontonr IS NOT NULL AND kontonr <> ''", array(
     array('id' => 800),
 ));
 $result = $service->import(basePayload(), 'bridge-user');
 check($result['idempotent'] === true && $result['invoiceNumber'] === 9001, 'same externalInvoiceId and payloadHash returns the existing posted result');
 check($transactionCalls === array('begin', 'rollback'), 'idempotent replay uses a no-op rollback instead of commit');
 
+$resolvedCurrentFiscalYear = false;
+foreach ($mockDb->queries as $executedQuery) {
+    if (strpos($executedQuery, "SELECT kodenr FROM grupper WHERE art='RA'") !== false) {
+        $resolvedCurrentFiscalYear = true;
+        break;
+    }
+}
+check(!$resolvedCurrentFiscalYear, 'replay does not resolve the current fiscal year or accounting prerequisites');
+
 resetMocks();
-configureImportPrerequisites();
+// Same reasoning as above: a conflicting replay is decided from the existing order alone.
 $mockDb->addResponse("SELECT id, betalings_id, status, valuta FROM ordrer WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'", array(
     array('id' => 55, 'betalings_id' => 'different-hash', 'status' => '4', 'valuta' => 'DKK'),
 ));
@@ -278,6 +293,7 @@ expectApiException(function () use ($service) {
 check($transactionCalls === array('begin', 'rollback'), 'conflicting idempotency key rolls the transaction back');
 
 resetMocks();
+$mockDb->addResponse("SELECT id, betalings_id, status, valuta FROM ordrer WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'", array());
 $mockDb->addResponse("SELECT kodenr FROM grupper WHERE art='RA'", array(
     array('kodenr' => '2026'),
 ));
@@ -290,7 +306,97 @@ $mockDb->addResponse("SELECT box10 FROM grupper WHERE art = 'DIV' AND kodenr = '
 expectApiException(function () use ($service) {
     $service->import(basePayload(), 'bridge-user');
 }, 422, 'Card clearing account is not configured');
-check($transactionCalls === array(), 'missing card-clearing configuration fails before opening a transaction');
+// The replay lookup now runs first and needs the transaction/table lock to safely no-op
+// rollback on a hit, so this prerequisite failure rolls back an already-open transaction
+// instead of failing before one is opened.
+check($transactionCalls === array('begin', 'rollback'), 'missing card-clearing configuration rolls back the transaction opened for the replay lookup');
+
+resetMocks();
+$mockDb->addResponse("SELECT id, betalings_id, status, valuta FROM ordrer WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'", array());
+configureImportPrerequisites();
+$mockDb->addResponse("FROM varer WHERE UPPER(varenr)", array(
+    array(
+        'id' => '10', 'varenr' => 'STRIPE-SERVICE', 'varenr_alias' => '',
+        'beskrivelse' => 'Stripe service', 'gruppe' => '1', 'samlevare' => '',
+        'm_antal' => '', 'm_rabat' => '', 'serienr' => 'SN-1',
+    ),
+), true);
+expectApiException(function () use ($service) {
+    $service->import(basePayload(), 'bridge-user');
+}, 422, 'requires serial numbers');
+
+resetMocks();
+$mockDb->addResponse("SELECT id, betalings_id, status, valuta FROM ordrer WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'", array());
+configureImportPrerequisites();
+$mockDb->addResponse("FROM variant_varer WHERE vare_id", array(
+    array('id' => '99'),
+), true);
+expectApiException(function () use ($service) {
+    $service->import(basePayload(), 'bridge-user');
+}, 422, 'requires variant selection');
+
+resetMocks();
+$mockDb->addResponse("SELECT id, betalings_id, status, valuta FROM ordrer WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'", array());
+configureImportPrerequisites();
+$mockDb->addResponse("FROM grupper WHERE art = 'VG'", array(
+    array('box4' => '1000', 'box9' => 'on'),
+), true);
+expectApiException(function () use ($service) {
+    $service->import(basePayload(), 'bridge-user');
+}, 422, 'is batch-controlled');
+
+resetMocks();
+$mockDb->addResponse("SELECT id, fakturanr, status, valuta, sum, moms, betalt, betalingsbet, kundeordnr, betalings_id, shop_status FROM ordrer WHERE id = '55'", array(
+    array(
+        'id' => 55,
+        'fakturanr' => '9002',
+        'status' => '4',
+        'valuta' => 'DKK',
+        'sum' => '1000.00',
+        'moms' => '250.00',
+        'betalt' => 'on',
+        'betalingsbet' => 'Kreditkort',
+        'kundeordnr' => 'in_1Qwerty123456789',
+        'betalings_id' => '4f7a1b6a9d8c2e1f',
+        'shop_status' => 'stripe_paid_bridge',
+    ),
+));
+$mockDb->addResponse("FROM ordrelinjer WHERE ordre_id = '55'", array(
+    array(
+        'varenr' => 'STRIPE-SERVICE',
+        'beskrivelse' => 'Consulting July 2026',
+        'antal' => '1',
+        'pris' => '1000.00',
+        'rabat' => '0',
+        'rabatart' => '',
+        'procent' => '100',
+        'momssats' => '25',
+        'momsfri' => '',
+        'posnr' => '1',
+    ),
+));
+function momsupdat($orderId)
+{
+    return 'OK';
+}
+// A product's accepted varenr_alias must reconcile against the canonical varenr read back from
+// the database, not the alias submitted in the request (finding: SKU alias reconciliation).
+// Exercised directly against reconcileDraftTotals(), the method that does this comparison,
+// since driving it through the full import() would require stubbing unrelated legacy
+// functions (get_next_number, opret_ordrelinje, levering, bogfor, ...) that this fix does not touch.
+$aliasPayload = basePayload();
+$aliasPayload['lines'][0]['sku'] = 'STRIPE-ALIAS';
+$preparedAliasLines = array(
+    array('position' => 1, 'sku' => 'STRIPE-SERVICE'),
+);
+$reconcileMethod = new ReflectionMethod('ExternalPaidInvoiceImportService', 'reconcileDraftTotals');
+$reconcileMethod->setAccessible(true);
+try {
+    $reconcileMethod->invoke($service, 55, $aliasPayload, $preparedAliasLines);
+    check(true, 'accepted varenr_alias SKU reconciles against the canonical varenr without a false mismatch');
+} catch (ApiException $exception) {
+    fail('accepted varenr_alias SKU reconciles against the canonical varenr without a false mismatch: ' . $exception->getMessage());
+}
 
 echo "\nResults: $passed passed, $failed failed\n";
 exit($failed ? 1 : 0);

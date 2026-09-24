@@ -16,18 +16,6 @@ class ExternalPaidInvoiceImportService
         try {
             $this->prepareLegacyGlobals($payload, $username);
 
-            $regnaar = $this->resolveFiscalYear($payload['invoiceDate']);
-            $GLOBALS['regnaar'] = $regnaar;
-
-            $baseCurrency = strtoupper($this->getSettingValue('baseCurrency', 'DKK'));
-            if ($baseCurrency !== 'DKK') {
-                throw new ApiException('The Stripe paid-invoice bridge only supports databases with DKK as baseCurrency', 422);
-            }
-
-            $cardClearingAccount = $this->requireCardClearingAccount($regnaar);
-            $debtorGroup = $this->requireDebtorGroup($payload['customer']['groupCode'], $regnaar);
-            $preparedLines = $this->prepareLines($payload['lines'], $regnaar);
-
             transaktion('begin');
             $transactionOpen = true;
             $this->lockImportTables();
@@ -42,12 +30,24 @@ class ExternalPaidInvoiceImportService
                     throw new ApiException('externalInvoiceId is already imported with a different payloadHash', 409);
                 }
 
-                $result = $this->buildPostedResponse((int) $existingOrder['id'], $payload, $cardClearingAccount, true);
+                $result = $this->buildPostedResponse((int) $existingOrder['id'], $payload, null, true);
                 transaktion('rollback');
                 $transactionOpen = false;
 
                 return $result;
             }
+
+            $regnaar = $this->resolveFiscalYear($payload['invoiceDate']);
+            $GLOBALS['regnaar'] = $regnaar;
+
+            $baseCurrency = strtoupper($this->getSettingValue('baseCurrency', 'DKK'));
+            if ($baseCurrency !== 'DKK') {
+                throw new ApiException('The Stripe paid-invoice bridge only supports databases with DKK as baseCurrency', 422);
+            }
+
+            $cardClearingAccount = $this->requireCardClearingAccount($regnaar);
+            $debtorGroup = $this->requireDebtorGroup($payload['customer']['groupCode'], $regnaar);
+            $preparedLines = $this->prepareLines($payload['lines'], $regnaar);
 
             $debtor = $this->findOrCreateDebtor($payload['customer'], $debtorGroup, $username);
             $orderId = $this->createDraftOrder($payload, $debtor, $preparedLines['headerVatRate'], $username);
@@ -336,11 +336,6 @@ class ExternalPaidInvoiceImportService
             return (int) $row['kodenr'];
         }
 
-        $fallback = $this->fetchRow("SELECT MAX(kodenr) AS kodenr FROM grupper WHERE art='RA'");
-        if ($fallback && isset($fallback['kodenr']) && $fallback['kodenr'] !== null && $fallback['kodenr'] !== '') {
-            return (int) $fallback['kodenr'];
-        }
-
         throw new ApiException('No fiscal year is configured for invoiceDate ' . $invoiceDate, 422);
     }
 
@@ -438,7 +433,7 @@ class ExternalPaidInvoiceImportService
     {
         $sku = trim($sku);
         $skuEscaped = $this->escape($sku);
-        $query = "SELECT id, varenr, varenr_alias, beskrivelse, gruppe, samlevare, m_antal, m_rabat FROM varer WHERE UPPER(varenr) = UPPER('$skuEscaped') OR UPPER(varenr_alias) = UPPER('$skuEscaped') ORDER BY id";
+        $query = "SELECT id, varenr, varenr_alias, beskrivelse, gruppe, samlevare, m_antal, m_rabat, serienr FROM varer WHERE UPPER(varenr) = UPPER('$skuEscaped') OR UPPER(varenr_alias) = UPPER('$skuEscaped') ORDER BY id";
         $rows = $this->fetchAll($query);
 
         if (count($rows) === 0) {
@@ -456,20 +451,31 @@ class ExternalPaidInvoiceImportService
         if (trim((string) $product['samlevare']) === 'on') {
             throw new ApiException('SKU ' . $sku . ' is a samlevare and cannot be imported through this bridge', 422);
         }
+        if (trim((string) $product['serienr']) !== '') {
+            throw new ApiException('SKU ' . $sku . ' requires serial numbers and cannot be imported through this bridge', 422);
+        }
         if (trim((string) $product['m_antal']) !== '' || trim((string) $product['m_rabat']) !== '') {
             throw new ApiException('SKU ' . $sku . ' has quantity discount configuration and cannot be imported safely through this bridge', 422);
         }
         if (!is_numeric($product['gruppe']) || (int) $product['gruppe'] <= 0) {
             throw new ApiException('SKU ' . $sku . ' is missing a valid varegruppe', 422);
         }
+
+        $variantRow = $this->fetchRow("SELECT id FROM variant_varer WHERE vare_id = '" . (int) $product['id'] . "' LIMIT 1");
+        if ($variantRow) {
+            throw new ApiException('SKU ' . $sku . ' requires variant selection and cannot be imported through this bridge', 422);
+        }
     }
 
     private function resolveProductVatRate($varegruppe, $regnaar, $sku)
     {
         $varegruppe = (int) $varegruppe;
-        $row = $this->fetchRow("SELECT box4 FROM grupper WHERE art = 'VG' AND kodenr = '$varegruppe' AND fiscal_year = '$regnaar' LIMIT 1");
+        $row = $this->fetchRow("SELECT box4, box9 FROM grupper WHERE art = 'VG' AND kodenr = '$varegruppe' AND fiscal_year = '$regnaar' LIMIT 1");
         if (!$row || trim((string) $row['box4']) === '') {
             throw new ApiException('SKU ' . $sku . ' is missing a sales account on its varegruppe', 422);
+        }
+        if (trim((string) $row['box9']) === 'on') {
+            throw new ApiException('SKU ' . $sku . ' is batch-controlled and cannot be imported through this bridge', 422);
         }
 
         $salesAccount = $this->escape(trim((string) $row['box4']));
@@ -633,8 +639,38 @@ class ExternalPaidInvoiceImportService
         }
 
         $summary = $this->summarizeLines($lineRows);
-        $this->assertSummaryMatchesPayload($summary, $payload, true);
+        $this->assertSummaryMatchesPayload($summary, $this->withCanonicalSkus($payload, $lines), true);
         $this->assertOrderTotalsMatchPayload($orderRow, $payload);
+    }
+
+    /**
+     * Returns a copy of $payload with each line's sku replaced by the canonical
+     * varenr resolved during prepareLines(), so reconciliation against the
+     * database read-back does not fail merely because the request used an
+     * accepted varenr_alias instead of the canonical SKU.
+     *
+     * @param array $payload
+     * @param array $preparedLines array of prepared lines, each with a 'sku' key holding the canonical varenr
+     * @return array{
+     *     externalInvoiceId: string,
+     *     payloadHash: string,
+     *     invoiceDate: string,
+     *     currency: string,
+     *     totals: array{netOre: int, vatOre: int, grossOre: int},
+     *     customer: array,
+     *     lines: list<array>,
+     * }
+     */
+    private function withCanonicalSkus($payload, $preparedLines)
+    {
+        $canonical = $payload;
+        for ($index = 0; $index < count($canonical['lines']); $index++) {
+            if (isset($preparedLines[$index]['sku'])) {
+                $canonical['lines'][$index]['sku'] = $preparedLines[$index]['sku'];
+            }
+        }
+
+        return $canonical;
     }
 
     private function deliverAndPost($orderId)
@@ -692,6 +728,14 @@ class ExternalPaidInvoiceImportService
 
         if ($cardClearingAccount !== null) {
             $cardRow = $this->fetchRow("SELECT id FROM transaktioner WHERE ordre_id = '$orderId' AND kontonr = '$cardClearingAccount' LIMIT 1");
+            if (!$cardRow) {
+                throw new ApiException('Imported invoice did not create a card-clearing transaction', 500);
+            }
+        } else {
+            // Replay path: the current fiscal year's card-clearing account may differ from
+            // the one configured when this invoice was originally posted, so verify against
+            // whatever clearing transaction the order actually has rather than current config.
+            $cardRow = $this->fetchRow("SELECT id FROM transaktioner WHERE ordre_id = '$orderId' AND kontonr IS NOT NULL AND kontonr <> '' LIMIT 1");
             if (!$cardRow) {
                 throw new ApiException('Imported invoice did not create a card-clearing transaction', 500);
             }
@@ -820,7 +864,7 @@ class ExternalPaidInvoiceImportService
 
         $expectedVat = (int) round($netOre * 0.25, 0, PHP_ROUND_HALF_UP);
         if ($vatOre !== $expectedVat) {
-            throw new ApiException($fieldName . ' VAT must match a supported 25% VAT calculation in whole �re', 422);
+            throw new ApiException($fieldName . ' VAT must match a supported 25% VAT calculation in whole øre', 422);
         }
 
         return 25;
@@ -870,7 +914,7 @@ class ExternalPaidInvoiceImportService
         } elseif (is_string($value) && preg_match('/^-?[0-9]+$/', trim($value))) {
             $integer = (int) trim($value);
         } else {
-            throw new ApiException($field . ' must be an integer �re amount', 422);
+            throw new ApiException($field . ' must be an integer øre amount', 422);
         }
 
         if ($mustBePositive && $integer <= 0) {

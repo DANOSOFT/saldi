@@ -926,6 +926,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExternalPaidInvoiceImportResponse'
+        '400':
+          description: Malformed JSON or request body is not an object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication failed
           content:
@@ -3584,36 +3590,36 @@ components:
         - `vatRate` (or `momssats`) - VAT rate
         
         **Common fields:**
-        - `accountId` Ã¢â€ â€™ `konto_id`
-        - `companyName` Ã¢â€ â€™ `firmanavn`
-        - `phone` Ã¢â€ â€™ `telefon`
-        - `vatRate` Ã¢â€ â€™ `momssats`
-        - `orderNumber` Ã¢â€ â€™ `ordrenr`
-        - `orderDate` Ã¢â€ â€™ `ordredate`
-        - `invoiceDate` Ã¢â€ â€™ `fakturadate`
-        - `paid` Ã¢â€ â€™ `betalt`
-        - `costPrice` Ã¢â€ â€™ `kostpris`
-        - `vat` Ã¢â€ â€™ `moms`
-        - `currency` Ã¢â€ â€™ `valuta`
-        - `currencyRate` Ã¢â€ â€™ `valutakurs`
-        - `paymentTerms` Ã¢â€ â€™ `betalingsbet`
-        - `paymentDays` Ã¢â€ â€™ `betalingsdage`
-        - `accountNumber` Ã¢â€ â€™ `kontonr`
-        - `reference` Ã¢â€ â€™ `ref`
-        - `type` Ã¢â€ â€™ `art`
-        - `address1` Ã¢â€ â€™ `addr1`
-        - `address2` Ã¢â€ â€™ `addr2`
-        - `postalCode` Ã¢â€ â€™ `postnr`
-        - `city` Ã¢â€ â€™ `bynavn`
-        - `country` Ã¢â€ â€™ `land`
-        - `deliveryName` Ã¢â€ â€™ `lev_navn`
-        - `deliveryAddress1` Ã¢â€ â€™ `lev_addr1`
-        - `deliveryAddress2` Ã¢â€ â€™ `lev_addr2`
-        - `deliveryPostalCode` Ã¢â€ â€™ `lev_postnr`
-        - `deliveryCity` Ã¢â€ â€™ `lev_bynavn`
-        - `deliveryCountry` Ã¢â€ â€™ `lev_land`
-        - `cvrNo` Ã¢â€ â€™ `cvrnr`
-        - `customerGroup` Ã¢â€ â€™ `kundegruppe`
+        - `accountId` → `konto_id`
+        - `companyName` → `firmanavn`
+        - `phone` → `telefon`
+        - `vatRate` → `momssats`
+        - `orderNumber` → `ordrenr`
+        - `orderDate` → `ordredate`
+        - `invoiceDate` → `fakturadate`
+        - `paid` → `betalt`
+        - `costPrice` → `kostpris`
+        - `vat` → `moms`
+        - `currency` → `valuta`
+        - `currencyRate` → `valutakurs`
+        - `paymentTerms` → `betalingsbet`
+        - `paymentDays` → `betalingsdage`
+        - `accountNumber` → `kontonr`
+        - `reference` → `ref`
+        - `type` → `art`
+        - `address1` → `addr1`
+        - `address2` → `addr2`
+        - `postalCode` → `postnr`
+        - `city` → `bynavn`
+        - `country` → `land`
+        - `deliveryName` → `lev_navn`
+        - `deliveryAddress1` → `lev_addr1`
+        - `deliveryAddress2` → `lev_addr2`
+        - `deliveryPostalCode` → `lev_postnr`
+        - `deliveryCity` → `lev_bynavn`
+        - `deliveryCountry` → `lev_land`
+        - `cvrNo` → `cvrnr`
+        - `customerGroup` → `kundegruppe`
       properties:
         # Customer identification (either accountId OR customer details required)
         accountId:
@@ -6088,10 +6094,15 @@ components:
           type: integer
         externalInvoiceId:
           type: string
+        payloadHash:
+          type: string
         status:
           type: integer
           example: 4
         paid:
+          type: boolean
+          example: true
+        settled:
           type: boolean
           example: true
         paidState:
