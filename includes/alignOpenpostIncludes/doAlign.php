@@ -33,6 +33,34 @@
 //                  is int-cast, and nine debug echos are gone - one printed the server's absolute
 //                  path and four printed raw SQL to the browser.
 
+// This file is include()d by includes/udlign_openpost.php and shares its variable scope; it takes
+// no parameters and returns nothing. $faktnr[0] arrives here already merged by the caller (see its
+// "Also prepare references for exact matches..." block) - this file only writes whatever string is
+// already in it, gated by $insertInvoiceNumbers.
+/**
+ * @var array<int,string> $post_id            Candidate row ids; $post_id[0] is the anchor row.
+ * @var array<int,string> $udlign             $udlign[$x]=='on' marks row $x as selected for settlement.
+ * @var array<int,float>  $amount
+ * @var array<int,float>  $dkkamount
+ * @var array<int,string> $transdate
+ * @var array<int,string> $valuta
+ * @var int                $postantal
+ * @var array<int,string> $faktnr             $faktnr[0] is the (caller-merged) invoice reference to
+ *                                             persist on the anchor row when $insertInvoiceNumbers is true.
+ * @var bool               $insertInvoiceNumbers
+ * @var array<int,string> $konto_id
+ * @var string             $basisvaluta
+ * @var string             $regnaar
+ * @var string             $diffdato
+ * @var string             $dato_fra
+ * @var string             $dato_til
+ * @var string             $konto_fra
+ * @var string             $konto_til
+ * @var string             $returside
+ * @var string             $retur
+ * @var string             $layout
+ */
+
 	$alignDate=usdate($diffdato);
 	transaktion('begin');
 	$query = db_select("select MAX(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__);
