@@ -71,13 +71,16 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 require_once __DIR__ . '/alignOpenpostIncludes/period.php';
+// A period change reloads the page as a plain GET, not a settlement submit - fall back to $_GET so
+// that reload can still carry forward the in-progress selections and invoice-reference draft below,
+// instead of silently losing them (they'd otherwise only ever be read from $_POST).
 $periodRequest = isset($_POST['submit']) ? $_POST : $_GET;
 $requestedPeriodFrom = ifset($periodRequest, 'period_from');
 $requestedPeriodTo = ifset($periodRequest, 'period_to');
 $pendingInvoiceReference = null;
-$insertInvoiceNumbers = ifset($_POST, 'insert_invoice_numbers') === 'on';
+$insertInvoiceNumbers = ifset($periodRequest, 'insert_invoice_numbers') === 'on';
 $invoiceReferenceEdited = ifset($_POST, 'invoice_reference_edited') === '1';
-$manualInvoiceReference = trim((string)ifset($_POST, 'manual_invoice_reference', ''));
+$manualInvoiceReference = trim((string)ifset($periodRequest, 'manual_invoice_reference', ''));
 if (isset($_POST['submit'])) {
  	$submit=strtolower(trim($_POST['submit']));
 	$post_id=if_isset($_POST['post_id']);
@@ -239,6 +242,12 @@ foreach (ifset($_POST, 'candidate_id', []) as $candidateIndex => $candidateId) {
 		$selectedPostIds[(int)$candidateId] = true;
 	}
 }
+// A period change round-trips as a GET (see renderOpenpostSettlementPeriod()) and carries the
+// same selections as a flat id list, since it has no per-index udlign[$x]/candidate_id[$x] pairs
+// of its own to rebuild against - it's reloading the very list those indexes were relative to.
+foreach (ifset($_GET, 'selected_candidate_id', []) as $candidateId) {
+	$selectedPostIds[(int)$candidateId] = true;
+}
 // The anchor is always part of settlement, even outside the candidate period.
 $udlign = [0 => 'on'];
 $post_id = [$post_id[0]];
@@ -326,9 +335,15 @@ if ($insertInvoiceNumbers) {
 	$invoiceReferences = array_filter(array_map('trim', explode(',', $faktnr[0])), 'strlen');
 	foreach ($post_id as $candidateIndex => $candidateId) {
 		if ($candidateIndex > 0 && isset($udlign[$candidateIndex]) && $udlign[$candidateIndex] === 'on') {
-			$reference = trim($faktnr[$candidateIndex]);
-			if ($reference !== '' && !in_array($reference, $invoiceReferences, true)) {
-				$invoiceReferences[] = $reference;
+			// A candidate's own faktnr can itself be multi-valued (e.g. "INV-1, INV-2"), so split
+			// it the same way the anchor's was split before comparing/merging token by token -
+			// otherwise a candidate like "INV-1, INV-2" never matches the existing "INV-1" token
+			// and gets appended wholesale, duplicating it.
+			$candidateReferences = array_filter(array_map('trim', explode(',', $faktnr[$candidateIndex])), 'strlen');
+			foreach ($candidateReferences as $reference) {
+				if (!in_array($reference, $invoiceReferences, true)) {
+					$invoiceReferences[] = $reference;
+				}
 			}
 		}
 	}
@@ -420,7 +435,7 @@ renderOpenpostSettlementPeriod($settlementPeriod, [
 	'post_id' => $post_id[0], 'dato_fra' => $dato_fra, 'dato_til' => $dato_til,
 	'konto_fra' => $konto_fra, 'konto_til' => $konto_til,
 	'retur' => $retur, 'returside' => $returside, 'layout' => $layout,
-]);
+], $selectedPostIds, $insertInvoiceNumbers, $manualInvoiceReference);
 print "<form name='alignOpenpost' action='../includes/udlign_openpost.php' method='post'>";
 $invoiceEditedValue = $invoiceReferenceEdited ? '1' : '0';
 print "<input type='hidden' id='invoice_reference_edited' name='invoice_reference_edited' value='$invoiceEditedValue'>";
