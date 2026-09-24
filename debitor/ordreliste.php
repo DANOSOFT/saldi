@@ -65,7 +65,7 @@
 //                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
-// 20260924 LOE SD-657 The list turnover is not shown to users without the Indstillinger right.
+// 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 
 @session_start();
 $s_id = session_id();
@@ -1416,13 +1416,14 @@ if ($saved_columns !== null) {
 
 ############
 
-// SD-657: the setting closes the list's turnover for users without the Indstillinger right. Both amount
-// columns are dropped here - from the pool and in the generated-column loop below - because the field would
-// otherwise be offered again as an ordrer column and a saved layout would bring it back on screen and into
-// the export. Display only, the totals are still calculated.
+// SD-657: the setting closes the list's money columns for users without the Indstillinger right. They are
+// dropped here - from the pool and in the generated-column loop below - because the fields would otherwise be
+// offered again as ordrer columns and a saved layout would bring them back on screen and into the export.
+// sum and sum_m_moms are the turnover; moms is the VAT on it and kostpris the cost behind it, and the review
+// pointed out that a saved layout could still surface the latter two. Display only, the totals are calculated.
 $revenue_columns = array();
 if (hide_revenue()) {
-    $revenue_columns = array('sum', 'sum_m_moms');
+    $revenue_columns = array('sum', 'sum_m_moms', 'moms', 'kostpris');
     foreach ($revenue_columns as $revenue_column) {
         unset($custom_columns[$revenue_column]);
     }
