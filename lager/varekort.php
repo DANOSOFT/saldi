@@ -97,6 +97,9 @@
 // 20250924 PBLM - Alert for saved product is disabled
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260213 LOE  - Updated the back button for debitorkort reference.
+// 20260811 Sawaneh Expiry date section is now shown only when 'batchExpiryEnabled' (Varerelaterede
+//                  valg) is on and the item's product group has batch control (box9). Expiry fields
+//                  are only saved when the section was posted, so a hidden section cannot blank them.
 // 20260827 LOE  - SD-652 Added a guard for $varenrAlias and initialized few variables. Updated to use if_isset() for more variables to avoid undefined index notices.
 // 20260827 CL/SZ Defined the missing $icon_back and switched the "Tilbage"/
 //                "Luk"/"POS menuer"/"Ny" buttons in the $menu=='S' header
@@ -119,6 +122,8 @@
 //             values. Now zero the multipliers when the box is unchecked so "off"
 //             actually persists and stops updateProductPrice.php's auto-overwrite too.
 // 20260907 CDX/LH Retain popup context through product-card saves and local navigation.
+// 20260921 Sawaneh Merge with the 20260902 layout: the batchExpiryEnabled/box9 condition now wraps the
+//                  pcSecExpiry box instead of the old include inside the Diverse box.
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
 //
 ob_start(); //Starts output buffering
@@ -180,6 +185,7 @@ include("productCardIncludes/percentageField.php");
 include_once("../includes/emballage_schema.php");
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
+$batchExpiryEnabled = (get_settings_value("batchExpiryEnabled", "items", "off") === "on");
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='specialtype'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -380,6 +386,9 @@ if ($saveItem || $submit = trim($submit)) {
     $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $lukket = if_isset($_POST, NULL, 'lukket');
     $serienr = db_escape_string(trim(if_isset($_POST, '','serienr')));
+    # Only trust the expiry fields when the section was actually rendered, so a hidden
+    # section can never blank out an existing due date setup on save.
+    $expirySectionPosted = (if_isset($_POST, NULL, 'expiry_section') == '1');
     $has_due_date = (if_isset($_POST,NULL,'has_due_date') == 'on') ? 'true' : 'false';
     $default_shelf_life_days = if_isset($_POST,NULL,'default_shelf_life_days');
     if ($default_shelf_life_days !== null && $default_shelf_life_days !== '') $default_shelf_life_days = intval($default_shelf_life_days);
@@ -997,8 +1006,10 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision',";// 20221004
-            $qtxt .= "has_due_date=$has_due_date,";
-            $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
+            if ($expirySectionPosted) {
+                $qtxt .= "has_due_date=$has_due_date,";
+                $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
+            }
             $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";
 
@@ -1805,11 +1816,15 @@ if (!$varenr) {
     print "</tbody></table></div></td></tr>";#  <- Variant tabel
 
     ####################################### UDLØBSDATO #############################################
-    print "<tr><td id='pcSecExpiry' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # Udløbsdato tabel ->
-    print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
-    include('productCardIncludes/showExpirySettings.php');
-    print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
-    print "</tbody></table></td><td></td><td></td></tr>";#  <- Udløbsdato tabel
+    # Requires both the company setting (Varerelaterede valg) and batch control on the
+    # item's product group (grupper.box9).
+    if ($batchExpiryEnabled && trim((string) $batchItem) == 'on') {
+        print "<tr><td id='pcSecExpiry' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # Udløbsdato tabel ->
+        print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
+        include('productCardIncludes/showExpirySettings.php');
+        print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
+        print "</tbody></table></td><td></td><td></td></tr>";#  <- Udløbsdato tabel
+    }
 
     ####################################### NOTER/BESKRIVELSE #############################################
     print "\n<!-- productCardIncludes/notesEtc.php begin -->\n";
