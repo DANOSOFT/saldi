@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026-09-17 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026-09-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // 20260917 CDX/PHR Link to saved cash count history.
 // 20260917 CDX/PHR Replace Print last with a same-tab cash count history button.
 // 20260917 CL/LH Translate the cash count history button label (text 5153).
+// 20260924 LOE SD-657 The turnover line on the till count screen is hidden from users the setting keeps out.
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -354,7 +355,8 @@ function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_
 	}
 	$turnover = setSpecifiedCashText()['turnover'];
 	createXreport($turnover,$omsatning,$curr);
-	displayLine($turnover,$omsatning,$curr);
+	# SD-657: the day's turnover is not shown on this screen to users the setting keeps turnover from.
+	if (!hide_revenue()) displayLine($turnover,$omsatning,$curr);
 	#	print "<tr><td colspan='2'><b>$turnover</b>";
 	#	print "<input type='hidden' name='card_total' value='".array_sum($kortsum)."'</td>";
 	#	print "<td align='right'><b>$txt2</b> $curr</td></tr>\n";

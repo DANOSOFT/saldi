@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-09-18--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-09-24--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -65,6 +65,7 @@
 //                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
+// 20260924 LOE SD-657 The list turnover is not shown to users without the Indstillinger right.
 
 @session_start();
 $s_id = session_id();
@@ -1415,6 +1416,19 @@ if ($saved_columns !== null) {
 
 ############
 
+// SD-657: the setting closes the list's turnover for users without the Indstillinger right. Both amount
+// columns are dropped here - from the pool and in the generated-column loop below - because the field would
+// otherwise be offered again as an ordrer column and a saved layout would bring it back on screen and into
+// the export. Display only, the totals are still calculated.
+$revenue_columns = array();
+if (hide_revenue()) {
+    $revenue_columns = array('sum', 'sum_m_moms');
+    foreach ($revenue_columns as $revenue_column) {
+        unset($custom_columns[$revenue_column]);
+    }
+    $active_column_names = array_values(array_diff($active_column_names, $revenue_columns));
+}
+
 $active_set = array_flip($active_column_names);
 $column_pool = []; // keyed by field name
  
@@ -1428,7 +1442,7 @@ foreach ($custom_columns as $field_name => $column_def) {
 foreach ($all_db_columns as $field_name => $column_info) {
     $grid_type = $column_info['grid_type'];
     $decimalPrecision = $column_info['decimalPrecision'];
-    $skip_fields = ['id', 'tidspkt', 'copied', 'scan_id'];
+    $skip_fields = array_merge(array('id', 'tidspkt', 'copied', 'scan_id'), $revenue_columns);
     if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
         continue;
     }
@@ -2699,19 +2713,23 @@ print "</div>";  // END LEFT
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
 print "<div>";
+    if (!hide_revenue()) {
     print "<a href='ordreliste.php?genberegn=1&valg=$valg'>
                 <b>" . findtekst('878|Samlet omsætning / db / dg (ekskl. moms.)', $sprog_id) . "</b>
            </a><br>";
     print "$ialt_formatted / $dk_db / $dk_dg%<br>";
     print "<b>" . findtekst('877|Samlet omsætning inkl. moms', $sprog_id)
           . ": $ialt_m_moms_formatted</b>";
+    }
 } else {
 print "<div id='center-turnover' style='flex:1; text-align:center;'>";
 print "<div style='display:flex;'>";
+    if (!hide_revenue()) {
     print findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id) . "<br>";
     print findtekst('2772|db / dg (ekskl. moms)', $sprog_id) . "<br>";
     print "<b style='margin-left: 20px;'>$ialt_m_moms_formatted ($ialt_formatted)<br>
            $dk_db / $dk_dg%</b>";
+    }
 }
 
 print "</div>";

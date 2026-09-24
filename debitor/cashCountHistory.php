@@ -1,5 +1,5 @@
 <?php
-// --- debitor/cashCountHistory.php --- 2026-09-17 ---
+// --- debitor/cashCountHistory.php --- 2026-09-24 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20260917 CDX/PHR Authenticated cash count history by register and date, with browser printing.
@@ -7,6 +7,7 @@
 // 20260917 CDX/PHR Save decimal repairs before displaying clean report amounts.
 // 20260917 CDX/PHR Select only configured registers, defaulting to the current POS register.
 // 20260917 CL/LH Show the report's manual-control warning above the amounts.
+// 20260924 LOE SD-657 The stored turnover line is left out of the list for users the setting keeps out.
 /**
  * Session/account context supplied by includes/online.php.
  * @var string $db
@@ -162,8 +163,10 @@ if ($printRequested) {
 <p>Genskabt fra den gemte optælling. Mønter og sedler vises som antal; øvrige værdier som beløb.</p>
 <?php if ($data['warning']): ?><p class="notice"><?= cashCountHistoryEscape($data['warning']) ?></p><?php endif; ?>
 <table><thead><tr><th>Beskrivelse</th><th class="amount">Antal / beløb</th></tr></thead><tbody>
+<?php $hide_turnover_row = hide_revenue(); #SD-657 ?>
 <?php foreach ($data['rows'] as $row): ?>
 <?php if (trim($row['description']) === '' && (float)$row['total'] == 0) { continue; } ?>
+<?php if ($hide_turnover_row && strpos($row['description'], 'Dagens omsætning') !== false) { continue; } ?>
 <tr><td><?= cashCountHistoryEscape($row['description']) ?></td><td class="amount"><?= number_format((float)$row['total'], 2, ',', '.') ?></td></tr>
 <?php endforeach; ?>
 </tbody></table>
