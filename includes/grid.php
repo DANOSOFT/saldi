@@ -22,6 +22,10 @@ Regards:) 20260220 LOE
 // 20260817 Sawaneh Sort descending columns NULLS LAST, honor defaultSortDirection on
 //                  first header click and validate the request-sourced sort value.
 // 20260910 CDX/PHR Preserve a literal zero search in both row and count queries.
+// 20260919 CDX/MJ Escape the request-derived values written into HTML attributes: the per-column
+//                  search term, sort, menu and offset all came straight from $_GET and were
+//                  interpolated unescaped. The search term is also persisted to
+//                  datatables.search_setup, so it was stored as well as reflected.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -960,11 +964,15 @@ function calculate_total_width($columns) {
  */
 function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $metaColumnHeaders, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
     // Start table wrapper and form
+    // $sort and $menu are read from $_GET['sort'][$id] / $_GET['menu'][$id] and go straight into
+    // single-quoted attributes below; a heredoc cannot call functions, so escape them here.
+    $sortAttr = htmlspecialchars((string) $sort, ENT_QUOTES, 'UTF-8');
+    $menuAttr = htmlspecialchars((string) $menu, ENT_QUOTES, 'UTF-8');
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="GET" action="">
-            <input type="hidden" name='sort[{$id}]', value='$sort'>
-            <input type="hidden" name='menu[{$id}]', value='$menu'>
+            <input type="hidden" name='sort[{$id}]', value='$sortAttr'>
+            <input type="hidden" name='menu[{$id}]', value='$menuAttr'>
             <div class="datatable-search-wrapper">
                 <table class="datatable" id="datatable-$id" style="width: 100%;">
                     <thead>
@@ -1083,7 +1091,11 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
             $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
-            echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+            // The search term comes straight from $_GET['search'][$id][field] and is also persisted
+            // to datatables.search_setup, so an unescaped value is reflected AND stored. Escaped
+            // with ENT_QUOTES because the attribute is single-quoted.
+            $searchAttr = htmlspecialchars((string) $columnSearchTerm, ENT_QUOTES, 'UTF-8');
+            echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$searchAttr' placeholder=''>";
         }
         echo "</th>";
     }
@@ -1228,11 +1240,13 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     global $sprog_id;
     $txt1 = lcfirst(findtekst('2767|Af', $sprog_id));
     $txt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+    // $offset is read from $_GET['offset'][$id] and never cast, so escape it before the heredoc.
+    $offsetAttr = htmlspecialchars((string) $offset, ENT_QUOTES, 'UTF-8');
 
     echo <<<HTML
             <tr>
                 <td colspan=100>
-                    <input type='hidden' name="offset[$id]" value="$offset" size='4'>
+                    <input type='hidden' name="offset[$id]" value="$offsetAttr" size='4'>
                     <div id='footer-box'>
                         <span style='display: flex' id='page-status'>
                             $offsetFrom-$offsetTo&nbsp;{$txt1}&nbsp;$totalItems
