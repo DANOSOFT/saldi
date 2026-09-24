@@ -18,6 +18,15 @@
 //             CVR/IBAN/bank details and a server-side kreditor match (vendorMatch); 'save'
 //             re-runs the match from the posted identity fields (vendorScan=1) and stores
 //             the pool_files.vendor_* columns. Match logic lives in poolVendorMatcher.php.
+// 20260922 CL/LAH A fatal is reported as a JSON error instead of an empty body; the vendor
+//             match is wrapped so it can never fail the scan; JSON_INVALID_UTF8_SUBSTITUTE
+//             on the responses because legacy adresser rows can hold non-UTF-8 bytes.
+// 20260923 CL/LAH Output stays buffered until shutdown, so a warning, a late fatal or
+//             db_query.php's alert() can no longer corrupt the JSON (Astra review). The buffer
+//             is never closed early, so this also covers the session/db checks at startup.
+// 20260923 CL/NTR The non-JSON fallback no longer echoes the raw error/alert text to the
+//             client (CodeRabbit); it now sends a short random ref id and logs the full
+//             reason against that same id, so the incident can still be found in the log.
 
 // 20260914 CDX/LH Share atomic metadata saves and reject stale confirmations.
 
@@ -26,6 +35,51 @@ header('Content-Type: application/json');
 
 // Start output buffering to capture any unwanted output
 ob_start();
+
+// Every response of this handler must be one JSON document. A fatal error, a warning printed
+// with display_errors on, or db_query.php's alert() on a failed query would otherwise reach
+// the browser as an empty or non-JSON body ("Unexpected end of JSON input", seen on ssl3
+// 2026-09-22). All output stays buffered until shutdown; if the buffer is not valid JSON by
+// then, it is replaced by a JSON error naming the cause, which is also written to the log.
+register_shutdown_function(function () {
+	$error = error_get_last();
+	$fatal = $error !== null && in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_RECOVERABLE_ERROR), true);
+	$out = '';
+	while (ob_get_level() > 0) $out = ob_get_clean() . $out;
+	$trimmed = trim($out);
+	if (!$fatal && $trimmed !== '') {
+		json_decode($trimmed);
+		if (json_last_error() === JSON_ERROR_NONE) {
+			echo $trimmed;
+			return;
+		}
+		// Valid JSON with stray output in front of it (a warning, a debug echo): send the JSON.
+		$jsonStart = strrpos($trimmed, '{"success"');
+		if ($jsonStart !== false) {
+			$tail = substr($trimmed, $jsonStart);
+			json_decode($tail);
+			if (json_last_error() === JSON_ERROR_NONE) {
+				error_log("extractInvoiceHandler: stray output before JSON: " . substr(strip_tags(substr($trimmed, 0, $jsonStart)), 0, 500));
+				echo $tail;
+				return;
+			}
+		}
+	}
+	if ($fatal) {
+		$reason = basename($error['file']) . ':' . $error['line'] . ' ' . $error['message'];
+	} elseif ($trimmed === '') {
+		$reason = 'tomt svar';
+	} elseif (preg_match('#alert\((["\'])(.*?)\1\)#s', $trimmed, $alertMatch)) {
+		// db_query.php's alert() after a failed query: its text is the user-facing message.
+		$reason = $alertMatch[2];
+		error_log("extractInvoiceHandler: output before alert: " . substr(strip_tags($trimmed), 0, 500));
+	} else {
+		$reason = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($trimmed), ENT_QUOTES, 'UTF-8')));
+	}
+	$errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+	error_log("extractInvoiceHandler: non-JSON response replaced [$errorId]: " . substr($reason, 0, 500));
+	echo json_encode(array('success' => false, 'error' => "Serverfejl (ref: $errorId) - kontakt support"), JSON_INVALID_UTF8_SUBSTITUTE);
+});
 
 // Start session so the tenant db can be resolved from it below - a POSTed
 // db name must never be trusted directly (it would let a tampered request
@@ -50,14 +104,14 @@ $regnaar = (int)($onlineRow['regnskabsaar'] ?? 0);
 $sprog_id = (int)($onlineRow['language_id'] ?? 1);
 
 if (empty($db)) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Session udløbet - log ind igen']);
 	exit;
 }
 
 // Validate db name (only allow alphanumeric and underscore)
 if (!preg_match('/^[a-zA-Z0-9_]+$/', $db)) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Ugyldig database navn']);
 	exit;
 }
@@ -67,7 +121,7 @@ global $sqhost, $squser, $sqpass;
 $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
 
 if (!$connection) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
 	exit;
 }
@@ -75,8 +129,9 @@ if (!$connection) {
 // Include the extraction API
 include_once(__DIR__ . "/invoiceExtractionApi.php");
 
-// Discard any buffered output from includes
-ob_end_clean();
+// Discard any buffered output from includes but keep buffering until shutdown (see the
+// shutdown handler at the top) so nothing can reach the browser outside the JSON response.
+ob_clean();
 
 /**
  * Match the vendor identity of a scanned invoice against the tenant's kreditorer.
@@ -86,6 +141,16 @@ ob_end_clean();
  * @return array See poolVendorMatch().
  */
 function extractInvoiceMatchVendor(array $identity) {
+	try {
+		return extractInvoiceMatchVendorUnsafe($identity);
+	} catch (Throwable $e) {
+		// The match is a bonus on top of the scan; never let it take the scan down.
+		error_log("extractInvoiceHandler vendor match failed: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+		return null;
+	}
+}
+
+function extractInvoiceMatchVendorUnsafe(array $identity) {
 	$ownCvr = poolVendorLoadOwnCvr();
 	// The buyer's CVR on the invoice is a second way to know which number is not the seller's.
 	$customerCvr = normalizePoolVendorCvr($identity['customerCvr'] ?? null);
@@ -196,7 +261,7 @@ if ($action === 'extract') {
 				'customerCvr' => $result['customerCvr'] ?? null,
 				'vendorMatch' => $vendorMatch
 			]
-		]);
+		], JSON_INVALID_UTF8_SUBSTITUTE);
 	} else {
 		echo json_encode(['success' => false, 'error' => 'Kunne ikke udtrække data fra fakturaen']);
 	}
@@ -250,7 +315,7 @@ if ($action === 'save') {
 		}
 
 		$result['vendor'] = $vendorMatch;
-		echo json_encode($result);
+		echo json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE);
 	} catch (RuntimeException | InvalidArgumentException $error) {
 		$status = $error->getCode() === 409 ? 409 : 422;
 		http_response_code($status);

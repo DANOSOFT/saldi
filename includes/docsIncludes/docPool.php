@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-05-15 --- 
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-09-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250510 PHR Added 'w' to $legalChars
 // 20250519 PHR '&' replaced by '_' in filenames 
@@ -81,6 +81,7 @@
 // 20260916 CDX/LAH Keep the selected new voucher row visible above collapsed existing lines.
 // 20260917 CDX/LAH Preserve new voucher fields, including accounts, when opening a pool preview.
 // 20260918 LOE SD-700 Keep the pool list order and position when opening a bilag.
+// 20260921 CDX/PHR Preserve commas in selected document filenames by preferring poolFile arrays.
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: vendor_* columns added to both pool_files
 //                 CREATE TABLE IF NOT EXISTS fallbacks; the three scanning paths (single scan,
 //                 'Opdatér alle', auto-extract on upload) now post the seller's CVR/IBAN/bank
@@ -584,13 +585,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		// file being VIEWED, not the file the user wants to INSERT
 		$poolFiles = array();
 		
-		// First priority: poolFiles as comma-separated string (most reliable from JavaScript)
-		if (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
+		// Use the lossless array sent by the picker: a filename may contain commas.
+		if (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
+			$poolFiles = $_POST['poolFile'];
+		// Retain comma-separated input only for older callers without an array.
+		} elseif (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
 			$poolFiles = explode(',', $_POST['poolFiles']);
 			$poolFiles = array_map('trim', $poolFiles);
-		// Second priority: poolFile[] as array from POST
-		} elseif (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
-			$poolFiles = $_POST['poolFile'];
 		// Third priority: Single poolFile from POST (string)
 		} elseif (isset($_POST['poolFile']) && !empty($_POST['poolFile']) && is_string($_POST['poolFile'])) {
 			$poolFiles = array($_POST['poolFile']);
@@ -3231,12 +3232,10 @@ print <<<JS
 			formData.append('targetSourceIds', targetSourceIds.join(','));
 		}
 		
-		// Add selected files - ONLY use poolFiles (comma-separated) as it's most reliable
-		formData.append('poolFiles', selectedFiles.join(','));
+		// poolFile[] (not poolFiles) so a filename containing a comma isn't split apart
+		// by docPool.php's legacy poolFiles=<comma-joined string> branch.
 		const selectedMetadata = docData.find(item => item.filename === selectedFiles[0]);
 		if (selectedMetadata) formData.append('poolAttachVersion', selectedMetadata.version || '');
-		
-		// Also add as array for compatibility
 		selectedFiles.forEach(file => {
 			formData.append('poolFile[]', file);
 		});
@@ -3361,7 +3360,6 @@ print <<<JS
 		}
 		
 		// Debug: log what we're sending
-		console.log('FormData poolFiles:', formData.get('poolFiles'));
 		console.log('FormData poolFile[]:', formData.getAll('poolFile[]'));
 		
 		// Show loading indicator
