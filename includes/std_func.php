@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-09-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20220110 PHR Function 'sync_shop_vare' Check if item is a stock item
@@ -83,6 +83,8 @@
 //                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
 // 20260914 CL/NTR barcode(): no horizontal padding in the SVG so the bars span the full 285 px
 //                  (vertical padding kept at 2 px) as we want to control padding in the print.
+// 20260924 Sawaneh SST-757: Added active_fiscal_years() and newest_active_fiscal_year(), the dashboard's fiscal-year lookup.
+//                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -854,6 +856,41 @@ if (!function_exists('reducer')) {
 			$tal = substr($tal, 0, strlen($tal) - 1);
 		}
 		return ($tal);
+	}
+}
+
+if (!function_exists('active_fiscal_years')) {
+	/**
+	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 not 'on'), newest first.
+	 *
+	 * @return array<int, array{
+	 *   kodenr: string,       Fiscal year number as fetched (grupper.kodenr).
+	 *   beskrivelse: string,  Fiscal year description.
+	 * }>
+	 */
+	function active_fiscal_years() {
+		global $db_type;
+
+		$notDeleted = ($db_type == 'mysqli') ? "box10 != 'on'" : "box10 IS DISTINCT FROM 'on'";
+		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND $notDeleted AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$years = array();
+		while ($r = db_fetch_array($q)) {
+			$years[] = array('kodenr' => $r['kodenr'], 'beskrivelse' => $r['beskrivelse']);
+		}
+		return $years;
+	}
+}
+
+if (!function_exists('newest_active_fiscal_year')) {
+	/**
+	 * The fiscal year that heads active_fiscal_years().
+	 *
+	 * @return int grupper.kodenr of the newest open fiscal year, or 0 when there is none.
+	 */
+	function newest_active_fiscal_year() {
+		$years = active_fiscal_years();
+		return $years ? (int) $years[0]['kodenr'] : 0;
 	}
 }
 
