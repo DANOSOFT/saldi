@@ -1630,7 +1630,7 @@ if ($kladde_id) {
 		refresh_lock_token('kladdeliste', (int)$kladde_id, $brugernavn, $lockToken, $lockTidspkt);
 	}
 }
-$kladdeLukBase = "../includes/luk.php?tabel=kladdeliste&id=" . (int)$kladde_id . ($lockToken !== null ? "&lockToken=" . urlencode($lockToken) : "");
+$kladdeLukBase = "../includes/luk.php?tabel=kladdeliste&id=" . (int)$kladde_id . ($lockToken !== null ? "&lockToken=" . urlencode($lockToken) . "&tidspkt=" . urlencode($lockTidspkt) : "");
 $x = 0;
 ($visipop) ? $ny = NULL : $ny = findtekst('39|Ny', $sprog_id); #20210628
 
@@ -5674,7 +5674,7 @@ if ($beaconKladdeId) {
 	$beaconRow = db_fetch_array(db_select("select tidspkt from kladdeliste where id=" . $beaconKladdeId . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
 	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
 		$beaconLockToken = $sessionLockToken;
-		refresh_lock_token('kladdeliste', $beaconKladdeId, $brugernavn, $beaconLockToken);
+		refresh_lock_token('kladdeliste', $beaconKladdeId, $brugernavn, $beaconLockToken, $beaconRow['tidspkt']);
 	}
 }
 if ($beaconLockToken) {
@@ -5702,6 +5702,7 @@ function unlockKassekladdeBeacon(evtName) {
         data.append("table", "kladdeliste");
         data.append("id", "<?php echo $beaconKladdeId; ?>");
         data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconRow['tidspkt'], ENT_QUOTES); ?>");
         data.append("event", evtName);
         // sendBeacon() can return false (queue full/rejected) without sending anything - only
         // treat the lock as released, and skip the sync XHR fallback, once one of the two has

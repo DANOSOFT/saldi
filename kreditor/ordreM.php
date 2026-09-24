@@ -1607,7 +1607,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sidehovedLockToken, $sidehovedLockRow['tidspkt']);
 		}
 	}
-	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) : "";
+	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) . "&tidspkt=" . urlencode($sidehovedLockRow['tidspkt']) : "";
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';

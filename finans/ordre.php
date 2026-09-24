@@ -29,6 +29,12 @@
 // popup-lock block below): a new order's id is 0 here, so this first attempt is a no-op for
 // that case, and $returside used to keep pointing at plain luk.php with no id/lockToken at
 // all, meaning the popup close link for a brand new order could never actually release it.
+// 20260924 SZ SST-755: that rebuild block was silently never running - ordreside() reads
+// $popup and $sessionLockToken without declaring them global, so both were undefined inside
+// the function and the "if ($popup && $id)" check was always false. Found only by driving a
+// real popup order creation through the actual page instead of re-checking the extracted
+// block in isolation; the isolated check couldn't have caught this since it doesn't reproduce
+// ordreside()'s own scope.
 
 @session_start();
 $s_id=session_id();
@@ -101,7 +107,7 @@ if ($popup && $id) {
 	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
 		$lockTidspkt = $lockRow['tidspkt'];
 		refresh_lock_token('ordrer', (int)$id, $brugernavn, $sessionLockToken, $lockTidspkt);
-		$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken);
+		$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken) . "&tidspkt=" . urlencode($lockTidspkt);
 	}
 }
 
@@ -820,7 +826,9 @@ function ordreside($id,$regnskab)
 	global $incl_moms;
 	global $returside;
 	global $oioxml;
-	
+	global $popup;
+	global $sessionLockToken;
+
 	if (!$returside) {
 		if ($popup) $returside="../includes/luk.php";
 		else $returside="ordreliste.php";
@@ -918,7 +926,7 @@ function ordreside($id,$regnskab)
 		if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
 			$lockTidspkt = $lockRow['tidspkt'];
 			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sessionLockToken, $lockTidspkt);
-			$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken);
+			$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken) . "&tidspkt=" . urlencode($lockTidspkt);
 		}
 	}
 
@@ -2017,6 +2025,7 @@ function unlockFinansOrdreBeacon(evtName) {
         data.append("table", "ordrer");
         data.append("id", "<?php echo (int)$id; ?>");
         data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconRow['tidspkt'], ENT_QUOTES); ?>");
         data.append("event", evtName);
         // sendBeacon() can return false (queue full/rejected) without sending anything - only
         // treat the lock as released, and skip the sync XHR fallback, once one of the two has

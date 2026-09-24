@@ -222,6 +222,10 @@ final class UnlockRecordRegressionTest extends TestCase
     public function testUnlockDegradesWhenLockTokenColumnIsMissing(): void
     {
         $GLOBALS['unlockRecordLockTokenColumnExists'] = false;
+        // Actually drop the column, not just flip the mocked existence check - otherwise this
+        // would still pass even if the code mistakenly referenced lock_token in its SQL, since
+        // the column would still be sitting right there (CodeRabbit).
+        $this->db->exec('ALTER TABLE kladdeliste DROP COLUMN lock_token');
         // A lockToken (which would otherwise block this) is ignored entirely pre-migration.
         unlock_record('kladdeliste', 1, 'salesperson', '123', 'not-the-current-token');
         self::assertSame(['', ''], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
@@ -230,7 +234,12 @@ final class UnlockRecordRegressionTest extends TestCase
     public function testRefreshLockTokenNoOpsWhenLockTokenColumnIsMissing(): void
     {
         $GLOBALS['unlockRecordLockTokenColumnExists'] = false;
+        // Actually drop the column - see testUnlockDegradesWhenLockTokenColumnIsMissing().
+        $this->db->exec('ALTER TABLE kladdeliste DROP COLUMN lock_token');
         refresh_lock_token('kladdeliste', 1, 'salesperson', 'fresh-token', '123');
-        self::assertSame('tokA', $this->db->query('SELECT lock_token FROM kladdeliste WHERE id=1')->fetchColumn());
+        // No lock_token column left to assert against - the meaningful assertion is that this
+        // didn't throw (a real UPDATE ... lock_token would fail against this fixture now), plus
+        // confirming the row's other fields are still untouched.
+        self::assertSame(['123', 'salesperson'], $this->db->query('SELECT tidspkt,hvem FROM kladdeliste WHERE id=1')->fetch(PDO::FETCH_NUM));
     }
 }

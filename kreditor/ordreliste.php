@@ -176,8 +176,14 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // reaching it. A legacy NULL column value is passed through as '', which unlock_record()
 // matches against NULL-or-empty at the point of the actual UPDATE, so a concurrently-stamped
 // real token still blocks the release.
+// 20260924 SZ SST-755 (CodeRabbit): guard against a tenant that hasn't run the lock_token
+// migration yet (betweenUpdates.php adds the column at login/account-open, not on every
+// request) - selecting it unconditionally would fail this whole query with a SQL error on
+// an unmigrated tenant, since unlock_record()'s own missing-column degrade can't help a
+// SELECT that never runs.
 $kOrdreSweepNow = time();
-$qtxt = "select id, hvem, tidspkt, lock_token from ordrer where art like 'K%' and status < '3' and hvem is not null and hvem != '' and tidspkt is not null and tidspkt != ''";
+$lockTokenSelect = lock_token_column_exists('ordrer') ? 'lock_token' : "'' as lock_token";
+$qtxt = "select id, hvem, tidspkt, $lockTokenSelect from ordrer where art like 'K%' and status < '3' and hvem is not null and hvem != '' and tidspkt is not null and tidspkt != ''";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
     if (($kOrdreSweepNow - (int)$r['tidspkt']) > 3600) {

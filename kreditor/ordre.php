@@ -1706,7 +1706,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sidehovedLockToken, $sidehovedLockRow['tidspkt']);
 		}
 	}
-	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) : "";
+	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) . "&tidspkt=" . urlencode($sidehovedLockRow['tidspkt']) : "";
 
 	include("../includes/topline_settings.php");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -1928,6 +1928,7 @@ function unlockOrderBeacon(evtName) {
         data.append("table", "ordrer");
         data.append("id", "<?php echo (int)$id; ?>");
         data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconRow['tidspkt'], ENT_QUOTES); ?>");
         data.append("event", evtName);
         // sendBeacon() can return false (queue full/rejected) without sending anything - only
         // treat the lock as released, and skip the sync XHR fallback, once one of the two has
