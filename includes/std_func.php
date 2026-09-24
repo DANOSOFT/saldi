@@ -85,6 +85,7 @@
 //                  (vertical padding kept at 2 px) as we want to control padding in the print.
 // 20260924 Sawaneh SST-757: Added active_fiscal_years() and newest_active_fiscal_year(), the dashboard's fiscal-year lookup.
 //                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
+//                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -869,10 +870,7 @@ if (!function_exists('active_fiscal_years')) {
 	 * }>
 	 */
 	function active_fiscal_years() {
-		global $db_type;
-
-		$notDeleted = ($db_type == 'mysqli') ? "box10 != 'on'" : "box10 IS DISTINCT FROM 'on'";
-		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND $notDeleted AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
+		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		$years = array();
 		while ($r = db_fetch_array($q)) {
