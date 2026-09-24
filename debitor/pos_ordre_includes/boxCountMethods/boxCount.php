@@ -341,7 +341,8 @@ function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_
 		$a = "Omsætning ".dkdecimal($vatRate)."% ". findtekst(770, $sprog_id);
 		$b = $vatAmount += $vatAmount*$vatRate/100;
 		createXreport($a,$b,$curr);
-		displayLine($a,$b,$curr);
+		# SD-657: the per-rate turnover lines are turnover as well, so they are left out too.
+		if (!hide_revenue()) displayLine($a,$b,$curr);
 		#		$dkAmount  = dkdecimal($vatAmounts[$i] += $vatAmounts[$i]*$vatRates[$i]/100 );
 		#		while (strlen($dkVatRate) < 5) $dkVatRate = '0' . $dkVatRate;
 		#		print "<tr><td colspan='2'>Omsætning $dkVatRate% ". findtekst(770, $sprog_id) ;
