@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-09-23---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-09-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,20 +62,19 @@
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
 // 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
+// 20260811 Sawaneh Save batch_due_date/batch_batch_no on the order line - the expiry date and
+//                  batch no fields were rendered and read back, but never written on save.
 // 20260827 Sawaneh create supplier: before insert the kontonr is re-checked across all arts, and a
 //                 number taken meanwhile (stale prefill or a debtor holding it) is replaced with a
 //                 fresh one from get_next_number, so no cross-art duplicate can be created (SST-753)
 // 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup navigates here by GET, see accountLookup.php selectAccount) into the new order header. 
 //                 usdate('') returns today, so only convert values that were actually supplied.
 // 20260908 CDX/LH Lock creditor order status before saving, deleting or adding lines.
-// 20260914 CL/SZ Persist batch_due_date/batch_batch_no from the order-line form to
-//                ordrelinjer on save; they were read back and used at goods receipt
-//                but never written, so batches always saved blank (MB-36).
-// 20260923 CL/SZ Only set batch_due_date/batch_batch_no on a line when that line's form
-//                input was actually submitted, instead of unconditionally (CodeRabbit, PR
-//                #608): a line whose tracking flag turned off no longer renders those
-//                inputs, and the unconditional SET was wiping its stored batch data on
-//                every subsequent save.
+// 20260924 CL/SZ MB-36 fixed the same never-written batch_due_date/batch_batch_no gap as
+//                Sawaneh's 20260811 change above, independently and later; merging master
+//                superseded MB-36's version of that save logic with Sawaneh's (already
+//                submitted-vs-not-submitted safe, plus date-format validation and a
+//                batch_batch_no length cap that MB-36's version lacked).
 
 @session_start();
 $s_id=session_id();
@@ -444,8 +443,6 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$serienr = if_isset($_POST, NULL, 'serienr');
 		$omvbet = if_isset($_POST, NULL, 'omvbet');
 		$omlev = if_isset($_POST, NULL, 'omlev');
-		$batch_due_date = ifset($_POST, 'batch_due_date', NULL);
-		$batch_batch_no = ifset($_POST, 'batch_batch_no', NULL);
 		$email = db_escape_string(trim(if_isset($_POST, NULL, 'email')));
 		$udskriv_til = trim(if_isset($_POST, NULL, 'udskriv_til'));
 		$mail_subj   = db_escape_string(if_isset($_POST,NULL,'mail_subj')); #20230105
@@ -575,6 +572,18 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
 			$projekt[$x] = if_isset($projekt, NULL,$x);
+			# Expiry date / batch no for batch controlled items. NULL means the inputs were not
+			# rendered for this line, so the columns must be left untouched when saving.
+			$batch_due_date[$x] = $batch_batch_no[$x] = NULL;
+			$tmp_due = if_isset($_POST, NULL, 'batch_due_date');
+			if (is_array($tmp_due) && isset($tmp_due[$x])) {
+				$tmp_due = trim($tmp_due[$x]);
+				$batch_due_date[$x] = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $tmp_due)) ? $tmp_due : '';
+			}
+			$tmp_bno = if_isset($_POST, NULL, 'batch_batch_no');
+			if (is_array($tmp_bno) && isset($tmp_bno[$x])) {
+				$batch_batch_no[$x] = db_escape_string(substr(trim($tmp_bno[$x]), 0, 100));
+			}
 		}
 		if ($sletstart && $sletslut && $sletstart<$sletslut) {
 			for ($x=$sletstart; $x<=$sletslut; $x++) {
@@ -878,27 +887,23 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if (! $tidl_lev[$x]) $tidl_lev[$x]=0;
 						if ($omvbet[$x]) $omvbet[$x]='on';
-						// CodeRabbit (PR #608): only touch batch_due_date/batch_batch_no when this
-						// line actually submitted that input - openOrderLines.php doesn't render
-						// them for a line whose tracking flag is off, and ifset() can't tell
-						// "not submitted" apart from "submitted empty" once it's flattened to
-						// NULL, so an unconditional SET was wiping stored batch data for any line
-						// whose tracking flag changed since it was last saved.
-						$_batch_due_date_raw = ifset($batch_due_date, $x);
-						$_batch_batch_no_raw = ifset($batch_batch_no, $x);
-						$_batch_sql = '';
-						if ($_batch_due_date_raw !== null) {
-							$_batch_due_date = ($_batch_due_date_raw !== '') ? "'" . db_escape_string($_batch_due_date_raw) . "'" : 'NULL';
-							$_batch_sql .= ", batch_due_date=$_batch_due_date";
-						}
-						if ($_batch_batch_no_raw !== null) {
-							$_batch_batch_no = ($_batch_batch_no_raw !== '') ? "'" . db_escape_string($_batch_batch_no_raw) . "'" : 'NULL';
-							$_batch_sql .= ", batch_batch_no=$_batch_batch_no";
-						}
 						if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
 						$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
-						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'$_batch_sql where id='$linje_id[$x]'";
+						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'";
+						// Only touch batch_due_date/batch_batch_no when this line actually submitted
+						// that input - openOrderLines.php doesn't render them for a line whose
+						// tracking flag is off, and an unconditional SET was wiping stored batch
+						// data for any line whose tracking flag changed since it was last saved
+						// (CodeRabbit, PR #608). $batch_due_date[$x]/$batch_batch_no[$x] are set
+						// per-line above, NULL when that line's input wasn't submitted.
+						if (if_isset($batch_due_date, NULL, $x) !== NULL) {
+							$qtxt.= ",batch_due_date=" . ($batch_due_date[$x] ? "'$batch_due_date[$x]'" : "NULL");
+						}
+						if (if_isset($batch_batch_no, NULL, $x) !== NULL) {
+							$qtxt.= ",batch_batch_no=" . ($batch_batch_no[$x] !== '' ? "'$batch_batch_no[$x]'" : "NULL");
+						}
+						$qtxt.= " where id='$linje_id[$x]'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {
