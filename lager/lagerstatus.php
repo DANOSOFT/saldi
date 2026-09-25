@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-02-06 ----
+// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-09-25 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20140128 Ved søgning på modtaget / leveret tjekkes ikke for dato hvis angivet dato = dags dato da det gav forkert lagerantal for 
 //          leverancer med leveringsdato > dd. Søg 20140128   
@@ -61,6 +61,10 @@
 //             is covered, and guarded on positive remaining stock so already-zero/negative-stock
 //             items still value at 0. Verified against IBON's real saldi_821 dump (SST-764).
 // 20260908 CDX/LH Cancel linked purchase credits before selecting the remaining stock value.
+// 20260925 CL/NTR Escape a Varenr./Beskrivelse/Enhed search term's own '%'/'_' via the new
+//             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
+//             no longer matches (almost) the whole catalogue or spuriously bypasses the
+//             zStock/showClosed/activity filters via $lsHasTextSearch.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -220,14 +224,19 @@ if ($varenrSoeg !== null && $varenrSoeg !== '') {
 	// Pattern built into its own variable (not $varenrSoeg itself) so the search box, CSV href
 	// and pagination links all keep showing what the user actually typed instead of the wrapped
 	// '%...%' SQL pattern.
-	$varenrPattern = "%".$varenrSoeg."%";
+	// 20260925 CL/NTR - db_escape_like_pattern() first, so a literal '%'/'_' the user typed (e.g.
+	// searching for a varenr that really contains one) doesn't act as a SQL wildcard - see its own
+	// comment in includes/db_query.php. Without it a lone '%'/'_' search matched (almost) the whole
+	// catalogue and, combined with $lsHasTextSearch below, bypassed the stock/closed/activity filters too.
+	$varenrPattern = "%".db_escape_like_pattern($varenrSoeg)."%";
 	$low=strtolower($varenrPattern);
 	$upp=strtoupper($varenrPattern);
 	$vareSearchSql.=" and (varer.varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varer.varenr) LIKE '".db_escape_string($low)."' or upper(varer.varenr) LIKE '".db_escape_string($upp)."')";
 }
 if ($varenavn !== null && $varenavn !== '') {
 	// MB-31 - same plain substring match as Varenr. above, same reason for a separate pattern var.
-	$varenavnPattern = "%".$varenavn."%";
+	// 20260925 CL/NTR - db_escape_like_pattern(), same reason as $varenrPattern above.
+	$varenavnPattern = "%".db_escape_like_pattern($varenavn)."%";
 	$low=strtolower($varenavnPattern);
 	$upp=strtoupper($varenavnPattern);
 	$vareSearchSql.=" and (varer.beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(varer.beskrivelse) LIKE '".db_escape_string($low)."' or upper(varer.beskrivelse) LIKE '".db_escape_string($upp)."')";
@@ -235,7 +244,8 @@ if ($varenavn !== null && $varenavn !== '') {
 if ($enhedSoeg !== null && $enhedSoeg !== '') {
 	// MB-31 - Enhed's search box: substring match (not exact/wildcard like Varenr./Beskrivelse above),
 	// same convention includes/grid.php's own DEFAULT_GENERATE_SEARCH() uses for its 'text' columns.
-	$vareSearchSql.=" and varer.enhed ILIKE '%".db_escape_string($enhedSoeg)."%'";
+	// 20260925 CL/NTR - db_escape_like_pattern(), same reason as $varenrPattern above.
+	$vareSearchSql.=" and varer.enhed ILIKE '%".db_escape_string(db_escape_like_pattern($enhedSoeg))."%'";
 }
 
 // MB-31 follow-up (Peter, test_31, 20260903) - a Varenr./Beskrivelse/Enhed search must find a matching
@@ -249,6 +259,9 @@ if ($enhedSoeg !== null && $enhedSoeg !== '') {
 // CodeRabbit - same "0" truthy pitfall as $vareSearchSql above: || on the raw strings would treat an
 // exact "0" search as no search at all, leaving the very filters this flag exists to bypass still in
 // effect for that value - explicit not-null/not-empty checks instead.
+// 20260925 CL/NTR - "narrows the query" now holds even for a lone '%'/'_'/'\' search term, since
+// db_escape_like_pattern() above turns it into a literal-character match instead of an active wildcard;
+// this flag no longer needs its own check for that case.
 $lsHasTextSearch = ($varenrSoeg !== null && $varenrSoeg !== '')
 	|| ($varenavn !== null && $varenavn !== '')
 	|| ($enhedSoeg !== null && $enhedSoeg !== '');
