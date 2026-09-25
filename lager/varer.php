@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---patch 4.1.0 ----2025-08-29--------------
+// --- lager/varer.php ---patch 4.1.0 ----2026-09-25--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 
@@ -69,6 +69,12 @@
 // 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
 //                  even when it already carried a wildcard, so "123*" and "*123" both searched
 //                  "contains" and never narrowed the list the price-tag print is built from.
+// 20260925 CL/NTR MB-35 follow-up: a double-click on the Indkøbsforslag "Opret" button (or browser
+//             Back + resend) replayed the same genbestil_ant POST, and genbestil() has no
+//             idempotency of its own - it always inserted a fresh ordrelinjer row, so the replay
+//             created a duplicate purchase-order line and summed the quantities. Added a
+//             fingerprint-based replay guard (varerIncludes/genbestilReplay.php), same pattern as
+//             finans/kassekladde_includes/saveReplay.php (#538).
 
 @session_start();
 $s_id=session_id();
@@ -99,6 +105,9 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("productCardIncludes/itemVat.php");
+// 20260925 CL/NTR - genbestil() replay guard (see varerIncludes/genbestilReplay.php); included after
+// online.php so $db/$brugernavn are already the authenticated tenant/user by the time it's used below.
+include("varerIncludes/genbestilReplay.php");
 
 ///////////////////// Check for new columns in varer table patch 4.1.0 /////////////////////
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='varenr_alias'";
@@ -230,16 +239,31 @@ if (isset($_POST)) {
 	$lev_navn=trim($lev_navn);
 
 	if (isset($_POST['genbestil_ant'])) {
-		transaktion('begin');
-		for ($x=1; $x<=$_POST['genbestil_ant']; $x++) {
-			$tmp1="gb_id_$x";
-			$tmp1=$_POST[$tmp1];
-			$tmp2="gb_antal_$x";
-			$tmp2=$_POST[$tmp2];
-			if ($tmp2) genbestil($tmp1,$tmp2); 
+		// 20260925 CL/NTR MB-35 follow-up - a double-click on "Opret" (or browser Back + resend)
+		// posts this exact genbestil_ant/gb_id_*/gb_antal_* payload twice. genbestil() itself always
+		// inserts a new ordrelinjer row with no check for one already existing for the item on
+		// today's order, so a replayed POST silently created a duplicate purchase-order line per
+		// item and summed the quantities (see genbestilReplay.php's own comment). Detect the replay
+		// the same way finans/kassekladde_includes/saveReplay.php does (#538): fingerprint the whole
+		// POST, scoped to this tenant/user, and skip processing an identical resubmission. A
+		// genuinely different submission (edited quantities, different items) has a different
+		// fingerprint and is processed as before.
+		$gbReplayKey = genbestilReplayKey($_POST, (string)$db, (string)$brugernavn);
+		if (genbestilIsReplay($_SESSION, $gbReplayKey)) {
+			print "<BODY onLoad=\"javascript:alert('Der er oprettet nye indk&oslash;bsforslag')\">";
+		} else {
+			transaktion('begin');
+			for ($x=1; $x<=$_POST['genbestil_ant']; $x++) {
+				$tmp1="gb_id_$x";
+				$tmp1=$_POST[$tmp1];
+				$tmp2="gb_antal_$x";
+				$tmp2=$_POST[$tmp2];
+				if ($tmp2) genbestil($tmp1,$tmp2);
+			}
+			transaktion('commit');
+			genbestilRememberSubmit($_SESSION, $gbReplayKey);
+			print "<BODY onLoad=\"javascript:alert('Der er oprettet nye indk&oslash;bsforslag')\">";
 		}
-		transaktion('commit');
-		print "<BODY onLoad=\"javascript:alert('Der er oprettet nye indk&oslash;bsforslag')\">";
 	}
 	if (isset($_POST['start'])) $start = $_POST['start'];
 	if (isset($_POST['linjeantal'])) $linjeantal = $_POST['linjeantal'];
