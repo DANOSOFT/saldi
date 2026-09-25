@@ -1,7 +1,10 @@
 <?php
 // 20260914 Sawaneh    JOB-141: "name" from the query string is reduced to a bare file name before
 //                     it is used in the temp path below.
+// 20260924 Sawaneh    JOB-141: debitor module rights are checked here (online.php) - only a login
+//                     was required before, and a send now also writes ordrer.digital_status.
 ob_start();
+$modulnr = 5;
 include_once("api.php");
 $name = isset($_GET["name"]) ? basename((string) $_GET["name"]) : "";
 $type = isset($_GET["type"]) ? $_GET["type"] : "";
