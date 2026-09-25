@@ -65,6 +65,12 @@
 //                  Supplier orders no longer print VAT-inclusive prices (customer setting).
 // 20260911 CDX/LH SD-186 Load performed-by value when printing or emailing order documents.
 // 20260915 CDX/PHR Preserve discount line price when no numeric set price is stored in lev_varenr.
+// 20260916 CDX/MJ SST-784 Wrap print text by characters, not bytes. wordwrap() counts bytes, so on
+//                  UTF-8 every ae/oe/aa spent two of the column budget and a Danish order line broke
+//                  early by exactly its number of non-ASCII characters. All four wrap sites move
+//                  together - :423 and :453 render, :2117 measures the height used for the page-break
+//                  decision, and a measuring pass that disagrees with the rendering pass breaks pages
+//                  in the wrong place.
 // 20260914 CDX/LH SST-784: Escape parentheses and backslashes only in PostScript output.
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
@@ -72,6 +78,8 @@
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
+
+include_once(__DIR__ . "/stdFunc/mbWordwrap.php");
 
 
 if (!function_exists('skriv')) {
@@ -425,7 +433,7 @@ if (!function_exists('ombryd')) {
 			$lokation = $parts[1] ?? NULL;
 			$vare_note = $parts[2] ?? NULL;
 		}
-		$tekst = wordwrap($tekst, $laengde, "\n", true);
+		$tekst = mb_wordwrap($tekst, $laengde, "\n", true);
 		$nytekst = "";
 		if (strstr($tekstinfo, 'ordrelinjer')) {
 			list($tmp, $Opkt) = explode("_", $tekstinfo);
@@ -455,7 +463,7 @@ if (!function_exists('ombryd')) {
 			$y = skriv($id, $str, $fed, $italic, $color, $nytekst, $tekstinfo, $x, $y, $format, $form_font, $formular, __LINE__);
 		}
 		if ($lokation) {
-			$lokation = wordwrap($lokation, $laengde, "\n", true);
+			$lokation = mb_wordwrap($lokation, $laengde, "\n", true);
 			$lok_lines = explode("\n", $lokation);
 			foreach ($lok_lines as $lok_line) {
 				$lok_line = trim($lok_line);
@@ -2152,7 +2160,7 @@ if (!function_exists('formularprint')) {
 							if (strpos($check_tekst, chr(9)) !== false) {
 								list($check_tekst) = explode(chr(9), $check_tekst);
 							}
-							$wrappedText = wordwrap($check_tekst, $beskriv_laengde, "\n", true);
+							$wrappedText = mb_wordwrap($check_tekst, $beskriv_laengde, "\n", true);
 							$descLines = count(explode("\n", $wrappedText));
 							$totalHeightNeeded = ($descLines - 1) * $linjeafstand;
 
@@ -2185,7 +2193,7 @@ if (!function_exists('formularprint')) {
 									: 0;
 								$vn_wrap = max((int)$laengde[$z], $vn_span);
 								if ($vn_wrap > 0 && mb_strlen($varenr[$x]) > $vn_wrap) {
-									$vn_wrapped = explode("\n", wordwrap($varenr[$x], $vn_wrap, "\n", true));
+									$vn_wrapped = explode("\n", mb_wordwrap($varenr[$x], $vn_wrap, "\n", true));
 								} else {
 									$vn_wrapped = [$varenr[$x]]; 
 								}
