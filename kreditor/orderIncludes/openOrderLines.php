@@ -35,6 +35,14 @@
 // 20250524 PHR Bogfor now set to 0 if tidl_lev (Delivered) differs from antal (qty)
 // 20251113 PHR Corrected error in $tidl_lev for creditnotas
 // 20260611 MJ Changed creditor print button fallback text to English.
+// 20260917 SZ MB-36: batch_batch_no now also renders when box9=='on' (group-level "batch
+//                     control"), not only when item_has_due_date() is true - box9 items
+//                     otherwise had no way to ever record a lot/batch number. batch_due_date
+//                     stays gated on item_has_due_date() alone, since expiry tracking is a
+//                     narrower, separate, item-level opt-in.
+// 20260917 SZ HTML-escape batch_batch_no before printing it into the value attribute
+//             (CodeRabbit, PR #608); guard against a missing grupper row for box9 lookups
+//             so a fiscal-year mismatch degrades to "not tracked" instead of a PHP warning.
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 
@@ -176,40 +184,82 @@ for ($x=1; $x<=$linjeantal; $x++)  {
         print "text-align:right' size='4' name='leve$x' value='$dklev[$x]' onchange='javascript:docChange = true;'></td>\n";
       }
       print "<td>($dk_tidl_lev[$x])</td>";
-      // Expiry date fields for items with has_due_date
-      if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+      // Both cells always render together when the order has any box9-tracked line
+      // ($has_expiry_items, set in openOrderData.php's header check), so a row's cell
+      // count never drifts from the header regardless of which lines are individually
+      // tracked. Due-date content: item-level has_due_date only (narrower, opt-in).
+      // Batch-no content: has_due_date OR box9=='on' (MB-36) - box9 governs lot/batch
+      // tracking more broadly, and item_has_due_date() itself used to query box9 before
+      // this fix, so box9-only items already relied on this field to record a batch number.
+      if ($has_expiry_items) {
+        $dueTracked = $vare_id[$x] && item_has_due_date($vare_id[$x]);
+        $batchTracked = $dueTracked || (($box9[$x] ?? NULL) == 'on');
         $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
         $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
-        if (!$batch_due_date_val) {
+        if ($dueTracked && !$batch_due_date_val) {
           // Pre-fill with default shelf life if set
           $shelf_days = item_default_shelf_life($vare_id[$x]);
           if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
         }
-        print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
-        print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
-        print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
-        print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
+        // batch_due_date isn't escaped: it's a DATE column reloaded from the DB before
+        // render, so it can't carry markup. batch_batch_no is free text from $_POST.
+        $batch_batch_no_attr = htmlspecialchars((string) $batch_batch_no_val, ENT_QUOTES, 'UTF-8');
+        if ($dueTracked) {
+          print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+          print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+        } else {
+          print "<td></td>";
+        }
+        if ($batchTracked) {
+          print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+          print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_attr' onchange='javascript:docChange = true;'></td>\n";
+        } else {
+          print "<td></td>";
+        }
       }
     } else {
-      // status>=1 but no vare_id: pad columns to align with vare_id rows (leve + dk_tidl_lev)
+      // status>=1 but no vare_id: pad columns to align with vare_id rows (leve + dk_tidl_lev,
+      // plus the batch columns below if the order has any box9-tracked line)
       print "<td></td><td></td>";
+      if ($has_expiry_items) print "<td></td><td></td>";
     }
   } else {
     // Pad to match leve + dk_tidl_lev cells used in status>=1 rows so trailing
     // columns (like the delete button) align across all rows
     print "<td></td><td></td>";
-    // Expiry date fields for status 0 (draft orders)
-    if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+    // Batch-tracking columns for status 0 (draft orders) - see the status>=1 branch above
+    // for why both cells always render together, and why due-date/batch-no have separate
+    // gating conditions (MB-36).
+    if ($has_expiry_items) {
+      $dueTracked = false;
+      $batchTracked = false;
+      if ($vare_id[$x]) {
+        $dueTracked = item_has_due_date($vare_id[$x]);
+        $r = db_fetch_array(db_select(
+          "select g.box9 from varer v join grupper g on g.kodenr = v.gruppe and g.art = 'VG' and g.fiscal_year = '$regnaar' where v.id = '$vare_id[$x]'",
+          __FILE__ . " linje " . __LINE__
+        ));
+        $batchTracked = $dueTracked || (trim((string) ($r['box9'] ?? '')) == 'on');
+      }
       $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
       $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
-      if (!$batch_due_date_val) {
+      if ($dueTracked && !$batch_due_date_val) {
         $shelf_days = item_default_shelf_life($vare_id[$x]);
         if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
       }
-      print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
-      print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
-      print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
-      print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
+      $batch_batch_no_attr = htmlspecialchars((string) $batch_batch_no_val, ENT_QUOTES, 'UTF-8');
+      if ($dueTracked) {
+        print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+        print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+      } else {
+        print "<td></td>";
+      }
+      if ($batchTracked) {
+        print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+        print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_attr' onchange='javascript:docChange = true;'></td>\n";
+      } else {
+        print "<td></td>";
+      }
     }
   }
   if ($omlev) {

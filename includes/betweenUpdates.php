@@ -41,11 +41,16 @@
 //                     be resent in a later batch but never twice in the same batch.
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
 // 20260716 CL/LH Added unique Stripe paid-invoice import key.
+// 20260917 SZ MB-36: backfill the batch_kob/varer/ordrelinjer FEFO columns that
+//                     opdat_4.2.php's version-exact-match gate never re-runs for
+//                     already-upgraded tenants (see comment near the bottom of this file).
 // 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
 // 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
 //                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
 //                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
+// 20260923 CL/SZ Serialize the FEFO column backfill the same way as performed_by/pool_files
+//                 vendor columns above (CodeRabbit, PR #608).
 // 20260924 Sawaneh SST-757: Give brugere rows with no regnskabsaar the newest open fiscal year.
 //                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
 
@@ -669,6 +674,62 @@ if ($db_type == 'mysql' || $db_type == 'mysqli') {
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($pool_files_dedupe, __FILE__ . " linje " . __LINE__);
 	db_modify($pool_files_index, __FILE__ . " linje " . __LINE__);
+}
+
+// 20260917 SZ MB-36: opdat_4.2.php's opdat_4_2() only runs its whole body for a tenant whose
+// stored version is exactly at $b==2 in tjek4opdat.php's stepper - a tenant already past that
+// step (the common case for any live install) never runs it, so the FEFO/batch-expiry columns
+// it adds (batch_kob.due_date/batch_no, varer.has_due_date/default_shelf_life_days,
+// ordrelinjer.batch_due_date/batch_batch_no) can be permanently missing even though the
+// tenant's version implies the feature should be available. Same dead-gate class of bug as the
+// pool_files.norm_amount fix above; backfilled here unconditionally so the feature degrades to
+// "off" instead of silently failing partway through (e.g. ordre.php's save UPDATE referencing a
+// nonexistent ordrelinjer column).
+//
+// 20260923 CL/SZ Serialize these ALTER TABLEs the same way as performed_by/pool_files vendor
+// columns above (CodeRabbit, PR #608): two tenant logins racing this backfill could both pass
+// the existence check before either ALTER TABLE committed, and the second would fail on a
+// duplicate column mid-login.
+$fefoMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$fefoColumns = array(
+	'batch_kob' => array('due_date' => 'DATE NULL', 'batch_no' => 'VARCHAR(100) NULL'),
+	'varer' => array('has_due_date' => 'BOOLEAN DEFAULT FALSE', 'default_shelf_life_days' => 'INTEGER NULL'),
+	'ordrelinjer' => array('batch_due_date' => 'DATE NULL', 'batch_batch_no' => 'VARCHAR(100) NULL'),
+);
+$fefoMissing = array();
+foreach ($fefoColumns as $fefoTable => $fefoTableColumns) {
+	foreach ($fefoTableColumns as $fefoColumn => $fefoType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$fefoTable' AND column_name = '$fefoColumn'";
+		$qtxt .= $fefoMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$fefoMissing[] = array('table' => $fefoTable, 'column' => $fefoColumn, 'type' => $fefoType);
+		}
+	}
+}
+if ($fefoMissing) {
+	if ($fefoMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the
+		// check above; serialize per tenant and recheck under the lock (same as performed_by).
+		$fefoLock = "CONCAT('saldi:fefo_columns:', MD5(DATABASE()))";
+		$fefoLockResult = db_fetch_array(db_select("SELECT GET_LOCK($fefoLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($fefoLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the FEFO columns migration lock.');
+		}
+		try {
+			foreach ($fefoMissing as $fefoPending) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '{$fefoPending['table']}' AND column_name = '{$fefoPending['column']}' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE {$fefoPending['table']} ADD COLUMN {$fefoPending['column']} {$fefoPending['type']}", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($fefoLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($fefoMissing as $fefoPending) {
+			db_modify("ALTER TABLE {$fefoPending['table']} ADD COLUMN IF NOT EXISTS {$fefoPending['column']} {$fefoPending['type']}", __FILE__ . " linje " . __LINE__);
+		}
+	}
 }
 
 // 20260922 CL/LAH Leverandørforslag fra AI-scan (kravspec Bilagsflow AI-3): the vendor read on a

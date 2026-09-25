@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-07-28---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-09-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20200827 PHR Added protection against delete if items recieved. 20200827
@@ -70,6 +70,11 @@
 // 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup navigates here by GET, see accountLookup.php selectAccount) into the new order header. 
 //                 usdate('') returns today, so only convert values that were actually supplied.
 // 20260908 CDX/LH Lock creditor order status before saving, deleting or adding lines.
+// 20260924 CL/SZ MB-36 fixed the same never-written batch_due_date/batch_batch_no gap as
+//                Sawaneh's 20260811 change above, independently and later; merging master
+//                superseded MB-36's version of that save logic with Sawaneh's (already
+//                submitted-vs-not-submitted safe, plus date-format validation and a
+//                batch_batch_no length cap that MB-36's version lacked).
 
 @session_start();
 $s_id=session_id();
@@ -882,10 +887,16 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if (! $tidl_lev[$x]) $tidl_lev[$x]=0;
 						if ($omvbet[$x]) $omvbet[$x]='on';
-					if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
-					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
+						if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
+						$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
 						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'";
+						// Only touch batch_due_date/batch_batch_no when this line actually submitted
+						// that input - openOrderLines.php doesn't render them for a line whose
+						// tracking flag is off, and an unconditional SET was wiping stored batch
+						// data for any line whose tracking flag changed since it was last saved
+						// (CodeRabbit, PR #608). $batch_due_date[$x]/$batch_batch_no[$x] are set
+						// per-line above, NULL when that line's input wasn't submitted.
 						if (if_isset($batch_due_date, NULL, $x) !== NULL) {
 							$qtxt.= ",batch_due_date=" . ($batch_due_date[$x] ? "'$batch_due_date[$x]'" : "NULL");
 						}

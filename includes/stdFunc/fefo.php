@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/fefo.php --- patch 4.2.0 --- 2026-04-16 ---
+// --- includes/stdFunc/fefo.php --- patch 4.2.0 --- 2026-09-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // FEFO (First Expired, First Out) helper functions for expiry date handling.
+// 20260923 CL/SZ Validate $vare_id as an integer in item_has_due_date() before interpolating it
+//                 into the query (CodeRabbit, PR #608).
 
 if (!function_exists('fefo_order_clause')) {
 	/**
@@ -65,17 +67,20 @@ if (!function_exists('fefo_batch_query')) {
 
 if (!function_exists('item_has_due_date')) {
 	/**
-	 * Checks whether an item's product group has batch/expiry tracking enabled
-	 * (grupper.box9 = 'on' for the item's VG group in the current fiscal year).
+	 * Checks whether an item has expiry date tracking enabled
+	 * (varer.has_due_date, set via the "Varen har udl&oslash;bsdato" checkbox on the item card).
 	 *
 	 * @param int $vare_id  Item ID
-	 * @return bool  True if the group has batch tracking enabled
+	 * @return bool  True if the item has due_date tracking enabled
 	 */
 	function item_has_due_date($vare_id) {
-		global $regnaar;
-		$qtxt = "SELECT g.box9 FROM varer v JOIN grupper g ON g.kodenr = v.gruppe AND g.art = 'VG' AND g.fiscal_year = '$regnaar' WHERE v.id = '$vare_id'";
+		if (!is_scalar($vare_id) || filter_var($vare_id, FILTER_VALIDATE_INT) === false) {
+			return false;
+		}
+		$vare_id = (int) $vare_id;
+		$qtxt = "SELECT has_due_date FROM varer WHERE id = '$vare_id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		return ($r && trim($r['box9']) === 'on');
+		return ($r && ($r['has_due_date'] === 't' || $r['has_due_date'] === true || $r['has_due_date'] == 1));
 	}
 }
 
