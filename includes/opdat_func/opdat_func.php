@@ -29,6 +29,9 @@
 // 20260925 CL/NTR opdat_to() now reconnects to the tenant db itself (moved from opdat_4.3.php's
 //                caller-side guard), so every opdat_to() caller is covered without needing its
 //                own reconnect before the version check and $update_step() closure run.
+// 20260925 CL/NTR opdat_to()'s reconnect now also selects the tenant db on MySQLi, matching
+//                includes/online.php's own reconnect; db_connect() alone doesn't select a
+//                database on that engine (CodeRabbit PR #564).
 
 if (!function_exists('opdat_version_compare')) {
     /**
@@ -112,6 +115,14 @@ if (!function_exists('opdat_to')) {
         // uniformly, instead of each opdat_4_X() needing to remember to reconnect itself.
         if ($db && $db != $sqdb) {
             $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+            // db_connect() doesn't select a database on MySQLi (it only opens the server
+            // connection); select $db explicitly here, same as includes/online.php does
+            // after its own db_connect() call, so the query below runs against the tenant
+            // instead of failing or reading whatever database was previously selected.
+            global $db_type;
+            if (strtolower($db_type) == 'mysqli') {
+                mysqli_select_db($connection, $db);
+            }
         }
 
         $qtxt = "SELECT box1 FROM grupper WHERE art = 'VE'";
