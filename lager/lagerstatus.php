@@ -513,6 +513,38 @@ if ($lsGridMode) {
 	$lsAllChunks = array();
 	$lsRowValues = array();
 }
+// 20260921 CDX/MJ SST-801 The loop below used to run "select sum(antal) ... where vare_id=N" against
+//             batch_kob and batch_salg once per item. At Dyre-Loppen's volume - 41.381 varer, 67.643
+//             batch_kob, 56.938 batch_salg - that is 82.762 round trips for one page load. Measured
+//             on a dev tenant loaded to those counts: 5.000 items took 37,85 s, and the whole list
+//             extrapolates to roughly five minutes, which is why the page times out for the
+//             customer. The same totals as two grouped queries take 0,14 s.
+//
+//             The filters are unchanged: $lagervalg and the date cutoff are read once before this
+//             point and never vary inside the loop, so grouping them up front cannot change a
+//             number. Items with no batch rows are absent from the result and default to 0, exactly
+//             as sum() returning NULL did before.
+$batchKobSum = array();
+$batchSalgSum = array();
+$kobFilter = '';
+$salgFilter = '';
+if ($lagervalg) {
+	$kobFilter  .= " and lager='" . (int) $lagervalg . "'";
+	$salgFilter .= " and lager='" . (int) $lagervalg . "'";
+}
+if ($date != $dd) {
+	// $dateType arrives from the request and is used as a column name, so it is whitelisted to the
+	// two values the form offers rather than interpolated.
+	$kobDt  = ($dateType == 'fakturadate') ? 'fakturadate' : 'kobsdate';
+	$salgDt = ($dateType == 'fakturadate') ? 'fakturadate' : 'salgsdate';
+	$kobFilter  .= " and $kobDt <= '" . db_escape_string($date) . "'";
+	$salgFilter .= " and $salgDt <= '" . db_escape_string($date) . "'";
+}
+$q = db_select("select vare_id, sum(antal) as antal from batch_kob where 1=1$kobFilter group by vare_id",__FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) $batchKobSum[$r['vare_id']] = $r['antal'];
+$q = db_select("select vare_id, sum(antal) as antal from batch_salg where 1=1$salgFilter group by vare_id",__FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) $batchSalgSum[$r['vare_id']] = $r['antal'];
+
 for($x=1; $x<=$vareantal; $x++) {
 	// 20260710 SZ - capture this item's row so it can be skipped when outside the current Grid
 	// Framework page window (real server-side pagination, matching includes/salgsstat.php /
@@ -522,20 +554,13 @@ for($x=1; $x<=$vareantal; $x++) {
 	if ($lsGridMode) ob_start();
 	$handlet[$x]=0;
 	$batch_k_antal[$x]=0;$batch_t_antal[$x]=0;$batch_pris[$x]=0;$batch_s_antal[$x]=0;
-	$qtxt="select sum(antal) as antal from batch_kob where vare_id=$vare_id[$x]";
-	if ($lagervalg) $qtxt.=" and lager='$lagervalg'";
-	($dateType == 'levdate')?$dt = 'kobsdate':$dt = $dateType;
-	if ($date!=$dd) $qtxt.=" and $dt <= '$date'";
-	$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$batch_k_antal[$x]=$r1['antal'];
-	$batch_t_antal[$x]=$r1['antal'];
-	$qtxt="select sum(antal) as antal from batch_salg where vare_id=$vare_id[$x]";
-	if ($lagervalg) $qtxt.=" and lager='$lagervalg'";
-	($dateType == 'levdate')?$dt = 'salgsdate':$dt = $dateType;
-	if ($date!=$dd) $qtxt.=" and $dt <= '$date'";
-	$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$batch_s_antal[$x]=$r1['antal'];
-	$batch_t_antal[$x]-=$r1['antal'];
+	// 20260921 CDX/MJ SST-801 Read the two batch sums from the totals built once before this loop
+	//             instead of querying per item. Same filters, same numbers - see the comment at
+	//             the aggregate above for what this cost at Dyre-Loppen's data volume.
+	$batch_k_antal[$x]=isset($batchKobSum[$vare_id[$x]])?$batchKobSum[$vare_id[$x]]:0;
+	$batch_t_antal[$x]=$batch_k_antal[$x];
+	$batch_s_antal[$x]=isset($batchSalgSum[$vare_id[$x]])?$batchSalgSum[$vare_id[$x]]:0;
+	$batch_t_antal[$x]-=$batch_s_antal[$x];
 
 /*
 	if ($vare_id[$x]==454) #cho "Bt $batch_t_antal[$x]<br>";		

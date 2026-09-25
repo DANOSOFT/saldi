@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.06.05 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.09.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.DK ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------
 // Kaldes fra systemdata/diverse.php
 // 2013.11.01 Tilføjet fravalg af tjek for forskellige datoer på samme bilag i kasseklasse. Søg 20131101
@@ -122,6 +122,8 @@
 //                query (was mislabeled $mySaleTest but still read var_name='mySale');
 //                also dropped the debug echo block referencing it. Never saved
 //                ($_POST['mySaleTest'] was read nowhere) and had no consumer. MB-28.
+// 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
+// 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -1796,6 +1798,9 @@ function ordre_valg() {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		if ($r['var_value']) $incl_moms_business = 'checked';
 	}
+
+	// SD-657: while this is on, users without the Indstillinger right are kept out of turnover and Finans.
+	$hideRevenue = (get_settings_value('hideRevenue', 'finans', 'off') === 'on') ? 'checked' : '';
 	$rabatvareid = (int)$grupper_data['box2'];
 	($grupper_data['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
 	($grupper_data['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
@@ -1928,6 +1933,7 @@ function ordre_valg() {
 	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
+	print "<tr><td title='".findtekst('5247|Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.', $sprog_id)."'>".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."</td><td><INPUT title='".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."' class='inputbox' type='checkbox' name='hideRevenue' $hideRevenue></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -2252,7 +2258,7 @@ function api_valg() {
 	print "<tr><td><br></td></tr>";
 	list($tmp, $folder, $tmp) = explode('/', $_SERVER['REQUEST_URI'], 3);
 	$url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]/$folder/api";
-	if ($userId) {
+	if (count($userId)) {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
@@ -2286,7 +2292,10 @@ function api_valg() {
 		print "<tr><td colspan='6'><hr></td></tr>";
 		print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop', $sprog_id)."<!--tekst 741--></td><td colspan='3' title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi', $sprog_id)."'><!--tekst 740--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=1><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop', $sprog_id)."'><!--tekst 749--></a></td></tr>";
 		print "<tr><td title='".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."'><!--tekst 1726-->".findtekst('2546|Opdater fra shop', $sprog_id)."<!--tekst 2546--></td><td colspan='3' title='".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."'><!--tekst 1726--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=2><input style='text-align:center;width:300px;' type='button' value='".findtekst('2546|Opdater fra shop', $sprog_id)."'><!--tekst 2546--></a></td></tr>";
-	} else print "<tr><td colspan='2'>".findtekst('825|Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.', $sprog_id)."</td></tr>";
+	} else {
+		print "<tr><td colspan='2'>".findtekst('825|Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.', $sprog_id)."</td></tr>";
+		print "</form>";
+	}
 	print "<tr><td colspan='6'><hr></td></tr>";
 	if (isset($_GET['varesync']) && $_GET['varesync']) {
 		include("../api/varesync.php");
