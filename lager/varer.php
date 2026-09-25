@@ -80,6 +80,12 @@
 //             created a duplicate purchase-order line and summed the quantities. Added a
 //             fingerprint-based replay guard (varerIncludes/genbestilReplay.php), same pattern as
 //             finans/kassekladde_includes/saveReplay.php (#538).
+// 20260925 CL/NTR MB-35 follow-up (CodeRabbit): the replay guard's content-only fingerprint let two
+//             genuinely separate, identical submissions collide, and a failed item (missing
+//             vare_lev) still got the whole POST remembered, blocking a retry. Added a per-form
+//             token to the fingerprint, switched to remembering a bounded set of recent submissions
+//             instead of just the last one, and genbestil() now reports success so only a fully
+//             successful submission is remembered.
 
 @session_start();
 $s_id=session_id();
@@ -250,23 +256,30 @@ if (isset($_POST)) {
 		// today's order, so a replayed POST silently created a duplicate purchase-order line per
 		// item and summed the quantities (see genbestilReplay.php's own comment). Detect the replay
 		// the same way finans/kassekladde_includes/saveReplay.php does (#538): fingerprint the whole
-		// POST, scoped to this tenant/user, and skip processing an identical resubmission. A
-		// genuinely different submission (edited quantities, different items) has a different
-		// fingerprint and is processed as before.
-		$gbReplayKey = genbestilReplayKey($_POST, (string)$db, (string)$brugernavn);
+		// POST plus this form's own token, scoped to this tenant/user, and skip processing an
+		// identical resubmission. A genuinely different submission (edited quantities, different
+		// items, or just a later, separate form load) fingerprints differently and is processed.
+		$gbFormToken = (string)($_POST['gb_form_token'] ?? '');
+		$gbReplayKey = genbestilReplayKey($_POST, $gbFormToken, (string)$db, (string)$brugernavn);
 		if (genbestilIsReplay($_SESSION, $gbReplayKey)) {
 			print "<BODY onLoad=\"javascript:alert('Der er oprettet nye indk&oslash;bsforslag')\">";
 		} else {
 			transaktion('begin');
+			// 20260925 CL/NTR (CodeRabbit): genbestil() returns false when an item has no vare_lev
+			// row (see its own "findes ikke" branch) and creates no line for it. Only remember this
+			// submission once every requested item actually got a line, so a partial failure can
+			// still be retried with the exact same POST after the missing vare_lev is fixed, instead
+			// of that retry being silently swallowed as a "replay" of the failed attempt.
+			$gbAllSucceeded = true;
 			for ($x=1; $x<=$_POST['genbestil_ant']; $x++) {
 				$tmp1="gb_id_$x";
 				$tmp1=$_POST[$tmp1];
 				$tmp2="gb_antal_$x";
 				$tmp2=$_POST[$tmp2];
-				if ($tmp2) genbestil($tmp1,$tmp2);
+				if ($tmp2 && !genbestil($tmp1,$tmp2)) $gbAllSucceeded = false;
 			}
 			transaktion('commit');
-			genbestilRememberSubmit($_SESSION, $gbReplayKey);
+			if ($gbAllSucceeded) genbestilRememberSubmit($_SESSION, $gbReplayKey);
 			print "<BODY onLoad=\"javascript:alert('Der er oprettet nye indk&oslash;bsforslag')\">";
 		}
 	}
@@ -517,7 +530,12 @@ if (!$makeSuggestion) {
 	print "<form name=\"vareliste\" action=\"varer.php?{$listNavigationQuery}sort=$sort&amp;beholdning=$stock&amp;forslag=$makeSuggestion&lev_kto_navn=$lev_kto_navn\" method=\"post\">";
 	print "<input type=\"hidden\" name=\"valg\">";
 	print "<input type=\"hidden\" name=\"start\" value=\"$start\">";
-} else 	print "<form name=\"vareliste\" action=\"varer.php?{$listNavigationQuery}sort=$sort\" method=\"post\">";
+} else {
+	print "<form name=\"vareliste\" action=\"varer.php?{$listNavigationQuery}sort=$sort\" method=\"post\">";
+	// 20260925 CL/NTR (CodeRabbit): one token per rendered form, so genbestilReplayKey() can tell a
+	// real resubmission of THIS form (same token) apart from a later, content-identical one.
+	print "<input type=\"hidden\" name=\"gb_form_token\" value=\"" . htmlspecialchars(genbestilFormToken(), ENT_QUOTES, 'UTF-8') . "\">";
+}
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\"><tbody>\n";
 $x=0;
 $query = db_select("select beskrivelse, kodenr from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
@@ -1078,6 +1096,12 @@ return($z);
 // includes/std_func.php next to find_beholdning() (whose $i_ordre/$i_forslag/$bestilt values they
 // consume), so they're plain testable functions rather than tied up in this page's top-level script.
 
+/**
+ * @return bool True once an ordrelinjer row was actually inserted; false when the item has no
+ *   vare_lev row (see the "findes ikke" branch below) and nothing was created for it - the caller
+ *   uses this to decide whether the whole genbestil_ant submission is safe to remember as
+ *   completed (CodeRabbit, MB-35 follow-up).
+ */
 function genbestil($vare_id, $antal) {
 	global $brugernavn,$db,$regnaar;
 	
@@ -1143,11 +1167,13 @@ function genbestil($vare_id, $antal) {
 		$qtxt.=" values ";
 		$qtxt.="('$ordre_id', '1000', '$varenr', '$vare_id', '$beskrivelse', '$enhed', '$pris', '$lev_varenr', '$antal', '$momsfri')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$sum=$sum+$pris*$antal;	
-		db_modify("update ordrer set sum = '$sum' where id = $ordre_id",__FILE__ . " linje " . __LINE__);	
-	} else { 
+		$sum=$sum+$pris*$antal;
+		db_modify("update ordrer set sum = '$sum' where id = $ordre_id",__FILE__ . " linje " . __LINE__);
+		return true;
+	} else {
 		$r = db_fetch_array(db_select("select varenr from varer where id = '$vare_id'",__FILE__ . " linje " . __LINE__));
 		print "".findtekst(951,$sprog_id)." findes ikke (Varenr: $r[varenr])<br>";
+		return false;
 	}
 }
 
