@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-20 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2020.01.22 PHR function send_mails. Added mail format check #20200122
@@ -69,6 +69,7 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
+// 20260925 CL/LH SST-823: End every PostScript page with showpage when the EPS logo is missing or has none (SD-490 root cause).
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1540,6 +1541,8 @@ if (!function_exists('formularprint')) {
 						}
 					}
 					fclose($logofil);
+				} else {
+					$logo = ''; // never write the bare file path into the PostScript (Ghostscript aborts at the first page break)
 				}
 			}
 			########################
@@ -2467,10 +2470,14 @@ if (!function_exists('bundtekst')) {
 		$side = $side + 1;
 
 
-		if ($logoart != 'EPS')
-			fwrite($psfp, "showpage\n");
-		else
+		// An EPS logo only ends the page when the file carries its own showpage (the stock logo.eps did).
+		// A missing logo or one without showpage lost pages 2..N in PostScript prints (SD-490).
+		if ($logoart == 'EPS') {
 			fwrite($psfp, $logo);
+		}
+		if ($logoart != 'EPS' || strpos($logo, 'showpage') === false) {
+			fwrite($psfp, "showpage\n");
+		}
 		fwrite($htmfp, "</body>\n</html>\n");
 		#fclose($htmfp);
 		#$htmfp=fopen($mappe."/".$printfilnavn."_$side.htm","w");

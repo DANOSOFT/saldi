@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 5.0.0 --- 2026-09-01 ---
+// --- includes/udskriv.php --- ver 5.0.0 --- 2026-09-25 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2013.03.20 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
 // 2013.12.02	Efter udskrivning af kreditorordre, åbnes ordre som debitorordre. Tilføjer $art. Søg $art.
@@ -47,6 +47,8 @@
 //             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
 // 20260909 Sawaneh JOB-124: menu S honours a returside pointing at the debtor order instead of forcing the order list.
 // 20260914 CDX/LH SST-789: Render session-owned invoice batches before publishing a PDF.
+// 20260925 CL/LH SST-823 + SST-780: PostScript prints use only the .ps (it has every page; appending the _N.htm pages
+//             printed pages 2..N twice) and keep the document name instead of "udskrift". HTML pages merge in numeric order.
 
 @session_start();
 $s_id=session_id();
@@ -206,139 +208,45 @@ if ($valg) {
 	fwrite($log,__line__." system (\"$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\"\n");
 			system ("$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
 		} elseif (isset($r['box3']) && $r['box3'] && $udskrift!='kontokort') { # Brug html
-		fwrite($log,__line__." unlink(\"../temp/".$ps_fil."_*.pdf\"\n");
-		if (file_exists("../temp/".$ps_fil."_*.pdf")) unlink("../temp/".$ps_fil."_*.pdf");
+		// 20260925 SST-780/SST-823: skriv() writes page 1 to <c>.htm and page N to <c>_N.htm. Merge exactly those,
+		// in numeric order, and keep the document name (not "udskrift"). Batches of several orders go through renderPrintBatch().
 		list($a,$b,$c)=explode("/",$ps_fil);
-		$htmfil=glob("../temp/$a/$b/*.htm");
-		$indfil='';
-		for ($i=0;$i<count($htmfil);$i++) {
-			if (filesize($htmfil[$i])) {
-				$pdf[$i]=str_replace("htm","pdf",$htmfil[$i]);
-				fwrite($log,__line__." $pdf[$i]=str_replace(\"htm\",\"pdf\",$htmfil[$i])\n"); #20190103
-				fwrite($log,__line__." system (\"weasyprint -e UTF-8 $htmfil[$i] $pdf[$i]\")\n"); #20190103
-				system ("weasyprint -e UTF-8 $htmfil[$i] $pdf[$i]");
-				($indfil)?$indfil.=" ".$pdf[$i]:$indfil=$pdf[$i];
-				fwrite($log,__line__." indfil $indfil\n");
-			} 
-			if (count($htmfil)>1) {
-				$udfil="../temp/$a/$b/udskrift.pdf";
-				fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
-				$ps_fil="/$a/$b/udskrift";
-				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n"); 
-			} else $udfil=NULL;
-		} 
-		if ($udfil) {
-			system ("pdftk $indfil output $udfil");
-			fwrite($log,__line__." system (\"pdftk $indfil output $udfil\")\n");
-			for ($i=0;$i<count($htmfil);$i++) {
-				unlink ($htmfil[$i]);
-				fwrite($log,__line__." unlink ($htmfil[$i])\n");
-				if (isset($pdffil[$i]) && file_exists($pdffil[$i])) {
-					unlink ($pdffil[$i]);
-					fwrite($log,__line__." unlink ($pdffil[$i])\n");
-				}
+		$htmfil = array("../temp/$a/$b/$c.htm");
+		for ($side = 2; file_exists("../temp/$a/$b/{$c}_$side.htm"); $side++) {
+			$htmfil[] = "../temp/$a/$b/{$c}_$side.htm";
+		}
+		$sidepdf = array();
+		foreach ($htmfil as $i => $hf) {
+			if (file_exists($hf) && filesize($hf)) {
+				$sidepdf[] = count($htmfil) > 1 ? "../temp/$a/$b/{$c}_side" . ($i + 1) . ".pdf" : "../temp/$a/$b/$c.pdf";
+				fwrite($log,__line__." system (\"weasyprint -e UTF-8 $hf " . end($sidepdf) . "\")\n");
+				system ("weasyprint -e UTF-8 " . escapeshellarg($hf) . " " . escapeshellarg(end($sidepdf)));
 			}
 		}
-	} else { # Brug PostScript 
-		/*
-	    $ps_fil=str_replace("../temp/","",$ps_fil);
+		if (count($htmfil) > 1) {
+			fwrite($log,__line__." system (\"$pdftk " . implode(' ', $sidepdf) . " cat output ../temp/$a/$b/$c.pdf\")\n");
+			system ("$pdftk " . implode(' ', array_map('escapeshellarg', $sidepdf)) . " cat output " . escapeshellarg("../temp/$a/$b/$c.pdf"));
+			foreach ($sidepdf as $sp) {
+				if (file_exists($sp)) unlink($sp);
+			}
+		}
+		foreach (array_merge($htmfil, array("../temp/$a/$b/$c.ps")) as $tmpfil) {
+			if (file_exists($tmpfil)) unlink($tmpfil);
+		}
+	} else { # Brug PostScript
+		// 20260925 SST-823: skriv()/bundtekst() write every page to <c>.ps. The <c>_N.htm files are only the HTML
+		// variant of pages 2..N and must not be appended (that printed pages 2..N twice), so they are just removed.
+		$ps_fil=str_replace("../temp/","",$ps_fil);
 		$ps_fil=str_replace("$db/$db","$db",$ps_fil);
-		if (file_exists("../temp/".$ps_fil."_*.pdf")) {
-			unlink("../temp/".$ps_fil."_*.pdf");
-			fwrite($log,__line__." unlink(\"../temp/".$ps_fil."_*.pdf\"\n");
-		}
 		list($a,$b,$c)=explode("/",$ps_fil);
-		$psfil=glob("../temp/$a/$b/*.ps");
-#		fwrite($log,__line__." $psfil=glob(\"../temp/$a/$b/*.ps\")\n");
-		$indfil='';
-		for ($i=0;$i<count($psfil);$i++) {
-#				fwrite($log,__line__." PSFIL $psfil[$i]\n");
-			if (filesize($psfil[$i])) {
-				$pdf[$i]=str_replace("ps","pdf",$psfil[$i]);
-				fwrite($log,__line__." $pdf[$i]=str_replace(\"ps\",\"pdf\",$psfil[$i])\n");
-				fwrite($log,__line__." system (\"$ps2pdf  $psfil[$i] $pdf[$i]\")\n");
-				system ("$ps2pdf $psfil[$i] $pdf[$i]");
-				($indfil)?$indfil.=" ".$pdf[$i]:$indfil=$pdf[$i];
-				fwrite($log,__line__." indfil $indfil\n");
-			} 
-			if (count($psfil)>1) {
-				$udfil="../temp/$a/$b/udskrift.pdf";
-				fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
-				$ps_fil="/$a/$b/udskrift";
-				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n");
-			} else $udfil=NULL;
+		$psfil = "../temp/$a/$b/$c.ps";
+		if (file_exists($psfil) && filesize($psfil)) {
+			fwrite($log,__line__." system (\"$ps2pdf $psfil ../temp/$a/$b/$c.pdf\")\n");
+			system ("$ps2pdf " . escapeshellarg($psfil) . " " . escapeshellarg("../temp/$a/$b/$c.pdf"));
 		}
-		if ($udfil) {
-		system ("pdftk $indfil output $udfil");
-		fwrite($log,__line__." system (\"pdftk $indfil output $udfil\")\n");
-		for ($i=0;$i<count($psfil);$i++) {
-			unlink ($psfil[$i]);
-			fwrite($log,__line__." unlink ($psfil[$i])\n");
-				if (isset($pdffil[$i]) && file_exists($pdffil[$i])) {
-				unlink ($pdffil[$i]);
-				fwrite($log,__line__." unlink ($pdffil[$i])\n");
-			}
-			}
+		foreach (array_merge(array($psfil, "../temp/$a/$b/$c.htm"), glob("../temp/$a/$b/{$c}_*.htm") ?: array()) as $tmpfil) {
+			if (file_exists($tmpfil)) unlink($tmpfil);
 		}
-		*/
-
-		########################
-
-		 $ps_fil=str_replace("../temp/","",$ps_fil);
-			$ps_fil=str_replace("$db/$db","$db",$ps_fil);
-			list($a,$b,$c)=explode("/",$ps_fil);
-
-			$indfil='';
-
-			// Convert single .ps file 
-			$psfil = "../temp/$a/$b/$c.ps";
-			$pdffil_p1 = "../temp/$a/$b/$c.pdf";
-			
-			if (file_exists($psfil) && filesize($psfil)) {
-				fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
-				system ("$ps2pdf $psfil $pdffil_p1");
-				fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
-				$indfil = $pdffil_p1;
-			}
-
-			// find any extra pages in .htm files (_2.htm, _3.htm etc)
-			$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
-			if ($htmfil) sort($htmfil);
-			
-			foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
-
-			$extra_pdfs = array();
-			foreach ($htmfil as $hf) {
-				if (filesize($hf)) {
-					$hpdf = str_replace(".htm", ".pdf", $hf);
-					system ("weasyprint -e UTF-8 $hf $hpdf");
-					$extra_pdfs[] = $hpdf;
-					$indfil .= " " . $hpdf;
-				}
-			}
-
-			// If we have multiple pages, merge them all with pdftk
-			if (!empty($extra_pdfs)) {
-				$udfil = "../temp/$a/$b/udskrift.pdf";
-				$ps_fil = "/$a/$b/udskrift";
-				system ("pdftk $indfil output $udfil", $pdftk_rc);
-				
-				// Cleanup intermediate files
-				if (file_exists($psfil)) unlink($psfil);
-				if (file_exists($pdffil_p1)) unlink($pdffil_p1);
-				foreach ($htmfil as $hf) {
-					if (file_exists($hf)) unlink($hf);
-				}
-				foreach ($extra_pdfs as $ep) {
-					if (file_exists($ep)) unlink($ep);
-				}
-			} else {
-				
-				$udfil = NULL;
-				fwrite($log,__line__." single page only, no merge needed\n");
-				if (file_exists($psfil)) unlink($psfil);
-			}
-		########################
 	}
 	
 	if ($zx) { # Brug PostScript 
