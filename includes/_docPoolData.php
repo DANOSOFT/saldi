@@ -1,4 +1,6 @@
 <?php
+// 20260914 CDX/LH Expose metadata versions and manual acceptance for document-pool editing.
+require_once __DIR__ . '/docsIncludes/poolMetadata.php';
 // Start output buffering FIRST to capture any output from includes
 ob_start();
 
@@ -57,7 +59,7 @@ $vendorColumnsExist = poolVendorColumnsExist();
 
 // Query all files from the pool_files table (database is the source of truth)
 $vendorSelect = $vendorColumnsExist ? ", vendor_name, vendor_cvr, vendor_iban, vendor_konto_id, vendor_match, vendor_score" : "";
-$qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency$vendorSelect
+$qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency, updated, manually_edited$vendorSelect
          FROM pool_files ORDER BY file_date DESC, updated DESC";
 $result = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
@@ -67,7 +69,7 @@ while ($row = db_fetch_array($result)) {
     
     $subject = $row['subject'] ?: $base;
     $account = $row['account'] ?: '';
-    $amount = $row['amount'] ?: '';
+    $amount = $row['amount'] ?? '';
     $modDate = $row['file_date'] ?: '';
     $invoiceNumber = $row['invoice_number'] ?: '';
     $description = $row['description'] ?: '';
@@ -127,6 +129,8 @@ while ($row = db_fetch_array($result)) {
         'currency' => $currency,
         'vendor' => $vendor,
         'fil_nr' => $fil_nr,
+        'version' => poolMetadataVersion($row),
+        'manuallyEdited' => poolMetadataIsManual($row),
     ];
 }
 

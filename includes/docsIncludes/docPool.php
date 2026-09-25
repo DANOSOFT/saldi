@@ -44,6 +44,18 @@
 //                 references - a brand-new tenant's first pool file would fail with
 //                 "column norm_amount does not exist". Added the column to both.
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20260910 CL/SZ SST-777: newAccount was read from POST but never applied anywhere - a
+//                 corrected account suggestion never reached the kassekladde journal line
+//                 (SST-740). Now sets debet from it for new entries, validated against
+//                 kontoplan first. Also validates the account in the rename/metadata-edit
+//                 path before any write, and flags edited pool_files rows manually_edited
+//                 so an automatic re-extraction can't silently overwrite them.
+// 20260910 CL/SZ SST-777 follow-up (per Nicolai): the account fix above only applied to
+//                 new entries - attaching via Bilagsmatch (or any other existing-line
+//                 attach flow) still didn't get it, which was itself the bug, not a
+//                 deliberate difference. Now applies to an existing line too, but only
+//                 fills debet in if the line doesn't already have one - never reclassifies
+//                 an already-classified line.
 // 20260910 CL/SZ SST-776 follow-up (root cause identified during the SST-740 trace on
 //                 20260908, but PR #584 only shipped the FileReservation/session-tenant half -
 //                 this closes the other half): syncPuljeFilesToDatabase() only ever inserted a
@@ -59,6 +71,7 @@
 //                 ON CONFLICT DO NOTHING now that includes/betweenUpdates.php adds a unique
 //                 index on filename.
 // 20260914 CDX/LAH Resolve transfer targets from their checkboxes so unsaved voucher lines receive data.
+// 20260914 CDX/LH Reject stale metadata edits and show accepted values in the pool.
 // 20260915 CL/Sawaneh Attach selected (chooseMultipleBilag) still read the pre-multi-line field ids
 //                     (newEntry*/existingEntry*), so typed date/description/accounts/amount were never
 //                     sent and file data replaced them. Now collects every row_<id>_* field of the first
@@ -80,6 +93,7 @@
 //                 (invoice text from a scan could otherwise inject markup; found in Astra's review).
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
+require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -163,6 +177,8 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			file_date varchar(50),
 			invoice_number varchar(100),
 			description text,
+			manually_edited boolean NOT NULL DEFAULT false,
+			currency varchar(10),
 			updated timestamp DEFAULT CURRENT_TIMESTAMP,
 			vendor_name text,
 			vendor_cvr varchar(20),
@@ -176,16 +192,31 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		db_modify($qtxt, __FILE__ . " line " . __LINE__);
 	} else {
 		// Table exists, check for missing columns and add them
-		$qtxt = "SELECT column_name FROM information_schema.columns 
+		$qtxt = "SELECT column_name FROM information_schema.columns
 				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'invoice_number'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
 			@db_modify("ALTER TABLE pool_files ADD COLUMN invoice_number varchar(100)", __FILE__ . " line " . __LINE__);
 		}
-		
-		$qtxt = "SELECT column_name FROM information_schema.columns 
+
+		$qtxt = "SELECT column_name FROM information_schema.columns
 				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'description'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
 			@db_modify("ALTER TABLE pool_files ADD COLUMN description text", __FILE__ . " line " . __LINE__);
+		}
+
+		// 20260916 SZ SST-777 (CodeRabbit): poolMetadataSave()/poolMetadataVersion() read and
+		// write currency and manually_edited unconditionally on every pool_files row - a
+		// tenant whose table predates either column would hard-fail on the very first save.
+		$qtxt = "SELECT column_name FROM information_schema.columns
+				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'currency'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+			@db_modify("ALTER TABLE pool_files ADD COLUMN currency varchar(10)", __FILE__ . " line " . __LINE__);
+		}
+
+		$qtxt = "SELECT column_name FROM information_schema.columns
+				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'manually_edited'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+			@db_modify("ALTER TABLE pool_files ADD COLUMN manually_edited boolean NOT NULL DEFAULT false", __FILE__ . " line " . __LINE__);
 		}
 	}
 	
@@ -417,6 +448,34 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$poolFile = $_POST['poolFile'];
 	}
 
+	// Row/card editors change metadata without renaming the physical document.
+	if ($rename && is_string($poolFile) && $newFileName === $poolFile) {
+		$input = [];
+		foreach (['newSubject' => 'subject', 'newAccount' => 'account', 'newAmount' => 'amount',
+			'newDate' => 'file_date', 'newInvoiceNumber' => 'invoice_number',
+			'newInvoiceDescription' => 'description', 'newDescription' => 'description',
+			'newCurrency' => 'currency'] as $requestKey => $field) {
+			if (array_key_exists($requestKey, $_POST)) {
+				$input[$field] = $_POST[$requestKey];
+			}
+		}
+		try {
+			$version = $_POST['poolVersion'] ?? null;
+			if ($version !== null && !is_string($version)) {
+				throw new InvalidArgumentException('Invalid version', 422);
+			}
+			poolMetadataSave($poolFile, $input, true, $version, (int)$regnaar);
+		} catch (RuntimeException | InvalidArgumentException $error) {
+			$status = $error->getCode() === 409 ? 409 : 422;
+			http_response_code($status);
+			$message = $status === 409
+				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
+				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+		}
+		return;
+	}
+
 	// $afd         = if_isset($_POST,NULL,'afd');
 	// $bilag       = if_isset($_POST,NULL,'bilag');
 	// $beskrivelse = if_isset($_POST,NULL,'beskrivelse');
@@ -561,6 +620,17 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$poolData = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 			if ($poolData) {
+				// 20260916 SZ SST-777 (CodeRabbit): $attachVersion !== null let a request that
+				// omitted poolAttachVersion entirely skip this check outright - a stale client
+				// (or one that simply never sent the field) attached using whatever metadata the
+				// backend currently held, without the user ever reviewing it. Require the version
+				// whenever poolData exists, matching poolMetadataSave()'s manual-save contract.
+				$attachVersion = $_POST['poolAttachVersion'] ?? null;
+				if (!is_string($attachVersion) || !hash_equals(poolMetadataVersion($poolData), $attachVersion)) {
+					http_response_code(409);
+					print htmlspecialchars(findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id), ENT_QUOTES, 'UTF-8');
+					return;
+				}
 				if (!$sourceId && $postedBlank('dato') && $poolData['file_date']) {
 					// format date from Y-m-d H:i:s to d-m-Y
 					$ts = strtotime($poolData['file_date']);
@@ -605,6 +675,18 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					if ($currRow && $currRow['kodenr']) {
 						$_POST['valuta'] = $currRow['kodenr'];
 					}
+				}
+				// Read the saved correction, not a suggestion cached by an older browser tab.
+				try {
+					$suggestedAccount = poolJournalSuggestedAccount($poolData['account'] ?? '', (string)$source,
+						(int)$sourceId, (int)$kladde_id, $_POST['debet'] ?? '', (int)$regnaar);
+					if ($suggestedAccount !== '') {
+						$_POST['debet'] = $suggestedAccount;
+					}
+				} catch (InvalidArgumentException $error) {
+					http_response_code(422);
+					print htmlspecialchars(findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id), ENT_QUOTES, 'UTF-8');
+					return;
 				}
 			} elseif (!$sourceId && !empty($poolFiles)) {
 				// Fallback to .info file if not in DB
@@ -833,6 +915,46 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	
 	if ($rename && $newFileName && $newFileName != $poolFile || ($rename && ($newAccount||$newAmount||$newSubject||$newDate||$newInvoiceNumber||$newInvoiceDescription))) {
 		file_put_contents($logFile, date('Y-m-d H:i:s') . " - ENTERED rename block\n", FILE_APPEND);
+
+		// This whole block is always an explicit human edit (row/card "Save") - unlike
+		// extractInvoiceHandler.php's automatic re-extraction save, so pool_files rows
+		// touched here are always flagged manually_edited (see the two writes below).
+		// Validate the account BEFORE any file rename or DB write happens: an unknown
+		// account must produce a clear error and no partial save (SST-777 AC2).
+		// 20260916 SZ SST-777 (CodeRabbit): only the account was validated here - an invalid
+		// amount/date still passed straight through to the raw UPDATE/INSERT further below,
+		// AFTER the file had already been renamed on disk, leaving a renamed file paired with
+		// unusable metadata. Reject both up front too, same as poolMetadataSave()'s own checks.
+		// 20260924 SZ SST-777 (CodeRabbit): a physical rename bypassed poolMetadataSave() (and so
+		// its poolVersion check) entirely - a stale row/card view could rename a document and
+		// overwrite a newer correction, still marking the result manually_edited. Check the
+		// row's current version here too, before any rename or write.
+		try {
+			$currentRow = db_fetch_array(db_select("SELECT * FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'", __FILE__ . " linje " . __LINE__));
+			$submittedVersion = $_POST['poolVersion'] ?? null;
+			if ($submittedVersion !== null && !is_string($submittedVersion)) {
+				throw new InvalidArgumentException('Invalid version', 422);
+			}
+			if (!$currentRow || $submittedVersion === null || !hash_equals(poolMetadataVersion($currentRow), $submittedVersion)) {
+				throw new RuntimeException('Document changed', 409);
+			}
+			$newAccount = poolMetadataAccount($newAccount, (int)$regnaar);
+			if ($newAmount !== '' && $newAmount !== null && normalizePoolAmount($newAmount) === null) {
+				throw new InvalidArgumentException('Invalid amount', 422);
+			}
+			if ($newDate !== '' && $newDate !== null && normalizeDateFormat($newDate) === '') {
+				throw new InvalidArgumentException('Invalid date', 422);
+			}
+		} catch (RuntimeException | InvalidArgumentException $error) {
+			$status = $error->getCode() === 409 ? 409 : 422;
+			http_response_code($status);
+			$message = $status === 409
+				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
+				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+			return;
+		}
+
 	$legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.','(',')');
 		$nfn = trim($newFileName);
@@ -945,6 +1067,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								file_date varchar(50),
 								invoice_number varchar(100),
 								description text,
+								manually_edited boolean NOT NULL DEFAULT false,
+								currency varchar(10),
 								updated timestamp DEFAULT CURRENT_TIMESTAMP,
 								vendor_name text,
 								vendor_cvr varchar(20),
@@ -967,6 +1091,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$qtxt = "UPDATE pool_files SET
 								filename = '" . db_escape_string($newFilename) . "',
 								subject = '" . db_escape_string($newSubject ?: $newBase) . "',
+								manually_edited = true,
 								updated = CURRENT_TIMESTAMP";
 
 							if ($newAccount) $qtxt .= ", account = '" . db_escape_string($newAccount) . "'";
@@ -985,7 +1110,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							// Insert new record if old didn't exist
 							$newAmountNorm = normalizePoolAmount($newAmount ?: '');
 							$newAmountNormSql = ($newAmountNorm === null) ? 'NULL' : db_escape_string((string) $newAmountNorm);
-							$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
+							$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, manually_edited) VALUES (
 								'" . db_escape_string($newFilename) . "',
 								'" . db_escape_string($newSubject ?: $newBase) . "',
 								'" . db_escape_string($newAccount ?: '') . "',
@@ -993,7 +1118,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								$newAmountNormSql,
 								'" . db_escape_string($newDate ?: '') . "',
 								'" . db_escape_string($newInvoiceNumber ?: '') . "',
-								'" . db_escape_string($newInvoiceDescription ?: '') . "'
+								'" . db_escape_string($newInvoiceDescription ?: '') . "',
+								true
 							)";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 						}
@@ -1025,14 +1151,14 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			// Update existing
 			$logFile = "../temp/docpool_edit_debug.log";
 			file_put_contents($logFile, date('Y-m-d H:i:s') . " - docPool EDIT - Updating database for poolFile=$poolFile, id=" . $existing['id'] . "\n", FILE_APPEND);
-			$qtxt = "UPDATE pool_files SET updated = CURRENT_TIMESTAMP";
+			$qtxt = "UPDATE pool_files SET updated = CURRENT_TIMESTAMP, manually_edited = true";
 			if ($newSubject) $qtxt .= ", subject = '" . db_escape_string($newSubject) . "'";
 			if ($newAccount) $qtxt .= ", account = '" . db_escape_string($newAccount) . "'";
 			if ($newAmount) $qtxt .= ", amount = '" . db_escape_string($newAmount) . "'";
 			if ($newDate) $qtxt .= ", file_date = '" . db_escape_string($newDate) . "'";
 			if ($newInvoiceNumber) $qtxt .= ", invoice_number = '" . db_escape_string($newInvoiceNumber) . "'";
 			if ($newInvoiceDescription) $qtxt .= ", description = '" . db_escape_string($newInvoiceDescription) . "'";
-			
+
 			$qtxt .= " WHERE id = '" . $existing['id'] . "'";
 			$logFile = "../temp/docpool_edit_debug.log";
 			file_put_contents($logFile, date('Y-m-d H:i:s') . " - docPool EDIT - SQL: $qtxt\n", FILE_APPEND);
@@ -1041,15 +1167,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			// Insert if missing (shouldn't happen usually)
 			$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
 			$subject = $newSubject ?: $baseName;
-			
-			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+
+			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, manually_edited) VALUES (
 				'" . db_escape_string($poolFile) . "',
 				'" . db_escape_string($subject) . "',
 				'" . db_escape_string($newAccount ?: '') . "',
 				'" . db_escape_string($newAmount ?: '') . "',
 				'" . db_escape_string($newDate ?: '') . "',
 				'" . db_escape_string($newInvoiceNumber ?: '') . "',
-				'" . db_escape_string($newInvoiceDescription ?: '') . "'
+				'" . db_escape_string($newInvoiceDescription ?: '') . "',
+				true
 			)";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
@@ -1771,6 +1898,9 @@ $txt71  = $txt31.". ".$txt32.".";                                               
 $txt72  = $txt1 ." ".lcfirst($txt15);                                                           #Gem alle
 $txt73  = $txt15." ".lcfirst($txt50)."!";                                                       #Alle gemt!
 $txt74  = $txt16." ".lcfirst($txt14);                                                           #Duplikér linje
+$poolSuggestedText = findtekst('5255|Forslag', $sprog_id);
+$poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
+$poolStaleText = findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
 
 print <<<JS
 <script>
@@ -2478,7 +2608,7 @@ print <<<JS
 			}
 
 			// All cells start as non-editable (text)
-			const subjectCell       = "<span class='cell-content'>" + escapeHTML(row.subject) + "</span>";
+			let subjectCell         = "<span class='cell-content'>" + escapeHTML(row.subject) + "</span>";
 			const accountCell       = "<span class='cell-content'>" + escapeHTML(row.account) + "</span>";
 			const amountCell        = "<span class='cell-content'>" + amountDisplay + "</span>";
 			const dateCell          = "<span class='cell-content'>" + dateDisplay + "</span>";
@@ -2498,6 +2628,8 @@ print <<<JS
 			const savedChecked = sessionStorage.getItem('docPool_checked_' + poolFileFromHref) === 'true';
 			const checkedAttr = savedChecked ? ' checked' : '';
 			
+			const metadataState = row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}';
+			subjectCell += "<br><small>" + escapeHTML(metadataState) + "</small>";
 			const dataAttrs = "data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + 
 				(isMatch ? "data-selected='true' " : "") + 
 				(isPerfectMatch ? "data-perfect-match='true' " : "") +
@@ -2874,6 +3006,7 @@ print <<<JS
 			html += '<div style="flex: 1; min-width: 0;">';
 			html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHTML(subject) + '">' + escapeHTML(subject) + '</div>';
 			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
+			html += '<span>' + escapeHTML(row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}') + '</span>';
 			if (account) html += '<span><strong>{$txt6}:</strong> ' + escapeHTML(account) + '</span>';
 			if (amount) {
 				let amountHtml = '<span><strong>{$txt10}:</strong> ';
@@ -2969,6 +3102,10 @@ print <<<JS
 	
 	// Enable editing for a card item - opens a modal/inline form
 	window.enableCardEdit = function(poolFile, subject, account, amount, date) {
+		const fileData = docData.find(item => item.filename === poolFile) || {};
+		const poolVersion = fileData.version || '';
+		const description = fileData.description || '';
+		const invoiceNumber = fileData.invoiceNumber || '';
 		// For simplicity, reuse the table row edit via renderFiles mode temporarily
 		// Switch to table mode, enable edit, then user can save and switch back
 		// Or we can show a simple prompt/modal
@@ -3003,6 +3140,7 @@ print <<<JS
 		formData.append('rename', 'Ret filnavn');
 		formData.append('poolFile', poolFile);
 		formData.append('newFileName', poolFile);
+		formData.append('poolVersion', poolVersion);
 		formData.append('newSubject', newSubject);
 		formData.append('newAccount', newAccount);
 		formData.append('newAmount', newAmount);
@@ -3020,7 +3158,9 @@ print <<<JS
 			redirect: 'follow'
 		})
 		.then(response => {
-			if (response.ok) {
+			if (response.status === 409) {
+				alert('{$poolStaleText}');
+			} else if (response.ok) {
 				// Refresh the file list
 				fetchFiles();
 			} else {
@@ -3110,6 +3250,8 @@ print <<<JS
 		
 		// poolFile[] (not poolFiles) so a filename containing a comma isn't split apart
 		// by docPool.php's legacy poolFiles=<comma-joined string> branch.
+		const selectedMetadata = docData.find(item => item.filename === selectedFiles[0]);
+		if (selectedMetadata) formData.append('poolAttachVersion', selectedMetadata.version || '');
 		selectedFiles.forEach(file => {
 			formData.append('poolFile[]', file);
 		});
@@ -3295,7 +3437,7 @@ print <<<JS
 			} else {
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
-					alert('{$txt34} (Status: ' + response.status + '). {$txt32}.');
+					alert(response.status === 409 ? '{$poolStaleText}' : '{$txt34} (Status: ' + response.status + '). {$txt32}.');
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');
 				});
@@ -3427,6 +3569,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 	row.dataset.originalActions = originalActions;
 	row.setAttribute('data-editing', 'true');
 	row.setAttribute('data-pool-file', poolFile);
+	row.dataset.poolVersion = (docData.find(item => item.filename === poolFile) || {}).version || '';
 
 	// Make cells editable (update to handle 6 columns: checkbox, fil, beløb, fakturanr, dato, handlinger)
     if (cells.length >= 6) {
@@ -3439,6 +3582,8 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
         const displayAmount = (!isNaN(parsedDisplayAmt) && amount) ? parsedDisplayAmt.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (amount || '');
         
         cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[1].innerHTML += "<label>{$txt6}<input type='text' class='edit-input' value='" + escapeHTML(account || '') + "' data-field='account' " + inputEvents + "></label>";
+        cells[1].innerHTML += "<label>{$txt9}<input type='text' class='edit-input' value='" + escapeHTML(description || '') + "' data-field='description' " + inputEvents + "></label>";
         cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(displayAmount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber || '') + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
@@ -3556,13 +3701,18 @@ window.extractPoolFile = function(poolFile) {
 			if (extracted.currency) message += '{$txt7}: ' + extracted.currency + "\\n";
 
 			if (confirm(message + '{$txt37}')) {
-				// Save the extracted data to the .info file
+				// Save the extracted data to the .info file. manual=1 because the user just
+				// explicitly confirmed these values via the dialog above (unlike the silent
+				// bulk extractAllPoolFiles()/upload-time auto-save flows below, which must
+				// not overwrite a field the user already corrected by hand - SST-777 AC3).
 				const saveData = new FormData();
 				saveData.append('action', 'save');
 				saveData.append('poolFile', poolFile);
 				saveData.append('db', db);
 				saveData.append('docFolder', docFolder);
-				if (extracted.amount) saveData.append('newAmount', extracted.amount);
+				saveData.append('manual', '1');
+				saveData.append('poolVersion', result.version || '');
+				if (extracted.amount !== null && extracted.amount !== undefined) saveData.append('newAmount', extracted.amount);
 				if (extracted.date) saveData.append('newDate', extracted.date);
 				if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
 				if (extracted.description) saveData.append('newDescription', extracted.description);
@@ -3651,14 +3801,15 @@ window.extractAllPoolFiles = async function() {
 				if (extractResult.success && extractResult.data) {
 					const extracted = extractResult.data;
 					
-					// Only save if we got some data
-					if (extracted.amount || extracted.date || extracted.vendor) {
+					// Only save if we got some data. amount uses a null/undefined check (not
+					// truthiness) so an explicit 0 still counts as extracted data (CodeRabbit).
+					if ((extracted.amount !== null && extracted.amount !== undefined) || extracted.date || extracted.vendor) {
 						// Save the extracted data to the .info file
 						const saveData = new FormData();
 						saveData.append('action', 'save');
 						saveData.append('poolFile', poolFile);
 						saveData.append('db', db);
-						if (extracted.amount) saveData.append('newAmount', extracted.amount);
+						if (extracted.amount !== null && extracted.amount !== undefined) saveData.append('newAmount', extracted.amount);
 						if (extracted.date) saveData.append('newDate', extracted.date);
 						if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
 						if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
@@ -3864,14 +4015,15 @@ window.saveRowData = function(input) {
 	// Create FormData with all required fields
 	const formData = new FormData();
 	formData.append('rename', data.rename);
+	formData.append('poolVersion', row.dataset.poolVersion || '');
 	formData.append('poolFile', data.poolFile);
 	formData.append('newFileName', data.poolFile); // Required by backend, use same filename since we're only updating .info
 	formData.append('newSubject', data.newSubject);
-	formData.append('newAccount', data.newAccount);
+	if (row.querySelector('[data-field=account]')) formData.append('newAccount', data.newAccount);
 	formData.append('newAmount', data.newAmount);
 	formData.append('newDate', data.newDate);
 	formData.append('newInvoiceNumber', data.newInvoiceNumber);
-	formData.append('newInvoiceDescription', data.newInvoiceDescription);
+	if (row.querySelector('[data-field=description]')) formData.append('newInvoiceDescription', data.newInvoiceDescription);
 	
 	// Add URL parameters to form data
 	url.searchParams.forEach((value, key) => {
@@ -3952,6 +4104,7 @@ window.saveRowData = function(input) {
 				docData[dataIndex].date = dateFormatted;
 			}
 			
+			fetchFiles();
 			// Update bulk button state
 			if (typeof updateBulkButton === 'function') {
 				updateBulkButton();
@@ -3960,7 +4113,7 @@ window.saveRowData = function(input) {
 			// Try to get error message from response
 			response.text().then(text => {
 				console.error('Save failed. Response:', response.status, text);
-				alert('{$txt31} (Status: ' + response.status + '). {$txt32}.');
+				alert(response.status === 409 ? '{$poolStaleText}' : '{$txt31} (Status: ' + response.status + '). {$txt32}.');
 			}).catch(() => {
 				alert('{$txt71}');
 			});
