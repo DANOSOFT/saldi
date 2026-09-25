@@ -5120,3 +5120,28 @@
 5245	Kredit var allerede udfyldt og blev ikke ændret	Credit was already filled in and was not changed	Kredit var allerede fylt ut og ble ikke endret
 5246	Skjul omsætning for brugere uden adgang til Indstillinger	Hide turnover for users without access to Settings	Skjul omsetning for brukere uten tilgang til Innstillinger
 5247	Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.	Hide turnover on the order list and in the cash count for users without the Settings right. Users with the right are unaffected.	Skjul omsetning på ordrelisten og i kasseopptellingen for brukere uten rettigheten Innstillinger. Brukere med rettigheten ser uendret.
+5300	Kladde	Journal	Kladd
+5301	Fremdrift	Progress	Fremdrift
+5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…
+5303	Søg efter fakturanr., betalings-ID, navn, kontonr. …	Search by invoice no., payment ID, name, account no. …	Søk etter fakturanr., betalings-ID, navn, kontonr. …
+5304	Ingen valgt — brug ↑↓ eller klik for at vælge	None selected — use ↑↓ or click to choose	Ingen valgt — bruk ↑↓ eller klikk for å velge
+5305	Spring over	Skip	Hopp over
+5306	Slut på kladden nået	End of journal reached	Slutt på journalen nådd
+5307	Ingen flere posteringer	No more entries	Ingen flere posteringer
+5308	postering	entry	postering
+5309	afregnet	settled	avregnet
+5310	sprunget over	skipped	hoppet over
+5311	Skippede posteringer er stadig ikke afregnet — genstart for at gå igennem dem.	Skipped entries are still unsettled — restart to go through them.	Hoppede over posteringer er fortsatt ikke avregnet — start på nytt for å gå gjennom dem.
+5312	Genstart fra begyndelsen	Restart from beginning	Start på nytt fra begynnelsen
+5313	Tilbage til kladden	Back to journal	Tilbake til journalen
+5314	afregnet i denne omgang.	settled this run.	avregnet i denne omgangen.
+5315	Der er ikke flere åbne posteringer i denne kladde.	There are no more open entries in this journal.	Det er ingen flere åpne posteringer i denne journalen.
+5316	Vælg en debitor eller kreditor for at se deres åbne posteringer.	Choose a customer or supplier to see their open entries.	Velg en debitor eller kreditor for å se deres åpne posteringer.
+5317	Fejl ved indlæsning af resultater. Prøv igen.	Error loading results. Please try again.	Feil ved innlasting av resultater. Prøv igjen.
+5318	Ingen åbne posteringer matcher.	No open entries match.	Ingen åpne posteringer samsvarer.
+5319	Kladden kunne ikke gemmes.	The journal could not be saved.	Journalen kunne ikke lagres.
+5320	af	of	av
+5321	Afregnet. Indlæser næste postering…	Settled. Loading next entry…	Avregnet. Laster neste postering…
+5322	Bedste match	Best matches	Beste treff
+5323	Andre åbne posteringer	Other open entries	Andre åpne posteringer
+5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
