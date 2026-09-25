@@ -26,6 +26,7 @@ Regards:) 20260220 LOE
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
 // 20260916 LOE SD-685: escape tabel_id in the column/filter setup UPDATEs (review follow-up).
+// 20260916 CDX/LH Reject unknown or malformed sort fields before building grid SQL.
 // 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
 // 20260925 CL/NTR DEFAULT_GENERATE_SEARCH(): escape a text-column search term's own '%'/'_' via
 //                 the new db_escape_like_pattern() before wrapping it in ILIKE '%...%', so a lone
@@ -1029,7 +1030,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
  * @return string The validated ORDER BY expression.
  */
 function apply_sort_sqlOverride($sort, $columns) {
-    if (!$sort || !is_array($columns)) return $sort;
+    if (!is_string($sort) || trim($sort) === '' || !is_array($columns)) return '1';
     $parts = preg_split('/\s+/', trim($sort), 2);
     $field = $parts[0];
     $dir   = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
@@ -1048,7 +1049,7 @@ function apply_sort_sqlOverride($sort, $columns) {
             }
         }
     }
-    if (!$sortColumn && !preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/', $field)) {
+    if (!$sortColumn || (isset($sortColumn['sortable']) && !$sortColumn['sortable'])) {
         return '1';
     }
     if ($sortColumn && !empty($sortColumn['sqlOverride'])) {
