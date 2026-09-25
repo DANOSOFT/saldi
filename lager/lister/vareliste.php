@@ -31,6 +31,7 @@
 // 20260908 CDX/LH Keep missing stock blank while preserving numeric stock search and sorting (SST-767).
 // 20260910 CDX/PHR Added optional purchased and sold quantity totals from the purchase/sales report sources.
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260916 CDX/LH Sort DG by its selected alias so DISTINCT queries accept the expression.
 // 20260924 CDX/PHR Match the DG sort expression to the DISTINCT select expression.
 
 @session_start();
