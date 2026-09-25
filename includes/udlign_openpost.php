@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-09-23---
+// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-09-25---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,7 @@
 // 20260923 CDX/PHR Make inserting invoice references an explicit, unchecked-by-default option.
 // 20260923 CDX/PHR Place the invoice insertion option directly after the reference field.
 // 20260923 CDX/PHR Save explicit manual reference edits on Update, separately from automatic insertion.
+// 20260925 CDX/PHR Preserve the account-chart filter through settlement forms, period changes and return links.
  
 @session_start();
 $s_id=session_id();
@@ -75,6 +76,7 @@ require_once __DIR__ . '/alignOpenpostIncludes/period.php';
 // that reload can still carry forward the in-progress selections and invoice-reference draft below,
 // instead of silently losing them (they'd otherwise only ever be read from $_POST).
 $periodRequest = isset($_POST['submit']) ? $_POST : $_GET;
+$kilde = ifset($periodRequest, 'kilde') === 'show_all' ? 'show_all' : 'openpost';
 $requestedPeriodFrom = ifset($periodRequest, 'period_from');
 $requestedPeriodTo = ifset($periodRequest, 'period_to');
 $pendingInvoiceReference = null;
@@ -380,7 +382,7 @@ if ($menu=='S') {
 			print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 		}else{
 			print "<td width=\"10%\">$color
-			<a href=\"javascript:confirmClose('../debitor/rapport.php?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+			<a href=\"javascript:confirmClose('../debitor/rapport.php?rapportart=accountChart&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 			print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 			
@@ -388,7 +390,7 @@ if ($menu=='S') {
 
 	}else{
 		print "<td width=\"10%\">$color
-			<a href=\"javascript:confirmClose('$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+			<a href=\"javascript:confirmClose('$retur?rapportart=accountChart&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 	}
@@ -421,7 +423,7 @@ if ($menu=='S') {
 print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 print "<tr><td colspan=8 align=center>";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam>Luk</a></div></td>";
+print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=$retur?rapportart=accountChart&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam>Luk</a></div></td>";
 print "<td width=\"80%\" align=center><div class=\"top_bund\">Udlign &aring;bne poster<br></div></td>";
 print "<td width=\"10%\"><div class=\"top_bund\"><br></div></td>";
 print " </tr></tbody></table></td></tr>";
@@ -434,7 +436,7 @@ if (isset($submit) && $submit=='udlign') {
 renderOpenpostSettlementPeriod($settlementPeriod, [
 	'post_id' => $post_id[0], 'dato_fra' => $dato_fra, 'dato_til' => $dato_til,
 	'konto_fra' => $konto_fra, 'konto_til' => $konto_til,
-	'retur' => $retur, 'returside' => $returside, 'layout' => $layout,
+	'retur' => $retur, 'returside' => $returside, 'layout' => $layout, 'kilde' => $kilde,
 ], $selectedPostIds, $insertInvoiceNumbers, $manualInvoiceReference);
 print "<form name='alignOpenpost' action='../includes/udlign_openpost.php' method='post'>";
 $invoiceEditedValue = $invoiceReferenceEdited ? '1' : '0';
@@ -531,6 +533,7 @@ print "<input type = hidden name=konto_til value=$konto_til>";
 print "<input type = hidden name=retur value=$retur>";
 print "<input type = hidden name=returside value=$returside>";
 print "<input type = hidden name=layout value=$layout>";
+print "<input type='hidden' name='kilde' value='$kilde'>";
 print "<input type='hidden' name='findmatch_timelimit' id='findmatch_timelimit' value='$findMatchTimeLimit'>";
 print "<input type = hidden name=diff value=$diff>";
 print "<input type = hidden name=dkkdiff value=$dkkdiff>";
