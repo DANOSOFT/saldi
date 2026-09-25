@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.05.21----------
+// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.09.22----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20170607 PHR genkender nu også kontonr. Søg 20170707
 // 2018.12.20 MSC - Rettet isset fejl og rettet topmenu design til
@@ -39,6 +39,8 @@
 //                  invoice scoring mirrors the client, amount search is a
 //                  prefix match on the absolute amount.
 // 20260908 CDX/LH Require an account before matching and validate selected open posts on save.
+// 20260911 Sawaneh Show the order payment ID as a column in the open post list again.
+// 20260922 CDX/PHR Restore cross-account suggestions while retaining validated journal assignment.
 
 ob_start();
 @session_start();
@@ -751,7 +753,7 @@ print "</tbody></table></td></tr></tbody></table>";
       <div class="search-row">
         <label for="accountSelect"><?= 'Account' ?></label>
         <select id="accountSelect" class="search-input" <?= $entryContext['account'] !== '' ? 'disabled' : '' ?>>
-          <option value=""><?= 'Choose customer or supplier…' ?></option>
+          <option value=""><?= 'All customers and suppliers' ?></option>
           <?php foreach ($accountOptions as $account): ?>
           <option value="<?= (int)$account['id'] ?>"
             data-account="<?= htmlspecialchars($account['kontonr'], ENT_QUOTES, 'UTF-8') ?>"
@@ -769,7 +771,7 @@ print "</tbody></table></td></tr></tbody></table>";
           class="search-input"
           type="text"
           id="searchInput"
-          placeholder="Search by invoice no., name, account no. …"
+          placeholder="Search by invoice no., payment ID, name, account no. …"
           autocomplete="off"
           autofocus
         >
@@ -785,12 +787,13 @@ print "</tbody></table></td></tr></tbody></table>";
               <th>Account</th>
               <th>Company name</th>
               <th>Invoice no.</th>
+              <th>Payment ID</th>
               <th>Date</th>
               <th class="r">Amount</th>
             </tr>
           </thead>
           <tbody id="candidateBody">
-            <tr><td colspan="6"><div class="state-msg loading">Loading…</div></td></tr>
+            <tr><td colspan="7"><div class="state-msg loading">Loading…</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -976,11 +979,6 @@ print "</tbody></table></td></tr></tbody></table>";
 
     const seq = ++fetchSeq;
     setLoading();
-    if (!accountSelect.value) {
-      candidates = [];
-      candidateBody.innerHTML = '<tr><td colspan="6"><div class="state-msg">Choose a customer or supplier to see their open entries.</div></td></tr>';
-      return;
-    }
     fetch(getSearchUrl(search, page))
       .then(r => r.json())
       .then(data => {
@@ -995,7 +993,7 @@ print "</tbody></table></td></tr></tbody></table>";
       })
       .catch(() => {
         if (seq !== fetchSeq) return;
-        candidateBody.innerHTML = '<tr><td colspan="6"><div class="state-msg">Error loading results. Please try again.</div></td></tr>';
+        candidateBody.innerHTML = '<tr><td colspan="7"><div class="state-msg">Error loading results. Please try again.</div></td></tr>';
       });
   }
 
@@ -1017,7 +1015,7 @@ print "</tbody></table></td></tr></tbody></table>";
   /* ── Render table ───────────────────────────────────────── */
   function render(search) {
     if (candidates.length === 0) {
-      candidateBody.innerHTML = '<tr><td colspan="6">' +
+      candidateBody.innerHTML = '<tr><td colspan="7">' +
         '<div class="state-msg">No open entries match.</div></td></tr>';
       setSelected(-1);
       updatePagination();
@@ -1033,14 +1031,14 @@ print "</tbody></table></td></tr></tbody></table>";
     if (scored.length > 0) {
       if (unscored.length > 0) {
         // Label for top group only when there are two groups
-        html += `<tr class="group-divider-label"><td colspan="6">Best matches</td></tr>`;
+        html += `<tr class="group-divider-label"><td colspan="7">Best matches</td></tr>`;
       }
       html += scored.map((c, i) => candidateRow(c, i)).join('');
     }
 
     if (unscored.length > 0 && scored.length > 0) {
-      html += `<tr class="group-divider"><td colspan="6"></td></tr>`;
-      html += `<tr class="group-divider-label"><td colspan="6">Other open entries</td></tr>`;
+      html += `<tr class="group-divider"><td colspan="7"></td></tr>`;
+      html += `<tr class="group-divider-label"><td colspan="7">Other open entries</td></tr>`;
       html += unscored.map((c, i) => candidateRow(c, scored.length + i)).join('');
     } else if (unscored.length > 0) {
       html += unscored.map((c, i) => candidateRow(c, i)).join('');
@@ -1072,6 +1070,7 @@ print "</tbody></table></td></tr></tbody></table>";
       <td class="mono">${esc(c.kontonr)}${signalBadges(c._signals)}</td>  <!-- add badges here -->
       <td>${esc(c.firmanavn)}</td>
       <td class="mono">${esc(c.faktnr)}</td>
+      <td class="mono">${esc(c.betalings_id || '')}</td>
       <td class="mono">${fmtDate(c.transdate)}</td>
       <td class="r mono">${fmtNum(c.amount)}</td>
     </tr>`;
@@ -1079,7 +1078,7 @@ print "</tbody></table></td></tr></tbody></table>";
 
   /* ── Auto-select best candidate ─────────────────────────── */
   function autoSelectBest() {
-    if (!accountSelect.value || candidates.length === 0) return;
+    if (candidates.length === 0) return;
 
     const bestIndex = candidates.findIndex(c => String(c.id) === String(autoSelectId));
     const best = candidates[bestIndex];
@@ -1121,14 +1120,14 @@ print "</tbody></table></td></tr></tbody></table>";
 
   /* ── Do udlign ───────────────────────────────────────────── */
   function doUdlign() {
-    if (saving || !accountSelect.value || selectedIndex < 0 || !candidates[selectedIndex]) return;
+    if (saving || selectedIndex < 0 || !candidates[selectedIndex]) return;
     const c = candidates[selectedIndex];
 
     const formData = new FormData();
     formData.append('action',   'udlign');
     formData.append('entry_id', ENTRY_ID);
     formData.append('openpost_id', c.id);
-    formData.append('account_id', accountSelect.value);
+    formData.append('account_id', c.konto_id);
     formData.append('snapshot', SNAPSHOT);
     formData.append('token', TOKEN);
     saving = true;
@@ -1183,7 +1182,7 @@ print "</tbody></table></td></tr></tbody></table>";
   /* ── Loading state ───────────────────────────────────────── */
   function setLoading() {
     candidateBody.innerHTML =
-      '<tr><td colspan="6"><div class="state-msg loading">Searching…</div></td></tr>';
+      '<tr><td colspan="7"><div class="state-msg loading">Searching…</div></td></tr>';
     paginationBar.style.display = 'none';
     setSelected(-1);
     matchHint.textContent = '';
@@ -1268,7 +1267,7 @@ print "</tbody></table></td></tr></tbody></table>";
   }
 
   /* ── Boot ────────────────────────────────────────────────── */
-  // Only fetch open posts after an account has been selected.
+  // Fetch across accounts unless the journal line or user supplies an account filter.
   // Using the raw description as a literal filter hides the real matches.
   fetchCandidates('', 1);
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.06.15
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260717 Live-import reconciliation: most of production's pending betweenUpdates.php
 // content was already relocated into includes/opdat_4.3.php (see commit 74634e46); only the
@@ -39,8 +39,44 @@
 // 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
+// 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
+// 20260716 CL/LH Added unique Stripe paid-invoice import key.
+// 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
+// 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
+//                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
+//                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
+// 20260924 Sawaneh SST-757: Give brugere rows with no regnskabsaar the newest open fiscal year.
+//                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
 
+/**
+ * Injected by includes/connect.php via the entry page that includes this file:
+ * @var string $db_type
+ */
 
+$performedByMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
+$qtxt .= $performedByMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if ($performedByMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS. Serialize this migration per tenant.
+		$performedByLock = "CONCAT('saldi:performed_by:', MD5(DATABASE()))";
+		$lockResult = db_fetch_array(db_select("SELECT GET_LOCK($performedByLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($lockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the performed_by migration lock.');
+		}
+		try {
+			// Another login may have added the column while this connection waited.
+			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				db_modify("ALTER TABLE ordrer ADD COLUMN performed_by TEXT", __FILE__ . " linje " . __LINE__);
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($performedByLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		db_modify("ALTER TABLE ordrer ADD COLUMN IF NOT EXISTS performed_by TEXT", __FILE__ . " linje " . __LINE__);
+	}
+}
 
 // Bilagsmatch scoring engine: pool_files.amount is a free-form string ("1.234,56",
 // "1,234.56", etc). Add a real NUMERIC column so matching can join on it directly
@@ -52,6 +88,15 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files(norm_amount)", __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='batch_kob' AND column_name='created_by' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_kob ADD COLUMN created_by TEXT", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='batch_salg' AND column_name='created_by' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE batch_salg ADD COLUMN created_by TEXT", __FILE__ . " linje " . __LINE__);
 }
 
 // One-time backfill of norm_amount for rows written before this column existed.
@@ -201,6 +246,21 @@ db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kont
 # primary key, so every item forced a full table scan of kostpriser to find its latest price -
 # on a large item report this is the same "no index on the hot per-row lookup" issue as above.
 db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
+
+# 20260924 CL/NTR Two concurrent logins can both pass the pg_indexes existence check before
+#                  either has committed the CREATE UNIQUE INDEX, and the losing statement then
+#                  fails with unique_violation (23505) on pg_class_relname_nsp_index, not
+#                  duplicate_table (42P07) - so a WHEN duplicate_table handler would miss it.
+#                  A session-level advisory lock around the check+create serializes this
+#                  betweenUpdates.php run against itself without catching every unique_violation
+#                  (duplicate ordrer.kundeordnr values must still fail).
+db_select("SELECT pg_advisory_lock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'ordrer' AND indexname = 'ordrer_stripe_paid_invoice_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE UNIQUE INDEX ordrer_stripe_paid_invoice_uidx ON ordrer (kundeordnr) WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
 
 #####
 
@@ -609,6 +669,79 @@ if ($db_type == 'mysql' || $db_type == 'mysqli') {
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($pool_files_dedupe, __FILE__ . " linje " . __LINE__);
 	db_modify($pool_files_index, __FILE__ . " linje " . __LINE__);
+}
+
+// 20260922 CL/LAH Leverandørforslag fra AI-scan (kravspec Bilagsflow AI-3): the vendor read on a
+// scanned invoice and its match against kreditorer (adresser art='K'), written by
+// includes/docsIncludes/extractInvoiceHandler.php and read back by includes/_docPoolData.php.
+// Guarded per column so the block is idempotent on both Postgres and MySQL; betweenUpdates.php
+// runs at every login.
+$poolVendorMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+// vendor_match last on purpose: _docPoolData.php and the REST AttachmentModel probe for that
+// column before selecting/inserting the others, so once it exists the rest are guaranteed.
+$poolVendorColumns = array(
+	'vendor_name' => 'text',
+	'vendor_cvr' => 'varchar(20)',
+	'vendor_iban' => 'varchar(40)',
+	'vendor_konto_id' => 'integer',
+	'vendor_score' => 'numeric(4,3)',
+	'vendor_match' => 'varchar(10)',
+);
+$poolVendorMissing = array();
+foreach ($poolVendorColumns as $poolVendorColumn => $poolVendorType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolVendorColumn'";
+	$qtxt .= $poolVendorMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$poolVendorMissing[$poolVendorColumn] = $qtxt;
+	}
+}
+if ($poolVendorMissing) {
+	if ($poolVendorMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the
+		// check above; serialize per tenant and recheck under the lock (same as performed_by).
+		$poolVendorLock = "CONCAT('saldi:pool_files_vendor:', MD5(DATABASE()))";
+		$poolVendorLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolVendorLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($poolVendorLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the pool_files vendor migration lock.');
+		}
+		try {
+			foreach ($poolVendorMissing as $poolVendorColumn => $poolVendorProbe) {
+				if (!db_fetch_array(db_select($poolVendorProbe, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE pool_files ADD COLUMN $poolVendorColumn " . $poolVendorColumns[$poolVendorColumn], __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($poolVendorLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($poolVendorMissing as $poolVendorColumn => $poolVendorProbe) {
+			db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolVendorColumn " . $poolVendorColumns[$poolVendorColumn], __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+
+// 20260923 CL/NTR Tekst 242 (Ryk alle hover on the debtor openpost report) was an unclosed
+// <big>/<UL>/<LI> fragment - overly bureaucratic-looking for a one-line explanation. Delete rows
+// still holding the old text so findtekst() re-seeds them from tekster.csv with plain text.
+// Guarded on the old values because betweenUpdates.php runs at every login and customer-edited
+// texts must not be wiped.
+$gamle_242 = array(
+	'<big>Denne funktion gør følgende:<UL><LI>udligner alle konti',
+	'<big>This feature does the following: <UL> <LI> settles all accounts',
+	'<big> Denne funksjonen gjør følgende: <UL> <LI> gjør opp alle kontoer'
+);
+foreach ($gamle_242 as $gammel) {
+	$gammel = db_escape_string($gammel);
+	db_modify("delete from tekster where tekst_id = '242' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260924 Sawaneh SST-757: Users created via Sager -> Ansatte were inserted without regnskabsaar. Checked with a
+// select first so logins with nothing to repair do not write, and skipped on tenants with no open fiscal year.
+if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null limit 1", __FILE__ . " linje " . __LINE__))) {
+	$newestFiscalYear = newest_active_fiscal_year();
+	if ($newestFiscalYear) {
+		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 ?>

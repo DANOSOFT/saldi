@@ -30,6 +30,13 @@
 //20260603 CL/PHR debitorOrdrer-blok tilføjet (opretter debitor/orders/$sourceId/).
 //                  Redirect hardkodede source=creditorOrder rettet til source=$source
 //20260720 Sawaneh kassekladde-bilagssti bruger nu $docFolder (ikke hardkodet ../bilag) og opretter mappen rekursivt via dirname()+mkdir(...,true).
+// 20260915 CL/Sawaneh Save (action=updateOnly) and Attach (insertFile) each had their own copy of the
+//                     kassekladde field updates and had drifted apart (Attach skipped afd, projekt,
+//                     momsfri, forfald, medarb, bilagsnr). Both now call insertDocUpdateKassekladdeLine().
+//                     A new line on Attach takes the typed/document date before the sibling date.
+//                     Removed the unbounded print_r($_REQUEST) dump to /tmp/debug_insert.log.
+//                     $_POST reads in the edited blocks go through ifset(). A posted amount of "0"
+//                     is stored instead of being skipped as empty.
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -77,11 +84,117 @@ if (isset($_REQUEST['db'])) $db = $_REQUEST['db']; // Ensure db is set if passed
 // SECURITY: $db becomes a path segment — reject slashes and traversal.
 if (preg_match('#[/\\\\]|\.\.#', (string)$db) || !isset($db) || empty(trim($db))) { print "invalid database identifier<br>"; exit; }
 
-// Debug logging
-file_put_contents('/tmp/debug_insert.log', date('Y-m-d H:i:s') . " - Request: " . print_r($_REQUEST, true) . "\n", FILE_APPEND);
-
 $docFolder.= "/$db";
 if ($poolFile && !isset($fileName)) $fileName = $poolFile;
+
+if (!function_exists('insertDocUpdateKassekladdeLine')) {
+	/**
+	 * Store the posted voucher-line fields on kassekladde row $sourceId.
+	 * Shared by the Save path (action=updateOnly) and the Attach path (insertFile)
+	 * so both buttons save the same fields with the same rules for empty values.
+	 *
+	 * @param int $sourceId kassekladde.id
+	 * @return void
+	 */
+	function insertDocUpdateKassekladdeLine($sourceId) {
+		$sourceId = (int)$sourceId;
+		if (!$sourceId) {
+			return;
+		}
+		$bilagsnr = ifset($_POST, 'bilagsnr');
+		if ($bilagsnr) {
+			$qtxt = "update kassekladde set bilag = '" . (int)$bilagsnr . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$dato = ifset($_POST, 'dato');
+		if ($dato) {
+			$qtxt = "update kassekladde set transdate = '" . usdate($dato) . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$beskrivelse = ifset($_POST, 'beskrivelse');
+		if ($beskrivelse) {
+			$qtxt = "update kassekladde set beskrivelse = '" . db_escape_string($beskrivelse) . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$debet = ifset($_POST, 'debet');
+		if ($debet !== null) {
+			if ($debet !== '') {
+				if (!is_numeric(substr($debet, 0, 1))) {
+					$qtxt = "update kassekladde set d_type = '" . db_escape_string(substr($debet, 0, 1)) . "', ";
+					$qtxt .= "debet = '" . (int)substr($debet, 1) . "' where id = '$sourceId'";
+				} else {
+					$qtxt = "update kassekladde set debet = '" . (int)$debet . "' where id = '$sourceId'";
+				}
+			} else {
+				$qtxt = "update kassekladde set debet = 0, d_type = 'F' where id = '$sourceId'";
+			}
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$kredit = ifset($_POST, 'kredit');
+		if ($kredit !== null) {
+			if ($kredit !== '') {
+				if (!is_numeric(substr($kredit, 0, 1))) {
+					$qtxt = "update kassekladde set k_type = '" . db_escape_string(substr($kredit, 0, 1)) . "', ";
+					$qtxt .= "kredit = '" . (int)substr($kredit, 1) . "' where id = '$sourceId'";
+				} else {
+					$qtxt = "update kassekladde set kredit = '" . (int)$kredit . "' where id = '$sourceId'";
+				}
+			} else {
+				$qtxt = "update kassekladde set kredit = 0, k_type = 'F' where id = '$sourceId'";
+			}
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$sum = ifset($_POST, 'sum');
+		if ($sum !== null && trim((string)$sum) !== '') {
+			$qtxt = "update kassekladde set amount = '" . usdecimal($sum) . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$fakturanr = ifset($_POST, 'fakturanr');
+		if ($fakturanr) {
+			$qtxt = "update kassekladde set faktura = '" . db_escape_string($fakturanr) . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$valuta = ifset($_POST, 'valuta');
+		if ($valuta) {
+			$postValuta = trim($valuta);
+			if (!is_numeric($postValuta)) {
+				// Currency code (e.g. "EUR") — look up the kodenr number
+				$vkLookup = db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($postValuta)) . "'", __FILE__ . " linje " . __LINE__));
+				$valutaNr = ($vkLookup && $vkLookup['kodenr']) ? (int)$vkLookup['kodenr'] : 0;
+			} else {
+				$valutaNr = (int)$postValuta;
+			}
+			$qtxt = "update kassekladde set valuta = '$valutaNr' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$afd = ifset($_POST, 'afd');
+		if ($afd !== null && $afd !== '') {
+			$qtxt = "update kassekladde set afd = '" . (int)$afd . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$medarb = ifset($_POST, 'medarb');
+		if ($medarb !== null && $medarb !== '') {
+			$qtxt = "update kassekladde set medarb = '" . (int)$medarb . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$projekt = ifset($_POST, 'projekt');
+		if ($projekt !== null && $projekt !== '') {
+			$qtxt = "update kassekladde set projekt = '" . (int)$projekt . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$momsfri = ifset($_POST, 'momsfri');
+		if ($momsfri !== null) {
+			$momsfriVal = $momsfri ? 1 : 0;
+			$qtxt = "update kassekladde set momsfri = '$momsfriVal' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$forfald = ifset($_POST, 'forfald');
+		if ($forfald) {
+			$qtxt = "update kassekladde set forfaldsdate = '" . usdate($forfald) . "' where id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
 
 // Handle updateOnly action (Save button) — early return, no file handling needed
 if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
@@ -125,88 +238,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
         }
     }
 
-    // Update kassekladde fields if we have a sourceId
-    if ($sourceId) {
-        if (isset($_POST['bilagsnr']) && $_POST['bilagsnr']) {
-            $qtxt = "update kassekladde set bilag = '" . (int)$_POST['bilagsnr'] . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['dato']) && $_POST['dato']) {
-            $qtxt = "update kassekladde set transdate = '" . usdate($_POST['dato']) . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['beskrivelse']) && $_POST['beskrivelse']) {
-            $qtxt = "update kassekladde set beskrivelse = '" . db_escape_string($_POST['beskrivelse']) . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['debet'])) {
-            if ($_POST['debet'] !== '') {
-                if (!is_numeric(substr($_POST['debet'], 0, 1))) {
-                    $qtxt = "update kassekladde set d_type = '" . substr($_POST['debet'], 0, 1) . "', ";
-                    $qtxt .= "debet = '" . (int)substr($_POST['debet'], 1) . "' where id = '$sourceId'";
-                } else {
-                    $qtxt = "update kassekladde set debet = '" . (int)$_POST['debet'] . "' where id = '$sourceId'";
-                }
-            } else {
-                $qtxt = "update kassekladde set debet = 0, d_type = 'F' where id = '$sourceId'";
-            }
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['kredit'])) {
-            if ($_POST['kredit'] !== '') {
-                if (!is_numeric(substr($_POST['kredit'], 0, 1))) {
-                    $qtxt = "update kassekladde set k_type = '" . substr($_POST['kredit'], 0, 1) . "', ";
-                    $qtxt .= "kredit = '" . (int)substr($_POST['kredit'], 1) . "' where id = '$sourceId'";
-                } else {
-                    $qtxt = "update kassekladde set kredit = '" . (int)$_POST['kredit'] . "' where id = '$sourceId'";
-                }
-            } else {
-                $qtxt = "update kassekladde set kredit = 0, k_type = 'F' where id = '$sourceId'";
-            }
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['sum']) && $_POST['sum']) {
-            $qtxt = "update kassekladde set amount = '" . usdecimal($_POST['sum']) . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['fakturanr']) && $_POST['fakturanr']) {
-            $qtxt = "update kassekladde set faktura = '" . db_escape_string($_POST['fakturanr']) . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['valuta']) && $_POST['valuta']) {
-            $postValuta = trim($_POST['valuta']);
-            if (!is_numeric($postValuta)) {
-                // Currency code (e.g. "EUR") — look up the kodenr number
-                $vkLookup = db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($postValuta)) . "'", __FILE__ . " linje " . __LINE__));
-                $valutaNr = ($vkLookup && $vkLookup['kodenr']) ? (int)$vkLookup['kodenr'] : 0;
-            } else {
-                $valutaNr = (int)$postValuta;
-            }
-            $qtxt = "update kassekladde set valuta = '$valutaNr' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['afd']) && $_POST['afd'] !== '') {
-            $qtxt = "update kassekladde set afd = '" . (int)$_POST['afd'] . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['medarb']) && $_POST['medarb'] !== '') {
-            $qtxt = "update kassekladde set medarb = '" . (int)$_POST['medarb'] . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['projekt']) && $_POST['projekt'] !== '') {
-            $qtxt = "update kassekladde set projekt = '" . (int)$_POST['projekt'] . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['momsfri'])) {
-            $momsfriVal = $_POST['momsfri'] ? 1 : 0;
-            $qtxt = "update kassekladde set momsfri = '$momsfriVal' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-        if (isset($_POST['forfald']) && $_POST['forfald']) {
-            $qtxt = "update kassekladde set forfaldsdate = '" . usdate($_POST['forfald']) . "' where id = '$sourceId'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-    }
+    insertDocUpdateKassekladdeLine($sourceId);
 
     // Return response
     if (isset($_POST['ajax']) && $_POST['ajax']) {
@@ -263,7 +295,7 @@ if ($docFolder && $source == 'creditorOrder') {
 		if (!$bilag) {
 			include_once("../includes/stdFunc/fiscalYear.php");
 			$bilag=1;
-			if ($_POST['bilag']) $bilag = (int)$_POST['bilag'];
+			if (ifset($_POST, 'bilag')) $bilag = (int)$_POST['bilag'];
 			else {
 				list ($regnstart,$regnslut) = explode(":",fiscalYear($regnaar));
 				$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
@@ -281,8 +313,16 @@ if ($docFolder && $source == 'creditorOrder') {
 			}
 		}
 		
-		// Use existing date/pos if available, otherwise calculate new ones
-		$transdate_for_insert = $existingBilagDate ? $existingBilagDate : date("Y-m-d");
+		// Date for the new line: typed (or, when empty, the document's date - docPool.php puts
+		// that into $_POST['dato']), else the date of an existing line with this bilag, else today
+		$postedDate = ifset($_POST, 'dato');
+		if ($postedDate) {
+			$transdate_for_insert = usdate($postedDate);
+		} elseif ($existingBilagDate) {
+			$transdate_for_insert = $existingBilagDate;
+		} else {
+			$transdate_for_insert = date("Y-m-d");
+		}
 		
 		if ($existingBilagPos !== null) {
 			// Place right after the existing entry with this bilag
@@ -303,53 +343,7 @@ if ($docFolder && $source == 'creditorOrder') {
 		}
 	}
 	if ($sourceId) {
-		if ($_POST['dato']) {
-			$qtxt = "update kassekladde set transdate = '". usdate($_POST['dato']) ."' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
-		}
-		if ($_POST['beskrivelse']) {
-			$qtxt = "update kassekladde set beskrivelse = '". db_escape_string($_POST['beskrivelse']) ."' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
-		}
-		if ($_POST['debet']) {
-			if (!is_numeric(substr($_POST['debet'],0,1))) {
-				$qtxt = "update kassekladde set d_type = '". substr($_POST['debet'],0,1) ."', ";
-				$qtxt.= "debet = '". (int)substr($_POST['debet'],1) ."' where id = '$sourceId'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
-			} else {
-				$qtxt = "update kassekladde set debet = '". (int)$_POST['debet'] ."' where id = '$sourceId'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			}
-		}
-		if ($_POST['kredit']) {
-			if (!is_numeric(substr($_POST['kredit'],0,1))) {
-				$qtxt = "update kassekladde set k_type = '". substr($_POST['kredit'],0,1) ."', ";
-				$qtxt.= "kredit = '". (int)substr($_POST['kredit'],1) ."' where id = '$sourceId'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
-			} else {
-				$qtxt = "update kassekladde set kredit = '". (int)$_POST['kredit'] ."' where id = '$sourceId'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			}
-		}
-		if ($_POST['sum']) {
-			$qtxt = "update kassekladde set amount = '". usdecimal($_POST['sum']) ."' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
-		if ($_POST['fakturanr']) {
-			$qtxt = "update kassekladde set faktura = '". db_escape_string($_POST['fakturanr']) ."' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
-		if ($_POST['valuta']) {
-			$postValuta2 = trim($_POST['valuta']);
-			if (!is_numeric($postValuta2)) {
-				$vkLookup2 = db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($postValuta2)) . "'", __FILE__ . " linje " . __LINE__));
-				$valutaNr2 = ($vkLookup2 && $vkLookup2['kodenr']) ? (int)$vkLookup2['kodenr'] : 0;
-			} else {
-				$valutaNr2 = (int)$postValuta2;
-			}
-			$qtxt = "update kassekladde set valuta = '$valutaNr2' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
+		insertDocUpdateKassekladdeLine($sourceId);
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/kassekladde.php?kladde_id=$kladde_id\">";
 	} else {
 		alert("Bilaget kunne ikke indsættes");

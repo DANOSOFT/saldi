@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// --- includes/alignOpenpostIncludes/doAlign.php --- ver 4.0.8 --- 2016-14-04--------
+// --- includes/alignOpenpostIncludes/doAlign.php --- ver 4.0.8 --- 2026-09-23--------
 // LICENS>
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,18 +23,50 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2016 DANOSOFT ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20260923 CDX/PHR Save invoice references with settlement only when explicitly requested.
+// 20260921 CDX/MJ MB-57 Success redirect: when the udligning was opened from the debtor card the
+//                  target was ../debitor/debitorkort.php with no id, which renders an empty card -
+//                  the blank page MEDshop reported. Those callers now land on the kontokort report.
+//                  Also: the fiscal-year refresh was missing URL= and went nowhere, the openpost id
+//                  is int-cast, and nine debug echos are gone - one printed the server's absolute
+//                  path and four printed raw SQL to the browser.
 
-echo "<!- includes/alignOpenpostIncludes/doAlign.php -->";
-echo __file__."<br>"; 
+// This file is include()d by includes/udlign_openpost.php and shares its variable scope; it takes
+// no parameters and returns nothing. $faktnr[0] arrives here already merged by the caller (see its
+// "Also prepare references for exact matches..." block) - this file only writes whatever string is
+// already in it, gated by $insertInvoiceNumbers.
+/**
+ * @var array<int,string> $post_id            Candidate row ids; $post_id[0] is the anchor row.
+ * @var array<int,string> $udlign             $udlign[$x]=='on' marks row $x as selected for settlement.
+ * @var array<int,float>  $amount
+ * @var array<int,float>  $dkkamount
+ * @var array<int,string> $transdate
+ * @var array<int,string> $valuta
+ * @var int                $postantal
+ * @var array<int,string> $faktnr             $faktnr[0] is the (caller-merged) invoice reference to
+ *                                             persist on the anchor row when $insertInvoiceNumbers is true.
+ * @var bool               $insertInvoiceNumbers
+ * @var array<int,string> $konto_id
+ * @var string             $basisvaluta
+ * @var string             $regnaar
+ * @var string             $diffdato
+ * @var string             $dato_fra
+ * @var string             $dato_til
+ * @var string             $konto_fra
+ * @var string             $konto_til
+ * @var string             $returside
+ * @var string             $retur
+ * @var string             $layout
+ */
+
 	$alignDate=usdate($diffdato);
 	transaktion('begin');
 	$query = db_select("select MAX(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) $udlign_id=$row['udlign_id']+1;
 	
 	if (abs($dkkdiff) > 0.005 && $diffkto) {
-echo round($dkkdiff,3)."<br>";
 // 20121106 ->
 		$q = db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__);
 		if ($r = db_fetch_array($q)){
@@ -50,11 +82,15 @@ echo round($dkkdiff,3)."<br>";
 		if (($ym<$aarstart || $ym>$aarslut))	{ #20140505
 			
 			print "<BODY onLoad=\"javascript:alert('Udligningsdato ($ym) udenfor regnskabs&aring;r ($aarstart - $aarslut)')\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;../includes/udlign_openpost.php?post_id=$post_id[0]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=$retur&layout=$layout\">";
-echo __line__." $diff | $dkkdiff<br>";
-exit;
+			// Encoded because $returside carries a query string of its own - unencoded, its ?id=..&konto=..
+			// merged into this URL and truncated returside for the page we are handing back to.
+			$tilbage  = "../includes/udlign_openpost.php?post_id=" . (int) $post_id[0];
+			$tilbage .= "&dato_fra=" . urlencode($dato_fra) . "&dato_til=" . urlencode($dato_til);
+			$tilbage .= "&konto_fra=" . urlencode($konto_fra) . "&konto_til=" . urlencode($konto_til);
+			$tilbage .= "&returside=" . urlencode($returside) . "&retur=" . urlencode($retur);
+			$tilbage .= "&layout=" . urlencode($layout);
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=$tilbage\">";
 			exit;
-			$alignDate=date("Y-m-d");
 	}
 	// <- 20121106
 		if ($basisvaluta!='DKK') {
@@ -96,11 +132,9 @@ exit;
 			if ($dkkdiff >= 0.01) {
 				$qtxt="insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)";
 				$qtxt.="values('$diffkto', '0', '$alignDate', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')";
-echo "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt="insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)";
 				$qtxt.="values('$samlekonto', '0', '$alignDate', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')";
-echo "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($diff) {
 					$vkurs=abs($dkkdiff/$diff*100);
@@ -111,7 +145,6 @@ echo "$qtxt<br>";
 					$qtxt.="(konto_id,konto_nr,amount,beskrivelse,udlignet,transdate,kladde_id,refnr,valuta,valutakurs,udlign_id,udlign_date)";
 					$qtxt.=" values ";
 					$qtxt.="('$konto_id[0]','$kontonr[0]','$tmp','$bogf_besk','1','$alignDate','0','0','$basisvaluta','$vkurs','$udlign_id','$alignDate')";
-echo "$qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}	else {
 					$vkurs=$dkkdiff/0.001*100;
@@ -121,11 +154,9 @@ echo "$qtxt<br>";
 					$qtxt.="(konto_id,konto_nr,amount,beskrivelse,udlignet,transdate,kladde_id,refnr,valuta,valutakurs,udlign_id,udlign_date)";
 					$qtxt.=" values "; 
 					$qtxt.="('$konto_id[0]','$kontonr[0]','$tmp','$bogf_besk','1','$alignDate','0','0','$basisvaluta','$vkurs','$udlign_id','$alignDate')";
-echo "$qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			} elseif ($dkkdiff <= -0.01) {
-echo "DKDIF $dkkdiff<br>";
 				$dkkdiff=$dkkdiff*-1;
 				$qtxt="insert into transaktioner ";
 				$qtxt.="(kontonr, bilag,transdate,logdate,logtime,beskrivelse,kredit,kladde_id,afd,ansat,projekt)";
@@ -164,12 +195,32 @@ echo "DKDIF $dkkdiff<br>";
 		}
 	}
 	for ($x=0; $x<=$postantal; $x++) {
-		if ($udlign[$x]=='on') {
-			db_modify("UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='$alignDate' where id = $post_id[$x]",__FILE__ . " linje " . __LINE__);
+		if (isset($udlign[$x]) && $udlign[$x]=='on') {
+			$referenceUpdate = $x === 0 && !empty($insertInvoiceNumbers) ? ", faktnr='" . db_escape_string($faktnr[0]) . "'" : '';
+			$qtxt = "UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='$alignDate'";
+			$qtxt .= $referenceUpdate . " where id = " . (int)$post_id[$x];
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 	}
 	transaktion('commit');
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&layout=$layout\">";
+	// 20260921 CDX/MJ MB-57 When the udligning was opened from the debtor card, $retur is
+	//             ../debitor/debitorkort.php and carries no id, so redirecting to it rendered an
+	//             empty "new customer" card - the blank page MEDshop reported. The Tilbage button
+	//             at includes/udlign_openpost.php:282-300 already special-cases that; the success
+	//             redirect never did. Send those users to the kontokort report for the account
+	//             instead, and leave every other caller on today's target.
+	if (strpos((string) $retur, 'debitorkort.php') !== false) {
+		$maal  = "../debitor/rapport.php?rapportart=kontokort&layout=grid";
+		$maal .= "&konto_fra=" . urlencode($konto_fra) . "&konto_til=" . urlencode($konto_til);
+		$maal .= "&returside=" . urlencode($returside) . "&submit=ok";
+	} else {
+		// $retur is the target path, not a parameter - urlencoding it would escape the slashes.
+		$maal  = $retur . "?rapportart=accountChart";
+		$maal .= "&dato_fra=" . urlencode($dato_fra) . "&dato_til=" . urlencode($dato_til);
+		$maal .= "&konto_fra=" . urlencode($konto_fra) . "&konto_til=" . urlencode($konto_til);
+		$maal .= "&submit=ok&layout=" . urlencode($layout);
+	}
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$maal\">";
 
 ?>
 
