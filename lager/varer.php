@@ -64,6 +64,11 @@
 //             one branch used neither, so an item already covered by a pending purchase order got
 //             suggested for the full gap to max again. Extracted genbestil_nettobeholdning()/
 //             beregn_genbestil() and routed both branches through them.
+// 20260925 SZ MB-35 (CodeRabbit): find_varer_i_ordre()'s KO query only matched status 1/2, so an
+//             item whose only purchase activity was a status-0 draft proposal was skipped entirely
+//             and never reached find_beholdning() - i_forslag defaulted to 0 even though the
+//             proposal already covered the gap, and the item got suggested again. Matched the DO
+//             query above it (status < 3) so drafts are included the same way.
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
 // 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
@@ -1169,7 +1174,7 @@ function find_varer_i_ordre() { #tilfoejet 2008.01.28 for hastighedsoptimering a
 	}
 	#$x must not be set to 0 as array must grow. 20190312
 	$ordreliste=NULL;
-	$qtxt="select id from ordrer where (status = 1 or status = 2) and art = 'KO'";
+	$qtxt="select id from ordrer where status < 3 and art = 'KO'";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		if (!$ordreliste) $ordreliste="where ordre_id='".$r['id']."'";
