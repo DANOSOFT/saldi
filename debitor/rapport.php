@@ -47,6 +47,8 @@
 //                dispatching to openpost_export_csv() - online.php's page shell prints regardless of
 //                the async-shell logic further down, and openpost_export_csv() needs to send its own
 //                CSV headers with nothing else sent yet.
+// 20260923 CL/NTR Guard count($konto_id) against the field being absent from $_POST when the openpost
+//                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
 
 @session_start();
 $s_id = session_id();
@@ -332,7 +334,9 @@ if (isset($_POST['submit']) || $rapportart) {
 		$_POST['rykkerbelob'] = NULL;
 	if (($submit == "mail kontoudtog") || ($submit == "opret rykker") || ($submit == "ryk alle")) {
 		$kontoantal = $_POST['kontoantal'];
-		$konto_id = $_POST['konto_id'];
+		// konto_id is only posted when the report had at least one matching account; with none
+		// shown, the buttons still submit but the field is absent, so fall back to an empty array. 20260923 CL/NTR
+		$konto_id = if_array($_POST, 'konto_id');
 		$kontoudtog = $_POST['kontoudtog'];
 		$rykkerbelob = $_POST['rykkerbelob'];
 		$y = 0;

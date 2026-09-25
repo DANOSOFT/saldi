@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-09-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20220118 PHR - Added 'if ($db != $sqdb && $dbver > '4.0.4')'
@@ -59,6 +59,9 @@
 //                  posted from an ISO-8859-1 page is filtered instead of rejected, and the result is converted
 //                  back to the page charset so a non-UTF8 database still matches. Length check now uses the
 //                  shared is_input_too_long() from std_func.php.
+// 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
+// 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
+// 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -201,7 +204,7 @@ function sanitize_input($input, $allowed_length = 80) {
 		return false;
 	}
 
-	if (is_input_too_long($input, $allowed_length)) {
+	if (mb_strlen($input, 'UTF-8') > $allowed_length) {
 		return false;
 	}
 
@@ -342,7 +345,7 @@ if (isset($_POST['regnskab'])) {
 		exit();
 		}
 		if ($regnskab) $fejltxt="Regnskab $regnskab findes ikke";
-		login(htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset),$fejltxt);
+		login($regnskab,$brugernavn,$fejltxt);
  	}
 } else {
 	
@@ -741,6 +744,7 @@ if ($userId) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	if ($login=="cookie") {setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
 	include("../includes/online.php"); #20111105
+	if (!$regnskabsaar && $db != $sqdb) $regnskabsaar = if_isset($regnaar, '');
 
 	# ###################################################
 	#
@@ -856,7 +860,7 @@ if ($userId) {
 	# ###################################################
 	}
 	if ($post_max && $db!=$sqdb) {
-		$r=db_fetch_array(db_select("select box6 from grupper where art = 'RA' and kodenr = '$regnskabsaar'",__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select box6 from grupper where art = 'RA' and kodenr = '".(int)$regnskabsaar."'",__FILE__ . " linje " . __LINE__));
 		$post_antal=$r['box6']*1;
 #		if (($sqdb=="saldi" || $sqdb=="gratis" || $sqdb=="udvikling") && $post_max<=9000 && $post_max < $post_antal ) {
 			$diff=$post_antal-$post_max;

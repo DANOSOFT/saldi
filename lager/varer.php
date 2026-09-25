@@ -66,6 +66,9 @@
 //             beregn_genbestil() and routed both branches through them.
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
+// 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
+//                  even when it already carried a wildcard, so "123*" and "*123" both searched
+//                  "contains" and never narrowed the list the price-tag print is built from.
 
 @session_start();
 $s_id=session_id();
@@ -604,34 +607,22 @@ if (!$makeSuggestion && !$csv) {
 }
 #$udvalg="";
 if ($varenummer) {
-/* 	if (strstr($varenummer, "*")) {
-		if (substr($varenummer,0,1)=='*'){
-			$varenummer="%".substr($varenummer,1);
-#			$v_startstjerne=1;
-		}
-		if (substr($varenummer,-1,1)=='*') {
-			$varenummer=substr($varenummer,0,strlen($varenummer)-1)."%";
-#			$v_slutstjerne=1;
-		}
-	$v_strlen=strlen($varenummer);
-#	$udvalg=$udvalg." and varenr LIKE '$varenummer'";
-#	else $udvalg=$udvalg." and (varenr ~ '$varenummer' or stregkode ~ '$varenummer')"; 
-	} else { # 20180112
-		$qtxt="select vare_id from variant_varer where upper(variant_stregkode)='".strtoupper($varenummer)."'";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$qtxt="select varenr from varer where id='$r[vare_id]'";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $varenummer=$r['varenr']; 
-		}
-	} */
+	// 20260921 CDX/MJ MB-54 Only wrap the term in %..% when the user supplied no *. Wrapping it
+	//             unconditionally cancelled the wildcard - "123*" became LIKE '%123%%' and "*123"
+	//             became LIKE '%%123%', so both behaved as "contains" and the list was never
+	//             narrowed. With a * present the converted term is used as it stands, which is what
+	//             the header line from 2015.03.03 describes and what the code removed in 656b85ee
+	//             did. A term without * still matches anywhere, unchanged.
+	$harJokertegn = strpos($varenummer, '*') !== false;
 	$searchTerm = str_replace("*", "%", $varenummer); // Replace wildcards
 	$searchTerm = db_escape_string($searchTerm); // Escape special chars
 	$lowTerm = strtolower($searchTerm);
-	$uppTerm = strtoupper($searchTerm);
+	$likeTerm = $harJokertegn ? $lowTerm : "%$lowTerm%";
 
 	$udvalg .= " and (
-		LOWER(varenr) LIKE '%$lowTerm%' or 
+		LOWER(varenr) LIKE '$likeTerm' or
 		stregkode = '$searchTerm'
-		or LOWER(varenr_alias) LIKE '%$lowTerm%'";
+		or LOWER(varenr_alias) LIKE '$likeTerm'";
 
 	// Only search description and trademark if no wildcards used
 	if (!strstr($searchTerm, '%')) {
@@ -819,6 +810,21 @@ while ($r = db_fetch_array($q)) {
 	$vatPrice[$v]=$salgspris[$v];
 	$v++;
 }
+// 20260921 CDX/MJ SST-801 The render loop below looked up lagerstatus once per item, plus once per
+//             warehouse per item. Searching sets $slut=999999 further up, which turns pagination
+//             off, so that ran for every matching row rather than the fifty on screen - measured at
+//             7,3 ms per item on a dev tenant loaded to Dyre-Loppen's volume, about 300 s for their
+//             41.381 varer. Both lookups are read-only and keyed by vare_id, so they are built once
+//             here instead. Behaviour is unchanged: same rows, same numbers, same page contents.
+$lagerSum = array();
+$lagerRow = array();
+if ($lagerantal > 1 && !$makeSuggestion && !$vis_lev) {
+	$q2 = db_select("select vare_id, sum(beholdning) as lagersum from lagerstatus group by vare_id",__FILE__ . " linje " . __LINE__);
+	while ($r2 = db_fetch_array($q2)) $lagerSum[$r2['vare_id']] = $r2['lagersum'];
+	$q2 = db_select("select vare_id, lager, id, lok1, beholdning from lagerstatus",__FILE__ . " linje " . __LINE__);
+	while ($r2 = db_fetch_array($q2)) $lagerRow[$r2['vare_id']][$r2['lager']] = $r2;
+}
+
 if(isset($varenr)){// 20230414
 for ($v=0;$v<count($varenr);$v++) {
 	$z++;	# $z bruges som taeller til at kontrollere hvor mange linjer der indgaar i listen.
@@ -869,11 +875,10 @@ for ($v=0;$v<count($varenr);$v++) {
 			}
 			if (!$vis_lev){
 				if ($lagerantal>1 && !$makeSuggestion) {
-					$r2=db_fetch_array(db_select("select sum(beholdning) as lagersum from lagerstatus where vare_id = $id[$v]",__FILE__ . " linje " . __LINE__));
-					$diff=$beholdning[$v]-$r2['lagersum'];
+					// SST-801 read from the totals built before this loop, not a query per item
+					$diff=$beholdning[$v]-(isset($lagerSum[$id[$v]])?$lagerSum[$id[$v]]:0);
 					for ($x=1;$x<=$lagerantal; $x++) {
-						$qtxt = "select id, lager,lok1,beholdning from lagerstatus where vare_id = '$id[$v]' and lager = '$x'";
-						if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+						if ($r2=(isset($lagerRow[$id[$v]][$x])?$lagerRow[$id[$v]][$x]:false)) {
 							$y = (float)$r2['beholdning'];
 							$lok=trim(utf8_decode($r2['lok1']));
 						} else {
