@@ -69,7 +69,8 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
-// 20260925 CL/LH SST-823: End every PostScript page with showpage when the EPS logo is missing or has none (SD-490 root cause).
+// 20260925 CL/LH SST-823: Embed the EPS logo per the EPSF spec (own state, its showpage disabled) and end every PostScript
+//             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -2304,13 +2305,16 @@ if (!function_exists('formularprint')) {
 				if ($formgen == 'html') {
 					rename($mappe . "/" . $pfliste[$x] . ".htm", $mappe . "/" . $pfliste[$x] . "_1.htm");
 					$i = 1;
+					$sidepdf = array();
 					while (file_exists($mappe . "/" . $pfliste[$x] . "_" . $i . ".htm")) {
 						$indfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".htm";
 						$udfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".pdf";
 						system("weasyprint -e UTF-8 $indfil $udfil");
+						$sidepdf[] = escapeshellarg($udfil);
 						$i++;
 					}
-					system("$pdftk " . $mappe . "/" . $pfliste[$x] . "_*.pdf output $mappe/$pfliste[$x].pdf");
+					// Merge in page order; the shell glob _*.pdf put _10.pdf before _2.pdf
+					system("$pdftk " . implode(' ', $sidepdf) . " output $mappe/$pfliste[$x].pdf");
 					if (file_exists($mappe . "/" . $pfliste[$x] . "_*.htm"))
 						unlink($mappe . "/" . $pfliste[$x] . "_*.htm");
 					#				unlink ($mappe."/".$pfliste[$x]."_*.pdf");
@@ -2470,14 +2474,15 @@ if (!function_exists('bundtekst')) {
 		$side = $side + 1;
 
 
-		// An EPS logo only ends the page when the file carries its own showpage (the stock logo.eps did).
-		// A missing logo or one without showpage lost pages 2..N in PostScript prints (SD-490).
-		if ($logoart == 'EPS') {
+		// Embed the EPS logo as the EPSF spec prescribes: in its own saved state with its showpage disabled,
+		// so exactly one showpage below ends every page. Relying on the logo's own showpage lost pages 2..N
+		// when logo.eps was missing or had none (SD-490).
+		if ($logoart == 'EPS' && $logo !== '') {
+			fwrite($psfp, "\n/b4_Inc_state save def\n/dict_count countdictstack def\n/op_count count 1 sub def\nuserdict begin\n/showpage { } def\n");
 			fwrite($psfp, $logo);
+			fwrite($psfp, "\ncount op_count sub {pop} repeat\ncountdictstack dict_count sub {end} repeat\nb4_Inc_state restore\n");
 		}
-		if ($logoart != 'EPS' || strpos($logo, 'showpage') === false) {
-			fwrite($psfp, "showpage\n");
-		}
+		fwrite($psfp, "showpage\n");
 		fwrite($htmfp, "</body>\n</html>\n");
 		#fclose($htmfp);
 		#$htmfp=fopen($mappe."/".$printfilnavn."_$side.htm","w");
