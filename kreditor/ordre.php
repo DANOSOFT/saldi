@@ -70,6 +70,18 @@
 // 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup navigates here by GET, see accountLookup.php selectAccount) into the new order header. 
 //                 usdate('') returns today, so only convert values that were actually supplied.
 // 20260908 CDX/LH Lock creditor order status before saving, deleting or adding lines.
+// 20260908 SZ SST-755: Luk links and the unload beacon now carry the row's tidspkt, so
+//                 includes/luk.php / unlock_order.php can confirm this tab still holds
+//                 the lock before releasing it.
+// 20260910 SZ SST-755 (CodeRabbit): the unload beacon now checks sendBeacon()'s return
+//                 value before treating the lock as released, falling back to the sync
+//                 XHR when it fails (same fix as finans/ordre.php and kassekladde.php).
+// 20260923 SZ SST-755 (CodeRabbit): Luk links and the unload beacon now carry a per-render
+//                 lockToken instead of tidspkt, since tidspkt alone didn't distinguish two
+//                 tabs open on the same order before either one saved.
+// 20260924 SZ SST-755 (CodeRabbit): both refresh_lock_token() calls now also pass the
+//                 observed tidspkt, so a stale render can't overwrite a token a concurrent
+//                 tidspkt change has since replaced.
 
 @session_start();
 $s_id=session_id();
@@ -108,6 +120,10 @@ $valg=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
+// 20260923 SZ SST-755 (CodeRabbit): one random per-render token, reused by both sidehoved()'s
+// exit link and the unload beacon further down (see refresh_lock_token() in unlockRecord.php).
+$sessionLockToken = bin2hex(random_bytes(16));
 
 $returside = if_isset($_GET,NULL,'returside');
 ########
@@ -1665,14 +1681,32 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 ######################################################################################################################################
 function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $bgcolor2;
+	global $brugernavn;
 	global $color;
 	global $menu;
 	global $sprog_id;
 	global $top_bund;
 	global $valg;
+	global $sessionLockToken;
 
 	$title= 'Leverandør ordre';
 	$alerttekst=findtekst(154,$sprog_id);
+
+	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
+	// includes/luk.php can confirm this tab still holds the lock before releasing it.
+	// 20260923 SZ SST-755 (CodeRabbit): now appends &lockToken instead - $sessionLockToken is
+	// one random value per render, reused for the unload beacon too, so a second tab on the
+	// same order that hasn't saved anything yet (and so still shares this tab's tidspkt) no
+	// longer shares a valid release credential.
+	$sidehovedLockToken = NULL;
+	if ($id) {
+		$sidehovedLockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) {
+			$sidehovedLockToken = $sessionLockToken;
+			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sidehovedLockToken, $sidehovedLockRow['tidspkt']);
+		}
+	}
+	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) . "&tidspkt=" . urlencode($sidehovedLockRow['tidspkt']) : "";
 
 	include("../includes/topline_settings.php");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -1685,7 +1719,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 				accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i>
 				&nbsp;".findtekst(30,$sprog_id)."</a></div>";
 		else print "<div class=\"headerbtnLft headLink\"><a
-				href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\"
+				href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\"
 				accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i>
 				&nbsp;".findtekst(30,$sprog_id)."</a></div>";
 		print "<div class=\"headerTxt\">$title</div>";
@@ -1723,7 +1757,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 			print "<td width=10%><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
 			       <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
 		} else {
-			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst') accesskey=L>
+			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst') accesskey=L>
 				   <button type='button' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" onclick=\"loacation.href('ordreliste.php')\">".findtekst(30, $sprog_id)."</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
@@ -1764,7 +1798,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 		#	if ($returside != "ordre.php") {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		#	else {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		if ($kort) print "<td width=\"10%\" $top_bund> $color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
-		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
+		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
 		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
 		else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
@@ -1861,6 +1895,23 @@ if ($menu=='T') {
 }
 </style>
 
+<?php
+// 20260908 SZ SST-755: added table+tidspkt (required by the now-generalized, whitelisted
+// unlock_order.php) - re-read fresh here rather than trusting an earlier-computed value, since
+// $id can be reassigned by insertAccount() etc. earlier in this same render.
+// 20260923 SZ SST-755 (CodeRabbit): beacon now sends lockToken instead of tidspkt, reusing the
+// same $sessionLockToken minted at the top of this file (and re-stamping it here too, in case
+// $id changed since then) - see sidehoved()'s exit link earlier in this file for why.
+$beaconLockToken = NULL;
+if ($id) {
+	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
+		$beaconLockToken = $sessionLockToken;
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken, $beaconRow['tidspkt']);
+	}
+}
+if ($beaconLockToken) {
+?>
 <script>
 let isSubmitting = false;
 document.addEventListener("DOMContentLoaded", function () {
@@ -1873,20 +1924,26 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 function unlockOrderBeacon(evtName) {
     if (!isSubmitting && !window.orderUnlocked) {
-        window.orderUnlocked = true;
         let data = new URLSearchParams();
-        data.append("id", "<?php echo (int)$id; ?>"); 
+        data.append("table", "ordrer");
+        data.append("id", "<?php echo (int)$id; ?>");
+        data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconRow['tidspkt'], ENT_QUOTES); ?>");
         data.append("event", evtName);
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon("../includes/unlock_order.php", data);
-        } else {
+        // sendBeacon() can return false (queue full/rejected) without sending anything - only
+        // treat the lock as released, and skip the sync XHR fallback, once one of the two has
+        // actually gone out (CodeRabbit).
+        let queued = navigator.sendBeacon && navigator.sendBeacon("../includes/unlock_order.php", data);
+        if (!queued) {
             let xhr = new XMLHttpRequest();
             xhr.open('POST', '../includes/unlock_order.php', false);
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             xhr.send(data.toString());
         }
+        window.orderUnlocked = true;
     }
 }
 window.addEventListener("beforeunload", function() { unlockOrderBeacon('beforeunload'); });
 window.addEventListener("pagehide", function() { unlockOrderBeacon('pagehide'); });
 </script>
+<?php } ?>
