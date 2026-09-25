@@ -8,6 +8,11 @@
 // 20260817 Sawaneh Sort descending columns NULLS LAST so rows without a date no longer
 //                  displace the newest rows, and validate the request-sourced sort value.
 // 20260911 CDX/LH SD-186 Escape search ordering with the DB driver; pass raw terms to search callbacks.
+// 20260911 LOE SD-686: grid filter defaults declared with "checked" are honoured.
+// 20260916 LOE SD-685: escape tabel_id in the column/filter setup UPDATEs (review follow-up).
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
+// 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -435,8 +440,20 @@ function create_datagrid($id, $grid_data) {
     log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
     
     $setup_processing_start = microtime(true);
+    $stored_column_setup = $columns_setup;
     $columns_setup = json_decode($columns_setup, true);
-    $columns_updated = fill_missing_values($columns_setup, $columns);
+    if (!is_array($columns_setup)) {
+        $columns_setup = array();
+    }
+    // SD-685: the code's columns define which columns exist and what they are called;
+    // the stored row contributes the user's preferences only (matched on 'field').
+    $columns_updated = merge_column_setup($columns_setup, $columns);
+    // SD-685 review: a setup saved before the rows carried a 'visible' flag is normalised here,
+    // once, where both the stored rows and the code's columns are known. No manual save, and the
+    // next load sees a current setup; absent code columns are stored as removed so they stay out.
+    if (grid_setup_is_legacy($columns_setup)) {
+        save_normalized_column_setup($id, $columns_setup, $columns, $stored_column_setup);
+    }
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
@@ -511,6 +528,9 @@ function create_datagrid($id, $grid_data) {
 
     // Process filters
     $filters_setup = json_decode($filter_setup, true);
+    if (!is_array($filters_setup)) {
+        $filters_setup = array();
+    }
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
@@ -595,11 +615,20 @@ function create_datagrid($id, $grid_data) {
             );
             $columns_setup = json_decode($columns_setup, true);
             $filters_setup = json_decode($filter_setup, true);
+            if (!is_array($columns_setup)) {
+                $columns_setup = array();
+            }
+            if (!is_array($filters_setup)) {
+                $filters_setup = array();
+            }
             $filters_updated = updateCheckedValues($filters, $filters_setup);
+            // SD-685: the editor has to show what was just saved, so re-merge the
+            // refetched setup instead of the one merged before save_column_setup().
+            $columns_updated = merge_column_setup($columns_setup, $columns);
         }
 
         // Render column setup interface
-        render_column_setup($id, $columns_setup, $columns);
+        render_column_setup($id, $columns_updated, $columns, grid_setup_added_since_setup($columns_setup));
         render_column_edit_style();
         render_move_script();
 
@@ -616,6 +645,12 @@ function create_datagrid($id, $grid_data) {
             );
             $columns_setup = json_decode($columns_setup, true);
             $filters_setup = json_decode($filter_setup, true);
+            if (!is_array($columns_setup)) {
+                $columns_setup = array();
+            }
+            if (!is_array($filters_setup)) {
+                $filters_setup = array();
+            }
             $filters_updated = updateCheckedValues($filters, $filters_setup);
         }
 
@@ -673,8 +708,14 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
             function ($column) {
                 return [
                     'field' => if_isset($column['field'], null),
-                    'headerName' => if_isset($column['headerName'], null),
-                    'description' => if_isset($column['description'], null),
+                    // SD-685 review: a setup written now is current from the start. It carries the
+                    // per-row 'visible' flag, so grid_setup_is_legacy() never sees it as a snapshot
+                    // and the first load does not normalise (or write) anything for a new user. The
+                    // code's own headerName/description are deliberately not stored: they follow the
+                    // session language through the code instead of freezing the language this row
+                    // happened to be created in. A rename is stored as customHeaderName when the
+                    // user sets one.
+                    'visible' => true,
                     'width' => if_isset($column['width'], null),
                     'align' => if_isset($column['align'], null),
                 ];
@@ -684,7 +725,11 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
         // Encode configurations as JSON for storage
         $columns_json = db_escape_string(json_encode($columns_save));
-        $filters_json = db_escape_string(json_encode($filters));
+        // SD-686: a fresh grid row starts with an empty *selection* map. Filter
+        // defaults belong to the page's $filters definition and are applied by
+        // updateCheckedValues(); storing the definitions here left the declared
+        // defaults unreadable on the first page view.
+        $filters_json = '{}';
         $search_json  = db_escape_string(json_encode($search_setup));
 
         // Insert the new grid setup into the database
@@ -704,39 +749,234 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
 
 /**
- * Fills missing values in the first array using values from the second array based on matching 'field' values.
+ * SD-685: merges the code's column definitions with the user's stored column setup.
  *
- * This function iterates over each item in the first array and looks for a matching 'field' in the second array.
- * When a match is found, it fills in any missing or empty values in the first array item with the corresponding values
- * from the second array item.
+ * The code defines which columns exist and what they are called, so a translated
+ * headerName/description or a newly added column reaches every user. The stored row
+ * only contributes the user's preferences, matched on the language-independent
+ * 'field': row order, width, align, visibility, and the optional user texts
+ * ("Valgfri overskrift"/"Valgfri beskrivelse") which override the code's text when set.
  *
- * @param array $firstArray The first array containing items that may have missing values.
- * @param array $secondArray The second array providing default values for missing fields.
- * @return array The first array with missing values filled from the second array.
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @param array $codeColumns All code-defined columns, including code-hidden ones.
+ * @return array The columns to render, in the user's order.
  */
-function fill_missing_values($firstArray, $secondArray) {
-    $columnsByField = array();
-    foreach ($secondArray as $secondItem) {
-        if (isset($secondItem['field'])) {
-            $columnsByField[$secondItem['field']] = $secondItem;
+/**
+ * SD-685 review: every text the code itself can display for one column, so a
+ * stored legacy header can be told apart from a personal rename without knowing
+ * which language the row was saved in.
+ *
+ * A column that declares headerText (the raw "tekst_id|default" its header was
+ * resolved from) contributes every stored translation of that tekst_id plus the
+ * default after the pipe; a literal header column has exactly one form.
+ *
+ * @param array $column A code column definition, optionally carrying headerText.
+ * @return array<int,string> The texts the code can produce for this column.
+ */
+function grid_known_header_texts($column) {
+    static $cache = array();
+
+    $known = array($column['headerName']);
+    // Callers that already hold the texts (and tests) can pass the set straight in.
+    if (isset($column['headerTexts']) && is_array($column['headerTexts'])) {
+        return array_values(array_unique(array_merge($known, $column['headerTexts'])));
+    }
+    if (empty($column['headerText'])) return $known;
+
+    $parts = explode('|', $column['headerText'], 2);
+    if (isset($parts[1]) && $parts[1] !== '') $known[] = $parts[1];
+    if (!preg_match('/^[0-9]+$/', $parts[0])) return array_values(array_unique($known));
+
+    $tekstId = (int) $parts[0];
+    if (!isset($cache[$tekstId])) {
+        $texts = array();
+        if (function_exists('db_select') && function_exists('db_fetch_array')) {
+            $q = db_select("select tekst from tekster where tekst_id = '$tekstId'", __FILE__ . " line " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                if (isset($r['tekst']) && $r['tekst'] !== '') $texts[] = $r['tekst'];
+            }
         }
+        $cache[$tekstId] = $texts;
     }
 
+    return array_values(array_unique(array_merge($known, $cache[$tekstId])));
+}
+/**
+ * SD-685 review: does this stored setup predate the per-row 'visible' flag?
+ *
+ * The column editor used to record a removal by dropping the row, so in a setup without the
+ * flag an absent code column was removed by the user rather than added to the code since.
+ * merge_column_setup() keeps those columns out; the first save writes the flags, after which
+ * code columns added later surface again.
+ *
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @return bool True when the setup has rows and none of them carries a 'visible' flag.
+ */
+function grid_setup_is_legacy(array $setup) {
+    if (empty($setup)) return false;
+    foreach ($setup as $row) {
+        if (is_array($row) && array_key_exists('visible', $row)) return false;
+    }
+    return true;
+}
+
+/**
+ * SD-685 review: the rows the normalisation invented for a legacy setup - the code has the
+ * column, the setup did not. They stay hidden, but the column editor lists them so the absence
+ * is visible and a position brings the column back. A column the user removed on purpose is not
+ * in this list: its absence was their own choice.
+ *
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @return array The rows added by the normalisation, in stored order.
+ */
+function grid_setup_added_since_setup(array $setup) {
+    $rows = array();
+    foreach ($setup as $row) {
+        if (is_array($row) && !empty($row['addedSinceSetup']) && empty($row['visible'])) {
+            $rows[] = $row;
+        }
+    }
+    return $rows;
+}
+
+/**
+ * SD-685 review: the rows to store for a setup saved before the 'visible' flag existed.
+ *
+ * The user's own rows are kept exactly as they are and marked visible; every code column they do
+ * not have is recorded as removed, because an absent row is what the old editor left behind when
+ * the user deleted the column. Stored once, so merge_column_setup() no longer has to guess and
+ * code columns added after this point still reach the user.
+ *
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @param array $codeColumns All code-defined columns, including code-hidden ones.
+ * @return array The rows to store.
+ */
+function normalize_legacy_column_setup(array $setup, array $codeColumns) {
+    $known = array();
+    $rows = array();
+    foreach ($setup as $row) {
+        if (!is_array($row) || empty($row['field'])) continue;
+        if (!array_key_exists('visible', $row)) $row['visible'] = true;
+        $rows[] = $row;
+        $known[$row['field']] = true;
+    }
+    foreach ($codeColumns as $column) {
+        $field = isset($column['field']) ? $column['field'] : null;
+        if ($field === null || isset($known[$field]) || !empty($column['hidden'])) continue;
+        $rows[] = array(
+            'field'   => $field,
+            'visible' => false,
+            // Provenance: the code has this column, the setup did not - which is not the same as
+            // the user having removed it. Recorded so the guess stays reversible instead of being
+            // turned into a preference, and so a column editor can present the column as hidden
+            // rather than leaving its absence invisible.
+            'addedSinceSetup' => true,
+            'width'   => isset($column['width']) ? $column['width'] : 1,
+            'align'   => isset($column['align']) ? $column['align'] : 'left',
+        );
+        $known[$field] = true;
+    }
+    return $rows;
+}
+
+/**
+ * SD-685 review: store those rows once, so the guess merge_column_setup() makes for a legacy setup
+ * is over and only the user's own rows are left to interpret.
+ *
+ * @param string $id The grid id (datatables.tabel_id).
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @param array $codeColumns All code-defined columns, including code-hidden ones.
+ * @param string|null $stored The stored value this setup was decoded from, for the compare-and-set.
+ * @return void
+ */
+function save_normalized_column_setup($id, array $setup, array $codeColumns, $stored = null) {
+    global $bruger_id;
+    $user_id = (int)$bruger_id;
+    if (!$user_id) return;
+    $tabel_id = db_escape_string($id);
+    $json = db_escape_string(json_encode(normalize_legacy_column_setup($setup, $codeColumns)));
+    $qtxt = "UPDATE datatables SET column_setup = '$json' WHERE user_id = $user_id AND tabel_id = '$tabel_id'";
+    // Only replace the row we actually read: a save from another tab between the read and this
+    // write must win, and the setup stays legacy for the next load to normalise instead.
+    if ($stored !== null) $qtxt .= " AND column_setup = '" . db_escape_string($stored) . "'";
+    db_modify($qtxt, __FILE__ . " line " . __LINE__);
+}
+
+function merge_column_setup(array $setup, array $codeColumns, $honourRemovedColumns = true) {
+    $prefs = array();
+    $order = array();
+    foreach (array_values($setup) as $index => $row) {
+        if (empty($row['field']) || isset($prefs[$row['field']])) {
+            continue;
+        }
+        $prefs[$row['field']] = $row;
+        $order[$row['field']] = $index;
+    }
+
+    // SD-685 review: see grid_setup_is_legacy() - in a setup saved before the flags existed an
+    // absent code column was removed by the user, so it stays out until the setup is saved once.
+    $legacySetup = grid_setup_is_legacy($setup);
+
     $merged = array();
-    foreach ($firstArray as $firstItem) {
-        if (!isset($firstItem['field']) || !isset($columnsByField[$firstItem['field']])) {
+    foreach (array_values($codeColumns) as $index => $column) {
+        $field = isset($column['field']) ? $column['field'] : null;
+        $saved = isset($prefs[$field]) ? $prefs[$field] : array();
+        $surfaced = isset($prefs[$field]);
+
+        // A code-hidden column stays out unless this user has it in their setup.
+        if (!empty($column['hidden']) && !$surfaced) {
+            continue;
+        }
+        // A stored column the user removed stays hidden.
+        if (isset($saved['visible']) && $saved['visible'] === false) {
+            continue;
+        }
+        if ($honourRemovedColumns && $legacySetup && !$surfaced) {
             continue;
         }
 
-        $mergedItem = $columnsByField[$firstItem['field']];
-        foreach (array('headerName', 'description', 'width', 'align', 'hidden') as $key) {
-            if (isset($firstItem[$key]) && $firstItem[$key] !== "") {
-                $mergedItem[$key] = $firstItem[$key];
+        // SD-685 review: rows saved before customHeaderName stored the code's own text
+        // (the editor pre-filled it), so a legacy headerName is only kept as a personal
+        // rename when the code could not have produced it in any language.
+        $customHeaderName = isset($saved['customHeaderName']) ? $saved['customHeaderName'] : '';
+        // Kept unless the code provably produces it: dropping a value the code cannot
+        // produce would destroy a rename saved before customHeaderName existed.
+        if ($customHeaderName === '' && isset($saved['headerName']) && $saved['headerName'] !== ''
+                && !in_array($saved['headerName'], grid_known_header_texts($column), true)) {
+            $customHeaderName = $saved['headerName'];
+        }
+        $column['customHeaderName']  = $customHeaderName;
+        $column['customDescription'] = isset($saved['customDescription']) ? $saved['customDescription'] : '';
+        if ($column['customHeaderName'] !== '') {
+            $column['headerName'] = $column['customHeaderName'];
+        }
+        if ($column['customDescription'] !== '') {
+            $column['description'] = $column['customDescription'];
+        }
+        foreach (array('width', 'align') as $pref) {
+            if (isset($saved[$pref]) && $saved[$pref] !== '') {
+                $column[$pref] = $saved[$pref];
             }
         }
+        if ($surfaced) {
+            $column['hidden'] = false;
+        }
 
-        $merged[] = $mergedItem;
+        $column['_order'] = $surfaced ? $order[$field] : PHP_INT_MAX;
+        $column['_code']  = $index;
+        $merged[] = $column;
     }
+
+    usort($merged, function ($a, $b) {
+        if ($a['_order'] === $b['_order']) {
+            return $a['_code'] - $b['_code'];
+        }
+        return ($a['_order'] < $b['_order']) ? -1 : 1;
+    });
+    foreach ($merged as &$column) {
+        unset($column['_order'], $column['_code']);
+    }
+    unset($column);
 
     return $merged;
 }
@@ -752,16 +992,31 @@ function fill_missing_values($firstArray, $secondArray) {
  * @return array The updated first array with the 'checked' values for options updated.
  */
 function updateCheckedValues(array $firstArray, array $secondArray) {
+    // SD-686: only a saved *selection* map may override a filter option's declared
+    // default. Where nothing (or only a legacy definition list) has been saved, the
+    // declared value stays in force instead of being forced back to ''.
+    // SD-685: a filter group/option may declare a language-independent
+    // filterKey/optionKey. The stored selection is looked up by that key, with the
+    // display text as fallback so rows saved before keys existed keep working.
     foreach ($firstArray as &$filter) {
-        $filterName = $filter['filterName'];
-        if (isset($secondArray[$filterName])) {
-            $updatesForFilter = $secondArray[$filterName];
-            foreach ($filter['options'] as &$option) {
-                $option['checked'] = isset($updatesForFilter[$option['name']]) ? $updatesForFilter[$option['name']] : '';
+        $groupKeys = array(isset($filter['filterKey']) ? $filter['filterKey'] : $filter['filterName'], $filter['filterName']);
+        $updatesForFilter = array();
+        foreach ($groupKeys as $groupKey) {
+            if (isset($secondArray[$groupKey]) && is_array($secondArray[$groupKey])) {
+                $updatesForFilter = $secondArray[$groupKey];
+                break;
             }
-        } else {
-            foreach ($filter['options'] as &$option) {
+        }
+        foreach ($filter['options'] as &$option) {
+            if (!isset($option['checked'])) {
                 $option['checked'] = '';
+            }
+            $optionKeys = array(isset($option['optionKey']) ? $option['optionKey'] : $option['name'], $option['name']);
+            foreach ($optionKeys as $optionKey) {
+                if (isset($updatesForFilter[$optionKey])) {
+                    $option['checked'] = $updatesForFilter[$optionKey];
+                    break;
+                }
             }
         }
     }
@@ -1489,10 +1744,12 @@ function render_table_row($columns, $row, $searchTerms) {
  * @param string $id          The unique identifier for the table.
  * @param array  $columns     An array of currently selected columns for the table.
  * @param array  $all_columns An array of all available columns that can be displayed.
+ * @param array  $hidden_columns Columns the SD-685 normalisation hid, listed so the user can see
+ *                              them and switch them on.
  * 
  * @return void Outputs the HTML structure directly.
  */
-function render_column_setup($id, $columns, $all_columns) {
+function render_column_setup($id, $columns, $all_columns, $hidden_columns = array()) {
 
     global $sprog_id;
     $txt1 = findtekst('2761|Vælg hvilke felter der skal være synlige i tabellen', $sprog_id);
@@ -1523,7 +1780,7 @@ function render_column_setup($id, $columns, $all_columns) {
 HTML;
 
     // Render table headers and input fields for column setup
-    render_columns($id, $columns, $all_columns);
+    render_columns($id, $columns, $all_columns, $hidden_columns);
 
     echo <<<HTML
             <tr>
@@ -1601,7 +1858,18 @@ function render_table_row($columns, $row, $searchTerms) {
  *
  * @return void Outputs the HTML for the column setup form, including the configuration table and buttons for saving and closing.
  */
-function render_columns($id, $columns, $all_columns) {
+/**
+ * Renders the rows of the column setup form.
+ *
+ * @param string $id             The unique identifier for the table.
+ * @param array  $columns        The columns to render as rows, in the user's order.
+ * @param array  $all_columns    All code-defined columns, used for the field and text options.
+ * @param array  $hidden_columns Columns the SD-685 normalisation hid, rendered with Pos '-' so the
+ *                               user can see them and give one a position to switch it on.
+ *
+ * @return void Outputs the HTML rows directly.
+ */
+function render_columns($id, $columns, $all_columns, $hidden_columns = array()) {
     // Create all column options as a select
     $selectOptions = "";
     foreach ($all_columns as $column) {
@@ -1613,6 +1881,19 @@ function render_columns($id, $columns, $all_columns) {
         $i++;
         $width = $column['width'] * 100;
         $widthstyle = $column['width'] * 15;
+        // SD-685: the input holds the user's own text; the code's (translated) text is
+        // shown as a placeholder, so an empty field means "use the translation".
+        $codeHeader = '';
+        $codeDescription = '';
+        foreach ($all_columns as $allColumn) {
+            $allField = isset($allColumn['field']) ? $allColumn['field'] : null;
+            $columnField = isset($column['field']) ? $column['field'] : null;
+            if ($allField === $columnField) {
+                $codeHeader = isset($allColumn['headerName']) ? $allColumn['headerName'] : '';
+                $codeDescription = isset($allColumn['description']) ? $allColumn['description'] : '';
+                break;
+            }
+        }
         echo <<<HTML
             <tr>
                 <td>
@@ -1639,10 +1920,10 @@ function render_columns($id, $columns, $all_columns) {
                     </select>
                 </td>
                 <td>
-                    <input type='text' name='rows[$id][$i][headerName]' value='{$column['headerName']}' class="inputbox">
+                    <input type='text' name='rows[$id][$i][customHeaderName]' value='{$column['customHeaderName']}' placeholder='{$codeHeader}' class="inputbox">
                 </td>
                 <td>
-                    <input type='text' name='rows[$id][$i][description]' value='{$column['description']}' class="inputbox">
+                    <input type='text' name='rows[$id][$i][customDescription]' value='{$column['customDescription']}' placeholder='{$codeDescription}' class="inputbox">
                 </td>
                 <td align='right'>
                     <input type='number' name='rows[$id][$i][width]' value='{$width}' size='{$widthstyle}' class="inputbox" onchange="this.size = this.value*0.15;">
@@ -1660,6 +1941,66 @@ function render_columns($id, $columns, $all_columns) {
 HTML;
     }
     
+    // SD-685 review: a column the normalisation hid because the setup predates it. Pos '-' keeps
+    // it hidden on save, and giving it a number switches it on; the marker is posted so the row
+    // stays identifiable as "added since the setup" until the user makes it their own.
+    foreach ($hidden_columns as $hidden) {
+        $hiddenField = isset($hidden['field']) ? (string)$hidden['field'] : '';
+        if ($hiddenField === '') continue;
+        $i++;
+        // A stored row round-trips through this form, so nothing taken from it is trusted for
+        // output: the field and the alignment are escaped and the width is cast to a number.
+        $hiddenFieldHtml = htmlspecialchars($hiddenField, ENT_QUOTES, 'UTF-8');
+        $hiddenWidth = isset($hidden['width']) ? (float)$hidden['width'] : 1;
+        $width = (int)round($hiddenWidth * 100);
+        $widthstyle = (int)max(1, round($hiddenWidth * 15));
+        $hiddenAlign = isset($hidden['align']) ? (string)$hidden['align'] : 'left';
+        $hiddenAlignHtml = htmlspecialchars($hiddenAlign, ENT_QUOTES, 'UTF-8');
+        $codeHeader = '';
+        $codeDescription = '';
+        foreach ($all_columns as $allColumn) {
+            if (isset($allColumn['field']) && $allColumn['field'] === $hiddenField) {
+                $codeHeader = isset($allColumn['headerName']) ? (string)$allColumn['headerName'] : '';
+                $codeDescription = isset($allColumn['description']) ? (string)$allColumn['description'] : '';
+                break;
+            }
+        }
+        $codeHeaderHtml = htmlspecialchars($codeHeader, ENT_QUOTES, 'UTF-8');
+        $codeDescriptionHtml = htmlspecialchars($codeDescription, ENT_QUOTES, 'UTF-8');
+        echo <<<HTML
+            <tr>
+                <td>
+                    <input type='text' name='rows[$id][$i][pos]' value='-' class="inputbox" size='4'>
+                    <input type='hidden' name='rows[$id][$i][addedSinceSetup]' value='1'>
+                </td>
+                <td>
+                    <select name='rows[$id][$i][field]' class="inputbox">
+                        <option value='{$hiddenFieldHtml}'>{$hiddenFieldHtml}</option>
+                        {$selectOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type='text' name='rows[$id][$i][customHeaderName]' class="inputbox" placeholder='{$codeHeaderHtml}'>
+                </td>
+                <td>
+                    <input type='text' name='rows[$id][$i][customDescription]' class="inputbox" placeholder='{$codeDescriptionHtml}'>
+                </td>
+                <td align='right'>
+                    <input type='number' name='rows[$id][$i][width]' value='{$width}' size='{$widthstyle}' class="inputbox">
+                </td>
+                <td align='left'>
+                    <select name='rows[$id][$i][align]' class="inputbox">
+                        <option value='{$hiddenAlignHtml}'>{$hiddenAlignHtml}</option>
+                        <option value='left'>left</option>
+                        <option value='center'>center</option>
+                        <option value='right'>right</option>
+                    </select>
+                </td>
+                <td style="width: 100%;"></td>
+            </tr>
+HTML;
+    }
+
     // Newline for new items
     $i++;
     echo <<<HTML
@@ -1670,14 +2011,15 @@ HTML;
         </td>
         <td>
             <select name='rows[$id][$i][field]' class="inputbox">
+                <option value=''></option>
                 {$selectOptions}
             </select>
         </td>
         <td>
-            <input type='text' name='rows[$id][$i][headerName]' class="inputbox">
+            <input type='text' name='rows[$id][$i][customHeaderName]' class="inputbox">
         </td>
         <td>
-            <input type='text' name='rows[$id][$i][description]' class="inputbox">
+            <input type='text' name='rows[$id][$i][customDescription]' class="inputbox">
         </td>
         <td align='right'>
             <input type='number' name='rows[$id][$i][width]' value="100" size='10' class="inputbox">
@@ -1714,30 +2056,74 @@ function save_column_setup($id) {
 
     $rows = $_POST['rows'][$id];
 
-    // Filter out rows where 'pos' is null
+    // SD-685: a row is kept when it names a field. The header is no longer required -
+    // an empty custom header means "use the code's (translated) header" - and the
+    // delete button ('-') now records the column as hidden instead of dropping the row,
+    // because the code, not this list, defines which columns exist.
     $rows = array_filter($rows, function ($row) {
-        return is_numeric($row['pos']) && $row['headerName'] && $row['pos'] !== null;
+        if (empty($row['field'])) {
+            return false;
+        }
+        return isset($row['pos']) && $row['pos'] !== null && ($row['pos'] === '-' || is_numeric($row['pos']));
     });
 
-    // Sort the array by 'pos'
+    // Sort the visible rows by 'pos'; hidden rows keep their relative order at the end
     usort($rows, function ($a, $b) {
+        $aHidden = ($a['pos'] === '-');
+        $bHidden = ($b['pos'] === '-');
+        if ($aHidden !== $bHidden) {
+            return $aHidden ? 1 : -1;
+        }
         if ($a['pos'] == $b['pos']) {
             return 0;
         }
         return ($a['pos'] < $b['pos']) ? -1 : 1;
     });
-    
 
-    // Remove the 'pos' key from each sub-array
+    // Remove the 'pos' key, normalise the width and record the resulting visibility
     $rows = array_map(function ($row) {
+        $hidden = ($row['pos'] === '-');
         unset($row['pos']);
-        $row["width"] = $row["width"] / 100;
+        if (isset($row['width']) && $row['width'] !== '') {
+            $row["width"] = $row["width"] / 100;
+        }
+        $row["visible"] = !$hidden;
         return $row;
     }, $rows);
 
-    // Print the result
+    // A field the user re-added in the editor is visible again: drop its stale hidden row,
+    // otherwise the hidden copy keeps winning the first-occurrence lookup in the merge.
+    $visibleFields = array();
+    foreach ($rows as $row) {
+        if (!empty($row['visible'])) {
+            $visibleFields[$row['field']] = true;
+        }
+    }
+    $rows = array_values(array_filter($rows, function ($row) use ($visibleFields) {
+        return !empty($row['visible']) || !isset($visibleFields[$row['field']]);
+    }));
+    // SD-685: the editor only renders the visible columns, so a column this user hid
+    // earlier is not part of the POST at all. Keep exactly those stored rows, otherwise
+    // the hidden column would come back on the next page load. A *visible* stored row the
+    // POST does not mention was replaced by another field in the editor instead, and must
+    // not be restored with its old position, width and custom text.
+    $postedFields = array();
+    foreach ($rows as $row) {
+        $postedFields[$row['field']] = true;
+    }
+    $stored = db_fetch_array(db_select("SELECT column_setup FROM datatables WHERE user_id = $bruger_id AND tabel_id = '".db_escape_string($id)."'", __FILE__ . " line " . __LINE__));
+    $storedRows = ($stored && isset($stored['column_setup'])) ? json_decode($stored['column_setup'], true) : array();
+    if (is_array($storedRows)) {
+        foreach ($storedRows as $storedRow) {
+            if (!empty($storedRow['field']) && !isset($postedFields[$storedRow['field']])
+                    && isset($storedRow['visible']) && $storedRow['visible'] === false) {
+                $rows[] = $storedRow;
+            }
+        }
+    }
+
     $columns_json = db_escape_string(json_encode($rows));
-    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id = '$id'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id = '".db_escape_string($id)."'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1821,7 +2207,13 @@ function render_filters($id, $filters, $all_filters) {
             <span><b>{$filter["filterName"]} ({$filter["joinOperator"]})</b></span>
 HTML;
         foreach ($filter["options"] as $filterItem) {
-            print "<div><label><input type='checkbox' $filterItem[checked] name='filter[$id][$filter[filterName]][$filterItem[name]]'>$filterItem[name]</label></div>";
+            // SD-685: the field is keyed by filterKey/optionKey where the page declares
+            // them; the display text is only a fallback, so a translation can no longer
+            // detach a stored selection from its checkbox.
+            $groupKey  = isset($filter['filterKey']) ? $filter['filterKey'] : $filter["filterName"];
+            $optionKey = isset($filterItem['optionKey']) ? $filterItem['optionKey'] : $filterItem["name"];
+            // SD-686: submit unticked options too, so turning a declared default off persists.
+            print "<div><label><input type='hidden' name='filter[$id][$groupKey][$optionKey]' value=''><input type='checkbox' $filterItem[checked] name='filter[$id][$groupKey][$optionKey]'>$filterItem[name]</label></div>";
         }
 
         echo <<<HTML
@@ -1870,7 +2262,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id = '$id'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id = '".db_escape_string($id)."'", __FILE__ . " line " . __LINE__);
 }
 
 /**

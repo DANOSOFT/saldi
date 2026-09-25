@@ -54,17 +54,17 @@ final class OrderEmployeeSearchTest extends TestCase
 
         $name = db_escape_string("Søren O'Neil");
         $backslashName = db_escape_string('Søren\\West');
-        $grid = ['query' => "SELECT o.* FROM (VALUES
-            (1, '$name', 'Anna', 12.50, DATE '2026-09-11'),
-            (2, 'Team $name', 'Anna', 25.00, DATE '2026-09-12'),
-            (3, 'Anna', '$name', 5.00, DATE '2026-09-11'),
-            (4, '$backslashName', 'Anna', 0.00, DATE '2026-09-13')
-            ) AS o(id,hvem,ref,amount,ordredate)
+        $grid = ['query' => "SELECT o.id,o.performed_by AS hvem,o.ref,o.amount,o.ordredate FROM (VALUES
+            (1, 'system-user', '$name', 'Anna', 12.50, DATE '2026-09-11'),
+            (2, 'system-user', 'Team $name', 'Anna', 25.00, DATE '2026-09-12'),
+            (3, '$name', 'Anna', '$name', 5.00, DATE '2026-09-11'),
+            (4, 'system-user', '$backslashName', 'Anna', 0.00, DATE '2026-09-13')
+            ) AS o(id,hvem,performed_by,ref,amount,ordredate)
             WHERE {{WHERE}} ORDER BY {{SORT}}"];
         $columns = [];
         foreach (['id' => 'number', 'hvem' => 'text', 'ref' => 'text', 'amount' => 'number', 'ordredate' => 'date'] as $field => $type) {
             $columns[] = [
-                'field' => $field, 'sqlOverride' => 'o.' . $field, 'type' => $type,
+                'field' => $field, 'sqlOverride' => 'o.' . ($field === 'hvem' ? 'performed_by' : $field), 'type' => $type,
                 'searchable' => true, 'decimalPrecision' => 2,
                 'generateSearch' => $generateSearch ?? 'DEFAULT_GENERATE_SEARCH',
             ];
