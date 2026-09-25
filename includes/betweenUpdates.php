@@ -733,31 +733,40 @@ poolContentHashEnsureSchema();
 // One-time backfill of content_sha256 for the rows written before the column existed, gated by a
 // settings flag exactly like pool_files_norm_amount_backfilled above. A row whose file is no longer
 // in the pulje folder keeps NULL - the sync deletes those rows anyway.
+//
+// The folder is resolved through poolPuljePath(), not hardcoded to bilag: an installation stores its
+// documents in owncloud, bilag or documents, and hardcoding bilag made every is_file() test here fail
+// on the other two layouts - hashing nothing, and (because the flag used to be written regardless)
+// doing it permanently, with no retry on a later login. The flag is now only written once the folder
+// was actually found, so a tenant whose folder appears later still gets its rows hashed.
 $pool_files_hash_backfilled = db_fetch_array(db_select(
 	"SELECT var_value FROM settings WHERE var_name = 'pool_files_content_sha256_backfilled' AND var_grp = 'system'",
 	__FILE__ . " linje " . __LINE__
 ));
 if (!$pool_files_hash_backfilled && poolContentHashColumnExists()) {
-	$poolHashDir = __DIR__ . '/../bilag/' . $db . '/pulje/';
-	$q_pool_hash = db_select("SELECT id, filename FROM pool_files WHERE (content_sha256 IS NULL OR content_sha256 = '') AND filename IS NOT NULL AND filename != ''", __FILE__ . " linje " . __LINE__);
-	while ($r_pool_hash = db_fetch_array($q_pool_hash)) {
-		$poolHashFile = $poolHashDir . basename($r_pool_hash['filename']);
-		if (!is_file($poolHashFile)) {
-			continue;
+	include_once(__DIR__ . "/docsIncludes/poolPaths.php");
+	$poolHashDir = poolPuljePath($db);
+	if (is_dir($poolHashDir)) {
+		$q_pool_hash = db_select("SELECT id, filename FROM pool_files WHERE (content_sha256 IS NULL OR content_sha256 = '') AND filename IS NOT NULL AND filename != ''", __FILE__ . " linje " . __LINE__);
+		while ($r_pool_hash = db_fetch_array($q_pool_hash)) {
+			$poolHashFile = $poolHashDir . '/' . basename($r_pool_hash['filename']);
+			if (!is_file($poolHashFile)) {
+				continue;
+			}
+			$poolHashValue = @hash_file('sha256', $poolHashFile);
+			if ($poolHashValue) {
+				db_modify(
+					"UPDATE pool_files SET content_sha256 = '" . db_escape_string($poolHashValue) . "' WHERE id = " . (int) $r_pool_hash['id'],
+					__FILE__ . " linje " . __LINE__
+				);
+			}
 		}
-		$poolHashValue = @hash_file('sha256', $poolHashFile);
-		if ($poolHashValue) {
-			db_modify(
-				"UPDATE pool_files SET content_sha256 = '" . db_escape_string($poolHashValue) . "' WHERE id = " . (int) $r_pool_hash['id'],
-				__FILE__ . " linje " . __LINE__
-			);
-		}
+		db_modify(
+			"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+			VALUES ('pool_files_content_sha256_backfilled', 'system', 'yes', 'One-time backfill of pool_files.content_sha256 from the files in the pulje folder')",
+			__FILE__ . " linje " . __LINE__
+		);
 	}
-	db_modify(
-		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
-		VALUES ('pool_files_content_sha256_backfilled', 'system', 'yes', 'One-time backfill of pool_files.content_sha256 from the files in the pulje folder')",
-		__FILE__ . " linje " . __LINE__
-	);
 }
 
 // 20260923 CL/NTR Tekst 242 (Ryk alle hover on the debtor openpost report) was an unclosed
