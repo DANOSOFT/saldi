@@ -1,5 +1,9 @@
 <?php
 // filepath: ../index/dashboardIncludes/weekly_graph_data.php
+// 20260921 CL/SZ MB-50: int-cast kontomin/kontomaks/regnaar before SQL interpolation
+//                so a missing/malformed request no longer produces a raw DB error alert.
+// 20260921 CL/SZ MB-50: guard the startLabel grupper lookup against a missing row,
+//                matching the existing slutLabel guard (CodeRabbit).
 
 // Start with a clean output buffer to avoid any other content
 ob_clean();
@@ -13,9 +17,9 @@ require_once('../includes/connect.php');
 require_once('../includes/online.php');
 
 
-$kontomin = $_GET['kontomin'] ?? null;
-$kontomaks = $_GET['kontomaks'] ?? null;
-$regnaar = $_GET['regnaar'] ?? null;
+$kontomin = intval($_GET['kontomin'] ?? 0);
+$kontomaks = intval($_GET['kontomaks'] ?? 0);
+$regnaar = intval($_GET['regnaar'] ?? 0);
 $regnstart = $_GET['regstart'] ?? null; //start of fiscal year
 $regnslut = $_GET['regslut'] ?? null; //end of fiscal year
 
@@ -23,7 +27,13 @@ $selectedWeek = isset($_GET['week']) ? (int)$_GET['week'] : 1;
 
 // Get fiscal year labels
     $qtxt = "SELECT beskrivelse FROM grupper WHERE kodenr='$regnaar' AND art='RA'";
-    $startLabel = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))["beskrivelse"];
+    $r = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    if ($r) {
+        $startResult = db_fetch_array($r);
+        $startLabel = $startResult ? $startResult["beskrivelse"] : NULL;
+    } else {
+        $startLabel = "";
+    }
     $qtxt = "SELECT beskrivelse FROM grupper WHERE kodenr='".($regnaar-1)."' AND art='RA'";
     $r = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     if ($r) {
