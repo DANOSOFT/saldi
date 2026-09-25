@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-09-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20220110 PHR Function 'sync_shop_vare' Check if item is a stock item
@@ -83,6 +83,7 @@
 //                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
 // 20260914 CL/NTR barcode(): no horizontal padding in the SVG so the bars span the full 285 px
 //                  (vertical padding kept at 2 px) as we want to control padding in the print.
+// 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2916,6 +2917,44 @@ if (!function_exists('input_ip')) { #20210908
 			$qtxt = "insert into users_ip (user_id,ip_values,ip_logged_date) values ('$ret_id', '$ip','$created_ip_date')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+	}
+}
+
+if (!function_exists('revenue_hidden_by_rights')) {
+	/**
+	 * Whether a user's rights keep turnover from them.
+	 *
+	 * The Indstillinger right (module 1, the same test index/menu.php uses for that menu) is what decides
+	 * who may see turnover, so a login without it counts as an ordinary user.
+	 *
+	 * @param string $user_rights Rights string from the brugere table.
+	 * @return bool
+	 */
+	function revenue_hidden_by_rights($user_rights) {
+		return substr((string) $user_rights, 1, 1) != '1';
+	}
+}
+
+if (!function_exists('hide_revenue')) {
+	/**
+	 * Whether turnover must be kept from the user being rendered for.
+	 *
+	 * The system-wide setting decides whether turnover is hidden at all; the Indstillinger right decides who
+	 * that applies to, so the admin who sets it still sees the figures. Nothing is derived per user in the
+	 * database, and the rights themselves are never changed by this.
+	 *
+	 * @param string|null $user_rights Optional rights string; the session's rights are used by default.
+	 * @return bool
+	 */
+	function hide_revenue($user_rights = NULL) {
+		global $rettigheder;
+		if (get_settings_value('hideRevenue', 'finans', 'off') !== 'on') {
+			return false;
+		}
+		if ($user_rights === NULL) {
+			$user_rights = $rettigheder;
+		}
+		return revenue_hidden_by_rights($user_rights);
 	}
 }
 
