@@ -50,6 +50,9 @@
 //                lager/lagerstatus.php, lager/rapport.php and includes/grid.php's
 //                DEFAULT_GENERATE_SEARCH() so a lone '%' or '_' search no longer matches
 //                (near-)every row
+// 20260925 CL/NTR db_connect(): fail loud with an error instead of silently connecting with a
+//                blank host/database when a caller's connection globals aren't populated yet
+//                (e.g. includes/opdat_4.3.php reconnecting to a tenant before connect.php ran)
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -86,6 +89,22 @@ if (!function_exists('db_connect')) {
 		
 		$errTxt="";
 		
+		// 20260925 CL/NTR Guard against callers whose connection globals never got populated -
+		// e.g. includes/connect.php not included yet before a caller reconnects to a tenant db
+		// (SD-opdat gate). $l_host is required by every call form, incl. the legacy
+		// "host,user,pass" single-string form below; without it that fell through to
+		// mysqli_connect('','','')/pg_connect('') and produced a confusing downstream failure
+		// instead of a clear one here. $l_database is likewise required on Postgres: an empty
+		// value would otherwise hit the pre-2009 pg_connect($l_host) fallback and silently
+		// connect to the wrong database.
+		if (!$l_host || (strtolower($db_type) != 'mysql' && strtolower($db_type) != 'mysqli' && !$l_database)) {
+			$errTxt = "<h1>Fejl: db_connect() kaldt uden host/database</h1>" .
+					"<p>Er includes/connect.php inkluderet f&oslash;r dette kald?" .
+					($l_spor ? " (spor: " . htmlspecialchars($l_spor) . ")" : "") . "</p>";
+			print $errTxt;
+			die;
+		}
+
 		if (strtolower($db_type) == 'mysql' || strtolower($db_type) == 'mysqli') {
     		// Check if mysqli_connect exists (only if mysqli is available)
 	  if (function_exists('mysqli_connect')) {
