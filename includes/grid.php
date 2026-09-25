@@ -27,6 +27,9 @@ Regards:) 20260220 LOE
 // 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
 // 20260916 LOE SD-685: escape tabel_id in the column/filter setup UPDATEs (review follow-up).
 // 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
+// 20260925 CL/NTR DEFAULT_GENERATE_SEARCH(): escape a text-column search term's own '%'/'_' via
+//                 the new db_escape_like_pattern() before wrapping it in ILIKE '%...%', so a lone
+//                 wildcard character no longer matches (almost) every row.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -102,11 +105,15 @@ function DEFAULT_CELL_RENDERE($value, $row, $column) {
  */
 function DEFAULT_GENERATE_SEARCH($column, $term) {
     $field = $column['sqlOverride'] == '' ? $column['field'] : $column['sqlOverride'];
-    $term = db_escape_string($term);
 
     switch ($column["type"]) {
         case 'text':
-            return "{$field} ILIKE '%$term%'";
+            // 20260925 CL/NTR - escape the term's own '%'/'_' before db_escape_string()'s quote-escaping
+            // and the '%...%' wrap, so a lone wildcard character in a text-column search no longer acts
+            // as a SQL wildcard and matches (almost) every row - see db_escape_like_pattern()'s own
+            // comment in includes/db_query.php.
+            $likeTerm = db_escape_string(db_escape_like_pattern($term));
+            return "{$field} ILIKE '%$likeTerm%'";
         case 'number':
             # Check for number range
             if (strstr($term, ':')) {
