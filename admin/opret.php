@@ -705,7 +705,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	$qtxt = "CREATE TABLE pool_files ($id_column, filename varchar(255), subject text, account varchar(50), ";
 	$qtxt.= "amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
-	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), PRIMARY KEY (id))";
+	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), content_sha256 char(64), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE kontakt_emails ($id_column, konto_id integer NOT NULL, email varchar(255) NOT NULL, email_type varchar(50) DEFAULT '', PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
