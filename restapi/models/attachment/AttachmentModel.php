@@ -16,6 +16,7 @@
 //                 uploads get a kreditor suggestion too. Columns added to the fallback schema.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
+require_once __DIR__ . "/../../../includes/docsIncludes/poolContentHash.php";
 
 class AttachmentModel
 {
@@ -441,7 +442,13 @@ class AttachmentModel
         // adds a random suffix to a posted filename, different callers sanitise the subject
         // differently, and the counter bump below adds another one when the name is taken. Keep the
         // row and the file already in the pool instead of writing a second copy of the same bilag.
-        $contentHash = ($isConverted && $convertedFile) ? hash_file('sha256', $convertedFile) : hash('sha256', $fileContent);
+        // This endpoint does not run includes/betweenUpdates.php (see poolContentHash.php), so the
+        // column has to be there before it is queried; when it cannot be created the upload carries
+        // on with the filename-only behaviour it had before MB-42.
+        $contentHash = '';
+        if (poolContentHashEnsureSchema()) {
+            $contentHash = ($isConverted && $convertedFile) ? poolContentHashForFile($convertedFile) : hash('sha256', $fileContent);
+        }
         $poolDuplicate = $this->findPoolRowByContentHash($contentHash);
         if ($poolDuplicate && file_exists($uploadDir . $poolDuplicate['filename'])) {
             $this->filename = $poolDuplicate['filename'];
@@ -538,7 +545,7 @@ class AttachmentModel
      */
     private function findPoolRowByContentHash($contentHash)
     {
-        if (!$contentHash) {
+        if (!$contentHash || !poolContentHashColumnExists()) {
             return null;
         }
         $qtxt = "SELECT id, filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($contentHash) . "' ORDER BY id LIMIT 1";
@@ -615,7 +622,7 @@ class AttachmentModel
 
             // Same content under another name: the row and the file are already in the pool
             // (MB-42), so this call must not add a second one.
-            $contentHash = (string) $contentHash;
+            $contentHash = poolContentHashColumnExists() ? (string) $contentHash : '';
             $contentHashSql = ($contentHash === '') ? 'NULL' : "'" . db_escape_string($contentHash) . "'";
             $duplicate = $this->findPoolRowByContentHash($contentHash);
             if ($duplicate && file_exists(self::getUploadDir() . $duplicate['filename'])) {
@@ -658,7 +665,9 @@ class AttachmentModel
             // Insert into database
             $normAmount = normalizePoolAmount($amount);
             $normAmountSql = ($normAmount === null) ? 'NULL' : db_escape_string((string) $normAmount);
-            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency, content_sha256"
+            $contentHashColumn = poolContentHashColumnExists() ? ', content_sha256' : '';
+            $contentHashValue = poolContentHashColumnExists() ? ",\n                $contentHashSql" : '';
+            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency" . $contentHashColumn
                 . ($vendorColumns ? ', ' . implode(', ', array_keys($vendorColumns)) : '') . ") VALUES (
                 '" . db_escape_string($filename) . "',
                 '" . db_escape_string($subject) . "',
@@ -668,8 +677,7 @@ class AttachmentModel
                 '" . db_escape_string($fileDate) . "',
                 '" . db_escape_string($invoiceNumber) . "',
                 '" . db_escape_string($description) . "',
-                '" . db_escape_string($currency) . "',
-                $contentHashSql"
+                '" . db_escape_string($currency) . "'" . $contentHashValue
                 . ($vendorColumns ? ', ' . implode(', ', array_values($vendorColumns)) : '') . "
             )";
             db_modify($qtxt, __FILE__ . " line " . __LINE__);

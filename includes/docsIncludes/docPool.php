@@ -84,6 +84,7 @@
 //                 (invoice text from a scan could otherwise inject markup; found in Astra's review).
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
+include_once(__DIR__ . "/poolContentHash.php");
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -266,19 +267,19 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			// uploader sanitises the name, the endpoint adds a random suffix). A filename is therefore
 			// not an identity - the content hash is, and a row already holding this content means the
 			// bilag is in the pool, so this file must not become a second row for it.
-			$syncContentHash = @hash_file('sha256', $fullPath);
+			$syncContentHash = poolContentHashColumnExists() ? poolContentHashForFile($fullPath) : '';
 			if ($syncContentHash) {
 				$syncDuplicate = db_fetch_array(db_select(
 					"SELECT filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($syncContentHash) . "' AND filename != '" . db_escape_string($file) . "' ORDER BY id LIMIT 1",
 					__FILE__ . " line " . __LINE__
 				));
-				if ($syncDuplicate) {
-					// Only drop this file when the row's own file is really in the folder. If it is not,
-					// the row is an orphan that the cleanup above removes and this file is the last copy.
-					if (is_file("$puljePath/" . $syncDuplicate['filename'])) {
-						@unlink($fullPath);
-						docPoolLog("syncPuljeFilesToDatabase: $file has the same content as " . $syncDuplicate['filename'] . ", file removed and no row inserted");
-					}
+				if ($syncDuplicate && is_file("$puljePath/" . $syncDuplicate['filename'])) {
+					// The bilag is in the pool under another name and that file is really there, so this
+					// copy is dropped. When the row's file is gone, the row is an orphan the cleanup above
+					// removes (or one too recent for it to touch) and this file is the last copy of the
+					// bilag - so it falls through and gets a row of its own instead of being removed.
+					@unlink($fullPath);
+					docPoolLog("syncPuljeFilesToDatabase: $file has the same content as " . $syncDuplicate['filename'] . ", file removed and no row inserted");
 					continue;
 				}
 			}
@@ -314,8 +315,9 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli') 
 					? ' ON DUPLICATE KEY UPDATE id = id' 
 					: ' ON CONFLICT (filename) DO NOTHING';
-			$syncContentHashSql = ($syncContentHash) ? "'" . db_escape_string($syncContentHash) . "'" : 'NULL';
-			$qtxt = "$insertVerb INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, content_sha256) VALUES (
+			$syncContentHashColumn = ($syncContentHash) ? ', content_sha256' : '';
+			$syncContentHashSql = ($syncContentHash) ? ",\n\t\t\t\t'" . db_escape_string($syncContentHash) . "'" : '';
+			$qtxt = "$insertVerb INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description" . $syncContentHashColumn . ") VALUES (
 				'" . db_escape_string($file) . "',
 				'" . db_escape_string($subject) . "',
 				'" . db_escape_string($account) . "',
@@ -323,8 +325,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 				$syncNormAmountSql,
 				'" . db_escape_string($fileDate) . "',
 				'" . db_escape_string($invoiceNumber) . "',
-				'" . db_escape_string($description) . "',
-				$syncContentHashSql
+				'" . db_escape_string($description) . "'" . $syncContentHashSql . "
 			)$onConflictClause";
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
@@ -362,22 +363,21 @@ function checkIfAllPoolFilesAreInDatabase() {
 		$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
 		// Same content check as syncPuljeFilesToDatabase(): a second copy of a bilag already in the
 		// pool is dropped rather than inserted (MB-42).
-		$contentHash = @hash_file('sha256', "$puljePath/$file");
+		$contentHash = poolContentHashColumnExists() ? poolContentHashForFile("$puljePath/$file") : '';
 		if ($contentHash) {
 			$duplicateRow = db_fetch_array(db_select(
 				"SELECT filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($contentHash) . "' AND filename != '" . db_escape_string($file) . "' ORDER BY id LIMIT 1",
 				__FILE__ . " line " . __LINE__
 			));
-			if ($duplicateRow) {
-				if (is_file("$puljePath/" . $duplicateRow['filename'])) {
-					@unlink("$puljePath/$file");
-					docPoolLog("checkIfAllPoolFilesAreInDatabase: $file has the same content as " . $duplicateRow['filename'] . ", file removed and no row inserted");
-				}
+			if ($duplicateRow && is_file("$puljePath/" . $duplicateRow['filename'])) {
+				@unlink("$puljePath/$file");
+				docPoolLog("checkIfAllPoolFilesAreInDatabase: $file has the same content as " . $duplicateRow['filename'] . ", file removed and no row inserted");
 				continue;
 			}
 		}
-		$contentHashSql = ($contentHash) ? "'" . db_escape_string($contentHash) . "'" : 'NULL';
-		$query = "INSERT INTO pool_files (filename, file_date, content_sha256) VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "', $contentHashSql)";
+		$contentHashColumn = ($contentHash) ? ', content_sha256' : '';
+		$contentHashSql = ($contentHash) ? ", '" . db_escape_string($contentHash) . "'" : '';
+		$query = "INSERT INTO pool_files (filename, file_date" . $contentHashColumn . ") VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "'" . $contentHashSql . ")";
 		db_modify($query, __FILE__ . " line " . __LINE__);
 	}
 }

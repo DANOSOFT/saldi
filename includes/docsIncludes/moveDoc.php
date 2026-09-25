@@ -24,6 +24,8 @@
 // 20240305 PHR Varioous corrections
 
 
+include_once(__DIR__ . "/poolContentHash.php");
+
 if ($moveDoc) {
 	// Decode the URL-encoded path
 	$moveDoc = urldecode($moveDoc);
@@ -107,17 +109,17 @@ if ($moveDoc) {
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			// MB-42: the hash is stored here too, so no writer leaves content_sha256 NULL and the
 			// pool can recognise this bilag if the same file arrives again under another name.
-			$moveContentHash = is_file($new) ? @hash_file('sha256', $new) : '';
-			$moveContentHashSql = ($moveContentHash) ? "'". db_escape_string($moveContentHash) ."'" : 'NULL';
-			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, content_sha256) VALUES (
+			$moveContentHash = poolContentHashColumnExists() ? poolContentHashForFile($new) : '';
+			$moveContentHashColumn = ($moveContentHash) ? ', content_sha256' : '';
+			$moveContentHashSql = ($moveContentHash) ? ", '" . db_escape_string($moveContentHash) . "'" : '';
+			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description" . $moveContentHashColumn . ") VALUES (
 				'". db_escape_string($fileName) ."',
 				'". db_escape_string($baseName) ."',
 				'',
 				'',
 				'". db_escape_string($fileDate) ."',
 				'',
-				'',
-				$moveContentHashSql
+				''" . $moveContentHashSql . "
 			)";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
