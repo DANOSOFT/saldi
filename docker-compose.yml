@@ -16,6 +16,10 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_TLS: ${SMTP_TLS:-off}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-off}
+      # SALDI Assist (support-chatbot): hemmeligheden deles med chatbotten (CONTEXT_TOKEN_KEYS).
+      SALDI_ASSIST_CONTEXT_SECRET: ${SALDI_ASSIST_CONTEXT_SECRET:-}
+      SALDI_ASSIST_KID: ${SALDI_ASSIST_KID:-k2026a}
+      SALDI_ASSIST_WIDGET_URL: ${SALDI_ASSIST_WIDGET_URL:-https://wuweiworkai.com/chaty-v2/widget.js}
     restart: unless-stopped
 
   postgres:

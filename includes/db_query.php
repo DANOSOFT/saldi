@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-03-05--------------
+// --- includes/db_query.php ---patch 5.0.0 ----2026-09-25--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230730 LOE - Minor modification, abolute path to std_func
 // 20250121 connection as first parameter in pg_*
@@ -40,10 +40,16 @@
 // 20260820 Sawaneh The fallback alert text used the HTML entity &aelig;, which JS alert() shows
 //                  literally; replaced with a literal æ like the rest of the string
 // 20260824 CL/SZ db_select(): ROLLBACK the connection on a Postgres query error - reproduced
+// 20260907 CL/LH db_select(): drop the pg ROLLBACK from #503 - it turned failed postings into partial commits
 //                that without it, one failed query inside an open transaction ("current
 //                transaction is aborted...") silently fails every later query on that same
 //                connection for the rest of the request; confirmed harmless when no
 //                transaction is open (SST-672)
+// 20260925 CL/NTR Added db_escape_like_pattern() to escape a search term's own '%'/'_' wildcard
+//                characters before a caller wraps it in LIKE/ILIKE '%...%'; used by
+//                lager/lagerstatus.php, lager/rapport.php and includes/grid.php's
+//                DEFAULT_GENERATE_SEARCH() so a lone '%' or '_' search no longer matches
+//                (near-)every row
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -58,6 +64,16 @@ if (!function_exists('get_relative')) {
         $relativePath = str_repeat('../', max(0, $slashCount - 2));
 
         return $relativePath;
+    }
+}
+
+if (!function_exists('db_log_append')) {
+    function db_log_append($path, $lines, $mode = 'a') {
+        $fp = @fopen($path, $mode);
+        if ($fp === false) return false;
+        foreach ((array)$lines as $line) fwrite($fp, $line);
+        fclose($fp);
+        return true;
     }
 }
 
@@ -191,19 +207,19 @@ if (!function_exists('db_modify')) {
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
-				$fp=fopen("$temp/.ht_modify.log","a");
-				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n");
-				fwrite($fp,$qtext.";\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n",
+				$qtext.";\n",
+			]);
 		}
 		if (!$db_query) { #20190704
 			#if ($db_type=="mysql")       $errtxt = mysql_error($connection);
 			if ($db_type=="mysqli") $errtxt = mysqli_error($use_connection); #20190704
 			else $errtxt=pg_last_error($use_connection);
-			$fp=fopen("$temp/.ht_modify.log","a");
-			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-			fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+				"-- Fejl!! ".$qtext." | $errtxt;\n",
+			]);
 			$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
 			if (strstr($spor,"includes/opdat")) {
 				if (file_exists("$temp/opdatfejl.txt")) {
@@ -217,9 +233,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Opdat fejl', $message, $headers);
 					}
-					$ff=fopen("$temp/opdatfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/opdatfejl.txt", date("U")."\n", 'w');
 				} 
 			} else {
 				if (file_exists("$temp/modifyfejl.txt")) {
@@ -233,9 +247,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - modify', $message, $headers);
 					}
-					$ff=fopen("$temp/modifyfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/modifyfejl.txt", date("U")."\n", 'w');
 				} 
 				// if ($db_type=="mysql") {
 				// 	mysql_query("ROLLBACK");
@@ -292,7 +304,11 @@ if (!function_exists('db_select')) {
 			$errtxt = pg_last_error($use_connection);
 			if ($errtxt) {
 				error_log("db_select failed: $qtext");
-				pg_query($use_connection, "ROLLBACK"); // 20260824 CL/SZ a failed query inside an open transaction otherwise poisons every later query on this connection for the rest of the request ("current transaction is aborted..."); harmless no-op outside a transaction (SST-672)
+				// 20260907 CL/LH Removed the ROLLBACK added 20260824 (#503, SST-672): db_select() only alerts and
+				// continues on the first error, so the rollback discarded the work already done inside a
+				// transaktion('begin') block and every later write autocommitted - a failed posting became a
+				// partial posting instead of the previous all-or-nothing failure. The aborted transaction is
+				// the caller's to roll back (SD-595 $db_modify_fejl pattern, finans/bogfor.php).
 			}
 		}
 
@@ -312,13 +328,11 @@ if (!function_exists('db_select')) {
 
 			$tmp.="_".date("h:i");
 			if ($linje != $tmp) {
-				$fp=fopen("$temp/lasterror.txt","a");
-				fwrite($fp,"$tmp");
-				fclose($fp);
-				$fp=fopen("$temp/lasterror.txt","a");
-				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-				fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
-				fclose($fp);
+				db_log_append("$temp/lasterror.txt", "$tmp");
+				db_log_append("$temp/lasterror.txt", [
+					"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+					"-- Fejl!! ".$qtext." | $errtxt;\n",
+				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
 				if (file_exists("$temp/selectfejl.txt")) {
 					$ff=fopen("$temp/selectfejl.txt","r");
@@ -332,9 +346,7 @@ if (!function_exists('db_select')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - select', $message, $headers);
 					}
-					$ff=fopen("$temp/selectfejl.txt","w");
-					fwrite($ff,date("U")."\n");
-					fclose($ff);
+					db_log_append("$temp/selectfejl.txt", date("U")."\n", 'w');
 				} 
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
@@ -347,10 +359,10 @@ if (!function_exists('db_select')) {
 				exit;
 			}
 		} else {
-			$fp=fopen("$temp/.ht_select.log","a");
-			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-			fwrite($fp,$qtext.";\n");
-			fclose($fp);
+			db_log_append("$temp/.ht_select.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+				$qtext.";\n",
+			]);
 		}
 		return $query;
 	}
@@ -440,9 +452,10 @@ if (!function_exists('transaktion')) {
 		global $db_transaktion_depth; #20260804 SZ track nesting so an inner begin() (e.g. bogfor() calling transaktion('begin') again inside an already-open outer transaction) doesn't wipe out an earlier failure recorded by the outer transaction (SD-595)
 
 		$temp = get_relative() . 'temp/' . $db;
-		$fp=fopen("$temp/.ht_modify.log","a");
-		fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n");
-		fwrite($fp,$qtext.";\n");
+		db_log_append("$temp/.ht_modify.log", [
+			"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n",
+			$qtext.";\n",
+		]);
 		$qtext_trim = strtolower(trim($qtext));
 		if ($qtext_trim == 'begin') {
 			if (!$db_transaktion_depth) $db_modify_fejl = false; #20260729 SZ reset the write-failure flag only when opening the outermost transaction (SD-595)
@@ -470,6 +483,25 @@ if (!function_exists('db_escape_string')) {
 		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
 		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
 		else return pg_escape_string($connection, "$qtext");
+	}
+}
+
+if (!function_exists('db_escape_like_pattern')) {
+	// 20260925 CL/NTR - escapes literal '%', '_' and the escape character itself ('\') in a LIKE/ILIKE
+	// search term BEFORE it is wrapped in the caller's own leading/trailing '%' wildcards. Without this,
+	// a user typing a lone '%' or '_' (or a run of them, e.g. "%_%") turns their search box into an active
+	// SQL wildcard instead of a literal character to match - on Postgres ILIKE this can match the entire
+	// column (a de facto "select all"), which is surprising to the user and, in reports that use a
+	// non-empty search term to bypass other filters (see lager/lagerstatus.php's $lsHasTextSearch), can
+	// also defeat those filters for what looks like an empty/no-op search.
+	// Callers still run the result through db_escape_string() for quote/SQL-injection safety and still
+	// add their own LIKE ESCAPE '\' clause - this only neutralises the term's own wildcard characters.
+	function db_escape_like_pattern($term) {
+		return str_replace(
+			array('\\', '%', '_'),
+			array('\\\\', '\\%', '\\_'),
+			$term
+		);
 	}
 }
 
@@ -563,10 +595,10 @@ if (!function_exists('injecttjek')) {
 					$s_id=session_id();
 					$txt="SQL injection registreret!!! - Handling logget & afbrudt";
 					alert("$txt");
-					$fp=fopen("$temp/.ht_modify.log","a");
-					fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n");
-					fwrite($fp,"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n");	
-					fclose($fp);
+					db_log_append("$temp/.ht_modify.log", [
+						"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n",
+						"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n",
+					]);
 					$s_id=session_id();
 					include("../includes/connect.php");
 					$db_modify("delete from online where session_id = '$s_id'");

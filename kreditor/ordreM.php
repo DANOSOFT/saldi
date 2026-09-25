@@ -55,6 +55,9 @@
 // 20220124 MLH added kundeordnr / Rekv.nr.
 // 20220124 MLH added udskriv_til, email and mail_fakt
 // 20230105 MLH added mail_text and mail_subj
+// 20260811 Sawaneh Save batch_due_date/batch_batch_no on the order line - the expiry date and
+//                  batch no fields were rendered and read back, but never written on save.
+// 20260908 CDX/LH Lock creditor order status before saving, deleting or adding lines.
 
 @session_start();
 $s_id=session_id();
@@ -153,17 +156,20 @@ $debitor_id=if_isset($_GET['debitor_id']); #20221104
 if ($id && $debitor_id) $id = indset_debitor($id, $debitor_id); #20221104
 
 if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716 
+	transaktion("begin");
+	$id = (int) $id;
 	$vare_id[0]=db_escape_string($_GET['vare_id']);
 	$linjenr=0; # 20201021 changed from substr($fokus,4)*1;
 	if ($id) {
-		$query = db_select("select konto_id, kontonr, status,omvbet from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
+		$query = db_select("select konto_id, kontonr, status,omvbet from ordrer where id = $id for update",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
-		$omlev=$row['omvbet'];
-		if ($row['status']>2) {
+		if (!$row || $row['status']>2) {
+			transaktion("rollback");
 			print "Hmmm - har du brugt browserens opdater eller tilbageknap???";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">";
 			exit;
 		}
+		$omlev=$row['omvbet'];
 		$konto_id=$row['konto_id'];
 		$query = db_select("select posnr from ordrelinjer where ordre_id = '$id' order by posnr desc",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) $posnr[0]=$row['posnr']+1;
@@ -188,7 +194,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 			$lev_varenr[0]=$row['lev_varenr'];
 		}
 	}
-	if (!$id) $id = indset_konto($id, $konto_id);
+	if (!$id) $id = indset_konto($id, $konto_id, false);
 	$pris[0]=$pris[0]*1;
 	if(!$antal[0]) $antal[0]=1;
 	if (!$rabat) $rabat=0;
@@ -239,6 +245,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 			}
 		}
 	}
+	transaktion("commit");
 }
 $status = null;
 if(isset($_POST['status'])) $status=$_POST['status'];
@@ -246,7 +253,7 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 	if (isset ($POST['credit']) && $POST['credit']) $submit = 'credit';
 	elseif (isset ($POST['copy']) && $POST['copy']) $submit = 'copy';
 	$fokus 		 = if_isset($_POST['fokus']);
-	$id          = if_isset($_POST['id']);
+	$id          = (int) if_isset($_POST['id']);
 	$ordrenr     = if_isset($_POST['ordrenr']);
 	$kred_ord_id = if_isset($_POST['kred_ord_id']);
 	$art         = if_isset($_POST['art']);
@@ -348,22 +355,42 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 	}
 
 		
-	if (isset($_POST['delete']) && $_POST['delete'])	{
-		$qtxt="select id from batch_kob where ordre_id='$id' limit 1";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) { #20200827
-			alert ('der ér modtaget varer på denne ordre, slet afbrudt');
-		} else {	
-			$qtxt="select dokument from ordrer where id='$id'"; # 20211121
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && file_exists("../bilag/$db/scan/$r[dokument]")) { 
-				unlink ("../bilag/$db/scan/$r[dokument]");
-			}
-			db_modify("delete from ordrelinjer where ordre_id=$id",__FILE__ . " linje " . __LINE__);
-			db_modify("delete from ordrer where id=$id",__FILE__ . " linje " . __LINE__);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
-		}
+	transaktion("begin");
+	if (!$status) $status = 0;
+	// Hold the same header lock as receipt/posting until this save commits.
+	include_once(__DIR__ . "/orderIncludes/lockOrderForSave.php");
+	$destinationId = null;
+	if (!empty($_POST['moveOrderLines'])) {
+		$destinationId = filter_var($_POST['MoveItemsTo'] ?? null, FILTER_VALIDATE_INT, array('options' => array('min_range' => 0)));
+		if ($destinationId === false) $destinationId = -1;
+	}
+	$allowPostedSource = in_array($submit, array('copy', 'credit'), true) && empty($_POST['delete']) && $destinationId === null;
+	if (!lockCreditorOrderForSave($id, $status, $destinationId, $allowPostedSource, $linje_id)) {
+		transaktion("rollback");
+		print "Ordren er ændret, slettet eller kan ikke modtage linjer. Åbn den igen før du fortsætter.";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+		exit;
 	}
 
-	transaktion("begin");
+	if (isset($_POST['delete']) && $_POST['delete']) {
+		$qtxt = "select id from batch_kob where ordre_id='$id' limit 1";
+		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			transaktion("rollback");
+			alert('der ér modtaget varer på denne ordre, slet afbrudt');
+		} else {
+			$qtxt = "select dokument from ordrer where id='$id'";
+			$documentRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			db_modify("delete from ordrelinjer where ordre_id=$id", __FILE__ . " linje " . __LINE__);
+			db_modify("delete from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
+			transaktion("commit");
+			if ($documentRow && $documentRow['dokument'] && is_file("../bilag/$db/scan/{$documentRow['dokument']}")) {
+				unlink("../bilag/$db/scan/{$documentRow['dokument']}");
+			}
+		}
+		$back_url = "ordreliste.php";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$back_url\">";
+		exit;
+	}
 
 	for ($x=0;$x<=$linjeantal;$x++) {
 		$solgt[$x]=0;
@@ -398,6 +425,18 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 		if ($godkend == "on" && $status==0) $leveres[$x]=$antal[$x];
 		if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 		if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
+		# Expiry date / batch no for batch controlled items. NULL means the inputs were not
+		# rendered for this line, so the columns must be left untouched when saving.
+		$batch_due_date[$x] = $batch_batch_no[$x] = NULL;
+		$tmp_due = if_isset($_POST, NULL, 'batch_due_date');
+		if (is_array($tmp_due) && isset($tmp_due[$x])) {
+			$tmp_due = trim($tmp_due[$x]);
+			$batch_due_date[$x] = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $tmp_due)) ? $tmp_due : '';
+		}
+		$tmp_bno = if_isset($_POST, NULL, 'batch_batch_no');
+		if (is_array($tmp_bno) && isset($tmp_bno[$x])) {
+			$batch_batch_no[$x] = db_escape_string(substr(trim($tmp_bno[$x]), 0, 100));
+		}
 #			$projekt[$x]=$projekt[$x];
 	}
 	if ($sletstart && $sletslut && $sletstart<$sletslut) {
@@ -406,7 +445,7 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 		}
 	}
 	if (isset($_POST['moveOrderLines']) && $_POST['moveOrderLines']) {
-		include("orderIncludes/moveOrderLines.php");
+		include(__DIR__ . "/orderIncludes/moveOrderLines.php");
 	}
 
 	$bogfor=1;
@@ -414,17 +453,6 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 	if (!$status){$status=0;}
 
 
-	#Kontrol mod brug af browserens "tilbage" knap og mulighed for 2 x bogfring af samme ordre
-	if ($id) {
-		$query = db_select("select status from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) {
-			if ($row['status']!=$status) {
-				print "Hmmm -a $row[status] - b $status har du brugt browserens tilbageknap?";
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">";
-				exit;
-			}
-		}
-	}
 	if ($submit == 'credit') $art='KK';
 	if ($submit == 'credit'|| $submit == 'copy') {
 		if ($art!='KK') {
@@ -499,10 +527,10 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 		$r=db_fetch_array(db_select($string,__FILE__ . " linje " . __LINE__));
 		$konto_id=$r['konto_id'];
 		$firmanavn=$r['firmanavn'];
-		$id = indset_konto($id, $konto_id);
+		$id = indset_konto($id, $konto_id, false);
 	}
 	if ((!$id)&&($konto_id)&&($firmanavn)) {
-		$ordrenr = get_next_order_number('KO');
+		$ordrenr = get_next_order_number('KO', false);
 #			if ($row= db_fetch_array(db_select("select ansat_id from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__))) {
 #				if ($row= db_fetch_array(db_select("select afd from ansatte where id='$row[ansat_id]'",__FILE__ . " linje " . __LINE__))) {
 #					if ($row= db_fetch_array(db_select("select kodenr from grupper where box1='$row[afd]' and art='LG'",__FILE__ . " linje " . __LINE__))) {$lager_id=$row['kodenr'];}
@@ -716,7 +744,14 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 						if ($omvbet[$x]) $omvbet[$x]='on';
 					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 					$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]', omvbet='$omvbet[$x]', ";
-					$qtxt.= "lager='$lager' where id='$linje_id[$x]'";
+					$qtxt.= "lager='$lager'";
+					if (if_isset($batch_due_date, NULL, $x) !== NULL) {
+						$qtxt.= ",batch_due_date=" . ($batch_due_date[$x] ? "'$batch_due_date[$x]'" : "NULL");
+					}
+					if (if_isset($batch_batch_no, NULL, $x) !== NULL) {
+						$qtxt.= ",batch_batch_no=" . ($batch_batch_no[$x] !== '' ? "'$batch_batch_no[$x]'" : "NULL");
+					}
+					$qtxt.= " where id='$linje_id[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {
@@ -939,7 +974,40 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 		}
 	} 
 	$vis=1;
-transaktion("commit");
+	if ( $submit == 'postNow' && $bogfor!=0 && $status==2 ) {
+		if ($valuta && $valuta!='DKK') {
+			$qtxt = "select kodenr from grupper where art='VK' and box1='$valuta' ";
+			if ($r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$valutaGroup = $r['kodenr'];
+				$qtxt = "select valuta.kurs from valuta where gruppe = $valutaGroup and  valdate <= '$ordredate' ";
+				$qtxt.= "order by valuta.valdate desc limit 1";
+				if ($r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					$valutakurs=$r['kurs'];
+				} else {
+					$valutakurs = NULL;
+				}
+			}
+		} else $valutakurs=100;
+		if (!$valutakurs) {
+			$tmp = dkdato($ordredate);
+			print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredate')\">";
+		} elseif(!$fakturanr) print "<BODY onLoad=\"javascript:alert('Fakturanummer mangler')\">";
+		else {
+			db_modify("update ordrer set valutakurs = '$valutakurs' where id = '$id'",__FILE__ . " linje " . __LINE__);
+			$linjeantal=0;
+			$q = db_select("select id from ordrelinjer where ordre_id = '$id' order by posnr",__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$linjeantal++;
+				$linje_id[$linjeantal]=$r['id'];
+			}
+			for ($x=1;$x<=$linjeantal;$x++) {
+				db_modify("update ordrelinjer set posnr = '$x' where id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+			}
+			if (!$linjeantal) print "<BODY onLoad=\"javascript:alert('Du kan ikke fakturere uden ordrelinjer')\">";
+			else print "<meta http-equiv=\"refresh\" content=\"0;URL=bogfor.php?id=$id\">";
+		}
+	}
+	transaktion("commit");
 }
 if ($submit == 'print') {
 	$id=if_isset($_POST['id']);
@@ -977,39 +1045,6 @@ if ($submit == 'lookup') {
 
 ##########################BOGFOR################################
 
-if ( $submit == 'postNow' && $bogfor!=0 && $status==2 ) {
-	if ($valuta && $valuta!='DKK') {
-		$qtxt = "select kodenr from grupper where art='VK' and box1='$valuta' ";
-		if ($r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$valutaGroup = $r['kodenr'];
-			$qtxt = "select valuta.kurs from valuta where gruppe = $valutaGroup and  valdate <= '$ordredate' ";
-			$qtxt.= "order by valuta.valdate desc limit 1";
-			if ($r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$valutakurs=$r['kurs'];
-			} else {
-				$valutakurs = NULL;
-			}
-		}
-	} else $valutakurs=100;
-	if (!$valutakurs) {
-		$tmp = dkdato($ordredate);
-		print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredate')\">";
-	} elseif(!$fakturanr) print "<BODY onLoad=\"javascript:alert('Fakturanummer mangler')\">";
-	else {
-		db_modify("update ordrer set valutakurs = '$valutakurs' where id = '$id'",__FILE__ . " linje " . __LINE__);
-		$linjeantal=0;
-		$q = db_select("select id from ordrelinjer where ordre_id = '$id' order by posnr",__FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$linjeantal++;
-			$linje_id[$linjeantal]=$r['id'];
-		}
-		for ($x=1;$x<=$linjeantal;$x++) {
-			db_modify("update ordrelinjer set posnr = '$x' where id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
-		}
-		if (!$linjeantal) print "<BODY onLoad=\"javascript:alert('Du kan ikke fakturere uden ordrelinjer')\">";
-		else print "<meta http-equiv=\"refresh\" content=\"0;URL=bogfor.php?id=$id\">";
-	}
-}
 if ( ($submit=='receive' || $submit=='return') && $bogfor!=0 ) {
 	$query = db_select("select * from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
 	if (!$row = db_fetch_array($query)) {Print "Du kan ikke modtage uden ordrelinjer";}
@@ -1593,7 +1628,11 @@ if ($menu=='T') {
 }
 }
 ######################################################################################################################################
-function indset_konto($id, $konto_id) {
+/**
+ * @param bool $manageTransaction Whether number allocation owns its transaction.
+ * @return int|string Order id.
+ */
+function indset_konto($id, $konto_id, $manageTransaction = true) {
 	global $art;
 	global $brugernavn;
 	$tidspkt=date("U");
@@ -1640,7 +1679,7 @@ function indset_konto($id, $konto_id) {
 	$momssats=$momssats*1;
 	if ((!$id)&&($firmanavn)) {
 		$ordredate=date("Y-m-d");
-		$ordrenr = get_next_order_number('KO');
+		$ordrenr = get_next_order_number('KO', $manageTransaction);
 
 		db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, email, mail_fakt, udskriv_til, notes, art, ordredate, momssats, status, hvem, tidspkt, valuta, omvbet) values ($ordrenr, '$konto_id', '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$betalingsdage', '$betalingsbet', '$cvrnr', '$email', '$mail_fakt', '$udskriv_til', '$notes', 'KO', '$ordredate', '$momssats', '0', '$brugernavn', '$tidspkt', '$valuta','$omlev')",__FILE__ . " linje " . __LINE__);
 		$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc",__FILE__ . " linje " . __LINE__);

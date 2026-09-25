@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.05.21----------
+// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.09.22----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20170607 PHR genkender nu også kontonr. Søg 20170707
 // 2018.12.20 MSC - Rettet isset fejl og rettet topmenu design til
@@ -38,16 +38,21 @@
 // 20260901 Sawaneh Review fixes: stale search responses are ignored, server
 //                  invoice scoring mirrors the client, amount search is a
 //                  prefix match on the absolute amount.
+// 20260908 CDX/LH Require an account before matching and validate selected open posts on save.
+// 20260911 Sawaneh Show the order payment ID as a column in the open post list again.
+// 20260922 CDX/PHR Restore cross-account suggestions while retaining validated journal assignment.
 
+ob_start();
 @session_start();
 $s_id = session_id();
 
 #$css = "../css/standard.css";
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/online.php");
+include(__DIR__ . "/../includes/std_func.php");
+include_once(__DIR__ . "/kassekladde_includes/autoSettlement.php");
 
-$kladde_id = if_isset($_GET['kladde_id']);
+$kladde_id = intval($_GET['kladde_id'] ?? 0);
 $id        = intval(if_isset($_GET, 0, ['id']));
 $skipped   = max(0, intval($_GET['skipped']  ?? 0));
 $settled   = max(0, intval($_GET['settled']  ?? 0));
@@ -58,29 +63,26 @@ $settled   = max(0, intval($_GET['settled']  ?? 0));
 $save_error   = '';
 $save_success = false;
 
+if (empty($_SESSION['autoudlign_token'])) {
+    $_SESSION['autoudlign_token'] = bin2hex(random_bytes(32));
+}
 if (isset($_POST['action']) && $_POST['action'] === 'udlign') {
-    $post_kontonr = trim($_POST['kontonr']   ?? '');
-    $post_art     = trim($_POST['art']       ?? '');
-    $post_faktnr  = trim($_POST['faktnr']    ?? '');
-    $post_amount  = floatval($_POST['amount'] ?? 0);
-    $post_id      = intval($_POST['entry_id'] ?? 0);
-
-    if ($post_art && $post_kontonr && $post_id) {
-        $kontonr_esc = db_escape_string($post_kontonr);
-        $art_esc     = db_escape_string($post_art);
-        $faktnr_esc  = db_escape_string($post_faktnr);
-
-        if ($post_amount < 0) {
-            $qtxt = "UPDATE kassekladde SET d_type='$art_esc', debet='$kontonr_esc', faktura='$faktnr_esc' WHERE id = $post_id";
-        } else {
-            $qtxt = "UPDATE kassekladde SET k_type='$art_esc', kredit='$kontonr_esc', faktura='$faktnr_esc' WHERE id = $post_id";
+    $webservice = true;
+    ob_clean();
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $token = $_POST['token'] ?? '';
+        if (!is_string($token) || !hash_equals($_SESSION['autoudlign_token'], $token)) {
+            throw new RuntimeException('The session has changed. Reload before settling.');
         }
-        db_modify($qtxt, __FILE__ . " line " . __LINE__);
-        $save_success = true;
-        $settled++;   // increment for URL carry-through
-    } else {
-        $save_error = 'Invalid data – please fill in all required fields.';
+        saveAutoSettlement($kladde_id, $_POST['entry_id'] ?? 0, $_POST['openpost_id'] ?? 0,
+            $_POST['account_id'] ?? 0, $_POST['snapshot'] ?? '');
+        echo json_encode(['success' => true]);
+    } catch (RuntimeException $error) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'error' => $error->getMessage()]);
     }
+    exit;
 }
 
 /* ---------------------------------------------------------------
@@ -88,9 +90,13 @@ if (isset($_POST['action']) && $_POST['action'] === 'udlign') {
 --------------------------------------------------------------- */
 $brugt = [];
 if ($kladde_id) {
-    $q = db_select("SELECT faktura FROM kassekladde WHERE kladde_id=$kladde_id AND faktura != ''", __FILE__ . " line " . __LINE__);
+    $q = db_select("SELECT faktura, debet, kredit, d_type, k_type FROM kassekladde WHERE kladde_id=$kladde_id AND faktura != ''", __FILE__ . " line " . __LINE__);
     while ($r = db_fetch_array($q)) {
-        $brugt[] = trim($r['faktura']);
+        foreach (['debet' => 'd_type', 'kredit' => 'k_type'] as $field => $typeField) {
+            if (in_array(trim((string)$r[$typeField]), ['D', 'K'], true)) {
+                $brugt[] = trim((string)$r[$typeField]) . ':' . trim((string)$r[$field]) . ':' . trim((string)$r['faktura']);
+            }
+        }
     }
 }
 
@@ -104,12 +110,11 @@ if ($kladde_id) {
         __FILE__ . " line " . __LINE__
     );
     while ($r = db_fetch_array($q)) {
-        $amount = 0;
-        if ($r['debet'] && !$r['kredit'])  $amount =  floatval($r['amount']);
-        elseif (!$r['debet'] && $r['kredit']) $amount = -floatval($r['amount']);
-        if ($amount != 0) {
+        $context = autoSettlementContext($r);
+        if ($context) {
             $entry = $r;
-            $entry['resolved_amount'] = $amount;
+            $entry['resolved_amount'] = $context['amount'];
+            $entryContext = $context;
             break;
         }
     }
@@ -127,6 +132,22 @@ if ($entry) {
     }
 }
 
+$accountOptions = [];
+$selectedAccountId = '';
+if ($entry) {
+    $accountWhere = "art IN ('D', 'K')";
+    if ($entryContext['account'] !== '') {
+        $number = db_escape_string($entryContext['account']);
+        $type = db_escape_string($entryContext['accountType']);
+        $accountWhere = "kontonr = '$number' AND art = '$type'";
+    }
+    $query = db_select("SELECT id, kontonr, art, firmanavn FROM adresser WHERE $accountWhere ORDER BY firmanavn, kontonr", __FILE__ . ' line ' . __LINE__);
+    while ($account = db_fetch_array($query)) {
+        $accountOptions[] = $account;
+        if ($entryContext['account'] !== '') $selectedAccountId = (string)$account['id'];
+    }
+}
+
 $amount_fmt = $entry
     ? number_format($entry['resolved_amount'], 2, ',', '.')
     : '';
@@ -141,11 +162,11 @@ $returside       = $kassekladde_url;
 $total_unsettled = 0;
 if ($kladde_id) {
     $q = db_select(
-        "SELECT debet, kredit FROM kassekladde WHERE kladde_id=$kladde_id",
+        "SELECT * FROM kassekladde WHERE kladde_id=$kladde_id",
         __FILE__ . " line " . __LINE__
     );
     while ($r = db_fetch_array($q)) {
-        if (($r['debet'] && !$r['kredit']) || (!$r['debet'] && $r['kredit'])) {
+        if (autoSettlementContext($r)) {
             $total_unsettled++;
         }
     }
@@ -729,13 +750,28 @@ print "</tbody></table></td></tr></tbody></table>";
         <?php endif; ?>
       </div>
 
+      <div class="search-row">
+        <label for="accountSelect"><?= 'Account' ?></label>
+        <select id="accountSelect" class="search-input" <?= $entryContext['account'] !== '' ? 'disabled' : '' ?>>
+          <option value=""><?= 'All customers and suppliers' ?></option>
+          <?php foreach ($accountOptions as $account): ?>
+          <option value="<?= (int)$account['id'] ?>"
+            data-account="<?= htmlspecialchars($account['kontonr'], ENT_QUOTES, 'UTF-8') ?>"
+            data-type="<?= htmlspecialchars($account['art'], ENT_QUOTES, 'UTF-8') ?>"
+            <?= (string)$account['id'] === $selectedAccountId ? 'selected' : '' ?>>
+            <?= htmlspecialchars($account['art'] . ' ' . $account['kontonr'] . ' — ' . $account['firmanavn'], ENT_QUOTES, 'UTF-8') ?>
+          </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
       <!-- Search bar -->
       <div class="search-row">
         <input
           class="search-input"
           type="text"
           id="searchInput"
-          placeholder="Search by invoice no., name, account no. …"
+          placeholder="Search by invoice no., payment ID, name, account no. …"
           autocomplete="off"
           autofocus
         >
@@ -751,12 +787,13 @@ print "</tbody></table></td></tr></tbody></table>";
               <th>Account</th>
               <th>Company name</th>
               <th>Invoice no.</th>
+              <th>Payment ID</th>
               <th>Date</th>
               <th class="r">Amount</th>
             </tr>
           </thead>
           <tbody id="candidateBody">
-            <tr><td colspan="6"><div class="state-msg loading">Loading…</div></td></tr>
+            <tr><td colspan="7"><div class="state-msg loading">Loading…</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -800,6 +837,8 @@ print "</tbody></table></td></tr></tbody></table>";
 
   /* ── PHP data passed to JS ──────────────────────────────── */
   const KLADDE_ID   = <?= json_encode($kladde_id) ?>;
+  const TOKEN       = <?= json_encode($_SESSION['autoudlign_token']) ?>;
+  const SNAPSHOT    = <?= json_encode(autoSettlementSnapshot($entry)) ?>;
   const ENTRY_ID    = <?= json_encode((int)$entry['id']) ?>;
   const AMOUNT      = <?= json_encode((float)$entry['resolved_amount']) ?>;
   const BESKRIVELSE = <?= json_encode($entry['beskrivelse'] ?? '') ?>;
@@ -816,9 +855,12 @@ print "</tbody></table></td></tr></tbody></table>";
   let selectedIndex    = -1;
   let debounceTimer    = null;
   let autoSelected     = false;    // did we auto-pick a candidate?
+  let autoSelectId     = null;     // server checks uniqueness before pagination
+  let saving           = false;
   let fetchSeq         = 0;        // guards against stale responses
 
   /* ── DOM ────────────────────────────────────────────────── */
+  const accountSelect = document.getElementById('accountSelect');
   const searchInput   = document.getElementById('searchInput');
   const candidateBody = document.getElementById('candidateBody');
   const udlignBtn     = document.getElementById('udlignBtn');
@@ -841,6 +883,8 @@ print "</tbody></table></td></tr></tbody></table>";
     const params = new URLSearchParams({
         search:        search,
         currentAmount: AMOUNT,
+        account:       accountSelect.selectedOptions[0].dataset.account || '',
+        accountType:   accountSelect.selectedOptions[0].dataset.type || '',
         page:          page,
         mode:          'open_post',                  
         hintTokens:    JSON.stringify(HINT_TOKENS),
@@ -933,15 +977,15 @@ print "</tbody></table></td></tr></tbody></table>";
     page   = page || 1;
     currentPage = page;
 
-    setLoading();
-
     const seq = ++fetchSeq;
+    setLoading();
     fetch(getSearchUrl(search, page))
       .then(r => r.json())
       .then(data => {
         if (seq !== fetchSeq) return;   // a newer request superseded this one
-        const raw   = (data.results || []).filter(c => !BRUGT.includes(String(c.faktnr)));
+        const raw   = (data.results || []).filter(c => !BRUGT.includes(c.art + ':' + c.kontonr + ':' + c.faktnr));
         candidates  = sortAndScore(raw);
+        autoSelectId = data.autoSelectId ?? null;
         totalCount  = data.pagination ? data.pagination.total : candidates.length;
         hasMore     = data.pagination ? data.pagination.hasMore : false;
         render(search);
@@ -949,7 +993,7 @@ print "</tbody></table></td></tr></tbody></table>";
       })
       .catch(() => {
         if (seq !== fetchSeq) return;
-        candidateBody.innerHTML = '<tr><td colspan="6"><div class="state-msg">Error loading results. Please try again.</div></td></tr>';
+        candidateBody.innerHTML = '<tr><td colspan="7"><div class="state-msg">Error loading results. Please try again.</div></td></tr>';
       });
   }
 
@@ -971,7 +1015,7 @@ print "</tbody></table></td></tr></tbody></table>";
   /* ── Render table ───────────────────────────────────────── */
   function render(search) {
     if (candidates.length === 0) {
-      candidateBody.innerHTML = '<tr><td colspan="6">' +
+      candidateBody.innerHTML = '<tr><td colspan="7">' +
         '<div class="state-msg">No open entries match.</div></td></tr>';
       setSelected(-1);
       updatePagination();
@@ -987,14 +1031,14 @@ print "</tbody></table></td></tr></tbody></table>";
     if (scored.length > 0) {
       if (unscored.length > 0) {
         // Label for top group only when there are two groups
-        html += `<tr class="group-divider-label"><td colspan="6">Best matches</td></tr>`;
+        html += `<tr class="group-divider-label"><td colspan="7">Best matches</td></tr>`;
       }
       html += scored.map((c, i) => candidateRow(c, i)).join('');
     }
 
     if (unscored.length > 0 && scored.length > 0) {
-      html += `<tr class="group-divider"><td colspan="6"></td></tr>`;
-      html += `<tr class="group-divider-label"><td colspan="6">Other open entries</td></tr>`;
+      html += `<tr class="group-divider"><td colspan="7"></td></tr>`;
+      html += `<tr class="group-divider-label"><td colspan="7">Other open entries</td></tr>`;
       html += unscored.map((c, i) => candidateRow(c, scored.length + i)).join('');
     } else if (unscored.length > 0) {
       html += unscored.map((c, i) => candidateRow(c, i)).join('');
@@ -1026,6 +1070,7 @@ print "</tbody></table></td></tr></tbody></table>";
       <td class="mono">${esc(c.kontonr)}${signalBadges(c._signals)}</td>  <!-- add badges here -->
       <td>${esc(c.firmanavn)}</td>
       <td class="mono">${esc(c.faktnr)}</td>
+      <td class="mono">${esc(c.betalings_id || '')}</td>
       <td class="mono">${fmtDate(c.transdate)}</td>
       <td class="r mono">${fmtNum(c.amount)}</td>
     </tr>`;
@@ -1035,9 +1080,10 @@ print "</tbody></table></td></tr></tbody></table>";
   function autoSelectBest() {
     if (candidates.length === 0) return;
 
-    const best = candidates[0];
-    if (best._score > 0 || candidates.length === 1) {
-      setSelected(0);
+    const bestIndex = candidates.findIndex(c => String(c.id) === String(autoSelectId));
+    const best = candidates[bestIndex];
+    if (best && best.amountMatch && Math.abs(Number(best.amount) - AMOUNT) < 0.001) {
+      setSelected(bestIndex);
       autoSelected = true;
     }
 
@@ -1074,16 +1120,17 @@ print "</tbody></table></td></tr></tbody></table>";
 
   /* ── Do udlign ───────────────────────────────────────────── */
   function doUdlign() {
-    if (selectedIndex < 0 || !candidates[selectedIndex]) return;
+    if (saving || selectedIndex < 0 || !candidates[selectedIndex]) return;
     const c = candidates[selectedIndex];
 
     const formData = new FormData();
     formData.append('action',   'udlign');
     formData.append('entry_id', ENTRY_ID);
-    formData.append('kontonr',  c.kontonr);
-    formData.append('art',      c.art);
-    formData.append('faktnr',   c.faktnr);
-    formData.append('amount',   AMOUNT);
+    formData.append('openpost_id', c.id);
+    formData.append('account_id', c.konto_id);
+    formData.append('snapshot', SNAPSHOT);
+    formData.append('token', TOKEN);
+    saving = true;
 
     udlignBtn.disabled = true;
     udlignBtn.textContent = 'Saving…';
@@ -1092,8 +1139,9 @@ print "</tbody></table></td></tr></tbody></table>";
       method: 'POST',
       body:   formData
     })
-    .then(r => {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) throw new Error(data.error || 'The journal could not be saved.');
       // Advance to next entry, carrying counters (settled+1, skipped unchanged)
       window.location.href = window.location.pathname +
         '?kladde_id=' + encodeURIComponent(KLADDE_ID) +
@@ -1101,10 +1149,11 @@ print "</tbody></table></td></tr></tbody></table>";
         '&settled=' + (SETTLED + 1) +
         '&skipped=' + SKIPPED;
     })
-    .catch(() => {
+    .catch(error => {
+      saving = false;
       udlignBtn.disabled = false;
       udlignBtn.textContent = 'Settle';
-      alert('An error occurred. Please try again.');
+      alert(error.message);
     });
   }
 
@@ -1133,7 +1182,7 @@ print "</tbody></table></td></tr></tbody></table>";
   /* ── Loading state ───────────────────────────────────────── */
   function setLoading() {
     candidateBody.innerHTML =
-      '<tr><td colspan="6"><div class="state-msg loading">Searching…</div></td></tr>';
+      '<tr><td colspan="7"><div class="state-msg loading">Searching…</div></td></tr>';
     paginationBar.style.display = 'none';
     setSelected(-1);
     matchHint.textContent = '';
@@ -1141,6 +1190,7 @@ print "</tbody></table></td></tr></tbody></table>";
 
   /* ── Keyboard navigation ─────────────────────────────────── */
   document.addEventListener('keydown', e => {
+    if (saving || e.target === accountSelect) return;
     const rows = candidateBody.querySelectorAll('.candidate-row'); 
     if (!rows.length) return;
 
@@ -1171,9 +1221,16 @@ print "</tbody></table></td></tr></tbody></table>";
   /* ── Search debounce ─────────────────────────────────────── */
   searchInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
+    ++fetchSeq;
+    setLoading();
     debounceTimer = setTimeout(() => {
       fetchCandidates(searchInput.value, 1);
     }, 220);
+  });
+
+  accountSelect.addEventListener('change', () => {
+    clearTimeout(debounceTimer);
+    fetchCandidates(searchInput.value, 1);
   });
 
   /* ── Pagination buttons ──────────────────────────────────── */
@@ -1210,7 +1267,7 @@ print "</tbody></table></td></tr></tbody></table>";
   }
 
   /* ── Boot ────────────────────────────────────────────────── */
-  // Load all open posts unfiltered; HINT_TOKENS/DESC_WORDS scoring ranks them.
+  // Fetch across accounts unless the journal line or user supplies an account filter.
   // Using the raw description as a literal filter hides the real matches.
   fetchCandidates('', 1);
 

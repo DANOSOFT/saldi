@@ -45,6 +45,7 @@
 // 20260729 NTR Changed crypt & JWT file location to be fetched from the location instead of hardcoded, to make sure there's no mismatch location.
 // 20260904 CL/NTR Pre-flight check of the OAuth key and JWT secret directories, trying chmod first, so a
 //                   missing write access stops the wizard with a message instead of an exception after the DB is created.
+// 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
 
 session_start();
 ob_start(); //Starter output buffering
@@ -153,9 +154,13 @@ if (isset($_POST['opret'])){
 		$db_pw="-- vises ikke --";
 	}
 	$adm_navn=trim($_POST['adm_navn']);
+	$navn_for_langt=false;
 	if ( strlen($adm_navn)==0 ) {
 		$felt_mangler=true;
 		$adm_navn="<i>Feltet er tomt!</i>";
+	} elseif (is_input_too_long($adm_navn)) {
+		$navn_for_langt=true;
+		$adm_navn="<i>".findtextinst('5149|Brugernavnet må højst være 80 tegn',$sprog_id)."</i>";
 	}
 	$adm_password=trim($_POST['adm_password']);
 	$verify_adm_password=trim($_POST['verify_adm_password']);
@@ -214,7 +219,7 @@ if (isset($_POST['opret'])){
 	$tmp.="<tr><td colspan=\"2\"><hr \></td></tr>\n\n";
 	if ( $felt_mangler ) $tmp.="<tr><td colspan=\"2\"><b><i>".findtextinst('1972|Et eller flere felter mangler at blive udfyldt ovenfor.',$sprog_id)."</i></b></td></tr>\n";
 	if ( $pw_diff )  $tmp.="<tr><td colspan=\"2\"><b><i>".findtextinst('1973|Adgangskode og verifikationskoden for SALDI-administrator er forskellig.',$sprog_id)."</i></b></td></tr>\n"; 
-	if ( $felt_mangler || $pw_diff ) {
+	if ( $felt_mangler || $pw_diff || $navn_for_langt ) {
 		$tmp.="<tr><td colspan=\"2\"><b><i>".findtextinst('1974|G&aring; tilbage til forrige side og ret fejlene</i></b><br />Brug eventuelt browserens tilbage-knap for at g&aring; tilbage.',$sprog_id)."</p>\n\n";
 		$tmp.="</body></html>\n";
 		print $tmp;
@@ -417,7 +422,7 @@ if (isset($_POST['opret'])){
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1968|Adgangskode for databaseadministrator',$sprog_id)."</td><td title=\"".findtextinst('1999|Adgangskode for ovenst&aring;ende bruger',$sprog_id)."\"><INPUT TYPE=password NAME=db_password VALUE=\"$db_password\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1969|SALDI-administratorens brugernavn',$sprog_id)."</td><td title=\"".findtextinst('2000|&Oslash;nsket navn p&aring; din administratorkonto til dit SALDI-system',$sprog_id)."\"><INPUT TYPE=TEXT NAME=adm_navn VALUE = \"$adm_navn\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1969|SALDI-administratorens brugernavn',$sprog_id)."</td><td title=\"".findtextinst('2000|&Oslash;nsket navn p&aring; din administratorkonto til dit SALDI-system',$sprog_id)."\"><INPUT TYPE=TEXT NAME=adm_navn MAXLENGTH=80 VALUE = \"$adm_navn\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1970|SALDI-administratorens adgangskode',$sprog_id)."</td><td title=\"".findtextinst('2001|&Oslash;nsket adgangskode for administratoren af dit SALDI-system',$sprog_id)."\"><INPUT TYPE=password NAME=adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
