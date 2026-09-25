@@ -13,6 +13,7 @@ set_error_handler(function ($severity, $message, $file, $line) {
 $stockEps = "10 dict begin\n14 14 translate\n0 0 moveto 2 2 lineto stroke\nshowpage\n%%Trailer\nend\n%%EOF\n";
 $logos = [
     'PDF letterhead' => ['PDF', ''],
+    'PS logo (written at the top of each page, not in bundtekst)' => ['PS', "0 0 moveto 10 10 lineto stroke\n"],
     'EPS with its own showpage' => ['EPS', $stockEps],
     'EPS without showpage' => ['EPS', "0 0 moveto 10 10 lineto stroke\n"],
     'EPS mentioning showpage only in a comment' => ['EPS', "% showpage intentionally omitted\n0 0 moveto 10 10 lineto stroke\n"],

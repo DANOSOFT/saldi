@@ -69,7 +69,7 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
-// 20260925 CL/LH SST-823: Embed the EPS logo per the EPSF spec (own state, its showpage disabled) and end every PostScript
+// 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
 //             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 
 #use PHPMailer\PHPMailer\PHPMailer;
@@ -2474,7 +2474,7 @@ if (!function_exists('bundtekst')) {
 		$side = $side + 1;
 
 
-		// Embed the EPS logo as the EPSF spec prescribes: in its own saved state with its showpage disabled,
+		// Embed the EPS logo with the EPSF inclusion wrapper (own saved state and stacks, its showpage disabled),
 		// so exactly one showpage below ends every page. Relying on the logo's own showpage lost pages 2..N
 		// when logo.eps was missing or had none (SD-490).
 		if ($logoart == 'EPS' && $logo !== '') {
