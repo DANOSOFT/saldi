@@ -53,6 +53,10 @@
 // 20260925 CL/NTR db_connect(): fail loud with an error instead of silently connecting with a
 //                blank host/database when a caller's connection globals aren't populated yet
 //                (e.g. includes/opdat_4.3.php reconnecting to a tenant before connect.php ran)
+// 20260925 CL/NTR Added db_select_database() - selects a database on an existing connection for
+//                engines that need it after db_connect() (MySQLi; no-op on Postgres). Callers
+//                that reconnect to switch tenant/master keep their own error handling; this
+//                just gives them one place to call instead of hand-rolling the mysqli check.
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -153,6 +157,35 @@ if (!function_exists('db_connect')) {
 			$non_global_connection = $connection;
 		}
 		return $connection;
+	}
+}
+
+if (!function_exists('db_select_database')) {
+	/**
+	 * Select a database on an existing connection, for engines that need it.
+	 *
+	 * db_connect() never selects a database on MySQLi - it only opens the server
+	 * connection - so a caller that reconnects to switch tenant/master on that engine
+	 * must select explicitly afterward (see includes/online.php's own
+	 * mysqli_select_db() calls). On Postgres, db_connect() already connects straight
+	 * to $l_database, so this is a no-op there.
+	 *
+	 * This does not replace a caller's own error handling: pass the same $connection
+	 * and $l_database db_connect() was just called with, and check the return value
+	 * the same way you would check mysqli_select_db() directly.
+	 *
+	 * @param mixed  $l_connection The connection resource/object returned by db_connect().
+	 * @param string $l_database   The database to select.
+	 * @return bool True on success (or when the active engine doesn't need this step).
+	 */
+	function db_select_database($l_connection, $l_database) {
+		global $db_type;
+
+		if (strtolower($db_type) == 'mysqli') {
+			return mysqli_select_db($l_connection, $l_database);
+		}
+
+		return true;
 	}
 }
 
