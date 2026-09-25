@@ -585,6 +585,7 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 					description text,
 					currency varchar(10),
 					updated timestamp DEFAULT CURRENT_TIMESTAMP,
+					content_sha256 char(64),
 					PRIMARY KEY (id),
 					UNIQUE(filename)
 				)";
@@ -1313,6 +1314,7 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				 description text,
 			currency varchar(10),
 				 updated timestamp DEFAULT CURRENT_TIMESTAMP,
+				 content_sha256 char(64),
 			PRIMARY KEY (id),
 				 UNIQUE(filename)
 			)";

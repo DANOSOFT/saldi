@@ -129,6 +129,7 @@ function opdat_4_1($majorNo, $subNo, $fixNo){
 					invoice_number varchar(100),
 					description text,
 					updated timestamp DEFAULT CURRENT_TIMESTAMP,
+					content_sha256 char(64),
 					PRIMARY KEY (id),
 					UNIQUE(filename)
 				)";

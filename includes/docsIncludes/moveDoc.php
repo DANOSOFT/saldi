@@ -18,6 +18,7 @@
 //
 // Copyright (c) 2024-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20260925 LOE MB-42 The pool row this writes carries content_sha256, like every other pool writer.
 // 20230707 LOE Added kassekladde part
 // 20230724 LOE made some modifications to include alert also
 // 20240305 PHR Varioous corrections
@@ -104,14 +105,19 @@ if ($moveDoc) {
 		// Check if entry already exists
 		$qtxt = "SELECT id FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+			// MB-42: the hash is stored here too, so no writer leaves content_sha256 NULL and the
+			// pool can recognise this bilag if the same file arrives again under another name.
+			$moveContentHash = is_file($new) ? @hash_file('sha256', $new) : '';
+			$moveContentHashSql = ($moveContentHash) ? "'". db_escape_string($moveContentHash) ."'" : 'NULL';
+			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, content_sha256) VALUES (
 				'". db_escape_string($fileName) ."',
 				'". db_escape_string($baseName) ."',
 				'',
 				'',
 				'". db_escape_string($fileDate) ."',
 				'',
-				''
+				'',
+				$moveContentHashSql
 			)";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}

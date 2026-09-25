@@ -38,6 +38,10 @@
 //                 save action - every write here (pulje-folder sync, and the rename/metadata-edit
 //                 path in docPool()) left norm_amount NULL/stale, so Bilagsmatch's amount_score
 //                 always scored 0 for files that entered the pool through this file.
+// 20260925 LOE MB-42 The pool recognises a bilag by its content (pool_files.content_sha256), not by
+//                 its filename, so the same document posted or forwarded again stops becoming a second
+//                 row; a second copy on disk is dropped, and rows that still repeat another row's
+//                 fakturanr+amount+date are marked in the list.
 // 20260813 CL/SZ - Both CREATE TABLE IF NOT EXISTS pool_files fallbacks in this file (used
 //                 only when the table doesn't exist yet at all) were missing norm_amount,
 //                 which the very next INSERT/UPDATE in each of those code paths already
@@ -170,6 +174,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			vendor_konto_id integer,
 			vendor_match varchar(10),
 			vendor_score numeric(4,3),
+			content_sha256 char(64),
 			PRIMARY KEY (id),
 			UNIQUE(filename)
 		)";
@@ -256,6 +261,27 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$fullPath = "$puljePath/$file";
 			$baseName = pathinfo($file, PATHINFO_FILENAME);
 			$fileDate = date("Y-m-d H:i:s", filemtime($fullPath));
+
+			// MB-42: the same bilag lands here under several names (the mail client forwards it, the
+			// uploader sanitises the name, the endpoint adds a random suffix). A filename is therefore
+			// not an identity - the content hash is, and a row already holding this content means the
+			// bilag is in the pool, so this file must not become a second row for it.
+			$syncContentHash = @hash_file('sha256', $fullPath);
+			if ($syncContentHash) {
+				$syncDuplicate = db_fetch_array(db_select(
+					"SELECT filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($syncContentHash) . "' AND filename != '" . db_escape_string($file) . "' ORDER BY id LIMIT 1",
+					__FILE__ . " line " . __LINE__
+				));
+				if ($syncDuplicate) {
+					// Only drop this file when the row's own file is really in the folder. If it is not,
+					// the row is an orphan that the cleanup above removes and this file is the last copy.
+					if (is_file("$puljePath/" . $syncDuplicate['filename'])) {
+						@unlink($fullPath);
+						docPoolLog("syncPuljeFilesToDatabase: $file has the same content as " . $syncDuplicate['filename'] . ", file removed and no row inserted");
+					}
+					continue;
+				}
+			}
 			
 			// Check for .info file for additional data
 			$infoFile      = "$puljePath/$baseName.info";
@@ -288,7 +314,8 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli') 
 					? ' ON DUPLICATE KEY UPDATE id = id' 
 					: ' ON CONFLICT (filename) DO NOTHING';
-			$qtxt = "$insertVerb INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
+			$syncContentHashSql = ($syncContentHash) ? "'" . db_escape_string($syncContentHash) . "'" : 'NULL';
+			$qtxt = "$insertVerb INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, content_sha256) VALUES (
 				'" . db_escape_string($file) . "',
 				'" . db_escape_string($subject) . "',
 				'" . db_escape_string($account) . "',
@@ -296,7 +323,8 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 				$syncNormAmountSql,
 				'" . db_escape_string($fileDate) . "',
 				'" . db_escape_string($invoiceNumber) . "',
-				'" . db_escape_string($description) . "'
+				'" . db_escape_string($description) . "',
+				$syncContentHashSql
 			)$onConflictClause";
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
@@ -332,7 +360,24 @@ function checkIfAllPoolFilesAreInDatabase() {
 		}
 		// get date from file
 		$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
-		$query = "INSERT INTO pool_files (filename, file_date) VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "')";
+		// Same content check as syncPuljeFilesToDatabase(): a second copy of a bilag already in the
+		// pool is dropped rather than inserted (MB-42).
+		$contentHash = @hash_file('sha256', "$puljePath/$file");
+		if ($contentHash) {
+			$duplicateRow = db_fetch_array(db_select(
+				"SELECT filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($contentHash) . "' AND filename != '" . db_escape_string($file) . "' ORDER BY id LIMIT 1",
+				__FILE__ . " line " . __LINE__
+			));
+			if ($duplicateRow) {
+				if (is_file("$puljePath/" . $duplicateRow['filename'])) {
+					@unlink("$puljePath/$file");
+					docPoolLog("checkIfAllPoolFilesAreInDatabase: $file has the same content as " . $duplicateRow['filename'] . ", file removed and no row inserted");
+				}
+				continue;
+			}
+		}
+		$contentHashSql = ($contentHash) ? "'" . db_escape_string($contentHash) . "'" : 'NULL';
+		$query = "INSERT INTO pool_files (filename, file_date, content_sha256) VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "', $contentHashSql)";
 		db_modify($query, __FILE__ . " line " . __LINE__);
 	}
 }
@@ -952,6 +997,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								vendor_konto_id integer,
 								vendor_match varchar(10),
 								vendor_score numeric(4,3),
+								content_sha256 char(64),
 								PRIMARY KEY (id),
 								UNIQUE(filename)
 							)";
@@ -1708,6 +1754,7 @@ $txt8   = findtekst( '828|Fakturanr.', $sprog_id);
 $txt9   = findtekst( '914|Beskrivelse', $sprog_id);
 $txt10  = findtekst( '934|Beløb', $sprog_id);
 $txt11  = findtekst( '951|Leverandør', $sprog_id);
+$txt_mb42_duplicate = findtekst('5248|Mulig dublet', $sprog_id);
 $txt12  = findtekst('1099|Slet', $sprog_id);
 $txt13  = findtekst('2148|Redigér', $sprog_id);
 $txt14  = findtekst('3266|Linje', $sprog_id);
@@ -2477,8 +2524,16 @@ print <<<JS
 				dateDisplay = "<span style='color: #004085; font-weight: bold;'><span style='margin-right: 4px; color: #007bff;'>" + svgIcons.calendar + "</span>" + dateFormatted + "</span>";
 			}
 
+			// MB-42: the same bilag under more than one filename is what the customer reported as
+			// duplicates, so the row says so instead of looking like two different invoices.
+			let duplicateBadge = '';
+			if (Array.isArray(row.duplicateOf) && row.duplicateOf.length > 0) {
+				const duplicateTitle = '{$txt_mb42_duplicate}: ' + row.duplicateOf.map(function(name) { return name; }).join(', ');
+				duplicateBadge = "<span class='duplicate-badge' title='" + escapeHTML(duplicateTitle) + "' style='margin-left:6px; padding:1px 5px; border-radius:3px; background-color:#fff3cd; border:1px solid #ffe08a; color:#8a6d3b; font-size:11px; white-space:nowrap;'>\u26a0 {$txt_mb42_duplicate}</span>";
+			}
+
 			// All cells start as non-editable (text)
-			const subjectCell       = "<span class='cell-content'>" + escapeHTML(row.subject) + "</span>";
+			const subjectCell       = "<span class='cell-content'>" + escapeHTML(row.subject) + duplicateBadge + "</span>";
 			const accountCell       = "<span class='cell-content'>" + escapeHTML(row.account) + "</span>";
 			const amountCell        = "<span class='cell-content'>" + amountDisplay + "</span>";
 			const dateCell          = "<span class='cell-content'>" + dateDisplay + "</span>";

@@ -3,6 +3,8 @@
 // 20260810 CL/SZ pool_files.norm_amount was only ever populated by extractInvoiceHandler.php's
 //                 save action - inserts made via this REST endpoint left norm_amount NULL, so
 //                 Bilagsmatch's amount_score always scored 0 for files uploaded through the API.
+// 20260925 LOE MB-42 saveBase64File() recognises a bilag it already stored by its content hash and
+//                 keeps that row instead of writing a second file and row under the new filename.
 // 20260813 CL/SZ - The CREATE TABLE IF NOT EXISTS pool_files fallback here (used only when
 //                 the table doesn't exist yet at all) was missing norm_amount and currency,
 //                 both of which the INSERT right after it already references - a brand-new
@@ -435,6 +437,32 @@ class AttachmentModel
         // Sanitize filename
         $filename = $this->sanitizeFilename($filename);
         
+        // MB-42: the same bilag posted again arrives under another name every time - the endpoint
+        // adds a random suffix to a posted filename, different callers sanitise the subject
+        // differently, and the counter bump below adds another one when the name is taken. Keep the
+        // row and the file already in the pool instead of writing a second copy of the same bilag.
+        $contentHash = ($isConverted && $convertedFile) ? hash_file('sha256', $convertedFile) : hash('sha256', $fileContent);
+        $poolDuplicate = $this->findPoolRowByContentHash($contentHash);
+        if ($poolDuplicate && file_exists($uploadDir . $poolDuplicate['filename'])) {
+            $this->filename = $poolDuplicate['filename'];
+            $this->filepath = $uploadDir . $poolDuplicate['filename'];
+            $this->size = filesize($this->filepath);
+            $this->mimeType = mime_content_type($this->filepath);
+            $this->uploadDate = date('Y-m-d H:i:s');
+            if ($metadata !== null && is_array($metadata)) {
+                $this->metadata = $metadata;
+            }
+            self::debugLog('=== saveBase64File DUPLICATE - kept the pool row already holding this content ===', [
+                'existing' => $this->filename,
+                'contentHash' => $contentHash
+            ]);
+            @unlink($tempFile);
+            if ($convertedFile && file_exists($convertedFile)) {
+                @unlink($convertedFile);
+            }
+            return true;
+        }
+        
         // Check if file already exists and generate unique name if needed
         $originalFilename = $filename;
         $counter = 1;
@@ -475,7 +503,7 @@ class AttachmentModel
             }
             
             // Insert into pool_files database table (same as docPool.php)
-            $this->insertToPoolFiles($filename, $metadata);
+            $this->insertToPoolFiles($filename, $metadata, $contentHash);
             
             // Clean up temporary files
             @unlink($tempFile);
@@ -498,14 +526,36 @@ class AttachmentModel
     
     
     /**
+     * The pool row that already holds this content, when its file is still in the pulje folder.
+     *
+     * The same bilag arrives more than once with a different filename every time: the endpoint adds
+     * a random suffix to a posted filename, different callers sanitise the subject differently, and
+     * the mail-ingest client forwards a subject as the id. Filename matching cannot see those as one
+     * document, so the content hash is what identifies it (MB-42).
+     *
+     * @param string $contentHash sha256 of the uploaded content
+     * @return array|null ['id' => int, 'filename' => string] or null
+     */
+    private function findPoolRowByContentHash($contentHash)
+    {
+        if (!$contentHash) {
+            return null;
+        }
+        $qtxt = "SELECT id, filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($contentHash) . "' ORDER BY id LIMIT 1";
+        $row = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
+        return $row ?: null;
+    }
+
+    /**
      * Insert file record into pool_files database table
      * This matches the same insert that docPool.php does
      * 
      * @param string $filename The filename to insert
      * @param array|null $metadata Optional metadata (accountnr, amount, date, invoiceNumber, invoiceDescription)
+     * @param string $contentHash sha256 of the stored file, so the pool can recognise the same bilag again
      * @return bool Success status
      */
-    private function insertToPoolFiles($filename, $metadata = null)
+    private function insertToPoolFiles($filename, $metadata = null, $contentHash = '')
     {
         // Only insert PDF files to match docPool.php behavior
         if (strtolower(pathinfo($filename, PATHINFO_EXTENSION)) !== 'pdf') {
@@ -548,6 +598,7 @@ class AttachmentModel
                     vendor_konto_id integer,
                     vendor_match varchar(10),
                     vendor_score numeric(4,3),
+                    content_sha256 char(64),
                     PRIMARY KEY (id),
                     UNIQUE(filename)
                 )";
@@ -559,6 +610,17 @@ class AttachmentModel
             if (db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
                 // File already exists, skip insert
                 self::debugLog('insertToPoolFiles: File already exists in database', $filename);
+                return true;
+            }
+
+            // Same content under another name: the row and the file are already in the pool
+            // (MB-42), so this call must not add a second one.
+            $contentHash = (string) $contentHash;
+            $contentHashSql = ($contentHash === '') ? 'NULL' : "'" . db_escape_string($contentHash) . "'";
+            $duplicate = $this->findPoolRowByContentHash($contentHash);
+            if ($duplicate && file_exists(self::getUploadDir() . $duplicate['filename'])) {
+                self::debugLog('insertToPoolFiles: Same content already in the pool, not inserting again', $duplicate['filename']);
+                $this->filename = $duplicate['filename'];
                 return true;
             }
             
@@ -596,7 +658,7 @@ class AttachmentModel
             // Insert into database
             $normAmount = normalizePoolAmount($amount);
             $normAmountSql = ($normAmount === null) ? 'NULL' : db_escape_string((string) $normAmount);
-            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency"
+            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency, content_sha256"
                 . ($vendorColumns ? ', ' . implode(', ', array_keys($vendorColumns)) : '') . ") VALUES (
                 '" . db_escape_string($filename) . "',
                 '" . db_escape_string($subject) . "',
@@ -606,7 +668,8 @@ class AttachmentModel
                 '" . db_escape_string($fileDate) . "',
                 '" . db_escape_string($invoiceNumber) . "',
                 '" . db_escape_string($description) . "',
-                '" . db_escape_string($currency) . "'"
+                '" . db_escape_string($currency) . "',
+                $contentHashSql"
                 . ($vendorColumns ? ', ' . implode(', ', array_values($vendorColumns)) : '') . "
             )";
             db_modify($qtxt, __FILE__ . " line " . __LINE__);

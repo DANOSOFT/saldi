@@ -720,6 +720,75 @@ if ($poolVendorMissing) {
 	}
 }
 
+// 20260925 LOE MB-42 The document pool recognised the same bilag only by its filename, and the mail
+//                  client posts it again under another one, so pool_files.content_sha256 is what
+//                  deduplication and the duplicate badge now use. Column, index and backfill below.
+$poolHashMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = 'content_sha256'";
+$qtxt .= $poolHashMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if ($poolHashMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the check
+		// above; serialize per tenant and recheck under the lock (same as the vendor columns).
+		$poolHashLock = "CONCAT('saldi:pool_files_content_hash:', MD5(DATABASE()))";
+		$poolHashLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolHashLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($poolHashLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the pool_files content hash migration lock.');
+		}
+		try {
+			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				db_modify("ALTER TABLE pool_files ADD COLUMN content_sha256 CHAR(64)", __FILE__ . " linje " . __LINE__);
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($poolHashLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS content_sha256 CHAR(64)", __FILE__ . " linje " . __LINE__);
+	}
+}
+// Non-unique on purpose: two different bilag may share content, and a unique index would make the
+// sync's own cleanup fail on the duplicate rows this ticket exists to stop creating.
+if ($poolHashMysql) {
+	$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'idx_pool_files_content_sha256'";
+	$poolHashIndex = "CREATE INDEX idx_pool_files_content_sha256 ON pool_files (content_sha256)";
+} else {
+	$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_content_sha256'";
+	$poolHashIndex = "CREATE INDEX IF NOT EXISTS idx_pool_files_content_sha256 ON pool_files (content_sha256)";
+}
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify($poolHashIndex, __FILE__ . " linje " . __LINE__);
+}
+
+// One-time backfill of content_sha256 for the rows written before the column existed, gated by a
+// settings flag exactly like pool_files_norm_amount_backfilled above. A row whose file is no longer
+// in the pulje folder keeps NULL - the sync deletes those rows anyway.
+$pool_files_hash_backfilled = db_fetch_array(db_select(
+	"SELECT var_value FROM settings WHERE var_name = 'pool_files_content_sha256_backfilled' AND var_grp = 'system'",
+	__FILE__ . " linje " . __LINE__
+));
+if (!$pool_files_hash_backfilled) {
+	$poolHashDir = __DIR__ . '/../bilag/' . $db . '/pulje/';
+	$q_pool_hash = db_select("SELECT id, filename FROM pool_files WHERE (content_sha256 IS NULL OR content_sha256 = '') AND filename IS NOT NULL AND filename != ''", __FILE__ . " linje " . __LINE__);
+	while ($r_pool_hash = db_fetch_array($q_pool_hash)) {
+		$poolHashFile = $poolHashDir . basename($r_pool_hash['filename']);
+		if (!is_file($poolHashFile)) {
+			continue;
+		}
+		$poolHashValue = @hash_file('sha256', $poolHashFile);
+		if ($poolHashValue) {
+			db_modify(
+				"UPDATE pool_files SET content_sha256 = '" . db_escape_string($poolHashValue) . "' WHERE id = " . (int) $r_pool_hash['id'],
+				__FILE__ . " linje " . __LINE__
+			);
+		}
+	}
+	db_modify(
+		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+		VALUES ('pool_files_content_sha256_backfilled', 'system', 'yes', 'One-time backfill of pool_files.content_sha256 from the files in the pulje folder')",
+		__FILE__ . " linje " . __LINE__
+	);
+}
+
 // 20260923 CL/NTR Tekst 242 (Ryk alle hover on the debtor openpost report) was an unclosed
 // <big>/<UL>/<LI> fragment - overly bureaucratic-looking for a one-line explanation. Delete rows
 // still holding the old text so findtekst() re-seeds them from tekster.csv with plain text.
