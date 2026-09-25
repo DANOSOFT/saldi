@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-17------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-24------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -99,6 +99,7 @@
 //                 table that lager/labelprint.php prints from, and new labels get account_id 0.
 // 20260824 CL/NTR Label deletion only removes global rows (account_id 0 or null), matching what the
 //                 label editor shows.
+// 20260811 Sawaneh Save 'batchExpiryEnabled' setting (batch/expiry date section on the item card)
 // 20260826 CL/SZ  saveLabel now refuses to save when the label's current template isn't reproducible
 //                 by the visual editor's field model - it was silently discarding formatting it
 //                 doesn't understand on every save (MB-18).
@@ -108,6 +109,7 @@
 // 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
 // 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
 // 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
+// 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 
 @session_start();
 $s_id = session_id();
@@ -634,6 +636,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'ordre_valg') {
 		$vatPrivateCustomers  = if_isset($_POST['vatPrivateCustomers']);
 		$vatBusinessCustomers = if_isset($_POST['vatBusinessCustomers']);
+		$hideRevenue          = (ifset($_POST, 'hideRevenue') === 'on') ? 'on' : 'off'; #SD-657
 		$box2                 = if_isset($_POST['box2']); #Rabatvarenr
 		$box3                 = if_isset($_POST['box3']); #folge_s_tekst
 		$box4                 = if_isset($_POST['box4']); #hurtigfakt
@@ -723,6 +726,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		// Save VAT options to settings table
 		update_settings_value("vatPrivateCustomers", "ordre", $vatPrivateCustomers, "Show VAT on orders for private customers");
 		update_settings_value("vatBusinessCustomers", "ordre", $vatBusinessCustomers, "Show VAT on orders for business customers");
+		update_settings_value("hideRevenue", "finans", $hideRevenue, "Keep turnover from users without access to Settings");
 		
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
@@ -787,6 +791,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			include_once("../includes/emballage_schema.php");
 			ensure_emballage_schema();
 		}
+		# Normalised to a fixed literal - never interpolate the posted value into the settings query.
+		$batchExpiryEnabled = (if_isset($_POST, null, 'batchExpiryEnabled') === 'on') ? 'on' : 'off';
+		update_settings_value("batchExpiryEnabled", "items", $batchExpiryEnabled, "Enable batch and expiry date handling on the item card");
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");

@@ -40,6 +40,7 @@
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
+// 20260716 CL/LH Added unique Stripe paid-invoice import key.
 // 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
 // 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
@@ -245,6 +246,21 @@ db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kont
 # primary key, so every item forced a full table scan of kostpriser to find its latest price -
 # on a large item report this is the same "no index on the hot per-row lookup" issue as above.
 db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
+
+# 20260924 CL/NTR Two concurrent logins can both pass the pg_indexes existence check before
+#                  either has committed the CREATE UNIQUE INDEX, and the losing statement then
+#                  fails with unique_violation (23505) on pg_class_relname_nsp_index, not
+#                  duplicate_table (42P07) - so a WHEN duplicate_table handler would miss it.
+#                  A session-level advisory lock around the check+create serializes this
+#                  betweenUpdates.php run against itself without catching every unique_violation
+#                  (duplicate ordrer.kundeordnr values must still fail).
+db_select("SELECT pg_advisory_lock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'ordrer' AND indexname = 'ordrer_stripe_paid_invoice_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE UNIQUE INDEX ordrer_stripe_paid_invoice_uidx ON ordrer (kundeordnr) WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
 
 #####
 
