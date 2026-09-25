@@ -18,6 +18,9 @@
     <testsuite name="characterization">
       <directory suffix=".test.php">tests/characterization</directory>
     </testsuite>
+    <testsuite name="includes">
+      <directory suffix=".test.php">tests/includes</directory>
+    </testsuite>
     <testsuite name="restapi">
       <directory suffix="Test.php">tests/restapi</directory>
     </testsuite>

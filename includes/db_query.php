@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-03-05--------------
+// --- includes/db_query.php ---patch 5.0.0 ----2026-09-25--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230730 LOE - Minor modification, abolute path to std_func
 // 20250121 connection as first parameter in pg_*
@@ -45,6 +45,11 @@
 //                transaction is aborted...") silently fails every later query on that same
 //                connection for the rest of the request; confirmed harmless when no
 //                transaction is open (SST-672)
+// 20260925 CL/NTR Added db_escape_like_pattern() to escape a search term's own '%'/'_' wildcard
+//                characters before a caller wraps it in LIKE/ILIKE '%...%'; used by
+//                lager/lagerstatus.php, lager/rapport.php and includes/grid.php's
+//                DEFAULT_GENERATE_SEARCH() so a lone '%' or '_' search no longer matches
+//                (near-)every row
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -478,6 +483,25 @@ if (!function_exists('db_escape_string')) {
 		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
 		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
 		else return pg_escape_string($connection, "$qtext");
+	}
+}
+
+if (!function_exists('db_escape_like_pattern')) {
+	// 20260925 CL/NTR - escapes literal '%', '_' and the escape character itself ('\') in a LIKE/ILIKE
+	// search term BEFORE it is wrapped in the caller's own leading/trailing '%' wildcards. Without this,
+	// a user typing a lone '%' or '_' (or a run of them, e.g. "%_%") turns their search box into an active
+	// SQL wildcard instead of a literal character to match - on Postgres ILIKE this can match the entire
+	// column (a de facto "select all"), which is surprising to the user and, in reports that use a
+	// non-empty search term to bypass other filters (see lager/lagerstatus.php's $lsHasTextSearch), can
+	// also defeat those filters for what looks like an empty/no-op search.
+	// Callers still run the result through db_escape_string() for quote/SQL-injection safety and still
+	// add their own LIKE ESCAPE '\' clause - this only neutralises the term's own wildcard characters.
+	function db_escape_like_pattern($term) {
+		return str_replace(
+			array('\\', '%', '_'),
+			array('\\\\', '\\%', '\\_'),
+			$term
+		);
 	}
 }
 
