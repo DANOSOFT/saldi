@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-03-05--------------
+// --- includes/db_query.php ---patch 5.0.0 ----2026-09-25--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230730 LOE - Minor modification, abolute path to std_func
 // 20250121 connection as first parameter in pg_*
@@ -45,6 +45,18 @@
 //                transaction is aborted...") silently fails every later query on that same
 //                connection for the rest of the request; confirmed harmless when no
 //                transaction is open (SST-672)
+// 20260925 CL/NTR Added db_escape_like_pattern() to escape a search term's own '%'/'_' wildcard
+//                characters before a caller wraps it in LIKE/ILIKE '%...%'; used by
+//                lager/lagerstatus.php, lager/rapport.php and includes/grid.php's
+//                DEFAULT_GENERATE_SEARCH() so a lone '%' or '_' search no longer matches
+//                (near-)every row
+// 20260925 CL/NTR db_connect(): fail loud with an error instead of silently connecting with a
+//                blank host/database when a caller's connection globals aren't populated yet
+//                (e.g. includes/opdat_4.3.php reconnecting to a tenant before connect.php ran)
+// 20260925 CL/NTR Added db_select_database() - selects a database on an existing connection for
+//                engines that need it after db_connect() (MySQLi; no-op on Postgres). Callers
+//                that reconnect to switch tenant/master keep their own error handling; this
+//                just gives them one place to call instead of hand-rolling the mysqli check.
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -81,6 +93,22 @@ if (!function_exists('db_connect')) {
 		
 		$errTxt="";
 		
+		// 20260925 CL/NTR Guard against callers whose connection globals never got populated -
+		// e.g. includes/connect.php not included yet before a caller reconnects to a tenant db
+		// (SD-opdat gate). $l_host is required by every call form, incl. the legacy
+		// "host,user,pass" single-string form below; without it that fell through to
+		// mysqli_connect('','','')/pg_connect('') and produced a confusing downstream failure
+		// instead of a clear one here. $l_database is likewise required on Postgres: an empty
+		// value would otherwise hit the pre-2009 pg_connect($l_host) fallback and silently
+		// connect to the wrong database.
+		if (!$l_host || (strtolower($db_type) != 'mysql' && strtolower($db_type) != 'mysqli' && !$l_database)) {
+			$errTxt = "<h1>Fejl: db_connect() kaldt uden host/database</h1>" .
+					"<p>Er includes/connect.php inkluderet f&oslash;r dette kald?" .
+					($l_spor ? " (spor: " . htmlspecialchars($l_spor) . ")" : "") . "</p>";
+			print $errTxt;
+			die;
+		}
+
 		if (strtolower($db_type) == 'mysql' || strtolower($db_type) == 'mysqli') {
     		// Check if mysqli_connect exists (only if mysqli is available)
 	  if (function_exists('mysqli_connect')) {
@@ -129,6 +157,35 @@ if (!function_exists('db_connect')) {
 			$non_global_connection = $connection;
 		}
 		return $connection;
+	}
+}
+
+if (!function_exists('db_select_database')) {
+	/**
+	 * Select a database on an existing connection, for engines that need it.
+	 *
+	 * db_connect() never selects a database on MySQLi - it only opens the server
+	 * connection - so a caller that reconnects to switch tenant/master on that engine
+	 * must select explicitly afterward (see includes/online.php's own
+	 * mysqli_select_db() calls). On Postgres, db_connect() already connects straight
+	 * to $l_database, so this is a no-op there.
+	 *
+	 * This does not replace a caller's own error handling: pass the same $connection
+	 * and $l_database db_connect() was just called with, and check the return value
+	 * the same way you would check mysqli_select_db() directly.
+	 *
+	 * @param mixed  $l_connection The connection resource/object returned by db_connect().
+	 * @param string $l_database   The database to select.
+	 * @return bool True on success (or when the active engine doesn't need this step).
+	 */
+	function db_select_database($l_connection, $l_database) {
+		global $db_type;
+
+		if (strtolower($db_type) == 'mysqli') {
+			return mysqli_select_db($l_connection, $l_database);
+		}
+
+		return true;
 	}
 }
 
@@ -478,6 +535,25 @@ if (!function_exists('db_escape_string')) {
 		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
 		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
 		else return pg_escape_string($connection, "$qtext");
+	}
+}
+
+if (!function_exists('db_escape_like_pattern')) {
+	// 20260925 CL/NTR - escapes literal '%', '_' and the escape character itself ('\') in a LIKE/ILIKE
+	// search term BEFORE it is wrapped in the caller's own leading/trailing '%' wildcards. Without this,
+	// a user typing a lone '%' or '_' (or a run of them, e.g. "%_%") turns their search box into an active
+	// SQL wildcard instead of a literal character to match - on Postgres ILIKE this can match the entire
+	// column (a de facto "select all"), which is surprising to the user and, in reports that use a
+	// non-empty search term to bypass other filters (see lager/lagerstatus.php's $lsHasTextSearch), can
+	// also defeat those filters for what looks like an empty/no-op search.
+	// Callers still run the result through db_escape_string() for quote/SQL-injection safety and still
+	// add their own LIKE ESCAPE '\' clause - this only neutralises the term's own wildcard characters.
+	function db_escape_like_pattern($term) {
+		return str_replace(
+			array('\\', '%', '_'),
+			array('\\\\', '\\%', '\\_'),
+			$term
+		);
 	}
 }
 

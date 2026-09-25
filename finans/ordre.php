@@ -16,10 +16,12 @@
 //
 // Copyright (c) 2004-2010 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 // 20260908 SZ SST-755: popup close/beacon now releases the lock properly (was missing
 // id/tabel params entirely, and there was no unload beacon at all).
 // 20260910 SZ SST-755 (CodeRabbit): the unload beacon now checks sendBeacon()'s return value
 // before treating the lock as released, falling back to the sync XHR when it fails.
+// 20260911 CDX/MJ JOB-106 Approval guard validates the effective order type (see debitor/ordre.php).
 // 20260923 SZ SST-755 (CodeRabbit): returside and the unload beacon now carry a per-render
 // lockToken instead of tidspkt, since tidspkt alone didn't distinguish two tabs open on the
 // same order before either one saved.
@@ -421,7 +423,7 @@ if (isset($_POST['submit'])) {
 				$levdate=date("Y-m-d");
 			} else $levdate=$ordredate;;
 		}
-		elseif ($levdate<$ordredate) {
+		elseif (delivery_date_before_order_date(order_becomes_credit_note($id, $art) ? 'DK' : $art, $levdate, $ordredate)) {
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato')\">";
 			$status=0;
 		}

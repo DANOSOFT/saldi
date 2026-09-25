@@ -2,7 +2,7 @@
 - [Ambiguity threshold](feedback_ambiguity_threshold.md) — Ask clarifying questions instead of guessing when confidence is below ~40%
 - [PHP echo translation placeholders](feedback_php_echo_translations.md) — Never remove `<?= 'string' ?>` short echo tags; they are future translation placeholders
 - [Protected update files](feedback_protected_update_files.md) — Do not inspect or edit `includes/betweenUpdates2.php`; `includes/opdat_*.php` may be read but not edited unless explicitly requested
-- [File history convention](convention_file_history.md) — Append `// YYYYMMDD <CL|CDX>/<Initials> <description>` to a file's header history block after AI-assisted changes
+- [File history convention](convention_file_history.md) — Append `// YYYYMMDD <CL|CDX>/<Initials> <description>` to a file's header history block after AI-assisted changes; also bump the header's `ver #.#.#` line to match `includes/version.php`'s current `$version` on behavior/logic changes
 - [Database changes routing](convention_database_changes.md) — New DB structure/content changes go in `includes/betweenUpdates.php`; only moved into `includes/opdat_<major>.<minor>.php` + `includes/version.php` bumped when explicitly cutting a new version
 - [Whitespace and indentation](feedback_whitespace_and_indentation.md) — No incidental trailing-whitespace diffs outside the change; do fix indentation/comment placement in the enclosing block/function being edited
 - [Include paths](convention_include_paths.md) — Use `__DIR__ . '/path'` for new includes; prospective-only, upgrade legacy bare relative includes only when already editing that enclosing block
