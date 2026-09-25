@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 5.0.0 --- 2026-04-24---
+// --- includes/online.php --- patch 5.0.0 --- 2026-09-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,9 @@
 // 20260402 PHR Bypass style if title = 'Bordplan'
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 // 20260904 Sawaneh WP-1.3: nav_push popup arg now uses the popup=1 request flag, not the user preference
+// 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
+// 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
+//                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -237,6 +240,20 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		if (!$connection)
 			die("Unable to connect to PostgreSQL");
 	}
+	if (isset($regnaar) && $regnaar === '') {
+		include_once(__DIR__ . '/std_func.php');
+		$fallbackYear = newest_active_fiscal_year();
+		if ($fallbackYear) {
+			$regnaar = (string) $fallbackYear;
+			$qtxt = "update online set regnskabsaar = '$fallbackYear' where session_id = '" . db_escape_string($s_id) . "'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+			if (!$revisor) {
+				$qtxt = "update brugere set regnskabsaar = '$fallbackYear' where brugernavn = '$brugernavn' and regnskabsaar is null";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
+			error_log("online.php: empty regnskabsaar for user '$brugernavn' in $db, set to newest open fiscal year $fallbackYear");
+		}
+	}
 	if ($db_ver > '3.7.4') {
 		$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -310,7 +327,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$textcolor = "#000077";
 		$textcolor2 = "#009900";
 		$textcolor3 = "#6666aa"; # Svagere tekst til det som er mindre vigtigt
-		if (!isset($bgcolor))  $bgcolor = "#eeeef0"; #alm baggrund
+		if (!isset($bgcolor) || $bgcolor === '') $bgcolor = "#eeeef0"; #alm baggrund
 		if (!isset($bgcolor2)) $bgcolor2 = "#BEBCCE"; #top & bundlinjer
 		if (!isset($bgcolor3)) $bgcolor3 = "#cccccc";
 		if (!isset($bgcolor4)) $bgcolor4 = "#d0d0f0";
@@ -500,7 +517,7 @@ if ($header != 'nix') {
 	}
 */
 if ($bg != 'nix') {
-	if (!$bgcolor) $bgcolor = "#000000";
+	if (empty($bgcolor)) $bgcolor = "#eeeef0";
 	print "<body bgcolor=\"$bgcolor\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\">\n";
 }
 

@@ -1,5 +1,5 @@
 <?php
-// --- tests/test_cash_count_snapshot.php --- patch 5.0.1 --- 2026.09.07 ---
+// --- tests/test_cash_count_snapshot.php --- patch 5.0.0 --- 2026.09.07 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260908 CDX/LH Verify that transaction-time rejection returns to recalculation.

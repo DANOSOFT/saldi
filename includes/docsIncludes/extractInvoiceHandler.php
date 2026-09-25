@@ -2,6 +2,22 @@
 // --- includes/docsIncludes/extractInvoiceHandler.php ---
 // AJAX handler for invoice extraction from pool files
 // ----------------------------------------------------------------------
+// 20260909 CDX/MJ SST-775 Moved normalizeDateFormat() to poolDateNormalizer.php so the date
+//             handling is testable - this file connects to a database and exits when included.
+//             Behaviour is unchanged here; the fixes live in that file.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: 'extract' now also returns the seller's
+//             CVR/IBAN/bank details and a server-side kreditor match (vendorMatch); 'save'
+//             re-runs the match from the posted identity fields (vendorScan=1) and stores
+//             the pool_files.vendor_* columns. Match logic lives in poolVendorMatcher.php.
+// 20260922 CL/LAH A fatal is reported as a JSON error instead of an empty body; the vendor
+//             match is wrapped so it can never fail the scan; JSON_INVALID_UTF8_SUBSTITUTE
+//             on the responses because legacy adresser rows can hold non-UTF-8 bytes.
+// 20260923 CL/LAH Output stays buffered until shutdown, so a warning, a late fatal or
+//             db_query.php's alert() can no longer corrupt the JSON (Astra review). The buffer
+//             is never closed early, so this also covers the session/db checks at startup.
+// 20260923 CL/NTR The non-JSON fallback no longer echoes the raw error/alert text to the
+//             client (CodeRabbit); it now sends a short random ref id and logs the full
+//             reason against that same id, so the incident can still be found in the log.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -9,121 +25,126 @@ header('Content-Type: application/json');
 // Start output buffering to capture any unwanted output
 ob_start();
 
-// Include database connection
-include_once("../connect.php");
-include_once(__DIR__ . "/poolAmountNormalizer.php");
+// Every response of this handler must be one JSON document. A fatal error, a warning printed
+// with display_errors on, or db_query.php's alert() on a failed query would otherwise reach
+// the browser as an empty or non-JSON body ("Unexpected end of JSON input", seen on ssl3
+// 2026-09-22). All output stays buffered until shutdown; if the buffer is not valid JSON by
+// then, it is replaced by a JSON error naming the cause, which is also written to the log.
+register_shutdown_function(function () {
+	$error = error_get_last();
+	$fatal = $error !== null && in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_RECOVERABLE_ERROR), true);
+	$out = '';
+	while (ob_get_level() > 0) $out = ob_get_clean() . $out;
+	$trimmed = trim($out);
+	if (!$fatal && $trimmed !== '') {
+		json_decode($trimmed);
+		if (json_last_error() === JSON_ERROR_NONE) {
+			echo $trimmed;
+			return;
+		}
+		// Valid JSON with stray output in front of it (a warning, a debug echo): send the JSON.
+		$jsonStart = strrpos($trimmed, '{"success"');
+		if ($jsonStart !== false) {
+			$tail = substr($trimmed, $jsonStart);
+			json_decode($tail);
+			if (json_last_error() === JSON_ERROR_NONE) {
+				error_log("extractInvoiceHandler: stray output before JSON: " . substr(strip_tags(substr($trimmed, 0, $jsonStart)), 0, 500));
+				echo $tail;
+				return;
+			}
+		}
+	}
+	if ($fatal) {
+		$reason = basename($error['file']) . ':' . $error['line'] . ' ' . $error['message'];
+	} elseif ($trimmed === '') {
+		$reason = 'tomt svar';
+	} elseif (preg_match('#alert\((["\'])(.*?)\1\)#s', $trimmed, $alertMatch)) {
+		// db_query.php's alert() after a failed query: its text is the user-facing message.
+		$reason = $alertMatch[2];
+		error_log("extractInvoiceHandler: output before alert: " . substr(strip_tags($trimmed), 0, 500));
+	} else {
+		$reason = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($trimmed), ENT_QUOTES, 'UTF-8')));
+	}
+	$errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+	error_log("extractInvoiceHandler: non-JSON response replaced [$errorId]: " . substr($reason, 0, 500));
+	echo json_encode(array('success' => false, 'error' => "Serverfejl (ref: $errorId) - kontakt support"), JSON_INVALID_UTF8_SUBSTITUTE);
+});
 
-// Get database name from POST
-$db = isset($_POST['db']) ? $_POST['db'] : '';
+// Start session so the tenant db can be resolved from it below - a POSTed
+// db name must never be trusted directly (it would let a tampered request
+// read/write/delete another tenant's pool documents; see SST-776).
+@session_start();
+$s_id = session_id();
+
+// Include database connection
+include_once(__DIR__ . "/../connect.php");
+include_once(__DIR__ . "/poolAmountNormalizer.php");
+include_once(__DIR__ . "/poolDateNormalizer.php");
+include_once(__DIR__ . "/poolVendorMatcher.php");
+
+// Resolve the tenant db from the session's online-table entry, same pattern
+// as includes/_docPoolData.php and includes/online.php - never from $_POST['db'].
+$qtxt = "select db from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
+$onlineRow = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
+$db = trim($onlineRow['db'] ?? '');
+
 if (empty($db)) {
-	ob_end_clean();
-	echo json_encode(['success' => false, 'error' => 'Database ikke angivet']);
+	ob_clean();
+	echo json_encode(['success' => false, 'error' => 'Session udløbet - log ind igen']);
 	exit;
 }
 
 // Validate db name (only allow alphanumeric and underscore)
 if (!preg_match('/^[a-zA-Z0-9_]+$/', $db)) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Ugyldig database navn']);
 	exit;
 }
 
-// Connect to the specific database
-if ($db) {
-	global $sqhost, $squser, $sqpass;
-	// Close previous connection if exists (optional but good practice)
-	// pg_close($connection); // db_connect usually handles new connection, but we just overwrite variable
-	$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
-	
-	if (!$connection) {
-		ob_end_clean();
-		echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
-		exit;
-	}
+// Connect to the session's own database
+global $sqhost, $squser, $sqpass;
+$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
+
+if (!$connection) {
+	ob_clean();
+	echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
+	exit;
 }
 
 // Include the extraction API
 include_once("invoiceExtractionApi.php");
 
-// Discard any buffered output from includes
-ob_end_clean();
+// Discard any buffered output from includes but keep buffering until shutdown (see the
+// shutdown handler at the top) so nothing can reach the browser outside the JSON response.
+ob_clean();
 
 /**
- * Normalize date format from various formats to Y-m-d
- * Handles Danish month names like "januar", "februar", etc.
- * Also handles formats like "17.oktober.2025", "17-10-2025", "2025-10-17", etc.
+ * Match the vendor identity of a scanned invoice against the tenant's kreditorer.
+ * Two database reads (adresser art='K' and the tenant's own CVR from art='S'), no API calls.
+ *
+ * @param array{name?:string|null,cvr?:string|null,iban?:string|null,bank_reg?:string|null,bank_konto?:string|null,customerCvr?:string|null} $identity
+ * @return array See poolVendorMatch().
  */
-function normalizeDateFormat($dateStr) {
-	if (empty($dateStr)) {
-		return '';
+function extractInvoiceMatchVendor(array $identity) {
+	try {
+		return extractInvoiceMatchVendorUnsafe($identity);
+	} catch (Throwable $e) {
+		// The match is a bonus on top of the scan; never let it take the scan down.
+		error_log("extractInvoiceHandler vendor match failed: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+		return null;
 	}
-	
-	// Danish month names to numbers
-	$danishMonths = [
-		'januar' => '01', 'jan' => '01',
-		'februar' => '02', 'feb' => '02',
-		'marts' => '03', 'mar' => '03',
-		'april' => '04', 'apr' => '04',
-		'maj' => '05',
-		'juni' => '06', 'jun' => '06',
-		'juli' => '07', 'jul' => '07',
-		'august' => '08', 'aug' => '08',
-		'september' => '09', 'sep' => '09', 'sept' => '09',
-		'oktober' => '10', 'okt' => '10', 'oct' => '10',
-		'november' => '11', 'nov' => '11',
-		'december' => '12', 'dec' => '12'
-	];
-	
-	// Clean up the date string
-	$dateStr = trim($dateStr);
-	$originalDate = $dateStr;
-	
-	// Convert to lowercase for matching
-	$lowerDate = strtolower($dateStr);
-	
-	// Replace Danish month names with numbers
-	foreach ($danishMonths as $monthName => $monthNum) {
-		if (stripos($lowerDate, $monthName) !== false) {
-			// Found a Danish month name, try to parse
-			// Pattern: day.monthname.year or day monthname year
-			if (preg_match('/(\d{1,2})[.\s\-]+' . preg_quote($monthName, '/') . '[.\s\-]+(\d{4}|\d{2})/i', $dateStr, $matches)) {
-				$day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
-				$year = $matches[2];
-				// Handle 2-digit year
-				if (strlen($year) == 2) {
-					$year = ($year > 50 ? '19' : '20') . $year;
-				}
-				return $year . '-' . $monthNum . '-' . $day;
-			}
-		}
-	}
-	
-	// Try standard formats
-	// Format: dd.mm.yyyy or dd-mm-yyyy or dd/mm/yyyy
-	if (preg_match('/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4})$/', $dateStr, $matches)) {
-		$day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
-		$month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-		$year = $matches[3];
-		return $year . '-' . $month . '-' . $day;
-	}
-	
-	// Format: yyyy-mm-dd (already correct)
-	if (preg_match('/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})$/', $dateStr, $matches)) {
-		$year = $matches[1];
-		$month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-		$day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
-		return $year . '-' . $month . '-' . $day;
-	}
-	
-	// Try PHP's strtotime as fallback
-	$timestamp = strtotime($dateStr);
-	if ($timestamp !== false && $timestamp > 0) {
-		return date('Y-m-d', $timestamp);
-	}
-	
-	// Return original if nothing worked
-	return $originalDate;
 }
+
+function extractInvoiceMatchVendorUnsafe(array $identity) {
+	$ownCvr = poolVendorLoadOwnCvr();
+	// The buyer's CVR on the invoice is a second way to know which number is not the seller's.
+	$customerCvr = normalizePoolVendorCvr($identity['customerCvr'] ?? null);
+	if ($customerCvr !== null && $ownCvr === null) $ownCvr = $customerCvr;
+	$vendorCvr = normalizePoolVendorCvr($identity['cvr'] ?? null);
+	if ($vendorCvr !== null && $customerCvr !== null && $vendorCvr === $customerCvr) $identity['cvr'] = null;
+	return poolVendorMatch($identity, poolVendorLoadIndex(), array('ownCvr' => $ownCvr, 'nameScan' => 'full'));
+}
+
 
 // Get action and poolFile from POST
 $action = isset($_POST['action']) ? $_POST['action'] : '';
@@ -134,8 +155,19 @@ if (empty($poolFile)) {
 	exit;
 }
 
-// Get docFolder from POST (same as what docPool.php uses)
-$docFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : '../bilag';
+// poolFile must be a bare filename - reject any path component so a
+// tampered value can't escape the tenant's own pulje directory (SST-776).
+if ($poolFile !== basename($poolFile) || $poolFile === '.' || $poolFile === '..') {
+	echo json_encode(['success' => false, 'error' => 'Ugyldigt filnavn']);
+	exit;
+}
+
+// Get docFolder from POST, but only accept the same fixed values
+// documents.php itself ever assigns to $docFolder - a POSTed path is not
+// trusted for directory traversal (SST-776).
+$requestedDocFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : '../bilag';
+$allowedDocFolders = ['../owncloud', '../bilag', '../documents'];
+$docFolder = in_array($requestedDocFolder, $allowedDocFolders, true) ? $requestedDocFolder : '../bilag';
 
 // Build full path to the pool file using the same path structure as docPool.php
 // docFolder is relative to the includes/ directory (e.g., "../bilag")
@@ -186,6 +218,15 @@ if ($action === 'extract') {
 		// Normalize date format (handles Danish months like "17.oktober.2025")
 		$normalizedDate = isset($result['date']) ? normalizeDateFormat($result['date']) : null;
 		
+		$vendorMatch = extractInvoiceMatchVendor(array(
+			'name' => $result['vendor'] ?? null,
+			'cvr' => $result['vendorCvr'] ?? null,
+			'iban' => $result['vendorIban'] ?? null,
+			'bank_reg' => $result['vendorBankReg'] ?? null,
+			'bank_konto' => $result['vendorBankKonto'] ?? null,
+			'customerCvr' => $result['customerCvr'] ?? null,
+		));
+
 		echo json_encode([
 			'success' => true,
 			'data' => [
@@ -194,9 +235,15 @@ if ($action === 'extract') {
 				'vendor' => $result['vendor'] ?? null,
 				'invoiceNumber' => $result['invoiceNumber'] ?? null,
 				'description' => $result['description'] ?? null,
-				'currency' => $result['currency'] ?? null
+				'currency' => $result['currency'] ?? null,
+				'vendorCvr' => $result['vendorCvr'] ?? null,
+				'vendorIban' => $result['vendorIban'] ?? null,
+				'vendorBankReg' => $result['vendorBankReg'] ?? null,
+				'vendorBankKonto' => $result['vendorBankKonto'] ?? null,
+				'customerCvr' => $result['customerCvr'] ?? null,
+				'vendorMatch' => $vendorMatch
 			]
-		]);
+		], JSON_INVALID_UTF8_SUBSTITUTE);
 	} else {
 		echo json_encode(['success' => false, 'error' => 'Kunne ikke udtrække data fra fakturaen']);
 	}
@@ -212,6 +259,14 @@ if ($action === 'save') {
 	$newInvoiceNumber = isset($_POST['newInvoiceNumber']) ? $_POST['newInvoiceNumber'] : '';
 	$newDescription = isset($_POST['newDescription']) ? $_POST['newDescription'] : '';
 	$newCurrency = isset($_POST['newCurrency']) ? $_POST['newCurrency'] : '';
+	// Vendor identity is only (re)matched when the caller is one of the scanning paths
+	// (vendorScan=1); a plain metadata save leaves the vendor_* columns untouched.
+	$vendorScan = isset($_POST['vendorScan']) && $_POST['vendorScan'] === '1';
+	$newVendorCvr = isset($_POST['newVendorCvr']) ? $_POST['newVendorCvr'] : '';
+	$newVendorIban = isset($_POST['newVendorIban']) ? $_POST['newVendorIban'] : '';
+	$newVendorBankReg = isset($_POST['newVendorBankReg']) ? $_POST['newVendorBankReg'] : '';
+	$newVendorBankKonto = isset($_POST['newVendorBankKonto']) ? $_POST['newVendorBankKonto'] : '';
+	$newCustomerCvr = isset($_POST['newCustomerCvr']) ? $_POST['newCustomerCvr'] : '';
 	
 	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
 	
@@ -275,6 +330,27 @@ if ($action === 'save') {
 	$finalNormAmount = normalizePoolAmount($finalAmount);
 	$normAmountSql = ($finalNormAmount === null) ? 'NULL' : db_escape_string((string) $finalNormAmount);
 
+	// Match the scanned vendor against kreditorer on the server, so the frontend never
+	// carries the match result back and forth. The name as read stays in subject as before.
+	$vendorMatch = null;
+	if ($vendorScan && !poolVendorColumnsExist()) {
+		// Migration not applied on this tenant yet (see poolVendorColumnsExist): save the
+		// ordinary fields as before rather than failing the request; the file is matched
+		// on the next scan or when the pool opens after the columns exist.
+		error_log("extractInvoiceHandler: pool_files.vendor_* columns missing on $db - vendor match skipped for $poolFile");
+		$vendorScan = false;
+	}
+	if ($vendorScan) {
+		$vendorMatch = extractInvoiceMatchVendor(array(
+			'name' => $newSubject,
+			'cvr' => $newVendorCvr,
+			'iban' => $newVendorIban,
+			'bank_reg' => $newVendorBankReg,
+			'bank_konto' => $newVendorBankKonto,
+			'customerCvr' => $newCustomerCvr,
+		));
+	}
+
 	// Update or Insert into Database
 	if ($existingRow) {
 		$qtxt = "UPDATE pool_files SET
@@ -286,11 +362,15 @@ if ($action === 'save') {
 			description = '". db_escape_string($finalDescription) ."',
 			currency = '". db_escape_string($finalCurrency) ."',
 			file_date = '". db_escape_string($finalDate) ."',
-			updated = CURRENT_TIMESTAMP
+			updated = CURRENT_TIMESTAMP";
+		if ($vendorMatch !== null) $qtxt .= ",\n\t\t\t" . poolVendorUpdateSql($vendorMatch);
+		$qtxt .= "
 			WHERE filename = '". db_escape_string($poolFile) ."'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	} else {
-		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency) VALUES (
+		$vendorColumns = $vendorMatch !== null ? poolVendorColumnValues($vendorMatch) : array();
+		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency"
+			. ($vendorColumns ? ', ' . implode(', ', array_keys($vendorColumns)) : '') . ") VALUES (
 			'". db_escape_string($poolFile) ."',
 			'". db_escape_string($finalSubject) ."',
 			'". db_escape_string($finalAccount) ."',
@@ -299,12 +379,13 @@ if ($action === 'save') {
 			'". db_escape_string($finalDate) ."',
 			'". db_escape_string($finalInvoiceNumber) ."',
 			'". db_escape_string($finalDescription) ."',
-			'". db_escape_string($finalCurrency) ."'
+			'". db_escape_string($finalCurrency) ."'"
+			. ($vendorColumns ? ', ' . implode(', ', array_values($vendorColumns)) : '') . "
 		)";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 	
-	echo json_encode(['success' => true]);
+	echo json_encode(['success' => true, 'vendor' => $vendorMatch], JSON_INVALID_UTF8_SUBSTITUTE);
 	exit;
 }
 

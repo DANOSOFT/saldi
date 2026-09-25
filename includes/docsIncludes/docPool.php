@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-05-15 --- 
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-09-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250510 PHR Added 'w' to $legalChars
 // 20250519 PHR '&' replaced by '_' in filenames 
@@ -43,7 +43,44 @@
 //                 which the very next INSERT/UPDATE in each of those code paths already
 //                 references - a brand-new tenant's first pool file would fail with
 //                 "column norm_amount does not exist". Added the column to both.
+// 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20260910 CL/SZ SST-776 follow-up (root cause identified during the SST-740 trace on
+//                 20260908, but PR #584 only shipped the FileReservation/session-tenant half -
+//                 this closes the other half): syncPuljeFilesToDatabase() only ever inserted a
+//                 row for a filename it didn't already know, never checking whether a known
+//                 filename still had a file behind it. A row orphaned by any pulje-file removal
+//                 other than insertDoc.php's guarded attach (manual delete, a failed move, etc.)
+//                 sat forever and got silently reused by a later unrelated upload that
+//                 generated the same filename, showing that document's real PDF paired with
+//                 a different document's vendor/amount/date/invoice number. Now deletes any
+//                 pool_files row whose file is no longer in the pulje folder before checking
+//                 what's missing (a failed scandir() bails out first, so it can't misread a
+//                 read failure as "folder is empty" and wipe every row), and the insert is
+//                 ON CONFLICT DO NOTHING now that includes/betweenUpdates.php adds a unique
+//                 index on filename.
+// 20260914 CDX/LAH Resolve transfer targets from their checkboxes so unsaved voucher lines receive data.
+// 20260915 CL/Sawaneh Attach selected (chooseMultipleBilag) still read the pre-multi-line field ids
+//                     (newEntry*/existingEntry*), so typed date/description/accounts/amount were never
+//                     sent and file data replaced them. Now collects every row_<id>_* field of the first
+//                     checked line via _collectRow(), and file data (JS, pool_files, .info) only fills
+//                     fields the user left empty on a new line. A typed "0" counts as typed, and
+//                     other checked saved lines are saved via the Save path before the attach.
+// 20260916 CDX/LAH Keep the selected new voucher row visible above collapsed existing lines.
+// 20260917 CDX/LAH Preserve new voucher fields, including accounts, when opening a pool preview.
+// 20260918 LOE SD-700 Keep the pool list order and position when opening a bilag.
+// 20260921 CDX/PHR Preserve commas in selected document filenames by preferring poolFile arrays.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: vendor_* columns added to both pool_files
+//                 CREATE TABLE IF NOT EXISTS fallbacks; the three scanning paths (single scan,
+//                 'Opdatér alle', auto-extract on upload) now post the seller's CVR/IBAN/bank
+//                 details with vendorScan=1 so extractInvoiceHandler.php can match the kreditor.
+// 20260922 CL/LAH Kreditor-forslag (kravspec afsnit 6): "Overfør data" fills Kredit with K+kontonr for
+//                 cvr/bank/name>=0.80 matches, offers a one-click suggestion below that, and a picker
+//                 for ambiguous; "Indsæt valgte" defaults Kredit the same way. A Kredit the user
+//                 already typed is never overwritten. Every value shown in the popup is HTML-escaped
+//                 (invoice text from a scan could otherwise inject markup; found in Astra's review).
+
 include_once(__DIR__ . "/poolAmountNormalizer.php");
+include_once(__DIR__ . "/poolVendorSuggestion.php");
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -85,6 +122,7 @@ if (!function_exists('docPoolLog')) {
  * This runs once on page load and adds any missing PDF files to the database.
  */
 function syncPuljeFilesToDatabase($docFolder, $db) {
+	global $db_type;
 	$puljePath = "$docFolder/$db/pulje";
 	
 	$skip = get_settings_value("skip_sync", "docs", 0);
@@ -126,6 +164,12 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			invoice_number varchar(100),
 			description text,
 			updated timestamp DEFAULT CURRENT_TIMESTAMP,
+			vendor_name text,
+			vendor_cvr varchar(20),
+			vendor_iban varchar(40),
+			vendor_konto_id integer,
+			vendor_match varchar(10),
+			vendor_score numeric(4,3),
 			PRIMARY KEY (id),
 			UNIQUE(filename)
 		)";
@@ -148,6 +192,14 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	// Get all PDF and XML files from the pulje directory
 	$pdfFiles = [];
 	$files = scandir($puljePath);
+	// scandir() returns false on a read failure (permission issue, a disconnected
+	// owncloud mount, etc.) rather than an empty array - treating that the same as
+	// "genuinely empty" would make the orphan cleanup below delete every pool_files row
+	// for this tenant on a transient read failure. Bail out instead; nothing to sync.
+	if ($files === false) {
+		docPoolLog("syncPuljeFilesToDatabase: scandir($puljePath) failed, skipping sync");
+		return;
+	}
 	foreach ($files as $file) {
 		if ($file === '.' || $file === '..') continue;
 		$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
@@ -155,11 +207,38 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$pdfFiles[] = $file;
 		}
 	}
-	
+
+	// Drop any pool_files row whose file is no longer in the pulje folder, before
+	// looking at what's missing. insertDoc.php only deletes a row when a pool file is
+	// attached via its own guarded move (SST-740); any other removal (manual delete, a
+	// failed move, etc.) left the row behind forever, so a later unrelated upload that
+	// happened to generate the same filename (e.g. recurring vendor + date, like NETS/META)
+	// silently inherited that stale row's vendor/amount/date/invoice number - the customer
+	// then saw the right PDF paired with a different document's metadata. This must run
+	// even when the pulje folder is now empty, so it's before the empty-check below.
+	//
+	// Excludes rows updated in the last 60 seconds: moveDoc.php (and other writers) always
+	// write the file to disk before inserting its pool_files row, but this function's own
+	// scandir() snapshot above is taken before that INSERT, not atomically with it - a
+	// concurrent request's file+row could land in that gap, and without this grace window
+	// the row would look orphaned (not in our snapshot) and get deleted despite its file
+	// now genuinely being on disk. The next sync pass sees it correctly once the snapshot
+	// catches up, so this only ever delays cleanup of a real orphan by at most one pass.
+	if ($pdfFiles) {
+		$onDiskEscaped = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
+		$onDiskClause = "filename NOT IN (" . implode(',', $onDiskEscaped) . ")";
+	} else {
+		$onDiskClause = "1=1";
+	}
+	$recentGuard = ($db_type == 'mysql' || $db_type == 'mysqli')
+		? "(updated IS NULL OR updated < (NOW() - INTERVAL 60 SECOND))"
+		: "(updated IS NULL OR updated < (NOW() - INTERVAL '60 seconds'))";
+	db_modify("DELETE FROM pool_files WHERE ($onDiskClause) AND $recentGuard", __FILE__ . " line " . __LINE__);
+
 	if (empty($pdfFiles)) {
 		return;
 	}
-	
+
 	// Get existing filenames from database in one query
 	$escapedFiles = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
 	$inClause = implode(',', $escapedFiles);
@@ -200,10 +279,16 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			// get date from file
 			$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
 
-			// Insert into database
+			// Insert into database. 
+			// ON CONFLICT is PostgreSQL-only syntax; 
+			// MySQL's basically equivalent no-op-on-duplicate-key is DUPLICATE KEY UPDATE id = id.
 			$syncNormAmount = normalizePoolAmount($amount);
 			$syncNormAmountSql = ($syncNormAmount === null) ? 'NULL' : db_escape_string((string) $syncNormAmount);
-			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
+			$insertVerb =  'INSERT';
+			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli') 
+					? ' ON DUPLICATE KEY UPDATE id = id' 
+					: ' ON CONFLICT (filename) DO NOTHING';
+			$qtxt = "$insertVerb INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description) VALUES (
 				'" . db_escape_string($file) . "',
 				'" . db_escape_string($subject) . "',
 				'" . db_escape_string($account) . "',
@@ -212,7 +297,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 				'" . db_escape_string($fileDate) . "',
 				'" . db_escape_string($invoiceNumber) . "',
 				'" . db_escape_string($description) . "'
-			)";
+			)$onConflictClause";
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
@@ -309,7 +394,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				echo "<script>alert('$alert');</script>";
 			}
 		}
-		update_settings_value("cleanup", "docs", 1);
+		update_settings_value("cleanup", "docs", 1, "is docs cleaned up?");
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1\">";
 		exit;
 	}
@@ -353,6 +438,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$projekt     = if_isset($_POST,NULL,'projekt')     ?? if_isset($_GET,NULL,'projekt');
 	$sag         = if_isset($_POST,NULL,'sag')         ?? if_isset($_GET,NULL,'sag');
 	$sum         = if_isset($_POST,NULL,'sum')         ?? if_isset($_GET,NULL,'sum');
+	$valuta      = if_isset($_POST,NULL,'valuta')      ?? if_isset($_GET,NULL,'valuta');
+	$momsfri     = if_isset($_POST,NULL,'momsfri')     ?? if_isset($_GET,NULL,'momsfri');
+	$forfald     = if_isset($_POST,NULL,'forfald')     ?? if_isset($_GET,NULL,'forfald');
 	#########################################
 
 	if ($insertFile) {
@@ -371,14 +459,19 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			
 		docPoolLog($logMessage);
 
+		// A typed value wins over file data; only a missing or blank field may be filled ("0" counts as typed)
+		$postedBlank = function($key) {
+			return !isset($_POST[$key]) || trim((string)$_POST[$key]) === '';
+		};
+
 		// Debug: Log all POST values we receive
 		$postDebugMsg = "docPool INSERT - sourceId: " . ($sourceId ?? 'NOT SET') . "\n" .
 			"docPool INSERT - newDate: " . ($newDate ?? 'NOT SET') . "\n" .
 			"docPool INSERT - newAmount: " . ($newAmount ?? 'NOT SET');
 		docPoolLog($postDebugMsg);
 		
-		// Only set date from pool file if sourceId is empty (new entry) and newDate is valid
-		if (!$sourceId && $newDate && strtotime($newDate) !== false && strtotime($newDate) > 0) {
+		// File data only fills fields the user left empty, and only on a new line (typed values win)
+		if (!$sourceId && $postedBlank('dato') && $newDate && strtotime($newDate) !== false && strtotime($newDate) > 0) {
 			$formattedDate = date("d-m-Y", strtotime($newDate));
 			$dato = $formattedDate;
 			$_POST['dato'] = $dato;
@@ -387,8 +480,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			docPoolLog("docPool INSERT - NOT setting date. sourceId=$sourceId, newDate=$newDate, strtotime result=" . (strtotime($newDate ?? '') ?: 'false'));
 		}
 		
-		// Only set amount from pool file if sourceId is empty (new entry) and newAmount is set
-		if (!$sourceId && $newAmount) {
+		if (!$sourceId && $postedBlank('sum') && $newAmount) {
 			// Normalize amount format from US/API format to Danish format for usdecimal()
 			// usdecimal() expects Danish format: dot=thousands, comma=decimal (e.g. "19.455,00")
 			// API returns US format: comma=thousands, dot=decimal (e.g. "19,455.00" or "61.13")
@@ -409,18 +501,15 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			docPoolLog("docPool INSERT - NOT setting amount. sourceId=$sourceId, newAmount=$newAmount");
 		}
 		
-		// Set invoice number from pool file if sourceId is empty (new entry) and newInvoiceNumber is set
-		if (!$sourceId && $newInvoiceNumber) {
+		if (!$sourceId && $postedBlank('fakturanr') && $newInvoiceNumber) {
 			$_POST['fakturanr'] = $newInvoiceNumber;
 		}
 		
-		// Set description from pool file if sourceId is empty (new entry) and newInvoiceDescription is set
-		if (!$sourceId && $newInvoiceDescription) {
+		if (!$sourceId && $postedBlank('beskrivelse') && $newInvoiceDescription) {
 			$_POST['beskrivelse'] = $newInvoiceDescription;
 		}
 
-		// Set valuta from pool file currency if sourceId is empty (new entry) and newCurrency is set
-		if (!$sourceId && $newCurrency) {
+		if (!$sourceId && $postedBlank('valuta') && $newCurrency) {
 			// Look up the grupper kodenr for this currency code (e.g. "DKK" -> kodenr integer)
 			$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($newCurrency)) . "'";
 			$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -437,13 +526,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		// file being VIEWED, not the file the user wants to INSERT
 		$poolFiles = array();
 		
-		// First priority: poolFiles as comma-separated string (most reliable from JavaScript)
-		if (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
+		// Use the lossless array sent by the picker: a filename may contain commas.
+		if (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
+			$poolFiles = $_POST['poolFile'];
+		// Retain comma-separated input only for older callers without an array.
+		} elseif (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
 			$poolFiles = explode(',', $_POST['poolFiles']);
 			$poolFiles = array_map('trim', $poolFiles);
-		// Second priority: poolFile[] as array from POST
-		} elseif (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
-			$poolFiles = $_POST['poolFile'];
 		// Third priority: Single poolFile from POST (string)
 		} elseif (isset($_POST['poolFile']) && !empty($_POST['poolFile']) && is_string($_POST['poolFile'])) {
 			$poolFiles = array($_POST['poolFile']);
@@ -472,14 +561,14 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$poolData = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 			if ($poolData) {
-				if (!$sourceId && empty($newDate) && $poolData['file_date']) {
+				if (!$sourceId && $postedBlank('dato') && $poolData['file_date']) {
 					// format date from Y-m-d H:i:s to d-m-Y
 					$ts = strtotime($poolData['file_date']);
 					if ($ts !== false && $ts > 0) {
 						$_POST['dato'] = date("d-m-Y", $ts);
 					}
 				}
-				if (!$sourceId && empty($newAmount) && $poolData['amount']) {
+				if (!$sourceId && $postedBlank('sum') && $poolData['amount']) {
 					$poolAmt = $poolData['amount'];
 					$cPos = strrpos($poolAmt, ','); $dPos = strrpos($poolAmt, '.');
 					if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
@@ -491,20 +580,33 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					}
 					$_POST['sum'] = $poolAmt;
 				}
-				if (!$sourceId && empty($newInvoiceNumber) && $poolData['invoice_number']) {
+				if (!$sourceId && $postedBlank('fakturanr') && $poolData['invoice_number']) {
 					$_POST['fakturanr'] = $poolData['invoice_number'];
 				}
-				if (!$sourceId && empty($newInvoiceDescription) && $poolData['description']) {
+				if (!$sourceId && $postedBlank('beskrivelse') && $poolData['description']) {
 					$_POST['beskrivelse'] = $poolData['description'];
 				}
-				if (!$sourceId && empty($newCurrency) && $poolData['currency']) {
+				// Kreditor-forslag (kravspec afsnit 6): only the automatic tier - a typed Kredit wins.
+				if (!$sourceId && $postedBlank('kredit') && !empty($poolData['vendor_konto_id']) && !empty($poolData['vendor_match'])) {
+					$insertKontonr = poolVendorKontonrById($poolData['vendor_konto_id']);
+					$insertSuggestion = poolVendorSuggestion(array(
+						'match' => $poolData['vendor_match'],
+						'score' => $poolData['vendor_score'] ?? 0,
+						'kontonr' => $insertKontonr,
+					));
+					if ($insertSuggestion['mode'] === 'auto') {
+						$_POST['kredit'] = $insertSuggestion['kredit'];
+						docPoolLog("docPool INSERT - Setting kredit from vendor match: " . $insertSuggestion['kredit'] . " (" . $poolData['vendor_match'] . ")");
+					}
+				}
+				if (!$sourceId && $postedBlank('valuta') && $poolData['currency']) {
 					$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($poolData['currency'])) . "'";
 					$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					if ($currRow && $currRow['kodenr']) {
 						$_POST['valuta'] = $currRow['kodenr'];
 					}
 				}
-			} elseif (!$sourceId && empty($newDate) && !empty($poolFiles)) {
+			} elseif (!$sourceId && !empty($poolFiles)) {
 				// Fallback to .info file if not in DB
 				$firstPoolFile = reset($poolFiles);
 				$baseName = pathinfo($firstPoolFile, PATHINFO_FILENAME);
@@ -513,7 +615,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				if (file_exists($infoFile)) {
 					$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
 					// Line 0: subject, Line 1: account, Line 2: amount, Line 3: date, Line 4: invoiceNumber, Line 5: invoiceDescription
-					if (isset($infoLines[3]) && !empty(trim($infoLines[3]))) {
+					if ($postedBlank('dato') && isset($infoLines[3]) && !empty(trim($infoLines[3]))) {
 						$infoDate = trim($infoLines[3]);
 						// Try to parse the date
 						$timestamp = strtotime($infoDate);
@@ -522,7 +624,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$_POST['dato'] = $formattedDate;
 						}
 					}
-					if (isset($infoLines[2]) && !empty(trim($infoLines[2])) && empty($newAmount)) {
+					if ($postedBlank('sum') && isset($infoLines[2]) && !empty(trim($infoLines[2]))) {
 						$infoAmt = trim($infoLines[2]);
 						$cPos = strrpos($infoAmt, ','); $dPos = strrpos($infoAmt, '.');
 						if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
@@ -535,11 +637,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						$_POST['sum'] = $infoAmt;
 					}
 					// Get invoice_number from line 4
-					if (isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
+					if ($postedBlank('fakturanr') && isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
 						$_POST['fakturanr'] = trim($infoLines[4]);
 					}
 					// Get invoice_description from line 5
-					if (isset($infoLines[5]) && !empty(trim($infoLines[5]))) {
+					if ($postedBlank('beskrivelse') && isset($infoLines[5]) && !empty(trim($infoLines[5]))) {
 						$_POST['beskrivelse'] = trim($infoLines[5]);
 					}
 				}
@@ -844,6 +946,12 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								invoice_number varchar(100),
 								description text,
 								updated timestamp DEFAULT CURRENT_TIMESTAMP,
+								vendor_name text,
+								vendor_cvr varchar(20),
+								vendor_iban varchar(40),
+								vendor_konto_id integer,
+								vendor_match varchar(10),
+								vendor_score numeric(4,3),
 								PRIMARY KEY (id),
 								UNIQUE(filename)
 							)";
@@ -1277,17 +1385,17 @@ if ($source == 'kassekladde') {
 			if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
 		}
 		$displayBilag       = $bilag ?? '';
-		$displayDato        = htmlspecialchars($dato ?? '');
-		$displayFaktura     = htmlspecialchars($fakturanr ?? '');
-		$displayBeskrivelse = htmlspecialchars($beskrivelse ?? '');
-		$displayDebet       = htmlspecialchars($debet ?? '');
-		$displayKredit      = htmlspecialchars($kredit ?? '');
-		$displayAmount      = htmlspecialchars($sum ?? '');
-		$displayAfd         = '';
-		$displayProjekt     = '';
-		$displayValuta      = '';
-		$displayMomsfri     = 0;
-		$displayForfald     = '';
+		$displayDato        = $dato ?? '';
+		$displayFaktura     = $fakturanr ?? '';
+		$displayBeskrivelse = $beskrivelse ?? '';
+		$displayDebet       = $debet ?? '';
+		$displayKredit      = $kredit ?? '';
+		$displayAmount      = $sum ?? '';
+		$displayAfd         = $afd ?? '';
+		$displayProjekt     = $projekt ?? '';
+		$displayValuta      = $valuta ?? '';
+		$displayMomsfri     = !empty($momsfri) ? 1 : 0;
+		$displayForfald     = $forfald ?? '';
 		$pfx = 'newEntry';
 	}
 
@@ -1425,9 +1533,29 @@ if ($source == 'kassekladde') {
 
 	print "<div id='bilagRowsContainer'>";
 
+	// Keep the selected new row first so transfer data remains visible when other rows are collapsed.
+	if (!$sourceId) {
+		print "<div class='bilag-row-wrapper'>";
+		$renderBilagRow('new', [
+			'bilag'       => $displayBilag,
+			'dato'        => $displayDato,
+			'faktura'     => $displayFaktura,
+			'beskrivelse' => $displayBeskrivelse,
+			'debet'       => $displayDebet,
+			'kredit'      => $displayKredit,
+			'amount'      => $displayAmount,
+			'afd'         => $displayAfd,
+			'projekt'     => $displayProjekt,
+			'valuta'      => $displayValuta,
+			'momsfri'     => $displayMomsfri,
+			'forfald'     => $displayForfald,
+		], true);
+		print "</div>";
+	}
+
 	// Render all existing lines for this bilag
 	foreach ($bilagLines as $blIdx => $bl) {
-		$hiddenClass = ($collapsible && $blIdx >= 1) ? " style='display:none;'" : "";
+		$hiddenClass = ($collapsible && (!$sourceId || $blIdx >= 1)) ? " style='display:none;'" : "";
 		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
 		$renderBilagRow($bl['id'], [
 			'bilag'       => $bl['bilag'],
@@ -1442,29 +1570,7 @@ if ($source == 'kassekladde') {
 			'valuta'      => $bl['valuta'] ?? '',
 			'momsfri'     => $bl['momsfri'] ?? 0,
 			'forfald'     => $bl['forfaldsdate'] ? dkdato($bl['forfaldsdate']) : '',
-		], $blIdx === 0);
-		print "</div>";
-	}
-
-	// New entry row: always shown when sourceId=0
-	if (!$sourceId) {
-		$newIdx = count($bilagLines);
-		$hiddenClass = ($collapsible && $newIdx >= 1) ? " style='display:none;'" : "";
-		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
-		$renderBilagRow('new', [
-			'bilag'       => $displayBilag,
-			'dato'        => $displayDato,
-			'faktura'     => $displayFaktura,
-			'beskrivelse' => $displayBeskrivelse,
-			'debet'       => $displayDebet,
-			'kredit'      => $displayKredit,
-			'amount'      => $displayAmount,
-			'afd'         => $displayAfd,
-			'projekt'     => $displayProjekt,
-			'valuta'      => $displayValuta,
-			'momsfri'     => $displayMomsfri,
-			'forfald'     => $displayForfald,
-		], empty($bilagLines));
+		], $sourceId && $blIdx === 0);
 		print "</div>";
 	}
 
@@ -1670,7 +1776,7 @@ print <<<JS
 <script>
 (() => {
     let docData     = [];
-    let currentSort = { field: 'date', asc: false };
+    let currentSort = null; // null until the user sorts by a column: the list is in _docPoolData.php order
 
     
     // Helper: parse amount string to float, handling English format (1,000.00) correctly
@@ -1807,11 +1913,134 @@ print <<<JS
 		}
 	}
 	
+	// Keep the list the user was looking at. Opening a document, inserting a bilag or deleting
+	// one all reload the page, and the table is built here after an async fetch, so the browser
+	// has no rendered content to restore a scroll position to. Per tab (sessionStorage) and per
+	// tenant: the search text and the scroll offset. The column sort is deliberately NOT kept:
+	// it re-sorted the list after an edit had changed the sorted field, so a row the user had
+	// just worked on came back somewhere else - the opposite of what this is for.
+	function poolListViewKey() {
+		return 'docPoolList_' + db;
+	}
+
+	function readPoolListView() {
+		try {
+			const raw = sessionStorage.getItem(poolListViewKey());
+			return raw ? JSON.parse(raw) : null;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	window.savePoolListView = function() {
+		const container = document.getElementById(containerId);
+		const searchBox = document.getElementById('poolSearchBox');
+		try {
+			sessionStorage.setItem(poolListViewKey(), JSON.stringify({
+				search: searchBox ? searchBox.value : '',
+				scroll: container ? container.scrollTop : 0
+			}));
+		} catch (e) {}
+	};
+
+	// Mark the column the list is sorted by, so a sorted list never looks unsorted. Runs after the
+	// table is in the DOM: the header markup cannot call these directly, because this script is
+	// printed from a PHP heredoc, where a dollar-brace sequence is PHP interpolation and would be
+	// evaluated on the server. No sort - the default _docPoolData.php order - means no marker and
+	// a neutral arrow on every sortable header.
+	function markPoolSortHeaders() {
+		const cells = document.querySelectorAll('#' + containerId + ' th[data-sort-field]');
+
+		for (let i = 0; i < cells.length; i++) {
+			const cell   = cells[i];
+			const active = currentSort && currentSort.field === cell.getAttribute('data-sort-field');
+			const arrow  = cell.querySelector('span:last-child');
+
+			if (active) cell.classList.add('pool-sort-active');
+			else cell.classList.remove('pool-sort-active');
+
+			if (arrow) arrow.innerHTML = active ? (currentSort.asc ? '&#9650;' : '&#9660;') : '&#8693;';
+		}
+	}
+
+	// Sort docData without rendering, so the column header and the render share one comparator.
+	function applyPoolSort(sort) {
+		if (!sort || !sort.field) return;
+		const field = sort.field;
+		const asc   = !!sort.asc;
+
+		docData.sort((a, b) => {
+			let valA = a[field];
+			let valB = b[field];
+
+			if (field === 'amount') {
+					valA = parseFloat(valA) || 0;
+					valB = parseFloat(valB) || 0;
+			} else if (field === 'date') {
+					valA = new Date(valA).getTime() || 0;
+					valB = new Date(valB).getTime() || 0;
+			} else {
+					if (typeof valA === 'string') valA = valA.toLowerCase();
+					if (typeof valB === 'string') valB = valB.toLowerCase();
+			}
+
+			if (valA === valB) return 0;
+			return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+		});
+
+		currentSort = { field: field, asc: asc };
+	}
+
+	// Re-apply the search text before the first render after a reload.
+	function applyStoredPoolListView() {
+		const state = readPoolListView();
+		if (!state) return;
+		const searchBox = document.getElementById('poolSearchBox');
+
+		if (searchBox && state.search) {
+			searchBox.value = state.search;
+			searchFilter    = state.search.toLowerCase();
+		}
+	}
+
+	// The row that is open in the preview pane, scrolled into view without moving the list
+	// more than necessary - this is what used to keep the clicked row visible by moving it to
+	// the top of the table.
+	function revealSelectedRow() {
+		const selected = document.querySelector('#' + containerId + " [data-selected='true']");
+		if (!selected || typeof selected.scrollIntoView !== 'function') return;
+		selected.scrollIntoView({ block: 'nearest' });
+	}
+
+	// Put the list back where it was and make sure the open document is on screen.
+	function restorePoolScroll() {
+		const state     = readPoolListView();
+		const container = document.getElementById(containerId);
+
+		if (container && state && state.scroll) container.scrollTop = state.scroll;
+		revealSelectedRow();
+	}
+
+	// Keep the stored offset current while the user scrolls the list.
+	function attachPoolScrollSaver() {
+		const container = document.getElementById(containerId);
+		if (!container) return;
+		let timer = null;
+		container.addEventListener('scroll', function() {
+			if (timer) clearTimeout(timer);
+			timer = setTimeout(savePoolListView, 150);
+		});
+	}
+
+	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attachPoolScrollSaver);
+	else attachPoolScrollSaver();
+	
 	// Filter pool files based on search input
 	window.filterPoolFiles = function() {
 		const searchBox = document.getElementById('poolSearchBox');
 		searchFilter = searchBox ? searchBox.value.toLowerCase() : '';
 		renderCurrentView();
+		savePoolListView();
 	};
 	
 	// Preview popup functions for card view
@@ -1909,7 +2138,9 @@ print <<<JS
 
             docData = data;
 			window.docData = docData;
+            applyStoredPoolListView();
             renderCurrentView();
+            restorePoolScroll();
         } catch (error) {
             document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
             console.error(error);
@@ -1942,28 +2173,28 @@ print <<<JS
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 40px; color:${buttonTxtColor};" onclick="event.stopPropagation();">
 						<input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" title="{$txt3}" style="cursor: pointer; width: 18px; height: 18px;">
 					</th>
-					<th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('subject')" data-sort-field="subject" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt23}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('amount')" data-sort-field="amount" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt10}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('invoiceNumber')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('invoiceNumber')" data-sort-field="invoiceNumber" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt8}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+					<th onclick="sortFiles('date')" data-sort-field="date" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>{$txt5}</span>
-							<span>&#9660;</span>
+							<span>&#8693;</span>
 						</div>
 					</th>
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 90px; color:${buttonTxtColor};">
@@ -1975,7 +2206,6 @@ print <<<JS
 		`;
 
 
-		let activeRows         = '';
 		let perfectMatchRows   = '';
 		let matchingAmountRows = '';
 		let dateMatchRows      = '';
@@ -2274,7 +2504,7 @@ print <<<JS
 				(isAmountMatch && !isPerfectMatch ? "data-amount-match='true' " : "") + 
 				(isDateMatch && !isAmountMatch ? "data-date-match='true' " : "") +
 				(isCombinationMatch ? "data-combination-match='true' " : "");
-				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
+				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); savePoolListView(); openPoolFile('" + row.href + "'); }\">" +
 					"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(formattedAmount) + "'>" + amountCell + "</td>" +
@@ -2283,10 +2513,10 @@ print <<<JS
 					"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
 					"</tr>";
 			
-			// Categorize rows by match type (priority order)
-			if (isMatch) {
-				activeRows += rowHTML;
-			} else if (isPerfectMatch) {
+			// Categorize rows by match type (priority order). The document that is open in the
+			// preview pane is deliberately NOT hoisted to the top any more: doing that moved a
+			// row on every click, so the list the user was reading reordered itself (SD-700).
+			if (isPerfectMatch) {
 				perfectMatchRows += rowHTML;
 			} else if (isAmountMatch) {
 				matchingAmountRows += rowHTML;
@@ -2357,8 +2587,8 @@ print <<<JS
 				"</td></tr>";
 		}
 
-		// Ensure rows are ordered by priority: active, perfect match, amount match, date match, combination, others
-		html += activeRows + perfectMatchHeader + perfectMatchRows + matchingHeader + matchingAmountRows + dateMatchHeader + dateMatchRows + combinationHeader + combinationRows + otherRows;
+		// Rows are ordered by priority: perfect match, amount match, date match, combination, others
+		html += perfectMatchHeader + perfectMatchRows + matchingHeader + matchingAmountRows + dateMatchHeader + dateMatchRows + combinationHeader + combinationRows + otherRows;
 
 		html += "</tbody></table>";
 		
@@ -2392,9 +2622,11 @@ print <<<JS
 			table tbody tr:hover td { background-color:  }\
 			.edit-input { border-color: " + buttonColor + "; }\
 			.edit-input:focus { outline-color: " + buttonColor + "; }\
+			#fileListContainer th[data-sort-field].pool-sort-active { background-color: #dc3545 !important; color: #ffffff !important; font-weight: bold; }\
 		</style>";
 
 		document.getElementById(containerId).innerHTML = html;
+		markPoolSortHeaders();
 		
 		// Restore checkbox states from sessionStorage
 		const checkboxes = document.querySelectorAll('.file-checkbox');
@@ -2804,29 +3036,9 @@ print <<<JS
 
 	
 	function sortFiles(field) {
-		const asc = currentSort.field === field ? !currentSort.asc : true;
-
-		docData.sort((a, b) => {
-			let valA = a[field];
-			let valB = b[field];
-
-			if (field === 'amount') {
-					valA = parseFloat(valA) || 0;
-					valB = parseFloat(valB) || 0;
-			} else if (field === 'date') {
-					valA = new Date(valA).getTime() || 0;
-					valB = new Date(valB).getTime() || 0;
-			} else {
-					if (typeof valA === 'string') valA = valA.toLowerCase();
-					if (typeof valB === 'string') valB = valB.toLowerCase();
-			}
-
-			if (valA === valB) return 0;
-			return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-		});
-
-		currentSort = { field, asc };
+		applyPoolSort({ field: field, asc: currentSort && currentSort.field === field ? !currentSort.asc : true });
 		renderCurrentView();
+		savePoolListView();
 	}
 
 
@@ -2896,10 +3108,8 @@ print <<<JS
 			formData.append('targetSourceIds', targetSourceIds.join(','));
 		}
 		
-		// Add selected files - ONLY use poolFiles (comma-separated) as it's most reliable
-		formData.append('poolFiles', selectedFiles.join(','));
-		
-		// Also add as array for compatibility
+		// poolFile[] (not poolFiles) so a filename containing a comma isn't split apart
+		// by docPool.php's legacy poolFiles=<comma-joined string> branch.
 		selectedFiles.forEach(file => {
 			formData.append('poolFile[]', file);
 		});
@@ -2913,8 +3123,44 @@ print <<<JS
 			formData.append(key, value);
 		});
 		
-		// If sourceId is empty (0 or not set), transfer date and amount from the first selected file
+		// Typed values of the line being saved: the first checked line, else the line the
+		// window was opened for, else the unsaved line. Fields are row_<id>_*.
 		const sourceId = url.searchParams.get('sourceId') || '';
+		let typedRowId = null;
+		if (targetCheckboxes.length > 0) {
+			const firstEntry = targetCheckboxes[0].closest('.kassebilag-entry');
+			if (firstEntry) typedRowId = firstEntry.id.replace('bilagEntry_', '');
+		}
+		if (typedRowId === null) {
+			if (sourceId && sourceId !== '0' && document.getElementById('bilagEntry_' + sourceId)) {
+				typedRowId = sourceId;
+			} else if (document.getElementById('bilagEntry_new')) {
+				typedRowId = 'new';
+			}
+		}
+		const typed = (typedRowId !== null && typeof _collectRow === 'function') ? _collectRow(typedRowId) : {};
+		const typedFields = {
+			bilagsnr:    typed.bilagsnr,
+			dato:        typed.dato,
+			beskrivelse: typed.beskrivelse,
+			debet:       typed.debet,
+			kredit:      typed.kredit,
+			fakturanr:   typed.fakturanr,
+			sum:         typed.amount,
+			afd:         typed.afd,
+			projekt:     typed.projekt,
+			valuta:      typed.valuta,
+			momsfri:     typed.momsfri,
+			forfald:     typed.forfald,
+		};
+		Object.keys(typedFields).forEach(key => {
+			const val = (typedFields[key] === undefined || typedFields[key] === null) ? '' : String(typedFields[key]).trim();
+			if (val !== '' || key === 'debet' || key === 'kredit') formData.append(key, val);
+		});
+		console.log('Typed values from row', typedRowId, ':', typedFields);
+		const typedEmpty = key => !typedFields[key] || String(typedFields[key]).trim() === '';
+
+		// New line: fill fields the user left empty with data from the first selected file
 		console.log('sourceId from URL:', sourceId, 'Is empty:', !sourceId || sourceId === '0' || sourceId === '');
 		
 		if (!sourceId || sourceId === '0' || sourceId === '') {
@@ -2948,35 +3194,35 @@ print <<<JS
 			
 			if (fileData) {
 				// Transfer date if available
-				if (fileData.date) {
+				if (fileData.date && typedEmpty('dato')) {
 					formData.append('newDate', fileData.date);
 					console.log('Transferring date from pool file:', fileData.date);
 				} else {
 					console.log('No date in fileData');
 				}
 				// Transfer amount if available
-				if (fileData.amount) {
+				if (fileData.amount && typedEmpty('sum')) {
 					formData.append('newAmount', fileData.amount);
 					console.log('Transferring amount from pool file:', fileData.amount);
 				} else {
 					console.log('No amount in fileData');
 				}
 				// Transfer invoice number if available
-				if (fileData.invoiceNumber) {
+				if (fileData.invoiceNumber && typedEmpty('fakturanr')) {
 					formData.append('newInvoiceNumber', fileData.invoiceNumber);
 					console.log('Transferring invoice number from pool file:', fileData.invoiceNumber);
 				} else {
 					console.log('No invoiceNumber in fileData');
 				}
 				// Transfer invoice description if available
-				if (fileData.description) {
+				if (fileData.description && typedEmpty('beskrivelse')) {
 					formData.append('newInvoiceDescription', fileData.description);
 					console.log('Transferring invoice description from pool file:', fileData.description);
 				} else {
 					console.log('No description in fileData');
 				}
 				// Transfer currency if available
-				if (fileData.currency) {
+				if (fileData.currency && typedEmpty('valuta')) {
 					formData.append('newCurrency', fileData.currency);
 					console.log('Transferring currency from pool file:', fileData.currency);
 				} else {
@@ -2987,71 +3233,35 @@ print <<<JS
 			}
 		}
 		
-		// Always read beskrivelse from the editable input field (both new and existing entries)
-		const beskrivelseInputNew = document.getElementById('newEntryBeskrivelse');
-		const beskrivelseInputExisting = document.getElementById('existingEntryBeskrivelse');
-		const beskrivelseValue = (beskrivelseInputNew && beskrivelseInputNew.value.trim()) ? beskrivelseInputNew.value.trim() : 
-								 (beskrivelseInputExisting && beskrivelseInputExisting.value.trim()) ? beskrivelseInputExisting.value.trim() : '';
-		
-		if (beskrivelseValue) {
-			formData.append('beskrivelse', beskrivelseValue);
-			console.log('Using beskrivelse from input field:', beskrivelseValue);
-		}
-		
-		// Read manual input fields for both new and existing entries
-		
-		// Helper to get value from either new or existing input
-		const getInputValue = (newId, existingId) => {
-			const newIn = document.getElementById(newId);
-			const existIn = document.getElementById(existingId);
-			return (newIn && newIn.value.trim()) ? newIn.value.trim() : 
-				   (existIn && existIn.value.trim()) ? existIn.value.trim() : '';
-		};
-
-		const debetVal = getInputValue('newEntryDebet', 'existingEntryDebet');
-		if (debetVal) {
-			formData.append('debet', debetVal);
-			console.log('Using debet from input field:', debetVal);
-		}
-		
-		const kreditVal = getInputValue('newEntryKredit', 'existingEntryKredit');
-		if (kreditVal) {
-			formData.append('kredit', kreditVal);
-			console.log('Using kredit from input field:', kreditVal);
-		}
-		
-		// Extra fields for existing entries (new entries might not have these inputs exposed in the same way, or handled differently)
-		const datoVal = document.getElementById('existingEntryDato') ? document.getElementById('existingEntryDato').value.trim() : '';
-		if (datoVal) {
-			formData.append('dato', datoVal);
-			console.log('Using dato from input field:', datoVal);
-		}
-		
-		const fakturaVal = document.getElementById('existingEntryFaktura') ? document.getElementById('existingEntryFaktura').value.trim() : '';
-		if (fakturaVal) {
-			formData.append('fakturanr', fakturaVal);
-			console.log('Using fakturanr from input field:', fakturaVal);
-		}
-		
-		const amountVal = document.getElementById('existingEntryAmount') ? document.getElementById('existingEntryAmount').value.trim() : '';
-		if (amountVal) {
-			formData.append('sum', amountVal);
-			console.log('Using sum from input field:', amountVal);
-		}
 		// Debug: log what we're sending
-		console.log('FormData poolFiles:', formData.get('poolFiles'));
 		console.log('FormData poolFile[]:', formData.getAll('poolFile[]'));
 		
 		// Show loading indicator
 		const loadingMsg = selectedFiles.length > 1 ? 'Indsætter ' + selectedFiles.length + ' filer...' : 'Indsætter fil...';
 		console.log(loadingMsg);
 
+		// The attach request saves the fields of the first checked line only. Save every other
+		// checked saved line through the normal Save path first so its edits are not lost.
+		const otherCheckedRowIds = Array.from(targetCheckboxes)
+			.map(cb => cb.closest('.kassebilag-entry'))
+			.filter(Boolean)
+			.map(entry => entry.id.replace('bilagEntry_', ''))
+			.filter(rowId => rowId !== 'new' && rowId !== typedRowId);
+		const preSave = (otherCheckedRowIds.length > 0 && typeof _saveRowFetch === 'function')
+			? Promise.all(otherCheckedRowIds.map(rowId => _saveRowFetch(rowId, url.searchParams.get('kladde_id') || 0, url.searchParams.get('bilag') || 0)))
+				.then(results => {
+					const failed = results.find(d => !d || !d.success);
+					if (failed) throw new Error(failed && failed.message ? failed.message : 'Save failed for line');
+					console.log('Saved other checked lines before attach:', otherCheckedRowIds);
+				})
+			: Promise.resolve();
+
 		// Send AJAX request - backend handles attaching to all targetSourceIds
-		fetch(url.toString(), {
+		preSave.then(() => fetch(url.toString(), {
 			method: 'POST',
 			body: formData,
 			redirect: 'follow'
-		})
+		}))
 		.then(response => {
 			console.log('Insert response status:', response.status, response.ok, response.redirected);
 
@@ -3061,6 +3271,9 @@ print <<<JS
 					selectedFiles.forEach(file => {
 						sessionStorage.removeItem('docPool_checked_' + file);
 					});
+
+					// Leaving the pool for the kassekladde: keep the list position for the way back.
+					savePoolListView();
 
 					const redirectMatch = text.match(/window\.location\.(replace|href)\s*=\s*['"]([^'"]+)['"]/);
 					if (redirectMatch) {
@@ -3271,6 +3484,7 @@ const row = button.closest('tr[data-editing="true"]');
 window.deletePoolFile = function(poolFile, subject, deleteUrl) {
 	const confirmMsg = "{$txt35} \"" + subject + "\"?";
 	if (confirm(confirmMsg)) {
+		savePoolListView();
 		window.location.href = deleteUrl;
 	}
 };
@@ -3292,6 +3506,18 @@ window.toggleAutoExtract = function(checkbox) {
 window.isAutoExtractEnabled = function() {
 	var toggle = document.getElementById('autoExtractToggle');
 	return toggle ? toggle.checked : true;
+};
+
+// Forward the seller's identity from an extraction result to the save action, and flag
+// the save as a scan (vendorScan=1) so extractInvoiceHandler.php matches the kreditor
+// server-side and stores pool_files.vendor_*. A plain metadata edit never sets the flag.
+window.appendVendorIdentity = function(formData, extracted) {
+	formData.append('vendorScan', '1');
+	if (extracted.vendorCvr) formData.append('newVendorCvr', extracted.vendorCvr);
+	if (extracted.vendorIban) formData.append('newVendorIban', extracted.vendorIban);
+	if (extracted.vendorBankReg) formData.append('newVendorBankReg', extracted.vendorBankReg);
+	if (extracted.vendorBankKonto) formData.append('newVendorBankKonto', extracted.vendorBankKonto);
+	if (extracted.customerCvr) formData.append('newCustomerCvr', extracted.customerCvr);
 };
 
 // Extract invoice data from pool file via API
@@ -3342,6 +3568,7 @@ window.extractPoolFile = function(poolFile) {
 				if (extracted.description) saveData.append('newDescription', extracted.description);
 				if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
 				if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+				appendVendorIdentity(saveData, extracted);
 
 				fetch('docsIncludes/extractInvoiceHandler.php', {
 					method: 'POST',
@@ -3351,6 +3578,7 @@ window.extractPoolFile = function(poolFile) {
 				.then(saveResult => {
 					if (saveResult.success) {
 						// Reload the page while preserving the current URL (keeps poolFile selection)
+						savePoolListView();
 						window.location.href = window.location.href;
 					} else {
 						alert('{$txt31}: ' + (saveResult.error || '{$txt38}'));
@@ -3436,6 +3664,7 @@ window.extractAllPoolFiles = async function() {
 						if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
 						if (extracted.description) saveData.append('newDescription', extracted.description);
 						if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+						appendVendorIdentity(saveData, extracted);
 
 						const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
 							method: 'POST',
@@ -3484,6 +3713,7 @@ window.extractAllPoolFiles = async function() {
 		
 		// Reload the page to show updated data
 		if (successful > 0) {
+			savePoolListView();
 			window.location.reload();
 		}
 	});
@@ -3569,6 +3799,7 @@ window.deleteSelectedFiles = async function() {
 	
 	// Reload the page to show updated list
 	if (deleted > 0) {
+		savePoolListView();
 		window.location.reload();
 	}
 };
@@ -3836,7 +4067,7 @@ JS;
 	print "<div style='padding: 12px;'>";
 	
 	// Unified upload zone (click to select or drag and drop)
-	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png' multiple style='display:none'>";
+	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png,.xml' multiple style='display:none'>";
 	print "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' onclick='document.getElementById(\"fileUploadInput\").click()' style='width: 100%; border: 2px dashed #bbb; border-radius: 10px; padding: 90px 16px; background-color: #f8f8f8; cursor: pointer; transition: all 0.3s ease; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;'>";
 	print "<div id='dropText' style='display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; text-align: center;'>";
 	print "<svg viewBox='0 0 24 24' fill='none' stroke='#7ab3d4' stroke-width='1.5' width='44' height='44'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg>";
@@ -3874,7 +4105,7 @@ JS;
 	}
 
 	function uploadFiles(files) {
-		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.xml'];
 		var validFiles = [];
 		for (var i = 0; i < files.length; i++) {
 			var fileName = files[i].name.toLowerCase();
@@ -3920,6 +4151,7 @@ JS;
 				if (failedCount > 0) message += '\\n' + failedCount + ' ".addslashes(lcfirst(findtekst('3331|Fil(er) fejlet', $sprog_id)))."';
 				alert(message);
 
+				savePoolListView();
 				if (lastUploadedFilename) {
 					var currentUrl = new URL(window.location.href);
 					currentUrl.searchParams.set('poolFile', lastUploadedFilename);
@@ -3980,6 +4212,7 @@ JS;
 							if (extracted.invoiceNumber) svData.append('newInvoiceNumber', extracted.invoiceNumber);
 							if (extracted.description) svData.append('newDescription', extracted.description);
 							if (extracted.currency) svData.append('newCurrency', extracted.currency);
+							appendVendorIdentity(svData, extracted);
 							console.time('[Upload] File ' + (index+1) + ' save extracted data');
 							const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
 							console.timeEnd('[Upload] File ' + (index+1) + ' save extracted data');
@@ -4877,6 +5110,20 @@ HTML;
         };
     }
 
+    /** Open a document preview without dropping the unsaved new voucher's fields. */
+    window.openPoolFile = function(href) {
+        var url = new URL(href, window.location.href);
+        if (document.getElementById('bilagEntry_new')) {
+            var values = _collectRow('new');
+            Object.keys(values).forEach(function(field) {
+                // The page loader uses different names than the Save endpoint.
+                var parameter = field === 'bilagsnr' ? 'bilag' : (field === 'amount' ? 'sum' : field);
+                url.searchParams.set(parameter, values[field]);
+            });
+        }
+        window.location.href = url.href;
+    };
+
     function _buildFormData(rowId, kladdeId, bilag, includeSourceId) {
         var v = _collectRow(rowId);
         var fd = new FormData();
@@ -4915,6 +5162,7 @@ HTML;
         .then(data => {
             if (data.success) {
                 if (rowId === 'new' && data.sourceId) {
+                    savePoolListView();
                     var url = new URL(window.location.href);
                     url.searchParams.set("sourceId", data.sourceId);
                     window.location.href = url.href;
@@ -4961,6 +5209,7 @@ HTML;
                 alert("<?php echo $txt31 ?>: " + (failed.message || "<?php echo $txt38 ?>"));
                 if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt72 ?>"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
             } else if (newSourceId) {
+                savePoolListView();
                 var url = new URL(window.location.href);
                 url.searchParams.set("sourceId", newSourceId);
                 window.location.href = url.href;
@@ -4992,6 +5241,7 @@ HTML;
         .then(r => r.json())
         .then(data => {
             if (data.success && data.sourceId) {
+                savePoolListView();
                 var url = new URL(window.location.href);
                 url.searchParams.set("sourceId", data.sourceId);
                 window.location.href = url.href;
@@ -5040,6 +5290,8 @@ HTML;
 				if (typeof docData !== 'undefined') {
 					sourceData = docData.find(d => d.filename === filename);
 				}
+			} else if (checked.length > 1) {
+				sourceData = "multiple"; // Indicate multiple selections
 			}
 		}
 
@@ -5059,15 +5311,18 @@ HTML;
 		if (!sourceData) {
 			alert('Ingen fil valgt i listen. Klik på en fil i listen til venstre først.');
 			return;
+		} else if (sourceData === "multiple") {
+			alert('Flere filer er markeret. Vælg kun én fil for at overføre data.');
+			return;
 		}
 
 		// Find the active (checked) kassebilag-entry rows to populate
 		const targetCheckboxes = document.querySelectorAll('.targetLineCheckbox:checked');
-		const targetIds = Array.from(targetCheckboxes).map(cb => cb.value);
 
+		// Unsaved rows use checkbox value 0 but have the DOM id bilagEntry_new.
 		// If no checkbox is checked, populate all visible entries
-		const entriesToFill = targetIds.length > 0
-			? targetIds.map(id => document.getElementById('bilagEntry_' + id)).filter(Boolean)
+		const entriesToFill = targetCheckboxes.length > 0
+			? Array.from(targetCheckboxes).map(cb => cb.closest('.kassebilag-entry')).filter(Boolean)
 			: Array.from(document.querySelectorAll('.kassebilag-entry'));
 
 		if (!entriesToFill.length) {
@@ -5107,6 +5362,33 @@ HTML;
 		const transferDescription = sourceData.description || sourceData.subject || '';
 		const transferSubject     = sourceData.subject       || '';
 
+		// Kreditor-forslag (kravspec afsnit 6) from the vendor object on the file. Mirrors
+		// poolVendorSuggestion() in poolVendorSuggestion.php.
+		function vendorSuggestion(vendor) {
+			const none = { mode: 'none', kredit: null, firmanavn: null, score: 0, candidates: [] };
+			if (!vendor || typeof vendor !== 'object') return none;
+			// Same normalisation as PHP: score rounded to 3 decimals, kontonr trimmed.
+			const score = Math.round((Number(vendor.score) || 0) * 1000) / 1000;
+			const trimNr = (v) => (v == null ? '' : String(v).trim());
+			if (vendor.match === 'ambiguous') {
+				const candidates = (vendor.candidates || []).filter(c => c && trimNr(c.kontonr) !== '').map(c => ({ kontoId: c.kontoId, kontonr: trimNr(c.kontonr), firmanavn: c.firmanavn || '', kredit: 'K' + trimNr(c.kontonr) }));
+				return candidates.length ? { mode: 'choose', kredit: null, firmanavn: null, score: 0, candidates } : none;
+			}
+			const kontonr = trimNr(vendor.kontonr);
+			if (kontonr === '' || ['cvr', 'bank', 'name'].indexOf(vendor.match) < 0) return none;
+			return { mode: (vendor.match === 'name' && score < 0.80) ? 'suggest' : 'auto', kredit: 'K' + kontonr, firmanavn: vendor.firmanavn || null, score, candidates: [] };
+		}
+		const vendorTxt = <?php echo json_encode(array(
+			'kreditor' => findtekst('1169|Kreditor', $sprog_id),
+			'forslag' => findtekst('5241|Forslag fra AI-scan', $sprog_id),
+			'brug' => findtekst('5242|Brug forslag', $sprog_id),
+			'vaelg' => findtekst('5243|Vælg kreditor', $sprog_id),
+			'ikkeFundet' => findtekst('5244|Kreditoren findes ikke i regnskabet', $sprog_id),
+			'ikkeOverskrevet' => findtekst('5245|Kredit var allerede udfyldt og blev ikke ændret', $sprog_id),
+		), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+		const suggestion = vendorSuggestion(sourceData.vendor);
+		const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 		// Populate each target entry
 		const existing = document.getElementById('transferConfirmPopup');
 			if (existing) existing.remove();
@@ -5116,10 +5398,20 @@ HTML;
 			overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center;';
 
 			const lines = [];
-			if (transferAmount)      lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beløb</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferAmount + '</td></tr>');
-			if (transferDate)        lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Dato</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferDate + '</td></tr>');
-			if (transferInvoice)     lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Faktura</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferInvoice + '</td></tr>');
-			if (transferDescription) lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beskrivelse</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferDescription + '</td></tr>');
+			if (transferAmount)      lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beløb</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferAmount) + '</td></tr>');
+			if (transferDate)        lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Dato</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferDate) + '</td></tr>');
+			if (transferInvoice)     lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Faktura</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferInvoice) + '</td></tr>');
+			if (transferDescription) lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beskrivelse</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(transferDescription) + '</td></tr>');
+			if (suggestion.mode === 'auto') {
+				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + esc(suggestion.kredit) + ' <span style="font-weight:400;color:#666;">' + esc(suggestion.firmanavn || '') + '</span> <span style="font-weight:400;color:#17a2b8;font-size:11px;">(' + esc(vendorTxt.forslag) + ')</span></td></tr>');
+			} else if (suggestion.mode === 'suggest') {
+				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;"><label style="cursor:pointer;"><input type="checkbox" id="transferUseKredit" style="vertical-align:middle;margin-right:6px;"> ' + esc(vendorTxt.brug) + ': <b>' + esc(suggestion.kredit) + '</b> ' + esc(suggestion.firmanavn || '') + ' <span style="color:#666;font-size:11px;">(' + Math.round(suggestion.score * 100) + ' %)</span></label></td></tr>');
+			} else if (suggestion.mode === 'choose') {
+				const opts = suggestion.candidates.map(c => '<option value="' + esc(c.kredit) + '">' + esc(c.kredit) + ' ' + esc(c.firmanavn) + '</option>').join('');
+				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;"><select id="transferChooseKredit" style="font-size:13px;padding:3px 6px;"><option value="">' + esc(vendorTxt.vaelg) + '</option>' + opts + '</select></td></tr>');
+			} else if (sourceData.vendor && sourceData.vendor.name && sourceData.vendor.match === 'none') {
+				lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">' + esc(vendorTxt.kreditor) + '</td><td style="padding:6px 0;font-size:13px;color:#666;">' + esc(sourceData.vendor.name) + ' <span style="font-size:11px;">(' + esc(vendorTxt.ikkeFundet) + ')</span></td></tr>');
+			}
 
 			overlay.innerHTML = `
 				<div style="background:#fff;border-radius:10px;padding:24px;min-width:320px;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
@@ -5142,9 +5434,20 @@ HTML;
 
 			// OK — populate fields
 			document.getElementById('transferOkBtn').addEventListener('click', function() {
+				// Resolve the kreditor choice before the popup (and its inputs) go away.
+				let transferKredit = '';
+				if (suggestion.mode === 'auto') transferKredit = suggestion.kredit;
+				else if (suggestion.mode === 'suggest') {
+					const cb = document.getElementById('transferUseKredit');
+					if (cb && cb.checked) transferKredit = suggestion.kredit;
+				} else if (suggestion.mode === 'choose') {
+					const sel = document.getElementById('transferChooseKredit');
+					if (sel && sel.value) transferKredit = sel.value;
+				}
 				overlay.remove();
 
 				let populated = 0;
+				let kreditKept = 0;
 				entriesToFill.forEach(function(entry) {
 					const rowId = entry.id.replace('bilagEntry_', '');
 					const pfx   = 'row_' + rowId + '_';
@@ -5161,9 +5464,22 @@ HTML;
 					if (transferDate)        setField(pfx + 'Dato',        transferDate);
 					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
 					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
+					if (transferKredit) {
+						// A Kredit the user typed is never overwritten by a suggestion.
+						const kreditEl = document.getElementById(pfx + 'Kredit');
+						if (kreditEl && kreditEl.value.trim() !== '' && kreditEl.value.trim() !== transferKredit) {
+							kreditKept++;
+						} else if (kreditEl) {
+							setField(pfx + 'Kredit', transferKredit);
+							kreditEl.title = vendorTxt.forslag + (suggestion.firmanavn ? ': ' + suggestion.firmanavn : '');
+							kreditEl.style.boxShadow = 'inset 0 0 0 2px #17a2b8';
+							kreditEl.addEventListener('input', function() { kreditEl.style.boxShadow = ''; kreditEl.title = ''; }, { once: true });
+						}
+					}
 
 					populated++;
 				});
+				if (kreditKept) console.info(vendorTxt.ikkeOverskrevet + ' (' + kreditKept + ')');
 
 				// Visual feedback on the button
 				const btn = document.getElementById('transferDataBtn');

@@ -1,5 +1,5 @@
 <?php
-// --- debitor/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php --- patch 5.0.1 --- 2026.09.07 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php --- patch 5.0.0 --- 2026.09.07 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260907 CDX/PHR Detect changed sales before approving a cash count.

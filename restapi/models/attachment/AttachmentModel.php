@@ -8,7 +8,12 @@
 //                 both of which the INSERT right after it already references - a brand-new
 //                 tenant's first upload through this endpoint would fail outright. Added
 //                 to the fallback schema.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: uploads through this endpoint now match the
+//                 seller (metadata['vendorIdentity'] + subject) against kreditorer and store
+//                 pool_files.vendor_*, same as extractInvoiceHandler.php's save action, so app
+//                 uploads get a kreditor suggestion too. Columns added to the fallback schema.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
+require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
 
 class AttachmentModel
 {
@@ -537,6 +542,12 @@ class AttachmentModel
                     description text,
                     currency varchar(10),
                     updated timestamp DEFAULT CURRENT_TIMESTAMP,
+                    vendor_name text,
+                    vendor_cvr varchar(20),
+                    vendor_iban varchar(40),
+                    vendor_konto_id integer,
+                    vendor_match varchar(10),
+                    vendor_score numeric(4,3),
                     PRIMARY KEY (id),
                     UNIQUE(filename)
                 )";
@@ -571,10 +582,22 @@ class AttachmentModel
                 $currency = isset($metadata['currency']) ? normalizePoolCurrency($metadata['currency']) ?? '' : '';
             }
 
+            // Match the seller against kreditorer (pure lookups, no API calls). Only when the
+            // caller sent extraction data - a bare file upload leaves the vendor_* columns NULL,
+            // and a tenant whose betweenUpdates.php has not added them yet must not fail.
+            $vendorColumns = [];
+            if ($metadata !== null && is_array($metadata) && isset($metadata['vendorIdentity']) && is_array($metadata['vendorIdentity'])
+                && (!empty($metadata['subject']) || array_filter($metadata['vendorIdentity']))) {
+                if (poolVendorColumnsExist()) {
+                    $vendorColumns = poolVendorColumnValues($this->matchVendor($metadata['subject'] ?? null, $metadata['vendorIdentity']));
+                }
+            }
+
             // Insert into database
             $normAmount = normalizePoolAmount($amount);
             $normAmountSql = ($normAmount === null) ? 'NULL' : db_escape_string((string) $normAmount);
-            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency) VALUES (
+            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency"
+                . ($vendorColumns ? ', ' . implode(', ', array_keys($vendorColumns)) : '') . ") VALUES (
                 '" . db_escape_string($filename) . "',
                 '" . db_escape_string($subject) . "',
                 '" . db_escape_string($account) . "',
@@ -583,7 +606,8 @@ class AttachmentModel
                 '" . db_escape_string($fileDate) . "',
                 '" . db_escape_string($invoiceNumber) . "',
                 '" . db_escape_string($description) . "',
-                '" . db_escape_string($currency) . "'
+                '" . db_escape_string($currency) . "'"
+                . ($vendorColumns ? ', ' . implode(', ', array_values($vendorColumns)) : '') . "
             )";
             db_modify($qtxt, __FILE__ . " line " . __LINE__);
             
@@ -601,6 +625,29 @@ class AttachmentModel
         }
     }
     
+    /**
+     * Match the seller of an uploaded invoice against the tenant's kreditorer, mirroring
+     * extractInvoiceMatchVendor() in includes/docsIncludes/extractInvoiceHandler.php.
+     *
+     * @param string|null $vendorName Seller's name as read on the invoice.
+     * @param array{cvr?:string,iban?:string,bank_reg?:string,bank_konto?:string,customerCvr?:string} $identity
+     * @return array See poolVendorMatch().
+     */
+    private function matchVendor($vendorName, array $identity)
+    {
+        $ownCvr = poolVendorLoadOwnCvr();
+        $customerCvr = normalizePoolVendorCvr($identity['customerCvr'] ?? null);
+        if ($customerCvr !== null && $ownCvr === null) {
+            $ownCvr = $customerCvr;
+        }
+        $vendorCvr = normalizePoolVendorCvr($identity['cvr'] ?? null);
+        if ($vendorCvr !== null && $customerCvr !== null && $vendorCvr === $customerCvr) {
+            $identity['cvr'] = null;
+        }
+        $identity['name'] = $vendorName;
+        return poolVendorMatch($identity, poolVendorLoadIndex(), ['ownCvr' => $ownCvr, 'nameScan' => 'full']);
+    }
+
     /**
      * Get file extension from mime type
      * 

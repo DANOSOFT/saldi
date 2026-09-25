@@ -1,5 +1,5 @@
 <?php
-// --- tests/test_cash_report_payments.php --- patch 5.0.1 --- 2026.09.07 ---
+// --- tests/test_cash_report_payments.php --- patch 5.0.0 --- 2026.09.07 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260907 CDX/PHR Regression test for report payment amounts and order assignment.

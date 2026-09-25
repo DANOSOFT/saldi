@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/varekort_includes/hiddevVars.php---------lap 3.9.3---2020-09-05	-----
+// ----------/lager/varekort_includes/hiddevVars.php---------lap 3.9.3---2026-09-23	-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,8 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
+/**
+ * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
+ * @var array<int, string> $warehouseNames
+ */
 
 print "<input type='hidden' name='beskrivelse[0]' value=\"$beskrivelse[0]\">";
 print "<input type='hidden' name='fokus' value='$fokus'>";
@@ -40,7 +45,10 @@ for ($x=1;$x<=$vare_sprogantal;$x++) {
 	print "<input type='hidden' name='vare_tekst_id[$x]' value=\"$vare_tekst_id[$x]\">";
 	print "<input type='hidden' name='vare_sprog_id[$x]' value='$vare_sprog_id[$x]'>";
 }
-for($x=1;$x<=count($ny_lagerbeh);$x++) {
+foreach ($warehouseNames as $x => $warehouseName) {
+	if (!isset($ny_lagerbeh[$x], $lagerbeh[$x])) {
+		continue;
+	}
 	print "<input type='hidden' name='lagerbeh[$x]' value=\"$lagerbeh[$x]\">";
 	print "<input type='hidden' name='ny_lagerbeh[$x]' value=\"$ny_lagerbeh[$x]\">";
 }

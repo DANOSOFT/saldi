@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 5.0.0 --- 2026.04.15 ---
+// ---- lager/lister/vareliste.php --- lap 5.0.0 --- 2026.09.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2026 saldi.dk aps 
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240417 MMK  - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 20241017 PBLM - Added link to booking
@@ -29,6 +29,9 @@
 // 20260213 LOE  - Added returside as variable used in topLineVarer.php and optimized search with supplied varenr.
 // 20260415 LOE  - Added Categories column with search functionality in vareliste. 
 // 20260908 CDX/LH Keep missing stock blank while preserving numeric stock search and sorting (SST-767).
+// 20260910 CDX/PHR Added optional purchased and sold quantity totals from the purchase/sales report sources.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260924 CDX/PHR Match the DG sort expression to the DISTINCT select expression.
 
 @session_start();
 $s_id = session_id();
@@ -350,6 +353,27 @@ $columns[] = array(
     }
 );
 
+$columns[] = array(
+    "field" => "kobt",
+    "headerName" => "Købt",
+    "description" => "Antal, hele historikken",
+    "type" => "number",
+    "align" => "right",
+    "width" => "0.3",
+    "hidden" => true,
+    "sqlOverride" => "COALESCE(pt.kobt, 0)"
+);
+$columns[] = array(
+    "field" => "solgt",
+    "headerName" => "Solgt",
+    "description" => "Antal, hele historikken",
+    "type" => "number",
+    "align" => "right",
+    "width" => "0.3",
+    "hidden" => true,
+    "sqlOverride" => "COALESCE(st.solgt, 0)"
+);
+
 // Continue adding other fields if needed
 $columns[] = array(
     "field" => "salgspris",
@@ -390,10 +414,10 @@ $columns[] = array(
     "type" => "number",
     "align" => "right",
     "sqlOverride" => "
-    ROUND(CASE 
-               WHEN v.salgspris = 0 THEN 0 
-               ELSE (v.salgspris - v.kostpris) / v.salgspris * 100 
-           END, 2)",
+    CASE
+        WHEN v.salgspris = 0 THEN 0
+        ELSE (v.salgspris - v.kostpris) / v.salgspris * 100
+    END",
     "width" => "0.5",
     "valueGetter" => function ($value, $row, $column) {
         return dkdecimal($value, 1) . "%";
@@ -414,6 +438,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $VGs = array();
 while ($row = db_fetch_array($q)) {
     $VGs[] = array(
+        "optionKey" => "vg_" . $row["kodenr"],
         "name" => $row["beskrivelse"],
         "checked" => "",
         "sqlOn" => "vg.kodenr = $row[kodenr]",
@@ -421,6 +446,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "varegrupper",
     "filterName" => "Varegrupper",
     "joinOperator" => "or",
     "options" => $VGs
@@ -441,6 +467,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $levs = array();
 while ($row = db_fetch_array($q)) {
     $levs[] = array(
+        "optionKey" => "lev_" . $row["kontonr"],
         "name" => $row["firmanavn"],
         "checked" => "",
         "sqlOn" => "ol.kontonr_concat = '$row[kontonr]'", // Fixed: changed from levs.lev to ol.kontonr_concat
@@ -448,6 +475,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "leverandorer",
     "filterName" => "Leverandøre",
     "joinOperator" => "or",
     "options" => $levs
@@ -457,10 +485,12 @@ log_performance("Leverandøre filter query", $leverandor_start);
 
 // Misc
 $filters[] = array(
+    "filterKey" => "misc",
     "filterName" => "Misc",
     "joinOperator" => "and",
     "options" => array(
         array(
+            "optionKey" => "show_discontinued",
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
@@ -495,6 +525,19 @@ lager_totals AS (
     FROM lagerstatus
     GROUP BY vare_id
 ),
+purchase_totals AS (
+    SELECT vare_id, SUM(antal) AS kobt
+    FROM batch_kob
+    WHERE COALESCE(linje_id, 0) != 0 AND fakturadate IS NOT NULL
+    GROUP BY vare_id
+),
+sale_totals AS (
+    SELECT bs.vare_id, SUM(bs.antal) AS solgt
+    FROM batch_salg bs
+    INNER JOIN ordrelinjer ol ON ol.id = bs.linje_id
+    WHERE COALESCE(bs.ordre_id, 0) != 0 AND bs.fakturadate IS NOT NULL
+    GROUP BY bs.vare_id
+),
 lagerstatus_grouped AS (
     -- Group lagerstatus by vare_id and lager to avoid duplicates
     SELECT 
@@ -520,6 +563,8 @@ SELECT DISTINCT
     $SQLLagerFetch
     COALESCE(lt.lager_total, 0) AS lager_total,  
     lt.lager_total AS lager_total_raw,
+    COALESCE(pt.kobt, 0) AS kobt,
+    COALESCE(st.solgt, 0) AS solgt,
     v.salgspris AS salgspris,       
     v.kostpris AS kostpris, 
     (
@@ -550,6 +595,8 @@ SELECT DISTINCT
 FROM varer v
 $SQLLagerJoin
 LEFT JOIN lager_totals lt ON v.id = lt.vare_id  -- Use optimized CTE
+LEFT JOIN purchase_totals pt ON v.id = pt.vare_id
+LEFT JOIN sale_totals st ON v.id = st.vare_id
 LEFT JOIN grupper vg ON vg.kodenr = v.gruppe AND vg.fiscal_year = $regnaar AND vg.art = 'VG'
 LEFT JOIN kontoplan kp ON kp.kontonr::text = vg.box4 AND regnskabsaar = $regnaar AND vg.box7 != 'on'
 LEFT JOIN grupper sm 

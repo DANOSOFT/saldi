@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.1 --- 2026.09.07 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.0 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
