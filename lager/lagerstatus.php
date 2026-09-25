@@ -304,7 +304,7 @@ while ($r2=db_fetch_array($q2)){
 		// stock row at all for the selected warehouse comes back with beholdning=NULL rather than a
 		// missing row; treat that the same as 0 here so downstream arithmetic (afrund/dkdecimal/etc.)
 		// never operates on NULL.
-		$beholdning[$x]=$r2['beholdning'] !== null ? $r2['beholdning'] : 0;
+		$beholdning[$x]=ifset($r2,'beholdning',0);
 		$varianter[$x]=$r2['varianter']; #20180204
 		$beskrivelse[$x]=stripslashes($r2['beskrivelse']);
 		$salgspris[$x]=$r2['salgspris'];
