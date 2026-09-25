@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-09-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20220110 PHR Function 'sync_shop_vare' Check if item is a stock item
@@ -83,6 +83,10 @@
 //                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
 // 20260914 CL/NTR barcode(): no horizontal padding in the SVG so the bars span the full 285 px
 //                  (vertical padding kept at 2 px) as we want to control padding in the print.
+// 20260924 Sawaneh SST-757: Added active_fiscal_years() and newest_active_fiscal_year(), the dashboard's fiscal-year lookup.
+//                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
+//                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
+// 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -857,6 +861,38 @@ if (!function_exists('reducer')) {
 	}
 }
 
+if (!function_exists('active_fiscal_years')) {
+	/**
+	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 not 'on'), newest first.
+	 *
+	 * @return array<int, array{
+	 *   kodenr: string,       Fiscal year number as fetched (grupper.kodenr).
+	 *   beskrivelse: string,  Fiscal year description.
+	 * }>
+	 */
+	function active_fiscal_years() {
+		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$years = array();
+		while ($r = db_fetch_array($q)) {
+			$years[] = array('kodenr' => $r['kodenr'], 'beskrivelse' => $r['beskrivelse']);
+		}
+		return $years;
+	}
+}
+
+if (!function_exists('newest_active_fiscal_year')) {
+	/**
+	 * The fiscal year that heads active_fiscal_years().
+	 *
+	 * @return int grupper.kodenr of the newest open fiscal year, or 0 when there is none.
+	 */
+	function newest_active_fiscal_year() {
+		$years = active_fiscal_years();
+		return $years ? (int) $years[0]['kodenr'] : 0;
+	}
+}
+
 if (!function_exists('transtjek')) {
 	function transtjek() {
 		/**
@@ -1263,8 +1299,8 @@ if (!function_exists('find_varemomssats')) {
 		$r = db_fetch_array(db_select("select gruppe from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
 		$gruppe = $r['gruppe'];
 		$r = db_fetch_array(db_select("select box4,box6,box7,box8 from grupper where art = 'VG' and kodenr = '$gruppe'", __FILE__ . " linje " . __LINE__));
-		$bogfkto = if_isset($r2['box4']); #20190605 + 1 line
-		$momsfri = if_isset($r2['box7']);
+		$bogfkto = if_isset($r['box4']); #20190605 + 1 line
+		$momsfri = if_isset($r['box7']);
 		if ($momsfri) {
 			db_modify("update ordrelinjer set momssats='0' where id = '$linje_id'", __FILE__ . " linje " . __LINE__);
 			return ('0');
@@ -1272,7 +1308,7 @@ if (!function_exists('find_varemomssats')) {
 		}
 		if ($bogfkto) {
 			$r = db_fetch_array(db_select("select moms from kontoplan where kontonr = '$bogfkto' and regnskabsaar = '$regnaar'", __FILE__ . " linje " . __LINE__));
-			if ($tmp = trim($r2['moms'])) { # f.eks S3
+			if ($tmp = trim($r['moms'])) { # f.eks S3
 				$tmp = substr($tmp, 1); #f.eks 3
 				$r2 = db_fetch_array(db_select("select box2 from grupper where art = 'SM' and kodenr = '$tmp'", __FILE__ . " linje " . __LINE__));
 				if ($r2['box2'])
@@ -2919,23 +2955,61 @@ if (!function_exists('input_ip')) { #20210908
 	}
 }
 
+if (!function_exists('revenue_hidden_by_rights')) {
+	/**
+	 * Whether a user's rights keep turnover from them.
+	 *
+	 * The Indstillinger right (module 1, the same test index/menu.php uses for that menu) is what decides
+	 * who may see turnover, so a login without it counts as an ordinary user.
+	 *
+	 * @param string $user_rights Rights string from the brugere table.
+	 * @return bool
+	 */
+	function revenue_hidden_by_rights($user_rights) {
+		return substr((string) $user_rights, 1, 1) != '1';
+	}
+}
+
+if (!function_exists('hide_revenue')) {
+	/**
+	 * Whether turnover must be kept from the user being rendered for.
+	 *
+	 * The system-wide setting decides whether turnover is hidden at all; the Indstillinger right decides who
+	 * that applies to, so the admin who sets it still sees the figures. Nothing is derived per user in the
+	 * database, and the rights themselves are never changed by this.
+	 *
+	 * @param string|null $user_rights Optional rights string; the session's rights are used by default.
+	 * @return bool
+	 */
+	function hide_revenue($user_rights = NULL) {
+		global $rettigheder;
+		if (get_settings_value('hideRevenue', 'finans', 'off') !== 'on') {
+			return false;
+		}
+		if ($user_rights === NULL) {
+			$user_rights = $rettigheder;
+		}
+		return revenue_hidden_by_rights($user_rights);
+	}
+}
+
 if(!function_exists('get_settings_value')){
+	/**
+	 * Retrieves a settings value from the database or returns a default value if the setting does not exist.
+	 *
+	 * - Searches for a specific setting based on its name, group, and optional user or POS ID.
+	 * - If the setting is found, its value is returned.
+	 * - If the setting is not found, a default value is returned.
+	 *
+	 * @param string $var_name - The name of the variable to retrieve.
+	 * @param string $var_grp - The group/category of the variable.
+	 * @param mixed $default - The default value to return if the setting is not found.
+	 * @param string|null $user - (Optional) The user ID associated with the variable.
+	 * @param string|null $kasse - (Optional) The POS ID associated with the variable.
+	 *
+	 * @return mixed - The value of the setting if found, otherwise the default value.
+	 */
 	function get_settings_value($var_name, $var_grp, $default, $user=NULL, $kasse=NULL) {
-		/**
-		 * Retrieves a settings value from the database or returns a default value if the setting does not exist.
-		 *
-		 * - Searches for a specific setting based on its name, group, and optional user or POS ID.
-		 * - If the setting is found, its value is returned.
-		 * - If the setting is not found, a default value is returned.
-		 *
-		 * @param $var_name - The name of the variable to retrieve.
-		 * @param $var_grp - The group/category of the variable.
-		 * @param $default - The default value to return if the setting is not found.
-		 * @param $user - (Optional) The user ID associated with the variable.
-		 * @param $kasse - (Optional) The POS ID associated with the variable.
-		 *
-		 * @return mixed - The value of the setting if found, otherwise the default value.
-		 */
 
 		$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
 
@@ -2961,9 +3035,9 @@ if(!function_exists('check_and_sanitize_input')){
 		 * - If the input is valid, it returns the sanitized input.
 		 * - If the input is not found, it returns null.
 		 *
-		 * @param $input_name - The name of the input field to check.
-		 * @param $message - The message to display in case of invalid input.
-		 * @param $nonce - The nonce value to use in the scripts for security.
+		 * @param string $input_name - The name of the input field to check.
+		 * @param string $message - The message to display in case of invalid input.
+		 * @param string $nonce - The nonce value to use in the scripts for security.
 		 *
 		 * @return string|null - The sanitized input if valid, or null if not found.
 		 */
@@ -3017,12 +3091,12 @@ if(!function_exists('update_settings_value')){
 		 * - If the setting already exists, its value is updated.
 		 * - If the setting does not exist, a new row is created.
 		 *
-		 * @param $var_name - The name of the variable being updated/inserted.
-		 * @param $var_grp - The group/category of the variable.
-		 * @param $var_value - The value to be stored for the variable.
-		 * @param $var_description - A description of the variable.
-		 * @param $user - (Optional) The user ID associated with the variable.
-		 * @param $posid - (Optional) The POS ID associated with the variable.
+		 * @param string $var_name - The name of the variable being updated/inserted.
+		 * @param string $var_grp - The group/category of the variable.
+		 * @param string $var_value - The value to be stored for the variable.
+		 * @param string $var_description - A description of the variable.
+		 * @param string|null $user - (Optional) The user ID associated with the variable.
+		 * @param string|null $posid - (Optional) The POS ID associated with the variable.
 		 *
 		 * @return void
 		 */
@@ -3062,8 +3136,8 @@ if (!function_exists('clean_phone_number')) {
 		 * - Removes spaces, plus signs, and any non-numeric characters.
 		 * - Ensures the phone number includes the correct country code.
 		 *
-		 * @param $phoneNumber - The raw phone number to be cleaned.
-		 * @param $countryCode - The country code to prepend if missing (default is "45" for Denmark).
+		 * @param string $phoneNumber - The raw phone number to be cleaned.
+		 * @param string $countryCode - The country code to prepend if missing (default is "45" for Denmark).
 		 *
 		 * @return string - The cleaned phone number, ready for use.
 		 */
@@ -3083,9 +3157,9 @@ if (!function_exists('send_sms')) {
 		/**
 		* Sends a message to a phone number, automatically updates the db message counter
 		*
-		* @param $from - The text that will appear as the sender for the message
-		* @param $to - Where the message gets sent to, automatically gets clearned
-		* @param $message - The message to send, the longer the messaee the more the cost increases
+		* @param string $from - The text that will appear as the sender for the message
+		* @param string $to - Where the message gets sent to, automatically gets clearned
+		* @param string $message - The message to send, the longer the messaee the more the cost increases
 		*
 		* @return bool - If the system was able to send the message or not
 		*/
@@ -3169,9 +3243,9 @@ if (!function_exists('send_email')) {
 		/**
 		* Sends an email to a recipient
 		*
-		* @param $to - The email address of the recipient
-		* @param $subject - The subject of the email
-		* @param $message - The message to send
+		* @param string $to - The email address of the recipient
+		* @param string $subject - The subject of the email
+		* @param string $message - The message to send
 		*
 		* @return bool - If the system was able to send the email or not
 		*/

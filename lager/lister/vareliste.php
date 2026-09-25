@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 5.0.0 --- 2026.04.15 ---
+// ---- lager/lister/vareliste.php --- lap 5.0.0 --- 2026.09.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2026 saldi.dk aps 
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240417 MMK  - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 20241017 PBLM - Added link to booking
@@ -30,6 +30,8 @@
 // 20260415 LOE  - Added Categories column with search functionality in vareliste. 
 // 20260908 CDX/LH Keep missing stock blank while preserving numeric stock search and sorting (SST-767).
 // 20260910 CDX/PHR Added optional purchased and sold quantity totals from the purchase/sales report sources.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260924 CDX/PHR Match the DG sort expression to the DISTINCT select expression.
 
 @session_start();
 $s_id = session_id();
@@ -412,10 +414,10 @@ $columns[] = array(
     "type" => "number",
     "align" => "right",
     "sqlOverride" => "
-    ROUND(CASE 
-               WHEN v.salgspris = 0 THEN 0 
-               ELSE (v.salgspris - v.kostpris) / v.salgspris * 100 
-           END, 2)",
+    CASE
+        WHEN v.salgspris = 0 THEN 0
+        ELSE (v.salgspris - v.kostpris) / v.salgspris * 100
+    END",
     "width" => "0.5",
     "valueGetter" => function ($value, $row, $column) {
         return dkdecimal($value, 1) . "%";
@@ -436,6 +438,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $VGs = array();
 while ($row = db_fetch_array($q)) {
     $VGs[] = array(
+        "optionKey" => "vg_" . $row["kodenr"],
         "name" => $row["beskrivelse"],
         "checked" => "",
         "sqlOn" => "vg.kodenr = $row[kodenr]",
@@ -443,6 +446,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "varegrupper",
     "filterName" => "Varegrupper",
     "joinOperator" => "or",
     "options" => $VGs
@@ -463,6 +467,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $levs = array();
 while ($row = db_fetch_array($q)) {
     $levs[] = array(
+        "optionKey" => "lev_" . $row["kontonr"],
         "name" => $row["firmanavn"],
         "checked" => "",
         "sqlOn" => "ol.kontonr_concat = '$row[kontonr]'", // Fixed: changed from levs.lev to ol.kontonr_concat
@@ -470,6 +475,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "leverandorer",
     "filterName" => "Leverandøre",
     "joinOperator" => "or",
     "options" => $levs
@@ -479,10 +485,12 @@ log_performance("Leverandøre filter query", $leverandor_start);
 
 // Misc
 $filters[] = array(
+    "filterKey" => "misc",
     "filterName" => "Misc",
     "joinOperator" => "and",
     "options" => array(
         array(
+            "optionKey" => "show_discontinued",
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",

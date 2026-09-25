@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.21
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,11 +40,14 @@
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
+// 20260716 CL/LH Added unique Stripe paid-invoice import key.
 // 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
 // 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
 //                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
 //                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
+// 20260924 Sawaneh SST-757: Give brugere rows with no regnskabsaar the newest open fiscal year.
+//                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -243,6 +246,21 @@ db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kont
 # primary key, so every item forced a full table scan of kostpriser to find its latest price -
 # on a large item report this is the same "no index on the hot per-row lookup" issue as above.
 db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
+
+# 20260924 CL/NTR Two concurrent logins can both pass the pg_indexes existence check before
+#                  either has committed the CREATE UNIQUE INDEX, and the losing statement then
+#                  fails with unique_violation (23505) on pg_class_relname_nsp_index, not
+#                  duplicate_table (42P07) - so a WHEN duplicate_table handler would miss it.
+#                  A session-level advisory lock around the check+create serializes this
+#                  betweenUpdates.php run against itself without catching every unique_violation
+#                  (duplicate ordrer.kundeordnr values must still fail).
+db_select("SELECT pg_advisory_lock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'ordrer' AND indexname = 'ordrer_stripe_paid_invoice_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE UNIQUE INDEX ordrer_stripe_paid_invoice_uidx ON ordrer (kundeordnr) WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
 
 #####
 
@@ -715,6 +733,15 @@ $gamle_242 = array(
 foreach ($gamle_242 as $gammel) {
 	$gammel = db_escape_string($gammel);
 	db_modify("delete from tekster where tekst_id = '242' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260924 Sawaneh SST-757: Users created via Sager -> Ansatte were inserted without regnskabsaar. Checked with a
+// select first so logins with nothing to repair do not write, and skipped on tenants with no open fiscal year.
+if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null limit 1", __FILE__ . " linje " . __LINE__))) {
+	$newestFiscalYear = newest_active_fiscal_year();
+	if ($newestFiscalYear) {
+		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 ?>
