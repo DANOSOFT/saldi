@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.09.23----------
+// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.09.25----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,8 @@
 //                  output before json_encode(), localize the selected-entry
 //                  invoice label, and set <html lang> from $sprog_id.
 // 20260922 CDX/PHR Restore cross-account suggestions while retaining validated journal assignment.
+// 20260925 CL/SZ   (CodeRabbit): escape the save-success notice's findtekst() text for HTML
+//                  output, matching the search placeholder's UTF-8-normalize-then-escape pattern.
 
 ob_start();
 @session_start();
@@ -700,7 +702,7 @@ print "</tbody></table></td></tr></tbody></table>";
 <div class="page">
 
   <?php if ($save_success): ?>
-    <div class="notice notice-success">✓ <?= findtekst('5321', $sprog_id) ?></div>
+    <div class="notice notice-success">✓ <?= htmlspecialchars(autoudlign_findtekst_utf8('5321', $sprog_id), ENT_QUOTES, 'UTF-8') ?></div>
   <?php endif; ?>
   <?php if ($save_error): ?>
     <div class="notice notice-error">⚠ <?= htmlspecialchars($save_error) ?></div>
