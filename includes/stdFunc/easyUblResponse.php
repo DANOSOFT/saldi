@@ -10,6 +10,8 @@
 //                     is returned alongside it.
 // 20260921 Sawaneh    PR #619 review: without errNo a bare 'message' is informational when a document
 //                     came with it; errorMessage/error still always mean an error.
+// 20260926 Sawaneh    PR #619 review: errorMessage/error are checked on their own, so an
+//                     informational 'message' next to them can no longer hide the error.
 
 /**
  * Classify a reply from EasyUBL's SendDocuments endpoints.
@@ -58,16 +60,16 @@ function easyubl_interpret_response($httpCode, $rawBody, $curlErrno = 0, $curlEr
 		$out['err_no'] = (int) $decoded['errNo'];
 	}
 	// errNo/message is the documented shape; errorMessage/error are kept for older replies
-	$messageKey = '';
+	$texts = array();
 	foreach (array('message', 'errorMessage', 'error') as $key) {
+		$texts[$key] = '';
 		if (!empty($decoded[$key])) {
-			$messageKey = $key;
-			$out['message'] = is_array($decoded[$key])
+			$texts[$key] = is_array($decoded[$key])
 				? json_encode($decoded[$key], JSON_UNESCAPED_UNICODE)
 				: trim((string) $decoded[$key]);
-			break;
 		}
 	}
+	$legacyError = ($texts['errorMessage'] !== '') ? $texts['errorMessage'] : $texts['error'];
 	$base64 = '';
 	if (isset($decoded['base64EncodedDocumentXml']) && is_string($decoded['base64EncodedDocumentXml'])) {
 		$base64 = trim($decoded['base64EncodedDocumentXml']);
@@ -79,8 +81,10 @@ function easyubl_interpret_response($httpCode, $rawBody, $curlErrno = 0, $curlEr
 	// errorMessage/error keys always mean an error; a bare 'message' only does when no document came.
 	if ($out['err_no'] !== null) {
 		$apiError = ($out['err_no'] != 0);
+		$out['message'] = ($texts['message'] !== '') ? $texts['message'] : $legacyError;
 	} else {
-		$apiError = ($out['message'] !== '' && ($messageKey !== 'message' || !$hasDocument));
+		$apiError = ($legacyError !== '' || ($texts['message'] !== '' && !$hasDocument));
+		$out['message'] = ($legacyError !== '') ? $legacyError : $texts['message'];
 	}
 
 	if ($httpOk && !$apiError && $hasDocument) {

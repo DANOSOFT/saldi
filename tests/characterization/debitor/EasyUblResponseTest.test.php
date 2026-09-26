@@ -17,6 +17,7 @@ use PHPUnit\Framework\TestCase;
  * 20260914 Sawaneh Created (JOB-141, EXIT-SOUND invoice 129629 "tomt eller ugyldigt svar").
  * 20260915 Sawaneh PR #619 review: errNo != 0 with a document is an error, not a success.
  * 20260921 Sawaneh PR #619 review: a bare 'message' without errNo is informational when a document came.
+ * 20260926 Sawaneh PR #619 review: errorMessage/error mean an error even next to a message and a document.
  */
 final class EasyUblResponseTest extends TestCase
 {
@@ -99,6 +100,20 @@ final class EasyUblResponseTest extends TestCase
         $out = easyubl_interpret_response(200, '{"error":{"code":"E-APS24003","text":"Address missing"}}');
         self::assertSame('api_error', $out['kind']);
         self::assertStringContainsString('E-APS24003', $out['message']);
+    }
+
+    public function testLegacyErrorKeyWinsOverMessageAndDocument(): void
+    {
+        $document = base64_encode(self::XML);
+        $out = easyubl_interpret_response(200, '{"message":"Document queued","errorMessage":"Bad EAN","error":"E-APS24003","base64EncodedDocumentXml":"' . $document . '"}');
+        self::assertSame('api_error', $out['kind']);
+        self::assertNull($out['err_no']);
+        self::assertSame('Bad EAN', $out['message']);
+        self::assertSame('', $out['xml']);
+
+        $out = easyubl_interpret_response(200, '{"message":"Document queued","error":"E-APS24003","base64EncodedDocumentXml":"' . $document . '"}');
+        self::assertSame('api_error', $out['kind']);
+        self::assertSame('E-APS24003', $out['message']);
     }
 
     #[DataProvider('emptyBodies')]
