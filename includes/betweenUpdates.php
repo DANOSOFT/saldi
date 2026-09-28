@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.24
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.28
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
