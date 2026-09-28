@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.24
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.28
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,8 @@
 //                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
 // 20260924 Sawaneh SST-757: Give brugere rows with no regnskabsaar the newest open fiscal year.
 //                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
+// 20260928 CL/LH Widen int ordrer.shop_status to varchar(20) before creating the Stripe
+//                  paid-invoice index; the string predicate blocked login on int-typed tenants.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -272,6 +274,16 @@ db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpr
 db_select("SELECT pg_advisory_lock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
 $qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'ordrer' AND indexname = 'ordrer_stripe_paid_invoice_uidx'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# 20260928 CL/LH shop_status is still int on tenants created by admin/opret.php or upgraded
+	#                through opdat_4.0.php - only api/rest_api.php widened it, on the first shop
+	#                order. There the 'stripe_paid_bridge' literal below fails the integer cast and
+	#                db_modify() alerts + exits, blocking login. Widen it first (same statement as
+	#                rest_api.php; existing numeric values keep their digits as text).
+	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'ordrer' AND column_name = 'shop_status'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if ($r && $r['data_type'] == 'integer') {
+		db_modify("ALTER TABLE ordrer ALTER COLUMN shop_status TYPE varchar(20)", __FILE__ . " linje " . __LINE__);
+	}
 	$qtxt = "CREATE UNIQUE INDEX ordrer_stripe_paid_invoice_uidx ON ordrer (kundeordnr) WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
