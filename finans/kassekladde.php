@@ -4243,6 +4243,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						alert("Bilagsnummer $bilag er for stort (maks 2147483647) og er erstattet med $new_bilag.");
 						$bilag = $new_bilag;
 					}
+					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
+					# writing the 0 back; a positive number the user entered is kept as it is.
+					if ($bilag <= 0) {
+						$bilag = bilagNextNumberForJournal($kladde_id);
+					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
 					$qtxt .= "amount = '$amount', debetvat = '$debetvat', kreditvat = '$kreditvat', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
