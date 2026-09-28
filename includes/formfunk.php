@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-20 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2020.01.22 PHR function send_mails. Added mail format check #20200122
@@ -69,6 +69,8 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
+// 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
+//             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1540,6 +1542,8 @@ if (!function_exists('formularprint')) {
 						}
 					}
 					fclose($logofil);
+				} else {
+					$logo = ''; // never write the bare file path into the PostScript (Ghostscript aborts at the first page break)
 				}
 			}
 			########################
@@ -2301,13 +2305,16 @@ if (!function_exists('formularprint')) {
 				if ($formgen == 'html') {
 					rename($mappe . "/" . $pfliste[$x] . ".htm", $mappe . "/" . $pfliste[$x] . "_1.htm");
 					$i = 1;
+					$sidepdf = array();
 					while (file_exists($mappe . "/" . $pfliste[$x] . "_" . $i . ".htm")) {
 						$indfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".htm";
 						$udfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".pdf";
 						system("weasyprint -e UTF-8 $indfil $udfil");
+						$sidepdf[] = escapeshellarg($udfil);
 						$i++;
 					}
-					system("$pdftk " . $mappe . "/" . $pfliste[$x] . "_*.pdf output $mappe/$pfliste[$x].pdf");
+					// Merge in page order; the shell glob _*.pdf put _10.pdf before _2.pdf
+					system("$pdftk " . implode(' ', $sidepdf) . " output $mappe/$pfliste[$x].pdf");
 					if (file_exists($mappe . "/" . $pfliste[$x] . "_*.htm"))
 						unlink($mappe . "/" . $pfliste[$x] . "_*.htm");
 					#				unlink ($mappe."/".$pfliste[$x]."_*.pdf");
@@ -2467,10 +2474,15 @@ if (!function_exists('bundtekst')) {
 		$side = $side + 1;
 
 
-		if ($logoart != 'EPS')
-			fwrite($psfp, "showpage\n");
-		else
+		// Embed the EPS logo with the EPSF inclusion wrapper (own saved state and stacks, its showpage disabled),
+		// so exactly one showpage below ends every page. Relying on the logo's own showpage lost pages 2..N
+		// when logo.eps was missing or had none (SD-490).
+		if ($logoart == 'EPS' && $logo !== '') {
+			fwrite($psfp, "\n/b4_Inc_state save def\n/dict_count countdictstack def\n/op_count count 1 sub def\nuserdict begin\n/showpage { } def\n");
 			fwrite($psfp, $logo);
+			fwrite($psfp, "\ncount op_count sub {pop} repeat\ncountdictstack dict_count sub {end} repeat\nb4_Inc_state restore\n");
+		}
+		fwrite($psfp, "showpage\n");
 		fwrite($htmfp, "</body>\n</html>\n");
 		#fclose($htmfp);
 		#$htmfp=fopen($mappe."/".$printfilnavn."_$side.htm","w");

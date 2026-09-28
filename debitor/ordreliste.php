@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-09-18--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-09-24--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,12 +59,15 @@
 // 20260910 Sawaneh Order links carry the popup=1 request flag so a real popup window still closes on Back.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
+// 20260916 LOE SD-685: headers declare headerText so a saved header can be told from a rename.
 // 20260917 CL/LH Lagerstatus: centrale farvekonstanter, status-ikoner og fremhævet
 //                 forklaring i popup'en, restordrer vises også, Vis lagerstatus/Tilbage
 //                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
+// 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 
 @session_start();
 $s_id = session_id();
@@ -748,6 +751,7 @@ $custom_columns = array(
     "ordrenr" => array(
         "field" => "ordrenr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "headerText" => '500|Ordrenr.',
         "width" => "0.8",
         "align" => "right",
         "type"  => "number",
@@ -852,6 +856,7 @@ $custom_columns = array(
     "ordredate" => array(
         "field" => "ordredate",
         "headerName" => findtekst('881|Ordredato', $sprog_id),
+        "headerText" => '881|Ordredato',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -867,6 +872,7 @@ $custom_columns = array(
     "levdate" => array(
         "field" => "levdate",
         "headerName" => findtekst('886|Dato for levering', $sprog_id),
+        "headerText" => '886|Dato for levering',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -878,6 +884,7 @@ $custom_columns = array(
     "fakturanr" => array(
         "field" => "fakturanr",
         "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
+        "headerText" => '882|Fakt. nr.',
         "width" => "0.8",
         "align" => "right",
         "type" => "number",
@@ -912,6 +919,7 @@ $custom_columns = array(
     "fakturadate" => array(
         "field" => "fakturadate",
         "headerName" => findtekst('883|Fakt. dato', $sprog_id),
+        "headerText" => '883|Fakt. dato',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -924,6 +932,7 @@ $custom_columns = array(
     "firmanavn" => array(
         "field" => "firmanavn",
         "headerName" => findtekst('360|Firmanavn', $sprog_id),
+        "headerText" => '360|Firmanavn',
         "width" => "2",
         "type" => "text",
         "searchable" => true,
@@ -987,6 +996,7 @@ $custom_columns = array(
     "kontonr" => array(
         "field" => "kontonr",
         "headerName" => findtekst('804|Kontonr.', $sprog_id),
+        "headerText" => '804|Kontonr.',
         "width" => "1",
         "type" => "text",
         "sqlOverride" => "o.kontonr",
@@ -1010,6 +1020,7 @@ $custom_columns = array(
     "ref" => array(
         "field" => "ref",
         "headerName" => findtekst('884|Sælger', $sprog_id),
+        "headerText" => '884|Sælger',
         "width" => "1.5",
         "type" => "dropdown",
         "searchable" => true,
@@ -1093,6 +1104,7 @@ $custom_columns = array(
     "betalingsbet" => array(
         "field" => "betalingsbet",
         "headerName" => findtekst('56|Betalingsbet.', $sprog_id),
+        "headerText" => '56|Betalingsbet.',
         "width" => "1",
         "type" => "dropdown",
         "align" => "left",
@@ -1179,6 +1191,7 @@ $custom_columns = array(
     "kundeordnr" => array(
         "field" => "kundeordnr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "headerText" => '500|Ordrenr.',
         "width" => "1",
         "type" => "text",
         "align" => "right",
@@ -1199,6 +1212,7 @@ $custom_columns = array(
     "debitorgruppe" => array(
         "field" => "debitorgruppe",
         "headerName" => findtekst('2413|Debitorgruppe', $sprog_id),
+        "headerText" => '2413|Debitorgruppe',
         "width" => "1.5",
         "type" => "dropdown",
         "align" => "left",
@@ -1235,6 +1249,7 @@ $custom_columns = array(
     "land" => array(
         "field" => "land",
         "headerName" => findtekst('364|Land', $sprog_id),
+        "headerText" => '364|Land',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1253,6 +1268,7 @@ $custom_columns = array(
     "felt_1" => array(
         "field" => "felt_1",
         "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),
+        "headerText" => '255|Ekstrafelt 1',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1264,6 +1280,7 @@ $custom_columns = array(
     "felt_2" => array(
         "field" => "felt_2",
         "headerName" => findtekst('256|Ekstrafelt 2', $sprog_id),
+        "headerText" => '256|Ekstrafelt 2',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1275,6 +1292,7 @@ $custom_columns = array(
     "felt_3" => array(
         "field" => "felt_3",
         "headerName" => findtekst('257|Ekstrafelt 3', $sprog_id),
+        "headerText" => '257|Ekstrafelt 3',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1286,6 +1304,7 @@ $custom_columns = array(
     "felt_4" => array(
         "field" => "felt_4",
         "headerName" => findtekst('258|Ekstrafelt 4', $sprog_id),
+        "headerText" => '258|Ekstrafelt 4',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1297,6 +1316,7 @@ $custom_columns = array(
     "felt_5" => array(
         "field" => "felt_5",
         "headerName" => findtekst('259|Ekstrafelt 5', $sprog_id),
+        "headerText" => '259|Ekstrafelt 5',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1415,6 +1435,20 @@ if ($saved_columns !== null) {
 
 ############
 
+// SD-657: the setting closes the list's money columns for users without the Indstillinger right. They are
+// dropped here - from the pool and in the generated-column loop below - because the fields would otherwise be
+// offered again as ordrer columns and a saved layout would bring them back on screen and into the export.
+// sum and sum_m_moms are the turnover; moms is the VAT on it and kostpris the cost behind it, and the review
+// pointed out that a saved layout could still surface the latter two. Display only, the totals are calculated.
+$revenue_columns = array();
+if (hide_revenue()) {
+    $revenue_columns = array('sum', 'sum_m_moms', 'moms', 'kostpris');
+    foreach ($revenue_columns as $revenue_column) {
+        unset($custom_columns[$revenue_column]);
+    }
+    $active_column_names = array_values(array_diff($active_column_names, $revenue_columns));
+}
+
 $active_set = array_flip($active_column_names);
 $column_pool = []; // keyed by field name
  
@@ -1428,7 +1462,7 @@ foreach ($custom_columns as $field_name => $column_def) {
 foreach ($all_db_columns as $field_name => $column_info) {
     $grid_type = $column_info['grid_type'];
     $decimalPrecision = $column_info['decimalPrecision'];
-    $skip_fields = ['id', 'tidspkt', 'copied', 'scan_id'];
+    $skip_fields = array_merge(array('id', 'tidspkt', 'copied', 'scan_id'), $revenue_columns);
     if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
         continue;
     }
@@ -1680,28 +1714,33 @@ $filters = array();
 
 // Order type filter
 $filters[] = array(
+    "filterKey" => "ordretype",
     "filterName" => findtekst('2769|Ordretype', $sprog_id),
     "joinOperator" => "or",
     "options" => array(
         array(
+            "optionKey" => "tilbud",
             "name" => findtekst('2770|Tilbud', $sprog_id),
             "checked" => ($valg == "tilbud") ? "checked" : "",
             "sqlOn" => "o.status < 1",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "ordrer",
             "name" => findtekst('107|Ordrer', $sprog_id),
             "checked" => ($valg == "ordrer") ? "checked" : "",
             "sqlOn" => $hurtigfakt ? "o.status < 3" : "(o.status = 1 OR o.status = 2)",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "faktura",
             "name" => findtekst('1777|Fakturaer', $sprog_id),
             "checked" => ($valg == "faktura") ? "checked" : "",
             "sqlOn" => "o.status >= 3",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "pbs",
             "name" => "BS",
             "checked" => ($valg == "pbs") ? "checked" : "",
             "sqlOn" => "o.art = 'PO' AND o.konto_id > '0'", // PBS orders
@@ -2699,19 +2738,23 @@ print "</div>";  // END LEFT
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
 print "<div>";
+    if (!hide_revenue()) {
     print "<a href='ordreliste.php?genberegn=1&valg=$valg'>
                 <b>" . findtekst('878|Samlet omsætning / db / dg (ekskl. moms.)', $sprog_id) . "</b>
            </a><br>";
     print "$ialt_formatted / $dk_db / $dk_dg%<br>";
     print "<b>" . findtekst('877|Samlet omsætning inkl. moms', $sprog_id)
           . ": $ialt_m_moms_formatted</b>";
+    }
 } else {
 print "<div id='center-turnover' style='flex:1; text-align:center;'>";
 print "<div style='display:flex;'>";
+    if (!hide_revenue()) {
     print findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id) . "<br>";
     print findtekst('2772|db / dg (ekskl. moms)', $sprog_id) . "<br>";
     print "<b style='margin-left: 20px;'>$ialt_m_moms_formatted ($ialt_formatted)<br>
            $dk_db / $dk_dg%</b>";
+    }
 }
 
 print "</div>";

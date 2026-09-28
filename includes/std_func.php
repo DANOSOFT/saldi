@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-09-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20220110 PHR Function 'sync_shop_vare' Check if item is a stock item
@@ -76,6 +76,9 @@
 //                 outliers) are ignored when finding the highest, and if the 8-digit range is
 //                 capped by an outlier the first number free in both series is used (SST-753)
 // 20260827 LOE Checked for $r in the function sync_shop_vare, sync_shop_price before using it to avoid undefined variable notice. My comment of '#20211013 removed as associated comments have been earlier deleted
+// 20260905 SZ Added genbestil_nettobeholdning()/beregn_genbestil() next to find_beholdning() -
+//             lager/varer.php's reorder-suggestion formula had two branches that disagreed on
+//             whether existing purchase proposals/orders were subtracted (MB-35)
 // 20260908 CL/NTR Added is_input_too_long(): character-count (mb_strlen) limit check shared by every
 //                  place that creates or renames a username (80) or account name (60), matching login.php
 // 20260908 CDX/LH Let order-number allocation retain a caller-owned transaction (SST-765).
@@ -83,6 +86,10 @@
 //                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
 // 20260914 CL/NTR barcode(): no horizontal padding in the SVG so the bars span the full 285 px
 //                  (vertical padding kept at 2 px) as we want to control padding in the print.
+// 20260924 Sawaneh SST-757: Added active_fiscal_years() and newest_active_fiscal_year(), the dashboard's fiscal-year lookup.
+//                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
+//                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
+// 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -854,6 +861,38 @@ if (!function_exists('reducer')) {
 			$tal = substr($tal, 0, strlen($tal) - 1);
 		}
 		return ($tal);
+	}
+}
+
+if (!function_exists('active_fiscal_years')) {
+	/**
+	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 not 'on'), newest first.
+	 *
+	 * @return array<int, array{
+	 *   kodenr: string,       Fiscal year number as fetched (grupper.kodenr).
+	 *   beskrivelse: string,  Fiscal year description.
+	 * }>
+	 */
+	function active_fiscal_years() {
+		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$years = array();
+		while ($r = db_fetch_array($q)) {
+			$years[] = array('kodenr' => $r['kodenr'], 'beskrivelse' => $r['beskrivelse']);
+		}
+		return $years;
+	}
+}
+
+if (!function_exists('newest_active_fiscal_year')) {
+	/**
+	 * The fiscal year that heads active_fiscal_years().
+	 *
+	 * @return int grupper.kodenr of the newest open fiscal year, or 0 when there is none.
+	 */
+	function newest_active_fiscal_year() {
+		$years = active_fiscal_years();
+		return $years ? (int) $years[0]['kodenr'] : 0;
 	}
 }
 
@@ -1816,6 +1855,24 @@ if (!function_exists('find_beholdning')) {
 		return $beholdning;
 	}
 } #endfunc find_beholdning()
+
+// MB-35 - lager/varer.php's reorder-suggestion code had two branches computing this differently:
+// one subtracted existing purchase proposals/orders ($i_forslag/$bestilt, from find_beholdning()
+// above) from both the trigger and the suggested quantity, the other used neither anywhere, so an
+// item already covered by a pending purchase order still got flagged and suggested for the full
+// gap up to max - doubling the order once the pending one also arrives. Both branches now share
+// these two functions so they can't drift apart again.
+if (!function_exists('genbestil_nettobeholdning')) {
+	function genbestil_nettobeholdning($beholdning, $i_ordre, $i_forslag, $bestilt) {
+		return $beholdning - $i_ordre + $i_forslag + $bestilt;
+	}
+}
+if (!function_exists('beregn_genbestil')) {
+	function beregn_genbestil($max_lager, $beholdning, $i_ordre, $i_forslag, $bestilt) {
+		$genbestil = $max_lager - genbestil_nettobeholdning($beholdning, $i_ordre, $i_forslag, $bestilt);
+		return $genbestil < 0 ? 0 : $genbestil;
+	}
+}
 
 if (!function_exists('hent_shop_ordrer')) {
 	function hent_shop_ordrer($shop_ordre_id, $from_date)
@@ -2916,6 +2973,44 @@ if (!function_exists('input_ip')) { #20210908
 			$qtxt = "insert into users_ip (user_id,ip_values,ip_logged_date) values ('$ret_id', '$ip','$created_ip_date')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+	}
+}
+
+if (!function_exists('revenue_hidden_by_rights')) {
+	/**
+	 * Whether a user's rights keep turnover from them.
+	 *
+	 * The Indstillinger right (module 1, the same test index/menu.php uses for that menu) is what decides
+	 * who may see turnover, so a login without it counts as an ordinary user.
+	 *
+	 * @param string $user_rights Rights string from the brugere table.
+	 * @return bool
+	 */
+	function revenue_hidden_by_rights($user_rights) {
+		return substr((string) $user_rights, 1, 1) != '1';
+	}
+}
+
+if (!function_exists('hide_revenue')) {
+	/**
+	 * Whether turnover must be kept from the user being rendered for.
+	 *
+	 * The system-wide setting decides whether turnover is hidden at all; the Indstillinger right decides who
+	 * that applies to, so the admin who sets it still sees the figures. Nothing is derived per user in the
+	 * database, and the rights themselves are never changed by this.
+	 *
+	 * @param string|null $user_rights Optional rights string; the session's rights are used by default.
+	 * @return bool
+	 */
+	function hide_revenue($user_rights = NULL) {
+		global $rettigheder;
+		if (get_settings_value('hideRevenue', 'finans', 'off') !== 'on') {
+			return false;
+		}
+		if ($user_rights === NULL) {
+			$user_rights = $rettigheder;
+		}
+		return revenue_hidden_by_rights($user_rights);
 	}
 }
 

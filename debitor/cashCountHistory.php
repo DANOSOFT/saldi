@@ -1,5 +1,5 @@
 <?php
-// --- debitor/cashCountHistory.php --- 2026-09-17 ---
+// --- debitor/cashCountHistory.php --- 2026-09-24 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20260917 CDX/PHR Authenticated cash count history by register and date, with browser printing.
@@ -7,6 +7,7 @@
 // 20260917 CDX/PHR Save decimal repairs before displaying clean report amounts.
 // 20260917 CDX/PHR Select only configured registers, defaulting to the current POS register.
 // 20260917 CL/LH Show the report's manual-control warning above the amounts.
+// 20260924 LOE SD-657 The stored turnover line is left out of the list for users the setting keeps out.
 /**
  * Session/account context supplied by includes/online.php.
  * @var string $db
@@ -87,6 +88,20 @@ if ($selected) {
         $selected = null;
     }
 }
+# SD-657: keep the turnover row from the users the setting keeps it from - in the list and in the
+# receipt alike. A saved count stores the label setSpecifiedCashPrintText() writes, so those two are
+# matched rather than one language's literal, and the translated screen label is included as well.
+if ($selected && hide_revenue()) {
+    $turnover_labels = array('Dagens omsætning', 'Heutiger Umsatz');
+    $turnover_screen_label = trim((string) findtekst('2373|Dagens omsætning', $sprog_id), " \t:");
+    if ($turnover_screen_label !== '' && !in_array($turnover_screen_label, $turnover_labels, true)) {
+        $turnover_labels[] = $turnover_screen_label;
+    }
+    $data['rows'] = array_values(array_filter($data['rows'], function ($row) use ($turnover_labels) {
+        return !in_array(trim($row['description'], " \t:"), $turnover_labels, true);
+    }));
+}
+
 if ($printRequested) {
     if (!is_string($printToken) || !hash_equals($_SESSION['cash_count_print_token'], $printToken)) {
         $printError = 'Udskrivningen kunne ikke godkendes. Genindlæs siden og prøv igen.';

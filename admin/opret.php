@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------/admin/opret.php-----patch 4.1.1 ----2026-09-18--------------
+// ------------/admin/opret.php-----patch 5.0.0 ----2026-09-18--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,6 +111,8 @@
 // 20260908 CL/NTR Reject account names over 60 and usernames over 80 characters (is_input_too_long)
 //                  before creating the account, matching login.php and varchar(60) on regnskab.regnskab
 // 20260918 CDX/PHR Add ordrer.performed_by when creating a new account.
+// 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
+//                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
 
 @session_start();
 $s_id=session_id();
@@ -419,7 +421,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "datotid text,nr $decimal_type(15,0),returside text,sagsnr $decimal_type(15,0),dokument text,";
 	$qtxt.= "procenttillag $decimal_type(15,3),mail_bilag varchar(2),omvbet varchar(2),afd integer,lager integer,";
 	$qtxt.= "kontakt_tlf text,copied boolean,phone varchar(50),report_number int default 0,";
-	$qtxt.= "consignmentid varchar(25),shop_status int,shop_id int,scan_id int,";
+	$qtxt.= "consignmentid varchar(25),shop_status varchar(20),shop_id int,scan_id int,";
 	$qtxt.= "due_date date,settletime $decimal_type(15,0) default 0,digital_status varchar(25), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
