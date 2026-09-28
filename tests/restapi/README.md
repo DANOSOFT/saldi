@@ -105,7 +105,10 @@ Config via env: `SALDI_REST_BASE_URL` (default `http://localhost/saldi`, use
 `http://localhost:5000/saldi` from the host), `SALDI_CHAR_PGHOST/PGUSER/
 PGPASS/MASTER_DB/TEMPLATE_DB`, `SALDI_REST_TEST_DB` (prefix of the tenant
 db name, default `saldi_apitest`; prefix plus suffix must fit
-`regnskab.db`'s 25 chars).
+`regnskab.db`'s 25 chars). The suite inserts and deletes `regnskab` rows in
+whatever master `SALDI_CHAR_MASTER_DB` names and creates databases on that
+server, so point it at a disposable or test master, never a shared
+production registry.
 
 <!-- 20260723 CL/LH SD-602: created. -->
 <!-- 20260904 CL/NTR Added the refresh/bearer/customers/products/accounts/orderlines/reference-data suites, the non-docker run recipe, the per-process random password from tests/TestCredentials.php, and the per-class tenant teardown. -->

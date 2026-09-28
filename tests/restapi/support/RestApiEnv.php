@@ -45,6 +45,7 @@
 //                 No longer terminates sessions on the template db or deletes
 //                 regnskab rows by name, so concurrent runs, stale leftovers
 //                 and unrelated accounts are never touched.
+//                 The master db name is validated like the test/template names.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
@@ -217,17 +218,20 @@ final class RestApiEnv
         }
         $test = self::testDb();
         $template = self::templateDb();
-        if (!preg_match('/^[a-z0-9_]+$/', $test) || !preg_match('/^[a-z0-9_]+$/', $template)) {
-            throw new RuntimeException('unsafe database name');
+        $master = self::masterDb();
+        foreach ([$test, $template, $master] as $name) {
+            if (!preg_match('/^[a-z0-9_]+$/', $name)) {
+                throw new RuntimeException("unsafe database name \"$name\"");
+            }
         }
         if (strlen($test) > self::MAX_DB_NAME_LENGTH) {
             throw new RuntimeException("test db name $test is longer than " . self::MAX_DB_NAME_LENGTH . ' chars (shorten SALDI_REST_TEST_DB)');
         }
-        if ($test === $template || $test === self::masterDb()) {
+        if ($test === $template || $test === $master) {
             throw new RuntimeException('SALDI_REST_TEST_DB must differ from template and master databases');
         }
 
-        $master = self::connect(self::masterDb());
+        $master = self::connect($master);
         // Only ever touch our own clone; never disconnect whoever is using the template.
         if (pg_query($master, "CREATE DATABASE $test TEMPLATE $template") === false) {
             $error = pg_last_error($master);
