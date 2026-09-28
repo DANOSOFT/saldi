@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-25 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,8 @@
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
 // 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
 //             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
+// 20260928 CL/NTR ombryd(): skip wordwrap() when the column width is 0 instead of crashing
+//             (PHP 8.3+ throws a ValueError for wordwrap(..., 0, ..., true)).
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -427,7 +429,10 @@ if (!function_exists('ombryd')) {
 			$lokation = $parts[1] ?? NULL;
 			$vare_note = $parts[2] ?? NULL;
 		}
-		$tekst = wordwrap($tekst, $laengde, "\n", true);
+		$laengde = (int)$laengde;
+		if ($laengde > 0) {
+			$tekst = wordwrap($tekst, $laengde, "\n", true);
+		}
 		$nytekst = "";
 		if (strstr($tekstinfo, 'ordrelinjer')) {
 			list($tmp, $Opkt) = explode("_", $tekstinfo);
@@ -457,7 +462,9 @@ if (!function_exists('ombryd')) {
 			$y = skriv($id, $str, $fed, $italic, $color, $nytekst, $tekstinfo, $x, $y, $format, $form_font, $formular, __LINE__);
 		}
 		if ($lokation) {
-			$lokation = wordwrap($lokation, $laengde, "\n", true);
+			if ($laengde > 0) {
+				$lokation = wordwrap($lokation, $laengde, "\n", true);
+			}
 			$lok_lines = explode("\n", $lokation);
 			foreach ($lok_lines as $lok_line) {
 				$lok_line = trim($lok_line);

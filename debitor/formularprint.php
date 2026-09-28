@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/formularprint-----patch 5.0.0---2026-03-24------
+// ---------debitor/formularprint-----ver 5.0.0---2026-09-28------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 
 // 17012013 Oprydning i forb. med fejlsøgning i ret_genfakt.php
@@ -34,6 +34,8 @@
 // 20260909 Sawaneh SST-759: POST email_fix_from applies the recipient suggestion from send_mails() after explicit acceptance
 // 20260909 Sawaneh JOB-124: accept returside from GET as well as POST.
 // 20260917 CL/Sawaneh JOB-124: honour the popup=1 request flag when closing after a print.
+// 20260928 CL/NTR Use ifset() instead of if_isset($_GET[...]) for lev_nr/udskriv_til/locat/formular
+//                  to stop undefined array key warnings when those params are absent.
 
 
 session_start();
@@ -124,10 +126,10 @@ $sag_q = '';
 if (isset($_GET['id']) && $_GET['id']){
     $id = if_isset($_GET['id']);
     
-    $formular = if_isset($_GET['formular']);
-    $lev_nr = if_isset($_GET['lev_nr']);
-    $udskriv_til = if_isset($_GET['udskriv_til']);
-    $locat = if_isset($_GET['locat']);
+    $formular = ifset($_GET, 'formular');
+    $lev_nr = ifset($_GET, 'lev_nr');
+    $udskriv_til = ifset($_GET, 'udskriv_til');
+    $locat = ifset($_GET, 'locat');
     
     // Get order's background, department, and scaffolding context
     $r = db_fetch_array(db_select("SELECT sprog, afd FROM ordrer WHERE id='$id'", __FILE__ . " linje " . __LINE__));
