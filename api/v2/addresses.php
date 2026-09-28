@@ -1,6 +1,7 @@
 <?php
 require_once('../../includes/connect.php');
 require_once('../../includes/db_query.php');
+require_once(__DIR__ . '/../../includes/std_func.php');
 require_once('includes/AuthMiddleware.php');
 
 // Set headers
@@ -83,7 +84,7 @@ function handlePost() {
     foreach ($data as $field => $value) {
         if ($field !== 'id') { // Skip id as it's auto-generated
             $fields[] = $field;
-            $values[] = "'" . db_escape_string($value) . "'";
+            $values[] = "'" . db_escape_string(strip_placeholder_value($value)) . "'";
         }
     }
     
@@ -119,9 +120,13 @@ function handlePut() {
     // Build update query
     $updates = [];
     foreach ($data as $field => $value) {
-        if ($field !== 'id') { // Skip id as it shouldn't be updated
-            $updates[] = $field . " = '" . db_escape_string($value) . "'";
+        if ($field === 'id') { // Skip id as it shouldn't be updated
+            continue;
         }
+        if (strip_placeholder_value($value) !== $value) { // Placeholder must not overwrite existing data (JOB-115)
+            continue;
+        }
+        $updates[] = $field . " = '" . db_escape_string($value) . "'";
     }
     
     $query = "UPDATE adresser SET " . implode(', ', $updates) . " WHERE id = " . $id;

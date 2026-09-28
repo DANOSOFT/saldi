@@ -41,6 +41,14 @@
 // 20260807 CL/NTR Generalize the async report shell to kontokort/kontosaldo/accountChart (not just openpost), drop the shell's inline padding, and add Cache-Control: no-store + pageshow/persisted reload so the back button can't restore a frozen shell/iframe.
 // 20260807 CL/NTR Skip the async shell for requests already inside its own iframe (Sec-Fetch-Dest: iframe), so report links that don't carry the *_content flag forward don't nest a second shell+iframe inside the first.
 // 20260824 CL/NTR Prototype: openpost drops the iframe shell - the shell stream-fetches the report and document.write()s it over itself chunk by chunk (progressive rendering like the iframe had), so Back/bfcache can never restore a nested or frozen frame; Cache-Control: no-store now sent before any output on openpost requests.
+// 20260826 Sawaneh SD-140: kontonr GET branch keeps dato_fra/dato_til and accepts a fra:til range;
+//                  the aging filter/sort state rides along on the async shell's forwarded params.
+// 20260915 CL/SZ SST-786: openpost_csv GET requests buffer (and discard) the includes below before
+//                dispatching to openpost_export_csv() - online.php's page shell prints regardless of
+//                the async-shell logic further down, and openpost_export_csv() needs to send its own
+//                CSV headers with nothing else sent yet.
+// 20260923 CL/NTR Guard count($konto_id) against the field being absent from $_POST when the openpost
+//                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
 
 @session_start();
 $s_id = session_id();
@@ -61,12 +69,33 @@ $openpostRequest = (isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpo
 if ($openpostRequest)
 	header('Cache-Control: no-store');
 
+// SST-786: "Vis alle poster" (all-posts, all-open) toggles the udlignet filter but the report stays
+// paginated, so the customer can never see a totals-reconciling overview spanning more than one
+// page. openpost_export_csv() bypasses pagination (batching its own queries instead) and sends its
+// own Content-Type/Content-Disposition headers, so nothing else may reach the browser first -
+// includes/online.php prints a page shell (doctype/head/body/button-color style) unconditionally
+// unless several separate flags line up just right, so buffering and discarding it here is more
+// robust than chasing every one of those flags individually.
+$openpostCsvRequest = $openpostRequest && isset($_GET['openpost_csv']);
+if ($openpostCsvRequest) ob_start();
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
+
+if ($openpostCsvRequest) {
+	ob_end_clean();
+	$dato_fra = ifset($_GET, 'dato_fra');
+	$dato_til = ifset($_GET, 'dato_til');
+	$konto_fra = ifset($_GET, 'konto_fra');
+	$konto_til = ifset($_GET, 'konto_til');
+	if ($konto_fra === null && isset($_GET['kontonr'])) list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, 'D', ifset($_GET, 'kun_debet'), ifset($_GET, 'kun_kredit'), isset($_GET['vis_alle_poster']), ifset($_GET, 'showPBS', 1));
+	exit;
+}
 include("../includes/row-hover-style-with-links.js.php");
 
 if (!function_exists('autoudlign_liste')) {
@@ -281,6 +310,12 @@ if (isset($_POST['submit']) || $rapportart) {
 	#	$md=$_POST['md'];
 	#	if (isset($_POST['konto_fra']) && strpos($_POST['konto_fra'],":")) {
 	#		list ($konto_fra, $firmanavn) = explode(":", $_POST['konto_fra']);
+	// The in-report account search (open posts) sends kontonr - a single account, a fra:til range
+	// or a firm-name pattern - and carries rapportart=openpost, so it lands in this branch instead
+	// of the kontonr branch below. Derive the konto_fra/konto_til pair the report works with.
+	if (!isset($_POST['konto']) && !isset($_GET['konto_fra']) && isset($_GET['kontonr'])) {
+		list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	}
 	$konto_fra = trim(if_isset($konto_fra));
 	#	}
 	#	if (isset($_POST['konto_til']) && strpos($_POST['konto_til'],":")) {
@@ -299,7 +334,9 @@ if (isset($_POST['submit']) || $rapportart) {
 		$_POST['rykkerbelob'] = NULL;
 	if (($submit == "mail kontoudtog") || ($submit == "opret rykker") || ($submit == "ryk alle")) {
 		$kontoantal = $_POST['kontoantal'];
-		$konto_id = $_POST['konto_id'];
+		// konto_id is only posted when the report had at least one matching account; with none
+		// shown, the buttons still submit but the field is absent, so fall back to an empty array. 20260923 CL/NTR
+		$konto_id = if_array($_POST, 'konto_id');
 		$kontoudtog = $_POST['kontoudtog'];
 		$rykkerbelob = $_POST['rykkerbelob'];
 		$y = 0;
@@ -411,10 +448,12 @@ if (isset($_POST['submit']) || $rapportart) {
 	}
 	unset($_GET['udlign']);
 } elseif (isset($_GET['kontonr'])) {
-	$konto_fra = $_GET['kontonr'];
-	$konto_til = $_GET['kontonr'];
+	list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
+	$dato_fra = $_GET['dato_fra'] ?? NULL;
+	$dato_til = $_GET['dato_til'] ?? NULL;
+	$returside = $_GET['returside'] ?? NULL;
 	$submit = "ok";
-	$rapportart = $_GET['rapportart'];
+	$rapportart = $_GET['rapportart'] ?? NULL;
 	/*
 				 $row = db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__));
 					 $start_md[$x]=$row['box1']*1;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-02-19-----
+// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-09-24-----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20220514 MSC - Implementing new design
 // 20230316 PHR Replaced *1 by (int)
 // 20260127 PHR update settings value
 // 20260219 PHR Added employeeInitials
+// 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
+// 20260924 LOE SD-657 Losing the Indstillinger right switches the turnover setting on for that user.
 
 @session_start();
 $s_id=session_id();
@@ -130,6 +132,12 @@ if ($addUser || $updateUser) {
 		else $rettigheder.='0';
 	}
 	$brugernavn=trim($brugernavn);
+	if (is_input_too_long($brugernavn)) {
+		$alerttext=findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id);
+		print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
+		$brugernavn=NULL;
+		$ret_id=$id;
+	}
 	if ($kode && $kode != $kode2) {
 		$alerttext="Adgangskoder er ikke ens";
 		print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
@@ -154,12 +162,28 @@ if ($addUser || $updateUser) {
 			$id=$r['id'];
 		}
 	}
+	# SD-657: remember the rights this user had, so losing access to Indstillinger can be noticed below.
+	$rettigheder_before = NULL;
+	if ($id) {
+		$qtxt = "select rettigheder from brugere where id = '$id'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($r) $rettigheder_before = $r['rettigheder'];
+	}
 	if ($id && $kode && $brugernavn) {
 		if (strstr($kode,'**********')) {
 			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
 		} else {
 			$kode=saldikrypt($id,$kode);
 			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
+		}
+		# SD-657: taking the Indstillinger right away switches the system-wide setting on, so that user stops
+		# seeing turnover. Only on that transition and only when it is not already on, so
+		# an admin can still turn revenue back on for them afterwards.
+		if ($rettigheder_before !== NULL
+			&& substr($rettigheder_before, 1, 1) == '1'
+			&& substr($rettigheder, 1, 1) != '1'
+			&& get_settings_value('hideRevenue', 'finans', 'off') !== 'on') {
+			update_settings_value('hideRevenue', 'finans', 'on', 'Set when a user lost access to Settings');
 		}
 		if ($employeeId[0]) {
 			$qtxt = "select afd from ansatte where id = '$employeeId[0]'";
@@ -305,7 +329,7 @@ if ($ret_id) {
 	print "<input type=hidden name=id value=$row[id]>";
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<input type=hidden name=random value=$tmp>";	#For at undgaa at browseren "husker" et forkert brugernavn.
-	print "<td><input class='inputbox' type='text' size=20 name='$tmp' value=\"$row[brugernavn]\"></td>";
+	print "<td><input class='inputbox' type='text' size=20 maxlength=80 name='$tmp' value=\"$row[brugernavn]\"></td>";
 	print "</tr><tr><td></td><td>Adgang til</td>\n";
 	for ($x=0;$x<16;$x++) {
 		(substr($row['rettigheder'],$x,1)>=1)?$checked='checked':$checked=NULL;
@@ -377,7 +401,7 @@ if ($ret_id) {
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<input type=hidden name=random value = $tmp>";
 	print "<tr><td> ".findtekst('333|Ny bruger', $sprog_id)."</td>";
-	print "<td><input class=\"inputbox\" type=\"text\" size='20' name='$tmp'></td>";
+	print "<td><input class=\"inputbox\" type=\"text\" size='20' maxlength='80' name='$tmp'></td>";
 	$s = findtekst('329|Adgang til', $sprog_id); $as = explode(" ", $s); 
 	print "</tr><tr><td></td><td>$as[0]</td>";
 	for ($x=0;$x<16;$x++) {

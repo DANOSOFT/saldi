@@ -41,6 +41,8 @@
 // 20230331 PHR Added $freeLabels to enhance procuctlimit functionality
 // 20230516 PHR Changed number of lines to $productLimit / 5 for members
 // 20250306 PHR inserted ceil after '$rows = ' as last row was not saved if rows was not divisible by 5
+// 20260914 CL/NTR The per-cell print link and the printLabels batch pass single=1 to labelprint.php
+//                 so they render one cell each; the printSheet button still fills the page grid.
 
 @session_start();
 $s_id = session_id();
@@ -260,7 +262,7 @@ if ($mySale) {
 				}
 			}
 			print "<BODY onload=\"javascript:";
-			print "window.open('../lager/labelprint.php?account=$account&condition=$condition&printIds=$printIds&print=$print');\">";
+			print "window.open('../lager/labelprint.php?account=$account&condition=$condition&printIds=$printIds&print=$print&single=1');\">";
 		} else {
 			$qtxt = "update mylabel set lastprint = '" . date('U') . "' where account_id = '$accountId' and page='$page' ";
 			$qtxt .= "and hidden is FALSE";
@@ -532,7 +534,7 @@ if ($mobile) {
 						($lastPrint[$a][$b]) ? $title = "title = 'Sidst udskrevet " . date('d.m.y H:i', $lastPrint[$a][$b]) . "'" : $title = NULL;
 						print "<span $title >";
 						print "<a href='../lager/labelprint.php?account=$account&condition=$condition&print=label&";
-						print "stregkode=" . $barcode[$a][$b] . "&labelId=" . $labelId[$a][$b] . "' target='_blank'>";
+						print "stregkode=" . $barcode[$a][$b] . "&labelId=" . $labelId[$a][$b] . "&single=1' target='_blank'>";
 						print "<img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a>";
 						if ($lastPrint[$a][$b])
 							print "&nbsp;<img src=\"../ikoner/checkmrk.png\" style=\"border: 0px solid;\">";

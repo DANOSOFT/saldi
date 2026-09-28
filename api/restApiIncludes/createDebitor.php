@@ -23,6 +23,8 @@
 //
 // Copyright (c) 2016-2022 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20260911 Sawaneh Blank the literal "dummyvalue" Shoptech sends for empty address
+//                     fields via strip_placeholder_value(); if_isset converted to ifset (JOB-115)
 
 function CreateDebitor() {
 	global $db;
@@ -30,36 +32,36 @@ function CreateDebitor() {
 	$log=fopen("../temp/$db/rest_api.log","a");
 	fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
 	
-	$addr1         = if_isset($_GET['addr1']);
-	$addr2         = if_isset($_GET['addr2']);
-	$afd           = if_isset($_GET['afd'])*1;
-	$betalingsbet  = if_isset($_GET['betalingsbet']);
-	$betalingsdage = if_isset($_GET['betalingsdage']);
-	$bynavn        = if_isset($_GET['bynavn']);
-	$cvr           = if_isset($_GET['cvr']);
-	$firmanavn     = if_isset($_GET['firmanavn']);
-	$efternavn     = if_isset($_GET['efternavn']);
-	$fornavn       = if_isset($_GET['fornavn']);
-	$gruppe        = if_isset($_GET['gruppe']);
-	$kontakt       = if_isset($_GET['kontakt']);
-	$kontonr       = if_isset($_GET['kontonr']);
-	$kundetype     = if_isset($_GET['kundetype']);
-	$land          = if_isset($_GET['land']);
-	$lev_firmanavn = if_isset($_GET['lev_firmanavn']);
-	$lev_addr1     = if_isset($_GET['lev_addr1']);
-	$lev_addr2     = if_isset($_GET['lev_addr2']);
-	$lev_postnr    = if_isset($_GET['lev_postnr']);
-	$lev_bynavn    = if_isset($_GET['lev_bynavn']);
-	$lev_land      = if_isset($_GET['lev_land']);
-	$lev_tlf       = if_isset($_GET['lev_tlf']);
-	$lev_email     = if_isset($_GET['lev_email']);
-	$lev_kontakt   = if_isset($_GET['lev_kontakt']);
-	$minNo         = if_isset($_GET['minNo']);
-	$maxNo         = if_isset($_GET['maxNo']);
-	$postnr        = if_isset($_GET['postnr']);
-	$tlf           = if_isset($_GET['tlf']);
-	$email         = if_isset($_GET['email']);
-	$email_type    = if_isset($_GET['email_type']);
+	$addr1         = strip_placeholder_value(ifset($_GET, 'addr1'));
+	$addr2         = strip_placeholder_value(ifset($_GET, 'addr2'));
+	$afd           = ifset($_GET, 'afd')*1;
+	$betalingsbet  = ifset($_GET, 'betalingsbet');
+	$betalingsdage = ifset($_GET, 'betalingsdage');
+	$bynavn        = strip_placeholder_value(ifset($_GET, 'bynavn'));
+	$cvr           = strip_placeholder_value(ifset($_GET, 'cvr'));
+	$firmanavn     = strip_placeholder_value(ifset($_GET, 'firmanavn'));
+	$efternavn     = ifset($_GET, 'efternavn');
+	$fornavn       = ifset($_GET, 'fornavn');
+	$gruppe        = ifset($_GET, 'gruppe');
+	$kontakt       = strip_placeholder_value(ifset($_GET, 'kontakt'));
+	$kontonr       = ifset($_GET, 'kontonr');
+	$kundetype     = ifset($_GET, 'kundetype');
+	$land          = strip_placeholder_value(ifset($_GET, 'land'));
+	$lev_firmanavn = strip_placeholder_value(ifset($_GET, 'lev_firmanavn'));
+	$lev_addr1     = strip_placeholder_value(ifset($_GET, 'lev_addr1'));
+	$lev_addr2     = strip_placeholder_value(ifset($_GET, 'lev_addr2'));
+	$lev_postnr    = strip_placeholder_value(ifset($_GET, 'lev_postnr'));
+	$lev_bynavn    = strip_placeholder_value(ifset($_GET, 'lev_bynavn'));
+	$lev_land      = strip_placeholder_value(ifset($_GET, 'lev_land'));
+	$lev_tlf       = strip_placeholder_value(ifset($_GET, 'lev_tlf'));
+	$lev_email     = strip_placeholder_value(ifset($_GET, 'lev_email'));
+	$lev_kontakt   = strip_placeholder_value(ifset($_GET, 'lev_kontakt'));
+	$minNo         = ifset($_GET, 'minNo');
+	$maxNo         = ifset($_GET, 'maxNo');
+	$postnr        = strip_placeholder_value(ifset($_GET, 'postnr'));
+	$tlf           = ifset($_GET, 'tlf');
+	$email         = ifset($_GET, 'email');
+	$email_type    = ifset($_GET, 'email_type');
 	if (!$email_type) $email_type = 'hoved';
 
 	if (!$kontonr) {

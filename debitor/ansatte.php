@@ -22,6 +22,7 @@
 // 20221229 PHR Some cleanup
 // 20250913 LEO Added display of existing employees and top menu and "Delete all" button
 // 20260818 LH  MB-14: fixed "Uforudset hændelse" on save (guard missing 'mobile' column like kreditor/ansatte.php, redirect back to account)
+// 20260904 Sawaneh WP-1.1: header Historik/Kontokort icon retursides now target this ansatte page (urlencoded, with konto_id)
 
 @session_start();
 $s_id=session_id();
@@ -235,7 +236,9 @@ if ($menu == 'T') {
 	
 	print "</div>";
 	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
+	// 20260904 WP-1.1: retursides carried the employee id (or no id at all) and only
+	// worked while the nav stack overrode them; back now targets this ansatte page.
+	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=" . urlencode("../debitor/ansatte.php?konto_id=$konto_id") . "' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=" . urlencode("../debitor/ansatte.php?konto_id=$konto_id") . "' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
 	if (substr($rettigheder, 5, 1) == '1') {
 		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
 	} else {

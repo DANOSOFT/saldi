@@ -20,6 +20,11 @@
 // 20260721 CL/SZ Added normalizePoolAmount() for the Bilagsmatch scoring engine, shared
 //                  between extractInvoiceHandler.php's save path and the pool_files.norm_amount
 //                  backfill in opdat_4.3.php.
+// 20260909 CDX/MJ SST-775 normalizePoolAmount(): read an accounting credit "(1.234,56)" as
+//                  negative. Only a literal '-' set the sign, so a parenthesised credit was
+//                  normalized to a positive norm_amount and could only ever match a debit.
+//                  NB: rows written before this change keep their positive norm_amount until
+//                  the pool file is saved again.
 
 if (!function_exists('normalizePoolAmount')) {
 	/**
@@ -43,6 +48,15 @@ if (!function_exists('normalizePoolAmount')) {
 		if ($raw === '') return null;
 
 		$negative = (strpos($raw, '-') !== false);
+
+		// Accounting notation wraps a credit in parentheses instead of signing it:
+		// "(1.234,56)" is -1234.56. The strip below removes the parentheses, so the sign has
+		// to be read while they are still there. Anchored to the whole value so that a
+		// parenthetical elsewhere in the string - "1.234,56 (faktura 123)" - is not read as
+		// a sign.
+		if (!$negative && preg_match('/^\(.*\d.*\)$/', $raw)) {
+			$negative = true;
+		}
 
 		// Drop currency symbols/letters/parentheses etc, keep only digits and separators.
 		$clean = preg_replace('/[^0-9,.\s]/', '', $raw);

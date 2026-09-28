@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/pbsm602import.php --- patch 4.1.1 --- 2025.06.13 ---
+// --- finans/pbsm602import.php --- patch 4.1.1 --- 2026.09.16 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20200102 PHR Instead of finding the latest invoice it now finds the oldest unpaid invoice. 20200102
@@ -31,6 +31,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250613 PHR	Corrected error in chages made 20250130
 // 20260831 Sawaneh Corrected misplaced parenthesis in commented mb_convert_encoding line from 20250130
+// 20260916 CDX/PHR Import active BS0603 mandates (0230), reject ambiguous customers and retain section dates.
 
 @session_start();
 $s_id=session_id();
@@ -138,17 +139,21 @@ function vis_data($kladde_id, $bilag, $modkonto){
 		fclose ($fp);
 	}
 	$BS002 = $BS012 = 0;
+	$agreementDate = null;
 	$addToPBS[$y] = $deleteFromPBS[$y] = $debitor[$y] = array();
 	for ($i=0;$i<count($linje);$i++) {
 	#	$beskrivelse[$y] = $date[$y] = $dato[$y] = $debitor[$y] = $amount[$y] = $belob[$y] = NULL;
 		$addToPBS[$y] = $deleteFromPBS[$y] = $debitor[$y] = 0;
-		if (substr($linje[$i],0,5)=='BS002' && substr($linje[$i],16,4)=='0603') {
-			if (!$BS002) $BS002=1;
-			else $BS002=0;
+		if (substr($linje[$i],0,5)=='BS002') {
+			$BS002 = substr($linje[$i],16,4)=='0603';
+			$agreementDate = null;
+		} elseif (substr($linje[$i],0,5)=='BS992') {
+			$BS002 = $BS012 = 0;
 		}
 		if ($BS002) {
 			if (substr($linje[$i],0,5)=='BS012') {
-				$date[$y] = usdate(substr($linje[$i],49,6));
+				$agreementDate = usdate(substr($linje[$i],49,6));
+				$date[$y] = $agreementDate;
 				if (!$BS012) $BS012=1;
 				else $BS012=0;
 			}
@@ -189,35 +194,15 @@ function vis_data($kladde_id, $bilag, $modkonto){
 				$y++;
 			}
 		} elseif ($BS002 && substr($linje[$i],0,5)=='BS042' && substr($linje[$i],13,3)=='023') {
-			$date[$y]=$date[$y-1];
-			$dato[$y]=dkdato($date[$y]);
-			
-			$debitor[$y]=substr($linje[$i],25,15)*1;
-			$pbsnr[$y]=substr($linje[$i],40,9);
-			$tilfra[$y]=substr($linje[$i],13,4); 
-			$qtxt = "select id, firmanavn from adresser where kontonr='$debitor[$y]'";
-			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$accountId[$y] = $r['id'];
-			$firmanavn[$y] = $r['firmanavn'];
-			if ($tilfra[$y]=='0231') {	
-				$beskrivelse[$y] = "$firmanavn[$y] Tilmeldt";
-				$qtxt = "update adresser set pbs='on',pbs_nr='$pbsnr[$y]' where kontonr = '$debitor[$y]' and art = 'D'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$qtxt = "update ordrer set pbs='FI',udskriv_til='PBS' ";
-				$qtxt.= "where kontonr = '$debitor[$y]' and art = 'DO' and nextfakt >= '$dd'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} elseif ($tilfra[$y]=='0232' || $tilfra[$y]=='0233' || $tilfra[$y]=='0234') {
-				if ($tilfra[$y]=='0232') $beskrivelse[$y] = "$firmanavn[$y] Afmeldt af debitors pengeinstitut";
-				if ($tilfra[$y]=='0233') $beskrivelse[$y] = "$firmanavn[$y] Afmeldt af kreditor pengeinstitut";
-				if ($tilfra[$y]=='0234') $beskrivelse[$y] = "$firmanavn[$y] Afmeldt af PBS";
-				$qtxt = "update adresser set pbs='',pbs_nr='' where kontonr = '$debitor[$y]' and art = 'D'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$qtxt = "update ordrer set pbs='',udskriv_til='email' where ";
-				$qtxt.= "kontonr = '$debitor[$y]' and art = 'DO' and nextfakt >= '$dd'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} elseif (!$accountId[$y]) $beskrivelse[$y] = "$fn[$i] $kundenr[$y] Ikke fundet i adresseliste</td></tr>";
-#			$BS002 = $BS012 = 0;
+			$result = bs603UpdateAgreement($linje[$i], $dd);
+			$debitor[$y] = $result['customer'];
+			$beskrivelse[$y] = htmlspecialchars($result['description'], ENT_QUOTES, $charset);
+			$date[$y] = $agreementDate;
+			$dato[$y] = $agreementDate ? dkdato($agreementDate) : '';
+			$belob[$y] = '';
+			$skriv_linje[$y] = 0;
 			$y++;
+
 		} elseif ($BS002 && substr($linje[$i],0,5)=='BS092' && substr($linje[$i],16,4)=='0603' ) {
 			$BS002 = $BS012 = 0;
 		} elseif ($linje[$i] && substr($linje[$i],0,5)=='BS042') {
@@ -419,4 +404,51 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 #xit;
 	transaktion('commit');
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
+}
+
+/**
+ * Apply one BS0603 mandate record to a uniquely identified debtor.
+ *
+ * @return array{customer: string, description: string, updated: bool}
+ */
+function bs603UpdateAgreement($line, $today) {
+	$customer = trim(substr($line, 25, 15));
+	$normalized = ctype_digit($customer) ? (ltrim($customer, '0') ?: '0') : $customer;
+	$code = substr($line, 13, 4);
+	$mandate = substr($line, 40, 9);
+	$result = array('customer' => $normalized, 'description' => '', 'updated' => false);
+	if (substr($line, 0, 5) !== 'BS042' || strlen($line) < 49 || $customer === ''
+		|| !in_array($code, array('0230', '0231', '0232', '0233', '0234'), true)
+		|| !ctype_digit($mandate)) {
+		$result['description'] = 'Ugyldig eller ukendt aftaleoplysning';
+		return $result;
+	}
+	$qtxt = "select id, kontonr, firmanavn from adresser where art='D' and kontonr in ('"
+		. db_escape_string($customer) . "','" . db_escape_string($normalized) . "')";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$matches = array();
+	while ($row = db_fetch_array($q)) {
+		$matches[] = $row;
+	}
+	if (count($matches) !== 1) {
+		$result['description'] = count($matches) ? 'Flere debitorer har dette kundenummer - ikke ændret' : 'Kundenummer ikke fundet i adresseliste';
+		return $result;
+	}
+	$account = $matches[0];
+	$active = $code === '0230' || $code === '0231';
+	$labels = array('0230' => 'Aktiv PBS-aftale', '0231' => 'Tilmeldt',
+		'0232' => 'Afmeldt af debitors pengeinstitut', '0233' => 'Afmeldt af kreditor pengeinstitut', '0234' => 'Afmeldt af PBS');
+	$pbs = $active ? 'on' : '';
+	$number = $active ? $mandate : '';
+	$qtxt = "update adresser set pbs='$pbs', pbs_nr='" . db_escape_string($number)
+		. "' where id=" . intval($account['id']) . " and art='D'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	$method = $active ? 'FI' : '';
+	$output = $active ? 'PBS' : 'email';
+	$qtxt = "update ordrer set pbs='$method', udskriv_til='$output' where kontonr='"
+		. db_escape_string($account['kontonr']) . "' and art='DO' and nextfakt>='" . db_escape_string($today) . "'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	$result['description'] = $account['firmanavn'] . ' ' . $labels[$code];
+	$result['updated'] = true;
+	return $result;
 }

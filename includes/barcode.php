@@ -25,6 +25,10 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 \****************************************************************************/
+//
+// Local modifications (not in upstream Kreative Software release):
+// 20260914 CL/NTR linear_render_svg: removed integer rounding of the scale so the
+//                 barcode fills the requested width instead of leaving wide margins.
 
 if (realpath(__FILE__) == realpath($_SERVER['SCRIPT_FILENAME'])) {
 	if (isset($_POST['s']) && isset($_POST['d'])) {
@@ -383,11 +387,9 @@ class barcode_generator {
 			}
 		}
 		if ($width) {
+			// Fractional scale so the bars fill the available width;
+			// SVG transforms render cleanly at non-integer scales.
 			$scale = $w / $width;
-			if ($scale > 1) {
-				$scale = floor($scale);
-				$x = floor($x + ($w - $width * $scale) / 2);
-			}
 		} else {
 			$scale = 1;
 			$x = floor($x + $w / 2);

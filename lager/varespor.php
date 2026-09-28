@@ -25,6 +25,8 @@
 // 20140626 Tilføjet lagerregulering og ændret variabelnavn for dækningsbidrag.
 // 20150902	Linjer med 0 i antal undertrykkes og linjer uden ordre_id vises som Lagerreguleret
 // 20260819 CDX/PHR Saml fragmenterede batchlinjer, vis lager og saml lagerreguleringer nederst.
+// 20260907 CL/LH Saml kun rækker med samme linje_id (ikke modtime), bevar fortegn på
+//                lagerreguleringer og genopret tom firmanavn-celle ved slettet ordre (#495).
 
 function varesporBatchRows($table, $vareId, $excludeZero = false) {
 	if ($table !== 'batch_kob' && $table !== 'batch_salg') {
@@ -42,8 +44,6 @@ function varesporBatchRows($table, $vareId, $excludeZero = false) {
 		$stockNo = (int)$row['lager'];
 		if ($lineId > 0) {
 			$key = 'line:' . $lineId;
-		} elseif (!empty($row['modtime'])) {
-			$key = 'time:' . $row['modtime'] . ':stock:' . $stockNo;
 		} else {
 			$key = 'row:' . $row['id'];
 		}
@@ -154,7 +154,7 @@ $kobsliste=array();
 $stockAdjustments=array();
 foreach (varesporBatchRows('batch_kob', $vare_id, true) as $row) {
 	if (!$row['ordre_id']) {
-		$row['signed_antal'] = abs((float)$row['antal']);
+		$row['signed_antal'] = (float)$row['antal'];
 		$stockAdjustments[] = $row;
 		continue;
 	}
@@ -164,13 +164,14 @@ foreach (varesporBatchRows('batch_kob', $vare_id, true) as $row) {
 	} else $r1=NULL;
 	print "<tr><td>".dkdato($row['fakturadate'])."</td>
 		<td align=right>".dkdecimal($row['antal'])."</td>";
-		if ($showStock) {
-			$stockTitle = array();
-			foreach ($row['stock_numbers'] as $stockNo) if (isset($stockNames[$stockNo])) $stockTitle[] = $stockNames[$stockNo];
-			print "<td align='right' title='".htmlspecialchars(implode(', ', $stockTitle), ENT_QUOTES, 'UTF-8')."'>".htmlspecialchars($row['stock_display'], ENT_QUOTES, 'UTF-8')."</td>";
-		}
-		if ($r1['firmanavn']) print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>";
-		print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[ordrenr]</u></td>";
+	if ($showStock) {
+		$stockTitle = array();
+		foreach ($row['stock_numbers'] as $stockNo) if (isset($stockNames[$stockNo])) $stockTitle[] = $stockNames[$stockNo];
+		print "<td align='right' title='".htmlspecialchars(implode(', ', $stockTitle), ENT_QUOTES, 'UTF-8')."'>".htmlspecialchars($row['stock_display'], ENT_QUOTES, 'UTF-8')."</td>";
+	}
+	if ($r1['firmanavn']) print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>";
+	else print "<td align=\"right\"></td>";
+	print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[ordrenr]</u></td>";
 	$kobsantal=$kobsantal+$row['antal'];
 	$kobspris=$row['total_price'];
 	$kobssum=$kobssum+$kobspris;
@@ -247,7 +248,7 @@ $salgsantal=0;
 
 foreach (varesporBatchRows('batch_salg', $vare_id) as $row) {
 	if (!$row['ordre_id']) {
-		$row['signed_antal'] = abs((float)$row['antal']) * -1;
+		$row['signed_antal'] = (float)$row['antal'] * -1;
 		$stockAdjustments[] = $row;
 		continue;
 	}

@@ -1,0 +1,48 @@
+name: Stale pull requests
+
+# Queue hygiene only. Age never sets review priority; see the saldi-delegate-reviews rules.
+# 30 days without activity -> label `stale` + comment; 30 more days without activity -> closed.
+# The `udskudt` label exempts a deliberately parked PR. Any push or comment removes `stale`.
+# "Activity" is GitHub's updated_at, so bot comments (CodeRabbit, advisory review) also count.
+# First run: trigger manually with dry_run=true and read the log before letting the schedule act.
+
+on:
+  schedule:
+    - cron: '0 5 * * *' # daily 05:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only log what would be labelled or closed'
+        type: boolean
+        default: true
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  stale:
+    # Enable scheduled writes only after inspecting the first manual dry run.
+    if: github.event_name == 'workflow_dispatch' || vars.SALDI_STALE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v11
+        with:
+          debug-only: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+          days-before-pr-stale: 30
+          days-before-pr-close: 30
+          stale-pr-label: stale
+          exempt-pr-labels: udskudt
+          exempt-draft-pr: false
+          remove-pr-stale-when-updated: true
+          operations-per-run: 200
+          stale-pr-message: >
+            No activity for 30 days, so this PR is now marked `stale`.
+            Rebase or comment to keep it open, add the `udskudt` label to park it on purpose,
+            or close it. Without activity it will be closed in 30 days.
+            Closing keeps the branch; the PR can be reopened.
+          close-pr-message: >
+            Closed after 60 days without activity. The branch is untouched;
+            reopen the PR if the work is still relevant.

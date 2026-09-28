@@ -1,4 +1,6 @@
 
+// 20260907 CDX/LH Preserve D/K/F account types when selecting a historical counter-account.
+//                  Handle each keyboard selection once, without bubbling into a second move.
 (function () {
     'use strict'; 
 
@@ -10,6 +12,17 @@
 
     function getTrans() {
         return window.saldiTranslations || {};
+    }
+
+    // Per-page panel-section config (set by kassekladde.php). Pages that don't define
+    // window.saldiAutocompleteOptions (bank import, document pool, order autocomplete)
+    // keep the default behaviour: both sections shown.
+    function getPanelOptions() {
+        const opts = window.saldiAutocompleteOptions || {};
+        return {
+            showLastPostings: opts.showLastPostings !== false,
+            showAccountLookup: opts.showAccountLookup !== false
+        };
     }
 
     let activeDropdown = null;
@@ -113,7 +126,7 @@
                 focusViaKeyboardNav = true;
             }
 
-            if (activeDropdown) {
+            if (activeDropdown && !e.defaultPrevented) {
                 handleKeyboardNavigation(e);
             }
         });
@@ -532,6 +545,17 @@
             }
         }
 
+        const panelOptions = getPanelOptions();
+        if (!panelOptions.showLastPostings && !panelOptions.showAccountLookup) {
+            closeDropdown();
+            return;
+        }
+        if (!panelOptions.showAccountLookup) {
+            // Lookup section deselected: skip the server search and show suggestions only
+            renderDropdown(input, [], searchType, searchValue, null);
+            return;
+        }
+
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/accountSearch.php';
@@ -646,8 +670,9 @@
 
             html += '<tr class="account-autocomplete-item account-autocomplete-last-posting-item"' +
                 ' data-kontonr="' + escapeHtml(item.kontonr || '') + '"' +
+                ' data-account-type="' + escapeHtml(item.art || '') + '"' +
                 ' data-index="last-' + index + '">' +
-                '<td>' + escapeHtml(item.kontonr || '') + '</td>' +
+                '<td>' + escapeHtml((item.art ? item.art + ' ' : '') + (item.kontonr || '')) + '</td>' +
                 '<td title="' + escapeHtml(description) + '">' + escapeHtml(description) + '</td>';
 
             for (let i = 2; i < columnCount; i++) {
@@ -1013,7 +1038,8 @@
     function renderDropdown(input, results, searchType, currentSearchValueParam, pagination) {
         const dropdown = input.autocompleteDropdown;
         const trans = getTrans();
-        const lastPostings = getLastPostings(input);
+        const panelOptions = getPanelOptions();
+        const lastPostings = panelOptions.showLastPostings ? getLastPostings(input) : { heading: '', rows: [] };
         const hasLastPostings = lastPostings.rows && lastPostings.rows.length > 0;
         const columnCount = searchType === 'finance' ? 5 : 2;
 
@@ -1022,7 +1048,7 @@
         pagination = pagination || { page: 1, total: 0, hasMore: false };
 
         if (!results || results.length === 0) {
-            if (currentSearchValueParam !== '' || hasLastPostings) {
+            if ((currentSearchValueParam !== '' && panelOptions.showAccountLookup) || hasLastPostings) {
                 let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 if (hasLastPostings) {
                     noResultHtml = '<div class="account-autocomplete-results">' +
@@ -1337,6 +1363,17 @@
             : undefined;
 
         input.value = kontonr;
+
+        if (input.fieldType === 'debet' || input.fieldType === 'kredit') {
+            const accountType = selectedItem ? selectedItem.dataset.accountType : '';
+            if (['D', 'K', 'F'].includes(accountType)) {
+                const typeName = (input.fieldType === 'debet' ? 'd_ty' : 'k_ty') + rowNum;
+                const typeField = (input.form || document).querySelector('input[name="' + typeName + '"]');
+                if (typeField && typeField.value !== accountType) {
+                    setFieldValue(typeField, accountType);
+                }
+            }
+        }
 
         // Dispatch both input and change events to ensure all handlers are triggered
         input.dispatchEvent(new Event('input', { bubbles: true }));

@@ -35,6 +35,7 @@
 // 20251021 LOE Added pagination and static header and footer
 // 20260126 PHR fixed $exitDraft
 // 20260706 MJ Optimized cash journal list entry counts for large databases.
+// 20260904 Sawaneh WP-1.4: pass GET returside (sanitised) to topLineFinans; exitDraft cast to int
 
 @session_start();
 $s_id=session_id();
@@ -199,7 +200,7 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></scr
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
-$exitDraft = isset($_GET['exitDraft']) ? $_GET['exitDraft'] : null;
+$exitDraft = isset($_GET['exitDraft']) ? (int)$_GET['exitDraft'] : null;
 if ($exitDraft) {
 	$qtxt = "update kladdeliste set hvem = '', tidspkt = NULL where id = '$exitDraft'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -211,6 +212,10 @@ if (strpos(findtekst('639|Kladdeliste', $sprog_id),'undtrykke')) {
 }
 
 $valg = "Kladdeliste";
+// 20260904 Sawaneh WP-1.4: hand the incoming returside to the topline — topLineFinans
+// reads $returside, which was never populated here, so the menu's popup Luk
+// (returside=../includes/luk.php) never reached nav_back_url().
+$returside = isset($_GET['returside']) ? nav_sanitize_returside($_GET['returside']) : null;
 include("topLineFinans.php");
 include("../includes/grid.php");
 

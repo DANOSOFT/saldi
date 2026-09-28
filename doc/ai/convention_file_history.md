@@ -19,13 +19,28 @@ New history entries are appended at the **bottom** of the existing history block
 - `<Tag>` is `<AIHelper>/<Initials>` (e.g. `CL/PHR`, `CDX/PHR`) when an AI helper assisted with the change.
 - Fixed AI helper vocabulary: `CL` = Claude, `CDX` = Codex. Do not invent other abbreviations without updating this file.
 
-Continuation lines start with `//` followed by spaces padding out to the column where the description text starts on the first line, so wrapped text visually aligns:
+Continuation lines start with `//` followed by spaces padding out to the column where the description text starts on the first line, so wrapped text visually aligns. Do not wrap based on line length — a continuation line is only used to start a new sentence (i.e. break after sentence-ending punctuation `.`, `!`, `?`), not because a line runs long:
 
 ```
-// 20260713 CL/PHR Added invoice history convention support to
-//                  the header history block for future changes.
+// 20260713 CL/PHR Added invoice history convention support to the header history block.
+//                  Also updated related tests.
 ```
 
 **Why:** Lets the team (and future AI sessions) tell at a glance which changes were AI-assisted and by which tool, without disturbing the existing header layout or legacy history lines.
 
 **How to apply:** Only applies to new history lines going forward — do not reformat existing legacy history lines (which use inconsistent separators like `-`, `_`, or none). When Claude or Codex makes a code change in a file that has this header structure, append one history line (with continuation lines if needed) using the current date, the appropriate `<AIHelper>/<Initials>` tag, and a short description of the change.
+
+**Header maintenance (user instruction, 2026-09-16):** When changing a file, also update the revision date in the header line containing its path/name to the date of the change, preserving the file's date format. Set the copyright company to `Danosoft ApS` and update the ending year to the current year (2026 for changes made in 2026), retaining any existing starting year. Do not change other license text as part of this maintenance. Apply this to files being changed, not as a repository-wide cleanup. For the release/patch number on that same line, see the versioning-line rule below (updated 2026-09-25, superseding the earlier "do not change" instruction).
+
+**Versioning line convention (user instruction, 2026-09-25):** The header line containing the file's path/name also carries a version marker in the form `ver #.#.#` (some legacy files instead say `lap #.#.#` or `patch #.#.#` — treat those as the same field; don't rename them on an otherwise-untouched file, but if you're already touching that line for another reason, normalize the label to `ver`). When a change to the file is a **behavior or logic change** (i.e. it alters what the code does — logic, control flow, computed results, query/data behavior — not a pure formatting, comment, whitespace, or doc-only edit), update that version marker to `ver <version>`, where `<version>` is copied verbatim from `$version` in `includes/version.php` at the time of the edit.
+
+- Always mirror the current `$version` string as-is (e.g. `5.0.0`). Never invent or increment a number ahead of it, and never bump `includes/version.php` itself as a side effect of an ordinary file edit — per [Database changes routing](convention_database_changes.md), `$version` only changes on an explicit version cut. This means several unrelated behavior changes made between release cuts will legitimately share the same `ver` line until the next cut — that's expected, not a bug.
+- Some legacy versioning lines carry a trailing letter suffix (e.g. `lap 2.0.0k`) or otherwise don't match `includes/version.php`'s plain `#.#.#` format — that suffix is legacy per-file revision tracking, not something `$version` has. On a qualifying behavior/logic change, replace the whole marker with the plain current `$version` (dropping the legacy suffix), e.g. `lap 2.0.0k` → `ver 5.0.0`.
+- A change that is not a behavior/logic change (formatting, comments, whitespace, doc-only) does not touch the version marker, even if a history line is still appended for it.
+- This only applies to files that already have this versioning line in their header stack; do not add the line to files that lack it.
+
+**Bootstrapping `<Initials>` in a new working copy (user instruction, 2026-09-22):** `<Initials>` is personal to the user and machine, not part of this repo — it belongs in that user's local AI memory, not in any committed file. Before writing a history line, if the assistant does not already have the user's initials for this project recorded in local memory:
+
+1. Look at the current working directory's folder name. If it is 2-4 letters, it may be a plausible initials/project-tag candidate — but this is only a hint, not a fallback used automatically.
+2. Ask the user directly what initials they want recorded in history for this project, regardless of whether step 1 produced a candidate.
+3. Save the answer to local memory (not to a repo file) so future sessions in this working copy don't need to ask again.

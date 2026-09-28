@@ -27,7 +27,13 @@
 //20260304 PHR Someone removed the convertOldDoc section.
 //20260603 CL/PHR debitorOrdrer tilføjet som moderne kilde (modernSources, isModernLayout,
 //                  docFolder-fallback, header-logik og openPool-default)
-
+// 20260910 CL/SZ Pool upload now dedupes against an existing file with the same base name
+//                 (e.g. generic scanner/phone names like "scan.pdf") instead of silently
+//                 overwriting it and confusing its metadata (SST-776).
+// 20260910 CL/NTR Pool upload and vendor+date rename now reserve their target name atomically
+//                  via FileReservation instead of file_exists() polling, closing the window in
+//                  which two concurrent uploads could pick the same name (SST-776 follow-up).
+// 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -48,6 +54,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
+include_once(__DIR__ . "/docsIncludes/FileReservation.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 if (!isset($menu)) $menu = null;
@@ -130,7 +137,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 	}
 	
 	if ($isAjax || $openPool) {
-		$allowedTypes = array('jpg','jpeg','pdf','png');
+		$allowedTypes = array('jpg','jpeg','pdf','png','xml');
 		$fileName = basename($_FILES['uploadedFile']['name']);
 		
 		// Get file type from MIME type
@@ -159,19 +166,36 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 			// Sanitize filename
 			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
 			$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+			$storedExt = $ext === 'xml' ? 'xml' : 'pdf';
 			// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
 			$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 			$baseName = sanitize_filename($baseName);
-			$targetFile = "$poolDir/$baseName.pdf";
-			
+
+			// Reserve the target name atomically so a pool file already using this base name
+			// (e.g. generic scanner/phone names like "scan.pdf") is never overwritten, and two
+			// concurrent uploads with the same name can't both settle on it (SST-776). Sibling
+			// extensions count as taken too, so a leftover "scan.jpg" or "scan.info" also bumps
+			// us to "scan_1". $targetFile is an empty placeholder until the upload lands on it.
+			$reservation = FileReservation::reserve($poolDir, $baseName, $storedExt, ['pdf', 'jpg', 'jpeg', 'png', 'xml', 'info']);
+			if ($reservation === null) {
+				error_log("documents.php (AJAX): could not reserve a pool filename for '$baseName' in $poolDir");
+				header('Content-Type: application/json');
+				echo json_encode(['success' => false, 'message' => 'Failed to save file']);
+				exit;
+			}
+			$baseName = $reservation->baseName();
+			$targetFile = $reservation->path();
+
 			// Try to extract invoice data via API
 			$extractedData = null;
 			$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
 
 			// Convert images to PDF if needed
 			if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
-				$tempFile = "$poolDir/$baseName.$ext";
-				if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				$tempFile = $reservation->siblingPath($ext);
+				if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+					$reservation->discard();
+				} else {
 					if ($autoExtract) {
 						// Extract data from ORIGINAL image before converting to PDF
 						error_log("documents.php (AJAX): Calling extractInvoiceData for ORIGINAL image: $tempFile");
@@ -187,20 +211,24 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					}
 
 
-					// Now convert to PDF
+					// Now convert to PDF (overwrites the empty placeholder in place)
 					exec("convert '$tempFile' '$targetFile'", $output, $return_var);
-					if ($return_var === 0 && file_exists($targetFile)) {
+					clearstatcache(true, $targetFile);
+					if ($return_var === 0 && filesize($targetFile) > 0) {
 						unlink($tempFile);
 					} else {
+						$reservation->discard(); // drop the empty/partial .pdf placeholder
 						$targetFile = $tempFile; // Fallback to original if conversion fails
 					}
 				}
 			} else {
-				// For PDF files, move directly
-				move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
-				// Extract data from PDF
+				// Move PDF and XML files unchanged onto the reserved placeholder.
+				if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile)) {
+					$reservation->discard();
+				}
+				// Extract PDF data through the API or UBL XML data locally.
 				if ($autoExtract && file_exists($targetFile)) {
-					error_log("documents.php (AJAX): Calling extractInvoiceData for PDF: $targetFile");
+					error_log("documents.php (AJAX): Calling extractInvoiceData for document: $targetFile");
 					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
 					$extractedData = extractInvoiceData($targetFile, $invoiceId);
 					if ($extractedData) {
@@ -244,25 +272,23 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					$newBaseName = $invoiceDate;
 				}
 				
-				// Rename file if we have a new name
+				// Rename file if we have a new name - reserve the new name atomically first,
+				// then rename onto the placeholder (same race as the upload dedup above)
 				if ($newBaseName !== $baseName) {
-					$newTargetFile = "$poolDir/$newBaseName.pdf";
-					
-					// Check if file already exists and append number if needed
-					$counter = 1;
-					$originalNewBaseName = $newBaseName;
-					while (file_exists($newTargetFile)) {
-						$newBaseName = $originalNewBaseName . '_' . $counter;
-						$newTargetFile = "$poolDir/$newBaseName.pdf";
-						$counter++;
-					}
-					
-					if (rename($targetFile, $newTargetFile)) {
-						$targetFile = $newTargetFile;
-						$baseName = $newBaseName;
-						error_log("documents.php (AJAX): Renamed file to: $newBaseName.pdf");
+					$renameReservation = FileReservation::reserve($poolDir, $newBaseName, $storedExt, ['pdf', 'jpg', 'jpeg', 'png', 'xml', 'info']);
+					if ($renameReservation === null) {
+						error_log("documents.php (AJAX): could not reserve a pool filename for '$newBaseName' in $poolDir, keeping $baseName.$storedExt");
 					} else {
-						error_log("documents.php (AJAX): Failed to rename file to: $newBaseName.pdf");
+						$newBaseName = $renameReservation->baseName();
+						$newTargetFile = $renameReservation->path();
+						if (rename($targetFile, $newTargetFile)) {
+							$targetFile = $newTargetFile;
+							$baseName = $newBaseName;
+							error_log("documents.php (AJAX): Renamed file to: $newBaseName.$storedExt");
+						} else {
+							$renameReservation->discard();
+							error_log("documents.php (AJAX): Failed to rename file to: $newBaseName.$storedExt");
+						}
 					}
 				}
 			}
@@ -339,7 +365,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				
 				// Save extracted currency directly to pool_files (currency not stored in .info files)
 				if ($extractedData !== null && !empty($extractedData['currency'])) {
-					$uploadFilename = $baseName . '.pdf';
+					$uploadFilename = $baseName . '.' . $storedExt;
 					$uploadCurrency = $extractedData['currency'];
 					$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($uploadFilename) . "'";
 					$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -354,7 +380,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				echo json_encode([
 					'success' => true,
 					'message' => 'File uploaded successfully',
-					'filename' => $baseName . '.pdf',
+					'filename' => $baseName . '.' . $storedExt,
 					'extracted' => $extractedData
 				]);
 				exit;
@@ -545,10 +571,11 @@ if (!$isModernLayout) {
 // Handle file uploads for pool view
 // Allow uploads when sourceId is set OR when openPool is set (for new pool uploads)
 if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $openPool)) {
-	$fileTypes = array('jpg','jpeg','pdf','png');
+	$fileTypes = array('jpg','jpeg','pdf','png','xml');
 	$fileName = basename($_FILES['uploadedFile']['name']);
 	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
-	if (in_array(strtolower($fileType),$fileTypes)) {
+	$fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+	if (in_array(strtolower($fileType),$fileTypes) || in_array($fileExt, $fileTypes)) {
 		$poolDir = "$docFolder/$db/pulje";
 		if (!is_dir($poolDir)) {
 			mkdir($poolDir, 0755, true);
@@ -556,19 +583,37 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 		// Sanitize filename
 		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
 		$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+		$storedExt = $ext === 'xml' ? 'xml' : 'pdf';
 		// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
 		$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 		$baseName = sanitize_filename($baseName);
-		$targetFile = "$poolDir/$baseName.pdf";
-		
+
+		// Reserve the target name atomically so a pool file already using this base name
+		// (e.g. generic scanner/phone names like "scan.pdf") is never overwritten, and two
+		// concurrent uploads with the same name can't both settle on it (SST-776). Sibling
+		// extensions count as taken too, so a leftover "scan.jpg" or "scan.info" also bumps
+		// us to "scan_1". $targetFile is an empty placeholder until the upload lands on it.
+		$reservation = FileReservation::reserve($poolDir, $baseName, $storedExt, ['pdf', 'jpg', 'jpeg', 'png', 'xml', 'info']);
+		if ($reservation === null) {
+			error_log("documents.php (block2): could not reserve a pool filename for '$baseName' in $poolDir");
+			$targetFile = '';
+		} else {
+			$baseName = $reservation->baseName();
+			$targetFile = $reservation->path();
+		}
+
 		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
 		$extractedData = null;
 		$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
 
 		// Convert images to PDF if needed
-		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
-			$tempFile = "$poolDir/$baseName.$ext";
-			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+		if ($reservation === null) {
+			// Nothing to write to; the file_exists($targetFile) check below skips the .info/redirect
+		} elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+			$tempFile = $reservation->siblingPath($ext);
+			if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				$reservation->discard();
+			} else {
 				if ($autoExtract) {
 					// Extract data from ORIGINAL image before converting to PDF
 					error_log("documents.php (block2): Calling extractInvoiceData for ORIGINAL image: $tempFile");
@@ -584,20 +629,24 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 				}
 
 
-				// Now convert to PDF
+				// Now convert to PDF (overwrites the empty placeholder in place)
 				exec("convert '$tempFile' '$targetFile'", $output, $return_var);
-				if ($return_var === 0 && file_exists($targetFile)) {
+				clearstatcache(true, $targetFile);
+				if ($return_var === 0 && filesize($targetFile) > 0) {
 					unlink($tempFile);
 				} else {
+					$reservation->discard(); // drop the empty/partial .pdf placeholder
 					$targetFile = $tempFile; // Fallback to original if conversion fails
 				}
 			}
 		} else {
-			// For PDF files, move directly
-			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
-			// Extract data from PDF
+			// Move PDF and XML files unchanged onto the reserved placeholder.
+			if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile)) {
+				$reservation->discard();
+			}
+			// Extract PDF data through the API or UBL XML data locally.
 			if ($autoExtract && file_exists($targetFile)) {
-				error_log("documents.php (block2): Calling extractInvoiceData for PDF: $targetFile");
+				error_log("documents.php (block2): Calling extractInvoiceData for document: $targetFile");
 				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
 				$extractedData = extractInvoiceData($targetFile, $invoiceId);
 				if ($extractedData) {
@@ -686,7 +735,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 				"kladde_id=$kladde_id"."&".
 				"bilag=$bilag"."&".
 				"fokus=$fokus"."&".
-				"poolFile=$baseName.pdf"."&".
+				"poolFile=$baseName.$storedExt"."&".
 				"docFolder=$docFolder"."&".
 				"sourceId=$sourceId"."&".
 				"source=$source";

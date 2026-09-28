@@ -84,6 +84,8 @@
 // 20260723 sawaneh Fixed $rbox8->$box8 so the guard against a stock-tracked item used as a fee works in bogfor_rykker.
 // 20260807 CL/NTR Added the missing #opGridWrapper opening div (it was only ever closed) so the open items grid gets its intended flex:1/scrollable/padded region instead of no padding at all; gave several tables ids for future reference.
 // 20260824 CL/NTR Flush the openpost topline to the client (ob_flush + flush, draining php.ini's output_buffering) before vis_aabne_poster's heavy queries run, so it renders while the SQL is still working.
+// 20260826 Sawaneh SD-140: openpost() no longer overwrites dato/konto with the stored DRV row when the request
+//                  itself carries konto_fra or kontonr (pagination, filter links and the in-report account search).
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -184,7 +186,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=rapport.php?ny_rykker=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart\">";
 	}
 
-	if ($r = db_fetch_array(db_select("select * from grupper where art = '$tekst' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__))) {
+	if (!isset($_GET['konto_fra']) && !isset($_GET['kontonr']) && ($r = db_fetch_array(db_select("select * from grupper where art = '$tekst' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__)))) {
 		$dato_fra = $r['box2'];
 		$dato_til = $r['box3'];
 		$konto_fra = $r['box4'];

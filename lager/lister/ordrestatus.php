@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- lager/lister/ordrestatus.php --- lap 4.1.0 --- 2026.09.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260923 CDX/PHR Generate warehouse columns and joins once per warehouse across fiscal years.
 
 @session_start();
 $s_id = session_id();
@@ -215,14 +217,27 @@ $columns[] = array(
 
 
 
-// Loop to generate lager fields (lager1, lager2, lager3, ...)
-$query = "SELECT kodenr, beskrivelse FROM grupper WHERE art='LG' ORDER BY kodenr";
+// Prefer the selected fiscal-year name, then the latest available definition.
+$query = "SELECT kodenr, beskrivelse FROM grupper WHERE art='LG' ";
+$query .= "ORDER BY CASE WHEN fiscal_year=" . (int)$regnaar . " THEN 0 ELSE 1 END, ";
+$query .= "COALESCE(fiscal_year,0) DESC, id DESC";
+$warehouseRows = array();
+$q = db_select($query, __FILE__ . " line " . __LINE__);
+while ($row = db_fetch_array($q)) {
+    $warehouseNumber = (int)$row['kodenr'];
+    if ($warehouseNumber > 0 && !isset($warehouseRows[$warehouseNumber])) {
+        $row['kodenr'] = $warehouseNumber;
+        $warehouseRows[$warehouseNumber] = $row;
+    }
+}
+ksort($warehouseRows, SORT_NUMERIC);
+
+// Generate each column and SQL alias exactly once, even after a fiscal-year rollover.
 $SQLLagerFetch = "";
 $SQLLagerJoin  = "";
 $lagere = array();
-     
-$q = db_select($query, __FILE__ . " line " . __LINE__);
-while ($row = db_fetch_array($q)) {
+
+foreach ($warehouseRows as $row) {
     $SQLLagerFetch .= "COALESCE(ls$row[kodenr].beholdning, 0) AS lager$row[kodenr],\n";
     $SQLLagerJoin  .= "LEFT JOIN LagerSummary ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
     $lagere[] = "lager" . $row['kodenr'];
@@ -445,6 +460,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $VGs = array();
 while ($row = db_fetch_array($q)) {
     $VGs[] = array(
+        "optionKey" => "vg_" . $row["kodenr"],
         "name" => $row["beskrivelse"],
         "checked" => "",
         "sqlOn" => "vg.kodenr = $row[kodenr]",
@@ -452,6 +468,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "varegrupper",
     "filterName" => "Varegrupper",
     "joinOperator" => "or",
     "options" => $VGs
@@ -469,6 +486,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $levs = array();
 while ($row = db_fetch_array($q)) {
     $levs[] = array(
+        "optionKey" => "lev_" . $row["kontonr"],
         "name" => $row["firmanavn"],
         "checked" => "",
         "sqlOn" => "levs.kontonr_concat LIKE '%$row[kontonr]%'", 
@@ -476,6 +494,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "leverandorer",
     "filterName" => "Leverandøre",
     "joinOperator" => "or",
     "options" => $levs
@@ -483,10 +502,12 @@ $filters[] = array(
 
 // Misc
 $filters[] = array(
+    "filterKey" => "misc",
     "filterName" => "Misc",
     "joinOperator" => "and",
     "options" => array(
         array(
+            "optionKey" => "show_discontinued",
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",

@@ -32,6 +32,10 @@
 // 20220818 PHR Added db_escape_string at line ~247 
 // 20250731 PHR PHP8
 // 20260723 sawaneh Removed misplaced ';' after date('U') so ffdage2/3 are subtracted again; R2/R3 fees are booked only after grace days.
+// 20260803 Sawaneh $rykkerfrist1 blev beregnet ud fra $dd foer den var sat, saa ffdage1 blev kasseret og der blev rykket
+//                  dagen efter forfald. Fristen regnes nu som dags dato minus ffdage1, som ved ffdage2/3.
+// 20260828 Sawaneh Review: the three cutoffs use calendar-day arithmetic (dunning_cutoff_date) instead of
+//                  date('U') - days*86400, which shifted eligibility by a day around the DST switches.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -48,6 +52,7 @@ $topniveau=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once("../includes/stdFunc/dunningCutoff.php");
 include("../includes/formfunk.php");
 include("../includes/forfaldsdag.php");
 include("../includes/openpost.php");
@@ -72,7 +77,7 @@ $r = db_fetch_array(db_select("select box5,box6,box7,box8 from grupper where art
 $ffdage1=(int)$r['box5'];
 $ffdage2=(int)$r['box6'];
 $ffdage3=(int)$r['box7'];
-$rykkerfrist1=usdate(forfaldsdag($dd,'netto',$ffdage1));
+$rykkerfrist1=dunning_cutoff_date($ffdage1);
 
 $r = db_fetch_array(db_select("select id from formularer where beskrivelse LIKE '%inkassotekst'",__FILE__ . " linje " . __LINE__));
 if ($r['id']) {
@@ -129,8 +134,7 @@ if ($konto_id[0]=="alle") {
 	}
 	$konto_antal=$x;
 	$rykker_id=array();
-	$utid=date('U')-$ffdage2*3600*24;
-	$rykkerfrist2=date("Y-m-d",$utid);
+	$rykkerfrist2=dunning_cutoff_date($ffdage2);
 	#finder aabne level_1 rykkere som har overskredet rykkerdato med ffdage2.og bogforer disse
 	$q=db_select("select id,konto_id from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2'",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -139,8 +143,7 @@ if ($konto_id[0]=="alle") {
 		bogfor_rykker($r['id']);
 		$rykker_id[$x]=$r['id'];
 	}
-	$utid=date('U')-$ffdage3*3600*24;
-	$rykkerfrist3=date("Y-m-d",$utid);
+	$rykkerfrist3=dunning_cutoff_date($ffdage3);
 	#finder aabne level_2 rykkere som har overskredet rykkerdato med ffdage3.og bogforer disse
 	$q=db_select("select id,konto_id from ordrer where art = 'R2' and status < '3' and ordredate < '$rykkerfrist3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {

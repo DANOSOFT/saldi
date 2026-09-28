@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2024.02.27 ---
+// --- payments/lane3000_afstemning.php --- lap 5.1.0 --- 2026.09.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260917 PHR Chaget ordre_id to 0 instead of 1000 if not set, as it returned to odrer 1000.
 
 @session_start();
 $s_id = session_id();
@@ -42,7 +43,7 @@ include ("../../includes/stdFunc/usDecimal.php");
 
 $raw_amount = (float) usdecimal(if_isset($_GET['amount'], 0));
 $pretty_amount = dkdecimal($raw_amount, 2);
-$ordre_id    = if_isset($_GET['id'], 1000);
+$ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
 $kasse = $_COOKIE['saldi_pos'];
 print "<div id='container'>";

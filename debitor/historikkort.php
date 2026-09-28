@@ -25,6 +25,7 @@
 // 20241009 MMK - Added datepicker functionalaty
 // 20250808 PHR - Added $id to returside 
 // 20251121 LOE - Modified icons to SVG format and buttons to fit the new design
+// 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 
 @session_start();
 $s_id = session_id();
@@ -106,7 +107,8 @@ if ($handling == 'slet') {
 if (isset($_GET['returside'])) {
 	$returside = $_GET['returside'];
 } else {
-	if ($popup) $returside = "../includes/luk.php";
+	// 20260904 Sawaneh WP-1.3c: request flag instead of popup preference
+	if (!empty($_GET['popup'])) $returside = "../includes/luk.php";
 	else $returside = "historik.php";
 }
 $returside = nav_back_url($returside);

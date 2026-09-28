@@ -69,6 +69,9 @@
 //                surface) and narrowed fetch_from_table() to the one known
 //                query shape actually used; hardened the access_check() API
 //                key comparison (SD-589)
+// 20260911 Sawaneh insert_shop_order dispatch: blank the literal "dummyvalue" Shoptech
+//                     sends for empty address fields via strip_placeholder_value(); if_isset
+//                     calls in that block converted to ifset (JOB-115)
 
 
 // ----------------------------------------------------------------------
@@ -1125,61 +1128,61 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			else $value = "missing orderId";
 ##############################################
 		}	elseif ($action=='insert_shop_order') {
-			$addr1         = if_isset($_GET['addr1']);
-			$addr2         = if_isset($_GET['addr2']);
-			$afd           = (int)if_isset($_GET['afd']);
-			$betalings_id  = if_isset($_GET['betalings_id']);
-			$betalingsbet  = if_isset($_GET['betalingsbet']);
-			$betalingsdage = if_isset($_GET['betalingsdage']);
-			$bynavn        = if_isset($_GET['bynavn']);
-			$cvr           = if_isset($_GET['cvr']);
-			$firmanavn     = if_isset($_GET['firmanavn']);
-			$land          = if_isset($_GET['land']);
-			$shop_addr_id  = if_isset($_GET['shop_addr_id']);
-			$shopOrderId   = if_isset($_GET['shop_ordre_id']);
+			$addr1         = strip_placeholder_value(ifset($_GET, 'addr1'));
+			$addr2         = strip_placeholder_value(ifset($_GET, 'addr2'));
+			$afd           = (int)ifset($_GET, 'afd');
+			$betalings_id  = ifset($_GET, 'betalings_id');
+			$betalingsbet  = ifset($_GET, 'betalingsbet');
+			$betalingsdage = ifset($_GET, 'betalingsdage');
+			$bynavn        = strip_placeholder_value(ifset($_GET, 'bynavn'));
+			$cvr           = strip_placeholder_value(ifset($_GET, 'cvr'));
+			$firmanavn     = strip_placeholder_value(ifset($_GET, 'firmanavn'));
+			$land          = strip_placeholder_value(ifset($_GET, 'land'));
+			$shop_addr_id  = ifset($_GET, 'shop_addr_id');
+			$shopOrderId   = ifset($_GET, 'shop_ordre_id');
 			if (!$shopOrderId) $shopOrderId = 0;
-			$shop_fakturanr = if_isset($_GET['shop_fakturanr']);
+			$shop_fakturanr = ifset($_GET, 'shop_fakturanr');
 			if (!$shop_fakturanr) $shop_fakturanr=$shopOrderId;
-			$postnr         = if_isset($_GET['postnr']);
-			$ean            = (int)if_isset($_GET['ean']);
+			$postnr         = strip_placeholder_value(ifset($_GET, 'postnr'));
+			$ean            = (int)ifset($_GET, 'ean');
 			if (!$ean) $ean = '';
-			$institution    = if_isset($_GET['institution']);
-			$tlf            = if_isset($_GET['tlf']);
-			$email          = if_isset($_GET['email']);
-			$udskriv_til    = if_isset($_GET['udskriv_til']);
-			$ref            = if_isset($_GET['ref']);
-			$kontakt        = if_isset($_GET['kontakt']);
-			$lager          = if_isset($_GET['lager']);
+			$institution    = strip_placeholder_value(ifset($_GET, 'institution'));
+			$tlf            = ifset($_GET, 'tlf');
+			$email          = ifset($_GET, 'email');
+			$udskriv_til    = ifset($_GET, 'udskriv_til');
+			$ref            = ifset($_GET, 'ref');
+			$kontakt        = strip_placeholder_value(ifset($_GET, 'kontakt'));
+			$lager          = ifset($_GET, 'lager');
 			if (!$lager) $lager = 1;
-			$lev_firmanavn  = if_isset($_GET['lev_firmanavn']);
-			$lev_addr1      = if_isset($_GET['lev_addr1']);
-			$lev_addr2      = if_isset($_GET['lev_addr2']);
-			$lev_postnr     = if_isset($_GET['lev_postnr']);
-			$lev_bynavn     = if_isset($_GET['lev_bynavn']);
-			$lev_land       = if_isset($_GET['lev_land']);
-			$lev_tlf        = if_isset($_GET['lev_tlf']);
-			$lev_email      = if_isset($_GET['lev_email']);
-			$lev_kontakt    = if_isset($_GET['lev_kontakt']);
-			$ordredate      = if_isset($_GET['ordredate']);
-			$lev_date       = if_isset($_GET['lev_date']);
-			$momssats       = if_isset($_GET['momssats']);
-			$valuta         = if_isset($_GET['valuta']);
-			$valutakurs     = if_isset($_GET['valutakurs']);
-			$gruppe         = if_isset($_GET['gruppe']);
-			$nettosum       = if_isset($_GET['nettosum'])*1;
-			$momssum        = if_isset($_GET['momssum'])*1;
-			$projekt        = if_isset($_GET['projekt']);
-			$ekstra1        = if_isset($_GET['ekstra1']);
-			$ekstra2        = if_isset($_GET['ekstra2']);
-			$ekstra3        = if_isset($_GET['ekstra3']);
-			$ekstra4        = if_isset($_GET['ekstra4']);
-			$ekstra5        = if_isset($_GET['ekstra5']);
-			$notes          = if_isset($_GET['notes']);
-			$sprog          = if_isset($_GET['sprog']);
-			$saldi_kontonr  = if_isset($_GET['saldi_kontonr']);
-			$pos_betaling   = if_isset($_GET['pos_betaling']);
-			$shop_status    = if_isset($_GET['shop_status']);
-			$art            = if_isset($_GET['art']);
+			$lev_firmanavn  = strip_placeholder_value(ifset($_GET, 'lev_firmanavn'));
+			$lev_addr1      = strip_placeholder_value(ifset($_GET, 'lev_addr1'));
+			$lev_addr2      = strip_placeholder_value(ifset($_GET, 'lev_addr2'));
+			$lev_postnr     = strip_placeholder_value(ifset($_GET, 'lev_postnr'));
+			$lev_bynavn     = strip_placeholder_value(ifset($_GET, 'lev_bynavn'));
+			$lev_land       = strip_placeholder_value(ifset($_GET, 'lev_land'));
+			$lev_tlf        = strip_placeholder_value(ifset($_GET, 'lev_tlf'));
+			$lev_email      = strip_placeholder_value(ifset($_GET, 'lev_email'));
+			$lev_kontakt    = strip_placeholder_value(ifset($_GET, 'lev_kontakt'));
+			$ordredate      = ifset($_GET, 'ordredate');
+			$lev_date       = ifset($_GET, 'lev_date');
+			$momssats       = ifset($_GET, 'momssats');
+			$valuta         = ifset($_GET, 'valuta');
+			$valutakurs     = ifset($_GET, 'valutakurs');
+			$gruppe         = ifset($_GET, 'gruppe');
+			$nettosum       = ifset($_GET, 'nettosum')*1;
+			$momssum        = ifset($_GET, 'momssum')*1;
+			$projekt        = ifset($_GET, 'projekt');
+			$ekstra1        = ifset($_GET, 'ekstra1');
+			$ekstra2        = ifset($_GET, 'ekstra2');
+			$ekstra3        = ifset($_GET, 'ekstra3');
+			$ekstra4        = ifset($_GET, 'ekstra4');
+			$ekstra5        = ifset($_GET, 'ekstra5');
+			$notes          = ifset($_GET, 'notes');
+			$sprog          = ifset($_GET, 'sprog');
+			$saldi_kontonr  = ifset($_GET, 'saldi_kontonr');
+			$pos_betaling   = ifset($_GET, 'pos_betaling');
+			$shop_status    = ifset($_GET, 'shop_status');
+			$art            = ifset($_GET, 'art');
 			if (!$art) $art = 'DO';
 
 			$fil = fopen('../temp/addr1.php','w');
