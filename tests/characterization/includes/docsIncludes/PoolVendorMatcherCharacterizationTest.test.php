@@ -366,6 +366,18 @@ final class PoolVendorMatcherCharacterizationTest extends TestCase
         self::assertSame(['iban' => null, 'bank_reg' => null, 'bank_konto' => null], poolVendorRowFromIban(''));
     }
 
+    public function testWindows1252BytesInKreditorRowsAreConvertedSoJsonEncodeSucceeds(): void
+    {
+        $index = poolVendorBuildIndex([
+            ['id' => 900, 'kontonr' => '30900', 'firmanavn' => "Gregershus Ejend\xF8mme ApS", 'cvrnr' => '29530068'],
+        ]);
+        self::assertSame('Gregershus Ejendømme ApS', $index['byId'][900]['firmanavn']);
+        $r = poolVendorMatch(['name' => 'Gregershus', 'cvr' => 'DK29530068'], $index);
+        self::assertSame('cvr', $r['match']);
+        self::assertNotFalse(json_encode($r), 'the match result must always be JSON-encodable');
+        self::assertSame('gregershus ejendømme', $index['names'][900]);
+    }
+
     public function testBulkRematchOfTwoHundredFilesStaysCheap(): void
     {
         $kreditorer = self::kreditorer();

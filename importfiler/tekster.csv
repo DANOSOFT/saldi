@@ -239,7 +239,7 @@
 239	Der er rykkere klar til udsendelse i SALDI.	There are reminders ready for broadcast in SALDI.	Det er påminnelser klare for sending i SALDI.
 240	Der er rykkere klar til udsendelse.	There are reminders ready for broadcast.	Det er påminnelser klare for sending.
 241	Rykkervalg	Reminder choice	Påminnelsesvalg
-242	<big>Denne funktion gør følgende:<UL><LI>udligner alle konti	<big>This feature does the following: <UL> <LI> settles all accounts	<big> Denne funksjonen gjør følgende: <UL> <LI> gjør opp alle kontoer
+242	Udligner alle konti	Settles all accounts	Gjør opp alle kontoer
 243	Ekstrafelter	Extra fields	Ekstrafelter
 244	Ordrefelt 1	Order field 1	Bestillingsfelt 1
 245	Ordrefelt 2	Order field 2	Bestillingsfelt 2
@@ -5118,5 +5118,7 @@
 5243	Vælg kreditor	Choose creditor	Velg kreditor
 5244	Kreditoren findes ikke i regnskabet	The creditor does not exist in the accounts	Kreditoren finnes ikke i regnskapet
 5245	Kredit var allerede udfyldt og blev ikke ændret	Credit was already filled in and was not changed	Kredit var allerede fylt ut og ble ikke endret
-5246	Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager	The cost price was estimated from an open purchase order, as the item was not in stock	Kostprisen er anslått ut fra en åpen innkjøpsordre, da varen ikke var på lager
-5247	Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre	The cost price was estimated from the item card, as the item was neither in stock nor on an open purchase order	Kostprisen er anslått ut fra varekortet, da varen verken var på lager eller på en åpen innkjøpsordre
+5246	Skjul omsætning for brugere uden adgang til Indstillinger	Hide turnover for users without access to Settings	Skjul omsetning for brukere uten tilgang til Innstillinger
+5247	Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.	Hide turnover on the order list and in the cash count for users without the Settings right. Users with the right are unaffected.	Skjul omsetning på ordrelisten og i kasseopptellingen for brukere uten rettigheten Innstillinger. Brukere med rettigheten ser uendret.
+5248	Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager	The cost price was estimated from an open purchase order, as the item was not in stock	Kostprisen er anslått ut fra en åpen innkjøpsordre, da varen ikke var på lager
+5249	Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre	The cost price was estimated from the item card, as the item was neither in stock nor on an open purchase order	Kostprisen er anslått ut fra varekortet, da varen verken var på lager eller på en åpen innkjøpsordre

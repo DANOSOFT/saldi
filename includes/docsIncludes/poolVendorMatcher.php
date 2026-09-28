@@ -24,6 +24,7 @@
 //                  PoolVendorMatcherCharacterizationTest.test.php); de få DB-adaptere nederst.
 //                  Navnelighed er en PHP-udgave af pg_trgm's similarity(), så resultatet er
 //                  ens på Postgres og MySQL og kan testes uden database.
+// 20260922 CL/LAH Windows-1252 bytes in adresser rows are converted to UTF-8 in the index.
 
 if (!function_exists('normalizePoolVendorCvr')) {
 	/**
@@ -203,6 +204,14 @@ if (!function_exists('poolVendorBuildIndex')) {
 		foreach ($kreditorer as $row) {
 			$id = (int) ($row['id'] ?? 0);
 			if ($id <= 0) continue;
+			// Legacy adresser rows can hold Windows-1252 bytes; json_encode() of such a
+			// string returns false and blanks the whole response. Same conversion as
+			// db_escape_string().
+			foreach (array('kontonr', 'firmanavn', 'cvrnr', 'iban', 'bank_reg', 'bank_konto') as $col) {
+				if (isset($row[$col]) && is_string($row[$col]) && !mb_check_encoding($row[$col], 'UTF-8')) {
+					$row[$col] = mb_convert_encoding($row[$col], 'UTF-8', 'Windows-1252');
+				}
+			}
 			$index['byId'][$id] = array(
 				'kontoId' => $id,
 				'kontonr' => (string) ($row['kontonr'] ?? ''),

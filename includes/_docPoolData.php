@@ -17,6 +17,8 @@ header('Expires: 0');
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: every file now carries a 'vendor' object
 //                  (see poolVendorMatcher.php / kravspec afsnit 5) or null, and files with
 //                  vendor identity but no kreditor are matched again on every open (AI-6).
+// 20260922 CL/LAH Vendor handling wrapped so it can never break the file list; invalid UTF-8
+//                  from legacy rows is substituted instead of blanking the whole response.
 
 // Include database connection and online.php to get $db
 include_once(__DIR__ . "/connect.php");
@@ -74,29 +76,35 @@ while ($row = db_fetch_array($result)) {
     // Vendor contract (kravspec afsnit 5), null for files scanned before vendor support.
     $vendor = null;
     if ($vendorColumnsExist && trim((string) ($row['vendor_match'] ?? '')) !== '') {
-        if ($vendorIndex === null) $vendorIndex = poolVendorLoadIndex();
-        if (poolVendorNeedsRematch($row, $vendorIndex)) {
-            // AI-6: the kreditor may have been created (or deleted) after the scan. Pure
-            // lookups against the index already in memory - no extra queries per file
-            // beyond the UPDATE when the outcome changed.
-            $bank = poolVendorRowFromIban($row['vendor_iban'] ?? null);
-            $fresh = poolVendorMatch(array(
-                'name' => $row['vendor_name'] ?? null,
-                'cvr' => $row['vendor_cvr'] ?? null,
-                'iban' => $bank['iban'],
-                'bank_reg' => $bank['bank_reg'],
-                'bank_konto' => $bank['bank_konto'],
-            ), $vendorIndex, array('nameScan' => 'tokens'));
-            $storedKontoId = ($row['vendor_konto_id'] === null || $row['vendor_konto_id'] === '') ? null : (int) $row['vendor_konto_id'];
-            if ($fresh['kontoId'] !== $storedKontoId || $fresh['match'] !== $row['vendor_match']) {
-                db_modify(
-                    "UPDATE pool_files SET " . poolVendorUpdateSql($fresh) . " WHERE id = " . (int) $row['id'],
-                    __FILE__ . " line " . __LINE__
-                );
+        try {
+            if ($vendorIndex === null) $vendorIndex = poolVendorLoadIndex();
+            if (poolVendorNeedsRematch($row, $vendorIndex)) {
+                // AI-6: the kreditor may have been created (or deleted) after the scan. Pure
+                // lookups against the index already in memory - no extra queries per file
+                // beyond the UPDATE when the outcome changed.
+                $bank = poolVendorRowFromIban($row['vendor_iban'] ?? null);
+                $fresh = poolVendorMatch(array(
+                    'name' => $row['vendor_name'] ?? null,
+                    'cvr' => $row['vendor_cvr'] ?? null,
+                    'iban' => $bank['iban'],
+                    'bank_reg' => $bank['bank_reg'],
+                    'bank_konto' => $bank['bank_konto'],
+                ), $vendorIndex, array('nameScan' => 'tokens'));
+                $storedKontoId = ($row['vendor_konto_id'] === null || $row['vendor_konto_id'] === '') ? null : (int) $row['vendor_konto_id'];
+                if ($fresh['kontoId'] !== $storedKontoId || $fresh['match'] !== $row['vendor_match']) {
+                    db_modify(
+                        "UPDATE pool_files SET " . poolVendorUpdateSql($fresh) . " WHERE id = " . (int) $row['id'],
+                        __FILE__ . " line " . __LINE__
+                    );
+                }
+                $vendor = $fresh;
+            } else {
+                $vendor = poolVendorFromRow($row, $vendorIndex);
             }
-            $vendor = $fresh;
-        } else {
-            $vendor = poolVendorFromRow($row, $vendorIndex);
+        } catch (Throwable $e) {
+            // The vendor contract is a bonus on the file list; never let it break the list.
+            error_log("_docPoolData vendor for {$row['filename']} failed: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+            $vendor = null;
         }
     }
 
@@ -126,6 +134,6 @@ while ($row = db_fetch_array($result)) {
 ob_end_clean();
 header('Content-Type: application/json');
 
-echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
 
 exit;

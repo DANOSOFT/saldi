@@ -33,6 +33,8 @@
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
 // 20260521 LOE Added check to set afd based on first employee if no match is found for ref in employees list
 // 20260713 MJ Fix ref SELECT: add selected='selected', preserve stored ref when not in active employee list, fix </select> typo. Same fix for afd SELECT.
+// 20260811 Sawaneh Header padded with the second empty cell for status < 1, so the Expiry date and
+//                  Batch no. columns line up with the inputs on draft orders.
 
 /*
 $attachId    = null;
@@ -306,7 +308,9 @@ if ($status==1) {
 else {
 	print "<td align=center title='".findtekst(1502, $sprog_id)."'>Pos.</td><td align=center title='".findtekst(320, $sprog_id)."'>".findtekst(917, $sprog_id).".</td><td align=center title='".findtekst(1511, $sprog_id)."'>".findtekst(952, $sprog_id).".</td><td align=center>".findtekst(916, $sprog_id)."</td><td>".findtekst(945, $sprog_id)."</td><td align=center>".findtekst(914,$sprog_id)."</td><td align=center>".findtekst(915, $sprog_id)."</td><td align=center title='".findtekst(1503, $sprog_id)."'>%</td><td align=center>".findtekst(947, $sprog_id)."</td>";
 	if ($vis_projekt && $projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
-	elseif ($status < 1) print "<td></td>";
+	# Two pads: every line prints two empty cells when status < 1 (openOrderLines.php), so the
+	# header needs both or the trailing columns - Expiry date / Batch no. - sit one column off.
+	elseif ($status < 1) print "<td></td><td></td>";
 	if ($status >= 2) {
 		if ($art=='KK') print "<td colspan='2' align='center' title='".findtekst(1508, $sprog_id)."'>".findtekst(937, $sprog_id)."</td>";
 		else print "<td colspan='2' align='center' title='".findtekst(1510, $sprog_id)."'>".findtekst(1485, $sprog_id)."</td>";
