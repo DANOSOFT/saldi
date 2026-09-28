@@ -88,15 +88,25 @@ On a machine without the stack, the HTTP/DB tests skip with a reason and the
 JWT unit tests still run — `composer test` stays green on a bare checkout.
 
 `support/RestApiEnv.php` provisions a throwaway tenant per test class
-(`CREATE DATABASE saldi_apitest TEMPLATE saldi_2`), registers an open
-(`apitest`) and a closed (`apitestclosed`) master `regnskab` row for it, and
-seeds the API user with a per-process random password (`tests/TestCredentials.php`).
-`tearDownAfterClass()` drops the tenant and the two rows again, so the seeded
-login never outlives a class; set `SALDI_REST_KEEP_TENANT=1` to keep them
-for inspecting a failure. Config via env:
-`SALDI_REST_BASE_URL` (default `http://localhost/saldi`, use
+(`CREATE DATABASE saldi_apitest_<suffix> TEMPLATE saldi_2`), registers an
+open (`apitest_<suffix>`) and a closed (`apitestclosed_<suffix>`) master
+`regnskab` row for it, and seeds the API user with a per-process random
+password (`tests/TestCredentials.php`). `<suffix>` is eight random hex chars
+drawn once per PHP process, so two runs against the same postgres never
+share a tenant or an account name. The env remembers the database and the
+`regnskab` ids it created, and `tearDownAfterClass()` drops exactly those
+again, so the seeded login never outlives a class and nothing is ever
+matched by name (a stale tenant from a crashed run, a parallel run's tenant
+or a real account called `apitest` is never touched). Set
+`SALDI_REST_KEEP_TENANT=1` to keep the last class's tenant for inspecting a
+failure; find it with `SELECT regnskab, db FROM regnskab WHERE regnskab
+LIKE 'apitest%'` and drop it by hand when done, since later runs will not.
+Config via env: `SALDI_REST_BASE_URL` (default `http://localhost/saldi`, use
 `http://localhost:5000/saldi` from the host), `SALDI_CHAR_PGHOST/PGUSER/
-PGPASS/MASTER_DB/TEMPLATE_DB`, `SALDI_REST_TEST_DB`.
+PGPASS/MASTER_DB/TEMPLATE_DB`, `SALDI_REST_TEST_DB` (prefix of the tenant
+db name, default `saldi_apitest`; prefix plus suffix must fit
+`regnskab.db`'s 25 chars).
 
 <!-- 20260723 CL/LH SD-602: created. -->
 <!-- 20260904 CL/NTR Added the refresh/bearer/customers/products/accounts/orderlines/reference-data suites, the non-docker run recipe, the per-process random password from tests/TestCredentials.php, and the per-class tenant teardown. -->
+<!-- 20260928 CL/NTR Tenant db and account names carry a per-process suffix; teardown removes only the db and regnskab ids that bootstrap recorded. -->

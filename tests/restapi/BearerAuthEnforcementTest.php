@@ -10,6 +10,8 @@
 //
 // History:
 // 20260904 CL/NTR created.
+// 20260928 CL/NTR Account names come from RestApiEnv::accountOpen()/accountClosed()
+//                 (per-process suffix) instead of the removed constants.
 
 use PHPUnit\Framework\TestCase;
 
@@ -90,7 +92,7 @@ final class BearerAuthEnforcementTest extends TestCase
     public function test_token_signed_with_a_foreign_secret_is_rejected_401(): void
     {
         JWT::setSecret('not-the-install-secret-' . bin2hex(random_bytes(8)));
-        $foreign = JWT::encode($this->accessClaims(RestApiEnv::regnskabId(RestApiEnv::ACCOUNT_OPEN)), 3600);
+        $foreign = JWT::encode($this->accessClaims(RestApiEnv::regnskabId(RestApiEnv::accountOpen())), 3600);
 
         $res = $this->get(['Authorization: Bearer ' . $foreign]);
 
@@ -101,7 +103,7 @@ final class BearerAuthEnforcementTest extends TestCase
     public function test_expired_access_token_is_rejected_401(): void
     {
         $this->requireInstallSecret();
-        $expired = RestApiEnv::signToken($this->accessClaims(RestApiEnv::regnskabId(RestApiEnv::ACCOUNT_OPEN)), -60);
+        $expired = RestApiEnv::signToken($this->accessClaims(RestApiEnv::regnskabId(RestApiEnv::accountOpen())), -60);
 
         $res = $this->get(['Authorization: Bearer ' . $expired]);
 
@@ -131,7 +133,7 @@ final class BearerAuthEnforcementTest extends TestCase
 
         $with = $this->get([
             'Authorization: Bearer ' . $token,
-            'X-Tenant-ID: ' . RestApiEnv::regnskabId(RestApiEnv::ACCOUNT_OPEN),
+            'X-Tenant-ID: ' . RestApiEnv::regnskabId(RestApiEnv::accountOpen()),
         ]);
         $this->assertSame(200, $with['status'], $with['body']);
         $this->assertTrue($with['json']['success']);

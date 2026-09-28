@@ -10,6 +10,8 @@
 // 20260904 CL/NTR Seeded credentials now come from RestApiEnv::user()/password()
 //                 (gitignored file) instead of public constants.
 // 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
+// 20260928 CL/NTR Account names come from RestApiEnv::accountOpen()/accountClosed()
+//                 (per-process suffix) instead of the removed constants.
 
 use PHPUnit\Framework\TestCase;
 
@@ -33,7 +35,7 @@ final class AuthLoginEndpointTest extends TestCase
 
     public function test_login_with_valid_credentials_returns_tokens_and_tenant(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), RestApiEnv::ACCOUNT_OPEN);
+        $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), RestApiEnv::accountOpen());
 
         $this->assertSame(200, $res['status'], $res['body']);
         $this->assertTrue($res['json']['success']);
@@ -48,7 +50,7 @@ final class AuthLoginEndpointTest extends TestCase
 
     public function test_login_with_wrong_password_is_rejected_401(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::user(), 'wrong-password', RestApiEnv::ACCOUNT_OPEN);
+        $res = RestApiEnv::login(RestApiEnv::user(), 'wrong-password', RestApiEnv::accountOpen());
 
         $this->assertSame(401, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
@@ -56,7 +58,7 @@ final class AuthLoginEndpointTest extends TestCase
 
     public function test_login_with_unknown_user_is_rejected_401(): void
     {
-        $res = RestApiEnv::login('no-such-user', 'whatever', RestApiEnv::ACCOUNT_OPEN);
+        $res = RestApiEnv::login('no-such-user', 'whatever', RestApiEnv::accountOpen());
 
         $this->assertSame(401, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
@@ -72,7 +74,7 @@ final class AuthLoginEndpointTest extends TestCase
 
     public function test_login_against_closed_account_is_rejected_403(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), RestApiEnv::ACCOUNT_CLOSED);
+        $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), RestApiEnv::accountClosed());
 
         $this->assertSame(403, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);

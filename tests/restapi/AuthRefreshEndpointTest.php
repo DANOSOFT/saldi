@@ -10,6 +10,8 @@
 //
 // History:
 // 20260904 CL/NTR created.
+// 20260928 CL/NTR Account names come from RestApiEnv::accountOpen()/accountClosed()
+//                 (per-process suffix) instead of the removed constants.
 
 use PHPUnit\Framework\TestCase;
 
@@ -111,7 +113,7 @@ final class AuthRefreshEndpointTest extends TestCase
     public function test_refresh_for_a_closed_account_is_rejected_403(): void
     {
         $this->requireInstallSecret();
-        $token = $this->forgedRefreshToken(RestApiEnv::regnskabId(RestApiEnv::ACCOUNT_CLOSED));
+        $token = $this->forgedRefreshToken(RestApiEnv::regnskabId(RestApiEnv::accountClosed()));
 
         $res = $this->refresh(['refresh_token' => $token]);
 
@@ -133,7 +135,7 @@ final class AuthRefreshEndpointTest extends TestCase
     public function test_refresh_for_an_unknown_user_is_rejected_401(): void
     {
         $this->requireInstallSecret();
-        $token = $this->forgedRefreshToken(RestApiEnv::regnskabId(RestApiEnv::ACCOUNT_OPEN), 999999999);
+        $token = $this->forgedRefreshToken(RestApiEnv::regnskabId(RestApiEnv::accountOpen()), 999999999);
 
         $res = $this->refresh(['refresh_token' => $token]);
 
@@ -167,7 +169,7 @@ final class AuthRefreshEndpointTest extends TestCase
             'type' => 'refresh',
         ], 3600);
 
-        $res = $this->refresh(['refresh_token' => $token], ['X-Tenant-ID: ' . RestApiEnv::regnskabId(RestApiEnv::ACCOUNT_OPEN)]);
+        $res = $this->refresh(['refresh_token' => $token], ['X-Tenant-ID: ' . RestApiEnv::regnskabId(RestApiEnv::accountOpen())]);
 
         $this->assertSame(200, $res['status'], $res['body']);
         $this->assertNotEmpty($res['json']['data']['access_token']);

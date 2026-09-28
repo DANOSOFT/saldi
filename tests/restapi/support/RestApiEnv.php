@@ -7,13 +7,21 @@
 // a live server, never with committed production credentials. It provisions
 // its own throwaway tenant (clone of an installed tenant) with a known test
 // user, and registers two master `regnskab` rows for it: one open
-// ("apitest") and one closed ("apitestclosed") so the closed-tenant
+// (accountOpen()) and one closed (accountClosed()) so the closed-tenant
 // rejection path can be exercised.
+//
+// The tenant database and both account names carry a random per-process
+// suffix (testDb(), accountOpen(), accountClosed()), and the class remembers
+// exactly which database it created and which regnskab ids it inserted.
+// Teardown only ever removes those, so two runs against the same postgres,
+// a run that crashed half-way, or a real account that happens to be called
+// "apitest" are never touched.
 //
 // Each test class bootstraps the tenant in setUpBeforeClass() and drops it
 // again in tearDownAfterClass() (teardownTenant()), so the seeded login only
 // exists while a class is running. Set SALDI_REST_KEEP_TENANT=1 to keep it
-// around for inspecting a failure.
+// around for inspecting a failure (the next class in the same process still
+// replaces it, so the last class's tenant is the one that survives).
 //
 // Skips cleanly when the stack is not reachable (no pgsql/curl extension or
 // no postgres/web host), so `composer test` stays green on a bare checkout.
@@ -31,6 +39,12 @@
 // 20260904 CL/NTR teardownTenant(): drop the throwaway tenant + its regnskab
 //                 rows after each test class (SALDI_REST_KEEP_TENANT=1 keeps
 //                 them for debugging) so no seeded login outlives the run.
+// 20260928 CL/NTR Tenant db and account names get a random per-process suffix;
+//                 bootstrap records the db it created and the regnskab ids it
+//                 inserted, and teardown removes only those.
+//                 No longer terminates sessions on the template db or deletes
+//                 regnskab rows by name, so concurrent runs, stale leftovers
+//                 and unrelated accounts are never touched.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
@@ -38,19 +52,47 @@ final class RestApiEnv
 {
     /** Username of the API user the suite seeds into its throwaway tenant (grants nothing by itself). */
     public const USER = 'apitest';
-    public const ACCOUNT_OPEN = 'apitest';
-    public const ACCOUNT_CLOSED = 'apitestclosed';
+
+    /** Master `regnskab.db` is varchar(25); a longer clone name would be registered truncated. */
+    private const MAX_DB_NAME_LENGTH = 25;
 
     /** @var array|null Decoded `data` of the seeded user's login, cached per bootstrap. */
     private static $loginData = null;
 
-    /** @var bool True between bootstrapTenant() and teardownTenant(), so teardown is a no-op after a skipped setup. */
-    private static $bootstrapped = false;
+    /** @var string|null Random per-process suffix shared by testDb(), accountOpen() and accountClosed(). */
+    private static $suffix = null;
+
+    /** @var string|null Tenant database this process created and still owns; null until bootstrapTenant() and after teardownTenant() drops it. */
+    private static $ownedDb = null;
+
+    /** @var array<string, int> Master `regnskab.id` of each row the current bootstrap inserted, keyed by account name. */
+    private static $ownedRegnskabIds = [];
 
     /** Username of the seeded API user. */
     public static function user(): string
     {
         return self::USER;
+    }
+
+    /** Name of the open account this process registers (`apitest_<suffix>`). */
+    public static function accountOpen(): string
+    {
+        return 'apitest_' . self::suffix();
+    }
+
+    /** Name of the closed account this process registers (`apitestclosed_<suffix>`). */
+    public static function accountClosed(): string
+    {
+        return 'apitestclosed_' . self::suffix();
+    }
+
+    /** Eight hex chars, drawn once per process, so parallel runs never share a tenant or an account name. */
+    private static function suffix(): string
+    {
+        if (self::$suffix === null) {
+            self::$suffix = bin2hex(random_bytes(4));
+        }
+        return self::$suffix;
     }
 
     /** Password of the seeded API user - random per process, see tests/TestCredentials.php. */
@@ -90,9 +132,14 @@ final class RestApiEnv
         return getenv('SALDI_CHAR_TEMPLATE_DB') ?: 'saldi_2';
     }
 
+    /**
+     * Name of this process's throwaway tenant database: the SALDI_REST_TEST_DB
+     * prefix (default `saldi_apitest`) plus the per-process suffix, fixed for
+     * the lifetime of the process.
+     */
     public static function testDb(): string
     {
-        return getenv('SALDI_REST_TEST_DB') ?: 'saldi_apitest';
+        return (getenv('SALDI_REST_TEST_DB') ?: 'saldi_apitest') . '_' . self::suffix();
     }
 
     /** Returns null when usable, otherwise a human skip-reason. */
@@ -154,44 +201,56 @@ final class RestApiEnv
         return $out;
     }
 
-    /** Clone the template tenant, register open+closed regnskab rows, seed the API user. */
+    /**
+     * Clone the template tenant, register open+closed regnskab rows, seed the
+     * API user. Remembers the database and the regnskab ids it created so
+     * teardownTenant() removes exactly those and nothing else. A tenant an
+     * earlier class in this process left behind (SALDI_REST_KEEP_TENANT) is
+     * dropped first; a database of the same name this process did not create
+     * makes CREATE DATABASE fail rather than being taken over.
+     */
     public static function bootstrapTenant(): void
     {
         self::$loginData = null; // the regnskab ids change below, so any cached token is stale
-        self::$bootstrapped = true;
-        $master = self::connect(self::masterDb());
+        if (self::$ownedDb !== null) {
+            self::dropOwned();
+        }
         $test = self::testDb();
         $template = self::templateDb();
         if (!preg_match('/^[a-z0-9_]+$/', $test) || !preg_match('/^[a-z0-9_]+$/', $template)) {
             throw new RuntimeException('unsafe database name');
         }
-        foreach ([$test, $template] as $dbName) {
-            pg_query_params(
-                $master,
-                'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
-                [$dbName]
-            );
+        if (strlen($test) > self::MAX_DB_NAME_LENGTH) {
+            throw new RuntimeException("test db name $test is longer than " . self::MAX_DB_NAME_LENGTH . ' chars (shorten SALDI_REST_TEST_DB)');
         }
-        pg_query($master, "DROP DATABASE IF EXISTS $test");
-        if (pg_query($master, "CREATE DATABASE $test TEMPLATE $template") === false) {
-            throw new RuntimeException('could not clone template tenant: ' . pg_last_error($master));
+        if ($test === $template || $test === self::masterDb()) {
+            throw new RuntimeException('SALDI_REST_TEST_DB must differ from template and master databases');
         }
 
-        pg_query_params($master, 'DELETE FROM regnskab WHERE db = $1 OR regnskab IN ($2, $3)', [$test, self::ACCOUNT_OPEN, self::ACCOUNT_CLOSED]);
-        pg_query_params(
-            $master,
-            "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
-             SELECT $1, dbhost, dbuser, $2, version, sidst, brugerantal, 1000000, $3, administrator
-             FROM regnskab WHERE db = $4",
-            [self::ACCOUNT_OPEN, $test, '', $template]
-        );
-        pg_query_params(
-            $master,
-            "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
-             SELECT $1, dbhost, dbuser, $2, version, sidst, brugerantal, 1000000, $3, administrator
-             FROM regnskab WHERE db = $4",
-            [self::ACCOUNT_CLOSED, $test, 'on', $template]
-        );
+        $master = self::connect(self::masterDb());
+        // Only ever touch our own clone; never disconnect whoever is using the template.
+        if (pg_query($master, "CREATE DATABASE $test TEMPLATE $template") === false) {
+            $error = pg_last_error($master);
+            pg_close($master);
+            throw new RuntimeException("could not clone template tenant: $error");
+        }
+        self::$ownedDb = $test;
+        self::$ownedRegnskabIds = [];
+        foreach ([self::accountOpen() => '', self::accountClosed() => 'on'] as $account => $lukket) {
+            $rows = self::rows(
+                $master,
+                "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
+                 SELECT $1, dbhost, dbuser, $2, version, sidst, brugerantal, 1000000, $3, administrator
+                 FROM regnskab WHERE db = $4
+                 RETURNING id",
+                [$account, $test, $lukket, $template]
+            );
+            if (count($rows) !== 1) {
+                pg_close($master);
+                throw new RuntimeException("could not register $account: no regnskab row for template db $template to copy");
+            }
+            self::$ownedRegnskabIds[$account] = (int)$rows[0]['id'];
+        }
         pg_close($master);
 
         $tenant = self::connect($test);
@@ -212,18 +271,27 @@ final class RestApiEnv
      */
     public static function teardownTenant(): void
     {
-        if (!self::$bootstrapped) {
-            return;
-        }
-        self::$bootstrapped = false;
         self::$loginData = null;
-        if (getenv('SALDI_REST_KEEP_TENANT')) {
+        if (self::$ownedDb === null || getenv('SALDI_REST_KEEP_TENANT')) {
             return;
         }
-        $test = self::testDb();
-        if (!preg_match('/^[a-z0-9_]+$/', $test)) {
+        self::dropOwned();
+    }
+
+    /**
+     * Remove exactly what the last bootstrapTenant() created: the database it
+     * cloned (after disconnecting its own sessions) and the regnskab rows whose
+     * ids it recorded. Nothing is matched by name, so a stale tenant from an
+     * older run, a parallel run's tenant or a real account called "apitest"
+     * is never removed.
+     */
+    private static function dropOwned(): void
+    {
+        $test = self::$ownedDb;
+        if ($test === null || !preg_match('/^[a-z0-9_]+$/', $test)) {
             throw new RuntimeException('unsafe database name');
         }
+        $ids = array_values(self::$ownedRegnskabIds);
         $master = self::connect(self::masterDb());
         pg_query_params(
             $master,
@@ -231,12 +299,16 @@ final class RestApiEnv
             [$test]
         );
         $dropped = pg_query($master, "DROP DATABASE IF EXISTS $test");
-        pg_query_params($master, 'DELETE FROM regnskab WHERE db = $1 OR regnskab IN ($2, $3)', [$test, self::ACCOUNT_OPEN, self::ACCOUNT_CLOSED]);
+        if ($ids !== []) {
+            pg_query_params($master, 'DELETE FROM regnskab WHERE id = ANY($1::int[])', ['{' . implode(',', $ids) . '}']);
+        }
         $error = $dropped === false ? pg_last_error($master) : '';
         pg_close($master);
+        self::$ownedRegnskabIds = [];
         if ($dropped === false) {
             throw new RuntimeException("could not drop throwaway tenant $test: $error");
         }
+        self::$ownedDb = null;
     }
 
     /**
@@ -310,7 +382,7 @@ final class RestApiEnv
     public static function loginData(): array
     {
         if (self::$loginData === null) {
-            $res = self::login(self::user(), self::password(), self::ACCOUNT_OPEN);
+            $res = self::login(self::user(), self::password(), self::accountOpen());
             $data = $res['json']['data'] ?? null;
             if (!is_array($data) || empty($data['access_token'])) {
                 throw new RuntimeException('login for seeded test user failed: ' . $res['body']);
@@ -338,16 +410,13 @@ final class RestApiEnv
         return ['Authorization: Bearer ' . self::accessToken()];
     }
 
-    /** Master `regnskab.id` for one of the registered account names (ACCOUNT_OPEN / ACCOUNT_CLOSED). */
+    /** Master `regnskab.id` the current bootstrap inserted for one of its account names (accountOpen() / accountClosed()). */
     public static function regnskabId(string $account): int
     {
-        $master = self::connect(self::masterDb());
-        $rows = self::rows($master, 'SELECT id FROM regnskab WHERE regnskab = $1', [$account]);
-        pg_close($master);
-        if ($rows === []) {
-            throw new RuntimeException("no regnskab row named $account (bootstrapTenant() not run?)");
+        if (!isset(self::$ownedRegnskabIds[$account])) {
+            throw new RuntimeException("no regnskab row named $account was registered by this process (bootstrapTenant() not run?)");
         }
-        return (int)$rows[0]['id'];
+        return self::$ownedRegnskabIds[$account];
     }
 
     /** Null when tokens can be signed with the install's own JWT secret, otherwise a skip-reason. */
