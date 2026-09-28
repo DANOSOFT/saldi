@@ -76,10 +76,6 @@
 // 20260831 Sawaneh Action buttons were clipped and unreachable at 125% Windows scaling (SST-747):
 //                  replaced the guessed 130/150px viewport calc with a flex column layout, removed the
 //                  unconditional html/body overflow-y:hidden and let the button bar wrap on narrow windows.
-// 20260907 CL/LH  Rejected amounts: alert text is sanitised before alert() embeds it in a <script>, a rejected
-//                  line skips kontroller()'s processing/tmpkassekl update and the error re-render shows the
-//                  operator's raw text instead of usdecimal()'s 100x value, the "+=" shortcut validates the
-//                  amount before indsaet_linjer(), and the texts moved from 5080/5081 to 5089/5090.
 // 20260903 Sawaneh Removed leftover debug output: per-line bilag console.log and the fiscal-year
 //                  console dump (incl. its debug-only grupper query); validation itself is unchanged.
 // 20260903 Sawaneh "Sidste 5 posteringer" counter-account suggestions now also cover finance (F) lines,
@@ -97,6 +93,8 @@
 //                  difference amount under bilag sorting) - the balance status at the top replaces it.
 // 20260903 Sawaneh Settings box restyled as the product card gear panel (fieldVisibility.php look):
 //                  round gear button, click-to-open panel with title/intro/Show all; same persistence.
+// 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
+//                  other menu styles keep the floating button; panel now opens just below the button.
 // 20260907 Sawaneh First-time hint bubble pointing at the gear ("klik for at tilpasse din opsætning",
 //                  texts 5147/5148), dismissed per user via localStorage - product card hint pattern.
 // 20260907 Sawaneh Column/panel save fetch uses keepalive so a refresh right after toggling can no
@@ -104,12 +102,39 @@
 // 20260907 Sawaneh Column/panel choices now also persist for revisor/admin sessions: online.php gives
 //                  those bruger_id = -1 and the save/read guards required > 0, so admins silently lost
 //                  every choice on reload (pre-existing bug in the column picker, inherited by Part B).
-// 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
-//                  other menu styles keep the floating button; panel now opens just below the button.
+// 20260907 CL/LH  Rejected amounts: alert text is sanitised before alert() embeds it in a <script>, a rejected
+//                  line skips kontroller()'s processing/tmpkassekl update and the error re-render shows the
+//                  operator's raw text instead of usdecimal()'s 100x value, the "+=" shortcut validates the
+//                  amount before indsaet_linjer(), and the texts moved from 5080/5081 to 5089/5090.
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
 //                  with customer/supplier evidence; isolate journal history queries for regression tests.
+// 20260907 CL/LH  The replay fingerprint is recorded only after a successful save; recording it before
+//                  kontroller() turned a double-click on a failing save into a "replay" that skipped
+//                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
+// 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 
+// 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
+require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
+
+# A line created during this request is rendered last, whatever the list is sorted by, so the line the
+# user just typed stays where they are working instead of jumping to its sorted position (with
+# kksort=amount a line with amount 0 would otherwise lead the list). The pin lasts for this render
+# only - on the next load the line sits in its sorted place. The id is captured from the connection
+# that did the insert (see the caller), never inferred with MAX(id), which another session's insert
+# could win.
+$kk_new_line_ids = array();
+
+/**
+ * Remember a line this request created, so the render can place it last and the focus can follow it.
+ * The id comes from the connection that did the insert (see the caller in opdater()) - never from
+ * MAX(id), which a concurrent insert in another session could win.
+ */
+function kk_note_new_line($id) {
+	global $kk_new_line_ids;
+	$id = (int) $id;
+	if ($id) $kk_new_line_ids[] = $id;
+}
 
 ob_start(); //Starter output buffering  
 
@@ -162,6 +187,15 @@ if (!isset($c))
 
 include("../includes/connect.php");
 include("../includes/online.php");
+// online.php authenticates the request and selects the tenant before the replay lookup.
+// The PHP session lock serializes duplicate requests, including two first saves with id=0.
+$kk_request_key = journalSaveRequestKey($_POST ?? [], (string)$db, (string)$brugernavn);
+$kk_form_key = $kk_request_key !== null ? journalSaveFormKey($_POST ?? [], (string)$db, (string)$brugernavn) : null;
+$kk_saved_journal = journalSavedRequest($_SESSION, $kk_request_key);
+if ($kk_saved_journal !== null) {
+	header('Location: kassekladde.php?kladde_id=' . $kk_saved_journal . '&tjek=' . $kk_saved_journal, true, 303);
+	exit;
+}
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
@@ -767,7 +801,7 @@ if ($_POST) {
 	elseif (isset($_POST['upload']) && $_POST['upload'])     $submit = 'upload';
 	else $submit   = trim(if_isset($_POST['submit'], ''));
 	$tidspkt       = if_isset($_POST['tidspkt']);
-	$kladde_id     = if_isset($_POST['kladde_id']);
+	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
 	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
@@ -1272,6 +1306,7 @@ if ($_POST) {
 			$kladde_id = $row['id'] + 1;
 			$kladdedate = date("Y-m-d");	# OBS I naeste linje indsaettes tidspkt fratrukket 1 sek. Ellers bliver 1. gemning afvist af	"Refresktjek"
 			db_modify("insert into kladdeliste (id, kladdenote, kladdedate, bogfort, hvem, oprettet_af, tidspkt) values ('$kladde_id', '$ny_kladdenote', '$kladdedate', '-', '$brugernavn', '$brugernavn', '$tidspkt')", __FILE__ . " linje " . __LINE__);
+			journalRememberCreation($_SESSION, $kk_form_key, (int)$kladde_id);
 			$tidspkt = microtime();
 		}
 		if ($kladde_id) {
@@ -1338,6 +1373,22 @@ if ($_POST) {
 		copy2new($kladde_id, $bilagsnr, $ny_dato, $vend_fortegn);
 	}
 	$fokus = $_POST['fokus'];
+	// 20260902 CL/LH  L4 findings adversarial-forms DEVY-2 / adversarial-navigation DEVY-1: a
+	// double-click on Gem, or browser Back + "resend form", posted the identical form twice and
+	// the second POST inserted the new lines again as duplicate draft rows. The tidspkt refresh
+	// check below never fires for an open journal (bogfort is '-' which is truthy), so detect the
+	// replay explicitly: the same session re-posting the exact same save payload for the same
+	// journal is a replay and must not touch the lines again. A stale tab with *different*
+	// content is not affected (different payload) and saves as before. The fingerprint is only
+	// compared here; it is recorded after opdater() below, once the save has actually succeeded,
+	// so a re-post of a save that failed validation is validated (and rejected) again.
+	$kk_replay = false;
+	if ($submit == 'save' && $kladde_id) {
+		$kk_payload = md5(serialize($_POST));
+		if (isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
+			$kk_replay = true;
+		}
+	}
 	if ($kladde_id) {
 		$row = db_fetch_array(db_select("select bogfort,tidspkt from kladdeliste where id=$kladde_id", __FILE__ . " linje " . __LINE__));
 		if (!$row['bogfort'] && $tidspkt == $row['tidspkt']) { #Refreshtjek"
@@ -1393,9 +1444,9 @@ if ($_POST) {
 							$kreditvat[$x] = '';
 						if (!isset($afd[$x]))
 							$afd[$x] = NULL;
-						if ((!$fejl) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
+						if ((!$fejl) && (!$kk_replay) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
-						} elseif ((!$fejl) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
+						} elseif ((!$fejl) && (!$kk_replay) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						}
 					}
@@ -1548,8 +1599,20 @@ if ($r = db_fetch_array(db_select("select id from adresser where art = 'S'", __F
 	}
 }
 if (!$fejl && $kladde_id) {
-	opdater($kladde_id);
-    initializePositions($kladde_id);
+	// A replayed save (see $kk_replay above) must not move the staged lines into the journal
+	// again - that is exactly what produced the duplicate rows. Still clear the staging table.
+	if (empty($kk_replay)) {
+		opdater($kladde_id);
+		initializePositions($kladde_id);
+		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
+		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
+		// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
+		// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
+		if (isset($kk_payload)) {
+			if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+			$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+		}
+	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
 /*
@@ -2484,6 +2547,7 @@ if ($tjek) {
     $action_url .= "&tjek=$tjek";
 }
 print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post' autocomplete='off'>";
+print "<input type='hidden' name='kk_save_token' value='" . bin2hex(random_bytes(32)) . "'>";
 print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 print "<tr><td width='100%' valign='top' height='1%' align='center' class='kassekladde-note-tb'>
@@ -2797,7 +2861,13 @@ if ($kladde_id) {
 	print "<script>
 		document.addEventListener('DOMContentLoaded', function() {
 			var element = document.querySelector('.kassekladde-scroll-container');
-			var focusName = " . json_encode((string)$fokus) . ";
+			// MB-41: this block is printed before the row loop advances the focus field with
+			// nextfokus(), so the value baked in below is the field the user came from - the
+			// amount field of the line just saved. The inline script at the end of the page
+			// focuses the advanced field, and this handler runs after it, so without preferring
+			// that field the handler pulled focus back up on every save. savedFocus is the
+			// field the page finally focuses.
+			var focusName = window.savedFocus || " . json_encode((string)$fokus) . ";
 			var focusField = focusName && document.forms[0] ? document.forms[0].elements[focusName] : null;
 			if (focusField) {
 				focusField.focus();
@@ -2835,16 +2905,42 @@ if ($kladde_id) {
 	} else {
 	################### 
 		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
+		// Lines saved in this request are pinned to the end of the list, whatever it is sorted by.
+		$kk_new_last = '';
+		if (!empty($GLOBALS['kk_new_line_ids'])) {
+			$kk_new_last = "CASE WHEN id IN (" . implode(',', array_map('intval', $GLOBALS['kk_new_line_ids'])) . ") THEN 1 ELSE 0 END, ";
+		}
+		// The render that follows a save keeps the order the user was looking at, so nothing moves under
+		// them while they check what they changed - an edited amount would otherwise jump to its new place
+		// in the active sort, which is exactly the "where did it go?" the report is about. The submitted
+		// rows carry the on-screen order in their id[] hidden fields; anything not in that list (a line
+		// this save created) is NULL here and sorts last, where the user typed it. The sort itself is
+		// untouched and applies again on the next load.
+		$kk_post_order = '';
+		if (strstr((string) $submit, 'save') && !empty($_POST['id']) && is_array($_POST['id'])) {
+			$kk_order_ids = array();
+			foreach ($_POST['id'] as $kkPostedId) {
+				if ($kkPostedId !== '' && $kkPostedId !== NULL) $kk_order_ids[] = (int) $kkPostedId;
+			}
+			if ($kk_order_ids) {
+				if (!isset($GLOBALS['db_type']) || ($GLOBALS['db_type'] != 'mysql' && $GLOBALS['db_type'] != 'mysqli')) {
+					$kk_post_order = "array_position(ARRAY[" . implode(',', $kk_order_ids) . "]::int[], id), ";
+				} else {
+					// FIELD() answers 0 for a row that is not in the list, which would sort first.
+					$kk_post_order = "(FIELD(id, " . implode(',', $kk_order_ids) . ") = 0), FIELD(id, " . implode(',', $kk_order_ids) . "), ";
+				}
+			}
+		}
 		if ($kksort == 'pos') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'bilag,transdate') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'transdate,bilag') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order transdate $_dir, bilag $_dir, id $_dir";
 		} elseif ($kksort == 'amount') {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} else {
-			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kk_new_last $kk_post_order pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		}
 	##################
 	}
@@ -3284,10 +3380,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	$x++;
 	$belob = "";
-	if ($fokus && (strstr($fokus, "belo") || strstr($fokus, "afd")) && strstr($submit, 'save')) {
-		$tmp = substr($fokus, 4) + 1;
-		if (!$debet[$tmp] && !$kredit[$tmp])
-			$fokus = nextfokus($fokus);
+	# MB-41: a save that creates a line moves the focus to the new blank line, whatever field Enter was
+	# pressed in. A save that only updates an existing line leaves the focus where it was, so the change
+	# can be checked - there is deliberately no fallback advance here. The blank line is rendered after a
+	# creation (see the gate below), so the focus can never point at a field that does not exist - and the
+	# same $x < 3000 bound as the gate keeps that true on a kladde long enough for the blank line to be
+	# skipped.
+	if (strstr($submit, 'save') && !empty($GLOBALS['kk_new_line_ids']) && $x < 3000) {
+		$fokus = 'bila' . $x;
 	}
 	print "</tr>\n";
 
@@ -3307,7 +3407,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
 	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
-	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1)) {
+	# The blank line at the end is where the next line gets typed, so it is rendered after any save
+	# that created a line - including a line that carries only a description, which has no
+	# debit/credit and so used to leave the user with no row to type in and no field to focus.
+	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1 || !empty($GLOBALS['kk_new_line_ids']))) {
 		if (!isset($id[$x]))          $id[$x]          = NULL;
 		if (!isset($dato[$x]))        $dato[$x]        = NULL;
 		if (!isset($beskrivelse[$x])) $beskrivelse[$x] = NULL;
@@ -4083,6 +4186,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$prebilag = $bilag;
 	} # endfunc kontroller
 	######################################################################################################################################
+	/**
+	 * Apply every posted kladde row for this request: rows that carry an id are updated, rows that do
+	 * not are inserted at the position their bilag/transdate belong to (shifting the rows after them),
+	 * and a row whose bilag was set to "-" is deleted by kontroller() before this runs. Lines created
+	 * here are reported through kk_note_new_line() so the render can pin them last and move the focus
+	 * to the new blank line.
+	 */
 	function opdater($kladde_id)
 	{
 		global $baseCurrency,$egen_kto_id;
@@ -4208,6 +4318,27 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 					if ($qtxt) {
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						# Only an insert creates a row to pin and to move the focus to; an update must leave
+						# the caret where the user was. The generated id comes from this connection, so a
+						# concurrent insert in another session cannot be picked up instead.
+						if (stripos(trim($qtxt), 'insert') === 0) {
+							# The id has to be read from this connection, so that a concurrent insert in
+							# another session cannot be picked up instead. db_modify() picks its query
+							# function from $db_type, so the same test is repeated here: mysqli_insert_id()
+							# for a MySQL/MySQLi install, currval() for Postgres, which needs a sequence.
+							$kk_insert_id = 0;
+							if (isset($GLOBALS['db_type']) && ($GLOBALS['db_type'] == 'mysql' || $GLOBALS['db_type'] == 'mysqli')) {
+								$kk_insert_id = mysqli_insert_id(db_query_connection(false));
+							} else {
+								$kkIdRow = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kassekladde', 'id')) AS id", __FILE__ . " linje " . __LINE__));
+								if (isset($kkIdRow['id'])) $kk_insert_id = $kkIdRow['id'];
+								unset($kkIdRow);
+							}
+							# A failed insert, or an install whose id is not auto generated, only means the
+							# pin and the focus do not fire - never a broken save.
+							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id);
+							unset($kk_insert_id);
+						}
 					}
 				}
 			}

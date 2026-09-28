@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-20 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2020.01.22 PHR function send_mails. Added mail format check #20200122
@@ -54,6 +54,8 @@
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
+// 20260805 MJ konto_udtog: tilfoej udtog-pladsholder til at vise udestående saldo fra openpost
+// 20260812 MJ konto_udtog: konverter beloeb per-raekke via valuta/valutakurs (som skyldig/forfalden)
 // 20260814 LH Rykkerprint: pass rykker ordre-id to send_mails (was hardcoded 0) so mail-template variables like $kontonr work in rykker mails
 // 20260819 Sawaneh kontoprint: removed debug output and duplicate 'Mail sent to'
 //                  confirmation when mailing account statements as PDF.
@@ -67,6 +69,8 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
+// 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
+//             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -654,7 +658,34 @@ if (!function_exists('find_form_tekst')) {
 						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 						$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "adresser" || $tabel == "konto") {
-						if ($variabel == 'valuta') {
+						if ($variabel == 'udtog') {
+							// 20260805 MJ konto_udtog: udestående saldo fra openpost
+							// 20260812 MJ Konverter beløb per-række via valuta/valutakurs som skyldig/forfalden
+							if ($formular == 11) {
+								$kid = (int)$id;
+							} else {
+								$r2 = db_fetch_array(db_select("select konto_id from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
+								$kid = (int)$r2['konto_id'];
+							}
+							$_udtog_q   = db_select("select amount,valuta,valutakurs from openpost where konto_id='$kid' and udlignet='0'", __FILE__ . " linje " . __LINE__);
+							$_udtog_sum = 0;
+							while ($_udtog_r = db_fetch_array($_udtog_q)) {
+								$_udtog_valuta = $_udtog_r['valuta'] ?: 'DKK';
+								$_udtog_kurs   = (float)($_udtog_r['valutakurs'] ?: 100);
+								$_udtog_dkk    = $_udtog_r['amount'] * $_udtog_kurs / 100;
+								if ($deb_valuta != 'DKK' && $deb_valuta != $_udtog_valuta)
+									$_udtog_amount = $_udtog_dkk * 100 / $deb_valutakurs;
+								elseif ($deb_valuta == $_udtog_valuta)
+									$_udtog_amount = $_udtog_r['amount'];
+								else
+									$_udtog_amount = $_udtog_dkk;
+								if ($deb_valuta == 'DKK')
+									$_udtog_amount = $_udtog_dkk;
+								$_udtog_sum += $_udtog_amount;
+							}
+							$streng[$x] = dkdecimal(afrund($_udtog_sum, 2), 2);
+							$q2 = NULL;
+						} elseif ($variabel == 'valuta') {
 							$qtxt = "select gruppe from adresser where id='$id'";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$qtxt = "select box3 as valuta from grupper where art='DG' and kodenr='$r2[gruppe]' ";
@@ -1511,6 +1542,8 @@ if (!function_exists('formularprint')) {
 						}
 					}
 					fclose($logofil);
+				} else {
+					$logo = ''; // never write the bare file path into the PostScript (Ghostscript aborts at the first page break)
 				}
 			}
 			########################
@@ -2272,13 +2305,16 @@ if (!function_exists('formularprint')) {
 				if ($formgen == 'html') {
 					rename($mappe . "/" . $pfliste[$x] . ".htm", $mappe . "/" . $pfliste[$x] . "_1.htm");
 					$i = 1;
+					$sidepdf = array();
 					while (file_exists($mappe . "/" . $pfliste[$x] . "_" . $i . ".htm")) {
 						$indfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".htm";
 						$udfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".pdf";
 						system("weasyprint -e UTF-8 $indfil $udfil");
+						$sidepdf[] = escapeshellarg($udfil);
 						$i++;
 					}
-					system("$pdftk " . $mappe . "/" . $pfliste[$x] . "_*.pdf output $mappe/$pfliste[$x].pdf");
+					// Merge in page order; the shell glob _*.pdf put _10.pdf before _2.pdf
+					system("$pdftk " . implode(' ', $sidepdf) . " output $mappe/$pfliste[$x].pdf");
 					if (file_exists($mappe . "/" . $pfliste[$x] . "_*.htm"))
 						unlink($mappe . "/" . $pfliste[$x] . "_*.htm");
 					#				unlink ($mappe."/".$pfliste[$x]."_*.pdf");
@@ -2438,10 +2474,15 @@ if (!function_exists('bundtekst')) {
 		$side = $side + 1;
 
 
-		if ($logoart != 'EPS')
-			fwrite($psfp, "showpage\n");
-		else
+		// Embed the EPS logo with the EPSF inclusion wrapper (own saved state and stacks, its showpage disabled),
+		// so exactly one showpage below ends every page. Relying on the logo's own showpage lost pages 2..N
+		// when logo.eps was missing or had none (SD-490).
+		if ($logoart == 'EPS' && $logo !== '') {
+			fwrite($psfp, "\n/b4_Inc_state save def\n/dict_count countdictstack def\n/op_count count 1 sub def\nuserdict begin\n/showpage { } def\n");
 			fwrite($psfp, $logo);
+			fwrite($psfp, "\ncount op_count sub {pop} repeat\ncountdictstack dict_count sub {end} repeat\nb4_Inc_state restore\n");
+		}
+		fwrite($psfp, "showpage\n");
 		fwrite($htmfp, "</body>\n</html>\n");
 		#fclose($htmfp);
 		#$htmfp=fopen($mappe."/".$printfilnavn."_$side.htm","w");

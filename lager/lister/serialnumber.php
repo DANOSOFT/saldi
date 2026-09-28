@@ -30,6 +30,7 @@
 // 20260710 MJ ABS(sn.kobslinje_id) i JOIN så negative kobslinje_id (retur til leverandør) også viser indkøbsordren.
 // 20260710 MJ Ekstra COALESCE-fallbacks via ordrelinjer.vare_id→varer og batch_kob/batch_salg.vare_id→varer så serienr med tom/manglende ordrelinjer.varenr stadig søges.
 // 20260813 Sawaneh - "Not sold" filter: sn.salgslinje_id = 0 instead of <= 0, so negative history rows (credited sales) are no longer shown as available. Credited return serials still appear via the fresh row with salgslinje_id = 0 from krediter().
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 
 @session_start();
 $s_id = session_id();
@@ -216,6 +217,7 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $VGs = array();
 while ($row = db_fetch_array($q)) {
     $VGs[] = array(
+        "optionKey" => "vg_" . $row["kodenr"],
         "name" => $row["beskrivelse"],
         "checked" => "",
         "sqlOn" => "v.gruppe = $row[kodenr]",
@@ -223,22 +225,26 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
+    "filterKey" => "varegrupper",
     "filterName" => "Varegrupper",
     "joinOperator" => "or",
     "options" => $VGs
 );
 
 $filters[] = array(
+    "filterKey" => "misc",
     "filterName" => "Misc",
     "joinOperator" => "and",
     "options" => array(
         array(
+            "optionKey" => "show_empty_serial",
             "name" => "Vis tomme serienr værdier",
             "checked" => "",
             "sqlOn" => "",
             "sqlOff" => "sn.serienr != '' AND sn.serienr IS NOT NULL",
         ),
         array(
+            "optionKey" => "show_unsold_serial",
             "name" => "Vis kun serienumre der ikke er solgt",
             "checked" => "",
             "sqlOn" => "sn.salgslinje_id = 0",

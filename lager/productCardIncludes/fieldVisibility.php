@@ -36,6 +36,8 @@
 // 20260902 Sawaneh CodeRabbit (PR #545): Units label via findtekst(1259) and
 //                  'Show all' is a real button for keyboard accessibility.
 // 20260903 CL/NTR  Texts renumbered 5130-5134 -> 3380-3384 (free rows in tekster.csv).
+// 20260921 Sawaneh The Udløbsdato row is left out when varekort.php does not render that box
+//                  (batchExpiryEnabled off, or the item's group has no batch control).
 
 /**
  * @var string $db         company database name (includes/connect.php)
@@ -56,6 +58,10 @@ $pcVisSections = array(
 	'pcSecExpiry'       => findtekst('5001|Udl&oslash;bsdato', $sprog_id),
 	'pcSecNotes'        => findtekst(391, $sprog_id),
 );
+// varekort.php only renders the expiry box when batch/expiry is enabled for the item's group
+if (empty($batchExpiryEnabled) || trim((string) ($batchItem ?? '')) != 'on') {
+	unset($pcVisSections['pcSecExpiry']);
+}
 $pcVisStoreKey = 'saldiPcHidden_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $db . '_' . $bruger_id . '_' . $brugernavn);
 $pcVisHintKey  = 'saldiPcHint_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $db . '_' . $bruger_id . '_' . $brugernavn);
 $pcVisTitle    = findtekst('3380|Tilpas visning', $sprog_id);

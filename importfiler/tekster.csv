@@ -239,7 +239,7 @@
 239	Der er rykkere klar til udsendelse i SALDI.	There are reminders ready for broadcast in SALDI.	Det er påminnelser klare for sending i SALDI.
 240	Der er rykkere klar til udsendelse.	There are reminders ready for broadcast.	Det er påminnelser klare for sending.
 241	Rykkervalg	Reminder choice	Påminnelsesvalg
-242	<big>Denne funktion gør følgende:<UL><LI>udligner alle konti	<big>This feature does the following: <UL> <LI> settles all accounts	<big> Denne funksjonen gjør følgende: <UL> <LI> gjør opp alle kontoer
+242	Udligner alle konti	Settles all accounts	Gjør opp alle kontoer
 243	Ekstrafelter	Extra fields	Ekstrafelter
 244	Ordrefelt 1	Order field 1	Bestillingsfelt 1
 245	Ordrefelt 2	Order field 2	Bestillingsfelt 2
@@ -5099,5 +5099,24 @@
 5152	Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling	Export all accounts under the selected filters to CSV, without pagination	Eksporter alle kontoer under de valgte filtrene til CSV, uten sideinndeling
 5240	Tidligere optællinger	Previous cash counts	Tidligere opptellinger
 
+5210	Ugyldig e-mailadresse	Invalid e-mail address	Ugyldig e-postadresse
+5211	Ugyldigt tegn	Invalid character	Ugyldig tegn
+5212	position	position	posisjon
+5213	Foreslået rettelse	Suggested correction	Foreslått rettelse
+5214	Brug den foreslåede adresse og send igen	Use the suggested address and send again	Bruk den foreslåtte adressen og send på nytt
+5215	Ret adressen manuelt på ordren eller debitorkortet	Correct the address manually on the order or the debtor card	Rett adressen manuelt på ordren eller debitorkortet
+5216	Ordrens e-mailadresse er ændret siden - kontrollér og send igen	The order's e-mail address has changed since - check and send again	Ordrens e-postadresse er endret siden - kontroller og send på nytt
+5217	Ukendt tegn	Unknown character	Ukjent tegn
+5218	erstattes med	is replaced by	erstattes med
+5219	fjernes	is removed	fjernes
+5220	E-mailadressen på ordren er rettet til	The e-mail address on the order was changed to	E-postadressen på ordren er rettet til
+5221	Du har ikke rettigheder til at ændre ordrens e-mailadresse	You do not have permission to change the order's e-mail address	Du har ikke rettigheter til å endre ordrens e-postadresse
 5230	Mobilnummer	Mobile number	Mobilnummer
 5231	Udført af	Performed by	Utført av
+5241	Forslag fra AI-scan	Suggestion from AI scan	Forslag fra AI-skanning
+5242	Brug forslag	Use suggestion	Bruk forslag
+5243	Vælg kreditor	Choose creditor	Velg kreditor
+5244	Kreditoren findes ikke i regnskabet	The creditor does not exist in the accounts	Kreditoren finnes ikke i regnskapet
+5245	Kredit var allerede udfyldt og blev ikke ændret	Credit was already filled in and was not changed	Kredit var allerede fylt ut og ble ikke endret
+5246	Skjul omsætning for brugere uden adgang til Indstillinger	Hide turnover for users without access to Settings	Skjul omsetning for brukere uten tilgang til Innstillinger
+5247	Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.	Hide turnover on the order list and in the cash count for users without the Settings right. Users with the right are unaffected.	Skjul omsetning på ordrelisten og i kasseopptellingen for brukere uten rettigheten Innstillinger. Brukere med rettigheten ser uendret.
