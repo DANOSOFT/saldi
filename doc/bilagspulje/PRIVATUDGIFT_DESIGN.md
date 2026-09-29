@@ -13,26 +13,29 @@ implementation is out of scope until that agreement exists.
 
 ## 1. What exists today
 
-Facts, verified against master `44523819`.
+Facts, and every line reference below, verified against master `700852e1` on 2026-09-29.
+They drift whenever the cited file is refactored, so re-check them rather than trusting them:
+the first revision of this document cited `insertDoc.php:89-127` for §1.1, which master has since
+moved to `:202-241` and split across `insertDocUpdateKassekladdeLine()`.
 
 ### 1.1 The pool already creates journal lines
 
 There are two paths, and the second one matters more than the ticket's framing suggests.
 
 **Attaching to a line the user is editing.** `docPool()`
-(`includes/docsIncludes/docPool.php:257`) pre-fills an open line's date (`:381`) and amount
-(`:390`) from the pool record.
+(`includes/docsIncludes/docPool.php:342`) pre-fills an open line's date (`:568`) and amount
+(`:581`) from the `pool_files` record.
 
-**Creating a line.** `docPool.php:557-575` includes `includes/docsIncludes/insertDoc.php`,
-which at `:89` — `if ($source == 'kassekladde' && !$sourceId)` — does all of this already:
+**Creating a line.** `docPool.php:689` includes `includes/docsIncludes/insertDoc.php`,
+which at `:202` — `if ($source == 'kassekladde' && !$sourceId)` — does all of this already:
 
 | Step | Where |
 |---|---|
-| Allocate the next `bilag` within the fiscal year | `insertDoc.php:118` |
-| Allocate the next `pos` within that voucher | `:114` |
-| Insert the `kassekladde` line (placeholder `d_type`/`k_type` = `F`, amount 0) | `:118` |
-| Read back the new line's id as `$sourceId` | `:122` |
-| Update the line's fields from POST | `:127` onwards |
+| Allocate the next `bilag` within the fiscal year | `insertDoc.php:217-220`, via `fiscalYear($regnaar)` |
+| Allocate the next `pos` within that voucher | `:227-229` |
+| Insert the `kassekladde` line (placeholder `d_type`/`k_type` = `F`, amount 0) | `:231-233` |
+| Read back the new line's id as `$sourceId` | `:235-237` |
+| Update the line's fields from POST | `:241`, through `insertDocUpdateKassekladdeLine()` (`:99`) |
 | Write the `documents` row linking the file | see §1.3 |
 
 So the skeleton SST-778 needs — new journal line, voucher number, document link — **exists
@@ -46,8 +49,8 @@ pool documents (`:28`). It has no journal path at all.
 
 ### 1.2 A journal line is already a draft
 
-`kladdeliste.bogfort = '-'` marks an open, unposted journal (`finans/kassekladde.php:551`,
-`:726`). Lines sit in `kassekladde` until the user posts the journal, at which point they
+`kladdeliste.bogfort = '-'` marks an open, unposted journal (`finans/kassekladde.php:585`,
+`:826`). Lines sit in `kassekladde` until the user posts the journal, at which point they
 become rows in `transaktioner`.
 
 So "draft versus posted" does not need inventing. **A line written into an open journal is
@@ -92,7 +95,7 @@ Three things landed:
 
 | What | Where |
 |---|---|
-| A UNIQUE index on `pool_files (filename)`, tenant-wide, with a dedupe pass that keeps the highest `id` | `includes/betweenUpdates.php:571-608` |
+| A UNIQUE index on `pool_files (filename)`, tenant-wide, with a dedupe pass that keeps the highest `id` | `includes/betweenUpdates.php:627-679` |
 | `syncPuljeFilesToDatabase()` now **deletes** any `pool_files` row whose file is no longer in the pulje folder, before checking what is missing | `includes/docsIncludes/docPool.php` |
 | `FileReservation` — atomic no-replace filename reservation via `fopen('x')`, with `_N` suffixing | `includes/docsIncludes/FileReservation.php` |
 
@@ -140,7 +143,7 @@ Q3 in §8.
 | Option | Assessment |
 |---|---|
 | **Create a new journal per transfer** | Clutters `kladdeliste`; a month of receipts becomes a month of journals |
-| **Pick an open journal** | Matches `ompost()` in `finans/kassekladde.php:4319`, which already makes the user pick an open journal to reverse into. Consistent and familiar |
+| **Pick an open journal** | Matches `ompost()` in `finans/kassekladde.php:4450`, which already makes the user pick an open journal to reverse into. Consistent and familiar |
 | **A dedicated standing "private expenses" journal** | Convenient, but a second mechanism to maintain |
 
 **Recommendation: pick an open journal**, reusing the `ompost()` pattern. If none is open,
@@ -214,8 +217,8 @@ shows that to be unsafe, and it fails in the one direction nobody notices.
 
 ### 4.1 Why the filename key fails
 
-The pool filename is carried verbatim into `documents.filename` (`insertDoc.php:84`, then
-`basename()` at `:360`), so the check would read exactly the name SST-740 allows to be reused:
+The pool filename is carried verbatim into `documents.filename` (`insertDoc.php:88`, then
+`basename()` at `:354`), so the check would read exactly the name SST-740 allows to be reused:
 
 1. SST-740's UNIQUE index makes `pool_files.filename` unique **at a point in time**, not over
    time.
@@ -238,8 +241,8 @@ Checked, and each candidate fails:
 | Candidate | Why not |
 |---|---|
 | `pool_files.id` | Dies with the row — both SST-740's orphan delete and `insertDoc.php`'s own delete on attach |
-| `documents.global_id` | A tenant-wide value read from `settings` (`insertDoc.php:50-52`), not a per-document id |
-| `documents.filepath` | For the journal path it is `/finance/<kladde>/<source>` (`insertDoc.php:370`) — identifies the destination, not the source document |
+| `documents.global_id` | A tenant-wide value read from `settings` (`insertDoc.php:57-59`), not a per-document id |
+| `documents.filepath` | For the journal path it is `/finance/<kladde>/<source>` (`insertDoc.php:364`) — identifies the destination, not the source document |
 | `documents.filename` | §4.1 |
 
 This is the part that needs a decision rather than a recommendation dressed up as a fact: on
@@ -288,14 +291,14 @@ But the key cannot be `documents (content_hash)` restricted to journal sources, 
 earlier revision of this section proposed. That does not work, for two reasons, recorded here so
 it is not tried again:
 
-- **`documents` holds several rows per file by design.** `insertDoc.php` attaches the same file to
-  every sibling `kassekladde` line sharing a bilag (`:432`), or to each line named in
-  `targetSourceIds` (`:420`) — all with `source = 'kassekladde'` and the same `filename`, so the
-  same hash. A unique index on that key would reject the second sibling and break a shipped
-  feature halfway through a transfer.
+- **`documents` holds several rows per file by design.** `insertDoc.php` inserts the first row at
+  `:398`, then attaches the same file to each line named in `targetSourceIds` (`:419`), or to every
+  sibling `kassekladde` line sharing a bilag (`:434`, after the duplicate check at `:432`) — all
+  with `source = 'kassekladde'` and the same `filename`, so the same hash. A unique index on that
+  key would reject the second sibling and break a shipped feature halfway through a transfer.
 - **A restricted index is PostgreSQL-only.** MySQL and MariaDB accept no predicate on
   `CREATE INDEX`, which is exactly why SST-740's migration branches on `$db_type` and creates a
-  plain unique index on that side (`includes/betweenUpdates.php:589-595`). "Restricted to journal
+  plain unique index on that side (`includes/betweenUpdates.php:653` for MySQL/MariaDB, `:675` otherwise, applied at `:679`). "Restricted to journal
   sources" cannot be expressed there, and an unrestricted `UNIQUE (content_hash)` on `documents`
   would be worse still: it would forbid attaching one file to two different vouchers, which is
   legitimate today.
@@ -336,7 +339,7 @@ Mitigation: order the work so the irreversible filesystem step comes last — al
 write the `documents` row inside one transaction, rename after it commits, and let the
 `pool_files` row go last. A crash between commit and rename then leaves a row whose file is still
 in the pulje folder, which is recoverable and which SST-740's sync pass with its 60-second grace
-window already tolerates (`docPool.php:200-216`). Prodtest scenario 11 covers the mid-flight case;
+window already tolerates (`docPool.php:220-235`). Prodtest scenario 11 covers the mid-flight case;
 a failure-point test per step belongs with the implementation.
 
 ---
@@ -461,7 +464,28 @@ Not part of this ticket's estimate; listed so the estimate has something to pric
 | Payable account setting | `settings` table; no migration if an existing group is reused |
 | Exactly-once check (§4) | A `pool_transfers` table with `UNIQUE (content_hash, forsoeg)` and its idempotent migration in `includes/betweenUpdates.php`, hashing at transfer time, and the insert conflict handled as the decision point rather than a `SELECT` (§4.5) |
 | Transferred-but-visible pool entry | Out of scope (§3 step 5). Only in play if Q7 is answered against the move behaviour, and then it is a new transfer path, not a marker |
-| `findtekst` ids for the dialog | Coordinate with open branches — PR #447 (`feature/udfoert-af`) holds 5151–5152, SST-769 holds 5153–5155 |
+| `findtekst` ids for the dialog | Allocate at implementation time from above master's then-current maximum in `importfiler/tekster.csv`, and check the in-flight branches before pushing — do not reserve ids from this document. See the note below |
+
+**On the text ids.** An earlier revision of the row above named the branches holding particular
+ids. It was accurate when written and wrong within the hour, and by the time it was reviewed it was
+wrong twice over: PR #447 had been closed without merging, so it held nothing, and 5151–5152 had
+meanwhile reached master from other work entirely. SST-769's 5155 had moved to 5234. Two of this
+document's own branches went on to collide the same way — SST-796 was pushed on 5241/5242, moved to
+5246/5247 when master took those, and then to 5248/5249 when master took those too.
+
+The lesson is not that the list needed better upkeep; a list of this kind cannot be kept current in
+a document. Ids are allocated by appending to a shared file with no reservation mechanism, so the
+only reliable step is to read the file at the moment of implementation. A snapshot is given here
+only to show the order of magnitude, and is deliberately dated rather than maintained: as of
+2026-09-29, master's highest id was 5247, and the unmerged SST-769 and SST-796 held 5153/5154/5234
+and 5248/5249. Anyone implementing this should ignore those numbers and check the file.
+
+Worth its own ticket: the collisions above cost three renumbering rounds across two PRs. Git does
+raise a merge conflict when both sides append at end-of-file, which is how each round was in fact
+caught — but the conflict only says the two tails differ, not that an id is duplicated, and the
+obvious resolution of keeping both sides produces exactly the duplicate. A row inserted mid-file
+rather than appended would merge cleanly and duplicate with no signal at all. A uniqueness check on
+`tekster.csv` in CI would name the problem directly, at push time rather than at review time.
 
 ### 9.1 Estimate
 
