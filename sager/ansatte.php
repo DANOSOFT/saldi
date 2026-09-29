@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------lap 5.0.0 ------2026-03-18-------------
+// ------ SAGER/ANSATTE.php-------lap 5.0.0 ------2026-09-24-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +18,7 @@ $s_id=session_id();
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
  
 // Nyt flueben - ny i branchen. reduceret løn 80% i x mdr.½
@@ -31,6 +31,8 @@ $s_id=session_id();
 // 20170911 PK - Har sat validering på brugernavn så der ikke kommer duplikater. Søg 20170911 
 // 20260318 LOE  Added functionality to toggle between password visibility.
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) when creating or renaming a login, matching login.php
+// 20260924 Sawaneh SST-757: New logins get regnskabsaar (session year, else newest open year), so POS/ordre/tilbud no longer fail on an empty fiscal year.
+//                  Login SQL values are now cast or escaped.
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -308,6 +310,7 @@ function ansatliste() {
 function ret_ansat($id) {
 
 	global $charset;
+	global $regnaar;
 	global $sprog_id;
 	
 	if(isset($_GET['id'])) $id = $_GET['id'];
@@ -330,10 +333,11 @@ function ret_ansat($id) {
 		}
 	}
 	if (isset($_POST['brugere_navn']) && $id) {	
+		$ansatId = (int)$id;
 		$brugere_navn = $_POST['brugere_navn'];
-		$brugere_id=if_isset($_POST['brugere_id']);
-		$kode1=if_isset($_POST['kode1']);
-		$kode2=if_isset($_POST['kode2']);
+		$brugere_id = (int)ifset($_POST, 'brugere_id');
+		$kode1 = ifset($_POST, 'kode1');
+		$kode2 = ifset($_POST, 'kode2');
 		if (is_input_too_long($brugere_navn)) {
 			$alerttext=findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
@@ -342,7 +346,7 @@ function ret_ansat($id) {
 		
 		
 		if ($brugere_navn && !$brugere_id) { #20170911
-			$query = db_select("select id from brugere where brugernavn = '$brugere_navn'",__FILE__ . " linje " . __LINE__);
+			$query = db_select("select id from brugere where brugernavn = '".db_escape_string($brugere_navn)."'",__FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($query)) {
 				$alerttext=findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id).": $brugere_navn";
 				print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
@@ -361,27 +365,29 @@ function ret_ansat($id) {
 		
 		if ($id) {
 			if ($ret_kode && $brugere_id) {
-				db_modify("update brugere set kode = '$kode1' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+				db_modify("update brugere set kode = '".db_escape_string($kode1)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
 			}
 			if ($brugere_navn && !$brugere_id) {
-			$r=db_fetch_array(db_select("select id,ansat_id from brugere where lower (brugernavn)='".db_escape_string(strtolower($brugere_navn))."'",__FILE__ . " linje " . __LINE__));
-				if ($r['id'] && !$r['ansat_id']) {
-					$brugere_id=$r['id'];
-					if ($brugere_id) db_modify("update brugere set ansat_id = '$id' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+				$r=db_fetch_array(db_select("select id,ansat_id from brugere where lower (brugernavn)='".db_escape_string(strtolower($brugere_navn))."'",__FILE__ . " linje " . __LINE__));
+				if (ifset($r, 'id') && !ifset($r, 'ansat_id')) {
+					$brugere_id = (int)$r['id'];
+					db_modify("update brugere set ansat_id = '$ansatId' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
 				} else {
-					db_modify("insert into brugere (brugernavn,kode,ansat_id) values ('$brugere_navn','$kode1','$id')",__FILE__ . " linje " . __LINE__);
+					$fiscalYear = (int)$regnaar;
+					if (!$fiscalYear) $fiscalYear = newest_active_fiscal_year();
+					$qtxt = "insert into brugere (brugernavn,kode,ansat_id,regnskabsaar) values ";
+					$qtxt.= "('".db_escape_string($brugere_navn)."','".db_escape_string($kode1)."','$ansatId',".($fiscalYear ? "'$fiscalYear'" : "NULL").")";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			} elseif ($brugere_navn && $brugere_id) { #20170911
 				$r2=db_fetch_array(db_select("select id,brugernavn from brugere where id = '$brugere_id'",__FILE__ . " linje " . __LINE__));
-				if ($r2['brugernavn']!=$brugere_navn) {
-					//echo "$r2[brugernavn] != $brugere_navn<br>";
-					$r3=db_fetch_array(db_select("select id from brugere where brugernavn = '$brugere_navn'",__FILE__ . " linje " . __LINE__));
-					if ($r3['id']>0 && $r3['id']!=$brugere_id) {
-						//echo "$r3[id] != $brugere_id<br>
+				if (ifset($r2, 'brugernavn') != $brugere_navn) {
+					$r3=db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($brugere_navn)."'",__FILE__ . " linje " . __LINE__));
+					if (ifset($r3, 'id') > 0 && $r3['id'] != $brugere_id) {
 						$alerttext=findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id).": $brugere_navn";
 						print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
 					} else {
-						db_modify("update brugere set brugernavn = '$brugere_navn' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+						db_modify("update brugere set brugernavn = '".db_escape_string($brugere_navn)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
 					}
 				}
 			}

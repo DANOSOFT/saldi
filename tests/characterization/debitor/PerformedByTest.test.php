@@ -1,5 +1,6 @@
 <?php
 // 20260908 CDX/LH Regression coverage for optional order performers (SD-558).
+// 20260918 CDX/PHR Verify the dedicated performed_by field.
 
 namespace Saldi\Tests\PerformedBy;
 
@@ -10,7 +11,7 @@ require_once __DIR__ . '/../../../debitor/orderIncludes/renderEmployeeFields.php
 function db_select($sql, $location)
 {
 	$GLOBALS['performedByQueries'][] = $sql;
-	return array('hvem' => 'Stored technician');
+	return array('performed_by' => 'Stored technician');
 }
 
 function db_fetch_array($row)
@@ -54,10 +55,10 @@ final class PerformedByTest extends TestCase
 		$block = substr($source, $start, $end - $start);
 		foreach (array(null, '', '0', "O'Brien") as $submitted) {
 			$GLOBALS['performedByQueries'] = array();
-			$hvem = $submitted;
+			$performed_by = $submitted;
 			$id = 42;
 			eval('namespace ' . __NAMESPACE__ . '; ' . $block);
-			self::assertSame($submitted ?? 'Stored technician', $hvem);
+			self::assertSame($submitted ?? 'Stored technician', $performed_by);
 			self::assertCount($submitted === null ? 1 : 0, $GLOBALS['performedByQueries']);
 		}
 	}
@@ -68,8 +69,8 @@ final class PerformedByTest extends TestCase
 		$start = strpos($source, '} elseif ($status < 3 && $id && $firmanavn)');
 		$end = strpos($source, 'db_modify($qtxt', $start);
 		$block = substr($source, $start, $end - $start);
-		self::assertStringNotContainsString("hvem = '", $block);
-		self::assertStringNotContainsString("hvem='", $block);
+		self::assertStringNotContainsString("performed_by = '", $block);
+		self::assertStringNotContainsString("performed_by='", $block);
 	}
 
 	private function options($selected, array $employees, $username): \DOMXPath
@@ -77,7 +78,7 @@ final class PerformedByTest extends TestCase
 		$document = new \DOMDocument();
 		        $html = \renderOrderEmployeeFields($employees, '', $selected, 'Vor ref.');
         $document->loadHTML('<?xml encoding="UTF-8"><table>' . $html . '</table>');
-        $select = $document->getElementById('order-hvem');
+        $select = $document->getElementById('order-performed_by');
         $markup = $document->saveHTML($select);
         $document = new \DOMDocument();
         $document->loadHTML('<?xml encoding="UTF-8">' . $markup);

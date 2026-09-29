@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-09--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-09-24--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -59,7 +59,15 @@
 // 20260910 Sawaneh Order links carry the popup=1 request flag so a real popup window still closes on Back.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
+// 20260916 LOE SD-685: headers declare headerText so a saved header can be told from a rename.
+// 20260917 CL/LH Lagerstatus: centrale farvekonstanter, status-ikoner og fremhævet
+//                 forklaring i popup'en, restordrer vises også, Vis lagerstatus/Tilbage
+//                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
+//                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
+// 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
+// 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 
 @session_start();
 $s_id = session_id();
@@ -114,6 +122,12 @@ function ordreliste_safe_output($value) {
     return htmlspecialchars($value);
 }
 
+// Lagerstatus colors
+define('LS_IN_STOCK', '#B5DDB7');       // In stock, not yet delivered
+define('LS_ITEMS_ORDERED', '#F2DFA0');  // Low stock, but a purchase order covers the shortage
+define('LS_OUT_OF_STOCK', '#E8A0A0');   // Out of stock
+define('LS_SEND_ORDER', '#DDB0DD');     // Needs a send order / all delivered
+
 /**
  * Returns color + tooltip line data for an order, with static per-request cache.
  * Both the rowStyle callback and the tooltip render callback share this result,
@@ -128,7 +142,7 @@ function get_order_lagerstatus_cache($ordre_id, $ls_vgr, $preseed = null) {
     }
     if (isset($cache[$ordre_id])) return $cache[$ordre_id];
 
-    $result = ['color' => '#FF33FF', 'lines' => []];
+    $result = ['color' => LS_SEND_ORDER, 'lines' => []];
     $linjebg = null;
 
     $q = db_select(
@@ -153,22 +167,24 @@ function get_order_lagerstatus_cache($ordre_id, $ls_vgr, $preseed = null) {
         $tmp         = find_beholdning($r['vare_id'], NULL);
 
         if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
-            $linjefarve = '#FFFF66';
+            $linjefarve = LS_ITEMS_ORDERED;
         } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-            $linjefarve = '#FF4D4D';
+            $linjefarve = LS_OUT_OF_STOCK;
         } elseif ($antal != $leveret) {
-            $linjefarve = '#66FF66';
+            $linjefarve = LS_IN_STOCK;
         } else {
-            $linjefarve = '#FF33FF';
+            $linjefarve = LS_SEND_ORDER;
         }
 
         // Row color priority: red > yellow > green > magenta
-        if ($linjefarve === '#FF4D4D') {
-            $linjebg = '#FF4D4D';
-        } elseif ($linjefarve === '#FFFF66' && $linjebg !== '#FF4D4D') {
-            if ($linjebg === null || $linjebg === '#66FF66') $linjebg = '#FFFF66';
-        } elseif ($linjefarve === '#66FF66' && $linjebg === null) {
-            $linjebg = '#66FF66';
+        if ($linjefarve === LS_OUT_OF_STOCK) {
+            $linjebg = LS_OUT_OF_STOCK;
+        } elseif ($linjefarve === LS_ITEMS_ORDERED && $linjebg !== LS_OUT_OF_STOCK) {
+            if ($linjebg === null || $linjebg === LS_IN_STOCK) {
+                $linjebg = LS_ITEMS_ORDERED;
+            }
+        } elseif ($linjefarve === LS_IN_STOCK && $linjebg === null) {
+            $linjebg = LS_IN_STOCK;
         }
 
         $result['lines'][] = [
@@ -181,7 +197,7 @@ function get_order_lagerstatus_cache($ordre_id, $ls_vgr, $preseed = null) {
         ];
     }
 
-    $result['color'] = $linjebg ?: '#FF33FF';
+    $result['color'] = $linjebg ?: LS_SEND_ORDER;
     $cache[$ordre_id] = $result;
     return $result;
 }
@@ -735,6 +751,7 @@ $custom_columns = array(
     "ordrenr" => array(
         "field" => "ordrenr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "headerText" => '500|Ordrenr.',
         "width" => "0.8",
         "align" => "right",
         "type"  => "number",
@@ -792,36 +809,54 @@ $custom_columns = array(
             }
 
             // vis_lagerstatus: wrap display in overlib span with stock details tooltip
-            if ($vis_lagerstatus && $row['art'] != 'DK' && $row['restordre'] != '1') {
+            // Restordrer are included too - their stock details are just as relevant.
+            $lagerstatus_tooltip = false;
+            if ($vis_lagerstatus && $row['art'] != 'DK') {
                 $id = $row['id'];
                 $cached_ls = get_order_lagerstatus_cache($id, $ls_vgr);
+                $overall_bg = $cached_ls['color'];
                 $spantxt = "<table><tbody>";
                 $spantxt .= "<tr><td>Varenr</td><td>" . findtekst('948|Beholdning', $sprog_id) . "</td><td>" . findtekst('916|Antal', $sprog_id) . "</td><td>" . findtekst('1190|Leveret', $sprog_id) . "</td><td>" . findtekst('1428|Bestilt', $sprog_id) . "</td><td>" . findtekst('1429|Reserveret', $sprog_id) . "</td><td>" . findtekst('1430|I bestilling', $sprog_id) . "</td><td>" . findtekst('976|Disponibel', $sprog_id) . "</td></tr>";
                 foreach ($cached_ls['lines'] as $line) {
                     $spanbg = $line['linjefarve'];
-                    if ($spanbg != '#FF33FF' && $spanbg != '#66FF66') {
+                    if ($spanbg != LS_SEND_ORDER && $spanbg != LS_IN_STOCK) {
                         $tmp_ls = $line['tmp'];
                         $spantxt .= "<tr bgcolor=$spanbg><td>{$line['varenr']}</td><td align=right>" . dkdecimal($line['beholdning'] * 1, 0) . "</td>";
                         $spantxt .= "<td align=right>" . dkdecimal($line['antal'] * 1, 0) . "</td><td align=right>" . dkdecimal($line['leveret'] * 1, 0) . "</td>";
                         $spantxt .= "<td align=right>$tmp_ls[1]</td><td align=right>$tmp_ls[2]</td><td align=right>$tmp_ls[3]</td><td align=right>$tmp_ls[4]</td></tr>";
                     }
                 }
+                $icon_map = array(
+                    LS_IN_STOCK => '../ikoner/in-stock.svg',
+                    LS_ITEMS_ORDERED => '../ikoner/item-pending.svg',
+                    LS_OUT_OF_STOCK => '../ikoner/no-stock.svg',
+                    LS_SEND_ORDER => '../ikoner/send-order.svg',
+                );
+                if (isset($icon_map[$overall_bg])) {
+                    $display .= "<img src='{$icon_map[$overall_bg]}' style='width:20px;height:20px;vertical-align:middle;margin-left:4px;'>";
+                }
+                // Highlight the legend row matching this order's overall status
                 $spantxt .= "<tr><td colspan=100><hr></td></tr>";
-                $spantxt .= "<tr><td>Magenta</td><td colspan=7>" . findtekst('2403|Alt leveret', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Grøn</td><td colspan=7>" . findtekst('1431|På lager', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Gul</td><td colspan=7>" . findtekst('1432|Delvist på lager', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Rød</td><td colspan=7>" . findtekst('1433|Ikke på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_OUT_OF_STOCK  ? " bgcolor=" . LS_OUT_OF_STOCK  : "") . "><td>Rød</td><td colspan=7>"     . findtekst('1433|Ikke på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_ITEMS_ORDERED ? " bgcolor=" . LS_ITEMS_ORDERED : "") . "><td>Gul</td><td colspan=7>"     . findtekst('1432|Delvist på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_IN_STOCK      ? " bgcolor=" . LS_IN_STOCK      : "") . "><td>Grøn</td><td colspan=7>"    . findtekst('1431|På lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_SEND_ORDER    ? " bgcolor=" . LS_SEND_ORDER    : "") . "><td>Magenta</td><td colspan=7>" . findtekst('1425|Alt leveret', $sprog_id) . "</td></tr>";
                 $spantxt .= "</tbody></table>";
                 $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
+                $lagerstatus_tooltip = true;
             }
             
-            return "<td align='{$column['align']}' style='$style' title='$title'><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
+            // The native title tooltip suppresses the lagerstatus overlib popup, so it is
+            // only dropped on the cells that actually carry that popup.
+            $td_title = $lagerstatus_tooltip ? "" : " title='$title'";
+            return "<td align='{$column['align']}' style='$style'$td_title><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
         }
     ),
     
     "ordredate" => array(
         "field" => "ordredate",
         "headerName" => findtekst('881|Ordredato', $sprog_id),
+        "headerText" => '881|Ordredato',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -837,6 +872,7 @@ $custom_columns = array(
     "levdate" => array(
         "field" => "levdate",
         "headerName" => findtekst('886|Dato for levering', $sprog_id),
+        "headerText" => '886|Dato for levering',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -848,6 +884,7 @@ $custom_columns = array(
     "fakturanr" => array(
         "field" => "fakturanr",
         "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
+        "headerText" => '882|Fakt. nr.',
         "width" => "0.8",
         "align" => "right",
         "type" => "number",
@@ -882,6 +919,7 @@ $custom_columns = array(
     "fakturadate" => array(
         "field" => "fakturadate",
         "headerName" => findtekst('883|Fakt. dato', $sprog_id),
+        "headerText" => '883|Fakt. dato',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -894,6 +932,7 @@ $custom_columns = array(
     "firmanavn" => array(
         "field" => "firmanavn",
         "headerName" => findtekst('360|Firmanavn', $sprog_id),
+        "headerText" => '360|Firmanavn',
         "width" => "2",
         "type" => "text",
         "searchable" => true,
@@ -957,6 +996,7 @@ $custom_columns = array(
     "kontonr" => array(
         "field" => "kontonr",
         "headerName" => findtekst('804|Kontonr.', $sprog_id),
+        "headerText" => '804|Kontonr.',
         "width" => "1",
         "type" => "text",
         "sqlOverride" => "o.kontonr",
@@ -980,6 +1020,7 @@ $custom_columns = array(
     "ref" => array(
         "field" => "ref",
         "headerName" => findtekst('884|Sælger', $sprog_id),
+        "headerText" => '884|Sælger',
         "width" => "1.5",
         "type" => "dropdown",
         "searchable" => true,
@@ -1018,7 +1059,7 @@ $custom_columns = array(
         "headerName" => findtekst('5231|Udført af', $sprog_id),
         "width" => "1",
         "type" => "text",
-        "sqlOverride" => "o.hvem",
+        "sqlOverride" => "o.performed_by",
         "searchable" => true,
         "render" => function ($value, $row, $column) {
             // caused issues due to our use of <span> for highlighting each match in the value, so we will not escape it for now
@@ -1063,6 +1104,7 @@ $custom_columns = array(
     "betalingsbet" => array(
         "field" => "betalingsbet",
         "headerName" => findtekst('56|Betalingsbet.', $sprog_id),
+        "headerText" => '56|Betalingsbet.',
         "width" => "1",
         "type" => "dropdown",
         "align" => "left",
@@ -1149,6 +1191,7 @@ $custom_columns = array(
     "kundeordnr" => array(
         "field" => "kundeordnr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "headerText" => '500|Ordrenr.',
         "width" => "1",
         "type" => "text",
         "align" => "right",
@@ -1169,6 +1212,7 @@ $custom_columns = array(
     "debitorgruppe" => array(
         "field" => "debitorgruppe",
         "headerName" => findtekst('2413|Debitorgruppe', $sprog_id),
+        "headerText" => '2413|Debitorgruppe',
         "width" => "1.5",
         "type" => "dropdown",
         "align" => "left",
@@ -1205,6 +1249,7 @@ $custom_columns = array(
     "land" => array(
         "field" => "land",
         "headerName" => findtekst('364|Land', $sprog_id),
+        "headerText" => '364|Land',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1223,6 +1268,7 @@ $custom_columns = array(
     "felt_1" => array(
         "field" => "felt_1",
         "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),
+        "headerText" => '255|Ekstrafelt 1',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1234,6 +1280,7 @@ $custom_columns = array(
     "felt_2" => array(
         "field" => "felt_2",
         "headerName" => findtekst('256|Ekstrafelt 2', $sprog_id),
+        "headerText" => '256|Ekstrafelt 2',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1245,6 +1292,7 @@ $custom_columns = array(
     "felt_3" => array(
         "field" => "felt_3",
         "headerName" => findtekst('257|Ekstrafelt 3', $sprog_id),
+        "headerText" => '257|Ekstrafelt 3',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1256,6 +1304,7 @@ $custom_columns = array(
     "felt_4" => array(
         "field" => "felt_4",
         "headerName" => findtekst('258|Ekstrafelt 4', $sprog_id),
+        "headerText" => '258|Ekstrafelt 4',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1267,6 +1316,7 @@ $custom_columns = array(
     "felt_5" => array(
         "field" => "felt_5",
         "headerName" => findtekst('259|Ekstrafelt 5', $sprog_id),
+        "headerText" => '259|Ekstrafelt 5',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1385,6 +1435,20 @@ if ($saved_columns !== null) {
 
 ############
 
+// SD-657: the setting closes the list's money columns for users without the Indstillinger right. They are
+// dropped here - from the pool and in the generated-column loop below - because the fields would otherwise be
+// offered again as ordrer columns and a saved layout would bring them back on screen and into the export.
+// sum and sum_m_moms are the turnover; moms is the VAT on it and kostpris the cost behind it, and the review
+// pointed out that a saved layout could still surface the latter two. Display only, the totals are calculated.
+$revenue_columns = array();
+if (hide_revenue()) {
+    $revenue_columns = array('sum', 'sum_m_moms', 'moms', 'kostpris');
+    foreach ($revenue_columns as $revenue_column) {
+        unset($custom_columns[$revenue_column]);
+    }
+    $active_column_names = array_values(array_diff($active_column_names, $revenue_columns));
+}
+
 $active_set = array_flip($active_column_names);
 $column_pool = []; // keyed by field name
  
@@ -1398,7 +1462,7 @@ foreach ($custom_columns as $field_name => $column_def) {
 foreach ($all_db_columns as $field_name => $column_info) {
     $grid_type = $column_info['grid_type'];
     $decimalPrecision = $column_info['decimalPrecision'];
-    $skip_fields = ['id', 'tidspkt', 'copied', 'scan_id'];
+    $skip_fields = array_merge(array('id', 'tidspkt', 'copied', 'scan_id'), $revenue_columns);
     if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
         continue;
     }
@@ -1650,28 +1714,33 @@ $filters = array();
 
 // Order type filter
 $filters[] = array(
+    "filterKey" => "ordretype",
     "filterName" => findtekst('2769|Ordretype', $sprog_id),
     "joinOperator" => "or",
     "options" => array(
         array(
+            "optionKey" => "tilbud",
             "name" => findtekst('2770|Tilbud', $sprog_id),
             "checked" => ($valg == "tilbud") ? "checked" : "",
             "sqlOn" => "o.status < 1",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "ordrer",
             "name" => findtekst('107|Ordrer', $sprog_id),
             "checked" => ($valg == "ordrer") ? "checked" : "",
             "sqlOn" => $hurtigfakt ? "o.status < 3" : "(o.status = 1 OR o.status = 2)",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "faktura",
             "name" => findtekst('1777|Fakturaer', $sprog_id),
             "checked" => ($valg == "faktura") ? "checked" : "",
             "sqlOn" => "o.status >= 3",
             "sqlOff" => "",
         ),
         array(
+            "optionKey" => "pbs",
             "name" => "BS",
             "checked" => ($valg == "pbs") ? "checked" : "",
             "sqlOn" => "o.art = 'PO' AND o.konto_id > '0'", // PBS orders
@@ -1720,7 +1789,10 @@ $debug_log[] = "base_where_conditions: $base_where_conditions";
 // IMPORTANT: Update the SQL query to include ALL columns dynamically
 $select_fields = "o.id as id";
 foreach ($all_db_columns as $field_name => $column_info) {
-    if ($field_name != 'id') {
+    if ($field_name == 'hvem') {
+        // Keep the existing grid key so saved layouts/searches continue to work.
+        $select_fields .= ", o.performed_by as hvem";
+    } elseif ($field_name != 'id') {
         $select_fields .= ", o.$field_name as $field_name";
     }
 }
@@ -1870,20 +1942,22 @@ $data = array(
                 $is_lagerfrt = in_array($r['gruppe'], $ls_vgr);
                 $tmp         = find_beholdning($r['vare_id'], NULL); // O(1) — Tier-1 cache
                 if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
-                    $linjefarve = '#FFFF66';
+                    $linjefarve = LS_ITEMS_ORDERED;
                 } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-                    $linjefarve = '#FF4D4D';
+                    $linjefarve = LS_OUT_OF_STOCK;
                 } elseif ($antal != $leveret) {
-                    $linjefarve = '#66FF66';
+                    $linjefarve = LS_IN_STOCK;
                 } else {
-                    $linjefarve = '#FF33FF';
+                    $linjefarve = LS_SEND_ORDER;
                 }
-                if ($linjefarve === '#FF4D4D') {
-                    $linjebg = '#FF4D4D';
-                } elseif ($linjefarve === '#FFFF66' && $linjebg !== '#FF4D4D') {
-                    if ($linjebg === null || $linjebg === '#66FF66') $linjebg = '#FFFF66';
-                } elseif ($linjefarve === '#66FF66' && $linjebg === null) {
-                    $linjebg = '#66FF66';
+                if ($linjefarve === LS_OUT_OF_STOCK) {
+                    $linjebg = LS_OUT_OF_STOCK;
+                } elseif ($linjefarve === LS_ITEMS_ORDERED && $linjebg !== LS_OUT_OF_STOCK) {
+                    if ($linjebg === null || $linjebg === LS_IN_STOCK) {
+                        $linjebg = LS_ITEMS_ORDERED;
+                    }
+                } elseif ($linjefarve === LS_IN_STOCK && $linjebg === null) {
+                    $linjebg = LS_IN_STOCK;
                 }
                 $result_lines[] = [
                     'varenr'     => $r['varenr'],
@@ -1895,7 +1969,7 @@ $data = array(
                 ];
             }
             get_order_lagerstatus_cache($ordre_id, $ls_vgr, [
-                'color' => $linjebg ?: '#FF33FF',
+                'color' => $linjebg ?: LS_SEND_ORDER,
                 'lines' => $result_lines,
             ]);
         }
@@ -2622,8 +2696,13 @@ print "<div id='top-control-bar'>";
 print "<div id='left-controls' >";
 
 if ($valg == "ordrer" && !$vis_lagerstatus) {
-    print "<a href='ordreliste.php?vis_lagerstatus=on&valg=$valg'>"
-          . findtekst('810|Vis lagerstatus', $sprog_id) . "</a> | ";
+    print "<button type='button' class='button blue small' style='cursor: pointer' onclick=\"location.href='ordreliste.php?vis_lagerstatus=on&valg=$valg'\">"
+          . findtekst('810|Vis lagerstatus', $sprog_id) . "</button>  ";
+}
+
+if ($valg == "ordrer" && $vis_lagerstatus) {
+    print "<button type='button' class='button blue small' style='cursor: pointer' onclick=\"location.href='ordreliste.php?valg=$valg'\">"
+          . findtekst('30|Tilbage', $sprog_id) . "</button>  ";
 }
 
 if ($valg == "ordrer") {
@@ -2659,19 +2738,23 @@ print "</div>";  // END LEFT
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
 print "<div>";
+    if (!hide_revenue()) {
     print "<a href='ordreliste.php?genberegn=1&valg=$valg'>
                 <b>" . findtekst('878|Samlet omsætning / db / dg (ekskl. moms.)', $sprog_id) . "</b>
            </a><br>";
     print "$ialt_formatted / $dk_db / $dk_dg%<br>";
     print "<b>" . findtekst('877|Samlet omsætning inkl. moms', $sprog_id)
           . ": $ialt_m_moms_formatted</b>";
+    }
 } else {
 print "<div id='center-turnover' style='flex:1; text-align:center;'>";
 print "<div style='display:flex;'>";
+    if (!hide_revenue()) {
     print findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id) . "<br>";
     print findtekst('2772|db / dg (ekskl. moms)', $sprog_id) . "<br>";
     print "<b style='margin-left: 20px;'>$ialt_m_moms_formatted ($ialt_formatted)<br>
            $dk_db / $dk_dg%</b>";
+    }
 }
 
 print "</div>";
