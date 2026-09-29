@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-09-28 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-09-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,7 @@
 // 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
 // 20260928 CL/SZ SST-818: The open journal ran one full-kladde select per line to check whether the kladde had saved lines, and two documents lookups per line; both are now done once per page.
 //                Saving reloaded the whole chart of accounts (and for D/K lines all of adresser) for every line and scanned it with in_array(); kontroller() now loads them once per request and checks with isset().
+// 20260929 CL/SZ SST-818: kk_finance_account_lookup() counts an account as closed only when lukket is 'on', the same test the account search uses.
 
 // 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -295,7 +296,7 @@ function kk_finance_account_lookup($regnaar) {
         while ($row = db_fetch_array($query)) {
             $key = kk_account_key(trim($row['kontonr']));
             $lookup['accounts'][$key] = true;
-            if ($row['lukket']) $lookup['closed'][$key] = true;
+            if ($row['lukket'] === 'on') $lookup['closed'][$key] = true;
         }
         $cache[$regnaar] = $lookup;
     }
