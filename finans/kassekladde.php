@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-08-19 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-09-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,6 +113,8 @@
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 // 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 // 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
+// 20260928 CL/SZ SST-818: The open journal ran one full-kladde select per line to check whether the kladde had saved lines, and two documents lookups per line; both are now done once per page.
+//                Saving reloaded the whole chart of accounts (and for D/K lines all of adresser) for every line and scanned it with in_array(); kontroller() now loads them once per request and checks with isset().
 
 // 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -265,6 +267,61 @@ function is_account_number($value) {
         return false;
     }
     return ctype_digit(trim((string)$value));
+}
+
+/**
+ * Lookup key under which isset() finds what in_array()'s loose comparison found: numeric values
+ * compare as numbers ("01000" is account 1000), anything else as the exact string.
+ */
+function kk_account_key($value) {
+    return is_numeric($value) ? 'n' . ($value + 0) : 's' . $value;
+}
+
+/**
+ * The finance accounts kontroller() validates against, loaded once per request instead of once per line.
+ *
+ * @return array{
+ *   accounts: array<string, true>,  Accounts that are not headings or totals (H/Z), keyed by kk_account_key().
+ *   closed: array<string, true>,    The closed (lukket) ones among them, same keys.
+ * }
+ */
+function kk_finance_account_lookup($regnaar) {
+    static $cache = array();
+    $regnaar = (int)$regnaar;
+    if (!isset($cache[$regnaar])) {
+        $lookup = array('accounts' => array(), 'closed' => array());
+        $qtxt = "select kontonr,lukket from kontoplan where kontotype != 'H' and kontotype != 'Z' and regnskabsaar=$regnaar";
+        $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        while ($row = db_fetch_array($query)) {
+            $key = kk_account_key(trim($row['kontonr']));
+            $lookup['accounts'][$key] = true;
+            if ($row['lukket']) $lookup['closed'][$key] = true;
+        }
+        $cache[$regnaar] = $lookup;
+    }
+    return $cache[$regnaar];
+}
+
+/**
+ * The debtor and creditor account numbers kontroller() validates against, loaded once per request.
+ *
+ * @return array{
+ *   D: array<string, true>,  Debtor account numbers, keyed by kk_account_key().
+ *   K: array<string, true>,  Creditor account numbers, same keys.
+ * }
+ */
+function kk_address_account_lookup() {
+    static $lookup = null;
+    if ($lookup === null) {
+        $lookup = array('D' => array(), 'K' => array());
+        $query = db_select("select kontonr, art from adresser", __FILE__ . " linje " . __LINE__);
+        while ($row = db_fetch_array($query)) {
+            $key = kk_account_key(trim((string)$row['kontonr']));
+            if (strstr((string)$row['art'], "D")) $lookup['D'][$key] = true;
+            if (strstr((string)$row['art'], "K")) $lookup['K'][$key] = true;
+        }
+    }
+    return $lookup;
 }
 
 function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_codes) {
@@ -3097,6 +3154,22 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	include_once("../includes/stdFunc/fiscalYear.php");
 	list($regnstart, $regnslut) = explode(":", fiscalYear($regnaar));
 
+	# Looked up once for the page: running these per line made a kladde of a few hundred lines take seconds.
+	$kladde_id_sql = (int)$kladde_id;
+	$qtxt = "select id from kassekladde where kladde_id = '$kladde_id_sql' limit 1";
+	$kk_has_saved_lines = ($kladde_id && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? true : false;
+	if (!$kk_has_saved_lines) {
+		$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+		if ($row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $last_bilag = $row['bilag'];
+	}
+	$kk_doc_source_ids = array();
+	$kk_line_ids = array_filter(array_map('intval', is_array($id) ? $id : array()));
+	if ($kk_line_ids) {
+		$qtxt = "select distinct source_id from documents where source = 'kassekladde' and source_id in (" . implode(',', $kk_line_ids) . ")";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($row = db_fetch_array($q)) $kk_doc_source_ids[(int)$row['source_id']] = true;
+	}
+
 	if ($menu == 'T') {
 		$de_fok = "";
 	} else {
@@ -3194,9 +3267,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		print "<tr>";
 		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
-			$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
-			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$hasDoc = (($dokument[$y] ?? null) || $docRow) ? true : false;
+			$hasDoc = (($dokument[$y] ?? null) || isset($kk_doc_source_ids[(int)$id[$y]])) ? true : false;
 			if ($hasDoc) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
@@ -3237,15 +3308,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$color = NULL;
 		}
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
-		$qtxt = "select bilag from kassekladde WHERE kladde_id = '$kladde_id'";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		if (db_num_rows($q) == 0){
-			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
-			if ($y == 1) {
-				$bilag[$y] = $last_bilag;
-			}
+		if (!$kk_has_saved_lines && $y == 1) {
+			$bilag[$y] = $last_bilag;
 		}
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -3346,8 +3410,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<button type='button' class='duplicate-line-btn' data-row='$y' data-id='$id[$y]' title='$plusTitle'>+</button>";
 
 		// Delete button - disabled if document attached
-		$qtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$id[$y]'";
-		$hasDoc = (($dokument[$y] ?? null) || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
+		$hasDoc = (($dokument[$y] ?? null) || isset($kk_doc_source_ids[(int)$id[$y]]));
 
 		if ($hasDoc) {
 			$deleteTitle = "Remove attached document first";
@@ -3778,8 +3841,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $aarstart;
 		global $aarslut;
 
-		$lukket = NULL;
-
 		if ($kladde_id) {
 			$qtxt = "select bogfort from kladdeliste where id = $kladde_id";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -3840,36 +3901,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			else $k_type = "F";
 			if (!$debet) $debet = 0;
 			if (!$kredit) $kredit = 0;
-			if (!$lukket) {
-				$lukket = array();
-				$y = 0;
-				$accountNumbers = array();
-				$query = db_select("select kontonr,lukket from kontoplan where kontotype != 'H' and kontotype != 'Z' and regnskabsaar=$regnaar", __FILE__ . " linje " . __LINE__);
-				while ($row = db_fetch_array($query)) {
-					$y++;
-					$accountNumbers[$y] = trim($row['kontonr']);
-					if ($row['lukket']) {
-						$lukket[$y] = $accountNumbers[$y];
-					}
-				}
-			}
+			# Loaded once per request and checked with isset(): reloading and scanning them for every line
+			# made saving a kladde of a few hundred lines take several seconds longer.
+			$financeLookup = kk_finance_account_lookup($regnaar);
+			$accountNumbers = $financeLookup['accounts'];
+			$lukket = $financeLookup['closed'];
 			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 			$kreditornr = array();
 			if (($d_type == "D") || ($k_type == "D") || ($d_type == "K") || ($k_type == "K")) {
-				$y = $z = 0;
-				$debitornr = $kreditornr = array();
-				$query = db_select("select kontonr, art from adresser", __FILE__ . " linje " . __LINE__);
-				while ($row = db_fetch_array($query)) {
-					if (strstr($row['art'], "D")) {
-						$z++;
-						$debitornr[$z] = trim($row['kontonr']);
-					}
-					if (strstr($row['art'], "K")) {
-						$y++;
-						$kreditornr[$y] = trim($row['kontonr']);
-					}
-				}
-
+				$addressLookup = kk_address_account_lookup();
+				$debitornr = $addressLookup['D'];
+				$kreditornr = $addressLookup['K'];
 			}
 			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 			if ($d_type == "F" && strlen($debet) == 1 && !is_numeric($debet) && $debet != '0') {
@@ -3948,7 +3990,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			if ((!$fejl) && ($d_type == "F") && ($debet > 0)) {
 				$alerttekst = '';
-				if (!in_array($debet, $accountNumbers)) {
+				if (!isset($accountNumbers[kk_account_key($debet)])) {
 					$alerttxt1 = findtekst('1589|Der er ingen finanskonti hvor', $sprog_id); // Der er ingen finanskonti hvor
 					$alerttxt2 = findtekst('1590|indgår (Bilag nr', $sprog_id); // indgår (Bilag nr
 					$alerttxt3 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
@@ -3957,11 +3999,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 
 					$hint = '';
-					if (isset($debitornr) && in_array($debet, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
-					elseif (isset($kreditornr) && in_array($debet, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					if (isset($debitornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Debitor (D)';
+					elseif (isset($kreditornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alerttxt1 . " '" . $debet . "' " . $alerttxt2 . " " . $bilag . $alerttxt3 . $hint); # 20230306 added ' and spaces
-				} elseif (in_array($debet, $lukket))
+				} elseif (isset($lukket[kk_account_key($debet)])) {
 					$alerttekst = addslashes($alerttxt4 . " " . $debet . " " . $alerttxt5 . " " . $bilag . $alerttxt3); # 20230306 added spaces
+				}
 				if ($alerttekst) {
 					alert("$alerttekst");
 					$fejl = 1;
@@ -3975,19 +4018,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
 
-				if (!in_array($kredit, $accountNumbers)) {
+				if (!isset($accountNumbers[kk_account_key($kredit)])) {
 					$hint = '';
-					if (isset($debitornr) && in_array($kredit, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
-					elseif (isset($kreditornr) && in_array($kredit, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					if (isset($debitornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Debitor (D)';
+					elseif (isset($kreditornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " '" . $kredit . "' " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} elseif (in_array($kredit, $lukket))
+				} elseif (isset($lukket[kk_account_key($kredit)])) {
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alerttxt4 . " " . $bilag . $alert4);
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($d_type == "D") && ($debet) && (!in_array($debet, $debitornr))) {
+			if ((!$fejl) && ($d_type == "D") && ($debet) && (!isset($debitornr[kk_account_key($debet)]))) {
 				$alerttekst = '';
 				$alert1 = findtekst('604|Debitor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -3997,8 +4041,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$svar = find_kontonr($fokus, 'D', $debet, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $debet) {
 					$hint = '';
-					if (in_array($debet, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
-					elseif (isset($kreditornr) && in_array($debet, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					if (isset($accountNumbers[kk_account_key($debet)])) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($kreditornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} else
 					$debet = $svar;
@@ -4007,7 +4051,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($k_type == "D") && ($kredit) && (!in_array($kredit, $debitornr))) {
+			if ((!$fejl) && ($k_type == "D") && ($kredit) && (!isset($debitornr[kk_account_key($kredit)]))) {
 				$alerttekst = '';
 				$alert1 = findtekst('604|Debitor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4017,8 +4061,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$svar = find_kontonr($fokus, 'D', $kredit, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $kredit) {
 					$hint = '';
-					if (in_array($kredit, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
-					elseif (isset($kreditornr) && in_array($kredit, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					if (isset($accountNumbers[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($kreditornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} else
 					$kredit = $svar;
@@ -4027,7 +4071,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($d_type == "K") && ($debet) && (!in_array($debet, $kreditornr))) {
+			if ((!$fejl) && ($d_type == "K") && ($debet) && (!isset($kreditornr[kk_account_key($debet)]))) {
 				$alerttekst = '';
 				$alert1 = findtekst('1169|Kreditor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4036,8 +4080,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$svar = find_kontonr($fokus, 'K', $debet, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $debet) {
 					$hint = '';
-					if (in_array($debet, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
-					elseif (isset($debitornr) && in_array($debet, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
+					if (isset($accountNumbers[kk_account_key($debet)])) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($debitornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Debitor (D)';
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} else
 					$debet = $svar;
@@ -4046,7 +4090,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($k_type == "K") && ($kredit) && (!in_array($kredit, $kreditornr))) {
+			if ((!$fejl) && ($k_type == "K") && ($kredit) && (!isset($kreditornr[kk_account_key($kredit)]))) {
 				$alerttekst = '';
 				$alert1 = findtekst('1169|Kreditor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4055,8 +4099,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$svar = find_kontonr($fokus, 'K', $kredit, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $kredit) {
 					$hint = '';
-					if (in_array($kredit, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
-					elseif (isset($debitornr) && in_array($kredit, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
+					if (isset($accountNumbers[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($debitornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Debitor (D)';
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} else
 					$kredit = $svar;
