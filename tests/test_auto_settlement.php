@@ -86,6 +86,17 @@ foreach ([['1009','K',[101,105]], ['1009','D',[102]], ['2000','K',[103]], ['404'
     ++$passed;
 }
 
+foreach ([['','',[101,102,103,105]], ['1009','K',[101,105]], ['1009','d',[102]],
+    ['1009','',[]], ['','D',[]], ['1009','F',[]], ['', 'F', []],
+    [[], '', []], ['', [], []], [null, '', []], ["1009' OR 1=1 --",'K',[]]] as [$number,$type,$expected]) {
+    $db = fixture();
+    $where = autoSettlementSearchWhere($number, $type);
+    $ids = $db->query("SELECT openpost.id FROM openpost JOIN adresser ON adresser.id = openpost.konto_id
+        WHERE (openpost.udlignet != '1' OR openpost.udlignet IS NULL) AND ($where) ORDER BY openpost.id")->fetchAll(PDO::FETCH_COLUMN);
+    check($ids === $expected, 'Optional account search mishandled an empty or malformed filter');
+    ++$passed;
+}
+
 foreach ([['', '5800', 'F', 'F', 29, 101, '1009', '5800', 'K', 'F'],
           ['0', '5800', 'F', 'F', 29, 101, '1009', '5800', 'K', 'F'],
           [null, '5800', 'F', 'F', 29, 101, '1009', '5800', 'K', 'F'],

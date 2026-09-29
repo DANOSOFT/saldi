@@ -38,9 +38,48 @@
 // 20220530 PHR resetPW was newer hit and no mail sent. Added '&& !$resetPW' to if ($account)  
 // 20230311 PHR Various updates according to PHP8 
 // 20230918 PHR Check if db exists 
+// 20260915 CDX/PHR Resolve the shop from a logged-in Saldi session before customer lookup.
+// 20260915 CDX/PHR Customer logout returns to customer-number entry and preserves the staff session.
 
 @session_start();
 $s_id=session_id();
+header('Cache-Control: no-store, private');
+require_once(__DIR__ . '/shopLookup.php');
+
+if (($_POST['action'] ?? '') === 'logout_customer') {
+	$logoutToken = $_POST['logoutToken'] ?? null;
+	if (!mySaleCustomerLogout($_SESSION, $logoutToken)) {
+		http_response_code(403);
+		echo 'Sessionen er ændret. Genindlæs siden og prøv igen.';
+		exit;
+	}
+	include(__DIR__ . '/../includes/connect.php');
+	mySaleRemoveCustomerSession($s_id);
+	setcookie('mylabel', '', time() - 3600, '/');
+	header('Location: mysale.php', true, 303);
+	exit;
+}
+
+if (empty($_GET['id']) && empty($_GET['tmpcode'])) {
+	$sessionCookie = $_COOKIE[session_name()] ?? null;
+	if (!is_string($sessionCookie) || $sessionCookie !== $s_id) {
+		header('Location: ../index/index.php', true, 303);
+		exit;
+	}
+	$customerNumber = is_string($_POST['kundenummer'] ?? null) ? trim($_POST['kundenummer']) : '';
+	include(__DIR__ . '/../includes/connect.php');
+	$lookup = mySaleShopLookup($s_id, $customerNumber, $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'],
+		function ($tenant) use ($sqhost, $squser, $sqpass, &$db) {
+			$db = $tenant;
+			return db_connect($sqhost, $squser, $sqpass, $tenant);
+		});
+	if ($lookup['redirect'] !== '') {
+		header('Location: ' . $lookup['redirect'], true, 303);
+		exit;
+	}
+	mySaleShopLookupForm($customerNumber, $lookup);
+	exit;
+}
 
 $accountId=$f=$t=$tmpcode=$s=NULL;
 if (!isset($_SESSION['mySalePw'])) $_SESSION['mySalePw'] = NULL;
@@ -52,6 +91,13 @@ print "<html>";
 print "	<head><title>Mit Salg</title><meta http-equiv='content-type' content='text/html; charset=UTF-8;'>
 	<meta http-equiv='content-language' content='da'>
 </head><body>";
+
+if (!empty($_GET['id'])) {
+	if (empty($_SESSION['mySaleLogoutToken'])) {
+		$_SESSION['mySaleLogoutToken'] = bin2hex(random_bytes(32));
+	}
+	mySaleCustomerLogoutButton($_SESSION['mySaleLogoutToken']);
+}
 
 $menu = 'mySale';
 if(isMobileDevice()) {

@@ -20,6 +20,7 @@
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ------------------------------------------------------------------------------
 // 20260907 CDX/LH Restrict record unlocking to supported tables and escape refresh targets.
+// 20260910 Sawaneh Blocked-close fallback without returside goes to nav_back_url(), not the login page.
 ?>
 <head>
 
@@ -82,8 +83,9 @@ if ($popup || !$returside) {
 	if ($browser=='ie') print  "<body onload=\"javascript:closeIE();\">";
 	print "<body onload=\"javascript:window.opener.focus();window.close();\">";
 	// When window.close() is blocked (page not script-opened, e.g. inside the
-	// new-design iframe), fall back to the returside instead of the login page.
-	$lukFallback = $returside ? $returside : "../index/index.php";
+	// new-design iframe), fall back to the returside, else to the previous page
+	// from the nav stack - never to the login page.
+	$lukFallback = $returside ? $returside : nav_back_url();
 	$lukFallback = htmlspecialchars($lukFallback, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=$lukFallback\">";
 } elseif ($returside) {
