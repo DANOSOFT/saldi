@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-20 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-09-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2020.01.22 PHR function send_mails. Added mail format check #20200122
@@ -54,6 +54,8 @@
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
+// 20260805 MJ konto_udtog: tilfoej udtog-pladsholder til at vise udestående saldo fra openpost
+// 20260812 MJ konto_udtog: konverter beloeb per-raekke via valuta/valutakurs (som skyldig/forfalden)
 // 20260814 LH Rykkerprint: pass rykker ordre-id to send_mails (was hardcoded 0) so mail-template variables like $kontonr work in rykker mails
 // 20260819 Sawaneh kontoprint: removed debug output and duplicate 'Mail sent to'
 //                  confirmation when mailing account statements as PDF.
@@ -67,10 +69,15 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
+// 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
+// 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 
+
+require_once __DIR__ . '/formFuncIncludes/htmlStyle.php';
+require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 
 if (!function_exists('skriv')) {
 	function skriv($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $formular, $line)
@@ -201,6 +208,8 @@ if (!function_exists('skriv')) {
 			$format = "$color";
 		}
 
+		$htmlFont = $form_font;
+		$htmlLayoutVersion = formHtmlLayoutVersion();
 		if (($fed == 'on' || $startfed == 'on') && ($italic != 'on'))
 			$form_font = $form_font . '-Bold-ISOLatin9 findfont';
 		elseif (($fed != 'on' || $startfed == 'on') && ($italic == 'on'))
@@ -331,15 +340,16 @@ if (!function_exists('skriv')) {
 							#	fwrite($htmfp,"<div style=\"position:absolute;top:".$row['xa']."mm;left:".$row['xb']."mm;\">".__line__."$ny_streng</div>\n");
 							$a = $row['xa'];
 							$b = 297 - $row['ya'];
-							$c = $ny_str * 1.2;
+							$htmlTextStyle = formHtmlTextStyle($row['font'], $htmlLayoutVersion === 1 ? $ny_str : $row['str'], $row['fed'] === 'on', $row['kursiv'] === 'on', $htmlLayoutVersion);
 							if (strpos($format, 'div neg')) {
 								$a = 210 - $a;
-								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm;transform:translate(-50%, -50%);\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">" . $ny_streng . "</span></div>\n");
+								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm;transform:translate(-50%, -50%);\"><span style=\"color:$htmcolor;$htmlTextStyle\">" . $ny_streng . "</span></div>\n");
 							} elseif (strpos($format, 'neg')) {
 								$a = 210 - $a;
-								fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">" . $ny_streng . "</span></div>\n");
-							} else
-								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">" . $ny_streng . "</span></div>\n");
+								fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;$htmlTextStyle\">" . $ny_streng . "</span></div>\n");
+							} else {
+								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;$htmlTextStyle\">" . $ny_streng . "</span></div>\n");
+							}
 						}
 					}
 				}
@@ -395,12 +405,12 @@ if (!function_exists('skriv')) {
 			}
 			$a = $x / 2.86;
 			$b = 297 - $y2 / 2.86;
-			$c = $ny_str * 1.2;
+			$htmlTextStyle = formHtmlTextStyle($htmlFont, $ny_str, $fed === 'on' || $startfed === 'on', $italic === 'on' || $startitalic === 'on', $htmlLayoutVersion);
 			if (strpos($format, 'neg')) {
 				$a = 210 - $a;
-				fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">$f1$i1" . $tekst . "$f2$i2</span></div>\n");
+				fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;$htmlTextStyle\">$f1$i1" . $tekst . "$f2$i2</span></div>\n");
 			} else {
-				fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">$f1$i1" . $tekst . "$f2$i2</span></div>\n");
+				fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;$htmlTextStyle\">$f1$i1" . $tekst . "$f2$i2</span></div>\n");
 			}
 		}
 		#if ($tekst1) exit;
@@ -654,7 +664,34 @@ if (!function_exists('find_form_tekst')) {
 						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 						$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "adresser" || $tabel == "konto") {
-						if ($variabel == 'valuta') {
+						if ($variabel == 'udtog') {
+							// 20260805 MJ konto_udtog: udestående saldo fra openpost
+							// 20260812 MJ Konverter beløb per-række via valuta/valutakurs som skyldig/forfalden
+							if ($formular == 11) {
+								$kid = (int)$id;
+							} else {
+								$r2 = db_fetch_array(db_select("select konto_id from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
+								$kid = (int)$r2['konto_id'];
+							}
+							$_udtog_q   = db_select("select amount,valuta,valutakurs from openpost where konto_id='$kid' and udlignet='0'", __FILE__ . " linje " . __LINE__);
+							$_udtog_sum = 0;
+							while ($_udtog_r = db_fetch_array($_udtog_q)) {
+								$_udtog_valuta = $_udtog_r['valuta'] ?: 'DKK';
+								$_udtog_kurs   = (float)($_udtog_r['valutakurs'] ?: 100);
+								$_udtog_dkk    = $_udtog_r['amount'] * $_udtog_kurs / 100;
+								if ($deb_valuta != 'DKK' && $deb_valuta != $_udtog_valuta)
+									$_udtog_amount = $_udtog_dkk * 100 / $deb_valutakurs;
+								elseif ($deb_valuta == $_udtog_valuta)
+									$_udtog_amount = $_udtog_r['amount'];
+								else
+									$_udtog_amount = $_udtog_dkk;
+								if ($deb_valuta == 'DKK')
+									$_udtog_amount = $_udtog_dkk;
+								$_udtog_sum += $_udtog_amount;
+							}
+							$streng[$x] = dkdecimal(afrund($_udtog_sum, 2), 2);
+							$q2 = NULL;
+						} elseif ($variabel == 'valuta') {
 							$qtxt = "select gruppe from adresser where id='$id'";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$qtxt = "select box3 as valuta from grupper where art='DG' and kodenr='$r2[gruppe]' ";
@@ -2387,25 +2424,7 @@ if (!function_exists('formulartekst')) {
 
 			if ($xa) {
 				fwrite($psfp, " $xa $ya moveto $xb $yb lineto $lw setlinewidth $color stroke \n");
-				$a = 297 - $row['ya'];
-				$b = $row['xa'];
-				$a *= 1.01;
-				$a .= 'mm';
-				$b .= 'mm';
-				if ($ya == $yb) { #vandret linje
-					$c = $row['xb'] - $row['xa'];
-					$c .= 'mm';
-
-					fwrite($htmfp, "<hr style=\"position:absolute;top:$a;left:$b;border:0.2px solid black; width:$c;\">\n");
-				}
-				if ($xa == $xb) { #lodret linje
-					$c = ($row['ya'] - $row['yb']) * 1.01;
-					$c .= 'mm';
-					fwrite($htmfp, "<hr style=\"position:absolute;top:$a;left:$b;border:0.2px solid black; width:1; height:$c\">\n");
-				}
-
-
-				#			fwrite($htmfp,"<div style=\"position:absolute;top:".$xa/2.86 ."mm;left:".$xb/2.86 ."mm;\">.</div>\n");
+				fwrite($htmfp, formHtmlLine($row, formHtmlLayoutVersion()));
 			}
 		}
 		if ($id)

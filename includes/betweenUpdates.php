@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.21
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
 //                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
 //                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
+// 20260929 CDX/PHR Initialize the tenant HTML layout version without changing existing forms.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -716,5 +717,9 @@ foreach ($gamle_242 as $gammel) {
 	$gammel = db_escape_string($gammel);
 	db_modify("delete from tekster where tekst_id = '242' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
 }
+
+// Preserve HTML users before the renderer changes; explicit choices survive later updates.
+require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
+initializeFormHtmlLayoutVersion($db_type);
 
 ?>

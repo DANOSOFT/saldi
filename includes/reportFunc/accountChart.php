@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/accountchart.php --- lap 5.0.0 --- 2026.04.23 ---
+// --- includes/reportFunc/accountchart.php --- lap 5.0.0 --- 2026.09.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 - 2026 Saldi.dk ApS
+// Copyright (c) 2023 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20250627 base currency anount was not calculated correct.
@@ -35,6 +35,7 @@
 //                top-level reportFunc/ copy) - exact kontonr match first, second
 //                firmanavn query line appended instead of overwriting, and
 //                konto_fra/kontoart escaped before SQL interpolation
+// 20260925 CDX/PHR Default to open posts and preserve the report filter when opening settlement.
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -48,16 +49,9 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	global $top_bund;
 
 	$title = "Kontokort"; 
-	if(isset($_GET['kilde'])) {
-		
-		$OpenPost = if_isset($_GET['kilde'])=='openpost' ? 'on' : 'off';
-		$AllAcount = if_isset($_GET['kilde'])=='show_all' ? 'on' : 'off';
-		if($OpenPost != 'on' && $AllAcount != 'on') {
-			$OpenPost = 'on'; //default to open post
-		}
-	} 
-
-	
+	$kilde = ifset($_GET, 'kilde') === 'show_all' ? 'show_all' : 'openpost';
+	$OpenPost = $kilde === 'openpost' ? 'on' : 'off';
+	$AllAcount = $kilde === 'show_all' ? 'on' : 'off';
 
 	$email=$forfaldsum=$fromdate=$kto_fra=$kto_til=$returside=$todate=NULL;
 
@@ -82,7 +76,6 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 
 	$difflink=0;
 	$kontoart=trim($kontoart);
-	$kilde=if_isset($_GET['kilde']);
 	$kilde_kto_fra=if_isset($_GET['kilde_kto_fra']);
 	$kilde_kto_til=if_isset($_GET['kilde_kto_til']);
 
@@ -467,7 +460,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 				($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 				if ($udlignet[$y]!='1') {
 						$pre_openpost=1;
-						print "<td valign=\"top\">$ffdag<br></td><td valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"text-align:right\">0</td>";
+						print "<td valign=\"top\">$ffdag<br></td><td valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"text-align:right\">0</td>";
 					} else {
 						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
 						$alink="rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
@@ -480,7 +473,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 				} else {
 					($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 					if ($udlignet[$y]!='1') {
-						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
+						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
 						$pre_openpost=1;
 					} else {
 						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
@@ -618,7 +611,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 					($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 					   if ($udlignet[$y]!='1') {
 							$pre_openpost=1;
-							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
+							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
 						} else {
 							$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
 							$alink="rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
@@ -631,7 +624,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 					} else {
 						($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 						if ($udlignet[$y]!='1') {
-							print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
+							print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
 							$pre_openpost=1;
 						} else {
 							$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
