@@ -33,6 +33,8 @@
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260917 M - Column headers, filters and the rename/delete dialogs pulled from findtekst().
 // 20260917 M - Translated values interpolated into JavaScript string literals are addslashes()'d, and the page title follows the language via document.title.
+// 20260929 CL/NTR Cancelling the rename prompt no longer opens the rename confirmation.
+// 20260929 CL/NTR Replaced addslashes() with json_encode() (+ htmlspecialchars() in onclick attributes) for JS string literals, so translated text cannot break out of the script or attribute context.
 
 @session_start();
 $s_id = session_id();
@@ -50,7 +52,7 @@ include ("../../includes/stdFunc/dkDecimal.php");
 
 // $sprog_id is known from here on. index/main.php copies the iframe title into the browser
 // tab when the frame loads, so correcting document.title here makes the tab follow the language.
-print "<script>document.title = '".addslashes(findtekst('5232|Serienr.', $sprog_id))."';</script>\n";
+print "<script>document.title = ".json_encode(findtekst('5232|Serienr.', $sprog_id), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).";</script>\n";
 
 $valg = "Serienumre";
 include ("topLineVarer.php");
@@ -323,26 +325,28 @@ ORDER BY
     'metaColumn' => substr($rettigheder,1,1) ? function ($row) {
         global $sprog_id;
         if ($row['salgs_ordre'] == "") {
-            // The three strings below end up inside single-quoted JavaScript string literals in the
-            // onclick handlers, so every interpolated value is addslashes()'d - an apostrophe in a
-            // translation (or in a serial number) would otherwise break the dialog.
-            $serienr       = addslashes($row['serienr']);
-            $renamePrompt  = addslashes(findtekst('4996|Hvad skal serienummeret omdøbes til?', $sprog_id))."\\n".addslashes(findtekst('1497|Serienummer', $sprog_id)).": {$serienr}";
-            $renameConfirm = addslashes(findtekst('4997|Omdøb', $sprog_id))." {$serienr} ".addslashes(findtekst('904|til', $sprog_id));
-            $deleteConfirm = addslashes(findtekst('1099|Slet', $sprog_id))." {$serienr}";
+            // The three values below are JavaScript expressions placed inside double-quoted onclick
+            // attributes: json_encode() makes each a safe JS string literal, htmlspecialchars() makes
+            // the literal safe inside the HTML attribute.
+            $jsFlags       = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+            $serienr       = $row['serienr'];
+            $renamePrompt  = htmlspecialchars(json_encode(findtekst('4996|Hvad skal serienummeret omdøbes til?', $sprog_id)."\n".findtekst('1497|Serienummer', $sprog_id).": {$serienr}", $jsFlags), ENT_QUOTES, 'UTF-8');
+            $renameConfirm = htmlspecialchars(json_encode(findtekst('4997|Omdøb', $sprog_id)." {$serienr} ".findtekst('904|til', $sprog_id)." ", $jsFlags), ENT_QUOTES, 'UTF-8');
+            $deleteConfirm = htmlspecialchars(json_encode(findtekst('1099|Slet', $sprog_id)." {$serienr}?", $jsFlags), ENT_QUOTES, 'UTF-8');
 
             return <<<HTML
             <td class='filler-row'> <!-- Automatically gets removed on export -->
                 <div style='display: flex;'>
                     <svg
                         onclick="
-                            const name = prompt('{$renamePrompt}');
+                            const name = prompt({$renamePrompt});
+                            if (name === null) return;
 
                             document.getElementsByName('serienr_id')[0].value='{$row['id']}';
                             document.getElementsByName('vare_id')[0].value='{$row['vare_id']}';
                             document.getElementsByName('rename')[0].value=name;
 
-                            if (confirm('{$renameConfirm} '+name+'?')) {
+                            if (confirm({$renameConfirm}+name+'?')) {
                                 document.getElementsByName('rename')[0].form.submit();
                             } else {
                                 document.getElementsByName('rename')[0].value='';
@@ -358,7 +362,7 @@ ORDER BY
                             document.getElementsByName('vare_id')[0].value='{$row['vare_id']}';
                             document.getElementsByName('delete')[0].value=1;
 
-                            if (confirm('{$deleteConfirm}?')) {
+                            if (confirm({$deleteConfirm})) {
                                 document.getElementsByName('rename')[0].form.submit();
                             } else {
                                 document.getElementsByName('delete')[0].value='';
