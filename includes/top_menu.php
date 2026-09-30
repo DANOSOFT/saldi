@@ -8,6 +8,7 @@
 // 20260716 MJ - Added vat reporting module.
 // 20260730 NTR - Added translation to momsperioder.
 // 20260914 CDX/LH Removed the Guides menu entry and its popup.
+// 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
 
 $site = "";
 $subsite = "";
@@ -128,6 +129,10 @@ print "          <div class='dropdownContent-Lag'>";
 print "          <a href='../lager/varer.php'>".findtekst(110,$sprog_id)."</a>";
 print "          <a href='../lager/modtageliste.php'>".findtekst(610,$sprog_id)."</a>";
 print "          <a href='../lager/rapport.php'>".findtekst(603,$sprog_id)."</a>";
+# Offer the expiry report under Lager, for accounts that use batch/expiry management.
+if (batch_expiry_in_use()) {
+print "          <a href='../lager/udlobsrapport.php'>".findtekst(5014,$sprog_id)."</a>";
+}
 print "          </div>";
 print "      </li>";
 print "      <li class='dropDown'>";

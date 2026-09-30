@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/udlobsrapport.php --- patch 4.2.0 --- 2026-04-16 ---
+// --- lager/udlobsrapport.php --- ver 5.0.0 --- 2026-09-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Expiry report - shows items expiring within X days or already expired.
+// 20260930 LOE SST-836 The report has menu entries now, so it takes its return page from the link
+//                  that opened it and offers the per-item batch overview from the item number.
 
 @session_start();
 $s_id = session_id();
@@ -38,8 +40,29 @@ include("../includes/topline_settings.php");
 
 $title = findtekst('5014|Udl&oslash;bsrapport', $sprog_id);
 
+if (!function_exists('udlobsrapport_returside')) {
+	/**
+	 * Return page for the back link: a plain page in this folder, optionally with a simple query
+	 * string. Anything else (a full URL, a ../ path, markup) falls back to the menu, so the value
+	 * cannot turn the back link into an open redirect.
+	 *
+	 * @param string $value Raw returside request value.
+	 * @return string Safe link target.
+	 */
+	function udlobsrapport_returside($value) {
+		$value = trim((string)$value);
+		if ($value === '' || !preg_match('/^[A-Za-z0-9_]+\.php(\?[A-Za-z0-9_=&%.+-]*)?$/', $value)) {
+			return '../index/menu.php';
+		}
+		return $value;
+	}
+}
+
+$returside = udlobsrapport_returside(ifset($_GET, 'returside', ''));
 if ($popup) $returside = "../includes/luk.php";
-else $returside = "lagerstatus.php";
+// Keep the return page when the filter changes, so the back link still leads where the user came from.
+$returparam = ($returside == '../index/menu.php') ? '' : '&returside=' . urlencode($returside);
+$returhref = htmlspecialchars($returside, ENT_QUOTES, 'UTF-8');
 
 // Filter: days until expiry
 $filter_days = isset($_GET['dage']) ? intval($_GET['dage']) : 30;
@@ -51,7 +74,7 @@ if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href='$returside' accesskey='L'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class=\"headerbtnLft headLink\"><a href='$returhref' accesskey='L'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 	print "<div class=\"headerTxt\">$title</div>";
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
@@ -60,7 +83,7 @@ if ($menu == 'T') {
 	print "<table width='100%' cellspacing='2'><tbody>";
 	print "<tr><td colspan='9'>";
 	print "<table width='100%' cellspacing='2'><tbody>";
-	print "<td width='10%'><a href='$returside' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+	print "<td width='10%'><a href='$returhref' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
 	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
 	print "<td width='10%' align='center' style='$topStyle'><br></td>";
 	print "</tbody></table>";
@@ -68,7 +91,7 @@ if ($menu == 'T') {
 	print "<table width='100%' cellspacing='2'><tbody>";
 	print "<tr><td colspan='9'>";
 	print "<table width='100%' cellspacing='2'><tbody>";
-	print "<td width='10%' $top_bund><a href='$returside' accesskey='L'>Luk</a></td>";
+	print "<td width='10%' $top_bund><a href='$returhref' accesskey='L'>Luk</a></td>";
 	print "<td width='80%' $top_bund>$title</td>";
 	print "<td width='10%' $top_bund><br></td>";
 	print "</tbody></table>";
@@ -77,7 +100,7 @@ if ($menu == 'T') {
 // Filter form
 print "<table width='100%'><tbody><tr>";
 print "<td>" . findtekst('5015|Udl&oslash;ber inden', $sprog_id) . ": ";
-print "<select onchange=\"window.location='udlobsrapport.php?dage='+this.value\">";
+print "<select onchange=\"window.location='udlobsrapport.php?dage='+this.value+'$returparam'\">";
 $options = array(7, 14, 30, 60, 90, 0);
 $labels = array('7 dage', '14 dage', '30 dage', '60 dage', '90 dage', 'Alle');
 for ($i = 0; $i < count($options); $i++) {
@@ -85,8 +108,8 @@ for ($i = 0; $i < count($options); $i++) {
 	print "<option value='$options[$i]'$sel>$labels[$i]</option>";
 }
 print "</select>";
-print " &nbsp; <a href='udlobsrapport.php?udloebet=1'>" . findtekst('5016|Vis kun udl&oslash;bne', $sprog_id) . "</a>";
-print " &nbsp; <a href='udlobsrapport.php?dage=$filter_days&csv=1'>" . findtekst('5017|Eksporter CSV', $sprog_id) . "</a>";
+print " &nbsp; <a href='udlobsrapport.php?udloebet=1$returparam'>" . findtekst('5016|Vis kun udl&oslash;bne', $sprog_id) . "</a>";
+print " &nbsp; <a href='udlobsrapport.php?dage=$filter_days&csv=1$returparam'>" . findtekst('5017|Eksporter CSV', $sprog_id) . "</a>";
 print "</td></tr></tbody></table>";
 
 print "<br>";
@@ -186,7 +209,10 @@ while ($row = db_fetch_array($query)) {
 	$lager_name = isset($lagernavn[$lager_nr]) ? $lagernavn[$lager_nr] : $lager_nr;
 
 	print "<tr $bg>";
-	print "<td><a href='varekort.php?id=$row[vare_id]'>" . htmlentities($row['varenr']) . "</a></td>";
+	print "<td><a href='varekort.php?id=$row[vare_id]'>" . htmlentities($row['varenr']) . "</a>";
+	# The batch overview was otherwise only reachable from the item card; offer it on the item here.
+	$batch_back = 'udlobsrapport.php?dage=' . $filter_days . ($returparam ? '&returside=' . rawurlencode($returside) : '');
+	print "<br><a href='batch_oversigt.php?vare_id=" . (int)$row['vare_id'] . "&returside=" . urlencode($batch_back) . "' title='" . findtekst('5004|Batch oversigt', $sprog_id) . "'>" . findtekst('5004|Batch oversigt', $sprog_id) . "</a></td>";
 	print "<td>" . htmlentities($row['beskrivelse']) . "</td>";
 	print "<td>" . htmlentities($row['batch_no']) . "</td>";
 	print "<td>" . dkdato($due_date) . "</td>";
