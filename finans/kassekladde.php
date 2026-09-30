@@ -113,6 +113,8 @@
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 // 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 // 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
+// 20260930 CL/SZ SD-701 Clicking an attached voucher opens it in a separate tab (reused per click), so it can sit
+//                  on a second screen while the journal, incl. unsaved values, stays open in the original tab.
 
 // 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -437,6 +439,18 @@ print '<script>
 </script>';
 print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
+// SD-701 Attached vouchers open in one named tab that later clicks reuse, so a tab moved to a second
+// screen keeps showing the current voucher. The journal is not left, so there is no unsaved-changes prompt.
+print "<script>
+	function openBilagTab(url) {
+		var bilagTab = window.open(url, 'saldiBilag');
+		if (bilagTab) {
+			bilagTab.focus();
+		} else {
+			document.location = url;
+		}
+	}
+</script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.4">';
 print '<script src="../javascript/accountAutocomplete.js?v=4.1.6" defer></script>';
@@ -1770,8 +1784,9 @@ $columns = array(
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href','$txt')";
 			return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
-				<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>
+				<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>
 				<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
 			</td>";
 		}
@@ -3216,7 +3231,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>";
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href','$txt')";
+			print "<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>";
 			#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
 		}
@@ -5494,8 +5510,7 @@ document.addEventListener('DOMContentLoaded', function() {
 					const span = clipCell.querySelector('span');
 					if (span) {
 						const docHref = '../includes/documents.php?source=kassekladde&sourceId=' + data.sourceId + '&kladde_id=' + data.kladde_id + '&bilag=' + encodeURIComponent(bilag);
-						const warnTxt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-						span.onclick = function() { confirmClose(docHref, warnTxt); };
+						span.onclick = function() { openBilagTab(docHref); };
 						span.draggable = true;
 						span.addEventListener('dragstart', function(e) {
 							clipDragStart(e, data.sourceId, bilag);
