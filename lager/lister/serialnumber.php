@@ -35,6 +35,7 @@
 // 20260917 M - Translated values interpolated into JavaScript string literals are addslashes()'d, and the page title follows the language via document.title.
 // 20260929 CL/NTR Cancelling the rename prompt no longer opens the rename confirmation.
 // 20260929 CL/NTR Replaced addslashes() with json_encode() (+ htmlspecialchars() in onclick attributes) for JS string literals, so translated text cannot break out of the script or attribute context.
+// 20260930 CL/NTR JS string literals are built with jsString() from std_func: legacy (non-UTF8) text is converted to UTF-8 part by part and the output stays ASCII.
 
 @session_start();
 $s_id = session_id();
@@ -50,9 +51,19 @@ include ("../../includes/connect.php");
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
 
+/**
+ * jsString() comes from includes/stdFunc/jsString.php, which std_func.php includes. It is used
+ * for every text placed inside a JavaScript string literal on this page: it converts legacy
+ * (non-UTF8) database text to UTF-8 part by part and returns a quoted, ASCII-only JS literal.
+ * Inside the double-quoted onclick attributes below its result is also passed through
+ * htmlspecialchars().
+ *
+ * @see jsString()
+ */
+
 // $sprog_id is known from here on. index/main.php copies the iframe title into the browser
 // tab when the frame loads, so correcting document.title here makes the tab follow the language.
-print "<script>document.title = ".json_encode(findtekst('5232|Serienr.', $sprog_id), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).";</script>\n";
+print "<script>document.title = ".jsString(array(findtekst('5232|Serienr.', $sprog_id))).";</script>\n";
 
 $valg = "Serienumre";
 include ("topLineVarer.php");
@@ -326,13 +337,12 @@ ORDER BY
         global $sprog_id;
         if ($row['salgs_ordre'] == "") {
             // The three values below are JavaScript expressions placed inside double-quoted onclick
-            // attributes: json_encode() makes each a safe JS string literal, htmlspecialchars() makes
+            // attributes: jsString() makes each a safe JS string literal, htmlspecialchars() makes
             // the literal safe inside the HTML attribute.
-            $jsFlags       = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
             $serienr       = $row['serienr'];
-            $renamePrompt  = htmlspecialchars(json_encode(findtekst('4996|Hvad skal serienummeret omdøbes til?', $sprog_id)."\n".findtekst('1497|Serienummer', $sprog_id).": {$serienr}", $jsFlags), ENT_QUOTES, 'UTF-8');
-            $renameConfirm = htmlspecialchars(json_encode(findtekst('4997|Omdøb', $sprog_id)." {$serienr} ".findtekst('904|til', $sprog_id)." ", $jsFlags), ENT_QUOTES, 'UTF-8');
-            $deleteConfirm = htmlspecialchars(json_encode(findtekst('1099|Slet', $sprog_id)." {$serienr}?", $jsFlags), ENT_QUOTES, 'UTF-8');
+            $renamePrompt  = htmlspecialchars(jsString(array(findtekst('4996|Hvad skal serienummeret omdøbes til?', $sprog_id), "\n", findtekst('1497|Serienummer', $sprog_id), ": ", $serienr)), ENT_QUOTES, 'UTF-8');
+            $renameConfirm = htmlspecialchars(jsString(array(findtekst('4997|Omdøb', $sprog_id), " ", $serienr, " ", findtekst('904|til', $sprog_id), " ")), ENT_QUOTES, 'UTF-8');
+            $deleteConfirm = htmlspecialchars(jsString(array(findtekst('1099|Slet', $sprog_id), " ", $serienr, "?")), ENT_QUOTES, 'UTF-8');
 
             return <<<HTML
             <td class='filler-row'> <!-- Automatically gets removed on export -->
