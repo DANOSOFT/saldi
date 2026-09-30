@@ -71,6 +71,9 @@
 //                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
 // 20260928 CL/LH Widen int ordrer.shop_status to varchar(20) before creating the Stripe
 //                  paid-invoice index; the string predicate blocked login on int-typed tenants.
+// 20260929 CDX/PHR Initialize the tenant HTML layout version without changing existing forms.
+// 20260930 CL/NTR The repeated tekster clean-ups now call deleteStaleTekst() (includes/opdat_func/),
+//                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
 
@@ -78,6 +81,12 @@
  * Injected by includes/connect.php via the entry page that includes this file:
  * @var string $db_type
  */
+
+// ===== PROTECTED: when a version is cut (see doc/ai/convention_database_changes.md), COPY this =====
+// ===== segment into the opdat_<major>.<minor>.php file - do not move it. The moved statements =====
+// ===== call these helpers, and this file keeps needing them for the next release. =====
+include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
+// ===== END PROTECTED =====
 
 $performedByMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
@@ -252,16 +261,10 @@ $bilagsmatch_stale_tekster = [
 	[5047, 1, 'Beløb'], [5047, 2, 'Amount'], [5047, 3, 'Beløp'],
 ];
 foreach ($bilagsmatch_stale_tekster as $stale) {
-	$qtxt = "select id from tekster where sprog_id = '$stale[1]' and tekst_id = '$stale[0]' and tekst = '" . db_escape_string($stale[2]) . "'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
-	}
+	deleteStaleTekst($stale[0], $stale[2], $stale[1]);
 }
 
-$qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '38' and tekst = 'Stillingsliste'";
-if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	db_modify("update tekster set tekst = '' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
-}
+deleteStaleTekst(38, 'Stillingsliste', 1);
 
 # 20260715 CL/SZ - lager/rapport.php's "Bestilt" (Ordered) column query lost its ordrer.levdate
 # range filter (see lager/rapport.php ~line 653) so open orders are found by status/leveret alone.
@@ -495,10 +498,7 @@ $bilagsmatch_stale_tooltip_5071 = [
 	[5071, 1, 'Klik for at åbne dokumentet'], [5071, 2, 'Click to open the document'], [5071, 3, 'Klikk for å åpne dokumentet'],
 ];
 foreach ($bilagsmatch_stale_tooltip_5071 as $stale) {
-	$qtxt = "select id from tekster where sprog_id = '$stale[1]' and tekst_id = '$stale[0]' and tekst = '" . db_escape_string($stale[2]) . "'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
-	}
+	deleteStaleTekst($stale[0], $stale[2], $stale[1]);
 }
 
 // 20260807 CL/LH Stripe subscriptions: four tables + indexes for the native Stripe
@@ -607,9 +607,7 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // holding the old text so findtekst() re-seeds them from tekster.csv. Guarded on the old values
 // because betweenUpdates.php runs at every login and customer-edited texts must not be wiped.
 $gamle_351 = array('Kontonummer findes allerede', 'not changed', 'Kontonummer eksisterer allerede');
-foreach ($gamle_351 as $gammel) {
-	db_modify("delete from tekster where tekst_id = '351' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
-}
+deleteStaleTekst(351, $gamle_351);
 
 $cvr_gamle_tekster = array(
 	'Auto-opslag','Auto lookup','Auto-oppslag',
@@ -621,13 +619,8 @@ $cvr_gamle_tekster = array(
 	'CVR-nummeret er ikke gyldigt.','The VAT number is not valid.','Organisasjonsnummeret er ikke gyldig.',
 	'Søger...','Searching...','Søker...'
 );
-foreach ($cvr_gamle_tekster as $cvr_tekst) {
-	$cvr_tekst = db_escape_string($cvr_tekst);
-	db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst = '$cvr_tekst'", __FILE__ . " linje " . __LINE__);
-}
-db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast CVR-nr. efterfulgt%'", __FILE__ . " linje " . __LINE__);
-db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Enter the VAT no. followed%'", __FILE__ . " linje " . __LINE__);
-db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast inn org.nr. etterfulgt%'", __FILE__ . " linje " . __LINE__);
+deleteStaleTekst([5040, 5046], $cvr_gamle_tekster);
+deleteStaleTekst([5040, 5046], ['Tast CVR-nr. efterfulgt', 'Enter the VAT no. followed', 'Tast inn org.nr. etterfulgt'], null, true);
 
 // 20260908 CL/Sawaneh SST-763: one pbs_ordrer row per PBS attempt. New columns record who/when,
 // the Nets result registered by the user and which earlier attempt a resend replaces.
@@ -776,9 +769,39 @@ $gamle_242 = array(
 	'<big>This feature does the following: <UL> <LI> settles all accounts',
 	'<big> Denne funksjonen gjør følgende: <UL> <LI> gjør opp alle kontoer'
 );
-foreach ($gamle_242 as $gammel) {
-	$gammel = db_escape_string($gammel);
-	db_modify("delete from tekster where tekst_id = '242' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
+deleteStaleTekst(242, $gamle_242);
+
+// 20260930 CL/NTR Texts reworded in importfiler/tekster.csv on the translation branch (vareliste,
+// indkøb, ordrestatus and serienumre pages). findtekst() prefers an existing DB row over the csv, so
+// delete the rows still holding the old text; the next findtekst() call re-seeds the new text.
+// Entries are [tekst_id, sprog_id, old text]. Rows that only gained a text (empty before) need no entry.
+$tekster_reworded_20260930 = [
+	[373, 3, 'Løp. md.'],
+	[429, 2, 'Category'],
+	[429, 3, 'Kategori'],
+	[544, 2, 'Invoice Display'],
+	[545, 2, 'Offer Display'],
+	[545, 3, 'Tilbyr utsikt'],
+	[546, 2, 'Order Display'],
+	[546, 3, 'Bestill skjerm'],
+	[954, 3, 'Kjøpsforslag'],
+	[967, 3, 'Gjenstandsnavn'],
+	[988, 2, 'Supplier'],
+	[988, 3, 'Leverandør'],
+	[1208, 2, 'Start mnth.'],
+	[1208, 3, 'Start md.'],
+	[1210, 2, 'End mnth.'],
+	[1210, 3, 'Slutt md.'],
+	[2640, 2, ' Click here to add a new product'],
+	[2640, 3, 'Klikk her for å opprette et nytt produkt'],
+	[2641, 2, 'Your product list is displayed here. Click a item number to open it.'],
+	[2648, 3, 'Her ser du hvor mye systemet anbefaler at du bestiller på nytt. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.'],
+	[2652, 3, 'Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i for eksempel partier på f.eks.'],
+	[2656, 3, 'Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret'],
+	[2657, 3, 'Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret'],
+];
+foreach ($tekster_reworded_20260930 as $reworded) {
+	deleteStaleTekst($reworded[0], $reworded[2], $reworded[1]);
 }
 
 // 20260924 Sawaneh SST-757: Users created via Sager -> Ansatte were inserted without regnskabsaar. Checked with a
@@ -789,5 +812,8 @@ if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null 
 		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
 	}
 }
+// Preserve HTML users before the renderer changes; explicit choices survive later updates.
+require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
+initializeFormHtmlLayoutVersion($db_type);
 
 ?>
