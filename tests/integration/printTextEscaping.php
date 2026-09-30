@@ -1,5 +1,6 @@
 <?php
 // 20260914 CDX/LH SST-784: Test actual skriv() output in HTML and real PostScript rendering.
+// 20260929 CDX/PHR Keep the isolated renderer test on the legacy HTML layout.
 // Run: php tests/integration/printTextEscaping.php (requires ps2pdf and gs).
 chdir(__DIR__ . '/../../debitor');
 require_once __DIR__ . '/../../includes/formfunk.php';
@@ -10,6 +11,8 @@ set_error_handler(function ($severity, $message, $file, $line) {
 });
 
 // Isolate translation and character conversion from the database-backed application bootstrap.
+// Isolate the tenant setting from the database-backed application bootstrap.
+function get_settings_value($name, $group, $default) { return '1'; }
 function findtekst($key, $language) { return explode('|', $key, 2)[1]; }
 function utf8_iso8859($text) { return iconv('UTF-8', 'ISO-8859-15', $text); }
 

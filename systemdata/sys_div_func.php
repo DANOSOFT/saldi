@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.09.24 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.09.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -124,6 +124,7 @@
 //                ($_POST['mySaleTest'] was read nowhere) and had no consumer. MB-28.
 // 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
 // 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
+// 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -996,6 +997,12 @@ function div_valg() {
 	print "<td title='".findtekst('817|Afmærkes feltet anvendes HTML/CSS til formulargenerering.', $sprog_id)."'>\n";
 	print "<input name='pv_box3' class='inputbox' type='checkbox' $formgen>\n";
 	print "</td></tr>\n";
+	require_once __DIR__ . '/../includes/formFuncIncludes/htmlLayoutVersion.php';
+	$htmlLayoutVersion = formHtmlLayoutVersion();
+	print "<tr><td>HTML/CSS-layout</td><td><select name='html_layout_version' class='inputbox'>";
+	print "<option value='1'" . ($htmlLayoutVersion === 1 ? ' selected' : '') . ">Bevar hidtidigt udseende</option>";
+	print "<option value='2'" . ($htmlLayoutVersion === 2 ? ' selected' : '') . ">Brug formularens skrifter og stregtykkelser</option>";
+	print "</select><br><small>Gælder kun HTML/CSS. Kontrollér en prøveudskrift efter ændring.</small></td></tr>\n";
 	print "<tr>\n<td title='".findtekst('709|Afmærk her for at undtrykke advarsel i kassekladden', $sprog_id)."'>".findtekst('708|Tillad forskellige datoer på samme bilagsnummer i kassekladde.', $sprog_id)."</td>\n";
 	print "<td title='".findtekst('709|Afmærk her for at undtrykke advarsel i kassekladden', $sprog_id)."'>\n";
 	print "<input name='box4' class='inputbox' type='checkbox' $forskellige_datoer></td></tr>\n"; #20131101
