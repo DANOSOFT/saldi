@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----patch 5.0.0 ----2026-04-30----- 
+// --- finans/rapport_includes/kontokort.php-----ver 5.0.0 ----2026-09-30-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0'
@@ -36,6 +36,10 @@
 //                  running balance was only accumulated for rows skipped by
 //                  pagination, never for the printed rows.
 // 20260915 CDX/PHR Include simulated rows in pagination and keep merged row metadata aligned.
+// 20260930 CL/SZ SD-699: rapportart kontokort_ubogfort ("Kontokort med u-bogført") also shows what every
+//                  journal that is not posted yet will post, in italics and marked "Ikke bogført".
+//                  Simulated rows are left out in that mode, since simulated journals are among them.
+//                  Lines with an account setup error are listed once above the report instead of one alert each.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -50,6 +54,13 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	global $prj_navn_fra, $prj_navn_til;
 	global $top_bund;
 	global $sprog_id;
+
+	// "Kontokort med u-bogført" adds the open journals' postings. Those include simulated journals,
+	// so the simulering table is not read as well.
+	$ubogfort         = ($rapportart == 'kontokort_ubogfort');
+	$includeSimulated = ($simulering && !$ubogfort);
+	$closeArt         = $ubogfort ? 'kontokort_ubogfort' : 'kontokort';
+
 	$query = db_select("select firmanavn, cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query))
 		$firmanavn = $row['firmanavn'];
@@ -172,7 +183,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	$regnstart = $startaar . "-" . $startmaaned . "-" . $startdato;
 	$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
-	$title = "Rapport • Kontokort";
+	$title = "Rapport • " . ($ubogfort ? findtekst('5248|Kontokort med u-bogført', $sprog_id) : "Kontokort");
 
 	include("../includes/topline_settings.php");
 #print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: white;\">";
@@ -181,7 +192,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	$csvfile = "../temp/$db/rapport.csv";
 	$csv = fopen($csvfile, "w");
 	if ($menu == 'T') {
-		$leftbutton = "<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> &nbsp;Luk</a>";
+		$leftbutton = "<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> &nbsp;Luk</a>";
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
 		print "<div id=\"header\">";
@@ -200,7 +211,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
 
 		print "<td width=\"5%\">$color
-			<a href=\"javascript:confirmClose('rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')\" accesskey=L>
+			<a href=\"javascript:confirmClose('rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')\" accesskey=L>
 			   <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
@@ -209,7 +220,8 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 		print "</tbody></table>";
 		print "</td></tr>";
-		($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
+		if ($ubogfort) $tmp = findtekst('5248|Kontokort med u-bogført', $sprog_id);
+		else ($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
 		print "<tr><td colspan='4'><big><big><big>  $tmp</big></big></big></td>";
 		print "<td colspan=6 align=right>";
 		#######################
@@ -235,12 +247,13 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center' id='tableTop'> ";
 		print "<tr><td colspan=\"6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
+		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
 		print "<td width=\"80%\" $top_bund>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>";
 		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";
-		($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
+		if ($ubogfort) $tmp = findtekst('5248|Kontokort med u-bogført', $sprog_id);
+		else ($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
 		print "<tr><td colspan=\"4\"><big><big><big>  $tmp</big></big></big></td>";
 		#		fwrite($csv,"$tmp;");
 		print "<td colspan=6 align=right>";
@@ -319,7 +332,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		$ktonr[$x] = $r['kontonr'];
 		$x++;
 	}
-	if ($simulering) {
+	if ($includeSimulated) {
 		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
@@ -346,6 +359,27 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 			if (!in_array($varelager_u[$i], $ktonr)) {
 				$ktonr[$x] = $varelager_u[$i];
 				$x++;
+			}
+		}
+	}
+
+	$unposted = $unpostedProblems = array();
+	$periodStart = $periodEnd = NULL;
+	if ($ubogfort && count($kontonr)) {
+		include_once(__DIR__ . '/../bogfor_includes/postingRules.php');
+		// Compare dates as Y-m-d; the month in $regnstart/$regnaarstart is not always zero-padded.
+		$periodStart = date('Y-m-d', strtotime($regnstart));
+		$periodEnd   = date('Y-m-d', strtotime($regnslut));
+		$preview     = unpostedJournalEntries(date('Y-m-d', strtotime($regnaarstart)), $periodEnd, $dim);
+		$unposted         = $preview['entries'];
+		$unpostedProblems = $preview['problems'];
+		foreach ($unposted as $unpostedKonto => $unpostedEntries) {
+			if ($unpostedKonto < $konto_fra || $unpostedKonto > $konto_til || in_array($unpostedKonto, $ktonr)) continue;
+			foreach ($unpostedEntries as $entry) {
+				if ($entry['transdate'] >= $periodStart) {
+					$ktonr[] = $unpostedKonto;
+					break;
+				}
 			}
 		}
 	}
@@ -400,6 +434,16 @@ if ($projekt_fra) {
 if ($menu != 'T') print "</tbody></table>";
 print "<tr><td colspan=5><big><b>cvr: $vatNo | $firmanavn</b></big></td></tr>";
 print "</tbody></table>";   // close the info table
+if ($ubogfort) {
+	print "<div class='unpostedRow' style='padding:4px 0;'>" . findtekst('5250|Poster i kursiv er ikke bogført endnu. De ligger i en kladde og påvirker kontoen, når kladden bogføres.', $sprog_id) . "</div>";
+	if ($unpostedProblems) {
+		print "<div style='padding:4px 0; color:#b00000;'><b>" . findtekst('5252|Kladdelinjer, der ikke er medtaget, fordi kontoopsætningen mangler:', $sprog_id) . "</b>";
+		foreach ($unpostedProblems as $problem) {
+			print "<br>" . findtekst('1087|Kladde', $sprog_id) . " $problem[kladde_id], bilag " . htmlspecialchars($problem['bilag']) . ": " . htmlspecialchars($problem['message']);
+		}
+		print "</div>";
+	}
+}
 
 // Close the sticky wrapper 
 print "</div>";
@@ -433,7 +477,7 @@ print "<tbody>";
 	for ($x = 0; $x < count($kontonr); $x++) {
 		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
 			$accountRows[$x] = 0;
-			$tables = $simulering ? array('transaktioner', 'simulering') : array('transaktioner');
+			$tables = $includeSimulated ? array('transaktioner', 'simulering') : array('transaktioner');
 			foreach ($tables as $table) {
 				$qtxt = "SELECT COUNT(*) as c FROM $table WHERE kontonr=" . intval($kontonr[$x]);
 				$qtxt .= " AND transdate>='" . db_escape_string($regnstart) . "'";
@@ -441,6 +485,9 @@ print "<tbody>";
 				$qtxt .= " AND (COALESCE(debet,0) <> 0 OR COALESCE(kredit,0) <> 0)";
 				$cnt = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$accountRows[$x] += (int)$cnt['c'];
+			}
+			foreach (if_array($unposted, $kontonr[$x]) as $entry) {
+				if ($entry['transdate'] >= $periodStart && ($entry['debet'] || $entry['kredit'])) $accountRows[$x]++;
 			}
 			$total_rows += $accountRows[$x];
 		}
@@ -480,9 +527,14 @@ print "<tbody>";
 			while ($row = db_fetch_array($query)) {
 				$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 			}
-			$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id", __FILE__ . " linje " . __LINE__);
-			while ($row = db_fetch_array($query)) {
-				$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+			if (!$ubogfort) {
+				$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id", __FILE__ . " linje " . __LINE__);
+				while ($row = db_fetch_array($query)) {
+					$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+				}
+			}
+			foreach (if_array($unposted, $kontonr[$x]) as $entry) {
+				if ($entry['transdate'] < $periodStart) $kontosum = $kontosum + afrund($entry['debet'], 2) - afrund($entry['kredit'], 2);
 			}
 			if ($primokurs[$x])
 				$tmp = $kontosum * 100 / $primokurs[$x];
@@ -742,7 +794,7 @@ print "<tbody>";
 				}
 			}
 			$sim_transdate = array();
-			if ($simulering) {
+			if ($includeSimulated) {
 				$sim = 0;
 				$sim_kontonr = array();
 				$q = db_select("select * from simulering where kontonr='$kontonr[$x]' and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id", __FILE__ . " linje " . __LINE__);
@@ -780,7 +832,36 @@ print "<tbody>";
 					$sim++;
 				}
 			}
-		
+			// Unposted rows go after the posted rows of the same date.
+			$isUnposted = array();
+			foreach (if_array($unposted, $kontonr[$x]) as $entry) {
+				if ($entry['transdate'] < $periodStart) continue;
+				$a = 0;
+				while ($a < count($transdate) && $entry['transdate'] >= $transdate[$a]) {
+					$a++;
+				}
+				for ($b = count($transdate); $b > $a; $b--) {
+					$transdate[$b]   = $transdate[$b - 1];
+					$bilag[$b]       = $bilag[$b - 1];
+					$beskrivelse[$b] = $beskrivelse[$b - 1];
+					$debet[$b]       = $debet[$b - 1];
+					$kredit[$b]      = $kredit[$b - 1];
+					$kladde_id[$b]   = $kladde_id[$b - 1] ?? null;
+					$transvaluta[$b] = $transvaluta[$b - 1] ?? null;
+					$transkurs[$b]   = $transkurs[$b - 1] ?? 100;
+					$isUnposted[$b]  = $isUnposted[$b - 1] ?? false;
+				}
+				$transdate[$b]   = $entry['transdate'];
+				$bilag[$b]       = $entry['bilag'];
+				$beskrivelse[$b] = $entry['beskrivelse'] . " (" . findtekst('5251|Ikke bogført', $sprog_id) . ", kladde $entry[kladde_id])";
+				$debet[$b]       = $entry['debet'];
+				$kredit[$b]      = $entry['kredit'];
+				$kladde_id[$b]   = $entry['kladde_id'];
+				$transvaluta[$b] = $entry['valuta'];
+				$transkurs[$b]   = $entry['valutakurs'];
+				$isUnposted[$b]  = true;
+			}
+
 			for ($tr = 0; $tr < count($transdate); $tr++) {
 			if ($transdate[$tr] && ($debet[$tr] || $kredit[$tr])) {
 
@@ -799,7 +880,8 @@ print "<tbody>";
                 }
 
 				($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
-				print "<tr bgcolor=\"$linjebg\"><td>  " . dkdato($transdate[$tr]) . " </td>";
+				$rowClass = empty($isUnposted[$tr]) ? '' : " class='unpostedRow'";
+				print "<tr bgcolor=\"$linjebg\"$rowClass><td>  " . dkdato($transdate[$tr]) . " </td>";
 					fwrite($csv, dkdato($transdate[$tr]) . ";");
 					($kladde_id[$tr]) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&visipop=on')\"" : $js = NULL;
 					print "<td title='Kladde: $kladde_id[$tr]' $js>$bilag[$tr]</td><td>$kontonr[$x] : $beskrivelse[$tr] </td>";
@@ -977,6 +1059,10 @@ print "<tbody>";
         }
 	#datapg td {
      padding-right: 8px;
+	}
+	.unpostedRow, .unpostedRow td {
+		font-style: italic;
+		color: #9a5b00;
 	}
     
 </style>

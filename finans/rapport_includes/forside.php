@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- ver 4.1.1 -- 2026.03.09 ---
+// --- finans/rapport_includes/forside.php --- ver 5.0.0 -- 2026.09.30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190820 PHR Option 'medtag lagerbevægelser' removed if stock is locked in actual year.
@@ -47,6 +47,7 @@
 // 20260617 PK Placed projekt_fra and projekt_til in the same <td>
 // 20260915 CDX/PHR Handle stale financial years and empty charts of accounts on report entry.
 // 20260917 CL/LH Keep header, menu and footer when no financial year exists, and disable submit when the chart of accounts is empty.
+// 20260930 CL/SZ SD-699: Added the report type "Kontokort med u-bogført" (kontokort_ubogfort) below "Kontokort med moms".
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -311,6 +312,8 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(509, $sprog_id) . "' value='kontokort'>" . findtekst(515, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "kontokort_moms")
 		print "<option title='" . findtekst(510, $sprog_id) . "' value='kontokort_moms'>" . findtekst(516, $sprog_id) . "</option>\n";
+	elseif ($rapportart == "kontokort_ubogfort")
+		print "<option title='" . findtekst('5249|Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu', $sprog_id) . "' value='kontokort_ubogfort'>" . findtekst('5248|Kontokort med u-bogført', $sprog_id) . "</option>\n";
 	elseif ($rapportart == "balance")
 		print "<option title='" . findtekst(511, $sprog_id) . "' value='balance'>" . findtekst(517, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "resultat")
@@ -346,6 +349,8 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(509, $sprog_id) . "' value='kontokort'>" . findtekst(515, $sprog_id) . "</option>\n";
 	if ($rapportart != "kontokort_moms")
 		print "><option title='" . findtekst(510, $sprog_id) . "' value='kontokort_moms'>" . findtekst(516, $sprog_id) . "</option>\n";
+	if ($rapportart != "kontokort_ubogfort")
+		print "<option title='" . findtekst('5249|Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu', $sprog_id) . "' value='kontokort_ubogfort'>" . findtekst('5248|Kontokort med u-bogført', $sprog_id) . "</option>\n";
 	if ($rapportart != "balance")
 		print "<option title='" . findtekst(511, $sprog_id) . "' value='balance'>" . findtekst(517, $sprog_id) . "</option>\n";
 	if ($rapportart != "resultat")
