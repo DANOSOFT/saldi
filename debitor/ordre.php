@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-09-21 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-09-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -148,6 +148,14 @@
 // 20260918 CDX/PHR Store Udført af in performed_by independently of the system field hvem.
 // 20260919 CDX/PHR Preserve three-decimal unit prices when displaying and saving orders.
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
+// 20260928 NTR Plukliste buttons: status<3 Print and Send now share one gating condition
+//              ($pluklisteEmail plus the hurtigfakt/opValue check), so Send no longer shows
+//              without a matching Print button for non-faktura/non-tilbud orders; status>=3
+//              Print condition checks $opValue!='faktura' instead of $hurtigfakt!='on', and its
+//              Send condition is simplified to just $pluklisteEmail (already nested in the same check).
+// 20260928 NTR Braced the single-statement konto_id credit-limit check and switched to
+//              (int) ifset($r, 'kreditmax', 0) instead of if_isset($r['kreditmax']) * 1, which evaluated
+//              the array offset before the call and warned when kreditmax was unset, and threw warnings due to string * int.
 
 @session_start();
 $s_id = session_id();
@@ -4186,7 +4194,7 @@ function ordreside($id, $regnskab)
 			if (!$sag_id) {
 				include("../includes/topline_settings.php");
 				// Merged conditions to avoid duplicate code for pluklisteEmail check
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud")) {
+				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($opValue != 'faktura' && $opValue != "tilbud")) {
 					$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 					$printPopupQuery = nav_popup_query($_GET, $_POST);
 					$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
@@ -4195,7 +4203,7 @@ function ordreside($id, $regnskab)
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					if ($pluklisteEmail && (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud"))) {
+					if ($pluklisteEmail) {
 						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
 						print "<input type='text' id='plukkommentar1' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
 						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar1').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
@@ -6452,11 +6460,8 @@ function ordreside($id, $regnskab)
 				$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 				$printPopupQuery = nav_popup_query($_GET, $_POST);
 				$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != 'tilbud')) {
+				if ($pluklisteEmail && (($hurtigfakt == 'on' && $opValue == 'faktura') || ($opValue != 'faktura' && $opValue != 'tilbud'))) {
 					print "<td align=\"center\"><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;'>Print plukliste</button></td>\n";
-				}
-				// Writing field: only when this is a real order (sag_id null/0) and a plukliste email is configured.
-				if ($pluklisteEmail) {
 					print "<td align=\"center\" style=\"white-space:nowrap;\">";
 					print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:120px;margin-right:4px;padding:0.2rem;box-sizing:border-box;vertical-align:middle;' class='inputbox'>";
 					print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;vertical-align:middle;'>Send plukliste</button>";
@@ -6469,32 +6474,34 @@ function ordreside($id, $regnskab)
 
 			//print "<tr><td></td></tr>\n";
 		} # end if ($status < 3)
-		if ($konto_id) $r = db_fetch_array(db_select("select kreditmax from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
-		if ($kreditmax = if_isset($r['kreditmax']) * 1) { #20210719 checked whether it is set as it was throwing a boolean error
-			if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
-			$q = db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'", __FILE__ . " linje " . __LINE__);
-			$tilgode = 0;
-			while ($r = db_fetch_array($q)) {
-				if (!$r['valuta']) $r['valuta'] = $baseCurrency;
-				if (!$r['valutakurs']) $r['valutakurs'] = 100;
-				if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
-				elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
-					if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc"))) {
-						$opp_amount = $r['amount'] * 100 / $r3['kurs'];
-						$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
-					} elseif ($valuta) print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
-				} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
-					$tmp == $r['amount'] * $r['valuta'] / 100;
-					$opp_amount = $tmp * 100 / $r['valutakurs'];
-				} else $opp_amount = $r['amount'];
-				$tilgode = $tilgode + $opp_amount;
-			}
-			if ($kreditmax < $ialt + $tilgode) {
-				$tmp = dkdecimal(($ialt + $tilgode) - $kreditmax, 2);
-				$alert1 = findtekst('1851|Kreditloft overskrides med', $sprog_id); #20210809
-				print "<big><span style='color:#FF0000';>$alert1 $valuta $tmp</span></big><br>\n";
-			}
-		} # end  if ($kreditmax....
+		if ($konto_id) {
+			$r = db_fetch_array(db_select("select kreditmax from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
+			if ($kreditmax = (int) ifset($r, 'kreditmax', 0)) { #20210719 checked whether it is set as it was throwing a boolean error
+				if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
+				$q = db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'", __FILE__ . " linje " . __LINE__);
+				$tilgode = 0;
+				while ($r = db_fetch_array($q)) {
+					if (!$r['valuta']) $r['valuta'] = $baseCurrency;
+					if (!$r['valutakurs']) $r['valutakurs'] = 100;
+					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
+					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
+						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc"))) {
+							$opp_amount = $r['amount'] * 100 / $r3['kurs'];
+							$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
+						} elseif ($valuta) print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
+					} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
+						$tmp == $r['amount'] * $r['valuta'] / 100;
+						$opp_amount = $tmp * 100 / $r['valutakurs'];
+					} else $opp_amount = $r['amount'];
+					$tilgode = $tilgode + $opp_amount;
+				}
+				if ($kreditmax < $ialt + $tilgode) {
+					$tmp = dkdecimal(($ialt + $tilgode) - $kreditmax, 2);
+					$alert1 = findtekst('1851|Kreditloft overskrides med', $sprog_id); #20210809
+					print "<big><span style='color:#FF0000';>$alert1 $valuta $tmp</span></big><br>\n";
+				}
+			} # end  if ($kreditmax....
+		}
 		print "</tbody></table></td></tr>\n"; # <- Tabel 4
 		print "</form>\n"; # 
 	} # end else for (if ($status>=3))
