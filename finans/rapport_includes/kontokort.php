@@ -40,6 +40,7 @@
 //                  journal that is not posted yet will post, in italics and marked "Ikke bogført".
 //                  Simulated rows are left out in that mode, since simulated journals are among them.
 //                  Lines with an account setup error are listed once above the report instead of one alert each.
+//                  Unposted rows on a foreign-currency account use the account currency's rate, like posted rows.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -858,7 +859,16 @@ print "<tbody>";
 				$kredit[$b]      = $entry['kredit'];
 				$kladde_id[$b]   = $entry['kladde_id'];
 				$transvaluta[$b] = $entry['valuta'];
-				$transkurs[$b]   = $entry['valutakurs'];
+				// Show the DKK amount in the account's currency at that date, the same way as posted rows.
+				$transkurs[$b]   = 100;
+				if ($kontovaluta[$x]) {
+					for ($v = 0; $v < count($valkode); $v++) {
+						if ($valkode[$v] == $kontovaluta[$x] && $valdate[$v] <= $entry['transdate']) {
+							$transkurs[$b] = $valkurs[$v];
+							break;
+						}
+					}
+				}
 				$isUnposted[$b]  = true;
 			}
 

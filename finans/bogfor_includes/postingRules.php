@@ -27,6 +27,7 @@
 // 20260930 CL/SZ SD-699: Created. The rules that turn a cash-journal line into ledger amounts
 //                  (debtor/creditor to control account, VAT split, currency) moved here from finans/bogfor.php so
 //                  posting and the "Kontokort med u-bogført" report use the same code.
+//                  momsberegning() takes a $preview flag so the report lists a VAT split error instead of exiting.
 
 /**
  * Posting rules shared by the cash-journal posting and the kontokort report.
@@ -39,7 +40,8 @@
  * The functions read the fiscal year from global $regnaar and the currency rate via valutaopslag(), which
  * finans/bogfor.php defines itself and includes/std_func.php defines for every other page.
  * They keep bogfor()'s old error handling: gruppeopslag() and valutaopslag() print a JavaScript alert on a
- * setup error, and momsberegning() mails fejl@saldi.dk and exits if the VAT split does not add up.
+ * setup error, and momsberegning() mails fejl@saldi.dk and exits if the VAT split does not add up
+ * (unless called with $preview, see below).
  */
 
 /**
@@ -65,6 +67,8 @@ function get_saved_vat_override($row, $field) {
  * @param string|null $kontrol    The other side's VAT type, used for EU purchases from a creditor.
  * @param string|null $lineVat    VAT code saved on the journal line; NULL/blank falls back to the account's code.
  * @param bool        $allowBlank True when a blank $lineVat means "no VAT" instead of "use the account's code".
+ * @param bool        $preview    True for the kontokort preview: a VAT split that does not add up prints an alert
+ *                                and returns instead of mailing fejl@saldi.dk and exiting as posting does.
  * @return array{
  *   0: float,        Net amount.
  *   1: float|null,   VAT amount.
@@ -72,7 +76,7 @@ function get_saved_vat_override($row, $field) {
  *   3: string|null,  Counter VAT account (EU reverse charge), or NULL.
  * }
  */
-function momsberegning($konto,$amount,$momsart,$kontrol,$lineVat=NULL,$allowBlank=false) {
+function momsberegning($konto,$amount,$momsart,$kontrol,$lineVat=NULL,$allowBlank=false,$preview=false) {
 	global $connection;
 	global $regnaar;
 	global $db;
@@ -151,6 +155,10 @@ function momsberegning($konto,$amount,$momsart,$kontrol,$lineVat=NULL,$allowBlan
 		elseif ($tmp<0) $moms=$moms-0.01;
 		$tmp=afrund($amount-($nettoamount+$moms),2);
 		if (abs($tmp)>=0.01) { # 20140428 "fjernet $a!='E' && $a!='Y' &&"
+			if ($preview) {
+				print "<BODY onLoad=\"javascript:alert('Afvigelse ved momsberegning')\">";
+				return array($nettoamount,$moms,$momskto,$modkto);
+			}
 			$message=$db." | Afvigelse ved momsberegning | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
 			$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 			mail('fejl@saldi.dk', 'SALDI Bogforingsfejl', $message, $headers);
@@ -204,7 +212,8 @@ function gruppeopslag($type, $konto) {
  * This is the per-line part of bogfor()'s first loop. bogfor() still handles vouchers, open items
  * (openpost) and the inserts itself; postingLineEntries() turns the result into ledger rows.
  *
- * @param array $row A kassekladde row (debetvat/kreditvat columns are optional).
+ * @param array $row     A kassekladde row (debetvat/kreditvat columns are optional).
+ * @param bool  $preview Passed on to momsberegning(); true only from unpostedJournalEntries().
  * @return array{
  *   d_type: string,          Debit type after defaulting ('F' when there is no debit account).
  *   k_type: string,          Credit type after defaulting.
@@ -228,7 +237,7 @@ function gruppeopslag($type, $konto) {
  *   k_modkto: string|int|null,  Credit counter VAT account (EU reverse charge).
  * }
  */
-function postingLineAmounts($row) {
+function postingLineAmounts($row, $preview=false) {
 	$dType  = $row['d_type'];
 	$debet  = $row['debet'];
 	$kType  = $row['k_type'];
@@ -262,10 +271,10 @@ function postingLineAmounts($row) {
 	if ($debet > 0)  $dAmount = $dkkamount;
 	if ($kredit > 0) $kAmount = $dkkamount;
 	if (!$momsfri && $debet > 0 && $dAmount > 0) {
-		list($dAmount, $dMoms, $dMomskto, $dModkto) = momsberegning($debet, $dAmount, $dMomsart, $kMomsart, $debetvat, trim((string)$kreditvat) !== '');
+		list($dAmount, $dMoms, $dMomskto, $dModkto) = momsberegning($debet, $dAmount, $dMomsart, $kMomsart, $debetvat, trim((string)$kreditvat) !== '', $preview);
 	}
 	if (!$momsfri && $kredit > 0 && $kAmount > 0) {
-		list($kAmount, $kMoms, $kMomskto, $kModkto) = momsberegning($kredit, $kAmount, $kMomsart, $dMomsart, $kreditvat, trim((string)$debetvat) !== '');
+		list($kAmount, $kMoms, $kMomskto, $kModkto) = momsberegning($kredit, $kAmount, $kMomsart, $dMomsart, $kreditvat, trim((string)$debetvat) !== '', $preview);
 	}
 
 	return array(
@@ -377,11 +386,14 @@ function unpostedJournalEntries($fromDate, $toDate, $dim) {
 	$problems  = array();
 	while ($row = db_fetch_array($q)) {
 		ob_start();
-		$line   = postingLineAmounts($row);
+		$line   = postingLineAmounts($row, true);
 		$output = ob_get_clean();
 		if (trim($output) !== '') {
-			$message = html_entity_decode(strip_tags($output), ENT_QUOTES, 'UTF-8');
-			if (preg_match("/alert\\(['\"](.*?)['\"]\\)/s", $message, $m)) $message = $m[1];
+			// The alert text sits either in a <script> block or in a <BODY onLoad="..."> attribute, so read it
+			// from the raw output before any tags are stripped.
+			if (preg_match("/alert\\(['\"](.*?)['\"]\\)/s", $output, $m)) $message = $m[1];
+			else $message = strip_tags($output);
+			$message = html_entity_decode(strip_tags($message), ENT_QUOTES, 'UTF-8');
 			$problems[] = array('kladde_id' => (int)$row['kladde_id'], 'bilag' => $row['bilag'], 'message' => trim($message));
 			continue;
 		}
