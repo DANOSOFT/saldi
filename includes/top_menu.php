@@ -129,8 +129,9 @@ print "          <div class='dropdownContent-Lag'>";
 print "          <a href='../lager/varer.php'>".findtekst(110,$sprog_id)."</a>";
 print "          <a href='../lager/modtageliste.php'>".findtekst(610,$sprog_id)."</a>";
 print "          <a href='../lager/rapport.php'>".findtekst(603,$sprog_id)."</a>";
-# Offer the expiry report under Lager, for accounts that use batch/expiry management.
-if (batch_expiry_in_use()) {
+# Offer the expiry report under Lager, for accounts that use batch/expiry management and hold the
+# module the page itself requires (12) - the same check includes/online.php:353 applies to the page.
+if (batch_expiry_in_use() && (!$rettigheder || substr($rettigheder, 12, 1) >= '1')) {
 print "          <a href='../lager/udlobsrapport.php'>".findtekst(5014,$sprog_id)."</a>";
 }
 print "          </div>";

@@ -211,7 +211,7 @@ while ($row = db_fetch_array($query)) {
 	print "<tr $bg>";
 	print "<td><a href='varekort.php?id=$row[vare_id]'>" . htmlentities($row['varenr']) . "</a>";
 	# The batch overview was otherwise only reachable from the item card; offer it on the item here.
-	$batch_back = 'udlobsrapport.php?dage=' . $filter_days . ($returparam ? '&returside=' . rawurlencode($returside) : '');
+	$batch_back = 'udlobsrapport.php?dage=' . $filter_days . ($show_expired ? '&udloebet=1' : '') . ($returparam ? '&returside=' . rawurlencode($returside) : '');
 	print "<br><a href='batch_oversigt.php?vare_id=" . (int)$row['vare_id'] . "&returside=" . urlencode($batch_back) . "' title='" . findtekst('5004|Batch oversigt', $sprog_id) . "'>" . findtekst('5004|Batch oversigt', $sprog_id) . "</a></td>";
 	print "<td>" . htmlentities($row['beskrivelse']) . "</td>";
 	print "<td>" . htmlentities($row['batch_no']) . "</td>";
