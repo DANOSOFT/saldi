@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-25 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,10 +71,17 @@
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
 // 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
 //             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
+// 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
+// 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
+// 20260930 CDX/PHR Fit descriptions using actual font and neighbouring field widths; share wrapping with page preflight.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 
+
+require_once __DIR__ . '/formFuncIncludes/htmlStyle.php';
+require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
+require_once __DIR__ . '/formFuncIncludes/descriptionLayout.php';
 
 if (!function_exists('skriv')) {
 	function skriv($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $formular, $line)
@@ -205,6 +212,8 @@ if (!function_exists('skriv')) {
 			$format = "$color";
 		}
 
+		$htmlFont = $form_font;
+		$htmlLayoutVersion = formHtmlLayoutVersion();
 		if (($fed == 'on' || $startfed == 'on') && ($italic != 'on'))
 			$form_font = $form_font . '-Bold-ISOLatin9 findfont';
 		elseif (($fed != 'on' || $startfed == 'on') && ($italic == 'on'))
@@ -335,15 +344,16 @@ if (!function_exists('skriv')) {
 							#	fwrite($htmfp,"<div style=\"position:absolute;top:".$row['xa']."mm;left:".$row['xb']."mm;\">".__line__."$ny_streng</div>\n");
 							$a = $row['xa'];
 							$b = 297 - $row['ya'];
-							$c = $ny_str * 1.2;
+							$htmlTextStyle = formHtmlTextStyle($row['font'], $htmlLayoutVersion === 1 ? $ny_str : $row['str'], $row['fed'] === 'on', $row['kursiv'] === 'on', $htmlLayoutVersion);
 							if (strpos($format, 'div neg')) {
 								$a = 210 - $a;
-								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm;transform:translate(-50%, -50%);\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">" . $ny_streng . "</span></div>\n");
+								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm;transform:translate(-50%, -50%);\"><span style=\"color:$htmcolor;$htmlTextStyle\">" . $ny_streng . "</span></div>\n");
 							} elseif (strpos($format, 'neg')) {
 								$a = 210 - $a;
-								fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">" . $ny_streng . "</span></div>\n");
-							} else
-								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">" . $ny_streng . "</span></div>\n");
+								fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;$htmlTextStyle\">" . $ny_streng . "</span></div>\n");
+							} else {
+								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;$htmlTextStyle\">" . $ny_streng . "</span></div>\n");
+							}
 						}
 					}
 				}
@@ -399,12 +409,12 @@ if (!function_exists('skriv')) {
 			}
 			$a = $x / 2.86;
 			$b = 297 - $y2 / 2.86;
-			$c = $ny_str * 1.2;
+			$htmlTextStyle = formHtmlTextStyle($htmlFont, $ny_str, $fed === 'on' || $startfed === 'on', $italic === 'on' || $startitalic === 'on', $htmlLayoutVersion);
 			if (strpos($format, 'neg')) {
 				$a = 210 - $a;
-				fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">$f1$i1" . $tekst . "$f2$i2</span></div>\n");
+				fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;$htmlTextStyle\">$f1$i1" . $tekst . "$f2$i2</span></div>\n");
 			} else {
-				fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">$f1$i1" . $tekst . "$f2$i2</span></div>\n");
+				fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;$htmlTextStyle\">$f1$i1" . $tekst . "$f2$i2</span></div>\n");
 			}
 		}
 		#if ($tekst1) exit;
@@ -414,7 +424,7 @@ if (!function_exists('skriv')) {
 } #endfunc skriv();
 
 if (!function_exists('ombryd')) {
-	function ombryd($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $laengde, $formular, $linespace)
+	function ombryd($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $laengde, $formular, $linespace, $wrappedDescription = null)
 	{
 
 		print "<!--function ombryd start-->";
@@ -427,7 +437,7 @@ if (!function_exists('ombryd')) {
 			$lokation = $parts[1] ?? NULL;
 			$vare_note = $parts[2] ?? NULL;
 		}
-		$tekst = wordwrap($tekst, $laengde, "\n", true);
+		$tekst = $wrappedDescription !== null ? $wrappedDescription : wordwrap($tekst, $laengde, "\n", true);
 		$nytekst = "";
 		if (strstr($tekstinfo, 'ordrelinjer')) {
 			list($tmp, $Opkt) = explode("_", $tekstinfo);
@@ -437,7 +447,7 @@ if (!function_exists('ombryd')) {
 			$nytekst = $nytekst . $tegn;
 			if (strstr($tegn, "\n")) {
 				$nytekst = trim($nytekst);
-				if (strlen($nytekst) >= 1) {
+				if (strlen($nytekst) >= 1 || $wrappedDescription !== null) {
 					$tmp = $y;
 					if ($y >= $Opkt) {
 						$y = skriv($id, $str, $fed, $italic, $color, $nytekst, $tekstinfo, $x, $y, $format, $form_font, $formular, __LINE__);
@@ -2131,32 +2141,60 @@ if (!function_exists('formularprint')) {
 								break;
 							}
 						}
-						// 20260818 LH MB-19: a template laengde wider than the physical span to the next
-						// column (typically antal) let long description lines print into the quantity
-						// column. Cap the wrap width by the span in points (xa is mm, x2.86 in skriv()),
-						// reserving room for a right-aligned neighbour's value.
-						$beskriv_laengde = ($beskriv_z && isset($laengde[$beskriv_z])) ? (int)$laengde[$beskriv_z] : 0;
-						if ($beskriv_z && $str[$beskriv_z] > 0) {
-							$next_xa = 0; $next_str = 0; $next_just = '';
+						// Use the configured maximum, but measure actual text instead of assuming
+						// every glyph is 0.55em and every neighbouring value is eight characters.
+						$beskriv_laengde = $beskriv_z ? (int)ifset($laengde, $beskriv_z, 0) : 0;
+						$wrappedText = null;
+						if ($beskriv_z) {
+							$descriptionValues = array(
+								'posnr' => ifset($posnr ?? array(), $x, ''),
+								'varenr' => ifset($varenr ?? array(), $x, ''),
+								'lev_varenr' => ifset($lev_varenr ?? array(), $x, ''),
+								'leveres' => ifset($leveres ?? array(), $x, ''),
+								'leveret' => ifset($leveret ?? array(), $x, ''),
+								'projekt' => ifset($projekt ?? array(), $x, ''),
+								'antal' => ifset($dkantal ?? array(), $x, ''),
+								'trademark' => ifset($trademark ?? array(), $x, ''),
+								'lev_antal' => ifset($lev_antal ?? array(), $x, ''),
+								'tidl_lev' => ifset($tidl_lev ?? array(), $x, ''),
+								'lev_rest' => ifset($rest ?? array(), $x, ''),
+								'pris' => ifset($pris ?? array(), $x, ''),
+								'enhed' => ifset($enhed ?? array(), $x, ''),
+								'momssats' => ifset($varemomssats ?? array(), $x, ''),
+								'varemomssats' => ifset($varemomssats ?? array(), $x, ''),
+								'rabat' => ifset($rabat ?? array(), $x, ''),
+								'procent' => ifset($procent ?? array(), $x, ''),
+								'linjemoms' => ifset($linjemoms ?? array(), $x, ''),
+								'linjesum' => ifset($linjesum ?? array(), $x, ''),
+							);
+							if (usdecimal($descriptionValues['rabat']) == 0) {
+								$descriptionValues['rabat'] = '';
+							}
+							$descriptionColumns = array();
 							for ($z_tmp = 1; $z_tmp <= $var_antal; $z_tmp++) {
-								if ($z_tmp != $beskriv_z && $xa[$z_tmp] > $xa[$beskriv_z] && (!$next_xa || $xa[$z_tmp] < $next_xa)
-									&& $variabel[$z_tmp] != 'lokation' && $variabel[$z_tmp] != 'vare_note' && substr($variabel[$z_tmp], 0, 8) != 'fritekst') {
-									$next_xa = $xa[$z_tmp]; $next_str = $str[$z_tmp]; $next_just = $justering[$z_tmp];
+								$field = ifset($variabel, $z_tmp, '');
+								if ($field === 'beskrivelse' || $field === 'lokation' || $field === 'vare_note') {
+									continue;
 								}
+								$descriptionColumns[] = array(
+									'x' => (float)ifset($xa, $z_tmp, 0),
+									'align' => strtoupper(ifset($justering, $z_tmp, 'V')),
+									'text' => substr($field, 0, 8) === 'fritekst' ? substr($field, 9) : ifset($descriptionValues, $field, $field),
+									'font' => ifset($form_font, $z_tmp, 'Helvetica'),
+									'size' => (float)ifset($str, $z_tmp, 0),
+									'bold' => ifset($fed, $z_tmp, '') === 'on',
+									'italic' => ifset($kursiv, $z_tmp, '') === 'on',
+								);
 							}
-							if ($next_xa) {
-								$reserve = ($next_just == 'H') ? 8 * 0.55 * ($next_str > 0 ? $next_str : $str[$beskriv_z]) : 0;
-								$span_chars = max(12, (int)(((($next_xa - $xa[$beskriv_z]) * 2.86) - $reserve) / (0.55 * $str[$beskriv_z])));
-								$beskriv_laengde = ($beskriv_laengde > 0) ? min($beskriv_laengde, $span_chars) : $span_chars;
-							}
-						}
-						if ($beskriv_z && $beskriv_laengde > 0) {
-							// Get the description text (handle tab-separated lokation/vare_note)
-							$check_tekst = $beskrivelse[$x];
-							if (strpos($check_tekst, chr(9)) !== false) {
-								list($check_tekst) = explode(chr(9), $check_tekst);
-							}
-							$wrappedText = wordwrap($check_tekst, $beskriv_laengde, "\n", true);
+							$legacyHtml = formHtmlLayoutVersion() === 1;
+							$descriptionWidth = formDescriptionAvailableWidth(array(
+								'x' => (float)ifset($xa, $beskriv_z, 0),
+								'align' => strtoupper(ifset($justering, $beskriv_z, 'V')),
+							), $descriptionColumns, $legacyHtml);
+							$check_tekst = explode(chr(9), $beskrivelse[$x], 2)[0];
+							$wrappedText = formWrapDescription($check_tekst, $beskriv_laengde, $descriptionWidth,
+								ifset($form_font, $beskriv_z, 'Helvetica'), (float)ifset($str, $beskriv_z, 0),
+								ifset($fed, $beskriv_z, '') === 'on', ifset($kursiv, $beskriv_z, '') === 'on', $legacyHtml);
 							$descLines = count(explode("\n", $wrappedText));
 							$totalHeightNeeded = ($descLines - 1) * $linjeafstand;
 
@@ -2255,7 +2293,7 @@ if (!function_exists('formularprint')) {
 							}
 						}
 						if ($z = $skriv_beskriv[$x]) {
-							$y2 = ombryd($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskrivelse[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", ($beskriv_laengde > 0 ? $beskriv_laengde : $laengde[$z]), $formular, $linjeafstand);
+							$y2 = ombryd($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskrivelse[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", ($beskriv_laengde > 0 ? $beskriv_laengde : max(1, mb_strlen($check_tekst, 'UTF-8'))), $formular, $linjeafstand, $wrappedText);
 						}
 						// Use the lowest y (most wrapped lines wins)
 						$y2 = min($y_after_varenr, $y2 ?? $y);
@@ -2423,25 +2461,7 @@ if (!function_exists('formulartekst')) {
 
 			if ($xa) {
 				fwrite($psfp, " $xa $ya moveto $xb $yb lineto $lw setlinewidth $color stroke \n");
-				$a = 297 - $row['ya'];
-				$b = $row['xa'];
-				$a *= 1.01;
-				$a .= 'mm';
-				$b .= 'mm';
-				if ($ya == $yb) { #vandret linje
-					$c = $row['xb'] - $row['xa'];
-					$c .= 'mm';
-
-					fwrite($htmfp, "<hr style=\"position:absolute;top:$a;left:$b;border:0.2px solid black; width:$c;\">\n");
-				}
-				if ($xa == $xb) { #lodret linje
-					$c = ($row['ya'] - $row['yb']) * 1.01;
-					$c .= 'mm';
-					fwrite($htmfp, "<hr style=\"position:absolute;top:$a;left:$b;border:0.2px solid black; width:1; height:$c\">\n");
-				}
-
-
-				#			fwrite($htmfp,"<div style=\"position:absolute;top:".$xa/2.86 ."mm;left:".$xb/2.86 ."mm;\">.</div>\n");
+				fwrite($htmfp, formHtmlLine($row, formHtmlLayoutVersion()));
 			}
 		}
 		if ($id)
