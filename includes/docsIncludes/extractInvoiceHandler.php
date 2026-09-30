@@ -29,6 +29,13 @@
 //             reason against that same id, so the incident can still be found in the log.
 
 // 20260914 CDX/LH Share atomic metadata saves and reject stale confirmations.
+// 20260930 CL/SZ SST-777 (CodeRabbit): an automatic save right after upload always 409'd
+//             because the pool_files row didn't exist yet (syncPuljeFilesToDatabase() only
+//             runs on the next page load) - insert the same minimal row the sync would, but
+//             only for an automatic save and only when the file is actually on disk. Also
+//             guarded the vendor UPDATE that runs after poolMetadataSave() commits with an
+//             atomic manually_edited check, so a manual correction landing in between can't
+//             be overwritten by the still-in-flight automatic request's vendor match.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -283,7 +290,26 @@ if ($action === 'save') {
 		if ($version !== null && !is_string($version)) {
 			throw new InvalidArgumentException('Invalid version', 422);
 		}
-		$result = poolMetadataSave($poolFile, $input, ($_POST['manual'] ?? '') === '1', $version, $regnaar);
+		$manual = ($_POST['manual'] ?? '') === '1';
+		// 20260930 SZ (CodeRabbit): the automatic save right after an upload runs before
+		// syncPuljeFilesToDatabase() ever sees the new file (that only runs once per page
+		// load, on the next visit) - so poolMetadataSave() always found no row and 409'd,
+		// silently skipping metadata/vendor match for every freshly uploaded file. Insert the
+		// same minimal row the sync would, only when the file genuinely exists on disk and
+		// only for an automatic save - a manual save still 409s on a missing row exactly as
+		// before, so a stale tab still cannot recreate a deleted/moved document.
+		if (!$manual && file_exists($filePath)) {
+			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli')
+				? ' ON DUPLICATE KEY UPDATE id = id'
+				: ' ON CONFLICT (filename) DO NOTHING';
+			db_modify(
+				"INSERT INTO pool_files (filename, subject, file_date) VALUES ('" . db_escape_string($poolFile) . "', '"
+					. db_escape_string(pathinfo($poolFile, PATHINFO_FILENAME)) . "', '"
+					. db_escape_string(date('Y-m-d H:i:s', filemtime($filePath))) . "')" . $onConflictClause,
+				__FILE__ . ' line ' . __LINE__
+			);
+		}
+		$result = poolMetadataSave($poolFile, $input, $manual, $version, $regnaar);
 
 		// Vendor identity is only (re)matched when the caller is one of the scanning paths
 		// (vendorScan=1); a plain metadata save/correction leaves the vendor_* columns
@@ -310,8 +336,15 @@ if ($action === 'save') {
 					'customerCvr' => $_POST['newCustomerCvr'] ?? '',
 				));
 				if ($vendorMatch !== null) {
+					// 20260930 SZ (CodeRabbit): this UPDATE runs after poolMetadataSave()'s own
+					// transaction has already committed, so the manually_edited check it did
+					// there can be stale by the time this runs - a manual save can land in
+					// between and flip the flag to true. For a non-manual request, require the
+					// row to still be unedited atomically in the WHERE clause itself; a manual
+					// request (which owns the correction being scanned) is unrestricted.
+					$vendorGuard = $manual ? '' : ' AND (manually_edited IS NULL OR manually_edited = false)';
 					db_modify(
-						"UPDATE pool_files SET " . poolVendorUpdateSql($vendorMatch) . " WHERE filename = '" . db_escape_string($poolFile) . "'",
+						"UPDATE pool_files SET " . poolVendorUpdateSql($vendorMatch) . " WHERE filename = '" . db_escape_string($poolFile) . "'" . $vendorGuard,
 						__FILE__ . " linje " . __LINE__
 					);
 				}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.28
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,8 @@
 //                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
 // 20260928 CL/LH Widen int ordrer.shop_status to varchar(20) before creating the Stripe
 //                  paid-invoice index; the string predicate blocked login on int-typed tenants.
+// 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
+//                  the current tenant's database/schema, matching the performed_by migration.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -169,11 +171,17 @@ while ($r_norm_catchup = db_fetch_array($q_norm_catchup)) {
 // correction (docPool.php's row/card "Save") rather than an automatic (re-)extraction,
 // so a later automatic re-extraction save can skip overwriting an already-corrected
 // field instead of silently clobbering it (see extractInvoiceHandler.php's save action).
+$manuallyEditedMysql = ($db_type == 'mysql' || $db_type == 'mysqli');
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='manually_edited'";
+# 20260930 SZ SST-777 (CodeRabbit): scoped to the current database/schema, same as the
+# performed_by migration above - an unscoped check can match another tenant's column on a
+# MySQL connection that can see multiple tenant databases, and then skip the ALTER TABLE
+# for this one.
+$qtxt .= $manuallyEditedMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	# IF NOT EXISTS (Postgres/MariaDB, not MySQL) because betweenUpdates.php runs at login and two
 	# concurrent logins can both pass the check above.
-	$pool_files_if_not_exists = ($db_type == 'mysql' || $db_type == 'mysqli') ? '' : 'IF NOT EXISTS ';
+	$pool_files_if_not_exists = $manuallyEditedMysql ? '' : 'IF NOT EXISTS ';
 	db_modify("ALTER TABLE pool_files ADD COLUMN {$pool_files_if_not_exists}manually_edited BOOLEAN NOT NULL DEFAULT false", __FILE__ . " linje " . __LINE__);
 }
 
