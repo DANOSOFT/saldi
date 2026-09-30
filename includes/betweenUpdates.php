@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.28
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -65,6 +65,7 @@
 //                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
 // 20260928 CL/LH Widen int ordrer.shop_status to varchar(20) before creating the Stripe
 //                  paid-invoice index; the string predicate blocked login on int-typed tenants.
+// 20260929 CDX/PHR Initialize the tenant HTML layout version without changing existing forms.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -763,5 +764,8 @@ if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null 
 		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
 	}
 }
+// Preserve HTML users before the renderer changes; explicit choices survive later updates.
+require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
+initializeFormHtmlLayoutVersion($db_type);
 
 ?>
