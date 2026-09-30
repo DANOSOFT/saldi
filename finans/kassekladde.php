@@ -440,14 +440,15 @@ print '<script>
 print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
 // SD-701 Attached vouchers open in one named tab that later clicks reuse, so a tab moved to a second
-// screen keeps showing the current voucher. The journal is not left, so there is no unsaved-changes prompt.
+// screen keeps showing the current voucher. The journal is not left, so there is no unsaved-changes prompt,
+// unless the popup is blocked and the fallback navigates the journal tab.
 print "<script>
 	function openBilagTab(url) {
 		var bilagTab = window.open(url, 'saldiBilag');
 		if (bilagTab) {
 			bilagTab.focus();
 		} else {
-			document.location = url;
+			confirmClose(url, 'Obs - Du har ikke gemt.\\n Hvis du klikker OK mistes de sidste ændringer');
 		}
 	}
 </script>";
