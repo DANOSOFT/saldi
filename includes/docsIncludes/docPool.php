@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-09-21 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -95,6 +95,7 @@
 //                 for ambiguous; "Indsæt valgte" defaults Kredit the same way. A Kredit the user
 //                 already typed is never overwritten. Every value shown in the popup is HTML-escaped
 //                 (invoice text from a scan could otherwise inject markup; found in Astra's review).
+// 20261001 CL/NTR Missing-column fallbacks for pool_files.currency/manually_edited use ADD COLUMN IF NOT EXISTS so concurrent requests cannot fail.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -210,19 +211,21 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			@db_modify("ALTER TABLE pool_files ADD COLUMN description text", __FILE__ . " line " . __LINE__);
 		}
 
+		// 20261001 NTR We need a centralised "ensurance" of data structure, normally this would go in betweenUpdates.php, but until we have a proper migration system, we need to ensure that the columns exist here as well. This is because poolMetadataSave() and poolMetadataVersion() will read/write these columns unconditionally, and if they don't exist, it will cause a hard failure.
+
 		// 20260916 SZ SST-777 (CodeRabbit): poolMetadataSave()/poolMetadataVersion() read and
 		// write currency and manually_edited unconditionally on every pool_files row - a
 		// tenant whose table predates either column would hard-fail on the very first save.
 		$qtxt = "SELECT column_name FROM information_schema.columns
 				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'currency'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
-			@db_modify("ALTER TABLE pool_files ADD COLUMN currency varchar(10)", __FILE__ . " line " . __LINE__);
+			@db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS currency varchar(10)", __FILE__ . " line " . __LINE__);
 		}
 
 		$qtxt = "SELECT column_name FROM information_schema.columns
 				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'manually_edited'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
-			@db_modify("ALTER TABLE pool_files ADD COLUMN manually_edited boolean NOT NULL DEFAULT false", __FILE__ . " line " . __LINE__);
+			@db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS manually_edited boolean NOT NULL DEFAULT false", __FILE__ . " line " . __LINE__);
 		}
 	}
 	
