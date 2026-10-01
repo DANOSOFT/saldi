@@ -564,9 +564,13 @@
         } else {
             basePath = 'finans/kassekladde_includes/accountSearch.php';
         }
+        // SST-814 This dropdown shows "viser 1-50 af N" and page buttons, so it is the one
+        // caller that needs the total. accountSearch.php only runs the extra COUNT(*) when
+        // asked, because it costs as much again as the search itself.
         const url = basePath + '?search=' +
             encodeURIComponent(searchValue) +
             '&type=' + searchType +
+            '&count=1' +
             '&page=' + page;
 
         fetch(url)
