@@ -111,6 +111,8 @@
 // 20260908 CL/NTR Reject account names over 60 and usernames over 80 characters (is_input_too_long)
 //                  before creating the account, matching login.php and varchar(60) on regnskab.regnskab
 // 20260918 CDX/PHR Add ordrer.performed_by when creating a new account.
+// 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
+//                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
 
 @session_start();
 $s_id=session_id();
@@ -419,7 +421,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "datotid text,nr $decimal_type(15,0),returside text,sagsnr $decimal_type(15,0),dokument text,";
 	$qtxt.= "procenttillag $decimal_type(15,3),mail_bilag varchar(2),omvbet varchar(2),afd integer,lager integer,";
 	$qtxt.= "kontakt_tlf text,copied boolean,phone varchar(50),report_number int default 0,";
-	$qtxt.= "consignmentid varchar(25),shop_status int,shop_id int,scan_id int,";
+	$qtxt.= "consignmentid varchar(25),shop_status varchar(20),shop_id int,scan_id int,";
 	$qtxt.= "due_date date,settletime $decimal_type(15,0) default 0,digital_status varchar(25), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -705,7 +707,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	$qtxt = "CREATE TABLE pool_files ($id_column, filename varchar(255), subject text, account varchar(50), ";
 	$qtxt.= "amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
-	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), PRIMARY KEY (id))";
+	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), content_sha256 char(64), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE kontakt_emails ($id_column, konto_id integer NOT NULL, email varchar(255) NOT NULL, email_type varchar(50) DEFAULT '', PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);

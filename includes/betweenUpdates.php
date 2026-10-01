@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.09.24
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,10 @@
 // genuinely new statements below (not present in opdat_4.3.php) were pulled in from production.
 // 20260717 CL/NTR Guard the API-key insert/update blocks so an existing but
 //                  incomplete .ht_keys.txt can't silently write an empty var_value.
+// 20260724 Sawaneh  MobilePay webhook reconciliation: add connect/read timeouts and
+//                  fail-soft logging to the api.vipps.no calls, and gate the whole
+//                  block behind a one-shot marker so it no longer runs (or makes any
+//                  outbound HTTP) on every login.
 // 20260728 CL/SZ Moved the Bilagsmatch pool_files.norm_amount/pg_trgm setup here from
 //                  includes/opdat_4.3.php's opdat_to('4.3.0', ...) gate: that gate had
 //                  already run on tenants (including the reviewer's test DB) before this
@@ -36,6 +40,15 @@
 //                  a nonexistent column, pg_query() failed, and the endpoint silently
 //                  returned zero rows regardless of any actual match. All statements below
 //                  are idempotent (existence/flag-checked), matching this file's pattern.
+// 20260812 Sawaneh  Review: the callback url is read from settings ('mobilepay'/
+//                  'webhook_base_url') instead of $_SERVER['SERVER_NAME'], so a crafted
+//                  Host header can no longer redirect the payment callback; a webhook
+//                  deletion counts only on 2xx and a failed one keeps the db
+//                  unreconciled; and a 2xx list payload without a webhooks array is
+//                  treated as a failure rather than as an empty list.
+// 20260812 Sawaneh  The reconciliation itself moved to includes/stdFunc/mobilepayWebhookSync.php
+//                  so it can be exercised against a stub endpoint; this file keeps the
+//                  settings reads, the secret write and the one-shot marker.
 // 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
@@ -43,17 +56,30 @@
 // 20260716 CL/LH Added unique Stripe paid-invoice import key.
 // 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
 // 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
+// 20260921 Sawaneh  Review: an empty webhook_base_url is no longer seeded from webhook_reconciled_url -
+//                  older markers came from SERVER_NAME, so that made an untrusted host canonical.
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
 //                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
 //                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
 // 20260923 SZ SST-755 (CodeRabbit): kladdeliste.lock_token/ordrer.lock_token, Postgres and MySQL.
 // 20260924 Sawaneh SST-757: Give brugere rows with no regnskabsaar the newest open fiscal year.
 //                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
+// 20260928 CL/LH Widen int ordrer.shop_status to varchar(20) before creating the Stripe
+//                  paid-invoice index; the string predicate blocked login on int-typed tenants.
+// 20260929 CDX/PHR Initialize the tenant HTML layout version without changing existing forms.
+// 20260930 CL/NTR The repeated tekster clean-ups now call deleteStaleTekst() (includes/opdat_func/),
+//                  and the texts reworded on the translation branch are cleaned up too.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
  * @var string $db_type
  */
+
+// ===== PROTECTED: when a version is cut (see doc/ai/convention_database_changes.md), COPY this =====
+// ===== segment into the opdat_<major>.<minor>.php file - do not move it. The moved statements =====
+// ===== call these helpers, and this file keeps needing them for the next release. =====
+include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
+// ===== END PROTECTED =====
 
 $performedByMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
@@ -210,16 +236,10 @@ $bilagsmatch_stale_tekster = [
 	[5047, 1, 'Beløb'], [5047, 2, 'Amount'], [5047, 3, 'Beløp'],
 ];
 foreach ($bilagsmatch_stale_tekster as $stale) {
-	$qtxt = "select id from tekster where sprog_id = '$stale[1]' and tekst_id = '$stale[0]' and tekst = '" . db_escape_string($stale[2]) . "'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
-	}
+	deleteStaleTekst($stale[0], $stale[2], $stale[1]);
 }
 
-$qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '38' and tekst = 'Stillingsliste'";
-if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	db_modify("update tekster set tekst = '' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
-}
+deleteStaleTekst(38, 'Stillingsliste', 1);
 
 # 20260715 CL/SZ - lager/rapport.php's "Bestilt" (Ordered) column query lost its ordrer.levdate
 # range filter (see lager/rapport.php ~line 653) so open orders are found by status/leveret alone.
@@ -258,6 +278,16 @@ db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpr
 db_select("SELECT pg_advisory_lock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
 $qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'ordrer' AND indexname = 'ordrer_stripe_paid_invoice_uidx'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# 20260928 CL/LH shop_status is still int on tenants created by admin/opret.php or upgraded
+	#                through opdat_4.0.php - only api/rest_api.php widened it, on the first shop
+	#                order. There the 'stripe_paid_bridge' literal below fails the integer cast and
+	#                db_modify() alerts + exits, blocking login. Widen it first (same statement as
+	#                rest_api.php; existing numeric values keep their digits as text).
+	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'ordrer' AND column_name = 'shop_status'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if ($r && $r['data_type'] == 'integer') {
+		db_modify("ALTER TABLE ordrer ALTER COLUMN shop_status TYPE varchar(20)", __FILE__ . " linje " . __LINE__);
+	}
 	$qtxt = "CREATE UNIQUE INDEX ordrer_stripe_paid_invoice_uidx ON ordrer (kundeordnr) WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
@@ -354,73 +384,66 @@ if ($mp_client_id) {
 	$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'MSN'", __FILE__ . " linje " . __LINE__);
 	$mp_msn = db_fetch_array($q)['var_value'];
 
-	$expected_url = 'https://' . $_SERVER['SERVER_NAME'] . '/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db;
+	// One-shot gate: reconciliation only talks to Vipps once per webhook URL. Once the
+	// URL for this server/db is confirmed, the stored marker matches $expected_url and
+	// the whole block (and all outbound HTTP) is skipped on subsequent logins. A changed
+	// base url/db, or a first-time setup, changes/clears the marker and re-triggers it.
+	$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_reconciled_url'", __FILE__ . " linje " . __LINE__);
+	$mp_reconciled_url = db_fetch_array($q)['var_value'] ?? null;
 
-	// Get access token
-	$ch = curl_init('https://api.vipps.no/accesstoken/get');
-	curl_setopt($ch, CURLOPT_POST, 1);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, [
-		'Content-Type: application/json',
-		"Client_id: $mp_client_id",
-		"Client_secret: $mp_client_secret",
-		"Ocp-Apim-Subscription-Key: $mp_subscription",
-		"Merchant-Serial-Number: $mp_msn",
-		'Content-Length: 0'
-	]);
-	$token_resp = json_decode(curl_exec($ch), true);
-	curl_close($ch);
-	$mp_token = $token_resp['access_token'] ?? null;
+	// The callback url must NOT come from $_SERVER['SERVER_NAME']: with Apache's default
+	// UseCanonicalName Off that follows the request's Host header, so a crafted Host on a
+	// login request could make this code delete the real webhook and register the payment
+	// callback at an attacker's address. It is read from settings instead.
+	$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_base_url'", __FILE__ . " linje " . __LINE__);
+	$mp_base_row = db_fetch_array($q);
+	$mp_webhook_base = trim((string)($mp_base_row['var_value'] ?? ''));
 
-	if ($mp_token) {
-		$mp_headers = [
-			"Authorization: Bearer $mp_token",
-			"Ocp-Apim-Subscription-Key: $mp_subscription",
-			"Merchant-Serial-Number: $mp_msn",
-			'Content-Type: application/json'
-		];
+	// An existing webhook_reconciled_url is NOT adopted as the base url: markers written before
+	// 20260812 were built from $_SERVER['SERVER_NAME'], so adopting one would make a host taken
+	// from request metadata canonical. Its host is only named in the log as a hint for whoever
+	// fills in the setting.
+	$mp_base_parts = $mp_webhook_base !== '' ? parse_url($mp_webhook_base) : false;
+	if (!$mp_base_parts || empty($mp_base_parts['host']) || strtolower($mp_base_parts['scheme'] ?? '') !== 'https') {
+		// Without a configured base url there is nothing safe to reconcile against, so no
+		// webhook is deleted or registered. Vipps keeps delivering to whatever is already
+		// registered; only reconciliation waits.
+		$mp_hint = $mp_reconciled_url ? (string)parse_url($mp_reconciled_url, PHP_URL_HOST) : '';
+		error_log("betweenUpdates.php: MobilePay webhook reconciliation skipped - set settings var_grp 'mobilepay', var_name 'webhook_base_url' to the canonical https base url for this installation" . ($mp_hint !== '' ? " (last reconciled host, unverified: " . preg_replace('/[^A-Za-z0-9.:-]/', '', $mp_hint) . ")" : ''));
+		$expected_url = null;
+	} else {
+		$expected_url = rtrim($mp_webhook_base, '/') . '/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db;
+	}
 
-		// List registered webhooks
-		$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-		$webhooks = json_decode(curl_exec($ch), true)['webhooks'] ?? [];
-		curl_close($ch);
-
-		$correct_webhook_exists = false;
-		foreach ($webhooks as $wh) {
-			if ($wh['url'] === $expected_url) {
-				$correct_webhook_exists = true;
-			} else {
-				// Delete webhook pointing to a different URL for this db
-				if (strpos($wh['url'], 'webhook_recive.php?db=' . $db) !== false) {
-					$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks/' . $wh['id']);
-					curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-					curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-					curl_exec($ch);
-					curl_close($ch);
-				}
-			}
+	if ($expected_url !== null && $mp_reconciled_url !== $expected_url) {
+		include_once(__DIR__ . '/stdFunc/mobilepayWebhookSync.php');
+		$mp_result = mobilepay_webhook_sync(array(
+			'expectedUrl'     => $expected_url,
+			'db'              => $db,
+			'clientId'        => $mp_client_id,
+			'clientSecret'    => $mp_client_secret,
+			'subscriptionKey' => $mp_subscription,
+			'msn'             => $mp_msn,
+		));
+		foreach ($mp_result['errors'] as $mp_error) {
+			error_log("betweenUpdates.php: MobilePay webhook reconciliation - $mp_error");
 		}
 
-		if (!$correct_webhook_exists) {
-			// Register webhook with correct URL
-			$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-			curl_setopt($ch, CURLOPT_POST, true);
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-				'url' => $expected_url,
-				'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
-			]));
-			$reg_resp = json_decode(curl_exec($ch), true);
-			curl_close($ch);
+		if ($mp_result['secret']) {
+			db_modify("DELETE FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_secret'", __FILE__ . " linje " . __LINE__);
+			$new_secret = db_escape_string($mp_result['secret']);
+			db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_secret', 'mobilepay', '$new_secret', 'The secret that is generated for the webhook')", __FILE__ . " linje " . __LINE__);
+		}
 
-			if (!empty($reg_resp['secret'])) {
-				db_modify("DELETE FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_secret'", __FILE__ . " linje " . __LINE__);
-				$new_secret = db_escape_string($reg_resp['secret']);
-				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_secret', 'mobilepay', '$new_secret', 'The secret that is generated for the webhook')", __FILE__ . " linje " . __LINE__);
+		// Persist the marker only after a confirmed reconciliation, so a transient Vipps
+		// outage - or a stale webhook that could not be deleted - leaves it unchanged and
+		// the next login retries rather than assuming success.
+		if ($mp_result['reconciled']) {
+			$new_reconciled_url = db_escape_string($expected_url);
+			if ($mp_reconciled_url === null) {
+				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_reconciled_url', 'mobilepay', '$new_reconciled_url', 'Last webhook URL reconciled with Vipps - one-shot gate for betweenUpdates.php')", __FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("UPDATE settings SET var_value = '$new_reconciled_url' WHERE var_grp = 'mobilepay' AND var_name = 'webhook_reconciled_url'", __FILE__ . " linje " . __LINE__);
 			}
 		}
 	}
@@ -450,10 +473,7 @@ $bilagsmatch_stale_tooltip_5071 = [
 	[5071, 1, 'Klik for at åbne dokumentet'], [5071, 2, 'Click to open the document'], [5071, 3, 'Klikk for å åpne dokumentet'],
 ];
 foreach ($bilagsmatch_stale_tooltip_5071 as $stale) {
-	$qtxt = "select id from tekster where sprog_id = '$stale[1]' and tekst_id = '$stale[0]' and tekst = '" . db_escape_string($stale[2]) . "'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
-	}
+	deleteStaleTekst($stale[0], $stale[2], $stale[1]);
 }
 
 // 20260807 CL/LH Stripe subscriptions: four tables + indexes for the native Stripe
@@ -562,9 +582,7 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // holding the old text so findtekst() re-seeds them from tekster.csv. Guarded on the old values
 // because betweenUpdates.php runs at every login and customer-edited texts must not be wiped.
 $gamle_351 = array('Kontonummer findes allerede', 'not changed', 'Kontonummer eksisterer allerede');
-foreach ($gamle_351 as $gammel) {
-	db_modify("delete from tekster where tekst_id = '351' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
-}
+deleteStaleTekst(351, $gamle_351);
 
 $cvr_gamle_tekster = array(
 	'Auto-opslag','Auto lookup','Auto-oppslag',
@@ -576,13 +594,8 @@ $cvr_gamle_tekster = array(
 	'CVR-nummeret er ikke gyldigt.','The VAT number is not valid.','Organisasjonsnummeret er ikke gyldig.',
 	'Søger...','Searching...','Søker...'
 );
-foreach ($cvr_gamle_tekster as $cvr_tekst) {
-	$cvr_tekst = db_escape_string($cvr_tekst);
-	db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst = '$cvr_tekst'", __FILE__ . " linje " . __LINE__);
-}
-db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast CVR-nr. efterfulgt%'", __FILE__ . " linje " . __LINE__);
-db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Enter the VAT no. followed%'", __FILE__ . " linje " . __LINE__);
-db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast inn org.nr. etterfulgt%'", __FILE__ . " linje " . __LINE__);
+deleteStaleTekst([5040, 5046], $cvr_gamle_tekster);
+deleteStaleTekst([5040, 5046], ['Tast CVR-nr. efterfulgt', 'Enter the VAT no. followed', 'Tast inn org.nr. etterfulgt'], null, true);
 
 // 20260908 CL/Sawaneh SST-763: one pbs_ordrer row per PBS attempt. New columns record who/when,
 // the Nets result registered by the user and which earlier attempt a resend replaces.
@@ -763,6 +776,55 @@ if ($lockTokenMissing) {
 	}
 }
 
+// 20260925 LOE MB-42 The document pool recognised the same bilag only by its filename, and the mail
+//                  client posts it again under another one, so pool_files.content_sha256 is what
+//                  deduplication and the duplicate badge now use. The column and its index are created
+//                  by poolContentHashColumnExists() in includes/docsIncludes/poolContentHash.php,
+//                  because the REST attachment endpoint and the pulje sync read and write that column
+//                  without ever running this file; the one-time backfill stays here, where the login
+//                  flow is already doing per-tenant maintenance work.
+include_once(__DIR__ . "/docsIncludes/poolContentHash.php");
+poolContentHashEnsureSchema();
+
+// One-time backfill of content_sha256 for the rows written before the column existed, gated by a
+// settings flag exactly like pool_files_norm_amount_backfilled above. A row whose file is no longer
+// in the pulje folder keeps NULL - the sync deletes those rows anyway.
+//
+// The folder is resolved through poolPuljePath(), not hardcoded to bilag: an installation stores its
+// documents in owncloud, bilag or documents, and hardcoding bilag made every is_file() test here fail
+// on the other two layouts - hashing nothing, and (because the flag used to be written regardless)
+// doing it permanently, with no retry on a later login. The flag is now only written once the folder
+// was actually found, so a tenant whose folder appears later still gets its rows hashed.
+$pool_files_hash_backfilled = db_fetch_array(db_select(
+	"SELECT var_value FROM settings WHERE var_name = 'pool_files_content_sha256_backfilled' AND var_grp = 'system'",
+	__FILE__ . " linje " . __LINE__
+));
+if (!$pool_files_hash_backfilled && poolContentHashColumnExists()) {
+	include_once(__DIR__ . "/docsIncludes/poolPaths.php");
+	$poolHashDir = poolPuljePath($db);
+	if (is_dir($poolHashDir)) {
+		$q_pool_hash = db_select("SELECT id, filename FROM pool_files WHERE (content_sha256 IS NULL OR content_sha256 = '') AND filename IS NOT NULL AND filename != ''", __FILE__ . " linje " . __LINE__);
+		while ($r_pool_hash = db_fetch_array($q_pool_hash)) {
+			$poolHashFile = $poolHashDir . '/' . basename($r_pool_hash['filename']);
+			if (!is_file($poolHashFile)) {
+				continue;
+			}
+			$poolHashValue = @hash_file('sha256', $poolHashFile);
+			if ($poolHashValue) {
+				db_modify(
+					"UPDATE pool_files SET content_sha256 = '" . db_escape_string($poolHashValue) . "' WHERE id = " . (int) $r_pool_hash['id'],
+					__FILE__ . " linje " . __LINE__
+				);
+			}
+		}
+		db_modify(
+			"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+			VALUES ('pool_files_content_sha256_backfilled', 'system', 'yes', 'One-time backfill of pool_files.content_sha256 from the files in the pulje folder')",
+			__FILE__ . " linje " . __LINE__
+		);
+	}
+}
+
 // 20260923 CL/NTR Tekst 242 (Ryk alle hover on the debtor openpost report) was an unclosed
 // <big>/<UL>/<LI> fragment - overly bureaucratic-looking for a one-line explanation. Delete rows
 // still holding the old text so findtekst() re-seeds them from tekster.csv with plain text.
@@ -773,9 +835,39 @@ $gamle_242 = array(
 	'<big>This feature does the following: <UL> <LI> settles all accounts',
 	'<big> Denne funksjonen gjør følgende: <UL> <LI> gjør opp alle kontoer'
 );
-foreach ($gamle_242 as $gammel) {
-	$gammel = db_escape_string($gammel);
-	db_modify("delete from tekster where tekst_id = '242' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
+deleteStaleTekst(242, $gamle_242);
+
+// 20260930 CL/NTR Texts reworded in importfiler/tekster.csv on the translation branch (vareliste,
+// indkøb, ordrestatus and serienumre pages). findtekst() prefers an existing DB row over the csv, so
+// delete the rows still holding the old text; the next findtekst() call re-seeds the new text.
+// Entries are [tekst_id, sprog_id, old text]. Rows that only gained a text (empty before) need no entry.
+$tekster_reworded_20260930 = [
+	[373, 3, 'Løp. md.'],
+	[429, 2, 'Category'],
+	[429, 3, 'Kategori'],
+	[544, 2, 'Invoice Display'],
+	[545, 2, 'Offer Display'],
+	[545, 3, 'Tilbyr utsikt'],
+	[546, 2, 'Order Display'],
+	[546, 3, 'Bestill skjerm'],
+	[954, 3, 'Kjøpsforslag'],
+	[967, 3, 'Gjenstandsnavn'],
+	[988, 2, 'Supplier'],
+	[988, 3, 'Leverandør'],
+	[1208, 2, 'Start mnth.'],
+	[1208, 3, 'Start md.'],
+	[1210, 2, 'End mnth.'],
+	[1210, 3, 'Slutt md.'],
+	[2640, 2, ' Click here to add a new product'],
+	[2640, 3, 'Klikk her for å opprette et nytt produkt'],
+	[2641, 2, 'Your product list is displayed here. Click a item number to open it.'],
+	[2648, 3, 'Her ser du hvor mye systemet anbefaler at du bestiller på nytt. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.'],
+	[2652, 3, 'Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i for eksempel partier på f.eks.'],
+	[2656, 3, 'Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret'],
+	[2657, 3, 'Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret'],
+];
+foreach ($tekster_reworded_20260930 as $reworded) {
+	deleteStaleTekst($reworded[0], $reworded[2], $reworded[1]);
 }
 
 // 20260924 Sawaneh SST-757: Users created via Sager -> Ansatte were inserted without regnskabsaar. Checked with a
@@ -786,5 +878,8 @@ if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null 
 		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
 	}
 }
+// Preserve HTML users before the renderer changes; explicit choices survive later updates.
+require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
+initializeFormHtmlLayoutVersion($db_type);
 
 ?>

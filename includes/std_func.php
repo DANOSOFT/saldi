@@ -99,6 +99,7 @@ include(__DIR__ . '/stdFunc/dkAmountValid.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
+include(__DIR__ . '/stdFunc/jsString.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
