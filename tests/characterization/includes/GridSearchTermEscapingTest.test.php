@@ -266,4 +266,78 @@ final class GridSearchTermEscapingTest extends TestCase
         self::assertStringContainsString('Udført af', $html);
         self::assertStringContainsString('Sælgerens initialer', $html);
     }
+
+    /**
+     * @return callable DEFAULT_CELL_RENDERE() lifted out of includes/grid.php
+     *
+     * The stored column setup reaches the per-row cells as well as the header row:
+     * render_table_row() hands each column the same merge_column_setup() output that
+     * render_table_headers() gets, and a column with no 'render' of its own falls back to
+     * DEFAULT_CELL_RENDERE via DEFAULT_COLUMN. So the alignment runs through a second sink,
+     * once per data row rather than once per header.
+     */
+    private static function cellRenderer(): callable
+    {
+        static $fn = null;
+        if ($fn !== null) {
+            return $fn;
+        }
+        $src = file_get_contents(__DIR__ . '/../../../includes/grid.php');
+        self::defineHelpers($src);
+        $start = strpos($src, 'function DEFAULT_CELL_RENDERE(');
+        self::assertNotFalse($start, 'DEFAULT_CELL_RENDERE() not found in grid.php');
+        $open = strpos($src, '{', $start);
+        $depth = 0;
+        for ($i = $open; $i < strlen($src); $i++) {
+            if ($src[$i] === '{') $depth++;
+            if ($src[$i] === '}') {
+                $depth--;
+                if ($depth === 0) break;
+            }
+        }
+        self::assertSame(0, $depth, 'DEFAULT_CELL_RENDERE() has unbalanced braces');
+        $body = substr($src, $start, $i - $start + 1);
+        $fn = eval('return ' . preg_replace('/^function DEFAULT_CELL_RENDERE\s*\(/', 'function (', $body, 1) . ';');
+        self::assertIsCallable($fn);
+        return $fn;
+    }
+
+    /**
+     * A stored alignment must not be able to break out of the data cell's align attribute.
+     * Same stored-setup path as the header row, but this renderer fires for every row.
+     *
+     * @param string $stored The stored alignment.
+     */
+    #[DataProvider('hostileAlignments')]
+    public function testStoredAlignIsWhitelistedInDataCells(string $stored): void
+    {
+        $html = (self::cellRenderer())('hello', [], ['align' => $stored]);
+
+        preg_match_all("/align='([^']*)'/", $html, $m);
+        self::assertNotEmpty($m[1], 'expected an align attribute on the cell');
+        foreach ($m[1] as $emitted) {
+            self::assertContains($emitted, ['left', 'center', 'right'], "unexpected alignment emitted: $emitted");
+        }
+        // Nothing may follow the alignment inside the attribute, and no event handler
+        // may have become markup of its own.
+        self::assertStringNotContainsString('onmouseover', $html);
+        self::assertStringNotContainsString('javascript:', $html);
+        self::assertSame(1, substr_count($html, "align='"), 'more than one align attribute emitted');
+    }
+
+    /** The three alignments the editor offers must still reach the data cell unchanged. */
+    #[DataProvider('validAlignments')]
+    public function testValidAlignmentsSurviveInDataCells(string $align): void
+    {
+        self::assertStringContainsString("align='$align'", (self::cellRenderer())('hello', [], ['align' => $align]));
+    }
+
+    /** A column definition with no alignment at all must still render a cell, and warn-free. */
+    public function testDataCellWithoutAnAlignmentStillRenders(): void
+    {
+        $html = (self::cellRenderer())('hello', [], []);
+
+        self::assertStringContainsString("align='left'", $html);
+        self::assertStringContainsString('hello', $html);
+    }
 }

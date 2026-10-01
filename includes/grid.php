@@ -96,7 +96,11 @@ function DEFAULT_VALUE_GETTER($value, $row, $column) {
  * @return string The rendered HTML table cell.
  */
 function DEFAULT_CELL_RENDERE($value, $row, $column) {
-    return "<td align='{$column['align']}'>{$value}</td>";
+    // The stored per-user column setup supplies align, so it reaches this default
+    // renderer exactly as it reaches the header row and the column editor - and here it
+    // runs once per data row. Whitelisted rather than escaped: this sits inside
+    // align='...', where escaping alone still lets a value close the attribute.
+    return "<td align='" . grid_align($column['align'] ?? '') . "'>{$value}</td>";
 }
 
 /**
