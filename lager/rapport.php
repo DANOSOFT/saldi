@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 5.0.0 --- 2026-06-10---
+// --- lager/rapport.php --- patch 5.0.0 --- 2026-09-25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20130318 $modulnr ændret fra 12  til 15
@@ -103,6 +103,9 @@
 //             column-title row (matching lager/lister/vareliste.php's create_datagrid() search
 //             row), reusing the existing Varenr./Varenavn fields that already fed the query further
 //             down (previously only on the front page) - no change to that query/caching logic
+// 20260925 CL/NTR Escape a Varenr./Varenavn search term's own '%'/'_' via the new
+//             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
+//             no longer matches (almost) the whole catalogue.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -642,7 +645,10 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		// Pattern built into its own variable (not $varenr itself) so the search box, cache key,
 		// hidden fields and pagination links all keep showing what the user actually typed instead
 		// of the wrapped '%...%' SQL pattern.
-		$varenrPattern = "%".$varenr."%";
+		// 20260925 CL/NTR - db_escape_like_pattern() first, so a literal '%'/'_' the user typed doesn't
+		// act as a SQL wildcard and match (almost) the whole catalogue - see its own comment in
+		// includes/db_query.php.
+		$varenrPattern = "%".db_escape_like_pattern($varenr)."%";
 		$low=strtolower($varenrPattern);
 		$upp=strtoupper($varenrPattern);
 		if ($tmp) $tmp.=" and (varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varenr) LIKE '".db_escape_string($low)."' or upper(varenr) LIKE '".db_escape_string($upp)."')";
@@ -650,7 +656,8 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	}
 	if ($varenavn) {
 		// MB-31 - same plain substring match as Varenr. above, same reason for a separate pattern var.
-		$varenavnPattern = "%".$varenavn."%";
+		// 20260925 CL/NTR - db_escape_like_pattern(), same reason as $varenrPattern above.
+		$varenavnPattern = "%".db_escape_like_pattern($varenavn)."%";
 		$low=strtolower($varenavnPattern);
 		$upp=strtoupper($varenavnPattern);
 		if ($tmp) $tmp.=" and (beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(beskrivelse) LIKE '".db_escape_string($low)."' or upper(beskrivelse) LIKE '".db_escape_string($upp)."')";

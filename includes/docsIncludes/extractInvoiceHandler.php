@@ -2,15 +2,91 @@
 // --- includes/docsIncludes/extractInvoiceHandler.php ---
 // AJAX handler for invoice extraction from pool files
 // ----------------------------------------------------------------------
+// 20260910 CL/SZ SST-777: validate the suggested account against kontoplan before saving,
+//                 and skip an automatic re-extraction save that would overwrite a field
+//                 the user already corrected by hand (manually_edited).
+// 20260910 SZ SST-777 (CodeRabbit): manually_edited came back from Postgres as "f", which
+//                 !empty() treated as true - every row read as manually edited. Check
+//                 explicit truthy values instead. Also closed the race where a manual save
+//                 landing between the read and an automatic save's write got overwritten:
+//                 the automatic UPDATE's WHERE clause now itself requires
+//                 manually_edited = false, and skipped:true is reported if it loses that race.
 // 20260909 CDX/MJ SST-775 Moved normalizeDateFormat() to poolDateNormalizer.php so the date
 //             handling is testable - this file connects to a database and exits when included.
 //             Behaviour is unchanged here; the fixes live in that file.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: 'extract' now also returns the seller's
+//             CVR/IBAN/bank details and a server-side kreditor match (vendorMatch); 'save'
+//             re-runs the match from the posted identity fields (vendorScan=1) and stores
+//             the pool_files.vendor_* columns. Match logic lives in poolVendorMatcher.php.
+// 20260922 CL/LAH A fatal is reported as a JSON error instead of an empty body; the vendor
+//             match is wrapped so it can never fail the scan; JSON_INVALID_UTF8_SUBSTITUTE
+//             on the responses because legacy adresser rows can hold non-UTF-8 bytes.
+// 20260923 CL/LAH Output stays buffered until shutdown, so a warning, a late fatal or
+//             db_query.php's alert() can no longer corrupt the JSON (Astra review). The buffer
+//             is never closed early, so this also covers the session/db checks at startup.
+// 20260923 CL/NTR The non-JSON fallback no longer echoes the raw error/alert text to the
+//             client (CodeRabbit); it now sends a short random ref id and logs the full
+//             reason against that same id, so the incident can still be found in the log.
+
+// 20260914 CDX/LH Share atomic metadata saves and reject stale confirmations.
+// 20260930 CL/SZ SST-777 (CodeRabbit): an automatic save right after upload always 409'd
+//             because the pool_files row didn't exist yet (syncPuljeFilesToDatabase() only
+//             runs on the next page load) - insert the same minimal row the sync would, but
+//             only for an automatic save and only when the file is actually on disk. Also
+//             guarded the vendor UPDATE that runs after poolMetadataSave() commits with an
+//             atomic manually_edited check, so a manual correction landing in between can't
+//             be overwritten by the still-in-flight automatic request's vendor match.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
 
 // Start output buffering to capture any unwanted output
 ob_start();
+
+// Every response of this handler must be one JSON document. A fatal error, a warning printed
+// with display_errors on, or db_query.php's alert() on a failed query would otherwise reach
+// the browser as an empty or non-JSON body ("Unexpected end of JSON input", seen on ssl3
+// 2026-09-22). All output stays buffered until shutdown; if the buffer is not valid JSON by
+// then, it is replaced by a JSON error naming the cause, which is also written to the log.
+register_shutdown_function(function () {
+	$error = error_get_last();
+	$fatal = $error !== null && in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_RECOVERABLE_ERROR), true);
+	$out = '';
+	while (ob_get_level() > 0) $out = ob_get_clean() . $out;
+	$trimmed = trim($out);
+	if (!$fatal && $trimmed !== '') {
+		json_decode($trimmed);
+		if (json_last_error() === JSON_ERROR_NONE) {
+			echo $trimmed;
+			return;
+		}
+		// Valid JSON with stray output in front of it (a warning, a debug echo): send the JSON.
+		$jsonStart = strrpos($trimmed, '{"success"');
+		if ($jsonStart !== false) {
+			$tail = substr($trimmed, $jsonStart);
+			json_decode($tail);
+			if (json_last_error() === JSON_ERROR_NONE) {
+				error_log("extractInvoiceHandler: stray output before JSON: " . substr(strip_tags(substr($trimmed, 0, $jsonStart)), 0, 500));
+				echo $tail;
+				return;
+			}
+		}
+	}
+	if ($fatal) {
+		$reason = basename($error['file']) . ':' . $error['line'] . ' ' . $error['message'];
+	} elseif ($trimmed === '') {
+		$reason = 'tomt svar';
+	} elseif (preg_match('#alert\((["\'])(.*?)\1\)#s', $trimmed, $alertMatch)) {
+		// db_query.php's alert() after a failed query: its text is the user-facing message.
+		$reason = $alertMatch[2];
+		error_log("extractInvoiceHandler: output before alert: " . substr(strip_tags($trimmed), 0, 500));
+	} else {
+		$reason = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($trimmed), ENT_QUOTES, 'UTF-8')));
+	}
+	$errorId = substr(bin2hex(random_bytes(4)), 0, 8);
+	error_log("extractInvoiceHandler: non-JSON response replaced [$errorId]: " . substr($reason, 0, 500));
+	echo json_encode(array('success' => false, 'error' => "Serverfejl (ref: $errorId) - kontakt support"), JSON_INVALID_UTF8_SUBSTITUTE);
+});
 
 // Start session so the tenant db can be resolved from it below - a POSTed
 // db name must never be trusted directly (it would let a tampered request
@@ -22,22 +98,27 @@ $s_id = session_id();
 include_once(__DIR__ . "/../connect.php");
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolDateNormalizer.php");
+require_once __DIR__ . "/poolMetadata.php";
+require_once __DIR__ . "/../std_func.php";
+include_once(__DIR__ . "/poolVendorMatcher.php");
 
 // Resolve the tenant db from the session's online-table entry, same pattern
 // as includes/_docPoolData.php and includes/online.php - never from $_POST['db'].
-$qtxt = "select db from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
+$qtxt = "select db, regnskabsaar, language_id from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
 $onlineRow = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
 $db = trim($onlineRow['db'] ?? '');
+$regnaar = (int)($onlineRow['regnskabsaar'] ?? 0);
+$sprog_id = (int)($onlineRow['language_id'] ?? 1);
 
 if (empty($db)) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Session udløbet - log ind igen']);
 	exit;
 }
 
 // Validate db name (only allow alphanumeric and underscore)
 if (!preg_match('/^[a-zA-Z0-9_]+$/', $db)) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Ugyldig database navn']);
 	exit;
 }
@@ -47,23 +128,51 @@ global $sqhost, $squser, $sqpass;
 $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
 
 if (!$connection) {
-	ob_end_clean();
+	ob_clean();
 	echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
 	exit;
 }
 
 // Include the extraction API
-include_once("invoiceExtractionApi.php");
+include_once(__DIR__ . "/invoiceExtractionApi.php");
 
-// Discard any buffered output from includes
-ob_end_clean();
+// Discard any buffered output from includes but keep buffering until shutdown (see the
+// shutdown handler at the top) so nothing can reach the browser outside the JSON response.
+ob_clean();
+
+/**
+ * Match the vendor identity of a scanned invoice against the tenant's kreditorer.
+ * Two database reads (adresser art='K' and the tenant's own CVR from art='S'), no API calls.
+ *
+ * @param array{name?:string|null,cvr?:string|null,iban?:string|null,bank_reg?:string|null,bank_konto?:string|null,customerCvr?:string|null} $identity
+ * @return array See poolVendorMatch().
+ */
+function extractInvoiceMatchVendor(array $identity) {
+	try {
+		return extractInvoiceMatchVendorUnsafe($identity);
+	} catch (Throwable $e) {
+		// The match is a bonus on top of the scan; never let it take the scan down.
+		error_log("extractInvoiceHandler vendor match failed: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+		return null;
+	}
+}
+
+function extractInvoiceMatchVendorUnsafe(array $identity) {
+	$ownCvr = poolVendorLoadOwnCvr();
+	// The buyer's CVR on the invoice is a second way to know which number is not the seller's.
+	$customerCvr = normalizePoolVendorCvr($identity['customerCvr'] ?? null);
+	if ($customerCvr !== null && $ownCvr === null) $ownCvr = $customerCvr;
+	$vendorCvr = normalizePoolVendorCvr($identity['cvr'] ?? null);
+	if ($vendorCvr !== null && $customerCvr !== null && $vendorCvr === $customerCvr) $identity['cvr'] = null;
+	return poolVendorMatch($identity, poolVendorLoadIndex(), array('ownCvr' => $ownCvr, 'nameScan' => 'full'));
+}
 
 
 // Get action and poolFile from POST
 $action = isset($_POST['action']) ? $_POST['action'] : '';
 $poolFile = isset($_POST['poolFile']) ? $_POST['poolFile'] : '';
 
-if (empty($poolFile)) {
+if (!is_string($poolFile) || $poolFile === '') {
 	echo json_encode(['success' => false, 'error' => 'Ingen fil angivet']);
 	exit;
 }
@@ -114,6 +223,8 @@ if (!file_exists($filePath)) {
 
 // Action: extract - Call the invoice extraction API
 if ($action === 'extract') {
+	$metadata = db_fetch_array(db_select("SELECT * FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'", __FILE__ . ' line ' . __LINE__));
+	$metadataVersion = $metadata ? poolMetadataVersion($metadata) : null;
 	// Check if file exists
 	if (!file_exists($filePath)) {
 		echo json_encode(['success' => false, 'error' => 'Fil ikke fundet: ' . $poolFile]);
@@ -131,17 +242,33 @@ if ($action === 'extract') {
 		// Normalize date format (handles Danish months like "17.oktober.2025")
 		$normalizedDate = isset($result['date']) ? normalizeDateFormat($result['date']) : null;
 		
+		$vendorMatch = extractInvoiceMatchVendor(array(
+			'name' => $result['vendor'] ?? null,
+			'cvr' => $result['vendorCvr'] ?? null,
+			'iban' => $result['vendorIban'] ?? null,
+			'bank_reg' => $result['vendorBankReg'] ?? null,
+			'bank_konto' => $result['vendorBankKonto'] ?? null,
+			'customerCvr' => $result['customerCvr'] ?? null,
+		));
+
 		echo json_encode([
 			'success' => true,
+			'version' => $metadataVersion,
 			'data' => [
 				'amount' => $result['amount'] ?? null,
 				'date' => $normalizedDate,
 				'vendor' => $result['vendor'] ?? null,
 				'invoiceNumber' => $result['invoiceNumber'] ?? null,
 				'description' => $result['description'] ?? null,
-				'currency' => $result['currency'] ?? null
+				'currency' => $result['currency'] ?? null,
+				'vendorCvr' => $result['vendorCvr'] ?? null,
+				'vendorIban' => $result['vendorIban'] ?? null,
+				'vendorBankReg' => $result['vendorBankReg'] ?? null,
+				'vendorBankKonto' => $result['vendorBankKonto'] ?? null,
+				'customerCvr' => $result['customerCvr'] ?? null,
+				'vendorMatch' => $vendorMatch
 			]
-		]);
+		], JSON_INVALID_UTF8_SUBSTITUTE);
 	} else {
 		echo json_encode(['success' => false, 'error' => 'Kunne ikke udtrække data fra fakturaen']);
 	}
@@ -150,106 +277,90 @@ if ($action === 'extract') {
 
 // Action: save - Save extracted data to the database
 if ($action === 'save') {
-	$newAmount = isset($_POST['newAmount']) ? $_POST['newAmount'] : '';
-	$newDate = isset($_POST['newDate']) ? $_POST['newDate'] : '';
-	$newSubject = isset($_POST['newSubject']) ? $_POST['newSubject'] : '';
-	$newAccount = isset($_POST['newAccount']) ? $_POST['newAccount'] : '';
-	$newInvoiceNumber = isset($_POST['newInvoiceNumber']) ? $_POST['newInvoiceNumber'] : '';
-	$newDescription = isset($_POST['newDescription']) ? $_POST['newDescription'] : '';
-	$newCurrency = isset($_POST['newCurrency']) ? $_POST['newCurrency'] : '';
-	
-	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
-	
-	// Read existing data from database
-	$existingSubject = '';
-	$existingAccount = '';
-	$existingAmount = '';
-	$existingDate = '';
-	$existingInvoiceNumber = '';
-	$existingDescription = '';
-	$existingCurrency = '';
-	
-	$qtxt = "SELECT * FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
-	$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	
-	if ($existingRow) {
-		$existingSubject = $existingRow['subject'] ?? '';
-		$existingAccount = $existingRow['account'] ?? '';
-		$existingAmount = $existingRow['amount'] ?? '';
-		$existingDate = $existingRow['file_date'] ?? '';
-		$existingInvoiceNumber = $existingRow['invoice_number'] ?? '';
-		$existingDescription = $existingRow['description'] ?? '';
-		$existingCurrency = $existingRow['currency'] ?? '';
-
-		// If date in DB is in Y-m-d H:i:s format, we might want to standardize, but let's keep it as is
-		// logic below handles newDate overrides
-	} else {
-		// Fallback to .info file ONLY if not in DB (migration path)
-		$infoFile = "$puljePath/$baseName.info";
-		if (file_exists($infoFile)) {
-			$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
-			if ($infoLines !== false && is_array($infoLines)) {
-				$existingSubject = isset($infoLines[0]) ? trim($infoLines[0]) : '';
-				$existingAccount = isset($infoLines[1]) ? trim($infoLines[1]) : '';
-				$existingAmount = isset($infoLines[2]) ? trim($infoLines[2]) : '';
-				$existingDate = isset($infoLines[3]) ? trim($infoLines[3]) : '';
-				$existingInvoiceNumber = isset($infoLines[4]) ? trim($infoLines[4]) : '';
-				$existingDescription = isset($infoLines[5]) ? trim($infoLines[5]) : '';
-			}
+	$input = [];
+	foreach (['newSubject' => 'subject', 'newAccount' => 'account', 'newAmount' => 'amount',
+		'newDate' => 'file_date', 'newInvoiceNumber' => 'invoice_number',
+		'newDescription' => 'description', 'newCurrency' => 'currency'] as $requestKey => $field) {
+		if (array_key_exists($requestKey, $_POST)) {
+			$input[$field] = $_POST[$requestKey];
 		}
 	}
-	
-	// Use new values if provided, otherwise keep existing
-	$finalSubject = !empty($newSubject) ? $newSubject : (!empty($existingSubject) ? $existingSubject : $baseName);
-	$finalAccount = !empty($newAccount) ? $newAccount : $existingAccount;
-	$finalAmount = !empty($newAmount) ? $newAmount : $existingAmount;
-	$finalInvoiceNumber = !empty($newInvoiceNumber) ? $newInvoiceNumber : $existingInvoiceNumber;
-	$finalDescription = !empty($newDescription) ? $newDescription : $existingDescription;
-	// Normalize aliases like "kr"/"kr." to "DKK" - fetchbilagsmatch.php's currency hard
-	// gate is a plain string match, so an unrecognized currency string (as returned
-	// verbatim by the AI extraction API) would silently exclude this file from every
-	// match regardless of how well amount/date/text otherwise line up.
-	$finalCurrency = normalizePoolCurrency(!empty($newCurrency) ? $newCurrency : $existingCurrency) ?? '';
+	try {
+		$version = $_POST['poolVersion'] ?? null;
+		if ($version !== null && !is_string($version)) {
+			throw new InvalidArgumentException('Invalid version', 422);
+		}
+		$manual = ($_POST['manual'] ?? '') === '1';
+		// 20260930 SZ (CodeRabbit): the automatic save right after an upload runs before
+		// syncPuljeFilesToDatabase() ever sees the new file (that only runs once per page
+		// load, on the next visit) - so poolMetadataSave() always found no row and 409'd,
+		// silently skipping metadata/vendor match for every freshly uploaded file. Insert the
+		// same minimal row the sync would, only when the file genuinely exists on disk and
+		// only for an automatic save - a manual save still 409s on a missing row exactly as
+		// before, so a stale tab still cannot recreate a deleted/moved document.
+		if (!$manual && file_exists($filePath)) {
+			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli')
+				? ' ON DUPLICATE KEY UPDATE id = id'
+				: ' ON CONFLICT (filename) DO NOTHING';
+			db_modify(
+				"INSERT INTO pool_files (filename, subject, file_date) VALUES ('" . db_escape_string($poolFile) . "', '"
+					. db_escape_string(pathinfo($poolFile, PATHINFO_FILENAME)) . "', '"
+					. db_escape_string(date('Y-m-d H:i:s', filemtime($filePath))) . "')" . $onConflictClause,
+				__FILE__ . ' line ' . __LINE__
+			);
+		}
+		$result = poolMetadataSave($poolFile, $input, $manual, $version, $regnaar);
 
-	// Format date using the normalization function (handles Danish months, etc.)
-	$dateToUse = !empty($newDate) ? $newDate : $existingDate;
-	$finalDate = normalizeDateFormat($dateToUse);
+		// Vendor identity is only (re)matched when the caller is one of the scanning paths
+		// (vendorScan=1); a plain metadata save/correction leaves the vendor_* columns
+		// untouched. Best-effort, like the rest of this handler - a failed or skipped match
+		// never fails the save itself, it just reports vendor: null.
+		// 20260924 SZ SST-777 (CodeRabbit): skip the rematch when poolMetadataSave() itself
+		// skipped (the row is manually_edited and this was an automatic re-extraction) - it
+		// would otherwise match on the stale OCR $_POST['newSubject'] and overwrite vendor_*
+		// with a vendor that disagrees with the user's kept correction.
+		$vendorMatch = null;
+		if (($_POST['vendorScan'] ?? '') === '1' && empty($result['skipped'])) {
+			if (!poolVendorColumnsExist()) {
+				// Migration not applied on this tenant yet: the ordinary fields are already
+				// saved above; the file is matched on the next scan or when the pool opens
+				// after the columns exist.
+				error_log("extractInvoiceHandler: pool_files.vendor_* columns missing on $db - vendor match skipped for $poolFile");
+			} else {
+				$vendorMatch = extractInvoiceMatchVendor(array(
+					'name' => $_POST['newSubject'] ?? '',
+					'cvr' => $_POST['newVendorCvr'] ?? '',
+					'iban' => $_POST['newVendorIban'] ?? '',
+					'bank_reg' => $_POST['newVendorBankReg'] ?? '',
+					'bank_konto' => $_POST['newVendorBankKonto'] ?? '',
+					'customerCvr' => $_POST['newCustomerCvr'] ?? '',
+				));
+				if ($vendorMatch !== null) {
+					// 20260930 SZ (CodeRabbit): this UPDATE runs after poolMetadataSave()'s own
+					// transaction has already committed, so the manually_edited check it did
+					// there can be stale by the time this runs - a manual save can land in
+					// between and flip the flag to true. For a non-manual request, require the
+					// row to still be unedited atomically in the WHERE clause itself; a manual
+					// request (which owns the correction being scanned) is unrestricted.
+					$vendorGuard = $manual ? '' : ' AND (manually_edited IS NULL OR manually_edited = false)';
+					db_modify(
+						"UPDATE pool_files SET " . poolVendorUpdateSql($vendorMatch) . " WHERE filename = '" . db_escape_string($poolFile) . "'" . $vendorGuard,
+						__FILE__ . " linje " . __LINE__
+					);
+				}
+			}
+		}
 
-	// Normalize the amount to a real number now, so Bilagsmatch scoring can join on
-	// norm_amount directly instead of re-parsing this free-form string at query time.
-	$finalNormAmount = normalizePoolAmount($finalAmount);
-	$normAmountSql = ($finalNormAmount === null) ? 'NULL' : db_escape_string((string) $finalNormAmount);
-
-	// Update or Insert into Database
-	if ($existingRow) {
-		$qtxt = "UPDATE pool_files SET
-			subject = '". db_escape_string($finalSubject) ."',
-			account = '". db_escape_string($finalAccount) ."',
-			amount = '". db_escape_string($finalAmount) ."',
-			norm_amount = $normAmountSql,
-			invoice_number = '". db_escape_string($finalInvoiceNumber) ."',
-			description = '". db_escape_string($finalDescription) ."',
-			currency = '". db_escape_string($finalCurrency) ."',
-			file_date = '". db_escape_string($finalDate) ."',
-			updated = CURRENT_TIMESTAMP
-			WHERE filename = '". db_escape_string($poolFile) ."'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	} else {
-		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency) VALUES (
-			'". db_escape_string($poolFile) ."',
-			'". db_escape_string($finalSubject) ."',
-			'". db_escape_string($finalAccount) ."',
-			'". db_escape_string($finalAmount) ."',
-			$normAmountSql,
-			'". db_escape_string($finalDate) ."',
-			'". db_escape_string($finalInvoiceNumber) ."',
-			'". db_escape_string($finalDescription) ."',
-			'". db_escape_string($finalCurrency) ."'
-		)";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$result['vendor'] = $vendorMatch;
+		echo json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE);
+	} catch (RuntimeException | InvalidArgumentException $error) {
+		$status = $error->getCode() === 409 ? 409 : 422;
+		http_response_code($status);
+		$message = $status === 409
+			? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
+			: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+		echo json_encode(['success' => false, 'error' => $message]);
 	}
-	
-	echo json_encode(['success' => true]);
 	exit;
 }
 

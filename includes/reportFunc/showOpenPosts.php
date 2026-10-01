@@ -83,6 +83,9 @@
 //                to the PHP-side resolution. openpost_export_csv() now also honours an active
 //                aging-bucket filter (read straight from the request, like the display path), so a
 //                bucket-filtered on-screen total matches the exported total - it did not before.
+// 20260923 CL/NTR Mail kontoudtog/Opret rykker/Ryk alle only print when at least one account row
+//                is on the page (formIndex > 0) - with none, posting back had no konto_id[] fields
+//                and crashed count(null) in rapport.php.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -1058,7 +1061,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	print "<input type=hidden name=order_by value=\"$orderBy\">";
 	print "<input type=hidden name=order_dir value=\"$orderDir\"></td></tr>";
 
-	if ($kontoart=='D') {
+	// The Mail kontoudtog/Opret rykker/Ryk alle buttons post back konto_id[] checkboxes from the
+	// account rows above; with no matching accounts (formIndex still 0) no konto_id[] fields exist
+	// to act on, so skip the buttons rather than submit an empty/missing konto_id. 20260923 CL/NTR
+	if ($kontoart=='D' && $formIndex > 0) {
 		$overlib4="<span class='CellComment'>".findtekst(242,$sprog_id)."</span>";
 		print "<tr><td colspan='10' align='center' class='border-hr-top'><span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
 		print "<input type=submit value=\"Mail kontoudtog\" name=\"submit\"></span>&nbsp;&nbsp;";

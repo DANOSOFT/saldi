@@ -21,6 +21,7 @@
 // 20190225 MSC - Rettet topmenu design
 // 20210713 LOE - Translated these texts to Norsk and English
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260825 Sawaneh JOB-086: fiscal year from the request is int-cast before use in SQL
 
 @session_start();
 $s_id=session_id();
@@ -31,7 +32,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
-$regnskabsaar=$_GET['aar'];
+$regnskabsaar = intval($_GET['aar'] ?? 0);
 
 $returside="diverse.php?sektion=div_io";
 
