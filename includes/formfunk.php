@@ -2938,10 +2938,18 @@ if (!function_exists('kontoprint')) {
 			// comparison is against konto_til.
 			// lukket is '' on most rows but NULL on others, and NULL != 'on' is NULL, not true -
 			// which would have dropped those accounts from a range print instead.
-			if ($konto_fra != $konto_til)
-				$qtxt = "select id,gruppe from adresser where kontonr>='$konto_fra' and kontonr<='$konto_til' and art = '$kontoart' and (lukket is null or lukket != 'on')";
-			else
+			if ($konto_fra != $konto_til) {
+				// is_numeric() above constrains konto_fra but nothing constrains konto_til or
+				// kontoart, and both arrive from $_GET via debitor/kontoprint.php. While this
+				// branch was dead that did not reach the database; enabling it, it does, so
+				// escape them here.
+				$konto_fra_esc = db_escape_string($konto_fra);
+				$konto_til_esc = db_escape_string($konto_til);
+				$kontoart_esc  = db_escape_string($kontoart);
+				$qtxt = "select id,gruppe from adresser where kontonr>='$konto_fra_esc' and kontonr<='$konto_til_esc' and art = '$kontoart_esc' and (lukket is null or lukket != 'on')";
+			} else {
 				$qtxt = "select id,gruppe from adresser where kontonr='$konto_fra' and art = '$kontoart'";
+			}
 		} elseif ($konto_fra && $konto_fra != '*') {
 			$konto_fra = str_beskrivelsreplace("*", "%", $konto_fra);
 			$tmp1 = strtolower($konto_fra);
