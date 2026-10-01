@@ -107,6 +107,7 @@
 // 20260818 Sawaneh Credit notes: only cap the quantity when the line points the wrong way or more
 //                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
 //                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
+// 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 // 20260907 CDX/LH Share the invoice payment gate with the assistant's saved-state reader.
 // 20260908 CL/Sawaneh SST-763: PBS button on posted PBS invoices opens debitor/pbs_gensend.php
 //                     (attempt history + resend after a Nets rejection).
@@ -114,8 +115,12 @@
 // 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
 // 20260910 Sawaneh Back button: luk.php returside only on the popup=1 request flag (was the popup
 //                  preference, which sent inline/iframe users to the login page); GET, POST and stored returside sanitised.
+// 20260911 CDX/MJ JOB-106 Approval guard validates the effective order type: an all-negative DO
+//             order only becomes a DK credit note in bogfor(), long after this runs, so a valid
+//             return date was refused at approval.
 // 20260911 CDX/LH SD-186 Place Udført af beside Vor ref. using the same employee options.
 //                  Escape employee selections when saving names containing apostrophes.
+// 20260914 CDX/LH Preserve credit-note approval validation alongside the current employee fields.
 // 20260828 CL/SZ SD-660: Fixed $tpm/$tmp typo in the pile (prev/next arrows) block - $tpm never
 //                existed so the guard from SD-368 (line ~3722, "sets tmp to value_type if set for
 //                navigation") always fired unconditionally; harmless in effect since $tmp/$value_type
@@ -143,6 +148,8 @@
 // 20260918 CDX/PHR Store Udført af in performed_by independently of the system field hvem.
 // 20260919 CDX/PHR Preserve three-decimal unit prices when displaying and saving orders.
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
+// 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
+//                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
 
 @session_start();
 $s_id = session_id();
@@ -1684,7 +1691,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
 				$levdate = date("Y-m-d");
 			} else $levdate = $ordredate;;
-		} elseif ($levdate < $ordredate) {
+		} elseif (delivery_date_before_order_date(order_becomes_credit_note($id, $art) ? 'DK' : $art, $levdate, $ordredate)) {
 			$alert1 = findtekst('1679|Leveringsdato er før ordredato', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
 			$status = 0;
@@ -2788,6 +2795,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
 				</script>
 			<?php
+			} elseif ($digital_status == "SendFailed") {
+			?>
+				<script>
+					if (confirm(<?php echo json_encode(findtekst('5160|Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?', $sprog_id), JSON_UNESCAPED_UNICODE); ?>) == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+				</script>
+			<?php
 			} else {
 			?>
 				<script>
@@ -2813,6 +2827,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			?>
 				<script>
 					if (confirm('fakturen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+				</script>
+			<?php
+			} elseif ($digital_status == "SendFailed") {
+			?>
+				<script>
+					if (confirm(<?php echo json_encode(findtekst('5160|Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?', $sprog_id), JSON_UNESCAPED_UNICODE); ?>) == true)
 						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
 				</script>
 			<?php
@@ -2844,6 +2865,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
+			} elseif ($digital_status == "SendFailed") {
+			?>
+				<script>
+					if (confirm(<?php echo json_encode(findtekst('5160|Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?', $sprog_id), JSON_UNESCAPED_UNICODE); ?>) == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
+				</script>
+			<?php
 			} else {
 			?>
 				<script>
@@ -2869,6 +2897,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			?>
 				<script>
 					if (confirm('kreditnotaen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
+				</script>
+			<?php
+			} elseif ($digital_status == "SendFailed") {
+			?>
+				<script>
+					if (confirm(<?php echo json_encode(findtekst('5160|Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?', $sprog_id), JSON_UNESCAPED_UNICODE); ?>) == true)
 						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php

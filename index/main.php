@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.1 --- 2025.05.10 ---
+// ---- index/main.php --- ver 5.0.0 --- 2026.09.30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2025 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
@@ -40,6 +40,7 @@
 //                 ordre.php?inframe=1 = empty new order. Track the shell-written hash explicitly and
 //                 ignore the inframe flag when deciding whether the iframe already shows the target.
 // 20260914 CDX/LH Removed the Guides sidebar entry and its popup.
+// 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
 @session_start();
 $s_id = session_id();
 
@@ -335,6 +336,11 @@ function brightenColor($color, $amount = 0.2) {
           }
           if (check_permissions(array(15))) {
             echo '<li><a href="#" onclick=\'update_iframe("/lager/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
+          }
+          # The expiry report had no menu entry at all; only accounts that use batch/expiry
+          # management see it, and only with the right the page itself requires.
+          if (check_permissions(array(12)) && batch_expiry_in_use()) {
+            echo '<li><a href="#" onclick=\'update_iframe("/lager/udlobsrapport.php")\'>' . findtekst('5014|Udl&oslash;bsrapport', $sprog_id) . '</a></li>';
           }
           ?>
         </ul>
