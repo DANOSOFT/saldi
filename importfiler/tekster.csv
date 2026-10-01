@@ -5105,12 +5105,14 @@
 5150	Regnskabsnavnet må højst være 60 tegn	The account name may be at most 60 characters	Regnskapsnavnet kan høyst være 60 tegn
 5151	Eksporter CSV (alle sider)	Export CSV (all pages)	Eksporter CSV (alle sider)
 5152	Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling	Export all accounts under the selected filters to CSV, without pagination	Eksporter alle kontoer under de valgte filtrene til CSV, uten sideinndeling
-5240	Tidligere optællinger	Previous cash counts	Tidligere opptellinger
-5253	Dokumentet er ændret. Genindlæs det før du gemmer.	The document has changed. Reload it before saving.	Dokumentet er endret. Last det inn på nytt før du lagrer.
-5254	Kontrollér konto, beløb og dato. Ingen ændringer er gemt.	Check the account, amount and date. No changes have been saved.	Kontroller konto, beløp og dato. Ingen endringer er lagret.
-5255	Forslag	Suggested	Forslag
-5256	Rettet / accepteret	Corrected / accepted	Rettet / akseptert
-
+5153	Gem kurs uden bogføring	Save rate without posting	Lagre kurs uten bokføring
+5154	Kursen bogføres automatisk som kursregulering på alle konti i valutaen. Brug Gem kurs uden bogføring, hvis du selv vil bogføre reguleringen.	The rate is posted automatically as an exchange rate adjustment on every account in the currency. Use Save rate without posting if you want to post the adjustment yourself.	Kursen bokføres automatisk som kursregulering på alle kontoer i valutaen. Bruk Lagre kurs uten bokføring hvis du selv vil bokføre reguleringen.
+5155	Digital afsendelse fejlede	Digital sending failed	Digital sending mislyktes
+5156	EasyUBL svarede tomt eller ugyldigt (HTTP <variable>). Fakturaen er ikke registreret som sendt.	EasyUBL returned an empty or invalid reply (HTTP <variable>). The invoice is not registered as sent.	EasyUBL svarte tomt eller ugyldig (HTTP <variable>). Fakturaen er ikke registrert som sendt.
+5157	EasyUBL afviste dokumentet:	EasyUBL rejected the document:	EasyUBL avviste dokumentet:
+5158	Forbindelsesfejl til EasyUBL:	Connection error to EasyUBL:	Tilkoblingsfeil til EasyUBL:
+5159	Kontrollér hos EasyUBL om dokumentet alligevel er modtaget, før du sender igen. Kontakt saldi.dk support med oplysningerne nedenfor.	Check with EasyUBL whether the document was received anyway before sending again. Contact saldi.dk support with the details below.	Sjekk hos EasyUBL om dokumentet likevel er mottatt før du sender på nytt. Kontakt saldi.dk support med opplysningene nedenfor.
+5160	Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?	The last digital sending of this document failed. EasyUBL may have received it anyway - check the status at EasyUBL before sending again. Send again?	Siste digitale sending av dette dokumentet mislyktes. EasyUBL kan likevel ha mottatt det - sjekk status hos EasyUBL før du sender på nytt. Send på nytt?
 5210	Ugyldig e-mailadresse	Invalid e-mail address	Ugyldig e-postadresse
 5211	Ugyldigt tegn	Invalid character	Ugyldig tegn
 5212	position	position	posisjon
@@ -5126,6 +5128,8 @@
 5230	Mobilnummer	Mobile number	Mobilnummer
 5231	Udført af	Performed by	Utført av
 5232	Serienr.	Serial no.	Serienr.
+5234	Kursregulering bogført i DKK	Rate adjustment posted in DKK	Kursregulering bokført i DKK
+5240	Tidligere optællinger	Previous cash counts	Tidligere opptellinger
 5241	Forslag fra AI-scan	Suggestion from AI scan	Forslag fra AI-skanning
 5242	Brug forslag	Use suggestion	Bruk forslag
 5243	Vælg kreditor	Choose creditor	Velg kreditor
@@ -5133,3 +5137,10 @@
 5245	Kredit var allerede udfyldt og blev ikke ændret	Credit was already filled in and was not changed	Kredit var allerede fylt ut og ble ikke endret
 5246	Skjul omsætning for brugere uden adgang til Indstillinger	Hide turnover for users without access to Settings	Skjul omsetning for brukere uten tilgang til Innstillinger
 5247	Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.	Hide turnover on the order list and in the cash count for users without the Settings right. Users with the right are unaffected.	Skjul omsetning på ordrelisten og i kasseopptellingen for brukere uten rettigheten Innstillinger. Brukere med rettigheten ser uendret.
+5248	Mulig dublet	Possible duplicate	Mulig duplikat
+5249	Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager	The cost price was estimated from an open purchase order, as the item was not in stock	Kostprisen er anslått ut fra en åpen innkjøpsordre, da varen ikke var på lager
+5250	Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre	The cost price was estimated from the item card, as the item was neither in stock nor on an open purchase order	Kostprisen er anslått ut fra varekortet, da varen verken var på lager eller på en åpen innkjøpsordre
+5253	Dokumentet er ændret. Genindlæs det før du gemmer.	The document has changed. Reload it before saving.	Dokumentet er endret. Last det inn på nytt før du lagrer.
+5254	Kontrollér konto, beløb og dato. Ingen ændringer er gemt.	Check the account, amount and date. No changes have been saved.	Kontroller konto, beløp og dato. Ingen endringer er lagret.
+5255	Forslag	Suggested	Forslag
+5256	Rettet / accepteret	Corrected / accepted	Rettet / akseptert
