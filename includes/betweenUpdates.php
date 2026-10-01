@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.29
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,12 @@
 // 20260812 Sawaneh  The reconciliation itself moved to includes/stdFunc/mobilepayWebhookSync.php
 //                  so it can be exercised against a stub endpoint; this file keeps the
 //                  settings reads, the secret write and the one-shot marker.
+// 20260910 CL/SZ SST-777: added pool_files.manually_edited so a corrected suggestion
+//                  (account/amount/date/etc, saved via docPool.php's row/card edit) isn't
+//                  silently overwritten by a later automatic re-extraction.
+// 20260910 SZ SST-777 (CodeRabbit): the manually_edited column add wasn't concurrent-login
+//                  safe - guarded it with IF NOT EXISTS the same way the SST-763 migration
+//                  just below it already does.
 // 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
@@ -64,8 +70,6 @@
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: pool_files.vendor_name/vendor_cvr/vendor_iban/
 //                  vendor_konto_id/vendor_match/vendor_score (kravspec Bilagsflow AI-3), Postgres
 //                  and MySQL. Also added to both CREATE TABLE IF NOT EXISTS fallbacks in docPool.php.
-// 20260923 CL/SZ Serialize the FEFO column backfill the same way as performed_by/pool_files
-//                 vendor columns above (CodeRabbit, PR #608).
 // 20260924 Sawaneh SST-757: Give brugere rows with no regnskabsaar the newest open fiscal year.
 //                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
 // 20260928 CL/LH Widen int ordrer.shop_status to varchar(20) before creating the Stripe
@@ -73,6 +77,8 @@
 // 20260929 CDX/PHR Initialize the tenant HTML layout version without changing existing forms.
 // 20260930 CL/NTR The repeated tekster clean-ups now call deleteStaleTekst() (includes/opdat_func/),
 //                  and the texts reworded on the translation branch are cleaned up too.
+// 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
+//                  the current tenant's database/schema, matching the performed_by migration.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -171,6 +177,24 @@ while ($r_norm_catchup = db_fetch_array($q_norm_catchup)) {
 			__FILE__ . " linje " . __LINE__
 		);
 	}
+}
+
+// SST-777: track whether a pool_files row's fields were set by an explicit human
+// correction (docPool.php's row/card "Save") rather than an automatic (re-)extraction,
+// so a later automatic re-extraction save can skip overwriting an already-corrected
+// field instead of silently clobbering it (see extractInvoiceHandler.php's save action).
+$manuallyEditedMysql = ($db_type == 'mysql' || $db_type == 'mysqli');
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='manually_edited'";
+# 20260930 SZ SST-777 (CodeRabbit): scoped to the current database/schema, same as the
+# performed_by migration above - an unscoped check can match another tenant's column on a
+# MySQL connection that can see multiple tenant databases, and then skip the ALTER TABLE
+# for this one.
+$qtxt .= $manuallyEditedMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# IF NOT EXISTS (Postgres/MariaDB, not MySQL) because betweenUpdates.php runs at login and two
+	# concurrent logins can both pass the check above.
+	$pool_files_if_not_exists = $manuallyEditedMysql ? '' : 'IF NOT EXISTS ';
+	db_modify("ALTER TABLE pool_files ADD COLUMN {$pool_files_if_not_exists}manually_edited BOOLEAN NOT NULL DEFAULT false", __FILE__ . " linje " . __LINE__);
 }
 
 // Same reasoning as the norm_amount catch-up above, for currency: extractInvoiceHandler.php
@@ -790,6 +814,48 @@ if ($poolVendorMissing) {
 	} else {
 		foreach ($poolVendorMissing as $poolVendorColumn => $poolVendorProbe) {
 			db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolVendorColumn " . $poolVendorColumns[$poolVendorColumn], __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+
+// SST-755 (CodeRabbit follow-up): kladdeliste.lock_token / ordrer.lock_token hold a fresh
+// per-render token (see refresh_lock_token() in includes/stdFunc/unlockRecord.php), separate
+// from tidspkt - tidspkt only changes on an explicit acquire/save, so two tabs open on the
+// same record before either saved shared the same tidspkt and could release each other's
+// lock. lock_token changes on every render, so only the most recently rendered tab's exit
+// link/beacon still matches.
+$lockTokenMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$lockTokenTables = ['kladdeliste', 'ordrer'];
+$lockTokenMissing = array();
+foreach ($lockTokenTables as $lockTokenTable) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$lockTokenTable' AND column_name = 'lock_token'";
+	$qtxt .= $lockTokenMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$lockTokenMissing[] = $lockTokenTable;
+	}
+}
+if ($lockTokenMissing) {
+	if ($lockTokenMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the
+		// check above; serialize per tenant and recheck under the lock (same as performed_by).
+		$lockTokenLock = "CONCAT('saldi:lock_token:', MD5(DATABASE()))";
+		$lockTokenLockResult = db_fetch_array(db_select("SELECT GET_LOCK($lockTokenLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($lockTokenLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the lock_token migration lock.');
+		}
+		try {
+			foreach ($lockTokenMissing as $lockTokenTable) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$lockTokenTable' AND column_name = 'lock_token' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE $lockTokenTable ADD COLUMN lock_token TEXT", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($lockTokenLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($lockTokenMissing as $lockTokenTable) {
+			db_modify("ALTER TABLE $lockTokenTable ADD COLUMN IF NOT EXISTS lock_token TEXT", __FILE__ . " linje " . __LINE__);
 		}
 	}
 }

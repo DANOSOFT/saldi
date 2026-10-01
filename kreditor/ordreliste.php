@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-02-19---------
+// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-09-24---------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2014.03.19 addslashes erstattet med db_escape_string
 // 2104.09.16   Tilføjet oioublimport i bunden
@@ -34,6 +34,8 @@
 // 20260219 PHR if ($row['valutakurs'] && $row['valutakurs'] != 100) changed to ($sum && $row['valutakurs'] && $row['valutakurs'] != 100)
 // 20260219 PHR orders with status 0 was not listet if $hurtigfakt was selected;
 // 20260605 Sawaneh Make the whole order line clickable (and right-clickable for "open in new tab/window"), not just the order number.
+// 20260908 SZ SST-755: replaced the blanket per-user lock sweep with an age-based one that
+//                  isn't scoped to the current user (see comment at its call site).
 
 
 ob_start();
@@ -46,6 +48,7 @@ $title = "Leverandører • Ordreliste";
 
 include("../includes/connect.php");
 include("../includes/online.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
@@ -153,9 +156,39 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $hurtigfakt = 'on';
 }
 
-if (!$popup) {
-    $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'K%' and status < '3'";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+// 20260908 SZ SST-755: replaced the blanket "clear every K% order this user holds" sweep that
+// used to run here. It had no per-document check at all, so merely loading this list in one tab
+// released the lock on every OTHER kreditor order the same user had open in other tabs -
+// violating "exiting one document must leave others locked". Per-document release is now wired
+// correctly everywhere (includes/luk.php + the unload beacon in ordre.php), so the only job left
+// for a sweep is catching locks abandoned without any release path firing at all (browser crash,
+// killed tab before the beacon could send). Per Nicolai (SST-652): base it on elapsed time
+// instead of the current user, so it can't clobber a lock a *different* user is actively holding
+// the moment they happen to load this list - only locks stale by more than the existing 3600s
+// staleness window (the same threshold already used to warn users elsewhere, e.g. this file's
+// own render callback above, kreditor/ordre.php:133) are cleared.
+// 20260910 SZ SST-755 (CodeRabbit): pass the selected hvem/tidspkt through to unlock_record()
+// instead of clearing by id alone - a row selected as stale here could be re-acquired by
+// anyone between this SELECT and the loop reaching it, and an id-only release would still
+// clobber that fresh lock, which is exactly the race this whole ticket exists to close.
+// 20260924 SZ SST-755 (CodeRabbit): also select and pass lock_token - the same race applies to
+// a row that's been re-tokenized (not just re-acquired) between this SELECT and the loop
+// reaching it. A legacy NULL column value is passed through as '', which unlock_record()
+// matches against NULL-or-empty at the point of the actual UPDATE, so a concurrently-stamped
+// real token still blocks the release.
+// 20260924 SZ SST-755 (CodeRabbit): guard against a tenant that hasn't run the lock_token
+// migration yet (betweenUpdates.php adds the column at login/account-open, not on every
+// request) - selecting it unconditionally would fail this whole query with a SQL error on
+// an unmigrated tenant, since unlock_record()'s own missing-column degrade can't help a
+// SELECT that never runs.
+$kOrdreSweepNow = time();
+$lockTokenSelect = lock_token_column_exists('ordrer') ? 'lock_token' : "'' as lock_token";
+$qtxt = "select id, hvem, tidspkt, $lockTokenSelect from ordrer where art like 'K%' and status < '3' and hvem is not null and hvem != '' and tidspkt is not null and tidspkt != ''";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+    if (($kOrdreSweepNow - (int)$r['tidspkt']) > 3600) {
+        unlock_record('ordrer', (int)$r['id'], $r['hvem'], $r['tidspkt'], $r['lock_token'] ?? '');
+    }
 }
 
 ob_end_flush();
