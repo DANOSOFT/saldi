@@ -96,6 +96,10 @@
 //                 already typed is never overwritten. Every value shown in the popup is HTML-escaped
 //                 (invoice text from a scan could otherwise inject markup; found in Astra's review).
 // 20261001 CL/NTR Missing-column fallbacks for pool_files.currency/manually_edited use ADD COLUMN IF NOT EXISTS so concurrent requests cannot fail.
+// 20261001 CL/SZ SST-777 (CodeRabbit): the currency/manually_edited fallback ADD COLUMNs this PR
+//                 added race against a second concurrent pool request doing the same existence
+//                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
+//                 a logged/alerted db_modify() failure.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
