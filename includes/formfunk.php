@@ -2928,6 +2928,11 @@ if (!function_exists('kontoprint')) {
 			$konto_til = '9999999999';
 		if (!$konto_fra)
 			$konto_fra = '1';
+		// SST-819 review: the loop below assigns these only inside its while, so a selection
+		// matching nothing left them undefined and count($konto_id) threw a TypeError on PHP
+		// 8. Reachable before this change with a nonexistent account number, and now also
+		// with a range that contains only closed accounts.
+		$konto_id = array();
 		$x = 0;
 		if (is_numeric($konto_fra)) {
 			#20161124
@@ -3220,21 +3225,25 @@ if (!function_exists('kontoprint')) {
 				$exec_path = "/usr/bin";
 			#	$qtxt="select * from formularer where formular = '11' and art = '5' and sprog='Dansk' order by xa,id";
 			#	$r=db_fetch_array(db_select($qtxt",__FILE__ . " linje " . __LINE__));
-			for ($x = 1; $x <= $mailantal; $x++) {
-				#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
-				system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");
-				if (file_exists($pdftk) && file_exists("../logolib/$db_id/bg.pdf")) {
-					$out = $printfilnavn . "x.pdf";
-					system("$pdftk $printfilnavn.pdf background ../logolib/$db_id/bg.pdf output $out");
-					if (file_exists("$printfilnavn.pdf"))
-						unlink("$printfilnavn.pdf");
-					system("mv $out $printfilnavn.pdf");
-					#		} else {
-					#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
-					#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
-				}
-				send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
+			// SST-819 review: this ran once per account. $printfilnavn is a single document
+			// holding every selected account's statement, and nothing below varies with the
+			// counter, so a range of N accounts converted and emailed the same combined PDF N
+			// times. Harmless while the range branch was dead and only ever yielded one
+			// account; a visible regression once it works. Send it once.
+
+			#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
+			system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");
+			if (file_exists($pdftk) && file_exists("../logolib/$db_id/bg.pdf")) {
+				$out = $printfilnavn . "x.pdf";
+				system("$pdftk $printfilnavn.pdf background ../logolib/$db_id/bg.pdf output $out");
+				if (file_exists("$printfilnavn.pdf"))
+					unlink("$printfilnavn.pdf");
+				system("mv $out $printfilnavn.pdf");
+				#		} else {
+				#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
+				#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
 			}
+			send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
 		}
 		if ($nomailantal > 0) {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$printfilnavn&udskriv_til=PDF&udskrift=kontokort\">";
