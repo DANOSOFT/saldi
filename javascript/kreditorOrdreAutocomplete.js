@@ -4,9 +4,23 @@
 
     const CONFIG = {
         minSearchLength: 1,
+        // SST-814 The customer field (type=kreditor here) searches adresser with
+        // ILIKE '%term%'. A trigram index cannot match fewer than three characters, so a
+        // shorter term is a full table scan no matter how the table is indexed - measured
+        // at 70-176 ms per keystroke on 200k rows, against 1-20 ms from three characters
+        // up. Three is therefore both where the index starts working and where the result
+        // list is short enough to be worth showing.
+        minAccountSearchLength: 3,
         debounceDelay: 200,
         maxResults: 50
     };
+
+    // SST-814 Only the item field used to have a minimum, so the account field searched on
+    // every keystroke - and on an empty field, which asked adresser for the first 50 of
+    // every creditor on the books.
+    function minLengthFor(type) {
+        return type === 'customer' ? CONFIG.minAccountSearchLength : CONFIG.minSearchLength;
+    }
 
     let activeDropdown = null;
     let activeInput = null;
@@ -97,9 +111,9 @@
 
         input.addEventListener('focus', function () {
             if (selectionMade) return;
-            if (this.value.length >= CONFIG.minSearchLength || type !== 'item') {
-                handleInput(this);
-            }
+            // handleInput() is the single length gate now, so focusing an empty field no
+            // longer starts a search of its own.
+            handleInput(this);
         });
 
         input.addEventListener('keydown', function (e) {
@@ -142,7 +156,7 @@
         clearTimeout(debounceTimer);
         const value = input.value.trim();
 
-        if (input.autocompleteType === 'item' && value.length < CONFIG.minSearchLength) {
+        if (value.length < minLengthFor(input.autocompleteType)) {
             closeDropdown();
             return;
         }

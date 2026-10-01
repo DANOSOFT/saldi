@@ -80,6 +80,9 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261001 MJ SST-814 Trigram indexes on adresser(firmanavn) and adresser(kontonr) so the
+//                  account lookup during invoice creation stops scanning the whole table on
+//                  every keystroke. Only created where pg_trgm exists.
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
 // 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
 // 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
@@ -1181,6 +1184,24 @@ if (db_fetch_array(db_select("select 1 from information_schema.tables where tabl
 		$rentalHash = db_escape_string(password_hash((string)$rentalPass['pass'], PASSWORD_DEFAULT));
 		db_modify("update rentalsettings set pass = '$rentalHash'", __FILE__ . " linje " . __LINE__);
 	}
+}
+
+# 20261001 MJ SST-814 - the account field on debitor/ordre.php (javascript/ordreAutocomplete.js
+# -> finans/kassekladde_includes/accountSearch.php) searches adresser with ILIKE '%term%' on both
+# kontonr and firmanavn. A leading wildcard cannot use a B-tree index, and adresser had no index
+# at all beyond its primary key, so every keystroke scanned the whole table - twice, until the
+# redundant COUNT(*) was made opt-in in the same ticket. At Klunserkongen every rented stand is
+# another art='D' row, so the table grows steadily and the lookup slowed with it, which is why the
+# customer reported it as having "become" slow rather than always having been.
+# Measured on a synthetic 200,000-row adresser: a four-character stand number went from 177 ms to
+# 1.9 ms, and a six-character name from 184 ms to 35 ms.
+# pg_trgm is bootstrapped further up this file, but a tenant on managed hosting without superuser
+# may not have been permitted to create it - and that attempt is only made once, so it may never
+# be retried. Index only where the extension actually exists; everyone else keeps the unindexed
+# but still correct ILIKE path. Not CONCURRENTLY: this runs inside the login's transaction.
+if (db_fetch_array(db_select("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE INDEX IF NOT EXISTS adresser_firmanavn_trgm_idx ON adresser USING gin (firmanavn gin_trgm_ops)", __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX IF NOT EXISTS adresser_kontonr_trgm_idx ON adresser USING gin (kontonr gin_trgm_ops)", __FILE__ . " linje " . __LINE__);
 }
 
 ?>
