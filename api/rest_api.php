@@ -610,8 +610,15 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	fwrite($log,__line__." Samlevare = $samlevare\n");
 	if ($samlevare && $samlevare == 'on') {
 		fwrite($log,__line__." Samlevare = $samlevare\n");
-		fwrite($log,__line__." opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,on,$lager)\n");
-		opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,'on',$lager);
+		fwrite($log,__line__." opret_saet($ordre_id,$vare_id,\$pris*(1+$momssats/100),$momssats,$antal,on,$lager)\n");
+		// 20260920 CDX/MJ SST-794 Use the order's own momssats instead of a hardcoded 25%. The rate
+		//             is already loaded from ordrer at :459 and is 0 for an export customer, so the
+		//             old code added 25% to a price that never carried VAT and then told
+		//             opret_saet() to treat it as VAT-inclusive at 25%. Passing the real rate keeps
+		//             a 25% order at exactly the same net price and leaves a 0% order untouched.
+		$saet_momssats = $momssats * 1;
+		$saet_pris = $pris * (1 + $saet_momssats / 100);
+		opret_saet($ordre_id,$vare_id,$saet_pris,$saet_momssats,$antal,'on',$lager);
 	} elseif($vare_id) {
 		fwrite ($log,__line__." Antal: $antal\n");
 		fwrite ($log,__line__." Beskrivelse: $beskrivelse\n");

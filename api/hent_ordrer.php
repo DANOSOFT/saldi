@@ -372,7 +372,15 @@ function overfoer_data($shopurl,$shop_ordre_id){
 		db_modify("update varer set publiceret='on' where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
 		if ($samlevare[$x]=='on') {
 
-			opret_saet($ordre_id,$vare_id[$x],$pris[$x]*1.25,25,$antal[$x],on);
+			// 20260920 CDX/MJ SST-794 Same hardcoded 25% as api/rest_api.php had - use the order's
+			//             own momssats (loaded at :288) so an export customer is not stripped of VAT
+			//             it never had. Two further PHP 8 fatals on this line are fixed with it:
+			//             the bare `on` was an undefined constant, and opret_saet() takes seven
+			//             arguments while only six were passed. This file has no lager concept at
+			//             all, so the seventh is passed as 0 - the same value rest_api.php ends up
+			//             with when the shop sends none ($lager*=1 on an empty string).
+			$saet_momssats = $momssats * 1;
+			opret_saet($ordre_id,$vare_id[$x],$pris[$x]*(1+$saet_momssats/100),$saet_momssats,$antal[$x],'on',0);
 		} else opret_ordrelinje($ordre_id,$vare_id[$x],$varenr[$x],$antal[$x],$beskrivelse[$x],$pris[$x],0,100,'DO','',$posnr,'0','','','','0');
 		$ordresum+=$pris[$x]*$antal[$x];
 	}
