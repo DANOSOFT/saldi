@@ -184,6 +184,7 @@ function sst809_seed()
         array(1000, 'Kasse',      0.0),
         array(1100, 'Bank',       5000.0),   // opening balance, no movements
         array(1200, 'Debitorer',  0.0),
+        array(1250, 'EUR-bank',   0.0, 'EUR'),   // currency account: exercises the conversion branch
         array(1300, 'Nulkonto',   0.0),
         array(1400, 'Varelager',  0.0),
         array(1410, 'Vareforbrug', 0.0),
@@ -193,7 +194,7 @@ function sst809_seed()
     foreach ($accounts as $a) {
         $pdo->exec("insert into kontoplan (kontonr, regnskabsaar, beskrivelse, kontotype, moms,
                                            valuta, valutakurs, primo)
-                    values ({$a[0]}, 1, '{$a[1]}', 'S', '', '', 100.0, {$a[2]})");
+                    values ({$a[0]}, 1, '{$a[1]}', 'S', '', '" . (isset($a[3]) ? $a[3] : '') . "', 100.0, {$a[2]})");
     }
 
     // 1000: four ordinary rows, enough to straddle several page sizes.
@@ -212,6 +213,11 @@ function sst809_seed()
         // 1200: two real rows; Simulering adds two more between them.
         array(6, 1200, 201, '2026-05-01', 'Faktura 1',     50.0, 0.0),
         array(7, 1200, 202, '2026-06-01', 'Indbetaling',    0.0, 25.0),
+        // 1250: a currency account. The first row converts at the rate; the second is a rate
+        // adjustment posted in DKK only (valuta = -1), which SST-769 shows as a labelled DKK
+        // figure instead of 0,00. Both go through the conversion branch of the print pass.
+        array(20, 1250, 251, '2026-04-02', 'EUR faktura',  746.0, 0.0, '', 746.0),
+        array(21, 1250, 252, '2026-04-03', 'Kursregulering', 25.0, 0.0, '-1', 100.0),
         // 1300: nothing but a zero-amount row, so the account has ledger
         // activity but no line worth printing. It must still show its header
         // and Primosaldo.
@@ -223,7 +229,7 @@ function sst809_seed()
         $pdo->exec("insert into transaktioner (id, kontonr, bilag, transdate, beskrivelse, debet,
                                                kredit, kladde_id, valuta, valutakurs, pos)
                     values ({$t[0]}, {$t[1]}, {$t[2]}, '{$t[3]}', '{$t[4]}', {$t[5]}, {$t[6]},
-                            0, '', 100.0, 0)");
+                            0, '" . (isset($t[7]) ? $t[7] : '') . "', " . (isset($t[8]) ? $t[8] : 100.0) . ", 0)");
     }
 
     $sim = array(
@@ -239,6 +245,7 @@ function sst809_seed()
 
     // Stock movement: 3 units at 100 on 2026-03-05, so account 1400 gains one
     // synthetic "lagertransaktion" row when Lagerbevaegelser is on.
+    $pdo->exec("insert into valuta (gruppe, kurs, valdate) values ('EUR', 746.0, '2025-01-01')");
     $pdo->exec("insert into varer (id, gruppe, kostpris) values (1, '10', 100.0)");
     $pdo->exec("insert into ordrer (id, fakturanr) values (1, 777)");
     $pdo->exec("insert into batch_kob (vare_id, ordre_id, antal, kobsdate)
@@ -409,7 +416,7 @@ foreach ($modes as $label => $opt) {
     // (2) Every account with movements or an opening balance appears, exactly
     //     once. 1100 has an opening balance and no movements: pagination used
     //     to drop it on every page.
-    $expect_accounts = array('1000', '1100', '1200', '1300', '1400', '1600');
+    $expect_accounts = array('1000', '1100', '1200', '1250', '1300', '1400', '1600');
     if ($lager) {
         $expect_accounts[] = '1410';
         $expect_accounts[] = '1500';
@@ -461,8 +468,8 @@ foreach ($modes as $label => $opt) {
     // (4) The Saldo column is a running balance: each line is the previous
     //     balance plus debet minus kredit, starting from the account's primo.
     $primo = array('1000' => 0.0, '1100' => 5000.0, '1200' => 0.0,
-                   '1300' => 0.0, '1400' => 0.0, '1410' => 0.0, '1500' => 0.0,
-                   '1600' => 250.0);
+                   '1250' => 0.0, '1300' => 0.0, '1400' => 0.0, '1410' => 0.0,
+                   '1500' => 0.0, '1600' => 250.0);
     $running = null;
     $acct = null;
     $bad = 0;
@@ -473,6 +480,12 @@ foreach ($modes as $label => $opt) {
                 $acct    = $m[1];
                 $running = $primo[$acct];
             }
+        }
+        // A currency account prints its amounts and balance converted at the row's rate, so
+        // the running-sum identity is asserted only on the DKK accounts; the conversion
+        // itself is asserted separately below.
+        if ($acct === '1250') {
+            continue;
         }
         $running += round(dk2f($r[3]), 2) - round(dk2f($r[4]), 2);
         if (abs($running - dk2f($r[5])) > 0.005) {
@@ -496,6 +509,28 @@ foreach ($modes as $label => $opt) {
     }
     check_same(0, $zero_rendered,
         "[$label] a row with debet and kredit both zero is not rendered");
+
+    // (6) The conversion branch. SST-769 made a rate adjustment (valuta = -1) print its DKK
+    //     figure, labelled, instead of 0,00 - and this report now reads every value from one
+    //     row record rather than parallel arrays, so the accessors in that branch are worth
+    //     pinning: a wrong one would silently convert at another row's rate.
+    $eurRows = array();
+    foreach ($fullrows as $r) {
+        if (strpos($r[2], '1250 :') !== false) {
+            $eurRows[] = $r;
+        }
+    }
+    check_same(2, count($eurRows), "[$label] both rows of the currency account are rendered");
+    if (count($eurRows) === 2) {
+        // 746,00 at a rate of 746 is 100,00 in the account's own currency.
+        check(abs(dk2f($eurRows[0][3]) - 100.0) < 0.005,
+            "[$label] a currency row's amount is converted at its rate (got {$eurRows[0][3]})");
+        // The rate adjustment keeps its DKK amount and is labelled as DKK, not shown as 0,00.
+        check(strpos($eurRows[1][3], 'DKK') !== false,
+            "[$label] a rate adjustment is labelled DKK (got {$eurRows[1][3]})");
+        check(abs(dk2f($eurRows[1][3]) - 25.0) < 0.005,
+            "[$label] a rate adjustment keeps its DKK amount (got {$eurRows[1][3]})");
+    }
 }
 
 // ---------------------------------------------------------------------------
