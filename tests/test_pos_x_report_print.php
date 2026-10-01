@@ -4,23 +4,27 @@
 /**
  * Run with: php tests/test_pos_x_report_print.php
  *
- * debitor/pos_ordre_includes/report/xRapport.php and its zRapport.php sibling are
- * included by pos_ordre_includes/posTxtPrint/setTextVar.php, from inside
- * pos_txt_print(). That function declares `global $printserver` but never
- * `global $printpopup` and never assigns it, so inside the report files
- * $printpopup is an undefined local - always falsy. xRapport.php had its redirect
- * to saldiprint.php wrapped in `if ($printpopup)`, so on that path it emitted
- * nothing at all and then hit exit(): a blank page and no receipt. zRapport.php
- * prints the same redirect unconditionally, which is why Z worked and X did not.
+ * Drives the real pos_ordre_includes/posTxtPrint/setTextVar.php, which is the file
+ * that decides whether to print at all and which report file to include. That is the
+ * level worth testing: the deactivateBonprint gate lives there, and the report files
+ * below it are reached only through it.
  *
- * Both files are exercised in child processes because they call exit(), the same
- * way tests/test_pos_cash_checkout.php drives afslut(). The report builder, the
- * settings lookup and the receipt file are simulated; no database, credentials or
- * printer are needed.
+ * report/xRapport.php had its redirect to saldiprint.php wrapped in
+ * `if ($printpopup)`. setTextVar.php is included from inside pos_txt_print(), which
+ * declares `global $printserver` but never `global $printpopup` and never assigns it,
+ * so inside the report files $printpopup was an undefined local - always false. The
+ * X-report therefore wrote nothing at all and hit exit(): a blank page in the till
+ * and no receipt. report/zRapport.php prints the same redirect unconditionally, which
+ * is why Z worked and X did not.
  *
- * The scope is reproduced faithfully: the child calls a stand-in for
- * pos_txt_print() that declares exactly the globals the real one does, so
- * $printpopup is undefined inside the include just as it is in production.
+ * Run in child processes because the report files call exit(), the same way
+ * tests/test_pos_cash_checkout.php drives afslut(). The settings lookup, the report
+ * writer and the receipt file are simulated; no database, credentials, printer or
+ * network are needed.
+ *
+ * The scope is reproduced faithfully: the child calls a stand-in for pos_txt_print()
+ * declaring exactly the globals the real one declares, so $printpopup is undefined
+ * inside the include just as it is in production.
  */
 
 if (($argv[1] ?? '') === '--case') {
@@ -30,7 +34,6 @@ if (($argv[1] ?? '') === '--case') {
     error_reporting(E_ALL);
     ini_set('display_errors', 'stderr');
 
-    $printserver_setting = $case['printer'] ?? 'printer.example';
     $_SERVER = array(
         'SERVER_NAME' => 'till.example',
         'PHP_SELF'    => '/saldi/debitor/pos_ordre.php',
@@ -40,15 +43,32 @@ if (($argv[1] ?? '') === '--case') {
     $_COOKIE = isset($case['cookiePrinter'])
         ? array('saldi_printserver' => $case['cookiePrinter'])
         : array();
+    $_SESSION = array();
 
-    // The report writer the real file calls before emitting the redirect.
+    // --- simulated boundaries -------------------------------------------------
+
+    $GLOBALS['deactivateBonprint'] = $case['deactivateBonprint'] ?? '';
+
+    function db_select($qtxt, $where = '') { return $qtxt; }
+    function db_fetch_array($q) {
+        if (is_string($q) && strpos($q, 'deactivateBonprint') !== false) {
+            return array('var_value' => $GLOBALS['deactivateBonprint']);
+        }
+        return array();
+    }
+    function dkdecimal($tal, $decimaler = 2) {
+        return number_format((float) $tal, $decimaler, ',', '.');
+    }
+    function printWarningMessage($reason) { print "<!--warning:$reason-->"; }
+    // The report writer the real report files call before emitting the redirect.
     function printReportFunctions($fp, $firmanavn, $cvrnr, $orgNr, $date,
                                   $uniqueShopId, $reportArray, $type, $kasse) {
-        fwrite($fp, "X-RAPPORT\nKasse $kasse\n");
+        fwrite($fp, strtoupper($type) . "\nKasse $kasse\n");
     }
 
-    $GLOBALS['printserver'] = $printserver_setting;
+    $GLOBALS['printserver'] = $case['printer'] ?? 'printer.example';
     $GLOBALS['db']          = 'sst825test';
+    $GLOBALS['db_id']       = 1;
     $GLOBALS['bruger_id']   = 7;
     $GLOBALS['kasse']       = 1;
     $GLOBALS['firmanavn']   = 'Testbutik';
@@ -56,33 +76,36 @@ if (($argv[1] ?? '') === '--case') {
     $GLOBALS['regnaar']     = 1;
 
     /**
-     * Stands in for pos_txt_print(). It declares the same globals the real function
-     * declares - notably $printserver but NOT $printpopup - so the include below
-     * runs in the scope the bug depends on.
+     * Stands in for pos_txt_print(). Declares the same globals the real function
+     * declares - notably $printserver but NOT $printpopup - so the include below runs
+     * in the scope the bug depends on.
      */
-    function pos_txt_print_stub($type, $pfnavn, $id) {
-        global $db, $db_encode, $db_id, $difkto;
-        global $firmanavn, $cvrnr;
-        global $kasse;
-        global $postnr, $printserver;
-        global $ref, $regnaar, $reportNumber;
-        global $bruger_id;
+    function pos_txt_print_stub($case, $pfnavn) {
+        global $db, $db_id, $firmanavn, $cvrnr, $kasse, $printserver, $regnaar, $bruger_id;
 
-        $orgNr        = '';
-        $date         = '2026-10-01';
-        $uniqueShopId = 'shop-1';
-        $reportArray  = array();
-        $kontonr      = 0;
-        $betalingsbet = 'Kontant';
-        $fakturanr    = 0;
+        $type = $case['type'];
+        $id   = 42;
+
+        // Values setTextVar.php computes over; a plain cash sale.
+        $sum = 100; $moms = 25; $betalt = 125; $modtaget = 125; $modtaget2 = 0;
+        $betaling = 'Kontant'; $betaling2 = ''; $indbetaling = 0; $retur = 0;
+        $konto_id = 0; $x = 0; $rvnr = 0; $samlet_pris = 0;
+        $kontonr = 0; $betalingsbet = 'Kontant';
+        $fakturanr = $case['fakturanr'] ?? 0;
+        if (isset($case['doNotPrint'])) {
+            $doNotPrint = $case['doNotPrint'];
+        }
+
+        // Values the report files need.
+        $orgNr = ''; $date = '2026-10-01'; $uniqueShopId = 'shop-1'; $reportArray = array();
 
         $fp = fopen($pfnavn, 'w');
-        $filnavn = "pos_ordre_includes/report/$type.php";
-        include($filnavn);
+        include('pos_ordre_includes/posTxtPrint/setTextVar.php');
+        // Only reached when the gate above decided not to print; the report files exit().
+        print "<!--returned-without-printing-->";
     }
 
-    $receipt = $fixture . '/temp/receipt.txt';
-    pos_txt_print_stub($case['type'], $receipt, 42);
+    pos_txt_print_stub($case, $fixture . '/temp/receipt.txt');
     exit;
 }
 
@@ -91,24 +114,39 @@ if (($argv[1] ?? '') === '--case') {
 $root = dirname(__DIR__);
 $fixture = sys_get_temp_dir() . '/saldi-sst825-' . bin2hex(random_bytes(8));
 mkdir($fixture . '/debitor/pos_ordre_includes/report', 0700, true);
+mkdir($fixture . '/debitor/pos_ordre_includes/posTxtPrint', 0700, true);
 mkdir($fixture . '/temp', 0700);
+copy("$root/debitor/pos_ordre_includes/posTxtPrint/setTextVar.php",
+     "$fixture/debitor/pos_ordre_includes/posTxtPrint/setTextVar.php");
 foreach (array('xRapport.php', 'zRapport.php') as $file) {
     copy("$root/debitor/pos_ordre_includes/report/$file",
          "$fixture/debitor/pos_ordre_includes/report/$file");
 }
 
+// 'prints' => false means the gate must stop before any report file runs.
 $cases = array(
-    // Both reports take the same path and must both reach the print server.
-    'X-report, ordinary print server' => array('type' => 'xRapport'),
-    'Z-report, ordinary print server' => array('type' => 'zRapport'),
-    'X-report, android print server'  => array('type' => 'xRapport', 'printer' => 'android',
-                                               'origin' => 'saldiprint://'),
-    'Z-report, android print server'  => array('type' => 'zRapport', 'printer' => 'android',
-                                               'origin' => 'saldiprint://'),
-    'X-report over HTTPS'             => array('type' => 'xRapport', 'https' => 'on'),
-    'X-report, printer from cookie'   => array('type' => 'xRapport', 'printer' => '',
-                                               'cookiePrinter' => 'cookie-printer.example',
-                                               'origin' => 'http://cookie-printer.example'),
+    'X-report, ordinary print server'  => array('type' => 'xRapport'),
+    'Z-report, ordinary print server'  => array('type' => 'zRapport'),
+    'X-report, android print server'   => array('type' => 'xRapport', 'printer' => 'android',
+                                                'origin' => 'saldiprint://'),
+    'Z-report, android print server'   => array('type' => 'zRapport', 'printer' => 'android',
+                                                'origin' => 'saldiprint://'),
+    'X-report over HTTPS'              => array('type' => 'xRapport', 'https' => 'on'),
+    'X-report, printer from cookie'    => array('type' => 'xRapport', 'printer' => '',
+                                                'cookiePrinter' => 'cookie-printer.example',
+                                                'origin' => 'http://cookie-printer.example'),
+    'X-report, localhost print server' => array('type' => 'xRapport', 'printer' => 'localhost',
+                                                'origin' => 'http://localhost'),
+    // The gate above the report files must still be able to switch printing off.
+    'X-report, bonprint deactivated'   => array('type' => 'xRapport',
+                                                'deactivateBonprint' => 'on', 'prints' => false),
+    'Z-report, bonprint deactivated'   => array('type' => 'zRapport',
+                                                'deactivateBonprint' => 'on', 'prints' => false),
+    'X-report, already copied'         => array('type' => 'xRapport',
+                                                'doNotPrint' => 'copied', 'prints' => false),
+    // Z opens the drawer on an invoiced sale; X never does. Pins the difference.
+    'Z-report with invoice number'     => array('type' => 'zRapport', 'fakturanr' => 9001,
+                                                'drawer' => '1'),
 );
 
 $failed = 0;
@@ -131,6 +169,22 @@ try {
             $isX = $case['type'] === 'xRapport';
 
             $check($status === 0, "Child exited $status: $html$errors");
+            $check($errors === '', "PHP diagnostics on the print path: $errors");
+
+            if (($case['prints'] ?? true) === false) {
+                // Printing is switched off: no redirect, and control returns to the
+                // caller rather than the report file exiting.
+                $check(strpos($html, 'saldiprint') === false,
+                    'Printing is switched off but the print server was still called');
+                $check(strpos($html, '<!--returned-without-printing-->') !== false,
+                    'Gate did not return control to pos_txt_print()');
+                if (isset($case['doNotPrint'])) {
+                    $check(strpos($html, '<!--warning:copied-->') !== false,
+                        'No warning shown for an already-copied receipt');
+                }
+                echo "PASS  $name\n";
+                continue;
+            }
 
             // The symptom: nothing at all reached the browser, so the till showed a
             // blank page and the receipt never left the building.
@@ -140,8 +194,7 @@ try {
 
             $url  = html_entity_decode($match[1]);
             $base = $case['origin'] ?? 'http://printer.example';
-            $check(strpos($url, $base . '/saldiprint.php?') === 0,
-                "Wrong print destination: $url");
+            $check(strpos($url, $base . '/saldiprint.php?') === 0, "Wrong print destination: $url");
 
             parse_str(explode('?', $url, 2)[1], $query);
             $scheme = (($case['https'] ?? '') === 'on') ? 'https' : 'http';
@@ -151,17 +204,17 @@ try {
                 'Does not return to the till screen');
             $check($query['bruger_id'] === '7', 'Operator identity lost');
             $check($query['bon'] !== '', 'Receipt body was not sent to the printer');
-            $check(strpos(urldecode($query['bon']), 'X-RAPPORT') !== false,
+            $check(strpos(urldecode($query['bon']), strtoupper($case['type'])) !== false,
                 'Receipt body is not the report that was just built');
+            $check($query['skuffe'] === ($case['drawer'] ?? '0'),
+                "Wrong cash-drawer flag: {$query['skuffe']}");
 
-            // An X-report reads the till; it must not open the drawer, and must not
-            // ask the print server to store anything.
+            // An X-report reads the till; it must never bank anything.
             if ($isX) {
                 $check($query['skuffe'] === '0', 'X-report must not open the cash drawer');
                 $check(!isset($query['gem']), 'X-report must not ask the print server to save');
             }
 
-            $check($errors === '', "PHP diagnostics on the print path: $errors");
             echo "PASS  $name\n";
         } catch (Throwable $error) {
             $failed++;
