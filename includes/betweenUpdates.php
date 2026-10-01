@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.29
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,12 @@
 // 20260812 Sawaneh  The reconciliation itself moved to includes/stdFunc/mobilepayWebhookSync.php
 //                  so it can be exercised against a stub endpoint; this file keeps the
 //                  settings reads, the secret write and the one-shot marker.
+// 20260910 CL/SZ SST-777: added pool_files.manually_edited so a corrected suggestion
+//                  (account/amount/date/etc, saved via docPool.php's row/card edit) isn't
+//                  silently overwritten by a later automatic re-extraction.
+// 20260910 SZ SST-777 (CodeRabbit): the manually_edited column add wasn't concurrent-login
+//                  safe - guarded it with IF NOT EXISTS the same way the SST-763 migration
+//                  just below it already does.
 // 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
@@ -68,6 +74,8 @@
 // 20260929 CDX/PHR Initialize the tenant HTML layout version without changing existing forms.
 // 20260930 CL/NTR The repeated tekster clean-ups now call deleteStaleTekst() (includes/opdat_func/),
 //                  and the texts reworded on the translation branch are cleaned up too.
+// 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
+//                  the current tenant's database/schema, matching the performed_by migration.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -166,6 +174,24 @@ while ($r_norm_catchup = db_fetch_array($q_norm_catchup)) {
 			__FILE__ . " linje " . __LINE__
 		);
 	}
+}
+
+// SST-777: track whether a pool_files row's fields were set by an explicit human
+// correction (docPool.php's row/card "Save") rather than an automatic (re-)extraction,
+// so a later automatic re-extraction save can skip overwriting an already-corrected
+// field instead of silently clobbering it (see extractInvoiceHandler.php's save action).
+$manuallyEditedMysql = ($db_type == 'mysql' || $db_type == 'mysqli');
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='manually_edited'";
+# 20260930 SZ SST-777 (CodeRabbit): scoped to the current database/schema, same as the
+# performed_by migration above - an unscoped check can match another tenant's column on a
+# MySQL connection that can see multiple tenant databases, and then skip the ALTER TABLE
+# for this one.
+$qtxt .= $manuallyEditedMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# IF NOT EXISTS (Postgres/MariaDB, not MySQL) because betweenUpdates.php runs at login and two
+	# concurrent logins can both pass the check above.
+	$pool_files_if_not_exists = $manuallyEditedMysql ? '' : 'IF NOT EXISTS ';
+	db_modify("ALTER TABLE pool_files ADD COLUMN {$pool_files_if_not_exists}manually_edited BOOLEAN NOT NULL DEFAULT false", __FILE__ . " linje " . __LINE__);
 }
 
 // Same reasoning as the norm_amount catch-up above, for currency: extractInvoiceHandler.php

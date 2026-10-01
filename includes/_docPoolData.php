@@ -1,4 +1,38 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- includes/_docPoolData.php --- ver 5.0.0 --- 2026-10-01 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2025-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20260914 CDX/LH Expose metadata versions and manual acceptance for document-pool editing.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: every file now carries a 'vendor' object
+//                  (see poolVendorMatcher.php / kravspec afsnit 5) or null, and files with
+//                  vendor identity but no kreditor are matched again on every open (AI-6).
+// 20260922 CL/LAH Vendor handling wrapped so it can never break the file list; invalid UTF-8
+//                  from legacy rows is substituted instead of blanking the whole response.
+// 20260925 LOE MB-42 Every row whose fakturanr, amount and date match another row's is marked
+//                  duplicateOf, so the pool can show that the same bilag is in the list twice.
+// 20261001 CL/NTR Merged the two history blocks into one and grouped the includes.
+
 // Start output buffering FIRST to capture any output from includes
 ob_start();
 
@@ -14,19 +48,12 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-// 20260922 CL/LAH Leverandørforslag fra AI-scan: every file now carries a 'vendor' object
-//                  (see poolVendorMatcher.php / kravspec afsnit 5) or null, and files with
-//                  vendor identity but no kreditor are matched again on every open (AI-6).
-// 20260922 CL/LAH Vendor handling wrapped so it can never break the file list; invalid UTF-8
-//                  from legacy rows is substituted instead of blanking the whole response.
-// 20260925 LOE MB-42 Every row whose fakturanr, amount and date match another row's is marked
-//                  duplicateOf, so the pool can show that the same bilag is in the list twice.
-
 // Include database connection and online.php to get $db
 include_once(__DIR__ . "/connect.php");
 include_once(__DIR__ . "/std_func.php");
 include_once(__DIR__ . "/docsIncludes/poolVendorMatcher.php");
 include_once(__DIR__ . "/docsIncludes/poolDuplicateMarker.php");
+require_once __DIR__ . '/docsIncludes/poolMetadata.php';
 
 // Get $db from session/online table
 $qtxt = "select db from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -60,7 +87,7 @@ $vendorColumnsExist = poolVendorColumnsExist();
 
 // Query all files from the pool_files table (database is the source of truth)
 $vendorSelect = $vendorColumnsExist ? ", vendor_name, vendor_cvr, vendor_iban, vendor_konto_id, vendor_match, vendor_score" : "";
-$qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency$vendorSelect
+$qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency, updated, manually_edited$vendorSelect
          FROM pool_files ORDER BY file_date DESC, updated DESC";
 $result = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
@@ -70,7 +97,7 @@ while ($row = db_fetch_array($result)) {
     
     $subject = $row['subject'] ?: $base;
     $account = $row['account'] ?: '';
-    $amount = $row['amount'] ?: '';
+    $amount = $row['amount'] ?? '';
     $modDate = $row['file_date'] ?: '';
     $invoiceNumber = $row['invoice_number'] ?: '';
     $description = $row['description'] ?: '';
@@ -130,6 +157,8 @@ while ($row = db_fetch_array($result)) {
         'currency' => $currency,
         'vendor' => $vendor,
         'fil_nr' => $fil_nr,
+        'version' => poolMetadataVersion($row),
+        'manuallyEdited' => poolMetadataIsManual($row),
     ];
 }
 
