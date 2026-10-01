@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-30 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -74,6 +74,9 @@
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
 // 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
 // 20260930 CDX/PHR Fit descriptions using actual font and neighbouring field widths; share wrapping with page preflight.
+// 20261001 MJ SST-819 kontoprint(): printing a range of accounts printed only the first one.
+//             The branch test compared konto_fra with itself, so the range query was dead code and
+//             konto_til was ignored. The revived query also treats a NULL lukket as open.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -2928,8 +2931,15 @@ if (!function_exists('kontoprint')) {
 		$x = 0;
 		if (is_numeric($konto_fra)) {
 			#20161124
-			if ($konto_fra != $konto_fra)
-				$qtxt = "select id from adresser where kontonr>='$konto_fra' and kontonr<='$konto_til' and art = '$kontoart' and lukket != 'on'";
+			// SST-819 This compared $konto_fra with itself, so it was never true and the range
+			// branch below was unreachable: printing a span of accounts silently printed only
+			// the one in konto_fra and ignored konto_til. The 2016 note beside it says the
+			// intent was "if konto_fra = konto_til, search specifically on kontonr", so the
+			// comparison is against konto_til.
+			// lukket is '' on most rows but NULL on others, and NULL != 'on' is NULL, not true -
+			// which would have dropped those accounts from a range print instead.
+			if ($konto_fra != $konto_til)
+				$qtxt = "select id,gruppe from adresser where kontonr>='$konto_fra' and kontonr<='$konto_til' and art = '$kontoart' and (lukket is null or lukket != 'on')";
 			else
 				$qtxt = "select id,gruppe from adresser where kontonr='$konto_fra' and art = '$kontoart'";
 		} elseif ($konto_fra && $konto_fra != '*') {
