@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- kreditor/ansatte.php --------lap 4.1.1--- 2022.03.13 -------
+// -------- kreditor/ansatte.php --------ver 5.0.0--- 2026.10.01 -------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20220313 PHR Added ",__FILE__ . " linje " . __LINE__" to queries
 // 20260708 Sawaneh Grid Framework header + fixed "Uforudset hændelse" on save (posnr set on insert, redirect back to account)
+// 20261001 CL/SZ SD-698: returside is URL-encoded in every link back to kreditorkort.php and to a new contact person,
+//                so a returside with its own query string (e.g. kassekladde.php?tjek=..&kladde_id=..) survives the round trip.
 
 @session_start();
 $s_id = session_id();
@@ -43,6 +45,7 @@ include("../includes/topline_settings.php");
 if ($_GET) {
 	$id       = isset($_GET['id']) ? $_GET['id'] : 0;
 	$returside = isset($_GET['returside']) ? $_GET['returside'] : '';
+	$retursideParam = urlencode($returside);
 	$ordre_id = isset($_GET['ordre_id']) ? $_GET['ordre_id'] : '';
 	$fokus    = isset($_GET['fokus']) ? $_GET['fokus'] : '';
 	$konto_id = isset($_GET['konto_id']) ? $_GET['konto_id'] : '';
@@ -66,11 +69,12 @@ if ($_POST) {
 	$notes    = addslashes(trim($_POST['notes']));
 	$ordre_id = $_POST['ordre_id'];
 	$returside = $_POST['returside'];
+	$retursideParam = urlencode($returside);
 	$fokus    = $_POST['fokus'];
 
 	if ($submit == "Slet" || $delete) {
 		if ($id) db_modify("delete from ansatte where id = '$id'", __FILE__ . " linje " . __LINE__);
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
 		exit;
 	} else {
 		if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
@@ -90,7 +94,7 @@ if ($_POST) {
 			db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', {$mobile_set}mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '' where id = '$id'", __FILE__ . " linje " . __LINE__);
 		}
 		// return to the account so the new contact person is visible in the list
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
 		exit;
 	}
 }
@@ -105,7 +109,7 @@ if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=\"kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class=\"headerbtnLft headLink\"><a href=\"kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 	print "<div class=\"headerTxt\">$firmanavn - " . findtekst('1262|Ansatte', $sprog_id) . "</div>";
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
@@ -119,9 +123,9 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 	print "<tr bgcolor=$bg><td colspan=\"3\" align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
-	print "<td width='5%'><a href=\"kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\" accesskey=L><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . $tilbage_icon . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+	print "<td width='5%'><a href=\"kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\" accesskey=L><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . $tilbage_icon . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 	print "<td width='90%' style='$topStyle' align='center'>$firmanavn - " . findtekst('1262|Ansatte', $sprog_id) . "</td>\n";
-	print "<td width='5%'><a href=\"ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id\" accesskey='N'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
+	print "<td width='5%'><a href=\"ansatte.php?returside=$retursideParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id\" accesskey='N'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
 	print "</tbody></table>\n";
 	print "</td></tr>\n";
 	print "<tr><td align='center' valign='top'>\n";
@@ -130,9 +134,9 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+	print "<td width=\"10%\" $top_bund><a href=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 	print "<td width=\"80%\" $top_bund>$firmanavn - " . findtekst('1262|Ansatte', $sprog_id) . "</td>";
-	print "<td width=\"10%\" $top_bund><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id accesskey=N>" . findtekst('39|Ny', $sprog_id) . "</a><br></td>";
+	print "<td width=\"10%\" $top_bund><a href=ansatte.php?returside=$retursideParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id accesskey=N>" . findtekst('39|Ny', $sprog_id) . "</a><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
 	print "<td align = center valign = center>";

@@ -34,6 +34,9 @@
 //             debitor/debkort_save.php (SD-513)
 // 20260928 CL/SZ SD-698: Tilbage glued "?returside=" onto a returside that already had a query string (e.g. kassekladde.php?kladde_id=5), producing a broken URL.
 //                The back link is now built once with the right separator, and returside is sanitized like debitorkort.php.
+// 20261001 CL/SZ SD-698: returside is URL-encoded wherever this card passes it on (Ny, contact person, kontofusion), so a returside with its own query string (kassekladde.php?tjek=..&kladde_id=..) keeps its kladde_id.
+//                The Ny links are javascript: hrefs, which the browser decodes once before running them, so returside is encoded twice there.
+//                The menu S Ny link used undefined $kort/$ny_id/$alerttekst; it now uses kreditorkort.php, $ordre_id and $tekst like the other Ny link.
 
 
 @session_start();
@@ -117,7 +120,7 @@ if ($_POST) {
 
 		if (substr($ny_kontonr, 0, 1) == "=") {
 			$ny_kontonr = str_replace("=", "", $ny_kontonr);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=kontofusion.php?returside=$returside&ordre_id=$ordre_id&id=$id&fokus=$fokus&kontonr=$ny_kontonr\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=kontofusion.php?returside=" . urlencode($returside) . "&ordre_id=$ordre_id&id=$id&fokus=$fokus&kontonr=$ny_kontonr\">\n";
 			exit;
 		}
 		######### Tjekker om kontonr er integer
@@ -198,6 +201,9 @@ if ($_POST) {
 
 if (!$returside) $returside = $popup ? "../includes/luk.php" : "kreditor.php";
 $backSep  = (strpos($returside, '?') !== false) ? '&' : '?';
+$retursideParam = urlencode($returside);
+// a javascript: href is percent-decoded once before it runs, so encode twice there
+$retursideJsParam = urlencode($retursideParam);
 $backHref = $returside . $backSep . 'returside=' . urlencode($returside) . '&id=' . urlencode(if_isset($ordre_id, ''))
 	. '&fokus=' . urlencode(if_isset($fokus, '')) . '&konto_id=' . urlencode((string)$id);
 if ($menu == 'T') {
@@ -245,7 +251,7 @@ if ($menu == 'T') {
 	print "<td width='75%' style='$topStyle' align='center'>SALDI - " . findtekst(1184, $sprog_id) . "</td>\n";
 
 	print "<td width=5% style='$buttonStyle'>
-	   <a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey='N'>
+	   <a href=\"javascript:confirmClose('kreditorkort.php?returside=$retursideJsParam&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey='N'>
 	   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 	   $add_icon " . findtekst(39, $sprog_id) . "</button></a></td>";
 
@@ -276,7 +282,7 @@ if ($menu == 'T') {
 	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$backHref','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
 	else print "<td $top_bund><a href=\"javascript:confirmClose('$backHref','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">SALDI - " . findtekst(1184, $sprog_id) . "</td>\n";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"javascript:confirmClose('kreditorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td>\n";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"javascript:confirmClose('kreditorkort.php?returside=$retursideJsParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td>\n";
 	print "</tbody></table>\n"; #tabel 1.1 slut
 	print "</td></tr>\n";
 	print "<td></td><td align = center valign = top>\n";
@@ -456,13 +462,13 @@ if ($id) {
 	print "<tr bgcolor=$bg><td colspan=3><table width=\"100%\" border=0><tbody>\n"; #tabel 3.3.1 start
 	print "<tr bgcolor=$bg><td colspan=6><b>" . findtekst('392|Kontaktpersoner', $sprog_id) . "</b></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('394|Pos.', $sprog_id) . "</td><td>" . findtekst('398|Kontakt', $sprog_id) . "</td><td>" . findtekst('400|Direkte/lokal', $sprog_id) . "</td><td>" . findtekst('401|Mobil', $sprog_id) . "</td><td>" . findtekst('402|E-mail', $sprog_id) . "</td><td><a href='ansatte.php?ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&returside=$returside'><button type='button' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "</button></a></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('394|Pos.', $sprog_id) . "</td><td>" . findtekst('398|Kontakt', $sprog_id) . "</td><td>" . findtekst('400|Direkte/lokal', $sprog_id) . "</td><td>" . findtekst('401|Mobil', $sprog_id) . "</td><td>" . findtekst('402|E-mail', $sprog_id) . "</td><td><a href='ansatte.php?ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&returside=$retursideParam'><button type='button' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "</button></a></td></tr>\n";
 	$x = 0;
 	$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td width=10><input class=\"inputbox\" type=text size=2 name=posnr[$x] value=\"$x\"></td><td><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+		print "<tr bgcolor=$bg><td width=10><input class=\"inputbox\" type=text size=2 name=posnr[$x] value=\"$x\"></td><td><a href=ansatte.php?returside=$retursideParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
 		print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td><td></td></tr>\n";
 		print "<input type=hidden name=ans_id[$x] value=$r[id]>\n";
 		if ($x == 1) print "<input type=hidden name=kontakt value='$r[navn]'>\n";

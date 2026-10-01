@@ -4,6 +4,8 @@
 // 20260929 CL/SZ SD-698: Card button on every account line (account lookup, recent postings, Åbne Poster) when the page
 //                  sets window.saldiAccountCard (kassekladde): debtor -> debitorkort, creditor -> kreditorkort,
 //                  finance -> kontospec. Unsaved journal edits ask for confirmation before leaving.
+// 20261001 CL/SZ SD-698: Ctrl/Cmd+Enter on the selected popup line opens its card, while plain Enter still selects it.
+//                  Added JSDoc to the functions this change touches.
 (function () {
     'use strict'; 
 
@@ -137,6 +139,12 @@
     }
 
 
+    /**
+     * Attach the lookup popup to one journal field: its dropdown, the mouse handling on it
+     * (close, paging, card button, line selection) and the field's keyboard navigation.
+     * @param {HTMLInputElement} input      The journal field (debe/kred/fakt/... + line number).
+     * @param {string}           fieldType  Which lookup the field uses, e.g. 'debet', 'kredit', 'faktura'.
+     */
     function setupAutocomplete(input, fieldType) {
         if (fieldType === 'amount') return;
         // Skip if already initialized
@@ -272,6 +280,11 @@
                     break;
 
                 case 'Enter':
+                    if (selected && (e.ctrlKey || e.metaKey) && openSelectedAccountCard(selected)) {
+                        // Ctrl/Cmd+Enter opens the selected line's card; plain Enter selects it
+                        e.preventDefault();
+                        break;
+                    }
                     if (selected) {
                         e.preventDefault();
                         if (this.fieldType === 'faktura' || this.fieldType === 'amount') {
@@ -662,6 +675,14 @@
     }
 
 
+    /**
+     * Rows for the "recent postings" section at the top of the account popup.
+     * @param {{heading: string, rows: Array<Object>}} lastPostings  Recent counter-accounts for the line.
+     * @param {boolean} includeAccountHeading  Add the heading for the account list that follows.
+     * @param {number}  columnCount            Columns in the popup table.
+     * @param {string}  searchType             'finance', 'debitor' or 'kreditor'.
+     * @returns {string}  Table row HTML, or '' when there are no recent postings.
+     */
     function renderLastPostingsRows(lastPostings, includeAccountHeading, columnCount, searchType) {
         if (!lastPostings || !lastPostings.rows || lastPostings.rows.length === 0) {
             return '';
@@ -1047,6 +1068,14 @@
     }
 
 
+    /**
+     * Fill and show the account popup (Vælg Konto / Debitor / Kreditor) for a field.
+     * @param {HTMLInputElement} input                    The journal field the popup belongs to.
+     * @param {Array<Object>}    results                  Accounts from accountSearch.php.
+     * @param {string}           searchType               'finance', 'debitor' or 'kreditor'.
+     * @param {string}           currentSearchValueParam  The search text the results are for.
+     * @param {{page: number, total: number, hasMore: boolean, limit: number}} pagination  Paging state.
+     */
     function renderDropdown(input, results, searchType, currentSearchValueParam, pagination) {
         const dropdown = input.autocompleteDropdown;
         const trans = getTrans();
@@ -1164,6 +1193,13 @@
     }
 
 
+    /**
+     * Fill and show the "Åbne Poster" popup (open items) for a Fakturanr. field.
+     * @param {HTMLInputElement} input                    The journal field the popup belongs to.
+     * @param {Array<Object>}    results                  Open items from invoiceSearch.php.
+     * @param {string}           currentSearchValueParam  The search text the results are for.
+     * @param {{page: number, total: number, hasMore: boolean, limit: number}} pagination  Paging state.
+     */
     function renderInvoiceDropdown(input, results, currentSearchValueParam, pagination) {
         const dropdown = input.autocompleteDropdown;
 
@@ -1565,6 +1601,11 @@
         return num.toFixed(2).replace('.', ',');
     }
 
+    /**
+     * Document-level keys for the open popup: arrows move the selection, Enter selects the line,
+     * Ctrl/Cmd+Enter opens the selected line's card, Escape and Tab close the popup.
+     * @param {KeyboardEvent} e  The keydown event.
+     */
     function handleKeyboardNavigation(e) {
         if (!activeDropdown) return;
 
@@ -1601,6 +1642,10 @@
                 break;
 
             case 'Enter':
+                if (selected && (e.ctrlKey || e.metaKey) && openSelectedAccountCard(selected)) {
+                    e.preventDefault();
+                    break;
+                }
                 if (selected && activeInput) {
                     e.preventDefault();
                     if (activeInput.fieldType === 'faktura' || activeInput.fieldType === 'amount') {
@@ -1666,6 +1711,9 @@
     /**
      * Small button opening the card behind an account line (SD-698). Only pages that set
      * window.saldiAccountCard get it; art is F (finance), D (debtor) or K (creditor).
+     * @param {string}        art      Account type of the line: 'F', 'D' or 'K'.
+     * @param {string|number} kontonr  Account number of the line.
+     * @returns {string}  Button HTML, or '' when the page has no card config or the line has no valid account.
      */
     function renderCardButton(art, kontonr) {
         const cfg = window.saldiAccountCard;
@@ -1673,7 +1721,8 @@
         if (!cfg || !kontonr || !/^[0-9]+$/.test(String(kontonr)) || ['F', 'D', 'K'].indexOf(art) === -1) {
             return '';
         }
-        const title = escapeHtml((cfg.titles && cfg.titles[art]) || '').replace(/"/g, '&quot;');
+        const label = (cfg.titles && cfg.titles[art]) || '';
+        const title = escapeHtml(label ? label + ' (Ctrl+Enter)' : '').replace(/"/g, '&quot;');
         return '<button type="button" class="account-autocomplete-card-btn" tabindex="-1"' +
             ' data-card-art="' + art + '" data-card-kontonr="' + escapeHtml(String(kontonr)) + '"' +
             ' title="' + title + '" aria-label="' + title + '">' +
@@ -1683,7 +1732,10 @@
     }
 
 
-    /** True when the journal form holds edits that leaving the page would lose. */
+    /**
+     * Whether the journal form holds edits that leaving the page would lose.
+     * @returns {boolean}  True when docChange is set or a text field / select differs from its loaded value.
+     */
     function journalHasUnsavedChanges() {
         if (typeof docChange !== 'undefined' && docChange) {
             return true;
@@ -1706,6 +1758,25 @@
     }
 
 
+    /**
+     * Keyboard route to the card button (Ctrl/Cmd+Enter on the selected popup line).
+     * @param {HTMLElement} item  The selected .account-autocomplete-item row.
+     * @returns {boolean}  True when the line has a card button and its card is being opened.
+     */
+    function openSelectedAccountCard(item) {
+        const cardBtn = item && item.querySelector('.account-autocomplete-card-btn');
+        if (!cardBtn) return false;
+        openAccountCard(cardBtn.dataset.cardArt, cardBtn.dataset.cardKontonr);
+        return true;
+    }
+
+
+    /**
+     * Leave the journal for the card behind an account (via openAccountCard.php), after asking
+     * when there are unsaved edits. The card's Tilbage brings the user back to the journal.
+     * @param {string}        art      Account type: 'F' (kontospec), 'D' (debitorkort) or 'K' (kreditorkort).
+     * @param {string|number} kontonr  Account number.
+     */
     function openAccountCard(art, kontonr) {
         const cfg = window.saldiAccountCard;
         if (!cfg || !kontonr) return;

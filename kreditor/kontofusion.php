@@ -1,5 +1,5 @@
 <?php
-// ------------- kreditor/korntofusion.php ---------- lap 3.2.9 ----2013-02-24-----------
+// ------------- kreditor/korntofusion.php ---------- ver 5.0.0 ----2026-10-01-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2013 DANOSOFT ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20130224 kopieret fra debitor og tilrettet. (Bør lægges under includes)
+// 20261001 CL/SZ SD-698: returside is URL-encoded in the links back to kreditorkort.php and in the form action,
+//                so a returside with its own query string (e.g. kassekladde.php?tjek=..&kladde_id=..) survives the round trip.
 
 @session_start();
 $s_id=session_id();
@@ -37,6 +39,7 @@ include("../includes/std_func.php");
 $fusion=if_isset($_POST['fusion']);
 
 $returside=if_isset($_GET['returside']);
+$retursideParam=urlencode((string)$returside);
 $ordre_id=if_isset($_GET['ordre_id']);
 $fokus=if_isset($_GET['fokus']);
 
@@ -44,7 +47,7 @@ $id=if_isset($_GET['id']);
 $kontonr=if_isset($_GET['kontonr']);
 
 if ($fusion == "Fortryd") {
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$id&fokus=$fokus\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$id&fokus=$fokus\">\n";
 	exit;
 }
 $r=db_fetch_array(db_select("select id,lukket from adresser where art='K' and kontonr='$kontonr' and id != '$id'",__FILE__ . " linje " . __LINE__));
@@ -54,7 +57,7 @@ if (!$ny_id) {
 	$alerttekst="Der findes ikke andre kreditorer med kontonr: $kontonr";  
 #	$alerttekst=findtekst(345,$sprog_id);
 	print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 345-->";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$id&fokus=$fokus\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$id&fokus=$fokus\">\n";
 } 
 
 if ($id&&$kontonr&&$fusion=='OK') {
@@ -68,7 +71,7 @@ if ($id&&$kontonr&&$fusion=='OK') {
 	db_modify("update shop_adresser set saldi_id='$ny_id' where saldi_id='$id'",__FILE__ . " linje " . __LINE__);  
 	db_modify("delete from adresser where id='$id'",__FILE__ . " linje " . __LINE__);  
 	transaktion('commit');
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$ny_id&fokus=$fokus\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$ny_id&fokus=$fokus\">\n";
 } else {
 	$r=db_fetch_array(db_select("select * from adresser where id = '$id'",__FILE__ . " linje " . __LINE__));
 	$gl_firmanavn=$r['firmanavn'];
@@ -87,7 +90,7 @@ if ($id&&$kontonr&&$fusion=='OK') {
 	$ny_cvrnr=$r['cvrnr'];
 	$ny_tlf=$r['tlf'];
 
-	print "<form name=\"kontofusion\" action=\"kontofusion.php?returside=$returside&ordre_id=$ordre_id&id=$id&kontonr=$kontonr&fokus=$fokus\" method=\"post\">\n";
+	print "<form name=\"kontofusion\" action=\"kontofusion.php?returside=$retursideParam&ordre_id=$ordre_id&id=$id&kontonr=$kontonr&fokus=$fokus\" method=\"post\">\n";
 	print "<table><tbody>";
 	print "<tr><td colspan=2><b>Klik OK for at flytte kontakter,ordrer,historik mm fra konto:</b></td></tr>";
 	print "<tr><td>Navn</td><td>$gl_firmanavn</td></tr>";
