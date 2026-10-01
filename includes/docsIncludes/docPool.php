@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-09-21 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -95,6 +95,10 @@
 //                 for ambiguous; "Indsæt valgte" defaults Kredit the same way. A Kredit the user
 //                 already typed is never overwritten. Every value shown in the popup is HTML-escaped
 //                 (invoice text from a scan could otherwise inject markup; found in Astra's review).
+// 20261001 CL/SZ SST-777 (CodeRabbit): the currency/manually_edited fallback ADD COLUMNs this PR
+//                 added race against a second concurrent pool request doing the same existence
+//                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
+//                 a logged/alerted db_modify() failure.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -216,13 +220,13 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		$qtxt = "SELECT column_name FROM information_schema.columns
 				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'currency'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
-			@db_modify("ALTER TABLE pool_files ADD COLUMN currency varchar(10)", __FILE__ . " line " . __LINE__);
+			@db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS currency varchar(10)", __FILE__ . " line " . __LINE__);
 		}
 
 		$qtxt = "SELECT column_name FROM information_schema.columns
 				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'manually_edited'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
-			@db_modify("ALTER TABLE pool_files ADD COLUMN manually_edited boolean NOT NULL DEFAULT false", __FILE__ . " line " . __LINE__);
+			@db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS manually_edited boolean NOT NULL DEFAULT false", __FILE__ . " line " . __LINE__);
 		}
 	}
 	
