@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.09.25----------
+// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.10.01----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,9 @@
 // 20260922 CDX/PHR Restore cross-account suggestions while retaining validated journal assignment.
 // 20260925 CL/SZ   (CodeRabbit): escape the save-success notice's findtekst() text for HTML
 //                  output, matching the search placeholder's UTF-8-normalize-then-escape pattern.
+// 20261001 CL/SZ   (CodeRabbit): the header row's "Tilbage" button label and the "Udlign — Kladde N"
+//                  title were still printed from raw findtekst(), unlike every other findtekst()
+//                  value on this page - normalized and escaped them the same way.
 
 ob_start();
 @session_start();
@@ -675,8 +678,8 @@ print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cel
 print "<td width=5% style='$buttonStyle'>
 	<a href=\"javascript:confirmClose('" . htmlspecialchars($returside, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-	$icon_back ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-   print " <td align='center' style='$topStyle' width'75%'>" . findtekst('1066', $sprog_id) . " — " . findtekst('5300', $sprog_id) . " $kladde_id<br></td>
+	$icon_back ".htmlspecialchars(autoudlign_findtekst_utf8('30|Tilbage', $sprog_id), ENT_QUOTES, 'UTF-8')."</button></a></td>";
+   print " <td align='center' style='$topStyle' width'75%'>" . htmlspecialchars(autoudlign_findtekst_utf8('1066', $sprog_id), ENT_QUOTES, 'UTF-8') . " — " . htmlspecialchars(autoudlign_findtekst_utf8('5300', $sprog_id), ENT_QUOTES, 'UTF-8') . " $kladde_id<br></td>
     <td width=\"5%\" style='$topStyle'><br></td></tr>
     </tbody></table></td></tr>"; # <- tabel 1.1.1
 print "</tbody></table></td></tr></tbody></table>";
