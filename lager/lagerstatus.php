@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-02-06 ----
+// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-09-25 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20140128 Ved søgning på modtaget / leveret tjekkes ikke for dato hvis angivet dato = dags dato da det gav forkert lagerantal for 
 //          leverancer med leveringsdato > dd. Søg 20140128   
@@ -47,6 +47,12 @@
 //             $varenrSoeg, not $varenr, to avoid clobbering the existing per-item $varenr[$x] array
 //             further down (caught live against a real tenant - first version silently turned every
 //             result row's item-number display into "Array" and broke pagination links)
+// 20260903 SZ MB-31 follow-up: the search added above couldn't find an item that had never been
+//             bought/sold, nor one that was out of stock or discontinued (reported by Peter, tenant
+//             test_31, item K7048TE12) - the zStock/showClosed SQL filters and the "has any activity"
+//             gate further down excluded it regardless of a matching search term. Added
+//             $lsHasTextSearch to bypass both once Varenr./Beskrivelse/Enhed is searched - see its
+//             own comment further down. Live-verified against the local chartest tenant.
 // 20260904 SZ MB-39: Kobspris valued stock at the wrong price - the batch_kob value walk's
 //             "and antal >= 1" dropped negative (credit note) lines, so a credited purchase never
 //             cancelled the batch it credited, and its "order by kobsdate desc" had no tie-break,
@@ -55,6 +61,10 @@
 //             is covered, and guarded on positive remaining stock so already-zero/negative-stock
 //             items still value at 0. Verified against IBON's real saldi_821 dump (SST-764).
 // 20260908 CDX/LH Cancel linked purchase credits before selecting the remaining stock value.
+// 20260925 CL/NTR Escape a Varenr./Beskrivelse/Enhed search term's own '%'/'_' via the new
+//             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
+//             no longer matches (almost) the whole catalogue or spuriously bypasses the
+//             zStock/showClosed/activity filters via $lsHasTextSearch.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -205,43 +215,76 @@ list($a,$b)=explode(":",$varegruppe);
 // the 4 candidate queries below runs, so a real Jira ticket key/description search actually narrows
 // this report instead of only filtering by Varegruppe/Lager/Dato.
 $vareSearchSql = "";
-if ($varenrSoeg) {
+// CodeRabbit - a plain truthy check treats the string "0" as false (PHP's "0" == false), so searching
+// Varenr./Beskrivelse/Enhed for exactly "0" silently built no SQL filter at all - explicit "not null and
+// not empty string" checks below instead, so "0" is treated as a real search term like any other.
+if ($varenrSoeg !== null && $varenrSoeg !== '') {
 	// MB-31 - always a plain substring match, same as every other per-column search box in this
 	// grid row and in the ordreliste.php sample - no special '*' wildcard syntax to remember.
 	// Pattern built into its own variable (not $varenrSoeg itself) so the search box, CSV href
 	// and pagination links all keep showing what the user actually typed instead of the wrapped
 	// '%...%' SQL pattern.
-	$varenrPattern = "%".$varenrSoeg."%";
+	// 20260925 CL/NTR - db_escape_like_pattern() first, so a literal '%'/'_' the user typed (e.g.
+	// searching for a varenr that really contains one) doesn't act as a SQL wildcard - see its own
+	// comment in includes/db_query.php. Without it a lone '%'/'_' search matched (almost) the whole
+	// catalogue and, combined with $lsHasTextSearch below, bypassed the stock/closed/activity filters too.
+	$varenrPattern = "%".db_escape_like_pattern($varenrSoeg)."%";
 	$low=strtolower($varenrPattern);
 	$upp=strtoupper($varenrPattern);
 	$vareSearchSql.=" and (varer.varenr LIKE '".db_escape_string($varenrPattern)."' or lower(varer.varenr) LIKE '".db_escape_string($low)."' or upper(varer.varenr) LIKE '".db_escape_string($upp)."')";
 }
-if ($varenavn) {
+if ($varenavn !== null && $varenavn !== '') {
 	// MB-31 - same plain substring match as Varenr. above, same reason for a separate pattern var.
-	$varenavnPattern = "%".$varenavn."%";
+	// 20260925 CL/NTR - db_escape_like_pattern(), same reason as $varenrPattern above.
+	$varenavnPattern = "%".db_escape_like_pattern($varenavn)."%";
 	$low=strtolower($varenavnPattern);
 	$upp=strtoupper($varenavnPattern);
 	$vareSearchSql.=" and (varer.beskrivelse LIKE '".db_escape_string($varenavnPattern)."' or lower(varer.beskrivelse) LIKE '".db_escape_string($low)."' or upper(varer.beskrivelse) LIKE '".db_escape_string($upp)."')";
 }
-if ($enhedSoeg) {
+if ($enhedSoeg !== null && $enhedSoeg !== '') {
 	// MB-31 - Enhed's search box: substring match (not exact/wildcard like Varenr./Beskrivelse above),
 	// same convention includes/grid.php's own DEFAULT_GENERATE_SEARCH() uses for its 'text' columns.
-	$vareSearchSql.=" and varer.enhed ILIKE '%".db_escape_string($enhedSoeg)."%'";
+	// 20260925 CL/NTR - db_escape_like_pattern(), same reason as $varenrPattern above.
+	$vareSearchSql.=" and varer.enhed ILIKE '%".db_escape_string(db_escape_like_pattern($enhedSoeg))."%'";
 }
+
+// MB-31 follow-up (Peter, test_31, 20260903) - a Varenr./Beskrivelse/Enhed search must find a matching
+// item regardless of the zStock ("0 lager")/showClosed ("Udgåede") checkboxes and regardless of whether
+// it's ever been bought or sold: those two checkboxes are for browsing the full list, but a deliberate
+// text search already narrows $vareSearchSql to matching items, so it's safe (and expected) to bypass
+// both filters below plus the "has activity" gate further down in that case. Scoped to the text fields
+// only, not $lsS (the numeric per-column boxes) - those have no SQL-level filter of their own to bypass,
+// and bypassing zStock for a numeric-only search would run the expensive per-item loop over the whole
+// catalog instead of a search-narrowed candidate list.
+// CodeRabbit - same "0" truthy pitfall as $vareSearchSql above: || on the raw strings would treat an
+// exact "0" search as no search at all, leaving the very filters this flag exists to bypass still in
+// effect for that value - explicit not-null/not-empty checks instead.
+// 20260925 CL/NTR - "narrows the query" now holds even for a lone '%'/'_'/'\' search term, since
+// db_escape_like_pattern() above turns it into a literal-character match instead of an active wildcard;
+// this flag no longer needs its own check for that case.
+$lsHasTextSearch = ($varenrSoeg !== null && $varenrSoeg !== '')
+	|| ($varenavn !== null && $varenavn !== '')
+	|| ($enhedSoeg !== null && $enhedSoeg !== '');
 
 if ($a) {
 	if ($lagervalg) {
 		$qtxt = "select varer.id,varer.varenr,varer.enhed,varer.beskrivelse,varer.salgspris,varer.kostpris,varer.varianter,varer.gruppe,";
 		$qtxt.= "lagerstatus.beholdning ";
-		$qtxt.= "from varer,lagerstatus where varer.gruppe='$a' and lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' ";
-		if (!$zStock) $qtxt.= "and lagerstatus.beholdning != '0' ";
-		if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		// CodeRabbit - LEFT JOIN (was an inner join): a product that has never had any stock movement in
+		// THIS specific warehouse has no lagerstatus row for it at all, so an inner join dropped it before
+		// $lsHasTextSearch below ever got a chance to matter - a text search still couldn't find it even
+		// with the zStock/showClosed bypass. coalesce() below treats "no row" the same as "0 stock"
+		// everywhere beholdning is filtered; the loop that reads $r2['beholdning'] further down does the
+		// same for display.
+		$qtxt.= "from varer left join lagerstatus on lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' where varer.gruppe='$a' ";
+		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and coalesce(lagerstatus.beholdning,0) != '0' ";
+		if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= "$vareSearchSql ";
 		$qtxt.="order by varer.varenr";
 	} else {
 	   $qtxt = "select * from varer where gruppe='$a' ";
-	   if (!$zStock) $qtxt.= "and beholdning != '0' ";
-	   if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+	   if (!$zStock && !$lsHasTextSearch) $qtxt.= "and beholdning != '0' ";
+	   if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 	   $qtxt.= "$vareSearchSql ";
 	   $qtxt.= "order by varenr";
 	}
@@ -249,17 +292,16 @@ if ($a) {
 	if ($lagervalg) {
 		$qtxt =" select varer.id,varer.varenr,varer.enhed,varer.beskrivelse,varer.salgspris,varer.kostpris,varer.varianter,varer.gruppe,";
 		$qtxt.= "lagerstatus.beholdning ";
-		$qtxt.= "from varer,lagerstatus where lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' ";
-		if (!$zStock) $qtxt.= "and lagerstatus.beholdning != '0' ";
-	   if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		// CodeRabbit - LEFT JOIN, same reason as the gruppe+lagervalg branch above.
+		$qtxt.= "from varer left join lagerstatus on lagerstatus.vare_id=varer.id and lagerstatus.lager='$lagervalg' where 1=1 ";
+		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and coalesce(lagerstatus.beholdning,0) != '0' ";
+	   if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= "$vareSearchSql ";
 		$qtxt.= " order by varer.varenr";
 	} else {
 		$qtxt = "select * from varer where 1=1 ";
-		if (!$zStock) {
-			$qtxt.= "and beholdning != '0' ";
-			if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
-		} elseif (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		if (!$zStock && !$lsHasTextSearch) $qtxt.= "and beholdning != '0' ";
+		if (!$showClosed && !$lsHasTextSearch) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= "$vareSearchSql ";
 		$qtxt.= "order by varenr";
 	}
@@ -271,7 +313,11 @@ while ($r2=db_fetch_array($q2)){
 		$vare_id[$x]=$r2['id'];
 		$varenr[$x]=stripslashes($r2['varenr']);
 		$enhed[$x]=stripslashes($r2['enhed']);
-		$beholdning[$x]=$r2['beholdning'];
+		// CodeRabbit - the lagervalg branches above now LEFT JOIN lagerstatus, so a product with no
+		// stock row at all for the selected warehouse comes back with beholdning=NULL rather than a
+		// missing row; treat that the same as 0 here so downstream arithmetic (afrund/dkdecimal/etc.)
+		// never operates on NULL.
+		$beholdning[$x]=ifset($r2,'beholdning',0);
 		$varianter[$x]=$r2['varianter']; #20180204
 		$beskrivelse[$x]=stripslashes($r2['beskrivelse']);
 		$salgspris[$x]=$r2['salgspris'];
@@ -602,7 +648,12 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 			db_modify("insert into lagerstatus(vare_id,beholdning,lager) values ('$vare_id[$x]','$diff','$tmp')",__FILE__ . " linje " . __LINE__);
 		}
 	}
-	if ($batch_k_antal[$x]||$batch_s_antal[$x]||$beholdning[$x]||$handlet[$x]) {
+	// MB-31 follow-up - $lsHasTextSearch bypasses this "has any activity" gate too: a text search
+	// already narrowed the candidate query above ($vareSearchSql), so every $x reaching here already
+	// matches the search term and must be shown even if it's never been bought/sold and has 0 stock
+	// (K7048TE12, Peter's test_31 report) - previously such an item silently vanished here even though
+	// it matched the query.
+	if ($batch_k_antal[$x]||$batch_s_antal[$x]||$beholdning[$x]||$handlet[$x]||$lsHasTextSearch) {
 		if ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		else {$linjebg=$bgcolor; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";

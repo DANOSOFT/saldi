@@ -76,10 +76,6 @@
 // 20260831 Sawaneh Action buttons were clipped and unreachable at 125% Windows scaling (SST-747):
 //                  replaced the guessed 130/150px viewport calc with a flex column layout, removed the
 //                  unconditional html/body overflow-y:hidden and let the button bar wrap on narrow windows.
-// 20260907 CL/LH  Rejected amounts: alert text is sanitised before alert() embeds it in a <script>, a rejected
-//                  line skips kontroller()'s processing/tmpkassekl update and the error re-render shows the
-//                  operator's raw text instead of usdecimal()'s 100x value, the "+=" shortcut validates the
-//                  amount before indsaet_linjer(), and the texts moved from 5080/5081 to 5089/5090.
 // 20260903 Sawaneh Removed leftover debug output: per-line bilag console.log and the fiscal-year
 //                  console dump (incl. its debug-only grupper query); validation itself is unchanged.
 // 20260903 Sawaneh "Sidste 5 posteringer" counter-account suggestions now also cover finance (F) lines,
@@ -97,6 +93,8 @@
 //                  difference amount under bilag sorting) - the balance status at the top replaces it.
 // 20260903 Sawaneh Settings box restyled as the product card gear panel (fieldVisibility.php look):
 //                  round gear button, click-to-open panel with title/intro/Show all; same persistence.
+// 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
+//                  other menu styles keep the floating button; panel now opens just below the button.
 // 20260907 Sawaneh First-time hint bubble pointing at the gear ("klik for at tilpasse din opsætning",
 //                  texts 5147/5148), dismissed per user via localStorage - product card hint pattern.
 // 20260907 Sawaneh Column/panel save fetch uses keepalive so a refresh right after toggling can no
@@ -104,13 +102,22 @@
 // 20260907 Sawaneh Column/panel choices now also persist for revisor/admin sessions: online.php gives
 //                  those bruger_id = -1 and the save/read guards required > 0, so admins silently lost
 //                  every choice on reload (pre-existing bug in the column picker, inherited by Part B).
-// 20260904 Sawaneh Gear button docked into the top line next to 'Ny' (menu S, via topLineKassekladde.php);
-//                  other menu styles keep the floating button; panel now opens just below the button.
+// 20260907 CL/LH  Rejected amounts: alert text is sanitised before alert() embeds it in a <script>, a rejected
+//                  line skips kontroller()'s processing/tmpkassekl update and the error re-render shows the
+//                  operator's raw text instead of usdecimal()'s 100x value, the "+=" shortcut validates the
+//                  amount before indsaet_linjer(), and the texts moved from 5080/5081 to 5089/5090.
 // 20260907 CDX/LH Keep counter-account types in suggestions and match posted duplicates in base currency
 //                  with customer/supplier evidence; isolate journal history queries for regression tests.
+// 20260907 CL/LH  The replay fingerprint is recorded only after a successful save; recording it before
+//                  kontroller() turned a double-click on a failing save into a "replay" that skipped
+//                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 // 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
+// 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
 
+// 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
+require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
+require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
 
 # A line created during this request is rendered last, whatever the list is sorted by, so the line the
 # user just typed stays where they are working instead of jumping to its sorted position (with
@@ -182,6 +189,15 @@ if (!isset($c))
 
 include("../includes/connect.php");
 include("../includes/online.php");
+// online.php authenticates the request and selects the tenant before the replay lookup.
+// The PHP session lock serializes duplicate requests, including two first saves with id=0.
+$kk_request_key = journalSaveRequestKey($_POST ?? [], (string)$db, (string)$brugernavn);
+$kk_form_key = $kk_request_key !== null ? journalSaveFormKey($_POST ?? [], (string)$db, (string)$brugernavn) : null;
+$kk_saved_journal = journalSavedRequest($_SESSION, $kk_request_key);
+if ($kk_saved_journal !== null) {
+	header('Location: kassekladde.php?kladde_id=' . $kk_saved_journal . '&tjek=' . $kk_saved_journal, true, 303);
+	exit;
+}
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
@@ -787,7 +803,7 @@ if ($_POST) {
 	elseif (isset($_POST['upload']) && $_POST['upload'])     $submit = 'upload';
 	else $submit   = trim(if_isset($_POST['submit'], ''));
 	$tidspkt       = if_isset($_POST['tidspkt']);
-	$kladde_id     = if_isset($_POST['kladde_id']);
+	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
 	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
@@ -1292,6 +1308,7 @@ if ($_POST) {
 			$kladde_id = $row['id'] + 1;
 			$kladdedate = date("Y-m-d");	# OBS I naeste linje indsaettes tidspkt fratrukket 1 sek. Ellers bliver 1. gemning afvist af	"Refresktjek"
 			db_modify("insert into kladdeliste (id, kladdenote, kladdedate, bogfort, hvem, oprettet_af, tidspkt) values ('$kladde_id', '$ny_kladdenote', '$kladdedate', '-', '$brugernavn', '$brugernavn', '$tidspkt')", __FILE__ . " linje " . __LINE__);
+			journalRememberCreation($_SESSION, $kk_form_key, (int)$kladde_id);
 			$tidspkt = microtime();
 		}
 		if ($kladde_id) {
@@ -1358,6 +1375,22 @@ if ($_POST) {
 		copy2new($kladde_id, $bilagsnr, $ny_dato, $vend_fortegn);
 	}
 	$fokus = $_POST['fokus'];
+	// 20260902 CL/LH  L4 findings adversarial-forms DEVY-2 / adversarial-navigation DEVY-1: a
+	// double-click on Gem, or browser Back + "resend form", posted the identical form twice and
+	// the second POST inserted the new lines again as duplicate draft rows. The tidspkt refresh
+	// check below never fires for an open journal (bogfort is '-' which is truthy), so detect the
+	// replay explicitly: the same session re-posting the exact same save payload for the same
+	// journal is a replay and must not touch the lines again. A stale tab with *different*
+	// content is not affected (different payload) and saves as before. The fingerprint is only
+	// compared here; it is recorded after opdater() below, once the save has actually succeeded,
+	// so a re-post of a save that failed validation is validated (and rejected) again.
+	$kk_replay = false;
+	if ($submit == 'save' && $kladde_id) {
+		$kk_payload = md5(serialize($_POST));
+		if (isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
+			$kk_replay = true;
+		}
+	}
 	if ($kladde_id) {
 		$row = db_fetch_array(db_select("select bogfort,tidspkt from kladdeliste where id=$kladde_id", __FILE__ . " linje " . __LINE__));
 		if (!$row['bogfort'] && $tidspkt == $row['tidspkt']) { #Refreshtjek"
@@ -1413,9 +1446,9 @@ if ($_POST) {
 							$kreditvat[$x] = '';
 						if (!isset($afd[$x]))
 							$afd[$x] = NULL;
-						if ((!$fejl) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
+						if ((!$fejl) && (!$kk_replay) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
-						} elseif ((!$fejl) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
+						} elseif ((!$fejl) && (!$kk_replay) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						}
 					}
@@ -1568,8 +1601,20 @@ if ($r = db_fetch_array(db_select("select id from adresser where art = 'S'", __F
 	}
 }
 if (!$fejl && $kladde_id) {
-	opdater($kladde_id);
-    initializePositions($kladde_id);
+	// A replayed save (see $kk_replay above) must not move the staged lines into the journal
+	// again - that is exactly what produced the duplicate rows. Still clear the staging table.
+	if (empty($kk_replay)) {
+		opdater($kladde_id);
+		initializePositions($kladde_id);
+		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
+		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
+		// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
+		// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
+		if (isset($kk_payload)) {
+			if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+			$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+		}
+	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
 /*
@@ -2504,6 +2549,7 @@ if ($tjek) {
     $action_url .= "&tjek=$tjek";
 }
 print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post' autocomplete='off'>";
+print "<input type='hidden' name='kk_save_token' value='" . bin2hex(random_bytes(32)) . "'>";
 print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 print "<tr><td width='100%' valign='top' height='1%' align='center' class='kassekladde-note-tb'>
@@ -3355,18 +3401,22 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!isset($valuta[$y]))       $valuta[$y]       = NULL;
 	if (((($bilag[$x] == "-") || (!$dato[$y] && !$beskrivelse[$y]
 		&& !$debet[$y] && !$kredit[$y] && !$faktura[$y] && !$amount[$x])) && ($x == 1)) || (!$kladde_id)) {
-		$bilag[$x] = 1;
-		$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($q)) $bilag[$x] = $row['bilag'] + 1;
+		# 20260928 LOE SST-817 Same allocation as the line rendered below: the journal's highest used
+		# number + 1, or the fiscal year's when this journal has no numbered row yet.
+		$bilag[$x] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
 	}
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
 	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
+	# 20260928 LOE SST-817 The number the next line carries comes from the journal itself (highest used
+	# number + 1), not from the row above it. A journal whose last row is an empty row used to offer no
+	# number at all there, the line typed on it was stored as bilag 0, and the series restarted at 1.
+	$kk_next_bilag = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
 	# The blank line at the end is where the next line gets typed, so it is rendered after any save
 	# that created a line - including a line that carries only a description, which has no
-	# debit/credit and so used to leave the user with no row to type in and no field to focus.
-	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1 || !empty($GLOBALS['kk_new_line_ids']))) {
+	# debit/credit and so used to leave the user with no row to type in and no field to focus. It now
+	# carries the journal's next voucher number in every case, so the number is there to type into.
+	if ($x < 3000) {
 		if (!isset($id[$x]))          $id[$x]          = NULL;
 		if (!isset($dato[$x]))        $dato[$x]        = NULL;
 		if (!isset($beskrivelse[$x])) $beskrivelse[$x] = NULL;
@@ -3382,23 +3432,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!isset($ansat[$x]))       $ansat[$x]       = NULL;
 		print "<tr>";
 		##################
-		// get last bilagsnr from database but check if the row already has asigned bilagnr
-		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
-		if (isset($bilag[$x]) && $bilag[$x]) {
-			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
-			$next = $bilag[$x];
-		} elseif (!$kladde_id || 0 == db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__))){
-			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
-			if ($x == 1) {
-				$next = $last_bilag;
-			} else {
-				$next = ($bilag[$x-1] ?? 0) + 1;
-			}
-		} else {
-			$next = ($bilag[$x-1] ?? 0) + 1;
-		}
+		// 20260928 LOE SST-817 A number the user typed on this line is kept; otherwise the line carries
+		// the journal's next voucher number (see $kk_next_bilag above). Deriving it from the row above
+		// ($bilag[$x-1] + 1) offered nothing when that row was empty and repeated a lower number when
+		// the journal had already used a higher one.
+		$next = (isset($bilag[$x]) && (int)$bilag[$x] > 0) ? (int)$bilag[$x] : $kk_next_bilag;
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
@@ -3439,23 +3477,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td></td>\n";
 			}
 		}
-		// get last bilagsnr from database but check if the row already has asigned bilagnr
-		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
-		if (isset($bilag[$x]) && $bilag[$x]) {
-			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
-			$next = $bilag[$x];
-		} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
-			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
-			if ($x == 1) {
-				$next = $last_bilag;
-			} else {
-				$next = ($bilag[$x-1] ?? 0) + 1;
-			}
-		} else {
-			$next = ($bilag[$x-1] ?? 0) + 1;
-		}
+		// 20260928 LOE SST-817 $next comes from the block above for this same line.
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
@@ -4221,6 +4243,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						alert("Bilagsnummer $bilag er for stort (maks 2147483647) og er erstattet med $new_bilag.");
 						$bilag = $new_bilag;
 					}
+					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
+					# writing the 0 back; a positive number the user entered is kept as it is.
+					if ($bilag <= 0) {
+						$bilag = bilagNextNumberForJournal($kladde_id);
+					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
 					$qtxt .= "amount = '$amount', debetvat = '$debetvat', kreditvat = '$kreditvat', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
@@ -4245,6 +4272,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							alert("Bilagsnummer $insert_bilag er for stort (maks 2147483647) og er erstattet med $new_bilag2.");
 							$insert_bilag = $new_bilag2;
 						}
+						# 20260928 LOE SST-817 A line saved without a voucher number is given the journal's
+						# next one instead of 0, so a balanced line advances the series and no number is
+						# reused while the journal is open.
+						if ($insert_bilag <= 0) {
+							$insert_bilag = bilagNextNumberForJournal($kladde_id);
+						}
 						// Insert at the correct bilag/transdate position instead of always at the end.
 						// Find the highest pos of entries that should come before the new entry.
 						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
@@ -4260,6 +4293,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
+						# number gets the journal's next one instead of 0.
+						if ($insert_bilag <= 0) {
+							$insert_bilag = bilagNextNumberForJournal($kladde_id);
+						}
 						// Insert at the correct bilag/transdate position instead of always at the end.
 						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
 						$ins_pos_r = db_fetch_array($ins_pos_q);

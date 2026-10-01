@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-24------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-29------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -110,6 +110,7 @@
 // 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
 // 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
+// 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 
 @session_start();
 $s_id = session_id();
@@ -290,7 +291,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$box10       = $_POST['box10'];   #betalingsliste
 		$box12       = $_POST['box12'];
 		$pv_box1     = $_POST['pv_box1']; #Direkte print til lokal printer
-		$pv_box3     = $_POST['pv_box3']; #formulargenerator html/ps
+		$pv_box3     = ifset($_POST, 'pv_box3') === 'on' ? 'on' : ''; #formulargenerator html/ps
+		$htmlLayoutVersion = ifset($_POST, 'html_layout_version');
 		$gls_id      = $_POST['gls_id'];
 		$gls_user    = if_isset($_POST['gls_user']);
 		$gls_pass    = if_isset($_POST['gls_pass']);
@@ -418,6 +420,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3) values ('Udskrift','1','PV','$pv_box1','','$pv_box3')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+		require_once __DIR__ . '/../includes/formFuncIncludes/htmlLayoutVersion.php';
+		saveFormHtmlLayoutVersion($htmlLayoutVersion);
 		$var_name        = array('gls_id', 'gls_user', 'gls_pass', 'gls_ctId');
 		$var_value       = array("$gls_id", "$gls_user", "$gls_pass", "$gls_ctId");
 		$var_description = array('GLS id', 'GLS brugernavn', 'GLS password', 'GLS kontakt ID');

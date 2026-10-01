@@ -128,7 +128,18 @@
 // 20260811 Sawaneh function batch: automatic batch reservation now uses fefo_order_clause() instead
 //                  of 'order by kobsdate', so the batch expiring first is drawn first (FEFO).
 //                  Items without due dates are unaffected - they still come out in kobsdate order.
+// 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 // 20260908 CL/Sawaneh SST-763: duplicate pbsfakt() removed; includes/pbsfunc.php is included instead.
+// 20260908 CDX/MJ JOB-106 Validate the date against the effective order type: an all-negative DO
+//             order is turned into a DK credit note by bogfor(), but only after the date checks
+//             had already run, so a valid return date was still rejected for that case
+// 20260921 MJ SST-796 linjeopdat(): when a sale runs off negative stock the deficit batch_kob
+//             was priced from the static varer.kostpris. Prefer the price on an open, unreceived
+//             kreditorordre line for the same item (pris, less line discount, x the order's
+//             valutakurs), keep varer.kostpris as the last resort, log which was used, and warn the
+//             user once per delivery without blocking it.
+// 20260923 MJ SST-796 Same fix applied to the negative-quantity/kreditnota deficit branch, which
+//             read varer.kostpris too. Both branches now share deficit_cost_price().
 // 20260914 CL/SZ SST-744: function bogfor_nu: moved the vat_account/findAccountVat check for a VAT-liable
 //             line to before $d_kontrol/$k_kontrol are incremented for it, so a missing VAT code on the
 //             posting account can never inflate the control totals without a matching posting; the
@@ -137,6 +148,61 @@
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
+
+/**
+ * Check whether a delivery date invalidly precedes its order date.
+ *
+ * Customer credit notes use levdate as the return date, so their date is not
+ * ordered relative to the date on which the credit note was created.
+ *
+ * @return bool True when the delivery date is invalid for this order type.
+ */
+function delivery_date_before_order_date($art, $levdate, $ordredate)
+{
+	return !$levdate || ($art !== 'DK' && $levdate < $ordredate);
+}
+
+/**
+ * Decide whether an order will be converted into a credit note when it is posted.
+ *
+ * bogfor() turns an all-negative DO order into a DK credit note (its $dan_kn flag),
+ * but not until after the delivery date has been validated. Callers that validate
+ * earlier have to classify the order themselves, or they reject a return date that
+ * is legitimately older than the order date.
+ *
+ * Mirrors the $dan_kn loop in bogfor(): same query, same row order, same conditions.
+ *
+ * @param int|string $id  Order id.
+ * @param string     $art Order type as currently stored.
+ * @return bool True when this is a DO order whose lines all point the credit way.
+ */
+function order_becomes_credit_note($id, $art)
+{
+	if ($art !== 'DO') {
+		return false;
+	}
+	$id = intval($id);
+	$dan_kn = 1;
+	$a = 0;
+	$z = 0;
+	$q = db_select("select vare_id, antal from ordrelinjer where ordre_id = '$id' and antal != '0' order by saet", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$z++;
+		if ($r['antal'] < 0) {
+			$a += $r['antal'];
+		}
+		if ($r['vare_id'] && $r['antal'] >= 0) {
+			$dan_kn = 0;
+		}
+		if ($dan_kn && !$a) {
+			$dan_kn = 0;
+		}
+	}
+	if ($dan_kn && !$z) {
+		$dan_kn = 0;
+	}
+	return (bool)$dan_kn;
+}
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -255,14 +321,15 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 		$ordredate = $fakturadate;
 	}
 	$r = db_fetch_array(db_select("select * from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-	if ($fakturadate && !$r['levdate']) {
+	if (!$r['levdate']) {
 		if ($webservice)
 			return ('Manglende leveringsdato');
 		else
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato SKAL udfyldes')\">";
 		exit;
 	} else {
-		if (!$hurtigfakt && $r['levdate'] < $r['ordredate']) {
+		$effektiv_art = order_becomes_credit_note($id, $art) ? 'DK' : $art;
+		if (!$hurtigfakt && delivery_date_before_order_date($effektiv_art, $r['levdate'], $r['ordredate'])) {
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato $r[levdate]<$r[ordredate]')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 			exit;
@@ -407,7 +474,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 					exit;
 				}
 				if ($vare_id[$x] && $leveres[$x]) {
-					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x], $bogf_konto[$x], $variant_id[$x], $lager[$x]);
+					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x], $bogf_konto[$x], $variant_id[$x], $lager[$x], $webservice);
 					#				if (trim($row['samlevare'])=='on') {
 #					$q2 = db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
 #					while($r2 =db_fetch_array($q2)) 
@@ -423,7 +490,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 } #endfunc levering
 
 #############################################################################################
-function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pris, $nettopris, $rabat, $samlevare, $linje_nr, $posnr, $serienr, $kred_linje_id, $bogf_konto, $variant_id, $lager)
+function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pris, $nettopris, $rabat, $samlevare, $linje_nr, $posnr, $serienr, $kred_linje_id, $bogf_konto, $variant_id, $lager, $webservice = false)
 {
 
 	#xit;
@@ -438,6 +505,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 	global $lev_nr, $levdate;
 	global $regnaar, $ref;
 	global $sn_id;
+	global $sprog_id;            # SST-796 for findtekst() on the estimated-cost warning
 
 	$antal *= 1;
 
@@ -587,8 +655,15 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				}
 
 				if ($tmp) { # F.eks negativt salg uden købsreference
-					$r = db_fetch_array(db_select("select kostpris from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
-					$kostpris = $r['kostpris'] * 1;
+					// 20260923 MJ SST-796 Same stale-cost-price exposure as the normal-sale branch
+					//             below: this quantity has no batch_kob behind it, so its cost was
+					//             taken from the static varer.kostpris. $kred_linje_id zeroes $tmp
+					//             above, so a return booked against a specific original sale line
+					//             never reaches here - there is no historical cost to inherit, and an
+					//             open purchase line is the better estimate. Shared resolver so the
+					//             two branches cannot drift apart again.
+					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
+					$kostpris = deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'negativt salg/kreditnota', $webservice);
 					$tmp2 = $tmp * -1;
 					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
 					#db_modify("insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) values ('$vare_id', '0', '0','0','$tmp','$kostpris','$lager','$variant_id')",__FILE__ . " linje " . __LINE__);
@@ -623,8 +698,15 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					db_modify("update batch_kob set rest='$ny_rest' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
 				}
 				if ($tmp) {
-					$r = db_fetch_array(db_select("select kostpris from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
-					$kostpris = $r['kostpris'] * 1;
+					// 20260921 MJ SST-796 Selling off negative stock: no batch_kob with rest > 0
+					//             covers this quantity, so a deficit batch is written below. Its price
+					//             used to come straight from the static varer.kostpris, which at
+					//             Den-Tec was three years old - a machine bought at EUR 18.500 (kurs
+					//             7,50 = 138.750 kr) went out on an invoice at 88.100,93 kr, with the
+					//             real price sitting on an open purchase line for the same item the
+					//             whole time. Prefer that line; keep varer.kostpris as the last resort.
+					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
+					$kostpris = deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'salg fra negativ lagerbeholdning', $webservice);
 					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
 					$tmp2 = $tmp * -1;
 					$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) ";
@@ -1443,7 +1525,7 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		else
 			return ("Leveringsdato SKAL udfyldes");
 	}
-	if ($levdate < $ordredate) {
+	if (delivery_date_before_order_date($dan_kn ? 'DK' : $art, $levdate, $ordredate)) {
 		if (!$callerOwnsTransaction) transaktion('rollback');
 		if ($webservice)
 			return ("Deliverydate prior to orderdate");

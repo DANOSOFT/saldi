@@ -90,10 +90,11 @@ if ($selected) {
 }
 # SD-657: keep the turnover row from the users the setting keeps it from - in the list and in the
 # receipt alike. A saved count stores the label setSpecifiedCashPrintText() writes, so those two are
-# matched rather than one language's literal, and the translated screen label is included as well.
+# matched rather than one language's literal, and the translated label is included as well (text 2376:
+# 2373 is "I alt", and findtekst() returns the catalogued text, never the fallback behind the pipe).
 if ($selected && hide_revenue()) {
     $turnover_labels = array('Dagens omsætning', 'Heutiger Umsatz');
-    $turnover_screen_label = trim((string) findtekst('2373|Dagens omsætning', $sprog_id), " \t:");
+    $turnover_screen_label = trim((string) findtekst('2376|Dagens omsætning', $sprog_id), " \t:");
     if ($turnover_screen_label !== '' && !in_array($turnover_screen_label, $turnover_labels, true)) {
         $turnover_labels[] = $turnover_screen_label;
     }

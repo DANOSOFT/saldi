@@ -19,11 +19,14 @@ header('Expires: 0');
 //                  vendor identity but no kreditor are matched again on every open (AI-6).
 // 20260922 CL/LAH Vendor handling wrapped so it can never break the file list; invalid UTF-8
 //                  from legacy rows is substituted instead of blanking the whole response.
+// 20260925 LOE MB-42 Every row whose fakturanr, amount and date match another row's is marked
+//                  duplicateOf, so the pool can show that the same bilag is in the list twice.
 
 // Include database connection and online.php to get $db
 include_once(__DIR__ . "/connect.php");
 include_once(__DIR__ . "/std_func.php");
 include_once(__DIR__ . "/docsIncludes/poolVendorMatcher.php");
+include_once(__DIR__ . "/docsIncludes/poolDuplicateMarker.php");
 
 // Get $db from session/online table
 $qtxt = "select db from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -129,6 +132,11 @@ while ($row = db_fetch_array($result)) {
         'fil_nr' => $fil_nr,
     ];
 }
+
+// MB-42: the customer's pool held the same bilag under two or three filenames, with identical
+// fakturanr, amount and date, and nothing in the list said so. poolMarkDuplicates() groups those and
+// sets duplicateOf on every member (see poolDuplicateMarker.php for why a hash cannot do this part).
+$data = poolMarkDuplicates($data);
 
 // Clear any previous output and send proper JSON
 ob_end_clean();
