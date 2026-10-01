@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023-2026 Danosoft.ApS
+// Copyright (c) 2023-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20240207 PHR Accounts was not shown if all was alligned, evet if alligned after $todate.
@@ -86,6 +86,22 @@
 // 20260923 CL/NTR Mail kontoudtog/Opret rykker/Ryk alle only print when at least one account row
 //                is on the page (formIndex > 0) - with none, posting back had no konto_id[] fields
 //                and crashed count(null) in rapport.php.
+// 20261001 CL/LAH "Vis alle" link next to the pagination: openpost_page_size=0 lists every matching
+//                 account on one page (no LIMIT/OFFSET); "Vis 100 pr. side" switches back.
+// 20261001 CDX/LAH Added not-yet-due balances, reconciled rounded totals and corrected aging colours and account counts.
+//                  Preserved PBS toggle state and converted edited request lookups to ifset().
+// 20261001 CL/LAH Grid layout: summary line, "Dage over forfald" group header, sticky column headers and a sticky action/paging bar.
+//                 Select-all checkbox, firm name links to the customer card, PBS "(skjul)/(vis)" toggle and "Eksporter CSV" button.
+//                 Ryk alle and Udlign alle ask for confirmation; 0,00 links keep the mode, page size and page.
+//                 An empty result shows "Ingen", creditor rows keep their stripe across the checkbox column and the action bar spans the real column count.
+// 20261001 CL/LAH Row totals: each post's DKK amount is rounded to 2 decimals before it joins its aging bucket, so the buckets, "I alt" and the kontokort figure agree; openpost_row_total() gives the screen and the CSV export the same total.
+//                 The count/page SQL keeps every account with a 0, NULL or kurs=100 placeholder rate for the PHP rule, so it can never drop an account the report would list.
+//                 Summary and account search are part of the sticky grid header; mode labels, PBS toggle titles and "Viser alle" use findtekst().
+//                 The action form carries the account filter, mode, PBS and content flag, so a Mail kontoudtog/Opret rykker/Ryk alle post re-renders the same view.
+//                 The kontonr link passes kilde_kto_fra/kilde_kto_til and the full report URL as returside.
+// 20261001 CL/LAH Ryk alle's confirm uses a singular text for one ticked account.
+// 20261001 CL/LAH Aging buckets take the control sum's per-post amount, so zero-rate and '-' currency posts also add up to the kontokort figure.
+//                 vis_aabne_poster() can leave the footer to its caller, so openpost() prints it once after the rykker overview.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -170,7 +186,7 @@ function openpost_kontonr_range($kontonr) {
 
 if (!function_exists('openpost_aging_buckets')) {
 /**
- * The five aging columns of the open posts report, keyed by the aging_bucket request value.
+ * The six aging columns of the open posts report, keyed by the aging_bucket request value.
  *
  * @return array<string, array{
  *   key: string,    Index of the bucket in the array returned by openpost_account_aging().
@@ -178,12 +194,14 @@ if (!function_exists('openpost_aging_buckets')) {
  * }>
  */
 function openpost_aging_buckets() {
+	global $sprog_id;
 	return array(
 		'over90' => array('key' => 'forfalden_plus90', 'label' => '>90'),
 		'60-90'  => array('key' => 'forfalden_plus60', 'label' => '60-90'),
 		'30-60'  => array('key' => 'forfalden_plus30', 'label' => '30-60'),
 		'8-30'   => array('key' => 'forfalden_plus8',  'label' => '8-30'),
-		'0-8'    => array('key' => 'forfalden',        'label' => '0-8')
+		'0-8'    => array('key' => 'forfalden',        'label' => '0-8'),
+		'ikke'   => array('key' => 'ikke_forfalden',   'label' => findtekst('5500|Ikke forfalden', $sprog_id))
 	);
 }
 }
@@ -201,10 +219,10 @@ if (!function_exists('openpost_report_state')) {
  * }
  */
 function openpost_report_state() {
-	$bucket = if_isset($_REQUEST, '', 'aging_bucket');
+	$bucket = ifset($_REQUEST, 'aging_bucket', '');
 	if (!is_string($bucket) || !array_key_exists($bucket, openpost_aging_buckets())) $bucket = '';
-	$orderBy = (if_isset($_REQUEST, '', 'order_by') === 'amount') ? 'amount' : '';
-	$orderDir = if_isset($_REQUEST, '', 'order_dir');
+	$orderBy = (ifset($_REQUEST, 'order_by', '') === 'amount') ? 'amount' : '';
+	$orderDir = ifset($_REQUEST, 'order_dir', '');
 	$orderDir = (is_string($orderDir) && strtolower($orderDir) === 'asc') ? 'asc' : 'desc';
 	return array('aging_bucket' => $bucket, 'order_by' => $orderBy, 'order_dir' => $orderDir);
 }
@@ -229,12 +247,14 @@ function openpost_state_url($state, $override = array()) {
 
 if (!function_exists('openpost_account_aging')) {
 /**
- * Splits the open posts of one account into the five aging buckets of the report.
+ * Splits the open posts of one account into the six rounded aging buckets of the report.
  *
- * Moved unchanged out of vis_aabne_poster() so the filtered/sorted pre-pass and the rendered page
- * share one implementation: amounts are converted with the row's valutakurs (re-derived from the
+ * Used by vis_aabne_poster(), the filtered/sorted pre-pass and the CSV export. Amounts
+ * are converted with the row's valutakurs (re-derived from the
  * valuta table when a foreign-currency row carries the kurs=100 placeholder, SST-672), and a post
  * settled after $todate still counts as open when the report is run for a historical date.
+ * Each post's converted amount is rounded to 2 decimals before it joins its bucket - the way the
+ * kontokort rounds its rows - so the buckets add up to the per-post rounded openKontrol.
  *
  * @param array  $posts           Openpost rows of one account (amount, valuta, valutakurs, transdate,
  *                                forfaldsdate, udlignet, udlign_date).
@@ -248,6 +268,9 @@ if (!function_exists('openpost_account_aging')) {
  *   forfalden_plus30: float,  Open amount due 30-60 days.
  *   forfalden_plus60: float,  Open amount due 60-90 days.
  *   forfalden_plus90: float,  Open amount due more than 90 days.
+ *   ikke_forfalden: float,    Open amount due on or after the report date.
+ *   bucketTotal: float,       Displayed open total, summed from the rounded buckets.
+ *                             Equals openKontrol except for a post whose rate resolves to 0.
  *   y: float,                 Sum of all posts of the account.
  *   openY: float,             Sum of the open posts.
  *   kontrol: float,           Control sum of all posts, rounded per row.
@@ -262,6 +285,7 @@ function openpost_account_aging($posts, $todate, $currentdate, $kontoart, &$agin
 	static $gruppeCache = array();
 	$aging = array(
 		'forfalden' => 0, 'forfalden_plus8' => 0, 'forfalden_plus30' => 0, 'forfalden_plus60' => 0, 'forfalden_plus90' => 0,
+		'ikke_forfalden' => 0, 'bucketTotal' => 0,
 		'y' => 0, 'openY' => 0, 'kontrol' => 0, 'openKontrol' => 0, 'rykkerbelob' => 0, 'accountAligned' => 1
 	);
 	foreach ($posts as $r) {
@@ -303,6 +327,9 @@ function openpost_account_aging($posts, $todate, $currentdate, $kontoart, &$agin
 		elseif (!$forfaldsdag && $kontoart == 'K' && $amount > 0) $forfaldsdag = $r['transdate'];
 		elseif (!$forfaldsdag) $forfaldsdag = $r['forfaldsdate'];
 		$amount *= $valutakurs/100;
+		// Buckets take the per-post-rounded DKK amount the control sum uses (incl. its zero-rate and
+		// '-' currency handling), so a row's buckets always add up to the kontokort figure.
+		$bucketAmount = $kontrolAmount;
 		$fakt_utid = strtotime($transdate);
 		$forf_utid = strtotime($forfaldsdag);
 		$dage = afrund(($forf_utid-$fakt_utid)/86400,0);
@@ -317,15 +344,63 @@ function openpost_account_aging($posts, $todate, $currentdate, $kontoart, &$agin
 		}
 		list($forfaldsdag_plus8,$forfaldsdag_plus30,$forfaldsdag_plus60,$forfaldsdag_plus90) = $agingDateCache[$agingKey];
 		if (!$aligned && $forfaldsdag < $todate) $aging['rykkerbelob'] += $amount;
-		if (!$aligned && $forfaldsdag < $todate && $forfaldsdag_plus8 > $todate) $aging['forfalden'] += $amount;
-		if (!$aligned && $forfaldsdag_plus8 <= $todate && $forfaldsdag_plus30 > $todate) $aging['forfalden_plus8'] += $amount;
-		if (!$aligned && $forfaldsdag_plus30 <= $todate && $forfaldsdag_plus60 > $todate) $aging['forfalden_plus30'] += $amount;
-		if (!$aligned && $forfaldsdag_plus60 <= $todate && $forfaldsdag_plus90 > $todate) $aging['forfalden_plus60'] += $amount;
-		if (!$aligned && $forfaldsdag_plus90 <= $todate) $aging['forfalden_plus90'] += $amount;
+		if (!$aligned && $forfaldsdag < $todate && $forfaldsdag_plus8 > $todate) $aging['forfalden'] += $bucketAmount;
+		if (!$aligned && $forfaldsdag_plus8 <= $todate && $forfaldsdag_plus30 > $todate) $aging['forfalden_plus8'] += $bucketAmount;
+		if (!$aligned && $forfaldsdag_plus30 <= $todate && $forfaldsdag_plus60 > $todate) $aging['forfalden_plus30'] += $bucketAmount;
+		if (!$aligned && $forfaldsdag_plus60 <= $todate && $forfaldsdag_plus90 > $todate) $aging['forfalden_plus60'] += $bucketAmount;
+		if (!$aligned && $forfaldsdag_plus90 <= $todate) $aging['forfalden_plus90'] += $bucketAmount;
+		if (!$aligned && $forfaldsdag >= $todate) $aging['ikke_forfalden'] += $bucketAmount;
 		$aging['y'] += $amount;
 		if (!$aligned) $aging['openY'] += $amount;
 	}
+	foreach (array('forfalden_plus90', 'forfalden_plus60', 'forfalden_plus30', 'forfalden_plus8', 'forfalden', 'ikke_forfalden') as $key) {
+		$aging[$key] = afrund($aging[$key], 2);
+		$aging['bucketTotal'] += $aging[$key];
+	}
+	$aging['bucketTotal'] = afrund($aging['bucketTotal'], 2);
 	return $aging;
+}
+}
+
+if (!function_exists('openpost_row_total')) {
+/**
+ * The "I alt" figure of one account row, shared by the screen and the CSV export.
+ *
+ * Open-post views show the sum of the rounded aging buckets. Vis alle poster keeps its historic
+ * full sum: the per-post rounded control sum when it differs from the raw sum, else the raw sum.
+ *
+ * @param array $aging     Result of openpost_account_aging() after openpost_account_visible().
+ * @param bool  $vis_alle  True when every post is shown (Vis alle poster).
+ * @return float  Row total rounded to 2 decimals.
+ */
+function openpost_row_total($aging, $vis_alle) {
+	if (!$vis_alle) return $aging['bucketTotal'];
+	$total = (afrund($aging['visKontrol'],2) != afrund($aging['visY'],2)) ? $aging['visKontrol'] : $aging['visY'];
+	return afrund($total, 2);
+}
+}
+
+if (!function_exists('openpost_aging_cell')) {
+/**
+ * Renders an aging cell using its own balance and the debtor/creditor debt sign.
+ *
+ * @param float $amount    Rounded bucket amount.
+ * @param string $kontoart 'D' for debtors, 'K' for creditors.
+ * @param bool $overdue    Whether the bucket is overdue; not-yet-due debt stays neutral.
+ * @param bool $showZero   Show 0.00 in totals; leave empty zero cells in account rows.
+ * @param string $creditTitle Tooltip for credit balances (already translated), or '' for none.
+ * @return string          HTML table cell; credit balances inherit the normal text colour.
+ */
+function openpost_aging_cell($amount, $kontoart, $overdue = true, $showZero = false, $creditTitle = '') {
+	if (!$showZero && $amount == 0) return '<td align=right></td>';
+	$debtAmount = ($kontoart == 'K') ? -$amount : $amount;
+	$class = '';
+	if ($debtAmount < 0) {
+		$class = " class='op-credit'";
+		if ($creditTitle !== '') $class.= " title='".htmlspecialchars($creditTitle, ENT_QUOTES)."'";
+	}
+	$style = ($overdue && $debtAmount > 0) ? " style='color: rgb(255, 0, 0);'" : '';
+	return "<td align=right><span$class$style>".dkdecimal($amount, 2)."</span></td>";
 }
 }
 
@@ -357,14 +432,17 @@ function openpost_account_visible(&$aging, $todate, $currentdate, $kun_debet, $k
 		$aging['visY'] = $aging['openY'];
 		$aging['visKontrol'] = $aging['openKontrol'];
 	}
-	if (($kun_debet && $aging['visY'] <= 0) || ($kun_kredit && $aging['visY'] >= 0)) {
+	// Sums of 2-3 decimal amounts times 3-decimal rates have at most 8 decimals; rounding there drops
+	// the float residue, so these comparisons agree with the exact SQL in openpost_account_query_parts().
+	$exactVisY = round($aging['visY'], 8);
+	if (($kun_debet && $exactVisY <= 0) || ($kun_kredit && $exactVisY >= 0)) {
 		$aging['accountAligned'] = 1;
 		$aging['y'] = $aging['kontrol'] = $aging['openY'] = $aging['openKontrol'] = $aging['visY'] = $aging['visKontrol'] = 0;
 	}
 	$aging['kontrol'] = afrund($aging['kontrol'],2);
 	$aging['visKontrol'] = afrund($aging['visKontrol'],2);
 	if ($vis_alle) {
-		return (abs($aging['y']) >= 0.01 || ($todate == $currentdate && ($aging['accountAligned'] == "0" || $aging['kontrol'])));
+		return (abs(round($aging['y'], 8)) >= 0.01 || ($todate == $currentdate && ($aging['accountAligned'] == "0" || $aging['kontrol'])));
 	}
 	if ($todate == $currentdate) {
 		return ($aging['accountAligned'] == "0" || abs($aging['visKontrol']) >= 0.01);
@@ -410,33 +488,74 @@ function openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPB
 	} else {
 		$postWhere = "(openpost.udlignet is NULL or openpost.udlignet != '1')";
 	}
-	if ($todate != $currentdate) $postWhere = "openpost.transdate<='$todate' and $postWhere";
-	// The display loop only shows an account when its selected posts net to something
-	// (abs($y) >= 0.01), contain an unaligned post, or (kun_debet/kun_kredit) fall on the wanted
-	// side of zero. When showing all posts or a past date that hides most accounts, the count,
-	// page and export queries must apply the same rule - otherwise the pages are cut from the
-	// unfiltered superset and come out (nearly) empty ("Viser 401-500 af 5548" with 3 rows). The
-	// amount is converted like $kontrolAmount, but a kurs=100 foreign-currency row is left at that
-	// placeholder rate here instead of being re-derived from the valuta table (SST-672) - that
-	// lookup needs PHP/valuta-table access this aggregate can't reach - so an account whose true,
-	// resolved balance clears the threshold or debit/credit sign can still fail this SQL predicate.
-	// Rather than exclude it outright (silently dropping it from both the report and the CSV export),
-	// any account holding such an ambiguous-rate row bypasses these predicates entirely and is always
-	// kept in the candidate set; openpost_account_visible() still judges it correctly afterwards, once
-	// openpost_account_aging() has resolved the real rate.
-	$baseAmount = "openpost.amount*(case when coalesce(openpost.valutakurs,0)=0 then 100 else openpost.valutakurs end)/100";
+	$todateEsc = db_escape_string($todate);
+	if ($todate != $currentdate) $postWhere = "openpost.transdate<='$todateEsc' and $postWhere";
 	$baseCurrencyEsc = db_escape_string($baseCurrency);
-	$ambiguousRate = "sum(case when openpost.valuta is not null and openpost.valuta <> '' and openpost.valuta <> '$baseCurrencyEsc' and coalesce(openpost.valutakurs,0) in (0,100) then 1 else 0 end) > 0";
-	$accountHaving = array();
-	if ($vis_alle || $todate != $currentdate) {
-		$having = "abs(sum($baseAmount)) >= 0.01";
-		if ($todate == $currentdate) $having = "sum(case when openpost.udlignet is null or openpost.udlignet != '1' then 1 else 0 end) > 0 or $having";
-		$accountHaving[] = "($having)";
+	// The HAVING predicates below mirror openpost_account_aging()/openpost_account_visible() post by
+	// post, so the SQL selects the accounts the report lists and the "Viser x-y af N" count matches
+	// the rows. The one place SQL cannot follow PHP is the rate: PHP turns a stored rate that is
+	// falsy to PHP (NULL, numeric 0, '0') into 100, keeps a '0.000' string as 0, and resolves a
+	// foreign-currency kurs=100 placeholder from the valuta table (SST-672), where a resolved
+	// '0.000' becomes 0 again. An account with any post whose stored rate is NULL, 0 or such a
+	// placeholder is therefore always kept and left to openpost_account_visible(), so the SQL can
+	// over-count but never drop an account the report would show.
+	$isForeign = "coalesce(openpost.valuta,'') not in ('','$baseCurrencyEsc')";
+	$ambiguousRate = "(openpost.valutakurs is null or openpost.valutakurs=0 or ($isForeign and openpost.valutakurs=100))";
+	// Mirror afrund(), including its signed correction before rounding. PostgreSQL's
+	// two-argument round requires numeric; mysqli uses its equivalent decimal cast.
+	$sqlRound = function($expression, $decimals) use ($db_type) {
+		$decimals = intval($decimals);
+		$correction = ($decimals == 3) ? '0.00001' : '0.0001';
+		$numericType = ($db_type == 'postgresql') ? 'numeric' : 'decimal(65,20)';
+		return "round(cast(($expression) as $numericType) + (case when ($expression)>0 then $correction when ($expression)<0 then -$correction else 0 end), $decimals)";
+	};
+	$openAtDate = function($alias) use ($todate, $currentdate, $todateEsc) {
+		$open = "($alias.udlignet is null or $alias.udlignet in ('','0'))";
+		if ($todate != $currentdate) {
+			$open = "($open or ($alias.udlignet='1' and ($alias.udlign_date is null or $alias.udlign_date>'$todateEsc')))";
+		}
+		return $open;
+	};
+	if (!$vis_alle && $todate == $currentdate && !$kun_debet && !$kun_kredit) {
+		// Default view: only open posts are loaded and an account is listed when it has one, so no
+		// amount/currency aggregate is needed on this paginated path.
+		$accountGroup = "select openpost.konto_id from openpost where $postWhere group by openpost.konto_id";
+		$accountGroup.= " having sum(case when ".$openAtDate('openpost')." then 1 else 0 end)>0";
+	} else {
+		// Per-post values are computed in derived tables ("offset 0" keeps PostgreSQL from inlining
+		// them), so the rounding runs once per post rather than once per aggregate. A post with an
+		// ambiguous rate gets a neutral 100 here; its account bypasses the predicates below anyway.
+		$noInline = ($db_type == 'postgresql') ? " offset 0" : "";
+		$posts = "select openpost.konto_id, openpost.amount, openpost.valuta, openpost.udlignet, openpost.udlign_date, ";
+		$posts.= "(case when $ambiguousRate then 100 else openpost.valutakurs end) as kurs, ";
+		$posts.= "(case when $ambiguousRate then 1 else 0 end) as ambiguous_rate ";
+		$posts.= "from openpost where $postWhere$noInline";
+		$nativeAmount = "(case when coalesce(pk.valuta,'') in ('','$baseCurrencyEsc') then ".$sqlRound('pk.amount', 2)." else ".$sqlRound('pk.amount', 3)." end)";
+		$controlAmount = "(case when coalesce(pk.valuta,'')='-' then pk.amount else pk.amount*pk.kurs/100 end)";
+		$values = "select pk.konto_id, pk.udlignet, pk.udlign_date, pk.ambiguous_rate, $nativeAmount*pk.kurs/100 as amt, $controlAmount as ctl from ($posts) pk$noInline";
+		$controlRounded = $sqlRound('op.ctl', 2);
+		$selectedAmount = ($vis_alle) ? "op.amt" : "(case when ".$openAtDate('op')." then op.amt else 0 end)";
+		$selectedControl = ($vis_alle) ? $controlRounded : "(case when ".$openAtDate('op')." then $controlRounded else 0 end)";
+		$controlSum = $sqlRound("sum($selectedControl)", 2);
+		if ($vis_alle) {
+			// Current date: the full net, an open post or a nonzero per-post-rounded control sum.
+			$having = "abs(sum($selectedAmount))>=0.01";
+			if ($todate == $currentdate) $having = "($having or sum(case when ".$openAtDate('op')." then 1 else 0 end)>0 or $controlSum<>0)";
+		} elseif ($todate == $currentdate) {
+			$having = "sum(case when ".$openAtDate('op')." then 1 else 0 end)>0";
+		} else {
+			// Historical open view: the balance still open at the report date, not settled posts.
+			$having = "abs($controlSum)>=0.01";
+		}
+		$accountHaving = array("($having)");
+		if ($kun_debet) $accountHaving[] = "sum($selectedAmount)>0";
+		if ($kun_kredit) $accountHaving[] = "sum($selectedAmount)<0";
+		// Only a post that counts in the view can make the PHP rule differ: settled posts add nothing
+		// to the open views.
+		$selectedAmbiguous = ($vis_alle) ? "op.ambiguous_rate" : "(case when ".$openAtDate('op')." then op.ambiguous_rate else 0 end)";
+		$accountGroup = "select op.konto_id from ($values) op group by op.konto_id ";
+		$accountGroup.= "having (max($selectedAmbiguous)=1 or (".implode(" and ", $accountHaving)."))";
 	}
-	if ($kun_debet) $accountHaving[] = "sum($baseAmount) > 0";
-	elseif ($kun_kredit) $accountHaving[] = "sum($baseAmount) < 0";
-	$accountHaving = $accountHaving ? " having (".implode(" and ", $accountHaving).") or ($ambiguousRate)" : "";
-	$accountGroup = "select openpost.konto_id from openpost where $postWhere group by openpost.konto_id$accountHaving";
 	return array(
 		'accountWhere' => $accountWhere,
 		'accountOrder' => $accountFilter['order'],
@@ -512,7 +631,8 @@ function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kont
 	// avoid on a large tenant.
 	$state = openpost_report_state();
 	$agingBucket = $state['aging_bucket'];
-	$bucketKey = $agingBucket ? openpost_aging_buckets()[$agingBucket]['key'] : null;
+	$buckets = openpost_aging_buckets();
+	$bucketKey = $agingBucket ? $buckets[$agingBucket]['key'] : null;
 
 	$parts = openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPBS, $todate, $currentdate, $vis_alle, $kun_debet, $kun_kredit, $db_type);
 	$accountWhere = $parts['accountWhere'];
@@ -523,12 +643,13 @@ function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kont
 	header('Content-Type: text/csv; charset=utf-8');
 	header('Content-Disposition: attachment; filename="aabne_poster_'.date('Y-m-d').'.csv"');
 	$fp = fopen('php://output', 'w');
-	fputcsv($fp, array('Kontonr.', findtekst(360,$sprog_id), '>90', '60-90', '30-60', '8-30', '0-8', findtekst('5019|I alt', $sprog_id)), ';');
+	$csvHeader = array_merge(array('Kontonr.', findtekst(360,$sprog_id)), array_column($buckets, 'label'), array(findtekst('5019|I alt', $sprog_id)));
+	fputcsv($fp, $csvHeader, ';');
 
 	$batchSize = 200;
 	$batchOffset = 0;
 	$agingDateCache = array();
-	$forfaldsum_plus90 = $forfaldsum_plus60 = $forfaldsum_plus30 = $forfaldsum_plus8 = $forfaldsum = 0;
+	$bucketTotals = array_fill_keys(array_column($buckets, 'key'), 0);
 	$sum = $kontrolsum = 0;
 
 	do {
@@ -561,36 +682,30 @@ function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kont
 			if (!openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle)) continue;
 			if ($agingBucket && abs(afrund($aging[$bucketKey],2)) < 0.01) continue;
 			$info = $accountInfo[$accountId];
-			fputcsv($fp, array(
+			$csvRow = array(
 				openpost_csv_safe_field(trim($info['account_kontonr'])),
-				openpost_csv_safe_field(stripslashes($info['account_firmanavn'])),
-				number_format(afrund($aging['forfalden_plus90'],2), 2, ',', ''),
-				number_format(afrund($aging['forfalden_plus60'],2), 2, ',', ''),
-				number_format(afrund($aging['forfalden_plus30'],2), 2, ',', ''),
-				number_format(afrund($aging['forfalden_plus8'],2), 2, ',', ''),
-				number_format(afrund($aging['forfalden'],2), 2, ',', ''),
-				number_format(afrund($aging['visY'],2), 2, ',', '')
-			), ';');
-			$forfaldsum_plus90+= $aging['forfalden_plus90'];
-			$forfaldsum_plus60+= $aging['forfalden_plus60'];
-			$forfaldsum_plus30+= $aging['forfalden_plus30'];
-			$forfaldsum_plus8+= $aging['forfalden_plus8'];
-			$forfaldsum+= $aging['forfalden'];
+				openpost_csv_safe_field(stripslashes($info['account_firmanavn']))
+			);
+			foreach ($buckets as $bucket) {
+				$csvRow[] = number_format($aging[$bucket['key']], 2, ',', '');
+				$bucketTotals[$bucket['key']] += $aging[$bucket['key']];
+			}
+			$csvRow[] = number_format(openpost_row_total($aging, $vis_alle), 2, ',', '');
+			fputcsv($fp, $csvRow, ';');
 			$sum+= $aging['visY'];
 			$kontrolsum+= $aging['visKontrol'];
 		}
 		$batchOffset+= $batchSize;
 	} while (count($batchIds) == $batchSize);
 
-	fputcsv($fp, array(
-		'', findtekst('5019|I alt', $sprog_id),
-		number_format(afrund($forfaldsum_plus90,2), 2, ',', ''),
-		number_format(afrund($forfaldsum_plus60,2), 2, ',', ''),
-		number_format(afrund($forfaldsum_plus30,2), 2, ',', ''),
-		number_format(afrund($forfaldsum_plus8,2), 2, ',', ''),
-		number_format(afrund($forfaldsum,2), 2, ',', ''),
-		number_format(afrund(($sum<=$kontrolsum) ? $kontrolsum : $sum,2), 2, ',', '')
-	), ';');
+	$csvTotal = array('', findtekst('5019|I alt', $sprog_id));
+	foreach ($bucketTotals as $key => $amount) {
+		$bucketTotals[$key] = afrund($amount, 2);
+		$csvTotal[] = number_format($bucketTotals[$key], 2, ',', '');
+	}
+	$total = ($vis_alle) ? (($sum <= $kontrolsum) ? $kontrolsum : $sum) : array_sum($bucketTotals);
+	$csvTotal[] = number_format(afrund($total, 2), 2, ',', '');
+	fputcsv($fp, $csvTotal, ';');
 	fclose($fp);
 	exit;
 }
@@ -615,16 +730,19 @@ if (!function_exists('vis_aabne_poster')) {
  * @param string      $kun_debet   'on' to keep only accounts in debit.
  * @param string      $kun_kredit  'on' to keep only accounts in credit.
  * @param bool        $vis_alle    True to include settled posts too (Vis alle poster).
+ * @param bool        $rykkerAnchor True when the caller prints the rykker overview (#opRykkere) below
+ *                                  the grid, so the summary line links to it.
  * @return void  Prints HTML directly.
  */
-function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
-	global $baseCurrency,$bgcolor,$bgcolor5,$bruger_id;
+function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false,$rykkerAnchor=false,$printFooter=true) {
+	global $baseCurrency,$bgcolor,$bgcolor5,$bruger_id,$buttonColor;
 	global $db;
 	global $db_type;
 	global $menu;
 	global $sprog_id;
 
-	(isset($_GET['showPBS']))?$showPBS = $_GET['showPBS']:$showPBS=1;
+	// GET for links, POST for the aabenpost form below, so an action re-renders the same view.
+	$showPBS=(int)ifset($_GET, 'showPBS', ifset($_POST, 'showPBS', 1));
 	$qtxt= "select id from adresser where art = 'S' and pbs_nr > '0'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $usePBS=1;
 	else {
@@ -638,7 +756,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$top_bund = (isset($top_bund) ? $top_bund : "");
 		$padding = "";
 	}
-	$forfaldsum=$forfaldsum_plus8=$forfaldsum_plus30=$forfaldsum_plus60=$forfaldsum_plus90=$fromdate=$linjebg=$popup=$todate=NULL;
+	$fromdate=$linjebg=$popup=$todate=NULL;
 	// SST-786: $currentdate must be real, not NULL - openpost_export_csv() sets it to today's date
 	// too, and the two must agree whenever $dato_til is today, or openpost_account_query_parts()
 	// takes different branches (historical vs. current-date) for the report and its CSV export.
@@ -659,10 +777,15 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	}	elseif ($dato_fra && !$dato_til) {
 		$todate=usdate($dato_fra);
 	} else $todate = $currentdate;
-	$openpostPage=(int)if_isset($_REQUEST, 1, 'openpost_page');
-	$openpostPageSize=(int)if_isset($_REQUEST, 100, 'openpost_page_size');
-	if ($openpostPage < 1) $openpostPage=1;
-	if ($openpostPageSize < 25) $openpostPageSize=25;
+	$openpostPage=(int)ifset($_REQUEST, 'openpost_page', 1);
+	$openpostDefaultPageSize=100;
+	$openpostPageSizeParam=(string)ifset($_REQUEST, 'openpost_page_size', $openpostDefaultPageSize);
+	// openpost_page_size=0 is "Vis alle": every matching account on a single page, no LIMIT/OFFSET.
+	$openpostShowAll=($openpostPageSizeParam === '0');
+	$openpostPageSize=(int)$openpostPageSizeParam;
+	if ($openpostPage < 1 || $openpostShowAll) $openpostPage=1;
+	if ($openpostShowAll) $openpostPageSize=0;
+	elseif ($openpostPageSize < 25) $openpostPageSize=25;
 	elseif ($openpostPageSize > 500) $openpostPageSize=500;
 	$openpostOffset=($openpostPage-1)*$openpostPageSize;
 
@@ -677,21 +800,25 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	// instead of re-entering the shell in debitor/rapport.php. The shell accepts the flag from
 	// GET or POST, so honour both.
 	$openpostContentParam = (isset($_GET['openpost_content']) || isset($_POST['openpost_content'])) ? '&openpost_content=1' : '';
-	$reportUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&openpost_page_size=$openpostPageSize";
+	$reportUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam";
 	if ($vis_alle) $modeParam="vis_alle_poster";
 	elseif ($kun_debet) $modeParam="kun_debet";
 	elseif ($kun_kredit) $modeParam="kun_kredit";
 	else $modeParam="vis_aabenpost";
 	$reportUrl.="&$modeParam=on";
 	if (!$showPBS) $reportUrl.="&showPBS=0";
+	$showAllUrl=$reportUrl."&openpost_page_size=0".$stateUrl;
+	$pagedUrl=$reportUrl."&openpost_page_size=$openpostDefaultPageSize".$stateUrl;
+	$reportUrl.="&openpost_page_size=$openpostPageSize";
 	$basePageUrl=$reportUrl.$stateUrl;
+	$pbsToggleUrl=htmlspecialchars(str_replace('&showPBS=0', '', $reportUrl).'&showPBS='.(($showPBS) ? '0' : '1').$stateUrl, ENT_QUOTES);
 	// SST-786: exports every account matching the report's current filters (dato/konto range/mode/
 	// showPBS), without pagination - an active aging-bucket filter still applies (openpost_export_csv()
 	// re-reads it from the request), so the exported total matches what's on screen; the amount sort
 	// is display-only and is not carried over (see openpost_export_csv()'s own comment on why).
 	$csvUrl=$reportUrl."&openpost_csv=1";
 	if ($agingBucket) $csvUrl.= "&aging_bucket=".rawurlencode($agingBucket);
-	$csvLabel=htmlspecialchars(findtekst('5151|Eksporter CSV (alle sider)',$sprog_id),ENT_QUOTES);
+	$csvLabel=htmlspecialchars(findtekst('5531|Eksporter CSV',$sprog_id),ENT_QUOTES);
 	$csvTitle=htmlspecialchars(findtekst('5152|Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling',$sprog_id),ENT_QUOTES);
 
 	$filterTitle=htmlspecialchars(findtekst('5121|Vis kun konti med beløb i denne kolonne',$sprog_id),ENT_QUOTES);
@@ -699,21 +826,56 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$sortTitle=htmlspecialchars(findtekst('5122|Sortér efter beløb',$sprog_id),ENT_QUOTES);
 	$sortDescUrl=$reportUrl.openpost_state_url($state,array('order_by'=>($orderBy && $orderDir=='desc') ? '' : 'amount','order_dir'=>'desc'));
 	$sortAscUrl=$reportUrl.openpost_state_url($state,array('order_by'=>($orderBy && $orderDir=='asc') ? '' : 'amount','order_dir'=>'asc'));
-	$sortLinks=" <a href=\"$sortDescUrl\" title='$sortTitle'>".(($orderBy && $orderDir=='desc') ? '<b>&#9660;</b>' : '&#9660;')."</a>";
-	$sortLinks.="<a href=\"$sortAscUrl\" title='$sortTitle'>".(($orderBy && $orderDir=='asc') ? '<b>&#9650;</b>' : '&#9650;')."</a>";
+	$sortLinks=" <a class='op-filter' href=\"$sortDescUrl\" title='$sortTitle'>".(($orderBy && $orderDir=='desc') ? '<b>&#9660;</b>' : '&#9660;')."</a>";
+	$sortLinks.="<a class='op-filter' href=\"$sortAscUrl\" title='$sortTitle'>".(($orderBy && $orderDir=='asc') ? '<b>&#9650;</b>' : '&#9650;')."</a>";
 	$clearUrl=$reportUrl.openpost_state_url($state,array('aging_bucket'=>''));
 	$headerCell=array();
 	foreach ($buckets as $bucketId => $bucket) {
+		$label=htmlspecialchars($bucket['label'],ENT_QUOTES);
 		if ($agingBucket == $bucketId) {
-			$headerCell[$bucketId]="<b>$bucket[label]</b> <a href=\"$clearUrl\" title='$clearTitle'>&#10006;</a>$sortLinks";
+			$headerCell[$bucketId]="<b>$label</b> <a class='op-filter' href=\"$clearUrl\" title='$clearTitle'>&#10006;</a>$sortLinks";
 		} else {
-			$headerCell[$bucketId]="<a href=\"".$reportUrl.openpost_state_url($state,array('aging_bucket'=>$bucketId))."\" title='$filterTitle'>$bucket[label]</a>";
+			$headerCell[$bucketId]="<a class='op-filter' href=\"".$reportUrl.openpost_state_url($state,array('aging_bucket'=>$bucketId))."\" title='$filterTitle'>$label</a>";
 		}
 	}
-	$headerCell['total']="I alt".(($agingBucket) ? "" : $sortLinks);
+	$headerCell['total']=findtekst('5019|I alt',$sprog_id).(($agingBucket) ? "" : $sortLinks);
 
-	$searchValue=$konto_fraHtml;
-	if ($konto_til !== NULL && $konto_til !== '' && $konto_til != $konto_fra && is_numeric($konto_fra) && is_numeric($konto_til)) $searchValue.=":$konto_tilHtml";
+	// One line that states what the grid shows: report date, account selection, mode, filter and sort.
+	if ($vis_alle) $modeLabel=findtekst('5555|Alle poster',$sprog_id);
+	elseif ($kun_debet) $modeLabel=findtekst('925|Kun konti i debet',$sprog_id);
+	elseif ($kun_kredit) $modeLabel=findtekst('926|Kun konti i kredit',$sprog_id);
+	else $modeLabel=findtekst('441|Åbne poster',$sprog_id);
+	$modeLabel=htmlspecialchars($modeLabel,ENT_QUOTES);
+	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
+		$accountsLabel=($konto_fra == $konto_til) ? $konto_fraHtml : "$konto_fraHtml&ndash;$konto_tilHtml";
+	} elseif (!empty($konto_fra) && $konto_fra != '*') {
+		$accountsLabel=htmlspecialchars(findtekst('5526|søgning',$sprog_id),ENT_QUOTES)." &lsquo;$konto_fraHtml&rsquo;";
+	} else {
+		$accountsLabel=htmlspecialchars(mb_strtolower(findtekst('2498|Alle',$sprog_id),'UTF-8'),ENT_QUOTES);
+	}
+	$summary=array();
+	$summary[]=htmlspecialchars(findtekst('5525|Opgjort pr.',$sprog_id),ENT_QUOTES)." <b>".dkdato($todate)."</b>";
+	$summary[]=htmlspecialchars(findtekst('117|Konti',$sprog_id),ENT_QUOTES).": <b>$accountsLabel</b>";
+	$summary[]=htmlspecialchars(findtekst('813|Visning',$sprog_id),ENT_QUOTES).": <b>$modeLabel</b>";
+	if ($agingBucket) {
+		$summary[]=htmlspecialchars(findtekst('5124|Filter',$sprog_id),ENT_QUOTES).": <b>".htmlspecialchars($buckets[$agingBucket]['label'],ENT_QUOTES)."</b> <a class='op-link' href=\"$clearUrl\">".$clearTitle."</a>";
+	}
+	if ($orderBy) {
+		$summary[]=htmlspecialchars(findtekst('5527|Sorteret efter beløb',$sprog_id),ENT_QUOTES)." ".(($orderDir == 'asc') ? '&uarr;' : '&darr;');
+	}
+	$summaryHtml="<div class='op-summary'><span>".implode(" &nbsp;&middot;&nbsp; ", $summary)."</span>";
+	if ($rykkerAnchor) {
+		$summaryHtml.="<a class='op-link' href='#opRykkere' onclick=\"var e=document.getElementById('opRykkere'); if (e) {e.scrollIntoView({behavior: 'smooth'}); return false;}\">";
+		$summaryHtml.=htmlspecialchars(findtekst('5528|Gå til rykkere',$sprog_id),ENT_QUOTES)." &darr;</a>";
+	}
+	$summaryHtml.="</div>";
+
+	// The account filter as one kontonr value ("fra:til", a number or a name pattern), the form the
+	// in-report search and openpost_kontonr_range() use.
+	$kontonrFilter=(string)$konto_fra;
+	if ($konto_til !== NULL && $konto_til !== '' && $konto_til != $konto_fra && is_numeric($konto_fra) && is_numeric($konto_til)) $kontonrFilter.=":$konto_til";
+	$kontonrFilterUrl=rawurlencode($kontonrFilter);
+	$searchValue=htmlspecialchars($kontonrFilter,ENT_QUOTES);
 	$searchRow="<form method='get' action='rapport.php' style='display:inline;'>";
 	$searchRow.="<input type='hidden' name='rapportart' value='openpost'><input type='hidden' name='submit' value='ok'>";
 	$searchRow.="<input type='hidden' name='dato_fra' value=\"$dato_fraHtml\"><input type='hidden' name='dato_til' value=\"$dato_tilHtml\">";
@@ -722,33 +884,78 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	if (!$showPBS) $searchRow.="<input type='hidden' name='showPBS' value='0'>";
 	if ($agingBucket) $searchRow.="<input type='hidden' name='aging_bucket' value='$agingBucket'>";
 	if ($orderBy) $searchRow.="<input type='hidden' name='order_by' value='$orderBy'><input type='hidden' name='order_dir' value='$orderDir'>";
-	$searchRow.="<input class='inputbox' type='text' name='kontonr' value=\"$searchValue\" style='width:180px;' title=\"".htmlspecialchars(findtekst('5123|Kontonr., interval (fra:til) eller firmanavn (* = jokertegn)',$sprog_id),ENT_QUOTES)."\"> ";
+	$searchRow.="<input class='inputbox' type='text' name='kontonr' value=\"$searchValue\" style='width:260px;'";
+	$searchRow.=" placeholder=\"".htmlspecialchars(findtekst('5530|Kontonr., fra:til eller navn (* = joker)',$sprog_id),ENT_QUOTES)."\"";
+	$searchRow.=" title=\"".htmlspecialchars(findtekst('5123|Kontonr., interval (fra:til) eller firmanavn (* = jokertegn)',$sprog_id),ENT_QUOTES)."\"> ";
 	$searchRow.="<input type='submit' value=\"".htmlspecialchars(findtekst(913,$sprog_id),ENT_QUOTES)."\"></form>";
-	$searchRow.=" &nbsp; <a href=\"$csvUrl\" title=\"$csvTitle\">$csvLabel</a>";
-	if ($agingBucket) {
-		$searchRow.=" &nbsp; <b>".htmlspecialchars(findtekst('5124|Filter',$sprog_id),ENT_QUOTES).":</b> ".$buckets[$agingBucket]['label']." <a href=\"$clearUrl\">".htmlspecialchars(findtekst('5120|Ryd filter',$sprog_id),ENT_QUOTES)."</a>";
+	$searchRow.=" &nbsp; <input type='button' value=\"$csvLabel\" title=\"$csvTitle\" onclick=\"location.href='".htmlspecialchars($csvUrl,ENT_QUOTES)."';\">";
+	$headerColspan = $usePBS ? 11 : 10;
+
+	// Header checkbox that ticks every account of the page for Mail kontoudtog/Opret rykker.
+	$selectAllCell="";
+	if ($kontoart=='D') {
+		$selectAllTitle=htmlspecialchars(findtekst('5529|Vælg konti til kontoudtog/rykker',$sprog_id),ENT_QUOTES);
+		$selectAllCell="<label class='checkContainerOrdreliste' title=\"$selectAllTitle\"><input type=checkbox onclick='opToggleAll(this);'><span class='checkmarkOrdreliste'></span></label>";
 	}
-	$headerColspan = $usePBS ? 10 : 9;
+	$leadColspan=($usePBS) ? 3 : 2;
+	$daysOverdue=htmlspecialchars(findtekst('5523|Dage over forfald',$sprog_id),ENT_QUOTES);
+	$groupRow="<tr class='op-group-row'><th colspan='$leadColspan'></th><th colspan='5' class='op-group'>$daysOverdue</th><th colspan='3'></th></tr>";
+	if ($usePBS) {
+		$pbsToggleLabel=htmlspecialchars(mb_strtolower(findtekst(($showPBS) ? '1132|Skjul' : '1133|Vis',$sprog_id),'UTF-8'),ENT_QUOTES);
+		$pbsToggleTitle=htmlspecialchars(findtekst(($showPBS) ? '5556|Skjul PBS-kunder' : '5557|Vis PBS-kunder',$sprog_id),ENT_QUOTES);
+		$pbsHeader="PBS <a class='op-filter' href='$pbsToggleUrl' title='$pbsToggleTitle'>($pbsToggleLabel)</a>";
+	}
+	$labelCells="<th align=left>Kontonr.</th>";
+	if ($usePBS) $labelCells.="<th align=left>$pbsHeader</th>";
+	$labelCells.="<th align=left>".findtekst(360,$sprog_id)."</th>";
+	foreach (array_keys($buckets) as $bucketId) {
+		$labelCells.="<th align=right>$headerCell[$bucketId]</th>";
+	}
+	$labelCells.="<th align=right>$headerCell[total]</th><th align=center>$selectAllCell</th>";
+
+	$linkColor=($buttonColor) ? $buttonColor : '#114691';
+	print "<style>
+#visAabnePosterTable th,#visAabnePosterTable td,#visAabnePosterTableT th,#visAabnePosterTableT td{padding:2px 6px;}
+#visAabnePosterTable td[align=right],#visAabnePosterTable th{white-space:nowrap;}
+#visAabnePosterTable > thead{position:sticky;top:0;z-index:3;}
+#visAabnePosterTable > thead th{background-color:$bgcolor;font-weight:normal;}
+.op-head-row th{text-align:left;padding:0;}
+#visAabnePosterTable > thead > tr:first-child > th{box-shadow:0 -8px 0 0 $bgcolor;}
+.op-group-row th{font-size:90%;color:#555;padding-bottom:0;}
+.op-group-row th.op-group{text-align:center;border-bottom:1px solid #aaa;}
+.op-label-row th{border-bottom:1px solid #888;}
+.op-summary{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:0 6px 6px 6px;}
+.op-search{padding:0 6px 6px 6px;}
+a.op-filter,a.op-filter:link,a.op-filter:visited,a.op-link,a.op-link:link,a.op-link:visited{color:$linkColor;}
+a.op-filter:hover,a.op-link:hover,a.op-name:hover{text-decoration:underline;}
+a.op-name,a.op-name:link,a.op-name:visited{color:inherit;}
+.op-credit{color:inherit;}
+.op-total-row td{border-top:1px solid #888;}
+.op-actionbar > td{position:sticky;bottom:0;z-index:3;background-color:$bgcolor;border-top:1px solid #aaa;padding:6px;box-shadow:0 8px 0 0 $bgcolor;}
+.op-actionbar-inner{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+</style>\n";
+	print "<script>
+function opToggleAll(box) {
+	document.querySelectorAll('input[name^=\"kontoudtog[\"]').forEach(function (c) { c.checked = box.checked; });
+}
+</script>\n";
 
 	if ($menu=='T') {
 		print "<tr><td><div class='dataTablediv'><table id='visAabnePosterTableT' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
-		print "<tr><th>Kontonr.</th>";
-		if ($usePBS) print "<th>PBS</th>";
-		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>$headerCell[over90]</th><th align=right  class='text-right'>{$headerCell['60-90']}</th><th align=right class='text-right'>{$headerCell['30-60']}</th><th align=right class='text-right'>{$headerCell['8-30']}</th><th align=right class='text-right'>{$headerCell['0-8']}</th><th align=right class='text-right'>$headerCell[total]</th><th align=right</th>";
+		print "<tr><th colspan='$headerColspan' style='font-weight:normal;'>$summaryHtml</th></tr>";
 		print "<tr><th colspan='$headerColspan' style='font-weight:normal;'>$searchRow</th></tr>";
+		print $groupRow;
+		print "<tr class='op-label-row'>$labelCells</tr>";
 		print "</thead><tbody>";
 	} else {
-		print "<tr><td><table id='visAabnePosterTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
-		print "<tr><td>Kontonr.</th>";
-		if ($usePBS) {
-			if ($showPBS) {
-				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=0$stateUrl'>skjul BS</a></td>";
-			} else {
-				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=1$stateUrl'>vis BS</a></td>";
-			}
-		}
-		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>$headerCell[over90]</td><td align=right>{$headerCell['60-90']}</td><td align=right>{$headerCell['30-60']}</td><td align=right>{$headerCell['8-30']}</td><td align=right>{$headerCell['0-8']}</td><td align=right>$headerCell[total]</td><td></td>";
-		print "<tr><td colspan='$headerColspan'>$searchRow</td></tr>";
+		// Summary and search are rows of the sticky thead, so the whole header block (summary, search,
+		// group and column labels) stays visible as one unit while #opGridWrapper scrolls.
+		print "<table id='visAabnePosterTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><thead>\n";
+		print "<tr class='op-head-row'><th colspan='$headerColspan'>$summaryHtml</th></tr>";
+		print "<tr class='op-head-row'><th colspan='$headerColspan'><div class='op-search'>$searchRow</div></th></tr>";
+		print $groupRow;
+		print "<tr class='op-label-row'>$labelCells</tr>";
+		print "</thead><tbody>\n";
 	}
 
 	// Push the grid header out before the heavy count/page queries below, so the user sees
@@ -757,13 +964,11 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	flush();
 
 
-	print "<form name=aabenpost action=rapport.php method=post>";
-
-	if ($menu=='T') {
-		print "";
-	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-	}
+	// A POST to rapport.php takes the account filter only from GET kontonr (without it openpost()
+	// swaps in the stored DRV preferences) and openpost() takes the mode only from GET, so both ride on
+	// the action URL; showPBS and the content flag are posted below.
+	$formAction=htmlspecialchars("rapport.php?kontonr=$kontonrFilterUrl&$modeParam=on",ENT_QUOTES);
+	print "<form name=aabenpost action=\"$formAction\" method=post>";
 
 	$accountPosts=$accountIndex=array();
 	if ($kontoart=='D') $tmp="";
@@ -789,7 +994,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$addAccount=function($accountId, $posts) use (&$sortedAccounts, &$agingDateCache, $bucketKey, $agingBucket, $todate, $currentdate, $kontoart, $kun_debet, $kun_kredit, $vis_alle) {
 			$aging=openpost_account_aging($posts, $todate, $currentdate, $kontoart, $agingDateCache);
 			if (!openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle)) return;
-			$amount=afrund($aging[$bucketKey],2);
+			$amount=afrund(($bucketKey == 'visY' && !$vis_alle) ? $aging['bucketTotal'] : $aging[$bucketKey],2);
 			if ($agingBucket && abs($amount) < 0.01) return;
 			$sortedAccounts[]=array((int)$accountId, $amount, count($sortedAccounts));
 		};
@@ -827,14 +1032,14 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		else $qtxt.= ", adresser where account_posts.konto_id=adresser.id and $accountWhere";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $totalKontoantal=(int)$r['account_count'];
 	}
-	$totalPages=($totalKontoantal) ? ceil($totalKontoantal/$openpostPageSize) : 1;
+	$totalPages=($totalKontoantal && !$openpostShowAll) ? ceil($totalKontoantal/$openpostPageSize) : 1;
 	if ($openpostPage > $totalPages) {
 		$openpostPage=$totalPages;
 		$openpostOffset=($openpostPage-1)*$openpostPageSize;
 	}
 	if ($agingBucket || $orderBy) {
 		$pageAccountIds=array();
-		foreach (array_slice($sortedAccounts, $openpostOffset, $openpostPageSize) as $i => $account) {
+		foreach (array_slice($sortedAccounts, $openpostOffset, ($openpostShowAll) ? NULL : $openpostPageSize) as $i => $account) {
 			$pageAccountIds[]=$account[0];
 			$accountIndex[$account[0]]=$i+1;
 		}
@@ -857,7 +1062,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$qtxt.= ($db_type == 'postgresql') ? " where" : " and";
 		$qtxt.= " adresser.id in (".implode(',', $pageAccountIds).")) account_page ";
 	}
-	else $qtxt.= " order by account_sort limit $openpostPageSize offset $openpostOffset) account_page ";
+	elseif ($openpostShowAll) $qtxt.= " order by account_sort, adresser.id) account_page ";
+	else $qtxt.= " order by account_sort, adresser.id limit $openpostPageSize offset $openpostOffset) account_page ";
 	$qtxt.= "join openpost on openpost.konto_id=account_page.account_id where $postWhere ";
 	$qtxt.= "order by account_page.account_sort, openpost.konto_id, openpost.faktnr, openpost.amount $tmp";
 	$konto_id = $kontonr = array();
@@ -888,165 +1094,134 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$accountPosts[$i][]=$r;
 	}
 	$pageAccountCount=($pageAccountIds !== NULL) ? count($pageAccountIds) : $x;
-	$kontoantal=$totalKontoantal;
+	$pageAging=array();
+	foreach ($accountPosts as $i => $posts) {
+		$aging=openpost_account_aging($posts, $todate, $currentdate, $kontoart, $agingDateCache);
+		if (openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle)) {
+			$pageAging[$i]=$aging;
+		}
+	}
+	$renderedCount=count($pageAging);
+	$allAccountsLoaded=($openpostShowAll || $totalKontoantal <= $openpostPageSize);
+	$kontoantal=($allAccountsLoaded) ? $renderedCount : $totalKontoantal;
+	$bucketTotals=array_fill_keys(array_column($buckets, 'key'), 0);
 	$sum=0;
 	$kontrolsum=0;
 	$udlign=NULL;
 	$formIndex=0;
-	$displayFirst=($kontoantal) ? $openpostOffset+1 : 0;
-	$displayLast=min($kontoantal, $openpostOffset+$pageAccountCount);
-	if ($kontoantal > $openpostPageSize) {
-		$colspan = $usePBS ? 10 : 9;
-		print "<tr><td colspan='$colspan' align='center'>";
-		if ($openpostPage > 1) print "<a href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a>&nbsp;";
-		print "Viser $displayFirst-$displayLast af $kontoantal";
-		if ($openpostPage < $totalPages) print "&nbsp;<a href=\"$basePageUrl&openpost_page=".($openpostPage+1)."\">N&aelig;ste</a>";
-		print "</td></tr>\n";
+	$displayFirst=($renderedCount) ? $openpostOffset+1 : 0;
+	$displayLast=($renderedCount) ? $openpostOffset+$renderedCount : 0;
+	// Only offer the paging toggle when the result is bigger than one default page.
+	$showPagingBar=($totalKontoantal > (($openpostShowAll) ? $openpostDefaultPageSize : $openpostPageSize));
+	if ($openpostShowAll) {
+		$pageSizeToggle="<a class='op-link' href=\"$pagedUrl\">".htmlspecialchars(sprintf(findtekst('5521|Vis %s konti pr. side',$sprog_id),$openpostDefaultPageSize),ENT_QUOTES)."</a>";
+	} else {
+		$pageSizeToggle="<a class='op-link' href=\"$showAllUrl\">".htmlspecialchars(findtekst('5520|Vis alle konti på én side',$sprog_id),ENT_QUOTES)."</a>";
 	}
-	for ($x=1; $x<=$pageAccountCount; $x++) {
-		if (!isset($accountPosts[$x])) continue;
-		$aging=openpost_account_aging($accountPosts[$x], $todate, $currentdate, $kontoart, $agingDateCache);
-		if (openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle)) {
-			$accountAligned=$aging['accountAligned'];
-			$rykkerbelob=$aging['rykkerbelob'];
-			$forfalden=$aging['forfalden'];
-			$forfalden_plus8=$aging['forfalden_plus8'];
-			$forfalden_plus30=$aging['forfalden_plus30'];
-			$forfalden_plus60=$aging['forfalden_plus60'];
-			$forfalden_plus90=$aging['forfalden_plus90'];
-			$kontrol=$aging['kontrol'];
-			$openKontrol=$aging['openKontrol'];
-			$y=$aging['y'];
-			$openY=$aging['openY'];
-			$visY=$aging['visY'];
-			$visKontrol=$aging['visKontrol'];
-			if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
-			elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
-		
-			$forfaldsum=$forfaldsum+$forfalden;
-			$forfaldsum_plus8=$forfaldsum_plus8+$forfalden_plus8;
-			$forfaldsum_plus30=$forfaldsum_plus30+$forfalden_plus30;
-			$forfaldsum_plus60=$forfaldsum_plus60+$forfalden_plus60;
-			$forfaldsum_plus90=$forfaldsum_plus90+$forfalden_plus90;
-			$sum=$sum+$visY;
-			$kontrolsum+=$visKontrol;
-			$formIndex++;
-			print "<tr bgcolor=\"$linjebg\">";
-			print "<input type=hidden name='konto_id[$formIndex]' value='$konto_id[$x]'>";
-			$kontonrUrl=rawurlencode($kontonr[$x]);
-			print "<td><a href=\"rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$konto_fraUrl&kilde_kto_til=$konto_tilUrl&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$kontonrUrl&konto_til=$kontonrUrl&submit=ok$stateUrl\">";
-			print "<span title='Klik for detaljer'>".htmlspecialchars($kontonr[$x],ENT_QUOTES)."</span></a></td>";
-			if ($usePBS) print "<td>$pbs[$x]</td>";
-			print "<td>$firmanavn[$x]</td>";
-			$forfalden_plus90=afrund($forfalden_plus90,2);
-			$forfalden_plus60=afrund($forfalden_plus60,2);
-			$forfalden_plus30=afrund($forfalden_plus30,2);
-			$forfalden_plus8=afrund($forfalden_plus8,2);
-
-			if (abs($forfalden_plus90) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus90,2);
-			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (abs($forfalden_plus60) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus60,2);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (abs($forfalden_plus30) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus30,2);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (abs($forfalden_plus8) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus8,2);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (abs($forfalden) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden,2);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (afrund($visKontrol,2)!=afrund($visY,2)) {
-				ret_openpost($konto_id[$x]);
-				$tmp=dkdecimal($visKontrol,2);
-			} else $tmp=dkdecimal($visY,2);
-			# Valutadiff rows are booked as already settled, so the open remainder alone can
-			# differ from zero while the whole account balances. When settled posts are loaded
-			# too (Vis alle poster or a historical to-date), the whole balance decides as well.
-			$allPostsLoaded = ($vis_alle || $todate != $currentdate);
-			$canSettleAll = ($accountAligned=="0" && ((abs($openY)<0.01 && abs($openKontrol)<0.01)
-				|| ($allPostsLoaded && abs($y)<0.01 && abs($kontrol)<0.01)));
-			if ($canSettleAll) {
-				$udlign.=$konto_id[$x].",";
-				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam$stateUrl&udlign=$konto_id[$x]\">$tmp</a></td>";
-			}
-			else {print "<td align=right>$tmp</td>";}
-			if ((isset($kontoudtog[$x]) && $kontoudtog[$x]=='on') && ($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex] checked><span class='checkmarkOrdreliste'></span></label>";
-			elseif($kontoart=="D")  print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex]><span class='checkmarkOrdreliste'></span></label>";
-			print "</tr>\n";
-			print "<input type=hidden name=rykkerbelob[$formIndex] value=$rykkerbelob>";
+	$pagingHtml="";
+	if ($showPagingBar) {
+		if ($openpostShowAll) {
+			$pagingHtml=htmlspecialchars(sprintf(findtekst('5558|Viser alle %s konti',$sprog_id),$kontoantal),ENT_QUOTES);
+		} else {
+			if ($openpostPage > 1) $pagingHtml.="<a class='op-link' href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a> &nbsp;";
+			$pagingHtml.="Viser $displayFirst-$displayLast af $kontoantal";
+			if ($openpostPage < $totalPages) $pagingHtml.="&nbsp; <a class='op-link' href=\"$basePageUrl&openpost_page=".($openpostPage+1)."\">N&aelig;ste</a>";
 		}
+		$pagingHtml.=" &nbsp;&middot;&nbsp; $pageSizeToggle";
+	}
+	// The T layout keeps its paging line above the rows; the grid layout shows it in the sticky action bar.
+	if ($showPagingBar && $menu=='T') {
+		$colspan = $usePBS ? 11 : 10;
+		print "<tr><td colspan='$colspan' align='center'>$pagingHtml</td></tr>\n";
+	}
+	// Links that act on this page (0,00 settlement, customer card return target) come back to it.
+	$pageUrl=$basePageUrl."&openpost_page=$openpostPage";
+	// Return target of the kontonr link. accountChart.php appends its returside unencoded to its
+	// udlign_openpost.php links, after their own konto_fra/konto_til, so the filter travels as kontonr
+	// and cannot override the account there.
+	$chartReturnUrl=str_replace("&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl", "&kontonr=$kontonrFilterUrl", $pageUrl);
+	$creditTitle=findtekst('1001|Kredit',$sprog_id);
+	$cardPage=($kontoart=='K') ? 'kreditorkort.php' : 'debitorkort.php';
+	$cardTitle=htmlspecialchars(findtekst(($kontoart=='K') ? '1184|Kreditorkort' : '356|Debitorkort',$sprog_id),ENT_QUOTES);
+	for ($x=1; $x<=$pageAccountCount; $x++) {
+		if (!isset($pageAging[$x])) continue;
+		$aging=$pageAging[$x];
+		$accountAligned=$aging['accountAligned'];
+		$rykkerbelob=$aging['rykkerbelob'];
+		$kontrol=$aging['kontrol'];
+		$openKontrol=$aging['openKontrol'];
+		$y=$aging['y'];
+		$openY=$aging['openY'];
+		$visY=$aging['visY'];
+		$visKontrol=$aging['visKontrol'];
+		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
+		elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
+
+		foreach ($buckets as $bucket) {
+			$bucketTotals[$bucket['key']]+=$aging[$bucket['key']];
+		}
+		$sum=$sum+$visY;
+		$kontrolsum+=$visKontrol;
+		$formIndex++;
+		print "<tr bgcolor=\"$linjebg\">";
+		print "<input type=hidden name='konto_id[$formIndex]' value='$konto_id[$x]'>";
+		$kontonrUrl=rawurlencode($kontonr[$x]);
+		$chartUrl="rapport.php?rapportart=accountChart&kilde=openpost&kilde_kto_fra=$konto_fraUrl&kilde_kto_til=$konto_tilUrl&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl";
+		$chartUrl.="&konto_fra=$kontonrUrl&konto_til=$kontonrUrl&submit=ok$stateUrl&returside=".rawurlencode($chartReturnUrl);
+		print "<td><a href=\"".htmlspecialchars($chartUrl,ENT_QUOTES)."\">";
+		print "<span title='Klik for detaljer'>".htmlspecialchars($kontonr[$x],ENT_QUOTES)."</span></a></td>";
+		if ($usePBS) print "<td>$pbs[$x]</td>";
+		$cardUrl=htmlspecialchars("$cardPage?id=".(int)$konto_id[$x]."&returside=".rawurlencode($pageUrl),ENT_QUOTES);
+		print "<td><a class='op-name' href=\"$cardUrl\" title=\"$cardTitle\">".htmlspecialchars($firmanavn[$x],ENT_QUOTES)."</a></td>";
+		foreach ($buckets as $bucketId => $bucket) {
+			print openpost_aging_cell($aging[$bucket['key']], $kontoart, $bucketId != 'ikke', false, $creditTitle);
+		}
+		// Keep the existing control correction tied to the raw balance, not to the
+		// display-only rounding across buckets (which must never repair/book posts).
+		if (afrund($visKontrol,2)!=afrund($visY,2)) ret_openpost($konto_id[$x]);
+		$tmp=dkdecimal(openpost_row_total($aging, $vis_alle),2);
+		# Valutadiff rows are booked as already settled, so the open remainder alone can
+		# differ from zero while the whole account balances. When settled posts are loaded
+		# too (Vis alle poster or a historical to-date), the whole balance decides as well.
+		$allPostsLoaded = ($vis_alle || $todate != $currentdate);
+		$canSettleAll = ($accountAligned=="0" && ((abs($openY)<0.01 && abs($openKontrol)<0.01)
+			|| ($allPostsLoaded && abs($y)<0.01 && abs($kontrol)<0.01)));
+		if ($canSettleAll) {
+			$udlign.=$konto_id[$x].",";
+			print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a class='op-link' href=\"".htmlspecialchars("$pageUrl&udlign=".(int)$konto_id[$x],ENT_QUOTES)."\">$tmp</a></td>";
+		}
+		else {print "<td align=right>$tmp</td>";}
+		if ((isset($kontoudtog[$x]) && $kontoudtog[$x]=='on') && ($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex] checked><span class='checkmarkOrdreliste'></span></label>";
+		elseif($kontoart=="D")  print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex]><span class='checkmarkOrdreliste'></span></label>";
+		else print "<td></td>"; // keeps the row stripe across the (empty) checkbox column
+		print "</tr>\n";
+		print "<input type=hidden name=rykkerbelob[$formIndex] value=$rykkerbelob>";
 	}
 
-	if (!isset ($forfaldsum_plus90)) $forfaldsum_plus90 = NULL;
-	if (!isset ($forfaldsum_plus60)) $forfaldsum_plus60 = NULL;
-	if (!isset ($forfaldsum_plus30)) $forfaldsum_plus30 = NULL;
-	if (!isset ($forfaldsum_plus8)) $forfaldsum_plus8 = NULL;
-	if (!isset ($forfaldsum)) $forfaldsum = NULL;
+	if (!$renderedCount) {
+		print "<tr><td colspan='$headerColspan' align=center style='padding:6px;color:#555;'>".findtekst('2541|Ingen',$sprog_id)."</td></tr>\n";
+	}
+	foreach ($bucketTotals as $key => $amount) {
+		$bucketTotals[$key]=afrund($amount,2);
+	}
 
-	$forfaldsum_plus90=afrund($forfaldsum_plus90,2);
-	$forfaldsum_plus60=afrund($forfaldsum_plus60,2);
-	$forfaldsum_plus30=afrund($forfaldsum_plus30,2);
-	$forfaldsum_plus8=afrund($forfaldsum_plus8,2);
-
+	// "I alt" only when every matching account is on this page; otherwise the sum covers this page.
+	$totalLabel=($allAccountsLoaded) ? findtekst('5019|I alt',$sprog_id) : findtekst('5524|I alt (denne side)',$sprog_id);
+	$totalLabel=htmlspecialchars($totalLabel,ENT_QUOTES);
 	($usePBS) ? $colspan = 2 : $colspan = 1 ;
 	if ($menu=='T') {
 		print "</tbody><tfoot>";
-		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
+		print "<tr><td colspan='$colspan'><br></td><td><b>$totalLabel</b></td>";
 	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
+		print "<tr class='op-total-row'><td colspan='$colspan'></td><td><b>$totalLabel</b></td>";
 	}
 
-	if ($forfaldsum_plus90 != 0) $color="rgb(255, 0, 0)";
-	else $color="rgb(0, 0, 0)";
-	$tmp=dkdecimal($forfaldsum_plus90,2);
-	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-	if ($forfaldsum_plus60 != 0) $color="rgb(255, 0, 0)";
-	else $color="rgb(0, 0, 0)";
-	$tmp=dkdecimal($forfaldsum_plus60,2);
-	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-	if ($forfaldsum_plus60 != 0) $color="rgb(255, 0, 0)";
-	else $color="rgb(0, 0, 0)";
-	$tmp=dkdecimal($forfaldsum_plus30,2);
-	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-	if ($forfaldsum_plus30 != 0) $color="rgb(255, 0, 0)";
-	else $color="rgb(0, 0, 0)";
-	$tmp=dkdecimal($forfaldsum_plus8,2);
-	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-	if ($forfaldsum != 0) $color="rgb(255, 0, 0)";
-	else $color="rgb(0, 0, 0)";
-	$tmp=dkdecimal($forfaldsum,2);
-	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+	foreach ($buckets as $bucketId => $bucket) {
+		print openpost_aging_cell($bucketTotals[$bucket['key']], $kontoart, $bucketId != 'ikke', true, $creditTitle);
+	}
 	$color="rgb(0, 0, 0)";
-  ($sum<=$kontrolsum)?$tmp=dkdecimal($kontrolsum,2):$tmp=dkdecimal($sum,2);
+	$total=($vis_alle) ? (($sum <= $kontrolsum) ? $kontrolsum : $sum) : array_sum($bucketTotals);
+	$tmp=dkdecimal(afrund($total,2),2);
 	print "<td align=right><span style='color: $color;'>$tmp</span>";
 	print "<td align=right></td>";
 	print "<input type=hidden name=rapportart value=\"openpost\">";
@@ -1059,57 +1234,78 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	print "<input type=hidden name=openpost_page_size value=$openpostPageSize>";
 	print "<input type=hidden name=aging_bucket value=\"$agingBucket\">";
 	print "<input type=hidden name=order_by value=\"$orderBy\">";
-	print "<input type=hidden name=order_dir value=\"$orderDir\"></td></tr>";
+	print "<input type=hidden name=order_dir value=\"$orderDir\">";
+	if (!$showPBS) print "<input type=hidden name=showPBS value=0>";
+	print "<input type=hidden name=openpost_content value=1></td></tr>";
 
 	// The Mail kontoudtog/Opret rykker/Ryk alle buttons post back konto_id[] checkboxes from the
 	// account rows above; with no matching accounts (formIndex still 0) no konto_id[] fields exist
 	// to act on, so skip the buttons rather than submit an empty/missing konto_id. 20260923 CL/NTR
+	$actionsHtml="";
 	if ($kontoart=='D' && $formIndex > 0) {
-		$overlib4="<span class='CellComment'>".findtekst(242,$sprog_id)."</span>";
-		print "<tr><td colspan='10' align='center' class='border-hr-top'><span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
-		print "<input type=submit value=\"Mail kontoudtog\" name=\"submit\"></span>&nbsp;&nbsp;";
-		print "<span title='Klik her for at oprette rykker til de som er afm&aelig;rkede herover'>";
-		print "<input type=submit value=\"Opret rykker\" name=\"submit\"></span>&nbsp;&nbsp;";
+		$jsonFlags=JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+		$actionsHtml.="<span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
+		$actionsHtml.="<input type=submit value=\"Mail kontoudtog\" name=\"submit\"></span>&nbsp;&nbsp;";
+		$actionsHtml.="<span title='Klik her for at oprette rykker til de som er afm&aelig;rkede herover'>";
+		$actionsHtml.="<input type=submit value=\"Opret rykker\" name=\"submit\"></span>&nbsp;&nbsp;";
 		if ($udlign) {
 			$udlign=trim($udlign,",'");
-			// URL-encode the report filter values and escape the attribute so quotes in
-			// request-supplied values cannot break out of the inline handler (XSS).
-			$udlignUrl = 'rapport.php?submit=ok&rapportart=openpost'
-				. '&dato_fra=' . $dato_fraUrl
-				. '&dato_til=' . $dato_tilUrl
-				. '&konto_fra=' . $konto_fraUrl
-				. '&konto_til=' . $konto_tilUrl
-				. ($vis_alle ? '&vis_alle_poster=on' : '&vis_aabenpost=on')
-				. $openpostContentParam
-				. $stateUrl
-				. '&udlign=' . rawurlencode($udlign);
-			print "	<input type='button' onclick=\"location.href='" . htmlspecialchars($udlignUrl, ENT_QUOTES) . "';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
-			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
-		} else {
-			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
+			// The filter values in $pageUrl are URL-encoded and the whole handler is attribute-escaped,
+			// so quotes in request-supplied values cannot break out of it (XSS).
+			$udlignUrl=$pageUrl.'&udlign='.rawurlencode($udlign);
+			$udlignCount=count(explode(',',$udlign));
+			if ($udlignCount == 1) $udlignConfirm=findtekst('5547|Udlign 1 konto med saldo 0,00?',$sprog_id);
+			else $udlignConfirm=sprintf(findtekst('5543|Udlign %s konti med saldo 0,00?',$sprog_id),$udlignCount);
+			$udlignTitle=htmlspecialchars(findtekst('5544|Udligner alle viste konti hvor saldoen er 0,00',$sprog_id),ENT_QUOTES);
+			$udlignClick=htmlspecialchars("if (confirm(".json_encode($udlignConfirm,$jsonFlags).")) location.href=".json_encode($udlignUrl,$jsonFlags).";",ENT_QUOTES);
+			$actionsHtml.="<input type='button' onclick=\"$udlignClick\" title=\"$udlignTitle\" value='Udlign alle'>&nbsp;&nbsp;";
 		}
-		print "</tr>\n";
+		// Ryk alle runs ny_rykker.php for every debtor unless ticked accounts with an overdue amount
+		// exist (then only for those, like Opret rykker) - the confirm states which of the two happens.
+		$rykAlleAll=findtekst('5537|Ryk alle kører rykkerkørslen for ALLE debitorer - ikke kun de viste eller afmærkede konti. Den vil:',$sprog_id);
+		foreach (array('5538|udligne konti hvis åbne poster giver 0,00, og slette deres åbne rykkere', '5539|slette åbne rykkere for konti uden åbne poster', '5540|oprette rykkere for forfaldne poster, der endnu ikke er rykket for', '5541|bogføre rykkere hvis frist er overskredet, og oprette næste rykker') as $textId) {
+			$rykAlleAll.="\n- ".findtekst($textId,$sprog_id);
+		}
+		$rykAlleContinue="\n\n".findtekst('1991|Fortsæt',$sprog_id)."?";
+		$rykAlleAll.=$rykAlleContinue;
+		$rykAlleSelected=findtekst('5542|Der er afmærket %s konti med forfaldent beløb, så Ryk alle opretter kun rykkere for dem (som Opret rykker).',$sprog_id).$rykAlleContinue;
+		$rykAlleSelectedOne=findtekst('5559|Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).',$sprog_id).$rykAlleContinue;
+		$rykAlleTitle=htmlspecialchars(findtekst('5545|Rykkerkørsel for alle debitorer - eller kun for de afmærkede konti med forfaldent beløb',$sprog_id),ENT_QUOTES);
+		print "<script>
+function opConfirmRykAlle() {
+	var n = 0;
+	document.querySelectorAll('input[name^=\"kontoudtog[\"]:checked').forEach(function (c) {
+		var r = document.querySelector('input[name=\"rykkerbelob[' + c.name.slice(11, -1) + ']\"]');
+		if (r && parseFloat(r.value) > 0) n++;
+	});
+	if (n == 1) return confirm(".json_encode($rykAlleSelectedOne,$jsonFlags).");
+	return confirm(n ? ".json_encode($rykAlleSelected,$jsonFlags).".replace('%s', n) : ".json_encode($rykAlleAll,$jsonFlags).");
+}
+</script>";
+		$actionsHtml.="<input type=submit value=\"Ryk alle\" name=\"submit\" title=\"$rykAlleTitle\" onclick=\"return opConfirmRykAlle();\">";
 	}
-	if ($kontoantal > $openpostPageSize) {
-		print "<tr><td colspan='10' align='center' class='border-hr-top'>";
-		if ($openpostPage > 1) print "<a href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a>&nbsp;";
-		print "Side $openpostPage af $totalPages";
-		if ($openpostPage < $totalPages) print "&nbsp;<a href=\"$basePageUrl&openpost_page=".($openpostPage+1)."\">N&aelig;ste</a>";
-		print "</td></tr>\n";
+	if ($menu=='T') {
+		if ($actionsHtml) print "<tr><td colspan='$headerColspan' align='center' class='border-hr-top'>$actionsHtml</td></tr>\n";
+		if ($showPagingBar) print "<tr><td colspan='$headerColspan' align='center' class='border-hr-top'>$pagingHtml</td></tr>\n";
+	} elseif ($actionsHtml || $pagingHtml) {
+		// Sticky at the bottom of #opGridWrapper, so the actions and paging stay reachable while scrolling.
+		print "<tr class='op-actionbar'><td colspan='$headerColspan'><div class='op-actionbar-inner'><div>$actionsHtml</div><div>$pagingHtml</div></div></td></tr>\n";
 	}
 	print "</form>\n";
 
 	if ($menu=='T') {
-		print "</tfoot></table></div></tfoot></table>";
+		print "</tfoot></table></div></td></tr>";
 	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
 		print "</tbody></table>";
 	}
 
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
+	// openpost() prints the rykker overview below the grid and the footer itself, at the very end.
+	if ($printFooter) {
+		if ($menu=='T') {
+			include_once __DIR__ . '/../topmenu/footer.php';
+		} else {
+			include_once __DIR__ . '/../oldDesign/footer.php';
+		}
 	}
 
 	
