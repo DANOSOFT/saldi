@@ -1,6 +1,9 @@
 
 // 20260907 CDX/LH Preserve D/K/F account types when selecting a historical counter-account.
 //                  Handle each keyboard selection once, without bubbling into a second move.
+// 20260929 CL/SZ SD-698: Card button on every account line (account lookup, recent postings, Åbne Poster) when the page
+//                  sets window.saldiAccountCard (kassekladde): debtor -> debitorkort, creditor -> kreditorkort,
+//                  finance -> kontospec. Unsaved journal edits ask for confirmation before leaving.
 (function () {
     'use strict'; 
 
@@ -172,6 +175,15 @@
                     // Use the current input value for pagination
                     performSearchWithValue(input, input.value, page);
                 }
+                return;
+            }
+
+            const cardBtn = e.target.closest('.account-autocomplete-card-btn');
+            if (cardBtn) {
+                // opens the card instead of selecting the line
+                e.preventDefault();
+                e.stopPropagation();
+                openAccountCard(cardBtn.dataset.cardArt, cardBtn.dataset.cardKontonr);
                 return;
             }
 
@@ -672,7 +684,7 @@
                 ' data-kontonr="' + escapeHtml(item.kontonr || '') + '"' +
                 ' data-account-type="' + escapeHtml(item.art || '') + '"' +
                 ' data-index="last-' + index + '">' +
-                '<td>' + escapeHtml((item.art ? item.art + ' ' : '') + (item.kontonr || '')) + '</td>' +
+                '<td>' + escapeHtml((item.art ? item.art + ' ' : '') + (item.kontonr || '')) + renderCardButton(item.art, item.kontonr) + '</td>' +
                 '<td title="' + escapeHtml(description) + '">' + escapeHtml(description) + '</td>';
 
             for (let i = 2; i < columnCount; i++) {
@@ -1105,13 +1117,13 @@
                 html += '>';
 
                 if (searchType === 'finance') {
-                    html += '<td>' + escapeHtml(item.kontonr) + '</td>' +
+                    html += '<td>' + escapeHtml(item.kontonr) + renderCardButton('F', item.kontonr) + '</td>' +
                         '<td title="' + escapeHtml(item.beskrivelse) + '">' + escapeHtml(item.beskrivelse) + '</td>' +
                         '<td>' + escapeHtml(item.moms || '') + '</td>' +
                         '<td>' + escapeHtml(item.genvej || '') + '</td>' +
                         '<td style="text-align:right;">' + formatNumber(item.saldo) + '</td>';
                 } else {
-                    html += '<td>' + escapeHtml(item.kontonr) + '</td>' +
+                    html += '<td>' + escapeHtml(item.kontonr) + renderCardButton(searchType === 'kreditor' ? 'K' : 'D', item.kontonr) + '</td>' +
                         '<td title="' + escapeHtml(item.beskrivelse) + '">' + escapeHtml(item.beskrivelse) + '</td>';
                 }
 
@@ -1225,7 +1237,7 @@
                 ' data-offsetaccount="' + escapeHtml(item.offsetAccount || '') + '"' +
                 ' data-index="' + itemIndex + '">';
 
-            html += '<td>' + escapeHtml(item.kontonr) + '</td>' +
+            html += '<td>' + escapeHtml(item.kontonr) + renderCardButton(item.art, item.kontonr) + '</td>' +
                 '<td title="' + escapeHtml(item.firmanavn || '') + '">' + escapeHtml(item.firmanavn || '') + '</td>' +
                 '<td>' + escapeHtml(item.faktnr || '') + '</td>' +
                 '<td>' + formatDate(item.transdate) + '</td>' +
@@ -1648,6 +1660,60 @@
         dropdown.style.display = 'flex';
         activeDropdown = dropdown;
         activeInput = input;
+    }
+
+
+    /**
+     * Small button opening the card behind an account line (SD-698). Only pages that set
+     * window.saldiAccountCard get it; art is F (finance), D (debtor) or K (creditor).
+     */
+    function renderCardButton(art, kontonr) {
+        const cfg = window.saldiAccountCard;
+        art = String(art || 'F').toUpperCase();
+        if (!cfg || !kontonr || !/^[0-9]+$/.test(String(kontonr)) || ['F', 'D', 'K'].indexOf(art) === -1) {
+            return '';
+        }
+        const title = escapeHtml((cfg.titles && cfg.titles[art]) || '').replace(/"/g, '&quot;');
+        return '<button type="button" class="account-autocomplete-card-btn" tabindex="-1"' +
+            ' data-card-art="' + art + '" data-card-kontonr="' + escapeHtml(String(kontonr)) + '"' +
+            ' title="' + title + '" aria-label="' + title + '">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+            ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/>' +
+            '<circle cx="8" cy="11" r="2"/><path d="M5 16c.6-1.5 1.8-2.2 3-2.2s2.4.7 3 2.2M14 9h5M14 13h4"/></svg></button>';
+    }
+
+
+    /** True when the journal form holds edits that leaving the page would lose. */
+    function journalHasUnsavedChanges() {
+        if (typeof docChange !== 'undefined' && docChange) {
+            return true;
+        }
+        const fields = document.querySelectorAll('form input[type="text"], form textarea, form select');
+        for (let i = 0; i < fields.length; i++) {
+            const f = fields[i];
+            if (f.tagName === 'SELECT') {
+                // with no option marked selected in the markup, the browser shows the first one
+                let initial = 0;
+                for (let j = 0; j < f.options.length; j++) {
+                    if (f.options[j].defaultSelected) { initial = j; break; }
+                }
+                if (f.options.length && f.selectedIndex !== initial) return true;
+            } else if (f.value !== f.defaultValue) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    function openAccountCard(art, kontonr) {
+        const cfg = window.saldiAccountCard;
+        if (!cfg || !kontonr) return;
+        if (journalHasUnsavedChanges() && !window.confirm(cfg.unsaved || '')) {
+            return;
+        }
+        window.location.href = cfg.url + '?art=' + encodeURIComponent(art) +
+            '&kontonr=' + encodeURIComponent(kontonr) + '&kladde_id=' + encodeURIComponent(cfg.kladdeId || 0);
     }
 
 

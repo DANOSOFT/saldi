@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2026-05-01 ------
+// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-09-28 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20130224 Tilføjet kontofusion
 // 20140319 addslashes erstattet med db_escape_string
@@ -32,6 +32,8 @@
 //             (int)'' compared to '' is now a string comparison ("0" != ""), true, where PHP 7
 //             compared both as 0. Skip the check when the field is blank, same fix as
 //             debitor/debkort_save.php (SD-513)
+// 20260928 CL/SZ SD-698: Tilbage glued "?returside=" onto a returside that already had a query string (e.g. kassekladde.php?kladde_id=5), producing a broken URL.
+//                The back link is now built once with the right separator, and returside is sanitized like debitorkort.php.
 
 
 @session_start();
@@ -61,10 +63,10 @@ if (isset($_GET['firmanavn'])) $firmanavn = $_GET['firmanavn'];
 if (isset($_GET['bank_reg'])) $bank_reg = $_GET['bank_reg'];
 if (isset($_GET['bank_konto'])) $bank_konto = $_GET['bank_konto'];
 
-if (isset($_GET['returside'])) {
-	$returside = $_GET['returside'];
-	$ordre_id  = if_isset($_GET['ordre_id'], 0);
-	$fokus     = if_isset($_GET['fokus'], 'kontonr');
+$returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
+if ($returside) {
+	$ordre_id  = ifset($_GET, 'ordre_id', 0);
+	$fokus     = ifset($_GET, 'fokus', 'kontonr');
 } else {
 	if ($popup) $returside = "../includes/luk.php";
 	else $returside = "kreditor.php";
@@ -100,7 +102,7 @@ if ($_POST) {
 		list($gruppe) = explode(':', $_POST['gruppe']);
 		$notes = db_escape_string(trim($_POST['notes']));
 		$ordre_id = $_POST['ordre_id'];
-		$returside = $_POST['returside'];
+		$returside = nav_sanitize_returside(ifset($_POST, 'returside', ''));
 		$fokus = $_POST['fokus'];
 		$posnr = isset($_POST['posnr']) ? $_POST['posnr'] : NULL;
 		$ans_id = isset($_POST['ans_id']) ? $_POST['ans_id'] : NULL;
@@ -194,11 +196,15 @@ if ($_POST) {
 	}
 }
 
+if (!$returside) $returside = $popup ? "../includes/luk.php" : "kreditor.php";
+$backSep  = (strpos($returside, '?') !== false) ? '&' : '?';
+$backHref = $returside . $backSep . 'returside=' . urlencode($returside) . '&id=' . urlencode(if_isset($ordre_id, ''))
+	. '&fokus=' . urlencode(if_isset($fokus, '')) . '&konto_id=' . urlencode((string)$id);
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id') accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+	print "<div class=\"headerbtnLft headLink\"><a href=javascript:confirmClose('$backHref') accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
 	print "<div class=\"headerTxt\">$title</div>";
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
@@ -232,7 +238,7 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n"; #tabel 1.1 start
 
 	print "<td width='5%'>
-		   <a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst -----------nopoooooooooooo')\" accesskey=L>
+		   <a href=\"javascript:confirmClose('$backHref','$tekst -----------nopoooooooooooo')\" accesskey=L>
 		  <button class='center-btn'style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		. $tilbage_icon . findtekst(30, $sprog_id) . "</button></a></td>\n";
 
@@ -267,8 +273,8 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel 1 start
 	print "<tr bgcolor=$bg><td colspan=\"3\" align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n"; #tabel 1.1 start
-	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
-	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$backHref','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+	else print "<td $top_bund><a href=\"javascript:confirmClose('$backHref','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">SALDI - " . findtekst(1184, $sprog_id) . "</td>\n";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"javascript:confirmClose('kreditorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td>\n";
 	print "</tbody></table>\n"; #tabel 1.1 slut
