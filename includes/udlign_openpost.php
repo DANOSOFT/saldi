@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-04-24---
+// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-09-23---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af ørediff Søg 20121106
@@ -46,6 +46,13 @@
 // 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst(). 
 // 2026.05.07 CL findMatch.php køres ikke længere automatisk ved sideload - tilføjet knap 'Find modposter'.
 // 2026.05.18 LOE Updated close link location for credit and debit if coming from debitorkort.php or rapport.php.
+// 20260923 CDX/PHR Escape invoice references and cast the settlement post identifier.
+// 20260923 CDX/PHR Limit displayed and matched open posts to the selected month range.
+// 20260923 CDX/PHR Keep the anchor post selected when rebuilding period-filtered candidates.
+// 20260923 CDX/PHR Keep invoice-reference edits in the form until settlement commits.
+// 20260923 CDX/PHR Make inserting invoice references an explicit, unchecked-by-default option.
+// 20260923 CDX/PHR Place the invoice insertion option directly after the reference field.
+// 20260923 CDX/PHR Save explicit manual reference edits on Update, separately from automatic insertion.
  
 @session_start();
 $s_id=session_id();
@@ -63,6 +70,17 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
+require_once __DIR__ . '/alignOpenpostIncludes/period.php';
+// A period change reloads the page as a plain GET, not a settlement submit - fall back to $_GET so
+// that reload can still carry forward the in-progress selections and invoice-reference draft below,
+// instead of silently losing them (they'd otherwise only ever be read from $_POST).
+$periodRequest = isset($_POST['submit']) ? $_POST : $_GET;
+$requestedPeriodFrom = ifset($periodRequest, 'period_from');
+$requestedPeriodTo = ifset($periodRequest, 'period_to');
+$pendingInvoiceReference = null;
+$insertInvoiceNumbers = ifset($periodRequest, 'insert_invoice_numbers') === 'on';
+$invoiceReferenceEdited = ifset($_POST, 'invoice_reference_edited') === '1';
+$manualInvoiceReference = trim((string)ifset($periodRequest, 'manual_invoice_reference', ''));
 if (isset($_POST['submit'])) {
  	$submit=strtolower(trim($_POST['submit']));
 	$post_id=if_isset($_POST['post_id']);
@@ -93,7 +111,13 @@ if (isset($_POST['submit'])) {
 	if ($belob) $ny_amount = usdecimal($belob);
 	else $ny_amount = 0;
 	$faktnr[0]=trim($faktnr[0]);
-	db_modify("update openpost set faktnr='$faktnr[0]' where id = '$post_id[0]'",__FILE__ . " linje " . __LINE__	);
+	$pendingInvoiceReference = $faktnr[0];
+	// Only an explicit Update saves manual edits; automatic additions remain a draft.
+	if ($submit === 'opdater' && $invoiceReferenceEdited) {
+		$qtxt = "UPDATE openpost SET faktnr='" . db_escape_string($manualInvoiceReference) . "' WHERE id=" . (int)$post_id[0];
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$invoiceReferenceEdited = false;
+	}
 	if ($submit=='udlign') {
 		for($x=1;$x<=count($kontrol);$x++) {
 			if ($udlign[$x] && !$kontrol[$x]) $submit="opdater";
@@ -142,7 +166,7 @@ if ($row = db_fetch_array($query)) {
 	$sum=$sum;
 	$transdate[0]=$row['transdate'];
 	$udligndate=$transdate[0];
-	$faktnr[0]=$row['faktnr'];
+	$faktnr[0] = $pendingInvoiceReference !== null ? $pendingInvoiceReference : $row['faktnr'];
 	$kontonr[0]=$row['konto_nr'];
 	$beskrivelse[0]=$row['beskrivelse'];
 	$valuta[0]=$row['valuta'];
@@ -203,10 +227,37 @@ $titlesum=$sum;
 $konto_id[0]*=1;
 $udlign_date="$transdate[0]";
 $x=0;
-$qtxt="select * from openpost where id!='$post_id[0]' and konto_id='$konto_id[0]' and udlignet != '1' order by transdate";
+$qtxt = "SELECT MIN(transdate) AS first_date, MAX(transdate) AS last_date FROM openpost ";
+$qtxt .= "WHERE konto_id=" . (int)$konto_id[0] . " AND COALESCE(udlignet,'0')<>'1'";
+$periodBounds = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+$settlementPeriod = openpostSettlementPeriod(
+	$periodBounds['first_date'], $periodBounds['last_date'],
+	$requestedPeriodFrom, $requestedPeriodTo, $transdate[0] ?: date('Y-m-d')
+);
+$qtxt = openpostSettlementCandidateQuery($konto_id[0], $post_id[0], $settlementPeriod);
+// Preserve selections by database ID, not row position, when the candidate list changes.
+$selectedPostIds = [];
+foreach (ifset($_POST, 'candidate_id', []) as $candidateIndex => $candidateId) {
+	if (isset($udlign[$candidateIndex]) && $udlign[$candidateIndex] === 'on') {
+		$selectedPostIds[(int)$candidateId] = true;
+	}
+}
+// A period change round-trips as a GET (see renderOpenpostSettlementPeriod()) and carries the
+// same selections as a flat id list, since it has no per-index udlign[$x]/candidate_id[$x] pairs
+// of its own to rebuild against - it's reloading the very list those indexes were relative to.
+foreach (ifset($_GET, 'selected_candidate_id', []) as $candidateId) {
+	$selectedPostIds[(int)$candidateId] = true;
+}
+// The anchor is always part of settlement, even outside the candidate period.
+$udlign = [0 => 'on'];
+$post_id = [$post_id[0]];
+$amount = [$amount[0]];
 $query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)){
 	$x++;
+	if (isset($selectedPostIds[(int)$row['id']])) {
+		$udlign[$x] = 'on';
+	}
 	$post_id[$x]=$row['id'];
 	$refnr[$x]=$row['refnr'];
 	$amount[$x]=$row['amount'];
@@ -270,7 +321,34 @@ if (!$diffkto) $maxdiff=0;
 
 $findMatchTimeLimit = (isset($_POST['findmatch_timelimit']) && intval($_POST['findmatch_timelimit']) > 60) ? intval($_POST['findmatch_timelimit']) : 60;
 $findMatchTimeout = false;
-if (isset($submit) && $submit=='find modposter') include ("../includes/alignOpenpostIncludes/findMatch.php");
+if (isset($submit) && $submit=='find modposter') {
+	if ($postantal > 0) {
+		include __DIR__ . '/alignOpenpostIncludes/findMatch.php';
+	} else {
+		$findMatchNoResult = true;
+		$findMatchElapsed = 0;
+	}
+}
+
+// Also prepare references for exact matches whose selected rows render as hidden inputs.
+if ($insertInvoiceNumbers) {
+	$invoiceReferences = array_filter(array_map('trim', explode(',', $faktnr[0])), 'strlen');
+	foreach ($post_id as $candidateIndex => $candidateId) {
+		if ($candidateIndex > 0 && isset($udlign[$candidateIndex]) && $udlign[$candidateIndex] === 'on') {
+			// A candidate's own faktnr can itself be multi-valued (e.g. "INV-1, INV-2"), so split
+			// it the same way the anchor's was split before comparing/merging token by token -
+			// otherwise a candidate like "INV-1, INV-2" never matches the existing "INV-1" token
+			// and gets appended wholesale, duplicating it.
+			$candidateReferences = array_filter(array_map('trim', explode(',', $faktnr[$candidateIndex])), 'strlen');
+			foreach ($candidateReferences as $reference) {
+				if (!in_array($reference, $invoiceReferences, true)) {
+					$invoiceReferences[] = $reference;
+				}
+			}
+		}
+	}
+	$faktnr[0] = implode(', ', $invoiceReferences);
+}
 
 if ($menu=='S') {
 	#########
@@ -353,7 +431,17 @@ print "<tr><td><br></td></tr>";
 if (isset($submit) && $submit=='udlign') {
 	include ("../includes/alignOpenpostIncludes/doAlign.php");
 }
+renderOpenpostSettlementPeriod($settlementPeriod, [
+	'post_id' => $post_id[0], 'dato_fra' => $dato_fra, 'dato_til' => $dato_til,
+	'konto_fra' => $konto_fra, 'konto_til' => $konto_til,
+	'retur' => $retur, 'returside' => $returside, 'layout' => $layout,
+], $selectedPostIds, $insertInvoiceNumbers, $manualInvoiceReference);
 print "<form name='alignOpenpost' action='../includes/udlign_openpost.php' method='post'>";
+$invoiceEditedValue = $invoiceReferenceEdited ? '1' : '0';
+print "<input type='hidden' id='invoice_reference_edited' name='invoice_reference_edited' value='$invoiceEditedValue'>";
+print "<input type='hidden' id='manual_invoice_reference' name='manual_invoice_reference' value='" . htmlspecialchars($manualInvoiceReference, ENT_QUOTES, 'UTF-8') . "'>";
+print "<input type='hidden' name='period_from' value='{$settlementPeriod['from']}'>";
+print "<input type='hidden' name='period_to' value='{$settlementPeriod['to']}'>";
 if (isset($findMatchTimeout) && $findMatchTimeout) {
 	$nextLimit = $findMatchTimeLimit * 2;
 	print "<tr><td colspan=6 style='color:#900'><b>S&oslash;gning stoppede efter {$findMatchTimeLimit} sekunder - ingen modpost fundet automatisk.</b>&nbsp;";
@@ -368,16 +456,19 @@ print "<tr><td>Dato</td><td>Bilag nr.</td><td>Fakturanummer</td><td>Beskrivelse<
 print "<tr><td colspan=6><br></td>";
 print "<tr><td></td></tr><tr bgcolor=\"$linjebg\"><td>".dkdato($transdate[0])."</td><td>$refnr[0]</td>";
 $spantekst="Skriv fakturanummer p&aring; den faktura som denne betaling vedr&oslash;rer.\nP&aring; forfaldslisten vil det forfaldne bel&oslash;b reduceres tilsvarende.";
-if ($art=='DG' && $amount[0] < 0) print "<td title='$spantekst'><input id=\"faktnrField\" class=\"inputbox\" type = \"text\" style=\"text-align:left;width:90px;\" name=faktnr[0] value = \"$faktnr[0]\"></td>";
-elseif ($art=='KG') print "<td title='$spantekst'><input id=\"faktnrField\" class=\"inputbox\" type = \"text\" style=\"text-align:left;width:90px;\" name=faktnr[0] value = \"$faktnr[0]\"></td>";
+if ($art=='DG' && $amount[0] < 0) print "<td title='$spantekst'><input id=\"faktnrField\" class=\"inputbox\" type = \"text\" style=\"text-align:left;width:90px;\" name=faktnr[0] value = \"$faktnr[0]\">";
+elseif ($art=='KG') print "<td title='$spantekst'><input id=\"faktnrField\" class=\"inputbox\" type = \"text\" style=\"text-align:left;width:90px;\" name=faktnr[0] value = \"$faktnr[0]\">";
 else {
-	print "<td>$faktnr[0]</td>";
+	print "<td>$faktnr[0]";
 	print "<input type=\"hidden\" name=\"faktnr[0]\" value = \"$faktnr[0]\">";
 }
+$invoiceOptionChecked = $insertInvoiceNumbers ? ' checked' : '';
+print " <label><input type='checkbox' id='insert_invoice_numbers' name='insert_invoice_numbers' value='on'$invoiceOptionChecked> Indsæt fakturanr ved udligning</label></td>";
 $spantekst="Hvis der skrives et andet bel&oslash;b i dette felt, kan posteringen splittes i 2. Kr&aelig;ver at der er påf&oslash;rt fakturanummer";
 print "<td>$beskrivelse[0]</td><td align=right  title='$spantekst'><span style='color: rgb(0, 0, 0);'>";
-if (($art=='DG' && $amount[0] < 0) || ($art=='KG' && $amount[0] > 0))	print "<input  class=\"inputbox\" type = \"text\" style=\"text-align:right;width:90px;\" name=belob value =\"".dkdecimal($amount[0])."\"></td></tr>";
-else print dkdecimal($amount[0])."<input type=hidden name=belob value =\"".dkdecimal($amount[0])."\"></td></tr>";
+if (($art=='DG' && $amount[0] < 0) || ($art=='KG' && $amount[0] > 0))	print "<input  class=\"inputbox\" type = \"text\" style=\"text-align:right;width:90px;\" name=belob value =\"".dkdecimal($amount[0])."\"></td>";
+else print dkdecimal($amount[0])."<input type=hidden name=belob value =\"".dkdecimal($amount[0])."\"></td>";
+print "<td></td></tr>";
 if ($diff!=0) print "<tr><td colspan=6><hr></td></tr>";
 if ($diff!=0) {
 	for ($x=1; $x<count($post_id); $x++) {
@@ -428,6 +519,11 @@ print "<input type = hidden name=omregningskurs[0] value=$omregningskurs[0]>";
 print "<input type = hidden name=konto_id[0] value=$konto_id[0]>";
 print "<input type = hidden name=post_id[0] value=$post_id[0]>";
 print "<input type = hidden name=amount[0] value=$amount[0]>";
+foreach ($post_id as $candidateIndex => $candidateId) {
+	if ($candidateIndex > 0) {
+		print "<input type='hidden' name='candidate_id[$candidateIndex]' value='" . (int)$candidateId . "'>";
+	}
+}
 print "<input type = hidden name=dato_fra value=$dato_fra>";
 print "<input type = hidden name=dato_til value=$dato_til>";
 print "<input type = hidden name=konto_fra value=$konto_fra>";
@@ -479,12 +575,18 @@ print "</td></tr></form>\n";
 print "<script>
 (function(){
 	function getField(){ return document.getElementById('faktnrField'); }
+	var referenceField = getField();
+	if (referenceField) referenceField.addEventListener('input', function(){
+		document.getElementById('invoice_reference_edited').value = '1';
+		document.getElementById('manual_invoice_reference').value = this.value;
+	});
 	function splitField(v){
 		return v.split(',').map(function(s){return s.trim();}).filter(function(s){return s.length;});
 	}
 	function applyFaktnr(cb){
 		var field = getField();
-		if (!field) return;
+		var option = document.getElementById('insert_invoice_numbers');
+		if (!field || !option || !option.checked) return;
 		var fakt = (cb.getAttribute('data-faktnr')||'').trim();
 		if (!fakt) return;
 		var list = splitField(field.value);
@@ -497,6 +599,12 @@ print "<script>
 		field.value = list.join(', ');
 	}
 	var boxes = document.querySelectorAll('.udlignCheckbox');
+	var option = document.getElementById('insert_invoice_numbers');
+	if (option) option.addEventListener('change', function(){
+		if (this.checked) {
+			for (var i=0; i<boxes.length; i++) if (boxes[i].checked) applyFaktnr(boxes[i]);
+		}
+	});
 	for (var i=0; i<boxes.length; i++){
 		boxes[i].addEventListener('change', function(){ applyFaktnr(this); });
 		// Forudfyld for poster der allerede er afm&aelig;rket ved sideindl&aelig;sning (fx efter 'Find modposter').
