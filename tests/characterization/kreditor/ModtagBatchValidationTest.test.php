@@ -67,8 +67,7 @@ final class ModtagBatchValidationTest extends TestCase
         $batch_due_date = [1 => $dueDate];
         $batch_batch_no = [1 => $batchNo];
 
-        eval($block . ') { $blocked = true; } else { $blocked = false; }');
-        return $blocked;
+        return eval($block . ') { return true; } else { return false; }');
     }
 
     public static function cases(): array
