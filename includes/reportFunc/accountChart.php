@@ -36,6 +36,8 @@
 //                firmanavn query line appended instead of overwriting, and
 //                konto_fra/kontoart escaped before SQL interpolation
 // 20260925 CDX/PHR Default to open posts and preserve the report filter when opening settlement.
+// 20261001 CL/LAH returside is URL-encoded where it is embedded in the udlign/valutadiff links, so a full report URL
+//                survives the round trip, and HTML-escaped in the Luk link.
 // 20261006 CL/LH PR #677 review: skip settled entries in the top-menu (menu T) row loop too when showing open posts,
 //                and compute the Primosaldo title when every entry was skipped.
 
@@ -307,7 +309,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 			}
 		}
 
-		$luk= "<a accesskey=L href=\"$returside\">";
+		$luk= "<a accesskey=L href=\"".htmlspecialchars((string)$returside, ENT_QUOTES)."\">";
 
 	include("../includes/topline_settings.php");
 
@@ -467,7 +469,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 				($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 				if ($udlignet[$y]!='1') {
 						$pre_openpost=1;
-						print "<td valign=\"top\">$ffdag<br></td><td valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"text-align:right\">0</td>";
+						print "<td valign=\"top\">$ffdag<br></td><td valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=".rawurlencode((string)$returside)."&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"text-align:right\">0</td>";
 					} else {
 						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
 						$alink="rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
@@ -480,7 +482,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 				} else {
 					($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 					if ($udlignet[$y]!='1') {
-						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
+						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=".rawurlencode((string)$returside)."&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
 						$pre_openpost=1;
 					} else {
 						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
@@ -518,7 +520,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 							$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".dkdato($transdate[$y]);
 							$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=$transdate[$y]&";
 							$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
-							$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
+							$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=".rawurlencode((string)$returside)."&retur=".$returnpath."rapport.php\" ";
 							$tmp2.="onclick=\"confirmSubmit($confirm)\">$tmp</a>";
 							$tmp=$tmp2;
 						} else $title=NULL;
@@ -527,7 +529,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 					$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".date("d-m-Y");
 					$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=".date("Y-m-d")."&";
 					$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
-					$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
+					$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=".rawurlencode((string)$returside)."&retur=".$returnpath."rapport.php\" ";
 					$tmp2.="onclick=\"confirmSubmit($confirm)\">$tmp</a>";
 					$tmp=$tmp2;
 				}
@@ -620,7 +622,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 					($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 					   if ($udlignet[$y]!='1') {
 							$pre_openpost=1;
-							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
+							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=".rawurlencode((string)$returside)."&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
 						} else {
 							$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
 							$alink="rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
@@ -633,7 +635,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 					} else {
 						($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 						if ($udlignet[$y]!='1') {
-							print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
+							print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=".rawurlencode((string)$returside)."&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
 							$pre_openpost=1;
 						} else {
 							$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
@@ -674,7 +676,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 								$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".dkdato($transdate[$y]);
 								$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=$transdate[$y]&";
 								$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
-								$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
+								$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=".rawurlencode((string)$returside)."&retur=".$returnpath."rapport.php\" ";
 								$tmp2.="onclick=\"confirmSubmit($confirm)\">$tmp</a>";
 								$tmp=$tmp2;
 							} else $title=NULL;
@@ -683,7 +685,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 						$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".date("d-m-Y");
 						$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=".date("Y-m-d")."&";
 						$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
-						$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
+						$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=".rawurlencode((string)$returside)."&retur=".$returnpath."rapport.php\" ";
 						$tmp2.="onclick=\"confirmSubmit($confirm)\">$tmp</a>";
 						$tmp=$tmp2;
 					}
