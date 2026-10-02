@@ -919,7 +919,10 @@ print "<tbody>";
 			if ($acct_cnt) {
 				$accountOnPage[$x] = ($acctFrom < $windowTo && $acctTo > $windowFrom);
 			} else {
-				$accountOnPage[$x] = ($acctFrom >= $windowFrom && $acctFrom < $windowTo);
+				// An account with no printable rows is placed after the loop, once total_pages
+				// is known - see below. Set false here only so the retention line underneath
+				// has a value to read; there is nothing to retain for it either way.
+				$accountOnPage[$x] = false;
 			}
 
 			// The balance has to run over every row of an account, so it is all
