@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026.09.07 ---
+// --- debitor/pos_ordre.php --- ver 5.0.0 --- 2026.10.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,8 @@
 // 20260914 CL/SZ SST-744: function posbogfor: CodeRabbit review - embed the alert text via
 //             json_encode() instead of a manual string-replace, matching index/login.php's
 //             existing pattern for the same problem.
+// 20261002 CL/SZ SST-812: Hand the final focus() to javascript/posScanBuffer.js (inlined in the head by includes/online.php), which replays scanner keystrokes typed while a scan reloads the page.
+//                The final focus() call now escapes $fokus and falls back to varenr_ny when the named field is missing or hidden, instead of throwing and leaving no focus.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -3650,9 +3652,12 @@ if ($obstxt)
 </html>
 
 <script language="javascript">
-
-document.pos_ordre.<?php echo $fokus ?>.focus();
-
+<?php $fokusJs = json_encode((string) $fokus, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
+if (window.PosScanBuffer) {
+	PosScanBuffer.focus(<?php echo $fokusJs ?>);
+} else if (document.pos_ordre && document.pos_ordre.elements[<?php echo $fokusJs ?>]) {
+	document.pos_ordre.elements[<?php echo $fokusJs ?>].focus();
+}
 </script>
 <!--
 <script type="text/javascript">
