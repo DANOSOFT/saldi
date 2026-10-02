@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.02
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -79,6 +79,8 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261002 CL/SZ SST-808: index ordrer (konto_id, fakturanr) and the open openpost rows so the
+//                  auto-udlign open-post search stops scanning ordrer once per open post.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -320,6 +322,27 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
+
+# 20261002 CL/SZ SST-808: finans/kassekladde_includes/invoiceSearch.php (auto-udlign) looks up
+#                the order payment ID with a correlated subquery on ordrer (konto_id, fakturanr)
+#                for every open post, and in the COUNT when the user types a search. ordrer had
+#                no index on either column, so each open post forced a full scan of ordrer: on a
+#                290k-row openpost / 70k-row ordrer tenant one typed search took 130-140 s.
+#                The partial openpost index covers the open-post filter every invoiceSearch.php
+#                query starts from, so they stop scanning all settled rows too.
+#                Same advisory lock + pg_indexes check as above, for the same concurrent-login race.
+$sst808Indexes = array(
+	'ordrer_konto_id_fakturanr_idx' => "CREATE INDEX ordrer_konto_id_fakturanr_idx ON ordrer (konto_id, fakturanr)",
+	'openpost_open_idx'             => "CREATE INDEX openpost_open_idx ON openpost (konto_id) WHERE udlignet != '1' OR udlignet IS NULL",
+);
+foreach ($sst808Indexes as $indexName => $createIndex) {
+	db_select("SELECT pg_advisory_lock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
+	$qtxt = "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND indexname = '$indexName'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify($createIndex, __FILE__ . " linje " . __LINE__);
+	}
+	db_select("SELECT pg_advisory_unlock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
+}
 
 #####
 
