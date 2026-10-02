@@ -5144,3 +5144,39 @@
 5254	Kontrollér konto, beløb og dato. Ingen ændringer er gemt.	Check the account, amount and date. No changes have been saved.	Kontroller konto, beløp og dato. Ingen endringer er lagret.
 5255	Forslag	Suggested	Forslag
 5256	Rettet / accepteret	Corrected / accepted	Rettet / akseptert
+5500	Ikke forfalden	Not yet due	Ikke forfalt
+5510	%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent beløb.	%s selected accounts were skipped because they have no positive overdue balance.	%s valgte kontoer ble hoppet over fordi de ikke har et positivt forfalt beløp.
+5511	Din browser blokerede vinduet. Klik her for at åbne resultatet.	Your browser blocked the window. Click here to open the result.	Nettleseren din blokkerte vinduet. Klikk her for å åpne resultatet.
+5520	Vis alle konti på én side	Show all accounts on one page	Vis alle kontoer på én side
+5521	Vis %s konti pr. side	Show %s accounts per page	Vis %s kontoer per side
+5522	Vis kun rykkere	Show reminders only	Vis bare påminnelser
+5523	Dage over forfald	Days overdue	Dager over forfall
+5524	I alt (denne side)	Total (this page)	Totalt (denne siden)
+5525	Opgjort pr.	As of	Per
+5526	søgning	search	søk
+5527	Sorteret efter beløb	Sorted by amount	Sortert etter beløp
+5528	Gå til rykkere	Go to reminders	Gå til påminnelser
+5529	Vælg konti til kontoudtog/rykker	Select accounts for statement/reminder	Velg kontoer for kontoutskrift/påminnelse
+5530	Kontonr., fra:til eller navn (* = joker)	Account no., from:to or name (* = wildcard)	Kontonr., fra:til eller navn (* = joker)
+5531	Eksporter CSV	Export CSV	Eksporter CSV
+5532	Åbne rykkere	Open reminders	Åpne påminnelser
+5533	Rækkefarve	Row colour	Radfarge
+5534	%s. rykker	Reminder %s	%s. påminnelse
+5535	alle poster betalt	all items paid	alle poster betalt
+5536	delvist betalt	partly paid	delvis betalt
+5537	Ryk alle kører rykkerkørslen for ALLE debitorer - ikke kun de viste eller afmærkede konti. Den vil:	Remind all runs the reminder run for ALL debtors - not only the accounts shown or selected. It will:	Påminn alle kjører påminnelseskjøringen for ALLE debitorer - ikke bare de viste eller avmerkede kontoene. Den vil:
+5538	udligne konti hvis åbne poster giver 0,00, og slette deres åbne rykkere	settle accounts whose open items total 0.00 and delete their open reminders	avstemme kontoer der åpne poster gir 0,00, og slette deres åpne påminnelser
+5539	slette åbne rykkere for konti uden åbne poster	delete open reminders for accounts without open items	slette åpne påminnelser for kontoer uten åpne poster
+5540	oprette rykkere for forfaldne poster, der endnu ikke er rykket for	create reminders for overdue items that have not been reminded yet	opprette påminnelser for forfalte poster som ennå ikke er purret
+5541	bogføre rykkere hvis frist er overskredet, og oprette næste rykker	post reminders whose deadline has passed and create the next reminder	bokføre påminnelser der fristen er overskredet, og opprette neste påminnelse
+5542	Der er afmærket %s konti med forfaldent beløb, så Ryk alle opretter kun rykkere for dem (som Opret rykker).	%s selected accounts have an overdue balance, so Remind all only creates reminders for them (like Create reminder).	Det er avmerket %s kontoer med forfalt beløp, så Påminn alle oppretter bare påminnelser for dem (som Opprett påminnelse).
+5543	Udlign %s konti med saldo 0,00?	Settle %s accounts with balance 0.00?	Avstem %s kontoer med saldo 0,00?
+5544	Udligner alle viste konti hvor saldoen er 0,00	Settles all accounts shown whose balance is 0.00	Avstemmer alle viste kontoer der saldoen er 0,00
+5545	Rykkerkørsel for alle debitorer - eller kun for de afmærkede konti med forfaldent beløb	Reminder run for all debtors - or only for the selected accounts with an overdue balance	Påminnelseskjøring for alle debitorer - eller bare for de avmerkede kontoene med forfalt beløp
+5546	Rykkere	Reminders	Påminnelser
+5547	Udlign 1 konto med saldo 0,00?	Settle 1 account with balance 0.00?	Avstem 1 konto med saldo 0,00?
+5555	Alle poster	All items	Alle poster
+5556	Skjul PBS-kunder	Hide PBS customers	Skjul PBS-kunder
+5557	Vis PBS-kunder	Show PBS customers	Vis PBS-kunder
+5558	Viser alle %s konti	Showing all %s accounts	Viser alle %s kontoer
+5559	Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).	One selected account has an overdue balance, so Remind all only creates a reminder for it (like Create reminder).	Det er avmerket 1 konto med forfalt beløp, så Påminn alle oppretter bare en påminnelse for den (som Opprett påminnelse).

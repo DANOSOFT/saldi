@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 5.0.0 ----2026-07-06--------------
+// -------debitor/rapport.php------ver 5.0.0 ----2026-10-01--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,8 @@
 //                CSV headers with nothing else sent yet.
 // 20260923 CL/NTR Guard count($konto_id) against the field being absent from $_POST when the openpost
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
+// 20261001 CDX/LAH Validate settlement lists and show skipped reminders and blocked-popup links.
+// 20261001 CDX/LAH Encode sales-statistics redirects and use ifset for the reminder count lookup.
 
 @session_start();
 $s_id = session_id();
@@ -98,16 +100,188 @@ if ($openpostCsvRequest) {
 }
 include("../includes/row-hover-style-with-links.js.php");
 
+/**
+ * Keeps only positive integer account IDs from the GET settlement list.
+ *
+ * @return string Comma-separated IDs, or an empty string when none are valid.
+ */
+function rapport_udlign_list($udlign)
+{
+	if (!is_string($udlign)) return '';
+	$accounts = array();
+	foreach (explode(',', $udlign) as $account) {
+		$account = trim($account);
+		if (!preg_match('/^[0-9]+$/D', $account)) continue;
+		$account = filter_var(ltrim($account, '0'), FILTER_VALIDATE_INT, array('options' => array('min_range' => 1)));
+		if ($account !== false) $accounts[] = $account;
+	}
+	return implode(',', array_unique($accounts));
+}
+
 if (!function_exists('autoudlign_liste')) {
 	function autoudlign_liste($udlign) {
-		$udlign = explode(",", $udlign);
-		for ($x = 0; $x < count($udlign); $x++) {
-			if ((float)$udlign[$x] > 0) autoudlign($udlign[$x]);
+		$udlign = rapport_udlign_list($udlign);
+		if ($udlign === '') return;
+		foreach (explode(',', $udlign) as $account) {
+			autoudlign((int)$account);
 		}
 	}
 }
+$udlignListe = rapport_udlign_list(ifset($_GET, 'udlign', ''));
 
-$skipPopupCheck = (isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpost') || isset($_POST['openpost']);
+/**
+ * Stores report preferences without changing the raw values passed to the report view.
+ *
+ * @return void
+ */
+function rapport_save_filters($husk, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $bruger_id)
+{
+	$husk = db_escape_string((string)$husk);
+	$dato_fra = db_escape_string((string)$dato_fra);
+	$dato_til = db_escape_string((string)$dato_til);
+	$konto_fra = db_escape_string((string)$konto_fra);
+	$konto_til = db_escape_string((string)$konto_til);
+	$rapportart = db_escape_string((string)$rapportart);
+	$bruger_id = (int)$bruger_id;
+	db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+}
+
+/**
+ * Opens an action result after page load and offers a visible link if the browser blocks it.
+ *
+ * @return void
+ */
+function rapport_result_popup($page, $params, $jsvars, $sprog_id, $notice = '')
+{
+	static $helperPrinted = false;
+	if (!$helperPrinted) {
+		print <<<'JS'
+<script>
+function saldiOpenOrLink(url, label, features) {
+	var popup = window.open(url, '', features);
+	window.saldiPopupBlocked = !popup;
+	if (!popup) {
+		var banner = document.createElement('div');
+		banner.setAttribute('role', 'alert');
+		banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;padding:12px;background:#fff;color:#000;border-bottom:1px solid #ccc;';
+		var link = document.createElement('a');
+		link.href = url;
+		link.target = '_blank';
+		link.rel = 'noopener';
+		link.style.cssText = 'color:#000;text-decoration:underline;';
+		link.textContent = label;
+		banner.appendChild(link);
+		document.body.insertBefore(banner, document.body.firstChild);
+	}
+}
+</script>
+JS;
+		$helperPrinted = true;
+	}
+	$jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+	$url = json_encode($page . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986), $jsonFlags);
+	$label = json_encode(html_entity_decode(findtekst('5511|Din browser blokerede vinduet. Klik her for at &aring;bne resultatet.', $sprog_id), ENT_QUOTES, 'UTF-8'), $jsonFlags);
+	$features = json_encode((string)$jsvars, $jsonFlags);
+	print "<script>window.addEventListener('load', function () { saldiOpenOrLink($url, $label, $features);";
+	if ($notice !== '') {
+		$notice = json_encode(html_entity_decode($notice, ENT_QUOTES, 'UTF-8'), $jsonFlags);
+		print "alert($notice);";
+	}
+	print "});</script>";
+}
+
+/**
+ * Queues a translated action alert with safe JavaScript string encoding.
+ *
+ * @return void
+ */
+function rapport_action_alert($message)
+{
+	$message = json_encode(html_entity_decode($message, ENT_QUOTES, 'UTF-8'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	print "<script>window.addEventListener('load', function () { alert($message); });</script>";
+}
+
+/**
+ * Handles account selection for statements and new reminders.
+ *
+ * @return bool True when a reminder window was requested.
+ */
+function rapport_account_action($submit, $konto_id, $kontoudtog, $rykkerbelob, $dato_fra, $dato_til, $jsvars, $sprog_id)
+{
+	$accounts = array();
+	$skipped = 0;
+	foreach ($konto_id as $index => $account) {
+		if (!isset($kontoudtog[$index]) || $kontoudtog[$index] !== 'on') continue;
+		if ($submit != 'mail kontoudtog' && (float)($rykkerbelob[$index] ?? 0) <= 0) {
+			if ($submit == 'opret rykker') $skipped++;
+			continue;
+		}
+		$account = (int)$account;
+		if ($account > 0) $accounts[] = $account;
+	}
+	$kontoantal = count($accounts);
+	if ($kontoantal) {
+		$params = array('kontoliste' => implode(';', $accounts) . ';', 'kontoantal' => $kontoantal);
+		if ($submit == 'mail kontoudtog') {
+			$params['dato_fra'] = $dato_fra;
+			$params['dato_til'] = $dato_til;
+			rapport_result_popup('mail_kontoudtog.php', $params, $jsvars, $sprog_id);
+			return false;
+		}
+		$notice = '';
+		if ($skipped) {
+			$notice = sprintf(findtekst('5510|%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent bel&oslash;b.', $sprog_id), $skipped);
+		}
+		rapport_result_popup('ny_rykker.php', $params, $jsvars, $sprog_id, $notice);
+		return true;
+	}
+	if ($submit == 'ryk alle') {
+		rapport_result_popup('ny_rykker.php', array('kontoliste' => 'alle', 'kontoantal' => 'max'), $jsvars, $sprog_id);
+		return true;
+	}
+	rapport_action_alert(findtekst(($submit == 'mail kontoudtog') ? 1791 : 1792, $sprog_id));
+	return false;
+}
+
+/**
+ * Handles selected reminder actions with integer order IDs and safe result URLs.
+ *
+ * @return bool True when the reminder overview should refresh.
+ */
+function rapport_reminder_action($submit, $rykker_id, $rykkerbox, $rykkerantal, $jsvars, $sprog_id)
+{
+	$reminders = array();
+	foreach ($rykker_id as $index => $id) {
+		if ($index < 1 || $index > (int)$rykkerantal || !isset($rykkerbox[$index]) || $rykkerbox[$index] !== 'on') continue;
+		$id = (int)$id;
+		if ($id > 0) $reminders[] = $id;
+	}
+	if ($submit == 'slet') {
+		foreach ($reminders as $id) {
+			db_modify("delete from ordrelinjer where ordre_id=$id", __FILE__ . " linje " . __LINE__);
+			db_modify("delete from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
+		}
+	} elseif (strstr($submit, 'bogf')) {
+		foreach ($reminders as $id) {
+			bogfor_rykker($id);
+		}
+	} elseif ($reminders) {
+		$params = array('rykker_id' => implode(';', $reminders), 'kontoantal' => count($reminders));
+		if ($submit == 'inkasso') {
+			$url = htmlspecialchars('inkasso.php?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986), ENT_QUOTES);
+			print "<META HTTP-EQUIV=\"refresh\" CONTENT=\"0; url=$url\">";
+			exit;
+		}
+		if ($submit == 'udskriv') $page = 'rykkerprint.php';
+		elseif ($submit == 'afslut') $page = 'afslut_rykker.php';
+		else $page = 'ny_rykker.php';
+		rapport_result_popup($page, $params, $jsvars, $sprog_id);
+		return ($submit != 'udskriv');
+	}
+	return false;
+}
+
+$skipPopupCheck = $openpostRequest;
 
 if (!$skipPopupCheck) {
 ?>
@@ -199,8 +373,6 @@ if (!isset($_GET['submit']))
 	$_GET['submit'] = NULL;
 /* if (!isset($_GET['returside']))
 	$_GET['returside'] = NULL; */
-if (!isset($_GET['udlign']))
-	$_GET['udlign'] = NULL;
 
 if (isset($_GET['ny_rykker'])) {
 	$dato_fra = $_GET['dato_fra'];
@@ -216,8 +388,9 @@ if (isset($_GET['ny_rykker'])) {
 	$konto_fra = if_isset($_GET['konto_fra']);
 	$konto_til = if_isset($_GET['konto_til']);
 	$rapportart = $_GET['rapportart']; 
-	if ($_GET['udlign']) {
-		autoudlign_liste($_GET['udlign']);
+	if ($udlignListe !== '') {
+		autoudlign_liste($udlignListe);
+		$udlignListe = '';
 		unset($_GET['udlign']);
 	}
 	if ($rapportart == 'kontokort' && if_isset($_GET['layout']) == 'grid' && $konto_fra && $konto_fra == $konto_til) {
@@ -240,12 +413,11 @@ $rapportart = NULL;
 if (isset($_POST['openpost']) || $openpost)
 	$rapportart = 'openpost';
 if ($openpost) {
-	# Openpost GET requests (0,00 links, Udlign alle, pagination, iframe reload) must keep
-	# their filters; escaped here because the values are also stored in the DRV row below.
-	if (!isset($dato_fra) && isset($_GET['dato_fra'])) $dato_fra = db_escape_string($_GET['dato_fra']);
-	if (!isset($dato_til) && isset($_GET['dato_til'])) $dato_til = db_escape_string($_GET['dato_til']);
-	if (!isset($konto_fra) && isset($_GET['konto_fra'])) $konto_fra = db_escape_string($_GET['konto_fra']);
-	if (!isset($konto_til) && isset($_GET['konto_til'])) $konto_til = db_escape_string($_GET['konto_til']);
+	# Keep the raw filters for report links/searches; rapport_save_filters() escapes only the SQL write.
+	if (!isset($dato_fra) && isset($_GET['dato_fra'])) $dato_fra = $_GET['dato_fra'];
+	if (!isset($dato_til) && isset($_GET['dato_til'])) $dato_til = $_GET['dato_til'];
+	if (!isset($konto_fra) && isset($_GET['konto_fra'])) $konto_fra = $_GET['konto_fra'];
+	if (!isset($konto_til) && isset($_GET['konto_til'])) $konto_til = $_GET['konto_til'];
 }
 if (isset($_POST['kontosaldo']))
 	$rapportart = 'kontosaldo';
@@ -286,9 +458,18 @@ if (isset($_POST['konto'])) {
 }
 $husk = if_isset($_POST, NULL, 'husk');
 if (isset($_POST['salgsstat']) && $_POST['salgsstat']) {
-	if ($husk)
-		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
-	print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&art=D\">";
+	if ($husk) {
+		rapport_save_filters($husk, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $bruger_id);
+	}
+	$refreshUrl = '../includes/salgsstat.php?' . http_build_query(array(
+		'dato_fra' => (string)$dato_fra,
+		'dato_til' => (string)$dato_til,
+		'konto_fra' => (string)$konto_fra,
+		'konto_til' => (string)$konto_til,
+		'art' => 'D'
+	), '', '&', PHP_QUERY_RFC3986);
+	$refreshContent = htmlspecialchars('1;URL=' . $refreshUrl, ENT_QUOTES);
+	print "<meta http-equiv=\"refresh\" content=\"$refreshContent\">";
 	exit;
 }
 if (isset($_POST['saft'])) {
@@ -304,7 +485,7 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_fra = $_POST['dato_fra'];
 		$dato_til = $_POST['dato_til'];
 	} else {
-		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		rapport_save_filters($husk, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $bruger_id);
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
@@ -333,104 +514,16 @@ if (isset($_POST['submit']) || $rapportart) {
 	if (!isset($_POST['rykkerbelob']))
 		$_POST['rykkerbelob'] = NULL;
 	if (($submit == "mail kontoudtog") || ($submit == "opret rykker") || ($submit == "ryk alle")) {
-		$kontoantal = $_POST['kontoantal'];
-		// konto_id is only posted when the report had at least one matching account; with none
-		// shown, the buttons still submit but the field is absent, so fall back to an empty array. 20260923 CL/NTR
 		$konto_id = if_array($_POST, 'konto_id');
-		$kontoudtog = $_POST['kontoudtog'];
-		$rykkerbelob = $_POST['rykkerbelob'];
-		$y = 0;
-		$tmp = NULL;
-		for ($x = 1; $x <= count($konto_id); $x++) {
-			if (isset($kontoudtog[$x])) {
-				if ($kontoudtog[$x] == 'on' && ($submit == "mail kontoudtog") || ($rykkerbelob[$x] > 0)) {
-					$tmp .= $konto_id[$x] . ";";
-					$y++;
-				}
-			}
-		}
-		$kontoantal = $y;
-		if (!isset($tmp))
-			$tmp = NULL;
-		if ($tmp) {
-			if ($submit == "mail kontoudtog") {
-				print "<BODY onLoad=\"window.open('mail_kontoudtog.php?kontoliste=$tmp&dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal','','$jsvars')\">";
-			} else {
-				print "<BODY onLoad=\"window.open('ny_rykker.php?kontoliste=$tmp&kontoantal=$kontoantal','','$jsvars')\">";
-				$ny_rykker = 1;
-			}
-		} elseif ($submit == "ryk alle") {
-			print "<BODY onLoad=\"window.open('ny_rykker.php?kontoliste=alle&kontoantal=max','','$jsvars')\">";
-			$ny_rykker = 1;
-		} else {
-			$alert = findtekst(1791, $sprog_id); #20210805
-			$alert1 = findtekst(1792, $sprog_id);
-			if ($submit == "mail kontoudtog") {
-				print "<BODY onLoad=\"javascript:alert('$alert')\">";
-			} else {
-				print "<BODY onLoad=\"javascript:alert('$alert1')\">";
-			}
-		}
-		/*
-								  if (!strstr($dato_fra," ")) { 
-									  if ($md[$dato_fra]) $dato_fra=$regnaar." ".$md[$dato_fra];
-									  else $dato_fra=$regnaar." ".$dato_fra;
-									  if ($md[$dato_til]) $dato_til=$regnaar." ".$md[$dato_til];
-									  else $dato_til=$regnaar." ".$dato_til;
-								  }
-						  */
+		$kontoudtog = if_array($_POST, 'kontoudtog');
+		$rykkerbelob = if_array($_POST, 'rykkerbelob');
+		$ny_rykker = rapport_account_action($submit, $konto_id, $kontoudtog, $rykkerbelob, $dato_fra, $dato_til, $jsvars, $sprog_id);
 		$submit = 'ok';
 	} elseif ($submit == "slet" || $submit == "udskriv" || strstr($submit, "bogf") || $submit == "ny rykker" || $submit == "afslut" || $submit == "inkasso") {
-		$rykkerantal = if_isset($_POST['rykkerantal']);
-		$rykker_id = if_isset($_POST['rykker_id']);
-		$rykkerbox = if_isset($_POST['rykkerbox']);
-		if ($submit == "slet") {
-			for ($x = 1; $x <= $rykkerantal; $x++) {
-				if (isset($rykkerbox[$x]) && $rykkerbox[$x] == 'on') {
-					db_modify("delete from ordrelinjer where ordre_id=$rykker_id[$x]", __FILE__ . " linje " . __LINE__);
-					db_modify("delete from ordrer where id=$rykker_id[$x]", __FILE__ . " linje " . __LINE__);
-				}
-			}
-		} elseif ($submit == "udskriv" || $submit == "ny rykker" || $submit == "afslut" || $submit == "inkasso") {
-			$tmp = '';
-			$tmp2 = 0;
-			for ($x = 1; $x <= $rykkerantal; $x++) {
-				if ($rykkerbox[$x] == 'on') {
-					if ($tmp)
-						$tmp = $tmp . ";";
-					$tmp = $tmp . $rykker_id[$x];
-					$tmp2++;
-				}
-			}
-			if ($submit == "udskriv" && $tmp2 > 0)
-				print "<BODY onLoad=\"window.open('rykkerprint.php?rykker_id=$tmp&kontoantal=$tmp2','','$jsvars')\">";
-			elseif ($submit == "ny rykker" && $tmp2 > 0) {
-				print "<BODY onLoad=\"window.open('ny_rykker.php?rykker_id=$tmp&kontoantal=$tmp2','','$jsvars')\">";
-				$ny_rykker = 1;
-			} elseif ($submit == "afslut" && $tmp2 > 0) {
-				print "<BODY onLoad=\"window.open('afslut_rykker.php?rykker_id=$tmp&kontoantal=$tmp2','','$jsvars')\">";
-				$ny_rykker = 1;
-			} elseif ($submit == "inkasso" && $tmp2 > 0) {
-				echo "SASASA";
-				print "<META HTTP-EQUIV=\"refresh\" CONTENT=\"0; url=inkasso.php?rykker_id=$tmp&kontoantal=$tmp2\">";
-				#				print "<BODY \"onLoad=location.href='inkasso.php?rykker_id=$tmp&kontoantal=$tmp2'\">";
-				#				$ny_rykker=1;
-				exit;
-			}
-		} elseif (strstr($submit, "bogf")) {
-			for ($x = 1; $x <= $rykkerantal; $x++) {
-				if ($rykkerbox[$x] == 'on')
-					bogfor_rykker($rykker_id[$x]);
-			}
-		}
-		/*
-								  if (!strstr($dato_fra," ")) { 
-									  if ($md[$dato_fra]) $dato_fra=$regnaar." ".$md[$dato_fra];
-									  else $dato_fra=$regnaar." ".$dato_fra;
-									  if ($md[$dato_til]) $dato_til=$regnaar." ".$md[$dato_til];
-									  else $dato_til=$regnaar." ".$dato_til;
-								  }
-						  */
+		$rykkerantal = (int)ifset($_POST, 'rykkerantal', 0);
+		$rykker_id = if_array($_POST, 'rykker_id');
+		$rykkerbox = if_array($_POST, 'rykkerbox');
+		$ny_rykker = rapport_reminder_action($submit, $rykker_id, $rykkerbox, $rykkerantal, $jsvars, $sprog_id);
 		$submit = 'ok';
 	}
 	# echo "KF $konto_fra<br>";
@@ -443,8 +536,9 @@ if (isset($_POST['submit']) || $rapportart) {
 	#	$regnaar=$_GET['regnaar'];
 	$submit = $_GET['submit'] ?? NULL;
 	$returside = $_GET['returside'] ?? NULL;
-	if (($udlign = $_GET['udlign'])) {
-		autoudlign_liste($udlign);
+	if ($udlignListe !== '') {
+		autoudlign_liste($udlignListe);
+		$udlignListe = '';
 	}
 	unset($_GET['udlign']);
 } elseif (isset($_GET['kontonr'])) {
@@ -467,9 +561,10 @@ if (isset($_POST['submit']) || $rapportart) {
 #if ($dato_fra) $dato_fra=find_maaned_nr($dato_fra); 
 #if ($dato_til) $dato_til=find_maaned_nr($dato_til); 
 
-if (($udlign = if_isset($_GET['udlign']))) {
-	autoudlign_liste($udlign);
+if ($udlignListe !== '') {
+	autoudlign_liste($udlignListe);
 }
+unset($_GET['udlign']);
 if (strstr($rapportart, "ben post"))
 	$rapportart = "openpost";
 if (!isset($submit))
