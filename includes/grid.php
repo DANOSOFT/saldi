@@ -27,6 +27,10 @@ Regards:) 20260220 LOE
 // 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
 // 20260916 LOE SD-685: escape tabel_id in the column/filter setup UPDATEs (review follow-up).
 // 20260916 CDX/LH Reject unknown or malformed sort fields before building grid SQL.
+// 20260919 MJ Escape the request-derived values written into HTML attributes: the per-column
+//                  search term, sort, menu and offset all came straight from $_GET and were
+//                  interpolated unescaped. The search term is also persisted to
+//                  datatables.search_setup, so it was stored as well as reflected.
 // 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
 // 20260925 CL/NTR DEFAULT_GENERATE_SEARCH(): escape a text-column search term's own '%'/'_' via
 //                 the new db_escape_like_pattern() before wrapping it in ILIKE '%...%', so a lone
@@ -92,7 +96,11 @@ function DEFAULT_VALUE_GETTER($value, $row, $column) {
  * @return string The rendered HTML table cell.
  */
 function DEFAULT_CELL_RENDERE($value, $row, $column) {
-    return "<td align='{$column['align']}'>{$value}</td>";
+    // The stored per-user column setup supplies align, so it reaches this default
+    // renderer exactly as it reaches the header row and the column editor - and here it
+    // runs once per data row. Whitelisted rather than escaped: this sits inside
+    // align='...', where escaping alone still lets a value close the attribute.
+    return "<td align='" . grid_align($column['align'] ?? '') . "'>{$value}</td>";
 }
 
 /**
@@ -615,19 +623,6 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
 
 /**
- * SD-685: merges the code's column definitions with the user's stored column setup.
- *
- * The code defines which columns exist and what they are called, so a translated
- * headerName/description or a newly added column reaches every user. The stored row
- * only contributes the user's preferences, matched on the language-independent
- * 'field': row order, width, align, visibility, and the optional user texts
- * ("Valgfri overskrift"/"Valgfri beskrivelse") which override the code's text when set.
- *
- * @param array $setup The column setup stored in datatables.column_setup (decoded).
- * @param array $codeColumns All code-defined columns, including code-hidden ones.
- * @return array The columns to render, in the user's order.
- */
-/**
  * SD-685 review: every text the code itself can display for one column, so a
  * stored legacy header can be told apart from a personal rename without knowing
  * which language the row was saved in.
@@ -667,6 +662,40 @@ function grid_known_header_texts($column) {
 
     return array_values(array_unique(array_merge($known, $cache[$tekstId])));
 }
+/**
+ * Escapes a column-configuration value for HTML text or a single-quoted attribute.
+ *
+ * headerName and description are free text a user types in the kolonner editor, and
+ * save_column_setup() persists them per user in datatables.column_setup. They are echoed again on
+ * every later render of that grid, so an unescaped value is stored XSS, not merely reflected -
+ * and because this codebase carries no CSRF tokens, the save can be triggered on another logged-in
+ * user's behalf, which makes it attacker-reachable rather than self-inflicted.
+ *
+ * ENT_QUOTES because every attribute grid.php writes is single-quoted.
+ *
+ * @param mixed $value The stored value.
+ * @return string Safe for HTML text and for a single- or double-quoted attribute.
+ */
+function grid_html($value) {
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Reduces a stored column alignment to one of the three values the editor offers.
+ *
+ * align reaches the grid inside style='text-align: ...'. The editor renders it as a <select> of
+ * left/center/right, but nothing validates what is actually posted, and merge_column_setup() copies
+ * the stored value onto the column as-is. Escaping alone would still let a stored value inject
+ * further CSS declarations, so it is whitelisted instead: anything unrecognised falls back to left.
+ *
+ * @param mixed $align The stored alignment.
+ * @return string 'left', 'center' or 'right'.
+ */
+function grid_align($align) {
+    $align = strtolower(trim((string) $align));
+    return in_array($align, array('left', 'center', 'right'), true) ? $align : 'left';
+}
+
 /**
  * SD-685 review: does this stored setup predate the per-row 'visible' flag?
  *
@@ -768,6 +797,19 @@ function save_normalized_column_setup($id, array $setup, array $codeColumns, $st
     db_modify($qtxt, __FILE__ . " line " . __LINE__);
 }
 
+/**
+ * SD-685: merges the code's column definitions with the user's stored column setup.
+ *
+ * The code defines which columns exist and what they are called, so a translated
+ * headerName/description or a newly added column reaches every user. The stored row
+ * only contributes the user's preferences, matched on the language-independent
+ * 'field': row order, width, align, visibility, and the optional user texts
+ * ("Valgfri overskrift"/"Valgfri beskrivelse") which override the code's text when set.
+ *
+ * @param array $setup The column setup stored in datatables.column_setup (decoded).
+ * @param array $codeColumns All code-defined columns, including code-hidden ones.
+ * @return array The columns to render, in the user's order.
+ */
 function merge_column_setup(array $setup, array $codeColumns, $honourRemovedColumns = true) {
     $prefs = array();
     $order = array();
@@ -1212,11 +1254,15 @@ function calculate_total_width($columns) {
  */
 function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $metaColumnHeaders, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
     // Start table wrapper and form
+    // $sort and $menu are read from $_GET['sort'][$id] / $_GET['menu'][$id] and go straight into
+    // single-quoted attributes below; a heredoc cannot call functions, so escape them here.
+    $sortAttr = htmlspecialchars((string) $sort, ENT_QUOTES, 'UTF-8');
+    $menuAttr = htmlspecialchars((string) $menu, ENT_QUOTES, 'UTF-8');
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="GET" action="">
-            <input type="hidden" name='sort[{$id}]', value='$sort'>
-            <input type="hidden" name='menu[{$id}]', value='$menu'>
+            <input type="hidden" name='sort[{$id}]', value='$sortAttr'>
+            <input type="hidden" name='menu[{$id}]', value='$menuAttr'>
             <div class="datatable-search-wrapper">
                 <table class="datatable" id="datatable-$id" style="width: 100%;">
                     <thead>
@@ -1304,20 +1350,26 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     print "<tr>";
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
+        // The header and description a user typed in the kolonner editor are stored per user in
+        // datatables.column_setup and echoed back on every later view of the grid, so an unescaped
+        // value is stored XSS rather than a reflected one. align is a <select> in that editor but
+        // nothing validates what arrives, and it lands inside a style attribute.
+        $headerSafe = grid_html($column['headerName']);
+        $alignSafe  = grid_align($column['align']);
         if ($column["sortable"]) {
             $sort_dir = (isset($column['defaultSortDirection']) && $column['defaultSortDirection'] == 'desc') ? 'desc' : 'asc';
-            echo "<th 
-                class='$column[field] sortable-td' 
-                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
+            echo "<th
+                class='$column[field] sortable-td'
+                style='cursor: pointer; text-align: {$alignSafe}; width: {$width}%;'
                 onclick=\"setSort$id('$column[field]', '$sort_dir')\"
             >";
-            echo "<span class='sortable'>$column[headerName]</span>";
+            echo "<span class='sortable'>$headerSafe</span>";
         } else {
-            echo "<th class='$column[field]' style='text-align: {$column['align']}; width: {$width}%;'>";
-            echo "<span>$column[headerName]</span>";
+            echo "<th class='$column[field]' style='text-align: {$alignSafe}; width: {$width}%;'>";
+            echo "<span>$headerSafe</span>";
         }
         if ($column["description"]) {
-            echo "<br><span style='font-weight: normal;'>$column[description]</span>";
+            echo "<br><span style='font-weight: normal;'>" . grid_html($column['description']) . "</span>";
         }
         echo "</th>";
     }
@@ -1335,7 +1387,11 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
             $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
-            echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+            // The search term comes straight from $_GET['search'][$id][field] and is also persisted
+            // to datatables.search_setup, so an unescaped value is reflected AND stored. Escaped
+            // with ENT_QUOTES because the attribute is single-quoted.
+            $searchAttr = htmlspecialchars((string) $columnSearchTerm, ENT_QUOTES, 'UTF-8');
+            echo "<input class='inputbox' style='text-align: " . grid_align($column['align']) . "' type='text' name='search[$id][{$column['field']}]' value='$searchAttr' placeholder=''>";
         }
         echo "</th>";
     }
@@ -1480,11 +1536,13 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     global $sprog_id;
     $txt1 = lcfirst(findtekst('2767|Af', $sprog_id));
     $txt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+    // $offset is read from $_GET['offset'][$id] and never cast, so escape it before the heredoc.
+    $offsetAttr = htmlspecialchars((string) $offset, ENT_QUOTES, 'UTF-8');
 
     echo <<<HTML
             <tr>
                 <td colspan=100>
-                    <input type='hidden' name="offset[$id]" value="$offset" size='4'>
+                    <input type='hidden' name="offset[$id]" value="$offsetAttr" size='4'>
                     <div id='footer-box'>
                         <span style='display: flex' id='page-status'>
                             $offsetFrom-$offsetTo&nbsp;{$txt1}&nbsp;$totalItems
@@ -1701,6 +1759,13 @@ function render_columns($id, $columns, $all_columns, $hidden_columns = array()) 
                 break;
             }
         }
+        // The stored per-user texts are echoed straight back into value='...' here, so the
+        // kolonner editor is a second sink for the same stored XSS as the header row.
+        $customHeaderSafe      = grid_html($column['customHeaderName']);
+        $customDescriptionSafe = grid_html($column['customDescription']);
+        $codeHeaderSafe        = grid_html($codeHeader);
+        $codeDescriptionSafe   = grid_html($codeDescription);
+        $alignSafe             = grid_align($column['align']);
         echo <<<HTML
             <tr>
                 <td>
@@ -1727,17 +1792,17 @@ function render_columns($id, $columns, $all_columns, $hidden_columns = array()) 
                     </select>
                 </td>
                 <td>
-                    <input type='text' name='rows[$id][$i][customHeaderName]' value='{$column['customHeaderName']}' placeholder='{$codeHeader}' class="inputbox">
+                    <input type='text' name='rows[$id][$i][customHeaderName]' value='{$customHeaderSafe}' placeholder='{$codeHeaderSafe}' class="inputbox">
                 </td>
                 <td>
-                    <input type='text' name='rows[$id][$i][customDescription]' value='{$column['customDescription']}' placeholder='{$codeDescription}' class="inputbox">
+                    <input type='text' name='rows[$id][$i][customDescription]' value='{$customDescriptionSafe}' placeholder='{$codeDescriptionSafe}' class="inputbox">
                 </td>
                 <td align='right'>
                     <input type='number' name='rows[$id][$i][width]' value='{$width}' size='{$widthstyle}' class="inputbox" onchange="this.size = this.value*0.15;">
                 </td>
                 <td align='left'>
                     <select name='rows[$id][$i][align]' class="inputbox">
-                        <option value='$column[align]'>$column[align]</option>
+                        <option value='{$alignSafe}'>{$alignSafe}</option>
                         <option value='left'>left</option>
                         <option value='center'>center</option>
                         <option value='right'>right</option>

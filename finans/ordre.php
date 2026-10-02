@@ -17,7 +17,26 @@
 // Copyright (c) 2004-2010 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
+// 20260908 SZ SST-755: popup close/beacon now releases the lock properly (was missing
+// id/tabel params entirely, and there was no unload beacon at all).
+// 20260910 SZ SST-755 (CodeRabbit): the unload beacon now checks sendBeacon()'s return value
+// before treating the lock as released, falling back to the sync XHR when it fails.
 // 20260911 CDX/MJ JOB-106 Approval guard validates the effective order type (see debitor/ordre.php).
+// 20260923 SZ SST-755 (CodeRabbit): returside and the unload beacon now carry a per-render
+// lockToken instead of tidspkt, since tidspkt alone didn't distinguish two tabs open on the
+// same order before either one saved.
+// 20260924 SZ SST-755 (CodeRabbit): refresh_lock_token() now also requires the observed
+// tidspkt, so a stale render can't overwrite a token a concurrent tidspkt change has since
+// replaced. Also rebuild $returside again once the order is fully created (see the second
+// popup-lock block below): a new order's id is 0 here, so this first attempt is a no-op for
+// that case, and $returside used to keep pointing at plain luk.php with no id/lockToken at
+// all, meaning the popup close link for a brand new order could never actually release it.
+// 20260924 SZ SST-755: that rebuild block was silently never running - ordreside() reads
+// $popup and $sessionLockToken without declaring them global, so both were undefined inside
+// the function and the "if ($popup && $id)" check was always false. Found only by driving a
+// real popup order creation through the actual page instead of re-checking the extracted
+// block in isolation; the isolated check couldn't have caught this since it doesn't reproduce
+// ordreside()'s own scope.
 
 @session_start();
 $s_id=session_id();
@@ -54,11 +73,13 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
 
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 $tidspkt=date("U");
 	
 $returside=if_isset($_GET['returside']);
+$id=if_isset($_GET['id']);
 if ($popup) $returside="../includes/luk.php";
 
 if ($tjek=if_isset($_GET['tjek'])){
@@ -72,7 +93,26 @@ if ($tjek=if_isset($_GET['tjek'])){
 		db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);}
 	}
 }
-	
+
+// 20260908 SZ SST-755: this popup's Luk/close/beacon must carry id, tabel and the row's
+// *current* DB tidspkt (read fresh, not the request's own "now" value - prev/next navigation
+// re-renders without re-acquiring) so a stale tab's release can't clobber a lock a newer tab
+// has since acquired. $lockTidspkt is also reused for the unload beacon further down.
+// 20260923 SZ SST-755 (CodeRabbit): returside now carries &lockToken instead of &tidspkt.
+// $sessionLockToken is one random value per render, reused below for the unload beacon too
+// (via refresh_lock_token()), so a second tab on the same order that hasn't saved anything
+// yet (and so still shares this tab's tidspkt) no longer shares a valid release credential.
+$sessionLockToken = bin2hex(random_bytes(16));
+$lockTidspkt = NULL;
+if ($popup && $id) {
+	$lockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
+		$lockTidspkt = $lockRow['tidspkt'];
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $sessionLockToken, $lockTidspkt);
+		$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken) . "&tidspkt=" . urlencode($lockTidspkt);
+	}
+}
+
 $q = db_SELECT("select box4,box9 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__);
 $r=db_fetch_array($q); 
 
@@ -85,7 +125,6 @@ $incl_moms = $vatPrivateCustomers; // Default to private customer setting
 $hurtigfakt=$r['box4'];
 $negativt_lager=$r['box9'];
 
-$id=if_isset($_GET['id']);
 $sort=if_isset($_GET['sort']);
 $fokus=if_isset($_GET['fokus']);
 $submit=if_isset($_GET['funktion']);
@@ -789,7 +828,9 @@ function ordreside($id,$regnskab)
 	global $incl_moms;
 	global $returside;
 	global $oioxml;
-	
+	global $popup;
+	global $sessionLockToken;
+
 	if (!$returside) {
 		if ($popup) $returside="../includes/luk.php";
 		else $returside="ordreliste.php";
@@ -875,7 +916,22 @@ function ordreside($id,$regnskab)
 		$r=db_fetch_array(db_select("select ansatte.navn as ref from ansatte,brugere where ansatte.id = ".nr_cast("brugere.ansat_id")." and brugere.brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
 		$ref=$r['ref'];
 	}
-	
+
+	// 20260924 SZ SST-755 (CodeRabbit): a new order's $id was 0 the first time this popup-lock
+	// block ran (near the top of this file), so $returside was left pointing at plain
+	// includes/luk.php with no id/tabel/lockToken - a popup opened for a brand new order could
+	// never actually release its lock. $id is stable by this point (this whole file's other
+	// $id reassignments all happen earlier), so rebuild $returside now, before sidehoved()
+	// renders the close control that prints it.
+	if ($popup && $id) {
+		$lockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+		if ($lockRow && $lockRow['tidspkt'] !== '' && $lockRow['tidspkt'] !== null) {
+			$lockTidspkt = $lockRow['tidspkt'];
+			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sessionLockToken, $lockTidspkt);
+			$returside = "../includes/luk.php?id=" . (int)$id . "&tabel=ordrer&lockToken=" . urlencode($sessionLockToken) . "&tidspkt=" . urlencode($lockTidspkt);
+		}
+	}
+
 ######### pile ########## tilfoejet 20080210
 		if ($status==0) $tmp="tilbud";
 		elseif($status>=3) $tmp="faktura";
@@ -1939,6 +1995,57 @@ if ($fokus) {
 	document.ordre.<?php echo $fokus?>.focus();
 	</script>
 	<?php
+}
+// 20260908 SZ SST-755: finansbilag had no unload/pagehide release at all (unlike kreditor and
+// debitor). Re-read the lock fresh here (not the early $lockTidspkt) since $id can change later
+// in this script (POST-created order, etc.) - the beacon must reference whatever is actually
+// locked by the time the page finishes rendering, not what was locked at request start.
+// 20260923 SZ SST-755 (CodeRabbit): beacon now sends lockToken instead of tidspkt, reusing the
+// same $sessionLockToken minted above (and re-stamping it here too, in case $id changed since
+// then) - see the exit-link block earlier in this file for why.
+$beaconLockToken = NULL;
+if ($id) {
+	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
+		$beaconLockToken = $sessionLockToken;
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken, $beaconRow['tidspkt']);
+	}
+}
+if ($beaconLockToken) {
+?>
+<script>
+let isSubmittingFinansOrdre = false;
+document.addEventListener("DOMContentLoaded", function () {
+    const forms = document.querySelectorAll("form");
+    forms.forEach(function (form) {
+        form.addEventListener("submit", function () { isSubmittingFinansOrdre = true; });
+    });
+});
+function unlockFinansOrdreBeacon(evtName) {
+    if (!isSubmittingFinansOrdre && !window.finansOrdreUnlocked) {
+        let data = new URLSearchParams();
+        data.append("table", "ordrer");
+        data.append("id", "<?php echo (int)$id; ?>");
+        data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconRow['tidspkt'], ENT_QUOTES); ?>");
+        data.append("event", evtName);
+        // sendBeacon() can return false (queue full/rejected) without sending anything - only
+        // treat the lock as released, and skip the sync XHR fallback, once one of the two has
+        // actually gone out (CodeRabbit).
+        let queued = navigator.sendBeacon && navigator.sendBeacon("../includes/unlock_order.php", data);
+        if (!queued) {
+            let xhr = new XMLHttpRequest();
+            xhr.open('POST', '../includes/unlock_order.php', false);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.send(data.toString());
+        }
+        window.finansOrdreUnlocked = true;
+    }
+}
+window.addEventListener("beforeunload", function() { unlockFinansOrdreBeacon('beforeunload'); });
+window.addEventListener("pagehide", function() { unlockFinansOrdreBeacon('pagehide'); });
+</script>
+<?php
 }
 ?>
 </tbody></table>
