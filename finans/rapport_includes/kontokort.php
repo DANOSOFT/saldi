@@ -250,9 +250,14 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	// SST-809 One title for both the screen heading and the print footer. They were
 	// separate - a hard-coded Danish heading and a findtekst() footer - so on any other
 	// language the printout disagreed with the screen it was printed from.
-	$rapportTitel = $simulering
+	// Escaped here, once, rather than at each of the three places it is printed - the
+	// two screen headings and the print footer. Only findtekst ids 133 and 2175 ever
+	// reach it, so this is consistency rather than a live hole, but having one of the
+	// three escaped and two not is the kind of difference that stops being harmless
+	// the moment a fourth caller copies the wrong one.
+	$rapportTitel = htmlspecialchars($simulering
 		? findtekst('2175|Simuleret kontokort', $sprog_id)
-		: findtekst('133|Kontokort', $sprog_id);
+		: findtekst('133|Kontokort', $sprog_id), ENT_QUOTES, 'UTF-8');
 	$titUdskriv = htmlspecialchars(findtekst('5325|Udskriv alle linjer', $sprog_id), ENT_QUOTES, 'UTF-8');
 
 	if ($menu == 'T') {
@@ -593,6 +598,7 @@ print "<tbody>";
 			if ($lagerbev && $aut_lager && (in_array($kontonr[$x], $varekob) || in_array($kontonr[$x], $varelager_i) || in_array($kontonr[$x], $varelager_u))) {
 				$z = 0;
 				$lager = array();
+				$kld = $tvl = $tks = array();
 				$gruppe = array();
 				$q = db_select("select kodenr,box1,box2 from grupper where art = 'VG' and box8 = 'on' and (box1 = '$kontonr[$x]' or box2 = '$kontonr[$x]' or box3 = '$kontonr[$x]' or box11 = '$kontonr[$x]' or box13 = '$kontonr[$x]')", __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
@@ -759,6 +765,13 @@ print "<tbody>";
 						$besk[$y] = $beskrivelse[$tr];
 						$deb[$y] = $debet[$tr];
 						$kre[$y] = $kredit[$tr];
+						// SST-809 review: these three move with the row. Rebuilding only the five
+						// above left them on their pre-merge positions, so a posting showed another
+						// row's kassekladde link and a currency account would have converted at
+						// another row's rate.
+						$kld[$y] = $kladde_id[$tr] ?? null;
+						$tvl[$y] = $transvaluta[$tr] ?? null;
+						$tks[$y] = $transkurs[$tr] ?? 100;
 						$tr++;
 						$y++;
 					}
@@ -768,6 +781,9 @@ print "<tbody>";
 						$besk[$y] = "lagertransaktion - Køb  F: $kobsfakt[$kd]";
 						$deb[$y] = $kobsdebet[$kd];
 						$kre[$y] = $kobskredit[$kd];
+						$kld[$y] = null;
+						$tvl[$y] = null;
+						$tks[$y] = 100;
 						$kd++;
 						$y++;
 					}
@@ -777,6 +793,9 @@ print "<tbody>";
 						$besk[$y] = "lagertransaktion - Salg  F: $salgsfakt[$sd]";
 						$deb[$y] = $salgsdebet[$sd];
 						$kre[$y] = $salgskredit[$sd];
+						$kld[$y] = null;
+						$tvl[$y] = null;
+						$tks[$y] = 100;
 						$sd++;
 						$y++;
 					}
@@ -804,6 +823,9 @@ print "<tbody>";
 					$beskrivelse[$y] = $besk[$y];
 					$debet[$y] = $deb[$y];
 					$kredit[$y] = $kre[$y];
+					$kladde_id[$y] = $kld[$y];
+					$transvaluta[$y] = $tvl[$y];
+					$transkurs[$y] = $tks[$y];
 				}
 			}
 			$sim_transdate = array();
@@ -1049,7 +1071,7 @@ print "<tbody>";
 	// was also clipped when the printout broke across pages. A tfoot is repeated
 	// by the browser on every printed page, in full, which a fixed element
 	// cannot be. It is hidden on screen, where the pagination bar does the job.
-	$tmp = htmlspecialchars($rapportTitel, ENT_QUOTES, 'UTF-8');
+	$tmp = $rapportTitel;
 	print "<tfoot class=\"kontokort-printfoot\">";
 	print "<tr><td colspan=6>";
 	print "<b>" . htmlspecialchars((string) $firmanavn, ENT_QUOTES, 'UTF-8') . "</b>";

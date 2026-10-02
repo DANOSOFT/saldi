@@ -222,14 +222,20 @@ function sst809_seed()
         // activity but no line worth printing. It must still show its header
         // and Primosaldo.
         array(8, 1300, 301, '2026-08-01', 'Nulpostering',   0.0, 0.0),
-        // 1400: one real row; Lagerbevaegelser adds a synthetic one in March.
-        array(9, 1400, 401, '2026-09-01', 'Varekoeb',     900.0, 0.0),
+        // 1400: two real rows with distinct kassekladde links, one before and one after
+        // the synthetic March stock row that Lagerbevaegelser inserts between them. The
+        // merge rebuilds the amount columns in date order, and used to leave kladde_id,
+        // valuta and valutakurs on their pre-merge positions - so the September row showed
+        // the February row's kladde link and the synthetic row picked one up although it
+        // has none. One row could never show this; two straddling the insert can.
+        array(9,  1400, 401, '2026-02-01', 'Varekoeb februar',  400.0, 0.0, '', 100.0, 90008),
+        array(10, 1400, 402, '2026-09-01', 'Varekoeb september', 500.0, 0.0, '', 100.0, 90009),
     );
     foreach ($tx as $t) {
         $pdo->exec("insert into transaktioner (id, kontonr, bilag, transdate, beskrivelse, debet,
                                                kredit, kladde_id, valuta, valutakurs, pos)
                     values ({$t[0]}, {$t[1]}, {$t[2]}, '{$t[3]}', '{$t[4]}', {$t[5]}, {$t[6]},
-                            0, '" . (isset($t[7]) ? $t[7] : '') . "', " . (isset($t[8]) ? $t[8] : 100.0) . ", 0)");
+                            " . (isset($t[9]) ? $t[9] : 0) . ", '" . (isset($t[7]) ? $t[7] : '') . "', " . (isset($t[8]) ? $t[8] : 100.0) . ", 0)");
     }
 
     $sim = array(
@@ -509,6 +515,43 @@ foreach ($modes as $label => $opt) {
     }
     check_same(0, $zero_rendered,
         "[$label] a row with debet and kredit both zero is not rendered");
+
+    // (7) Every row must carry its own kassekladde link. The link is an attribute, so it
+    //     is read from the raw HTML rather than the parsed cells. Account 1400 has two real
+    //     postings with distinct links; with Lagerbevaegelser on, the synthetic stock row
+    //     sits between them, and the merge used to leave kladde_id on its pre-merge
+    //     position - the September row showed February's link and the synthetic row, which
+    //     has none, showed September's.
+    $fullHtml = sst809_render(1, $BIG, $sim, $lager);
+    if (preg_match_all("#<td title='Kladde: ([^']*)'#", $fullHtml, $km)) {
+        $links = $km[1];
+        // Simulated rows carry their own link too, so assert on 1400's two specifically:
+        // each must appear exactly once - not zero times, and not on a second row as well.
+        check_same(1, count(array_keys($links, '90008', true)),
+            "[$label] the February row's kassekladde link is rendered exactly once");
+        check_same(1, count(array_keys($links, '90009', true)),
+            "[$label] the September row's kassekladde link is rendered exactly once");
+    } else {
+        check(false, "[$label] no kassekladde links found in the render");
+    }
+
+    if ($lager) {
+        // The three rows of account 1400 in merged order: February (90008), the synthetic
+        // stock row (no link), September (90009). Asserting the sequence rather than just
+        // the presence of each link, because the misalignment this covers kept both links
+        // present and merely moved them onto the wrong rows - the synthetic row took
+        // September's and September was left blank.
+        preg_match_all("#<td title='Kladde: ([^']*)'#", $fullHtml, $km2);
+        $all = $km2[1];
+        $i8 = array_search('90008', $all, true);
+        check($i8 !== false, "[$label] the February row's kassekladde link is present");
+        if ($i8 !== false) {
+            $seq = array_slice($all, $i8, 3);
+            $seq = array_map(function ($v) { return ($v === '0') ? '' : $v; }, $seq);
+            check_same(array('90008', '', '90009'), $seq,
+                "[$label] February keeps its link, the synthetic row has none, September keeps its own");
+        }
+    }
 
     // (6) The conversion branch. SST-769 made a rate adjustment (valuta = -1) print its DKK
     //     figure, labelled, instead of 0,00 - and this report now reads every value from one
