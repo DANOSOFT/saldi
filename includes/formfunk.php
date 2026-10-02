@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-30 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -74,6 +74,9 @@
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
 // 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
 // 20260930 CDX/PHR Fit descriptions using actual font and neighbouring field widths; share wrapping with page preflight.
+// 20261001 MJ SST-819 kontoprint(): printing a range of accounts printed only the first one.
+//             The branch test compared konto_fra with itself, so the range query was dead code and
+//             konto_til was ignored. The revived query also treats a NULL lukket as open.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -2925,13 +2928,33 @@ if (!function_exists('kontoprint')) {
 			$konto_til = '9999999999';
 		if (!$konto_fra)
 			$konto_fra = '1';
+		// SST-819 review: the loop below assigns these only inside its while, so a selection
+		// matching nothing left them undefined and count($konto_id) threw a TypeError on PHP
+		// 8. Reachable before this change with a nonexistent account number, and now also
+		// with a range that contains only closed accounts.
+		$konto_id = array();
 		$x = 0;
 		if (is_numeric($konto_fra)) {
 			#20161124
-			if ($konto_fra != $konto_fra)
-				$qtxt = "select id from adresser where kontonr>='$konto_fra' and kontonr<='$konto_til' and art = '$kontoart' and lukket != 'on'";
-			else
+			// SST-819 This compared $konto_fra with itself, so it was never true and the range
+			// branch below was unreachable: printing a span of accounts silently printed only
+			// the one in konto_fra and ignored konto_til. The 2016 note beside it says the
+			// intent was "if konto_fra = konto_til, search specifically on kontonr", so the
+			// comparison is against konto_til.
+			// lukket is '' on most rows but NULL on others, and NULL != 'on' is NULL, not true -
+			// which would have dropped those accounts from a range print instead.
+			if ($konto_fra != $konto_til) {
+				// is_numeric() above constrains konto_fra but nothing constrains konto_til or
+				// kontoart, and both arrive from $_GET via debitor/kontoprint.php. While this
+				// branch was dead that did not reach the database; enabling it, it does, so
+				// escape them here.
+				$konto_fra_esc = db_escape_string($konto_fra);
+				$konto_til_esc = db_escape_string($konto_til);
+				$kontoart_esc  = db_escape_string($kontoart);
+				$qtxt = "select id,gruppe from adresser where kontonr>='$konto_fra_esc' and kontonr<='$konto_til_esc' and art = '$kontoart_esc' and (lukket is null or lukket != 'on')";
+			} else {
 				$qtxt = "select id,gruppe from adresser where kontonr='$konto_fra' and art = '$kontoart'";
+			}
 		} elseif ($konto_fra && $konto_fra != '*') {
 			$konto_fra = str_beskrivelsreplace("*", "%", $konto_fra);
 			$tmp1 = strtolower($konto_fra);
@@ -3202,21 +3225,25 @@ if (!function_exists('kontoprint')) {
 				$exec_path = "/usr/bin";
 			#	$qtxt="select * from formularer where formular = '11' and art = '5' and sprog='Dansk' order by xa,id";
 			#	$r=db_fetch_array(db_select($qtxt",__FILE__ . " linje " . __LINE__));
-			for ($x = 1; $x <= $mailantal; $x++) {
-				#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
-				system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");
-				if (file_exists($pdftk) && file_exists("../logolib/$db_id/bg.pdf")) {
-					$out = $printfilnavn . "x.pdf";
-					system("$pdftk $printfilnavn.pdf background ../logolib/$db_id/bg.pdf output $out");
-					if (file_exists("$printfilnavn.pdf"))
-						unlink("$printfilnavn.pdf");
-					system("mv $out $printfilnavn.pdf");
-					#		} else {
-					#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
-					#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
-				}
-				send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
+			// SST-819 review: this ran once per account. $printfilnavn is a single document
+			// holding every selected account's statement, and nothing below varies with the
+			// counter, so a range of N accounts converted and emailed the same combined PDF N
+			// times. Harmless while the range branch was dead and only ever yielded one
+			// account; a visible regression once it works. Send it once.
+
+			#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
+			system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");
+			if (file_exists($pdftk) && file_exists("../logolib/$db_id/bg.pdf")) {
+				$out = $printfilnavn . "x.pdf";
+				system("$pdftk $printfilnavn.pdf background ../logolib/$db_id/bg.pdf output $out");
+				if (file_exists("$printfilnavn.pdf"))
+					unlink("$printfilnavn.pdf");
+				system("mv $out $printfilnavn.pdf");
+				#		} else {
+				#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
+				#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
 			}
+			send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
 		}
 		if ($nomailantal > 0) {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$printfilnavn&udskriv_til=PDF&udskrift=kontokort\">";
