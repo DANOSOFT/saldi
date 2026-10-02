@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.09.29 ---
+// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,6 +125,7 @@
 // 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
 // 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
+// 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -747,6 +748,7 @@ function personlige_valg() {
 
 function div_valg() {
 	global $bgcolor, $bgcolor5;
+	global $csrf_token;
 	global $docubizz;
 	global $regnaar;
 	global $sprog_id;
@@ -1735,12 +1737,23 @@ function removeDfmPickup(idx) {
             method: 'post',
             headers: {
               'Content-Type': 'application/json',
+              'X-CSRF-Token': " . json_encode($csrf_token) . ",
             },
             body: JSON.stringify({
               'id': id
             }),
           }
         )
+        var svar = null;
+        try {
+          svar = await res.json();
+        } catch (fejl) {
+          svar = null;
+        }
+        if (!res.ok || !svar || !svar.success) {
+          alert('" . findtekst('3405|Ugyldig eller udløbet formular - genindlæs siden og prøv igen', $sprog_id) . "');
+          return;
+        }
         location.reload();
       }
 
