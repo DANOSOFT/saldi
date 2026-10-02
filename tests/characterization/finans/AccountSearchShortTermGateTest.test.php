@@ -191,6 +191,72 @@ final class AccountSearchShortTermGateTest extends TestCase
     }
 
     /**
+     * Only the account field gained a minimum. The other field types query small tables and
+     * listed their options when the field was focused empty; review of #691 caught that
+     * sending them through the account minimum silently took that away.
+     */
+    public function testOnlyTheAccountFieldGainedAMinimum(): void
+    {
+        foreach (['ordreAutocomplete.js', 'kreditorOrdreAutocomplete.js'] as $label) {
+            $src = file_get_contents(self::clients()[$label]);
+
+            $helper = strpos($src, 'function minLengthFor(');
+            self::assertNotFalse($helper, "$label lost its shared length helper");
+            $body = substr($src, $helper, 900);
+
+            self::assertStringContainsString("if (type === 'customer') return CONFIG.minAccountSearchLength;", $body,
+                "$label no longer holds the account field to the endpoint's minimum");
+            self::assertStringContainsString("if (type === 'item') return CONFIG.minSearchLength;", $body,
+                "$label changed the item field's own pre-existing minimum");
+            // Everything else: zero, so an empty focus still lists options as it did before.
+            self::assertMatchesRegularExpression('/
+\s*return 0;/', $body,
+                "$label gates the remaining field types, which stops them listing on empty focus");
+        }
+    }
+
+    /**
+     * A response that arrives for a value the field no longer holds must not be painted.
+     *
+     * The race predates this ticket, but the new minimum made it persistent instead of
+     * self-correcting: a value dropping below the minimum sends no further request, so
+     * nothing arrives afterwards to replace a stale dropdown.
+     */
+    #[DataProvider('clientFiles')]
+    public function testEachClientDropsStaleSearchResponses(string $label, string $path): void
+    {
+        $src = file_get_contents($path);
+        self::assertNotFalse($src, "could not read $label");
+
+        self::assertStringContainsString('let searchSeq = 0;', $src,
+            "$label has no request token, so a slow response can paint stale rows");
+
+        $captures = substr_count($src, 'const seq = searchSeq;');
+        $guards = substr_count($src, 'if (seq !== searchSeq) return;');
+        $bumps = substr_count($src, 'searchSeq++;');
+        $dispatches = substr_count($src, 'debounceTimer = setTimeout(');
+
+        self::assertGreaterThan(0, $captures,
+            "$label does not capture the token with the request");
+
+        // Both arms of every guarded request: a stale failure must not close the dropdown
+        // that a newer request has already filled, any more than a stale success may fill it.
+        self::assertSame(2 * $captures, $guards,
+            "$label leaves an arm of a search response unguarded ($guards guards for $captures requests, expected " . (2 * $captures) . ")");
+
+        // Every debounced search entry point has to advance the token, or a keystroke it
+        // handles leaves an older in-flight response free to land.
+        self::assertSame($dispatches, $bumps,
+            "$label has $dispatches debounced searches but only $bumps advance the token");
+
+        // The token advances on input, before the request captures it - not after. These
+        // files hold other, unrelated fetches, so this compares against the capture point
+        // rather than the first fetch in the file.
+        self::assertLessThan(strpos($src, 'const seq = searchSeq;'), strpos($src, 'searchSeq++;'),
+            "$label advances the token only after dispatching, which leaves the race open");
+    }
+
+    /**
      * The two order-form clients gate every field type through one helper, so the account
      * field cannot be the only one left ungated - which is how the original defect arose.
      */
