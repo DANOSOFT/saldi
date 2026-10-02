@@ -74,6 +74,13 @@
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
 // 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
 // 20260930 CDX/PHR Fit descriptions using actual font and neighbouring field widths; share wrapping with page preflight.
+// 20261001 MJ SST-784 Wrap the remaining print text by characters, not bytes. wordwrap() counts
+//                  bytes, so on UTF-8 every ae/oe/aa spent two of the column budget and a Danish
+//                  line broke early by its number of non-ASCII characters. The order-line
+//                  description is no longer among them: formWrapDescription() above measures
+//                  characters and real font width, which supersedes this. What is left are the
+//                  three sites it does not cover - the description fallback used by the tekster
+//                  path, the lokation suffix and the varenr column.
 // 20261001 MJ SST-819 kontoprint(): printing a range of accounts printed only the first one.
 //             The branch test compared konto_fra with itself, so the range query was dead code and
 //             konto_til was ignored. The revived query also treats a NULL lukket as open.
@@ -85,6 +92,7 @@
 require_once __DIR__ . '/formFuncIncludes/htmlStyle.php';
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 require_once __DIR__ . '/formFuncIncludes/descriptionLayout.php';
+include_once(__DIR__ . "/stdFunc/mbWordwrap.php");
 
 if (!function_exists('skriv')) {
 	function skriv($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $formular, $line)
@@ -440,7 +448,7 @@ if (!function_exists('ombryd')) {
 			$lokation = $parts[1] ?? NULL;
 			$vare_note = $parts[2] ?? NULL;
 		}
-		$tekst = $wrappedDescription !== null ? $wrappedDescription : wordwrap($tekst, $laengde, "\n", true);
+		$tekst = $wrappedDescription !== null ? $wrappedDescription : mb_wordwrap($tekst, $laengde, "\n", true);
 		$nytekst = "";
 		if (strstr($tekstinfo, 'ordrelinjer')) {
 			list($tmp, $Opkt) = explode("_", $tekstinfo);
@@ -470,7 +478,7 @@ if (!function_exists('ombryd')) {
 			$y = skriv($id, $str, $fed, $italic, $color, $nytekst, $tekstinfo, $x, $y, $format, $form_font, $formular, __LINE__);
 		}
 		if ($lokation) {
-			$lokation = wordwrap($lokation, $laengde, "\n", true);
+			$lokation = mb_wordwrap($lokation, $laengde, "\n", true);
 			$lok_lines = explode("\n", $lokation);
 			foreach ($lok_lines as $lok_line) {
 				$lok_line = trim($lok_line);
@@ -2230,7 +2238,7 @@ if (!function_exists('formularprint')) {
 									: 0;
 								$vn_wrap = max((int)$laengde[$z], $vn_span);
 								if ($vn_wrap > 0 && mb_strlen($varenr[$x]) > $vn_wrap) {
-									$vn_wrapped = explode("\n", wordwrap($varenr[$x], $vn_wrap, "\n", true));
+									$vn_wrapped = explode("\n", mb_wordwrap($varenr[$x], $vn_wrap, "\n", true));
 								} else {
 									$vn_wrapped = [$varenr[$x]]; 
 								}
