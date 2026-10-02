@@ -21,12 +21,25 @@
     // on every keystroke - and on an empty field, which asked adresser for the first 50
     // of every debtor on the books.
     function minLengthFor(type) {
-        return type === 'customer' ? CONFIG.minAccountSearchLength : CONFIG.minSearchLength;
+        // customer searches adresser, which accountSearch.php now refuses below three
+        // characters because a trigram index cannot match a shorter term.
+        if (type === 'customer') return CONFIG.minAccountSearchLength;
+        // item had its own one-character minimum before this ticket; it keeps it.
+        if (type === 'item') return CONFIG.minSearchLength;
+        // Everything else - currency, project, employee - queries a small table and listed
+        // its options when the field was focused empty. Review of #691 caught that sending
+        // these through the customer gate silently took that away, which was never the
+        // intent of the ticket: only the adresser lookup was supposed to change.
+        return 0;
     }
 
     let activeDropdown = null;
     let activeInput = null;
     let debounceTimer = null;
+    // Bumped on every keystroke, including one that the length gate refuses. A response
+    // that comes back carrying an older number is for a value the field no longer holds,
+    // so it is dropped rather than painted over the current state.
+    let searchSeq = 0;
     let dropdownContainer = null;
     let selectionMade = false;
 
@@ -150,6 +163,7 @@
 
     function handleInput(input) {
         clearTimeout(debounceTimer);
+        searchSeq++;
         const value = input.value.trim();
 
         if (value.length < minLengthFor(input.autocompleteType)) {
@@ -195,12 +209,15 @@
                 break;
         }
 
+        const seq = searchSeq;
         fetch(url)
             .then(response => response.json())
             .then(data => {
+                if (seq !== searchSeq) return;
                 renderDropdown(input, data.results);
             })
             .catch(error => {
+                if (seq !== searchSeq) return;
                 console.error('Search error:', error);
                 closeDropdown();
             });
