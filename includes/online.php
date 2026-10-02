@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 5.0.0 --- 2026-09-24---
+// --- includes/online.php --- ver 5.0.0 --- 2026-10-02---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -65,6 +65,7 @@
 // 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
+// 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -387,6 +388,8 @@ if ($header != 'nix') {
 	// print '<meta name="google" content="notranslate">';
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
+	// Before the stylesheets and other scripts, so scanner keystrokes that arrive while the page loads are kept (SST-812).
+	if ($title == 'POS Ordre') print "<script type=\"text/javascript\">" . file_get_contents(__DIR__ . '/../javascript/posScanBuffer.js') . "</script>\n";
 	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
 	else      print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldimenu.css\"/>\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saft.css\"/>\n";
