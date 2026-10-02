@@ -1,5 +1,6 @@
 // 20260908 CDX/LH Exercise the actual settlement-page JavaScript with an isolated DOM and transport.
 // 20260911 Sawaneh Cover the payment ID column in the candidate list.
+// 20260923 CL/SZ Add the T (findtekst()) fixture the page now passes alongside the others.
 // Run: node tests/test_auto_settlement_ui.mjs
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -8,7 +9,22 @@ import vm from 'node:vm';
 const page = fs.readFileSync(new URL('../finans/autoudlign.php', import.meta.url), 'utf8');
 let script = page.match(/<script>\s*(\(function \(\) \{[\s\S]*?\}\)\(\);)\s*<\/script>/)[1];
 const values = {KLADDE_ID:99, ENTRY_ID:1, TOKEN:'fixture-session', SNAPSHOT:'fixture-snapshot', AMOUNT:500,
-  BESKRIVELSE:'invoice payment', BRUGT:[], HINT_TOKENS:[], SKIPPED:0, SETTLED:0};
+  BESKRIVELSE:'invoice payment', BRUGT:[], HINT_TOKENS:[], SKIPPED:0, SETTLED:0,
+  T:{chooseAccountFirst:'Choose a customer or supplier to see their open entries.',
+    errorLoading:'Error loading results. Please try again.', noMatches:'No open entries match.',
+    saveFailed:'The journal could not be saved.', searching:'Searching…', saving:'Saving…',
+    settle:'Settle', showing:'Showing', of:'of', bestMatches:'Best matches',
+    otherOpenEntries:'Other open entries', noneSelected:'None selected — use ↑↓ or click to choose',
+    invoiceLabel:'Invoice'}};
+// 20260923 CL/SZ (CodeRabbit): assert the PHP $uiText keys against the T fixture above -
+// without this, a missing/renamed key in PHP would leave the fixture's extra key silently
+// covering for it and the test would keep passing with an incomplete real T object.
+const uiTextSource = page.match(/\$uiText\s*=\s*\[([\s\S]*?)\];/)?.[1];
+assert.ok(uiTextSource, 'Missing PHP $uiText map');
+const phpTKeys = [...uiTextSource.matchAll(/['"]([^'"]+)['"]\s*=>\s*findtekst\(/g)]
+  .map(([, key]) => key)
+  .sort();
+assert.deepEqual(phpTKeys, Object.keys(values.T).sort(), 'PHP T keys differ from fixture');
 script = script.replace(/(const|let)\s+(\w+)\s*=\s*<\?= .*? \?>;/g, (_,kind,name) => {
   assert.ok(Object.hasOwn(values, name), `Missing PHP fixture for ${name}`);
   return `${kind} ${name} = ${JSON.stringify(values[name])};`;
