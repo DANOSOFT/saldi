@@ -68,6 +68,7 @@
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
 // 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
+// 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
 
 @session_start();
 $s_id = session_id();
@@ -538,6 +539,7 @@ if ($menu == 'T') include_once 'ordLstIncludes/topMenu.php';
 elseif ($menu == 'S') include_once 'ordLstIncludes/topLine.php';
 else include_once 'ordLstIncludes/oldTopLine.php';
 include(get_relative() . "includes/orderFuncIncludes/grid_order.php"); 
+include(get_relative() . "includes/orderFuncIncludes/dateRangeSearch.php"); 
 
 
 
@@ -699,52 +701,7 @@ while ($r = db_fetch_array($q)) {
     );
 }
 
-###########date range
-
-/**
- * Generate SQL condition for date range search
- */
-function generateDateRangeSearch($column, $term) {
-    $field = $column['sqlOverride'] ?: $column['field'];
-    $term = db_escape_string(trim($term, "'"));
-    
-    if (empty($term)) {
-        return "1=1";
-    }
-    
-    // Check if it's a date range (contains " : " or " - ")
-    if (strpos($term, ' : ') !== false || strpos($term, ' - ') !== false) {
-        // Normalize to colon separator for splitting
-        $term = str_replace(' - ', ' : ', $term);
-        $dates = explode(' : ', $term);
-        
-        if (count($dates) == 2) {
-            $startDate = trim($dates[0]);
-            $endDate = trim($dates[1]);
-            
-            // Convert DD-MM-YYYY to YYYY-MM-DD for SQL
-            $startParts = explode('-', $startDate);
-            $endParts = explode('-', $endDate);
-            
-            if (count($startParts) == 3 && count($endParts) == 3) {
-                $sqlStartDate = $startParts[2] . '-' . $startParts[1] . '-' . $startParts[0];
-                $sqlEndDate = $endParts[2] . '-' . $endParts[1] . '-' . $endParts[0];
-                
-                return "({$field} >= '$sqlStartDate' AND {$field} <= '$sqlEndDate')";
-            }
-        }
-    }
-    
-    // Single date search
-    $parts = explode('-', $term);
-    if (count($parts) == 3) {
-        $sqlDate = $parts[2] . '-' . $parts[1] . '-' . $parts[0];
-        return "({$field} = '$sqlDate')";
-    }
-    
-    return "1=1";
-}
-###########
+###########date range: see includes/orderFuncIncludes/dateRangeSearch.php###########
 
 // Default
 $custom_columns = array(

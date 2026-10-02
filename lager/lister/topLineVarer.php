@@ -32,13 +32,13 @@
 		print "<td width = '200px' align=center id='back-btn'>
 			   <a href='vareliste.php?returside=$returside'>
 			   <button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-			   $icon_vareliste Vareliste
+			   $icon_vareliste ".findtekst('957|Vareliste', $sprog_id)."
 			   </button></a></td>";
 		} else {
 			print "<td width = '200px' align=center id='back-btn'>
 				<a href='vareliste.php?returside=$returside'>
 				<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_vareliste  Vareliste
+				$icon_vareliste ".findtekst('957|Vareliste', $sprog_id)."
 				</button></a></td>";
 		}
 
@@ -48,13 +48,13 @@
 			if ($valg=="Ordrevisning") {
 				print "<td width = '200px' align=center id='ordrevisning'>
 					<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-					$icon_ordre Ordrevisning 
+					$icon_ordre ".findtekst('546|Ordrevisning', $sprog_id)."
 					</button></td>";
 			} else {
 				print "<td width = '200px' align=center id='ordrevisning'>
 					<a href='ordrestatus.php?returside=$returside'>
 					<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-					$icon_ordre Ordrevisning 
+					$icon_ordre ".findtekst('546|Ordrevisning', $sprog_id)."
 					</button></a></td>";
 			}
 		}
@@ -65,13 +65,13 @@
 			if ($valg=="Indkøb") {
 				print "<td width = '200px' align=center id='indkob'>
 					<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-					$icon_indkob Indkøb 
+					$icon_indkob ".findtekst('4979|Indkøb', $sprog_id)." 
 					</button></td>";
 			} else {
 				print "<td width = '200px' align=center id='indkob'>
 					<a href='indkøb.php?returside=$returside'>
 					<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-					$icon_indkob Indkøb 
+					$icon_indkob ".findtekst('4979|Indkøb', $sprog_id)." 
 					</button></a></td>";
 			}
 		}
@@ -81,13 +81,13 @@
 		if ($valg=="Serienumre") {
 			print "<td width = '200px' align=center id='serial'>
 				<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_serialnumber Serienumre 
+				$icon_serialnumber ".findtekst('4980|Serienumre', $sprog_id)." 
 				</button></td>";
 		} else {
 			print "<td width = '200px' align=center id='serial'>
 				<a href='serialnumber.php?returside=$returside'>
 				<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_serialnumber Serienumre 
+				$icon_serialnumber ".findtekst('4980|Serienumre', $sprog_id)." 
 				</button></a></td>";
 		}
 

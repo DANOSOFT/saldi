@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-09-24 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -90,6 +90,7 @@
 //                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
 //                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
 // 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
+// 20261002 CL/NTR Include stdFunc/findTxtUtf8.php (findtekst_utf8()).
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -99,6 +100,7 @@ include(__DIR__ . '/stdFunc/dkAmountValid.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
+include(__DIR__ . '/stdFunc/jsString.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -499,6 +501,7 @@ if (!function_exists('usdate')) {
 	}
 }
 if (!function_exists('findtekst')) include_once(__DIR__.'/stdFunc/findTxt.php');
+if (!function_exists('findtekst_utf8')) include_once(__DIR__.'/stdFunc/findTxtUtf8.php');
 
 if (!function_exists('javascript')) {
 	function javascript()

@@ -313,7 +313,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	elseif ($rapportart == "kontokort_moms")
 		print "<option title='" . findtekst(510, $sprog_id) . "' value='kontokort_moms'>" . findtekst(516, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "kontokort_ubogfort")
-		print "<option title='" . findtekst('5249|Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu', $sprog_id) . "' value='kontokort_ubogfort'>" . findtekst('5248|Kontokort med u-bogført', $sprog_id) . "</option>\n";
+		print "<option title='" . findtekst('5328|Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu', $sprog_id) . "' value='kontokort_ubogfort'>" . findtekst('5327|Kontokort med u-bogført', $sprog_id) . "</option>\n";
 	elseif ($rapportart == "balance")
 		print "<option title='" . findtekst(511, $sprog_id) . "' value='balance'>" . findtekst(517, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "resultat")
@@ -350,7 +350,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	if ($rapportart != "kontokort_moms")
 		print "><option title='" . findtekst(510, $sprog_id) . "' value='kontokort_moms'>" . findtekst(516, $sprog_id) . "</option>\n";
 	if ($rapportart != "kontokort_ubogfort")
-		print "<option title='" . findtekst('5249|Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu', $sprog_id) . "' value='kontokort_ubogfort'>" . findtekst('5248|Kontokort med u-bogført', $sprog_id) . "</option>\n";
+		print "<option title='" . findtekst('5328|Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu', $sprog_id) . "' value='kontokort_ubogfort'>" . findtekst('5327|Kontokort med u-bogført', $sprog_id) . "</option>\n";
 	if ($rapportart != "balance")
 		print "<option title='" . findtekst(511, $sprog_id) . "' value='balance'>" . findtekst(517, $sprog_id) . "</option>\n";
 	if ($rapportart != "resultat")
