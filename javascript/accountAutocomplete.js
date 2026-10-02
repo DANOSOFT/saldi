@@ -5,6 +5,10 @@
 //                  three characters: the endpoint now refuses it, because a trigram index
 //                  cannot match below three characters. finance is not gated - kontoplan is
 //                  small and its account numbers are legitimately short.
+// 20261002 MJ SST-814 Review: drop a search response that comes back for a value the field
+//                  no longer holds. The race predates this ticket, but the new minimum made
+//                  it persistent - a value falling below it sends no further request, so
+//                  nothing arrived afterwards to replace a stale dropdown.
 (function () {
     'use strict'; 
 
@@ -37,6 +41,10 @@
     let activeDropdown = null;
     let activeInput = null;
     let debounceTimer = null;
+    // Bumped on every keystroke, including one that the length gate refuses. A response
+    // that comes back carrying an older number is for a value the field no longer holds,
+    // so it is dropped rather than painted over the current state.
+    let searchSeq = 0;
     let dropdownContainer = null;
     let selectionMade = false;
     let currentPage = 1;
@@ -476,6 +484,7 @@
         }
 
         clearTimeout(debounceTimer);
+        searchSeq++;
         debounceTimer = setTimeout(function () {
             performSearch(input);
         }, CONFIG.debounceDelay);
@@ -490,6 +499,7 @@
         }
 
         clearTimeout(debounceTimer);
+        searchSeq++;
         debounceTimer = setTimeout(function () {
             performSearchWithValue(input, searchValue || '', 1);
         }, CONFIG.debounceDelay);
@@ -590,6 +600,7 @@
             '&count=1' +
             '&page=' + page;
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -598,6 +609,7 @@
                 return response.text();
             })
             .then(function (text) {
+                if (seq !== searchSeq) return;
                 try {
                     const data = JSON.parse(text);
                     const results = data.results || data;
@@ -608,6 +620,7 @@
                 }
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Account search error:', error);
                 closeDropdown();
             });
