@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.02
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -79,6 +79,10 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261002 CL/SZ SST-808: index ordrer (konto_id, fakturanr) and the open openpost rows so the
+//                  auto-udlign open-post search stops scanning ordrer once per open post.
+// 20261002 CL/SZ SST-808 (CodeRabbit): build those indexes CONCURRENTLY so login does not block
+//                  writes while they build, and rebuild one left INVALID by an interrupted build.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -320,6 +324,39 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
+
+# 20261002 CL/SZ SST-808: finans/kassekladde_includes/invoiceSearch.php (auto-udlign) looks up
+#                the order payment ID with a correlated subquery on ordrer (konto_id, fakturanr)
+#                for every open post, and in the COUNT when the user types a search. ordrer had
+#                no index on either column, so each open post forced a full scan of ordrer: on a
+#                290k-row openpost / 70k-row ordrer tenant one typed search took 130-140 s.
+#                The partial openpost index covers the open-post filter every invoiceSearch.php
+#                query starts from, so they stop scanning all settled rows too.
+#                Same advisory lock as above, for the same concurrent-login race.
+# 20261002 CL/SZ SST-808 (CodeRabbit): built CONCURRENTLY so the one-time build at login does not
+#                block writes to ordrer/openpost on a live tenant (this file runs outside any
+#                transaction, which CONCURRENTLY requires). An interrupted concurrent build leaves
+#                an INVALID index behind under the same name, so validity is checked and an
+#                invalid one is dropped and rebuilt instead of being skipped forever.
+$sst808Indexes = array(
+	'ordrer_konto_id_fakturanr_idx' => "ON ordrer (konto_id, fakturanr)",
+	'openpost_open_idx'             => "ON openpost (konto_id) WHERE udlignet != '1' OR udlignet IS NULL",
+);
+foreach ($sst808Indexes as $indexName => $indexDefinition) {
+	db_select("SELECT pg_advisory_lock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
+	$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+	$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+	$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+	$qtxt.= " WHERE pg_class.relname = '$indexName' AND pg_namespace.nspname = current_schema()";
+	$existingIndex = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if ($existingIndex && $existingIndex['indisvalid'] !== 't') {
+		db_modify("DROP INDEX CONCURRENTLY $indexName", __FILE__ . " linje " . __LINE__);
+	}
+	if (!$existingIndex || $existingIndex['indisvalid'] !== 't') {
+		db_modify("CREATE INDEX CONCURRENTLY $indexName $indexDefinition", __FILE__ . " linje " . __LINE__);
+	}
+	db_select("SELECT pg_advisory_unlock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
+}
 
 #####
 
