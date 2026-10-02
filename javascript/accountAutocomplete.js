@@ -1,11 +1,20 @@
 
 // 20260907 CDX/LH Preserve D/K/F account types when selecting a historical counter-account.
 //                  Handle each keyboard selection once, without bubbling into a second move.
+// 20261002 MJ SST-814 Don't ask accountSearch.php for a debitor/kreditor term shorter than
+//                  three characters: the endpoint now refuses it, because a trigram index
+//                  cannot match below three characters. finance is not gated - kontoplan is
+//                  small and its account numbers are legitimately short.
 (function () {
     'use strict'; 
 
     const CONFIG = {
-        minSearchLength: 0, 
+        minSearchLength: 0,
+        // SST-814 review: accountSearch.php refuses a one- or two-character
+        // debitor/kreditor search, because a trigram index cannot match below three
+        // characters and adresser is large. Only those two types are gated - a finance
+        // search of kontoplan is small and its account numbers are legitimately short.
+        minAccountSearchLength: 3, 
         debounceDelay: 200,
         maxResults: 50
     };
@@ -552,6 +561,14 @@
         }
         if (!panelOptions.showAccountLookup) {
             // Lookup section deselected: skip the server search and show suggestions only
+            renderDropdown(input, [], searchType, searchValue, null);
+            return;
+        }
+
+        // Matches the endpoint's own minimum, so no request is sent that it would refuse.
+        if ((searchType === 'debitor' || searchType === 'kreditor')
+                && searchValue.length > 0
+                && searchValue.length < CONFIG.minAccountSearchLength) {
             renderDropdown(input, [], searchType, searchValue, null);
             return;
         }
