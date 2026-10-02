@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.10.01----------
+// -----------------finans/autoudlign.php------------ver 5.0.0--------2026.10.02----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,8 @@
 // 20261001 CL/SZ   (CodeRabbit): the header row's "Tilbage" button label and the "Udlign — Kladde N"
 //                  title were still printed from raw findtekst(), unlike every other findtekst()
 //                  value on this page - normalized and escaped them the same way.
+// 20261002 CL/NTR  Moved the page's local UTF-8 findtekst() wrapper to includes/stdFunc/findTxtUtf8.php
+//                  as findtekst_utf8() and use it for the $uiText array as well (keyed ids, one call).
 
 ob_start();
 @session_start();
@@ -65,15 +67,6 @@ header('Content-Type: text/html; charset=UTF-8');
 include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/kassekladde_includes/autoSettlement.php");
-
-// 20260923 CL/SZ (CodeRabbit): findtekst() returns ISO-8859-1 text when $db_encode isn't
-// UTF8; htmlspecialchars(..., 'UTF-8') silently returns '' for invalid UTF-8 input, which
-// would blank this text rather than garble it. Same conversion $uiText already gets below.
-function autoudlign_findtekst_utf8($key, $sprog_id) {
-    global $db_encode;
-    $text = findtekst($key, $sprog_id);
-    return $db_encode != 'UTF8' ? mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1') : $text;
-}
 
 $kladde_id = intval($_GET['kladde_id'] ?? 0);
 $id        = intval(if_isset($_GET, 0, ['id']));
@@ -678,8 +671,8 @@ print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cel
 print "<td width=5% style='$buttonStyle'>
 	<a href=\"javascript:confirmClose('" . htmlspecialchars($returside, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-	$icon_back ".htmlspecialchars(autoudlign_findtekst_utf8('30|Tilbage', $sprog_id), ENT_QUOTES, 'UTF-8')."</button></a></td>";
-   print " <td align='center' style='$topStyle' width'75%'>" . htmlspecialchars(autoudlign_findtekst_utf8('1066', $sprog_id), ENT_QUOTES, 'UTF-8') . " — " . htmlspecialchars(autoudlign_findtekst_utf8('5300', $sprog_id), ENT_QUOTES, 'UTF-8') . " $kladde_id<br></td>
+	$icon_back ".htmlspecialchars(findtekst_utf8('30|Tilbage', $sprog_id), ENT_QUOTES, 'UTF-8')."</button></a></td>";
+   print " <td align='center' style='$topStyle' width'75%'>" . htmlspecialchars(findtekst_utf8('1066', $sprog_id), ENT_QUOTES, 'UTF-8') . " — " . htmlspecialchars(findtekst_utf8('5300', $sprog_id), ENT_QUOTES, 'UTF-8') . " $kladde_id<br></td>
     <td width=\"5%\" style='$topStyle'><br></td></tr>
     </tbody></table></td></tr>"; # <- tabel 1.1.1
 print "</tbody></table></td></tr></tbody></table>";
@@ -705,7 +698,7 @@ print "</tbody></table></td></tr></tbody></table>";
 <div class="page">
 
   <?php if ($save_success): ?>
-    <div class="notice notice-success">✓ <?= htmlspecialchars(autoudlign_findtekst_utf8('5321', $sprog_id), ENT_QUOTES, 'UTF-8') ?></div>
+    <div class="notice notice-success">✓ <?= htmlspecialchars(findtekst_utf8('5321', $sprog_id), ENT_QUOTES, 'UTF-8') ?></div>
   <?php endif; ?>
   <?php if ($save_error): ?>
     <div class="notice notice-error">⚠ <?= htmlspecialchars($save_error) ?></div>
@@ -796,7 +789,7 @@ print "</tbody></table></td></tr></tbody></table>";
           class="search-input"
           type="text"
           id="searchInput"
-          placeholder="<?= htmlspecialchars(autoudlign_findtekst_utf8('5303', $sprog_id), ENT_QUOTES, 'UTF-8') ?>"
+          placeholder="<?= htmlspecialchars(findtekst_utf8('5303', $sprog_id), ENT_QUOTES, 'UTF-8') ?>"
           autocomplete="off"
           autofocus
         >
@@ -856,26 +849,22 @@ print "</tbody></table></td></tr></tbody></table>";
 </div><!-- /.page -->
 
 <?php if ($entry):
-  $uiText = [
-    'chooseAccountFirst' => findtekst('5316', $sprog_id),
-    'errorLoading'       => findtekst('5317', $sprog_id),
-    'noMatches'          => findtekst('5318', $sprog_id),
-    'saveFailed'         => findtekst('5319', $sprog_id),
-    'searching'          => findtekst('3378', $sprog_id),
-    'saving'             => findtekst('3321', $sprog_id) . '…',
-    'settle'             => findtekst('2993', $sprog_id),
-    'showing'            => findtekst('2954', $sprog_id),
-    'of'                 => findtekst('5320', $sprog_id),
-    'bestMatches'        => findtekst('5322', $sprog_id),
-    'otherOpenEntries'   => findtekst('5323', $sprog_id),
-    'noneSelected'       => findtekst('5304', $sprog_id),
-    'invoiceLabel'       => findtekst('828', $sprog_id),
-  ];
-  // findtekst() returns ISO-8859-1 text when $db_encode isn't UTF8; json_encode()
-  // requires valid UTF-8 input or it silently returns false (const T = ;).
-  if ($db_encode != 'UTF8') {
-      $uiText = array_map(function ($v) { return mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1'); }, $uiText);
-  }
+  $uiText = findtekst_utf8([
+    'chooseAccountFirst' => '5316',
+    'errorLoading'       => '5317',
+    'noMatches'          => '5318',
+    'saveFailed'         => '5319',
+    'searching'          => '3378',
+    'saving'             => '3321',
+    'settle'             => '2993',
+    'showing'            => '2954',
+    'of'                 => '5320',
+    'bestMatches'        => '5322',
+    'otherOpenEntries'   => '5323',
+    'noneSelected'       => '5304',
+    'invoiceLabel'       => '828',
+  ], $sprog_id);
+  $uiText['saving'] .= '…';
 ?>
 <script>
 (function () {
