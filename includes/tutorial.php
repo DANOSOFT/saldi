@@ -282,40 +282,45 @@ function create_tutorial($id, $steps)
                 const elements = step ? document.querySelectorAll(step.selector) : [];
                 if (!elements.length) return;
 
-                // Combined bounding box of all elements of the step
+                const padding = 2; // Add some padding around the combined bounding box
+                const margin = 8; // Minimum distance between the tooltip and the viewport edge
+                const viewWidth = window.innerWidth;
+                const viewHeight = window.innerHeight;
+
+                // Combined bounding box of the visible part of all elements of the step. A step can
+                // match a whole column (e.g. every Debet/Kredit field) inside a scrolling container;
+                // the container hides the rows outside it, but not the fixed overlay, so each rect
+                // is clipped to its scrolling ancestors first or the hole would uncover other content.
                 let top = Infinity, left = Infinity, right = -Infinity, bottom = -Infinity;
                 elements.forEach(element => {
-                    const rect = element.getBoundingClientRect();
+                    const rect = this.visibleRect(element, padding);
+                    if (!rect) return;
                     top = Math.min(top, rect.top);
                     left = Math.min(left, rect.left);
                     right = Math.max(right, rect.right);
                     bottom = Math.max(bottom, rect.bottom);
                 });
 
-                const padding = 2; // Add some padding around the combined bounding box
-                const margin = 8; // Minimum distance between the tooltip and the viewport edge
-                const viewWidth = window.innerWidth;
-                const viewHeight = window.innerHeight;
-
-                const holeTop = top - padding;
-                const holeLeft = left - padding;
-                const holeRight = right + padding;
-                const holeBottom = bottom + padding;
-
-                // Apply a clip-path that creates a rectangular hole
-                this.overlay.style.clipPath = `polygon(
-                    0% 0%, 0% 100%, 100% 100%, 100% 0%, 0% 0%,
-                    ${holeLeft}px ${holeTop}px,
-                    ${holeRight}px ${holeTop}px,
-                    ${holeRight}px ${holeBottom}px,
-                    ${holeLeft}px ${holeBottom}px,
-                    ${holeLeft}px ${holeTop}px
-                )`;
-
-                // Anchor the tooltip to the visible part of the box: a step can cover a whole
-                // column (e.g. every Debet/Kredit field), which is taller than the viewport.
-                const visibleTop = Math.max(holeTop, 0);
-                const visibleBottom = Math.min(holeBottom, viewHeight);
+                let visibleTop, visibleBottom, holeLeft;
+                if (top < bottom) {
+                    // Apply a clip-path that creates a rectangular hole
+                    this.overlay.style.clipPath = `polygon(
+                        0% 0%, 0% 100%, 100% 100%, 100% 0%, 0% 0%,
+                        ${left}px ${top}px,
+                        ${right}px ${top}px,
+                        ${right}px ${bottom}px,
+                        ${left}px ${bottom}px,
+                        ${left}px ${top}px
+                    )`;
+                    visibleTop = top;
+                    visibleBottom = bottom;
+                    holeLeft = left;
+                } else {
+                    // Nothing of the target is visible: shade everything, tooltip at the bottom left
+                    this.overlay.style.clipPath = 'none';
+                    visibleTop = visibleBottom = viewHeight;
+                    holeLeft = margin;
+                }
 
                 const tooltipRect = this.tooltip.getBoundingClientRect();
                 let tooltipTop;
@@ -334,6 +339,35 @@ function create_tutorial($id, $steps)
 
                 this.tooltip.style.top = `${tooltipTop}px`;
                 this.tooltip.style.left = `${tooltipLeft}px`;
+            }
+
+            // The element's rect (grown by padding), cut down to the client box of every ancestor
+            // that clips its content and to the viewport; null when nothing of it is visible.
+            // body and html are left out: their scrolling is the viewport's, which is applied last.
+            visibleRect(element, padding) {
+                const rect = element.getBoundingClientRect();
+                let top = rect.top - padding, left = rect.left - padding;
+                let right = rect.right + padding, bottom = rect.bottom + padding;
+
+                for (let el = element.parentElement; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+                    const style = getComputedStyle(el);
+                    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+                    // Client box: inside the borders, without the scrollbars
+                    const box = el.getBoundingClientRect();
+                    const boxLeft = box.left + el.clientLeft;
+                    const boxTop = box.top + el.clientTop;
+                    top = Math.max(top, boxTop);
+                    left = Math.max(left, boxLeft);
+                    right = Math.min(right, boxLeft + el.clientWidth);
+                    bottom = Math.min(bottom, boxTop + el.clientHeight);
+                }
+
+                top = Math.max(top, 0);
+                left = Math.max(left, 0);
+                right = Math.min(right, window.innerWidth);
+                bottom = Math.min(bottom, window.innerHeight);
+
+                return (top < bottom && left < right) ? {top: top, left: left, right: right, bottom: bottom} : null;
             }
 
             // Remember the original scroll position of every scrollable ancestor (incl. the page)
