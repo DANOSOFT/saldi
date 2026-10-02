@@ -1,6 +1,7 @@
 <?php
 // 20260907 CDX/LH Reject attribute and URI-scheme payloads while retaining encoded internal return URLs.
 // 20260907 CDX/LH Exercise raw request arrays at the navigation boundary and popup query propagation.
+// 20260921 CL/NTR MB-50: cover the chart data endpoint exclusions in _nav_is_recordable.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -66,5 +67,26 @@ final class NavReturnTargetRegressionTest extends TestCase
     public function testKeepsEncodedInternalTargets(string $target): void
     {
         self::assertSame($target, nav_sanitize_returside($target));
+    }
+
+    public static function chartEndpointUrls(): array
+    {
+        return [
+            ['../index/weekly_graph_data.php'],
+            ['../index/weekly_graph_data.php?week=3'],
+            ['../index/customer_graph_data.php'],
+            ['../index/customer_graph_data.php?id=7'],
+        ];
+    }
+
+    #[DataProvider('chartEndpointUrls')]
+    public function testChartDataEndpointsAreNotRecordable(string $url): void
+    {
+        self::assertFalse(_nav_is_recordable($url));
+    }
+
+    public function testOrdinaryPageIsRecordable(): void
+    {
+        self::assertTrue(_nav_is_recordable('../debitor/debitorkort.php?id=2110'));
     }
 }
