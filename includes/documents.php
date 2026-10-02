@@ -1,6 +1,6 @@
 <!doctype html>
 <?php
-// --- includes/documents.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/documents.php --- ver 5.0.0 --- 2026-10-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,7 +17,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230622 - LOE Updated file path and some related modifications.
 //20240412 - PHR Various modifications
@@ -34,6 +34,8 @@
 //                  via FileReservation instead of file_exists() polling, closing the window in
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20261002 CL/SZ SD-701 viewOnly=1 shows only the line's document, for the voucher tab the journal opens.
+//                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -121,6 +123,73 @@ if ($dokument) {
 
 
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
+
+// SD-701 View-only voucher tab, opened by openBilagTab() in finans/kassekladde.php. It shows only the
+// document, so the same journal line can't be edited here while the journal tab is open. Managing the
+// attachments (delete, unlink, move, pool) is handed back to the journal tab through openBilagManage().
+// Handled before any action branch below, so a view-only request never deletes, moves or unlinks anything.
+if (ifset($_GET, 'viewOnly') == '1' && $source && $sourceId) {
+	include_once(__DIR__ . '/docsIncludes/viewOnlyDocs.php');
+	$viewDocs = viewOnlyDocs($source, $sourceId, $docFolder, $db);
+	// Only a document of this line can be shown, whatever showDoc the URL carries
+	$viewPath = $viewDocs ? $viewDocs[0]['path'] : '';
+	foreach ($viewDocs as $viewDoc) {
+		if ($viewDoc['path'] == $showDoc) $viewPath = $viewDoc['path'];
+	}
+	$viewParams = "source=" . urlencode((string)$source) . "&sourceId=" . intval($sourceId) . "&kladde_id=" . intval($kladde_id);
+	$viewParams.= "&bilag=" . urlencode((string)$bilag) . "&fokus=" . urlencode((string)$fokus);
+	$manageUrl  = jsString(array("../includes/documents.php?$viewParams"));
+
+	print "<style>
+		html, body { margin: 0; height: 100%; overflow: hidden; font-family: Helvetica, Arial, sans-serif; }
+		#viewOnlyBar { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px; box-sizing: border-box;
+			background-color: $buttonColor; color: $buttonTxtColor; font-size: 13px; }
+		#viewOnlyBar .viewOnlyDocs { flex: 1; display: flex; gap: 4px; overflow-x: auto; white-space: nowrap; }
+		#viewOnlyBar a { color: $buttonTxtColor; text-decoration: none; padding: 4px 8px; border-radius: 4px; }
+		#viewOnlyBar a.current { font-weight: bold; background-color: rgba(255,255,255,0.25); }
+		#viewOnlyBar button { cursor: pointer; padding: 4px 10px; border: 1px solid $buttonTxtColor; border-radius: 4px;
+			background: transparent; color: $buttonTxtColor; font-size: 13px; }
+		#viewOnlyDoc { position: fixed; top: 40px; left: 0; right: 0; bottom: 0; background-color: #ffffff; overflow: auto; }
+		#viewOnlyDoc > div { height: 100%; }
+		#viewOnlyEmpty { padding: 20px; }
+	</style>";
+	print "<script>
+		function bilagManage() {
+			var journal = null;
+			try { journal = window.opener; } catch (e) {}
+			if (journal && !journal.closed && typeof journal.openBilagManage === 'function') {
+				journal.focus();
+				if (journal.openBilagManage($manageUrl)) window.close();
+			} else {
+				window.location.href = $manageUrl;
+			}
+		}
+	</script>";
+	print "<div id='viewOnlyBar'>";
+	print "<span>" . findtekst('1408|Kassebilag', $sprog_id) . "</span>";
+	print "<span class='viewOnlyDocs'>";
+	if (count($viewDocs) > 1) {
+		foreach ($viewDocs as $viewDoc) {
+			$viewHref = "documents.php?$viewParams&viewOnly=1&showDoc=" . urlencode($viewDoc['path']);
+			$viewClass = ($viewDoc['path'] == $viewPath) ? " class='current'" : "";
+			print "<a href='" . htmlspecialchars($viewHref, ENT_QUOTES) . "'$viewClass>" . htmlspecialchars($viewDoc['filename'], ENT_QUOTES) . "</a>";
+		}
+	}
+	print "</span>";
+	print "<button type='button' onclick='bilagManage()'>" . findtekst('5282|Administrér bilag', $sprog_id) . "</button>";
+	print "<button type='button' onclick='window.close()'>" . findtekst('2172|Luk', $sprog_id) . "</button>";
+	print "</div>";
+	print "<div id='viewOnlyDoc'>";
+	if ($viewPath) {
+		$showDoc = $viewPath;
+		include(__DIR__ . "/docsIncludes/showDoc.php");
+	} else {
+		print "<div id='viewOnlyEmpty'>" . findtekst('5283|Der er ikke længere et bilag på denne linje.', $sprog_id) . "</div>";
+	}
+	print "</div>";
+	print "</body></html>";
+	exit;
+}
 
 // Handle AJAX file uploads BEFORE any HTML output (for drag and drop)
 // Check if this is an AJAX file upload request
