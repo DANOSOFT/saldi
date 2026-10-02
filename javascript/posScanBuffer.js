@@ -12,6 +12,8 @@
  * field, or before the page has placed focus, are buffered; normal typing is untouched.
  *
  * 20261002 CL/SZ SST-812 Created.
+ * 20261002 CL/SZ SST-812 CodeRabbit review: before focus is placed, only hold keys while no field has focus.
+ *                          A click, tap or focus on a non-scan field ends a held scan so typing there is never blocked.
  */
 (function (global) {
 	if (global.PosScanBuffer) return;
@@ -137,8 +139,16 @@
 		submitLikeEnter(el);
 	}
 
+	function fieldHasFocus() {
+		var el = document.activeElement;
+		return !!(el && el !== document.body && el !== document.documentElement);
+	}
+
 	document.addEventListener('keydown', function (e) {
 		if (ready && !busy) return;
+		// Before the page has placed focus, only hold keys that would otherwise land nowhere;
+		// a POS screen that focused one of its own fields early must receive its keys.
+		if (!ready && fieldHasFocus()) return;
 		var ch = null;
 		if (e.key === 'Enter') ch = '\n';
 		else if (e.key && e.key.length === 1 && !e.metaKey && e.ctrlKey === e.altKey) ch = e.key;  // AltGr sets both
@@ -154,6 +164,19 @@
 	global.addEventListener('beforeunload', function () {
 		if (ready && isScanField(document.activeElement)) setBusy();
 	});
+
+	// The user moved on to another field or button, so this is no longer a scan in flight
+	// (e.g. a submit that never navigated); stop holding keys and drop what was held.
+	function leaveScan(e) {
+		if (!busy || isScanField(e.target)) return;
+		busy = false;
+		clearTimeout(busyTimer);
+		buffer = '';
+		save();
+	}
+	document.addEventListener('mousedown', leaveScan, true);
+	document.addEventListener('touchstart', leaveScan, true);
+	document.addEventListener('focusin', leaveScan, true);
 
 	// Back/forward cache restores a page that was mid-submit; make it usable again.
 	global.addEventListener('pageshow', function (e) {
