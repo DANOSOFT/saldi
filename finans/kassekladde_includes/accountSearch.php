@@ -37,6 +37,39 @@ $offset = ($page - 1) * $limit;
 // so hasMore stays truthful for callers that do not ask for a count.
 $fetchLimit = $limit + 1;
 
+// SST-814 review: the minimum lives here as well as in the clients. This endpoint is
+// shared and is the only thing that touches the database, so a request that bypasses the
+// JS - a direct GET, or a future caller - would otherwise still run the scan the client
+// gate exists to prevent. A trigram index cannot match fewer than three characters, so
+// below that the query is a full table scan however adresser is indexed.
+//
+// Only the branches that search adresser are gated. finance searches kontoplan, which is
+// small and whose account numbers are legitimately one or two characters. exact=1 is an
+// equality lookup on a full account number and is indexable at any length. An empty term
+// is still served: with no term there is no ILIKE at all, only a filtered first page,
+// requested once per focus rather than once per keystroke.
+$minSearchLength = 3;
+$searchTooShort = ($search !== '')
+    && !$exact
+    && in_array($type, array('debitor', 'kreditor'), true)
+    && mb_strlen($search, 'UTF-8') < $minSearchLength;
+if ($searchTooShort) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array(
+        'results' => array(),
+        'pagination' => array(
+            'page' => $page,
+            'limit' => $limit,
+            'total' => null,
+            'hasMore' => false,
+            // So a caller can tell this apart from "no matches" and say why.
+            'minLength' => $minSearchLength,
+        ),
+    ));
+    exit;
+}
+
+
 // Sanitize type - only allow specific values
 if (!in_array($type, array('finance', 'debitor', 'kreditor', ''))) {
     $type = 'finance';

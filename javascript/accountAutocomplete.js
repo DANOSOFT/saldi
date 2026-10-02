@@ -6,6 +6,10 @@
 //                  finance -> kontospec. Unsaved journal edits ask for confirmation before leaving.
 // 20261001 CL/SZ SD-698: Ctrl/Cmd+Enter on the selected popup line opens its card, while plain Enter still selects it.
 //                  Added JSDoc to the functions this change touches.
+// 20261002 MJ SST-814 Don't ask accountSearch.php for a debitor/kreditor term shorter than
+//                  three characters: the endpoint now refuses it, because a trigram index
+//                  cannot match below three characters. finance is not gated - kontoplan is
+//                  small and its account numbers are legitimately short.
 // 20261003 CL/SZ SD-698: The card opens in a separate, reused tab (saldiKort) instead of leaving the journal, so unsaved
 //                  journal edits are kept; the card's Tilbage closes the tab. A blocked popup falls back to the old ask-and-leave.
 // 20261003 CL/SZ SD-716 window.closeAccountAutocomplete closes the panel, so Ctrl + arrow navigation (fieldNavigation.js) can move on from an open panel.
@@ -18,7 +22,12 @@
     'use strict'; 
 
     const CONFIG = {
-        minSearchLength: 0, 
+        minSearchLength: 0,
+        // SST-814 review: accountSearch.php refuses a one- or two-character
+        // debitor/kreditor search, because a trigram index cannot match below three
+        // characters and adresser is large. Only those two types are gated - a finance
+        // search of kontoplan is small and its account numbers are legitimately short.
+        minAccountSearchLength: 3, 
         debounceDelay: 200,
         maxResults: 50
     };
@@ -603,6 +612,14 @@
         }
         if (!panelOptions.showAccountLookup) {
             // Lookup section deselected: skip the server search and show suggestions only
+            renderDropdown(input, [], searchType, searchValue, null);
+            return;
+        }
+
+        // Matches the endpoint's own minimum, so no request is sent that it would refuse.
+        if ((searchType === 'debitor' || searchType === 'kreditor')
+                && searchValue.length > 0
+                && searchValue.length < CONFIG.minAccountSearchLength) {
             renderDropdown(input, [], searchType, searchValue, null);
             return;
         }

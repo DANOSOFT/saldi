@@ -90,6 +90,10 @@
 //                  auto-udlign open-post search stops scanning ordrer once per open post.
 // 20261002 CL/SZ SST-808 (CodeRabbit): build those indexes CONCURRENTLY so login does not block
 //                  writes while they build, and rebuild one left INVALID by an interrupted build.
+// 20261002 MJ SST-814 Review: corrected the stated reason for not using CONCURRENTLY. There
+//                  is no enclosing transaction; the reason is that an interrupted
+//                  CONCURRENTLY build leaves an invalid index that IF NOT EXISTS would then
+//                  skip forever. The statements themselves are unchanged.
 // 20261003 CL/SZ SST-818: the kassekladde/documents/adresser indexes are built CONCURRENTLY (PostgreSQL) or with
 //                  LOCK=NONE (MySQL), so the one-time build at login does not block writes; an INVALID one is rebuilt.
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
@@ -1198,7 +1202,18 @@ if (db_fetch_array(db_select("select 1 from information_schema.tables where tabl
 # pg_trgm is bootstrapped further up this file, but a tenant on managed hosting without superuser
 # may not have been permitted to create it - and that attempt is only made once, so it may never
 # be retried. Index only where the extension actually exists; everyone else keeps the unindexed
-# but still correct ILIKE path. Not CONCURRENTLY: this runs inside the login's transaction.
+# but still correct ILIKE path.
+# Not CONCURRENTLY, but not for the reason first committed here: review of PR #691 was right
+# that there is no enclosing transaction - all three include sites (index/login.php,
+# admin/aaben_regnskab.php, debitor/pos_ordre.php) include this file bare, so CONCURRENTLY
+# would in fact be permitted. The reason to avoid it is the interaction with IF NOT EXISTS:
+# an interrupted CREATE INDEX CONCURRENTLY leaves an *invalid* index behind, IF NOT EXISTS
+# then matches that invalid index on every later login and skips the rebuild forever, and the
+# result is an index the planner will not use while writes still maintain it. This file runs
+# at every login, where an interrupted request is ordinary (closed tab, timeout), so that
+# outcome is likely rather than theoretical. A plain CREATE INDEX either completes or leaves
+# nothing, which is what makes IF NOT EXISTS idempotent - the pattern the nine other index
+# statements in this file already use. The cost is one brief lock on adresser, once per tenant.
 if (db_fetch_array(db_select("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", __FILE__ . " linje " . __LINE__))) {
 	db_modify("CREATE INDEX IF NOT EXISTS adresser_firmanavn_trgm_idx ON adresser USING gin (firmanavn gin_trgm_ops)", __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX IF NOT EXISTS adresser_kontonr_trgm_idx ON adresser USING gin (kontonr gin_trgm_ops)", __FILE__ . " linje " . __LINE__);
