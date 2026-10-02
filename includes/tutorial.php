@@ -2,6 +2,7 @@
 // 20260902 CL/NTR Tutorial buttons are now type="button" so they no longer submit an enclosing
 //                 form (e.g. kassekladde.php, whose form never closes because its </form> is
 //                 printed inside a table cell) and reload the page on Next/Prev/Finish/Skip.
+// 20261002 CL/LOE SST-852 Scroll each step's target into view and keep the tooltip inside the viewport
 ob_start();
 
 function create_tutorial($id, $steps)
@@ -57,7 +58,7 @@ function create_tutorial($id, $steps)
         }
 
         #tutorial-tooltip {
-            position: absolute;
+            position: fixed;
             background: #fff;
             border-radius: 5px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
@@ -140,8 +141,21 @@ function create_tutorial($id, $steps)
                     })
                 }
 
+                // Scroll positions to restore when the tutorial ends
+                this.savedScroll = new Map();
+
+                // Bound once, so endTutorial() can remove the same function references
+                this.onKeydown = this.handleKeydown.bind(this);
+                this.onScrollOrResize = () => {
+                    if (this.repositionFrame) return;
+                    this.repositionFrame = requestAnimationFrame(() => {
+                        this.repositionFrame = null;
+                        this.position();
+                    });
+                };
+
                 // Add keyboard event listener
-                document.addEventListener('keydown', this.handleKeydown.bind(this));
+                document.addEventListener('keydown', this.onKeydown);
             }
 
             // Handle keyboard navigation
@@ -166,6 +180,9 @@ function create_tutorial($id, $steps)
 
             startTutorial() {
                 this.overlay.style.display = 'block';
+                // Capture phase, so scrolling inside a container (e.g. the kassekladde grid) is seen too
+                window.addEventListener('scroll', this.onScrollOrResize, true);
+                window.addEventListener('resize', this.onScrollOrResize);
                 this.showStep(0);
             }
 
@@ -237,62 +254,104 @@ function create_tutorial($id, $steps)
                     return;
                 }
 
-                // Initialize variables for bounding rects
-                let top = Infinity, left = Infinity, right = -Infinity, bottom = -Infinity;
+                // Highlight the elements
+                elements.forEach(element => element.classList.add('highlight'));
 
+                // The target may sit outside the visible part of a scrolling container (a long
+                // kassekladde scrolls its own grid to the last line on load), so bring it into view
+                // before measuring. scrollIntoView also scrolls nested containers, not just the window.
+                this.rememberScroll(elements[0]);
+                elements[0].scrollIntoView({block: 'center', inline: 'nearest'});
+
+                this.content.innerHTML = step.content;
+                this.tooltip.style.display = 'block';
+
+                // Handle button states
+                this.nextButton.style.display = index === this.steps.length - 1 ? 'none' : 'flex';
+                this.finishButton.style.display = index !== this.steps.length - 1 ? 'none' : 'flex';
+                this.statusText.innerText = `${index + 1} / ${this.steps.length}`;
+
+                this.position();
+            }
+
+            // Cut the hole and place the tooltip. The overlay and the tooltip are both
+            // position: fixed, so everything is in viewport coordinates (no scroll offsets).
+            position() {
+                if (this.overlay.style.display !== 'block') return;
+                const step = this.steps[this.currentStep];
+                const elements = step ? document.querySelectorAll(step.selector) : [];
+                if (!elements.length) return;
+
+                // Combined bounding box of all elements of the step
+                let top = Infinity, left = Infinity, right = -Infinity, bottom = -Infinity;
                 elements.forEach(element => {
                     const rect = element.getBoundingClientRect();
                     top = Math.min(top, rect.top);
                     left = Math.min(left, rect.left);
                     right = Math.max(right, rect.right);
                     bottom = Math.max(bottom, rect.bottom);
-
-                    // Highlight the element
-                    element.classList.add('highlight');
                 });
 
                 const padding = 2; // Add some padding around the combined bounding box
+                const margin = 8; // Minimum distance between the tooltip and the viewport edge
+                const viewWidth = window.innerWidth;
+                const viewHeight = window.innerHeight;
 
-                // Calculate the cut-out dimensions, including scrolling offsets
-                top = top - padding + window.scrollY;
-                left = left - padding + window.scrollX;
-                const width = right - left + padding * 2;
-                const height = bottom - top + padding * 2;
+                const holeTop = top - padding;
+                const holeLeft = left - padding;
+                const holeRight = right + padding;
+                const holeBottom = bottom + padding;
 
                 // Apply a clip-path that creates a rectangular hole
                 this.overlay.style.clipPath = `polygon(
                     0% 0%, 0% 100%, 100% 100%, 100% 0%, 0% 0%,
-                    ${left}px ${top}px, 
-                    ${left + width}px ${top}px, 
-                    ${left + width}px ${top + height}px, 
-                    ${left}px ${top + height}px,
-                    ${left}px ${top}px
+                    ${holeLeft}px ${holeTop}px,
+                    ${holeRight}px ${holeTop}px,
+                    ${holeRight}px ${holeBottom}px,
+                    ${holeLeft}px ${holeBottom}px,
+                    ${holeLeft}px ${holeTop}px
                 )`;
 
-                // Position the tooltip near the first element
-                const firstElementRect = elements[0].getBoundingClientRect();
-                let tooltipTop = bottom + window.scrollY + padding;
-                let tooltipLeft = left + window.scrollX;
-
-                // Adjust if tooltip goes outside the viewport
-                this.tooltip.style.display = 'block';
-                this.content.innerHTML = step.content;
+                // Anchor the tooltip to the visible part of the box: a step can cover a whole
+                // column (e.g. every Debet/Kredit field), which is taller than the viewport.
+                const visibleTop = Math.max(holeTop, 0);
+                const visibleBottom = Math.min(holeBottom, viewHeight);
 
                 const tooltipRect = this.tooltip.getBoundingClientRect();
-                if (tooltipLeft + tooltipRect.width > window.innerWidth) {
-                    tooltipLeft = window.innerWidth - tooltipRect.width - padding;
+                let tooltipTop;
+                if (visibleBottom + padding + tooltipRect.height <= viewHeight - margin) {
+                    tooltipTop = visibleBottom + padding; // Below the element
+                } else if (visibleTop - padding - tooltipRect.height >= margin) {
+                    tooltipTop = visibleTop - padding - tooltipRect.height; // Above the element
+                } else {
+                    tooltipTop = viewHeight - tooltipRect.height - margin;
                 }
-                if (tooltipTop + tooltipRect.height > window.innerHeight) {
-                    tooltipTop = window.innerHeight - tooltipRect.height - padding;
-                }
+                let tooltipLeft = holeLeft;
+
+                // Always keep the tooltip (and its close button) inside the viewport
+                tooltipTop = Math.max(margin, Math.min(tooltipTop, viewHeight - tooltipRect.height - margin));
+                tooltipLeft = Math.max(margin, Math.min(tooltipLeft, viewWidth - tooltipRect.width - margin));
 
                 this.tooltip.style.top = `${tooltipTop}px`;
                 this.tooltip.style.left = `${tooltipLeft}px`;
+            }
 
-                // Handle button states
-                this.nextButton.style.display = index === this.steps.length - 1 ? 'none' : 'flex';
-                this.finishButton.style.display = index !== this.steps.length - 1 ? 'none' : 'flex';
-                this.statusText.innerText = `${index + 1} / ${this.steps.length}`;
+            // Remember the original scroll position of every scrollable ancestor (incl. the page)
+            // before the tutorial scrolls it, so endTutorial() can put the user back where they were
+            rememberScroll(element) {
+                for (let el = element.parentElement; el; el = el.parentElement) {
+                    if (!this.savedScroll.has(el) && (el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth)) {
+                        this.savedScroll.set(el, [el.scrollLeft, el.scrollTop]);
+                    }
+                }
+            }
+
+            restoreScroll() {
+                this.savedScroll.forEach((pos, el) => {
+                    el.scrollLeft = pos[0];
+                    el.scrollTop = pos[1];
+                });
+                this.savedScroll.clear();
             }
 
             endTutorial() {
@@ -300,8 +359,12 @@ function create_tutorial($id, $steps)
                 this.tooltip.style.display = 'none';
                 this.currentStep = 0;
 
-                // Remove keyboard event listener when tutorial ends
-                document.removeEventListener('keydown', this.handleKeydown.bind(this));
+                // Remove listeners when tutorial ends
+                document.removeEventListener('keydown', this.onKeydown);
+                window.removeEventListener('scroll', this.onScrollOrResize, true);
+                window.removeEventListener('resize', this.onScrollOrResize);
+
+                this.restoreScroll();
             }
         }
 
