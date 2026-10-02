@@ -29,9 +29,9 @@ ob_start();
 # $header and $bg are read by includes/online.php; "nix" keeps the answer free of the page frame
 $header = "nix";
 $bg     = "nix";
-# Indstillinger. Setting $modulnr before the include is what makes online.php check the right: the
-# script used to leave it unset, so every logged-in user could write the setting.
-$modulnr = 1;
+# $modulnr is deliberately not passed to online.php: when it is set and the right is missing, online.php
+# prints an HTML denial page and exits from inside the include, so a refused call would answer with HTML
+# and HTTP 200 instead of this endpoint's JSON. The right is checked below with the same expression.
 
 @session_start();
 $s_id = session_id();
@@ -60,6 +60,12 @@ function flatpay_id_svar($http_code, $success, $fejl = NULL) {
 	}
 	print json_encode($svar);
 	exit;
+}
+
+# Indstillinger is module 1. The script used to leave the module unset, so every logged-in user could
+# write the setting. An empty rights string counts as no right here: this writes a payment credential.
+if (!isset($rettigheder) || $rettigheder === '' || substr($rettigheder, 1, 1) < '1') {
+	flatpay_id_svar(403, false, 'Missing the Indstillinger right');
 }
 
 if (ifset($_SERVER, 'REQUEST_METHOD', '') !== 'POST') {

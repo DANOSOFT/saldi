@@ -1731,26 +1731,28 @@ function removeDfmPickup(idx) {
       close_popup();
 
       async function save_id(id){
-        var res = await fetch(
-          'diverseIncludes/save_flatpay_id.php',
-          {
-            method: 'post',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-Token': " . json_encode($csrf_token) . ",
-            },
-            body: JSON.stringify({
-              'id': id
-            }),
-          }
-        )
+        var res = null;
         var svar = null;
         try {
+          res = await fetch(
+            'diverseIncludes/save_flatpay_id.php',
+            {
+              method: 'post',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': " . json_encode($csrf_token) . ",
+              },
+              body: JSON.stringify({
+                'id': id
+              }),
+            }
+          )
           svar = await res.json();
         } catch (fejl) {
+          res = null;
           svar = null;
         }
-        if (!res.ok || !svar || !svar.success) {
+        if (!res || !res.ok || !svar || !svar.success) {
           alert('" . findtekst('3405|Ugyldig eller udløbet formular - genindlæs siden og prøv igen', $sprog_id) . "');
           return;
         }
