@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- lap 5.0.0 --- 2026-09-23 ---
+// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,6 +125,11 @@
 // 20260921 Sawaneh Merge with the 20260902 layout: the batchExpiryEnabled/box9 condition now wraps the
 //                  pcSecExpiry box instead of the old include inside the Diverse box.
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
+// 20261001 MJ SST-826 Save a warehouse location for an item that has no lagerstatus row:
+//                  create the row with no stock instead of discarding the location. The insert
+//                  had been commented out, so on an account with warehouses a location typed
+//                  for a new item vanished without a message and could never reach the picking
+//                  list. An empty field still creates nothing.
 //
 ob_start(); //Starts output buffering
 
@@ -558,11 +563,26 @@ if ($saveItem || $submit = trim($submit)) {
             if (!isset($lagerlok[$x])) {
                 continue;
             }
-            $qtxt = "select id from lagerstatus where vare_id='$id' and lager='$x' limit 1";
+            // Not named $location: that variable already holds the single-warehouse
+            // location from the POST and is written to varer.location further down.
+            $stockLocation = db_escape_string($lagerlok[$x]);
+            $warehouseNumber = (int) $x;
+            $qtxt = "select id from lagerstatus where vare_id='$id' and lager='$warehouseNumber' limit 1";
             if ($r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $qtxt = "update lagerstatus set lok1='" . db_escape_string($lagerlok[$x]) . "' where vare_id='$id' and lager='$x'";
+                $qtxt = "update lagerstatus set lok1='$stockLocation' where vare_id='$id' and lager='$warehouseNumber'";
                 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            } #else $qtxt="insert into lagerstatus (vare_id,lager,lok1) values ('$id','$x','$lagerlok[$x]')";
+            } elseif (trim($lagerlok[$x]) !== '') {
+                // SST-826 An item with no stock has no lagerstatus row for the warehouse -
+                // showLocations.php only creates one when the recorded stock disagrees with
+                // batch_kob/batch_salg, and for a new item both are 0. The insert that
+                // belongs here was commented out, so the location was silently dropped and
+                // could never reach the picking list. Create the row with no stock, so
+                // saving a location records the location and nothing else; the first goods
+                // receipt then updates beholdning on this same row.
+                $qtxt = "insert into lagerstatus (vare_id,lager,variant_id,beholdning,lok1) ";
+                $qtxt .= "values ('$id','$warehouseNumber','0','0','$stockLocation')";
+                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            }
         }
     }
 

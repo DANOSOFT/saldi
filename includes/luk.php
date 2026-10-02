@@ -2,7 +2,7 @@
 <?php
   @session_start();
   $s_id=session_id();
- // -------------------includes/luk.php-----lap 3.1.67----2011.03.28------------------
+ // -------------------includes/luk.php-----lap 3.1.67----2026.09.24------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,7 +17,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ------------------------------------------------------------------------------
 // 20260907 CDX/LH Restrict record unlocking to supported tables and escape refresh targets.
 // 20260910 Sawaneh Blocked-close fallback without returside goes to nav_back_url(), not the login page.
@@ -68,13 +68,44 @@ elseif (strpos($_SERVER['HTTP_USER_AGENT'],'MSIE')) $browser='ie';
 // 20260904 Sawaneh WP-1: returside sanitised (was reflected XSS/open redirect), popup=1
 //                  request flag also closes, blocked-close fallback goes to the returside
 //                  instead of the login page, and the unlock SQL params are cast/whitelisted.
+// 20260908 SZ SST-755: unlock_record() now also takes the releasing tab's own $brugernavn
+//                  and $tidspkt, so a release only takes effect while it still names the
+//                  lock's current owner and tidspkt - a stale tab's delayed release can no
+//                  longer clobber a lock a newer tab has since acquired.
+// 20260910 SZ SST-755 (CodeRabbit): a locking-table release now requires a real, non-empty
+//                  $brugernavn - previously a request with ?kilde=online.php skips the
+//                  includes/online.php include above, leaving $brugernavn null, and
+//                  unlock_record() silently drops the owner check entirely when null,
+//                  falling back to id+tidspkt-only matching (CWE-862: missing authorization).
+// 20260923 SZ SST-755 (CodeRabbit): also accept $lockToken - the pages now send this instead
+//                  of $tidspkt for their own exit links (see refresh_lock_token() in
+//                  unlockRecord.php), since $tidspkt alone didn't distinguish two tabs open on
+//                  the same record before either one saved. A stale cached link from before
+//                  this change still sends only $tidspkt, which still works exactly as before.
+// 20260924 SZ SST-755 (CodeRabbit): that "still works exactly as before" was the bug - a link
+//                  cached before this feature carries no lockToken at all, and unlock_record()
+//                  skipped the token check entirely whenever $lockToken was null, so it could
+//                  still clear a lock a newer, tokenized render now holds. Pass
+//                  requireTokenForTokenized so a no-token request only matches a row that
+//                  itself has no active token.
 if (!function_exists('nav_sanitize_returside')) {
 	include(__DIR__ . "/stdFunc/navStack.php");
 }
 $returside = nav_sanitize_returside($_GET['returside'] ?? null);
 $tabel = $_GET['tabel'] ?? null;
 $id = (int)($_GET['id'] ?? 0);
-unlock_record($tabel, $id);
+$tidspkt = $_GET['tidspkt'] ?? null;
+$lockToken = $_GET['lockToken'] ?? null;
+$isLockingTable = in_array($tabel, ['ordrer', 'kladdeliste'], true);
+// A locking table's release must carry a real, authenticated owner plus at least one of the
+// two release tokens - skip the unlock entirely rather than release the lock without
+// verifying either (SST-755). Anything else (most callers, which don't hold a lock at all)
+// is unaffected - unlock_record() already no-ops for a $tabel outside its own allowlist.
+if (!$isLockingTable) {
+	unlock_record($tabel, $id, $brugernavn ?? null, $tidspkt, $lockToken);
+} elseif (($tidspkt || $lockToken) && !empty($brugernavn)) {
+	unlock_record($tabel, $id, $brugernavn, $tidspkt, $lockToken, true);
+}
 if (!isset($popup)) $popup = NULL;
 if (!empty($_GET['popup'])) $popup = 1; // request flag: this window IS a popup regardless of the user's popup preference
 if ($popup || !$returside) {

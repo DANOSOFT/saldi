@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.29
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,11 +49,20 @@
 // 20260812 Sawaneh  The reconciliation itself moved to includes/stdFunc/mobilepayWebhookSync.php
 //                  so it can be exercised against a stub endpoint; this file keeps the
 //                  settings reads, the secret write and the one-shot marker.
+// 20260910 CL/SZ SST-777: added pool_files.manually_edited so a corrected suggestion
+//                  (account/amount/date/etc, saved via docPool.php's row/card edit) isn't
+//                  silently overwritten by a later automatic re-extraction.
+// 20260910 SZ SST-777 (CodeRabbit): the manually_edited column add wasn't concurrent-login
+//                  safe - guarded it with IF NOT EXISTS the same way the SST-763 migration
+//                  just below it already does.
 // 20260908 CL/Sawaneh SST-763: pbs_ordrer attempt columns (oprettet, bruger_id, gensendt_fra,
 //                     resultat*) and a unique (liste_id, ordre_id) index so one invoice can
 //                     be resent in a later batch but never twice in the same batch.
 // 20260914 CDX/LH Port ssl3 created_by columns for purchase and sales batches.
 // 20260716 CL/LH Added unique Stripe paid-invoice import key.
+// 20260917 SZ MB-36: backfill the batch_kob/varer/ordrelinjer FEFO columns that
+//                     opdat_4.2.php's version-exact-match gate never re-runs for
+//                     already-upgraded tenants (see comment near the bottom of this file).
 // 20260918 CDX/PHR Add a separate performed_by field for the selected order employee.
 // 20260921 CDX/LH Make performed_by creation safe for concurrent tenant updates.
 // 20260921 Sawaneh  Review: an empty webhook_base_url is no longer seeded from webhook_reconciled_url -
@@ -69,6 +78,8 @@
 // 20260929 CDX/PHR Initialize the tenant HTML layout version without changing existing forms.
 // 20260930 CL/NTR The repeated tekster clean-ups now call deleteStaleTekst() (includes/opdat_func/),
 //                  and the texts reworded on the translation branch are cleaned up too.
+// 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
+//                  the current tenant's database/schema, matching the performed_by migration.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -167,6 +178,24 @@ while ($r_norm_catchup = db_fetch_array($q_norm_catchup)) {
 			__FILE__ . " linje " . __LINE__
 		);
 	}
+}
+
+// SST-777: track whether a pool_files row's fields were set by an explicit human
+// correction (docPool.php's row/card "Save") rather than an automatic (re-)extraction,
+// so a later automatic re-extraction save can skip overwriting an already-corrected
+// field instead of silently clobbering it (see extractInvoiceHandler.php's save action).
+$manuallyEditedMysql = ($db_type == 'mysql' || $db_type == 'mysqli');
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='manually_edited'";
+# 20260930 SZ SST-777 (CodeRabbit): scoped to the current database/schema, same as the
+# performed_by migration above - an unscoped check can match another tenant's column on a
+# MySQL connection that can see multiple tenant databases, and then skip the ALTER TABLE
+# for this one.
+$qtxt .= $manuallyEditedMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# IF NOT EXISTS (Postgres/MariaDB, not MySQL) because betweenUpdates.php runs at login and two
+	# concurrent logins can both pass the check above.
+	$pool_files_if_not_exists = $manuallyEditedMysql ? '' : 'IF NOT EXISTS ';
+	db_modify("ALTER TABLE pool_files ADD COLUMN {$pool_files_if_not_exists}manually_edited BOOLEAN NOT NULL DEFAULT false", __FILE__ . " linje " . __LINE__);
 }
 
 // Same reasoning as the norm_amount catch-up above, for currency: extractInvoiceHandler.php
@@ -707,6 +736,62 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($pool_files_index, __FILE__ . " linje " . __LINE__);
 }
 
+// 20260917 SZ MB-36: opdat_4.2.php's opdat_4_2() only runs its whole body for a tenant whose
+// stored version is exactly at $b==2 in tjek4opdat.php's stepper - a tenant already past that
+// step (the common case for any live install) never runs it, so the FEFO/batch-expiry columns
+// it adds (batch_kob.due_date/batch_no, varer.has_due_date/default_shelf_life_days,
+// ordrelinjer.batch_due_date/batch_batch_no) can be permanently missing even though the
+// tenant's version implies the feature should be available. Same dead-gate class of bug as the
+// pool_files.norm_amount fix above; backfilled here unconditionally so the feature degrades to
+// "off" instead of silently failing partway through (e.g. ordre.php's save UPDATE referencing a
+// nonexistent ordrelinjer column).
+//
+// 20260923 CL/SZ Serialize these ALTER TABLEs the same way as performed_by/pool_files vendor
+// columns above (CodeRabbit, PR #608): two tenant logins racing this backfill could both pass
+// the existence check before either ALTER TABLE committed, and the second would fail on a
+// duplicate column mid-login.
+$fefoMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$fefoColumns = array(
+	'batch_kob' => array('due_date' => 'DATE NULL', 'batch_no' => 'VARCHAR(100) NULL'),
+	'varer' => array('has_due_date' => 'BOOLEAN DEFAULT FALSE', 'default_shelf_life_days' => 'INTEGER NULL'),
+	'ordrelinjer' => array('batch_due_date' => 'DATE NULL', 'batch_batch_no' => 'VARCHAR(100) NULL'),
+);
+$fefoMissing = array();
+foreach ($fefoColumns as $fefoTable => $fefoTableColumns) {
+	foreach ($fefoTableColumns as $fefoColumn => $fefoType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$fefoTable' AND column_name = '$fefoColumn'";
+		$qtxt .= $fefoMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$fefoMissing[] = array('table' => $fefoTable, 'column' => $fefoColumn, 'type' => $fefoType);
+		}
+	}
+}
+if ($fefoMissing) {
+	if ($fefoMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the
+		// check above; serialize per tenant and recheck under the lock (same as performed_by).
+		$fefoLock = "CONCAT('saldi:fefo_columns:', MD5(DATABASE()))";
+		$fefoLockResult = db_fetch_array(db_select("SELECT GET_LOCK($fefoLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($fefoLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the FEFO columns migration lock.');
+		}
+		try {
+			foreach ($fefoMissing as $fefoPending) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '{$fefoPending['table']}' AND column_name = '{$fefoPending['column']}' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE {$fefoPending['table']} ADD COLUMN {$fefoPending['column']} {$fefoPending['type']}", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($fefoLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($fefoMissing as $fefoPending) {
+			db_modify("ALTER TABLE {$fefoPending['table']} ADD COLUMN IF NOT EXISTS {$fefoPending['column']} {$fefoPending['type']}", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+
 // 20260922 CL/LAH Leverandørforslag fra AI-scan (kravspec Bilagsflow AI-3): the vendor read on a
 // scanned invoice and its match against kreditorer (adresser art='K'), written by
 // includes/docsIncludes/extractInvoiceHandler.php and read back by includes/_docPoolData.php.
@@ -753,6 +838,97 @@ if ($poolVendorMissing) {
 		foreach ($poolVendorMissing as $poolVendorColumn => $poolVendorProbe) {
 			db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolVendorColumn " . $poolVendorColumns[$poolVendorColumn], __FILE__ . " linje " . __LINE__);
 		}
+	}
+}
+
+// SST-755 (CodeRabbit follow-up): kladdeliste.lock_token / ordrer.lock_token hold a fresh
+// per-render token (see refresh_lock_token() in includes/stdFunc/unlockRecord.php), separate
+// from tidspkt - tidspkt only changes on an explicit acquire/save, so two tabs open on the
+// same record before either saved shared the same tidspkt and could release each other's
+// lock. lock_token changes on every render, so only the most recently rendered tab's exit
+// link/beacon still matches.
+$lockTokenMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$lockTokenTables = ['kladdeliste', 'ordrer'];
+$lockTokenMissing = array();
+foreach ($lockTokenTables as $lockTokenTable) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$lockTokenTable' AND column_name = 'lock_token'";
+	$qtxt .= $lockTokenMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$lockTokenMissing[] = $lockTokenTable;
+	}
+}
+if ($lockTokenMissing) {
+	if ($lockTokenMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS and two concurrent logins can both pass the
+		// check above; serialize per tenant and recheck under the lock (same as performed_by).
+		$lockTokenLock = "CONCAT('saldi:lock_token:', MD5(DATABASE()))";
+		$lockTokenLockResult = db_fetch_array(db_select("SELECT GET_LOCK($lockTokenLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($lockTokenLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the lock_token migration lock.');
+		}
+		try {
+			foreach ($lockTokenMissing as $lockTokenTable) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$lockTokenTable' AND column_name = 'lock_token' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE $lockTokenTable ADD COLUMN lock_token TEXT", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($lockTokenLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($lockTokenMissing as $lockTokenTable) {
+			db_modify("ALTER TABLE $lockTokenTable ADD COLUMN IF NOT EXISTS lock_token TEXT", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+
+// 20260925 LOE MB-42 The document pool recognised the same bilag only by its filename, and the mail
+//                  client posts it again under another one, so pool_files.content_sha256 is what
+//                  deduplication and the duplicate badge now use. The column and its index are created
+//                  by poolContentHashColumnExists() in includes/docsIncludes/poolContentHash.php,
+//                  because the REST attachment endpoint and the pulje sync read and write that column
+//                  without ever running this file; the one-time backfill stays here, where the login
+//                  flow is already doing per-tenant maintenance work.
+include_once(__DIR__ . "/docsIncludes/poolContentHash.php");
+poolContentHashEnsureSchema();
+
+// One-time backfill of content_sha256 for the rows written before the column existed, gated by a
+// settings flag exactly like pool_files_norm_amount_backfilled above. A row whose file is no longer
+// in the pulje folder keeps NULL - the sync deletes those rows anyway.
+//
+// The folder is resolved through poolPuljePath(), not hardcoded to bilag: an installation stores its
+// documents in owncloud, bilag or documents, and hardcoding bilag made every is_file() test here fail
+// on the other two layouts - hashing nothing, and (because the flag used to be written regardless)
+// doing it permanently, with no retry on a later login. The flag is now only written once the folder
+// was actually found, so a tenant whose folder appears later still gets its rows hashed.
+$pool_files_hash_backfilled = db_fetch_array(db_select(
+	"SELECT var_value FROM settings WHERE var_name = 'pool_files_content_sha256_backfilled' AND var_grp = 'system'",
+	__FILE__ . " linje " . __LINE__
+));
+if (!$pool_files_hash_backfilled && poolContentHashColumnExists()) {
+	include_once(__DIR__ . "/docsIncludes/poolPaths.php");
+	$poolHashDir = poolPuljePath($db);
+	if (is_dir($poolHashDir)) {
+		$q_pool_hash = db_select("SELECT id, filename FROM pool_files WHERE (content_sha256 IS NULL OR content_sha256 = '') AND filename IS NOT NULL AND filename != ''", __FILE__ . " linje " . __LINE__);
+		while ($r_pool_hash = db_fetch_array($q_pool_hash)) {
+			$poolHashFile = $poolHashDir . '/' . basename($r_pool_hash['filename']);
+			if (!is_file($poolHashFile)) {
+				continue;
+			}
+			$poolHashValue = @hash_file('sha256', $poolHashFile);
+			if ($poolHashValue) {
+				db_modify(
+					"UPDATE pool_files SET content_sha256 = '" . db_escape_string($poolHashValue) . "' WHERE id = " . (int) $r_pool_hash['id'],
+					__FILE__ . " linje " . __LINE__
+				);
+			}
+		}
+		db_modify(
+			"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+			VALUES ('pool_files_content_sha256_backfilled', 'system', 'yes', 'One-time backfill of pool_files.content_sha256 from the files in the pulje folder')",
+			__FILE__ . " linje " . __LINE__
+		);
 	}
 }
 

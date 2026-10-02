@@ -414,8 +414,22 @@ functionality; they are missing behaviour, not defects in what exists.
    §6.2 does not exist; Show expired only on the expiry report covers part of it. PDF export
    is not implemented (CSV is).
 5. No REST API support. None of the four endpoints in spec §7 exist.
-6. No menu entries. udlobsrapport.php and batch_oversigt.php are reachable only from the
-   dashboard banner and the item-card button.
+6. Menu entries (closed 2026-09-30, SST-836). udlobsrapport.php and batch_oversigt.php used to
+   be reachable only from the dashboard banner and the item-card button, so the report could not
+   be opened at all when nothing expired inside the warning window (default 30 days) and its back
+   link was pinned to lagerstatus.php. The expiry report now has an "Udløbsrapport" entry under
+   Lager in the side menu and in both top-menu headers, shown only when the account uses
+   batch/expiry management (batch_expiry_in_use(): the batchExpiryEnabled setting, or at least one
+   product group with box9 = 'on' in the current fiscal year) and only with the right the page
+   itself requires (module 12 - the report is gated on the debtor module, see below). The report
+   takes its back link from the page that opened it (returside, restricted to a page in the same
+   folder, menu as fallback), and each line links on to that item's batch overview, which is
+   otherwise still only reachable from the item card. The classic menu (index/menu.php) got no
+   entry on purpose: it forces the side menu and forwards to index/main.php before rendering its
+   own buttons, so anything added to its oldmenu() would be unreachable.
+   Still open in this area: the report requires module 12 while it lives under Lager, where the
+   reports entry requires module 15, and the dashboard banner checks module 12 as well. Aligning
+   those three is a deliberate access decision and is not part of SST-836.
 7. No override logging. Manually picking a different batch than FEFO suggests is possible but
    not logged (spec §4.2).
 8. Warehouse is not part of the FEFO filter in every path. batch() filters on lager only
