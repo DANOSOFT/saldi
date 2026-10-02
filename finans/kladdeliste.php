@@ -42,6 +42,7 @@
 //                  stale tab clobber a lock a newer tab had since acquired (no tidspkt check),
 //                  and every real caller now goes through includes/luk.php instead (confirmed
 //                  no remaining ?exitDraft= link generator anywhere in the codebase).
+// 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
 
 @session_start();
 $s_id=session_id();
