@@ -80,8 +80,9 @@ if (!is_string($id)) {
 }
 $id = trim($id);
 
-# Flatpay returns the GUID, e.g. 9e802837-307b-48c3-9f0e-1b4cac291376. An empty or malformed ID is
-# refused, so a call without a usable ID can no longer blank or overwrite the setting.
+# Flatpay returns the GUID, e.g. 00000000-0000-4000-8000-000000000000 (example, not a real ID).
+# An empty or malformed ID is refused, so a call without a usable ID can no longer blank or
+# overwrite the setting.
 if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
 	flatpay_id_svar(400, false, 'Expected a GUID');
 }
