@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-08-19 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,8 @@
 // 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
 // 20260930 CL/SZ SD-701 Clicking an attached voucher opens it in a separate tab (reused per click), so it can sit
 //                  on a second screen while the journal, incl. unsaved values, stays open in the original tab.
+// 20261002 CL/SZ SD-701 The voucher tab is view-only; managing attachments goes back to the journal tab via openBilagManage().
+//                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 
 // 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -442,14 +444,32 @@ print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/c
 // SD-701 Attached vouchers open in one named tab that later clicks reuse, so a tab moved to a second
 // screen keeps showing the current voucher. The journal is not left, so there is no unsaved-changes prompt,
 // unless the popup is blocked and the fallback navigates the journal tab.
+// The tab is view-only (viewOnly=1), so the line cannot be edited in two places. Its "Administrér bilag"
+// button calls openBilagManage() here, which brings the full attachment page into this tab instead.
+/**
+ * jsString() comes from includes/stdFunc/jsString.php, which std_func.php includes.
+ *
+ * @see jsString()
+ */
+$bilagUnsavedTxt = jsString(array(
+	findtekst('5280|Obs - Du har ikke gemt.', $sprog_id), "\n ",
+	findtekst('5281|Hvis du klikker OK mistes de sidste ændringer', $sprog_id)
+));
 print "<script>
+	var bilagUnsavedTxt = $bilagUnsavedTxt;
 	function openBilagTab(url) {
-		var bilagTab = window.open(url, 'saldiBilag');
+		var bilagTab = window.open(url + '&viewOnly=1', 'saldiBilag');
 		if (bilagTab) {
 			bilagTab.focus();
 		} else {
-			confirmClose(url, 'Obs - Du har ikke gemt.\\n Hvis du klikker OK mistes de sidste ændringer');
+			confirmClose(url, bilagUnsavedTxt);
 		}
+	}
+	// Same prompt as confirmClose(), but returns whether the journal is left, so the tab only closes then
+	function openBilagManage(url) {
+		if (docChange && !confirm(bilagUnsavedTxt)) return false;
+		document.location = url;
+		return true;
 	}
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
@@ -1784,8 +1804,7 @@ $columns = array(
 			$dropAttr = "";
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
-			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href','$txt')";
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href', bilagUnsavedTxt)";
 			return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
 				<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>
 				<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
@@ -3231,8 +3250,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
-			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href','$txt')";
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href', bilagUnsavedTxt)";
 			print "<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>";
 			#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
