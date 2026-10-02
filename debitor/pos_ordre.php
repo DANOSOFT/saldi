@@ -118,6 +118,8 @@
 // 20261002 CL/SZ SST-813: function kundedisplay: the saldi.dk box-IP lookup moved to kundedisplayBoxLookup() with a 2 s timeout, tried once per request and logged on failure.
 //                An unreachable saldi.dk no longer holds the POS request for the 60 s default socket timeout.
 // 20261002 CL/SZ SST-813: Load stockWarningPopup.js with a filemtime version, as ordre.php does, so POS terminals pick up the keyboard/focus fix instead of a cached copy.
+// 20261002 CL/SZ SST-813: function kundedisplayBoxLookup: CodeRabbit review - make the 2 s a total limit for the whole lookup (cURL CURLOPT_TIMEOUT_MS), since the stream wrapper's timeout is per read.
+//                The stream fallback without cURL now gives the read only the time left after opening.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -3469,6 +3471,12 @@ function kundedisplay($beskrivelse, $pris, $ryd)
  * A failed lookup is tried only once per request and logged, and the page
  * continues without the customer display.
  *
+ * The 2 s limit covers the whole lookup. The http stream wrapper's own timeout
+ * applies to each read, so a server that answers slowly or trickles bytes could
+ * stretch it to several times that; cURL's CURLOPT_TIMEOUT_MS is a total limit.
+ * Without cURL the stream fallback gives the read only the time left after
+ * opening.
+ *
  * @return string The box IP, or '' when the lookup failed or timed out.
  */
 function kundedisplayBoxLookup()
@@ -3477,15 +3485,33 @@ function kundedisplayBoxLookup()
 	if ($result !== null) return $result;
 
 	$result = '';
+	$timeout = 2.0;
 	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
-	$context = stream_context_create(array('http' => array('timeout' => 2)));
 	$started = microtime(true);
-	$fp = fopen($filnavn, 'r', false, $context);
-	if ($fp) {
-		stream_set_timeout($fp, 2);
-		$line = fgets($fp);
-		fclose($fp);
-		if ($line !== false) $result = trim($line);
+	if (function_exists('curl_init')) {
+		$ch = curl_init($filnavn);
+		curl_setopt_array($ch, array(
+			CURLOPT_RETURNTRANSFER    => true,
+			CURLOPT_FAILONERROR       => true,
+			CURLOPT_NOSIGNAL          => true,
+			CURLOPT_CONNECTTIMEOUT_MS => (int)($timeout * 1000),
+			CURLOPT_TIMEOUT_MS        => (int)($timeout * 1000),
+		));
+		$body = curl_exec($ch);
+		curl_close($ch);
+		if (is_string($body)) $result = trim(strtok($body, "\n"));
+	} else {
+		$context = stream_context_create(array('http' => array('timeout' => $timeout)));
+		$fp = fopen($filnavn, 'r', false, $context);
+		if ($fp) {
+			$remaining = $timeout - (microtime(true) - $started);
+			if ($remaining > 0) {
+				stream_set_timeout($fp, (int)$remaining, (int)(($remaining - (int)$remaining) * 1000000));
+				$line = fgets($fp);
+				if ($line !== false) $result = trim($line);
+			}
+			fclose($fp);
+		}
 	}
 	if ($result === '') {
 		error_log(sprintf("kundedisplay: box lookup %s failed after %.1f s, customer display skipped", $filnavn, microtime(true) - $started));
