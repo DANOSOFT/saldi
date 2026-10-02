@@ -269,12 +269,12 @@ $columns[] = array(
         
         if ($locked) {
             global $sprog_id;
-            $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
+            $url = "kassekladde.php?tjek=$id&kladde_id=$id";
             $bogfort = isset($row['bogfort']) ? htmlspecialchars($row['bogfort']) : '';
             return "<td align='{$column['align']}' data-bogfort='$bogfort' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url' title='" . findtekst('1607|Kladde er låst af', $sprog_id) . " {$row['hvem']}' style='color:#FF0000'>$value</a></td>";
         }
         
-        $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
+        $url = "kassekladde.php?tjek=$id&kladde_id=$id";
         $bogfort = isset($row['bogfort']) ? htmlspecialchars($row['bogfort']) : '';
         return "<td align='{$column['align']}' data-bogfort='$bogfort' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },
