@@ -9,6 +9,7 @@
 // 20261003 CL/SZ SD-698: The card opens in a separate, reused tab (saldiKort) instead of leaving the journal, so unsaved
 //                  journal edits are kept; the card's Tilbage closes the tab. A blocked popup falls back to the old ask-and-leave.
 // 20261003 CL/SZ SD-716 window.closeAccountAutocomplete closes the panel, so Ctrl + arrow navigation (fieldNavigation.js) can move on from an open panel.
+// 20261003 CL/SZ SD-720 A search answer that arrives after the user left the field no longer opens the panel and takes the focus back.
 (function () {
     'use strict'; 
 
@@ -609,6 +610,8 @@
                     const data = JSON.parse(text);
                     const results = data.results || data;
                     const pagination = data.pagination || { page: 1, total: results.length, hasMore: false };
+                    // A late answer for a field the user has left must not open the panel and take the focus back (SD-720)
+                    if (document.activeElement !== input) return;
                     renderDropdown(input, results, searchType, searchValue, pagination);
                 } catch (e) {
                     console.error('JSON parse error:', e);

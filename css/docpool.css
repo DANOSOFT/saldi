@@ -912,3 +912,39 @@ body {
   cursor: pointer;
   font-size: 12px;
 }
+
+/* SD-720: "Bilagsbalance" under the rows of a split bilag, green at 0,00 */
+.pool-split-balance {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 4px 0 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.pool-split-balance .pool-split-value {
+  font-weight: bold;
+}
+
+.pool-split-balance.pool-split-ok {
+  background-color: #e6f4ea;
+  color: #1e7e34;
+}
+
+.pool-split-balance.pool-split-off {
+  background-color: #fdecea;
+  color: #c82333;
+}
+
+.pool-split-warning {
+  font-weight: bold;
+}
+
+.pool-split-remove {
+  padding: 2px 8px;
+  color: #c82333;
+  font-size: 16px;
+  text-decoration: none;
+}

@@ -11,6 +11,8 @@
 // 20261003 CL/SZ SD-719 The next document opens in place (docPoolSwitch.js); the attached document is taken out of the list.
 //                When the open document is the last loaded row, the next page of the list is fetched first.
 //                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
+// 20261003 CL/SZ SD-720 Before saving, "Fordeling"'s balance check (docPoolSplit.js) may take the first Enter.
+//                Every new row (new, new2 ...) gets its line id, and a split bilag attaches the document to every row.
 (function () {
     'use strict';
 
@@ -176,19 +178,34 @@
         }
     }
 
-    /** Saves the rows one after another; resolves with the new row's id (or null) when all were saved. */
+    /**
+     * Saves the rows one after another in the order shown, so new lines get their pos in that order (SD-720).
+     * Resolves with the line id of each new row (new, new2 ...) by row id.
+     */
     function saveRowsInOrder(entries) {
         var c = cfg();
-        var newId = null;
+        var newIds = {};
         return entries.reduce(function (chain, entry) {
             return chain.then(function () {
                 var rowId = rowIdOf(entry);
                 return window._saveRowFetch(rowId, c.kladdeId, c.bilag).then(function (data) {
                     if (!data || !data.success) throw new Error((data && data.message) || 'save failed');
-                    if (rowId === 'new' && data.sourceId) newId = data.sourceId;
+                    if (/^new/.test(rowId) && data.sourceId) newIds[rowId] = data.sourceId;
                 });
             });
-        }, Promise.resolve()).then(function () { return newId; });
+        }, Promise.resolve()).then(function () { return newIds; });
+    }
+
+    /** The "attach here" boxes after saving: new rows get their line id; a split bilag ticks every row (SD-720). */
+    function markTargets(entries, newIds) {
+        var split = window.poolSplit && typeof window.poolSplit.active === 'function' && window.poolSplit.active();
+        entries.forEach(function (entry) {
+            var box = entry.querySelector('.targetLineCheckbox');
+            if (!box) return;
+            var id = newIds[rowIdOf(entry)];
+            if (id) box.value = id;
+            if (split && /^\d+$/.test(box.value) && box.value !== '0') box.checked = true;
+        });
     }
 
     function saveAndNext() {
@@ -202,6 +219,8 @@
             if (typeof missing.select === 'function') missing.select();
             return;
         }
+        // SD-720: a split that doesn't add up warns on the first Enter; the second saves
+        if (window.poolSplit && typeof window.poolSplit.beforeSave === 'function' && !window.poolSplit.beforeSave()) return;
         // Chosen before the save: the current document leaves the list when it is attached
         var file = currentPoolFile();
         var next = null;
@@ -209,12 +228,9 @@
         nextDocument().then(function (found) {
             next = found;
             return saveRowsInOrder(entries);
-        }).then(function (newId) {
-            if (newId) {
-                // The new row's "attach here" box carried 0 until the row existed
-                var box = document.querySelector('#bilagEntry_new .targetLineCheckbox');
-                if (box) box.value = newId;
-            }
+        }).then(function (newIds) {
+            // The new rows' "attach here" boxes carried 0 until the rows existed
+            markTargets(entries, newIds);
             if (!file || typeof window.chooseMultipleBilag !== 'function') {
                 leaveFor(next ? documentUrl(next, true) : doneUrl());
                 return;
