@@ -22,14 +22,14 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261003 CL/SZ Doc pool task 2: Created: name and VAT code of the account in a pool Debet/Kredit field, plus the
-//                  "sidste 5 posteringer" the other field's lookup panel offers for it. Read-only, JSON.
+// 20261003 CL/SZ SD-714 Created: name and VAT code of the account in a pool Debet/Kredit field, plus the "sidste 5 posteringer" the other field's lookup panel offers for it.
+//                Read-only, JSON.
 //
 // Request: art=F|D|K  kontonr=<number>  dk=D|K (the field the suggestions are for)  kladde_id=<journal>
 
 ob_start();
 
-@session_start();
+session_start();
 $s_id = session_id();
 $title = 'poolAccountLookup';
 $modulnr = 0;

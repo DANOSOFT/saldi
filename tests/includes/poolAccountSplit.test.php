@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 require_once __DIR__ . '/../../includes/docsIncludes/poolAccountInfo.php';
 
 /**
- * Doc pool task 2: how a pool Debet/Kredit value and its stored type turn into the type + number the row shows.
+ * SD-714: how a pool Debet/Kredit value and its stored type turn into the type + number the row shows.
  */
 final class poolAccountSplit extends TestCase
 {
