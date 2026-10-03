@@ -108,7 +108,8 @@
 //                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
 // 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
 //                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
-//                A row being edited inline is not re-rendered: the refresh waits until the edit is closed. With no pool_files table yet, the full sync runs at once.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
@@ -2175,8 +2176,27 @@ print <<<JS
 		}
 	}
 	
+	// SD-718: true while the background folder sync's list refresh runs (poolFolderSync.php)
+	let poolBackgroundRefresh = false;
+	let poolRenderDeferred = false;
+
 	// Render based on current view mode
 	function renderCurrentView() {
+		// SD-718: the background refresh never wipes a row being edited; the list is drawn once the edit is saved or cancelled
+		if (poolBackgroundRefresh && document.querySelector("tr[data-editing='true']")) {
+			if (!poolRenderDeferred) {
+				poolRenderDeferred = true;
+				(function waitForEdit() {
+					if (document.querySelector("tr[data-editing='true']")) {
+						setTimeout(waitForEdit, 500);
+						return;
+					}
+					poolRenderDeferred = false;
+					renderCurrentView();
+				})();
+			}
+			return;
+		}
 		if (viewMode === 'card') {
 			renderFilesCard();
 		} else {
@@ -4291,15 +4311,13 @@ window.saveRowData = function(input) {
         return response.json();
     }).then(function (result) {
         if (!result || !result.changed) return;
-        // A row being edited would lose its fields in the re-render: wait until the edit is closed
-        (function refreshWhenIdle(tries) {
-            if (document.querySelector("tr[data-editing='true']") && tries < 300) {
-                setTimeout(function () { refreshWhenIdle(tries + 1); }, 1000);
-                return;
-            }
-            fetchFiles();
-        })(0);
-    }).catch(function () { /* the next page load checks the folder again */ });
+        // A row being edited would lose its fields in the re-render: renderCurrentView() holds the drawing back until the edit is closed,
+        // also when the edit is opened while the refreshed list is still being fetched
+        poolBackgroundRefresh = true;
+        return fetchFiles();
+    }).catch(function () { /* the next page load checks the folder again */ }).then(function () {
+        poolBackgroundRefresh = false;
+    });
     window.sortFiles = sortFiles;
 
 
