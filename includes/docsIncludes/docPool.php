@@ -130,6 +130,11 @@
 //                An XML invoice is rendered through EasyUBL once and reused until the file changes.
 // 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
 //                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
+//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
+//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261003 CL/SZ SD-721 Loads kreditorFromCvr.js: a supplier that is not a kreditor is created from the CVR register, offered with "Opret kreditor", or entered in the dialog.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
@@ -502,7 +507,37 @@ function checkIfAllPoolFilesAreInDatabase() {
 	}
 }
 
-checkIfAllPoolFilesAreInDatabase();
+/**
+ * Brings pool_files in line with the pool folder, as page loads used to (SD-718: now called by includes/poolFolderSync.php after the page is shown).
+ * The full sync runs at most every 10 minutes; in between, the folder is only read when its mtime changed.
+ *
+ * @param string $docFolder The documents root (owncloud, bilag or documents).
+ * @param string $db        The tenant's database name.
+ * @return bool True when rows were added or removed, so the list should be fetched again.
+ */
+function poolFolderSync($docFolder, $db) {
+	$before = poolFilesSignature();
+	// No table yet: the full sync creates it, so it runs now instead of waiting for the 10-minute window to end
+	if ($before === '') update_settings_value("skip_sync", "docs", 0, "Skip pool sync after initial run");
+	checkIfAllPoolFilesAreInDatabase();
+	syncPuljeFilesToDatabase($docFolder, $db);
+	return poolFilesSignature() !== $before;
+}
+
+/**
+ * Number of pool_files rows and the highest id: changes when a row is added or removed.
+ *
+ * @return string '' when the table doesn't exist (yet).
+ */
+function poolFilesSignature() {
+	global $db_type;
+	$schema = ($db_type == 'mysql' || $db_type == 'mysqli') ? "DATABASE()" : "current_schema()";
+	if (!db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_schema = $schema AND table_name = 'pool_files'", __FILE__ . " line " . __LINE__))) {
+		return '';
+	}
+	$r = db_fetch_array(db_select("SELECT COUNT(*) AS n, MAX(id) AS m FROM pool_files", __FILE__ . " line " . __LINE__));
+	return (int)$r['n'] . '|' . (int)$r['m'];
+}
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 
@@ -511,8 +546,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	
 	$afd = $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 
-	// Sync missing files from pulje directory to database once on page load
-	syncPuljeFilesToDatabase($docFolder, $db);
+	// SD-718: the folder sync no longer runs here; poolFolderSync() is called in the background once the page is shown
 
 	((isset($_POST['unlink']) && $_POST['unlink']) || (isset($_GET['unlink']) && $_GET['unlink']))?$unlink=1:$unlink=0;
 	$cleanupOrphans = if_isset($_GET, NULL, 'cleanupOrphans');
@@ -1413,7 +1447,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	if (!$poolFile && $source != 'kassekladde') {
 		// Optimization: Try DB first to find latest file
 		// Check table existence first to avoid errors during migration
-		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+		// SD-718: the schema is the company's database on MySQL but 'public' on Postgres, where '$db' never matched and every load read the folder
+		global $db_type;
+		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = " . (($db_type == 'mysql' || $db_type == 'mysqli') ? "DATABASE()" : "current_schema()") . " AND table_name = 'pool_files'";
 		$hasTable = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		
 		$foundInDb = false;
@@ -2326,8 +2362,27 @@ print <<<JS
 		}
 	}
 	
+	// SD-718: true while the background folder sync's list refresh runs (poolFolderSync.php)
+	let poolBackgroundRefresh = false;
+	let poolRenderDeferred = false;
+
 	// Render based on current view mode
 	function renderCurrentView() {
+		// SD-718: the background refresh never wipes a row being edited; the list is drawn once the edit is saved or cancelled
+		if (poolBackgroundRefresh && document.querySelector("tr[data-editing='true']")) {
+			if (!poolRenderDeferred) {
+				poolRenderDeferred = true;
+				(function waitForEdit() {
+					if (document.querySelector("tr[data-editing='true']")) {
+						setTimeout(waitForEdit, 500);
+						return;
+					}
+					poolRenderDeferred = false;
+					renderCurrentView();
+				})();
+			}
+			return;
+		}
 		if (viewMode === 'card') {
 			renderFilesCard();
 		} else {
@@ -4451,7 +4506,20 @@ window.saveRowData = function(input) {
 
 
 
-    fetchFiles();
+    // SD-718: the list is shown from pool_files at once; the folder is checked afterwards, and the list is fetched again only when that added or removed documents
+    fetchFiles().then(function () {
+        return fetch('poolFolderSync.php', { method: 'POST', credentials: 'same-origin' });
+    }).then(function (response) {
+        return response.json();
+    }).then(function (result) {
+        if (!result || !result.changed) return;
+        // A row being edited would lose its fields in the re-render: renderCurrentView() holds the drawing back until the edit is closed,
+        // also when the edit is opened while the refreshed list is still being fetched
+        poolBackgroundRefresh = true;
+        return fetchFiles();
+    }).catch(function () { /* the next page load checks the folder again */ }).then(function () {
+        poolBackgroundRefresh = false;
+    });
     window.sortFiles = sortFiles;
 
 
