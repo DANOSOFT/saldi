@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,10 +100,12 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
+// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolMetadata.php";
+include_once(__DIR__ . "/docFileFunc.php");
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -3017,7 +3019,8 @@ print <<<JS
 			}
 			
 			// Build file path for preview
-			const filePath = docFolder + '/' + db + '/pulje/' + filename;
+			// Served through docFile.php (login and tenant checked), see docFileUrl() in docFileFunc.php
+			const filePath = '../includes/docsIncludes/docFile.php?k=doc&f=' + encodeURIComponent('pulje/' + filename);
 			
 			// Check matches
 			const isSelected         = currentPoolFile && filename === currentPoolFile;
@@ -4731,7 +4734,8 @@ JS;
 						// Save the HTML to a temp file for display in iframe
 						$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
 						file_put_contents($htmlTempFile, $htmlResult);
-						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
+						$htmlTempUrl = htmlspecialchars(docFileUrl($htmlTempFile, $docFolder, $db), ENT_QUOTES);
+						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";
 						print "</iframe>";
 					} else {
 						docPoolLog("XML to HTML conversion failed for $poolFile: $curlError");
@@ -4760,7 +4764,8 @@ JS;
 			if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
 			else $src=$tmp;
 			
-			print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName#pagemode=none\" frameborder=\"0\">";
+			$fullNameUrl = htmlspecialchars(docFileUrl($fullName, $docFolder, $db), ENT_QUOTES);
+			print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullNameUrl#pagemode=none\" frameborder=\"0\">";
 			print "</iframe>";
 		}
 	}
