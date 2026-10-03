@@ -7,6 +7,7 @@
 //                "Spring over" opens the next document without saving; the arrow keys outside a field open the previous / next document.
 //                The next document is the one after the current one in the list as shown (sort and search kept).
 //                Needs window.saldiPoolSaveNext (docPool.php) and docPool.php's _saveRowFetch(), chooseMultipleBilag() and transferDataFromSelectedFile().
+// 20261003 CL/SZ SD-717 "Gem og næste" and "Spring over" never open an archived document; the arrow keys still browse the archive.
 (function () {
     'use strict';
 
@@ -27,13 +28,23 @@
         return '';
     }
 
-    /** File names in the list, in the order shown (table rows or cards, whichever view is visible). */
-    function listedFiles() {
+    /** File names of archived documents in the loaded list (docData), as a lookup. */
+    function archivedFiles() {
+        var archived = {};
+        (window.docData || []).forEach(function (row) {
+            if (row && row.archived) archived[row.filename] = true;
+        });
+        return archived;
+    }
+
+    /** File names in the list, in the order shown (table rows or cards, whichever view is visible). withArchived: keep archived ones. */
+    function listedFiles(withArchived) {
         var seen = {};
         var files = [];
+        var archived = withArchived ? {} : archivedFiles();
         document.querySelectorAll('#leftPanel [data-pool-file]').forEach(function (el) {
             var name = el.getAttribute('data-pool-file');
-            if (!name || seen[name] || !el.getClientRects().length) return;
+            if (!name || seen[name] || archived[name] || !el.getClientRects().length) return;
             seen[name] = true;
             files.push(name);
         });
@@ -41,8 +52,8 @@
     }
 
     /** The document after (step 1) or before (step -1) the current one; null when there is none. */
-    function neighbour(step) {
-        var files = listedFiles();
+    function neighbour(step, withArchived) {
+        var files = listedFiles(withArchived);
         var current = currentPoolFile();
         var at = files.indexOf(current);
         if (at < 0) return step > 0 ? (files[0] || null) : null;
@@ -240,7 +251,7 @@
 
         if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.shiftKey) {
             if (inField(target) || modalOpen() || busy) return;
-            var other = neighbour(e.key === 'ArrowRight' ? 1 : -1);
+            var other = neighbour(e.key === 'ArrowRight' ? 1 : -1, true);
             if (!other) return;
             e.preventDefault();
             var href = documentUrl(other, false);

@@ -112,6 +112,9 @@
 //                A new line gets the journal's next voucher number, as a new line in the journal does.
 //                chooseMultipleBilag() takes an optional callback that runs instead of the redirect to the journal.
 //                transferDataFromSelectedFile({auto: true}) fills only empty fields, without the confirm popup, and takes Kredit only from a confident vendor match.
+// 20261003 CL/SZ SD-717 "Arkivér" per document and for the selection (Del outside a field), "Vis arkiverede" and "Gendan" (docPoolArchive.js, poolArchive.php).
+//                Archived documents are not in the normal list, not opened first (database or folder route), not in "Opdatér alle", and get no match colours in the archive.
+//                pool_files.archived and archived_by added to both CREATE TABLE IF NOT EXISTS fallbacks.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -211,6 +214,8 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			vendor_match varchar(10),
 			vendor_score numeric(4,3),
 			content_sha256 char(64),
+			archived timestamp,
+			archived_by integer,
 			PRIMARY KEY (id),
 			UNIQUE(filename)
 		)";
@@ -1143,6 +1148,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								vendor_match varchar(10),
 								vendor_score numeric(4,3),
 								content_sha256 char(64),
+								archived timestamp,
+								archived_by integer,
 								PRIMARY KEY (id),
 								UNIQUE(filename)
 							)";
@@ -1347,8 +1354,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$hasTable = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		
 		$foundInDb = false;
+		require_once __DIR__ . '/poolArchive.php';
 		if ($hasTable) {
-			$qtxt = "SELECT filename FROM pool_files ORDER BY file_date DESC, updated DESC LIMIT 1";
+			$qtxt = "SELECT filename FROM pool_files WHERE " . poolArchiveActiveSql() . " ORDER BY file_date DESC, updated DESC LIMIT 1";
 			$latestRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			
 			if ($latestRow) {
@@ -1358,10 +1366,18 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		}
 		
 		if (!$foundInDb && is_dir($dir)) {
+			// SD-717: an archived document's file is still in the folder, but it is not opened first
+			$archivedFiles = array();
+			if (poolArchiveReady()) {
+				$q = db_select("SELECT filename FROM pool_files WHERE archived IS NOT NULL", __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$archivedFiles[$r['filename']] = true;
+				}
+			}
 			if ($dh = opendir($dir)) {
 				while (($file = readdir($dh)) !== false) {
 					// Check for .pdf or .xml file (case-insensitive), skip hidden files
-					if (substr($file, 0, 1) != '.' && preg_match('/\.(pdf|xml)$/i', $file)) {
+					if (substr($file, 0, 1) != '.' && preg_match('/\.(pdf|xml)$/i', $file) && !isset($archivedFiles[$file])) {
 						$filePath = rtrim($dir, '/') . '/' . $file;
 						#clearstatcache(); 
 						$modTime = filemtime($filePath);
@@ -1442,6 +1458,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<script src=\"../javascript/fieldNavigation.js?v=$v10\"></script>";
 	$v11 = file_exists("../javascript/docPoolSaveNext.js") ? filemtime("../javascript/docPoolSaveNext.js") : 0;
 	print "<script src=\"../javascript/docPoolSaveNext.js?v=$v11\"></script>";
+	$v12 = file_exists("../javascript/docPoolArchive.js") ? filemtime("../javascript/docPoolArchive.js") : 0;
+	print "<script src=\"../javascript/docPoolArchive.js?v=$v12\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1937,6 +1955,22 @@ print "AI scan</label>";
 print "<button type='button' id='extractAllBtn' onclick='extractAllPoolFiles()' title='".findtekst('3272|Opdatér alle filer med fakturadata', $sprog_id)."' style='padding: 8px 12px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgScan <span style='font-size: 12px;'>".findtekst('898|Opdatér', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id))."</span></button>"; #Opdatér alle
 // Delete selected button
 print "<button type='button' id='deleteSelectedBtn' onclick='deleteSelectedFiles()' title='".findtekst('3273|Slet valgte filer', $sprog_id)."' style='padding: 8px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgTrash <span style='font-size: 12px;'>".findtekst('1146|Slet valgte', $sprog_id)."</span></button>";
+// SD-717: archive the selection ("Gendan valgte" in the archive; docPoolArchive.js swaps the label) and the archive filter
+$svgArchive = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>';
+print "<button type='button' id='archiveSelectedBtn' onclick='poolArchive.runSelected()' data-restore-label='".htmlspecialchars(findtekst('5342|Gendan valgte', $sprog_id), ENT_QUOTES)."' style='padding: 8px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgArchive <span style='font-size: 12px;'>".findtekst('5341|Arkivér valgte', $sprog_id)."</span></button>";
+print "<label style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
+print "<input type='checkbox' id='poolShowArchived' onchange='poolArchive.toggleView(this.checked)' style='cursor: pointer;'>".findtekst('5338|Vis arkiverede', $sprog_id)."</label>";
+print "<script>window.saldiPoolArchive = " . json_encode(array(
+	'db'         => (string)$db,
+	'handlerUrl' => 'docsIncludes/extractInvoiceHandler.php',
+	'texts'      => array(
+		'archive'      => findtekst('5337|Arkivér', $sprog_id),
+		'restore'      => findtekst('5339|Gendan', $sprog_id),
+		'archived'     => findtekst('5343|Arkiveret', $sprog_id),
+		'noneSelected' => findtekst('5345|Ingen bilag valgt.', $sprog_id),
+		'emptyArchive' => findtekst('5344|Ingen arkiverede bilag', $sprog_id),
+	),
+), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
 print "<div style='display: flex; gap: 0;'>";
 print "<button type='button' id='tableViewBtn' onclick='setViewMode(\"table\")' title='".findtekst('3274|Tabelvisning', $sprog_id)."' style='padding: 8px 12px; background-color: $buttonColor; color: $buttonTxtColor; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;'>$svgTable</button>";
 print "<button type='button' id='cardViewBtn' onclick='setViewMode(\"card\")' title='".findtekst('3275|Kortvisning', $sprog_id)."' style='padding: 8px 12px; background-color: #e9ecef; color: #495057; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;'>$svgGrid</button>";
@@ -2403,7 +2437,8 @@ print <<<JS
       
 
         try {
-            const response = await fetch('_docPoolData.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}'));
+            const archivedParam = (window.poolArchive && window.poolArchive.view()) ? '&archived=1' : '';
+            const response = await fetch('_docPoolData.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}') + archivedParam);
             const data     = await response.json();
 
             if (data.error) {
@@ -2425,7 +2460,7 @@ print <<<JS
 
     function renderFiles() {
 			if (!docData.length) {
-				document.getElementById(containerId).innerHTML = '<em>{$txt22}.</em>';
+				document.getElementById(containerId).innerHTML = (window.poolArchive && window.poolArchive.view()) ? '<em>' + escapeHTML(window.saldiPoolArchive.texts.emptyArchive) + '.</em>' : '<em>{$txt22}.</em>';
 				return;
 			}
 			
@@ -2490,7 +2525,8 @@ print <<<JS
 		
 		// Normalize the total sum for comparison
 		const normalizedTotal = parseFloat(totalSum?.replace(/\./g, '').replace(',', '.') || 0);
-		const hasAmountToMatch = normalizedTotal !== 0 && !isNaN(normalizedTotal);
+		const inArchive = !!(window.poolArchive && window.poolArchive.view());
+		const hasAmountToMatch = !inArchive && normalizedTotal !== 0 && !isNaN(normalizedTotal);
 		
 		// Normalize target date for comparison (convert dd-mm-yyyy to yyyy-mm-dd for comparison)
 		let normalizedTargetDate = null;
@@ -2507,7 +2543,7 @@ print <<<JS
 				}
 			}
 		}
-		const hasDateToMatch = normalizedTargetDate !== null;
+		const hasDateToMatch = !inArchive && normalizedTargetDate !== null;
 		
 		// First pass: count matching documents and find combinations
 		let matchingCount      = 0;
@@ -2775,6 +2811,7 @@ print <<<JS
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(row.invoiceNumber || '') + "\", \"" + escapeHTML(row.description || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
+				(window.poolArchive ? window.poolArchive.button(poolFileFromHref, 'row') : '') +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
 				"</div>";
 
@@ -2784,6 +2821,7 @@ print <<<JS
 			
 			const metadataState = row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}';
 			subjectCell += "<br><small>" + escapeHTML(metadataState) + "</small>";
+			if (row.archived && window.poolArchive) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.archivedNote(row)) + "</small>";
 			const dataAttrs = "data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + 
 				(isMatch ? "data-selected='true' " : "") + 
 				(isPerfectMatch ? "data-perfect-match='true' " : "") +
@@ -2944,7 +2982,7 @@ print <<<JS
 	// Card layout render function (similar to linkBilag style)
 	function renderFilesCard() {
 		if (!docData.length) {
-			document.getElementById(containerId).innerHTML = '<em>{$txt22}.</em>';
+			document.getElementById(containerId).innerHTML = (window.poolArchive && window.poolArchive.view()) ? '<em>' + escapeHTML(window.saldiPoolArchive.texts.emptyArchive) + '.</em>' : '<em>{$txt22}.</em>';
 			return;
 		}
 		
@@ -2961,7 +2999,8 @@ print <<<JS
 		
 		// Amount and date matching logic (reuse from renderFiles)
 		const normalizedTotal = parseFloat(totalSum?.replace(/\\./g, '').replace(',', '.') || 0);
-		const hasAmountToMatch = normalizedTotal !== 0 && !isNaN(normalizedTotal);
+		const inArchive = !!(window.poolArchive && window.poolArchive.view());
+		const hasAmountToMatch = !inArchive && normalizedTotal !== 0 && !isNaN(normalizedTotal);
 		
 		// Normalize target date for card view
 		let cardNormalizedTargetDate = null;
@@ -2975,7 +3014,7 @@ print <<<JS
 				}
 			}
 		}
-		const cardHasDateToMatch = cardNormalizedTargetDate !== null;
+		const cardHasDateToMatch = !inArchive && cardNormalizedTargetDate !== null;
 		
 		let exactMatches       = [];
 		let perfectMatches     = [];
@@ -3161,6 +3200,7 @@ print <<<JS
 			html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHTML(subject) + '">' + escapeHTML(subject) + '</div>';
 			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
 			html += '<span>' + escapeHTML(row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}') + '</span>';
+			if (row.archived && window.poolArchive) html += '<span>' + escapeHTML(window.poolArchive.archivedNote(row)) + '</span>';
 			if (account) html += '<span><strong>{$txt6}:</strong> ' + escapeHTML(account) + '</span>';
 			if (amount) {
 				let amountHtml = '<span><strong>{$txt10}:</strong> ';
@@ -3193,6 +3233,7 @@ print <<<JS
 			html += '<div class="card-actions" style="flex-shrink: 0; display: flex; gap: 4px;" onclick="event.stopPropagation();">';
 			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); enableCardEdit(\\'' + escapeHTML(filename) + '\\', \\'' + escapeHTML(subject) + '\\', \\'' + escapeHTML(account) + '\\', \\'' + escapeHTML(amount) + '\\', \\'' + escapeHTML(dateFormatted) + '\\'); return false;" style="padding: 6px 10px; background: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt13}">' + svgIcons.pencil + '</button>';
 			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); deletePoolFile(\\'' + escapeHTML(filename) + '\\', ' + JSON.stringify(subject) + ', \\'' + escapeHTML(deleteUrl) + '\\'); return false;" style="padding: 6px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt12}">' + svgIcons.trash + '</button>';
+			if (window.poolArchive) html += window.poolArchive.button(filename, 'card');
 			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); extractPoolFile(\\'' + escapeHTML(filename) + '\\'); return false;" style="padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt25}">' + svgIcons.scan + '</button>';
 			html += '</div>';
 			
@@ -3922,8 +3963,9 @@ window.extractPoolFile = function(poolFile) {
 
 // Extract invoice data from ALL pool files
 window.extractAllPoolFiles = async function() {
-	// Get all pool files from the docData array
-	if (!docData || docData.length === 0) {
+	// Get all pool files from the docData array; archived documents are not extracted (SD-717)
+	const activeDocs = (docData || []).filter(function(row) { return !row.archived; });
+	if (activeDocs.length === 0) {
 		alert('{$txt41}');
 		return;
 	}
@@ -3933,7 +3975,7 @@ window.extractAllPoolFiles = async function() {
 	let processed = 0;
 	let successful = 0;
 	let failed = 0;
-	const total = docData.length;
+	const total = activeDocs.length;
 	
 	// Disable button and show progress
 	btn.disabled = true;
@@ -3947,7 +3989,7 @@ window.extractAllPoolFiles = async function() {
 
 	
 	// Process each file sequentially
-	let queue = docData.slice();
+	let queue = activeDocs.slice();
 
 	const THREADS = 4;
 	const promises = Array.from({length: THREADS}, async () => { 
@@ -4250,6 +4292,7 @@ window.saveRowData = function(input) {
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(data.newInvoiceNumber || '') + "\", \"" + escapeHTML(data.newInvoiceDescription || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
+				(window.poolArchive ? window.poolArchive.button(poolFileFromRow, 'row') : '') +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
 				"</div>";
 			

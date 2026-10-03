@@ -36,6 +36,8 @@
 //             guarded the vendor UPDATE that runs after poolMetadataSave() commits with an
 //             atomic manually_edited check, so a manual correction landing in between can't
 //             be overwritten by the still-in-flight automatic request's vendor match.
+// 20261003 CL/SZ SD-717: actions 'archive' and 'restore' ("Arkivér" / "Gendan") through poolArchiveSet(), written to audit_log.
+//             The user is taken from the session's online row, as the company is.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -104,7 +106,7 @@ include_once(__DIR__ . "/poolVendorMatcher.php");
 
 // Resolve the tenant db from the session's online-table entry, same pattern
 // as includes/_docPoolData.php and includes/online.php - never from $_POST['db'].
-$qtxt = "select db, regnskabsaar, language_id from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
+$qtxt = "select db, regnskabsaar, language_id, brugernavn, revisor from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
 $onlineRow = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
 $db = trim($onlineRow['db'] ?? '');
 $regnaar = (int)($onlineRow['regnskabsaar'] ?? 0);
@@ -361,6 +363,27 @@ if ($action === 'save') {
 			: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
 		echo json_encode(['success' => false, 'error' => $message]);
 	}
+	exit;
+}
+
+// Action: archive / restore - "Arkivér" / "Gendan". The file stays in the pool folder; only pool_files.archived changes.
+if ($action === 'archive' || $action === 'restore') {
+	require_once __DIR__ . '/poolArchive.php';
+	// audit_log_write() reads the user from these, as online.php sets them on a normal page
+	$brugernavn = db_escape_string((string)($onlineRow['brugernavn'] ?? ''));
+	$bruger_id = null;
+	if (!empty($onlineRow['revisor'])) {
+		$bruger_id = -1;
+	} elseif ($brugernavn !== '') {
+		$userRow = db_fetch_array(db_select("select id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
+		$bruger_id = $userRow ? (int)$userRow['id'] : null;
+	}
+	if (!poolArchiveReady()) {
+		echo json_encode(['success' => false, 'error' => findtekst('5340|Arkivet er ikke klar. Log ud og ind igen.', $sprog_id)]);
+		exit;
+	}
+	$result = poolArchiveSet([$poolFile], $action === 'archive', $bruger_id);
+	echo json_encode(['success' => true, 'changed' => count($result['changed']), 'skipped' => count($result['skipped'])]);
 	exit;
 }
 
