@@ -1,6 +1,6 @@
 <!doctype html>
 <?php
-// --- includes/documents.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/documents.php --- patch 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 //                  via FileReservation instead of file_exists() polling, closing the window in
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -55,6 +56,7 @@ include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
 include_once(__DIR__ . "/docsIncludes/FileReservation.php");
+include_once(__DIR__ . "/docsIncludes/docFileFunc.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 if (!isset($menu)) $menu = null;
@@ -894,7 +896,7 @@ if ($linkBilag && $source == 'kassekladde') {
 		// Build the file path for preview
 		$filePath = $docFolder . '/' . $db . '/' . $r['filepath'] . '/' . $r['filename'];
 		$filePath = str_replace('//', '/', $filePath);
-		$filePathEncoded = htmlspecialchars($filePath, ENT_QUOTES);
+		$filePathEncoded = htmlspecialchars(docFileUrl($filePath, $docFolder, $db), ENT_QUOTES);
 		
 		$linkUrl = "documents.php?doLink=1&linkDocId=$docId&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
 		
