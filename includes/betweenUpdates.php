@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.03
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -79,6 +79,8 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
+// 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -962,6 +964,92 @@ if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null 
 		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
 	}
 }
+// 20261003 CL/SZ SD-724: the shared audit_log table with exactly the roles stage 2 schema (Requirements_roles_stage2_EN.md §3).
+// IF NOT EXISTS, so whichever of the document pool and roles stage 2 lands first creates it and the other's migration is a no-op.
+// Written through audit_log_write() in includes/auditLog.php; entries are never deleted.
+// MySQL uses DATETIME for tidspunkt, because its TIMESTAMP ends in 2038, inside the five-year retention.
+$auditLogMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = 'audit_log'";
+$qtxt .= $auditLogMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if ($auditLogMysql) {
+		db_modify("CREATE TABLE IF NOT EXISTS audit_log (
+			id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			tidspunkt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			bruger_id INTEGER,
+			brugernavn VARCHAR(80),
+			handling VARCHAR(60) NOT NULL,
+			objekt_type VARCHAR(30),
+			objekt_id VARCHAR(60),
+			detaljer TEXT,
+			ip VARCHAR(45),
+			kilde VARCHAR(30),
+			INDEX audit_log_tidspunkt_idx (tidspunkt),
+			INDEX audit_log_bruger_id_idx (bruger_id),
+			INDEX audit_log_objekt_idx (objekt_type, objekt_id)
+		)", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("CREATE TABLE IF NOT EXISTS audit_log (
+			id BIGSERIAL PRIMARY KEY,
+			tidspunkt TIMESTAMP NOT NULL DEFAULT now(),
+			bruger_id INTEGER,
+			brugernavn VARCHAR(80),
+			handling VARCHAR(60) NOT NULL,
+			objekt_type VARCHAR(30),
+			objekt_id VARCHAR(60),
+			detaljer TEXT,
+			ip VARCHAR(45),
+			kilde VARCHAR(30)
+		)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS audit_log_tidspunkt_idx ON audit_log (tidspunkt)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS audit_log_bruger_id_idx ON audit_log (bruger_id)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS audit_log_objekt_idx ON audit_log (objekt_type, objekt_id)", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+// 20261003 CL/SZ SD-717: archive in the document pool.
+// pool_files.archived (when) and archived_by (brugere.id, -1 for a revisor session); NULL means the document is in the normal list.
+// The file stays in the pool folder, so the folder sync neither deletes nor re-inserts the row.
+// archived_by last: includes/docsIncludes/poolArchive.php probes for it, so once it exists both do.
+$poolArchiveMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$poolArchiveSchema = $poolArchiveMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$poolArchiveColumns = array(
+	'archived' => $poolArchiveMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+	'archived_by' => 'INTEGER NULL',
+);
+if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'$poolArchiveSchema", __FILE__ . " linje " . __LINE__))) {
+	$poolArchiveMissing = array();
+	foreach ($poolArchiveColumns as $poolArchiveColumn => $poolArchiveType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolArchiveColumn'$poolArchiveSchema";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$poolArchiveMissing[$poolArchiveColumn] = $qtxt;
+		}
+	}
+	if ($poolArchiveMissing) {
+		if ($poolArchiveMysql) {
+			// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the vendor columns)
+			$poolArchiveLock = "CONCAT('saldi:pool_files_archive:', MD5(DATABASE()))";
+			$poolArchiveLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolArchiveLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int) ($poolArchiveLockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the pool_files archive migration lock.');
+			}
+			try {
+				foreach ($poolArchiveMissing as $poolArchiveColumn => $poolArchiveProbe) {
+					if (!db_fetch_array(db_select($poolArchiveProbe, __FILE__ . " linje " . __LINE__))) {
+						db_modify("ALTER TABLE pool_files ADD COLUMN $poolArchiveColumn " . $poolArchiveColumns[$poolArchiveColumn], __FILE__ . " linje " . __LINE__);
+					}
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($poolArchiveLock)", __FILE__ . " linje " . __LINE__);
+			}
+		} else {
+			foreach ($poolArchiveMissing as $poolArchiveColumn => $poolArchiveProbe) {
+				db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolArchiveColumn " . $poolArchiveColumns[$poolArchiveColumn], __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+}
+
 // Preserve HTML users before the renderer changes; explicit choices survive later updates.
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);

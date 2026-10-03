@@ -14,6 +14,7 @@
 //                 seller (metadata['vendorIdentity'] + subject) against kreditorer and store
 //                 pool_files.vendor_*, same as extractInvoiceHandler.php's save action, so app
 //                 uploads get a kreditor suggestion too. Columns added to the fallback schema.
+// 20261003 CL/SZ SD-717: pool_files.archived and archived_by added to the fallback schema.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolContentHash.php";
@@ -606,6 +607,8 @@ class AttachmentModel
                     vendor_match varchar(10),
                     vendor_score numeric(4,3),
                     content_sha256 char(64),
+                    archived timestamp,
+                    archived_by integer,
                     PRIMARY KEY (id),
                     UNIQUE(filename)
                 )";
