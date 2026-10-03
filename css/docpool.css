@@ -832,3 +832,35 @@ body {
     height: auto;
   }
 }
+
+/* ============================================
+   JOURNAL LINE: DEBET / KREDIT LOOKUP
+   ============================================ */
+
+.pool-account-inputs {
+  display: flex;
+  gap: 2px;
+}
+
+.pool-account-type {
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.pool-account-name {
+  max-width: 120px;
+  min-height: 13px;
+  overflow: hidden;
+  font-size: 10px;
+  color: #555;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pool-account-vat {
+  margin-right: 4px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background-color: #e9ecef;
+  color: #333;
+}
