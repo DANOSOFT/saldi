@@ -1,9 +1,9 @@
 // --- javascript/docPoolAccounts.js --- ver 5.0.0 --- 2026-10-03 ---
 // Copyright (c) 2026 Danosoft ApS
-// 20261003 CL/SZ Doc pool task 2: Created: Debet/Kredit in the pool's journal lines. The lookup panel itself is
-//                  accountAutocomplete.js, which binds to the debe/kred/d_ty/k_ty names the rows carry; this file adds
-//                  the type prefix ("K1234" sets type K and account 1234), the account's name and VAT code under the
-//                  field, and the "sidste 5 posteringer" the other field's panel offers. Needs window.saldiPoolAccounts.
+// 20261003 CL/SZ SD-714 Created: Debet/Kredit in the pool's journal lines.
+//                The lookup panel itself is accountAutocomplete.js, which binds to the debe/kred/d_ty/k_ty names the rows carry.
+//                This file adds the type prefix ("K1234" sets type K and account 1234), the account's name and VAT code under the field, and the "sidste 5 posteringer" the other field's panel offers.
+//                Needs window.saldiPoolAccounts.
 (function () {
     'use strict';
 

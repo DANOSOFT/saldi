@@ -100,10 +100,10 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
-// 20261003 CL/SZ Doc pool task 2: Debet and Kredit get the journal's lookup panel, an F/D/K type field (new lines: Debet F,
-//                  Kredit K) and the account's name and VAT code under them. Saved as type + number ("K1234").
-// 20261003 CL/SZ Doc pool task 2: Save posted to a hard-coded '/pblm/...' path when the pool is not under the document root
-//                  (e.g. served through an Apache Alias) and got 404; the fallback is now relative to includes/documents.php.
+// 20261003 CL/SZ SD-714 Debet and Kredit get the journal's lookup panel, an F/D/K type field (new lines: Debet F, Kredit K) and the account's name and VAT code under them.
+//                Saved as type + number ("K1234").
+// 20261003 CL/SZ SD-714 Save posted to a hard-coded '/pblm/...' path outside the document root (e.g. an Apache Alias) and got 404.
+//                The fallback is now relative to includes/documents.php.
 // 20261003 CL/SZ Doc pool task 3: Each line warns when its kreditor already has the invoice number (open journal, posted,
 //                  other pool document); a line with nothing typed yet checks the document's own kreditor and number.
 
@@ -1420,7 +1420,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$v4 = @filemtime("../css/datepickerDa.css") ?: 0;
 	$v5 = @filemtime("../javascript/accountAutocomplete.js") ?: 0;
 	$v6 = @filemtime("../javascript/datepickerDa.js") ?: 0;
-	$v7 = @filemtime("../javascript/docPoolAccounts.js") ?: 0;
+	$v7 = file_exists("../javascript/docPoolAccounts.js") ? filemtime("../javascript/docPoolAccounts.js") : 0;
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css?v=$v1\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css?v=$v2\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css?v=$v3\">\n";

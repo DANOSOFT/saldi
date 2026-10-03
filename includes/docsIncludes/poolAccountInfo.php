@@ -22,8 +22,7 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261003 CL/SZ Doc pool task 2: Created: account type + number for the pool's Debet/Kredit fields, and the name and
-//                  VAT code shown under them.
+// 20261003 CL/SZ SD-714 Created: account type + number for the pool's Debet/Kredit fields, and the name and VAT code shown under them.
 
 if (!function_exists('poolAccountSplit')) {
 	/**
