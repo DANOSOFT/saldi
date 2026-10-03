@@ -115,6 +115,11 @@
 // 20261003 CL/SZ SD-717 "Arkivér" per document and for the selection (Del outside a field), "Vis arkiverede" and "Gendan" (docPoolArchive.js, poolArchive.php).
 //                Archived documents are not in the normal list, not opened first (database or folder route), not in "Opdatér alle", and get no match colours in the archive.
 //                pool_files.archived and archived_by added to both CREATE TABLE IF NOT EXISTS fallbacks.
+// 20261003 CL/SZ SD-719 The list loads 50 rows at a time and the next page on scroll ("50 af 497", "Vis flere").
+//                Search, sort and the match groups come from _docPoolData.php over every document; the renderers no longer compute matches.
+//                Lookups by file name (poolAllRows()) also see the open and the ticked documents when they are not on a loaded page.
+//                "Opdatér alle" fetches every file name.
+//                Selecting a document switches in place (docPoolSwitch.js); the entry config moved inside kassebilagTopBar so it switches along.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -1512,6 +1517,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<script src=\"../javascript/docPoolSaveNext.js?v=$v11\"></script>";
 	$v12 = file_exists("../javascript/docPoolArchive.js") ? filemtime("../javascript/docPoolArchive.js") : 0;
 	print "<script src=\"../javascript/docPoolArchive.js?v=$v12\"></script>";
+	$v13 = file_exists("../javascript/docPoolSwitch.js") ? filemtime("../javascript/docPoolSwitch.js") : 0;
+	print "<script src=\"../javascript/docPoolSwitch.js?v=$v13\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1798,6 +1805,9 @@ if ($source == 'kassekladde') {
 		print "</div>"; // kassebilag-entry
 	};
 
+	// SD-719: the config below is inside kassebilagTopBar, so an in-place document switch (docPoolSwitch.js) brings the new document's config along
+	print "<div id='kassebilagTopBar'>";
+
 	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
 	print "<script>
 	window.saldiPoolAccounts = " . json_encode(array('lookupUrl' => 'docsIncludes/poolAccountLookup.php', 'kladdeId' => $escKladde)) . ";
@@ -1829,7 +1839,6 @@ if ($source == 'kassekladde') {
 		'unsaved'  => findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id),
 	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
 	</script>";
-	print "<div id='kassebilagTopBar'>";
 
 	// Title + bilag-group navigation
 	print "<div class='topbar-nav' style='margin-bottom:8px;'>";
@@ -2132,6 +2141,8 @@ $txt73  = $txt15." ".lcfirst($txt50)."!";                                       
 $txt74  = $txt16." ".lcfirst($txt14);                                                           #Duplikér linje
 $poolSuggestedText = findtekst('5255|Forslag', $sprog_id);
 $poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
+$txtPoolOf   = findtekst('5346|af', $sprog_id);        // SD-719: "50 af 497"
+$txtPoolMore = findtekst('5347|Vis flere', $sprog_id);
 $poolStaleText = findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
 
 print <<<JS
@@ -2173,8 +2184,17 @@ print <<<JS
 	// Get poolFile from URL if present (user clicked on a row), otherwise null (no auto-selection)
 	const urlParams        = new URLSearchParams(window.location.search);
 	const poolFile         = urlParams.get('poolFile') || null;
-	const totalSum         = {$JsSum};
-	const targetDate       = {$JsDato}; // kassekladde date for matching
+	let totalSum           = {$JsSum};
+	let targetDate         = {$JsDato}; // kassekladde date for matching
+	// SD-719: the list holds the loaded pages only (docData); the server sends 50 rows at a time, already searched, sorted and grouped
+	const POOL_PAGE   = 50;
+	let poolTotal     = 0;    // rows in the whole (searched) list
+	let poolMatches   = null; // match groups over every document, from the server
+	let poolExtra     = {};   // the open and the ticked documents, when not on a loaded page
+	let poolLoading   = null; // the page request in flight
+	let poolRequest   = 0;    // a newer request makes an older answer void
+	let poolCurrentIndex = -1;
+	let poolOwnScroll    = 0;    // when the page itself last scrolled the list
 	const buttonColor      = {$buttonColorJs};
 	const buttonTxtColor   = {$buttonTxtColorJs};
 	const lightButtonColor = {$lightButtonColorJs};
@@ -2300,7 +2320,8 @@ print <<<JS
 		try {
 			sessionStorage.setItem(poolListViewKey(), JSON.stringify({
 				search: searchBox ? searchBox.value : '',
-				scroll: container ? container.scrollTop : 0
+				scroll: container ? container.scrollTop : 0,
+				loaded: docData.length
 			}));
 		} catch (e) {}
 	};
@@ -2325,32 +2346,10 @@ print <<<JS
 		}
 	}
 
-	// Sort docData without rendering, so the column header and the render share one comparator.
+	// SD-719: the sort is done by _docPoolData.php over every document; this only records it for the request and the header marker
 	function applyPoolSort(sort) {
 		if (!sort || !sort.field) return;
-		const field = sort.field;
-		const asc   = !!sort.asc;
-
-		docData.sort((a, b) => {
-			let valA = a[field];
-			let valB = b[field];
-
-			if (field === 'amount') {
-					valA = parseFloat(valA) || 0;
-					valB = parseFloat(valB) || 0;
-			} else if (field === 'date') {
-					valA = new Date(valA).getTime() || 0;
-					valB = new Date(valB).getTime() || 0;
-			} else {
-					if (typeof valA === 'string') valA = valA.toLowerCase();
-					if (typeof valB === 'string') valB = valB.toLowerCase();
-			}
-
-			if (valA === valB) return 0;
-			return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-		});
-
-		currentSort = { field: field, asc: asc };
+		currentSort = { field: sort.field, asc: !!sort.asc };
 	}
 
 	// Re-apply the search text before the first render after a reload.
@@ -2371,6 +2370,14 @@ print <<<JS
 	function revealSelectedRow() {
 		const selected = document.querySelector('#' + containerId + " [data-selected='true']");
 		if (!selected || typeof selected.scrollIntoView !== 'function') return;
+		// SD-719: a row that is (partly) on screen, e.g. the one just clicked, leaves the list where it is
+		const container = document.getElementById(containerId);
+		if (container) {
+			const box = container.getBoundingClientRect();
+			const row = selected.getBoundingClientRect();
+			if (row.bottom > box.top && row.top < box.bottom) return;
+		}
+		poolOwnScroll = Date.now();
 		selected.scrollIntoView({ block: 'nearest' });
 	}
 
@@ -2379,6 +2386,7 @@ print <<<JS
 		const state     = readPoolListView();
 		const container = document.getElementById(containerId);
 
+		poolOwnScroll = Date.now();
 		if (container && state && state.scroll) container.scrollTop = state.scroll;
 		revealSelectedRow();
 	}
@@ -2391,6 +2399,9 @@ print <<<JS
 		container.addEventListener('scroll', function() {
 			if (timer) clearTimeout(timer);
 			timer = setTimeout(savePoolListView, 150);
+			// SD-719: the next page when the user scrolls near the end of the loaded rows (not when the page put the open document in view)
+			if (Date.now() - poolOwnScroll < 300) return;
+			if (container.scrollTop + container.clientHeight > container.scrollHeight - 400 && !container.querySelector('[data-editing]')) poolLoadMore();
 		});
 	}
 
@@ -2398,11 +2409,20 @@ print <<<JS
 	else attachPoolScrollSaver();
 	
 	// Filter pool files based on search input
+	// SD-719: searched on the server, so documents beyond the loaded pages are found too
+	let poolSearchTimer = null;
 	window.filterPoolFiles = function() {
 		const searchBox = document.getElementById('poolSearchBox');
 		searchFilter = searchBox ? searchBox.value.toLowerCase() : '';
-		renderCurrentView();
-		savePoolListView();
+		if (poolSearchTimer) clearTimeout(poolSearchTimer);
+		poolSearchTimer = setTimeout(function() {
+			poolFetch().then(function() {
+				const container = document.getElementById(containerId);
+				if (container) container.scrollTop = 0;
+				savePoolListView();
+				poolFillViewport();
+			});
+		}, 250);
 	};
 	
 	// Preview popup functions for card view
@@ -2484,30 +2504,169 @@ print <<<JS
 		popup.style.top  = y + 'px';
 	};
 
-    async function fetchFiles() {
-        const dir = '{$encodedDir}'; 
-      
-
+    // The ticked documents (SD-700 selection memory), so their data comes along even when they are not on a loaded page
+    function poolCheckedFiles() {
+        const files = [];
         try {
-            const archivedParam = (window.poolArchive && window.poolArchive.view()) ? '&archived=1' : '';
-            const response = await fetch('_docPoolData.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}') + archivedParam);
-            const data     = await response.json();
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key && key.indexOf('docPool_checked_') === 0 && sessionStorage.getItem(key) === 'true') files.push(key.substring(16));
+            }
+        } catch (e) {}
+        return files;
+    }
 
+    function poolCurrentFile() {
+        const all = new URLSearchParams(window.location.search).getAll('poolFile');
+        for (let i = all.length - 1; i >= 0; i--) {
+            if (all[i] && all[i].trim() !== '') return all[i];
+        }
+        return '';
+    }
+
+    function poolListUrl(offset, limit, toCurrent) {
+        const q = new URLSearchParams();
+        q.set('dir', '{$encodedDir}');
+        q.set('poolParams', '{$poolParams}');
+        q.set('limit', limit);
+        q.set('offset', offset);
+        if (currentSort && currentSort.field) {
+            q.set('sort', currentSort.field);
+            q.set('order', currentSort.asc ? 'asc' : 'desc');
+        }
+        if (searchFilter) q.set('q', searchFilter);
+        if (totalSum) q.set('sum', totalSum);
+        if (targetDate) q.set('dato', targetDate);
+        if (poolCurrentFile()) q.set('current', poolCurrentFile());
+        if (toCurrent) q.set('toCurrent', '1');
+        poolCheckedFiles().forEach(function(file) { q.append('include[]', file); });
+        if (window.poolArchive && window.poolArchive.view()) q.set('archived', '1');
+        return '_docPoolData.php?' + q.toString();
+    }
+
+    // One request for the list: the first rows again (search, sort or a refresh), or the next page.
+    // options.append: add the next page; options.limit: how many rows to fetch from the top (at most 200);
+    // options.toCurrent: the page reaches down to the open document, so it is in the list (one request instead of two)
+    async function poolFetch(options) {
+        options = options || {};
+        const append = !!options.append;
+        const request = ++poolRequest;
+        const offset = append ? docData.length : 0;
+        const limit = append ? (options.limit || POOL_PAGE) : Math.max(POOL_PAGE, Math.min(200, options.limit || POOL_PAGE));
+        try {
+            const response = await fetch(poolListUrl(offset, limit, !!options.toCurrent), { credentials: 'same-origin' });
+            const data = await response.json();
+            if (request !== poolRequest) return false;
             if (data.error) {
                 document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
-				console.error(dir + ': ' + data.error);
-                return;
+                console.error('_docPoolData: ' + data.error);
+                return false;
             }
-
-            docData = data;
-			window.docData = docData;
-            applyStoredPoolListView();
+            docData = append ? docData.concat(data.rows) : data.rows;
+            window.docData = docData;
+            poolTotal = data.total;
+            poolMatches = data.matches;
+            poolCurrentIndex = typeof data.currentIndex === 'number' ? data.currentIndex : -1;
+            if (!append) poolExtra = {};
+            (data.extra || []).forEach(function(row) { poolExtra[row.filename] = row; });
             renderCurrentView();
-            restorePoolScroll();
+            return true;
         } catch (error) {
-            document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
-            console.error(error);
+            if (request === poolRequest) {
+                document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
+                console.error(error);
+            }
+            return false;
         }
+    }
+
+    // The next page, once: scrolling, "Vis flere" and "Gem og næste" at the end of the loaded rows all call this
+    function poolLoadMore(limit, toCurrent) {
+        if (docData.length >= poolTotal) return Promise.resolve(false);
+        if (!poolLoading) {
+            poolLoading = poolFetch({ append: true, limit: limit, toCurrent: toCurrent }).then(function(result) { poolLoading = null; return result; });
+        }
+        return poolLoading;
+    }
+    window.poolLoadMore = poolLoadMore;
+    window.poolHasMore = function() { return docData.length < poolTotal; };
+
+    // Rows of the loaded pages plus the open and ticked documents, for code that looks a document up by name
+    function poolAllRows() {
+        return docData.concat(Object.keys(poolExtra).map(function(name) { return poolExtra[name]; }));
+    }
+    window.poolAllRows = poolAllRows;
+
+    // Under the loaded rows while more exist: how many are shown, and a button for the next page (scrolling fetches it too)
+    function poolMoreFooter() {
+        if (docData.length >= poolTotal) return '';
+        return "<div class='pool-more'>" + docData.length + ' {$txtPoolOf} ' + poolTotal +
+            " <button type='button' onclick='poolLoadMore()'>{$txtPoolMore}</button></div>";
+    }
+
+    // The server's match groups in the shape the renderers used to build themselves
+    function poolMatchSets() {
+        const m = poolMatches || {};
+        const combination = m.combination || {};
+        return {
+            perfect: m.perfect || [],
+            amount: m.amount || [],
+            date: m.date || [],
+            combinationFiles: new Set(combination.files || []),
+            combinationGroups: combination.first ? [combination.first] : []
+        };
+    }
+
+    // Documents that left the list (archived, attached) without fetching it again
+    window.poolRemoveFiles = function(files) {
+        const gone = new Set(files);
+        const before = docData.length;
+        docData = docData.filter(function(row) { return !gone.has(row.filename); });
+        window.docData = docData;
+        poolTotal = Math.max(0, poolTotal - (before - docData.length));
+        files.forEach(function(file) { delete poolExtra[file]; });
+        renderCurrentView();
+    };
+
+    // The journal line's amount and date changed (another line after an in-place switch): the match groups change with them
+    window.poolSetLineContext = function(sum, dato) {
+        if (sum === totalSum && dato === targetDate) return;
+        totalSum = sum;
+        targetDate = dato;
+        poolFetch({ limit: docData.length });
+    };
+
+    // After an in-place switch: the open document is marked, and loaded when it is further down than the loaded rows
+    window.poolShowCurrent = async function() {
+        renderCurrentView();
+        await poolEnsureCurrentLoaded();
+        revealSelectedRow();
+    };
+
+    async function poolEnsureCurrentLoaded() {
+        const current = poolCurrentFile();
+        if (!current || docData.some(function(row) { return row.filename === current; })) return;
+        // The index is from the last answer; the server re-checks it against the open document
+        if (poolCurrentIndex < 0 || poolCurrentIndex >= docData.length) await poolLoadMore(POOL_PAGE, true);
+    }
+
+    // First load: as many rows as the stored view had loaded, so the scroll position can be restored
+    async function fetchFiles() {
+        const state = readPoolListView();
+        if (!docData.length) applyStoredPoolListView();
+        const loaded = await poolFetch({ limit: Math.max(docData.length, (state && state.loaded) || 0), toCurrent: true });
+        if (!loaded) return;
+        restorePoolScroll();
+        await poolEnsureCurrentLoaded();
+        revealSelectedRow();
+        poolFillViewport();
+    }
+
+    // More rows while the list is not tall enough to scroll, so scrolling can fetch the rest
+    function poolFillViewport() {
+        const container = document.getElementById(containerId);
+        if (!container || docData.length >= poolTotal) return;
+        if (container.scrollHeight <= container.clientHeight + 50) poolLoadMore().then(function(more) { if (more) poolFillViewport(); });
     }
 
     function renderFiles() {
@@ -2597,14 +2756,6 @@ print <<<JS
 		}
 		const hasDateToMatch = !inArchive && normalizedTargetDate !== null;
 		
-		// First pass: count matching documents and find combinations
-		let matchingCount      = 0;
-		let exactMatches       = []; // Store filenames that are exact amount matches
-		let perfectMatches     = []; // Store filenames that match BOTH amount AND date
-		let dateOnlyMatches    = []; // Store filenames that match date but not amount
-		let combinationMatches = new Set(); // Store filenames that are part of a combination
-		let combinationGroups  = []; // Store the actual combinations found
-		
 		// Helper function to normalize date for comparison
 		const normalizeDate = function(dateStr) {
 			if (!dateStr) return null;
@@ -2622,117 +2773,16 @@ print <<<JS
 			}
 			return null;
 		};
-		
-		if (hasAmountToMatch || hasDateToMatch) {
-			// Build list of documents with valid amounts
-			const docsWithAmounts = [];
-			for (let i = 0; i < docData.length; i++) {
-				const row = docData[i];
-				const normalizedAmount = parseAmountToFloat(row.amount);
-				const rowDate = normalizeDate(row.date);
-				const filename = row.filename || '';
-				
-				// Check date match
-				const isDateMatch = hasDateToMatch && rowDate === normalizedTargetDate;
-				
-				// Check amount match
-				const isAmountMatch = hasAmountToMatch && !isNaN(normalizedAmount) && Math.abs(normalizedAmount - normalizedTotal) < 0.01;
-				
-				if (!isNaN(normalizedAmount) && normalizedAmount > 0) {
-					docsWithAmounts.push({
-						index: i,
-						filename: filename,
-						amount: normalizedAmount,
-						date: rowDate,
-						row: row
-					});
-				}
-				
-				// Categorize matches
-				if (isAmountMatch && isDateMatch) {
-					// Perfect match - both amount AND date
-					perfectMatches.push(filename);
-					matchingCount++;
-				} else if (isAmountMatch) {
-					// Amount only match
-					exactMatches.push(filename);
-					matchingCount++;
-				} else if (isDateMatch) {
-					// Date only match
-					dateOnlyMatches.push(filename);
-				}
-			}
-			
-			// Only look for combinations if no exact matches found. SD-718: amounts are compared in øre through
-			// lookup tables instead of nested loops; the old four nested loops took 7.5 s with 500 documents
-			// (about 2.6 billion sums) on every page load. Same combinations, same order, same pair/triplet/quad rule.
-			if (matchingCount === 0 && docsWithAmounts.length >= 2) {
-				const totalCents = Math.round(normalizedTotal * 100);
-				// All amounts are positive, so a document above the total can't be part of a combination
-				const docs = docsWithAmounts.filter(function(d) { return Math.round(d.amount * 100) <= totalCents; });
-				const cents = docs.map(function(d) { return Math.round(d.amount * 100); });
-				const byCents = new Map();
-				cents.forEach(function(c, idx) {
-					if (!byCents.has(c)) byCents.set(c, []);
-					byCents.get(c).push(idx);
-				});
-				// Indexes holding the amount c, after position 'after' (lists are in ascending order)
-				const indexesAfter = function(c, after) {
-					const list = byCents.get(c);
-					return list ? list.filter(function(idx) { return idx > after; }) : [];
-				};
-				const addGroup = function(idxs) {
-					let sum = 0;
-					idxs.forEach(function(idx) {
-						combinationMatches.add(docs[idx].filename);
-						sum += docs[idx].amount;
-					});
-					combinationGroups.push({
-						files: idxs.map(function(idx) { return docs[idx].filename; }),
-						amounts: idxs.map(function(idx) { return docs[idx].amount; }),
-						sum: sum
-					});
-				};
 
-				// Pairs that sum to target
-				for (let i = 0; i < docs.length; i++) {
-					indexesAfter(totalCents - cents[i], i).forEach(function(j) { addGroup([i, j]); });
-				}
+		// SD-719: the groups come from _docPoolData.php, over every document; the list holds only the loaded pages.
+		// The rows' own flags below are worked out the same way, so a row and its group header always agree.
+		const serverMatches      = poolMatchSets();
+		const perfectMatches     = serverMatches.perfect;
+		const exactMatches       = serverMatches.amount;
+		const dateOnlyMatches    = serverMatches.date;
+		const combinationMatches = serverMatches.combinationFiles;
+		const combinationGroups  = serverMatches.combinationGroups;
 
-				// Triplets that sum to target (only if no pairs found)
-				if (combinationGroups.length === 0 && docs.length >= 3) {
-					for (let i = 0; i < docs.length; i++) {
-						for (let j = i + 1; j < docs.length; j++) {
-							indexesAfter(totalCents - cents[i] - cents[j], j).forEach(function(k) { addGroup([i, j, k]); });
-						}
-					}
-				}
-
-				// Quads that sum to target (only if no pairs or triplets found): every pair (i, j) meets the pairs
-				// (k, l) after it whose sum is what is still missing
-				if (combinationGroups.length === 0 && docs.length >= 4) {
-					const pairsBySum = new Map();
-					for (let k = 0; k < docs.length; k++) {
-						for (let l = k + 1; l < docs.length; l++) {
-							const s = cents[k] + cents[l];
-							if (s > totalCents) continue;
-							if (!pairsBySum.has(s)) pairsBySum.set(s, []);
-							pairsBySum.get(s).push([k, l]);
-						}
-					}
-					for (let i = 0; i < docs.length; i++) {
-						for (let j = i + 1; j < docs.length; j++) {
-							const rest = pairsBySum.get(totalCents - cents[i] - cents[j]);
-							if (!rest) continue;
-							rest.forEach(function(kl) {
-								if (kl[0] > j) addGroup([i, j, kl[0], kl[1]]);
-							});
-						}
-					}
-				}
-			}
-		}
-		
 		// Store combination info for display
 		const hasCombinationMatches = combinationMatches.size > 0;
 		const hasPerfectMatches = perfectMatches.length > 0;
@@ -2969,6 +3019,7 @@ print <<<JS
 		html += perfectMatchHeader + perfectMatchRows + matchingHeader + matchingAmountRows + dateMatchHeader + dateMatchRows + combinationHeader + combinationRows + otherRows;
 
 		html += "</tbody></table>";
+		html += poolMoreFooter();
 		
 		// Add bulk action button container at the bottom of the list (sticky so it's always visible)
 		html += "<div id='bulkActionsContainer' style='margin-top: 12px; padding: 8px; background-color: " + lightButtonColor + "; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;'>";
@@ -3070,68 +3121,14 @@ print <<<JS
 		}
 		const cardHasDateToMatch = !inArchive && cardNormalizedTargetDate !== null;
 		
-		let exactMatches       = [];
-		let perfectMatches     = [];
-		let dateOnlyMatches    = [];
-		let combinationMatches = new Set();
-		let combinationGroups  = [];
-		
-		if (hasAmountToMatch || cardHasDateToMatch) {
-			const docsWithAmounts = [];
-			for (let i = 0; i < docData.length; i++) {
-				const row = docData[i];
-				const normalizedAmount = parseAmountToFloat(row.amount);
-				const filename = row.filename || '';
-				
-				// Normalize row date
-				let rowDate = null;
-				if (row.date) {
-					const dateStr = row.date.split(' ')[0];
-					const parts = dateStr.split('-');
-					if (parts.length === 3) {
-						rowDate = parts[0].length === 4 ? dateStr : parts[2] + '-' + parts[1] + '-' + parts[0];
-					}
-				}
-				
-				const isDateMatch = cardHasDateToMatch && rowDate === cardNormalizedTargetDate;
-				const isAmountMatch = hasAmountToMatch && !isNaN(normalizedAmount) && Math.abs(normalizedAmount - normalizedTotal) < 0.01;
-				
-				if (!isNaN(normalizedAmount) && normalizedAmount > 0) {
-					docsWithAmounts.push({
-						index: i,
-						filename: filename,
-						amount: normalizedAmount,
-						row: row
-					});
-				}
-				
-				if (isAmountMatch && isDateMatch) {
-					perfectMatches.push(filename);
-				} else if (isAmountMatch) {
-					exactMatches.push(filename);
-				} else if (isDateMatch) {
-					dateOnlyMatches.push(filename);
-				}
-			}
-			
-			// Find combinations if no exact or perfect matches
-			if (exactMatches.length === 0 && perfectMatches.length === 0 && docsWithAmounts.length >= 2) {
-				for (let i = 0; i < docsWithAmounts.length; i++) {
-					for (let j = i + 1; j < docsWithAmounts.length; j++) {
-						const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount;
-						if (Math.abs(sum - normalizedTotal) < 0.01) {
-							combinationMatches.add(docsWithAmounts[i].filename);
-							combinationMatches.add(docsWithAmounts[j].filename);
-							combinationGroups.push({
-								files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename],
-								sum: sum
-							});
-						}
-					}
-				}
-			}
-		}
-		
+		// SD-719: the groups come from _docPoolData.php, over every document (pairs, triplets and quads, as in the table)
+		const serverMatches      = poolMatchSets();
+		const perfectMatches     = serverMatches.perfect;
+		const exactMatches       = serverMatches.amount;
+		const dateOnlyMatches    = serverMatches.date;
+		const combinationMatches = serverMatches.combinationFiles;
+		const combinationGroups  = serverMatches.combinationGroups;
+
 		let html = '<div class="doc-card-list" style="display: flex; flex-direction: column; gap: 8px; padding: 0 4px 80px 4px;">';
 		
 		// Add select all and bulk area
@@ -3140,7 +3137,7 @@ print <<<JS
 		html += '<input type="checkbox" id="selectAllCheckboxCard" onclick="toggleSelectAll(this)" style="width: 18px; height: 18px; cursor: pointer;">';
 		html += '<span>{$txt3}</span>';
 		html += '</label>';
-		html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + docData.length + ' {$txt53}</span>';
+		html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + poolTotal + ' {$txt53}</span>';
 		html += '</div>';
 		
 		// Perfect match header (amount + date) if applicable
@@ -3297,6 +3294,7 @@ print <<<JS
 		html += '</div>';
 		
 		// Bulk actions
+		html += poolMoreFooter();
 		html += '<div id="bulkActionsContainer" style="margin-top: 12px; padding: 8px; background-color: ' + lightButtonColor + '; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;">';
 		html += '<button type="button" id="bulkInsertButton" onclick="chooseMultipleBilag()" style="padding: 8px 16px; background-color: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">';
 		html += '{$txt26} (<span id="selectedCount">0</span>)';
@@ -3351,7 +3349,7 @@ print <<<JS
 	
 	// Enable editing for a card item - opens a modal/inline form
 	window.enableCardEdit = function(poolFile, subject, account, amount, date) {
-		const fileData = docData.find(item => item.filename === poolFile) || {};
+		const fileData = poolAllRows().find(item => item.filename === poolFile) || {};
 		const poolVersion = fileData.version || '';
 		const description = fileData.description || '';
 		const invoiceNumber = fileData.invoiceNumber || '';
@@ -3426,8 +3424,13 @@ print <<<JS
 	
 	function sortFiles(field) {
 		applyPoolSort({ field: field, asc: currentSort && currentSort.field === field ? !currentSort.asc : true });
-		renderCurrentView();
-		savePoolListView();
+		// SD-719: sorted on the server, over every document
+		poolFetch().then(function() {
+			const container = document.getElementById(containerId);
+			if (container) container.scrollTop = 0;
+			savePoolListView();
+			poolFillViewport();
+		});
 	}
 
 
@@ -3500,7 +3503,7 @@ print <<<JS
 		
 		// poolFile[] (not poolFiles) so a filename containing a comma isn't split apart
 		// by docPool.php's legacy poolFiles=<comma-joined string> branch.
-		const selectedMetadata = docData.find(item => item.filename === selectedFiles[0]);
+		const selectedMetadata = poolAllRows().find(item => item.filename === selectedFiles[0]);
 		if (selectedMetadata) formData.append('poolAttachVersion', selectedMetadata.version || '');
 		selectedFiles.forEach(file => {
 			formData.append('poolFile[]', file);
@@ -3562,13 +3565,13 @@ print <<<JS
 			console.log('docData has', docData.length, 'entries');
 			
 			// Try multiple ways to find the file data
-			let fileData = docData.find(d => d.filename === firstFile);
+			let fileData = poolAllRows().find(d => d.filename === firstFile);
 			
 			// If not found, try with URL decoding
 			if (!fileData) {
 				try {
 					const decodedFirstFile = decodeURIComponent(firstFile);
-					fileData = docData.find(d => d.filename === decodedFirstFile);
+					fileData = poolAllRows().find(d => d.filename === decodedFirstFile);
 					if (fileData) console.log('Found via URL decoding');
 				} catch (e) {
 					console.log('URL decode failed:', e);
@@ -3578,7 +3581,7 @@ print <<<JS
 			// If still not found, try case-insensitive match
 			if (!fileData) {
 				const firstFileLower = firstFile.toLowerCase();
-				fileData = docData.find(d => d.filename && d.filename.toLowerCase() === firstFileLower);
+				fileData = poolAllRows().find(d => d.filename && d.filename.toLowerCase() === firstFileLower);
 				if (fileData) console.log('Found via case-insensitive match');
 			}
 			
@@ -3834,7 +3837,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 	row.dataset.originalActions = originalActions;
 	row.setAttribute('data-editing', 'true');
 	row.setAttribute('data-pool-file', poolFile);
-	row.dataset.poolVersion = (docData.find(item => item.filename === poolFile) || {}).version || '';
+	row.dataset.poolVersion = (poolAllRows().find(item => item.filename === poolFile) || {}).version || '';
 
 	// Make cells editable (update to handle 6 columns: checkbox, fil, beløb, fakturanr, dato, handlinger)
     if (cells.length >= 6) {
@@ -4017,8 +4020,15 @@ window.extractPoolFile = function(poolFile) {
 
 // Extract invoice data from ALL pool files
 window.extractAllPoolFiles = async function() {
-	// Get all pool files from the docData array; archived documents are not extracted (SD-717)
-	const activeDocs = (docData || []).filter(function(row) { return !row.archived; });
+	// Every document in the list, not only the loaded pages (SD-719); archived documents are not extracted (SD-717)
+	let activeDocs = [];
+	try {
+		const listResponse = await fetch('_docPoolData.php?dir={$encodedDir}&filesOnly=1', { credentials: 'same-origin' });
+		const listData = await listResponse.json();
+		activeDocs = (listData.files || []).map(function(name) { return { filename: name }; });
+	} catch (e) {
+		activeDocs = (docData || []).filter(function(row) { return !row.archived; });
+	}
 	if (activeDocs.length === 0) {
 		alert('{$txt41}');
 		return;
@@ -5546,6 +5556,11 @@ HTML;
                 url.searchParams.set(parameter, values[field]);
             });
         }
+        // SD-719: in place, so the list keeps its loaded pages, scroll, sort and search
+        if (typeof window.poolSwitch === 'function') {
+            window.poolSwitch(url.href);
+            return;
+        }
         window.location.href = url.href;
     };
 
@@ -5705,7 +5720,7 @@ HTML;
 
 		// Try to find data from the selected file in docData
 		if (currentPoolFile && typeof docData !== 'undefined' && docData.length) {
-			sourceData = docData.find(d => d.filename === currentPoolFile);
+			sourceData = (window.poolAllRows ? window.poolAllRows() : docData).find(d => d.filename === currentPoolFile);
 		}
 
 		// Fallback: check if a single checkbox is checked
@@ -5714,7 +5729,7 @@ HTML;
 			if (checked.length === 1) {
 				const filename = checked[0].value;
 				if (typeof docData !== 'undefined') {
-					sourceData = docData.find(d => d.filename === filename);
+					sourceData = (window.poolAllRows ? window.poolAllRows() : docData).find(d => d.filename === filename);
 				}
 			} else if (checked.length > 1) {
 				sourceData = "multiple"; // Indicate multiple selections
@@ -5729,7 +5744,7 @@ HTML;
 			if (matchRow) {
 				const filename = matchRow.getAttribute('data-pool-file');
 				if (filename && typeof docData !== 'undefined') {
-					sourceData = docData.find(d => d.filename === filename);
+					sourceData = (window.poolAllRows ? window.poolAllRows() : docData).find(d => d.filename === filename);
 				}
 			}
 		}

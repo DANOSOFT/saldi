@@ -34,6 +34,11 @@
 // 20261001 CL/NTR Merged the two history blocks into one and grouped the includes.
 // 20261003 CL/SZ SD-717 Archived documents are left out of the list and the duplicate marking.
 //                With archived=1 ("Vis arkiverede") only archived documents are returned, newest archive first, with their archive time.
+// 20261003 CL/SZ SD-719 With limit: one page of the list as {rows, total, offset, limit, matches, extra, currentIndex}.
+//                Search (q), sort (sort, order) and the match against the journal line (sum, dato) are done here over the full set (poolListQuery.php).
+//                extra holds the open document (current) and the ticked ones (include[]) when they are not on the page; filesOnly=1 lists every file name.
+//                toCurrent=1 extends the page down to the open document.
+//                Without limit the whole list comes back as before.
 
 // Start output buffering FIRST to capture any output from includes
 ob_start();
@@ -57,6 +62,7 @@ include_once(__DIR__ . "/docsIncludes/poolVendorMatcher.php");
 include_once(__DIR__ . "/docsIncludes/poolDuplicateMarker.php");
 require_once __DIR__ . '/docsIncludes/poolMetadata.php';
 require_once __DIR__ . '/docsIncludes/poolArchive.php';
+require_once __DIR__ . '/docsIncludes/poolListQuery.php';
 
 // Get $db from session/online table
 $qtxt = "select db from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -183,6 +189,59 @@ while ($row = db_fetch_array($result)) {
 // Not in the archive: an archived document is not a duplicate to act on (SD-717).
 if (!$showArchived) {
     $data = poolMarkDuplicates($data);
+}
+
+// SD-719: one page of the list; everything that needs the full set is done before slicing
+if (isset($_GET['filesOnly'])) {
+    $data = array('files' => array_map(function ($row) { return $row['filename']; }, $data));
+} elseif (isset($_GET['limit'])) {
+    $limit = max(1, min(200, (int)$_GET['limit']));
+    $offset = max(0, (int)($_GET['offset'] ?? 0));
+    $sortField = (string)($_GET['sort'] ?? '');
+    $rows = $sortField !== '' ? poolListSort($data, $sortField, ($_GET['order'] ?? 'asc') !== 'desc') : $data;
+    // No match colours in the archive (SD-717)
+    $matches = $showArchived
+        ? poolListMatches(array(), null, null)
+        : poolListMatches($rows, (string)($_GET['sum'] ?? ''), (string)($_GET['dato'] ?? ''));
+    $rows = poolListSearch(poolListOrder($rows, $matches['byFile']), (string)($_GET['q'] ?? ''));
+    // Where the open document is in the list; toCurrent=1 makes the page reach it, so the browser can show it in one request
+    $currentIndex = -1;
+    $currentFile = (string)($_GET['current'] ?? '');
+    if ($currentFile !== '') {
+        foreach ($rows as $i => $row) {
+            if ($row['filename'] === $currentFile) {
+                $currentIndex = $i;
+                break;
+            }
+        }
+    }
+    if (!empty($_GET['toCurrent']) && $currentIndex >= $offset) {
+        $limit = max($limit, min(1000, $currentIndex - $offset + 1));
+    }
+    $page = array_slice($rows, $offset, $limit);
+    foreach ($page as $i => $row) {
+        $page[$i]['match'] = $matches['byFile'][$row['filename']] ?? null;
+    }
+    // The open document and the ticked ones, for the code that reads their data while they are not on a loaded page
+    $wanted = array_merge(array((string)($_GET['current'] ?? '')), array_map('strval', (array)($_GET['include'] ?? array())));
+    $onPage = array_flip(array_map(function ($row) { return $row['filename']; }, $page));
+    $extra = array();
+    foreach ($data as $row) {
+        if (in_array($row['filename'], $wanted, true) && !isset($onPage[$row['filename']])) {
+            $row['match'] = $matches['byFile'][$row['filename']] ?? null;
+            $extra[] = $row;
+        }
+    }
+    unset($matches['byFile']);
+    $data = array(
+        'rows' => $page,
+        'total' => count($rows),
+        'offset' => $offset,
+        'limit' => $limit,
+        'matches' => $matches,
+        'extra' => $extra,
+        'currentIndex' => $currentIndex,
+    );
 }
 
 // Clear any previous output and send proper JSON

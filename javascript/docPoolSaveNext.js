@@ -8,6 +8,9 @@
 //                The next document is the one after the current one in the list as shown (sort and search kept).
 //                Needs window.saldiPoolSaveNext (docPool.php) and docPool.php's _saveRowFetch(), chooseMultipleBilag() and transferDataFromSelectedFile().
 // 20261003 CL/SZ SD-717 "Gem og næste" and "Spring over" never open an archived document; the arrow keys still browse the archive.
+// 20261003 CL/SZ SD-719 The next document opens in place (docPoolSwitch.js); the attached document is taken out of the list.
+//                When the open document is the last loaded row, the next page of the list is fetched first.
+//                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
 (function () {
     'use strict';
 
@@ -77,9 +80,25 @@
         return url.href;
     }
 
-    function leaveFor(href) {
+    /** Opens href in place when the pool can (SD-719), else loads it. remove: files that left the list. */
+    function leaveFor(href, remove) {
         if (typeof window.savePoolListView === 'function') window.savePoolListView();
+        if (typeof window.poolSwitch === 'function') {
+            window.poolSwitch(href, { remove: remove || [] });
+            return;
+        }
         window.location.href = href;
+    }
+
+    /** The next document; when the open one is the last loaded row, the list's next page is fetched first. */
+    function nextDocument() {
+        var files = listedFiles();
+        var at = files.indexOf(currentPoolFile());
+        var atEnd = at >= 0 && at === files.length - 1;
+        if (atEnd && typeof window.poolHasMore === 'function' && window.poolHasMore()) {
+            return window.poolLoadMore().then(function () { return neighbour(1); });
+        }
+        return Promise.resolve(neighbour(1));
     }
 
     /** After the last document: the pool without a document, showing "Ingen flere bilag i puljen". */
@@ -185,9 +204,12 @@
         }
         // Chosen before the save: the current document leaves the list when it is attached
         var file = currentPoolFile();
-        var next = neighbour(1);
+        var next = null;
         setBusy(true);
-        saveRowsInOrder(entries).then(function (newId) {
+        nextDocument().then(function (found) {
+            next = found;
+            return saveRowsInOrder(entries);
+        }).then(function (newId) {
             if (newId) {
                 // The new row's "attach here" box carried 0 until the row existed
                 var box = document.querySelector('#bilagEntry_new .targetLineCheckbox');
@@ -199,7 +221,7 @@
             }
             window.chooseMultipleBilag([file], function (error) {
                 if (error) { setBusy(false); return; }
-                leaveFor(next ? documentUrl(next, true) : doneUrl());
+                leaveFor(next ? documentUrl(next, true) : doneUrl(), [file]);
             });
         }).catch(function (error) {
             console.error(error);
@@ -210,8 +232,11 @@
 
     function skipDocument() {
         if (busy) return;
-        var next = neighbour(1);
-        leaveFor(next ? documentUrl(next, true) : doneUrl());
+        busy = true;
+        nextDocument().then(function (next) {
+            busy = false;
+            leaveFor(next ? documentUrl(next, true) : doneUrl());
+        });
     }
 
     window.poolSaveAndNext = saveAndNext;
@@ -262,7 +287,7 @@
     function showDone() {
         var c = cfg();
         var panel = document.getElementById('leftPanel');
-        if (!c || !panel) return;
+        if (!c || !panel || panel.querySelector('.pool-done-note')) return;
         var box = document.createElement('div');
         box.className = 'pool-done-note';
         var text = document.createElement('span');
@@ -290,6 +315,9 @@
 
     function init() {
         var params = new URLSearchParams(window.location.search);
+        busy = false;
+        var note = document.querySelector('#leftPanel .pool-done-note');
+        if (note && params.get('poolDone') !== '1') note.remove();
         if (params.get('poolDone') === '1') showDone();
         if (params.get('transfer') === '1') {
             // A reload must not transfer again over what the user changed
@@ -316,6 +344,9 @@
             setTimeout(wait, 100);
         })();
     }
+
+    // A document opened in place (SD-719) is a new start for the transfer, the focus and the note
+    document.addEventListener('poolswitch', init);
 
     // After docPool.php's own DOMContentLoaded handlers (docData is filled by then)
     if (document.readyState === 'loading') {

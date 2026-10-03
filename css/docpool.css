@@ -894,3 +894,21 @@ body {
   background-color: #e8f4fd;
   font-size: 13px;
 }
+
+/* SD-719: under the loaded rows while more exist ("50 af 497"); scrolling fetches the next page too */
+.pool-more {
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.pool-more button {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+}
