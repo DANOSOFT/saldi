@@ -8,6 +8,7 @@
 //                  Added JSDoc to the functions this change touches.
 // 20261003 CL/SZ SD-698: The card opens in a separate, reused tab (saldiKort) instead of leaving the journal, so unsaved
 //                  journal edits are kept; the card's Tilbage closes the tab. A blocked popup falls back to the old ask-and-leave.
+// 20261003 CL/SZ SD-716 window.closeAccountAutocomplete closes the panel, so Ctrl + arrow navigation (fieldNavigation.js) can move on from an open panel.
 (function () {
     'use strict'; 
 
@@ -1841,5 +1842,6 @@
     });
 
     window.initAccountAutocomplete = initAccountAutocomplete;
+    window.closeAccountAutocomplete = closeDropdown;
 
 })();
