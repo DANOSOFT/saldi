@@ -104,6 +104,8 @@
 //                  Kredit K) and the account's name and VAT code under them. Saved as type + number ("K1234").
 // 20261003 CL/SZ Doc pool task 2: Save posted to a hard-coded '/pblm/...' path when the pool is not under the document root
 //                  (e.g. served through an Apache Alias) and got 404; the fallback is now relative to includes/documents.php.
+// 20261003 CL/SZ Doc pool task 3: Each line warns when its kreditor already has the invoice number (open journal, posted,
+//                  other pool document); a line with nothing typed yet checks the document's own kreditor and number.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1426,6 +1428,10 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
     print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 	print "<script src=\"../javascript/accountAutocomplete.js?v=$v5\"></script>";
 	print "<script src=\"../javascript/docPoolAccounts.js?v=$v7\"></script>";
+	$v8 = @filemtime("../javascript/invoiceReuse.js") ?: 0;
+	$v9 = @filemtime("../css/invoiceReuse.css") ?: 0;
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/invoiceReuse.css?v=$v9\">\n";
+	print "<script src=\"../javascript/invoiceReuse.js?v=$v8\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1710,6 +1716,11 @@ if ($source == 'kassekladde') {
 	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
 	print "<script>
 	window.saldiPoolAccounts = " . json_encode(array('lookupUrl' => 'docsIncludes/poolAccountLookup.php', 'kladdeId' => $escKladde)) . ";
+	" . ($readOnly ? '' : "window.saldiInvoiceReuse = " . json_encode(array(
+		'url'      => '../finans/kassekladde_includes/invoiceReuseCheck.php',
+		'kladdeId' => $escKladde,
+		'poolFile' => (string)$poolFile,
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";") . "
 	window.saldiAccountCard = " . json_encode(array(
 		'url'      => '../finans/kassekladde_includes/openAccountCard.php',
 		'kladdeId' => $escKladde,
