@@ -100,10 +100,9 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
-// 20261002 CL/SZ Doc pool task 1: The viewer and the card preview load the document through docFile.php (login and
-//                  tenant checked) instead of its direct path.
-// 20261003 CL/SZ Doc pool task 1: "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window
-//                  (docWindow.php), which follows the selection; the viewer here collapses while it is open.
+// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
+// 20261003 CL/SZ SD-713 "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window (docWindow.php), which follows the selection.
+//                The viewer here collapses while that window is open.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");

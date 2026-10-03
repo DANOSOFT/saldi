@@ -22,13 +22,13 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261003 CL/SZ Doc pool task 1: Created: the detached document window ("Åbn i nyt vindue" in the pool).
-//                  Shows only the document, no menus, and follows the pool's selection over the
-//                  BroadcastChannel 'saldiDocWindow'. The document itself is loaded through docFile.php.
+// 20261003 CL/SZ SD-713 Created: the detached document window ("Åbn i nyt vindue" in the pool).
+//                Shows only the document, no menus, and follows the pool's selection over the BroadcastChannel 'saldiDocWindow'.
+//                The document itself is loaded through docFile.php (SD-723).
 //
 // Request: k and f as for docFile.php (k=doc f=pulje/x.pdf, or k=temp f=xml_preview_<md5>.html)
 
-@session_start();
+session_start();
 $s_id = session_id();
 
 $header = 'nix';

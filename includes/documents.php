@@ -1,6 +1,6 @@
 <!doctype html>
 <?php
-// --- includes/documents.php --- ver 5.0.0 --- 2026-10-02 ---
+// --- includes/documents.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,7 +36,7 @@
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 // 20261002 CL/SZ SD-701 viewOnly=1 shows only the line's document, for the voucher tab the journal opens.
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
-// 20261002 CL/SZ Doc pool task 1: Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
+// 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";

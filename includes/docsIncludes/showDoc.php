@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/showDoc.php --- ver 5.0.0 --- 2026-10-02 ---
+// --- includes/docsIncludes/showDoc.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,7 +19,7 @@
 // ----------------------------------------------------------------------
 // PLBM 2024.01.31
 //20240305 PHR Varioous corrections
-// 20261002 CL/SZ Doc pool task 1: The document is shown through docFile.php (login and tenant checked) instead of its direct path.
+// 20261003 CL/SZ SD-723 The document is shown through docFile.php (login and tenant checked) instead of its direct path.
 
 
 // Check if we're in flexbox layout (docPool-style) or table layout

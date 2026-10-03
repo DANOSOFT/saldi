@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docFile.php --- ver 5.0.0 --- 2026-10-02 ---
+// --- includes/docsIncludes/docFile.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,15 +22,14 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261002 CL/SZ Doc pool task 1: Created: serves a document to a logged-in user of the tenant it belongs to.
-//                  The tenant comes from the session, never from the request, and the path must stay
-//                  inside that tenant's folder.
+// 20261003 CL/SZ SD-723 Created: serves a document to a logged-in user of the tenant it belongs to.
+//                The tenant comes from the session, never from the request, and the path must stay inside that tenant's folder.
 //
 // Request: k=doc  f=<path below the tenant's document folder>, e.g. f=pulje/x.pdf
 //          k=temp f=<XML preview rendered by the viewer>, e.g. f=xml_view_<md5>.html
 // Build the URL with docFileUrl() in docFileFunc.php rather than by hand.
 
-@session_start();
+session_start();
 $s_id = session_id();
 
 $header = 'nix';

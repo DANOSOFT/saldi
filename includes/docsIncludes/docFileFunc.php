@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docFileFunc.php --- ver 5.0.0 --- 2026-10-02 ---
+// --- includes/docsIncludes/docFileFunc.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,8 +22,7 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261002 CL/SZ Doc pool task 1: Created: helpers for docFile.php, which serves a tenant's documents only to a
-//                  logged-in user of that tenant instead of by their direct file path.
+// 20261003 CL/SZ SD-723 Created: helpers for docFile.php, which serves a tenant's documents only to a logged-in user of that tenant instead of by their direct file path.
 
 if (!function_exists('docFileUrl')) {
 	/**
