@@ -100,11 +100,11 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
-// 20261003 CL/SZ Doc pool task 5: The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
 //                An XML invoice is rendered through EasyUBL once and reused until the file changes.
-// 20261003 CL/SZ Doc pool task 5 (CodeRabbit): The folder's mtime is read before the folder is listed, and that value is stored.
+// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
 //                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
@@ -381,7 +381,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 }
 
 /**
- * The pool folder's modification time, read fresh from disk (doc pool task 5).
+ * The pool folder's modification time, read fresh from disk (SD-718).
  *
  * @param string $puljePath The tenant's pool folder.
  * @return int Unix time, or 0 when the folder doesn't exist or can't be read.
@@ -396,7 +396,7 @@ function poolFolderMtime($puljePath) {
 }
 
 /**
- * The pool folder's modification time, as stored after the last look at its contents (doc pool task 5).
+ * The pool folder's modification time, as stored after the last look at its contents (SD-718).
  * Adding or removing a file changes a folder's mtime, so comparing it is one stat() instead of listing the folder.
  * A time in the current second is never stored: a file added later in that same second would not change it.
  *
@@ -426,7 +426,7 @@ function checkIfAllPoolFilesAreInDatabase() {
 	}
 	global $db, $docFolder;
 	$puljePath = "$docFolder/$db/pulje";
-	// Doc pool task 5: inside the sync window, only read the folder when something was added or removed
+	// SD-718: inside the sync window, only read the folder when something was added or removed
 	$observedMtime = poolFolderMtime($puljePath);
 	if (!poolFolderChanged($puljePath, false, $observedMtime)) {
 		return;
@@ -2535,7 +2535,7 @@ print <<<JS
 				}
 			}
 			
-			// Only look for combinations if no exact matches found. Doc pool task 5: amounts are compared in øre through
+			// Only look for combinations if no exact matches found. SD-718: amounts are compared in øre through
 			// lookup tables instead of nested loops; the old four nested loops took 7.5 s with 500 documents
 			// (about 2.6 billion sums) on every page load. Same combinations, same order, same pair/triplet/quad rule.
 			if (matchingCount === 0 && docsWithAmounts.length >= 2) {
@@ -4763,7 +4763,7 @@ JS;
 				$s_id=session_id();
 				include "online.php";
 
-				// Doc pool task 5: rendered once and reused, as showDoc.php already does; a newer XML file is rendered again
+				// SD-718: rendered once and reused, as showDoc.php already does; a newer XML file is rendered again
 				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
 				$xmlCached = is_file($htmlTempFile) && filesize($htmlTempFile) > 0 && filemtime($htmlTempFile) >= filemtime($fullName);
 				if ($xmlCached) {
