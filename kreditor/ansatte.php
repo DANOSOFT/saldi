@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- kreditor/ansatte.php --------ver 5.0.0--- 2026.10.01 -------
+// -------- kreditor/ansatte.php --------ver 5.0.0--- 2026.10.03 -------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,8 @@
 // 20260708 Sawaneh Grid Framework header + fixed "Uforudset hændelse" on save (posnr set on insert, redirect back to account)
 // 20261001 CL/SZ SD-698: returside is URL-encoded in every link back to kreditorkort.php and to a new contact person,
 //                so a returside with its own query string (e.g. kassekladde.php?tjek=..&kladde_id=..) survives the round trip.
+// 20261003 CL/SZ SD-698: returside is sanitized like kreditorkort.php (nav_sanitize_returside), so an array no longer
+//                breaks urlencode() and a quote can't escape the hidden returside field.
 
 @session_start();
 $s_id = session_id();
@@ -44,7 +46,7 @@ include("../includes/topline_settings.php");
 
 if ($_GET) {
 	$id       = isset($_GET['id']) ? $_GET['id'] : 0;
-	$returside = isset($_GET['returside']) ? $_GET['returside'] : '';
+	$returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
 	$retursideParam = urlencode($returside);
 	$ordre_id = isset($_GET['ordre_id']) ? $_GET['ordre_id'] : '';
 	$fokus    = isset($_GET['fokus']) ? $_GET['fokus'] : '';
@@ -68,7 +70,7 @@ if ($_POST) {
 	$cprnr    = addslashes(trim($_POST['cprnr']));
 	$notes    = addslashes(trim($_POST['notes']));
 	$ordre_id = $_POST['ordre_id'];
-	$returside = $_POST['returside'];
+	$returside = nav_sanitize_returside(ifset($_POST, 'returside', ''));
 	$retursideParam = urlencode($returside);
 	$fokus    = $_POST['fokus'];
 
