@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.03
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -80,6 +80,8 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261003 CL/SZ SST-818: the kassekladde/documents/adresser indexes are built CONCURRENTLY (PostgreSQL) or with
+//                  LOCK=NONE (MySQL), so the one-time build at login does not block writes; an INVALID one is rebuilt.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -300,6 +302,10 @@ db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpr
 // 20260928 CL/SZ SST-818: finans/kassekladde.php looks up kassekladde, documents and adresser once per journal line;
 // none of these columns were indexed, so every lookup was a full table scan and a journal of a few hundred lines
 // took several seconds to open. MySQL has no CREATE INDEX IF NOT EXISTS and needs a prefix length on a text column.
+// 20261003 CL/SZ SST-818: built without blocking writes, as in SST-808: CONCURRENTLY on PostgreSQL (this file runs
+// outside any transaction), with an advisory lock against two logins building the same index and a rebuild of an
+// index an interrupted build left INVALID; ALGORITHM=INPLACE, LOCK=NONE on MySQL. All five took about 2 s together
+// on a 163k-row kassekladde / 135k-row adresser tenant.
 $kkIndexMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 $kkIndexes = array(
 	'kassekladde_kladde_id_idx'        => array('kassekladde', 'kladde_id', 'kladde_id'),
@@ -312,10 +318,22 @@ foreach ($kkIndexes as $kkIndexName => list($kkIndexTable, $kkIndexColumns, $kkI
 	if ($kkIndexMysql) {
 		$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '$kkIndexTable' AND index_name = '$kkIndexName'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			db_modify("CREATE INDEX $kkIndexName ON $kkIndexTable ($kkIndexColumnsMysql)", __FILE__ . " linje " . __LINE__);
+			db_modify("CREATE INDEX $kkIndexName ON $kkIndexTable ($kkIndexColumnsMysql) ALGORITHM=INPLACE LOCK=NONE", __FILE__ . " linje " . __LINE__);
 		}
 	} else {
-		db_modify("CREATE INDEX IF NOT EXISTS $kkIndexName ON $kkIndexTable ($kkIndexColumns)", __FILE__ . " linje " . __LINE__);
+		db_select("SELECT pg_advisory_lock(hashtext('$kkIndexName'))", __FILE__ . " linje " . __LINE__);
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$kkIndexName' AND pg_namespace.nspname = current_schema()";
+		$kkExisting = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($kkExisting && $kkExisting['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $kkIndexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$kkExisting || $kkExisting['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $kkIndexName ON $kkIndexTable ($kkIndexColumns)", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$kkIndexName'))", __FILE__ . " linje " . __LINE__);
 	}
 }
 
