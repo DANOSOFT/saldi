@@ -100,10 +100,12 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
-// 20261003 CL/SZ Doc pool task 5: The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the
-//                  line's amount) compares øre through lookup tables instead of four nested loops: 7.5 s -> under 0.1 s with
-//                  500 documents. Inside the sync window the pool folder is only read when its mtime changed, and an XML
-//                  invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ Doc pool task 5: The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+//                That takes it from 7.5 s to under 0.1 s with 500 documents.
+//                Inside the sync window the pool folder is only read when its mtime changed.
+//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ Doc pool task 5 (CodeRabbit): The folder's mtime is read before the folder is listed, and that value is stored.
+//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -237,7 +239,9 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		}
 	}
 	
-	// Get all PDF and XML files from the pulje directory
+	// Get all PDF and XML files from the pulje directory. The mtime is taken first: a file added while
+	// the folder is read then changes the mtime again, so the next load reads the folder once more.
+	$observedMtime = poolFolderMtime($puljePath);
 	$pdfFiles = [];
 	$files = scandir($puljePath);
 	// scandir() returns false on a read failure (permission issue, a disconnected
@@ -373,7 +377,22 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		}
 	}
 	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
-	poolFolderChanged($puljePath, true);
+	poolFolderChanged($puljePath, true, $observedMtime);
+}
+
+/**
+ * The pool folder's modification time, read fresh from disk (doc pool task 5).
+ *
+ * @param string $puljePath The tenant's pool folder.
+ * @return int Unix time, or 0 when the folder doesn't exist or can't be read.
+ */
+function poolFolderMtime($puljePath) {
+	clearstatcache(true, $puljePath);
+	if (!is_dir($puljePath)) {
+		return 0;
+	}
+	$mtime = filemtime($puljePath);
+	return $mtime === false ? 0 : (int)$mtime;
 }
 
 /**
@@ -381,13 +400,15 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
  * Adding or removing a file changes a folder's mtime, so comparing it is one stat() instead of listing the folder.
  * A time in the current second is never stored: a file added later in that same second would not change it.
  *
- * @param string $puljePath The tenant's pool folder.
- * @param bool   $store     Store the current mtime as seen (after the folder was read).
+ * @param string   $puljePath The tenant's pool folder.
+ * @param bool     $store     Store $mtime as seen, once the folder was read.
+ * @param int|null $mtime     The mtime taken before the folder was read; null reads it now.
  * @return bool True when the folder changed since the stored time (or nothing is stored yet).
  */
-function poolFolderChanged($puljePath, $store = false) {
-	clearstatcache(true, $puljePath);
-	$mtime = @filemtime($puljePath);
+function poolFolderChanged($puljePath, $store = false, $mtime = null) {
+	if ($mtime === null) {
+		$mtime = poolFolderMtime($puljePath);
+	}
 	if ($store) {
 		$seen = ($mtime && $mtime < time() - 1) ? $mtime : 0;
 		update_settings_value("pool_dir_mtime", "docs", $seen, "Pool folder mtime when its files were last read");
@@ -406,11 +427,12 @@ function checkIfAllPoolFilesAreInDatabase() {
 	global $db, $docFolder;
 	$puljePath = "$docFolder/$db/pulje";
 	// Doc pool task 5: inside the sync window, only read the folder when something was added or removed
-	if (!poolFolderChanged($puljePath)) {
+	$observedMtime = poolFolderMtime($puljePath);
+	if (!poolFolderChanged($puljePath, false, $observedMtime)) {
 		return;
 	}
 	$files = array_merge(glob("$puljePath/*.pdf") ?: [], glob("$puljePath/*.xml") ?: []);
-	poolFolderChanged($puljePath, true);
+	poolFolderChanged($puljePath, true, $observedMtime);
 	if (!$files) {
 		return;
 	}
