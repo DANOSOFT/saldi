@@ -10,6 +10,7 @@
 //                  journal edits are kept; the card's Tilbage closes the tab. A blocked popup falls back to the old ask-and-leave.
 // 20261003 CL/SZ SD-716 window.closeAccountAutocomplete closes the panel, so Ctrl + arrow navigation (fieldNavigation.js) can move on from an open panel.
 // 20261003 CL/SZ SD-720 A search answer that arrives after the user left the field no longer opens the panel and takes the focus back.
+// 20261003 CL/SZ SD-721 A kreditor search that finds nothing offers "Opret kreditor", which opens kreditorFromCvr.js's dialog and puts the new kreditor in the field.
 (function () {
     'use strict'; 
 
@@ -187,6 +188,28 @@
                     // Use the current input value for pagination
                     performSearchWithValue(input, input.value, page);
                 }
+                return;
+            }
+
+            const createBtn = e.target.closest('.account-autocomplete-create-kreditor');
+            if (createBtn) {
+                // SD-721: the dialog; the new kreditor goes into the field the search came from
+                e.preventDefault();
+                e.stopPropagation();
+                const search = createBtn.dataset.search || '';
+                const digits = search.replace(/\D/g, '');
+                closeDropdown();
+                window.kreditorFromCvr.openDialog({
+                    company: /^\d{8}$/.test(digits) && digits.length === search.replace(/\s/g, '').length ? { cvrnr: digits } : { firmanavn: search },
+                    returnFocus: input,
+                    onCreated: function (kreditor) {
+                        selectionMade = true;
+                        input.value = kreditor.kontonr;
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.focus();
+                        setTimeout(function () { selectionMade = false; }, 100);
+                    }
+                });
                 return;
             }
 
@@ -1075,6 +1098,19 @@
 
 
     /**
+     * "Opret kreditor" under "no results" when a kreditor search finds nothing (SD-721), on pages that load kreditorFromCvr.js.
+     * @param {string} searchType  'finance', 'debitor' or 'kreditor'.
+     * @param {string} searchValue The text that found nothing.
+     * @returns {string} The button's HTML, or '' when it doesn't apply.
+     */
+    function createKreditorButton(searchType, searchValue) {
+        if (searchType !== 'kreditor' || searchValue === '' || !window.kreditorFromCvr || !window.saldiKreditorCvr) return '';
+        const label = (window.saldiKreditorCvr.texts && window.saldiKreditorCvr.texts.create) || 'Opret kreditor';
+        return ' <button type="button" class="account-autocomplete-create-kreditor" data-search="' + escapeHtml(searchValue) + '">' + escapeHtml(label) + '</button>';
+    }
+
+
+    /**
      * Fill and show the account popup (Vælg Konto / Debitor / Kreditor) for a field.
      * @param {HTMLInputElement} input                    The journal field the popup belongs to.
      * @param {Array<Object>}    results                  Accounts from accountSearch.php.
@@ -1096,7 +1132,7 @@
 
         if (!results || results.length === 0) {
             if ((currentSearchValueParam !== '' && panelOptions.showAccountLookup) || hasLastPostings) {
-                let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+                let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + createKreditorButton(searchType, currentSearchValueParam) + '</div>';
                 if (hasLastPostings) {
                     noResultHtml = '<div class="account-autocomplete-results">' +
                         '<table class="account-autocomplete-table">' +

@@ -130,11 +130,13 @@
 //                An XML invoice is rendered through EasyUBL once and reused until the file changes.
 // 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
 //                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261003 CL/SZ SD-721 Loads kreditorFromCvr.js: a supplier that is not a kreditor is created from the CVR register, offered with "Opret kreditor", or entered in the dialog.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/poolVendorSuggestion.php");
+include_once(__DIR__ . "/../kreditorFromCvr.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
 /**
@@ -1525,6 +1527,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<script src=\"../javascript/docPoolSwitch.js?v=$v13\"></script>";
 	$v14 = file_exists("../javascript/docPoolSplit.js") ? filemtime("../javascript/docPoolSplit.js") : 0;
 	print "<script src=\"../javascript/docPoolSplit.js?v=$v14\"></script>";
+	// SD-721: kreditor from the CVR register when the supplier is not a kreditor
+	$v15 = file_exists("../javascript/kreditorFromCvr.js") ? filemtime("../javascript/kreditorFromCvr.js") : 0;
+	print kreditorCvrClientScript($sprog_id, (string)$v15);
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>

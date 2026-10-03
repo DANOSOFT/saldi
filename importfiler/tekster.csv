@@ -5194,3 +5194,22 @@
 5349	Bilagsbalance	Voucher balance	Bilagsbalanse
 5350	Bilaget går ikke op: rest	The voucher does not balance: remaining	Bilaget går ikke opp: rest
 5351	Fjern linjen	Remove the line	Fjern linjen
+5352	Ukendt leverandør	Unknown supplier	Ukjent leverandør
+5353	Opret kreditor	Create creditor	Opprett kreditor
+5354	oprettet automatisk fra CVR-registeret	created automatically from the CVR register	opprettet automatisk fra CVR-registeret
+5355	oprettet	created	opprettet
+5356	Kreditoren er slettet igen	The creditor was deleted again	Kreditoren er slettet igjen
+5357	Kan ikke fortrydes: kreditoren er taget i brug	Cannot be undone: the creditor is in use	Kan ikke angres: kreditoren er tatt i bruk
+5358	Kreditoren findes allerede	The creditor already exists	Kreditoren finnes allerede
+5359	Opret kreditor automatisk	Create creditor automatically	Opprett kreditor automatisk
+5360	Gem som standard	Save as default	Lagre som standard
+5361	Ubekræftede bankoplysninger	Unconfirmed bank details	Ubekreftede bankopplysninger
+5362	Bekræft	Confirm	Bekreft
+5363	Bankoplysningerne er læst fra en faktura og bruges ikke til betaling, før de er bekræftet.	The bank details were read from an invoice and are not used for payments until they are confirmed.	Bankopplysningene er lest fra en faktura og brukes ikke til betaling før de er bekreftet.
+5364	Oprettet automatisk fra CVR-registeret	Created automatically from the CVR register	Opprettet automatisk fra CVR-registeret
+5365	CVR-registeret kunne ikke svare	The CVR register did not answer	CVR-registeret kunne ikke svare
+5366	Virksomheden er ophørt	The company has ceased	Virksomheten har opphørt
+5367	CVR-nummeret findes ikke i CVR-registeret	The CVR number is not in the CVR register	CVR-nummeret finnes ikke i CVR-registeret
+5368	Firmanavn skal udfyldes	Company name is required	Firmanavn må fylles ut
+5369	Kreditoren kunne ikke oprettes	The creditor could not be created	Kreditoren kunne ikke opprettes
+5370	Intet CVR-nummer på bilaget	No CVR number on the document	Intet CVR-nummer på bilaget

@@ -16,6 +16,8 @@
 //
 // Copyright (c) 2004-2026 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20261003 CL/SZ SD-721 The call to cvrapi.dk is includes/cvrLookup.php's cvrLookupFetch(), which the automatic kreditor creation uses too.
+//                A CVR number's answer now comes from its cache when it was looked up before.
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 
@@ -27,6 +29,7 @@
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include("../includes/cvrLookup.php");
 	ob_end_clean();
 
 	header('Content-Type: application/json; charset=utf-8');
@@ -54,30 +57,15 @@
 	# requests for up to the 10 second timeout.
 	session_write_close();
 
-	$url = "https://cvrapi.dk/api?".$type."=".urlencode($param)."&country=".urlencode($country);
+	$answer = cvrLookupFetch($type,$param,$country,10);
+	$code = $answer['code'];
 
-	$ch = curl_init($url);
-	curl_setopt_array($ch,array(
-		CURLOPT_RETURNTRANSFER => true,
-		CURLOPT_FOLLOWLOCATION => true,
-		CURLOPT_TIMEOUT        => 10,
-		CURLOPT_USERAGENT      => 'saldi.dk - kundeopslag (support@saldi.dk)',
-		CURLOPT_HTTPHEADER     => array('Accept: application/json'),
-	));
-
-	$body = curl_exec($ch);
-	$code = curl_getinfo($ch,CURLINFO_HTTP_CODE);
-	$err  = curl_error($ch);
-	curl_close($ch);
-
-	if ($body === false || $code >= 400) {
-		# curl_error() can reveal internal network details, so it is logged instead of
-		# being sent to the browser.
-		if ($err) error_log("cvrLookupProxy: call to cvrapi.dk failed (status $code): $err");
+	if ($answer['body'] === null || $code >= 400) {
 		http_response_code($code ? $code : 502);
 		print json_encode(array('error'=>'upstream error','status'=>$code));
 		exit;
 	}
 
+	$body = $answer['body'];
 	print $body;
 ?>

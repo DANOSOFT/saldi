@@ -125,6 +125,8 @@
 //                The pool opens for the clicked line, or for the line the save just created from the new line, so the document can't land on a duplicate line.
 //                If the save fails validation, the journal stays with its normal error.
 // 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
+// 20261003 CL/SZ SD-721 "Opret kreditor automatisk" in the gear box, per user, off by default; stored in box3 as kred_auto when on (save_kk_cols).
+//                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
 
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
@@ -489,7 +491,10 @@ print '<script>
 </script>';
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.10" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.11" defer></script>';
+// SD-721: "Opret kreditor" in the lookup panel when a kreditor search finds nothing
+include_once("../includes/kreditorFromCvr.php");
+print kreditorCvrClientScript($sprog_id, '1');
 print '<link rel="stylesheet" type="text/css" href="../css/invoiceReuse.css?v=1">';
 print '<script src="../javascript/invoiceReuse.js?v=1" defer></script>';
 print "<script>
@@ -584,6 +589,8 @@ $kk_toggle_cols = array(
 );
 // Panel-sektioner i det blaa kontoopslag - ikke tabelkolonner, men gemmes/fravaelges via samme mekanisme
 $kk_panel_opts = array('ac_forslag', 'ac_opslag');
+// Switches that are off by default and stored when on (SD-721: kred_auto, "Opret kreditor automatisk")
+$kk_user_opts = array('kred_auto');
 
 
 // (int)$bruger_id != 0: revisor/admin sessions have bruger_id = -1 (online.php) and must also
@@ -592,7 +599,7 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
     $parts = array_filter(array_map('trim', explode(',', (string)$_POST['save_kk_cols'])));
     $clean = array();
     foreach ($parts as $p) {
-        if (array_key_exists($p, $kk_toggle_cols) || in_array($p, $kk_panel_opts, true)) $clean[] = $p;
+        if (array_key_exists($p, $kk_toggle_cols) || in_array($p, $kk_panel_opts, true) || in_array($p, $kk_user_opts, true)) $clean[] = $p;
     }
     $cols_str = db_escape_string(implode(',', $clean));
     $exists = db_fetch_array(db_select("select id from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
@@ -609,6 +616,7 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
 
 $kk_hidden_cols = array();
 $kk_panel_hidden = array();
+$kk_opts_on = array();
 if (isset($bruger_id) && (int)$bruger_id != 0) {
     $kk_r = db_fetch_array(db_select("select box3 from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
     if ($kk_r && trim((string)$kk_r['box3']) !== '') {
@@ -616,6 +624,7 @@ if (isset($bruger_id) && (int)$bruger_id != 0) {
             $c = trim($c);
             if (array_key_exists($c, $kk_toggle_cols)) $kk_hidden_cols[] = $c;
             elseif (in_array($c, $kk_panel_opts, true)) $kk_panel_hidden[] = $c;
+            elseif (in_array($c, $kk_user_opts, true)) $kk_opts_on[] = $c;
         }
     }
 }
@@ -2813,6 +2822,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$checked = in_array($ckey, $kk_panel_hidden, true) ? '' : 'checked';
 			print "<label class='kkVisRow'><input type='checkbox' class='kk-col-toggle' data-col='" . htmlspecialchars($ckey, ENT_QUOTES, $charset) . "' $checked><span>" . htmlspecialchars($clabel, ENT_QUOTES, $charset) . "</span></label>";
 		}
+		print "<hr class='kkVisSplit'>";
+		// SD-721: on, a kreditor is created from the CVR register without asking when a pool document's supplier is unknown
+		$kkAutoKred = findtekst('5359|Opret kreditor automatisk', $sprog_id);
+		$checked = in_array('kred_auto', $kk_opts_on, true) ? 'checked' : '';
+		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle' data-opt='kred_auto' $checked><span>" . htmlspecialchars($kkAutoKred, ENT_QUOTES, $charset) . "</span></label>";
 		print "</div>";
 		print "<div class='kkVisFoot'><button type='button' id='kkVisShowAll'>" . htmlspecialchars($kkVisShowAll, ENT_QUOTES, $charset) . "</button></div>";
 		print "</div>";
@@ -2835,11 +2849,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		function kkSaveCols(){
 			var hidden=[];
 			document.querySelectorAll('.kk-col-toggle').forEach(function(cb){if(!cb.checked) hidden.push(cb.getAttribute('data-col'));});
+			document.querySelectorAll('.kk-opt-toggle').forEach(function(cb){if(cb.checked) hidden.push(cb.getAttribute('data-opt'));});
 			var fd=new FormData();fd.append('save_kk_cols',hidden.join(','));
 			// keepalive: a reload right after toggling must not cancel the save request
 			fetch(window.location.pathname+window.location.search,{method:'POST',body:fd,credentials:'same-origin',keepalive:true}).catch(function(){});
 		}
 		document.addEventListener('change',function(e){
+			if(e.target.classList.contains('kk-opt-toggle')){kkSaveCols();return;}
 			if(!e.target.classList.contains('kk-col-toggle')) return;
 			kkApplyColToggle(e.target.getAttribute('data-col'),e.target.checked);
 			kkSaveCols();

@@ -28,6 +28,8 @@
 // 20230501 Created kladdeliste option
 // 20260713 CL/NTR Fixed SQL injection: cast $_GET[kladde_id] with intval()
 //                  before interpolating into the query
+// 20261003 CL/SZ SD-721 A kreditor's bank details read from an invoice (adresser.bank_unconfirmed) are not used for a payment before "Bekræft".
+//                Its payment lines get no "Modtager konto" and show "Ubekræftede bankoplysninger" with "Bekræft", which confirms the details and fills the account in.
 
 $dan_liste=$gem=$listenote=$slet_ugyldige=$udskriv=NULL;
 
@@ -45,6 +47,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/payListFunc.php");
+include("../includes/kreditorFromCvr.php");
 
 $reopen   = if_isset($_GET['reopen']);
 $liste_id = if_isset($_GET['liste_id'], null);
@@ -115,6 +118,30 @@ $findlink=NULL;
 if (!$liste_id) $liste_id=0;
 else {
 		$findlink='';#"<a href=betalinger.php?liste_id=$liste_id&find=nye>Find nye</a>";
+}
+
+// SD-721: bank details read from an invoice are not used for a payment before "Bekræft".
+// A kreditor with unconfirmed details gets its payment lines without "Modtager konto"; the line shows the marker and "Bekræft".
+$bankUnconfirmed = array(); // modt_navn as the lines carry it => adresser.id
+if (kreditorCvrReady()) {
+	$bekraeftId = (int)if_isset($_POST['bekraeft_bank'], 0);
+	if ($bekraeftId && $liste_id) {
+		$rK = db_fetch_array(db_select("select firmanavn, bank_reg, bank_konto from adresser where id = $bekraeftId and art = 'K'", __FILE__ . " linje " . __LINE__));
+		if ($rK && kreditorCvrConfirmBank($bekraeftId)) {
+			$tilKto = trim($rK['bank_konto']);
+			while ($tilKto !== '' && strlen($tilKto) < 10) $tilKto = '0' . $tilKto;
+			$tilKto = trim($rK['bank_reg']) . $tilKto;
+			$names = array_unique(array($rK['firmanavn'], str_replace('&', 'og', $rK['firmanavn'])));
+			foreach ($names as $name) {
+				db_modify("update betalinger set til_kto = '" . db_escape_string($tilKto) . "' where liste_id = '" . (int)$liste_id . "' and (til_kto is null or til_kto = '') and modt_navn = '" . db_escape_string($name) . "'", __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+	$q = db_select("select id, firmanavn from adresser where art = 'K' and bank_unconfirmed is not null", __FILE__ . " linje " . __LINE__);
+	while ($rK = db_fetch_array($q)) {
+		$bankUnconfirmed[$rK['firmanavn']] = (int)$rK['id'];
+		$bankUnconfirmed[str_replace('&', 'og', $rK['firmanavn'])] = (int)$rK['id'];
+	}
 }
 
 $linjebg=$bgcolor;
@@ -209,6 +236,7 @@ if ($find || isset($_GET["kladde_id"])) {
 				$custBank='0'.$custBank; # kontonumre skal vaere paa 10 cifre
 			}
 			$custBank = $custReg.$custBank;
+			if (in_array((int)$custId, $bankUnconfirmed, true)) $custBank = ''; # SD-721: unconfirmed bank details
 			$myRef="Afr: $custNo - $custName";
 			$custRef="$myName";
 			$qtxt="select sum(amount) as amount from openpost where udlignet = '0' and konto_id='$custId'";
@@ -281,9 +309,9 @@ if ($find || isset($_GET["kladde_id"])) {
 */
 		if(isset($_GET["kladde_id"])){
 			$kladde_id_filter = intval($_GET["kladde_id"]);
-			$qtxt="select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as duedate,openpost.betal_id as paymentid,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id, adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage from openpost, adresser where openpost.udlignet != '1' and openpost.amount < 0 and openpost.konto_id = adresser.id and adresser.art = 'K' and kladde_id = $kladde_id_filter order by forfaldsdate";
+			$qtxt="select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as duedate,openpost.betal_id as paymentid,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id, adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage, adresser.id as kreditor_id from openpost, adresser where openpost.udlignet != '1' and openpost.amount < 0 and openpost.konto_id = adresser.id and adresser.art = 'K' and kladde_id = $kladde_id_filter order by forfaldsdate";
 		}else{
-			$qtxt="select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as duedate,openpost.betal_id as paymentid,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id, adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage from openpost, adresser where openpost.udlignet != '1' and openpost.amount < 0 and openpost.konto_id = adresser.id and adresser.art = 'K' order by forfaldsdate";
+			$qtxt="select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as duedate,openpost.betal_id as paymentid,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id, adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage, adresser.id as kreditor_id from openpost, adresser where openpost.udlignet != '1' and openpost.amount < 0 and openpost.konto_id = adresser.id and adresser.art = 'K' order by forfaldsdate";
 		}
 		
 		
@@ -311,6 +339,7 @@ if ($find || isset($_GET["kladde_id"])) {
 					for($x=strlen($r['modt_konto']);$x<10;$x++) $tmp="0".$tmp;
 				}
 				$modt_konto=$r['modt_reg'].$tmp;
+				if (in_array((int)$r['kreditor_id'], $bankUnconfirmed, true)) $modt_konto = ''; # SD-721: unconfirmed bank details
 				if ($r['erh']) $erh=$r['erh'];
 				elseif ($r['modt_fi']) $erh="ERH351"; # Skal give SDCK020, hvis betalingslister sendes til SDC-bank i stedet for BEC (ERH)
 				else $erh="ERH356";
@@ -500,7 +529,14 @@ $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				}else{
 					print "<td><span>";
 				}
-				print "<input type=\"text\" style=\"text-align:right\" name=\"til_kto[$x]\" size=12 value=\"$r[til_kto]\"></span></td>";
+				print "<input type=\"text\" style=\"text-align:right\" name=\"til_kto[$x]\" size=12 value=\"$r[til_kto]\"></span>";
+				if (trim((string)$r['til_kto']) === '' && isset($bankUnconfirmed[$r['modt_navn']])) {
+					// SD-721: the kreditor's bank details are unconfirmed
+					print "<br><span style='color:#b45309;font-size:11px;' title=\"" . htmlspecialchars(findtekst('5363|Bankoplysningerne er læst fra en faktura og bruges ikke til betaling, før de er bekræftet.', $sprog_id), ENT_QUOTES) . "\">&#9888; " . htmlspecialchars(findtekst('5361|Ubekræftede bankoplysninger', $sprog_id), ENT_QUOTES) . "</span>";
+					// type=button: as a submit button it would be the form's default, and Enter in any field would confirm
+					print " <button type='button' style='font-size:11px;padding:0 6px;' onclick=\"var h=document.createElement('input');h.type='hidden';h.name='bekraeft_bank';h.value='" . $bankUnconfirmed[$r['modt_navn']] . "';this.form.appendChild(h);HTMLFormElement.prototype.submit.call(this.form);\">" . htmlspecialchars(findtekst('5362|Bekræft', $sprog_id), ENT_QUOTES) . "</button>";
+				}
+				print "</td>";
 				if(isset($k4_bg[$x])){
 					print "<td $k4_bg[$x]><span title=\"$k4[$x]\">";
 				}else{
