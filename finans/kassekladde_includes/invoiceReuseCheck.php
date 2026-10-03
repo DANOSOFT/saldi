@@ -22,15 +22,15 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261003 CL/SZ Doc pool task 3: Created: the pool's check "invoice number already used on this kreditor" for one line.
-//                  Read-only, JSON {html}. When a new line has neither kreditor nor invoice number yet, the pool
-//                  document's matched kreditor and invoice number are checked, so a copy shows before a line exists.
+// 20261003 CL/SZ SD-715 Created: the pool's check "invoice number already used on this kreditor" for one line.
+//                Read-only, JSON {html}.
+//                When a new line has neither kreditor nor invoice number yet, the pool document's matched kreditor and invoice number are checked, so a copy shows before a line exists.
 //
 // Request: kontonr=<kreditor>  faktura=<invoice no.>  line=<kassekladde id>  kladde_id  bilag  pool=<pool file name>
 
 ob_start();
 
-@session_start();
+session_start();
 $s_id = session_id();
 $title = 'invoiceReuseCheck';
 $modulnr = 0;

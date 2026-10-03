@@ -104,8 +104,8 @@
 //                Saved as type + number ("K1234").
 // 20261003 CL/SZ SD-714 Save posted to a hard-coded '/pblm/...' path outside the document root (e.g. an Apache Alias) and got 404.
 //                The fallback is now relative to includes/documents.php.
-// 20261003 CL/SZ Doc pool task 3: Each line warns when its kreditor already has the invoice number (open journal, posted,
-//                  other pool document); a line with nothing typed yet checks the document's own kreditor and number.
+// 20261003 CL/SZ SD-715 Each line warns when its kreditor already has the invoice number (open journal, posted, other pool document).
+//                A line with nothing typed yet checks the document's own kreditor and number.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1428,8 +1428,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
     print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 	print "<script src=\"../javascript/accountAutocomplete.js?v=$v5\"></script>";
 	print "<script src=\"../javascript/docPoolAccounts.js?v=$v7\"></script>";
-	$v8 = @filemtime("../javascript/invoiceReuse.js") ?: 0;
-	$v9 = @filemtime("../css/invoiceReuse.css") ?: 0;
+	$v8 = file_exists("../javascript/invoiceReuse.js") ? filemtime("../javascript/invoiceReuse.js") : 0;
+	$v9 = file_exists("../css/invoiceReuse.css") ? filemtime("../css/invoiceReuse.css") : 0;
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/invoiceReuse.css?v=$v9\">\n";
 	print "<script src=\"../javascript/invoiceReuse.js?v=$v8\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";

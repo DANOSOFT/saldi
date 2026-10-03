@@ -1,9 +1,9 @@
 // --- javascript/invoiceReuse.js --- ver 5.0.0 --- 2026-10-03 ---
 // Copyright (c) 2026 Danosoft ApS
-// 20261003 CL/SZ Doc pool task 3: Created: the "invoice number already used on this kreditor" warning.
-//                  - Journal and pool: the first Enter on a line with a warning moves the focus to the warning
-//                    instead of saving, so it can't be missed; Enter there saves the way Enter in the field would.
-//                  - Pool (window.saldiInvoiceReuse set): checks each line on load and when Kredit or Faktura changes.
+// 20261003 CL/SZ SD-715 Created: the "invoice number already used on this kreditor" warning.
+//                Journal and pool: the first Enter on a line with a warning moves the focus to the warning instead of saving, so it can't be missed.
+//                Enter on the warning then saves the way Enter in the field would.
+//                Pool (window.saldiInvoiceReuse set): checks each line on load and when Kredit or Faktura changes.
 (function () {
     'use strict';
 

@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 require_once __DIR__ . '/../../finans/kassekladde_includes/invoiceReuse.php';
 
 /**
- * Doc pool task 3: which invoice numbers the "already used on this kreditor" check compares, and how.
+ * SD-715: which invoice numbers the "already used on this kreditor" check compares, and how.
  */
 final class invoiceReuseNumber extends TestCase
 {

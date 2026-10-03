@@ -22,11 +22,10 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261003 CL/SZ Doc pool task 3: Created: warns when a kreditor's invoice number was used before, whatever the date or
-//                  amount (find_dublet() only catches a line identical in every field). Looks in open journals,
-//                  posted kreditor entries (openpost) and the document pool. Only the invoice side counts (Kredit = K,
-//                  negative openpost): a payment carries the invoice's number on purpose. Lines of the same voucher
-//                  (journal + bilag) don't count either, since one invoice is often split over several lines.
+// 20261003 CL/SZ SD-715 Created: warns when a kreditor's invoice number was used before, whatever the date or amount (find_dublet() only catches a line identical in every field).
+//                Looks in open journals, posted kreditor entries (openpost) and the document pool.
+//                Only the invoice side counts (Kredit = K, negative openpost): a payment carries the invoice's number on purpose.
+//                Lines of the same voucher (journal + bilag) don't count either, since one invoice is often split over several lines.
 
 if (!function_exists('invoice_reuse_number')) {
 	/**

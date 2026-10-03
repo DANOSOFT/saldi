@@ -117,8 +117,8 @@
 //                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
 //                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
 // 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
-// 20261003 CL/SZ Doc pool task 3: Fakturanr. is marked when the same kreditor already has that invoice number in an open journal,
-//                  a posted entry or the pool (invoiceReuse.php, one query per source for the whole page). Non-blocking.
+// 20261003 CL/SZ SD-715 Fakturanr. is marked when the same kreditor already has that invoice number in an open journal, a posted entry or the pool (invoiceReuse.php, one query per source for the whole page).
+//                The warning doesn't block saving or posting.
 
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
@@ -3205,7 +3205,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!isset($bilag[$x + 1])) $bilag[$x + 1] = 0;
 	if (!isset($dato[0]))       $dato[0]       = NULL;
 	if (!isset($dato[$x + 1]))  $dato[$x + 1]  = NULL;
-	// Doc pool task 3: kreditor + invoice number used before, whatever the date or amount; all lines in one go
+	// SD-715: kreditor + invoice number used before, whatever the date or amount; all lines in one go
 	$invoiceReuseChecks = array();
 	for ($y = 1; $y <= $x; $y++) {
 		if (!empty($id[$y]) && strtoupper((string)($k_type[$y] ?? '')) == 'K' && !empty($faktura[$y])) {
