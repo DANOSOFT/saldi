@@ -6,6 +6,8 @@
 //                  finance -> kontospec. Unsaved journal edits ask for confirmation before leaving.
 // 20261001 CL/SZ SD-698: Ctrl/Cmd+Enter on the selected popup line opens its card, while plain Enter still selects it.
 //                  Added JSDoc to the functions this change touches.
+// 20261003 CL/SZ SD-698: The card opens in a separate, reused tab (saldiKort) instead of leaving the journal, so unsaved
+//                  journal edits are kept; the card's Tilbage closes the tab. A blocked popup falls back to the old ask-and-leave.
 (function () {
     'use strict'; 
 
@@ -1772,19 +1774,26 @@
 
 
     /**
-     * Leave the journal for the card behind an account (via openAccountCard.php), after asking
-     * when there are unsaved edits. The card's Tilbage brings the user back to the journal.
+     * Open the card behind an account (via openAccountCard.php) in a separate, reused tab, so the
+     * journal and its unsaved edits stay open; the card's Tilbage closes that tab again. When the
+     * browser blocks the tab, fall back to leaving the journal, after asking when there are unsaved edits.
      * @param {string}        art      Account type: 'F' (kontospec), 'D' (debitorkort) or 'K' (kreditorkort).
      * @param {string|number} kontonr  Account number.
      */
     function openAccountCard(art, kontonr) {
         const cfg = window.saldiAccountCard;
         if (!cfg || !kontonr) return;
+        const url = cfg.url + '?art=' + encodeURIComponent(art) +
+            '&kontonr=' + encodeURIComponent(kontonr) + '&kladde_id=' + encodeURIComponent(cfg.kladdeId || 0);
+        const cardTab = window.open(url + '&tab=1', 'saldiKort');
+        if (cardTab) {
+            cardTab.focus();
+            return;
+        }
         if (journalHasUnsavedChanges() && !window.confirm(cfg.unsaved || '')) {
             return;
         }
-        window.location.href = cfg.url + '?art=' + encodeURIComponent(art) +
-            '&kontonr=' + encodeURIComponent(kontonr) + '&kladde_id=' + encodeURIComponent(cfg.kladdeId || 0);
+        window.location.href = url;
     }
 
 
