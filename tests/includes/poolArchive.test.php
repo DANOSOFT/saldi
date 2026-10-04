@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../includes/docsIncludes/poolArchive.php';
 /**
  * poolArchiveAuditEntry() decides what an archive or restore leaves in audit_log, which is kept for five years.
  * SD-727: the date an archived document is deleted, when the database counts it as due, and what the deletion leaves in audit_log.
+ * SD-727: what restoring an archived document that arrived again leaves in audit_log.
  */
 final class poolArchive extends TestCase
 {
@@ -78,5 +79,14 @@ final class poolArchive extends TestCase
         $this->assertSame('17', $entry['objekt_id']);
         $this->assertSame(['filename' => 'faktura.pdf', 'archived' => '2025-09-01 08:30:00', 'archived_by' => 4], $entry['detaljer']['before']);
         $this->assertSame(['filename' => 'faktura.pdf', 'deleted' => '2026-10-04 12:00:00', 'reason' => 'archived 12 months'], $entry['detaljer']['after']);
+    }
+
+    public function testArrivalRestoreRecordsWhyAndHow(): void
+    {
+        $entry = poolArchiveArrivalEntry(['id' => '17', 'filename' => 'faktura.pdf', 'archived' => '2026-05-01 08:30:00', 'archived_by' => '4'], 'faktura_rykker.pdf', 'folder');
+        $this->assertSame('document.restored', $entry['handling']);
+        $this->assertSame('17', $entry['objekt_id']);
+        $this->assertSame(['filename' => 'faktura.pdf', 'archived' => '2026-05-01 08:30:00', 'archived_by' => 4], $entry['detaljer']['before']);
+        $this->assertSame(['filename' => 'faktura.pdf', 'archived' => null, 'archived_by' => null, 'reason' => 'received again', 'arrived_as' => 'faktura_rykker.pdf', 'via' => 'folder'], $entry['detaljer']['after']);
     }
 }

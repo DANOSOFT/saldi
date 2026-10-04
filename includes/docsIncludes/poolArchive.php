@@ -30,6 +30,8 @@
 // 20261004 CL/SZ SD-727 Archived documents are deleted 12 months after archiving: file, cached XML preview and pool_files row.
 //                poolArchivePurge() runs inside the pool's periodic folder sync (no scheduler), and writes document.purged to audit_log and a line to the pool log.
 //                The date a document will be deleted is shown in the archive (poolArchiveDeleteDate()).
+// 20261004 CL/SZ SD-727 An archived document that arrives again (same content, any name) is restored instead of staying hidden; the copy is still dropped (MB-42).
+//                Folder sync and REST API call poolArchiveRestoreOnArrival(); document.restored goes to audit_log with kilde 'system' and reason "received again".
 
 require_once __DIR__ . '/../auditLog.php';
 
@@ -273,19 +275,94 @@ if (!function_exists('poolArchiveLogLine')) {
 	 * One line in the pool log, temp/<db>/docPool.log (docPool.php's docPoolLog() when it is loaded).
 	 *
 	 * @param string $message
+	 * @param string|null $company The company's database when the caller has no global $db (the REST API).
 	 * @return void
 	 */
-	function poolArchiveLogLine($message) {
+	function poolArchiveLogLine($message, $company = null) {
 		global $db;
-		if (function_exists('docPoolLog')) {
+		if ($company === null && function_exists('docPoolLog')) {
 			docPoolLog($message);
 			return;
 		}
-		$dir = __DIR__ . '/../../temp/' . preg_replace('/[^A-Za-z0-9_]/', '', (string)($db ?? 'unknown_db'));
+		$company = $company ?? ($db ?? 'unknown_db');
+		$dir = __DIR__ . '/../../temp/' . preg_replace('/[^A-Za-z0-9_]/', '', (string)$company);
 		if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
 			error_log("poolArchive: $message");
 			return;
 		}
 		@file_put_contents("$dir/docPool.log", date('Y-m-d H:i:s') . " - $message\n", FILE_APPEND | LOCK_EX);
+	}
+}
+
+if (!function_exists('poolArchiveAuditReady')) {
+	/**
+	 * Whether audit_log exists. includes/betweenUpdates.php creates it at login; the REST API doesn't run that.
+	 *
+	 * @return bool
+	 */
+	function poolArchiveAuditReady() {
+		global $db_type;
+		static $ready = null;
+		if ($ready !== null) {
+			return $ready;
+		}
+		$schema = ($db_type == 'mysql' || $db_type == 'mysqli') ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+		$ready = (bool)db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'audit_log'$schema", __FILE__ . " linje " . __LINE__));
+		return $ready;
+	}
+}
+
+if (!function_exists('poolArchiveArrivalEntry')) {
+	/**
+	 * What restoring an archived document because it arrived again writes to audit_log: an ordinary restore, with why and how it came.
+	 *
+	 * @param array{id: int|string, filename: string, archived: string, archived_by: int|string|null} $row The row before the restore.
+	 * @param string $arrivedAs The name the new copy arrived under (the copy itself is dropped).
+	 * @param string $via 'folder' (mail, EasyUBL, UBL import, upload into the pool folder) or 'api'.
+	 * @return array{handling: string, objekt_type: string, objekt_id: string, detaljer: array{before: array<string, mixed>, after: array<string, mixed>}}
+	 */
+	function poolArchiveArrivalEntry(array $row, $arrivedAs, $via) {
+		$entry = poolArchiveAuditEntry($row, false);
+		$entry['detaljer']['after']['reason'] = 'received again';
+		$entry['detaljer']['after']['arrived_as'] = (string)$arrivedAs;
+		$entry['detaljer']['after']['via'] = (string)$via;
+		return $entry;
+	}
+}
+
+if (!function_exists('poolArchiveRestoreOnArrival')) {
+	/**
+	 * The same document arrived again while archived: it goes back to the normal list with its data, as "Gendan" does.
+	 * The caller still drops the new copy, so the document keeps one row (MB-42). Nothing happens to a document that isn't archived.
+	 *
+	 * @param string $filename The pool document that already holds this content.
+	 * @param string $arrivedAs The name the new copy arrived under.
+	 * @param string $via 'folder' or 'api'.
+	 * @param string|null $company The company's database for the pool log, when the caller has no global $db.
+	 * @return bool true when it was archived and is now restored.
+	 */
+	function poolArchiveRestoreOnArrival($filename, $arrivedAs, $via, $company = null) {
+		if (!poolArchiveReady()) {
+			return false;
+		}
+		$row = db_fetch_array(db_select("SELECT id, filename, archived, archived_by FROM pool_files WHERE filename = '" . db_escape_string((string)$filename) . "'", __FILE__ . " linje " . __LINE__));
+		if (!$row || $row['archived'] === null || $row['archived'] === '') {
+			return false;
+		}
+		$id = (int)$row['id'];
+		// Checked again in the update, so a "Gendan" at the same moment gives one restore and one audit entry
+		db_modify("UPDATE pool_files SET archived = NULL, archived_by = NULL WHERE id = $id AND archived IS NOT NULL", __FILE__ . " linje " . __LINE__);
+		$check = db_fetch_array(db_select("SELECT archived FROM pool_files WHERE id = $id", __FILE__ . " linje " . __LINE__));
+		if (!$check || ($check['archived'] !== null && $check['archived'] !== '')) {
+			return false;
+		}
+		if (poolArchiveAuditReady()) {
+			$entry = poolArchiveArrivalEntry($row, $arrivedAs, $via);
+			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], $entry['detaljer'], 'system');
+		}
+		poolArchiveLogLine("Archive: $filename restored, the same document arrived again as $arrivedAs ($via); the copy is not kept", $company);
+		// The pool page's background sync reports this as a change, so the list is fetched again (poolFolderSync())
+		$GLOBALS['poolArchiveRestoredOnArrival'] = ($GLOBALS['poolArchiveRestoredOnArrival'] ?? 0) + 1;
+		return true;
 	}
 }

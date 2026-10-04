@@ -144,6 +144,8 @@
 //                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
 // 20261004 CL/SZ SD-727 The periodic folder sync (every 10 minutes) deletes documents archived 12 months ago (poolArchivePurge()).
 //                The archive shows the date each document will be deleted.
+// 20261004 CL/SZ SD-727 A copy of an archived document arriving in the pool folder restores the archived one (the copy is still dropped, MB-42).
+//                poolFolderSync() reports that as a change, so the open pool fetches its list again.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -372,6 +374,9 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 					// copy is dropped. When the row's file is gone, the row is an orphan the cleanup above
 					// removes (or one too recent for it to touch) and this file is the last copy of the
 					// bilag - so it falls through and gets a row of its own instead of being removed.
+					// SD-727: an archived bilag that arrives again is needed after all (e.g. a reminder), so it comes back to the list
+					require_once __DIR__ . '/poolArchive.php';
+					poolArchiveRestoreOnArrival($syncDuplicate['filename'], $file, 'folder');
 					@unlink($fullPath);
 					docPoolLog("syncPuljeFilesToDatabase: $file has the same content as " . $syncDuplicate['filename'] . ", file removed and no row inserted");
 					continue;
@@ -511,6 +516,9 @@ function checkIfAllPoolFilesAreInDatabase() {
 				__FILE__ . " line " . __LINE__
 			));
 			if ($duplicateRow && is_file("$puljePath/" . $duplicateRow['filename'])) {
+				// SD-727: an archived bilag that arrives again comes back to the list
+				require_once __DIR__ . '/poolArchive.php';
+				poolArchiveRestoreOnArrival($duplicateRow['filename'], $file, 'folder');
 				@unlink("$puljePath/$file");
 				docPoolLog("checkIfAllPoolFilesAreInDatabase: $file has the same content as " . $duplicateRow['filename'] . ", file removed and no row inserted");
 				continue;
@@ -533,11 +541,13 @@ function checkIfAllPoolFilesAreInDatabase() {
  */
 function poolFolderSync($docFolder, $db) {
 	$before = poolFilesSignature();
+	$restoredBefore = $GLOBALS['poolArchiveRestoredOnArrival'] ?? 0;
 	// No table yet: the full sync creates it, so it runs now instead of waiting for the 10-minute window to end
 	if ($before === '') update_settings_value("skip_sync", "docs", 0, "Skip pool sync after initial run");
 	checkIfAllPoolFilesAreInDatabase();
 	syncPuljeFilesToDatabase($docFolder, $db);
-	return poolFilesSignature() !== $before;
+	// SD-727: a document restored because it arrived again changes neither the row count nor the highest id
+	return poolFilesSignature() !== $before || ($GLOBALS['poolArchiveRestoredOnArrival'] ?? 0) !== $restoredBefore;
 }
 
 /**
