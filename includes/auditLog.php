@@ -26,12 +26,14 @@
 //                The table is created by includes/betweenUpdates.php.
 //                The roles stage 2 developer may reuse or replace this function; the signature stays the same.
 // 20261003 CL/SZ SD-721 kreditor.created added to the list of handling values.
+// 20261004 CL/SZ SD-721 kreditor.reopened added.
 //
 // handling values, prefixed by domain. Roles stage 2 (§7.1): login.*, user.*, role.*, session.*, permission.*, integration.*.
 // Document pool and kreditor flow (Requirements_document_pool_supplier_invoice_flow_EN.md):
 //   document.archived, document.restored, document.purged                       objekt_type 'dokument'
 //   kreditor.auto_created, kreditor.auto_create_undone, kreditor.bank_confirmed  objekt_type 'kreditor'
 //   kreditor.created (from the CVR register with one click or the dialog, SD-721)  objekt_type 'kreditor'
+//   kreditor.reopened ("Genåbn": a closed kreditor with the document's CVR number, SD-721)  objekt_type 'kreditor'
 //   suggestion.rejected, extraction.error_reported                              objekt_type 'forslag'
 // Entries are never deleted (five-year retention, as the kontrolspor).
 

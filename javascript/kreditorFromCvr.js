@@ -7,6 +7,8 @@
 //                The dialog sits beside the document; its CVR field fetches on Tab with the kreditor card's lookup (cvrapiopslag.js, loaded when the dialog first opens).
 //                window.kreditorFromCvr.openDialog() is also what the lookup panel's "Opret kreditor" calls when a kreditor search finds nothing.
 //                Needs window.saldiKreditorCvr (url, proxy, cvrScript, texts), set by docPool.php and kassekladde.php.
+// 20261004 CL/SZ SD-721 A CVR number that only a closed kreditor has: "Kreditor 1005 Firma A/S er lukket — Genåbn · Opret ny", in the pool and in the dialog.
+//                "Genåbn" opens the kreditor again and fills Kredit; "Opret ny" opens the dialog, which then creates a second kreditor.
 (function () {
     'use strict';
 
@@ -166,8 +168,33 @@
         });
     }
 
-    function showCreated(kreditor, existed) {
+    function showCreated(kreditor, existed, how) {
+        if (how === 'reopened') {
+            showNotice(kreditorLabel(kreditor) + ' ' + esc(t('reopened')), 'created');
+            return;
+        }
         showNotice(existed ? esc(t('exists')) + ': ' + kreditorLabel(kreditor) : kreditorLabel(kreditor) + ' ' + esc(t('created')), 'created');
+    }
+
+    /** "Kreditor 1005 Firma A/S er lukket — Genåbn · Opret ny": only a closed kreditor has the document's CVR number. */
+    function showClosed(answer, filename) {
+        var kreditor = answer.kreditor;
+        var box = showNotice(kreditorLabel(kreditor) + ' ' + esc(t('closed')) + ' — <a href="#" class="kred-cvr-reopen">' + esc(t('reopen')) + '</a>' +
+            ' · <a href="#" class="kred-cvr-create">' + esc(t('createNew')) + '</a>', 'suggest');
+        if (!box) return;
+        box.querySelector('.kred-cvr-reopen').addEventListener('click', function (e) {
+            e.preventDefault();
+            post('reopen', { id: kreditor.id, poolFile: filename }).then(function (result) {
+                if (result && result.ok) afterCreate(result.kreditor, true, 'reopened');
+                else showNotice(esc(t('failed')), 'info');
+            });
+        });
+        box.querySelector('.kred-cvr-create').addEventListener('click', function (e) {
+            e.preventDefault();
+            var captured = answer.captured || {};
+            var company = answer.company || { firmanavn: captured.name || '', cvrnr: captured.cvr || '' };
+            openDialog({ company: company, poolFile: filename, allowClosed: true, onCreated: afterCreate });
+        });
     }
 
     /** "Ukendt leverandør: Firma A/S (CVR 12345678) — Opret kreditor". One click creates it, or asks for the group the first time. */
@@ -190,15 +217,16 @@
                     postnr: company.postnr, bynavn: company.bynavn, tlf: company.tlf, email: company.email
                 });
             }).then(function (result) {
-                if (result && result.kreditor) afterCreate(result.kreditor, result.status === 'match');
+                if (result && result.status === 'closed') showClosed({ kreditor: result.kreditor, company: company }, filename);
+                else if (result && result.kreditor) afterCreate(result.kreditor, result.status === 'match');
                 else showNotice(esc(t('failed')), 'info');
             });
         });
     }
 
-    function afterCreate(kreditor, existed) {
+    function afterCreate(kreditor, existed, how) {
         fillKredit(kreditor);
-        showCreated(kreditor, existed);
+        showCreated(kreditor, existed, how);
     }
 
     /** "Ukendt leverandør — Opret kreditor", opening the dialog with what was read from the document. */
@@ -236,6 +264,7 @@
                 fillKredit(answer.kreditor);
                 showCreatedAuto(answer.kreditor);
             } else if (answer.status === 'suggest') showSuggest(answer, filename);
+            else if (answer.status === 'closed') showClosed(answer, filename);
             else if (answer.status === 'unknown') showUnknown(answer, filename);
         }, function () {
             resolving = null;
@@ -272,7 +301,8 @@
 
     /**
      * The "Opret kreditor" dialog beside the document.
-     * @param {{company?: Object, poolFile?: string, onCreated: function(Object, boolean)}} options
+     * @param {{company?: Object, poolFile?: string, allowClosed?: boolean, onCreated: function(Object, boolean, string=)}} options
+     *   allowClosed: "Opret ny" was chosen for a CVR number a closed kreditor has. onCreated's third argument is 'reopened' after "Genåbn".
      */
     function openDialog(options) {
         if (dialogOpen || !cfg()) return;
@@ -345,13 +375,35 @@
                 return;
             }
             var data = { mode: 'dialog', poolFile: options.poolFile || '' };
+            if (options.allowClosed) data.allowClosed = '1';
             ['cvrnr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'tlf', 'email', 'gruppe', 'betalingsbet', 'betalingsdage'].forEach(function (name) {
                 data[name] = form[name].value;
             });
             if (form.saveDefault.checked) data.saveDefault = '1';
             form.querySelector('.kred-cvr-ok').disabled = true;
             post('create', data).then(function (result) {
-                if (result && result.kreditor) {
+                if (result && result.status === 'closed') {
+                    // A closed kreditor has the CVR number typed: "Genåbn" or "Opret ny"
+                    form.querySelector('.kred-cvr-ok').disabled = false;
+                    error.innerHTML = kreditorLabel(result.kreditor) + ' ' + esc(t('closed')) + ' — <a href="#" class="kred-cvr-reopen">' + esc(t('reopen')) + '</a>' +
+                        ' · <a href="#" class="kred-cvr-create">' + esc(t('createNew')) + '</a>';
+                    error.querySelector('.kred-cvr-reopen').addEventListener('click', function (ev) {
+                        ev.preventDefault();
+                        post('reopen', { id: result.kreditor.id, poolFile: options.poolFile || '' }).then(function (answer) {
+                            if (answer && answer.ok) {
+                                close();
+                                options.onCreated(answer.kreditor, true, 'reopened');
+                            } else {
+                                error.textContent = t('failed');
+                            }
+                        });
+                    });
+                    error.querySelector('.kred-cvr-create').addEventListener('click', function (ev) {
+                        ev.preventDefault();
+                        options.allowClosed = true;
+                        form.requestSubmit();
+                    });
+                } else if (result && result.kreditor) {
                     close();
                     options.onCreated(result.kreditor, result.status === 'match');
                 } else {

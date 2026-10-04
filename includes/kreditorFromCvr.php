@@ -27,6 +27,8 @@
 //                a match by CVR number, an automatic creation (the user's "Opret kreditor automatisk"), "Opret kreditor" with the CVR data, or the dialog.
 //                kreditorCvrCreate() inserts through the kreditor card's kreditorInsert(); bank details read from the invoice are flagged unconfirmed.
 //                Creation, "Fortryd" and "Bekræft" are written to audit_log.
+// 20261004 CL/SZ SD-721 A CVR number that only a closed kreditor has is not created again on its own: status 'closed' offers "Genåbn" (kreditorCvrReopen()) or "Opret ny".
+//                "Opret ny" creates the second kreditor only when the request says so (allowClosed).
 
 require_once __DIR__ . '/cvrLookup.php';
 require_once __DIR__ . '/kreditorCreate.php';
@@ -130,13 +132,15 @@ if (!function_exists('kreditorCvrFindByCvr')) {
 	 * The open kreditor with this CVR number, compared after normalising ("DK 12 34 56 78" equals "12345678").
 	 *
 	 * @param string $cvr Normalised CVR number.
+	 * @param bool $closed true: a closed kreditor (lukket) with the number instead.
 	 * @return array{id: int, kontonr: string, firmanavn: string}|null The first by kontonr when several have it.
 	 */
-	function kreditorCvrFindByCvr($cvr) {
+	function kreditorCvrFindByCvr($cvr, $closed = false) {
 		if ($cvr === null || $cvr === '') return null;
 		$digits = preg_replace('/\D/', '', $cvr);
 		$like = db_escape_string('%' . substr($digits, -4) . '%');
-		$q = db_select("select id, kontonr, firmanavn, cvrnr from adresser where art = 'K' and (lukket IS NULL or lukket != 'on') and cvrnr like '$like' order by kontonr", __FILE__ . " linje " . __LINE__);
+		$state = $closed ? "lukket = 'on'" : "(lukket IS NULL or lukket != 'on')";
+		$q = db_select("select id, kontonr, firmanavn, cvrnr from adresser where art = 'K' and $state and cvrnr like '$like' order by kontonr", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (normalizePoolVendorCvr($r['cvrnr']) === $cvr) {
 				return array('id' => (int)$r['id'], 'kontonr' => trim((string)$r['kontonr']), 'firmanavn' => (string)$r['firmanavn']);
@@ -213,10 +217,11 @@ if (!function_exists('kreditorCvrCreate')) {
 	 * A kreditor with the same CVR number is a match, never a second kreditor.
 	 *
 	 * @param array<string, string> $company cvrnr, firmanavn, addr1, addr2, postnr, bynavn, tlf, email (unescaped).
-	 * @param array{gruppe: int, betalingsbet: string, betalingsdage: int, bank?: string|null, auto?: bool, userId?: int|null, poolFileId?: int|null, mode?: string} $options
+	 * @param array{gruppe: int, betalingsbet: string, betalingsdage: int, bank?: string|null, auto?: bool, userId?: int|null, poolFileId?: int|null, mode?: string, allowClosed?: bool} $options
 	 *   bank: the document's bank details (pool_files.vendor_iban), stored unconfirmed. auto: created without asking. mode: 'auto', 'click' or 'dialog' for the audit entry.
+	 *   allowClosed: the user chose "Opret ny" although a closed kreditor has the CVR number.
 	 * @return array{status: string, kreditor: array{id: int, kontonr: string, firmanavn: string}|null, error?: string}
-	 *   status 'created', 'match' (the CVR number exists), or 'error'.
+	 *   status 'created', 'match' (the CVR number exists), 'closed' (only a closed kreditor has it; kreditor is that one), or 'error'.
 	 */
 	function kreditorCvrCreate(array $company, array $options) {
 		$cvr = normalizePoolVendorCvr($company['cvrnr'] ?? '');
@@ -226,6 +231,9 @@ if (!function_exists('kreditorCvrCreate')) {
 				kreditorCvrLinkPoolFile($options['poolFileId'] ?? null, $existing['id']);
 				return array('status' => 'match', 'kreditor' => $existing);
 			}
+			// A closed kreditor has the number: the user chooses between "Genåbn" and "Opret ny" first
+			$closed = empty($options['allowClosed']) ? kreditorCvrFindByCvr($cvr, true) : null;
+			if ($closed) return array('status' => 'closed', 'kreditor' => $closed);
 		}
 		$firmanavn = trim((string)($company['firmanavn'] ?? ''));
 		if ($firmanavn === '') return array('status' => 'error', 'kreditor' => null, 'error' => 'name');
@@ -345,6 +353,30 @@ if (!function_exists('kreditorCvrUndo')) {
 	}
 }
 
+if (!function_exists('kreditorCvrReopen')) {
+	/**
+	 * "Genåbn": a closed kreditor is opened again, and the pool document is matched to it.
+	 *
+	 * @param int $id adresser.id
+	 * @param int|null $poolFileId
+	 * @return array{ok: bool, kreditor?: array{id: int, kontonr: string, firmanavn: string}}
+	 */
+	function kreditorCvrReopen($id, $poolFileId = null) {
+		$id = (int)$id;
+		$row = db_fetch_array(db_select("select id, kontonr, firmanavn, cvrnr from adresser where id = $id and art = 'K' and lukket = 'on'", __FILE__ . " linje " . __LINE__));
+		if (!$row) return array('ok' => false);
+		db_modify("update adresser set lukket = '' where id = $id and lukket = 'on'", __FILE__ . " linje " . __LINE__);
+		kreditorCvrLinkPoolFile($poolFileId, $id);
+		$kreditor = array('id' => $id, 'kontonr' => trim((string)$row['kontonr']), 'firmanavn' => (string)$row['firmanavn']);
+		audit_log_write('kreditor.reopened', 'kreditor', $id, array(
+			'before' => array('kontonr' => $kreditor['kontonr'], 'firmanavn' => $kreditor['firmanavn'], 'cvrnr' => (string)$row['cvrnr'], 'lukket' => 'on'),
+			'after' => array('lukket' => ''),
+			'pool_file_id' => $poolFileId,
+		), 'ui');
+		return array('ok' => true, 'kreditor' => $kreditor);
+	}
+}
+
 if (!function_exists('kreditorCvrConfirmBank')) {
 	/**
 	 * "Bekræft": the kreditor's bank details may be used for payments.
@@ -374,6 +406,7 @@ if (!function_exists('kreditorCvrResolve')) {
 	 * @param int|null $userId The user; their "Opret kreditor automatisk" decides between creating and offering.
 	 * @return array{status: string, kreditor?: array, company?: array, captured?: array, reason?: string}
 	 *   status: 'match' (a kreditor has the CVR number), 'created' (created automatically), 'suggest' ("Ukendt leverandør: Firma A/S (CVR …) — Opret kreditor"),
+	 *   'closed' (only a closed kreditor has the CVR number: "Genåbn" or "Opret ny"; company when the CVR register answered),
 	 *   'unknown' ("Ukendt leverandør — Opret kreditor", reason: 'no_cvr', 'lookup_failed', 'dissolved', 'not_found'), or 'none' (nothing to offer).
 	 */
 	function kreditorCvrResolve($filename, $userId) {
@@ -386,6 +419,14 @@ if (!function_exists('kreditorCvrResolve')) {
 			if ($existing) {
 				kreditorCvrLinkPoolFile($file['id'], $existing['id']);
 				return array('status' => 'match', 'kreditor' => $existing);
+			}
+			// Never a second kreditor on its own: "Genåbn", or "Opret ny" with the CVR data for the dialog
+			$closed = kreditorCvrFindByCvr($file['cvr'], true);
+			if ($closed) {
+				$answer = array('status' => 'closed', 'kreditor' => $closed, 'captured' => $captured);
+				$lookup = kreditorCvrIsDanish($file['cvr']) ? cvrLookupCompany($file['cvr'], 5) : null;
+				if ($lookup && $lookup['ok']) $answer['company'] = $lookup['company'];
+				return $answer;
 			}
 		}
 		if (!kreditorCvrIsDanish($file['cvr'])) return array('status' => 'unknown', 'reason' => 'no_cvr', 'captured' => $captured);
@@ -456,6 +497,10 @@ if (!function_exists('kreditorCvrClientScript')) {
 				'betalingsbet' => findtekst('368|Betalingsbetingelse', $sprog_id),
 				'dage' => findtekst('5025|dage', $sprog_id),
 				'cancel' => findtekst('5044|Annullér', $sprog_id),
+				'closed' => findtekst('5401|er lukket', $sprog_id),
+				'reopen' => findtekst('5402|Genåbn', $sprog_id),
+				'createNew' => findtekst('5403|Opret ny', $sprog_id),
+				'reopened' => findtekst('5404|genåbnet', $sprog_id),
 			),
 		);
 		return "<script>window.saldiKreditorCvr = " . json_encode($config, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>\n"
