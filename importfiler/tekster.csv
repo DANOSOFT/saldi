@@ -5211,6 +5211,10 @@
 5366	Virksomheden er ophørt	The company has ceased	Virksomheten har opphørt
 5367	CVR-nummeret findes ikke i CVR-registeret	The CVR number is not in the CVR register	CVR-nummeret finnes ikke i CVR-registeret
 5368	Firmanavn skal udfyldes	Company name is required	Firmanavn må fylles ut
+5401	er lukket	is closed	er lukket
+5402	Genåbn	Reopen	Gjenåpne
+5403	Opret ny	Create new	Opprett ny
+5404	genåbnet	reopened	gjenåpnet
 5369	Kreditoren kunne ikke oprettes	The creditor could not be created	Kreditoren kunne ikke opprettes
 5370	Intet CVR-nummer på bilaget	No CVR number on the document	Intet CVR-nummer på bilaget
 5371	Aflæst	Read	Lest
