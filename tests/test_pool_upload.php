@@ -113,6 +113,7 @@ if ($childMode) {
 // ---- assertions ------------------------------------------------------------------------
 $checks = 0;
 $failures = array();
+$skips = array();
 
 /** @return void Record one assertion. */
 function poolTestCheck($condition, $message) {
@@ -124,6 +125,29 @@ function poolTestCheck($condition, $message) {
 	} else {
 		echo "ok:   $message\n";
 	}
+}
+
+/** @return void Note a check that this machine cannot run. */
+function poolTestSkip($message) {
+	global $skips;
+	$skips[] = $message;
+	echo "skip: $message\n";
+}
+
+/** @return bool Whether the configured ImageMagick can convert an image on this machine. */
+function poolTestHasConvert() {
+	global $convert, $exec_path;
+	$bin = (string)$convert;
+	if ($bin === '') {
+		$bin = rtrim((string)$exec_path, '/') . '/convert';
+	}
+	if ($bin === '/convert') {
+		$bin = 'convert';
+	}
+	$output = array();
+	$status = 1;
+	exec(escapeshellarg($bin) . ' -version 2>/dev/null', $output, $status);
+	return $status === 0;
 }
 
 $created = array();
@@ -179,18 +203,32 @@ $created[] = ifset($afterStale, 'filename', '');
 poolTestCheck(!empty($afterStale['success']),
 	'a stored hash whose row has no file on disk does not block the upload');
 
-// 6. A converted image keeps the identity of what was uploaded.
-$image = poolUploadIngest($png, 'pooltest_photo.png', $poolDir, false);
-$created[] = ifset($image, 'filename', '');
-$imageRows = poolTestRows(array(ifset($image, 'filename', '')));
-poolTestCheck(!empty($image['success']) && substr((string)ifset($image, 'filename', ''), -4) === '.pdf',
-	'an uploaded image is converted to a PDF in the pool');
-poolTestCheck(ifset($imageRows, $image['filename'], array('source_sha256' => ''))['source_sha256'] === hash_file('sha256', $png),
-	'the image identity is the uploaded bytes, not the converted PDF');
-poolTestCheck(ifset($imageRows, $image['filename'], array('content_sha256' => ''))['content_sha256'] === hash_file('sha256', $poolDir . '/' . $image['filename']),
-	'the stored hash is the file that ended up in the pool');
-poolTestCheck(!empty(poolUploadIngest($png, 'pooltest_photo_again.png', $poolDir, false)['duplicate']),
-	'the same image is refused even though the converted PDF differs');
+// 6. Images: converted with the configured ImageMagick, refused when that cannot produce a PDF.
+if (!poolTestHasConvert()) {
+	poolTestSkip('image checks: no working ImageMagick on this machine');
+} else {
+	$image = poolUploadIngest($png, 'pooltest_photo.png', $poolDir, false);
+	$created[] = ifset($image, 'filename', '');
+	$imageRows = poolTestRows(array(ifset($image, 'filename', '')));
+	poolTestCheck(!empty($image['success']) && substr((string)ifset($image, 'filename', ''), -4) === '.pdf',
+		'an uploaded image is converted to a PDF in the pool');
+	poolTestCheck(ifset($imageRows, $image['filename'], array('source_sha256' => ''))['source_sha256'] === hash_file('sha256', $png),
+		'the image identity is the uploaded bytes, not the converted PDF');
+	poolTestCheck(ifset($imageRows, $image['filename'], array('content_sha256' => ''))['content_sha256'] === hash_file('sha256', $poolDir . '/' . $image['filename']),
+		'the stored hash is the file that ended up in the pool');
+	poolTestCheck(!empty(poolUploadIngest($png, 'pooltest_photo_again.png', $poolDir, false)['duplicate']),
+		'the same image is refused even though the converted PDF differs');
+
+	// An image the converter cannot read must leave nothing behind: the folder sync tracks PDF and XML
+	// only, so a stored image would lose its row while later uploads of it were still refused.
+	$filesBefore = poolTestFiles($poolDir);
+	$rowsBefore = poolTestRows($filesBefore);
+	$brokenPng = poolTestWrite('pooltest_broken', "this is not an image\n");
+	$broken = poolUploadIngest($brokenPng, 'pooltest_broken.png', $poolDir, false);
+	poolTestCheck(empty($broken['success']), 'an image that cannot be converted is refused');
+	poolTestCheck(poolTestFiles($poolDir) === $filesBefore && count(poolTestRows($filesBefore)) === count($rowsBefore),
+		'the refused image leaves no file and no pool row behind');
+}
 
 // 7. XML keeps its extension, so local extraction still recognises it.
 $xmlResult = poolUploadIngest($xml, 'pooltest_invoice.xml', $poolDir, false);
@@ -280,5 +318,6 @@ foreach (array($pdfA, $pdfB, $pdfC, $pdfD, $pdfE, $png, $xml) as $temporary) {
 	}
 }
 
-echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED\n" : "all $checks checks passed (" . $tenantDb . ")\n");
+echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed")
+	. " (" . $tenantDb . ($skips ? ", " . count($skips) . " skipped" : "") . ")\n";
 exit($failures ? 1 : 0);

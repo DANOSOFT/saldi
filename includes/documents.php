@@ -138,7 +138,16 @@ if (!empty($_FILES['uploadedFile']['name'])) {
 	$redirectParams = array('openPool' => 1, 'kladde_id' => $kladde_id, 'bilag' => $bilag,
 		'fokus' => $fokus, 'sourceId' => $sourceId, 'source' => $source,
 		'poolFile' => ifset($uploadResult, 'filename', ifset($uploadResult, 'existing', '')));
-	header('Location: documents.php?' . http_build_query($redirectParams));
+	$redirectUrl = 'documents.php?' . http_build_query($redirectParams);
+	if (!headers_sent()) {
+		header('Location: ' . $redirectUrl);
+		exit;
+	}
+	// online.php prints the page frame before this branch runs, so the Location header above only
+	// works while PHP's output buffer still holds that output (output_buffering in php.ini). Once it
+	// has been flushed, send the user on with the page's own refresh instead of leaving a
+	// half-rendered page behind after the file was already stored.
+	print "<meta http-equiv='refresh' content='0;URL=" . htmlspecialchars($redirectUrl, ENT_QUOTES, 'UTF-8') . "'>";
 	exit;
 }
 

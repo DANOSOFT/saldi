@@ -310,12 +310,28 @@ function poolUploadIngest($sourcePath, $filename, $poolDir, $autoExtract, $renam
 		$storedPath = $sourcePath;
 		$storedExt = $ext;
 		if (in_array($ext, array('jpg', 'jpeg', 'png'), true)) {
-			$converted = $sourcePath . '.pdf';
-			exec('convert ' . escapeshellarg($sourcePath) . ' ' . escapeshellarg($converted), $output, $status);
-			if ($status === 0 && is_file($converted) && filesize($converted) > 0) {
-				$storedPath = $converted;
-				$storedExt = 'pdf';
+			// The pool holds PDFs: the folder sync tracks PDF and XML only, so an image kept here
+			// would be dropped from pool_files by the next sync while an upload of the same image is
+			// still refused as a duplicate of a row that no longer exists. Convert with the
+			// configured ImageMagick path and fail the upload when that yields no usable PDF.
+			global $convert, $exec_path;
+			$convertBin = (string)$convert;
+			if ($convertBin === '') {
+				$convertBin = rtrim((string)$exec_path, '/') . '/convert';
 			}
+			if ($convertBin === '/convert') {
+				$convertBin = 'convert';
+			}
+			$converted = $sourcePath . '.pdf';
+			$output = array();
+			$status = 0;
+			exec(escapeshellarg($convertBin) . ' ' . escapeshellarg($sourcePath) . ' ' . escapeshellarg($converted), $output, $status);
+			$convertedSize = is_file($converted) ? filesize($converted) : false;
+			if ($status !== 0 || $convertedSize === false || $convertedSize <= 0) {
+				throw new RuntimeException('Kunne ikke konvertere billedet til PDF.');
+			}
+			$storedPath = $converted;
+			$storedExt = 'pdf';
 		}
 		$contentHash = poolContentHashForFile($storedPath);
 		$baseName = poolUploadSanitizeFilename(preg_replace('/\.pdf$/i', '', pathinfo($filename, PATHINFO_FILENAME)));
