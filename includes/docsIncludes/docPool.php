@@ -125,6 +125,7 @@
 //                The row it copies is rendered once into <template id='poolSplitTemplate'>; the document's captured amount comes in saldiPoolSplit.
 //                Any row id starting with "new" is saved as a new line, and "Gem alle" saves the rows one after another so pos follows the order shown.
 //                chooseMultipleBilag()'s pre-save skips every new* row, not only "new": they are saved by then and would be saved twice as lines without a bilag.
+//                A new row remembers the line it was saved as in _saveRowFetch(), so "Gem" or "Gem alle" again after a refused row updates that line instead of adding a second.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -5754,7 +5755,13 @@ HTML;
 
     function _saveRowFetch(rowId, kladdeId, bilag) {
         return fetch(_insertUrl, { method: "POST", body: _buildFormData(rowId, kladdeId, bilag, true) })
-            .then(r => r.json());
+            .then(r => r.json())
+            .then(data => {
+                // A new row is that line once saved, so saving it again ("Gem", "Gem alle" after another row failed) updates it (SD-720)
+                var savedEntry = document.getElementById('bilagEntry_' + rowId);
+                if (data && data.success && /^new/.test(String(rowId)) && data.sourceId && savedEntry) savedEntry.dataset.savedLineId = data.sourceId;
+                return data;
+            });
     }
 
     function saveRow(rowId, kladdeId, bilag) {
