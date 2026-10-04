@@ -142,6 +142,8 @@
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
 // 20261004 CL/SZ SD-726 The user's "Ctrl + pil op/ned" from the journal's gear box comes in window.saldiShortcuts.
 //                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
+// 20261004 CL/SZ SD-727 The periodic folder sync (every 10 minutes) deletes documents archived 12 months ago (poolArchivePurge()).
+//                The archive shows the date each document will be deleted.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -422,6 +424,9 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
+	// SD-727: documents archived 12 months ago are deleted here, with file and row, and written to audit_log and the pool log
+	require_once __DIR__ . '/poolArchive.php';
+	poolArchivePurge($puljePath, $db);
 	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
 	poolFolderChanged($puljePath, true, $observedMtime);
 }
@@ -2157,6 +2162,7 @@ print "<script>window.saldiPoolArchive = " . json_encode(array(
 		'archive'      => findtekst('5337|Arkivér', $sprog_id),
 		'restore'      => findtekst('5339|Gendan', $sprog_id),
 		'archived'     => findtekst('5343|Arkiveret', $sprog_id),
+		'deletes'      => findtekst('5398|Slettes', $sprog_id),
 		'noneSelected' => findtekst('5345|Ingen bilag valgt.', $sprog_id),
 		'emptyArchive' => findtekst('5344|Ingen arkiverede bilag', $sprog_id),
 	),
@@ -3074,6 +3080,8 @@ print <<<JS
 			const metadataState = row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}';
 			subjectCell += "<br><small>" + escapeHTML(metadataState) + "</small>";
 			if (row.archived && window.poolArchive) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.archivedNote(row)) + "</small>";
+			// SD-727: the day it will be deleted, on its own line so the cell doesn't cut it off
+			if (row.archived && window.poolArchive && window.poolArchive.deleteNote(row)) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.deleteNote(row)) + "</small>";
 			const dataAttrs = "data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + 
 				(isMatch ? "data-selected='true' " : "") + 
 				(isPerfectMatch ? "data-perfect-match='true' " : "") +
@@ -3400,6 +3408,7 @@ print <<<JS
 			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
 			html += '<span>' + escapeHTML(row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}') + '</span>';
 			if (row.archived && window.poolArchive) html += '<span>' + escapeHTML(window.poolArchive.archivedNote(row)) + '</span>';
+			if (row.archived && window.poolArchive && window.poolArchive.deleteNote(row)) html += '<span>' + escapeHTML(window.poolArchive.deleteNote(row)) + '</span>';
 			if (account) html += '<span><strong>{$txt6}:</strong> ' + escapeHTML(account) + '</span>';
 			if (amount) {
 				let amountHtml = '<span><strong>{$txt10}:</strong> ';
