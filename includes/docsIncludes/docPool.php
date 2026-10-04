@@ -111,6 +111,7 @@
 //                Dato, Debet, Kredit and Beløb are mandatory for it, "Spring over" opens the next document without saving, and the arrow keys outside a field switch document.
 //                A new line gets the journal's next voucher number, as a new line in the journal does.
 //                chooseMultipleBilag() takes an optional callback that runs instead of the redirect to the journal.
+// 20261004 CL/SZ SD-716 A new row "Gem og næste" has already saved is sent with that line's id, so a retry after a failed attach doesn't create a second line.
 //                transferDataFromSelectedFile({auto: true}) fills only empty fields, without the confirm popup, and takes Kredit only from a confident vendor match.
 // 20261003 CL/SZ SD-717 "Arkivér" per document and for the selection (Del outside a field), "Vis arkiverede" and "Gendan" (docPoolArchive.js, poolArchive.php).
 //                Archived documents are not in the normal list, not opened first (database or folder route), not in "Opdatér alle", and get no match colours in the archive.
@@ -5783,6 +5784,9 @@ HTML;
         if (includeSourceId && !/^new/.test(String(rowId))) fd.append("sourceId", rowId);
         if (kladdeId) fd.append("kladde_id", kladdeId);
         if (bilag)    fd.append("bilag", bilag);
+        // SD-716: a new row "Gem og næste" has already saved (its attach then failed) is that line now, not a new one
+        var savedEntry = document.getElementById('bilagEntry_' + rowId);
+        if (includeSourceId && !fd.has("sourceId") && savedEntry && savedEntry.dataset.savedLineId) fd.append("sourceId", savedEntry.dataset.savedLineId);
         fd.append("bilagsnr",    v.bilagsnr);
         fd.append("dato",        v.dato);
         fd.append("beskrivelse", v.beskrivelse);
