@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolAccountInfo.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/poolAccountInfo.php --- ver 5.0.0 --- 2026-10-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // 20261003 CL/SZ SD-714 Created: account type + number for the pool's Debet/Kredit fields, and the name and VAT code shown under them.
 // 20261004 CL/SZ SD-725 The VAT code per side of a pool line: the codes to choose from, the code shown, and the code saved.
+// 20261004 CL/SZ Pool account check: a Debet or Kredit that doesn't exist, is closed, or isn't an account number is refused when a pool line is saved.
+//                Saved anyway, such a line made the journal refuse every save until it was found and fixed. Same rules as the journal's own check.
 //                The rules are the journal's (kassekladde.php): a blank code means the account's own code, unless the line is VAT-free (u/m) or only the other side has a code.
 
 if (!function_exists('poolAccountSplit')) {
@@ -172,5 +174,98 @@ if (!function_exists('poolVatShown')) {
 		$saved = trim((string)$saved);
 		if ($saved !== '' && array_key_exists($saved, $codes)) return $saved;
 		return $momsfri ? '' : $accountCode;
+	}
+}
+
+if (!function_exists('poolAccountProblem')) {
+	/**
+	 * What is wrong with a posted Debet or Kredit, by the journal's rules. An empty value or account 0 is not checked here
+	 * (a missing account is the mandatory-field check's, SD-716).
+	 *
+	 * @param string|null $value       The posted value: "K1234", or "1234" with the line's own type.
+	 * @param string|null $currentType The line's stored d_type / k_type, for a value without a type.
+	 * @param callable    $status      function(string $type, string $kontonr): 'ok', 'missing' or 'closed'.
+	 * @return array{problem: string, account: string} problem '' (fine), 'number' (not an account number), 'missing' or 'closed'; account as "F1234" or the text posted.
+	 */
+	function poolAccountProblem($value, $currentType, callable $status) {
+		$value = is_scalar($value) ? trim((string)$value) : '';
+		if ($value === '') return array('problem' => '', 'account' => '');
+		if (preg_match('/^([DKF])(\d+)$/i', $value, $m)) {
+			$type = strtoupper($m[1]);
+			$kontonr = $m[2];
+		} elseif (ctype_digit($value)) {
+			$type = strtoupper(trim((string)$currentType));
+			if (!in_array($type, array('F', 'D', 'K'), true)) $type = 'F';
+			$kontonr = $value;
+		} else {
+			// The pool puts the type in front of whatever was typed ("Fxyzq"); the message shows what the user typed
+			return array('problem' => 'number', 'account' => preg_replace('/^[DKF](?=\D)/i', '', $value));
+		}
+		if ((int)$kontonr === 0) return array('problem' => '', 'account' => '');
+		$kontonr = (string)(int)$kontonr;
+		$found = $status($type, $kontonr);
+		return array('problem' => $found === 'ok' ? '' : ($found === 'closed' ? 'closed' : 'missing'), 'account' => $type . $kontonr);
+	}
+}
+
+if (!function_exists('poolAccountStatus')) {
+	/**
+	 * Whether an account can be used on a journal line, as the journal checks it: a finance account of the fiscal year that is
+	 * not a heading or a sum (kontotype H, Z) and not closed; a debitor or kreditor in adresser.
+	 *
+	 * @param string $type    'F', 'D' or 'K'.
+	 * @param string $kontonr Digits.
+	 * @param int    $regnaar Fiscal year.
+	 * @return string 'ok', 'missing' or 'closed'.
+	 */
+	function poolAccountStatus($type, $kontonr, $regnaar) {
+		$kontonrSql = db_escape_string((string)$kontonr);
+		if ($type == 'F') {
+			$qtxt = "select lukket from kontoplan where kontonr = '$kontonrSql' and regnskabsaar = '" . (int)$regnaar . "' and kontotype != 'H' and kontotype != 'Z'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if (!$r) return 'missing';
+			return $r['lukket'] ? 'closed' : 'ok';
+		}
+		$art = $type == 'D' ? 'D' : 'K';
+		$qtxt = "select id from adresser where kontonr = '$kontonrSql' and art like '%$art%' limit 1";
+		return db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) ? 'ok' : 'missing';
+	}
+}
+
+if (!function_exists('poolAccountProblems')) {
+	/**
+	 * The posted Debet and Kredit of a pool line that can't be saved, with a message for each.
+	 *
+	 * @param array      $post     $_POST: 'debet' and 'kredit' as the pool sends them ("F1234").
+	 * @param array|null $line     The saved line's d_type and k_type, null for a new line.
+	 * @param int        $regnaar  Fiscal year.
+	 * @param int        $sprog_id Language for the messages.
+	 * @return array<int, array{field: string, text: string, message: string}> field 'Debet' or 'Kredit', text what is wrong, message the whole sentence; empty when both are fine.
+	 */
+	function poolAccountProblems(array $post, $line, $regnaar, $sprog_id) {
+		$problems = array();
+		$status = function ($type, $kontonr) use ($regnaar) {
+			return poolAccountStatus($type, $kontonr, $regnaar);
+		};
+		$sides = array(
+			'Debet'  => array('debet', 'd_type', findtekst('1000|Debet', $sprog_id)),
+			'Kredit' => array('kredit', 'k_type', findtekst('1001|Kredit', $sprog_id)),
+		);
+		foreach ($sides as $field => $side) {
+			if (!array_key_exists($side[0], $post)) continue;
+			$check = poolAccountProblem($post[$side[0]], $line ? ($line[$side[1]] ?? '') : '', $status);
+			if ($check['problem'] === '') continue;
+			if ($check['problem'] === 'number') {
+				$text = findtekst('5399|er ikke et kontonummer', $sprog_id);
+			} elseif ($check['problem'] === 'closed') {
+				$text = findtekst('5400|er lukket og kan ikke bruges', $sprog_id);
+			} else {
+				$text = findtekst('1594|eksisterer ikke', $sprog_id);
+			}
+			$text = trim($text);
+			$text = trim($text);
+			$problems[] = array('field' => $field, 'text' => $text, 'message' => $side[2] . ' ' . $check['account'] . ' ' . $text);
+		}
+		return $problems;
 	}
 }

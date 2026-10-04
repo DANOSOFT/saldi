@@ -144,6 +144,8 @@
 //                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
 // 20261004 CL/SZ SD-725 A VAT code field per side of each row (dvat/kvat + row number, as in the journal), so the lookup panel fills it when an account is chosen.
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
+// 20261004 CL/SZ Pool account check: a save refused for an account that doesn't exist marks Debet / Kredit with what is wrong (poolMarkFields(), docPoolSaveNext.js).
+//                A refused attach shows the server's message (<pool-account-problem>) instead of the general error, and nothing is attached.
 // 20261004 CL/SZ SD-726 The user's "Ctrl + pil op/ned" from the journal's gear box comes in window.saldiShortcuts.
 //                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
 // 20261004 CL/SZ SD-727 The periodic folder sync (every 10 minutes) deletes documents archived 12 months ago (poolArchivePurge()).
@@ -3857,6 +3859,13 @@ print <<<JS
 
 			if (response.ok || (response.status >= 200 && response.status < 300)) {
 				return response.text().then(text => {
+					// Refused for an account the journal would refuse, also when the status couldn't be set: the message, and the user stays
+					const accountProblem = poolAccountProblemText(text);
+					if (accountProblem) {
+						alert(accountProblem);
+						if (typeof afterAttach === 'function') afterAttach(new Error(accountProblem));
+						return;
+					}
 					// Clear sessionStorage for inserted files
 					selectedFiles.forEach(file => {
 						sessionStorage.removeItem('docPool_checked_' + file);
@@ -3897,7 +3906,8 @@ print <<<JS
 			} else {
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
-					alert(response.status === 409 ? '{$poolStaleText}' : '{$txt34} (Status: ' + response.status + '). {$txt32}.');
+					// 422: an account the journal would refuse; the server's message says which
+					alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text) || '{$txt34} (Status: ' + response.status + '). {$txt32}.'));
 					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');
@@ -3912,6 +3922,13 @@ print <<<JS
 		});
 	};
 	
+	// The message insertDoc.php marks when it refuses an account (<pool-account-problem>"…"</pool-account-problem>), or ''
+	function poolAccountProblemText(text) {
+		const match = /<pool-account-problem>([\s\S]*?)<\/pool-account-problem>/.exec(text || '');
+		if (!match) return '';
+		try { return JSON.parse(match[1]); } catch (e) { return ''; }
+	}
+
 	// Save checkbox state to sessionStorage
 	window.saveCheckboxState = function() {
 		const checkboxes = document.querySelectorAll('.file-checkbox');
@@ -5802,7 +5819,12 @@ HTML;
 
     function _saveRowFetch(rowId, kladdeId, bilag) {
         return fetch(_insertUrl, { method: "POST", body: _buildFormData(rowId, kladdeId, bilag, true) })
-            .then(r => r.json());
+            .then(r => r.json())
+            .then(data => {
+                // An account the journal would refuse: the field is marked, as a missing one is
+                if (data && !data.success && Array.isArray(data.fields) && typeof window.poolMarkFields === 'function') window.poolMarkFields(rowId, data.fields);
+                return data;
+            });
     }
 
     function saveRow(rowId, kladdeId, bilag) {

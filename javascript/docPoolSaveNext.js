@@ -16,6 +16,7 @@
 // 20261004 CL/SZ SD-726 With "Gem og gå til næste/forrige" (window.saldiShortcuts), Ctrl+↓ in an entry field does what Enter does.
 //                Ctrl+↑ saves the same way and opens the previous document in the list; without one, the next, as Enter.
 //                An unseen invoice-number warning takes the first Ctrl+↓ / Ctrl+↑, as it takes the first Enter.
+// 20261004 CL/SZ Pool account check: window.poolMarkFields() marks the Debet / Kredit the server refused ("eksisterer ikke"), as "Obligatorisk" is, and focuses the first.
 (function () {
     'use strict';
 
@@ -266,6 +267,23 @@
     }
 
     window.poolSaveAndNext = saveAndNext;
+
+    /** Marks the fields a save was refused for (insertDoc.php's account check): [{field: 'Debet', text: 'eksisterer ikke'}]. */
+    window.poolMarkFields = function (rowId, fields) {
+        var prefix = 'row_' + rowId + '_';
+        var first = null;
+        fields.forEach(function (item) {
+            var field = document.getElementById(prefix + item.field);
+            if (!field) return;
+            clearMandatory(field);
+            markMandatory(field, item.text);
+            if (!first) first = field;
+        });
+        if (first) {
+            first.focus();
+            if (typeof first.select === 'function') first.select();
+        }
+    };
 
     // SD-726: "Gem og gå til næste/forrige" - fieldNavigation.js hands Ctrl+↓ / Ctrl+↑ from an entry field here
     window.fieldNavigationSave = function (field, target, step) {
