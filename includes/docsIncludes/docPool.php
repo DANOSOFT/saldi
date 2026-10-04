@@ -132,6 +132,8 @@
 //                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
 // 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
 //                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
+//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
+//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
 // 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
 //                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
 //                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
@@ -324,6 +326,9 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	db_modify("DELETE FROM pool_files WHERE ($onDiskClause) AND $recentGuard", __FILE__ . " line " . __LINE__);
 
 	if (empty($pdfFiles)) {
+		// A successful scan of an empty folder: recorded, so the next full sync waits its 10 minutes (CodeRabbit on #719)
+		update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
+		poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 		return;
 	}
 
@@ -2665,8 +2670,10 @@ print <<<JS
             const data = await response.json();
             if (request !== poolRequest) return false;
             if (data.error) {
-                document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
                 console.error('_docPoolData: ' + data.error);
+                // SD-718: a failed background refresh keeps the list shown, and with it a row being edited
+                if (poolBackgroundRefresh) return false;
+                document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
                 return false;
             }
             docData = append ? docData.concat(data.rows) : data.rows;
@@ -2680,8 +2687,8 @@ print <<<JS
             return true;
         } catch (error) {
             if (request === poolRequest) {
-                document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
                 console.error(error);
+                if (!poolBackgroundRefresh) document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
             }
             return false;
         }
