@@ -28,11 +28,21 @@ final class auditLog extends TestCase
         $this->assertSame('Fejl i udtræk: beløb mangler', audit_log_details_json('Fejl i udtræk: beløb mangler'));
     }
 
-    public function testNoDetailsGivesNull(): void
+    public function testSignatureIsTheRolesBranchOne(): void
     {
-        $this->assertNull(audit_log_details_json(null));
-        $this->assertNull(audit_log_details_json(''));
-        $this->assertNull(audit_log_details_json([]));
+        // The roles stage 2 branch defines the same function behind the same guard; whichever loads first is used
+        $f = new ReflectionFunction('audit_log_write');
+        $this->assertSame('void', (string)$f->getReturnType());
+        $params = array_map(function ($p) { return $p->getName() . ':' . $p->getType() . ($p->isOptional() ? '=' . var_export($p->getDefaultValue(), true) : ''); }, $f->getParameters());
+        $this->assertSame(array('handling:string', "objektType:string=''", "objektId:string=''", "detaljer:string=''", "kilde:string='ui'"), $params);
+    }
+
+    public function testNoDetailsGivesEmptyText(): void
+    {
+        // audit_log_write() takes detaljer as a string, so "no details" is ''
+        $this->assertSame('', audit_log_details_json(null));
+        $this->assertSame('', audit_log_details_json(''));
+        $this->assertSame('', audit_log_details_json([]));
     }
 
     public function testSecretsAreMaskedAtAnyDepth(): void
