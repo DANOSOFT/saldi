@@ -12,6 +12,7 @@
 // 20261003 CL/SZ SD-717 "Gem og næste" and "Spring over" never open an archived document; the arrow keys still browse the archive.
 // 20261003 CL/SZ SD-719 The next document opens in place (docPoolSwitch.js); the attached document is taken out of the list.
 //                When the open document is the last loaded row, the next page of the list is fetched first.
+//                The right arrow on the last loaded row fetches the next page too, so it doesn't stop at row 50.
 //                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
 // 20261003 CL/SZ SD-720 Before saving, "Fordeling"'s balance check (docPoolSplit.js) may take the first Enter.
 //                Every new row (new, new2 ...) gets its line id, and a split bilag attaches the document to every row.
@@ -94,15 +95,19 @@
         window.location.href = href;
     }
 
-    /** The next document; when the open one is the last loaded row, the list's next page is fetched first. */
-    function nextDocument() {
-        var files = listedFiles();
+    /** Whether the open document is the last loaded row while the list has more pages. withArchived: as in listedFiles(). */
+    function atLoadedEnd(withArchived) {
+        var files = listedFiles(withArchived);
         var at = files.indexOf(currentPoolFile());
-        var atEnd = at >= 0 && at === files.length - 1;
-        if (atEnd && typeof window.poolHasMore === 'function' && window.poolHasMore()) {
-            return window.poolLoadMore().then(function () { return neighbour(1); });
+        return at >= 0 && at === files.length - 1 && typeof window.poolHasMore === 'function' && window.poolHasMore();
+    }
+
+    /** The next document; when the open one is the last loaded row, the list's next page is fetched first. */
+    function nextDocument(withArchived) {
+        if (atLoadedEnd(withArchived)) {
+            return window.poolLoadMore().then(function () { return neighbour(1, withArchived); });
         }
-        return Promise.resolve(neighbour(1));
+        return Promise.resolve(neighbour(1, withArchived));
     }
 
     /** After the last document: the pool without a document, showing "Ingen flere bilag i puljen". */
@@ -296,11 +301,20 @@
 
         if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.shiftKey) {
             if (inField(target) || modalOpen() || busy) return;
+            var open = function (other) {
+                if (!other) return;
+                var href = documentUrl(other, false);
+                if (typeof window.openPoolFile === 'function') window.openPoolFile(href); else leaveFor(href);
+            };
+            if (e.key === 'ArrowRight' && atLoadedEnd(true)) {
+                e.preventDefault();
+                nextDocument(true).then(open);
+                return;
+            }
             var other = neighbour(e.key === 'ArrowRight' ? 1 : -1, true);
             if (!other) return;
             e.preventDefault();
-            var href = documentUrl(other, false);
-            if (typeof window.openPoolFile === 'function') window.openPoolFile(href); else leaveFor(href);
+            open(other);
         }
     });
 
