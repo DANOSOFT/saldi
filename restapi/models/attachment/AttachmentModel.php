@@ -14,9 +14,12 @@
 //                 seller (metadata['vendorIdentity'] + subject) against kreditorer and store
 //                 pool_files.vendor_*, same as extractInvoiceHandler.php's save action, so app
 //                 uploads get a kreditor suggestion too. Columns added to the fallback schema.
+// 20261004 LOE Share the pool ingestion lock and retain original-upload hashes before conversion.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
+require_once __DIR__ . "/../../../includes/docsIncludes/poolPaths.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolContentHash.php";
+require_once __DIR__ . "/../../../includes/docsIncludes/poolUpload.php";
 
 class AttachmentModel
 {
@@ -33,11 +36,16 @@ class AttachmentModel
     
     /**
      * Get the base upload directory (dynamic based on file location)
+     *
+     * The document folder is ownCloud, a local bilag folder or a custom documents folder depending
+     * on the installation, and poolDocFolderName() is the chain includes/documents.php uses.
+     * Hardcoding bilag here put REST uploads in a folder the pool page never looks at on the other
+     * two layouts, so the same bilag could be stored twice without being recognised.
      */
     private static function getBaseUploadDir()
     {
         if (self::$baseUploadDir === null) {
-            self::$baseUploadDir = dirname(__FILE__, 4) . '/bilag/';
+            self::$baseUploadDir = dirname(__FILE__, 4) . '/' . poolDocFolderName() . '/';
         }
         return self::$baseUploadDir;
     }
@@ -48,7 +56,7 @@ class AttachmentModel
     private static function getLogFilePath()
     {
         if (self::$logFile === null) {
-            self::$logFile = dirname(__FILE__, 4) . '/bilag/attachment_debug.log';
+            self::$logFile = dirname(__FILE__, 4) . '/' . poolDocFolderName() . '/attachment_debug.log';
         }
         return self::$logFile;
     }
@@ -349,6 +357,51 @@ class AttachmentModel
      */
     public function saveBase64File($fileContent, $customFilename = null, $metadata = null)
     {
+        $lock = null;
+        try {
+            $uploadDir = self::getUploadDir();
+            $lock = poolUploadLock($uploadDir);
+            if (self::$db !== null) {
+                global $sqhost, $squser, $sqpass;
+                if (!db_connect($sqhost, $squser, $sqpass, self::$db, __FILE__ . ' line ' . __LINE__)) {
+                    throw new RuntimeException('Failed to connect to pool database');
+                }
+            }
+            poolUploadEnsureSchema();
+            poolUploadBackfillHashes(rtrim($uploadDir, '/'));
+            $existing = poolUploadFindDuplicate(rtrim($uploadDir, '/'), hash('sha256', $fileContent));
+            if ($existing !== null) {
+                $this->filename = $existing;
+                $this->filepath = $uploadDir . $existing;
+                $this->size = filesize($this->filepath);
+                $this->mimeType = mime_content_type($this->filepath);
+                $this->uploadDate = date('Y-m-d H:i:s');
+                if (is_array($metadata)) {
+                    $this->metadata = $metadata;
+                }
+                return true;
+            }
+            return $this->saveBase64FileUnlocked($fileContent, $customFilename, $metadata);
+        } catch (Throwable $error) {
+            $this->lastError = $error->getMessage();
+            return false;
+        } finally {
+            if (is_resource($lock)) {
+                fclose($lock);
+            }
+        }
+    }
+
+    /**
+     * Save while holding the shared pool lock; retain the REST metadata/vendor handling.
+     *
+     * @param string $fileContent Original decoded bytes.
+     * @param string|null $customFilename Requested filename.
+     * @param array|null $metadata Invoice metadata.
+     * @return bool Whether the file was saved.
+     */
+    private function saveBase64FileUnlocked($fileContent, $customFilename, $metadata)
+    {
         self::debugLog('=== saveBase64File START ===');
         self::debugLog('Input info', [
             'contentLength' => strlen($fileContent),
@@ -510,7 +563,17 @@ class AttachmentModel
             }
             
             // Insert into pool_files database table (same as docPool.php)
-            $this->insertToPoolFiles($filename, $metadata, $contentHash);
+            if (!$this->insertToPoolFiles($filename, $metadata, $contentHash, hash('sha256', $fileContent))) {
+                unlink($filepath);
+                if (is_file($tempFile)) {
+                    unlink($tempFile);
+                }
+                if ($convertedFile && is_file($convertedFile)) {
+                    unlink($convertedFile);
+                }
+                $this->lastError = 'Failed to register pool file';
+                return false;
+            }
             
             // Clean up temporary files
             @unlink($tempFile);
@@ -548,9 +611,14 @@ class AttachmentModel
         if (!$contentHash || !poolContentHashColumnExists()) {
             return null;
         }
-        $qtxt = "SELECT id, filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($contentHash) . "' ORDER BY id LIMIT 1";
-        $row = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
-        return $row ?: null;
+        $qtxt = "SELECT id, filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($contentHash) . "' ORDER BY id";
+        $result = db_select($qtxt, __FILE__ . " line " . __LINE__);
+        while ($row = db_fetch_array($result)) {
+            if (basename($row['filename']) === $row['filename'] && is_file(self::getUploadDir() . $row['filename'])) {
+                return $row;
+            }
+        }
+        return null;
     }
 
     /**
@@ -560,9 +628,10 @@ class AttachmentModel
      * @param string $filename The filename to insert
      * @param array|null $metadata Optional metadata (accountnr, amount, date, invoiceNumber, invoiceDescription)
      * @param string $contentHash sha256 of the stored file, so the pool can recognise the same bilag again
+     * @param string $sourceHash Original upload hash before conversion.
      * @return bool Success status
      */
-    private function insertToPoolFiles($filename, $metadata = null, $contentHash = '')
+    private function insertToPoolFiles($filename, $metadata = null, $contentHash = '', $sourceHash = '')
     {
         // Only insert PDF files to match docPool.php behavior
         if (strtolower(pathinfo($filename, PATHINFO_EXTENSION)) !== 'pdf') {
@@ -606,6 +675,7 @@ class AttachmentModel
                     vendor_match varchar(10),
                     vendor_score numeric(4,3),
                     content_sha256 char(64),
+                    source_sha256 char(64),
                     PRIMARY KEY (id),
                     UNIQUE(filename)
                 )";
@@ -667,7 +737,9 @@ class AttachmentModel
             $normAmountSql = ($normAmount === null) ? 'NULL' : db_escape_string((string) $normAmount);
             $contentHashColumn = poolContentHashColumnExists() ? ', content_sha256' : '';
             $contentHashValue = poolContentHashColumnExists() ? ",\n                $contentHashSql" : '';
-            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency" . $contentHashColumn
+            $sourceHashColumn = poolContentHashColumnExists(false, 'source_sha256') ? ', source_sha256' : '';
+            $sourceHashValue = $sourceHashColumn !== '' ? ", '" . db_escape_string($sourceHash) . "'" : '';
+            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency" . $contentHashColumn . $sourceHashColumn
                 . ($vendorColumns ? ', ' . implode(', ', array_keys($vendorColumns)) : '') . ") VALUES (
                 '" . db_escape_string($filename) . "',
                 '" . db_escape_string($subject) . "',
@@ -677,7 +749,7 @@ class AttachmentModel
                 '" . db_escape_string($fileDate) . "',
                 '" . db_escape_string($invoiceNumber) . "',
                 '" . db_escape_string($description) . "',
-                '" . db_escape_string($currency) . "'" . $contentHashValue
+                '" . db_escape_string($currency) . "'" . $contentHashValue . $sourceHashValue
                 . ($vendorColumns ? ', ' . implode(', ', array_values($vendorColumns)) : '') . "
             )";
             db_modify($qtxt, __FILE__ . " line " . __LINE__);
