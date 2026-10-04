@@ -1,10 +1,11 @@
-// --- javascript/invoiceReuse.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/invoiceReuse.js --- ver 5.0.0 --- 2026-10-04 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-715 Created: the "invoice number already used on this kreditor" warning.
 //                Journal and pool: the first Enter on a line with a warning moves the focus to the warning instead of saving, so it can't be missed.
 //                Enter on the warning then saves the way Enter in the field would.
 //                Pool (window.saldiInvoiceReuse set): checks each line on load and when Kredit or Faktura changes.
 // 20261003 CL/SZ SD-719 The pool's lines are checked again after an in-place document switch ("poolswitch"); the change listener is added once.
+// 20261004 CL/SZ SD-726 window.invoiceReuseStopsSave(): Ctrl+↓ / Ctrl+↑ with "Gem og gå til næste/forrige" stop at an unseen warning the way the first Enter does.
 (function () {
     'use strict';
 
@@ -24,6 +25,19 @@
         if (defaultButton) defaultButton.click();
     }
 
+    /** The field's line has a warning not seen yet: it gets the focus and the save waits for the next key. */
+    function stopsSave(field) {
+        const line = lineOf(field);
+        const unseen = line && line.querySelector(WARNING + ':not([data-seen])');
+        if (!unseen) return false;
+        unseen.dataset.seen = '1';
+        unseen.invoiceReuseOrigin = field;
+        unseen.focus();
+        return true;
+    }
+
+    window.invoiceReuseStopsSave = stopsSave;
+
     // Bubble phase, so the lookup panel's own Enter (selecting a line) has already taken the key
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
@@ -42,13 +56,7 @@
         }
 
         if (!target.matches('input, select')) return;
-        const line = lineOf(target);
-        const unseen = line && line.querySelector(WARNING + ':not([data-seen])');
-        if (!unseen) return;
-        e.preventDefault();
-        unseen.dataset.seen = '1';
-        unseen.invoiceReuseOrigin = target;
-        unseen.focus();
+        if (stopsSave(target)) e.preventDefault();
     });
 
     // A warning the user tabbed or clicked to has been seen
