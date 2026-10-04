@@ -4,6 +4,8 @@
 //                The lookup panel itself is accountAutocomplete.js, which binds to the debe/kred/d_ty/k_ty names the rows carry.
 //                This file adds the type prefix ("K1234" sets type K and account 1234), the account's name and VAT code under the field, and the "sidste 5 posteringer" the other field's panel offers.
 //                Needs window.saldiPoolAccounts.
+// 20261004 CL/SZ SD-725 The VAT code select per side replaces the VAT badge under the name; it keeps the account's own code for "u/m".
+//                "u/m" empties both codes and gives the accounts' codes back when unticked; choosing a code unticks "u/m", as in the journal.
 (function () {
     'use strict';
 
@@ -20,6 +22,7 @@
             account: accountInput,
             type: document.getElementById(prefix + accountInput.dataset.side + 'Type'),
             name: document.getElementById(prefix + accountInput.dataset.side + 'Name'),
+            vat: document.getElementById(prefix + accountInput.dataset.side + 'Vat'),
             other: document.getElementById(prefix + (accountInput.dataset.side === 'Debet' ? 'Kredit' : 'Debet'))
         };
     }
@@ -48,6 +51,7 @@
         const type = (fields.type && fields.type.value) || 'F';
         clearTimeout(timers[accountInput.id]);
         if (!/^\d+$/.test(kontonr) || !cfg.lookupUrl) {
+            if (fields.vat) fields.vat.dataset.accountVat = '';
             showName(fields, '', '');
             setLastPostings(fields.other, null);
             return;
@@ -61,6 +65,8 @@
                     // A newer value may have been typed while this one was looked up
                     if (accountInput.value.trim() !== kontonr || ((fields.type && fields.type.value) || 'F') !== type) return;
                     showName(fields, data.name || '', data.moms || '');
+                    // The lookup panel sets the code itself when an account is chosen (dvat/kvat); "u/m" needs the account's own
+                    if (fields.vat) fields.vat.dataset.accountVat = type === 'F' ? (data.moms || '') : '';
                     setLastPostings(fields.other, data.lastPostings);
                 })
                 .catch(function () { showName(fields, '', ''); });
@@ -71,7 +77,8 @@
         if (!fields.name) return;
         fields.name.textContent = name;
         fields.name.title = name;
-        if (vat) {
+        // A row with a VAT code field shows the code there (SD-725)
+        if (vat && !fields.vat) {
             const badge = document.createElement('span');
             badge.className = 'pool-account-vat';
             badge.textContent = vat;
@@ -116,6 +123,26 @@
         } else if (el.classList.contains('pool-account-type')) {
             const type = el.value.trim().toUpperCase();
             el.value = TYPES.indexOf(type) === -1 ? '' : type;
+        }
+    }, true);
+
+    /** "u/m" and the VAT code fields of one row, as the journal's handleVatExempt() and handleVatChange() do it. */
+    function vatFieldsOf(prefix) {
+        return [document.getElementById(prefix + 'DebetVat'), document.getElementById(prefix + 'KreditVat')].filter(Boolean);
+    }
+
+    document.addEventListener('change', function (e) {
+        const el = e.target;
+        if (el && el.id && /_Momsfri$/.test(el.id) && !el.disabled) {
+            vatFieldsOf(el.id.replace(/Momsfri$/, '')).forEach(function (select) {
+                select.value = el.checked ? '' : (select.dataset.accountVat || '');
+            });
+            return;
+        }
+        if (el && el.classList && el.classList.contains('pool-account-vatcode') && el.value !== '') {
+            const exempt = document.getElementById(el.id.replace(/(Debet|Kredit)Vat$/, 'Momsfri'));
+            if (exempt) exempt.checked = false;
+            return;
         }
     }, true);
 

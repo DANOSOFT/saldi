@@ -138,6 +138,8 @@
 // 20261003 CL/SZ SD-721 Loads kreditorFromCvr.js: a supplier that is not a kreditor is created from the CVR register, offered with "Opret kreditor", or entered in the dialog.
 // 20261003 CL/SZ SD-722 Loads poolCapture.js: "Aflæst" on the fields "Overfør data" fills with what the extraction read, the contra account suggested under Debet, "×" to reject, and "Rapportér fejl i aflæsning".
 //                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
+// 20261004 CL/SZ SD-725 A VAT code field per side of each row (dvat/kvat + row number, as in the journal), so the lookup panel fills it when an account is chosen.
+//                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -551,6 +553,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
 	
 	$afd = $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
+	$debetvat = $kreditvat = NULL;
 
 	// SD-718: the folder sync no longer runs here; poolFolderSync() is called in the background once the page is shown
 
@@ -674,6 +677,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$valuta      = if_isset($_POST,NULL,'valuta')      ?? if_isset($_GET,NULL,'valuta');
 	$momsfri     = if_isset($_POST,NULL,'momsfri')     ?? if_isset($_GET,NULL,'momsfri');
 	$forfald     = if_isset($_POST,NULL,'forfald')     ?? if_isset($_GET,NULL,'forfald');
+	$debetvat    = if_isset($_POST,NULL,'debetvat')    ?? if_isset($_GET,NULL,'debetvat');
+	$kreditvat   = if_isset($_POST,NULL,'kreditvat')   ?? if_isset($_GET,NULL,'kreditvat');
 	#########################################
 
 	if ($insertFile) {
@@ -1686,7 +1691,8 @@ if ($source == 'kassekladde') {
 	$btnStyleDisabled = "color: #999; text-decoration: none; display: flex; align-items: center; background-color: #eee; padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 12px; border: 1px solid #ccc;";
 
 	if ($sourceId) {
-		$qtxt = "select bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, kladde_id, afd, ansat, projekt, valuta, momsfri, forfaldsdate from kassekladde where id = '$sourceId'";
+		$vatSelect = poolVatColumnsReady() ? ', debetvat, kreditvat' : ''; // SD-725
+		$qtxt = "select bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, kladde_id, afd, ansat, projekt, valuta, momsfri, forfaldsdate$vatSelect from kassekladde where id = '$sourceId'";
 		$kladdeInfo = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($kladdeInfo) {
 			$currentKladdeId = $kladdeInfo['kladde_id'];
@@ -1758,7 +1764,7 @@ if ($source == 'kassekladde') {
 	if ($escKladde && $displayBilag !== '') {
 		$escBilag = db_escape_string($displayBilag);
 		$qAll = db_select(
-			"SELECT id, bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, afd, projekt, valuta, momsfri, forfaldsdate " .
+			"SELECT id, bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, afd, projekt, valuta, momsfri, forfaldsdate" . (poolVatColumnsReady() ? ", debetvat, kreditvat " : " ") .
 			"FROM kassekladde WHERE kladde_id = '$escKladde' AND bilag = '$escBilag' ORDER BY id ASC",
 			__FILE__ . " linje " . __LINE__
 		);
@@ -1830,7 +1836,8 @@ if ($source == 'kassekladde') {
 		list($dType, $dNo) = poolAccountSplit($d['debet'] ?? '', $d['d_type'] ?? '', 'F');
 		list($kType, $kNo) = poolAccountSplit($d['kredit'] ?? '', $d['k_type'] ?? '', is_numeric($rowId) ? 'F' : 'K');
 		$rowNo = is_numeric($rowId) ? (int)$rowId : 0;
-		$accountCell = function($side, $label, $type, $no, $prefixes, $lastPostingsAttr) use ($pfx, $lbl, $inStyle, $roBg, $ro, $readOnly, $rowNo) {
+		$vatCodes = poolVatCodes();
+		$accountCell = function($side, $label, $type, $no, $prefixes, $lastPostingsAttr, $savedVat) use ($pfx, $lbl, $inStyle, $roBg, $ro, $readOnly, $rowNo, $vatCodes, $d) {
 			global $sprog_id, $regnaar;
 			$info = $no !== '' ? poolAccountInfo($type, $no, $regnaar) : array('name' => '', 'moms' => '');
 			$typeName = $readOnly ? '' : " name='{$prefixes[0]}{$rowNo}'";
@@ -1840,17 +1847,28 @@ if ($source == 'kassekladde') {
 			print "<div class='pool-account-inputs'>";
 			print "<input type='text' id='{$pfx}_{$side}Type' class='pool-account-type' maxlength='1' value='$type' title='$typeTitle' style='width:20px;{$inStyle}{$roBg}'{$ro}{$typeName}>";
 			print "<input type='text' id='{$pfx}_{$side}' class='pool-account-no' data-side='$side' value=\"" . htmlspecialchars($no) . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}{$noName}>";
+			// SD-725: the VAT code, named as in the journal (dvat/kvat + row number) so the lookup panel sets it when an account is chosen
+			$accountVat = array_key_exists($info['moms'], $vatCodes) && $type === 'F' ? $info['moms'] : '';
+			$shownVat = poolVatShown($savedVat, $accountVat, !empty($d['momsfri']), $vatCodes);
+			$vatName = $readOnly ? '' : " name='" . ($side === 'Debet' ? 'dvat' : 'kvat') . $rowNo . "'";
+			$vatTitle = htmlspecialchars(findtekst('770|Moms', $sprog_id), ENT_QUOTES);
+			print "<select id='{$pfx}_{$side}Vat' class='pool-account-vatcode' data-account-vat='" . htmlspecialchars($accountVat, ENT_QUOTES) . "' title='$vatTitle' tabindex='-1' style='width:52px;{$inStyle}{$roBg}'" . ($readOnly ? ' disabled' : '') . "$vatName>";
+			print "<option value=''></option>";
+			foreach ($vatCodes as $code => $desc) {
+				$selected = $code === $shownVat ? ' selected' : '';
+				print "<option value='" . htmlspecialchars($code, ENT_QUOTES) . "' title='" . htmlspecialchars($desc, ENT_QUOTES) . "'$selected>" . htmlspecialchars($code) . "</option>";
+			}
+			print "</select>";
 			print "</div>";
-			$vat = $info['moms'] !== '' ? "<span class='pool-account-vat'>" . htmlspecialchars($info['moms']) . "</span>" : '';
-			print "<div class='pool-account-name' id='{$pfx}_{$side}Name' title=\"" . htmlspecialchars($info['name']) . "\">" . $vat . htmlspecialchars($info['name']) . "</div>";
+			print "<div class='pool-account-name' id='{$pfx}_{$side}Name' title=\"" . htmlspecialchars($info['name']) . "\">" . htmlspecialchars($info['name']) . "</div>";
 			print "</div>";
 		};
 		// "sidste 5 posteringer": the Debet panel offers the counter-accounts used with the Kredit account, and vice versa
 		$escKladdeId = (int)$escKladde;
 		$dLast = (!$readOnly && $kNo !== '') ? sidste_5_forslag_attr($kNo, $kType, 'D', 'UTF-8', $escKladdeId, $sprog_id) : '';
 		$kLast = (!$readOnly && $dNo !== '') ? sidste_5_forslag_attr($dNo, $dType, 'K', 'UTF-8', $escKladdeId, $sprog_id) : '';
-		$accountCell('Debet', '1000|Debet', $dType, $dNo, array('d_ty', 'debe'), $dLast);
-		$accountCell('Kredit', '1001|Kredit', $kType, $kNo, array('k_ty', 'kred'), $kLast);
+		$accountCell('Debet', '1000|Debet', $dType, $dNo, array('d_ty', 'debe'), $dLast, $d['debetvat'] ?? null);
+		$accountCell('Kredit', '1001|Kredit', $kType, $kNo, array('k_ty', 'kred'), $kLast, $d['kreditvat'] ?? null);
 		print "<div class='topbar-field'>" . $lbl(findtekst('934|Beløb', $sprog_id).':') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('2464|Afd.', $sprog_id).':') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('2464|Afd.', $sprog_id)."'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('3269|Proj.', $sprog_id).':') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('3269|Proj.', $sprog_id)."'{$ro}></div>";
@@ -1988,6 +2006,8 @@ if ($source == 'kassekladde') {
 			'valuta'      => $displayValuta,
 			'momsfri'     => $displayMomsfri,
 			'forfald'     => $displayForfald,
+			'debetvat'    => $debetvat,
+			'kreditvat'   => $kreditvat,
 		], true);
 		print "</div>";
 	}
@@ -2011,6 +2031,8 @@ if ($source == 'kassekladde') {
 			'valuta'      => $bl['valuta'] ?? '',
 			'momsfri'     => $bl['momsfri'] ?? 0,
 			'forfald'     => $bl['forfaldsdate'] ? dkdato($bl['forfaldsdate']) : '',
+			'debetvat'    => $bl['debetvat'] ?? null,
+			'kreditvat'   => $bl['kreditvat'] ?? null,
 		], $sourceId && $blIdx === 0);
 		print "</div>";
 	}
@@ -3669,10 +3691,13 @@ print <<<JS
 			valuta:      typed.valuta,
 			momsfri:     typed.momsfri,
 			forfald:     typed.forfald,
+			debetvat:    typed.debetvat,
+			kreditvat:   typed.kreditvat,
 		};
 		Object.keys(typedFields).forEach(key => {
 			const val = (typedFields[key] === undefined || typedFields[key] === null) ? '' : String(typedFields[key]).trim();
-			if (val !== '' || key === 'debet' || key === 'kredit') formData.append(key, val);
+			// SD-725: a blank VAT code is sent too, the server then gives the account's own
+			if (val !== '' || key === 'debet' || key === 'kredit' || ((key === 'debetvat' || key === 'kreditvat') && typed[key] !== undefined)) formData.append(key, val);
 		});
 		console.log('Typed values from row', typedRowId, ':', typedFields);
 		const typedEmpty = key => !typedFields[key] || String(typedFields[key]).trim() === '';
@@ -5678,6 +5703,8 @@ HTML;
             valuta:      getVal(pfx + 'Valuta'),
             momsfri:     getCheck(pfx + 'Momsfri'),
             forfald:     getVal(pfx + 'Forfald'),
+            debetvat:    getVal(pfx + 'DebetVat'),
+            kreditvat:   getVal(pfx + 'KreditVat'),
         };
     }
 
@@ -5721,6 +5748,8 @@ HTML;
         fd.append("valuta",      v.valuta);
         fd.append("momsfri",     v.momsfri);
         fd.append("forfald",     v.forfald);
+        fd.append("debetvat",    v.debetvat);
+        fd.append("kreditvat",   v.kreditvat);
         return fd;
     }
 

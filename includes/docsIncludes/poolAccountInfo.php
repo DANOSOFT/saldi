@@ -23,6 +23,8 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261003 CL/SZ SD-714 Created: account type + number for the pool's Debet/Kredit fields, and the name and VAT code shown under them.
+// 20261004 CL/SZ SD-725 The VAT code per side of a pool line: the codes to choose from, the code shown, and the code saved.
+//                The rules are the journal's (kassekladde.php): a blank code means the account's own code, unless the line is VAT-free (u/m) or only the other side has a code.
 
 if (!function_exists('poolAccountSplit')) {
 	/**
@@ -81,5 +83,94 @@ if (!function_exists('poolAccountInfo')) {
 			}
 		}
 		return $info;
+	}
+}
+
+if (!function_exists('poolVatCodes')) {
+	/**
+	 * The VAT codes the journal offers (kassekladde.php): S, K, Y and E codes from grupper, code => description.
+	 *
+	 * @return array<string, string>
+	 */
+	function poolVatCodes() {
+		static $codes = null;
+		if ($codes !== null) return $codes;
+		$codes = array();
+		$q = db_select("select kode, kodenr, beskrivelse, art from grupper where substring(art,2,1)='M' order by kode, kodenr", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$prefix = strtoupper(trim((string)$r['kode']));
+			if (!in_array($prefix, array('S', 'K', 'Y', 'E'), true)) continue;
+			$code = $prefix . trim((string)$r['kodenr']);
+			if ($code !== $prefix) $codes[$code] = trim((string)$r['beskrivelse']);
+		}
+		return $codes;
+	}
+}
+
+if (!function_exists('poolVatColumnsReady')) {
+	/**
+	 * Whether kassekladde has the journal's debetvat and kreditvat columns (kassekladde.php adds them when the journal opens).
+	 *
+	 * @return bool
+	 */
+	function poolVatColumnsReady() {
+		global $db_type;
+		static $ready = null;
+		if ($ready !== null) return $ready;
+		$schema = ($db_type == 'mysql' || $db_type == 'mysqli') ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+		$q = db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'kassekladde' AND column_name IN ('debetvat', 'kreditvat')$schema", __FILE__ . " linje " . __LINE__);
+		$n = 0;
+		while (db_fetch_array($q)) $n++;
+		$ready = $n === 2;
+		return $ready;
+	}
+}
+
+if (!function_exists('poolVatAccountCode')) {
+	/**
+	 * The account's own VAT code: kontoplan.moms of a finance account in the fiscal year; none for a debitor or kreditor.
+	 *
+	 * @return string '' when the account has none or isn't a finance account.
+	 */
+	function poolVatAccountCode($type, $kontonr, $regnaar, array $codes) {
+		if ($type !== 'F' || trim((string)$kontonr) === '') return '';
+		$info = poolAccountInfo('F', $kontonr, $regnaar);
+		return array_key_exists($info['moms'], $codes) ? $info['moms'] : '';
+	}
+}
+
+if (!function_exists('poolVatChoose')) {
+	/**
+	 * The VAT code saved for one side, by the journal's rules (resolve_post_vat_code() in kassekladde.php).
+	 *
+	 * @param string $submitted   The code chosen in the field ('' for none).
+	 * @param string $accountCode The account's own code (poolVatAccountCode()).
+	 * @param bool   $momsfri     The line is VAT-free (u/m): no code on either side.
+	 * @param string $otherSide   The code chosen for the other side; a blank next to a code there is a deliberate choice.
+	 * @param array  $codes       poolVatCodes(); an unknown code counts as blank.
+	 * @return string
+	 */
+	function poolVatChoose($submitted, $accountCode, $momsfri, $otherSide, array $codes) {
+		if ($momsfri) return '';
+		$submitted = trim((string)$submitted);
+		if (!array_key_exists($submitted, $codes)) $submitted = '';
+		$otherSide = trim((string)$otherSide);
+		if ($submitted === '' && !array_key_exists($otherSide, $codes)) return $accountCode;
+		return $submitted;
+	}
+}
+
+if (!function_exists('poolVatShown')) {
+	/**
+	 * The VAT code a pool line shows for one side: the saved code, else the account's own unless the line is VAT-free.
+	 * A line saved before the field existed has no code saved and shows the account's, as the journal does.
+	 *
+	 * @param string|null $saved kassekladde.debetvat / kreditvat, null when not saved.
+	 * @return string
+	 */
+	function poolVatShown($saved, $accountCode, $momsfri, array $codes) {
+		$saved = trim((string)$saved);
+		if ($saved !== '' && array_key_exists($saved, $codes)) return $saved;
+		return $momsfri ? '' : $accountCode;
 	}
 }
