@@ -25,6 +25,7 @@
 // 20261003 CL/SZ SD-722 Created: the contra account suggested for a kreditor, with VAT code, text and the reason it is suggested.
 //                Not tied to the pool page: contraSuggestionLookup.php serves it, so the bilag app can show the same suggestion.
 //                The sources are tried in order; a fixed "Standardmodkonto" (release plan 2.2) goes in front of the history when it is built.
+//                A closed account (kontoplan.lukket) is not suggested; poolAccountInfo() only left out missing accounts and headings.
 
 include_once(__DIR__ . '/journalHistory.php');
 include_once(__DIR__ . '/../../includes/docsIncludes/poolAccountInfo.php');
@@ -85,6 +86,9 @@ if (!function_exists('contraSuggestionFromHistory')) {
 		// An account that is closed or missing in this fiscal year is not suggested
 		$info = poolAccountInfo('F', $pick['kontonr'], $regnaar);
 		if ($info['name'] === '') return null;
+		// Closed (kontoplan.lukket set) counts as the journal counts it: its save refuses the account
+		$closed = db_fetch_array(db_select("select lukket from kontoplan where kontonr = '" . db_escape_string($pick['kontonr']) . "' and regnskabsaar = '" . (int)$regnaar . "'", __FILE__ . " linje " . __LINE__));
+		if ($closed && $closed['lukket']) return null;
 		return array(
 			'account' => $pick['kontonr'],
 			'type' => 'F',
