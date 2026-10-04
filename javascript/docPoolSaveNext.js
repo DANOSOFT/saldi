@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-04 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -6,6 +6,8 @@
 //                Dato, Debet, Kredit and Beløb are mandatory: a missing one gets focus and is marked "Obligatorisk", and nothing is saved.
 //                "Spring over" opens the next document without saving; the arrow keys outside a field open the previous / next document.
 //                The next document is the one after the current one in the list as shown (sort and search kept).
+// 20261004 CL/SZ SD-716 A new row that was saved keeps its line id (data-saved-line-id) until the document is left.
+//                When the attach then fails (e.g. a dropped connection) and Enter is pressed again, that line is updated instead of saved a second time.
 //                Needs window.saldiPoolSaveNext (docPool.php) and docPool.php's _saveRowFetch(), chooseMultipleBilag() and transferDataFromSelectedFile().
 // 20261003 CL/SZ SD-717 "Gem og næste" and "Spring over" never open an archived document; the arrow keys still browse the archive.
 (function () {
@@ -165,6 +167,8 @@
             return chain.then(function () {
                 var rowId = rowIdOf(entry);
                 return window._saveRowFetch(rowId, c.kladdeId, c.bilag).then(function (data) {
+                    // Saved once: a retry after a failed attach updates this line (docPool.php's _buildFormData()) instead of adding another
+                    if (data && data.success && /^new/.test(rowId) && data.sourceId) entry.dataset.savedLineId = data.sourceId;
                     if (!data || !data.success) throw new Error((data && data.message) || 'save failed');
                     if (rowId === 'new' && data.sourceId) newId = data.sourceId;
                 });
