@@ -27,6 +27,7 @@
 //                Every place that offers pool documents for use leaves archived ones out through poolArchiveActiveSql().
 //                Archive and restore are written to audit_log (SD-724).
 //                Automatic deletion after 12 months is a later ticket; the archive date is stored for it.
+// 20261004 CL/SZ SD-717 audit_log_write() takes strings (SD-724, the roles branch's signature): detaljer goes in as audit_log_details_json().
 
 require_once __DIR__ . '/../auditLog.php';
 
@@ -130,7 +131,7 @@ if (!function_exists('poolArchiveSet')) {
 				continue;
 			}
 			$entry = poolArchiveAuditEntry($row, $archive, $archive ? (string)$check['archived'] : '', $userId === null ? null : (int)$userId);
-			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], $entry['detaljer'], 'ui');
+			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], audit_log_details_json($entry['detaljer']), 'ui');
 			$changed[] = $filename;
 		}
 		return array('changed' => $changed, 'skipped' => $skipped);
