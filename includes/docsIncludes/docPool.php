@@ -130,6 +130,8 @@
 //                An XML invoice is rendered through EasyUBL once and reused until the file changes.
 // 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
 //                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
+//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
 // 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
 //                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
 //                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
@@ -288,6 +290,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	// Get all PDF and XML files from the pulje directory. The mtime is taken first: a file added while
 	// the folder is read then changes the mtime again, so the next load reads the folder once more.
 	$observedMtime = poolFolderMtime($puljePath);
+	$scanStart = time();
 	$pdfFiles = [];
 	$files = scandir($puljePath);
 	// scandir() returns false on a read failure (permission issue, a disconnected
@@ -423,7 +426,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		}
 	}
 	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
-	poolFolderChanged($puljePath, true, $observedMtime);
+	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 }
 
 /**
@@ -449,14 +452,18 @@ function poolFolderMtime($puljePath) {
  * @param string   $puljePath The tenant's pool folder.
  * @param bool     $store     Store $mtime as seen, once the folder was read.
  * @param int|null $mtime     The mtime taken before the folder was read; null reads it now.
+ * @param int|null $scanStart When the folder listing started; null is now. A file added after the listing in the
+ *                            same second as $mtime leaves the mtime unchanged, so $mtime is only stored when it is
+ *                            older than the start of the listing, however long the listing took.
  * @return bool True when the folder changed since the stored time (or nothing is stored yet).
  */
-function poolFolderChanged($puljePath, $store = false, $mtime = null) {
+function poolFolderChanged($puljePath, $store = false, $mtime = null, $scanStart = null) {
 	if ($mtime === null) {
 		$mtime = poolFolderMtime($puljePath);
 	}
 	if ($store) {
-		$seen = ($mtime && $mtime < time() - 1) ? $mtime : 0;
+		$scanStart = $scanStart === null ? time() : (int)$scanStart;
+		$seen = ($mtime && $mtime < $scanStart - 1) ? $mtime : 0;
 		update_settings_value("pool_dir_mtime", "docs", $seen, "Pool folder mtime when its files were last read");
 		return false;
 	}
@@ -477,9 +484,17 @@ function checkIfAllPoolFilesAreInDatabase() {
 	if (!poolFolderChanged($puljePath, false, $observedMtime)) {
 		return;
 	}
-	$files = array_merge(glob("$puljePath/*.pdf") ?: [], glob("$puljePath/*.xml") ?: []);
-	poolFolderChanged($puljePath, true, $observedMtime);
+	$scanStart = time();
+	$pdfFiles = glob("$puljePath/*.pdf");
+	$xmlFiles = glob("$puljePath/*.xml");
+	// A failed listing is not an empty folder: nothing is stored, so the next load reads the folder again
+	if ($pdfFiles === false || $xmlFiles === false) {
+		docPoolLog("checkIfAllPoolFilesAreInDatabase: listing $puljePath failed, the folder is read again on the next load");
+		return;
+	}
+	$files = array_merge($pdfFiles, $xmlFiles);
 	if (!$files) {
+		poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 		return;
 	}
 	// select all files from db - must loop through all rows
@@ -516,6 +531,8 @@ function checkIfAllPoolFilesAreInDatabase() {
 		$query = "INSERT INTO pool_files (filename, file_date" . $contentHashColumn . ") VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "'" . $contentHashSql . ")";
 		db_modify($query, __FILE__ . " line " . __LINE__);
 	}
+	// Only now is the folder as seen: every file listed has its row
+	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 }
 
 /**
