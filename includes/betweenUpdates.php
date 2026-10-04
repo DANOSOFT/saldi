@@ -82,6 +82,7 @@
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
 // 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
 // 20261003 CL/SZ SD-721: adresser.auto_created, auto_created_by and bank_unconfirmed for the kreditor created from the CVR register, Postgres and MySQL.
+// 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -969,13 +970,14 @@ if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null 
 // IF NOT EXISTS, so whichever of the document pool and roles stage 2 lands first creates it and the other's migration is a no-op.
 // Written through audit_log_write() in includes/auditLog.php; entries are never deleted.
 // MySQL uses DATETIME for tidspunkt, because its TIMESTAMP ends in 2038, inside the five-year retention.
+// id is serial (INT on MySQL) and the index names are the roles stage 2 branch's, so neither migration adds a second set of indexes.
 $auditLogMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 $qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = 'audit_log'";
 $qtxt .= $auditLogMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	if ($auditLogMysql) {
 		db_modify("CREATE TABLE IF NOT EXISTS audit_log (
-			id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 			tidspunkt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			bruger_id INTEGER,
 			brugernavn VARCHAR(80),
@@ -986,12 +988,12 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			ip VARCHAR(45),
 			kilde VARCHAR(30),
 			INDEX audit_log_tidspunkt_idx (tidspunkt),
-			INDEX audit_log_bruger_id_idx (bruger_id),
+			INDEX audit_log_bruger_idx (bruger_id),
 			INDEX audit_log_objekt_idx (objekt_type, objekt_id)
 		)", __FILE__ . " linje " . __LINE__);
 	} else {
 		db_modify("CREATE TABLE IF NOT EXISTS audit_log (
-			id BIGSERIAL PRIMARY KEY,
+			id SERIAL PRIMARY KEY,
 			tidspunkt TIMESTAMP NOT NULL DEFAULT now(),
 			bruger_id INTEGER,
 			brugernavn VARCHAR(80),
@@ -1003,7 +1005,7 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			kilde VARCHAR(30)
 		)", __FILE__ . " linje " . __LINE__);
 		db_modify("CREATE INDEX IF NOT EXISTS audit_log_tidspunkt_idx ON audit_log (tidspunkt)", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE INDEX IF NOT EXISTS audit_log_bruger_id_idx ON audit_log (bruger_id)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS audit_log_bruger_idx ON audit_log (bruger_id)", __FILE__ . " linje " . __LINE__);
 		db_modify("CREATE INDEX IF NOT EXISTS audit_log_objekt_idx ON audit_log (objekt_type, objekt_id)", __FILE__ . " linje " . __LINE__);
 	}
 }
