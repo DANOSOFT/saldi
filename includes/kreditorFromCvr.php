@@ -29,6 +29,8 @@
 //                Creation, "Fortryd" and "Bekræft" are written to audit_log.
 // 20261004 CL/SZ SD-721 A CVR number that only a closed kreditor has is not created again on its own: status 'closed' offers "Genåbn" (kreditorCvrReopen()) or "Opret ny".
 //                "Opret ny" creates the second kreditor only when the request says so (allowClosed).
+// 20261004 CL/SZ SD-721 audit_log_write() takes strings (SD-724, the roles branch's signature): the id as text, detaljer as audit_log_details_json().
+//                An automatic creation is written with kilde 'api', as the roles branch does for automatic actions; the user's clicks stay 'ui'.
 
 require_once __DIR__ . '/cvrLookup.php';
 require_once __DIR__ . '/kreditorCreate.php';
@@ -275,7 +277,7 @@ if (!function_exists('kreditorCvrCreate')) {
 		kreditorCvrLinkPoolFile($options['poolFileId'] ?? null, $id);
 
 		$kreditor = array('id' => $id, 'kontonr' => (string)$fields['kontonr'], 'firmanavn' => $firmanavn);
-		audit_log_write($auto ? 'kreditor.auto_created' : 'kreditor.created', 'kreditor', $id, array(
+		audit_log_write($auto ? 'kreditor.auto_created' : 'kreditor.created', 'kreditor', (string)$id, audit_log_details_json(array(
 			'before' => null,
 			'after' => array(
 				'kontonr' => $kreditor['kontonr'],
@@ -286,7 +288,7 @@ if (!function_exists('kreditorCvrCreate')) {
 			),
 			'mode' => isset($options['mode']) ? (string)$options['mode'] : ($auto ? 'auto' : 'click'),
 			'pool_file_id' => isset($options['poolFileId']) ? $options['poolFileId'] : null,
-		), 'ui');
+		)), $auto ? 'api' : 'ui');
 		return array('status' => 'created', 'kreditor' => $kreditor);
 	}
 }
@@ -344,11 +346,11 @@ if (!function_exists('kreditorCvrUndo')) {
 		if (poolVendorColumnsExist()) {
 			db_modify("update pool_files set vendor_konto_id = NULL, vendor_match = 'none', vendor_score = 0 where vendor_konto_id = $id", __FILE__ . " linje " . __LINE__);
 		}
-		audit_log_write('kreditor.auto_create_undone', 'kreditor', $id, array(
+		audit_log_write('kreditor.auto_create_undone', 'kreditor', (string)$id, audit_log_details_json(array(
 			'before' => array('kontonr' => trim((string)$row['kontonr']), 'firmanavn' => (string)$row['firmanavn'], 'cvrnr' => (string)$row['cvrnr'],
 				'auto_created' => (string)$row['auto_created'], 'auto_created_by' => $row['auto_created_by'] === null ? null : (int)$row['auto_created_by']),
 			'after' => null,
-		), 'ui');
+		)), 'ui');
 		return array('ok' => true);
 	}
 }
@@ -368,11 +370,11 @@ if (!function_exists('kreditorCvrReopen')) {
 		db_modify("update adresser set lukket = '' where id = $id and lukket = 'on'", __FILE__ . " linje " . __LINE__);
 		kreditorCvrLinkPoolFile($poolFileId, $id);
 		$kreditor = array('id' => $id, 'kontonr' => trim((string)$row['kontonr']), 'firmanavn' => (string)$row['firmanavn']);
-		audit_log_write('kreditor.reopened', 'kreditor', $id, array(
+		audit_log_write('kreditor.reopened', 'kreditor', (string)$id, audit_log_details_json(array(
 			'before' => array('kontonr' => $kreditor['kontonr'], 'firmanavn' => $kreditor['firmanavn'], 'cvrnr' => (string)$row['cvrnr'], 'lukket' => 'on'),
 			'after' => array('lukket' => ''),
 			'pool_file_id' => $poolFileId,
-		), 'ui');
+		)), 'ui');
 		return array('ok' => true, 'kreditor' => $kreditor);
 	}
 }
@@ -390,10 +392,10 @@ if (!function_exists('kreditorCvrConfirmBank')) {
 		$row = db_fetch_array(db_select("select bank_reg, bank_konto, iban, bank_unconfirmed from adresser where id = $id and art = 'K'", __FILE__ . " linje " . __LINE__));
 		if (!$row || $row['bank_unconfirmed'] === null || $row['bank_unconfirmed'] === '') return false;
 		db_modify("update adresser set bank_unconfirmed = NULL where id = $id", __FILE__ . " linje " . __LINE__);
-		audit_log_write('kreditor.bank_confirmed', 'kreditor', $id, array(
+		audit_log_write('kreditor.bank_confirmed', 'kreditor', (string)$id, audit_log_details_json(array(
 			'before' => array('bank_unconfirmed' => (string)$row['bank_unconfirmed']),
 			'after' => array('bank_unconfirmed' => null, 'bank_reg' => trim((string)$row['bank_reg']), 'bank_konto' => trim((string)$row['bank_konto']), 'iban' => trim((string)$row['iban'])),
-		), 'ui');
+		)), 'ui');
 		return true;
 	}
 }

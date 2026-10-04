@@ -27,6 +27,9 @@
 //                The roles stage 2 developer may reuse or replace this function; the signature stays the same.
 // 20261003 CL/SZ SD-721 kreditor.created added to the list of handling values.
 // 20261004 CL/SZ SD-721 kreditor.reopened added.
+// 20261004 CL/SZ SD-724 audit_log_write() is now the roles stage 2 developer's version (audit_log_for_SD-724.md §3), so both branches define the same function.
+//                It takes strings only; callers pass detaljer as JSON text, built with audit_log_details_json(), which keeps masking secrets.
+//                No table yet (before the login migration ran): nothing is written. bruger_id 0 when there is no user.
 //
 // handling values, prefixed by domain. Roles stage 2 (§7.1): login.*, user.*, role.*, session.*, permission.*, integration.*.
 // Document pool and kreditor flow (Requirements_document_pool_supplier_invoice_flow_EN.md):
@@ -46,17 +49,17 @@ if (!function_exists('audit_log_details_json')) {
 	 * passes a whole row by mistake still never stores them. A string is stored as it is (free text).
 	 *
 	 * @param array<string, mixed>|string|null $detaljer
-	 * @return string|null JSON or free text; null when there are no details.
+	 * @return string JSON or free text, for audit_log_write()'s detaljer; '' when there are no details.
 	 */
 	function audit_log_details_json($detaljer) {
 		if ($detaljer === null || $detaljer === '' || $detaljer === []) {
-			return null;
+			return '';
 		}
 		if (!is_array($detaljer)) {
 			return (string)$detaljer;
 		}
 		$json = json_encode(audit_log_mask_secrets($detaljer), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
-		return $json === false ? null : $json;
+		return $json === false ? '' : $json;
 	}
 }
 
@@ -81,62 +84,30 @@ if (!function_exists('audit_log_mask_secrets')) {
 
 if (!function_exists('audit_log_write')) {
 	/**
-	 * Writes one entry to audit_log. bruger_id, brugernavn and ip are taken from the session.
+	 * Writes one entry to audit_log, as the roles stage 2 branch's audit_log_write() does (same signature, guarded the same way).
 	 *
-	 * bruger_id is the logged-in user's id, -1 in a revisor (auditor) session, and null without a session
-	 * (system actions such as cron jobs). brugernavn is copied so the entry survives the user's deletion.
+	 * bruger_id and brugernavn come from the session globals online.php sets (bruger_id -1 in a revisor session, 0 without a user);
+	 * ip from REMOTE_ADDR. Writes nothing when the table doesn't exist yet. Never throws.
 	 *
-	 * @param string $handling    What happened, prefixed by domain, e.g. 'document.archived' (see the list at the top of this file).
-	 * @param string|null $objekt_type 'dokument', 'kreditor', 'forslag', 'bruger', 'rolle', 'integration', 'session', 'side'.
-	 * @param string|int|null $objekt_id Id of the object, e.g. a pool_files id or a kreditor's adresser id.
-	 * @param array<string, mixed>|string|null $detaljer {before, after} as an array, or free text. Never passwords or API keys.
-	 * @param string $kilde       'ui', 'onboarding', 'migrering', 'api' or 'system'.
-	 * @return bool true when the entry was written.
+	 * @param string $handling   What happened, prefixed by domain, e.g. 'document.archived' (see the list at the top of this file). Max 60 characters.
+	 * @param string $objektType 'dokument', 'kreditor', 'forslag', 'bruger', 'rolle', 'integration', 'session', 'side'.
+	 * @param string $objektId   Id of the object as a string, e.g. a pool_files id or a kreditor's adresser id.
+	 * @param string $detaljer   JSON {before, after} (audit_log_details_json()) or free text. Never passwords or API keys. Not truncated.
+	 * @param string $kilde      'ui' when a user clicked something; 'api' or 'cron' for automatic actions.
+	 * @return void
 	 */
-	function audit_log_write($handling, $objekt_type = null, $objekt_id = null, $detaljer = null, $kilde = 'ui') {
+	function audit_log_write(string $handling, string $objektType = '', string $objektId = '', string $detaljer = '', string $kilde = 'ui'): void
+	{
 		global $bruger_id, $brugernavn;
-
-		$handling = trim((string)$handling);
-		if ($handling === '') {
-			return false;
+		if (!function_exists('tbl_exists') || !tbl_exists('audit_log')) {
+			return;
 		}
-
-		$text = function ($value, $length) {
-			if ($value === null || $value === '') {
-				return 'NULL';
-			}
-			return "'" . db_escape_string(mb_substr((string)$value, 0, $length)) . "'";
-		};
-
-		$userId = null;
-		$userNameSql = 'NULL';
-		if (isset($bruger_id) && is_numeric($bruger_id) && (int)$bruger_id > 0) {
-			$userId = (int)$bruger_id;
-			$r = db_fetch_array(db_select("select brugernavn from brugere where id = $userId", __FILE__ . " linje " . __LINE__));
-			if ($r) {
-				$userNameSql = $text($r['brugernavn'], 80);
-			}
-		} elseif (isset($bruger_id) && (int)$bruger_id === -1) {
-			// Revisor session: the user only exists in the master database.
-			// online.php has already escaped $brugernavn for this connection, so it goes into the SQL as it is.
-			$userId = -1;
-			if (!empty($brugernavn) && strlen($brugernavn) <= 80) {
-				$userNameSql = "'" . $brugernavn . "'";
-			}
-		}
-		$ip = isset($_SERVER['REMOTE_ADDR']) ? (string)$_SERVER['REMOTE_ADDR'] : '';
-		$details = audit_log_details_json($detaljer);
-
-		$qtxt = "insert into audit_log (bruger_id, brugernavn, handling, objekt_type, objekt_id, detaljer, ip, kilde) values (";
-		$qtxt .= ($userId === null ? 'NULL' : $userId) . ", ";
-		$qtxt .= $userNameSql . ", ";
-		$qtxt .= $text($handling, 60) . ", ";
-		$qtxt .= $text($objekt_type, 30) . ", ";
-		$qtxt .= $text($objekt_id, 60) . ", ";
-		$qtxt .= ($details === null ? 'NULL' : "'" . db_escape_string($details) . "'") . ", ";
-		$qtxt .= $text($ip, 45) . ", ";
-		$qtxt .= $text($kilde, 30) . ")";
+		$id   = isset($bruger_id) ? (int) $bruger_id : 0;
+		$navn = db_escape_string(isset($brugernavn) ? (string) $brugernavn : '');
+		$ip   = db_escape_string(isset($_SERVER['REMOTE_ADDR']) ? substr((string) $_SERVER['REMOTE_ADDR'], 0, 45) : '');
+		$qtxt = "insert into audit_log (bruger_id, brugernavn, handling, objekt_type, objekt_id, detaljer, ip, kilde) values ("
+			. "$id, '$navn', '" . db_escape_string(substr($handling, 0, 60)) . "', '" . db_escape_string(substr($objektType, 0, 30)) . "', '"
+			. db_escape_string(substr($objektId, 0, 60)) . "', '" . db_escape_string($detaljer) . "', '$ip', '" . db_escape_string(substr($kilde, 0, 30)) . "')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		return true;
 	}
 }
