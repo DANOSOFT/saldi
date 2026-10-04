@@ -25,6 +25,7 @@
 // 20261003 CL/SZ SD-721 Created: JSON endpoint for the kreditor from the CVR register (javascript/kreditorFromCvr.js).
 //                Actions (POST): resolve (pool document), form (groups, terms, defaults), create, undo ("Fortryd"), confirmBank ("Bekræft").
 //                The company and the user come from the session; creating, undoing and confirming need the kreditor module's rights.
+// 20261004 CL/SZ SD-721 Action reopen ("Genåbn") for a closed kreditor with the document's CVR number; create takes allowClosed for "Opret ny".
 
 @session_start();
 $s_id = session_id();
@@ -106,12 +107,19 @@ if ($action === 'create') {
 		'userId' => $userId,
 		'poolFileId' => $file ? $file['id'] : null,
 		'mode' => $mode,
+		'allowClosed' => if_isset($_POST, '', 'allowClosed') === '1',
 	));
 	kreditorCvrAnswer($result, $result['status'] === 'error' ? 400 : 200);
 }
 
 if ($action === 'undo') {
 	$result = kreditorCvrUndo((int)if_isset($_POST, 0, 'id'));
+	kreditorCvrAnswer($result, $result['ok'] ? 200 : 409);
+}
+
+if ($action === 'reopen') {
+	$file = kreditorCvrPoolFile((string)if_isset($_POST, '', 'poolFile'));
+	$result = kreditorCvrReopen((int)if_isset($_POST, 0, 'id'), $file ? $file['id'] : null);
 	kreditorCvrAnswer($result, $result['ok'] ? 200 : 409);
 }
 
