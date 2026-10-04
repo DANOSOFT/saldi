@@ -37,6 +37,7 @@
 //                     Removed the unbounded print_r($_REQUEST) dump to /tmp/debug_insert.log.
 //                     $_POST reads in the edited blocks go through ifset(). A posted amount of "0"
 //                     is stored instead of being skipped as empty.
+// 20261003 CL/SZ SD-722 Before the pool row is deleted, a document attached from the pool writes its correction records and keeps its snapshot (poolCaptureRecordAttach()).
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -442,6 +443,17 @@ if (!file_exists($showDoc)) {
 
 		// Clean up pool_files database entry after successful move from pulje
 		if ($insertFile && $fileName) {
+			// SD-722: what was captured against what was saved, before the snapshot goes with the pool row. Never fails the attach.
+			if ($source == 'kassekladde' && $sourceId) {
+				try {
+					include_once(__DIR__ . '/poolCapture.php');
+					// Included inside docPool() too, where only some of online.php's globals are in scope
+					$captureUserId = $bruger_id ?? ($GLOBALS['bruger_id'] ?? null);
+					poolCaptureRecordAttach($fileName, (int)$sourceId, $showDoc, $captureUserId === null ? null : (int)$captureUserId, (string)($brugernavn ?? ($GLOBALS['brugernavn'] ?? '')));
+				} catch (Throwable $e) {
+					error_log("insertDoc capture records for $fileName failed: " . $e->getMessage());
+				}
+			}
 			$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
 			@db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			/* docPoolLog("deleted from pool_files: $fileName"); */

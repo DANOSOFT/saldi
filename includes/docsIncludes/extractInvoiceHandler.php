@@ -38,6 +38,7 @@
 //             be overwritten by the still-in-flight automatic request's vendor match.
 // 20261003 CL/SZ SD-717: actions 'archive' and 'restore' ("Arkivér" / "Gendan") through poolArchiveSet(), written to audit_log.
 //             The user is taken from the session's online row, as the company is.
+// 20261003 CL/SZ SD-722 'extract' stores the document's snapshot (the service's answer and the normalised values) on its pool row, once (poolCapture.php).
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -137,6 +138,7 @@ if (!$connection) {
 
 // Include the extraction API
 include_once(__DIR__ . "/invoiceExtractionApi.php");
+include_once(__DIR__ . "/poolCapture.php");
 
 // Discard any buffered output from includes but keep buffering until shutdown (see the
 // shutdown handler at the top) so nothing can reach the browser outside the JSON response.
@@ -252,6 +254,13 @@ if ($action === 'extract') {
 			'bank_konto' => $result['vendorBankKonto'] ?? null,
 			'customerCvr' => $result['customerCvr'] ?? null,
 		));
+
+		// SD-722: what was read, kept before anything is saved or corrected. Never fails the extraction.
+		try {
+			poolCaptureStore($poolFile, $filePath, poolCaptureSnapshot($result, $GLOBALS['invoiceExtractionLastRaw'] ?? null, $vendorMatch), $GLOBALS['invoiceExtractionLastRaw'] ?? null);
+		} catch (Throwable $e) {
+			error_log("extractInvoiceHandler capture snapshot for $poolFile failed: " . $e->getMessage());
+		}
 
 		echo json_encode([
 			'success' => true,

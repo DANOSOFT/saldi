@@ -136,12 +136,15 @@
 //                With no pool_files table yet, the full sync runs at once.
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261003 CL/SZ SD-721 Loads kreditorFromCvr.js: a supplier that is not a kreditor is created from the CVR register, offered with "Opret kreditor", or entered in the dialog.
+// 20261003 CL/SZ SD-722 Loads poolCapture.js: "Aflæst" on the fields "Overfør data" fills with what the extraction read, the contra account suggested under Debet, "×" to reject, and "Rapportér fejl i aflæsning".
+//                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 include_once(__DIR__ . "/../kreditorFromCvr.php");
+include_once(__DIR__ . "/poolCapture.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
 /**
@@ -238,6 +241,9 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			content_sha256 char(64),
 			archived timestamp,
 			archived_by integer,
+			capture_raw text,
+			capture_values text,
+			captured timestamp,
 			PRIMARY KEY (id),
 			UNIQUE(filename)
 		)";
@@ -1247,6 +1253,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								content_sha256 char(64),
 								archived timestamp,
 								archived_by integer,
+								capture_raw text,
+								capture_values text,
+								captured timestamp,
 								PRIMARY KEY (id),
 								UNIQUE(filename)
 							)";
@@ -1566,6 +1575,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	// SD-721: kreditor from the CVR register when the supplier is not a kreditor
 	$v15 = file_exists("../javascript/kreditorFromCvr.js") ? filemtime("../javascript/kreditorFromCvr.js") : 0;
 	print kreditorCvrClientScript($sprog_id, (string)$v15);
+	// SD-722: "Aflæst", the contra account suggestion and "Rapportér fejl i aflæsning"
+	$v16 = file_exists("../javascript/poolCapture.js") ? filemtime("../javascript/poolCapture.js") : 0;
+	print "<script src=\"../javascript/poolCapture.js?v=$v16\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1867,6 +1879,21 @@ if ($source == 'kassekladde') {
 			'remove'    => findtekst('5351|Fjern linjen', $sprog_id),
 			'notBalanced' => findtekst('5350|Bilaget går ikke op: rest', $sprog_id),
 		),
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
+
+	// SD-722: what the extraction read for this document, the suggestion endpoint and "Rapportér fejl i aflæsning" (poolCapture.js)
+	$captureState = poolCaptureClientState((string)$poolFile);
+	$captureReport = poolCaptureReady() ? poolCaptureReportSettings() : array('enabled' => false);
+	print "<script>window.saldiPoolCapture = " . json_encode(array(
+		'poolFile'      => (string)$poolFile,
+		'kladdeId'      => (int)$escKladde,
+		'readOnly'      => (bool)$readOnly,
+		'fields'        => $captureState['fields'],
+		'vendorMatch'   => $captureState['vendorMatch'],
+		'reportEnabled' => (bool)$captureReport['enabled'] && (string)$poolFile !== '',
+		'endpoint'      => 'docsIncludes/poolCaptureReport.php',
+		'suggestUrl'    => '../finans/kassekladde_includes/contraSuggestionLookup.php',
+		'texts'         => poolCaptureClientTexts($sprog_id),
 	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
 
 	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
@@ -5950,17 +5977,19 @@ HTML;
 					const rowId = entry.id.replace('bilagEntry_', '');
 					const pfx   = 'row_' + rowId + '_';
 
-					function setField(id, value) {
+					// SD-722: a field filled from the document is marked "Aflæst" (poolCapture.js) when its value is what the extraction read
+					function setField(id, value, captureField) {
 						const el = document.getElementById(id);
 						if (el && value && !(onlyEmpty && el.value.trim() !== '')) {
 							el.value = value;
 							el.dispatchEvent(new Event('change', { bubbles: true }));
+							if (captureField && window.poolCapture) window.poolCapture.mark(el, captureField, sourceData.filename);
 						}
 					}
 
-					if (transferAmount)      setField(pfx + 'Amount',      transferAmount);
-					if (transferDate)        setField(pfx + 'Dato',        transferDate);
-					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
+					if (transferAmount)      setField(pfx + 'Amount',      transferAmount, 'amount');
+					if (transferDate)        setField(pfx + 'Dato',        transferDate, 'date');
+					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice, 'invoiceNumber');
 					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
 					if (transferKredit) {
 						// A Kredit the user typed is never overwritten by a suggestion.
@@ -5968,7 +5997,7 @@ HTML;
 						if (kreditEl && kreditEl.value.trim() !== '' && kreditEl.value.trim() !== transferKredit) {
 							kreditKept++;
 						} else if (kreditEl) {
-							setField(pfx + 'Kredit', transferKredit);
+							setField(pfx + 'Kredit', transferKredit, 'kreditor');
 							kreditEl.title = vendorTxt.forslag + (suggestion.firmanavn ? ': ' + suggestion.firmanavn : '');
 							kreditEl.style.boxShadow = 'inset 0 0 0 2px #17a2b8';
 							kreditEl.addEventListener('input', function() { kreditEl.style.boxShadow = ''; kreditEl.title = ''; }, { once: true });
