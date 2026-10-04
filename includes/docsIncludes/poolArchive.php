@@ -32,6 +32,9 @@
 //                The date a document will be deleted is shown in the archive (poolArchiveDeleteDate()).
 // 20261004 CL/SZ SD-727 An archived document that arrives again (same content, any name) is restored instead of staying hidden; the copy is still dropped (MB-42).
 //                Folder sync and REST API call poolArchiveRestoreOnArrival(); document.restored goes to audit_log with kilde 'system' and reason "received again".
+// 20261004 CL/SZ SD-727 kilde as the roles branch uses it (SD-724): 'cron' for the folder sync's purge and restore, 'api' for a restore through the REST API.
+//                detaljer goes in as audit_log_details_json(), since audit_log_write() takes strings.
+// 20261004 CL/SZ SD-717 audit_log_write() takes strings (SD-724, the roles branch's signature): detaljer goes in as audit_log_details_json().
 
 require_once __DIR__ . '/../auditLog.php';
 
@@ -135,7 +138,7 @@ if (!function_exists('poolArchiveSet')) {
 				continue;
 			}
 			$entry = poolArchiveAuditEntry($row, $archive, $archive ? (string)$check['archived'] : '', $userId === null ? null : (int)$userId);
-			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], $entry['detaljer'], 'ui');
+			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], audit_log_details_json($entry['detaljer']), 'ui');
 			$changed[] = $filename;
 		}
 		return array('changed' => $changed, 'skipped' => $skipped);
@@ -262,7 +265,7 @@ if (!function_exists('poolArchivePurge')) {
 			$now = db_fetch_array(db_select("SELECT CURRENT_TIMESTAMP AS now", __FILE__ . " linje " . __LINE__));
 			$deleted = $now ? substr((string)$now['now'], 0, 19) : date('Y-m-d H:i:s');
 			$entry = poolArchivePurgeEntry($row, $deleted);
-			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], $entry['detaljer'], 'system');
+			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], audit_log_details_json($entry['detaljer']), 'cron');
 			poolArchiveLogLine("Archive purge: deleted $filename (pool_files id $id, archived {$row['archived']}, deleted $deleted, after " . poolArchiveRetentionMonths() . " months in the archive)");
 			$purged[] = $filename;
 		}
@@ -358,7 +361,7 @@ if (!function_exists('poolArchiveRestoreOnArrival')) {
 		}
 		if (poolArchiveAuditReady()) {
 			$entry = poolArchiveArrivalEntry($row, $arrivedAs, $via);
-			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], $entry['detaljer'], 'system');
+			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], audit_log_details_json($entry['detaljer']), $via === 'api' ? 'api' : 'cron');
 		}
 		poolArchiveLogLine("Archive: $filename restored, the same document arrived again as $arrivedAs ($via); the copy is not kept", $company);
 		// The pool page's background sync reports this as a change, so the list is fetched again (poolFolderSync())
