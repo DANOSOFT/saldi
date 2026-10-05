@@ -115,8 +115,14 @@ final class SettlementMailCharsetTest extends TestCase
                 __DIR__ . '/../../../vendor/autoload.php',
                 __DIR__ . '/../../../../vendor/autoload.php',
             ) as $autoload) {
-                if (is_file($autoload)) {
-                    require_once $autoload;
+                if (!is_file($autoload)) {
+                    continue;
+                }
+                require_once $autoload;
+                // Keep going rather than stopping at the first autoloader that merely
+                // exists: the root composer.json pulls in phpunit and php_codesniffer but
+                // not PHPMailer, so vendor/autoload.php can load without providing it.
+                if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
                     break;
                 }
             }
