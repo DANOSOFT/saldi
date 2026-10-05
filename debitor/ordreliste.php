@@ -70,6 +70,7 @@
 // 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
 // 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
+// 20261005 LOE SD-687 Department names are escaped where the filter options are built.
 
 @session_start();
 $s_id = session_id();
@@ -1682,7 +1683,7 @@ $afd_options = array();
 while ($r = db_fetch_array($q)) {
     $afd_options[] = array(
         "optionKey" => "afd_" . $r['kodenr'],
-        "name" => $r['beskrivelse'],
+        "name" => htmlspecialchars($r['beskrivelse'], ENT_QUOTES, 'UTF-8'),
         "checked" => "",
         "sqlOn" => "o.afd = " . (int)$r['kodenr'],
         "sqlOff" => "",

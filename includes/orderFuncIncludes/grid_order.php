@@ -14,6 +14,7 @@
 // 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
 // 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
 // 20261005 LOE SD-687: a page may pass noRowsText, and an empty result then says so.
+// 20261005 LOE SD-687: the empty-results row stays out of the CSV/PDF exports, and saving a filter starts at page 1.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -1437,11 +1438,13 @@ HTML;
     // table and a footer reading 0. The message is red and links to this grid's filter panel, so an
     // empty result leads straight to the place where the narrowing can be changed. Without a text
     // nothing is printed, so other pages are unaffected.
-    if (!$rows && $noRowsText !== '') {
+    // Only claim nothing matches when the count really is zero: an empty page can still have rows
+    // behind it if a saved offset points past the end (the filter save resets that offset).
+    if (!$rows && $noRowsText !== '' && (int)$totalItems === 0) {
         $noRowsQuery = $_GET;
         $noRowsQuery['menu'][$id] = 'filtre';
         $noRowsHref = basename($_SERVER['SCRIPT_NAME']) . '?' . http_build_query($noRowsQuery);
-        echo "<tr><td colspan='$columnCount' style='text-align:center;font-weight:bold;padding:12px;'>"
+        echo "<tr class='no-rows-row'><td colspan='$columnCount' style='text-align:center;font-weight:bold;padding:12px;'>"
             . "<a href='" . htmlspecialchars($noRowsHref, ENT_QUOTES, 'UTF-8') . "' style='color:#cc0000;'>" . $noRowsText . "</a>"
             . "</td></tr>";
     }
@@ -2276,7 +2279,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id = '".db_escape_string($id)."'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json', \"offset\" = 0 WHERE user_id = $bruger_id AND tabel_id = '".db_escape_string($id)."'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -2684,10 +2687,10 @@ function render_dropdown_script($id, $query) {
                     }
                 }
 
-                // Remove filler rows
-                const fillerRows = cleanTable.getElementsByClassName('filler-row');
-                while (fillerRows[0]) {
-                    fillerRows[0].parentNode.removeChild(fillerRows[0]);
+                // Remove filler rows and the empty-results row
+                const removableRows = cleanTable.querySelectorAll('.filler-row, .no-rows-row');
+                for (let ri = removableRows.length - 1; ri >= 0; ri--) {
+                    removableRows[ri].parentNode.removeChild(removableRows[ri]);
                 }
 
                
@@ -2751,10 +2754,10 @@ function render_dropdown_script($id, $query) {
                     }
                 }
 
-                var paras = printableTable.getElementsByClassName('filler-row');
+                var paras = printableTable.querySelectorAll('.filler-row, .no-rows-row');
 
-                while(paras[0]) {
-                    paras[0].parentNode.removeChild(paras[0]);
+                for (var pi = paras.length - 1; pi >= 0; pi--) {
+                    paras[pi].parentNode.removeChild(paras[pi]);
                 }
 
 
