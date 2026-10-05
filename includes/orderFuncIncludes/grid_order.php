@@ -13,6 +13,7 @@
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
 // 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
+// 20261005 LOE SD-687: a page may pass noRowsText, and an empty result then says so.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -590,7 +591,8 @@ function create_datagrid($id, $grid_data) {
             $totalItems,
             $totalRows,
             $offset,
-            $menu
+            $menu,
+            if_isset($grid_data, '', 'noRowsText')
         );
         log_grid_performance("Grid rendering", $render_start);
 
@@ -1385,7 +1387,7 @@ function calculate_total_width($columns) {
  *
  * @return void Outputs the full HTML structure of the datagrid, including a table and necessary form fields for interaction.
  */
-function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
+function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu, $noRowsText = '') {
     // Start table wrapper and form
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
@@ -1431,6 +1433,18 @@ HTML;
     // This pushes the footer to the bottom of the container
     // ==========================================================================
     $columnCount = count($columns) + 1; // +1 for the extra dropdown column in header
+    // SD-687: when a page hands in noRowsText, an empty result says so instead of leaving a blank
+    // table and a footer reading 0. The message is red and links to this grid's filter panel, so an
+    // empty result leads straight to the place where the narrowing can be changed. Without a text
+    // nothing is printed, so other pages are unaffected.
+    if (!$rows && $noRowsText !== '') {
+        $noRowsQuery = $_GET;
+        $noRowsQuery['menu'][$id] = 'filtre';
+        $noRowsHref = basename($_SERVER['SCRIPT_NAME']) . '?' . http_build_query($noRowsQuery);
+        echo "<tr><td colspan='$columnCount' style='text-align:center;font-weight:bold;padding:12px;'>"
+            . "<a href='" . htmlspecialchars($noRowsHref, ENT_QUOTES, 'UTF-8') . "' style='color:#cc0000;'>" . $noRowsText . "</a>"
+            . "</td></tr>";
+    }
     echo "<tr class='filler-row'>";
     echo "<td colspan='$columnCount'></td>";
     echo "</tr>";
