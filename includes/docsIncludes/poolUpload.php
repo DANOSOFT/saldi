@@ -23,6 +23,8 @@
 //                 findtekst() (5251) instead of a literal.
 // 20261005 LOE SST-855 A field the extraction returned as null is treated as unread, so the file's
 //                 own name and date are used again instead of being stored empty.
+// 20261005 LOE SST-855 The upload lock sits in the tenant folder next to .pool-directories.lock, not
+//                 inside the pool, so the REST attachment listing can neither show nor delete it.
 
 require_once __DIR__ . '/../std_func.php';
 require_once __DIR__ . '/FileReservation.php';
@@ -88,7 +90,13 @@ function poolUploadLock($poolDir) {
 			fclose($directoryLock);
 		}
 	}
-	$lock = fopen($poolDir . '/.uploads.lock', 'c');
+	// The lock lives in the tenant folder, beside .pool-directories.lock, and never inside the pool
+	// itself: the pool folder is what the REST attachment endpoint lists and allows to be deleted, so
+	// a lock file in there would be listed as an attachment and could be removed by a client - which
+	// would hand the next process a fresh file, and therefore a lock another process is not holding.
+	// mkdir below creates the tenant folder as well, so it exists by the time the lock is opened.
+	$lockDir = dirname($poolDir);
+	$lock = fopen($lockDir . '/.uploads.lock', 'c');
 	if ($lock === false) {
 		throw new RuntimeException('Kunne ikke låse puljen til upload.');
 	}

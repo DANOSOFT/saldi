@@ -15,6 +15,8 @@
 //                 pool_files.vendor_*, same as extractInvoiceHandler.php's save action, so app
 //                 uploads get a kreditor suggestion too. Columns added to the fallback schema.
 // 20261004 LOE Share the pool ingestion lock and retain original-upload hashes before conversion.
+// 20261005 LOE SST-855 getAllFiles() skips dot-files, so the pool's lock file can never be listed as
+//                 an attachment or reached by its name through this endpoint.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolPaths.php";
@@ -212,11 +214,15 @@ class AttachmentModel
         $directory = scandir($uploadDir);
         
         foreach ($directory as $file) {
-            if ($file !== '.' && $file !== '..' && is_file($uploadDir . $file)) {
-                $attachment = new AttachmentModel($file);
-                if ($attachment->getFilename()) {
-                    $files[] = $attachment;
-                }
+            // SST-855: dot-files are never attachments. The pool holds lock and housekeeping files
+            // (.uploads.lock used to live in there), and listing one would also expose a name the
+            // delete path could act on.
+            if ($file[0] === '.' || !is_file($uploadDir . $file)) {
+                continue;
+            }
+            $attachment = new AttachmentModel($file);
+            if ($attachment->getFilename()) {
+                $files[] = $attachment;
             }
         }
         
