@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261005 CDX/PHR Add an authenticated, resumable total-stock update page for connected shops.
+// 20261005 CDX/PHR Allow retrying an individual failed item/shop without advancing the queue.
 /**
  * Injected by connect.php and online.php, included below:
  * @var string $db
@@ -88,7 +89,7 @@ try {
 				if ($job['retry']) {
 					$job['status'] = 'paused';
 				}
-			} elseif ($action === 'batch' && $job['status'] === 'paused') {
+			} elseif (($action === 'batch' && $job['status'] === 'paused') || $action === 'retry_one') {
 				$selected = array();
 				foreach ($job['shops'] as $slot) {
 					if (!isset($endpoints[$slot])) {
@@ -96,9 +97,13 @@ try {
 					}
 					$selected[$slot] = $endpoints[$slot];
 				}
-				$job = shopStockBatch($job, shopStockCatalog($job['year']), $selected, 'shopStockSend', function ($state) use ($path) {
-					shopStockSave($path, $state);
-				});
+				if ($action === 'retry_one') {
+					$job = shopStockRetryOne($job, ifset($_POST, 'failure', ''), shopStockCatalog($job['year']), $selected, 'shopStockSend');
+				} else {
+					$job = shopStockBatch($job, shopStockCatalog($job['year']), $selected, 'shopStockSend', function ($state) use ($path) {
+						shopStockSave($path, $state);
+					});
+				}
 			} elseif ($action !== 'batch' || $job['status'] !== 'done') {
 				throw new ShopStockException('Handlingen er ikke tilgængelig for denne kørsel.');
 			}

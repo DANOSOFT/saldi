@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261005 CDX/PHR Add resumable total-stock synchronization without price or warehouse updates.
+// 20261005 CDX/PHR Allow retrying an individual failed item/shop without advancing the queue.
 
 class ShopStockException extends RuntimeException {}
 
@@ -303,6 +304,33 @@ function shopStockBatch(array $job, array $catalog, array $endpoints, callable $
 		$job['updated'] = date('c');
 		$job['status'] = ($job['cursor'] === count($job['items']) && !$job['retry']) ? 'done' : 'paused';
 		$save($job);
+	}
+	return $job;
+}
+
+/**
+ * Retry one recorded failure without advancing the main queue or other retries.
+ *
+ * @return array Updated persistent job state.
+ */
+function shopStockRetryOne(array $job, $key, array $catalog, array $endpoints, callable $sender)
+{
+	if (!is_string($key) || !isset($job['failed'][$key]) || !in_array($job['status'], array('paused', 'done'), true)) {
+		throw new ShopStockException('Fejlen er ikke længere tilgængelig. Genindlæs siden.');
+	}
+	$failure = $job['failed'][$key];
+	$single = $job;
+	$single['items'] = array();
+	$single['cursor'] = 0;
+	$single['retry'] = array(array($failure['id'], $failure['variant'], $failure['shop']));
+	$single = shopStockBatch($single, $catalog, $endpoints, $sender, function ($state) {});
+	foreach (array('ok', 'failed', 'last', 'updated') as $field) {
+		$job[$field] = $single[$field];
+	}
+	if (!isset($job['failed'][$key])) {
+		$job['retry'] = array_values(array_filter($job['retry'], function ($task) use ($failure) {
+			return $task !== array($failure['id'], $failure['variant'], $failure['shop']);
+		}));
 	}
 	return $job;
 }

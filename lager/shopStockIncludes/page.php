@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261005 CDX/PHR Show progress, pause/resume and per-shop retries for total-stock updates.
+// 20261005 CDX/PHR Allow retrying an individual failed item/shop without advancing the queue.
 /**
  * Supplied by ../webshopStock.php:
  * @var array $endpoints
@@ -31,7 +32,7 @@ body{font-family:Arial,sans-serif;background:#f5f6f8;color:#172b45;margin:0}.sho
 <div><button id="start" class="primary">Start ny opdatering</button><button id="resume">Fortsæt</button><button id="pause">Pause</button><button id="retry">Prøv fejl igen</button><button id="cancel">Afslut kørsel</button></div>
 <progress id="progress" value="0" max="1"></progress>
 <p id="summary" role="status" aria-live="polite"></p><p id="last"></p><p id="message" class="error" role="alert"></p>
-<section id="errors" hidden><h2>Fejl</h2><p>De første 100 fejl vises. <a href="webshopStock.php?errors=1">Hent alle fejl som CSV</a></p><table><thead><tr><th>Vare</th><th>Webshop</th><th>Fejl</th></tr></thead><tbody id="errorRows"></tbody></table></section>
+<section id="errors" hidden><h2>Fejl</h2><p>De første 100 fejl vises. <a href="webshopStock.php?errors=1">Hent alle fejl som CSV</a></p><table><thead><tr><th>Vare</th><th>Webshop</th><th>Fejl</th><th>Handling</th></tr></thead><tbody id="errorRows"></tbody></table></section>
 </main>
 <script>
 'use strict';
@@ -61,11 +62,18 @@ function render() {
         for (const text of [error.item, error.shop, error.error]) {
             const cell = document.createElement('td'); cell.textContent = text; row.appendChild(cell);
         }
+        const cell = document.createElement('td');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'Prøv igen';
+        button.disabled = busy || running || !['paused', 'done'].includes(job.status);
+        button.addEventListener('click', () => action('retry_one', false, `${error.id}:${error.variant}:${error.shop}`));
+        cell.appendChild(button); row.appendChild(cell);
         el('errorRows').appendChild(row);
     }
 }
-async function request(action) {
-    const body = new URLSearchParams({action, csrf, job: job ? job.id : '', api: '1'});
+async function request(action, failure = '') {
+    const body = new URLSearchParams({action, csrf, job: job ? job.id : '', api: '1', failure});
     if (action === 'start') for (const input of document.querySelectorAll('input[name=shop]:checked')) body.append('shops[]', input.value);
     const response = await fetch(window.location.pathname, {method:'POST', credentials:'same-origin', body, headers:{Accept:'application/json'}});
     let result;
@@ -84,10 +92,10 @@ async function run() {
     }
     running = false; render();
 }
-async function action(name, continueRun) {
+async function action(name, continueRun, failure = '') {
     if (busy || running) return;
     busy = true; el('message').textContent = ''; render();
-    try { await request(name); busy = false; if (continueRun) await run(); }
+    try { await request(name, failure); busy = false; if (continueRun) await run(); }
     catch (error) { el('message').textContent = error.message; }
     finally { busy = false; render(); }
 }

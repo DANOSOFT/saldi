@@ -56,6 +56,21 @@ $job = shopStockBatch($job,$catalog,$endpoints,$sender,$save);
 checkShopStock($job['cursor'] === 5 && count($saved) === 5, 'Batches are bounded and persist progress after every item');
 $job = shopStockBatch($job,$catalog,$endpoints,$sender,$save);
 checkShopStock($job['status'] === 'done' && $job['ok'] === 6 && count($job['failed']) === 6, 'Endpoint failures are counted separately from successes');
+$paused = $job;
+$paused['status'] = 'paused';
+$paused['cursor'] = 3;
+$failureKey = array_key_first($paused['failed']);
+$failure = $paused['failed'][$failureKey];
+$paused['retry'] = array(array($failure['id'], $failure['variant'], $failure['shop']), array(2,0,2));
+$singleCalls = array();
+$singleSender = function ($targets, $payload) use (&$singleCalls) { $singleCalls[] = array_keys($targets); return array(2=>''); };
+$retried = shopStockRetryOne($paused, $failureKey, $catalog, $endpoints, $singleSender);
+checkShopStock($singleCalls === array(array(2)) && !isset($retried['failed'][$failureKey]) && count($retried['failed']) === 5, 'Single retry sends only the selected failure and preserves other failures');
+checkShopStock($retried['cursor'] === 3 && $retried['status'] === 'paused' && $retried['items'] === $paused['items'] && $retried['retry'] === array(array(2,0,2)), 'Single retry preserves the main queue and removes only its successful pending retry');
+$stillFailed = shopStockRetryOne($paused, $failureKey, $catalog, $endpoints, function ($targets, $payload) { return array(2=>'HTTP 503.'); });
+checkShopStock($stillFailed['failed'] === $paused['failed'] && $stillFailed['ok'] === $paused['ok'] && $stillFailed['retry'] === $paused['retry'], 'An unsuccessful single retry remains available without changing progress');
+try { shopStockRetryOne($retried, $failureKey, $catalog, $endpoints, $singleSender); throw new LogicException('Expected stale failure rejection'); }
+catch (ShopStockException $e) { checkShopStock(count($singleCalls) === 1, 'A stale retry cannot resend an already successful update'); }
 $job['retry'] = array_map(function ($r) { return array($r['id'],$r['variant'],$r['shop']); },array_values($job['failed']));
 $job['status']='paused';
 $calls=array();
