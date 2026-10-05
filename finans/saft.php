@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/saft.php --- patch 4.1.1 --- 2026.06.15 ---
+// --- finans/saft.php --- ver 5.0.0 --- 2026.10.05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20240128 PHR Changed "AND transdate <= '$startDate'" to "AND transdate < '$startDate'" as opening balance 
@@ -29,6 +29,8 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
 // 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
 // 20261002 NTR - Added null coalescing operator to $PostalCode to avoid undefined index notice when postnr is null.
+// 20261005 CL/NTR Moved countryCode() and regionNumber() to includes/ISO.php. EU countries now get their
+//                 own country code instead of DK.
 
 @session_start();
 $s_id = session_id();
@@ -41,6 +43,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include_once '../includes/topline_settings.php';
+include_once __DIR__ . '/../includes/ISO.php';
 
 global $db;
 global $bruger_id;
@@ -181,89 +184,6 @@ function defaultCurrency(string $NameOfCountry)
 			$currencyCode = "DKK";
 	}
 	return $currencyCode;
-}
-
-/**
- * Function that will convert countryname to countrycode
- * @param string $NameOfCountry The name of the country
- * @return string Returns the countrycode
- */
-function countryCode(string $NameOfCountry)
-{
-	$countryCode = '';
-	switch ($NameOfCountry) {
-		case "Denmark":
-			$countryCode = "DK";
-			break;
-		case "Norway":
-			$countryCode = "NO";
-			break;
-		case "Switzerland":
-			$countryCode = "CH";
-			break;
-		default:
-			$countryCode = "DK";
-	}
-	return $countryCode;
-}
-
-/**
- * Function that convert cipcode to ISO 3166-2 codes for denmark
- * If other countryname, regionnumber return 'NA'
- * @param int $cipcode Danish cipcode number
- * @param string $NameOfCountry Countryname
- * @return string Return ISO 3166-2 region code
- */
-function regionNumber(int $cipcode, string $NameOfCountry)
-{
-	$region = '';
-	if ($NameOfCountry != 'Denmark') {
-		$region = '';
-	} else {
-		$HovedstadenRange1 = range(1, 2635);
-		$HovedstadenRange2 = range(2650, 2665);
-		$HovedstadenRange3 = range(2700, 3670);
-		$HovedstadenRange4 = range(3700, 3790);
-		$HovedstadenRange5 = range(4050, 4050);
-		$SjaellandRange1 = range(2640, 2644);
-		$SjaellandRange2 = range(2670, 2690);
-		$SjaellandRange3 = range(4000, 4040);
-		$SjaellandRange4 = range(4060, 4990);
-		$SyddanmarkRange1 = range(5000, 6870);
-		$SyddanmarkRange2 = range(7000, 7120);
-		$SyddanmarkRange3 = range(7173, 7260);
-		$SyddanmarkRange4 = range(7300, 7323);
-		$MidtjyllandRange1 = range(6880, 6990);
-		$MidtjyllandRange2 = range(7130, 7171);
-		$MidtjyllandRange3 = range(7270, 7280);
-		$MidtjyllandRange4 = range(7330, 7680);
-		$MidtjyllandRange5 = range(7790, 7884);
-		$MidtjyllandRange6 = range(8000, 8990);
-		$NordjyllandRange1 = range(7700, 7770);
-		$NordjyllandRange2 = range(7900, 7990);
-		$NordjyllandRange3 = range(9000, 9990);
-
-		switch (true) {
-			case(in_array($cipcode, $HovedstadenRange1) || in_array($cipcode, $HovedstadenRange2) || in_array($cipcode, $HovedstadenRange3) || in_array($cipcode, $HovedstadenRange4) || in_array($cipcode, $HovedstadenRange5)):
-				$region = 'DK-84';
-				break;
-			case(in_array($cipcode, $SjaellandRange1) || in_array($cipcode, $SjaellandRange2) || in_array($cipcode, $SjaellandRange3) || in_array($cipcode, $SjaellandRange4)):
-				$region = 'DK-85';
-				break;
-			case(in_array($cipcode, $SyddanmarkRange1) || in_array($cipcode, $SyddanmarkRange2) || in_array($cipcode, $SyddanmarkRange3) || in_array($cipcode, $SyddanmarkRange4)):
-				$region = 'DK-83';
-				break;
-			case(in_array($cipcode, $MidtjyllandRange1) || in_array($cipcode, $MidtjyllandRange2) || in_array($cipcode, $MidtjyllandRange3) || in_array($cipcode, $MidtjyllandRange4) || in_array($cipcode, $MidtjyllandRange5) || in_array($cipcode, $MidtjyllandRange6)):
-				$region = 'DK-82';
-				break;
-			case(in_array($cipcode, $NordjyllandRange1) || in_array($cipcode, $NordjyllandRange2) || in_array($cipcode, $NordjyllandRange3)):
-				$region = 'DK-81';
-				break;
-			default:
-				$region = 'NA';
-		}
-	}
-	return $region;
 }
 
 /**
@@ -525,8 +445,8 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$CountryName = $r['land'];
 	if (!$CountryName)
 		$CountryName = 'Denmark';
-	$Region = regionNumber($PostalCode, $CountryName);
-	$Country = countryCode($CountryName);
+	$Region = ISO::regionNumber((int) $PostalCode, $CountryName);
+	$Country = ISO::countryCode($CountryName) ?? 'DK';
 	$DefaultCurrencyCode = defaultCurrency($CountryName);
 	$Contact = $r['kontakt'];
 	$PhoneNumber = $r['tlf'];
