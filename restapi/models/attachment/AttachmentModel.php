@@ -17,6 +17,8 @@
 // 20261004 LOE Share the pool ingestion lock and retain original-upload hashes before conversion.
 // 20261005 LOE SST-855 getAllFiles() skips dot-files, so the pool's lock file can never be listed as
 //                 an attachment or reached by its name through this endpoint.
+// 20261005 LOE SST-855 loadFromFilename() confines the request-supplied name to the pool folder, so a
+//                 traversal name can no longer load or unlink the lock in the tenant folder above it.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolPaths.php";
@@ -137,8 +139,16 @@ class AttachmentModel
     private function loadFromFilename($filename)
     {
         $uploadDir = self::getUploadDir();
-        $filepath = $uploadDir . $filename;
-        
+        // SST-855 review: the name arrives from the request ($_GET['file'], via the endpoint), so it is
+        // confined to the pool folder before anything is loaded or unloaded. Without this, the name
+        // "../.uploads.lock" resolves one level up and delete() unlinks the file that serialises pool
+        // uploads - or any other file in the tenant folder - and a later upload then locks a new file.
+        $poolDir = realpath($uploadDir);
+        $filepath = realpath($uploadDir . $filename);
+        if ($poolDir === false || $filepath === false || dirname($filepath) !== $poolDir || !is_file($filepath)) {
+            return false;
+        }
+
         if (file_exists($filepath)) {
             $this->filename = $filename;
             $this->filepath = $filepath;
