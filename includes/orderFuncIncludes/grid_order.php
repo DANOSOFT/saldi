@@ -1445,7 +1445,7 @@ HTML;
         $noRowsQuery['menu'][$id] = 'filtre';
         $noRowsHref = basename($_SERVER['SCRIPT_NAME']) . '?' . http_build_query($noRowsQuery);
         echo "<tr class='no-rows-row'><td colspan='$columnCount' style='text-align:center;font-weight:bold;padding:12px;'>"
-            . "<a href='" . htmlspecialchars($noRowsHref, ENT_QUOTES, 'UTF-8') . "' style='color:#cc0000;'>" . $noRowsText . "</a>"
+            . "<a href='" . htmlspecialchars($noRowsHref, ENT_QUOTES, 'UTF-8') . "' style='color:#cc0000;'>" . htmlspecialchars($noRowsText, ENT_QUOTES, 'UTF-8') . "</a>"
             . "</td></tr>";
     }
     echo "<tr class='filler-row'>";
