@@ -231,7 +231,7 @@ function poolUploadRegisterFile($path, $sourceHash = '', $extracted = null) {
  */
 function poolUploadDuplicateMessage($filename, $existing) {
 	global $sprog_id;
-	return sprintf(findtekst('5251|%s ligger allerede i puljen som %s', $sprog_id), $filename, $existing);
+	return sprintf(findtekst('5257|%s ligger allerede i puljen som %s', $sprog_id), $filename, $existing);
 }
 
 /**
@@ -270,7 +270,7 @@ function poolUploadFile(array $upload, $poolDir, $autoExtract, $renameFromInvoic
 		return poolUploadIngest($staged, $filename, $poolDir, $autoExtract, $renameFromInvoice);
 	} catch (Throwable $error) {
 		error_log('Pool upload failed: ' . $error->getMessage());
-		return array('success' => false, 'message' => findtekst('5252|Bilaget kunne ikke uploades. Prøv igen.', $sprog_id));
+		return array('success' => false, 'message' => findtekst('5258|Bilaget kunne ikke uploades. Prøv igen.', $sprog_id));
 	} finally {
 		if ($stageDir !== null) {
 			foreach ((array)glob($stageDir . '/*') as $leftover) {
@@ -404,7 +404,7 @@ function poolUploadIngest($sourcePath, $filename, $poolDir, $autoExtract, $renam
 			'message' => 'File uploaded successfully');
 	} catch (Throwable $error) {
 		error_log('Pool upload failed: ' . $error->getMessage());
-		return array('success' => false, 'message' => findtekst('5252|Bilaget kunne ikke uploades. Prøv igen.', $sprog_id));
+		return array('success' => false, 'message' => findtekst('5258|Bilaget kunne ikke uploades. Prøv igen.', $sprog_id));
 	} finally {
 		if (!$registered && $reservation !== null) {
 			$reservation->discard();
