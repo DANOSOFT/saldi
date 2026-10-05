@@ -38,8 +38,9 @@ if (!$connection) {
 	fwrite(STDERR, "SKIP: tenant database '$tenantDb' is not reachable on this machine.\n");
 	exit(0);
 }
-if (!db_fetch_array(db_select("SELECT id FROM pool_files LIMIT 1", __FILE__ . ' line ' . __LINE__))
-	&& !db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'", __FILE__ . ' line ' . __LINE__))) {
+// Ask information_schema first: querying pool_files when the table does not exist fails inside
+// db_select(), so the probe below never ran and the suite errored instead of skipping.
+if (!db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'", __FILE__ . ' line ' . __LINE__))) {
 	fwrite(STDERR, "SKIP: tenant database '$tenantDb' has no pool_files table.\n");
 	exit(0);
 }
@@ -299,6 +300,26 @@ foreach (poolTestFiles($poolDir) as $file) {
 	}
 }
 poolTestCheck(count($concurrentFiles) === 1, 'simultaneous uploads leave exactly one file in the pool');
+
+// 10. An extraction that returns a key as null means "nothing was read", and has to fall back the way a
+//     missing key does. ifset() returns that null instead of its default - the key does exist - so the
+//     row used to get a blank subject and a blank date, which the pool list then showed.
+$nothingRead = array('vendor' => null, 'date' => null, 'amount' => null,
+	'invoiceNumber' => null, 'description' => null, 'currency' => null);
+poolTestCheck(poolUploadExtractedValue($nothingRead, 'vendor', 'FALLBACK') === 'FALLBACK',
+	'a null extracted field falls back to the default');
+poolTestCheck(poolUploadExtractedValue(array('amount' => '0'), 'amount', '') === '0',
+	'a zero amount is a value, not an absence');
+$nullFile = 'pooltest_nullfields.pdf';
+file_put_contents($poolDir . '/' . $nullFile, file_get_contents($pdfB));
+poolUploadRegisterFile($poolDir . '/' . $nullFile, '', $nothingRead);
+$created[] = $nullFile;
+$nullRows = poolTestRows(array($nullFile));
+$nullRow = isset($nullRows[$nullFile]) ? $nullRows[$nullFile] : array();
+poolTestCheck(ifset($nullRow, 'subject', '') === pathinfo($nullFile, PATHINFO_FILENAME),
+	'a row whose extraction read nothing keeps the file name as its subject');
+poolTestCheck(ifset($nullRow, 'file_date', '') === normalizeDateFormat(date('Y-m-d', filemtime($poolDir . '/' . $nullFile))),
+	'and keeps the file date instead of storing an empty one');
 
 // ---- cleanup ---------------------------------------------------------------------------
 foreach (array_unique($created) as $name) {

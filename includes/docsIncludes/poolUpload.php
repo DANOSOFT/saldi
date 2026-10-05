@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/poolUpload.php --- ver 5.0.0 --- 2026-10-04 ---
+// --- includes/docsIncludes/poolUpload.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,6 +21,8 @@
 // 20261004 LOE Hold the pool lock only around the shared pool state, so an AI round-trip or a
 //                 conversion cannot block other uploads, and read the duplicate message from
 //                 findtekst() (5251) instead of a literal.
+// 20261005 LOE SST-855 A field the extraction returned as null is treated as unread, so the file's
+//                 own name and date are used again instead of being stored empty.
 
 require_once __DIR__ . '/../std_func.php';
 require_once __DIR__ . '/FileReservation.php';
@@ -151,6 +153,29 @@ function poolUploadFindDuplicate($poolDir, $hash) {
 }
 
 /**
+ * An extracted field's value, or the fallback when the extraction returned nothing for it.
+ *
+ * extractInvoiceData() returns every key it knows, with null for a field it could not read, and
+ * ifset() returns that null rather than its default because the key does exist. Both mean "nothing
+ * was read", so the fallback - the file's own name or date - has to apply to them as well.
+ *
+ * @param array $data Extracted metadata.
+ * @param string $key Field name.
+ * @param mixed $fallback Value to use when the field is missing, null or empty.
+ * @return mixed The extracted value, or the fallback.
+ */
+function poolUploadExtractedValue($data, $key, $fallback) {
+	if (!is_array($data) || !array_key_exists($key, $data)) {
+		return $fallback;
+	}
+	$value = $data[$key];
+	if ($value === null || (is_scalar($value) && trim((string)$value) === '')) {
+		return $fallback;
+	}
+	return $value;
+}
+
+/**
  * Insert a new pool row with its hashes; existing metadata remains untouched.
  *
  * @param string $path Saved document's absolute or relative path.
@@ -166,13 +191,13 @@ function poolUploadRegisterFile($path, $sourceHash = '', $extracted = null) {
 		throw new RuntimeException('Kunne ikke beregne bilagets indholdshash.');
 	}
 	$data = is_array($extracted) ? $extracted : array();
-	$amount = (string)(ifset($data, 'amount', ''));
+	$amount = (string) poolUploadExtractedValue($data, 'amount', '');
 	$normAmount = normalizePoolAmount($amount);
 	$normSql = $normAmount === null ? 'NULL' : db_escape_string((string)$normAmount);
-	$date = normalizeDateFormat((string)(ifset($data, 'date', date('Y-m-d', filemtime($path)))));
-	$currency = normalizePoolCurrency(ifset($data, 'currency', ''));
-	$values = array($filename, (string)(ifset($data, 'vendor', pathinfo($filename, PATHINFO_FILENAME))), '', $amount,
-		$date, (string)(ifset($data, 'invoiceNumber', '')), (string)(ifset($data, 'description', '')),
+	$date = normalizeDateFormat((string) poolUploadExtractedValue($data, 'date', date('Y-m-d', filemtime($path))));
+	$currency = normalizePoolCurrency(poolUploadExtractedValue($data, 'currency', ''));
+	$values = array($filename, (string) poolUploadExtractedValue($data, 'vendor', pathinfo($filename, PATHINFO_FILENAME)), '', $amount,
+		$date, (string) poolUploadExtractedValue($data, 'invoiceNumber', ''), (string) poolUploadExtractedValue($data, 'description', ''),
 		$currency === null ? '' : $currency, $contentHash);
 	$values = array_map(function ($value) { return "'" . db_escape_string($value) . "'"; }, $values);
 	$sourceSql = $sourceHash === '' ? 'NULL' : "'" . db_escape_string($sourceHash) . "'";
