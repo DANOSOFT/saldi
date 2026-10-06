@@ -165,6 +165,7 @@
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
+// 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -5806,7 +5807,9 @@ HTML;
         // SD-716: nothing typed in the new line, so the document opens with its own data (docPoolSaveNext.js)
         var fresh = typeof window.poolFreshDocumentUrl === 'function' ? window.poolFreshDocumentUrl(href) : null;
         if (fresh) {
-            if (typeof window.poolSwitch === 'function') window.poolSwitch(fresh); else window.location.href = fresh;
+            // Still the same journal line: its date and amount are left out of the URL so the document's own data
+            // fills the fields, but the list keeps matching against them (else the match groups go and the list jumps)
+            if (typeof window.poolSwitch === 'function') window.poolSwitch(fresh, { keepLineContext: true }); else window.location.href = fresh;
             return;
         }
         var url = new URL(href, window.location.href);
