@@ -23,6 +23,8 @@
 //                  connect.php but never betweenUpdates.php) and the pulje-folder sync both read and
 //                  write it, so an installation that only ever receives API traffic would otherwise
 //                  hit "column content_sha256 does not exist" on its first upload.
+// 20261005 CL/SZ SD-727 poolContentHashStore() and poolContentHashBackfill(): a row an upload's extraction created had no hash, so the
+//                  same bilag arriving again was never recognised (MB-42) and an archived one never restored.
 
 if (!function_exists('poolContentHashColumnExists')) {
 	/**
@@ -131,5 +133,56 @@ if (!function_exists('poolContentHashForFile')) {
 		}
 		$hash = @hash_file('sha256', $path);
 		return $hash ? $hash : '';
+	}
+}
+
+if (!function_exists('poolContentHashStore')) {
+	/**
+	 * Gives a pool row its content hash when it has none (a row created by an upload's extraction, not by the folder sync).
+	 *
+	 * @param string $filename Pool file name (the row's filename).
+	 * @param string $path     Full path of the file.
+	 * @return void
+	 */
+	function poolContentHashStore($filename, $path)
+	{
+		if (!poolContentHashColumnExists()) {
+			return;
+		}
+		$hash = poolContentHashForFile($path);
+		if ($hash === '') {
+			return;
+		}
+		db_modify("UPDATE pool_files SET content_sha256 = '" . db_escape_string($hash) . "' WHERE filename = '" . db_escape_string((string)$filename) . "' AND (content_sha256 IS NULL OR content_sha256 = '')", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+if (!function_exists('poolContentHashBackfill')) {
+	/**
+	 * Hashes pool rows that have no content hash yet, a batch at a time, so rows from before poolContentHashStore() are recognised too.
+	 *
+	 * @param string $puljePath The company's pool folder.
+	 * @param int    $limit     Rows per call.
+	 * @return int Rows hashed.
+	 */
+	function poolContentHashBackfill($puljePath, $limit = 200)
+	{
+		if (!poolContentHashColumnExists()) {
+			return 0;
+		}
+		$names = array();
+		$q = db_select("SELECT filename FROM pool_files WHERE content_sha256 IS NULL OR content_sha256 = '' ORDER BY id LIMIT " . (int)$limit, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$names[] = (string)$r['filename'];
+		}
+		$done = 0;
+		foreach ($names as $name) {
+			if (basename($name) !== $name || !is_file("$puljePath/$name")) {
+				continue;
+			}
+			poolContentHashStore($name, "$puljePath/$name");
+			$done++;
+		}
+		return $done;
 	}
 }

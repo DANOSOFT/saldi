@@ -34,6 +34,7 @@
 //                Folder sync and REST API call poolArchiveRestoreOnArrival(); document.restored goes to audit_log with kilde 'system' and reason "received again".
 // 20261004 CL/SZ SD-727 kilde as the roles branch uses it (SD-724): 'cron' for the folder sync's purge and restore, 'api' for a restore through the REST API.
 //                detaljer goes in as audit_log_details_json(), since audit_log_write() takes strings.
+// 20261005 CL/SZ SD-727 A restore from the user's own upload in the pool ($via 'upload') is written with kilde 'ui'.
 // 20261004 CL/SZ SD-717 audit_log_write() takes strings (SD-724, the roles branch's signature): detaljer goes in as audit_log_details_json().
 
 require_once __DIR__ . '/../auditLog.php';
@@ -340,7 +341,7 @@ if (!function_exists('poolArchiveRestoreOnArrival')) {
 	 *
 	 * @param string $filename The pool document that already holds this content.
 	 * @param string $arrivedAs The name the new copy arrived under.
-	 * @param string $via 'folder' or 'api'.
+	 * @param string $via 'folder', 'api', or 'upload' (the user's own upload in the pool, kilde 'ui').
 	 * @param string|null $company The company's database for the pool log, when the caller has no global $db.
 	 * @return bool true when it was archived and is now restored.
 	 */
@@ -361,7 +362,7 @@ if (!function_exists('poolArchiveRestoreOnArrival')) {
 		}
 		if (poolArchiveAuditReady()) {
 			$entry = poolArchiveArrivalEntry($row, $arrivedAs, $via);
-			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], audit_log_details_json($entry['detaljer']), $via === 'api' ? 'api' : 'cron');
+			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], audit_log_details_json($entry['detaljer']), $via === 'api' ? 'api' : ($via === 'upload' ? 'ui' : 'cron'));
 		}
 		poolArchiveLogLine("Archive: $filename restored, the same document arrived again as $arrivedAs ($via); the copy is not kept", $company);
 		// The pool page's background sync reports this as a change, so the list is fetched again (poolFolderSync())

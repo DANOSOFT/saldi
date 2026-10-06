@@ -39,6 +39,7 @@
 // 20261003 CL/SZ SD-717: actions 'archive' and 'restore' ("Arkivér" / "Gendan") through poolArchiveSet(), written to audit_log.
 //             The user is taken from the session's online row, as the company is.
 // 20261003 CL/SZ SD-722 'extract' stores the document's snapshot (the service's answer and the normalised values) on its pool row, once (poolCapture.php).
+// 20261005 CL/SZ SD-727 The minimal row an automatic save creates gets its content hash (poolContentHashStore()), as the folder sync's row has it.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -319,6 +320,9 @@ if ($action === 'save') {
 					. db_escape_string(date('Y-m-d H:i:s', filemtime($filePath))) . "')" . $onConflictClause,
 				__FILE__ . ' line ' . __LINE__
 			);
+			// The content hash the folder sync would have set, so the same bilag arriving again is recognised (MB-42, SD-727)
+			include_once(__DIR__ . '/poolContentHash.php');
+			poolContentHashStore($poolFile, $filePath);
 		}
 		$result = poolMetadataSave($poolFile, $input, $manual, $version, $regnaar);
 

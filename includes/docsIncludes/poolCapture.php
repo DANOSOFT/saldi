@@ -27,6 +27,7 @@
 //                At attach time every field that ends up different is written to pool_capture_log as a correction; the snapshot is kept there too.
 //                "Rapportér fejl i aflæsning" stores a report in pool_capture_log and e-mails it to support (PHPMailer), retried by the pool's folder sync.
 //                The pure functions (snapshot, diff, mail text) have no database access and are unit tested.
+// 20261005 CL/SZ SD-727 The row poolCaptureStore() creates gets its content hash (poolContentHashStore()), so the same bilag arriving again is recognised.
 
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
@@ -338,6 +339,9 @@ if (!function_exists('poolCaptureStore')) {
 			db_modify("INSERT INTO pool_files (filename, subject, file_date) VALUES ('$nameSql', '" . db_escape_string(pathinfo($filename, PATHINFO_FILENAME)) . "', '"
 				. date('Y-m-d H:i:s', filemtime($filePath)) . "')$conflict", __FILE__ . " linje " . __LINE__);
 		}
+		// The folder sync never inserts this row, so the content hash it would have set is set here (MB-42, SD-727)
+		include_once(__DIR__ . '/poolContentHash.php');
+		poolContentHashStore($filename, $filePath);
 		$rawJson = json_encode($raw, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 		// The service's answer is small; a cap keeps a misbehaving answer out of the row
 		if ($rawJson === false || strlen($rawJson) > 65535) $rawJson = null;

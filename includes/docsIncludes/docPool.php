@@ -156,6 +156,8 @@
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
+// 20261005 CL/SZ SD-727 The folder sync hashes a batch of rows that have no content hash (poolContentHashBackfill()).
+// 20261005 CL/SZ SD-727 An upload whose document is in the pool already says so (5407 "Findes allerede i puljen") and opens that one, instead of "uploadet" for a copy the next load drops.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -443,6 +445,8 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
+	// Rows an upload's extraction created have no content hash; a batch of them gets it here (MB-42, SD-727)
+	poolContentHashBackfill($puljePath);
 	// SD-727: documents archived 12 months ago are deleted here, with file and row, and written to audit_log and the pool log
 	require_once __DIR__ . '/poolArchive.php';
 	poolArchivePurge($puljePath, $db);
@@ -4791,6 +4795,7 @@ JS;
 		var uploadedCount = 0;
 		var failedCount = 0;
 		var lastUploadedFilename = null;
+		var alreadyInPool = [];
 
 		if (dropZone) { dropZone.style.pointerEvents = 'none'; dropZone.style.opacity = '0.7'; }
 
@@ -4815,6 +4820,7 @@ JS;
 				var message = '✓ ".addslashes(findtekst('3329|Upload færdig', $sprog_id))."!\\n';
 				message += uploadedCount + ' ".addslashes(lcfirst(findtekst('3330|Fil(er) uploadet', $sprog_id)))."';
 				if (failedCount > 0) message += '\\n' + failedCount + ' ".addslashes(lcfirst(findtekst('3331|Fil(er) fejlet', $sprog_id)))."';
+				if (alreadyInPool.length) message += '\\n".addslashes(findtekst('5407|Findes allerede i puljen', $sprog_id)).": ' + alreadyInPool.join(', ');
 				alert(message);
 
 				savePoolListView();
@@ -4891,7 +4897,9 @@ JS;
 					} else {
 						console.log('[Upload] File ' + (index+1) + ' auto-extract disabled, skipping');
 					}
-					uploadedCount++;
+					// The same bilag was in the pool already: it isn't counted as uploaded, and that one opens (MB-42)
+					if (data.duplicateOf) alreadyInPool.push(file.name + ' (' + data.duplicateOf + ')');
+					else uploadedCount++;
 					lastUploadedFilename = data.filename;
 				} else {
 					failedCount++;
