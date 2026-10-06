@@ -29,6 +29,7 @@
 // 20211203 PHR drawer will now remail closed if no cash is involved
 // 20240209 PHR Added indbetaling to vibrant & flatpay
 // 20240313 MMK/PHR Vipps / Mobilepay
+// 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
 
 function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $betvaluta, $betvalkurs, $receipt_id = 0)
 {
@@ -200,7 +201,7 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Move3500") {
-						$tmp="payments/move3500.php?amount=$belob&id=$id&indbetaling=$indbetaling";
+						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling"; // Nets Connect@Cloud terminal, served by lane3000.php (SST-846)
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
