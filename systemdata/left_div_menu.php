@@ -1,5 +1,5 @@
 <?php
-// ------------systemdata/left_div_menu.php-----patch 4.0.8 ----2023-07-22--
+// ------------systemdata/left_div_menu.php-----patch 4.0.8 ----2026-09-21--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,9 +16,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2019.02.25 MSC - Rettet isset fejl
+// 20260921 CL/SZ MB-50: fix dead pos_valg link to posOptions.
 
 if (!isset ($docubizz)) $docubizz = null;
 
@@ -40,7 +41,7 @@ if ($docubizz) print "<li><a href=\"diverse.php?sektion=docubizz\">DocuBizz</a><
 print "<li><a href=\"diverse.php?sektion=bilag\">Bilagshåndtering</a></li>\n";
 print "<li><a href=\"diverse.php?sektion=orediff\">".findtekst(170,$sprog_id)."</a><!--tekst 170--></li>\n";
 print "<li><a href=\"diverse.php?sektion=massefakt\">".findtekst(200,$sprog_id)."</a><!--tekst 200--></li>\n";
-if (file_exists("../debitor/pos_ordre.php")) print "<li><a href=\"diverse.php?sektion=pos_valg\">".findtekst(271,$sprog_id)."</a><!--tekst 271--></li>\n";
+if (file_exists("../debitor/pos_ordre.php")) print "<li><a href=\"diverse.php?sektion=posOptions\">".findtekst(271,$sprog_id)."</a><!--tekst 271--></li>\n";
 # print "<li><a href=diverse.php?sektion=email>Mail indstillinger</a></li>";
 print "<li><a href=\"diverse.php?sektion=sprog\">Sprog</a></li>\n";
 # print "<li><a href=diverse.php?sektion=kontoplan_io>Indl&aelig;s  / udl&aelig;s kontoplan</a></li>";

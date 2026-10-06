@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---patch 4.1.0 ----2025-08-29--------------
+// --- lager/varer.php ---patch 4.1.0 ----2026-09-25--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 
@@ -58,12 +58,34 @@
 // 2021.04.01 LOE - Translated these texts to English 20210401
 // 2023.04.14 LOE - Minor modifications
 // 2023.06.03 PHR - php8
-// 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
+// 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines
+// 20260905 SZ MB-35: udskriv()'s two genbestil branches disagreed on whether existing purchase
+//             proposals/orders (i_forslag/bestilt) were subtracted from the reorder suggestion -
+//             one branch used neither, so an item already covered by a pending purchase order got
+//             suggested for the full gap to max again. Extracted genbestil_nettobeholdning()/
+//             beregn_genbestil() and routed both branches through them.
+// 20260925 SZ MB-35 (CodeRabbit): find_varer_i_ordre()'s KO query only matched status 1/2, so an
+//             item whose only purchase activity was a status-0 draft proposal was skipped entirely
+//             and never reached find_beholdning() - i_forslag defaulted to 0 even though the
+//             proposal already covered the gap, and the item got suggested again. Matched the DO
+//             query above it (status < 3) so drafts are included the same way.
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
 // 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
 //                  even when it already carried a wildcard, so "123*" and "*123" both searched
 //                  "contains" and never narrowed the list the price-tag print is built from.
+// 20260925 CL/NTR MB-35 follow-up: a double-click on the Indkøbsforslag "Opret" button (or browser
+//             Back + resend) replayed the same genbestil_ant POST, and genbestil() has no
+//             idempotency of its own - it always inserted a fresh ordrelinjer row, so the replay
+//             created a duplicate purchase-order line and summed the quantities. Added a
+//             fingerprint-based replay guard (varerIncludes/genbestilReplay.php), same pattern as
+//             finans/kassekladde_includes/saveReplay.php (#538).
+// 20260925 CL/NTR MB-35 follow-up (CodeRabbit): the replay guard's content-only fingerprint let two
+//             genuinely separate, identical submissions collide, and a failed item (missing
+//             vare_lev) still got the whole POST remembered, blocking a retry. Added a per-form
+//             token to the fingerprint, switched to remembering a bounded set of recent submissions
+//             instead of just the last one, and genbestil() now reports success so only a fully
+//             successful submission is remembered.
 
 @session_start();
 $s_id=session_id();
@@ -94,6 +116,9 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("productCardIncludes/itemVat.php");
+// 20260925 CL/NTR - genbestil() replay guard (see varerIncludes/genbestilReplay.php); included after
+// online.php so $db/$brugernavn are already the authenticated tenant/user by the time it's used below.
+include("varerIncludes/genbestilReplay.php");
 
 ///////////////////// Check for new columns in varer table patch 4.1.0 /////////////////////
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='varenr_alias'";
@@ -225,16 +250,38 @@ if (isset($_POST)) {
 	$lev_navn=trim($lev_navn);
 
 	if (isset($_POST['genbestil_ant'])) {
-		transaktion('begin');
-		for ($x=1; $x<=$_POST['genbestil_ant']; $x++) {
-			$tmp1="gb_id_$x";
-			$tmp1=$_POST[$tmp1];
-			$tmp2="gb_antal_$x";
-			$tmp2=$_POST[$tmp2];
-			if ($tmp2) genbestil($tmp1,$tmp2); 
+		// 20260925 CL/NTR MB-35 follow-up - a double-click on "Opret" (or browser Back + resend)
+		// posts this exact genbestil_ant/gb_id_*/gb_antal_* payload twice. genbestil() itself always
+		// inserts a new ordrelinjer row with no check for one already existing for the item on
+		// today's order, so a replayed POST silently created a duplicate purchase-order line per
+		// item and summed the quantities (see genbestilReplay.php's own comment). Detect the replay
+		// the same way finans/kassekladde_includes/saveReplay.php does (#538): fingerprint the whole
+		// POST plus this form's own token, scoped to this tenant/user, and skip processing an
+		// identical resubmission. A genuinely different submission (edited quantities, different
+		// items, or just a later, separate form load) fingerprints differently and is processed.
+		$gbFormToken = (string)($_POST['gb_form_token'] ?? '');
+		$gbReplayKey = genbestilReplayKey($_POST, $gbFormToken, (string)$db, (string)$brugernavn);
+		if (genbestilIsReplay($_SESSION, $gbReplayKey)) {
+			print "<BODY onLoad=\"javascript:alert('Der er oprettet nye indk&oslash;bsforslag')\">";
+		} else {
+			transaktion('begin');
+			// 20260925 CL/NTR (CodeRabbit): genbestil() returns false when an item has no vare_lev
+			// row (see its own "findes ikke" branch) and creates no line for it. Only remember this
+			// submission once every requested item actually got a line, so a partial failure can
+			// still be retried with the exact same POST after the missing vare_lev is fixed, instead
+			// of that retry being silently swallowed as a "replay" of the failed attempt.
+			$gbAllSucceeded = true;
+			for ($x=1; $x<=$_POST['genbestil_ant']; $x++) {
+				$tmp1="gb_id_$x";
+				$tmp1=$_POST[$tmp1];
+				$tmp2="gb_antal_$x";
+				$tmp2=$_POST[$tmp2];
+				if ($tmp2 && !genbestil($tmp1,$tmp2)) $gbAllSucceeded = false;
+			}
+			transaktion('commit');
+			if ($gbAllSucceeded) genbestilRememberSubmit($_SESSION, $gbReplayKey);
+			print "<BODY onLoad=\"javascript:alert('Der er oprettet nye indk&oslash;bsforslag')\">";
 		}
-		transaktion('commit');
-		print "<BODY onLoad=\"javascript:alert('Der er oprettet nye indk&oslash;bsforslag')\">";
 	}
 	if (isset($_POST['start'])) $start = $_POST['start'];
 	if (isset($_POST['linjeantal'])) $linjeantal = $_POST['linjeantal'];
@@ -483,7 +530,12 @@ if (!$makeSuggestion) {
 	print "<form name=\"vareliste\" action=\"varer.php?{$listNavigationQuery}sort=$sort&amp;beholdning=$stock&amp;forslag=$makeSuggestion&lev_kto_navn=$lev_kto_navn\" method=\"post\">";
 	print "<input type=\"hidden\" name=\"valg\">";
 	print "<input type=\"hidden\" name=\"start\" value=\"$start\">";
-} else 	print "<form name=\"vareliste\" action=\"varer.php?{$listNavigationQuery}sort=$sort\" method=\"post\">";
+} else {
+	print "<form name=\"vareliste\" action=\"varer.php?{$listNavigationQuery}sort=$sort\" method=\"post\">";
+	// 20260925 CL/NTR (CodeRabbit): one token per rendered form, so genbestilReplayKey() can tell a
+	// real resubmission of THIS form (same token) apart from a later, content-identical one.
+	print "<input type=\"hidden\" name=\"gb_form_token\" value=\"" . htmlspecialchars(genbestilFormToken(), ENT_QUOTES, 'UTF-8') . "\">";
+}
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\"><tbody>\n";
 $x=0;
 $query = db_select("select beskrivelse, kodenr from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
@@ -919,11 +971,13 @@ for ($v=0;$v<count($varenr);$v++) {
 					print "<td align=right>".dkdecimal($beholdning[$v],2)."</td>";
 				}
 				if ($makeSuggestion){
-					$tmp=$beholdning[$v]-$i_ordre[$z];
+					// MB-35 - was $beholdning[$v]-$i_ordre[$z] and $max_lager[$v]-$beholdning[$v]+$i_ordre[$z]
+					// below, ignoring $i_forslag[$z]/$bestilt[$z] (already fetched above) - see
+					// genbestil_nettobeholdning()/beregn_genbestil() in includes/std_func.php.
+					$tmp=genbestil_nettobeholdning($beholdning[$v],$i_ordre[$z],$i_forslag[$z],$bestilt[$z]);
 					if ($min_lager[$v]*1>$tmp || $alle_varer) {
 						$gb=$gb+1;
-						$genbestil[$z]=$max_lager[$v]-$beholdning[$v]+$i_ordre[$z];
-						if ($genbestil[$z] < 0) $genbestil[$z]=0;	
+						$genbestil[$z]=beregn_genbestil($max_lager[$v],$beholdning[$v],$i_ordre[$z],$i_forslag[$z],$bestilt[$z]);
 						print "<td align=right><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:60px\" name=\"gb_antal_$gb\" value=\"$genbestil[$z]\"></td>";
 						print "<input type=\"hidden\" name=\"gb_id_$gb\" value=\"$id[$v]\">";
 						print "<input type=\"hidden\" name=\"genbestil_ant\" value=\"$gb\">";
@@ -1013,9 +1067,12 @@ for ($v=0;$v<count($varenr);$v++) {
 			}
 			if (!$min_lager[$v])  $min_lager[$v]  = 0;
 			if (!$beholdning[$v]) $beholdning[$v] = 0;
-			if ($min_lager[$v]*1>($beholdning[$v]-$i_ordre[$z]+$i_forslag[$z]+$bestilt[$z])) {
-			
-				$genbestil[$z]=$max_lager[$v]-$beholdning[$v]+$i_ordre[$z]-($i_forslag[$z]+$bestilt[$z]);
+			// MB-35 - routed through the same genbestil_nettobeholdning()/beregn_genbestil() helpers
+			// as the other branch above (line ~906), so the two can't drift apart again - this
+			// branch's own formula was already correct, the other one was missing the
+			// i_forslag/bestilt subtraction.
+			if ($min_lager[$v]*1>genbestil_nettobeholdning($beholdning[$v],$i_ordre[$z],$i_forslag[$z],$bestilt[$z])) {
+				$genbestil[$z]=beregn_genbestil($max_lager[$v],$beholdning[$v],$i_ordre[$z],$i_forslag[$z],$bestilt[$z]);
 				if ($makeSuggestion) {
 					$forslag[$v]=$id[$v];
 				}
@@ -1035,6 +1092,16 @@ return($z);
 }# endfunc udskriv
 ##############################################
 
+// MB-35 - genbestil_nettobeholdning()/beregn_genbestil(), used by both branches above, now live in
+// includes/std_func.php next to find_beholdning() (whose $i_ordre/$i_forslag/$bestilt values they
+// consume), so they're plain testable functions rather than tied up in this page's top-level script.
+
+/**
+ * @return bool True once an ordrelinjer row was actually inserted; false when the item has no
+ *   vare_lev row (see the "findes ikke" branch below) and nothing was created for it - the caller
+ *   uses this to decide whether the whole genbestil_ant submission is safe to remember as
+ *   completed (CodeRabbit, MB-35 follow-up).
+ */
 function genbestil($vare_id, $antal) {
 	global $brugernavn,$db,$regnaar;
 	
@@ -1100,11 +1167,13 @@ function genbestil($vare_id, $antal) {
 		$qtxt.=" values ";
 		$qtxt.="('$ordre_id', '1000', '$varenr', '$vare_id', '$beskrivelse', '$enhed', '$pris', '$lev_varenr', '$antal', '$momsfri')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$sum=$sum+$pris*$antal;	
-		db_modify("update ordrer set sum = '$sum' where id = $ordre_id",__FILE__ . " linje " . __LINE__);	
-	} else { 
+		$sum=$sum+$pris*$antal;
+		db_modify("update ordrer set sum = '$sum' where id = $ordre_id",__FILE__ . " linje " . __LINE__);
+		return true;
+	} else {
 		$r = db_fetch_array(db_select("select varenr from varer where id = '$vare_id'",__FILE__ . " linje " . __LINE__));
 		print "".findtekst(951,$sprog_id)." findes ikke (Varenr: $r[varenr])<br>";
+		return false;
 	}
 }
 
@@ -1131,7 +1200,7 @@ function find_varer_i_ordre() { #tilfoejet 2008.01.28 for hastighedsoptimering a
 	}
 	#$x must not be set to 0 as array must grow. 20190312
 	$ordreliste=NULL;
-	$qtxt="select id from ordrer where (status = 1 or status = 2) and art = 'KO'";
+	$qtxt="select id from ordrer where status < 3 and art = 'KO'";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		if (!$ordreliste) $ordreliste="where ordre_id='".$r['id']."'";
