@@ -113,11 +113,6 @@
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 // 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 // 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
-// 20260930 CL/SZ SD-701 Clicking an attached voucher opens it in a separate tab (reused per click), so it can sit
-//                  on a second screen while the journal, incl. unsaved values, stays open in the original tab.
-// 20261002 CL/SZ SD-701 The voucher tab is view-only; managing attachments goes back to the journal tab via openBilagManage().
-//                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
-
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
 //                  unload/pagehide beacon was added (there was none before).
@@ -132,6 +127,10 @@
 //                  observed tidspkt, so a stale render can't overwrite a token a concurrent
 //                  tidspkt change has since replaced (unlockRecord.php's refresh_lock_token()
 //                  now requires it).
+// 20260930 CL/SZ SD-701 Clicking an attached voucher opens it in a separate tab (reused per click), so it can sit
+//                  on a second screen while the journal, incl. unsaved values, stays open in the original tab.
+// 20261002 CL/SZ SD-701 The voucher tab is view-only; managing attachments goes back to the journal tab via openBilagManage().
+//                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
