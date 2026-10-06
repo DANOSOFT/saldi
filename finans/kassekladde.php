@@ -129,6 +129,8 @@
 //                and the journal then refused every save.
 // 20261006 CL/SZ SD-716 With SD-701 from master: the paper icon of a line with a document opens it in its own tab (openBilagTab()); without one it
 //                still saves first and opens the pool (clipSaveThenPool()).
+// 20261006 CL/SZ SD-716 (CodeRabbit) After the paper-clip save, the pool opens on the line this save inserted (kk_new_line_ids) instead of the
+//                journal's highest id, which could be a line another session added at the same time.
 // 20261006 CL/SZ SD-715 Fakturanr. is also checked while a line is typed (window.saldiInvoiceReuseJournal for invoiceReuse.js); invoiceReuse.js?v= bumped.
 
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
@@ -213,7 +215,6 @@ $control_bal_fetched = FALSE;
 $control_bal_last = $control_next_date = $control_record_daet = $titletxt = NULL;
 $fejl = $kontrolsaldo = $kontrolsum = $x = $y = 0;
 $kkAfterSave = ''; // SD-716: set when the paper-clip saved first (clipSaveThenPool)
-$kkMaxIdBefore = 0;
 
 
 if (!isset($kontrolmoms))
@@ -907,13 +908,8 @@ if ($_POST) {
 	else $submit   = trim(if_isset($_POST['submit'], ''));
 	$tidspkt       = if_isset($_POST['tidspkt']);
 	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
-	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool); newest line id before the save
+	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool)
 	$kkAfterSave   = (string)ifset($_POST, 'kkAfterSave', '');
-	$kkMaxIdBefore = 0;
-	if ($kkAfterSave === 'new' && $kladde_id) {
-		$r = db_fetch_array(db_select("select coalesce(max(id), 0) as id from kassekladde where kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
-		$kkMaxIdBefore = $r ? (int)$r['id'] : 0;
-	}
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
 	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
@@ -1734,9 +1730,9 @@ if (!$fejl && $kladde_id) {
 	if ($submit == 'save' && $kkAfterSave !== '') {
 		$kkPoolLine = 0;
 		if ($kkAfterSave === 'new') {
-			// The line typed at the bottom is the one this save created, if it created one
-			$r = db_fetch_array(db_select("select coalesce(max(id), 0) as id from kassekladde where kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
-			if ($r && (int)$r['id'] > $kkMaxIdBefore) $kkPoolLine = (int)$r['id'];
+			// The line typed at the bottom is the last one this save inserted, if it inserted one. The ids come from
+			// this request's own inserts (kk_note_new_line()), so a line another session adds meanwhile is never taken.
+			if (!empty($GLOBALS['kk_new_line_ids'])) $kkPoolLine = (int)max(array_map('intval', $GLOBALS['kk_new_line_ids']));
 		} else {
 			$r = db_fetch_array(db_select("select id from kassekladde where id = '" . (int)$kkAfterSave . "' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
 			if ($r) $kkPoolLine = (int)$r['id'];
