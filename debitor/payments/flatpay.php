@@ -28,6 +28,7 @@
 // 20250523 printserver lookup
 // 20250531 PHR added $flatpayPrint
 // 20250912 PHR added print if canceled
+// 20261006 CL/LH SST-848: Write disableTerminalPrints as a JavaScript boolean; PHP false printed as an empty token and broke the whole payment script when flatpay_terminal_print was set.
 
 @session_start();
 $s_id = session_id();
@@ -66,11 +67,9 @@ $flatpayPrint = db_fetch_array($q)[0];
 $q = db_select("select var_value from settings where var_name = 'flatpay_terminal_print'", __FILE__ . " linje " . __LINE__);
 $terminal_print = db_fetch_array($q)[0];
 
-if($terminal_print == 0){
-  $terminal_print = true;
-} else {
-  $terminal_print = false;
-}
+// 0, NULL or a missing row means the terminal must not print. The value is written
+// into JavaScript, so it must be a literal true/false (PHP prints false as '').
+$disableTerminalPrints = ((int)$terminal_print === 0) ? 'true' : 'false';
 
 // Fetch printserver
 $r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
@@ -118,7 +117,7 @@ print "
     transactionType: '$type',
     amount: '$amount',
     guid: '$guid',
-    disableTerminalPrints: $terminal_print,
+    disableTerminalPrints: $disableTerminalPrints,
     language: 'da_DK',
     reference: '$ordre_id',
     externalReference: '$ordre_id',
