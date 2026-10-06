@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-09-21 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -150,6 +150,10 @@
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
+// 20261006 MJ SST-828 The plukliste buttons now follow the order's own status instead of
+//                  $opValue ($_GET['valg']), which made them disappear entirely whenever
+//                  hurtigfakturering was on. The Send plukliste field in the button row
+//                  follows the same rule as the button beside it.
 
 @session_start();
 $s_id = session_id();
@@ -3800,6 +3804,13 @@ function ordreside($id, $regnskab)
 	if ($status == 0) $tmp = "tilbud";
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
+	// 20261006 MJ SST-828 Decided from the order's own status, not from $opValue, which is
+	// $_GET['valg'] - the tab the user arrived from. Same thresholds as the mapping above and
+	// as ordreliste.php's queries: a plukliste belongs to an order, not a tilbud (status 0)
+	// or a finished faktura (status >= 3). With hurtigfakturering there are no tilbud, so
+	// status 0 counts as an order, exactly as ordreliste.php lists it. $tmp cannot serve
+	// here - the next line overwrites it with the navigation value.
+	$visPlukliste = $id && (($hurtigfakt == "on") ? ($status < 3) : ($status == 1 || $status == 2));
 	$value_type = if_isset($_GET, 'ordrer', 'valg');
 	if($tmp != $value_type) $tmp = $value_type;
 	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
@@ -4216,7 +4227,7 @@ function ordreside($id, $regnskab)
 			if (!$sag_id) {
 				include("../includes/topline_settings.php");
 				// Merged conditions to avoid duplicate code for pluklisteEmail check
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud")) {
+				if ($visPlukliste) {
 					$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 					$printPopupQuery = nav_popup_query($_GET, $_POST);
 					$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
@@ -4225,7 +4236,7 @@ function ordreside($id, $regnskab)
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					if ($pluklisteEmail && (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud"))) {
+					if ($pluklisteEmail) {
 						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
 						print "<input type='text' id='plukkommentar1' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
 						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar1').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
@@ -6482,11 +6493,12 @@ function ordreside($id, $regnskab)
 				$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 				$printPopupQuery = nav_popup_query($_GET, $_POST);
 				$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != 'tilbud')) {
+				if ($visPlukliste) {
 					print "<td align=\"center\"><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;'>Print plukliste</button></td>\n";
 				}
-				// Writing field: only when this is a real order (sag_id null/0) and a plukliste email is configured.
-				if ($pluklisteEmail) {
+				// Writing field: same rule as the button beside it. Until SST-828 this was gated on
+				// the mail setting alone, so it showed on invoices and tilbud where the button did not.
+				if ($visPlukliste && $pluklisteEmail) {
 					print "<td align=\"center\" style=\"white-space:nowrap;\">";
 					print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:120px;margin-right:4px;padding:0.2rem;box-sizing:border-box;vertical-align:middle;' class='inputbox'>";
 					print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;vertical-align:middle;'>Send plukliste</button>";
