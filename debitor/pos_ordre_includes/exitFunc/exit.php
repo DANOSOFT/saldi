@@ -31,12 +31,18 @@
 // 20240313 MMK/PHR Vipps / Mobilepay
 // 20260914 CDX/LH Restore drawer redirect after cash payment without an automatic receipt (MB-48).
 // 20260914 CDX/LH Require HTTPS for remote cash drawer redirects; allow HTTP only on loopback.
+// 20261006 CL/LH SST-839: Reach LAN print servers over HTTP again (the mini-PCs do not serve HTTPS); keep the URL validation and explicit HTTPS.
 
 /**
- * Resolve a cash drawer endpoint without allowing remote cleartext requests.
+ * Resolve the cash drawer endpoint from the configured print server.
+ *
+ * Print servers are reached over plain HTTP on the shop LAN, exactly like every
+ * other saldiprint.php/drawerstatus.php call in Saldi, so an address without a
+ * scheme becomes http://. An explicit https:// is kept. Anything that could smuggle
+ * credentials, a path, a query or a fragment into the redirect is rejected.
  *
  * @param string $printserver Host with optional port, HTTP(S) origin, or android.
- * @return string|null Printer origin, or null for an unsafe/invalid configuration.
+ * @return string|null Printer origin, or null for an invalid configuration.
  */
 function cashDrawerPrintOrigin($printserver) {
 	$printserver = trim($printserver);
@@ -44,7 +50,7 @@ function cashDrawerPrintOrigin($printserver) {
 		return 'saldiprint://';
 	}
 	$hasScheme = strpos($printserver, '://') !== false;
-	$candidate = $hasScheme ? $printserver : 'https://' . $printserver;
+	$candidate = $hasScheme ? $printserver : 'http://' . $printserver;
 	if (!filter_var($candidate, FILTER_VALIDATE_URL)) {
 		return null;
 	}
@@ -53,15 +59,11 @@ function cashDrawerPrintOrigin($printserver) {
 		|| !in_array($parts['path'] ?? '', ['', '/'], true)) {
 		return null;
 	}
-	$host = strtolower($parts['host'] ?? '');
-	$address = trim($host, '[]');
-	$isLoopback = $host === 'localhost'
-		|| (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && strpos($address, '127.') === 0)
-		|| (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && inet_pton($address) === inet_pton('::1'));
-	$scheme = $hasScheme ? strtolower($parts['scheme']) : ($isLoopback ? 'http' : 'https');
-	if ($scheme !== 'https' && !($scheme === 'http' && $isLoopback)) {
+	$scheme = strtolower($parts['scheme'] ?? '');
+	if ($scheme !== 'http' && $scheme !== 'https') {
 		return null;
 	}
+	$host = strtolower($parts['host'] ?? '');
 	return $scheme . '://' . $host . (isset($parts['port']) ? ':' . $parts['port'] : '');
 }
 
@@ -346,8 +348,7 @@ print "\n<!-- Function afslut (start)-->\n";
 
 		$printOrigin = cashDrawerPrintOrigin($printserver);
 		if ($printOrigin === null) {
-			print "<p>Kasseskuffen kunne ikke åbnes. Kontrollér printserverens adresse. ";
-			print "Printservere på andre computere skal bruge HTTPS.</p>";
+			print "<p>Kasseskuffen kunne ikke åbnes. Kontrollér printserverens adresse.</p>";
 			print '<a href="pos_ordre.php">Fortsæt til næste salg</a>';
 			exit;
 		}

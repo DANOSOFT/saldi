@@ -1,6 +1,7 @@
 <?php
 // 20260914 CDX/LH Regress MB-48: completed cash sales must leave the change screen.
 // 20260914 CDX/LH Cover secure remote printers, loopback exceptions and rejected drawer endpoints.
+// 20261006 CL/LH SST-839: LAN print servers are reached over HTTP again (as every other print call); explicit HTTPS is kept.
 
 /**
  * Run with: php tests/test_pos_cash_checkout.php
@@ -115,14 +116,15 @@ $cases = [
     'account customer' => ['account' => 9, 'drawer' => false],
     'automatic receipts' => ['autoPrint' => true],
     'Android printer' => ['printer' => 'android', 'origin' => 'saldiprint://'],
-    'cookie printer fallback' => ['printer' => '', 'cookiePrinter' => 'cookie-printer.example', 'origin' => 'https://cookie-printer.example'],
+    'cookie printer fallback' => ['printer' => '', 'cookiePrinter' => 'cookie-printer.example', 'origin' => 'http://cookie-printer.example'],
     'localhost printer fallback' => ['printer' => '', 'origin' => 'http://localhost'],
     'HTTPS checkout' => ['https' => 'on'],
     'explicit HTTP checkout' => ['https' => 'off'],
-    'remote printer with port' => ['printer' => 'printer.example:8443', 'origin' => 'https://printer.example:8443'],
+    'remote printer with port' => ['printer' => 'printer.example:8443', 'origin' => 'http://printer.example:8443'],
     'explicit remote HTTPS' => ['printer' => 'https://printer.example:8443/', 'origin' => 'https://printer.example:8443'],
-    'LAN printer requires HTTPS' => ['printer' => '192.168.1.20', 'origin' => 'https://192.168.1.20'],
-    'remote IPv6 printer' => ['printer' => '[2001:db8::1]:8443', 'origin' => 'https://[2001:db8::1]:8443'],
+    'LAN printer uses HTTP' => ['printer' => '192.168.1.20', 'origin' => 'http://192.168.1.20'],
+    'customer LAN mini-PC' => ['printer' => '192.168.39.128', 'origin' => 'http://192.168.39.128'],
+    'remote IPv6 printer' => ['printer' => '[2001:db8::1]:8443', 'origin' => 'http://[2001:db8::1]:8443'],
     'localhost port' => ['printer' => 'localhost:8080', 'origin' => 'http://localhost:8080'],
     'explicit loopback HTTP' => ['printer' => 'http://LOCALHOST:8080/', 'origin' => 'http://localhost:8080'],
     'loopback HTTPS stays HTTPS' => ['printer' => 'https://localhost:8443', 'origin' => 'https://localhost:8443'],
@@ -130,11 +132,10 @@ $cases = [
     'IPv4 loopback range' => ['printer' => 'http://127.0.0.2', 'origin' => 'http://127.0.0.2'],
     'IPv6 loopback' => ['printer' => '[::1]:8080', 'origin' => 'http://[::1]:8080'],
     'expanded IPv6 loopback' => ['printer' => 'http://[0:0:0:0:0:0:0:1]', 'origin' => 'http://[0:0:0:0:0:0:0:1]'],
-    'remote HTTP rejected' => ['printer' => 'http://printer.example', 'rejected' => true],
-    'LAN HTTP rejected' => ['printer' => 'http://192.168.1.20', 'rejected' => true],
-    'remote HTTP cookie rejected' => ['printer' => '', 'cookiePrinter' => 'http://printer.example', 'rejected' => true],
-    'localhost lookalike rejected' => ['printer' => 'http://localhost.example', 'rejected' => true],
-    'loopback prefix lookalike rejected' => ['printer' => 'http://127.0.0.1.example', 'rejected' => true],
+    'explicit remote HTTP' => ['printer' => 'http://printer.example', 'origin' => 'http://printer.example'],
+    'explicit LAN HTTP' => ['printer' => 'http://192.168.1.20/', 'origin' => 'http://192.168.1.20'],
+    'remote HTTP cookie' => ['printer' => '', 'cookiePrinter' => 'http://printer.example', 'origin' => 'http://printer.example'],
+    'hostname printer' => ['printer' => 'printer.local', 'origin' => 'http://printer.local'],
     'loopback userinfo rejected' => ['printer' => 'http://localhost@printer.example', 'rejected' => true],
     'HTTPS userinfo rejected' => ['printer' => 'https://localhost@printer.example', 'rejected' => true],
     'alternate protocol rejected' => ['printer' => 'ftp://localhost', 'rejected' => true],
@@ -177,7 +178,7 @@ try {
                     'No redirect after settlement');
                 $url = html_entity_decode($match[1]);
                 if ($case['drawer'] ?? true) {
-                    $base = $case['origin'] ?? 'https://printer.example';
+                    $base = $case['origin'] ?? 'http://printer.example';
                     $check(str_starts_with($url, $base . '/saldiprint.php?'), 'Wrong printer destination');
                     parse_str(explode('?', $url, 2)[1], $query);
                     $origin = (($case['https'] ?? '') === 'on' ? 'https' : 'http') . '://checkout.example/saldi';
