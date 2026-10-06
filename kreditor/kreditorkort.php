@@ -39,6 +39,8 @@
 // 20261001 CL/SZ SD-698: returside is URL-encoded wherever this card passes it on (Ny, contact person, kontofusion), so a returside with its own query string (kassekladde.php?tjek=..&kladde_id=..) keeps its kladde_id.
 //                The Ny links are javascript: hrefs, which the browser decodes once before running them, so returside is encoded twice there.
 //                The menu S Ny link used undefined $kort/$ny_id/$alerttekst; it now uses kreditorkort.php, $ordre_id and $tekst like the other Ny link.
+// 20261006 CL/SZ SD-698 (CodeRabbit) The Tilbage links no longer put the back address in a javascript: href: a returside with %27 passed the
+//                sanitizer and became a quote there. The address is an escaped data attribute that onclick hands to confirmClose().
 
 
 @session_start();
@@ -197,11 +199,16 @@ $retursideParam = urlencode($returside);
 $retursideJsParam = urlencode($retursideParam);
 $backHref = $returside . $backSep . 'returside=' . urlencode($returside) . '&id=' . urlencode(if_isset($ordre_id, ''))
 	. '&fokus=' . urlencode(if_isset($fokus, '')) . '&konto_id=' . urlencode((string)$id);
+// The back link's address is data, not JavaScript: inside a javascript: href the browser decodes %27 to a quote before running it
+$backLinkAttr = function ($text = '') use ($backHref) {
+	return "href=\"#\" data-back=\"" . htmlspecialchars($backHref, ENT_QUOTES) . "\" data-text=\"" . htmlspecialchars((string)$text, ENT_QUOTES)
+		. "\" onclick=\"confirmClose(this.dataset.back, this.dataset.text); return false;\"";
+};
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=javascript:confirmClose('$backHref') accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+	print "<div class=\"headerbtnLft headLink\"><a " . $backLinkAttr() . " accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
 	print "<div class=\"headerTxt\">$title</div>";
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
@@ -235,7 +242,7 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n"; #tabel 1.1 start
 
 	print "<td width='5%'>
-		   <a href=\"javascript:confirmClose('$backHref','$tekst -----------nopoooooooooooo')\" accesskey=L>
+		   <a " . $backLinkAttr("$tekst -----------nopoooooooooooo") . " accesskey=L>
 		  <button class='center-btn'style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		. $tilbage_icon . findtekst(30, $sprog_id) . "</button></a></td>\n";
 
@@ -270,8 +277,8 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel 1 start
 	print "<tr bgcolor=$bg><td colspan=\"3\" align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n"; #tabel 1.1 start
-	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$backHref','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
-	else print "<td $top_bund><a href=\"javascript:confirmClose('$backHref','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a " . $backLinkAttr($tekst) . " accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+	else print "<td $top_bund><a " . $backLinkAttr($tekst) . " accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">SALDI - " . findtekst(1184, $sprog_id) . "</td>\n";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"javascript:confirmClose('kreditorkort.php?returside=$retursideJsParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td>\n";
 	print "</tbody></table>\n"; #tabel 1.1 slut
