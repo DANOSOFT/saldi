@@ -1,3 +1,4 @@
+// 20261006 CL/LH SST-842: stop with a message when vibrantPaymentLink.php returns an error instead of a link.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&db=${db}`,{
         method: "GET",
@@ -338,6 +339,12 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
             }).then(response => {
                 return response.json()
             })
+            if (!quickRes || quickRes.error || !quickRes.url) {
+                // No tenant Vibrant key or Vibrant issued no link: stop instead of opening "undefined".
+                loading.style.display = "none"
+                alert("Betalingslinket kunne ikke oprettes. Kontakt butikken.")
+                return
+            }
 
             // open payment window in a new windows
             window.open(quickRes.url, '', 'height=700,width=500')

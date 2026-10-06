@@ -1,11 +1,12 @@
 <?php
-// 20261006 CL/LH SST-842: Use the tenant's own Vibrant key against the production API; the hardcoded sandbox key is gone.
+// 20261006 CL/LH SST-842: Use the tenant's own Vibrant key against the production API; the hardcoded sandbox key is gone; booking id int-cast.
 require_once "../includes/connect.php";
 $customerData = json_decode(file_get_contents("php://input"), true);
 
 $connection = db_connect($sqhost, $squser, $sqpass, $customerData["db"]);
 
-$query = db_select("SELECT * FROM rentalperiod WHERE id = $customerData[id]", __FILE__ . " linje " . __LINE__);
+$bookingId = (int)($customerData["id"] ?? 0);
+$query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
 $res = db_fetch_array($query);
 $orderId = $res["order_id"];
 
