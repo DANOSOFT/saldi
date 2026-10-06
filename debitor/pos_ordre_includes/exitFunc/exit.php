@@ -31,18 +31,39 @@
 // 20240313 MMK/PHR Vipps / Mobilepay
 // 20260914 CDX/LH Restore drawer redirect after cash payment without an automatic receipt (MB-48).
 // 20260914 CDX/LH Require HTTPS for remote cash drawer redirects; allow HTTP only on loopback.
-// 20261006 CL/LH SST-839: Reach LAN print servers over HTTP again (the mini-PCs do not serve HTTPS); keep the URL validation and explicit HTTPS.
+// 20261006 CL/LH SST-839: Reach LAN print servers (private/reserved IPs, localhost, .local, single-label names) over HTTP
+//                 again (the mini-PCs do not serve HTTPS); other hosts still default to HTTPS and may not use HTTP.
+
+/**
+ * True for a print server on the shop's own network: a private or reserved IP (10/8,
+ * 172.16/12, 192.168/16, loopback, link-local, IPv6 ULA), localhost, a .local name or a
+ * single-label host name. Those are the mini-PCs that only speak plain HTTP.
+ *
+ * @param string $host Lower-cased host from parse_url(), IPv6 still in brackets.
+ * @return bool
+ */
+function cashDrawerPrintHostIsLan($host) {
+	$address = trim($host, '[]');
+	if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+		return !filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+	}
+	if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+		return !filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+	}
+	return $host === 'localhost' || substr($host, -6) === '.local' || strpos($host, '.') === false;
+}
 
 /**
  * Resolve the cash drawer endpoint from the configured print server.
  *
- * Print servers are reached over plain HTTP on the shop LAN, exactly like every
- * other saldiprint.php/drawerstatus.php call in Saldi, so an address without a
- * scheme becomes http://. An explicit https:// is kept. Anything that could smuggle
- * credentials, a path, a query or a fragment into the redirect is rejected.
+ * Print servers on the shop LAN (see cashDrawerPrintHostIsLan()) are reached over plain
+ * HTTP, exactly like every other saldiprint.php/drawerstatus.php call in Saldi, so an
+ * address without a scheme becomes http:// for them. Any other host defaults to https://
+ * and may not be forced to http://. Anything that could smuggle credentials, a path, a
+ * query or a fragment into the redirect is rejected.
  *
  * @param string $printserver Host with optional port, HTTP(S) origin, or android.
- * @return string|null Printer origin, or null for an invalid configuration.
+ * @return string|null Printer origin, or null for an invalid or unsafe configuration.
  */
 function cashDrawerPrintOrigin($printserver) {
 	$printserver = trim($printserver);
@@ -59,11 +80,12 @@ function cashDrawerPrintOrigin($printserver) {
 		|| !in_array($parts['path'] ?? '', ['', '/'], true)) {
 		return null;
 	}
-	$scheme = strtolower($parts['scheme'] ?? '');
-	if ($scheme !== 'http' && $scheme !== 'https') {
+	$host = strtolower($parts['host'] ?? '');
+	$isLan = cashDrawerPrintHostIsLan($host);
+	$scheme = $hasScheme ? strtolower($parts['scheme']) : ($isLan ? 'http' : 'https');
+	if ($scheme !== 'https' && !($scheme === 'http' && $isLan)) {
 		return null;
 	}
-	$host = strtolower($parts['host'] ?? '');
 	return $scheme . '://' . $host . (isset($parts['port']) ? ':' . $parts['port'] : '');
 }
 
@@ -348,7 +370,8 @@ print "\n<!-- Function afslut (start)-->\n";
 
 		$printOrigin = cashDrawerPrintOrigin($printserver);
 		if ($printOrigin === null) {
-			print "<p>Kasseskuffen kunne ikke åbnes. Kontrollér printserverens adresse.</p>";
+			print "<p>Kasseskuffen kunne ikke åbnes. Kontrollér printserverens adresse. ";
+			print "Printservere uden for det lokale netværk skal bruge HTTPS.</p>";
 			print '<a href="pos_ordre.php">Fortsæt til næste salg</a>';
 			exit;
 		}
