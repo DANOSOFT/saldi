@@ -6,6 +6,7 @@
 //                Needs window.saldiPoolAccounts.
 // 20261005 CL/SZ SD-714 poolAccountValue() keeps search text that isn't an account as typed, so opening another document no longer turns "tele" into "Ftele".
 // 20261006 CL/SZ SD-714 (CodeRabbit) A failed lookup also clears the other field's "sidste 5 posteringer" panel, so it no longer keeps showing the previous account's suggestions.
+// 20261006 CL/SZ SD-714 (CodeRabbit) A failed lookup for a value that has been changed since clears nothing: the newer value's lookup decides.
 (function () {
     'use strict';
 
@@ -57,15 +58,19 @@
         timers[accountInput.id] = setTimeout(function () {
             const url = cfg.lookupUrl + '?art=' + encodeURIComponent(type) + '&kontonr=' + encodeURIComponent(kontonr) +
                 '&dk=' + (fields.side === 'Debet' ? 'K' : 'D') + '&kladde_id=' + encodeURIComponent(cfg.kladdeId || 0);
+            // A newer value may have been typed while this one was looked up: its own answer, or failure, decides then
+            const stillCurrent = function () {
+                return accountInput.value.trim() === kontonr && ((fields.type && fields.type.value) || 'F') === type;
+            };
             fetch(url, { credentials: 'same-origin' })
                 .then(function (response) { return response.ok ? response.json() : {}; })
                 .then(function (data) {
-                    // A newer value may have been typed while this one was looked up
-                    if (accountInput.value.trim() !== kontonr || ((fields.type && fields.type.value) || 'F') !== type) return;
+                    if (!stillCurrent()) return;
                     showName(fields, data.name || '', data.moms || '');
                     setLastPostings(fields.other, data.lastPostings);
                 })
                 .catch(function () {
+                    if (!stillCurrent()) return;
                     showName(fields, '', '');
                     setLastPostings(fields.other, null);
                 });
