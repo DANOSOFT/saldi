@@ -43,6 +43,8 @@
 //                sanitizer and became a quote there. The address is an escaped data attribute that onclick hands to confirmClose().
 // 20261006 CL/SZ SD-698 (CodeRabbit) The Ny links go the same way, and ordre_id (an integer) and fokus (a field name) are cleaned where they are read,
 //                so a crafted fokus can't break out of the links, the hidden field or the kontofusion redirect either.
+// 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
+//                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
 
 
 @session_start();
@@ -575,6 +577,8 @@ if ($menu == 'T') {
 print "</tbody></table>"; #tabel 1.3 slut
 print "</td></tr>";
 print "</tbody></table>\n"; #tabel 1 slut
+require_once("../includes/cvrLookup.php");
+print cvrLookupClientConfig($sprog_id);
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
 if (isset($_GET['cvrnr']) && $cvrnr) {
 	echo "<script type=\"text/javascript\">    cvrapi('$cvrnr', 'dk', 'vat');      </script>";

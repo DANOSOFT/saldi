@@ -31,6 +31,7 @@
 //                "Opret ny" creates the second kreditor only when the request says so (allowClosed).
 // 20261004 CL/SZ SD-721 audit_log_write() takes strings (SD-724, the roles branch's signature): the id as text, detaljer as audit_log_details_json().
 //                An automatic creation is written with kilde 'api', as the roles branch does for automatic actions; the user's clicks stay 'ui'.
+// 20261006 CL/SZ SD-721 A refused CVR lookup gives reason 'quota' (QUOTA_EXCEEDED) or 'refused' (BANNED, BLOCKED, INVALID_UA) instead of 'lookup_failed'.
 
 require_once __DIR__ . '/cvrLookup.php';
 require_once __DIR__ . '/kreditorCreate.php';
@@ -409,7 +410,7 @@ if (!function_exists('kreditorCvrResolve')) {
 	 * @return array{status: string, kreditor?: array, company?: array, captured?: array, reason?: string}
 	 *   status: 'match' (a kreditor has the CVR number), 'created' (created automatically), 'suggest' ("Ukendt leverandør: Firma A/S (CVR …) — Opret kreditor"),
 	 *   'closed' (only a closed kreditor has the CVR number: "Genåbn" or "Opret ny"; company when the CVR register answered),
-	 *   'unknown' ("Ukendt leverandør — Opret kreditor", reason: 'no_cvr', 'lookup_failed', 'dissolved', 'not_found'), or 'none' (nothing to offer).
+	 *   'unknown' ("Ukendt leverandør — Opret kreditor", reason: 'no_cvr', 'lookup_failed', 'quota', 'refused', 'dissolved', 'not_found'), or 'none' (nothing to offer).
 	 */
 	function kreditorCvrResolve($filename, $userId) {
 		$file = kreditorCvrPoolFile($filename);
@@ -435,7 +436,9 @@ if (!function_exists('kreditorCvrResolve')) {
 
 		$lookup = cvrLookupCompany($file['cvr'], 5);
 		if (!$lookup['ok']) {
-			return array('status' => 'unknown', 'reason' => $lookup['error'] === 'NOT_FOUND' ? 'not_found' : 'lookup_failed', 'captured' => $captured);
+			// A refusal says why, as the CVR field in the dialog does: the day's quota is used, or cvrapi.dk refuses the server
+			$reasons = array('NOT_FOUND' => 'not_found', 'QUOTA_EXCEEDED' => 'quota', 'BANNED' => 'refused', 'BLOCKED' => 'refused', 'INVALID_UA' => 'refused');
+			return array('status' => 'unknown', 'reason' => $reasons[$lookup['error']] ?? 'lookup_failed', 'captured' => $captured);
 		}
 		if ($lookup['dissolved']) return array('status' => 'unknown', 'reason' => 'dissolved', 'captured' => $captured, 'company' => $lookup['company']);
 
@@ -482,6 +485,8 @@ if (!function_exists('kreditorCvrClientScript')) {
 				'undoInUse' => findtekst('5357|Kan ikke fortrydes: kreditoren er taget i brug', $sprog_id),
 				'exists' => findtekst('5358|Kreditoren findes allerede', $sprog_id),
 				'lookupFailed' => findtekst('5365|CVR-registeret kunne ikke svare', $sprog_id),
+				'quota' => findtekst('3375|Kvoten for CVR-opslag er opbrugt.', $sprog_id),
+				'refused' => findtekst('5408|cvrapi.dk afviser opslag fra serveren', $sprog_id),
 				'dissolved' => findtekst('5366|Virksomheden er ophørt', $sprog_id),
 				'notFound' => findtekst('5367|CVR-nummeret findes ikke i CVR-registeret', $sprog_id),
 				'noCvr' => findtekst('5370|Intet CVR-nummer på bilaget', $sprog_id),
