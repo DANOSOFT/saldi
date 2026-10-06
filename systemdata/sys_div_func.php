@@ -125,6 +125,7 @@
 // 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
 // 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
+// 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
 // 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
@@ -748,6 +749,7 @@ function personlige_valg() {
 
 function div_valg() {
 	global $bgcolor, $bgcolor5;
+	global $csrf_token;
 	global $docubizz;
 	global $regnaar;
 	global $sprog_id;
@@ -1730,18 +1732,31 @@ function removeDfmPickup(idx) {
       close_popup();
 
       async function save_id(id){
-        var res = await fetch(
-          'diverseIncludes/save_flatpay_id.php',
-          {
-            method: 'post',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              'id': id
-            }),
-          }
-        )
+        var res = null;
+        var svar = null;
+        try {
+          res = await fetch(
+            'diverseIncludes/save_flatpay_id.php',
+            {
+              method: 'post',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': " . json_encode($csrf_token) . ",
+              },
+              body: JSON.stringify({
+                'id': id
+              }),
+            }
+          )
+          svar = await res.json();
+        } catch (fejl) {
+          res = null;
+          svar = null;
+        }
+        if (!res || !res.ok || !svar || !svar.success) {
+          alert('" . findtekst('3405|Ugyldig eller udløbet formular - genindlæs siden og prøv igen', $sprog_id) . "');
+          return;
+        }
         location.reload();
       }
 
