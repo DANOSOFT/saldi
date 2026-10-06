@@ -40,6 +40,8 @@
 //             The user is taken from the session's online row, as the company is.
 // 20261003 CL/SZ SD-722 'extract' stores the document's snapshot (the service's answer and the normalised values) on its pool row, once (poolCapture.php).
 // 20261004 LOE Register automatic-save fallback rows with a stored-file hash.
+// 20261006 CL/SZ SD-717 (CodeRabbit) $brugernavn was escaped here and again by audit_log_write(), which double-escaped a name
+//             with an apostrophe (audit_log.brugernavn stored '' where the name had a single '). Kept raw; only escaped at the query below.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -381,12 +383,12 @@ if ($action === 'save') {
 if ($action === 'archive' || $action === 'restore') {
 	require_once __DIR__ . '/poolArchive.php';
 	// audit_log_write() reads the user from these, as online.php sets them on a normal page
-	$brugernavn = db_escape_string((string)($onlineRow['brugernavn'] ?? ''));
+	$brugernavn = (string)($onlineRow['brugernavn'] ?? '');
 	$bruger_id = null;
 	if (!empty($onlineRow['revisor'])) {
 		$bruger_id = -1;
 	} elseif ($brugernavn !== '') {
-		$userRow = db_fetch_array(db_select("select id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
+		$userRow = db_fetch_array(db_select("select id from brugere where brugernavn = '" . db_escape_string($brugernavn) . "'", __FILE__ . " linje " . __LINE__));
 		$bruger_id = $userRow ? (int)$userRow['id'] : null;
 	}
 	if (!poolArchiveReady()) {
