@@ -7,11 +7,26 @@
 //                Other scripts follow through the "poolswitch" event on document.
 //                Anything unexpected (an error, a page without the same parts) falls back to loading the page normally.
 // 20261006 CL/SZ SD-719 options.keepLineContext: a document opened for the same line leaves the match groups as they are.
+// 20261006 CL/SZ SD-719 An element marked data-pool-keep="<id>" stays in front of that element through the switch (the kreditor notice), so the list doesn't jump.
+// 20261006 CL/SZ SD-719 The bilag area keeps its height for 1.5 s after the switch while the new document's notes arrive, so the list moves at most once.
+// 20261007 CL/SZ SD-719 The page is asked for with X-Pool-Switch, so it doesn't build the first list page this switch doesn't use.
 (function () {
     'use strict';
 
     var REGIONS = ['kassebilagTopBar', 'rightPanel'];
     var inFlight = null;
+    var heightHold = null;
+
+    /**
+     * Keeps the bilag area at its height while the new document's notes arrive (suggestion, "Fundet via", invoice warning,
+     * "Ukendt leverandør"): they come a moment after the switch, so the list below would jump up and back down. It is let
+     * go once they are in; a shorter document then moves the list once, to its place.
+     */
+    function holdHeight(el, height) {
+        if (heightHold) clearTimeout(heightHold.timer);
+        el.style.minHeight = height + 'px';
+        heightHold = { el: el, timer: setTimeout(function () { el.style.minHeight = ''; heightHold = null; }, 1500) };
+    }
 
     /** The journal line's amount and date the new page matches the list against (docPool.php prints them as JSON). */
     function lineContext(html) {
@@ -73,7 +88,8 @@
         inFlight = controller;
         document.body.classList.add('pool-switching');
 
-        return fetch(href, { credentials: 'same-origin', signal: controller.signal })
+        // X-Pool-Switch: the page leaves out the first list page it sends with a normal load (SD-719), the list stays
+        return fetch(href, { credentials: 'same-origin', signal: controller.signal, headers: { 'X-Pool-Switch': '1' } })
             .then(function (response) {
                 if (!response.ok) throw new Error('HTTP ' + response.status);
                 return response.text();
@@ -92,6 +108,11 @@
                 }
                 if (typeof window.closeAccountAutocomplete === 'function') window.closeAccountAutocomplete();
 
+                // A notice that marks itself data-pool-keep="<id>" keeps its place in front of that element: the new document's
+                // answer replaces or removes it, so the rows below don't jump up and back down (kreditorFromCvr.js, SD-721)
+                var kept = Array.prototype.slice.call(document.querySelectorAll('[data-pool-keep]'));
+                var top = parts[0].old;
+                var topHeight = top ? top.getBoundingClientRect().height : 0;
                 // The elements stay (the panel resizer holds on to #rightPanel); their content is replaced
                 var replaced = [];
                 parts.forEach(function (p) {
@@ -101,6 +122,11 @@
                     }));
                     replaced.push(p.old);
                 });
+                kept.forEach(function (el) {
+                    var before = document.getElementById(el.dataset.poolKeep);
+                    if (before && before.parentNode && !document.getElementById(el.id)) before.parentNode.insertBefore(el, before);
+                });
+                if (top && topHeight) holdHeight(top, Math.round(topHeight));
                 window.history.replaceState(window.history.state, '', href);
                 runScripts(replaced);
                 if (typeof window.initAccountAutocomplete === 'function') window.initAccountAutocomplete();

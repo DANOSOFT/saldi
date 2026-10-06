@@ -28,6 +28,11 @@
 // 20261006 CL/SZ SD-721 As cvrapi.dk's documentation asks: the User-Agent is "Firma - Projekt - Kontaktperson telefon/e-mail" ($cvrapi_contact in
 //                includes/connect.php), and a token ($cvrapi_token in includes/connect.php) is sent when the server has one.
 //                A refused call says why: cvrapi.dk's error code (QUOTA_EXCEEDED, BANNED, INVALID_UA ...), or BLOCKED for an empty 403, and it is logged.
+// 20261006 CL/SZ SD-721 cvrapi.dk gives 50 free lookups a day per IP address: after QUOTA_EXCEEDED the server stops calling until tomorrow, after
+//                BANNED, BLOCKED or INVALID_UA for an hour (temp/cvrcache/_refused.json; a new token ends the pause). An error in a 200 answer
+//                counts as a refusal too and is never cached as a company. cvrLookupCompany() passes these codes on.
+// 20261006 CL/SZ SD-721 cvrLookupClientConfig(): the kreditor and debitor cards' lookup (javascript/cvrapiopslag.js) goes through
+//                sager/cvrLookupProxy.php too. From the browser cvrapi.dk refused it: a browser cannot send the User-Agent it requires.
 
 if (!function_exists('cvrLookupFetch')) {
 	/**
@@ -50,8 +55,11 @@ if (!function_exists('cvrLookupFetch')) {
 			}
 		}
 
-		$url = "https://cvrapi.dk/api?" . $type . "=" . urlencode($param) . "&country=" . urlencode($country);
 		$token = cvrLookupToken();
+		$paused = cvrLookupPaused($token);
+		if ($paused !== null) return array('code' => 0, 'body' => null, 'cached' => false, 'error' => $paused);
+
+		$url = "https://cvrapi.dk/api?" . $type . "=" . urlencode($param) . "&country=" . urlencode($country);
 		if ($token !== '') $url .= "&token=" . urlencode($token);
 		$ch = curl_init($url);
 		curl_setopt_array($ch, array(
@@ -73,20 +81,70 @@ if (!function_exists('cvrLookupFetch')) {
 			return array('code' => $code, 'body' => null, 'cached' => false, 'error' => 'UNAVAILABLE');
 		}
 		$error = null;
-		if ($code >= 400 && !($code === 404 && strpos($body, 'NOT_FOUND') !== false)) {
-			$data = json_decode($body, true);
-			$error = is_array($data) && !empty($data['error']) ? preg_replace('/[^A-Z_]/', '', strtoupper((string)$data['error'])) : '';
-			if ($error === '') $error = $code === 403 ? 'BLOCKED' : 'UNAVAILABLE';
+		$data = json_decode($body, true);
+		$given = is_array($data) && !empty($data['error']) ? preg_replace('/[^A-Z_]/', '', strtoupper((string)$data['error'])) : '';
+		$notFound = $given === 'NOT_FOUND';
+		// The documentation: errors come as codes in the answer, not always as an HTTP status
+		if (!$notFound && ($code >= 400 || $given !== '')) {
+			$error = $given !== '' ? $given : ($code === 403 ? 'BLOCKED' : 'UNAVAILABLE');
 			// Never the URL: it carries the token
 			error_log("cvrLookup: cvrapi.dk refused the lookup (status $code, $error)");
+			cvrLookupPause($error, $token);
 		}
-		if ($cacheFile && ($code === 200 || ($code === 404 && strpos($body, 'NOT_FOUND') !== false))) {
+		if ($cacheFile && (($code === 200 && $error === null) || $notFound)) {
 			$dir = dirname($cacheFile);
 			if (is_dir($dir) || @mkdir($dir, 0775, true)) {
 				file_put_contents($cacheFile, json_encode(array('time' => time(), 'code' => $code, 'body' => $body)), LOCK_EX);
 			}
 		}
 		return array('code' => $code, 'body' => $body, 'cached' => false, 'error' => $error);
+	}
+}
+
+if (!function_exists('cvrLookupPauseFile')) {
+	/**
+	 * Where a refusal from cvrapi.dk is remembered: one file for the server, as the quota is per IP address.
+	 *
+	 * @return string
+	 */
+	function cvrLookupPauseFile() {
+		return __DIR__ . '/../temp/cvrcache/_refused.json';
+	}
+}
+
+if (!function_exists('cvrLookupPause')) {
+	/**
+	 * Remembers a refusal, so the next lookups don't call cvrapi.dk again (more calls can turn a quota into a ban).
+	 * QUOTA_EXCEEDED lasts until tomorrow; BANNED, BLOCKED and INVALID_UA are tried again after an hour.
+	 *
+	 * @param string $error cvrapi.dk's error code.
+	 * @param string $token The token the call was made with ('' without one).
+	 * @return void
+	 */
+	function cvrLookupPause($error, $token) {
+		if ($error === 'QUOTA_EXCEEDED') $until = strtotime('tomorrow');
+		elseif (in_array($error, array('BANNED', 'BLOCKED', 'INVALID_UA'), true)) $until = time() + 3600;
+		else return;
+		$file = cvrLookupPauseFile();
+		$dir = dirname($file);
+		if (!is_dir($dir) && !@mkdir($dir, 0775, true)) return;
+		@file_put_contents($file, json_encode(array('error' => $error, 'until' => $until, 'token' => sha1($token))), LOCK_EX);
+	}
+}
+
+if (!function_exists('cvrLookupPaused')) {
+	/**
+	 * The refusal still in force, or null. A token other than the one refused (one added or changed) ends the pause.
+	 *
+	 * @param string $token The token the next call would use.
+	 * @return string|null cvrapi.dk's error code.
+	 */
+	function cvrLookupPaused($token) {
+		$file = cvrLookupPauseFile();
+		if (!is_file($file)) return null;
+		$pause = json_decode((string)@file_get_contents($file), true);
+		if (!is_array($pause) || empty($pause['error']) || (int)($pause['until'] ?? 0) <= time() || ($pause['token'] ?? '') !== sha1($token)) return null;
+		return preg_replace('/[^A-Z_]/', '', (string)$pause['error']);
 	}
 }
 
@@ -137,7 +195,7 @@ if (!function_exists('cvrLookupCompany')) {
 	 * @param string $cvr 8 digits.
 	 * @param int $timeout Seconds.
 	 * @return array{ok: bool, error: string|null, dissolved: bool, company: array<string, string>|null}
-	 *   error: 'INVALID', 'NOT_FOUND', 'QUOTA_EXCEEDED' or 'UNAVAILABLE' when ok is false.
+	 *   error: 'INVALID', 'NOT_FOUND', 'QUOTA_EXCEEDED', 'BANNED', 'BLOCKED', 'INVALID_UA' or 'UNAVAILABLE' when ok is false.
 	 */
 	function cvrLookupCompany($cvr, $timeout = 5) {
 		$fail = function ($error) {
@@ -146,11 +204,11 @@ if (!function_exists('cvrLookupCompany')) {
 		if (!preg_match('/^\d{8}$/', (string)$cvr)) return $fail('INVALID');
 		$answer = cvrLookupFetch('vat', $cvr, 'dk', $timeout);
 		$data = $answer['body'] !== null ? json_decode($answer['body'], true) : null;
-		if (!is_array($data)) return $fail('UNAVAILABLE');
-		if (!empty($data['error'])) {
-			$error = (string)$data['error'];
-			return $fail(in_array($error, array('NOT_FOUND', 'QUOTA_EXCEEDED', 'INVALID_VAT'), true) ? ($error === 'INVALID_VAT' ? 'INVALID' : $error) : 'UNAVAILABLE');
-		}
+		$error = !empty($answer['error']) ? (string)$answer['error'] : (is_array($data) && !empty($data['error']) ? (string)$data['error'] : '');
+		if ($error === 'INVALID_VAT') return $fail('INVALID');
+		// The refusals keep their code, so the pool can say why ("Kvoten for CVR-opslag er opbrugt")
+		if (in_array($error, array('NOT_FOUND', 'QUOTA_EXCEEDED', 'BANNED', 'BLOCKED', 'INVALID_UA'), true)) return $fail($error);
+		if ($error !== '' || !is_array($data)) return $fail('UNAVAILABLE');
 		if ($answer['code'] >= 400 || empty($data['name'])) return $fail('UNAVAILABLE');
 		return array('ok' => true, 'error' => null, 'dissolved' => cvrLookupDissolved($data), 'company' => cvrLookupCompanyFields($data));
 	}
@@ -192,6 +250,30 @@ if (!function_exists('cvrLookupCompanyFields')) {
 			'tlf' => $text('phone'),
 			'email' => $text('email'),
 		);
+	}
+}
+if (!function_exists('cvrLookupClientConfig')) {
+	/**
+	 * The script block that points javascript/cvrapiopslag.js at the server proxy, with its messages in the user's language.
+	 * Printed before the script on a page one folder below the root (kreditor/, debitor/).
+	 *
+	 * @param int $sprog_id
+	 * @return string
+	 */
+	function cvrLookupClientConfig($sprog_id) {
+		$refused = findtekst('5409|cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.', $sprog_id);
+		// JSON_HEX_*: a translation can't close the script block or an attribute
+		$texts = json_encode(array(
+			'fejl'           => findtekst('3374|CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.', $sprog_id),
+			'QUOTA_EXCEEDED' => findtekst('3375|Kvoten for CVR-opslag er opbrugt.', $sprog_id),
+			'NOT_FOUND'      => findtekst('3376|CVR-nummeret blev ikke fundet.', $sprog_id),
+			'INVALID_VAT'    => findtekst('3377|CVR-nummeret er ikke gyldigt.', $sprog_id),
+			'BLOCKED'        => $refused,
+			'BANNED'         => $refused,
+			'INVALID_UA'     => $refused,
+			'soeger'         => findtekst('3378|Søger...', $sprog_id),
+		), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+		return "<script type=\"text/javascript\">var cvrLookupProxy = '../sager/cvrLookupProxy.php'; var cvrTekster = $texts;</script>\n";
 	}
 }
 ?>

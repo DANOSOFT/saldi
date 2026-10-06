@@ -171,6 +171,11 @@
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
 // 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
+// 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
+// 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
+// 20261007 CL/SZ SD-719 The first page of the list comes with the page (poolListData()), so the list shows without a second request; it is used only when
+//                the browser would have asked for exactly that page (no stored search, more loaded rows, ticked documents or archive view) and not for a page from history.
+// 20261006 CL/SZ SD-722 After "Overfør data" (OK or Annuller) the cursor is back in the line (window.poolFocusNewLine()), so Enter takes the suggestion or saves.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2275,6 +2280,31 @@ $poolFileJs = json_encode($poolFile); // safely escapes quotes
 $JsSum      = json_encode($sum); // safely escapes quotes
 $JsDato     = json_encode($dato); // kassekladde date for matching
 
+// SD-719: the first page of the list, as the browser's first request (fetchFiles()) asks for it when nothing is stored, so it
+// needn't wait for a second round trip. The browser compares the parameters and fetches as before when they differ.
+// Not for the in-place switch (docPoolSwitch.js), which keeps its list.
+$poolListSeedJs = 'null';
+if (empty($_SERVER['HTTP_X_POOL_SWITCH'])) {
+	$seedCurrent = '';
+	foreach ((array)($_GET['poolFile'] ?? array()) as $seedFile) {
+		if (trim((string)$seedFile) !== '') $seedCurrent = (string)$seedFile;
+	}
+	$seedQuery = array('dir' => $encodedDir, 'poolParams' => $poolParams, 'limit' => '50', 'offset' => '0');
+	if ($sum !== null && $sum !== '') $seedQuery['sum'] = (string)$sum;
+	if ($dato !== null && $dato !== '') $seedQuery['dato'] = (string)$dato;
+	if ($seedCurrent !== '') $seedQuery['current'] = $seedCurrent;
+	$seedQuery['toCurrent'] = '1';
+	try {
+		require_once __DIR__ . '/poolListData.php';
+		$poolListSeedJs = json_encode(array('query' => $seedQuery, 'data' => poolListData($seedQuery)),
+			JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+		if ($poolListSeedJs === false) $poolListSeedJs = 'null';
+	} catch (Throwable $e) {
+		error_log('docPool list seed: ' . $e->getMessage());
+		$poolListSeedJs = 'null';
+	}
+}
+
 
 // Calculate lightened button color using PHP function from topline_settings.php
 $lightButtonColor = brightenColor($buttonColor, 0.6); // Lighten by 60% (0.6 = 60%)
@@ -2790,6 +2820,22 @@ print <<<JS
         return '_docPoolData.php?' + q.toString();
     }
 
+    // SD-719: the first page, sent with the page (poolListData()). Used once, and only when this is the request it was made for;
+    // a page shown again from history or the browser's cache would have an old list, so that one fetches.
+    let poolListSeed = {$poolListSeedJs};
+    function poolTakeSeed(url) {
+        const seed = poolListSeed;
+        poolListSeed = null;
+        if (!seed || !seed.data || !seed.query) return null;
+        try {
+            const nav = performance.getEntriesByType('navigation')[0];
+            if (nav && (nav.type === 'back_forward' || nav.transferSize === 0)) return null;
+        } catch (e) {}
+        const asked = Array.from(new URLSearchParams(url.split('?')[1] || '')).map(function(p) { return p[0] + '=' + p[1]; }).sort();
+        const sent = Object.keys(seed.query).map(function(k) { return k + '=' + seed.query[k]; }).sort();
+        return JSON.stringify(asked) === JSON.stringify(sent) ? seed.data : null;
+    }
+
     // One request for the list: the first rows again (search, sort or a refresh), or the next page.
     // options.append: add the next page; options.limit: how many rows to fetch from the top (at most 200);
     // options.toCurrent: the page reaches down to the open document, so it is in the list (one request instead of two)
@@ -2800,8 +2846,8 @@ print <<<JS
         const offset = append ? docData.length : 0;
         const limit = append ? (options.limit || POOL_PAGE) : Math.max(POOL_PAGE, Math.min(200, options.limit || POOL_PAGE));
         try {
-            const response = await fetch(poolListUrl(offset, limit, !!options.toCurrent), { credentials: 'same-origin' });
-            const data = await response.json();
+            const url = poolListUrl(offset, limit, !!options.toCurrent);
+            const data = poolTakeSeed(url) || await (await fetch(url, { credentials: 'same-origin' })).json();
             if (request !== poolRequest) return false;
             if (data.error) {
                 console.error('_docPoolData: ' + data.error);
@@ -3261,7 +3307,8 @@ print <<<JS
 		
 		// Add section header for combination matches
 		let combinationHeader = '';
-		if (hasCombinationMatches && combinationRows) {
+		// Also when every document of the combination is listed under "Dato match" (the line's date): the row is what selects them (SD-718)
+		if (hasCombinationMatches && combinationGroups.length > 0) {
 			// Build description of the combinations found
 			let comboDesc = '';
 			let comboFilesJson = '[]';
@@ -3275,7 +3322,7 @@ print <<<JS
 		combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson + ")' title='{$txt29}'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #ffc107;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.plus + "</span>" +
-				"{$txt62} (" + combinationMatches.size + " {$txt55}: " + escapeHTML(totalSum) + ")" +
+				"{$txt62} (" + combinationGroups[0].files.length + " {$txt55}: " + escapeHTML(totalSum) + ")" +
 				(comboDesc ? " <span style='font-weight: normal; font-size: 11px;'>(" + comboDesc + ")</span>" : "") +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " {$txt27}</span>" +
 				"</td></tr>";
@@ -3441,7 +3488,7 @@ print <<<JS
 			const comboFilesJson = JSON.stringify(combinationGroups[0].files).replace(/'/g, "&#39;");
 			html += '<div onclick="selectCombinationFiles(' + comboFilesJson + ')" style="cursor: pointer; padding: 10px; background: #ffc107; color: #212529; border-radius: 6px; margin-bottom: 8px;">';
 			html += '<span style="margin-right: 6px;">' + svgIcons.plus + '</span>';
-			html += '<strong>{$txt62}</strong> - ' + combinationMatches.size + ' {$txt59} ' + escapeHTML(totalSum);
+			html += '<strong>{$txt62}</strong> - ' + combinationGroups[0].files.length + ' {$txt59} ' + escapeHTML(totalSum);
 			html += '<span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' {$txt27}</span>';
 			html += '</div>';
 		}
@@ -6237,6 +6284,7 @@ HTML;
 			// Cancel
 			document.getElementById('transferCancelBtn').addEventListener('click', function() {
 				overlay.remove();
+				if (typeof window.poolFocusNewLine === 'function') window.poolFocusNewLine();
 			});
 
 			// OK — populate fields
@@ -6253,6 +6301,8 @@ HTML;
 				}
 				overlay.remove();
 				applyTransfer(transferKredit, false);
+				// The cursor back in the line, where Enter takes the suggestion or saves (SD-722); the popup took it with it
+				if (typeof window.poolFocusNewLine === 'function') setTimeout(window.poolFocusNewLine, 0);
 
 				// Visual feedback on the button
 				const btn = document.getElementById('transferDataBtn');
