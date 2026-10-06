@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolListQuery.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/poolListQuery.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 //                The match against the journal line (perfect / amount / date / combination), search, sort and the order of the groups.
 //                The match rules are the ones docPool.php's renderFiles() used in the browser, including SD-718's combination search.
 //                No database access: _docPoolData.php loads the rows and calls these.
+// 20261005 CL/SZ SD-719 Search finds an amount as the list shows it (5,03 or 1.234,56), not only as stored (5.03).
 
 if (!function_exists('poolListAmount')) {
 	/**
@@ -189,6 +190,11 @@ if (!function_exists('poolListSearch')) {
 			$hay = '';
 			foreach (array('filename', 'subject', 'account', 'amount', 'date', 'invoiceNumber', 'description') as $key) {
 				$hay .= ' ' . (string)($row[$key] ?? '');
+			}
+			// The amount also as the list shows it and people type it: 1.234,56 and 1234,56
+			$amount = trim((string)($row['amount'] ?? ''));
+			if ($amount !== '' && is_numeric($amount)) {
+				$hay .= ' ' . number_format((float)$amount, 2, ',', '.') . ' ' . number_format((float)$amount, 2, ',', '');
 			}
 			return mb_strpos(mb_strtolower($hay, 'UTF-8'), $needle) !== false;
 		}));

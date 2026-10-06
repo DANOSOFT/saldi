@@ -138,6 +138,8 @@
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
+// 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
+// 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2272,6 +2274,13 @@ print <<<JS
 	// View mode state (table or card) - default to table, save preference in localStorage
 	let viewMode           = localStorage.getItem('docPoolViewMode') || 'table';
 	let searchFilter       = '';
+	// SD-719: the amount as stored (5.03) and as the list shows it and people type it (5,03 / 1.234,56), as poolListSearch() has it
+	function searchableAmount(amount) {
+		const n = parseFloat(amount);
+		if (!amount || isNaN(n)) return amount || '';
+		const shown = n.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+		return amount + ' ' + shown + ' ' + shown.replace(/\./g, '');
+	}
 	let previewTimeout     = null;
 	let currentPreviewPath = null;
 	const docFolder        = '{$docFolder}';
@@ -2727,10 +2736,16 @@ print <<<JS
         poolFetch({ limit: docData.length });
     };
 
-    // After an in-place switch: the open document is marked, and loaded when it is further down than the loaded rows
+    // After an in-place switch: the open document is marked, and loaded when it is further down than the loaded rows.
+    // SD-719: renderCurrentView() rebuilds the list's innerHTML, which resets its scrollTop to 0; the scroll
+    // position is restored before revealSelectedRow() checks visibility, or that check (and so "leaves the list
+    // where it is") would always run against a freshly-reset scroll of 0 instead of where the user actually was.
     window.poolShowCurrent = async function() {
+        const container = document.getElementById(containerId);
+        const savedScroll = container ? container.scrollTop : 0;
         renderCurrentView();
         await poolEnsureCurrentLoaded();
+        if (container) container.scrollTop = savedScroll;
         revealSelectedRow();
     };
 
@@ -2882,7 +2897,7 @@ print <<<JS
 		for (const row of docData) {
 			// Apply search filter
 			if (searchFilter) {
-				const searchText = ((row.filename || '') + ' ' + (row.subject || '') + ' ' + (row.account || '') + ' ' + (row.amount || '') + ' ' + (row.date || '') + ' ' + (row.invoiceNumber || '') + ' ' + (row.description || '')).toLowerCase();
+				const searchText = ((row.filename || '') + ' ' + (row.subject || '') + ' ' + (row.account || '') + ' ' + searchableAmount(row.amount) + ' ' + (row.date || '') + ' ' + (row.invoiceNumber || '') + ' ' + (row.description || '')).toLowerCase();
 				if (searchText.indexOf(searchFilter) === -1) {
 					continue;
 				}
@@ -3283,7 +3298,7 @@ print <<<JS
 			
 			// Apply search filter
 			if (searchFilter) {
-				const searchText = (filename + ' ' + subject + ' ' + account + ' ' + amount).toLowerCase();
+				const searchText = (filename + ' ' + subject + ' ' + account + ' ' + searchableAmount(amount)).toLowerCase();
 				if (searchText.indexOf(searchFilter) === -1) {
 					continue;
 				}

@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-05 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-06 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -16,12 +16,20 @@
 //                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
 // 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
 // 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
+// 20261006 CL/SZ SD-716 Full-pass re-run: "Gem og næste" and the arrow keys go on from the first document after the last one, instead of
+//                stopping ("Ingen flere bilag i puljen") while more are only out of view; hosted here because it needs nextDocument() (SD-719).
+// 20261006 CL/SZ SD-716 The arrow keys open the other document with a new line and its own data when nothing was typed in the bilag, and leave the focus
+//                outside the fields so the next arrow key browses on. Before, the line kept the first document's transferred amount, which
+//                the other document would have been saved with, and the list re-sorted by that amount, so ← didn't go back.
+//                Also hosted here: needs the arrow keys' open() helper (SD-719).
 (function () {
     'use strict';
 
     var busy = false;
     // Whether the user typed in the bilag's fields since the document opened; without that, the line holds only the document's transferred data
     var lineTyped = false;
+    // Set when the arrow keys open a document: the focus stays outside the fields, so the next arrow key browses on
+    var keepFocusOutside = false;
     // The typed values of an unsaved line, which openPoolFile() carries in the URL
     var LINE_PARAMS = ['sourceId', 'bilag', 'dato', 'beskrivelse', 'debet', 'kredit', 'fakturanr', 'sum', 'afd', 'projekt', 'valuta', 'momsfri', 'forfald'];
 
@@ -110,6 +118,15 @@
             return window.poolLoadMore().then(function () { return neighbour(1, withArchived); });
         }
         return Promise.resolve(neighbour(1, withArchived));
+    }
+
+    /** The next document, else the first in the list: after the last row the pool goes on from the top, not to "Ingen flere bilag". */
+    function followingDocument() {
+        return nextDocument().then(function (next) {
+            if (next) return next;
+            var current = currentPoolFile();
+            return listedFiles().filter(function (file) { return file !== current; })[0] || null;
+        });
     }
 
     /** After the last document: the pool without a document, showing "Ingen flere bilag i puljen". */
@@ -219,13 +236,15 @@
         if (missing) {
             missing.focus();
             if (typeof missing.select === 'function') missing.select();
+            // A refused save carries nothing forward: the arrow keys treat this document as if nothing had been typed
+            lineTyped = false;
             return;
         }
         // Chosen before the save: the current document leaves the list when it is attached
         var file = currentPoolFile();
         var next = null;
         setBusy(true);
-        nextDocument().then(function (found) {
+        followingDocument().then(function (found) {
             next = found;
             return saveRowsInOrder(entries);
         }).then(function (newId) {
@@ -246,13 +265,15 @@
             console.error(error);
             alert(error.message);
             setBusy(false);
+            // A refused save carries nothing forward: the arrow keys treat this document as if nothing had been typed
+            lineTyped = false;
         });
     }
 
     function skipDocument() {
         if (busy) return;
         busy = true;
-        nextDocument().then(function (next) {
+        followingDocument().then(function (next) {
             busy = false;
             leaveFor(next ? documentUrl(next, true) : doneUrl());
         });
@@ -309,6 +330,13 @@
             if (inField(target) || modalOpen() || busy) return;
             var open = function (other) {
                 if (!other) return;
+                // Nothing typed: the other document gets a new line with its own data, as "Spring over" gives it.
+                // Carrying this document's transferred amount would put it on the other document and re-sort the list by it.
+                if (!lineTyped) {
+                    keepFocusOutside = true;
+                    leaveFor(documentUrl(other, true));
+                    return;
+                }
                 var href = documentUrl(other, false);
                 if (typeof window.openPoolFile === 'function') window.openPoolFile(href); else leaveFor(href);
             };
@@ -356,6 +384,9 @@
     function init() {
         var params = new URLSearchParams(window.location.search);
         busy = false;
+        lineTyped = false;
+        var keepFocus = keepFocusOutside;
+        keepFocusOutside = false;
         var note = document.querySelector('#leftPanel .pool-done-note');
         if (note && params.get('poolDone') !== '1') note.remove();
         if (params.get('poolDone') === '1') showDone();
@@ -368,7 +399,7 @@
                 if (document.getElementById('bilagEntry_new') && typeof window.transferDataFromSelectedFile === 'function') {
                     window.transferDataFromSelectedFile({ auto: true });
                 }
-                focusNewLine();
+                if (!keepFocus) focusNewLine();
             });
         }
     }
