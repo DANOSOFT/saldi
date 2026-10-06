@@ -120,6 +120,7 @@
 // 20261003 CL/SZ SD-715 Fakturanr. is marked when the same kreditor already has that invoice number in an open journal, a posted entry or the pool (invoiceReuse.php, one query per source for the whole page).
 //                The warning doesn't block saving or posting.
 // 20261006 CL/SZ SD-715 Fakturanr. is also checked while a line is typed (window.saldiInvoiceReuseJournal for invoiceReuse.js); invoiceReuse.js?v= bumped.
+// 20261006 CL/SZ SD-714 accountAutocomplete.js?v= bumped: a click into a field that already has the cursor opens the lookup panel.
 
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
@@ -500,7 +501,7 @@ print "<script>
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.8" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.13" defer></script>';
 print '<link rel="stylesheet" type="text/css" href="../css/invoiceReuse.css?v=1">';
 print '<script src="../javascript/invoiceReuse.js?v=3" defer></script>';
 // SD-715: the line being typed is checked too, not only the saved ones
