@@ -25,6 +25,7 @@
 // 20230912 corrected error in VAT sign (was positve when is should be negative)
 // 20231120	PHR Added checkLineId to avoid same line counnted more than once.
 // 20250701 PHR PHP8
+// 20261006 CL/LH SST-824: Reset the commission totals per item group and order the groups, so a group's commission is posted once and the result does not depend on row order.
 
 $minDate=$fakturadate[0];
 $a=count($fakturadate)-1;
@@ -61,7 +62,7 @@ for ($co=0;$co<count($coAc);$co++) {
 		$toVatPercent  = $r['box2']*1;
 	} else $toVatAccount=$toVatPercent=0;
 
-	$qtxt = "select distinct(gruppe) as cgroup from varer where provision > '0' and varenr like '$itNo[$co]'";
+	$qtxt = "select distinct(gruppe) as cgroup from varer where provision > '0' and varenr like '$itNo[$co]' order by gruppe";
 #cho __line__." $qtxt<br>";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -98,6 +99,10 @@ for ($co=0;$co<count($coAc);$co++) {
 	$i=0;
 #cho __line__." ".count($cGroup)."<br>";
 	for ($c = 0;$c < count($cGroup);$c++) {
+		// Each group posts only its own commission. Without this reset the previous
+		// group's amount (minus its VAT) was carried over and posted again under the
+		// next group, even when nothing was sold in it (SST-824).
+		$commission = $costVat = $commissionVat = $fromVat = $toVat = 0;
 #cho __line__." ".count($cItemId[$c])."<br>";
 		for ($v=0;$v<count($cItemId[$c]);$v++) {
 			$kontrol = 0;
