@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-09-24--------------
+// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-05--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,8 @@
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
 // 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
+// 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
+// 20261005 LOE SD-687 Department names are escaped where the filter options are built.
 
 @session_start();
 $s_id = session_id();
@@ -1669,42 +1671,37 @@ $metaColumnHeaders = ['']; //
 // Filters setup
 $filters = array();
 
-// Order type filter
-$filters[] = array(
-    "filterKey" => "ordretype",
-    "filterName" => findtekst('2769|Ordretype', $sprog_id),
-    "joinOperator" => "or",
-    "options" => array(
-        array(
-            "optionKey" => "tilbud",
-            "name" => findtekst('2770|Tilbud', $sprog_id),
-            "checked" => ($valg == "tilbud") ? "checked" : "",
-            "sqlOn" => "o.status < 1",
-            "sqlOff" => "",
-        ),
-        array(
-            "optionKey" => "ordrer",
-            "name" => findtekst('107|Ordrer', $sprog_id),
-            "checked" => ($valg == "ordrer") ? "checked" : "",
-            "sqlOn" => $hurtigfakt ? "o.status < 3" : "(o.status = 1 OR o.status = 2)",
-            "sqlOff" => "",
-        ),
-        array(
-            "optionKey" => "faktura",
-            "name" => findtekst('1777|Fakturaer', $sprog_id),
-            "checked" => ($valg == "faktura") ? "checked" : "",
-            "sqlOn" => "o.status >= 3",
-            "sqlOff" => "",
-        ),
-        array(
-            "optionKey" => "pbs",
-            "name" => "BS",
-            "checked" => ($valg == "pbs") ? "checked" : "",
-            "sqlOn" => "o.art = 'PO' AND o.konto_id > '0'", // PBS orders
-            "sqlOff" => "",
-        )
-    )
-);
+// SD-687: the list's type comes from the menu ($valg), so a filter offering the types could only
+// repeat the base condition below or contradict it - a different type returned no rows at all.
+// What is left filters on something the tab does not already decide, following the lager lists:
+// the options come from the tenant's own rows, nothing ticked means no restriction, and ticking
+// only ever narrows.
+
+// Departments (grupper art='AFD')
+$q = db_select("SELECT kodenr, beskrivelse FROM grupper WHERE art = 'AFD' ORDER BY kodenr", __FILE__ . " linje " . __LINE__);
+$afd_options = array();
+while ($r = db_fetch_array($q)) {
+    $afd_options[] = array(
+        "optionKey" => "afd_" . $r['kodenr'],
+        "name" => htmlspecialchars($r['beskrivelse'], ENT_QUOTES, 'UTF-8'),
+        "checked" => "",
+        "sqlOn" => "o.afd = " . (int)$r['kodenr'],
+        "sqlOff" => "",
+    );
+}
+if ($afd_options) {
+    $filters[] = array(
+        "filterKey" => "afdelinger",
+        "filterName" => findtekst('772|Afdelinger', $sprog_id),
+        "joinOperator" => "or",
+        "options" => $afd_options,
+    );
+}
+
+// PBS is deliberately not a filter here. Its rows are the posted invoices of the PBS delivery, and
+// the PBS flow has its own screens already - the BS tab renders the delivery list (pbsliste.php),
+// and pbsfakt.php/pbsfile.php do the rest - so a filter on this page could only ever return the 0
+// rows of the open-order range. The filters keep to what can narrow any tab: the department.
 
 ###############################Data configuration##############*****************++++++++++++++++
 
@@ -1802,6 +1799,7 @@ if ($vis_lagerstatus) {
 
 $data = array(
     "table_name" => "ordrer",
+    "noRowsText" => findtekst('2730|Ingen ordrer matcher de angivne søgekriterier', $sprog_id),
     "query" => "SELECT 
         $select_fields
     FROM ordrer o

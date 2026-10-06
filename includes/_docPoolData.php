@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/_docPoolData.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- includes/_docPoolData.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,8 @@
 // 20260925 LOE MB-42 Every row whose fakturanr, amount and date match another row's is marked
 //                  duplicateOf, so the pool can show that the same bilag is in the list twice.
 // 20261001 CL/NTR Merged the two history blocks into one and grouped the includes.
+// 20261003 CL/SZ SD-717 Archived documents are left out of the list and the duplicate marking.
+//                With archived=1 ("Vis arkiverede") only archived documents are returned, newest archive first, with their archive time.
 
 // Start output buffering FIRST to capture any output from includes
 ob_start();
@@ -54,6 +56,7 @@ include_once(__DIR__ . "/std_func.php");
 include_once(__DIR__ . "/docsIncludes/poolVendorMatcher.php");
 include_once(__DIR__ . "/docsIncludes/poolDuplicateMarker.php");
 require_once __DIR__ . '/docsIncludes/poolMetadata.php';
+require_once __DIR__ . '/docsIncludes/poolArchive.php';
 
 // Get $db from session/online table
 $qtxt = "select db from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -87,8 +90,19 @@ $vendorColumnsExist = poolVendorColumnsExist();
 
 // Query all files from the pool_files table (database is the source of truth)
 $vendorSelect = $vendorColumnsExist ? ", vendor_name, vendor_cvr, vendor_iban, vendor_konto_id, vendor_match, vendor_score" : "";
-$qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency, updated, manually_edited$vendorSelect
-         FROM pool_files ORDER BY file_date DESC, updated DESC";
+// SD-717: the normal list or the archive, never both
+$showArchived = ($_GET['archived'] ?? '') === '1' && poolArchiveReady();
+if ($showArchived) {
+    $archiveSelect = ", archived";
+    $archiveWhere = "WHERE archived IS NOT NULL";
+    $archiveOrder = "archived DESC, ";
+} else {
+    $archiveSelect = poolArchiveReady() ? ", archived" : "";
+    $archiveWhere = "WHERE " . poolArchiveActiveSql();
+    $archiveOrder = "";
+}
+$qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency, updated, manually_edited$vendorSelect$archiveSelect
+         FROM pool_files $archiveWhere ORDER BY {$archiveOrder}file_date DESC, updated DESC";
 $result = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
 while ($row = db_fetch_array($result)) {
@@ -159,13 +173,17 @@ while ($row = db_fetch_array($result)) {
         'fil_nr' => $fil_nr,
         'version' => poolMetadataVersion($row),
         'manuallyEdited' => poolMetadataIsManual($row),
+        'archived' => $row['archived'] ?? null,
     ];
 }
 
 // MB-42: the customer's pool held the same bilag under two or three filenames, with identical
 // fakturanr, amount and date, and nothing in the list said so. poolMarkDuplicates() groups those and
 // sets duplicateOf on every member (see poolDuplicateMarker.php for why a hash cannot do this part).
-$data = poolMarkDuplicates($data);
+// Not in the archive: an archived document is not a duplicate to act on (SD-717).
+if (!$showArchived) {
+    $data = poolMarkDuplicates($data);
+}
 
 // Clear any previous output and send proper JSON
 ob_end_clean();

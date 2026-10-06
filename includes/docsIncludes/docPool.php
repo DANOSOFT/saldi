@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,6 +100,25 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
+// 20261003 CL/SZ SD-714 Debet and Kredit get the journal's lookup panel, an F/D/K type field (new lines: Debet F, Kredit K) and the account's name and VAT code under them.
+//                Saved as type + number ("K1234").
+// 20261003 CL/SZ SD-714 Save posted to a hard-coded '/pblm/...' path outside the document root (e.g. an Apache Alias) and got 404.
+//                The fallback is now relative to includes/documents.php.
+// 20261003 CL/SZ SD-715 Each line warns when its kreditor already has the invoice number (open journal, posted, other pool document).
+//                A line with nothing typed yet checks the document's own kreditor and number.
+// 20261003 CL/SZ SD-716 Ctrl + arrow keys move between the fields of the entry rows, with the journal's implementation (fieldNavigation.js).
+// 20261003 CL/SZ SD-716 "Gem og næste" (button, or Enter in a field) saves the rows one after another, attaches the document and opens the next document with its data transferred (docPoolSaveNext.js).
+//                Dato, Debet, Kredit and Beløb are mandatory for it, "Spring over" opens the next document without saving, and the arrow keys outside a field switch document.
+//                A new line gets the journal's next voucher number, as a new line in the journal does.
+//                chooseMultipleBilag() takes an optional callback that runs instead of the redirect to the journal.
+// 20261004 CL/SZ SD-716 A new row "Gem og næste" has already saved is sent with that line's id, so a retry after a failed attach doesn't create a second line.
+//                transferDataFromSelectedFile({auto: true}) fills only empty fields, without the confirm popup, and takes Kredit only from a confident vendor match.
+// 20261003 CL/SZ SD-717 "Arkivér" per document and for the selection (Del outside a field), "Vis arkiverede" and "Gendan" (docPoolArchive.js, poolArchive.php).
+//                Archived documents are not in the normal list, not opened first (database or folder route), not in "Opdatér alle", and get no match colours in the archive.
+//                pool_files.archived and archived_by added to both CREATE TABLE IF NOT EXISTS fallbacks.
+// 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
+// 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
+// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -118,8 +137,11 @@
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
+require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/poolVendorSuggestion.php");
+include_once(__DIR__ . "/poolAccountInfo.php");
+include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -161,6 +183,20 @@ if (!function_exists('docPoolLog')) {
  * This runs once on page load and adds any missing PDF files to the database.
  */
 function syncPuljeFilesToDatabase($docFolder, $db) {
+	$poolDir = "$docFolder/$db/pulje";
+	if (!is_dir($poolDir)) {
+		return;
+	}
+	$lock = poolUploadLock($poolDir);
+	try {
+		syncPuljeFilesToDatabaseUnlocked($docFolder, $db);
+	} finally {
+		fclose($lock);
+	}
+}
+
+/** @return void Synchronize while the caller holds the pool ingestion lock. */
+function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 	global $db_type;
 	$puljePath = "$docFolder/$db/pulje";
 	
@@ -212,6 +248,8 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			vendor_match varchar(10),
 			vendor_score numeric(4,3),
 			content_sha256 char(64),
+			archived timestamp,
+			archived_by integer,
 			PRIMARY KEY (id),
 			UNIQUE(filename)
 		)";
@@ -252,6 +290,11 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	// the folder is read then changes the mtime again, so the next load reads the folder once more.
 	$observedMtime = poolFolderMtime($puljePath);
 	$scanStart = time();
+
+	if (poolContentHashEnsureSchema()) {
+		poolUploadBackfillHashes($puljePath);
+	}
+
 	$pdfFiles = [];
 	$files = scandir($puljePath);
 	// scandir() returns false on a read failure (permission issue, a disconnected
@@ -435,6 +478,21 @@ function poolFolderChanged($puljePath, $store = false, $mtime = null, $scanStart
 }
 
 function checkIfAllPoolFilesAreInDatabase() {
+	global $db, $docFolder;
+	$poolDir = "$docFolder/$db/pulje";
+	if (!is_dir($poolDir)) {
+		return;
+	}
+	$lock = poolUploadLock($poolDir);
+	try {
+		checkIfAllPoolFilesAreInDatabaseUnlocked();
+	} finally {
+		fclose($lock);
+	}
+}
+
+/** @return void Check for missing rows while the caller holds the pool ingestion lock. */
+function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 	$skip = get_settings_value("skip_sync", "docs", 0);
 	if (date('U') - $skip > 600) $skip = 0;
 	
@@ -773,6 +831,14 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$poolFiles = array_filter($poolFiles);
 		
 		if (!empty($poolFiles)) {
+			// A document saved from another tab (or removed) is no longer in the pool: nothing is created for it
+			foreach ($poolFiles as $checkPoolFile) {
+				if (!is_file("$docFolder/$db/pulje/" . basename((string)$checkPoolFile))) {
+					http_response_code(409);
+					print htmlspecialchars(findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id), ENT_QUOTES, 'UTF-8');
+					return;
+				}
+			}
 			// If date/amount wasn't passed from JavaScript, try to read from .info file of first selected file
 			// Check database first for file information
 			$filename = reset($poolFiles);
@@ -1237,6 +1303,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								vendor_match varchar(10),
 								vendor_score numeric(4,3),
 								content_sha256 char(64),
+								archived timestamp,
+								archived_by integer,
 								PRIMARY KEY (id),
 								UNIQUE(filename)
 							)";
@@ -1443,8 +1511,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$hasTable = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		
 		$foundInDb = false;
+		require_once __DIR__ . '/poolArchive.php';
 		if ($hasTable) {
-			$qtxt = "SELECT filename FROM pool_files ORDER BY file_date DESC, updated DESC LIMIT 1";
+			$qtxt = "SELECT filename FROM pool_files WHERE " . poolArchiveActiveSql() . " ORDER BY file_date DESC, updated DESC LIMIT 1";
 			$latestRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			
 			if ($latestRow) {
@@ -1454,10 +1523,18 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		}
 		
 		if (!$foundInDb && is_dir($dir)) {
+			// SD-717: an archived document's file is still in the folder, but it is not opened first
+			$archivedFiles = array();
+			if (poolArchiveReady()) {
+				$q = db_select("SELECT filename FROM pool_files WHERE archived IS NOT NULL", __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$archivedFiles[$r['filename']] = true;
+				}
+			}
 			if ($dh = opendir($dir)) {
 				while (($file = readdir($dh)) !== false) {
 					// Check for .pdf or .xml file (case-insensitive), skip hidden files
-					if (substr($file, 0, 1) != '.' && preg_match('/\.(pdf|xml)$/i', $file)) {
+					if (substr($file, 0, 1) != '.' && preg_match('/\.(pdf|xml)$/i', $file) && !isset($archivedFiles[$file])) {
 						$filePath = rtrim($dir, '/') . '/' . $file;
 						#clearstatcache(); 
 						$modTime = filemtime($filePath);
@@ -1522,12 +1599,24 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$v4 = @filemtime("../css/datepickerDa.css") ?: 0;
 	$v5 = @filemtime("../javascript/accountAutocomplete.js") ?: 0;
 	$v6 = @filemtime("../javascript/datepickerDa.js") ?: 0;
+	$v7 = file_exists("../javascript/docPoolAccounts.js") ? filemtime("../javascript/docPoolAccounts.js") : 0;
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css?v=$v1\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css?v=$v2\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css?v=$v3\">\n";
     print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/datepickerDa.css?v=$v4\">";
     print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 	print "<script src=\"../javascript/accountAutocomplete.js?v=$v5\"></script>";
+	print "<script src=\"../javascript/docPoolAccounts.js?v=$v7\"></script>";
+	$v8 = file_exists("../javascript/invoiceReuse.js") ? filemtime("../javascript/invoiceReuse.js") : 0;
+	$v9 = file_exists("../css/invoiceReuse.css") ? filemtime("../css/invoiceReuse.css") : 0;
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/invoiceReuse.css?v=$v9\">\n";
+	print "<script src=\"../javascript/invoiceReuse.js?v=$v8\"></script>";
+	$v10 = file_exists("../javascript/fieldNavigation.js") ? filemtime("../javascript/fieldNavigation.js") : 0;
+	print "<script src=\"../javascript/fieldNavigation.js?v=$v10\"></script>";
+	$v11 = file_exists("../javascript/docPoolSaveNext.js") ? filemtime("../javascript/docPoolSaveNext.js") : 0;
+	print "<script src=\"../javascript/docPoolSaveNext.js?v=$v11\"></script>";
+	$v12 = file_exists("../javascript/docPoolArchive.js") ? filemtime("../javascript/docPoolArchive.js") : 0;
+	print "<script src=\"../javascript/docPoolArchive.js?v=$v12\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1617,8 +1706,9 @@ if (strpos($currentFile, $docRoot) === 0) {
     $relPath = substr($currentFile, strlen($docRoot));
     $insertDocPath = dirname($relPath) . '/insertDoc.php';
 } else {
-    // Fallback if document root mismatch (e.g. symlinks), alias to common location
-    $insertDocPath = '/pblm/includes/docsIncludes/insertDoc.php';
+    // Outside the document root (Apache Alias, symlink): relative to includes/documents.php, the page the pool runs in.
+    // It used to be '/pblm/...', one specific install, so Save answered 404 everywhere else.
+    $insertDocPath = 'docsIncludes/insertDoc.php';
 }
 
 print "<div id='docPoolContainer' style='overflow: auto;'>";
@@ -1675,6 +1765,11 @@ if ($source == 'kassekladde') {
 			if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
 		}
 		$displayBilag       = $bilag ?? '';
+		// SD-716: a new line gets the journal's next voucher number, the same number the journal's own new line offers
+		if ($displayBilag === '' && $currentKladdeId) {
+			include_once(__DIR__ . '/../../finans/kassekladde_includes/bilagNumber.php');
+			$displayBilag = bilagNextNumberForJournal($currentKladdeId);
+		}
 		$displayDato        = $dato ?? '';
 		$displayFaktura     = $fakturanr ?? '';
 		$displayBeskrivelse = $beskrivelse ?? '';
@@ -1702,7 +1797,7 @@ if ($source == 'kassekladde') {
 	if ($escKladde && $displayBilag !== '') {
 		$escBilag = db_escape_string($displayBilag);
 		$qAll = db_select(
-			"SELECT id, bilag, beskrivelse, transdate, debet, kredit, faktura, amount, afd, projekt, valuta, momsfri, forfaldsdate " .
+			"SELECT id, bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, afd, projekt, valuta, momsfri, forfaldsdate " .
 			"FROM kassekladde WHERE kladde_id = '$escKladde' AND bilag = '$escBilag' ORDER BY id ASC",
 			__FILE__ . " linje " . __LINE__
 		);
@@ -1761,7 +1856,7 @@ if ($source == 'kassekladde') {
 		$dis            = $readOnly ? ' disabled' : '';
 		$cbVal          = is_numeric($rowId) ? (int)$rowId : '0';
 		$cbChecked      = ((string)$cbVal === (string)$sourceId) ? ' checked' : '';
-		print "<div class='kassebilag-entry' id='bilagEntry_{$rowId}' style='margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e0e0e0;'>";
+		print "<div class='kassebilag-entry' id='bilagEntry_{$rowId}' data-field-nav-row style='margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e0e0e0;'>";
 		print "<div class='topbar-fields-row'>";
 		$linkIcon = '<svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
 		print "<div class='topbar-field' style='justify-content:center;align-items:center;'>" . $lbl($linkIcon) . "<input type='checkbox' class='targetLineCheckbox' value='{$cbVal}'{$cbChecked} style='width:16px;height:16px;cursor:pointer;accent-color:{$GLOBALS['buttonColor']};' title='".findtekst('3268|Tilknyt bilag til denne linje', $sprog_id)."'></div>";
@@ -1769,8 +1864,32 @@ if ($source == 'kassekladde') {
 		print "<div class='topbar-field'>" . $lbl(findtekst('438|Dato', $sprog_id).':') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('643|Faktura', $sprog_id).':') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}{$roBg}' placeholder='".findtekst('828|Fakturanr.', $sprog_id)."'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('914|Beskrivelse', $sprog_id).':') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}{$roBg}' placeholder='".findtekst('914|Beskrivelse', $sprog_id)."'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl(findtekst('1000|Debet', $sprog_id).':') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl(findtekst('1001|Kredit', $sprog_id).':') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}></div>";
+		// Debet/Kredit: F/D/K type + account, as in the journal. The names debe/kred/d_ty/k_ty + row number are what the
+		// lookup panel (accountAutocomplete.js) binds to; read-only rows don't get them, so they get no panel.
+		list($dType, $dNo) = poolAccountSplit($d['debet'] ?? '', $d['d_type'] ?? '', 'F');
+		list($kType, $kNo) = poolAccountSplit($d['kredit'] ?? '', $d['k_type'] ?? '', is_numeric($rowId) ? 'F' : 'K');
+		$rowNo = is_numeric($rowId) ? (int)$rowId : 0;
+		$accountCell = function($side, $label, $type, $no, $prefixes, $lastPostingsAttr) use ($pfx, $lbl, $inStyle, $roBg, $ro, $readOnly, $rowNo) {
+			global $sprog_id, $regnaar;
+			$info = $no !== '' ? poolAccountInfo($type, $no, $regnaar) : array('name' => '', 'moms' => '');
+			$typeName = $readOnly ? '' : " name='{$prefixes[0]}{$rowNo}'";
+			$noName = $readOnly ? '' : " name='{$prefixes[1]}{$rowNo}' autocomplete='off'{$lastPostingsAttr}";
+			$typeTitle = htmlspecialchars(findtekst('5285|F = finanskonto, D = debitor, K = kreditor', $sprog_id), ENT_QUOTES);
+			print "<div class='topbar-field pool-account-field'>" . $lbl(findtekst($label, $sprog_id).':');
+			print "<div class='pool-account-inputs'>";
+			print "<input type='text' id='{$pfx}_{$side}Type' class='pool-account-type' maxlength='1' value='$type' title='$typeTitle' style='width:20px;{$inStyle}{$roBg}'{$ro}{$typeName}>";
+			print "<input type='text' id='{$pfx}_{$side}' class='pool-account-no' data-side='$side' value=\"" . htmlspecialchars($no) . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}{$noName}>";
+			print "</div>";
+			$vat = $info['moms'] !== '' ? "<span class='pool-account-vat'>" . htmlspecialchars($info['moms']) . "</span>" : '';
+			print "<div class='pool-account-name' id='{$pfx}_{$side}Name' title=\"" . htmlspecialchars($info['name']) . "\">" . $vat . htmlspecialchars($info['name']) . "</div>";
+			print "</div>";
+		};
+		// "sidste 5 posteringer": the Debet panel offers the counter-accounts used with the Kredit account, and vice versa
+		$escKladdeId = (int)$escKladde;
+		$dLast = (!$readOnly && $kNo !== '') ? sidste_5_forslag_attr($kNo, $kType, 'D', 'UTF-8', $escKladdeId, $sprog_id) : '';
+		$kLast = (!$readOnly && $dNo !== '') ? sidste_5_forslag_attr($dNo, $dType, 'K', 'UTF-8', $escKladdeId, $sprog_id) : '';
+		$accountCell('Debet', '1000|Debet', $dType, $dNo, array('d_ty', 'debe'), $dLast);
+		$accountCell('Kredit', '1001|Kredit', $kType, $kNo, array('k_ty', 'kred'), $kLast);
 		print "<div class='topbar-field'>" . $lbl(findtekst('934|Beløb', $sprog_id).':') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('2464|Afd.', $sprog_id).':') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('2464|Afd.', $sprog_id)."'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('3269|Proj.', $sprog_id).':') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('3269|Proj.', $sprog_id)."'{$ro}></div>";
@@ -1784,6 +1903,38 @@ if ($source == 'kassekladde') {
 		print "</div>"; // kassebilag-entry
 	};
 
+	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
+	print "<script>
+	window.saldiPoolAccounts = " . json_encode(array('lookupUrl' => 'docsIncludes/poolAccountLookup.php', 'kladdeId' => $escKladde)) . ";
+	window.saldiPoolSaveNext = " . json_encode(array(
+		'kladdeId'  => (int)$escKladde,
+		'bilag'     => (int)$intBilag,
+		'readOnly'  => (bool)$readOnly,
+		'journalUrl' => '../finans/kassekladde.php?kladde_id=' . (int)$escKladde,
+		'texts'     => array(
+			'mandatory' => findtekst('5334|Obligatorisk', $sprog_id),
+			'noMore'    => findtekst('5335|Ingen flere bilag i puljen', $sprog_id),
+			'toJournal' => findtekst('5336|Tilbage til kassekladden', $sprog_id),
+			'saving'    => findtekst('3|Gem', $sprog_id) . '...',
+			'stale'     => findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id),
+		),
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
+	" . ($readOnly ? '' : "window.saldiInvoiceReuse = " . json_encode(array(
+		'url'      => '../finans/kassekladde_includes/invoiceReuseCheck.php',
+		'kladdeId' => $escKladde,
+		'poolFile' => (string)$poolFile,
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";") . "
+	window.saldiAccountCard = " . json_encode(array(
+		'url'      => '../finans/kassekladde_includes/openAccountCard.php',
+		'kladdeId' => $escKladde,
+		'titles'   => array(
+			'F' => findtekst('1196|Specifikation for', $sprog_id) . ' ' . findtekst('2131|konto', $sprog_id),
+			'D' => findtekst('356|Debitorkort', $sprog_id),
+			'K' => findtekst('1184|Kreditorkort', $sprog_id),
+		),
+		'unsaved'  => findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id),
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
+	</script>";
 	print "<div id='kassebilagTopBar'>";
 
 	// Title + bilag-group navigation
@@ -1809,7 +1960,12 @@ if ($source == 'kassekladde') {
 		$txt2 = findtekst('3|Gem', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id));  #Gem alle
 		$txt3 = findtekst('3339|Overfør data', $sprog_id);
 		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus $txt1</a>";
-		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp; $txt2</a>";
+		// SD-716: "Gem og næste" is the main action (also on Enter); "Gem alle" saves without leaving the document
+		$txtSaveNext = findtekst('5332|Gem og næste', $sprog_id);
+		$txtSkip = findtekst('5333|Spring over', $sprog_id);
+		print "<a href='#' id='saveNextBtn' onclick='poolSaveAndNext(); return false;' style=\"$btnStyle\" title='Enter'>$svgSave &nbsp; $txtSaveNext &#8629;</a>";
+		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle opacity: 0.85;\">$svgSave &nbsp; $txt2</a>";
+		print "<a href='#' id='skipDocBtn' onclick='poolSkipDocument(); return false;' style=\"$btnStyle opacity: 0.85;\">$txtSkip $svgChevronRight</a>";
 		print "<a href='#' id='transferDataBtn' onclick='transferDataFromSelectedFile(); return false;' style=\"$btnStyle\">$svgPointer &nbsp;$txt3</a>";
 	} else {
 		$txt = findtekst('637|Bogført', $sprog_id);
@@ -1821,7 +1977,7 @@ if ($source == 'kassekladde') {
 	$totalRows = count($bilagLines) + (!$sourceId ? 1 : 0);
 	$collapsible = $totalRows > 1;
 
-	print "<div id='bilagRowsContainer'>";
+	print "<div id='bilagRowsContainer' data-field-nav>";
 
 	// Keep the selected new row first so transfer data remains visible when other rows are collapsed.
 	if (!$sourceId) {
@@ -1852,7 +2008,9 @@ if ($source == 'kassekladde') {
 			'dato'        => $bl['transdate'] ? dkdato($bl['transdate']) : '',
 			'faktura'     => $bl['faktura'] ?? '',
 			'beskrivelse' => $bl['beskrivelse'] ?? '',
+			'd_type'      => $bl['d_type'] ?? '',
 			'debet'       => $bl['debet'] ?? '',
+			'k_type'      => $bl['k_type'] ?? '',
 			'kredit'      => $bl['kredit'] ?? '',
 			'amount'      => $bl['amount'] ? dkdecimal($bl['amount']) : '',
 			'afd'         => $bl['afd'] ?? '',
@@ -1955,6 +2113,22 @@ print "AI scan</label>";
 print "<button type='button' id='extractAllBtn' onclick='extractAllPoolFiles()' title='".findtekst('3272|Opdatér alle filer med fakturadata', $sprog_id)."' style='padding: 8px 12px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgScan <span style='font-size: 12px;'>".findtekst('898|Opdatér', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id))."</span></button>"; #Opdatér alle
 // Delete selected button
 print "<button type='button' id='deleteSelectedBtn' onclick='deleteSelectedFiles()' title='".findtekst('3273|Slet valgte filer', $sprog_id)."' style='padding: 8px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgTrash <span style='font-size: 12px;'>".findtekst('1146|Slet valgte', $sprog_id)."</span></button>";
+// SD-717: archive the selection ("Gendan valgte" in the archive; docPoolArchive.js swaps the label) and the archive filter
+$svgArchive = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>';
+print "<button type='button' id='archiveSelectedBtn' onclick='poolArchive.runSelected()' data-restore-label='".htmlspecialchars(findtekst('5342|Gendan valgte', $sprog_id), ENT_QUOTES)."' style='padding: 8px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgArchive <span style='font-size: 12px;'>".findtekst('5341|Arkivér valgte', $sprog_id)."</span></button>";
+print "<label style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
+print "<input type='checkbox' id='poolShowArchived' onchange='poolArchive.toggleView(this.checked)' style='cursor: pointer;'>".findtekst('5338|Vis arkiverede', $sprog_id)."</label>";
+print "<script>window.saldiPoolArchive = " . json_encode(array(
+	'db'         => (string)$db,
+	'handlerUrl' => 'docsIncludes/extractInvoiceHandler.php',
+	'texts'      => array(
+		'archive'      => findtekst('5337|Arkivér', $sprog_id),
+		'restore'      => findtekst('5339|Gendan', $sprog_id),
+		'archived'     => findtekst('5343|Arkiveret', $sprog_id),
+		'noneSelected' => findtekst('5345|Ingen bilag valgt.', $sprog_id),
+		'emptyArchive' => findtekst('5344|Ingen arkiverede bilag', $sprog_id),
+	),
+), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
 print "<div style='display: flex; gap: 0;'>";
 print "<button type='button' id='tableViewBtn' onclick='setViewMode(\"table\")' title='".findtekst('3274|Tabelvisning', $sprog_id)."' style='padding: 8px 12px; background-color: $buttonColor; color: $buttonTxtColor; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;'>$svgTable</button>";
 print "<button type='button' id='cardViewBtn' onclick='setViewMode(\"card\")' title='".findtekst('3275|Kortvisning', $sprog_id)."' style='padding: 8px 12px; background-color: #e9ecef; color: #495057; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;'>$svgGrid</button>";
@@ -2440,7 +2614,8 @@ print <<<JS
       
 
         try {
-            const response = await fetch('_docPoolData.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}'));
+            const archivedParam = (window.poolArchive && window.poolArchive.view()) ? '&archived=1' : '';
+            const response = await fetch('_docPoolData.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}') + archivedParam);
             const data     = await response.json();
 
             if (data.error) {
@@ -2465,7 +2640,7 @@ print <<<JS
 
     function renderFiles() {
 			if (!docData.length) {
-				document.getElementById(containerId).innerHTML = '<em>{$txt22}.</em>';
+				document.getElementById(containerId).innerHTML = (window.poolArchive && window.poolArchive.view()) ? '<em>' + escapeHTML(window.saldiPoolArchive.texts.emptyArchive) + '.</em>' : '<em>{$txt22}.</em>';
 				return;
 			}
 			
@@ -2530,7 +2705,8 @@ print <<<JS
 		
 		// Normalize the total sum for comparison
 		const normalizedTotal = parseFloat(totalSum?.replace(/\./g, '').replace(',', '.') || 0);
-		const hasAmountToMatch = normalizedTotal !== 0 && !isNaN(normalizedTotal);
+		const inArchive = !!(window.poolArchive && window.poolArchive.view());
+		const hasAmountToMatch = !inArchive && normalizedTotal !== 0 && !isNaN(normalizedTotal);
 		
 		// Normalize target date for comparison (convert dd-mm-yyyy to yyyy-mm-dd for comparison)
 		let normalizedTargetDate = null;
@@ -2547,7 +2723,7 @@ print <<<JS
 				}
 			}
 		}
-		const hasDateToMatch = normalizedTargetDate !== null;
+		const hasDateToMatch = !inArchive && normalizedTargetDate !== null;
 		
 		// First pass: count matching documents and find combinations
 		let matchingCount      = 0;
@@ -2817,6 +2993,7 @@ print <<<JS
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(row.invoiceNumber || '') + "\", \"" + escapeHTML(row.description || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
+				(window.poolArchive ? window.poolArchive.button(poolFileFromHref, 'row') : '') +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
 				"</div>";
 
@@ -2826,6 +3003,7 @@ print <<<JS
 			
 			const metadataState = row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}';
 			subjectCell += "<br><small>" + escapeHTML(metadataState) + "</small>";
+			if (row.archived && window.poolArchive) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.archivedNote(row)) + "</small>";
 			const dataAttrs = "data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + 
 				(isMatch ? "data-selected='true' " : "") + 
 				(isPerfectMatch ? "data-perfect-match='true' " : "") +
@@ -2986,7 +3164,7 @@ print <<<JS
 	// Card layout render function (similar to linkBilag style)
 	function renderFilesCard() {
 		if (!docData.length) {
-			document.getElementById(containerId).innerHTML = '<em>{$txt22}.</em>';
+			document.getElementById(containerId).innerHTML = (window.poolArchive && window.poolArchive.view()) ? '<em>' + escapeHTML(window.saldiPoolArchive.texts.emptyArchive) + '.</em>' : '<em>{$txt22}.</em>';
 			return;
 		}
 		
@@ -3003,7 +3181,8 @@ print <<<JS
 		
 		// Amount and date matching logic (reuse from renderFiles)
 		const normalizedTotal = parseFloat(totalSum?.replace(/\\./g, '').replace(',', '.') || 0);
-		const hasAmountToMatch = normalizedTotal !== 0 && !isNaN(normalizedTotal);
+		const inArchive = !!(window.poolArchive && window.poolArchive.view());
+		const hasAmountToMatch = !inArchive && normalizedTotal !== 0 && !isNaN(normalizedTotal);
 		
 		// Normalize target date for card view
 		let cardNormalizedTargetDate = null;
@@ -3017,7 +3196,7 @@ print <<<JS
 				}
 			}
 		}
-		const cardHasDateToMatch = cardNormalizedTargetDate !== null;
+		const cardHasDateToMatch = !inArchive && cardNormalizedTargetDate !== null;
 		
 		let exactMatches       = [];
 		let perfectMatches     = [];
@@ -3203,6 +3382,7 @@ print <<<JS
 			html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHTML(subject) + '">' + escapeHTML(subject) + '</div>';
 			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
 			html += '<span>' + escapeHTML(row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}') + '</span>';
+			if (row.archived && window.poolArchive) html += '<span>' + escapeHTML(window.poolArchive.archivedNote(row)) + '</span>';
 			if (account) html += '<span><strong>{$txt6}:</strong> ' + escapeHTML(account) + '</span>';
 			if (amount) {
 				let amountHtml = '<span><strong>{$txt10}:</strong> ';
@@ -3235,6 +3415,7 @@ print <<<JS
 			html += '<div class="card-actions" style="flex-shrink: 0; display: flex; gap: 4px;" onclick="event.stopPropagation();">';
 			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); enableCardEdit(\\'' + escapeHTML(filename) + '\\', \\'' + escapeHTML(subject) + '\\', \\'' + escapeHTML(account) + '\\', \\'' + escapeHTML(amount) + '\\', \\'' + escapeHTML(dateFormatted) + '\\'); return false;" style="padding: 6px 10px; background: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt13}">' + svgIcons.pencil + '</button>';
 			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); deletePoolFile(\\'' + escapeHTML(filename) + '\\', ' + JSON.stringify(subject) + ', \\'' + escapeHTML(deleteUrl) + '\\'); return false;" style="padding: 6px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt12}">' + svgIcons.trash + '</button>';
+			if (window.poolArchive) html += window.poolArchive.button(filename, 'card');
 			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); extractPoolFile(\\'' + escapeHTML(filename) + '\\'); return false;" style="padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt25}">' + svgIcons.scan + '</button>';
 			html += '</div>';
 			
@@ -3398,7 +3579,8 @@ print <<<JS
 	};
 	
 	// Function to insert/choose multiple bilag
-	window.chooseMultipleBilag = function(selectedFiles) {
+	// afterAttach (SD-716): called instead of the redirect to the journal once the document is attached
+	window.chooseMultipleBilag = function(selectedFiles, afterAttach) {
 		const form = document.forms['gennemse'];
 		if (!form) {
 			alert('Form not found');
@@ -3610,6 +3792,18 @@ print <<<JS
 						sessionStorage.removeItem('docPool_checked_' + file);
 					});
 
+					if (typeof afterAttach === 'function') {
+						// A successful attach answers with the redirect to the journal; anything else is an error page
+						if (text.indexOf('kassekladde.php?kladde_id=') !== -1) {
+							afterAttach();
+						} else {
+							console.error('Attach failed. Response:', text);
+							alert('{$txt34}. {$txt32}.');
+							afterAttach(new Error('attach failed'));
+						}
+						return;
+					}
+
 					// Leaving the pool for the kassekladde: keep the list position for the way back.
 					savePoolListView();
 
@@ -3634,14 +3828,17 @@ print <<<JS
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
 					alert(response.status === 409 ? '{$poolStaleText}' : '{$txt34} (Status: ' + response.status + '). {$txt32}.');
+					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');
+					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				});
 			}
 		})
 		.catch(error => {
 			console.error('Insert error:', error);
 			alert('{$txt34}: ' + error.message);
+			if (typeof afterAttach === 'function') afterAttach(error);
 		});
 	};
 	
@@ -3948,8 +4145,9 @@ window.extractPoolFile = function(poolFile) {
 
 // Extract invoice data from ALL pool files
 window.extractAllPoolFiles = async function() {
-	// Get all pool files from the docData array
-	if (!docData || docData.length === 0) {
+	// Get all pool files from the docData array; archived documents are not extracted (SD-717)
+	const activeDocs = (docData || []).filter(function(row) { return !row.archived; });
+	if (activeDocs.length === 0) {
 		alert('{$txt41}');
 		return;
 	}
@@ -3959,7 +4157,7 @@ window.extractAllPoolFiles = async function() {
 	let processed = 0;
 	let successful = 0;
 	let failed = 0;
-	const total = docData.length;
+	const total = activeDocs.length;
 	
 	// Disable button and show progress
 	btn.disabled = true;
@@ -3973,7 +4171,7 @@ window.extractAllPoolFiles = async function() {
 
 	
 	// Process each file sequentially
-	let queue = docData.slice();
+	let queue = activeDocs.slice();
 
 	const THREADS = 4;
 	const promises = Array.from({length: THREADS}, async () => { 
@@ -4276,6 +4474,7 @@ window.saveRowData = function(input) {
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(data.newInvoiceNumber || '') + "\", \"" + escapeHTML(data.newInvoiceDescription || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
+				(window.poolArchive ? window.poolArchive.button(poolFileFromRow, 'row') : '') +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
 				"</div>";
 			
@@ -4486,13 +4685,14 @@ JS;
 		var totalFiles = validFiles.length;
 		var uploadedCount = 0;
 		var failedCount = 0;
+		var duplicateMessages = [];
 		var lastUploadedFilename = null;
 
 		if (dropZone) { dropZone.style.pointerEvents = 'none'; dropZone.style.opacity = '0.7'; }
 
 		function updateProgress() {
 			if (dropText) {
-				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> ".addslashes(findtekst('3328|Uploader', $sprog_id))." ' + (uploadedCount + failedCount + 1) + ' ".addslashes(lcfirst(findtekst('2767|Af', $sprog_id)))." ' + totalFiles + '...';
+				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> ".addslashes(findtekst('3328|Uploader', $sprog_id))." ' + (uploadedCount + failedCount + duplicateMessages.length + 1) + ' ".addslashes(lcfirst(findtekst('2767|Af', $sprog_id)))." ' + totalFiles + '...';
 			}
 		}
 
@@ -4511,6 +4711,7 @@ JS;
 				var message = '✓ ".addslashes(findtekst('3329|Upload færdig', $sprog_id))."!\\n';
 				message += uploadedCount + ' ".addslashes(lcfirst(findtekst('3330|Fil(er) uploadet', $sprog_id)))."';
 				if (failedCount > 0) message += '\\n' + failedCount + ' ".addslashes(lcfirst(findtekst('3331|Fil(er) fejlet', $sprog_id)))."';
+				if (duplicateMessages.length > 0) message += '\\n' + duplicateMessages.join('\\n');
 				alert(message);
 
 				savePoolListView();
@@ -4589,6 +4790,8 @@ JS;
 					}
 					uploadedCount++;
 					lastUploadedFilename = data.filename;
+				} else if (data && data.duplicate) {
+					duplicateMessages.push(data.message || (file.name + ': ' + data.existing));
 				} else {
 					failedCount++;
 					console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
@@ -5465,8 +5668,8 @@ HTML;
             bilagsnr:    getVal(pfx + 'Bilag'),
             dato:        getVal(pfx + 'Dato'),
             beskrivelse: getVal(pfx + 'Beskrivelse'),
-            debet:       getVal(pfx + 'Debet'),
-            kredit:      getVal(pfx + 'Kredit'),
+            debet:       poolAccountValue(pfx, 'Debet'),
+            kredit:      poolAccountValue(pfx, 'Kredit'),
             fakturanr:   getVal(pfx + 'Faktura'),
             amount:      getVal(pfx + 'Amount'),
             afd:         getVal(pfx + 'Afd'),
@@ -5479,6 +5682,12 @@ HTML;
 
     /** Open a document preview without dropping the unsaved new voucher's fields. */
     window.openPoolFile = function(href) {
+        // SD-716: nothing typed in the new line, so the document opens with its own data (docPoolSaveNext.js)
+        var fresh = typeof window.poolFreshDocumentUrl === 'function' ? window.poolFreshDocumentUrl(href) : null;
+        if (fresh) {
+            if (typeof window.poolSwitch === 'function') window.poolSwitch(fresh); else window.location.href = fresh;
+            return;
+        }
         var url = new URL(href, window.location.href);
         if (document.getElementById('bilagEntry_new')) {
             var values = _collectRow('new');
@@ -5500,6 +5709,9 @@ HTML;
         if (includeSourceId && rowId !== 'new') fd.append("sourceId", rowId);
         if (kladdeId) fd.append("kladde_id", kladdeId);
         if (bilag)    fd.append("bilag", bilag);
+        // SD-716: a new row "Gem og næste" has already saved (its attach then failed) is that line now, not a new one
+        var savedEntry = document.getElementById('bilagEntry_' + rowId);
+        if (includeSourceId && !fd.has("sourceId") && savedEntry && savedEntry.dataset.savedLineId) fd.append("sourceId", savedEntry.dataset.savedLineId);
         fd.append("bilagsnr",    v.bilagsnr);
         fd.append("dato",        v.dato);
         fd.append("beskrivelse", v.beskrivelse);
@@ -5627,9 +5839,10 @@ HTML;
     window.duplicateEntry = duplicateRow;
 
 	//### 
-	window.transferDataFromSelectedFile = function() {
-    
-    
+	// options.auto (SD-716, "Gem og næste" opening the next document): no confirm popup, no alerts, only empty
+	// fields are filled, and Kredit only from a confident vendor match
+	window.transferDataFromSelectedFile = function(options) {
+		const auto = !!(options && options.auto);
 		let sourceRow  = null;
 		let sourceData = null;
 
@@ -5676,9 +5889,10 @@ HTML;
 		}
 
 		if (!sourceData) {
-			alert('Ingen fil valgt i listen. Klik på en fil i listen til venstre først.');
+			if (!auto) alert('Ingen fil valgt i listen. Klik på en fil i listen til venstre først.');
 			return;
 		} else if (sourceData === "multiple") {
+			if (auto) return;
 			alert('Flere filer er markeret. Vælg kun én fil for at overføre data.');
 			return;
 		}
@@ -5693,7 +5907,7 @@ HTML;
 			: Array.from(document.querySelectorAll('.kassebilag-entry'));
 
 		if (!entriesToFill.length) {
-			alert('Ingen kassebilag-linjer at overføre data til.');
+			if (!auto) alert('Ingen kassebilag-linjer at overføre data til.');
 			return;
 		}
 
@@ -5756,7 +5970,49 @@ HTML;
 		const suggestion = vendorSuggestion(sourceData.vendor);
 		const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-		// Populate each target entry
+		// Populate each target entry. onlyEmpty: leave a field that already has a value alone.
+		function applyTransfer(transferKredit, onlyEmpty) {
+				let populated = 0;
+				let kreditKept = 0;
+				entriesToFill.forEach(function(entry) {
+					const rowId = entry.id.replace('bilagEntry_', '');
+					const pfx   = 'row_' + rowId + '_';
+
+					function setField(id, value) {
+						const el = document.getElementById(id);
+						if (el && value && !(onlyEmpty && el.value.trim() !== '')) {
+							el.value = value;
+							el.dispatchEvent(new Event('change', { bubbles: true }));
+						}
+					}
+
+					if (transferAmount)      setField(pfx + 'Amount',      transferAmount);
+					if (transferDate)        setField(pfx + 'Dato',        transferDate);
+					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
+					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
+					if (transferKredit) {
+						// A Kredit the user typed is never overwritten by a suggestion.
+						const kreditEl = document.getElementById(pfx + 'Kredit');
+						if (kreditEl && kreditEl.value.trim() !== '' && kreditEl.value.trim() !== transferKredit) {
+							kreditKept++;
+						} else if (kreditEl) {
+							setField(pfx + 'Kredit', transferKredit);
+							kreditEl.title = vendorTxt.forslag + (suggestion.firmanavn ? ': ' + suggestion.firmanavn : '');
+							kreditEl.style.boxShadow = 'inset 0 0 0 2px #17a2b8';
+							kreditEl.addEventListener('input', function() { kreditEl.style.boxShadow = ''; kreditEl.title = ''; }, { once: true });
+						}
+					}
+
+					populated++;
+				});
+				if (kreditKept) console.info(vendorTxt.ikkeOverskrevet + ' (' + kreditKept + ')');
+		}
+
+		if (auto) {
+			applyTransfer(suggestion.mode === 'auto' ? suggestion.kredit : '', true);
+			return;
+		}
+
 		const existing = document.getElementById('transferConfirmPopup');
 			if (existing) existing.remove();
 
@@ -5812,41 +6068,7 @@ HTML;
 					if (sel && sel.value) transferKredit = sel.value;
 				}
 				overlay.remove();
-
-				let populated = 0;
-				let kreditKept = 0;
-				entriesToFill.forEach(function(entry) {
-					const rowId = entry.id.replace('bilagEntry_', '');
-					const pfx   = 'row_' + rowId + '_';
-
-					function setField(id, value) {
-						const el = document.getElementById(id);
-						if (el && value) {
-							el.value = value;
-							el.dispatchEvent(new Event('change', { bubbles: true }));
-						}
-					}
-
-					if (transferAmount)      setField(pfx + 'Amount',      transferAmount);
-					if (transferDate)        setField(pfx + 'Dato',        transferDate);
-					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
-					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
-					if (transferKredit) {
-						// A Kredit the user typed is never overwritten by a suggestion.
-						const kreditEl = document.getElementById(pfx + 'Kredit');
-						if (kreditEl && kreditEl.value.trim() !== '' && kreditEl.value.trim() !== transferKredit) {
-							kreditKept++;
-						} else if (kreditEl) {
-							setField(pfx + 'Kredit', transferKredit);
-							kreditEl.title = vendorTxt.forslag + (suggestion.firmanavn ? ': ' + suggestion.firmanavn : '');
-							kreditEl.style.boxShadow = 'inset 0 0 0 2px #17a2b8';
-							kreditEl.addEventListener('input', function() { kreditEl.style.boxShadow = ''; kreditEl.title = ''; }, { once: true });
-						}
-					}
-
-					populated++;
-				});
-				if (kreditKept) console.info(vendorTxt.ikkeOverskrevet + ' (' + kreditKept + ')');
+				applyTransfer(transferKredit, false);
 
 				// Visual feedback on the button
 				const btn = document.getElementById('transferDataBtn');

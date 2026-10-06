@@ -5144,6 +5144,13 @@
 5254	Kontrollér konto, beløb og dato. Ingen ændringer er gemt.	Check the account, amount and date. No changes have been saved.	Kontroller konto, beløp og dato. Ingen endringer er lagret.
 5255	Forslag	Suggested	Forslag
 5256	Rettet / accepteret	Corrected / accepted	Rettet / akseptert
+5257	%s ligger allerede i puljen som %s	%s is already in the pool as %s	%s ligger allerede i puljen som %s
+5258	Bilaget kunne ikke uploades. Prøv igen.	The document could not be uploaded. Please try again.	Bilaget kunne ikke lastes opp. Prøv igjen.
+5285	F = finanskonto, D = debitor, K = kreditor	F = finance account, D = debtor, K = creditor	F = finanskonto, D = debitor, K = kreditor
+5286	Fakturanr. {nr} er allerede brugt på denne kreditor	Invoice no. {nr} has already been used for this creditor	Fakturanr. {nr} er allerede brukt på denne kreditoren
+5287	Kladde {kladde}, bilag {bilag}	Journal {kladde}, voucher {bilag}	Kladd {kladde}, bilag {bilag}
+5288	Bogført som bilag {bilag} den {dato}	Posted as voucher {bilag} on {dato}	Bokført som bilag {bilag} den {dato}
+5289	Andet bilag i puljen: {fil}	Other document in the pool: {fil}	Annet bilag i puljen: {fil}
 5300	Kladde	Journal	Kladd
 5301	Fremdrift	Progress	Fremdrift
 5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…
@@ -5169,3 +5176,17 @@
 5322	Bedste match	Best matches	Beste treff
 5323	Andre åbne posteringer	Other open entries	Andre åpne posteringer
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
+5332	Gem og næste	Save and next	Lagre og neste
+5333	Spring over	Skip	Hopp over
+5334	Obligatorisk	Required	Obligatorisk
+5335	Ingen flere bilag i puljen	No more documents in the pool	Ingen flere bilag i puljen
+5336	Tilbage til kassekladden	Back to the cash journal	Tilbake til kassakladden
+5337	Arkivér	Archive	Arkiver
+5338	Vis arkiverede	Show archived	Vis arkiverte
+5339	Gendan	Restore	Gjenopprett
+5340	Arkivet er ikke klar. Log ud og ind igen.	The archive is not ready. Log out and in again.	Arkivet er ikke klart. Logg ut og inn igjen.
+5341	Arkivér valgte	Archive selected	Arkiver valgte
+5342	Gendan valgte	Restore selected	Gjenopprett valgte
+5343	Arkiveret	Archived	Arkivert
+5344	Ingen arkiverede bilag	No archived documents	Ingen arkiverte bilag
+5345	Ingen bilag valgt.	No documents selected.	Ingen bilag valgt.
