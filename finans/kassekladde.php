@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -132,10 +132,13 @@
 //                  observed tidspkt, so a stale render can't overwrite a token a concurrent
 //                  tidspkt change has since replaced (unlockRecord.php's refresh_lock_token()
 //                  now requires it).
+// 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
+//                  sent kksort without kkdir, which reset a descending choice to ascending.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
+require_once __DIR__ . '/kassekladde_includes/sorting.php';
 
 # A line created during this request is rendered last, whatever the list is sorted by, so the line the
 # user just typed stays where they are working instead of jumping to its sorted position (with
@@ -723,10 +726,13 @@ if ($_GET) {
 	$belob[$x]       =  trim(if_isset($belob, 		'',		$x));
 	$existing_row = null;
 
-	// Persistent Sorting
-	if ($kksort) {
-		if ($kkdir_get == 'desc') $kkdir = 'desc'; else $kkdir = 'asc';
-		db_modify("update grupper set box1='" . db_escape_string($kksort) . "', box4='" . db_escape_string($kkdir) . "' where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+	// Persistent Sorting (SST-856): only a click on a header link carries a direction, so only that may
+	// replace the sorting the user chose. A form action sends kksort without kkdir and used to write
+	// 'asc' here, which reset a descending sort on every Gem, Enter, Opslag, Udlign, Simuler and Bogfoer.
+	$kk_sort_click = kk_sort_click($kksort, $kkdir_get);
+	if ($kk_sort_click !== null) {
+		$kkdir = $kk_sort_click['dir'];
+		db_modify("update grupper set box1='" . db_escape_string($kk_sort_click['sort']) . "', box4='" . db_escape_string($kk_sort_click['dir']) . "' where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 	}
 
 	if ($kladde_id && ($id[$x] || $lobenr[$x] || $x)) {
@@ -2608,12 +2614,18 @@ print '<style>
 ##################
 
 if (!$udskriv) {
-$action_url = "../finans/kassekladde.php?kksort=$kksort";
+// SST-856: the saved sorting is the single truth, so the form URL carries none. A kksort here
+// without a kkdir made every save look like a sort click and reset the direction.
+$action_url = "../finans/kassekladde.php";
+$action_params = array();
 if ($kladde_id) {
-    $action_url .= "&kladde_id=$kladde_id";
+    $action_params[] = "kladde_id=$kladde_id";
 }
 if ($tjek) {
-    $action_url .= "&tjek=$tjek";
+    $action_params[] = "tjek=$tjek";
+}
+if ($action_params) {
+    $action_url .= '?' . implode('&', $action_params);
 }
 print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post' autocomplete='off'>";
 print "<input type='hidden' name='kk_save_token' value='" . bin2hex(random_bytes(32)) . "'>";
@@ -2899,9 +2911,8 @@ if ($r && !$kksort) $kksort = $r['box1'];
 if ($r) $kontrolkonto = $r['box2'];
 if ($r) $kkdir = ($r['box4'] == 'desc') ? 'desc' : 'asc';
 if ($kladde_id) {
-	if ($kksort != 'transdate,bilag' && $kksort != 'amount' && $kksort != 'bilag,transdate' && $kksort != 'pos')
-		$kksort = 'bilag,transdate';
-	if (!isset($kkdir) || ($kkdir != 'asc' && $kkdir != 'desc')) $kkdir = 'asc';
+	$kksort = kk_sort_key($kksort);
+	$kkdir = kk_sort_direction($kkdir);
 	
 	$id = array();
 	$bilag = array();
