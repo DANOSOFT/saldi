@@ -5,6 +5,8 @@
 //                Enter on the warning then saves the way Enter in the field would.
 //                Pool (window.saldiInvoiceReuse set): checks each line on load and when Kredit or Faktura changes.
 // 20261003 CL/SZ SD-719 The pool's lines are checked again after an in-place document switch ("poolswitch"); the change listener is added once.
+// 20261006 CL/SZ SD-715 Journal (window.saldiInvoiceReuseJournal set): a line is checked when its Kredit, Kredit type or Fakturanr. changes, so the warning shows
+//                while the line is typed, not only after "Gem" (the page's own check only sees saved lines).
 (function () {
     'use strict';
 
@@ -55,6 +57,75 @@
     document.addEventListener('focusin', function (e) {
         const warning = e.target instanceof Element && e.target.closest(WARNING);
         if (warning) warning.dataset.seen = '1';
+    });
+
+    /* ---------- Journal ---------- */
+
+    /** The journal row's field with this name prefix (fakt, kred, k_ty, bila), e.g. fakt7 on row 7. */
+    function journalField(form, name, row) {
+        return form.elements.namedItem(name + row);
+    }
+
+    function checkJournalLine(form, row) {
+        const cfg = window.saldiInvoiceReuseJournal;
+        const field = journalField(form, 'fakt', row);
+        if (!cfg || !(field instanceof HTMLInputElement) || field.readOnly || field.disabled) return;
+        const kType = journalField(form, 'k_ty', row);
+        const kredit = journalField(form, 'kred', row);
+        const kontonr = kType && kType.value.trim().toUpperCase() === 'K' && kredit ? kredit.value.trim() : '';
+        const lineId = form.elements.namedItem('id[' + row + ']');
+        const kladde = form.elements.namedItem('kladde_id');
+        const bilag = journalField(form, 'bila', row);
+        const query = 'kontonr=' + encodeURIComponent(kontonr) + '&faktura=' + encodeURIComponent(field.value.trim()) +
+            '&line=' + encodeURIComponent(lineId && /^\d+$/.test(lineId.value) ? lineId.value : 0) +
+            '&kladde_id=' + encodeURIComponent(kladde ? kladde.value : 0) + '&bilag=' + encodeURIComponent(bilag ? bilag.value.trim() : '');
+        field.invoiceReuseQuery = query;
+        if (!kontonr || !field.value.trim()) {
+            showJournalWarning(field, '');
+            return;
+        }
+        fetch(cfg.url + '?' + query, { credentials: 'same-origin' })
+            .then(function (response) { return response.ok ? response.json() : {}; })
+            .then(function (data) {
+                // A newer check for this line has started meanwhile
+                if (field.invoiceReuseQuery !== query) return;
+                showJournalWarning(field, data.html || '');
+            })
+            .catch(function () {});
+    }
+
+    /** The same ⚠ and pop-up kassekladde.php prints for a saved line, or none. */
+    function showJournalWarning(field, html) {
+        const cell = field.closest('td');
+        if (!cell) return;
+        let flag = cell.querySelector(WARNING);
+        if (!html) {
+            if (flag) flag.remove();
+            field.classList.remove('invoice-reuse-field');
+            cell.classList.remove('invoice-reuse-cell');
+            return;
+        }
+        if (flag && flag.dataset.html === html) return;
+        if (flag) flag.remove();
+        // The text comes escaped from invoice_reuse_html()
+        flag = document.createElement('span');
+        flag.className = 'invoice-reuse-flag';
+        flag.tabIndex = 0;
+        flag.setAttribute('role', 'note');
+        flag.dataset.invoiceReuse = '1';
+        flag.dataset.html = html;
+        flag.innerHTML = '&#9888;<span class="invoice-reuse-pop">' + html + '</span>';
+        cell.appendChild(flag);
+        cell.classList.add('invoice-reuse-cell');
+        field.classList.add('invoice-reuse-field');
+    }
+
+    document.addEventListener('change', function (e) {
+        if (!window.saldiInvoiceReuseJournal) return;
+        const el = e.target;
+        if (!(el instanceof HTMLInputElement) || !el.form) return;
+        const match = /^(fakt|kred|k_ty)(\d+)$/.exec(el.name || '');
+        if (match) checkJournalLine(el.form, match[2]);
     });
 
     /* ---------- Document pool ---------- */
