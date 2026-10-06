@@ -25,7 +25,8 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
-// 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token); the log endpoint now takes the tenant from the session.
+// 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token) and the login itself in the
+//                 browser console; the log endpoint now takes the tenant from the session.
 
 @session_start();
 $s_id = session_id();
@@ -191,12 +192,10 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
-    console.log("<?php print get_settings_value("username", "move3500", "", null, $kasse);?>", "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>");
     const data = {
         "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
         "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
     }
-    console.log(data)
     
     try {
         const fetchPromise = fetch(

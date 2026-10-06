@@ -5,7 +5,8 @@
 
 @session_start();
 $s_id = session_id();
-$header = 'nix'; // JSON endpoint: online.php must not emit the HTML head.
+$header = 'nix'; // JSON endpoint: online.php must emit neither the HTML head ...
+$bg = 'nix';     // ... nor the <body> tag it prints for the classic layout.
 include ("../../includes/connect.php");
 include ("../../includes/online.php");
 
