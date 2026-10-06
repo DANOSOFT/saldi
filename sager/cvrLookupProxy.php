@@ -18,6 +18,7 @@
 // ----------------------------------------------------------------------
 // 20261003 CL/SZ SD-721 The call to cvrapi.dk is includes/cvrLookup.php's cvrLookupFetch(), which the automatic kreditor creation uses too.
 //                A CVR number's answer now comes from its cache when it was looked up before.
+// 20261006 CL/SZ SD-721 A refused lookup answers with cvrapi.dk's error code (QUOTA_EXCEEDED, BLOCKED ...), so the card can say why instead of "upstream error".
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 
@@ -60,9 +61,10 @@
 	$answer = cvrLookupFetch($type,$param,$country,10);
 	$code = $answer['code'];
 
-	if ($answer['body'] === null || $code >= 400) {
-		http_response_code($code ? $code : 502);
-		print json_encode(array('error'=>'upstream error','status'=>$code));
+	# NOT_FOUND comes as cvrapi.dk's own JSON below; any other refusal as its error code, which
+	# javascript/cvrapiopslag.js turns into a message (it only reads the code from a 200 answer)
+	if ($answer['body'] === null || ($code >= 400 && !empty($answer['error']))) {
+		print json_encode(array('error'=>$answer['error'] ? $answer['error'] : 'UNAVAILABLE','status'=>$code));
 		exit;
 	}
 
