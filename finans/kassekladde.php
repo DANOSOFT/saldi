@@ -134,6 +134,7 @@
 //                and the journal then refused every save.
 // 20261006 CL/SZ SD-716 With SD-701 from master: the paper icon of a line with a document opens it in its own tab (openBilagTab()); without one it
 //                still saves first and opens the pool (clipSaveThenPool()).
+// 20261006 CL/SZ SD-715 Fakturanr. is also checked while a line is typed (window.saldiInvoiceReuseJournal for invoiceReuse.js); invoiceReuse.js?v= bumped.
 
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
@@ -541,7 +542,9 @@ print '<script src="../javascript/accountAutocomplete.js?v=4.1.11" defer></scrip
 include_once("../includes/kreditorFromCvr.php");
 print kreditorCvrClientScript($sprog_id, '1');
 print '<link rel="stylesheet" type="text/css" href="../css/invoiceReuse.css?v=1">';
-print '<script src="../javascript/invoiceReuse.js?v=1" defer></script>';
+print '<script src="../javascript/invoiceReuse.js?v=3" defer></script>';
+// SD-715: the line being typed is checked too, not only the saved ones
+print "<script>window.saldiInvoiceReuseJournal = { url: 'kassekladde_includes/invoiceReuseCheck.php' };</script>";
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
