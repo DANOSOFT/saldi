@@ -30,6 +30,7 @@
 //                  writing its values if the prompt was accepted. The superseded request is
 //                  aborted and both its callbacks are guarded by the sequence number.
 // 20261006 CL/SZ SD-721 Messages for BLOCKED and BANNED: cvrapi.dk refuses the server's lookups (sager/cvrLookupProxy.php passes the code on).
+// 20261006 CL/SZ SD-721 INVALID_UA gets the same message; the kreditor and debitor cards now use the proxy too (cvrLookupClientConfig()).
 
 function cvrField(name) {
 	var visible = $("[name=" + name + "]").not("[type=hidden]");
@@ -213,6 +214,7 @@ var cvrFejlTekst = {
 	QUOTA_EXCEEDED: 'Kvoten for CVR-opslag er opbrugt.',
 	BLOCKED:        'cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.',
 	BANNED:         'cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.',
+	INVALID_UA:     'cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.',
 	NOT_FOUND:      'CVR-nummeret blev ikke fundet.',
 	INVALID_VAT:    'CVR-nummeret er ikke gyldigt.',
 	soeger:         'Søger...'
