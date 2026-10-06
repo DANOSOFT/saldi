@@ -9,6 +9,9 @@
 //                Needs window.saldiKreditorCvr (url, proxy, cvrScript, texts), set by docPool.php and kassekladde.php.
 // 20261004 CL/SZ SD-721 A CVR number that only a closed kreditor has: "Kreditor 1005 Firma A/S er lukket — Genåbn · Opret ny", in the pool and in the dialog.
 //                "Genåbn" opens the kreditor again and fills Kredit; "Opret ny" opens the dialog, which then creates a second kreditor.
+// 20261006 CL/SZ SD-721 Opening another document keeps the notice's place (hidden) until the new answer arrives, so the rows and the pool list below
+//                no longer jump up and back down on every click; "Fortryd" still goes at once.
+// 20261006 CL/SZ SD-721 "Ukendt leverandør" says why the CVR register gave nothing: "Kvoten for CVR-opslag er opbrugt" or "cvrapi.dk afviser opslag fra serveren".
 (function () {
     'use strict';
 
@@ -128,6 +131,8 @@
         box = document.createElement('div');
         box.id = 'kredCvrNotice';
         box.className = 'kred-cvr-notice';
+        // Kept in place when another document opens in place (docPoolSwitch.js); resolveCurrent() then hides it until the answer
+        box.dataset.poolKeep = 'bilagRowsContainer';
         rows.parentNode.insertBefore(box, rows);
         return box;
     }
@@ -137,9 +142,24 @@
         if (box) box.remove();
     }
 
+    /**
+     * A new document's answer is on its way: the notice keeps its place, hidden, so the rows below don't jump up and back down.
+     * "Fortryd" goes at once: it undoes the previous document's kreditor.
+     */
+    function holdNotice() {
+        var box = document.getElementById('kredCvrNotice');
+        if (!box) return;
+        if (box.dataset.kreditorId) {
+            box.remove();
+            return;
+        }
+        box.style.visibility = 'hidden';
+    }
+
     function showNotice(html, kind) {
         var box = notice();
         if (!box) return null;
+        box.style.visibility = '';
         box.className = 'kred-cvr-notice' + (kind ? ' kred-cvr-' + kind : '');
         box.innerHTML = html;
         return box;
@@ -231,7 +251,7 @@
 
     /** "Ukendt leverandør — Opret kreditor", opening the dialog with what was read from the document. */
     function showUnknown(answer, filename) {
-        var reason = { lookup_failed: t('lookupFailed'), dissolved: t('dissolved'), not_found: t('notFound'), no_cvr: t('noCvr') }[answer.reason] || '';
+        var reason = { lookup_failed: t('lookupFailed'), quota: t('quota'), refused: t('refused'), dissolved: t('dissolved'), not_found: t('notFound'), no_cvr: t('noCvr') }[answer.reason] || '';
         var box = showNotice(esc(t('unknown')) + (answer.captured && answer.captured.name ? ': <b>' + esc(answer.captured.name) + '</b>' : '') +
             ' — <a href="#" class="kred-cvr-create">' + esc(t('create')) + '</a>' +
             (reason ? ' <span class="kred-cvr-reason">(' + esc(reason) + ')</span>' : ''), 'suggest');
@@ -246,19 +266,31 @@
 
     /** Runs when a document is opened for entry: the new line is there, Kredit is empty and the vendor match found no kreditor. */
     function resolveCurrent() {
-        removeNotice();
+        holdNotice();
         var c = cfg();
         var filename = currentPoolFile();
         var field = kreditField();
-        if (!c || !filename || !field || field.value.trim() !== '' || resolving === filename) return;
+        if (resolving === filename) return;
+        if (!c || !filename || !field || field.value.trim() !== '') {
+            removeNotice();
+            return;
+        }
         var row = poolRow(filename);
-        if (!row || !row.vendor || row.vendor.match !== 'none') return;
+        if (!row || !row.vendor || row.vendor.match !== 'none') {
+            removeNotice();
+            return;
+        }
         resolving = filename;
         post('resolve', { poolFile: filename }).then(function (answer) {
             resolving = null;
-            // Another document may have been opened meanwhile, or Kredit typed
-            if (currentPoolFile() !== filename || !kreditField() || kreditField().value.trim() !== '' || !answer) return;
+            // Another document may have been opened meanwhile (its own resolve handles the notice), or Kredit typed
+            if (currentPoolFile() !== filename) return;
+            if (!kreditField() || kreditField().value.trim() !== '' || !answer) {
+                removeNotice();
+                return;
+            }
             row.vendor.match = answer.status === 'match' || answer.status === 'created' ? 'cvr' : row.vendor.match;
+            if (!/^(created|suggest|closed|unknown)$/.test(answer.status)) removeNotice();
             if (answer.status === 'match') fillKredit(answer.kreditor);
             else if (answer.status === 'created') {
                 fillKredit(answer.kreditor);
@@ -268,6 +300,7 @@
             else if (answer.status === 'unknown') showUnknown(answer, filename);
         }, function () {
             resolving = null;
+            if (currentPoolFile() === filename) removeNotice();
         });
     }
 
