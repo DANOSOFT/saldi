@@ -39,6 +39,8 @@
 //                The menu S Ny link used undefined $kort/$ny_id/$alerttekst; it now uses kreditorkort.php, $ordre_id and $tekst like the other Ny link.
 // 20261006 CL/SZ SD-698 (CodeRabbit) The Tilbage links no longer put the back address in a javascript: href: a returside with %27 passed the
 //                sanitizer and became a quote there. The address is an escaped data attribute that onclick hands to confirmClose().
+// 20261006 CL/SZ SD-698 (CodeRabbit) The Ny links go the same way, and ordre_id (an integer) and fokus (a field name) are cleaned where they are read,
+//                so a crafted fokus can't break out of the links, the hidden field or the kontofusion redirect either.
 
 
 @session_start();
@@ -70,8 +72,9 @@ if (isset($_GET['bank_konto'])) $bank_konto = $_GET['bank_konto'];
 
 $returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
 if ($returside) {
-	$ordre_id  = ifset($_GET, 'ordre_id', 0);
-	$fokus     = ifset($_GET, 'fokus', 'kontonr');
+	$ordre_id  = (int)ifset($_GET, 'ordre_id', 0);
+	// A field name only: fokus is printed into links, a hidden field and the redirect to kontofusion.php
+	$fokus     = preg_replace('/[^A-Za-z0-9_]/', '', (string)ifset($_GET, 'fokus', 'kontonr'));
 } else {
 	if ($popup) $returside = "../includes/luk.php";
 	else $returside = "kreditor.php";
@@ -106,9 +109,9 @@ if ($_POST) {
 		$kreditmax = usdecimal($_POST['kreditmax']);
 		list($gruppe) = explode(':', $_POST['gruppe']);
 		$notes = db_escape_string(trim($_POST['notes']));
-		$ordre_id = $_POST['ordre_id'];
+		$ordre_id = (int)$_POST['ordre_id'];
 		$returside = nav_sanitize_returside(ifset($_POST, 'returside', ''));
-		$fokus = $_POST['fokus'];
+		$fokus = preg_replace('/[^A-Za-z0-9_]/', '', (string)$_POST['fokus']);
 		$posnr = isset($_POST['posnr']) ? $_POST['posnr'] : NULL;
 		$ans_id = isset($_POST['ans_id']) ? $_POST['ans_id'] : NULL;
 		$ans_ant = isset($_POST['ans_ant']) ? $_POST['ans_ant'] : NULL;
@@ -204,15 +207,18 @@ if ($_POST) {
 if (!$returside) $returside = $popup ? "../includes/luk.php" : "kreditor.php";
 $backSep  = (strpos($returside, '?') !== false) ? '&' : '?';
 $retursideParam = urlencode($returside);
-// a javascript: href is percent-decoded once before it runs, so encode twice there
-$retursideJsParam = urlencode($retursideParam);
 $backHref = $returside . $backSep . 'returside=' . urlencode($returside) . '&id=' . urlencode(if_isset($ordre_id, ''))
 	. '&fokus=' . urlencode(if_isset($fokus, '')) . '&konto_id=' . urlencode((string)$id);
 // The back link's address is data, not JavaScript: inside a javascript: href the browser decodes %27 to a quote before running it
-$backLinkAttr = function ($text = '') use ($backHref) {
-	return "href=\"#\" data-back=\"" . htmlspecialchars($backHref, ENT_QUOTES) . "\" data-text=\"" . htmlspecialchars((string)$text, ENT_QUOTES)
+$confirmLinkAttr = function ($href, $text = '') {
+	return "href=\"#\" data-back=\"" . htmlspecialchars($href, ENT_QUOTES) . "\" data-text=\"" . htmlspecialchars((string)$text, ENT_QUOTES)
 		. "\" onclick=\"confirmClose(this.dataset.back, this.dataset.text); return false;\"";
 };
+$backLinkAttr = function ($text = '') use ($backHref, $confirmLinkAttr) {
+	return $confirmLinkAttr($backHref, $text);
+};
+// "Ny": the same card for a new kreditor, with this card's returside, ordre_id and fokus
+$newCardHref = 'kreditorkort.php?returside=' . urlencode($returside) . '&ordre_id=' . (int)$ordre_id . '&fokus=' . urlencode((string)$fokus);
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
@@ -258,7 +264,7 @@ if ($menu == 'T') {
 	print "<td width='75%' style='$topStyle' align='center'>SALDI - " . findtekst(1184, $sprog_id) . "</td>\n";
 
 	print "<td width=5% style='$buttonStyle'>
-	   <a href=\"javascript:confirmClose('kreditorkort.php?returside=$retursideJsParam&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey='N'>
+	   <a " . $confirmLinkAttr($newCardHref, $tekst) . " accesskey='N'>
 	   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 	   $add_icon " . findtekst(39, $sprog_id) . "</button></a></td>";
 
@@ -289,7 +295,7 @@ if ($menu == 'T') {
 	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a " . $backLinkAttr($tekst) . " accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
 	else print "<td $top_bund><a " . $backLinkAttr($tekst) . " accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">SALDI - " . findtekst(1184, $sprog_id) . "</td>\n";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"javascript:confirmClose('kreditorkort.php?returside=$retursideJsParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td>\n";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a " . $confirmLinkAttr($newCardHref . '&konto_id=' . urlencode((string)$id), $tekst) . " accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td>\n";
 	print "</tbody></table>\n"; #tabel 1.1 slut
 	print "</td></tr>\n";
 	print "<td></td><td align = center valign = top>\n";
