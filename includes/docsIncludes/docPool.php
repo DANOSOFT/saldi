@@ -172,6 +172,7 @@
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
+// 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
 // 20261005 CL/SZ SD-727 The folder sync hashes a batch of rows that have no content hash (poolContentHashBackfill()).
 // 20261005 CL/SZ SD-727 An upload whose document is in the pool already says so (5407 "Findes allerede i puljen") and opens that one, instead of "uploadet" for a copy the next load drops.
 
@@ -2861,6 +2862,18 @@ print <<<JS
         return docData.concat(Object.keys(poolExtra).map(function(name) { return poolExtra[name]; }));
     }
     window.poolAllRows = poolAllRows;
+
+    // Whether a document is still in the pool: another tab may have attached it meanwhile, which removes its row.
+    // One list row plus the open document (the list endpoint's "extra"); true when the answer can't be read.
+    window.poolStillListed = function(file) {
+        return fetch(poolListUrl(0, 1, false), { credentials: 'same-origin' })
+            .then(function(response) { return response.ok ? response.json() : null; })
+            .then(function(data) {
+                if (!data || !Array.isArray(data.rows)) return true;
+                return data.rows.concat(data.extra || []).some(function(row) { return row.filename === file; });
+            })
+            .catch(function() { return true; });
+    };
 
     // Under the loaded rows while more exist: how many are shown, and a button for the next page (scrolling fetches it too)
     function poolMoreFooter() {
