@@ -27,6 +27,8 @@
 //                outside the fields so the next arrow key browses on. Before, the line kept the first document's transferred amount, which
 //                the other document would have been saved with, and the list re-sorted by that amount, so ← didn't go back.
 //                Also hosted here: needs the arrow keys' open() helper (SD-719).
+// 20261006 CL/SZ SD-719 Before saving, the document must still be in the pool (window.poolStillListed()): a document attached in another tab,
+//                or one not in the loaded list, left a journal line without its document when the attach was then refused.
 (function () {
     'use strict';
 
@@ -253,6 +255,14 @@
         });
     }
 
+    /** Resolves false when the document has left the pool (attached in another tab) or isn't in the loaded list (the attach needs its row). */
+    function stillInPool(file) {
+        if (!file) return Promise.resolve(true);
+        var listed = typeof window.poolAllRows !== 'function' || window.poolAllRows().some(function (row) { return row.filename === file; });
+        if (!listed) return Promise.resolve(false);
+        return typeof window.poolStillListed === 'function' ? window.poolStillListed(file) : Promise.resolve(true);
+    }
+
     /** Saves the bilag, attaches the document and opens the next one (step 1, Enter) or the previous one (step -1, Ctrl+↑). */
     function saveAndNext(step) {
         var c = cfg();
@@ -273,7 +283,11 @@
         var file = currentPoolFile();
         var next = null;
         setBusy(true);
-        (step === -1 ? previousDocument() : followingDocument()).then(function (found) {
+        stillInPool(file).then(function (inPool) {
+            // Attached from another tab meanwhile, or not in the list loaded: no line is written, so none is left without its document
+            if (!inPool) throw new Error(c.texts.stale);
+            return step === -1 ? previousDocument() : followingDocument();
+        }).then(function (found) {
             next = found;
             return saveRowsInOrder(entries);
         }).then(function (newIds) {
