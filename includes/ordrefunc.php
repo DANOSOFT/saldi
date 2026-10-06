@@ -146,6 +146,7 @@
 //             returned error now names the offending account and order instead of a bare generic string.
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
+// 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -4864,7 +4865,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
 		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=../debitor/ordreliste.php accesskey=L title='Klik her for at komme tilbage til ordreliste'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+		print "<div class=\"headerbtnLft headLink\"><a href=../debitor/ordreliste.php accesskey=L title='Klik her for at komme tilbage til ordreliste' onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\"><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></div>";
 		print "<div class=\"headerTxt\">$tekst</div>";
 		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "</div>";
@@ -4952,9 +4953,9 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"6\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 		if (!strstr($returside, "ordre.php"))
-			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 		else
-			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
 		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a></td>";
 		print "</tbody></table>";
