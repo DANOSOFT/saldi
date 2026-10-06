@@ -43,6 +43,8 @@
 // 20261004 CL/SZ Pool account check: a posted Debet or Kredit that doesn't exist, is closed, or isn't an account number is refused before anything is saved or attached.
 //                Save answers success false with the message and the fields; attach answers 422 with the message in <pool-account-problem>, since documents.php has printed its page head by then.
 //                Such a line used to be saved (text as account 0), and the journal then refused every save until it was fixed.
+// 20261006 CL/SZ Pool account check: a posted Dato outside an open fiscal year is refused the same way (the journal's checkOpenFiscalYear()), marked on Dato.
+//                Saved anyway, the journal refused every save with "Dato (...) udenfor regnskabsår" until the line was found and fixed.
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -97,19 +99,28 @@ include_once(__DIR__ . '/poolAccountInfo.php'); // SD-725: the VAT code rules; t
 
 if (!function_exists('insertDocAccountProblems')) {
 	/**
-	 * The posted Debet and Kredit that can't be saved on kassekladde line $sourceId (or a new line), by the journal's rules.
+	 * The posted Debet, Kredit and Dato that can't be saved on kassekladde line $sourceId (or a new line), by the journal's rules.
 	 *
 	 * @param int|string|null $sourceId kassekladde.id, empty for a new line.
 	 * @return array<int, array{field: string, text: string, message: string}>
 	 */
 	function insertDocAccountProblems($sourceId) {
 		global $regnaar, $sprog_id;
-		if (!array_key_exists('debet', $_POST) && !array_key_exists('kredit', $_POST)) return array();
+		if (!array_key_exists('debet', $_POST) && !array_key_exists('kredit', $_POST) && !array_key_exists('dato', $_POST)) return array();
 		$line = null;
 		if ((int)$sourceId > 0) {
 			$line = db_fetch_array(db_select("select d_type, k_type from kassekladde where id = '" . (int)$sourceId . "'", __FILE__ . " linje " . __LINE__)) ?: null;
 		}
-		return poolAccountProblems($_POST, $line, $regnaar, $sprog_id);
+		$problems = poolAccountProblems($_POST, $line, $regnaar, $sprog_id);
+		$dato = trim((string)ifset($_POST, 'dato'));
+		if ($dato !== '') {
+			if (!function_exists('checkOpenFiscalYear')) include_once(__DIR__ . '/../stdFunc/checkOpenFiscalYear.php');
+			if (!checkOpenFiscalYear(usdate($dato))) {
+				$text = trim(findtekst('1595|udenfor regnskabsår', $sprog_id));
+				$problems[] = array('field' => 'Dato', 'text' => $text, 'message' => trim(findtekst('635|Dato', $sprog_id)) . " $dato $text");
+			}
+		}
+		return $problems;
 	}
 }
 
