@@ -112,7 +112,9 @@ poolTestWrite($helperPath, 'AArsoversigt.XML');
 poolTestWrite($helperPath, 'Aarsoversigt.pdf');
 poolTestWrite($helperPath, 'faktura_7120.pdf');
 poolTestWrite($helperPath, 'X.PDF');
+poolTestWrite($helperPath, 'X.info', "X\n");
 poolTestWrite($helperPath, 'x.pdf');
+poolTestWrite($helperPath, 'x.info', "x\n");
 poolTestWrite($helperPath, 'notat.txt');
 poolTestWrite($helperPath, 'Only_info.info');
 
@@ -130,12 +132,21 @@ poolTestCheck(!poolDocumentExists($helperPath, 'Only_info.info'), 'an .info file
 $removed = poolDeleteFiles($helperPath, 'AArsoversigt.PDF');
 poolTestCheck(count($removed['deleted']) === 3, 'deleting the bilag removes the file and both side files');
 poolTestCheck($removed['missing'] === array() && $removed['refused'] === '', 'and reports nothing missing or refused');
-poolTestCheck(poolTestNames($helperPath) === array('Aarsoversigt.pdf', 'Only_info.info', 'X.PDF', 'faktura_7120.pdf', 'notat.txt', 'x.pdf'),
+poolTestCheck($removed['name'] === 'AArsoversigt.PDF', 'and reports the name the document was resolved to');
+poolTestCheck(poolTestNames($helperPath) === array('Aarsoversigt.pdf', 'Only_info.info', 'X.PDF', 'X.info', 'faktura_7120.pdf', 'notat.txt', 'x.info', 'x.pdf'),
 	'no other file in the folder is touched');
 
+# a side file belongs to the pdf whose base name it spells exactly, so deleting X.PDF must leave the
+# .info file of x.pdf - the metadata reader for x.pdf opens exactly x.info
+poolTestCheck(poolSideFileOwner(array('X.PDF', 'x.pdf', 'x.info'), 'x.info') === 'x.pdf', 'a side file is owned by the pdf that spells its base name exactly');
+poolTestCheck(poolSideFileOwner(array('X.PDF', 'X.info'), 'X.info') === 'X.PDF', 'and by the .PDF document when that is the spelling');
+poolTestCheck(poolSideFileOwner(array('X.info'), 'X.info') === '', 'a side file with no pdf of that spelling has no owner');
+
 $removed = poolDeleteFiles($helperPath, 'X.PDF');
-poolTestCheck($removed['deleted'] === array('X.PDF'), 'a name that differs only in case from another bilag deletes only its own file');
+poolTestCheck($removed['deleted'] === array('X.PDF', 'X.info'), 'a name that differs only in case from another bilag deletes only its own file and its own side file');
 poolTestCheck(in_array('x.pdf', poolTestNames($helperPath), true), 'the other bilag with the same letters stays');
+poolTestCheck(in_array('x.info', poolTestNames($helperPath), true), 'and so does the side file that belongs to it');
+poolTestCheck(in_array('X.info', poolTestNames($helperPath), true) === false, 'while the side file of the deleted document has gone');
 
 poolTestWrite($helperPath, 'Ghost.PDF');
 $removed = poolDeleteFiles($helperPath, 'Ghost.pdf');
@@ -213,6 +224,26 @@ poolTestCheck(poolTestNames($puljePath) === array($lowerName), 'nothing is left 
 $removed = poolDeleteDocument($puljePath, $lowerName);
 poolTestCheck(poolTestRow($lowerName) === array() && !is_file("$puljePath/$lowerName"), 'a .pdf bilag is deleted the same way');
 
+# ---- a row whose spelling differs from the file ----------------------------------------
+# The old rename could leave a row under a lower case name while the file kept its own spelling (and
+# the table's unique key is case sensitive, so both spellings can sit in it). Deleting from either
+# spelling has to take both rows: only one of them can be the document, and neither may be left
+# pointing at a file that is gone.
+$ghostFile = 'pooltest_Ghost.PDF';
+$ghostRowUpper = 'pooltest_Ghost.PDF';
+$ghostRowLower = 'pooltest_Ghost.pdf';
+db_modify("DELETE FROM pool_files WHERE filename IN ('" . db_escape_string($ghostRowUpper) . "', '" . db_escape_string($ghostRowLower) . "')", __FILE__ . ' line ' . __LINE__);
+poolTestWrite($puljePath, $ghostFile, "ghost content\n");
+db_modify("INSERT INTO pool_files (filename) VALUES ('" . db_escape_string($ghostRowUpper) . "')", __FILE__ . ' line ' . __LINE__);
+db_modify("INSERT INTO pool_files (filename) VALUES ('" . db_escape_string($ghostRowLower) . "')", __FILE__ . ' line ' . __LINE__);
+poolTestCheck(poolTestRow($ghostRowUpper) !== array() && poolTestRow($ghostRowLower) !== array(), 'both spellings of the row are in place');
+
+$removed = poolDeleteDocument($puljePath, $ghostRowLower);
+poolTestCheck(!is_file("$puljePath/$ghostFile"), 'deleting by the lower case name removes the file that carries the other spelling');
+poolTestCheck($removed['name'] === $ghostFile, 'and reports the name it was resolved to');
+poolTestCheck(poolTestRow($ghostRowUpper) === array(), 'the row with the file spelling is deleted');
+poolTestCheck(poolTestRow($ghostRowLower) === array(), 'and so is the row that was asked for');
+
 # ---- the sources that used to guess the extension ---------------------------------------
 $source = file_get_contents(__DIR__ . '/../includes/docsIncludes/docPool.php');
 poolTestCheck(strpos($source, "\$fileToDelete = \"\$puljePath/\$origBase.\$ext\";") === false,
@@ -225,6 +256,10 @@ poolTestCheck(strpos($source, '$pdfFile = "$puljePath/$baseName.pdf";') === fals
 	'the orphan cleanup no longer tests for a lower case .pdf');
 poolTestCheck(strpos($source, 'poolDeleteDocument($puljePath, $unlinkFile)') !== false,
 	'the pool page deletes through the helper');
+poolTestCheck(strpos($source, 'if ($file !== $renameTarget) continue;') !== false,
+	'the rename acts on the selected pdf only, not on another bilag sharing the base name');
+poolTestCheck(strpos($source, '$owner = poolSideFileOwner($allFiles, $file);') !== false,
+	'and leaves a side file that belongs to another pdf where it is');
 
 # ---- cleanup ----------------------------------------------------------------------------
 foreach ($created as $name) {

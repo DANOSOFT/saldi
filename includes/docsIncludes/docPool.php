@@ -196,10 +196,32 @@ function poolFileCompanions($puljePath, $filename) {
 }
 
 /**
+ * Which pdf in the folder a side file belongs to, by its exact base name.
+ *
+ * Two documents in one pool can share a base name in different cases (X.PDF and x.pdf). A side file
+ * is written next to the pdf it belongs to and its base is spelled exactly like that pdf's, so X.info
+ * belongs to X.PDF and x.info to x.pdf. A side file whose exact base names a pdf that is being kept
+ * must stay where it is.
+ *
+ * @param string[] $files The same-base file names present in the folder.
+ * @param string $companion The side file being considered.
+ * @return string The name of the owning pdf, or '' when no pdf carries that exact base name.
+ */
+function poolSideFileOwner($files, $companion) {
+	$base = pathinfo($companion, PATHINFO_FILENAME);
+	foreach ($files as $file) {
+		if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'pdf') continue;
+		if (pathinfo($file, PATHINFO_FILENAME) === $base) return $file;
+	}
+	return '';
+}
+
+/**
  * Removes the file the name points to together with its side files.
  *
  * The exact name wins; only when no file carries it is a name that differs in case accepted, which is
- * what a row written by the old rename left behind.
+ * what a row written by the old rename left behind. A side file whose exact base name belongs to
+ * another pdf in the folder is left alone: it is that document's metadata, not this one's.
  *
  * @param string $puljePath The pulje folder.
  * @param string $filename The document's name.
@@ -207,10 +229,11 @@ function poolFileCompanions($puljePath, $filename) {
  *   deleted: string[],  The names removed from the folder.
  *   missing: string[],  The names that were not there, or could not be removed.
  *   refused: string,    The name as it arrived when it carries a path, otherwise ''.
+ *   name: string,       The name the document was resolved to, '' when it was refused or not there.
  * }
  */
 function poolDeleteFiles($puljePath, $filename) {
-	$result = array('deleted' => array(), 'missing' => array(), 'refused' => '');
+	$result = array('deleted' => array(), 'missing' => array(), 'refused' => '', 'name' => '');
 	$name = poolFileName($filename);
 	if ($name === '') {
 		$result['refused'] = (string)$filename;
@@ -228,10 +251,16 @@ function poolDeleteFiles($puljePath, $filename) {
 		}
 		$name = $sameName;
 	}
+	$result['name'] = $name;
 	foreach ($companions as $companion) {
 		# a pdf with the same base name but a different spelling is another document, not a side file
 		$companionExt = strtolower(pathinfo($companion, PATHINFO_EXTENSION));
-		if ($companionExt === 'pdf' && $companion !== $name) continue;
+		if ($companionExt === 'pdf') {
+			if ($companion !== $name) continue;
+		} else {
+			$owner = poolSideFileOwner($companions, $companion);
+			if ($owner !== '' && $owner !== $name) continue;
+		}
 		if (unlink("$puljePath/$companion")) $result['deleted'][] = $companion;
 		else $result['missing'][] = $companion;
 	}
@@ -239,10 +268,12 @@ function poolDeleteFiles($puljePath, $filename) {
 }
 
 /**
- * Deletes a bilag from the pulje folder and its pool_files row.
+ * Deletes a bilag from the pulje folder and its pool_files rows.
  *
  * The row is deleted even when the file was already gone, so a row orphaned by an earlier removal does
- * not keep the list showing a document that is not there.
+ * not keep the list showing a document that is not there. When the request name and the file on disk
+ * differ in case - a row the old rename left behind - both spellings are deleted: only one of them can
+ * be the document, and a row that points at a file that is gone is what the list must not keep.
  *
  * @param string $puljePath The pulje folder.
  * @param string $filename The document's name.
@@ -250,17 +281,24 @@ function poolDeleteFiles($puljePath, $filename) {
  *   deleted: string[],  The names removed from the folder.
  *   missing: string[],  The names that were not there, or could not be removed.
  *   refused: string,    The name as it arrived when it carries a path, otherwise ''.
- *   row: string,        The pool_files row that was deleted; absent when the name was refused.
+ *   name: string,       The name the document was resolved to, '' when it was refused or not there.
+ *   row: string[],      The pool_files rows that were deleted; empty when the name was refused.
  * }
  */
 function poolDeleteDocument($puljePath, $filename) {
 	$result = poolDeleteFiles($puljePath, $filename);
-	$name = poolFileName($filename);
-	if ($name !== '') {
-		$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($name) ."'";
+	$result['row'] = array();
+	$names = array();
+	$requested = poolFileName($filename);
+	if ($requested !== '') $names[] = $requested;
+	if (isset($result['name']) && $result['name'] !== '' && $result['name'] !== $requested) $names[] = $result['name'];
+	if ($names) {
+		$quoted = array();
+		foreach ($names as $name) $quoted[] = "'" . db_escape_string($name) . "'";
+		$qtxt = "DELETE FROM pool_files WHERE filename IN (" . implode(', ', $quoted) . ")";
 		// We execute directly because the table should exist (synced on load) and schema checks might be unreliable
 		@db_modify($qtxt, __FILE__ . " line " . __LINE__);
-		$result['row'] = $name;
+		$result['row'] = $names;
 	}
 	return $result;
 }
@@ -1259,6 +1297,18 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					$renamedPdf = false;
 					$renamedOldName = '';
 					$renamedNewName = '';
+					# 20261006 SST-858 Which pdf the rename acts on. Two documents can share a base name
+					# in different cases (X.PDF and x.pdf); only the selected one may be renamed, or the
+					# row update below would be written for the other document. A row the old rename
+					# left behind carries the name in the other case than the file, so the exact base
+					# name is accepted as well.
+					$renameTarget = '';
+					foreach ($allFiles as $file) {
+						if (in_array($file, ['.', '..'])) continue;
+						if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'pdf') continue;
+						if ($file === $poolFile) { $renameTarget = $file; break; }
+						if (pathinfo($file, PATHINFO_FILENAME) === $origBase) $renameTarget = $file;
+					}
 					
 					// First pass: perform file renames
 					foreach ($allFiles as $file) {
@@ -1270,6 +1320,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						// SST-858: compared without regard to case, so a document stored as .PDF has
 						// its .info side file renamed with it instead of being left behind.
 						if (strcasecmp($fileBase, $origBase) === 0) {
+							if (strtolower($fileExt) === 'pdf') {
+								if ($file !== $renameTarget) continue;
+							} else {
+								# a side file belongs to the pdf whose base name it spells exactly
+								$owner = poolSideFileOwner($allFiles, $file);
+								if ($owner !== '' && $owner !== $renameTarget) continue;
+							}
 							$oldPath = "$puljePath/$file";
 							$newPath = "$puljePath/$newBase.$fileExt";
 
