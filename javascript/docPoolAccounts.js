@@ -5,6 +5,7 @@
 //                This file adds the type prefix ("K1234" sets type K and account 1234), the account's name and VAT code under the field, and the "sidste 5 posteringer" the other field's panel offers.
 //                Needs window.saldiPoolAccounts.
 // 20261005 CL/SZ SD-714 poolAccountValue() keeps search text that isn't an account as typed, so opening another document no longer turns "tele" into "Ftele".
+// 20261006 CL/SZ SD-714 (CodeRabbit) A failed lookup also clears the other field's "sidste 5 posteringer" panel, so it no longer keeps showing the previous account's suggestions.
 (function () {
     'use strict';
 
@@ -64,7 +65,10 @@
                     showName(fields, data.name || '', data.moms || '');
                     setLastPostings(fields.other, data.lastPostings);
                 })
-                .catch(function () { showName(fields, '', ''); });
+                .catch(function () {
+                    showName(fields, '', '');
+                    setLastPostings(fields.other, null);
+                });
         }, 150);
     }
 
