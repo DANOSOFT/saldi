@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -129,6 +129,9 @@
 // 20261003 CL/SZ SD-722 "Udfyld modkonto automatisk" in the gear box, per user, off by default; stored in box3 as modk_auto when on.
 //                On, the document pool writes the suggested contra account into Debet instead of showing it under the field.
 //                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
+// 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
+//                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
+//                and the journal then refused every save.
 
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
@@ -896,6 +899,8 @@ if ($_POST) {
 	#			 alert('a'.$alerttekst);
 	#		}
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+		// This request stages the lines itself, so opdater() below may move them into the journal
+		$kkStaged = true;
 		if (isset($_POST['cancelSimulation']) && $_POST['cancelSimulation']) {
 			db_modify("delete from simulering where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 			$qtxt = "update kladdeliste set bogfort = '-', bogforingsdate = NULL, bogfort_af = '' where id = '$kladde_id' and bogfort = 'S'";
@@ -1677,7 +1682,9 @@ if (!$fejl && $kladde_id) {
 	// A replayed save (see $kk_replay above) must not move the staged lines into the journal
 	// again - that is exactly what produced the duplicate rows. Still clear the staging table.
 	if (empty($kk_replay)) {
-		opdater($kladde_id);
+		// Only lines this request staged and checked (kontroller()). What a refused save left in tmpkassekl must not
+		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
+		if (!empty($kkStaged)) opdater($kladde_id);
 		initializePositions($kladde_id);
 		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
 		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording

@@ -30,6 +30,8 @@
 //                  before interpolating into the query
 // 20261003 CL/SZ SD-721 A kreditor's bank details read from an invoice (adresser.bank_unconfirmed) are not used for a payment before "Bekræft".
 //                Its payment lines get no "Modtager konto" and show "Ubekræftede bankoplysninger" with "Bekræft", which confirms the details and fills the account in.
+// 20261005 CL/SZ SD-721 The "Ubekræftede bankoplysninger" marker gets a light background; it could hardly be read on the line's red "missing account" cell.
+// 20261005 CL/SZ SD-721 "Ubetalte" and a journal's invoices no longer leave out the first invoice (the one due first): the "nothing found" check read it from the result.
 
 $dan_liste=$gem=$listenote=$slet_ugyldige=$udskriv=NULL;
 
@@ -316,8 +318,9 @@ if ($find || isset($_GET["kladde_id"])) {
 		
 		
 		#echo "$qtxt<br>";
+		// The check reads its own result: reading the first row from $q dropped the first invoice from the list
+		$count = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		$count = db_fetch_array($q);
 		if(empty($count)){
 			print "<p style='text-align: center;'>Der blev ikke fundet nogen posteringer.</p>";
 		}
@@ -532,7 +535,7 @@ $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				print "<input type=\"text\" style=\"text-align:right\" name=\"til_kto[$x]\" size=12 value=\"$r[til_kto]\"></span>";
 				if (trim((string)$r['til_kto']) === '' && isset($bankUnconfirmed[$r['modt_navn']])) {
 					// SD-721: the kreditor's bank details are unconfirmed
-					print "<br><span style='color:#b45309;font-size:11px;' title=\"" . htmlspecialchars(findtekst('5363|Bankoplysningerne er læst fra en faktura og bruges ikke til betaling, før de er bekræftet.', $sprog_id), ENT_QUOTES) . "\">&#9888; " . htmlspecialchars(findtekst('5361|Ubekræftede bankoplysninger', $sprog_id), ENT_QUOTES) . "</span>";
+					print "<br><span style='color:#7c2d12;background:#fff3cd;padding:1px 4px;border-radius:3px;font-size:11px;' title=\"" . htmlspecialchars(findtekst('5363|Bankoplysningerne er læst fra en faktura og bruges ikke til betaling, før de er bekræftet.', $sprog_id), ENT_QUOTES) . "\">&#9888; " . htmlspecialchars(findtekst('5361|Ubekræftede bankoplysninger', $sprog_id), ENT_QUOTES) . "</span>";
 					// type=button: as a submit button it would be the form's default, and Enter in any field would confirm
 					print " <button type='button' style='font-size:11px;padding:0 6px;' onclick=\"var h=document.createElement('input');h.type='hidden';h.name='bekraeft_bank';h.value='" . $bankUnconfirmed[$r['modt_navn']] . "';this.form.appendChild(h);HTMLFormElement.prototype.submit.call(this.form);\">" . htmlspecialchars(findtekst('5362|Bekræft', $sprog_id), ENT_QUOTES) . "</button>";
 				}
