@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-09-24 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -90,6 +90,8 @@
 //                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
 //                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
 // 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
+// 20261002 CL/NTR Include stdFunc/findTxtUtf8.php (findtekst_utf8()).
+// 20261006 CL/NTR Docblocks of ifset()/if_isset(): plain-variable checks should use $var ?? $default (undefined variable still warns).
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -210,10 +212,10 @@ if (!function_exists('ifset')) {
 		 * $rows = ifset($cache, 'key', fn() => expensive_lookup());
 		 * ########################################
 		 *
-		 * Prefer if_isset() over this function for a plain-variable check with a non-null default
-		 * (`if_isset($id, 0)` vs. `ifset($id, null, 0)`) - the explicit `null` middle argument this
-		 * form requires makes if_isset() the shorter, clearer call for that one case. For everything
-		 * else (array/object key lookups, nested keys, no default, Closure defaults) use ifset().
+		 * For a plain-variable check with a default use `$id ?? 0` instead of this function: the
+		 * variable is passed by value, so an undefined variable still raises "Undefined variable"
+		 * before the call is made. Use ifset() for array/object key lookups, nested keys, no default
+		 * and Closure defaults.
 		 *
          * @param mixed $arrayOrVar The array or variable to check.
          * @param mixed $key        The key (if array is passed).
@@ -288,14 +290,13 @@ if (!function_exists('if_isset')) {
          * - Closures: `$default` may be a zero-arg Closure, resolved lazily - see ifset().
          * #############USECASE####################
 		 * $sektion = if_isset($_GET,null,'sektion');
-		 * $id = if_isset($id, 0);   // plain-variable check with a default - shorter than ifset($id, null, 0)
+		 * $id = $id ?? 0;   // plain-variable check: use ?? (if_isset($id, 0) warns if $id is undefined)
 		 * ########################################
 		 *
 		 * New code should use ifset() for array/object key lookups (it takes the key before the
-		 * default, so it reads naturally and needs no placeholder argument). This function is still
-		 * the better choice for a plain-variable check against a non-null default, since ifset()
-		 * needs an explicit `null` key argument for that same call (`ifset($id, null, 0)`) - use
-		 * if_isset($id, 0) instead. Never write a new call in the `if_isset($arr, $default, $key)`
+		 * default, so it reads naturally and needs no placeholder argument). This function is
+		 * not meant for plain-variable checks: use `$id ?? 0` there, since if_isset($id, 0) still
+		 * warns when $id is undefined (the argument is evaluated before the call). Never write a new call in the `if_isset($arr, $default, $key)`
 		 * three-argument key-lookup form; convert those to ifset($arr, $key, $default) instead, since
 		 * that argument order is the one easy to get backwards.
 		 *
@@ -500,6 +501,7 @@ if (!function_exists('usdate')) {
 	}
 }
 if (!function_exists('findtekst')) include_once(__DIR__.'/stdFunc/findTxt.php');
+if (!function_exists('findtekst_utf8')) include_once(__DIR__.'/stdFunc/findTxtUtf8.php');
 
 if (!function_exists('javascript')) {
 	function javascript()

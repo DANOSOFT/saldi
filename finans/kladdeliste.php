@@ -42,6 +42,7 @@
 //                  stale tab clobber a lock a newer tab had since acquired (no tidspkt check),
 //                  and every real caller now goes through includes/luk.php instead (confirmed
 //                  no remaining ?exitDraft= link generator anywhere in the codebase).
+// 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
 
 @session_start();
 $s_id=session_id();
@@ -269,12 +270,12 @@ $columns[] = array(
         
         if ($locked) {
             global $sprog_id;
-            $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
+            $url = "kassekladde.php?tjek=$id&kladde_id=$id";
             $bogfort = isset($row['bogfort']) ? htmlspecialchars($row['bogfort']) : '';
             return "<td align='{$column['align']}' data-bogfort='$bogfort' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url' title='" . findtekst('1607|Kladde er låst af', $sprog_id) . " {$row['hvem']}' style='color:#FF0000'>$value</a></td>";
         }
         
-        $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
+        $url = "kassekladde.php?tjek=$id&kladde_id=$id";
         $bogfort = isset($row['bogfort']) ? htmlspecialchars($row['bogfort']) : '';
         return "<td align='{$column['align']}' data-bogfort='$bogfort' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },
