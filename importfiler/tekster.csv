@@ -5146,6 +5146,10 @@
 5256	Rettet / accepteret	Corrected / accepted	Rettet / akseptert
 5257	%s ligger allerede i puljen som %s	%s is already in the pool as %s	%s ligger allerede i puljen som %s
 5258	Bilaget kunne ikke uploades. Prøv igen.	The document could not be uploaded. Please try again.	Bilaget kunne ikke lastes opp. Prøv igjen.
+5280	Obs - Du har ikke gemt.	Note - You have not saved.	Obs - Du har ikke lagret.
+5281	Hvis du klikker OK mistes de sidste ændringer	If you click OK the latest changes will be lost	Hvis du klikker OK går de siste endringene tapt
+5282	Administrér bilag	Manage vouchers	Administrer bilag
+5283	Der er ikke længere et bilag på denne linje.	This line no longer has a voucher.	Det er ikke lenger et bilag på denne linjen.
 5285	F = finanskonto, D = debitor, K = kreditor	F = finance account, D = debtor, K = creditor	F = finanskonto, D = debitor, K = kreditor
 5300	Kladde	Journal	Kladd
 5301	Fremdrift	Progress	Fremdrift
