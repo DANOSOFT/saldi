@@ -37,6 +37,7 @@
 // 20261005 CL/SZ SD-727 A restore from the user's own upload in the pool ($via 'upload') is written with kilde 'ui'.
 // 20261004 CL/SZ SD-717 audit_log_write() takes strings (SD-724, the roles branch's signature): detaljer goes in as audit_log_details_json().
 // 20261006 CL/SZ SD-717 (CodeRabbit) poolArchiveSet() writes the archive change and its audit entry in one transaction; a failed write rolls both back.
+// 20261006 CL/SZ SD-717 (CodeRabbit) The row is read with FOR UPDATE inside that transaction, so a concurrent archive of the same document can't write a second audit entry.
 
 require_once __DIR__ . '/../auditLog.php';
 
@@ -118,16 +119,18 @@ if (!function_exists('poolArchiveSet')) {
 		$userSql = $userId === null ? 'NULL' : (int)$userId;
 		foreach (array_unique($filenames) as $filename) {
 			$filename = (string)$filename;
-			$qtxt = "SELECT id, filename, archived, archived_by FROM pool_files WHERE filename = '" . db_escape_string($filename) . "'";
+			// The change and its audit entry are written together or not at all: the archive's audit trail is kept for five years
+			transaktion('begin');
+			// The row is locked while its state is read, so of two users clicking at once the second waits, then finds it
+			// already changed: one change and one audit entry
+			$qtxt = "SELECT id, filename, archived, archived_by FROM pool_files WHERE filename = '" . db_escape_string($filename) . "' FOR UPDATE";
 			$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			$isArchived = $row && $row['archived'] !== null && $row['archived'] !== '';
 			if (!$row || $isArchived === (bool)$archive) {
+				transaktion('rollback');
 				$skipped[] = $filename;
 				continue;
 			}
-			// The change and its audit entry are written together or not at all: the archive's audit trail is kept for five years
-			transaktion('begin');
-			// The state is checked again in the update, so two users clicking at once give one change and one audit entry
 			if ($archive) {
 				// The database's clock, as audit_log.tidspunkt and pool_files.updated use
 				$qtxt = "UPDATE pool_files SET archived = CURRENT_TIMESTAMP, archived_by = $userSql WHERE id = " . (int)$row['id'] . " AND archived IS NULL";
