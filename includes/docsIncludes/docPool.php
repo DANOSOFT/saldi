@@ -158,6 +158,8 @@
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
 // 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
+// 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
+// 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -3166,7 +3168,8 @@ print <<<JS
 		
 		// Add section header for combination matches
 		let combinationHeader = '';
-		if (hasCombinationMatches && combinationRows) {
+		// Also when every document of the combination is listed under "Dato match" (the line's date): the row is what selects them (SD-718)
+		if (hasCombinationMatches && combinationGroups.length > 0) {
 			// Build description of the combinations found
 			let comboDesc = '';
 			let comboFilesJson = '[]';
@@ -3180,7 +3183,7 @@ print <<<JS
 		combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson + ")' title='{$txt29}'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #ffc107;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.plus + "</span>" +
-				"{$txt62} (" + combinationMatches.size + " {$txt55}: " + escapeHTML(totalSum) + ")" +
+				"{$txt62} (" + combinationGroups[0].files.length + " {$txt55}: " + escapeHTML(totalSum) + ")" +
 				(comboDesc ? " <span style='font-weight: normal; font-size: 11px;'>(" + comboDesc + ")</span>" : "") +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " {$txt27}</span>" +
 				"</td></tr>";
@@ -3346,7 +3349,7 @@ print <<<JS
 			const comboFilesJson = JSON.stringify(combinationGroups[0].files).replace(/'/g, "&#39;");
 			html += '<div onclick="selectCombinationFiles(' + comboFilesJson + ')" style="cursor: pointer; padding: 10px; background: #ffc107; color: #212529; border-radius: 6px; margin-bottom: 8px;">';
 			html += '<span style="margin-right: 6px;">' + svgIcons.plus + '</span>';
-			html += '<strong>{$txt62}</strong> - ' + combinationMatches.size + ' {$txt59} ' + escapeHTML(totalSum);
+			html += '<strong>{$txt62}</strong> - ' + combinationGroups[0].files.length + ' {$txt59} ' + escapeHTML(totalSum);
 			html += '<span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' {$txt27}</span>';
 			html += '</div>';
 		}
