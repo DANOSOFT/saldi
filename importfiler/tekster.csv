@@ -5169,3 +5169,5 @@
 5322	Bedste match	Best matches	Beste treff
 5323	Andre åbne posteringer	Other open entries	Andre åpne posteringer
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
+5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
+5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
