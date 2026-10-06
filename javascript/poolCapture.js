@@ -9,6 +9,8 @@
 //                "Rapportér fejl i aflæsning" (when switched on for the company): captured and current values, a comment, "Send".
 //                Needs window.saldiPoolCapture (docPool.php, or includes/documents.php for a document attached to a journal line).
 // 20261006 CL/SZ SD-722 The suggestion box under Debet is styled also when it isn't filled in automatically: unstyled, it stretched the line and moved Debet and Kredit.
+// 20261006 CL/SZ SD-722 The report button asks the server on load whether this user reported the document already, so after a reload or on the
+//                journal line it reads "Du har allerede rapporteret dette bilag" too, not only right after sending.
 (function () {
     'use strict';
 
@@ -512,6 +514,21 @@
         return b;
     }
 
+    /** A document this user reported before (also from another page, or as a renamed or attached copy) gets the "already reported" button. */
+    function showReportedState() {
+        var ref = documentRef();
+        var key = ref.poolFile || (ref.filename + '|' + ref.sourceId);
+        if (reportedFiles[key]) {
+            markReported(key);
+            return;
+        }
+        post(Object.assign({ action: 'info' }, ref)).then(function (info) {
+            // The page may have switched to another document meanwhile (SD-719)
+            var now = documentRef();
+            if (info && info.reported && (now.poolFile || (now.filename + '|' + now.sourceId)) === key) markReported(key);
+        }).catch(function () {});
+    }
+
     /** The button above the document in the pool's viewer; a document attached to a line gets it from includes/documents.php's #poolCaptureReportSlot. */
     function placeReportButton() {
         var c = cfg();
@@ -523,19 +540,16 @@
         if (slot) {
             slot.innerHTML = '';
             slot.appendChild(reportButton());
+            showReportedState();
             return;
         }
         var panel = document.getElementById('rightPanel');
         if (!panel || !c.poolFile) return;
         var bar = el('div');
         bar.id = 'poolCaptureBar';
-        var button = reportButton();
-        if (reportedFiles[c.poolFile]) {
-            button.disabled = true;
-            button.textContent = texts().already;
-        }
-        bar.appendChild(button);
+        bar.appendChild(reportButton());
         panel.insertBefore(bar, panel.firstChild);
+        showReportedState();
     }
 
     function init() {
