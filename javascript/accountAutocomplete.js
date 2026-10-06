@@ -11,6 +11,8 @@
 // 20261003 CL/SZ SD-716 window.closeAccountAutocomplete closes the panel, so Ctrl + arrow navigation (fieldNavigation.js) can move on from an open panel.
 // 20261003 CL/SZ SD-720 A search answer that arrives after the user left the field no longer opens the panel and takes the focus back.
 // 20261003 CL/SZ SD-721 A kreditor search that finds nothing offers "Opret kreditor", which opens kreditorFromCvr.js's dialog and puts the new kreditor in the field.
+// 20261006 CL/SZ SD-720 The same for the invoice-number (Åbne Poster) and amount searches: a late answer put the cursor back in Fakturanr.
+//                while the user typed the amount, so the rest of the amount landed in the invoice number.
 // 20261005 CL/SZ SD-714 A Tab or Ctrl + arrow only keeps the panel closed for the focus change it makes. Before, a Tab that landed on a field without
 //                  the panel (Beløb, the type field) kept it closed for the next click into Debet or Kredit too.
 // 20261005 CL/SZ SD-714 A click in a document viewer (the pool's PDF) closes the panel; the click never reached the page, so the panel stayed open.
@@ -833,6 +835,8 @@
                     const data = JSON.parse(text);
                     const results = data.results || data;
                     const pagination = data.pagination || { page: 1, total: results.length, hasMore: false };
+                    // The same rule as the account search (SD-720): an answer for a field the user has left takes nothing back
+                    if (document.activeElement !== input) return;
                     renderInvoiceDropdown(input, results, searchValue, pagination);
                 } catch (e) {
                     console.error('JSON parse error:', e);
@@ -1017,6 +1021,7 @@
             })
             .then(function (data) {
                 const results = data.results || [];
+                if (document.activeElement !== input) return;
                 renderAmountDropdown(input, results, searchValue);
             })
             .catch(function (error) {
