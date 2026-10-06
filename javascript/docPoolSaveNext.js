@@ -11,6 +11,8 @@
 //                Needs window.saldiPoolSaveNext (docPool.php) and docPool.php's _saveRowFetch(), chooseMultipleBilag() and transferDataFromSelectedFile().
 // 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
 // 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
+// 20261006 CL/SZ SD-716 A new document puts the cursor in Debet without opening the lookup panel over the list (window.focusAccountQuietly()),
+//                or on "Brug forslag" when Debet has a suggestion; window.poolFocusNewLine() does the same after "Overfør data".
 (function () {
     'use strict';
 
@@ -219,6 +221,7 @@
 
     window.poolSaveAndNext = saveAndNext;
     window.poolSkipDocument = skipDocument;
+    window.poolFocusNewLine = focusNewLine;
 
     /**
      * Pool URL for a document clicked in the list: a new line with its own data when nothing was typed in the new line, as
@@ -297,7 +300,15 @@
         for (var i = 0; i < order.length; i++) {
             var field = document.getElementById(prefix + order[i]);
             if (field && !field.readOnly && field.value.trim() === '') {
-                field.focus();
+                // A suggestion for the empty Debet takes the cursor, as when it arrives (poolCapture.js): Enter uses it
+                var use = order[i] === 'Debet' && field.closest('.kassebilag-entry') && field.closest('.kassebilag-entry').querySelector('.pool-suggest-use');
+                if (use) {
+                    use.focus();
+                    return;
+                }
+                // Without the lookup panel: opened on its own it covered the list the user clicks the next document in
+                if (typeof window.focusAccountQuietly === 'function' && field.classList.contains('pool-account-no')) window.focusAccountQuietly(field);
+                else field.focus();
                 return;
             }
         }
