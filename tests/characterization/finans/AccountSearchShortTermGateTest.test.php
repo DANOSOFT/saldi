@@ -84,13 +84,13 @@ final class AccountSearchShortTermGateTest extends TestCase
      * @param string $search The term.
      */
     #[DataProvider('shortAdresserTerms')]
-    public function testShortAdresserSearchesAreRefused(string $search, string $type): void
+    public function testShortAdresserSearchesAreRefused(string $search, string $type, int $exact = 0): void
     {
-        self::assertTrue($this->gateRefuses($search, $type),
-            "'$search' on type=$type should be refused");
+        self::assertTrue($this->gateRefuses($search, $type, $exact),
+            "'$search' on type=$type (exact=$exact) should be refused");
     }
 
-    /** @return array<string, array{string, string}> */
+    /** @return array<string, array{0: string, 1: string, 2?: int}> */
     public static function shortAdresserTerms(): array
     {
         return [
@@ -102,6 +102,11 @@ final class AccountSearchShortTermGateTest extends TestCase
             'two characters, kreditor' => ['ab', 'kreditor'],
             // Two characters of Danish are two characters, not the four bytes they occupy.
             'two Danish letters'       => ['æø', 'debitor'],
+            // exact=1 does not exempt an adresser search: only the finance branch honours
+            // it, so debitor/kreditor run the substring ILIKE either way and a short term
+            // would otherwise walk past this gate into the scan it exists to stop.
+            'short but exact, debitor' => ['a', 'debitor', 1],
+            'short but exact, kreditor' => ['ab', 'kreditor', 1],
             // No letter or digit anywhere means pg_trgm extracts no key at all, so the
             // index can never serve the term. Measured at 142-179 ms on 200,000 rows.
             'only punctuation'         => ['---', 'debitor'],
@@ -134,8 +139,9 @@ final class AccountSearchShortTermGateTest extends TestCase
             // kontoplan is small and its account numbers are legitimately short.
             'one digit, finance'        => ['1', 'finance', 0],
             'two digits, finance'       => ['10', 'finance', 0],
-            // An equality lookup on a full account number is indexable at any length.
-            'short but exact, debitor'  => ['7', 'debitor', 1],
+            // exact=1 on finance IS an equality lookup on kontoplan.kontonr, and finance is
+            // not gated anyway.
+            'short but exact, finance'  => ['7', 'finance', 1],
             // These two are why the gate is not based on the term's shape. Measured on
             // 200,000 rows: 'a b' has no two-character alphanumeric run yet the index
             // serves it in 0.2 ms, while 'Han' has a full trigram and seq scans in 196 ms
@@ -271,8 +277,13 @@ final class AccountSearchShortTermGateTest extends TestCase
 
         // Every debounced search entry point has to advance the token, or a keystroke it
         // handles leaves an older in-flight response free to land.
-        self::assertSame($dispatches, $bumps,
-            "$label has $dispatches debounced searches but only $bumps advance the token");
+        // Every point that starts a search, and every point that abandons one - selecting an
+        // account, or dismissing the dropdown - has to advance the token. A selection that
+        // does not leaves an in-flight response free to reopen the dropdown it just closed.
+        $selections = substr_count($src, 'selectionMade = true;');
+        self::assertSame($dispatches + $selections, $bumps,
+            "$label has $dispatches searches and $selections abandon points but only $bumps "
+            . 'advance the token');
 
         // The token advances on input, before the request captures it - not after. These
         // files hold other, unrelated fetches, so this compares against the capture point

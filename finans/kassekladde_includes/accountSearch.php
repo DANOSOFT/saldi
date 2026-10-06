@@ -49,8 +49,13 @@ $fetchLimit = $limit + 1;
 // is still served: with no term there is no ILIKE at all, only a filtered first page,
 // requested once per focus rather than once per keystroke.
 $minSearchLength = 3;
+// exact=1 is deliberately NOT exempted. Only the finance branch below honours it, with an
+// equality test on kontoplan.kontonr; the debitor and kreditor branches ignore it and run
+// the substring ILIKE either way, so exempting them let a one-character
+// ?type=debitor&exact=1&search=a past this gate and into the very scan it exists to stop.
+// The one caller that sends exact=1 is the VAT lookup in accountAutocomplete.js, which
+// uses type=finance and is unaffected.
 $searchableType = ($search !== '')
-    && !$exact
     && in_array($type, array('debitor', 'kreditor'), true);
 $searchTooShort = $searchableType && mb_strlen($search, 'UTF-8') < $minSearchLength;
 // SST-814 review: pg_trgm takes its trigrams from runs of letters and digits, so a term
