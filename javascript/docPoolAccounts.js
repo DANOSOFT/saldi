@@ -7,6 +7,7 @@
 // 20261004 CL/SZ SD-725 The VAT code select per side replaces the VAT badge under the name; it keeps the account's own code for "u/m".
 //                "u/m" empties both codes and gives the accounts' codes back when unticked; choosing a code unticks "u/m", as in the journal.
 // 20261005 CL/SZ SD-714 poolAccountValue() keeps search text that isn't an account as typed, so opening another document no longer turns "tele" into "Ftele".
+// 20261006 CL/SZ SD-714 (CodeRabbit) A failed lookup also clears the other field's "sidste 5 posteringer" panel, so it no longer keeps showing the previous account's suggestions.
 (function () {
     'use strict';
 
@@ -70,7 +71,10 @@
                     if (fields.vat) fields.vat.dataset.accountVat = type === 'F' ? (data.moms || '') : '';
                     setLastPostings(fields.other, data.lastPostings);
                 })
-                .catch(function () { showName(fields, '', ''); });
+                .catch(function () {
+                    showName(fields, '', '');
+                    setLastPostings(fields.other, null);
+                });
         }, 150);
     }
 
