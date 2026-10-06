@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docFileFunc.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/docFileFunc.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261003 CL/SZ SD-723 Created: helpers for docFile.php, which serves a tenant's documents only to a logged-in user of that tenant instead of by their direct file path.
+// 20261005 CL/SZ SD-723 docFileMissingBox(): the message shown instead of a document whose file is not on the server.
 
 if (!function_exists('docFileUrl')) {
 	/**
@@ -99,6 +100,28 @@ if (!function_exists('docFileContentType')) {
 			'html' => 'text/html; charset=utf-8',
 		);
 		return isset($types[$ext]) ? $types[$ext] : 'application/octet-stream';
+	}
+}
+
+if (!function_exists('docFileMissingBox')) {
+	/**
+	 * The message shown in place of a document whose file is not on the server.
+	 *
+	 * The file can be missing (deleted, moved, or a copy of the data without its documents), or the
+	 * session can have moved to another company in another tab, so the file is looked for in that company's folder.
+	 *
+	 * @param string $fileName Name of the missing file, shown to the user; '' leaves it out.
+	 * @param int    $sprog_id Language id for findtekst().
+	 * @return string HTML of the message.
+	 */
+	function docFileMissingBox($fileName, $sprog_id) {
+		$html = "<div style='height:auto;max-width:520px;margin:40px auto;padding:16px 20px;border:1px solid #f0c36d;border-radius:6px;";
+		$html.= "background-color:#fff8e1;color:#5c4400;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;text-align:left'>";
+		$html.= "<b>" . htmlspecialchars(findtekst('5405|Bilaget findes ikke på serveren', $sprog_id), ENT_QUOTES) . "</b>";
+		if ($fileName !== '') $html.= "<br>" . htmlspecialchars($fileName, ENT_QUOTES);
+		$html.= "<p style='margin:8px 0 0'>" . htmlspecialchars(findtekst('5406|Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.', $sprog_id), ENT_QUOTES) . "</p>";
+		$html.= "</div>";
+		return $html;
 	}
 }
 ?>

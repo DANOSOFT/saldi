@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docFile.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/docFile.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261003 CL/SZ SD-723 Created: serves a document to a logged-in user of the tenant it belongs to.
 //                The tenant comes from the session, never from the request, and the path must stay inside that tenant's folder.
+// 20261005 CL/SZ SD-723 A document that isn't there gets a page with "Bilaget findes ikke på serveren" (still 404) instead of the plain "Not found".
 //
 // Request: k=doc  f=<path below the tenant's document folder>, e.g. f=pulje/x.pdf
 //          k=temp f=<XML preview rendered by the viewer>, e.g. f=xml_view_<md5>.html
@@ -89,7 +90,14 @@ if ($kind == 'temp') {
 	$file = docFileResolve("$docRoot/$db", $requested, array('pdf', 'jpg', 'jpeg', 'png', 'gif', 'xml'));
 }
 if (!$file) {
-	docFileFail(404, 'Not found');
+	// Shown inside the viewer's frame, so a page with the reason rather than a bare status text
+	http_response_code(404);
+	header('Content-Type: text/html; charset=utf-8');
+	header('X-Content-Type-Options: nosniff');
+	echo "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;background-color:#ffffff'>";
+	echo docFileMissingBox(basename($requested), $sprog_id);
+	echo "</body></html>";
+	exit;
 }
 
 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
