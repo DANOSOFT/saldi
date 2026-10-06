@@ -36,7 +36,8 @@
 //                firmanavn query line appended instead of overwriting, and
 //                konto_fra/kontoart escaped before SQL interpolation
 // 20260925 CDX/PHR Default to open posts and preserve the report filter when opening settlement.
-// 20261006 CL/LH PR #677 review: skip settled entries in the top-menu (menu T) row loop too when showing open posts.
+// 20261006 CL/LH PR #677 review: skip settled entries in the top-menu (menu T) row loop too when showing open posts,
+//                and compute the Primosaldo title when every entry was skipped.
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -536,6 +537,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 		}
 		if ($primoprint[$x]==0) {
 			$tmp=dkdecimal($kontosum,2);
+			// Every entry may have been skipped by the open-post filter, so the loop never set $dkktmp.
+			$dkktmp=dkdecimal($dkksum ?? 0,2);
 			print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency sum $dkktmp\">$tmp<br></td></tr>\n";
 		}
 
