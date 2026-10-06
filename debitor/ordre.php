@@ -6476,7 +6476,7 @@ function ordreside($id, $regnskab)
 		} # end if ($status < 3)
 		if ($konto_id) {
 			$r = db_fetch_array(db_select("select kreditmax from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
-			if ($kreditmax = (int) ifset($r, 'kreditmax', 0)) { #20210719 checked whether it is set as it was throwing a boolean error
+			if ($kreditmax = floatval(ifset($r, 'kreditmax', 0))) { // 20210719 checked whether it is set as it was throwing a boolean error // Changed it from string * int to floatval to avoid type errors.
 				if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
 				$q = db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'", __FILE__ . " linje " . __LINE__);
 				$tilgode = 0;
