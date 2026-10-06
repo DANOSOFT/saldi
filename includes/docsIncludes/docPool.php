@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,12 +100,14 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
+// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
 // 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
 // 20261003 CL/SZ SD-713 "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window (docWindow.php), which follows the selection.
 //                The viewer here collapses while that window is open.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
+require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/docFileFunc.php");
 include_once(__DIR__ . "/poolVendorSuggestion.php");
@@ -150,6 +152,20 @@ if (!function_exists('docPoolLog')) {
  * This runs once on page load and adds any missing PDF files to the database.
  */
 function syncPuljeFilesToDatabase($docFolder, $db) {
+	$poolDir = "$docFolder/$db/pulje";
+	if (!is_dir($poolDir)) {
+		return;
+	}
+	$lock = poolUploadLock($poolDir);
+	try {
+		syncPuljeFilesToDatabaseUnlocked($docFolder, $db);
+	} finally {
+		fclose($lock);
+	}
+}
+
+/** @return void Synchronize while the caller holds the pool ingestion lock. */
+function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 	global $db_type;
 	$puljePath = "$docFolder/$db/pulje";
 	
@@ -237,6 +253,10 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		}
 	}
 	
+	if (poolContentHashEnsureSchema()) {
+		poolUploadBackfillHashes($puljePath);
+	}
+
 	// Get all PDF and XML files from the pulje directory
 	$pdfFiles = [];
 	$files = scandir($puljePath);
@@ -376,6 +396,21 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 }
 
 function checkIfAllPoolFilesAreInDatabase() {
+	global $db, $docFolder;
+	$poolDir = "$docFolder/$db/pulje";
+	if (!is_dir($poolDir)) {
+		return;
+	}
+	$lock = poolUploadLock($poolDir);
+	try {
+		checkIfAllPoolFilesAreInDatabaseUnlocked();
+	} finally {
+		fclose($lock);
+	}
+}
+
+/** @return void Check for missing rows while the caller holds the pool ingestion lock. */
+function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 	$skip = get_settings_value("skip_sync", "docs", 0);
 	if (date('U') - $skip > 600) $skip = 0;
 	
@@ -4344,13 +4379,14 @@ JS;
 		var totalFiles = validFiles.length;
 		var uploadedCount = 0;
 		var failedCount = 0;
+		var duplicateMessages = [];
 		var lastUploadedFilename = null;
 
 		if (dropZone) { dropZone.style.pointerEvents = 'none'; dropZone.style.opacity = '0.7'; }
 
 		function updateProgress() {
 			if (dropText) {
-				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> ".addslashes(findtekst('3328|Uploader', $sprog_id))." ' + (uploadedCount + failedCount + 1) + ' ".addslashes(lcfirst(findtekst('2767|Af', $sprog_id)))." ' + totalFiles + '...';
+				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> ".addslashes(findtekst('3328|Uploader', $sprog_id))." ' + (uploadedCount + failedCount + duplicateMessages.length + 1) + ' ".addslashes(lcfirst(findtekst('2767|Af', $sprog_id)))." ' + totalFiles + '...';
 			}
 		}
 
@@ -4369,6 +4405,7 @@ JS;
 				var message = '✓ ".addslashes(findtekst('3329|Upload færdig', $sprog_id))."!\\n';
 				message += uploadedCount + ' ".addslashes(lcfirst(findtekst('3330|Fil(er) uploadet', $sprog_id)))."';
 				if (failedCount > 0) message += '\\n' + failedCount + ' ".addslashes(lcfirst(findtekst('3331|Fil(er) fejlet', $sprog_id)))."';
+				if (duplicateMessages.length > 0) message += '\\n' + duplicateMessages.join('\\n');
 				alert(message);
 
 				savePoolListView();
@@ -4447,6 +4484,8 @@ JS;
 					}
 					uploadedCount++;
 					lastUploadedFilename = data.filename;
+				} else if (data && data.duplicate) {
+					duplicateMessages.push(data.message || (file.name + ': ' + data.existing));
 				} else {
 					failedCount++;
 					console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
