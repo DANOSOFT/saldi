@@ -1,9 +1,10 @@
-// --- javascript/docPoolAccounts.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/docPoolAccounts.js --- ver 5.0.0 --- 2026-10-05 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-714 Created: Debet/Kredit in the pool's journal lines.
 //                The lookup panel itself is accountAutocomplete.js, which binds to the debe/kred/d_ty/k_ty names the rows carry.
 //                This file adds the type prefix ("K1234" sets type K and account 1234), the account's name and VAT code under the field, and the "sidste 5 posteringer" the other field's panel offers.
 //                Needs window.saldiPoolAccounts.
+// 20261005 CL/SZ SD-714 poolAccountValue() keeps search text that isn't an account as typed, so opening another document no longer turns "tele" into "Ftele".
 (function () {
     'use strict';
 
@@ -102,6 +103,8 @@
         const kontonr = accountInput ? accountInput.value.trim() : '';
         if (kontonr === '') return '';
         if (PREFIXED.test(kontonr)) return kontonr.toUpperCase();
+        // Search text that was never turned into an account stays as typed, without a type in front ("tele", not "Ftele")
+        if (!/^\d+$/.test(kontonr)) return kontonr;
         let type = typeInput ? typeInput.value.trim().toUpperCase() : '';
         if (TYPES.indexOf(type) === -1) type = 'F';
         return type + kontonr;

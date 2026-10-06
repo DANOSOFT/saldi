@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-04 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-05 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -14,10 +14,14 @@
 //                When the open document is the last loaded row, the next page of the list is fetched first.
 //                The right arrow on the last loaded row fetches the next page too, so it doesn't stop at row 50.
 //                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
+// 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
+// 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
 (function () {
     'use strict';
 
     var busy = false;
+    // Whether the user typed in the bilag's fields since the document opened; without that, the line holds only the document's transferred data
+    var lineTyped = false;
     // The typed values of an unsaved line, which openPoolFile() carries in the URL
     var LINE_PARAMS = ['sourceId', 'bilag', 'dato', 'beskrivelse', 'debet', 'kredit', 'fakturanr', 'sum', 'afd', 'projekt', 'valuta', 'momsfri', 'forfald'];
 
@@ -144,6 +148,12 @@
         field.addEventListener('input', function () { clearMandatory(field); }, { once: true });
     }
 
+    /** True for an amount other than zero, as "1.234,56", "5,03", "-50" or "12.50"; letters and "0,00" are not. */
+    function isAmount(value) {
+        var number = value.replace(/\s/g, '').replace(/\.(?=\d{3}(?!\d))/g, '').replace(',', '.');
+        return /^-?\d+(\.\d+)?$/.test(number) && parseFloat(number) !== 0;
+    }
+
     /** Marks every missing mandatory field and returns the first one, or null when all are filled. */
     function firstMissing(entries) {
         var text = cfg().texts.mandatory;
@@ -156,7 +166,7 @@
                 var value = item[1] && typeof window.poolAccountValue === 'function'
                     ? window.poolAccountValue(prefix, item[1]).replace(/^[DKF]/i, '')
                     : field.value.trim();
-                if (value === '' || value === '0') {
+                if (value === '' || value === '0' || (item[0] === 'Amount' && !isAmount(value))) {
                     markMandatory(field, text);
                     if (!first) first = field;
                 } else {
@@ -250,6 +260,18 @@
 
     window.poolSaveAndNext = saveAndNext;
     window.poolSkipDocument = skipDocument;
+
+    /**
+     * Pool URL for a document clicked in the list: a new line with its own data when nothing was typed in the new line, as
+     * the arrow keys and "Gem og næste" open it (spec: "read values pre-filled"); null keeps the typed line (docPool.php's openPoolFile()).
+     */
+    window.poolFreshDocumentUrl = function (href) {
+        var c = cfg();
+        if (!c || c.readOnly || lineTyped || !document.getElementById('bilagEntry_new')) return null;
+        if (editableEntries().length !== 1) return null;
+        var file = new URL(href, window.location.href).searchParams.get('poolFile');
+        return file ? documentUrl(file, true) : null;
+    };
 
     /** The lookup panel is open with a line highlighted: Enter belongs to it (it picks that line). */
     function panelHasSelection() {
@@ -362,6 +384,11 @@
             setTimeout(wait, 100);
         })();
     }
+
+    // Only the user's own typing counts (isTrusted): the transfer and the lookup panel fill the fields by script
+    document.addEventListener('input', function (e) {
+        if (e.isTrusted && e.target instanceof Element && e.target.closest('.kassebilag-entry')) lineTyped = true;
+    }, true);
 
     // A document opened in place (SD-719) is a new start for the transfer, the focus and the note
     document.addEventListener('poolswitch', init);
