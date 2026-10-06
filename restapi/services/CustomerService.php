@@ -1,13 +1,18 @@
 <?php
 
+require_once __DIR__ . '/../../includes/std_func.php';
 require_once __DIR__ . '/../models/customers/CustomerModel.php';
 
 class CustomerService
 {
     /**
      * Map English property names to Danish database column names
+     *
+     * @param object $data
+     * @param bool   $dropPlaceholders Omit fields whose value is an integration placeholder
+     * @return stdClass
      */
-    private static function mapApiToDanish($data)
+    private static function mapApiToDanish($data, $dropPlaceholders = false)
     {
         $mapping = [
             // Basic info
@@ -56,8 +61,14 @@ class CustomerService
         
         $mappedData = new stdClass();
         
-        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility
-        foreach ($data as $key => $value) {
+        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility.
+        // Placeholder values such as "dummyvalue" are stored blank (JOB-115); when $dropPlaceholders
+        // is set they are left out entirely so an update keeps the existing value.
+        foreach ($data as $key => $original) {
+            $value = strip_placeholder_value($original);
+            if ($dropPlaceholders && $value !== $original) {
+                continue;
+            }
             if (isset($mapping[$key])) {
                 // Use Danish property name
                 $danishKey = $mapping[$key];
@@ -208,7 +219,7 @@ class CustomerService
             }
 
             // Map English property names to Danish
-            $mappedData = self::mapApiToDanish($data);
+            $mappedData = self::mapApiToDanish($data, true);
 
             // Load existing customer with art parameter
             $customer = new CustomerModel($data->id, $art);

@@ -1,4 +1,7 @@
 <?php
+// 20260902 CL/NTR Tutorial buttons are now type="button" so they no longer submit an enclosing
+//                 form (e.g. kassekladde.php, whose form never closes because its </form> is
+//                 printed inside a table cell) and reload the page on Next/Prev/Finish/Skip.
 ob_start();
 
 function create_tutorial($id, $steps)
@@ -11,7 +14,7 @@ function create_tutorial($id, $steps)
     <div id="tutorial-tooltip" style="display: none;">
         <div id="tutorial-header">
             <span><?php echo findtekst('92|Vejledning', $sprog_id);?></span>
-            <button id="tutorial-skip">
+            <button type="button" id="tutorial-skip">
                 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#ffffff">
                     <path
                         d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z" />
@@ -20,20 +23,20 @@ function create_tutorial($id, $steps)
         </div>
         <div id="tutorial-content"></div>
         <div id="tutorial-controls">
-            <button id="tutorial-prev">
+            <button type="button" id="tutorial-prev">
                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
                     <path d="M384-96 0-480l384-384 68 68-316 316 316 316-68 68Z" />
                 </svg>
                 <span><?php echo findtekst('2598|Forrige', $sprog_id);?></span>
             </button>
             <span id="status-text"></span>
-            <button id="tutorial-next">
+            <button type="button" id="tutorial-next">
                 <span><?php echo findtekst('1200|Næste', $sprog_id);?></span>
                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
                     <path d="m288-96-68-68 316-316-316-316 68-68 384 384L288-96Z" />
                 </svg>
             </button>
-            <button id="tutorial-finish">
+            <button type="button" id="tutorial-finish">
                 <span><?php echo findtekst('2599|Færdig', $sprog_id);?></span>
                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
                     <path d="M389-267 195-460l51-52 143 143 325-324 51 51-376 375Z" />

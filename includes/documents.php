@@ -1,6 +1,5 @@
-<!doctype html>
 <?php
-// --- includes/documents.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/documents.php --- ver 5.0.0 --- 2026-10-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230622 - LOE Updated file path and some related modifications.
 //20240412 - PHR Various modifications
@@ -27,17 +26,19 @@
 //20260304 PHR Someone removed the convertOldDoc section.
 //20260603 CL/PHR debitorOrdrer tilføjet som moderne kilde (modernSources, isModernLayout,
 //                  docFolder-fallback, header-logik og openPool-default)
-
+// 20260910 CL/SZ Pool upload now dedupes against an existing file with the same base name
+//                 (e.g. generic scanner/phone names like "scan.pdf") instead of silently
+//                 overwriting it and confusing its metadata (SST-776).
+// 20260910 CL/NTR Pool upload and vendor+date rename now reserve their target name atomically
+//                  via FileReservation instead of file_exists() polling, closing the window in
+//                  which two concurrent uploads could pick the same name (SST-776 follow-up).
+// 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20261004 CDX/LOE Share browser upload handling and redirect form uploads before rendering.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
 
 $title="Documents";
-print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
-print '<link rel="stylesheet" type="text/css" href="../css/dragAndDrop.css">';
-$jsFile = '../javascript/dragAndDrop.js';
-$version = file_exists($jsFile) ? filemtime($jsFile) : time();
-print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"{$jsFile}?v={$version}\"></script>";
 
 $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=$unlinkDoc=null;
 
@@ -48,6 +49,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
+require_once __DIR__ . "/docsIncludes/poolUpload.php";
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 if (!isset($menu)) $menu = null;
@@ -115,260 +117,50 @@ if ($dokument) {
 
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
 
-// Handle AJAX file uploads BEFORE any HTML output (for drag and drop)
-// Check if this is an AJAX file upload request
-if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['uploadedFile']['name'])) {
-	// Check if it's an AJAX request (XMLHttpRequest)
-	$isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')
-		|| (isset($_POST['openPool']) && $_POST['openPool']);
-	
-	// Clean any existing output buffer for AJAX requests
-	if ($isAjax || $openPool) {
+// Process both upload paths before rendering. AJAX callers get structured duplicate results;
+// form uploads redirect to the pool with a one-time notice so refresh cannot resubmit.
+if (!empty($_FILES['uploadedFile']['name'])) {
+	$isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+		|| !empty($_POST['openPool']);
+	$uploadResult = poolUploadFile($_FILES['uploadedFile'], "$docFolder/$db/pulje",
+		!isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0', $isAjax);
+	if ($isAjax) {
 		while (ob_get_level()) {
 			ob_end_clean();
 		}
+		header('Content-Type: application/json');
+		echo json_encode($uploadResult, JSON_INVALID_UTF8_SUBSTITUTE);
+		exit;
 	}
-	
-	if ($isAjax || $openPool) {
-		$allowedTypes = array('jpg','jpeg','pdf','png');
-		$fileName = basename($_FILES['uploadedFile']['name']);
-		
-		// Get file type from MIME type
-		$fileParts = explode("/",$_FILES['uploadedFile']['type']);
-		$mimeType = isset($fileParts[1]) ? strtolower($fileParts[1]) : '';
-		
-		// Also get file extension as fallback
-		$fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-		
-		// Check if either MIME type or extension is allowed
-		$isAllowedType = in_array($mimeType, $allowedTypes) || in_array($fileExt, $allowedTypes);
-		
-		if ($isAllowedType) {
-			// Determine docFolder early
-			
-			// Create folder if it doesn't exist
-			if (!file_exists($docFolder)) {
-				mkdir($docFolder, 0777, true);
-			}
-			
-			$poolDir = "$docFolder/$db/pulje";
-			if (!is_dir($poolDir)) {
-				mkdir($poolDir, 0777, true);
-			}
-			
-			// Sanitize filename
-			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
-			$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-			// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
-			$baseName = preg_replace('/\.pdf$/i', '', $baseName);
-			$baseName = sanitize_filename($baseName);
-			$targetFile = "$poolDir/$baseName.pdf";
-			
-			// Try to extract invoice data via API
-			$extractedData = null;
-			$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
-
-			// Convert images to PDF if needed
-			if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
-				$tempFile = "$poolDir/$baseName.$ext";
-				if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
-					if ($autoExtract) {
-						// Extract data from ORIGINAL image before converting to PDF
-						error_log("documents.php (AJAX): Calling extractInvoiceData for ORIGINAL image: $tempFile");
-						$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-						$extractedData = extractInvoiceData($tempFile, $invoiceId);
-						if ($extractedData) {
-							error_log("documents.php (AJAX): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
-						} else {
-							error_log("documents.php (AJAX): API extraction returned null for file: $tempFile");
-						}
-					} else {
-						error_log("documents.php (AJAX): Auto-extract disabled, skipping for: $tempFile");
-					}
-
-
-					// Now convert to PDF
-					exec("convert '$tempFile' '$targetFile'", $output, $return_var);
-					if ($return_var === 0 && file_exists($targetFile)) {
-						unlink($tempFile);
-					} else {
-						$targetFile = $tempFile; // Fallback to original if conversion fails
-					}
-				}
-			} else {
-				// For PDF files, move directly
-				move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
-				// Extract data from PDF
-				if ($autoExtract && file_exists($targetFile)) {
-					error_log("documents.php (AJAX): Calling extractInvoiceData for PDF: $targetFile");
-					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-					$extractedData = extractInvoiceData($targetFile, $invoiceId);
-					if ($extractedData) {
-						error_log("documents.php (AJAX): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
-					} else {
-						error_log("documents.php (AJAX): API extraction returned null for file: $targetFile");
-					}
-				} elseif (!$autoExtract) {
-					error_log("documents.php (AJAX): Auto-extract disabled, skipping for: $targetFile");
-				}
-			}
-			
-			// Rename file based on vendor and date from extracted data
-			if (file_exists($targetFile) && $extractedData !== null) {
-				$newBaseName = $baseName; // Default to original name
-				
-				// Build new filename from vendor and date
-				$vendorName = '';
-				$invoiceDate = '';
-				
-				if (isset($extractedData['vendor']) && !empty($extractedData['vendor'])) {
-					$vendorName = sanitize_filename($extractedData['vendor']);
-				}
-				
-				if (isset($extractedData['date']) && !empty($extractedData['date'])) {
-					// Format date for filename (convert DD-MM-YYYY to YYYY-MM-DD for better sorting)
-					$dateStr = $extractedData['date'];
-					if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $dateStr, $matches)) {
-						$invoiceDate = $matches[3] . '-' . $matches[2] . '-' . $matches[1]; // YYYY-MM-DD
-					} else {
-						$invoiceDate = sanitize_filename($dateStr);
-					}
-				}
-				
-				// Create new filename if we have both vendor and date
-				if (!empty($vendorName) && !empty($invoiceDate)) {
-					$newBaseName = $vendorName . '_' . $invoiceDate;
-				} elseif (!empty($vendorName)) {
-					$newBaseName = $vendorName;
-				} elseif (!empty($invoiceDate)) {
-					$newBaseName = $invoiceDate;
-				}
-				
-				// Rename file if we have a new name
-				if ($newBaseName !== $baseName) {
-					$newTargetFile = "$poolDir/$newBaseName.pdf";
-					
-					// Check if file already exists and append number if needed
-					$counter = 1;
-					$originalNewBaseName = $newBaseName;
-					while (file_exists($newTargetFile)) {
-						$newBaseName = $originalNewBaseName . '_' . $counter;
-						$newTargetFile = "$poolDir/$newBaseName.pdf";
-						$counter++;
-					}
-					
-					if (rename($targetFile, $newTargetFile)) {
-						$targetFile = $newTargetFile;
-						$baseName = $newBaseName;
-						error_log("documents.php (AJAX): Renamed file to: $newBaseName.pdf");
-					} else {
-						error_log("documents.php (AJAX): Failed to rename file to: $newBaseName.pdf");
-					}
-				}
-			}
-			
-			// Create .info file AFTER API call
-			if (file_exists($targetFile)) {
-				$infoFile = "$poolDir/$baseName.info";
-				
-				// Prepare .info file content
-				// Format: subject (line 1), account (line 2), amount (line 3), date (line 4), invoiceNumber (line 5), description (line 6)
-				$subject = $baseName;
-				$account = '';
-				$amount = '';
-				$date = '';
-				$invoiceNumber = '';
-				$description = '';
-				
-				// Use extracted data if available
-				if ($extractedData !== null) {
-					if (isset($extractedData['amount']) && !empty($extractedData['amount'])) {
-						$amount = $extractedData['amount'];
-					}
-					if (isset($extractedData['date']) && !empty($extractedData['date'])) {
-						$date = $extractedData['date'];
-					}
-					if (isset($extractedData['invoiceNumber']) && !empty($extractedData['invoiceNumber'])) {
-						$invoiceNumber = $extractedData['invoiceNumber'];
-					}
-					if (isset($extractedData['description']) && !empty($extractedData['description'])) {
-						$description = $extractedData['description'];
-					}
-				}
-				
-				// Create or update .info file
-				if (!file_exists($infoFile)) {
-					// Create new .info file with all fields
-					$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL . $invoiceNumber . PHP_EOL . $description . PHP_EOL;
-					file_put_contents($infoFile, $infoContent);
-					chmod($infoFile, 0666);
-				} else {
-					// Update existing .info file with extracted data if available
-					if ($extractedData !== null) {
-						$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
-						// Preserve existing subject and account if they exist
-						$subject = isset($lines[0]) && !empty($lines[0]) ? $lines[0] : $baseName;
-						$account = isset($lines[1]) ? $lines[1] : '';
-						
-						// Update amount if present
-						if (!empty($amount)) $lines[2] = $amount;
-						elseif (!isset($lines[2])) $lines[2] = '';
-						
-						// Update date if present
-						if (!empty($date)) $lines[3] = $date;
-						elseif (!isset($lines[3])) $lines[3] = '';
-						
-						// Update invoice number if present
-						if (!empty($invoiceNumber)) $lines[4] = $invoiceNumber;
-						elseif (!isset($lines[4])) $lines[4] = '';
-						
-						// Update description if present
-						if (!empty($description)) $lines[5] = $description;
-						elseif (!isset($lines[5])) $lines[5] = '';
-						
-						// Ensure we have 6 lines
-						while (count($lines) < 6) {
-							$lines[] = '';
-						}
-						
-						// Write updated content (using only first 6 lines)
-						$infoContent = implode(PHP_EOL, array_slice($lines, 0, 6)) . PHP_EOL;
-						file_put_contents($infoFile, $infoContent);
-					}
-				}
-				
-				// Save extracted currency directly to pool_files (currency not stored in .info files)
-				if ($extractedData !== null && !empty($extractedData['currency'])) {
-					$uploadFilename = $baseName . '.pdf';
-					$uploadCurrency = $extractedData['currency'];
-					$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($uploadFilename) . "'";
-					$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					if ($existingRow) {
-						$qtxt = "UPDATE pool_files SET currency = '" . db_escape_string($uploadCurrency) . "' WHERE id = '" . $existingRow['id'] . "'";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					}
-				}
-
-				// Return JSON response for AJAX
-				header('Content-Type: application/json');
-				echo json_encode([
-					'success' => true,
-					'message' => 'File uploaded successfully',
-					'filename' => $baseName . '.pdf',
-					'extracted' => $extractedData
-				]);
-				exit;
-			} else {
-				header('Content-Type: application/json');
-				echo json_encode(['success' => false, 'message' => 'Failed to save file']);
-				exit;
-			}
-		} else {
-			header('Content-Type: application/json');
-			echo json_encode(['success' => false, 'message' => 'Invalid file type']);
-			exit;
-		}
+	if (!$uploadResult['success']) {
+		$_SESSION['poolUploadNotice'] = $uploadResult['message'];
 	}
+	$redirectParams = array('openPool' => 1, 'kladde_id' => $kladde_id, 'bilag' => $bilag,
+		'fokus' => $fokus, 'sourceId' => $sourceId, 'source' => $source,
+		'poolFile' => ifset($uploadResult, 'filename', ifset($uploadResult, 'existing', '')));
+	$redirectUrl = 'documents.php?' . http_build_query($redirectParams);
+	if (!headers_sent()) {
+		header('Location: ' . $redirectUrl);
+		exit;
+	}
+	// online.php prints the page frame before this branch runs, so the Location header above only
+	// works while PHP's output buffer still holds that output (output_buffering in php.ini). Once it
+	// has been flushed, send the user on with the page's own refresh instead of leaving a
+	// half-rendered page behind after the file was already stored.
+	print "<meta http-equiv='refresh' content='0;URL=" . htmlspecialchars($redirectUrl, ENT_QUOTES, 'UTF-8') . "'>";
+	exit;
+}
+
+print '<!doctype html>';
+print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/dragAndDrop.css">';
+$jsFile = '../javascript/dragAndDrop.js';
+$version = file_exists($jsFile) ? filemtime($jsFile) : time();
+print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"{$jsFile}?v={$version}\"></script>";
+
+if (isset($_SESSION['poolUploadNotice'])) {
+	print '<script>alert(' . json_encode($_SESSION['poolUploadNotice'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) . ');</script>';
+	unset($_SESSION['poolUploadNotice']);
 }
 
 // Render the header before any content
@@ -472,56 +264,7 @@ if (($source === 'kassekladde' || $source === 'creditorOrder' || $source === 'de
 }
 
 #########
-function sanitize_filename($filename) {
-    // Replace known extended Latin/Danish characters
-    $translit = [
-        'æ' => 'ae', 'Æ' => 'Ae',
-        'ø' => 'oe', 'Ø' => 'Oe',
-        'å' => 'aa', 'Å' => 'Aa',
-        'ä' => 'ae', 'Ä' => 'Ae',
-        'ö' => 'oe', 'Ö' => 'Oe',
-        'ü' => 'ue', 'Ü' => 'Ue',
-        'ß' => 'ss',
-        'ñ' => 'n',  'Ñ' => 'N',
-        'á' => 'a',  'Á' => 'A',
-        'é' => 'e',  'É' => 'E',
-        'í' => 'i',  'Í' => 'I',
-        'ó' => 'o',  'Ó' => 'O',
-        'ú' => 'u',  'Ú' => 'U'
-    ];
-    $filename = strtr($filename, $translit);
 
-    // Fallback transliteration for any remaining special chars
-    $filename = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $filename);
-
-	//if any extra
-	$filename = preg_replace('/^(_{0,2}(UTF-8|ISO-8859-1)?_?Q_*)?/i', '', $filename);
-    // Remove all but safe characters (replace with underscore)
-    $filename = preg_replace('/[^\w\-\.]+/', '_', $filename);
-    
-    // Also explicitly replace spaces with underscores (to match _docPoolData.php behavior)
-    $filename = str_replace(' ', '_', $filename);
-
-    // Trim unwanted characters from ends
-    $filename = trim($filename, " \t\n\r\0\x0B._");
-
-    // Separate the name and extension
-    $dot_position = strrpos($filename, '.');
-    if ($dot_position !== false) {
-        $name = substr($filename, 0, $dot_position);
-        $ext = substr($filename, $dot_position); // Includes the dot
-    } else {
-        $name = $filename;
-        $ext = '';
-    }
-
-    // Truncate the name part if longer than 54 characters
-    if (strlen($name) > 54) {
-        $name = substr($name, 0, 54);
-    }
-
-    return $name . $ext;
-}
 #######
 
 
@@ -540,160 +283,6 @@ if ($dokument) {
 $isModernLayout = (in_array($source, array('kassekladde', 'creditorOrder', 'debitorOrdrer')) || $openPool || $openPoolRequested);
 if (!$isModernLayout) {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-}
-
-// Handle file uploads for pool view
-// Allow uploads when sourceId is set OR when openPool is set (for new pool uploads)
-if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $openPool)) {
-	$fileTypes = array('jpg','jpeg','pdf','png');
-	$fileName = basename($_FILES['uploadedFile']['name']);
-	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
-	if (in_array(strtolower($fileType),$fileTypes)) {
-		$poolDir = "$docFolder/$db/pulje";
-		if (!is_dir($poolDir)) {
-			mkdir($poolDir, 0755, true);
-		}
-		// Sanitize filename
-		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
-		$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-		// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
-		$baseName = preg_replace('/\.pdf$/i', '', $baseName);
-		$baseName = sanitize_filename($baseName);
-		$targetFile = "$poolDir/$baseName.pdf";
-		
-		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
-		$extractedData = null;
-		$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
-
-		// Convert images to PDF if needed
-		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
-			$tempFile = "$poolDir/$baseName.$ext";
-			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
-				if ($autoExtract) {
-					// Extract data from ORIGINAL image before converting to PDF
-					error_log("documents.php (block2): Calling extractInvoiceData for ORIGINAL image: $tempFile");
-					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-					$extractedData = extractInvoiceData($tempFile, $invoiceId);
-					if ($extractedData) {
-						error_log("documents.php (block2): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
-					} else {
-						error_log("documents.php (block2): API extraction returned null for file: $tempFile");
-					}
-				} else {
-					error_log("documents.php (block2): Auto-extract disabled, skipping for: $tempFile");
-				}
-
-
-				// Now convert to PDF
-				exec("convert '$tempFile' '$targetFile'", $output, $return_var);
-				if ($return_var === 0 && file_exists($targetFile)) {
-					unlink($tempFile);
-				} else {
-					$targetFile = $tempFile; // Fallback to original if conversion fails
-				}
-			}
-		} else {
-			// For PDF files, move directly
-			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
-			// Extract data from PDF
-			if ($autoExtract && file_exists($targetFile)) {
-				error_log("documents.php (block2): Calling extractInvoiceData for PDF: $targetFile");
-				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-				$extractedData = extractInvoiceData($targetFile, $invoiceId);
-				if ($extractedData) {
-					error_log("documents.php (block2): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
-				} else {
-					error_log("documents.php (block2): API extraction returned null for file: $targetFile");
-				}
-			} elseif (!$autoExtract) {
-				error_log("documents.php (block2): Auto-extract disabled, skipping for: $targetFile");
-			}
-		}
-		
-		// Create .info file
-		if (file_exists($targetFile)) {
-			$infoFile = "$poolDir/$baseName.info";
-			
-			// Prepare .info file content
-			// Format: subject (line 1), account (line 2), amount (line 3), date (line 4), invoiceNumber (line 5), description (line 6)
-			$subject = $baseName;
-			$account = '';
-			$amount = '';
-			$date = '';
-			$invoiceNumber = '';
-			$description = '';
-			
-			// Use extracted data if available
-			if ($extractedData !== null) {
-				if (isset($extractedData['amount']) && !empty($extractedData['amount'])) {
-					$amount = $extractedData['amount'];
-				}
-				if (isset($extractedData['date']) && !empty($extractedData['date'])) {
-					$date = $extractedData['date'];
-				}
-				if (isset($extractedData['invoiceNumber']) && !empty($extractedData['invoiceNumber'])) {
-					$invoiceNumber = $extractedData['invoiceNumber'];
-				}
-				if (isset($extractedData['description']) && !empty($extractedData['description'])) {
-					$description = $extractedData['description'];
-				}
-			}
-			
-			// Create or update .info file
-			if (!file_exists($infoFile)) {
-				// Create new .info file with all fields
-				$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL . $invoiceNumber . PHP_EOL . $description . PHP_EOL;
-				file_put_contents($infoFile, $infoContent);
-				chmod($infoFile, 0666);
-			} else {
-				// Update existing .info file with extracted data if available
-				if ($extractedData !== null) {
-					$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
-					// Preserve existing subject and account if they exist
-					$subject = isset($lines[0]) && !empty($lines[0]) ? $lines[0] : $baseName;
-					$account = isset($lines[1]) ? $lines[1] : '';
-					
-					// Update amount if present
-					if (!empty($amount)) $lines[2] = $amount;
-					elseif (!isset($lines[2])) $lines[2] = '';
-					
-					// Update date if present
-					if (!empty($date)) $lines[3] = $date;
-					elseif (!isset($lines[3])) $lines[3] = '';
-					
-					// Update invoice number if present
-					if (!empty($invoiceNumber)) $lines[4] = $invoiceNumber;
-					elseif (!isset($lines[4])) $lines[4] = '';
-					
-					// Update description if present
-					if (!empty($description)) $lines[5] = $description;
-					elseif (!isset($lines[5])) $lines[5] = '';
-					
-					// Ensure we have 6 lines
-					while (count($lines) < 6) {
-						$lines[] = '';
-					}
-					
-					// Write updated content (using only first 6 lines)
-					$infoContent = implode(PHP_EOL, array_slice($lines, 0, 6)) . PHP_EOL;
-					file_put_contents($infoFile, $infoContent);
-				}
-			}
-			
-			// Redirect to pool view after successful upload
-			$poolParams =
-				"openPool=1"."&".
-				"kladde_id=$kladde_id"."&".
-				"bilag=$bilag"."&".
-				"fokus=$fokus"."&".
-				"poolFile=$baseName.pdf"."&".
-				"docFolder=$docFolder"."&".
-				"sourceId=$sourceId"."&".
-				"source=$source";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$poolParams\">";
-			exit;
-		}
-	}
 }
 
 // Handle linking bilag from another line

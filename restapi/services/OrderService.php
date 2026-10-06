@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/../../includes/std_func.php';
 require_once __DIR__ . '/../models/orders/OrderModel.php';
 
 class OrderService
@@ -57,8 +58,10 @@ class OrderService
         
         $mappedData = new stdClass();
         
-        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility
+        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility.
+        // Placeholder values such as "dummyvalue" are stored blank (JOB-115).
         foreach ($data as $key => $value) {
+            $value = strip_placeholder_value($value);
             if (isset($mapping[$key])) {
                 // Use Danish property name
                 $danishKey = $mapping[$key];

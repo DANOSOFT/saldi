@@ -31,7 +31,14 @@
 // 20210301 PHR error in csv.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260309 LOE Fixed execessive error logging relating to undefined array keys.
-// 20260430 LOE Updated the top menu and made the report header sticky when scrolling. 
+// 20260430 LOE Updated the top menu and made the report header sticky when scrolling.
+// 20260901 CL/LAH Fixed Saldo column showing the same value on every line:
+//                  running balance was only accumulated for rows skipped by
+//                  pagination, never for the printed rows.
+// 20260911 MJ SST-769 Rate-adjustment rows (valuta = -1) showed 0,00 in debet/kredit while
+//                  still moving the balance, because the DKK amount only went into the cell title.
+//                  Show it as a labelled DKK figure so currency accounts can be reconciled.
+// 20260915 CDX/PHR Include simulated rows in pagination and keep merged row metadata aligned.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -425,33 +432,30 @@ print "<tbody>";
 	fwrite($csv, "\"Dato\";\"Bilag\";\"Tekst\";\"Debet\";\"Kredit\";\"Saldo\"\n");
 	####
 	$total_rows = 0;
-    for ($x = 0; $x < count($kontonr); $x++) {
-        if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
-            $cnt = db_fetch_array(db_select(
-                "SELECT COUNT(*) as c FROM transaktioner 
-                 WHERE kontonr=$kontonr[$x] 
-                   AND transdate>='$regnstart' AND transdate<='$regnslut' $dim",
-                __FILE__ . " linje " . __LINE__
-            ));
-            $total_rows += (int)$cnt['c'];
-        }
-    }
-    $total_pages  = max(1, ceil($total_rows / $per_page));
-   
-    $rows_to_skip = ($page - 1) * $per_page;
-    $rows_printed = 0;
-	####
-	
-   for ($x = 0; $x < count($kontonr); $x++) {
-	if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
- 		$linjebg = $bgcolor5;
-            // Count rows for this account to see if we can skip it entirely
-            $acct_cnt = (int)db_fetch_array(db_select(
-                "SELECT COUNT(*) as c FROM transaktioner
-                 WHERE kontonr=$kontonr[$x]
-                   AND transdate>='$regnstart' AND transdate<='$regnslut' $dim",
-                __FILE__ . " linje " . __LINE__
-            ))['c'];
+	$accountRows = array();
+	for ($x = 0; $x < count($kontonr); $x++) {
+		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+			$accountRows[$x] = 0;
+			$tables = $simulering ? array('transaktioner', 'simulering') : array('transaktioner');
+			foreach ($tables as $table) {
+				$qtxt = "SELECT COUNT(*) as c FROM $table WHERE kontonr=" . intval($kontonr[$x]);
+				$qtxt .= " AND transdate>='" . db_escape_string($regnstart) . "'";
+				$qtxt .= " AND transdate<='" . db_escape_string($regnslut) . "' $dim";
+				$qtxt .= " AND (COALESCE(debet,0) <> 0 OR COALESCE(kredit,0) <> 0)";
+				$cnt = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$accountRows[$x] += (int)$cnt['c'];
+			}
+			$total_rows += $accountRows[$x];
+		}
+	}
+	$total_pages = max(1, ceil($total_rows / $per_page));
+	$rows_to_skip = ($page - 1) * $per_page;
+	$rows_printed = 0;
+
+	for ($x = 0; $x < count($kontonr); $x++) {
+		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+			$linjebg = $bgcolor5;
+			$acct_cnt = $accountRows[$x];
 
             if ($rows_to_skip >= $acct_cnt) {
                 $rows_to_skip -= $acct_cnt;
@@ -754,35 +758,42 @@ print "<tbody>";
 					$sim_debet[$sim] = $r['debet'];
 					$sim_kredit[$sim] = $r['kredit'];
 					$a = 0;
-					while ($a <= count($transdate) and $sim_transdate[$sim] > $transdate[$a])
+					while ($a < count($transdate) && $sim_transdate[$sim] > $transdate[$a]) {
 						$a++;
+					}
 					for ($b = count($transdate); $b > $a; $b--) {
 						$transdate[$b] = $transdate[$b - 1];
 						$bilag[$b] = $bilag[$b - 1];
 						$beskrivelse[$b] = $beskrivelse[$b - 1];
 						$debet[$b] = $debet[$b - 1];
 						$kredit[$b] = $kredit[$b - 1];
+						$kladde_id[$b] = $kladde_id[$b - 1] ?? null;
+						$transvaluta[$b] = $transvaluta[$b - 1] ?? null;
+						$transkurs[$b] = $transkurs[$b - 1] ?? 100;
 					}
 					$transdate[$b] = $sim_transdate[$sim];
 					$bilag[$b] = $sim_bilag[$sim];
 					$beskrivelse[$b] = $sim_beskrivelse[$sim] . "(Simuleret)";
 					$debet[$b] = $sim_debet[$sim];
 					$kredit[$b] = $sim_kredit[$sim];
+					$kladde_id[$b] = $r['kladde_id'];
+					$transvaluta[$b] = $r['valuta'];
+					$transkurs[$b] = $r['valutakurs'] ?: 100;
 					$sim_transdate[$sim] = NULL;
 					$sim++;
 				}
 			}
 		
-			for ($tr = 0; $tr < count($transdate) + count($sim_transdate); $tr++) {
+			for ($tr = 0; $tr < count($transdate); $tr++) {
 			if ($transdate[$tr] && ($debet[$tr] || $kredit[$tr])) {
 
                 // Always accumulate kontosum — even for skipped rows
                 // (moved up so it runs before the skip check)
                 $debet_val  = afrund($debet[$tr], 2);
                 $kredit_val = afrund($kredit[$tr], 2);
+                $kontosum += $debet_val - $kredit_val;
 
                 if ($rows_to_skip > 0) {
-                    $kontosum += $debet_val - $kredit_val;
                     $rows_to_skip--;
                     continue;
                 }
@@ -796,30 +807,46 @@ print "<tbody>";
 					($kladde_id[$tr]) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&visipop=on')\"" : $js = NULL;
 					print "<td title='Kladde: $kladde_id[$tr]' $js>$bilag[$tr]</td><td>$kontonr[$x] : $beskrivelse[$tr] </td>";
 					fwrite($csv, "$bilag[$tr];$kontonr[$x] : " . mb_convert_encoding($beskrivelse[$tr], 'ISO-8859-1', 'UTF-8') . ";");
+					// SST-769 A rate adjustment is posted in DKK only (valuta = -1, valutakurs = 100),
+					// so there is no foreign-currency amount to convert. Showing 0,00 left a row that
+					// moved the balance with no visible amount, which is why MEDSHOP could not
+					// reconcile their currency accounts. Show the DKK figure, labelled in the column
+					// so it is never read as an amount in the account's own currency, and export the
+					// bare number so the CSV still reconciles.
 					if ($kontovaluta[$x]) {
-						if ($transvaluta[$tr] == '-1')
-							$tmp = 0;
-						else
-							$tmp = $debet[$tr] * 100 / $transkurs[$tr];
-						$title = "DKK " . dkdecimal($debet[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						if ($transvaluta[$tr] == '-1') {
+							$csvval = $debet[$tr] * 1;
+							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
+							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
+						} else {
+							$csvval = $debet[$tr] * 100 / $transkurs[$tr];
+							$vis    = dkdecimal($csvval, 2);
+							$title  = "DKK " . dkdecimal($debet[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						}
 					} else {
-						$tmp = $debet[$tr];
-						$title = NULL;
+						$csvval = $debet[$tr];
+						$vis    = dkdecimal($csvval, 2);
+						$title  = NULL;
 					}
-					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td>";
-					fwrite($csv, dkdecimal($tmp, 2) . ";");
+					print "<td align=\"right\" title=\"$title\">$vis</td>";
+					fwrite($csv, dkdecimal($csvval, 2) . ";");
 					if ($kontovaluta[$x]) {
-						if ($transvaluta[$tr] == '-1')
-							$tmp = 0;
-						else
-							$tmp = $kredit[$tr] * 100 / $transkurs[$tr];
-						$title = "DKK " . dkdecimal($kredit[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						if ($transvaluta[$tr] == '-1') {
+							$csvval = $kredit[$tr] * 1;
+							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
+							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
+						} else {
+							$csvval = $kredit[$tr] * 100 / $transkurs[$tr];
+							$vis    = dkdecimal($csvval, 2);
+							$title  = "DKK " . dkdecimal($kredit[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						}
 					} else {
-						$tmp = $kredit[$tr];
-						$title = NULL;
+						$csvval = $kredit[$tr];
+						$vis    = dkdecimal($csvval, 2);
+						$title  = NULL;
 					}
-					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td>";
-					fwrite($csv, dkdecimal($tmp, 2) . ";");
+					print "<td align=\"right\" title=\"$title\">$vis</td>";
+					fwrite($csv, dkdecimal($csvval, 2) . ";");
 					#$kontosum = $kontosum + afrund($debet[$tr], 2) - afrund($kredit[$tr], 2);
 					if ($kontovaluta[$x]) {
 						$tmp = $kontosum * 100 / $transkurs[$tr];

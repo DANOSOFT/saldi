@@ -25,7 +25,7 @@
 
 // Product lookup page using grid system for order entry 
 // Based on vareliste.php grid implementation
-// 20260513 CL/PHR Added lager_ialt som valghmulighed
+// 20260513 CL/PHR Addet lager_ialt som valghmulighed
 // 20260618 CL/PHR replaced lower(vv.variant_type) by lower(vv.variant_type::text) to avoid Fatal error
 
 @session_start();

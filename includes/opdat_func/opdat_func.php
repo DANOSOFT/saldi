@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func.php --- patch 4.3.0 --- 2026-07-02 ---
+// --- includes/opdat_func.php --- patch 5.0.0 --- 2026-07-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,12 @@
 // 202060702 NTR Initial version of opdat_func.php with opdat_to() function for version comparison and update steps.
 // 20260727 NTR Removed current version parameter, as it was incorrect and resulted in no update.
 //              opdat_func now automatically fetches the version from the database.
+// 20260925 CL/NTR opdat_to() now reconnects to the tenant db itself (moved from opdat_4.3.php's
+//                caller-side guard), so every opdat_to() caller is covered without needing its
+//                own reconnect before the version check and $update_step() closure run.
+// 20260925 CL/NTR opdat_to()'s reconnect now also selects the tenant db on MySQLi, via the new
+//                db_select_database() helper in includes/db_query.php; db_connect() alone
+//                doesn't select a database on that engine (CodeRabbit PR #564).
 
 if (!function_exists('opdat_version_compare')) {
     /**
@@ -84,6 +90,14 @@ if (!function_exists('opdat_to')) {
      * regnskab (version where db = $db); the lowest of the two is used, since both
      * are expected to be updated together and neither should be trusted alone.
      *
+     * Reconnects to the tenant database ($db) first when the active connection is still
+     * on master ($sqdb), so both the version read above and $update_step() always run
+     * against the tenant - callers don't need their own reconnect before calling opdat_to().
+     *
+     * Scope: db_select()/db_modify() calls inside $update_step() run against the tenant
+     * database, same as elsewhere in the app - pass global=true on those calls to target
+     * master ($sqdb) instead.
+     *
      * Usage:
      * opdat_to('4.3.0', function () {
      *     // Database changes needed before version 4.3.0.
@@ -94,7 +108,17 @@ if (!function_exists('opdat_to')) {
      * @return bool True if the update step was run, otherwise false.
      */
     function opdat_to($targeted_version, $update_step){
-        global $db;
+        global $db, $sqdb, $sqhost, $squser, $sqpass, $connection, $db_type;
+
+        // 20260925 CL/NTR Reconnect to the tenant before reading/stamping its version. Moved
+        // here from opdat_4.3.php's caller-side guard so every opdat_to() call is covered
+        // uniformly, instead of each opdat_4_X() needing to remember to reconnect itself.
+        // db_select_database() covers the engines (MySQLi) where db_connect() alone doesn't
+        // select a database; it's a no-op on Postgres, which already connects straight to $db.
+        if ($db && $db != $sqdb) {
+            $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+            db_select_database($connection, $db);
+        }
 
         $qtxt = "SELECT box1 FROM grupper WHERE art = 'VE'";
         $grupper_row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));

@@ -43,6 +43,7 @@ $s_id=session_id();
 // 20250206 PHR Removed obsolete section that inserted values in accounts for product purchase and sale!
 // 20260304 PHR Costprice is from now only updated on positive qty og price.
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
+// 20260908 CDX/LH Lock creditor orders before posting and update split purchase batches once (SST-765).
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -53,20 +54,22 @@ echo "<br>";
 
 $afd = 0;
 
-$id=$_GET['id'];
-if (!$id) {
+$id = (int)($_GET['id'] ?? 0);
+if ($id <= 0) {
 	print print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 	exit;
 }
-$qtxt = "select levdate, status from ordrer where id = '$id'";
-if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	$status = $r['status'];
-	if ($status > 2) { 
-		print "Hmmm - har du brugt browserens opdater eller tilbageknap???";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-		exit;
-	}
+// Serialize eligibility with order saves and receipts before reading dependent data.
+transaktion("begin");
+$qtxt = "select levdate, status from ordrer where id = '$id' for update";
+$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+if (!$r || $r['status'] > 2) {
+	print "Hmmm - har du brugt browserens opdater eller tilbageknap???";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+	transaktion("rollback");
+	exit;
 }
+$status = $r['status'];
 
 $query = db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__);
 if ($row = db_fetch_array($query)){
@@ -100,12 +103,14 @@ if ($valuta && $valuta!='DKK') {
 		if (!db_fetch_array(db_select("select id from kontoplan where kontonr='$difkto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__))) {
 			print "<BODY onLoad=\"javascript:alert('Kontonr $difkto (kursdiff) eksisterer ikke')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+			transaktion("rollback");
 			exit;
 		}
 	} else {
 		$tmp = dkdato($levdate);
 		print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $tmp')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+		transaktion("rollback");
 		exit;
 	}
 } else {
@@ -116,16 +121,19 @@ if ($valuta && $valuta!='DKK') {
 if (!$row['levdate']){
 	print "<BODY onLoad=\"javascript:alert('Leveringsdato SKAL udfyldes')\">";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+	transaktion("rollback");
 	exit;
 } elseif (!trim($row['fakturanr'])){
 	print "<BODY onLoad=\"javascript:alert('Fakturanummer SKAL udfyldes og m&aring; ikke v&aelig;re 0')\">";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+	transaktion("rollback");
 	exit;
 } else {
 	$fejl=0;
 	if ($row['levdate']<$row['ordredate']){
 		print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+		transaktion("rollback");
 		exit;
 	}
 	$levdate=$row['levdate'];
@@ -135,11 +143,11 @@ if (!$row['levdate']){
 	if (($ym<$aarstart)||($ym>$aarslut)){
 		print "<BODY onLoad=\"javascript:alert('Leveringsdato udenfor regnskabs&aring;r')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+		transaktion("rollback");
 		exit;
 	}
 	if ($fejl==0){
 		echo "bogf&oslash;rer nu!........";
-		transaktion("begin");
 		$x=0;
 		$query = db_select("select * from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)){
@@ -206,6 +214,7 @@ if (!$row['levdate']){
 				if (!$box3) {
 					print "<BODY onLoad=\"javascript:alert('Der er ikke opsat kontonummer for varek&oslash;b p&aring; varegruppen: $vgbeskrivelse.')\">";
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+					transaktion("rollback");
 					exit;
 				}
 				$box1=$box3;
@@ -224,8 +233,13 @@ if (!$row['levdate']){
 #					} #udkommenteret 20171026
 					if ($antal[$x]>0) {
 						$query = db_select("select * from batch_kob where linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
-						while ($row = db_fetch_array($query)) { # if ændret til while grundet fejl ved meotagelse af flere omgange på samme ordrelinje 2012.04.18 saldi_2 ordre id 4226
-							$batch_id=$row['id']*1;
+						$hasPurchaseBatches = false;
+						while ($row = db_fetch_array($query)) {
+							// Preserve the batch id used by a later negative order line.
+							$batch_id = (int) $row['id'];
+							$hasPurchaseBatches = true;
+						}
+						if ($hasPurchaseBatches) {
 							db_modify("update batch_kob set pris = '$dkpris[$x]', fakturadate='$levdate' where linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
 						}
 						if ($fifo) {
@@ -361,14 +375,15 @@ function bogfor($id) {
 		if ($kontonr) {
 			$r = db_fetch_array(db_select("select id from kontoplan where kontonr='$kontonr' and regnskabsaar = '$regnaar' and lukket!='on'",__FILE__ . " linje " . __LINE__));
 			if (!$r['id']) {
-				print "<BODY onLoad=\"javascript:alert('$tekst')\">"; 
-			exit;			
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-			exit;
+				print "<BODY onLoad=\"javascript:alert('$tekst')\">";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+				transaktion("rollback");
+				exit;
 			}
 		} else {
 			print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+			transaktion("rollback");
 			exit;
 		}
 		if ($sum>0) {$kredit=$sum; $debet='0';}
@@ -536,6 +551,7 @@ function bogfor($id) {
 		} else {
 			print "<BODY onLoad=\"javascript:alert('Der er konstateret en uoverensstemmelse i posteringssummen, kontakt DANOSOFT p&aring; telefon 4690 2208')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+			transaktion("rollback");
 			exit;
 		}
 	} 

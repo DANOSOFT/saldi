@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productcardIncludes/showLocations.php --- lap 4.1.0 --- 2024-06-05 ---
+// --- lager/productcardIncludes/showLocations.php --- lap 4.1.0 --- 2026-09-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,17 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230910 PHR Added orderlookup for incoming and outgoing orders ($orderInOutput & $orderOutOutput)
 // 20231018 PHR Inserted  '&& !count($variantVarerId)' to avoid deleteing variants from lagertatus
 // 20240605 PHR Replaced text 2046 (Følgevare) by 980 (Beholdning)
+// 20260810 LOE Removed right alignment from commission field
+// 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
+/**
+ * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
+ * @var array<int, string> $warehouseNames
+ */
 ?>
 <style>
 .CellComment{
@@ -36,14 +42,7 @@
 <?php
 	print "<tr><td colspan=\"2\"><b>".findtekst(782,$sprog_id)."</b></td></tr>";
 	if ($stockItem) {
-		$lagernavn[1]='';
-		$x=0;
-		$qtxt="select beskrivelse,kodenr from grupper where art='LG' order by kodenr";
-		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while ($r=db_fetch_array($q)) {
-			$x++;
-			$lagernavn[$x]=$r['beskrivelse'];
-		}
+		$lagernavn = $warehouseNames;
 		$qtxt="update batch_kob set lager = '1' where (lager = '0' or lager is NULL) and vare_id='$id'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt="update batch_salg set lager = '1' where (lager = '0' or lager is NULL) and vare_id='$id'";
@@ -51,7 +50,7 @@
 		$qtxt="update lagerstatus set lager = '1' where (lager = '0' or lager is NULL) and vare_id='$id'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$lagersum=0;
-		for ($x=1;$x<=count($lagernavn);$x++) {
+		foreach ($lagernavn as $x => $warehouseName) {
 			$qtxt="select sum(antal) as antal from batch_kob where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$b_antal[$x]=$r2['antal'];
@@ -90,7 +89,7 @@
 		if (count($lagernavn)) {
 			print "<tr><td colspan=\"2\">
 			</td><td><b>".findtekst(2045,$sprog_id)."</b></td></tr>";
-			for ($x=1;$x<=count($lagernavn);$x++) {
+			foreach ($lagernavn as $x => $warehouseName) {
 				if (!isset($lagerid[$x])) $lagerid[$x]=0;
 				print "<tr><td colspan=\"2\"><input type=\"hidden\" name=\"lagerid[$x]\" value=\"$lagerid[$x]\">$lagernavn[$x]</td>";
 				print "<td colspan=\"4\"><input class=\"inputbox\" type=\"text\" size=\"25\" name=\"lagerlok[$x]\"";
@@ -186,8 +185,8 @@
 			if ($beholdning!=$lagersum) {
 				db_modify("update varer set beholdning='$lagersum' where id='$id'",__FILE__ . " linje " . __LINE__);
 			}
-			for ($x=1;$x<=count($lagernavn);$x++) {
-				($x==1)?print "<tr><td>Aktuel</td>":print "<tr><td></td>";
+			foreach ($lagernavn as $x => $warehouseName) {
+				($x==array_key_first($lagernavn))?print "<tr><td>Aktuel</td>":print "<tr><td></td>";
 				if (($fifo && !$samlevare) || count($variantVarerId)) {
 				print "<td>$lagernavn[$x]</td>";
 				print "<td align='right'><INPUT class='inputbox' READONLY='readonly' size='5' style='text-align:right' ";
@@ -200,7 +199,7 @@
 				print "value='$lagerbeh[$x]' onchange='javascript:docChange = true;'>";
 			}
 			print "<input type='hidden' name='lagerbeh[$x]' value='$lagerbeh[$x]'></td>";
-			if ($x==count($lagernavn)) {
+			if ($x==array_key_last($lagernavn)) {
 				$qtxt="select * from stocklog where item_id = $id order by id desc limit 5";
 					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					$usNa=array();
@@ -253,7 +252,7 @@
 		print "</td></tr>";
 	}
 		($provisionsfri)?$provisionsfri="checked":$provisionsfri="";
-		print "<tr><td colspan=\"2\" align='right'>".findtekst(2048,$sprog_id)."</td><td align=\"center\"><input class=\"inputbox\"
+		print "<tr><td colspan=\"2\">".findtekst(2048,$sprog_id)."</td><td align=\"center\"><input class=\"inputbox\"
 		type=\"checkbox\" name=\"provisionsfri\" $provisionsfri></td>";
 		if ($shopurl) {
 			if ($shop_id) {

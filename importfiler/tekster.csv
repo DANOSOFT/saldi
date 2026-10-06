@@ -239,7 +239,7 @@
 239	Der er rykkere klar til udsendelse i SALDI.	There are reminders ready for broadcast in SALDI.	Det er påminnelser klare for sending i SALDI.
 240	Der er rykkere klar til udsendelse.	There are reminders ready for broadcast.	Det er påminnelser klare for sending.
 241	Rykkervalg	Reminder choice	Påminnelsesvalg
-242	<big>Denne funktion gør følgende:<UL><LI>udligner alle konti	<big>This feature does the following: <UL> <LI> settles all accounts	<big> Denne funksjonen gjør følgende: <UL> <LI> gjør opp alle kontoer
+242	Udligner alle konti	Settles all accounts	Gjør opp alle kontoer
 243	Ekstrafelter	Extra fields	Ekstrafelter
 244	Ordrefelt 1	Order field 1	Bestillingsfelt 1
 245	Ordrefelt 2	Order field 2	Bestillingsfelt 2
@@ -370,7 +370,7 @@
 370	Kontant	Cash	Kontant
 371	Efterkrav	Cash on delivery	Kontantbetaling ved levering
 372	Netto	Net	Netto
-373	Lb. md.	EOM.	Løp. md.
+373	Lb. md.	EOM.	Løp. mnd.
 374	Debitorgruppe	Debtor group	Debitorgruppe
 375	Rabatgruppe	Discount group	Rabattgruppe
 376	CVR-nr.	VAT no.	MVA-nr.
@@ -426,7 +426,7 @@
 426	Klik her for at sætte individuelle rabatter og varegrupper for de enkelte prisgrupper	Click here to set individual discounts and product groups for the individual price groups	Klikk her for å angi individuelle rabatter og produktgrupper for de enkelte prisgruppene
 427	Prislister	Price lists	Prislister
 428	Rabat	Discount	Rabatt
-429	Varegruppe	Category	Kategori
+429	Varegruppe	Product group	Varegruppe
 430	Aktiv	Active	Aktiv
 431	Skriv den generelle rabat for varer fra $beskrivelse	Write the general discount for items from $beskrivelse	Skriv den generelle rabatten for varer fra $beskrivelse
 432	Vælg den generelle varegruppe til varer fra $beskrivelse	Select the general item group for items from $beskrivelse	Velg den generelle varegruppen for varer fra $beskrivelse
@@ -541,9 +541,9 @@
 541	Justering	Adjustment	Justering
 542	DropDown	DropDown	Fall ned
 543	Felt	Field	Felt
-544	Fakturavisning	Invoice Display	Fakturavisning
-545	Tilbudsvisning	Offer Display	Tilbyr utsikt
-546	Ordrevisning	Order Display	Bestill skjerm
+544	Fakturavisning	Invoice view	Fakturavisning
+545	Tilbudsvisning	Offer view	Tilbudsvisning
+546	Ordrevisning	Order view	Ordrevisning
 547	Leverandørordre	Supplier order	Leverandørbestilling
 548	Vælg om lukkede kreditorer skal være synlige på oversigten.	Choose whether closed creditors should be visible on the overview.	Velg om lukkede kreditorer skal være synlige i oversikten.
 549	Postnr, by	Zipcode, City	Postnummer, by
@@ -602,7 +602,7 @@
 602	Regnskab	Financial Accounting	Finansregnskap
 603	Rapporter	Reports	Rapporter
 604	Debitor	Debtor	Debitor
-605	Ordre	Order	Rekkefølge
+605	Ordre	Order	Ordrene
 606	Konti	Accounts	Kontoer
 607	Kreditorer	Creditors	Kreditorer
 608	Lager	Inventory	Lager
@@ -731,7 +731,7 @@
 731	Aut. regulering af kostpriser	Aut. regulation of cost prices	Aut. regulering av kostpris
 732	Vælg om kostpriser skal reguleres til gennemsnitspris, genanskaffelsespris eller ikke skal justeres	Select whether cost prices should be adjusted to average price, replacement price, or not be adjusted	Velg om kostpriser skal reguleres til gjennomsnittspris, erstatningspris eller ikke skal reguleres
 733	Tegn kodning for shop 	Draw coding for shop	Tegn koding for butikk
-734	Hvis dette felt er afmærket gives mulighed for at give en speciel pris på en gruppe af varer. Varene samles på bonnen uden pris på de enkelte varer og prisen vises som sætpris under varerne.    	If this field is checked	Hvis dette feltet er merket av, er det mulig å gi en spesialpris for en gruppe varer. Varene samles på kvitteringen uten prisen på de enkelte varene, og prisen vises som en fast pris under varene.
+734	Hvis dette felt er afmærket gives mulighed for at give en speciel pris på en gruppe af varer. Varene samles på bonnen uden pris på de enkelte varer og prisen vises som sætpris under varerne.	If this field is checked	Hvis dette feltet er merket av, er det mulig å gi en spesialpris for en gruppe varer. Varene samles på kvitteringen uten prisen på de enkelte varene, og prisen vises som en fast pris under varene.
 735	Vis knap [Sæt]	Show button [Set]	Vis knapp [Set]
 736	Labelprint	Labelprint	Etiketavtrykk
 737	Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.	Here you enter the html code for formatting the label print in product cards. You can find examples of <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159> Saldi forum </a> under tips and tricks.	Her skriver du inn html-koden for formatering av etikettutskrift i produktkort. Du kan finne eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159> Saldi forum </a> under tips og triks.
@@ -951,7 +951,7 @@
 951	Leverandør	Supplier	Leverandør
 952	Lev. varenr.	Suppl. item no.	Lev. varenr.
 953	Ordrebeholdning	Order book	Ordrebeholdning
-954	Indkøbsforslag	Purchase suggestions	Kjøpsforslag
+954	Indkøbsforslag	Purchase suggestions	Innkjøpsforslag
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
 956	Kun mangler	Only missing	Bare mangler
 957	Vareliste	Item list	Vareliste
@@ -964,7 +964,7 @@
 964	Varerapport - forside	Item report - front page	Varerapport - forsiden
 965	Varerapport	Item report	Varerapport
 966	Leverandør 	Supplier	Leverandør
-967	Varenavn	Item name	Gjenstandsnavn
+967	Varenavn	Item name	Varenavn
 968	Detaljeret	Detailed	Detaljert
 969	Kun salg / DB	Sales / DB only	Bare salg / DB
 970	Beregn lagerbeh.	Calculate stock	Beregn lagerbeh.
@@ -985,7 +985,7 @@
 985	Åbne ordrer	Open orders	Åpne ordrer
 986	Invoice	Invoiced orders	Fakturerte ordrer
 987	Sagsstyring	Case management	Saksbehandling
-988	Leverandører	Supplier	Leverandør
+988	Leverandører	Suppliers	Leverandører
 989	Faktura	Invoice	Faktura
 990	Bruger	User	Bruker
 991	Kunder	Customers	Kunder
@@ -1205,9 +1205,9 @@
 1205	Diff. konto	Diff. account	Diff. konto
 1206	Ret	Modify	Rett
 1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change.\\nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen.\\nEllers risikerer du at lave rod i ditt regnskap
-1208	Start md.	Start mnth.	Start md.
+1208	Start md.	Start mo.	Start mnd.
 1209	Start år	Start yr.	Startår
-1210	Slut md.	End mnth.	Slutt md.
+1210	Slut md.	End mo.	Slutt mnd.
 1211	Slut år	End yr.	Slutten av året
 1212	Sæt alle	Set all	Putt alle
 1213	Sæt aktivt	Set active	Sett aktivt
@@ -1980,8 +1980,8 @@
 1980	Kan ikke oprette forbindelse til MySQLi\n	Unable to connect to MySQLi \n	Kan ikke koble til MySQLi \n
 1981	Kan ikke oprette forbindelse til PostgreSQL\n	Unable to connect to PostgreSQL \n	Kan ikke koble til PostgreSQL \n
 1982	SALDI er installeret	SALDI is installed	SALDI er installert
-1983	Dit SALDI-system er nu oprettet. Og det første, du skal gøre, er at oprette et regnska	Your SALDI system is now set up. And the first thing you need to do is create an account	SALDI-systemet ditt er nå satt opp. Og det første du må gjøre er å opprette en konto
-1984	Dette gøres ved at loggge ind med	This is done by logging in with	Dette gjøres ved å logge inn med
+1983	Dit SALDI-system er nu oprettet. Og det første, du skal gøre, er at oprette et regnskab	Your SALDI system is now set up. And the first thing you need to do is create an account	SALDI-systemet ditt er nå satt opp. Og det første du må gjøre er å opprette en konto
+1984	Dette gøres ved at logge ind med	This is done by logging in with	Dette gjøres ved å logge inn med
 1985	som regnskab,	as accounts,	som regnskap,
 1986	som brugernavn og den valgte adgangskode	as the username and the selected password	som brukernavn og den valgte adgangskoden
 1987	Tegn en hotline-aftale for kun, så kan du ringe eller sende en e-mail 	Sign a hotline deal only, then you can call or send an email	Tegn en hotline-aftale for kun, så kan du ringe eller sende en e-post
@@ -2008,7 +2008,7 @@
 2008	Angiv antal der stal flyttes til anden eller ny ordre	Specify quantity to be moved to second or new order	Spesifiser antall som skal flyttes til andre eller ny ordre
 2009	Flyt	Move	Flytt
 2010	Flyt det angivne antal fra valgte linjer til:  (ordredato / ordrenr)	Move the specified quantity from selected lines to (order date / order no)	Flytt det angitte tallet fra valgte linjer til (bestillingsdato / ordrenr)
-2011	Opret ny ordre	Create new order Oprett ny bestilling	
+2011	Opret ny ordre	Create new order	Oprett ny bestilling
 2012	Antal, ej modtaget, der skal flyttes, maks: $maxQ	 Quantity, not recieved, to be moved, max: $maxQ	Antall, ej mottaget, som skal flyttes, maks: $maxQ
 2013	Antal modtaget, der skal flyttes, maks: $maxQ	 Quantity recieved, to be moved, max: $maxQ	Antall mottaget, som skal flyttes, maks: $maxQ
 2014	Kreditér	Credit	Krediter
@@ -2375,7 +2375,7 @@
 2375	Sæt	Set	Sett
 2376	Dagens omsætning	Today's turnover	Dagens omsetning
 2377	System	System	System
-2378	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days	
+2378	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days	Ufakturerte ordrer de siste 30 dager
 2379	Aktive medarbejdere	Active employees	Aktive medarbeidere
 2380	Har været aktive inden for den sidste time	Have been active within the last hour	Har vært aktive innen den siste timen
 2381	Hvilket svarer til	Which is equivalent to	Som tilsvarer
@@ -2459,7 +2459,7 @@
 2459	Momsgruppe som kreditorgruppen skal tilknyttes	VAT group to which the creditor group should be assigned	MVA-gruppe som kreditorgruppen skal knyttes til
 2460	Samlekonto for kreditorgruppen	Collective account for the creditor group	Samlekonto for kreditorgruppen
 2461	Det sprog, der skal anvendes ved kommunikation med kreditoren	The language to be used when communicating with the creditor	Språket som skal brukes ved kommunikasjon med kreditoren
-2462	Momsgruppe for salgsmoms ved omvendt betalingspligt	VAT group for sales VAT under reverse charge	"MVA-gruppe for salgs-MVA ved omvendt betalingsplikt
+2462	Momsgruppe for salgsmoms ved omvendt betalingspligt	VAT group for sales VAT under reverse charge	MVA-gruppe for salgs-MVA ved omvendt betalingsplikt
 2463	S.moms grp.	S.VAT grp.	S.MVA grp.
 2464	Afd.	Dept.	Avd.
 2465	Afmærk her, hvis denne leverandørgruppe er omfattet af omvendt betalingspligt	Check here if this supplier group is subject to reverse charge	Merk av her hvis denne leverandørgruppen er omfattet av omvendt betalingsplikt
@@ -2637,25 +2637,25 @@
 2637	Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment terms. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsbetingelser. Disse hentes automatisk fra kreditoroppsettet
 2638	Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment days. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsdager. Disse hentes automatisk fra kreditoroppsettet
 2639	<b>Vareliste:</b> Den liste du ser forneden.<br><br><b>Ordrevisning:</b> Se, hvilke ordrer dine varer indgår i.<br><br><b>Indkøb:</b> Opret hurtigt indkøbslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administration af serienummer-varer.	<b>Product list:</b> The list you see below.<br><br><b>Order view:</b> See which orders your products are included in.<br><br><b>Purchasing:</b> Quickly create purchase lists automatically or manually.<br><br><b>Serial numbers:</b> Tracking and management of serial-numbered products.	<b>Vareliste:</b> Listen du ser nedenfor.<br><br><b>Ordrevisning:</b> Se hvilke ordre varene dine inngår i.<br><br><b>Innkjøp:</b> Opprett raskt innkjøpslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administrasjon av produkter med serienummer.
-2640	Klik her for at oprette en ny vare	 Click here to add a new product	Klikk her for å opprette et nytt produkt
-2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click a item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
+2640	Klik her for at oprette en ny vare	Click here to add a new product	Klikk her for å opprette en ny vare
+2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click an item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
 2642	Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder	Click on a stock quantity to perform an internal transfer of inventory units	Klikk på et lagerantall for å utføre en intern overføring av lagerenheter
-2643	Søg på lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>"10"</b> – Shows products with a stock quantity of exactly 10.<br><b>"1:10"</b> – Shows products with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellom 1 og 10.
+2643	Søg på lagerbeholdning. For eksempel:<br><b>""10""</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>""1:10""</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>""10""</b> – Shows products with a stock quantity of exactly 10.<br><b>""1:10""</b> – Shows products with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>""10""</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>""1:10""</b> – Viser varer med lagerbeholdning mellom 1 og 10.
 2644	Undersøg dækningsgraden for dine varer, for at finde eventuelle optimeringer	Inspect the contribution margin of your products to find potential optimizations	Undersøk dekningsgraden for varene dine for å finne mulige forbedringer
 2645	Klik her for at vende tilbage til varelisten	Click here to return to the product list	Klikk her for å gå tilbake til varelisten
 2646	Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Order status shows how many products are in offers, orders, or purchase suggestions.<br><br>Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Ordrestatus viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.<br><br>Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
 2647	Viser hvor mange enheder af varen der er på lager	Shows how many units of the product are in stock	Viser hvor mange enheter av varen som er på lager
-2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du bestiller på nytt. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
+2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du gjenbestiller. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
 2649	Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned	See how much of the product you have sold over the past 6 months, 3 months, or the most recent month	Se hvor mye du har solgt av varen i løpet av de siste 6 månedene, 3 månedene eller den siste måneden
 2650	Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.	When you create a new purchase list, only products with an associated supplier will be shown.<br><br>Order suggestions will automatically be linked to the top supplier on the product card if multiple suppliers are listed.	Når du oppretter en ny innkjøpsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag blir automatisk knyttet til den øverste leverandøren på varekortet hvis det finnes flere leverandører.
 2651	Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.	These are used for reordering. When the stock level drops below the minimum, the system suggests reordering enough to reach the maximum.	Disse brukes til gjenbestilling. Når beholdningen faller under minimum, foreslår systemet å bestille nok til å nå maksimum.
-2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i for eksempel partier på f.eks.
+2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i partier på f.eks.
 2653	Klik for at autoudfylde alle beregnede genbestillingsværdier	Click to auto-fill all calculated reorder values	Klikk for å autofylle alle beregnede gjenbestillingsverdier
 2654	Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.	Create a purchase suggestion based on the entered product values. It will either create a new order for the supplier or add the product to an open purchase suggestion with today’s date.	Opprett et innkjøpsforslag basert på de registrerte vareverdiene. Det oppretter enten en ny ordre til leverandøren eller legger varen til et åpent innkjøpsforslag med dagens dato.
 2655	Søg efter et eksisterende serienummer i dit system	Search for an existing serial number in your system	Søk etter et eksisterende serienummer i systemet ditt
-2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
-2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
-2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
+2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor varen ble kjøpt, hvilken leverandør den ble kjøpt fra, og ordrenummeret
+2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne opplysninger om hvor varen ble solgt, hvem kjøperen var, og ordrenummeret
+2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det	If the serial number has not been sold, you can delete or edit it	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
 2659	Søg efter standnavne. Adskil med komma for at søge efter flere.	Search for stall names. Separate with commas to search for multiple.	Søk etter standnavn. Skill med komma for å søke etter flere.
 2660	Se dage, og klik på en dag for at se ledige stande	View days and click on a day to see available stalls	Se dager, og klikk på en dag for å se ledige stander
 2661	Grønne prikker viser ledige dage, og røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag og stand.	Green dots indicate available days, and red dots indicate booked days. Click on a green dot to create a booking for a specific day and stall.	Grønne prikker viser ledige dager, og røde prikker viser bookede dager. Klikk på en grønn prikk for å opprette en booking for en bestemt dag og stand.
@@ -3358,15 +3358,15 @@
 3358	Gå til indlæsning	Go to Restore	Gå til innlasting
 3359	Finansrapporter	Financial reports	Finansrapporter
 3360	Salg pr. postnummer	Sales by postal code	Salg per postnummer
-3361	Varerapporter	Item reports	Varerapporter		
+3361	Varerapporter	Item reports	Varerapporter
 3362	Posteringer pr. momskode.	Entried pr. VAT code	Posteringer per MVA-kode.
 3363	Momsrubrikker	VAT categories	Momsrubrikker
 3364	Momsafstemning	VAT reconciliation	MVA-avstemming
 3365	OSS B2C EU-salg	B2C EU Sales	OSS B2C EU-salg
-3366	Momsperioder	Vat periods	MVA-perioder		
-3367	Medtages på eFaktura når udfyldt	Included on eInvoice when filled in	Medtas på eFaktura når utfylt		
-3368			
-3369			
+3366	Momsperioder	Vat periods	MVA-perioder
+3367	Medtages på eFaktura når udfyldt	Included on eInvoice when filled in	Medtas på eFaktura når utfylt
+3368	
+3369	Differencen mellem debit og kredit på denne kassekladde.	The difference between debit and credit on this cash journal.	Differansen mellom debet og kredit på denne kassekladden.		
 3370	Mail sendt til	Mail sent to	E-post sendt til
 3371	Ingen mails afsendt	No mails were sent	Ingen e-poster sendt
 3372	Auto-opslag	Auto lookup	Auto-oppslag
@@ -3377,32 +3377,32 @@
 3377	CVR-nummeret er ikke gyldigt.	The VAT number is not valid.	Organisasjonsnummeret er ikke gyldig.
 3378	Søger...	Searching...	Søker...
 3379			
-3380			
-3381			
-3382			
-3383			
-3384			
-3385			
-3386			
-3387			
-3388			
-3389			
-3390			
-3391			
-3392			
-3393			
-3394			
-3395			
-3396			
-3397			
-3398			
-3399			
-3400			
-3401			
-3402			
-3403			
-3404			
-3405			
+3380	Tilpas visning	Customize view	Tilpass visning
+3381	Vælg hvilke felter der vises på varekortet. Gælder kun visningen for dig.	Choose which fields are shown on the product card. Only affects what you see.	Velg hvilke felter som vises på varekortet. Gjelder bare visningen for deg.
+3382	Vis alle	Show all	Vis alle
+3383	Nyt! Klik på tandhjulet for at vælge hvilke felter der vises på varekortet.	New! Click the gear to choose which fields are shown on the product card.	Nytt! Klikk på tannhjulet for å velge hvilke felter som vises på varekortet.
+3384	Forstået	Got it	Skjønner
+3385	Gensend til PBS	Resend to PBS	Send på nytt til PBS
+3386	er tilføjet PBS-leverance	has been added to PBS delivery	er lagt til PBS-leveranse
+3387	findes allerede i den åbne PBS-leverance	is already in the open PBS delivery	finnes allerede i den åpne PBS-leveransen
+3388	afventer svar fra Nets på leverance	is awaiting a response from Nets on delivery	venter på svar fra Nets på leveranse
+3389	Fakturaen er udlignet/betalt og kan ikke gensendes til PBS	The invoice is settled/paid and cannot be resent to PBS	Fakturaen er utlignet/betalt og kan ikke sendes på nytt til PBS
+3390	Fakturaen har ikke været med i nogen PBS-leverance. Den kommer på leverancen ved bogføring.	The invoice has not been part of any PBS delivery. It is added to the delivery when posted.	Fakturaen har ikke vært med i noen PBS-leveranse. Den legges til leveransen ved bokføring.
+3391	Ordren er ikke bogført som faktura	The order is not posted as an invoice	Ordren er ikke bokført som faktura
+3392	Afvisning fra Nets (advis/fejlkode og dato)	Rejection from Nets (advice/error code and date)	Avvisning fra Nets (advis/feilkode og dato)
+3393	Angiv afvisningen fra Nets for at kunne gensende. Uden registreret afvisning regnes fakturaen som afventende hos Nets.	Enter the rejection from Nets to be able to resend. Without a registered rejection the invoice is regarded as pending at Nets.	Oppgi avvisningen fra Nets for å kunne sende på nytt. Uten registrert avvisning regnes fakturaen som ventende hos Nets.
+3394	PBS-historik	PBS history	PBS-historikk
+3395	Leverance	Delivery	Leveranse
+3396	Afsendt	Sent	Sendt
+3397	Afventer svar	Awaiting response	Venter på svar
+3398	Status er ændret siden siden blev åbnet. Kontrollér historikken og prøv igen.	The status changed after the page was opened. Check the history and try again.	Statusen er endret etter at siden ble åpnet. Kontroller historikken og prøv igjen.
+3399	Gensendt fra forsøg	Resent from attempt	Sendt på nytt fra forsøk
+3400	Du har ikke rettigheder til at gensende til PBS	You do not have permission to resend to PBS	Du har ikke rettigheter til å sende på nytt til PBS
+3401	Kunne ikke låse PBS-leverancen - prøv igen	Could not lock the PBS delivery - try again	Kunne ikke låse PBS-leveransen - prøv igjen
+3402	I kø	Queued	I kø
+3403	Databasefejl - intet er gemt	Database error - nothing was saved	Databasefeil - ingenting er lagret
+3404	Fakturaer i leverancen	Invoices in the delivery	Fakturaer i leveransen
+3405	Ugyldig eller udløbet formular - genindlæs siden og prøv igen	Invalid or expired form - reload the page and try again	Ugyldig eller utløpt skjema - last inn siden på nytt og prøv igjen
 3406			
 3407			
 3408			
@@ -3497,10 +3497,10 @@
 3497			
 3498			
 3499			
-3500			
-3501			
-3502			
-3503			
+3500	Klik her for at gå til budgettet	Click here to go to the budget	Klikk her for å gå til budsjettet
+3501	Klik på et kontonummer for at vise kontoens bevægelser som en graf	Click an account number to show the account's movements as a graph	Klikk på et kontonummer for å vise kontoens bevegelser som en graf
+3502	Klik på et beløb for at se kontospecifikationen for den pågældende måned	Click an amount to see the account specification for that month	Klikk på et beløp for å se kontospesifikasjonen for den aktuelle måneden
+3503	Klik her for at hente regnskabet som en CSV-fil	Click here to download the report as a CSV file	Klikk her for å laste ned regnskapet som en CSV-fil
 3504			
 3505			
 3506			
@@ -4976,27 +4976,27 @@
 4976			
 4977			
 4978			
-4979			
-4980			
-4981			
-4982			
-4983			
-4984			
-4985			
-4986			
-4987			
-4988			
-4989			
-4990			
-4991			
-4992			
-4993			
-4994			
-4995			
-4996			
-4997			
-4998			
-4999			
+4979	Indkøb	Purchasing	Innkjøp
+4980	Serienumre	Serial numbers	Serienumre
+4981	Autoudfyld	Auto-fill	Autoutfyll
+4982	Bestiller	Ordering	Bestiller
+4983	Bestillinger oprettet	Orders created	Bestillinger opprettet
+4984	Fejl ved oprettelse af bestillinger	Error creating orders	Feil ved opprettelse av bestillinger
+4985	Ingen værdier angivet	No values entered	Ingen verdier angitt
+4986	Indkøbsordre	Purchase order	Innkjøpsordre
+4987	Gen.	Reord.	Gjen.
+4988	Salgspris u.m.	Sales price ex. VAT	Salgspris u.mva.
+4989	DG	GM	DG
+4990	md.	mo.	mnd.
+4991	Vis udgået	Show discontinued	Vis utgått
+4992	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.
+4993	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
+4994	Ekskl. moms	Excl. VAT	Ekskl. MVA
+4995	Køber	Buyer	Kjøper
+4996	Hvad skal serienummeret omdøbes til?	What should the serial number be renamed to?	Hva skal serienummeret omdøpes til?
+4997	Omdøb	Rename	Omdøp
+4998	Vis rækker uden serienummer	Show rows without serial numbers	Vis rader uten serienummer
+4999	Vis kun serienumre der ikke er solgt	Show only unsold serial numbers	Vis kun serienumre som ikke er solgt
 5000			
 5001	Udløbsdato	Expiry date	Utløpsdato
 5002	Varen har udløbsdato	Item has expiry date	Varen har utløpsdato
@@ -5056,3 +5056,118 @@
 5056	For at anvende CRM-systemet kræves det, at der er tilføjet ansatte under Stamdata i Indstillinger.<br>Gå til: System → Indstillinger → Stamdata for at tilføje ansatte.	Using the CRM system requires adding employees under Master Data in Settings.<br>Go to: System → Settings → Master Data to add employees.	For å bruke CRM-systemet må ansatte være lagt til under Stamdata i Innstillinger.<br>Gå til: System → Innstillinger → Stamdata for å legge til ansatte.
 5057	Du kan redigere den komplette HTML skabelon her. Brug variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. $beskrivelse og $pris henter altid varens egen.	You can edit the complete HTML template here. Use variables such as $varenr, $minbeskrivelse, $minpris, $img, etc. $minbeskrivelse and $minpris show the customer's own text and price from Mit salg and fall back to the item's own when printing without an account. $beskrivelse and $pris always take the item's own.	Du kan redigere hele HTML-malen her. Bruk variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mitt salg og faller tilbake til varens egen når det skrives ut uten konto. $beskrivelse og $pris henter alltid varens egen.
 5058	Salg pr. Postnr	Sales by postcode	Salg pr. postnr
+5059	Datointerval:	Date range:	Datointervall:
+5060	dage omkring bilagsdatoen	days around the voucher date	dager rundt bilagsdatoen
+5061	Beløbstolerance:	Amount tolerance:	Beløpstoleranse:
+5062	Tillad afvigelse på 0,5 %	Allow deviation of 0.5 %	Tillat avvik på 0,5 %
+5063	Medtag allerede bogførte bilag	Include already posted vouchers	Ta med allerede bokførte bilag
+5064	Match	Match	Treff
+5065	100 % match	100 % match	100 % treff
+5066	Dato matcher	Date matches	Dato stemmer
+5067	Beløb matcher	Amount matches	Beløp stemmer
+5068	Viser $m resultater	Showing $m results	Viser $m resultater
+5069	Match valgte	Match selected	Match valgte
+5070	Nogle af de valgte matches er ikke 100 % sikre. Vil du fortsætte?	Some of the selected matches are not 100 % certain. Do you want to continue?	Noen av de valgte treffene er ikke 100 % sikre. Vil du fortsette?
+5071	Klik for at se bilaget	Click to see attachment	Klikk for å se vedlegget
+5072	Zoom ud	Zoom out	Zoom ut
+5073	Zoom ind	Zoom in	Zoom inn
+5074	Tilpas til bredde	Fit to width	Tilpass til bredde
+5075	Åbn i ny fane	Open in new tab	Åpne i ny fane
+5076	Formatet kan ikke forhåndsvises	This format cannot be previewed	Formatet kan ikke forhåndsvises
+5077	Kunne ikke indlæse dokumentet	Could not load the document	Kunne ikke laste dokumentet
+5078	Denne label indeholder formatering, som den visuelle editor ikke forstår, og kan derfor kun redigeres her som rå HTML - at gemme via den visuelle editor ville slette den formatering, den ikke kan vise. For at få adgang til den visuelle editor igen skal den rå HTML tømmes og gemmes.	This label contains formatting that the visual editor doesn't understand, so it can only be edited here as raw HTML - saving via the visual editor would delete the formatting it can't display. To regain access to the visual editor, clear the raw HTML and save.	Denne etiketten inneholder formatering som den visuelle editoren ikke forstår, og kan derfor bare redigeres her som rå HTML - å lagre via den visuelle editoren ville slette formateringen den ikke kan vise. For å få tilgang til den visuelle editoren igjen må den rå HTML-en tømmes og lagres.
+5079	Din ændring blev ikke gemt - denne labels skabelon er ændret siden siden blev indlæst (fx i en anden fane), og kan nu kun redigeres som rå HTML. Genindlæs siden og prøv igen.	Your change wasn't saved - this label's template has changed since the page was loaded (e.g. in another tab), and can now only be edited as raw HTML. Reload the page and try again.	Endringen din ble ikke lagret - denne etikettens mal er endret siden siden ble lastet (f.eks. i en annen fane), og kan nå bare redigeres som rå HTML. Last siden på nytt og prøv igjen.
+5222	Åbningsbalance stemmer ikke - kontroller sum	Opening balance does not balance - check the total	Åpningsbalansen stemmer ikke - kontroller sum
+5223	Røde linjer indeholder fejl og bliver ikke importeret	Red lines contain errors and will not be imported	Røde linjer inneholder feil og blir ikke importert
+5224	konti importeret - husk at overføre åbningstal	accounts imported - remember to transfer opening balances	kontoer importert - husk å overføre åpningstall
+5225	Der kan kun være 1 kolonne med	There can only be 1 column with	Det kan bare være 1 kolonne med
+5226	Der er sket en fejl under hentningen, prøv venligst igen	An error occurred during the upload, please try again	Det oppstod en feil under opplastingen, prøv igjen
+5227	Kontonr, Beskrivelse og Kontotype skal være valgt	Account no., Description and Account type must be selected	Kontonr, Beskrivelse og Kontotype må være valgt
+5228	Ingen konti importeret - kontoplanen er uændret	No accounts imported - the chart of accounts is unchanged	Ingen kontoer importert - kontoplanen er uendret
+5229	Der er ikke oprettet et regnskabsår	No fiscal year has been created	Det er ikke opprettet et regnskapsår
+5089	Beløbet	The amount	Beløpet
+5090	er ikke et gyldigt beløb - brug komma som decimaltegn, fx 1.234,56 (Bilag nr	is not a valid amount - use a comma as the decimal separator, e.g. 1.234,56 (Attachment no	er ikke et gyldig beløp - bruk komma som desimaltegn, f.eks. 1.234,56 (Bilag nr
+5120	Ryd filter	Clear filter	Fjern filter
+5121	Vis kun konti med beløb i denne kolonne	Show only accounts with an amount in this column	Vis bare kontoer med beløp i denne kolonnen
+5122	Sortér efter beløb	Sort by amount	Sorter etter beløp
+5123	Kontonr., interval (fra:til) eller firmanavn (* = jokertegn)	Account no., range (from:to) or company name (* = wildcard)	Kontonr., intervall (fra:til) eller firmanavn (* = jokertegn)
+5124	Filter	Filter	Filter
+5140	Sidste 5 posteringer for konto	Last 5 postings for account	Siste 5 posteringer for konto
+5141	En tilsvarende postering er allerede bogført med bilagsnummer	A matching entry has already been posted with voucher number	En tilsvarende postering er allerede bokført med bilagsnummer
+5142	Kontoforslag (sidste 5)	Account suggestions (last 5)	Kontoforslag (siste 5)
+5143	Konto-opslag	Account lookup	Kontooppslag
+5144	Kladden balancerer	The journal balances	Kladden balanserer
+5145	Vælg hvilke kolonner og opslagssektioner der vises i kassekladden. Gælder kun visningen for dig.	Choose which columns and lookup sections are shown in the cash journal. Only affects what you see.	Velg hvilke kolonner og oppslagsseksjoner som vises i kassekladden. Gjelder bare visningen for deg.
+5146	Vis alle	Show all	Vis alle
+5147	Nyt! Klik på tandhjulet for at tilpasse din opsætning af kassekladden.	New! Click the gear to customize your setup of the cash journal.	Nytt! Klikk på tannhjulet for å tilpasse oppsettet av kassekladden.
+5148	Forstået	Got it	Skjønner
+5149	Brugernavnet må højst være 80 tegn	The username may be at most 80 characters	Brukernavnet kan høyst være 80 tegn
+5150	Regnskabsnavnet må højst være 60 tegn	The account name may be at most 60 characters	Regnskapsnavnet kan høyst være 60 tegn
+5151	Eksporter CSV (alle sider)	Export CSV (all pages)	Eksporter CSV (alle sider)
+5152	Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling	Export all accounts under the selected filters to CSV, without pagination	Eksporter alle kontoer under de valgte filtrene til CSV, uten sideinndeling
+5153	Gem kurs uden bogføring	Save rate without posting	Lagre kurs uten bokføring
+5154	Kursen bogføres automatisk som kursregulering på alle konti i valutaen. Brug Gem kurs uden bogføring, hvis du selv vil bogføre reguleringen.	The rate is posted automatically as an exchange rate adjustment on every account in the currency. Use Save rate without posting if you want to post the adjustment yourself.	Kursen bokføres automatisk som kursregulering på alle kontoer i valutaen. Bruk Lagre kurs uten bokføring hvis du selv vil bokføre reguleringen.
+5155	Digital afsendelse fejlede	Digital sending failed	Digital sending mislyktes
+5156	EasyUBL svarede tomt eller ugyldigt (HTTP <variable>). Fakturaen er ikke registreret som sendt.	EasyUBL returned an empty or invalid reply (HTTP <variable>). The invoice is not registered as sent.	EasyUBL svarte tomt eller ugyldig (HTTP <variable>). Fakturaen er ikke registrert som sendt.
+5157	EasyUBL afviste dokumentet:	EasyUBL rejected the document:	EasyUBL avviste dokumentet:
+5158	Forbindelsesfejl til EasyUBL:	Connection error to EasyUBL:	Tilkoblingsfeil til EasyUBL:
+5159	Kontrollér hos EasyUBL om dokumentet alligevel er modtaget, før du sender igen. Kontakt saldi.dk support med oplysningerne nedenfor.	Check with EasyUBL whether the document was received anyway before sending again. Contact saldi.dk support with the details below.	Sjekk hos EasyUBL om dokumentet likevel er mottatt før du sender på nytt. Kontakt saldi.dk support med opplysningene nedenfor.
+5160	Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?	The last digital sending of this document failed. EasyUBL may have received it anyway - check the status at EasyUBL before sending again. Send again?	Siste digitale sending av dette dokumentet mislyktes. EasyUBL kan likevel ha mottatt det - sjekk status hos EasyUBL før du sender på nytt. Send på nytt?
+5210	Ugyldig e-mailadresse	Invalid e-mail address	Ugyldig e-postadresse
+5211	Ugyldigt tegn	Invalid character	Ugyldig tegn
+5212	position	position	posisjon
+5213	Foreslået rettelse	Suggested correction	Foreslått rettelse
+5214	Brug den foreslåede adresse og send igen	Use the suggested address and send again	Bruk den foreslåtte adressen og send på nytt
+5215	Ret adressen manuelt på ordren eller debitorkortet	Correct the address manually on the order or the debtor card	Rett adressen manuelt på ordren eller debitorkortet
+5216	Ordrens e-mailadresse er ændret siden - kontrollér og send igen	The order's e-mail address has changed since - check and send again	Ordrens e-postadresse er endret siden - kontroller og send på nytt
+5217	Ukendt tegn	Unknown character	Ukjent tegn
+5218	erstattes med	is replaced by	erstattes med
+5219	fjernes	is removed	fjernes
+5220	E-mailadressen på ordren er rettet til	The e-mail address on the order was changed to	E-postadressen på ordren er rettet til
+5221	Du har ikke rettigheder til at ændre ordrens e-mailadresse	You do not have permission to change the order's e-mail address	Du har ikke rettigheter til å endre ordrens e-postadresse
+5230	Mobilnummer	Mobile number	Mobilnummer
+5231	Udført af	Performed by	Utført av
+5232	Serienr.	Serial no.	Serienr.
+5234	Kursregulering bogført i DKK	Rate adjustment posted in DKK	Kursregulering bokført i DKK
+5240	Tidligere optællinger	Previous cash counts	Tidligere opptellinger
+5241	Forslag fra AI-scan	Suggestion from AI scan	Forslag fra AI-skanning
+5242	Brug forslag	Use suggestion	Bruk forslag
+5243	Vælg kreditor	Choose creditor	Velg kreditor
+5244	Kreditoren findes ikke i regnskabet	The creditor does not exist in the accounts	Kreditoren finnes ikke i regnskapet
+5245	Kredit var allerede udfyldt og blev ikke ændret	Credit was already filled in and was not changed	Kredit var allerede fylt ut og ble ikke endret
+5246	Skjul omsætning for brugere uden adgang til Indstillinger	Hide turnover for users without access to Settings	Skjul omsetning for brukere uten tilgang til Innstillinger
+5247	Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.	Hide turnover on the order list and in the cash count for users without the Settings right. Users with the right are unaffected.	Skjul omsetning på ordrelisten og i kasseopptellingen for brukere uten rettigheten Innstillinger. Brukere med rettigheten ser uendret.
+5248	Mulig dublet	Possible duplicate	Mulig duplikat
+5249	Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager	The cost price was estimated from an open purchase order, as the item was not in stock	Kostprisen er anslått ut fra en åpen innkjøpsordre, da varen ikke var på lager
+5250	Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre	The cost price was estimated from the item card, as the item was neither in stock nor on an open purchase order	Kostprisen er anslått ut fra varekortet, da varen verken var på lager eller på en åpen innkjøpsordre
+5253	Dokumentet er ændret. Genindlæs det før du gemmer.	The document has changed. Reload it before saving.	Dokumentet er endret. Last det inn på nytt før du lagrer.
+5254	Kontrollér konto, beløb og dato. Ingen ændringer er gemt.	Check the account, amount and date. No changes have been saved.	Kontroller konto, beløp og dato. Ingen endringer er lagret.
+5255	Forslag	Suggested	Forslag
+5256	Rettet / accepteret	Corrected / accepted	Rettet / akseptert
+5257	%s ligger allerede i puljen som %s	%s is already in the pool as %s	%s ligger allerede i puljen som %s
+5258	Bilaget kunne ikke uploades. Prøv igen.	The document could not be uploaded. Please try again.	Bilaget kunne ikke lastes opp. Prøv igjen.
+5300	Kladde	Journal	Kladd
+5301	Fremdrift	Progress	Fremdrift
+5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…
+5303	Søg efter fakturanr., betalings-ID, navn, kontonr. …	Search by invoice no., payment ID, name, account no. …	Søk etter fakturanr., betalings-ID, navn, kontonr. …
+5304	Ingen valgt — brug ↑↓ eller klik for at vælge	None selected — use ↑↓ or click to choose	Ingen valgt — bruk ↑↓ eller klikk for å velge
+5305	Spring over	Skip	Hopp over
+5306	Slut på kladden nået	End of journal reached	Slutt på journalen nådd
+5307	Ingen flere posteringer	No more entries	Ingen flere posteringer
+5308	postering	entry	postering
+5309	afregnet	settled	avregnet
+5310	sprunget over	skipped	hoppet over
+5311	Skippede posteringer er stadig ikke afregnet — genstart for at gå igennem dem.	Skipped entries are still unsettled — restart to go through them.	Hoppede over posteringer er fortsatt ikke avregnet — start på nytt for å gå gjennom dem.
+5312	Genstart fra begyndelsen	Restart from beginning	Start på nytt fra begynnelsen
+5313	Tilbage til kladden	Back to journal	Tilbake til journalen
+5314	afregnet i denne omgang.	settled this run.	avregnet i denne omgangen.
+5315	Der er ikke flere åbne posteringer i denne kladde.	There are no more open entries in this journal.	Det er ingen flere åpne posteringer i denne journalen.
+5316	Vælg en debitor eller kreditor for at se deres åbne posteringer.	Choose a customer or supplier to see their open entries.	Velg en debitor eller kreditor for å se deres åpne posteringer.
+5317	Fejl ved indlæsning af resultater. Prøv igen.	Error loading results. Please try again.	Feil ved innlasting av resultater. Prøv igjen.
+5318	Ingen åbne posteringer matcher.	No open entries match.	Ingen åpne posteringer samsvarer.
+5319	Kladden kunne ikke gemmes.	The journal could not be saved.	Journalen kunne ikke lagres.
+5320	af	of	av
+5321	Afregnet. Indlæser næste postering…	Settled. Loading next entry…	Avregnet. Laster neste postering…
+5322	Bedste match	Best matches	Beste treff
+5323	Andre åbne posteringer	Other open entries	Andre åpne posteringer
+5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer

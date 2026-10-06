@@ -138,7 +138,7 @@ while ($r = db_fetch_array($q)) {
 $tekstantal=$x;
 
 #$csvfile="../$db/importfiler/teksterA.csv";
-$csvfile="../importfiler/teksterA.csv"; #20210819 
+//$csvfile="../importfiler/teksterA.csv"; #20210819 
 
 
 print "<form name=\"tekster\" action=\"tekster.php?sprog_id=$sprog_id&sort=$sort\" method=\"post\">";
@@ -156,12 +156,12 @@ for($x=1; $x<=$tekstantal; $x++){
 	print "<tr><td>$tekst_id[$x]</td><td>$tekst[$x]</td>";
 #	print "<td><textarea class=\"inputbox\" name=\"ny_tekst[$x]\" rows=\"3\" cols=\"85\">$tekst[$x]</textarea></td>";
 	print "<td><input type=text class=\"inputbox\" name=\"ny_tekst[$x]\" size=\"90\" value=\"$tekst[$x]\"></td>";
-	fputcsv($csv, [$tekst_id[$x], $tekst[$x]]);
+	//fputcsv($csv, [$tekst_id[$x], $tekst[$x]]);
 }
 print "<tr><td colspan=3 align=center><input class='button blue medium' type=submit accesskey=\"o\" value=\"OK\" name=\"submit\"></td></tr>";
 print "</form>";
 print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>"; #20210819
-fclose($csv);
+//fclose($csv);
 print "</tbody></table>";
 
 ?>

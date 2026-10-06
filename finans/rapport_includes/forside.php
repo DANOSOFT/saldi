@@ -45,6 +45,8 @@
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20251206 LOE Unified topline without back button for reports moved to includes/S_topLine.php
 // 20260617 PK Placed projekt_fra and projekt_til in the same <td>
+// 20260915 CDX/PHR Handle stale financial years and empty charts of accounts on report entry.
+// 20260917 CL/LH Keep header, menu and footer when no financial year exists, and disable submit when the chart of accounts is empty.
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -73,10 +75,11 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 
 	($simulering) ? $simulering = "checked" : $simulering = NULL;
 	($lagerbev) ? $lagerbev = "checked" : $lagerbev = NULL;
-	if (!$regnaar) {
-		$qtxt = "select regnskabsaar from brugere where brugernavn = '$brugernavn'";
+	$qtxt = "select kodenr from grupper where art='RA' and kodenr='" . intval($regnaar) . "'";
+	if (!$regnaar || !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$qtxt = "select regnskabsaar from brugere where brugernavn = '" . db_escape_string($brugernavn) . "'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$regnaar = $r['regnskabsaar'];
+		$regnaar = intval($r['regnskabsaar'] ?? 0);
 	}
 	$query = db_select("select * from grupper where art = 'RA' order by box2 desc", __FILE__ . " linje " . __LINE__);
 	$x = 0;
@@ -99,6 +102,74 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 		}
 	}
 	$antal_regnaar = $x;
+	include ("../includes/topline_settings.php");
+
+	if ($menu == 'T') {
+		include_once '../includes/top_header.php';
+		include_once '../includes/top_menu.php';
+		print "<div id=\"header\">";
+		print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
+		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
+		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";  
+		print "</div>";
+		print "<div class='content-noside'>";
+#	} elseif ($menu == 'S') {
+#		include("../includes/sidemenu.php");
+	} elseif ($menu == 'S') {
+
+		$title = findtekst('3359|Finansrapporter', $sprog_id);
+
+		#######################
+		include("../includes/S_topLine.php");
+
+		########################
+
+	} else {
+		print "<table width='100%' height='100%' border='0' cellspacing='2' cellpadding='0'><tbody>"; #A
+		print "<tr>";
+		#	print "<table width='100%' align='center' border='10' cellspacing='3' cellpadding='0'><tbody>"; #B
+		print "<td width='10%' $top_bund>";
+		if ($popup)
+			print "<a href=../includes/luk.php accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+		else
+			print "<a href=../index/menu.php accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+		print "<td width='80%' $top_bund> " . findtekst(897, $sprog_id) . " </td>";
+		print "<td width='10%' $top_bund><br></td>";
+	}
+	#	print "</tbody></table>"; #B slut
+	print "</tr><tr><td height=99%></td><td align='center' valign='top'>\n\n";
+	if ($menu == 'T') {
+		print "";
+	} else {
+		print "<table cellpadding = '1' cellspacing = '5' border = '1' align = 'center'><tbody>\n"; #C
+	}
+
+	if (!$antal_regnaar) {
+		$txt = "Der er ikke oprettet et regnskabsår. Opret et regnskabsår under Indstillinger.";
+		if ($menu == 'T') {
+			print "<p>$txt</p>\n";
+		} else {
+			print "<tr><td colspan=3 align=center><br>$txt<br><br></td></tr>\n";
+		}
+		print "</td></tr>";
+		print "</tbody></table>\n"; #C slut
+		print "</td></tr>";
+		print "</tbody></table>\n"; #C slut
+		if ($menu == 'T') {
+			include_once '../includes/topmenu/footer.php';
+		} else {
+			include_once '../includes/oldDesign/footer.php';
+		}
+		return;
+	}
+	if (!isset($aktiv)) {
+		$aktiv = 1;
+		$regnaar = intval($regn_kode[$aktiv]);
+		$aktivStartMd = $start_md[$aktiv];
+		$aktivSlutMd = $slut_md[$aktiv];
+		$aktivStartAar = $start_aar[$aktiv];
+		$aktivSlutAar = $slut_aar[$aktiv];
+	}
 
 	#	print_r($_POST);
 	if (isset($_POST['submit']) && $_POST['submit']) {
@@ -128,6 +199,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	$maxResult = $x = 0;
 	$minBalace = 99999999;
 	$ar=array();
+	$kontonr = $konto_beskrivelse = $kontoType = array();
 	while ($row = db_fetch_array($query)) {
 		$konto_id[$x] = $row['id'];
 		$kontonr[$x] = $row['kontonr'];
@@ -144,12 +216,13 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		$ar[$x]=$row;
 		$x++;
 	}
-	if (!$konto_til) {
+	if (!$konto_til && $x > 0) {
 		$konto_til = $kontonr[count($kontonr) - 1];
 		$ktoNameTo = $konto_beskrivelse[count($konto_beskrivelse) - 1];
 	}
 	
 	$antal_konti = $x;
+	$kontiDisabled = ($antal_konti) ? "" : " disabled";
 	if (!$maaned_fra) {
 #		$maaned_fra = $md[$start_md[$aktiv]];
 		$maaned_fra = $start_md[$aktiv];
@@ -207,47 +280,6 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	} else
 		$antal_ansatte = 0;
 		
-	include ("../includes/topline_settings.php");
-
-	if ($menu == 'T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
-		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";  
-		print "</div>";
-		print "<div class='content-noside'>";
-#	} elseif ($menu == 'S') {
-#		include("../includes/sidemenu.php");
-	} elseif ($menu == 'S') {
-
-		$title = findtekst('3359|Finansrapporter', $sprog_id);
-
-		#######################
-		include("../includes/S_topLine.php");
-
-		########################
-
-	} else {
-		print "<table width='100%' height='100%' border='0' cellspacing='2' cellpadding='0'><tbody>"; #A
-		print "<tr>";
-		#	print "<table width='100%' align='center' border='10' cellspacing='3' cellpadding='0'><tbody>"; #B
-		print "<td width='10%' $top_bund>";
-		if ($popup)
-			print "<a href=../includes/luk.php accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
-		else
-			print "<a href=../index/menu.php accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
-		print "<td width='80%' $top_bund> " . findtekst(897, $sprog_id) . " </td>";
-		print "<td width='10%' $top_bund><br></td>";
-	}
-	#	print "</tbody></table>"; #B slut
-	print "</tr><tr><td height=99%></td><td align='center' valign='top'>\n\n";
-	if ($menu == 'T') {
-		print "";
-	} else {
-		print "<table cellpadding = '1' cellspacing = '5' border = '1' align = 'center'><tbody>\n"; #C
-	}
 	$action = "rapport.php?rapportart=$rapportart";
 	$action .= "&dato_fra=$dato_fra&maaned_fra=$maaned_fra&aar_fra=$aar_fra&konto_fra=$konto_fra";
 	$action .= "&ansat_fra=$ansat_fra&projekt_fra=$projekt_fra";
@@ -500,8 +532,10 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	print "</select>";
 	print "</td></tr>\n";
 	#print "<tr><td> ".findtekst(900,$sprog_id)."</td><td colspan=2><select name=Konto (fra)\n";
-	print "<tr><td> " . findtekst(900, $sprog_id) . ":</td><td colspan=2><select name=konto_fra>\n"; #20210722
-	print "<option value = '$konto_fra'>$konto_fra : $ktoNameFrom</option>\n";
+	print "<tr><td> " . findtekst(900, $sprog_id) . ":</td><td colspan=2><select name=konto_fra$kontiDisabled>\n"; #20210722
+	if ($antal_konti) {
+		print "<option value = '$konto_fra'>$konto_fra : $ktoNameFrom</option>\n";
+	}
 
 	for ($x = 1; $x <= $antal_konti; $x++)
 		//print "<option value = '$kontonr[$x]'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n"; //20241018
@@ -513,8 +547,10 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	# print "<td><input type='tekst' name='$konto_fra2' value='$konto_fra2'></td>";
 	print "</tr>\n";
 	#print "<tr><td>  ".findtekst(901,$sprog_id)."</td><td colspan=2><select name=Konto (til)>\n";
-	print "<tr><td>  " . findtekst(901, $sprog_id) . ":</td><td colspan=2><select name=konto_til>\n";
-	print "<option value = '$konto_til'>$konto_til : $ktoNameTo</option>\n";
+	print "<tr><td>  " . findtekst(901, $sprog_id) . ":</td><td colspan=2><select name=konto_til$kontiDisabled>\n";
+	if ($antal_konti) {
+		print "<option value = '$konto_til'>$konto_til : $ktoNameTo</option>\n";
+	}
 	for ($x = 1; $x <= $antal_konti; $x++)
 		//print "<option value = '$kontonr[$x]'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
 		if (isset($kontonr[$x]) && isset($konto_beskrivelse[$x])) { #20241018
@@ -528,14 +564,17 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	// print '<script src="../javascript/finans_forside.js?v=1"></script>';
 	###################################################################
 	print "<input type=hidden name=regnaar value=$regnaar>\n";
+	if (!$antal_konti) {
+		print "<tr><td colspan=3 align=center>Der er ingen konti i kontoplanen for dette regnskabsår.</td></tr>\n";
+	}
 	if ($menu == 'T') {
-		print "<tr><td colspan=3 align=center><input class='button green medium' type=submit value=' OK ' name='submit'> &nbsp;•&nbsp; <span title='Vilk&aring;rlig s&oslash;gning i transaktioner'><input class='button orange medium' type=submit value=" . findtekst(905, $sprog_id) . " name='kontrolspor'></span></td></tr>\n";
+		print "<tr><td colspan=3 align=center><input class='button green medium' type=submit value=' OK ' name='submit'$kontiDisabled> &nbsp;•&nbsp; <span title='Vilk&aring;rlig s&oslash;gning i transaktioner'><input class='button orange medium' type=submit value=" . findtekst(905, $sprog_id) . " name='kontrolspor'></span></td></tr>\n";
 		# &nbsp;•&nbsp; <span title='Rapport over medarbejdernes provisionsindtjening'>  <input class='button blue medium' type=submit value=".findtekst(906,$sprog_id)." name='provisionsrapport'></span>
 		print "</tbody></table>\n"; #D
 		print "</td></tr><tr>";
 	} else {
 		print "<tr><td colspan=3 align=center><br><br>
-		<input style = 'width:150px;' class='button green medium' type=submit value= 'OK' name='submit'>
+		<input style = 'width:150px;' class='button green medium' type=submit value= 'OK' name='submit'$kontiDisabled>
 		</td></tr>\n";
 		print "</td></tr><tr>";
 		if ($popup) {
@@ -574,7 +613,7 @@ const konti = " . json_encode(array_map(function($i) use ($kontonr, $kontoType, 
         'type' => $kontoType[$i],
         'label' => $kontonr[$i] . ' : ' . $konto_beskrivelse[$i]
     ];
-}, range(0, count($kontonr) - 1))) . ";
+}, array_keys($kontonr))) . ";
 </script>";
 
 

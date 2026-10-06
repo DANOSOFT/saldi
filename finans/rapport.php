@@ -30,6 +30,7 @@
 // 20241018 LOE Checks that some variables are set before using and other minore modifications
 // 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header
 // 20260306 LOE Updated some variables with if_isset() to avoid excessive undefined variable notices in error logs.
+// 20260915 CDX/PHR Keep submitted simulation selection instead of overriding it with the form URL; support older installs.
 @session_start();
 $s_id = session_id();
 
@@ -108,7 +109,7 @@ if ($_POST) {
 	$ansat_fra = if_isset($_POST, NULL, 'ansat_fra');
 	$projekt_fra = if_isset($_POST, NULL, 'projekt_fra');
 	$projekt_til = if_isset($_POST, NULL, 'projekt_til');
-	$simulering = if_isset($_POST, NULL, 'simulering');
+	$simulering = $_POST['simulering'] ?? null;
 	$lagerbev = if_isset($_POST, NULL, 'lagerbev');
 
 	$bankReconcile  = if_isset($_POST, NULL, 'bankReconcile');
@@ -242,7 +243,8 @@ $ansat_til    = if_isset($_GET, $ansat_til, 'ansat_til');
 $projekt_til  = if_isset($_GET, $projekt_til, 'projekt_til');
 $regnaar      = if_isset($_GET, $regnaar, 'regnaar');
 $afd          = if_isset($_GET, $afd, 'afd');
-$simulering   = if_isset($_GET, $simulering, 'simulering');
+// An unchecked checkbox is absent from POST; the old URL value must not restore it.
+$simulering   = $_POST ? ($_POST['simulering'] ?? null) : ($_GET['simulering'] ?? $simulering);
 $lagerbev     = if_isset($_GET, $lagerbev, 'lagerbev');
 #############
 

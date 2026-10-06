@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.0 --- 2026-02-25 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.0 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make functions to print the box count
 // 20190314	PHR	Varius changes in function 'setPrintTxt' according to 'changeCardValue'
 // 20230623 PHR Added (float) to $omsatning, $byttepenge & $tilgang
 // 20260225 PHR Updated cashCount
+// 20260907 CDX/PHR Preserve decimal points in calculated payment totals saved to report.
+// 20260908 CDX/LH Pass register and small denominations explicitly; preserve merged decimal fixes.
 
 function setSpecifiedPrintText() 
 { 
@@ -70,12 +72,16 @@ function acceptPrint() {
     }
 }
 
-function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval,$changeCardValue,$reportNumber) {
+function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval,$changeCardValue,$reportNumber,$kasse=0,$ore_10=0,$ore_20=0) {
 
 	global $baseCurrency;
 
 	$dd=date("Y-m-d");
 	$specifiedCashTxt = setSpecifiedPrintText();
+	if ($baseCurrency === 'EUR') {
+		$specifiedCashTxt['tenth'] = '10 cent';
+		$specifiedCashTxt['fiveth'] = '20 cent';
+	}
 	$cashCountTxt = setSpecifiedCashPrintText();
 	$country = getCountry();
 	
@@ -103,10 +109,12 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 	}
 	if ($reportNumber) {
 		$qtxt  = "insert into report (date,type,description,count,total,report_number) values ";
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[tenth]','0','". $ore_10*1 ."','$reportNumber')";
-		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveth]','0','". $ore_20*1 ."','$reportNumber')";
-		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+		if ($baseCurrency === 'EUR') {
+			$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[tenth]','0','". $ore_10*1 ."','$reportNumber')";
+			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+			$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveth]','0','". $ore_20*1 ."','$reportNumber')";
+			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+		}
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". $ore_50*1 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[one]','0','". $kr_1*1 ."','$reportNumber')";
@@ -157,33 +165,45 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		$qtxt2 = "('$dd','cashCount','$cashCountTxt[fromBox] $kasse $cashCountTxt[currency]','0','$udtages','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+		// 20260902 CL/LH  L4 finding pos-day-close DEVY-5 (Visa persisted 10x): kortsum, kontosum and the
+		// Valuta* values arrive from hidden fields that pos_ordre.php prints as raw PHP floats ("7906.1"),
+		// so they must be read with (float). Feeding them to usdecimal() strips the "." as a Danish
+		// thousands separator and stores 79061. Only operator-typed fields (ny_kortsum, optval,
+		// ValutaUdtages, udtages) are Danish-formatted and keep usdecimal().
 		for ($x=0;$x<count($valuta);$x++) {
 			$qtxt2 = "('$dd','cashCount','Morgenbeholdning $valuta[$x]:','0','". $ValutaByttePenge[$x] ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-			$qtxt2 = "('$dd','cashCount','Dagens tilgang $valuta[$x]:','0','". usdecimal($ValutaTilgang[$x],2) ."','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','Dagens tilgang $valuta[$x]:','0','". (float)$ValutaTilgang[$x] ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-			$tmp=usdecimal($ValutaByttePenge[$x],2)+usdecimal($ValutaTilgang[$x],2);
+			$tmp=(float)$ValutaByttePenge[$x]+(float)$ValutaTilgang[$x];
 			$qtxt2 = "('$dd','cashCount','Forventet beholdning $valuta[$x]:','0','$tmp','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 			$qtxt2 = "('$dd','cashCount','Optalt beholdning $valuta[$x]:','0','". usdecimal($optval[$x],2) ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-			$qtxt2 = "('$dd','cashCount','Difference $valuta[$x]:','0','". usdecimal($ValutaKasseDiff[$x],2) ."','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','Difference $valuta[$x]:','0','". (float)$ValutaKasseDiff[$x] ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 			$qtxt2 = "('$dd','cashCount','Udtaget fra kasse $kasse  $valuta[$x]:','0','". usdecimal($ValutaUdtages[$x],2) ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		}
 		if ($kontosum) {
-			$qtxt2 = "('$dd','cashCount','Salg på konto','0','". usdecimal($kontosum,2) .#','$reportNumber')";
+			// The stray '#' that used to sit here turned the rest of the line into a comment, so
+			// db_modify() was concatenated into $qtxt2 and ran with the previous loop's row.
+			$qtxt2 = "('$dd','cashCount','Salg på konto','0','". (float)$kontosum ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		}
 		for ($x=0;$x<count($kortnavn);$x++) {
-				$txt1="$kortnavn[$x]";
+			$txt1="$kortnavn[$x]";
 			if ($changeCardValue) {
 				$txt1.="(". dkdecimal($kortsum[$x],2) .")";
 				$txt2=usdecimal($ny_kortsum[$x],2);
-			} else $txt2=usdecimal($kortsum[$x],2);
-			$qtxt2 = "('$dd','cashCount','$txt1','0','$txt2','$reportNumber')";
-				if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+			} else {
+				$txt2=(float)$kortsum[$x];
+			}
+			$paymentDescription = db_escape_string($txt1);
+			$paymentTotal = (float)$txt2;
+			$paymentReport = (int)$reportNumber;
+			$qtxt2 = "('$dd','cashCount','$paymentDescription','0','$paymentTotal','$paymentReport')";
+			if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
 		}
 	}
 	if ($baseCurrency == 'EUR') {
@@ -330,4 +350,3 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 
 
 ?>
-

@@ -1,5 +1,6 @@
 <?php
 // --- debitor/generalLedger.php --- patch 5.0.0 --- 2026-03-19 ---
+// 20260908 CDX/LH Restored the reconciled credit entry link for undoing reconciliation.
 
 function debitorGeneralLedgerEscape($value)
 {
@@ -429,7 +430,7 @@ print "</div>";
 					'oppId' => (int)$entry['id'],
 					'unAlignAccount' => $accountId
 				)));
-				$creditCell = "<a class='debitor-ledger-balanced-link' I have merged and tested, and backgrounds in test_12 are displayed, so no problems here.href='" . debitorGeneralLedgerEscape($unAlignUrl) . "' title='Udlign id=" . (int)$entry['udlign_id'] . ". Klik for at ophæve udligningen' onclick=\"return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id " . (int)$entry['udlign_id'] . "?')\">$displayAmount</a>";
+				$creditCell = "<a class='debitor-ledger-balanced-link' href='" . debitorGeneralLedgerEscape($unAlignUrl) . "' title='Udlign id=" . (int)$entry['udlign_id'] . ". Klik for at ophæve udligningen' onclick=\"return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id " . (int)$entry['udlign_id'] . "?')\">$displayAmount</a>";
 			}
 		}
 

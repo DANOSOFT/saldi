@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 5.0.0 --- 2026.08.20 ---
+// --- includes/udskriv.php --- ver 5.0.0 --- 2026-09-25 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2013.03.20 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
 // 2013.12.02	Efter udskrivning af kreditorordre, åbnes ordre som debitorordre. Tilføjer $art. Søg $art.
@@ -41,7 +41,14 @@
 // 20260320 PHR cleanup (pdftk)
 // 20260428 LOE added more options for 'DO' type and updated faktura navigation for pick list.
 // 20260512 LOE Updated the code to allow printing multiple files no matter the state of 'Use HTML / CSS for form generation-SD-490'
+// 20260812 MJ Valider returside til relative stier; undgaar open-redirect og XSS via JS/href-kontekst
 // 20260820 CX/PHR Return reminder prints to the reminder instead of the debtor order form.
+// 20260901 CL/LH SD-664: ret <?= i dobbelt-quoted streng (redirect ved manglende pdftk blev aldrig udfort)
+//             og giv retur-link ved 'PDF-fil ikke fundet' i stedet for blindgyde (browser-Back re-POSTer)
+// 20260909 Sawaneh JOB-124: menu S honours a returside pointing at the debtor order instead of forcing the order list.
+// 20260914 CDX/LH SST-789: Render session-owned invoice batches before publishing a PDF.
+// 20260925 CL/LH SST-823 + SST-780: PostScript prints use only the .ps (it has every page; appending the _N.htm pages
+//             printed pages 2..N twice) and keep the document name instead of "udskrift". HTML pages merge in numeric order.
 
 @session_start();
 $s_id=session_id();
@@ -61,6 +68,11 @@ $localPrint=if_isset($_COOKIE, NULL, 'localPrint');
 $udfil=$zx=NULL;
 
 $ps_fil        = if_isset($_GET, NULL, 'ps_fil');
+$printBatch = null;
+if (is_string($ps_fil) && isset($_SESSION['printBatch']['file']) && $_SESSION['printBatch']['file'] === $ps_fil
+    && dirname($ps_fil) === $db . '/' . abs((int)$bruger_id)) {
+	$printBatch = $_SESSION['printBatch']['documents'];
+}
 $valg          = if_isset($_GET, NULL, 'valg');
 $logoart       = if_isset($_GET, NULL, 'logoart');
 $id            = if_isset($_GET, NULL, 'id');
@@ -71,6 +83,19 @@ $art           = if_isset($_GET, NULL, 'art');
 $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
+// 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
+$returside = (function($s) {
+    $s = trim((string)$s);
+    if ($s === '' || $s === 'ordreliste.php') return $s; // 'ordreliste.php' normaliseres nedenfor linje 93
+    if (!mb_check_encoding($s, 'UTF-8')) return '';       // afvis ugyldig UTF-8 (json_encode returnerer false)
+    if (preg_match('/[a-zA-Z][a-zA-Z0-9+\-.]*:/', $s)) return ''; // afvis protokol-URL'er (javascript:, http://)
+    if (substr($s, 0, 2) === '//') return '';             // afvis protokol-relative URL'er (//evil.com)
+    // Godkend relative stier (../x) og rod-relative stier (/x) — begge er same-origin
+    // nav_back_url() gemmer $_SERVER['REQUEST_URI'] som /debitor/... saa rod-relative skal accepteres
+    if (substr($s, 0, 3) === '../') return $s;
+    if (substr($s, 0, 1) === '/') return $s;
+    return '';
+})($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
 error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
 if ($art == 'R' && $id) {
@@ -87,7 +112,7 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
         echo "<script>
                 alert('ERROR: pdftk is not installed. Please install pdftk first.');
                 setTimeout(function() {
-                    window.location.href = '$returside';
+                    window.location.href = " . json_encode($returside) . ";
                 }, 1000); // 1 second delay
               </script>";
         exit();
@@ -161,143 +186,67 @@ if ($valg) {
   $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($valg=="pdf" || $valg=="ip")  {
 #		print "<!--";
-	if (isset($r['box2']) && $r['box2']) { 
+	if ($printBatch !== null) {
+		require_once __DIR__ . '/stdFunc/renderPrintBatch.php';
+		try {
+			renderPrintBatch(
+				__DIR__ . '/../temp/' . $db . '/' . abs((int)$bruger_id),
+				$printBatch,
+				basename($ps_fil) . '.pdf',
+				empty($r['box2']) && !empty($r['box3']),
+				!empty($r['box2']) ? $r['box2'] : $ps2pdf,
+				$pdftk,
+				$udskriv_til !== 'PDF-tekst' && $udskriv_til !== 'fil'
+			);
+		} catch (RuntimeException $error) {
+			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
+			print '<p>' . htmlspecialchars(findtekst('PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, 'UTF-8') . '</p>';
+			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
+			exit;
+		}
+	} elseif (isset($r['box2']) && $r['box2']) {
 	fwrite($log,__line__." system (\"$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\"\n");
 			system ("$r[box2] ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
 		} elseif (isset($r['box3']) && $r['box3'] && $udskrift!='kontokort') { # Brug html
-		fwrite($log,__line__." unlink(\"../temp/".$ps_fil."_*.pdf\"\n");
-		if (file_exists("../temp/".$ps_fil."_*.pdf")) unlink("../temp/".$ps_fil."_*.pdf");
+		// 20260925 SST-780/SST-823: skriv() writes page 1 to <c>.htm and page N to <c>_N.htm. Merge exactly those,
+		// in numeric order, and keep the document name (not "udskrift"). Batches of several orders go through renderPrintBatch().
 		list($a,$b,$c)=explode("/",$ps_fil);
-		$htmfil=glob("../temp/$a/$b/*.htm");
-		$indfil='';
-		for ($i=0;$i<count($htmfil);$i++) {
-			if (filesize($htmfil[$i])) {
-				$pdf[$i]=str_replace("htm","pdf",$htmfil[$i]);
-				fwrite($log,__line__." $pdf[$i]=str_replace(\"htm\",\"pdf\",$htmfil[$i])\n"); #20190103
-				fwrite($log,__line__." system (\"weasyprint -e UTF-8 $htmfil[$i] $pdf[$i]\")\n"); #20190103
-				system ("weasyprint -e UTF-8 $htmfil[$i] $pdf[$i]");
-				($indfil)?$indfil.=" ".$pdf[$i]:$indfil=$pdf[$i];
-				fwrite($log,__line__." indfil $indfil\n");
-			} 
-			if (count($htmfil)>1) {
-				$udfil="../temp/$a/$b/udskrift.pdf";
-				fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
-				$ps_fil="/$a/$b/udskrift";
-				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n"); 
-			} else $udfil=NULL;
-		} 
-		if ($udfil) {
-			system ("pdftk $indfil output $udfil");
-			fwrite($log,__line__." system (\"pdftk $indfil output $udfil\")\n");
-			for ($i=0;$i<count($htmfil);$i++) {
-				unlink ($htmfil[$i]);
-				fwrite($log,__line__." unlink ($htmfil[$i])\n");
-				if (isset($pdffil[$i]) && file_exists($pdffil[$i])) {
-					unlink ($pdffil[$i]);
-					fwrite($log,__line__." unlink ($pdffil[$i])\n");
-				}
+		$htmfil = array("../temp/$a/$b/$c.htm");
+		for ($side = 2; file_exists("../temp/$a/$b/{$c}_$side.htm"); $side++) {
+			$htmfil[] = "../temp/$a/$b/{$c}_$side.htm";
+		}
+		$sidepdf = array();
+		foreach ($htmfil as $i => $hf) {
+			if (file_exists($hf) && filesize($hf)) {
+				$sidepdf[] = count($htmfil) > 1 ? "../temp/$a/$b/{$c}_side" . ($i + 1) . ".pdf" : "../temp/$a/$b/$c.pdf";
+				fwrite($log,__line__." system (\"weasyprint -e UTF-8 $hf " . end($sidepdf) . "\")\n");
+				system ("weasyprint -e UTF-8 " . escapeshellarg($hf) . " " . escapeshellarg(end($sidepdf)));
 			}
 		}
-	} else { # Brug PostScript 
-		/*
-	    $ps_fil=str_replace("../temp/","",$ps_fil);
+		if (count($htmfil) > 1) {
+			fwrite($log,__line__." system (\"$pdftk " . implode(' ', $sidepdf) . " cat output ../temp/$a/$b/$c.pdf\")\n");
+			system ("$pdftk " . implode(' ', array_map('escapeshellarg', $sidepdf)) . " cat output " . escapeshellarg("../temp/$a/$b/$c.pdf"));
+			foreach ($sidepdf as $sp) {
+				if (file_exists($sp)) unlink($sp);
+			}
+		}
+		foreach (array_merge($htmfil, array("../temp/$a/$b/$c.ps")) as $tmpfil) {
+			if (file_exists($tmpfil)) unlink($tmpfil);
+		}
+	} else { # Brug PostScript
+		// 20260925 SST-823: skriv()/bundtekst() write every page to <c>.ps. The <c>_N.htm files are only the HTML
+		// variant of pages 2..N and must not be appended (that printed pages 2..N twice), so they are just removed.
+		$ps_fil=str_replace("../temp/","",$ps_fil);
 		$ps_fil=str_replace("$db/$db","$db",$ps_fil);
-		if (file_exists("../temp/".$ps_fil."_*.pdf")) {
-			unlink("../temp/".$ps_fil."_*.pdf");
-			fwrite($log,__line__." unlink(\"../temp/".$ps_fil."_*.pdf\"\n");
-		}
 		list($a,$b,$c)=explode("/",$ps_fil);
-		$psfil=glob("../temp/$a/$b/*.ps");
-#		fwrite($log,__line__." $psfil=glob(\"../temp/$a/$b/*.ps\")\n");
-		$indfil='';
-		for ($i=0;$i<count($psfil);$i++) {
-#				fwrite($log,__line__." PSFIL $psfil[$i]\n");
-			if (filesize($psfil[$i])) {
-				$pdf[$i]=str_replace("ps","pdf",$psfil[$i]);
-				fwrite($log,__line__." $pdf[$i]=str_replace(\"ps\",\"pdf\",$psfil[$i])\n");
-				fwrite($log,__line__." system (\"$ps2pdf  $psfil[$i] $pdf[$i]\")\n");
-				system ("$ps2pdf $psfil[$i] $pdf[$i]");
-				($indfil)?$indfil.=" ".$pdf[$i]:$indfil=$pdf[$i];
-				fwrite($log,__line__." indfil $indfil\n");
-			} 
-			if (count($psfil)>1) {
-				$udfil="../temp/$a/$b/udskrift.pdf";
-				fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
-				$ps_fil="/$a/$b/udskrift";
-				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n");
-			} else $udfil=NULL;
+		$psfil = "../temp/$a/$b/$c.ps";
+		if (file_exists($psfil) && filesize($psfil)) {
+			fwrite($log,__line__." system (\"$ps2pdf $psfil ../temp/$a/$b/$c.pdf\")\n");
+			system ("$ps2pdf " . escapeshellarg($psfil) . " " . escapeshellarg("../temp/$a/$b/$c.pdf"));
 		}
-		if ($udfil) {
-		system ("pdftk $indfil output $udfil");
-		fwrite($log,__line__." system (\"pdftk $indfil output $udfil\")\n");
-		for ($i=0;$i<count($psfil);$i++) {
-			unlink ($psfil[$i]);
-			fwrite($log,__line__." unlink ($psfil[$i])\n");
-				if (isset($pdffil[$i]) && file_exists($pdffil[$i])) {
-				unlink ($pdffil[$i]);
-				fwrite($log,__line__." unlink ($pdffil[$i])\n");
-			}
-			}
+		foreach (array_merge(array($psfil, "../temp/$a/$b/$c.htm"), glob("../temp/$a/$b/{$c}_*.htm") ?: array()) as $tmpfil) {
+			if (file_exists($tmpfil)) unlink($tmpfil);
 		}
-		*/
-
-		########################
-
-		 $ps_fil=str_replace("../temp/","",$ps_fil);
-			$ps_fil=str_replace("$db/$db","$db",$ps_fil);
-			list($a,$b,$c)=explode("/",$ps_fil);
-
-			$indfil='';
-
-			// Convert single .ps file 
-			$psfil = "../temp/$a/$b/$c.ps";
-			$pdffil_p1 = "../temp/$a/$b/$c.pdf";
-			
-			if (file_exists($psfil) && filesize($psfil)) {
-				fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
-				system ("$ps2pdf $psfil $pdffil_p1");
-				fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
-				$indfil = $pdffil_p1;
-			}
-
-			// find any extra pages in .htm files (_2.htm, _3.htm etc)
-			$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
-			if ($htmfil) sort($htmfil);
-			
-			foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
-
-			$extra_pdfs = array();
-			foreach ($htmfil as $hf) {
-				if (filesize($hf)) {
-					$hpdf = str_replace(".htm", ".pdf", $hf);
-					system ("weasyprint -e UTF-8 $hf $hpdf");
-					$extra_pdfs[] = $hpdf;
-					$indfil .= " " . $hpdf;
-				}
-			}
-
-			// If we have multiple pages, merge them all with pdftk
-			if (!empty($extra_pdfs)) {
-				$udfil = "../temp/$a/$b/udskrift.pdf";
-				$ps_fil = "/$a/$b/udskrift";
-				system ("pdftk $indfil output $udfil", $pdftk_rc);
-				
-				// Cleanup intermediate files
-				if (file_exists($psfil)) unlink($psfil);
-				if (file_exists($pdffil_p1)) unlink($pdffil_p1);
-				foreach ($htmfil as $hf) {
-					if (file_exists($hf)) unlink($hf);
-				}
-				foreach ($extra_pdfs as $ep) {
-					if (file_exists($ep)) unlink($ep);
-				}
-			} else {
-				
-				$udfil = NULL;
-				fwrite($log,__line__." single page only, no merge needed\n");
-				if (file_exists($psfil)) unlink($psfil);
-			}
-		########################
 	}
 	
 	if ($zx) { # Brug PostScript 
@@ -341,7 +290,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			# $pdftk = trim(shell_exec("which pdftk") ?? '');
 			# error_log("DIAG: pdftk_bin=$pdftk");
 
-			if ($pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+			if ($printBatch === null && $pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
 				// Self-heal non-A4 letterheads. A background that isn't A4 makes pdftk
 				if (function_exists('shell_exec')) {
 					$pinf = @shell_exec("pdfinfo " . escapeshellarg($bg_fil) . " 2>/dev/null");
@@ -400,7 +349,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$firmanavn=htmlentities($r['firmanavn']);
 				$fakturanr=htmlentities($r['fakturanr']);
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$ip/localprint.php?printfil=$printfil.pdf&url=$url&id=$id&returside=$returside&bruger_id=$bruger_id&firmanavn=$firmanavn&fakturanr=$fakturanr\">\n";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$ip/localprint.php?printfil=$printfil.pdf&url=$url&id=$id&returside=" . urlencode($returside) . "&bruger_id=$bruger_id&firmanavn=$firmanavn&fakturanr=$fakturanr\">\n";
 				exit;
 			} elseif ($valg=='ip') {
 				print "<!--!";
@@ -429,19 +378,21 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				 if ($art == 'R') {
 					$href = "../debitor/rykker.php?rykker_id=" . (int)$id;
 				 } elseif (substr($art,0,1)=='K'){
-					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
-				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
+					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside) . "\" accesskey=\"L\"";
+				 } elseif (strpos($returside, '../debitor/ordre.php?') === 0) {
+					$href = "\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
+				 } elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
 					$href = "../debitor/ordreliste.php";
 				 } else {
 					if($art == 'DO'){
 						if($value == 'faktura'){
-							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=$returside";
+							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=" . urlencode($returside);
 
 						}else{
 							$href = "../debitor/ordreliste.php";
 						}
 					}else{
-					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside);
 					}
 				 }  
 				} else { 
@@ -460,7 +411,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 			} else {
 				print "<table width=100% height=100%><tbody>";
-				if ($returside) $href="\"$returside\" accesskey=\"L\"";
+				if ($returside) $href="\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</a></td>";
 				print "<td width=\"80%\" $top_bund align=\"center\" title=\"".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id).">";
@@ -472,7 +423,11 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			}
 			print exit;
 
-		} else print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+		} else {
+			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
+			print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+			print "<p><a href=\"$fejl_retur\">" . findtekst('2172|Luk', $sprog_id) . "</a></p>";
+		}
 	}
   if ($valg=="printer") {
     system ("$r[box1] ../temp/$ps_fil");

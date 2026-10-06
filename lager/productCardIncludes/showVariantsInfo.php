@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----/lager/productCardIncludes/showVarianntsInfo.php----lap 4.0.8---2023-10-06-----
+// ----/lager/productCardIncludes/showVarianntsInfo.php----lap 4.0.8---2026-09-23-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,16 +20,19 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2023.08.30 PHR - Created this file from variant section of ../varekort.php
 // 2023.10.06 PHR - Added $variantVarerText[$x]
+// 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
+/**
+ * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
+ * @var array<int, string> $warehouseNames
+ */
 
 print "<tr><td></td><td>Stregkode</td>";
-$qtxt="select beskrivelse,kodenr from grupper where art='LG' order by kodenr";
-$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-while ($r=db_fetch_array($q)) {
-  print "<td>$r[beskrivelse]</td>";
+foreach ($warehouseNames as $warehouseName) {
+  print "<td>$warehouseName</td>";
 }
 print "</tr>";
 
@@ -41,7 +44,7 @@ for ($x=0;$x<count($variantVarerId);$x++) {
   name=\"variant_vare_stregkode[$x]\" value=\"$variantVarerBarcode[$x]\"
   onchange=\"javascript:docChange = true;\"></td>";
   if ($stockItem) {
-    for ($l=1;$l<=$numberOfStocks;$l++) {
+    foreach ($warehouseNames as $l => $warehouseName) {
       if ($variantVarerId[$x]) {
         print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=\"variant_varer_beholdning[$x][$l]\" value=\"".dkdecimal($variantVarerQty[$x][$l],2)."\" onchange=\"javascript:docChange = true;\"></td>";
       } else print "<td></td>";

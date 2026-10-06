@@ -37,6 +37,8 @@
 // 20260130 PHR - Improved check for empty fiscal year before deletion and used ICONSVG icons.
 // 20260730 MJ Tilfoejede Momsperioder-knap; fjernede linket fra finans-sidebaren i main.php
 // 20260801 MJ Sat begge knapper til samme bredde (200px)
+// 20260814 Sawaneh SST-705 Current fiscal year shows Lukket when bookkeeping is
+//                  not allowed (box5) and GET params are int-cast before SQL
 
 @session_start();
 $s_id = session_id();
@@ -60,10 +62,10 @@ function check_permissions($permarr)
   return !empty($filtered);
 }
 
-$aktiver = if_isset($_GET['aktiver']);
-$deleteYear = if_isset($_GET['deleteYear']);
-$deleteEmptyYear = if_isset($_GET['deleteEmptyYear']);
-$set_alle = if_isset($_GET['set_alle']);
+$aktiver = (int)filter_input(INPUT_GET, 'aktiver', FILTER_VALIDATE_INT);
+$deleteYear = (int)filter_input(INPUT_GET, 'deleteYear', FILTER_VALIDATE_INT);
+$deleteEmptyYear = (int)filter_input(INPUT_GET, 'deleteEmptyYear', FILTER_VALIDATE_INT);
+$set_alle = (int)filter_input(INPUT_GET, 'set_alle', FILTER_VALIDATE_INT);
 
 if ($set_alle) {
 	db_modify("update brugere set regnskabsaar = '$set_alle'", __FILE__ . " linje " . __LINE__);
@@ -290,7 +292,12 @@ foreach($fiscalYears as $index => $row){
 		print "</td>";
 		print renderEmptyFiscalYearButton($canDeleteThisyear, $isEmpty[$x], $row['kodenr'], $sprog_id, $trash_icon);
 	} else {
-		print "<td><font color=#ff0000>" . findtekst('1214|Aktivt', $sprog_id) . "</font></td><td>";
+		# The selected year is only open for posting when box5 (bookkeeping allowed) is on
+		if ($row['box5'] == 'on') {
+			print "<td><font color=#ff0000>" . findtekst('1214|Aktivt', $sprog_id) . "</font></td><td>";
+		} else {
+			print "<td>" . findtekst('387|Lukket', $sprog_id) . "</td><td>";
+		}
 		if ($set_alle) {
 			$title = "" . findtekst('1794|Klik for at sætte regnskabsår', $sprog_id) . " $regnaar " . findtekst('1795|aktivt for alle brugere', $sprog_id) . "";
 			$title2 = "" . findtekst('1796|Sæt regnskabsår', $sprog_id) . " $regnaar " . findtekst('1795|aktivt for alle brugere', $sprog_id) . "?";

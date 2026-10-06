@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-07-28---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-09-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20200827 PHR Added protection against delete if items recieved. 20200827
@@ -62,6 +62,31 @@
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
 // 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
+// 20260811 Sawaneh Save batch_due_date/batch_batch_no on the order line - the expiry date and
+//                  batch no fields were rendered and read back, but never written on save.
+// 20260827 Sawaneh create supplier: before insert the kontonr is re-checked across all arts, and a
+//                 number taken meanwhile (stale prefill or a debtor holding it) is replaced with a
+//                 fresh one from get_next_number, so no cross-art duplicate can be created (SST-753)
+// 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup navigates here by GET, see accountLookup.php selectAccount) into the new order header. 
+//                 usdate('') returns today, so only convert values that were actually supplied.
+// 20260908 CDX/LH Lock creditor order status before saving, deleting or adding lines.
+// 20260908 SZ SST-755: Luk links and the unload beacon now carry the row's tidspkt, so
+//                 includes/luk.php / unlock_order.php can confirm this tab still holds
+//                 the lock before releasing it.
+// 20260910 SZ SST-755 (CodeRabbit): the unload beacon now checks sendBeacon()'s return
+//                 value before treating the lock as released, falling back to the sync
+//                 XHR when it fails (same fix as finans/ordre.php and kassekladde.php).
+// 20260923 SZ SST-755 (CodeRabbit): Luk links and the unload beacon now carry a per-render
+//                 lockToken instead of tidspkt, since tidspkt alone didn't distinguish two
+//                 tabs open on the same order before either one saved.
+// 20260924 SZ SST-755 (CodeRabbit): both refresh_lock_token() calls now also pass the
+//                 observed tidspkt, so a stale render can't overwrite a token a concurrent
+//                 tidspkt change has since replaced.
+// 20260924 CL/SZ MB-36 fixed the same never-written batch_due_date/batch_batch_no gap as
+//                Sawaneh's 20260811 change above, independently and later; merging master
+//                superseded MB-36's version of that save logic with Sawaneh's (already
+//                submitted-vs-not-submitted safe, plus date-format validation and a
+//                batch_batch_no length cap that MB-36's version lacked).
 
 @session_start();
 $s_id=session_id();
@@ -100,6 +125,10 @@ $valg=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
+// 20260923 SZ SST-755 (CodeRabbit): one random per-render token, reused by both sidehoved()'s
+// exit link and the unload beacon further down (see refresh_lock_token() in unlockRecord.php).
+$sessionLockToken = bin2hex(random_bytes(16));
 
 $returside = if_isset($_GET,NULL,'returside');
 ########
@@ -169,7 +198,12 @@ $lager = if_isset($_GET, NULL, 'lager');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
 
 if ((!$id || $id === 'null') && $konto_id) {
-	include_once('orderIncludes/insertAccount.php');
+	// 20260902 CL/LH  Carry the dates the operator typed before choosing a supplier (the lookup
+	// navigates here by GET, see accountLookup.php selectAccount) into the new order header.
+	// usdate('') returns today, so only convert values that were actually supplied.
+	$ordredate = trim(if_isset($_GET, '', 'ordredato')) !== '' ? usdate(trim($_GET['ordredato'])) : '';
+	$levdate   = trim(if_isset($_GET, '', 'levdato'))   !== '' ? usdate(trim($_GET['levdato']))   : '';
+	include_once(__DIR__ . '/orderIncludes/insertAccount.php');
 	$id = insertAccount(0, $konto_id);
 	if ($id) {
 		$params = $_GET;
@@ -207,6 +241,10 @@ if (isset($_POST['create_creditor'])) {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$new_konto_id = $r['id'];
 	} else {
+		$qtxt = "select id from adresser where kontonr='$ny_kontonr'";
+		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$ny_kontonr = get_next_number('adresser', 'K');
+		}
 		$qtxt  = "insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,tlf,kontakt,email,cvrnr,gruppe,betalingsbet,betalingsdage,art,lukket) values ";
 		$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$tlf','$kontakt','$email','$cvrnr','$grp','$betalingsbet','$betalingsdage','K','')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -226,17 +264,20 @@ if ( !empty($kontakt) && $id ) {
 	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
 }
 if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716 
+	transaktion("begin");
+	$id = (int) $id;
 	$vare_id[0]=db_escape_string($_GET['vare_id']);
 	$linjenr=0; # 20201021 changed from substr($fokus,4)*1;
 	if ($id) {
-		$query = db_select("select konto_id, kontonr, status,omvbet from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
+		$query = db_select("select konto_id, kontonr, status,omvbet from ordrer where id = $id for update",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
-		$omlev=$row['omvbet'];
-		if ($row['status']>2) {
+		if (!$row || $row['status']>2) {
+			transaktion("rollback");
 			print "Hmmm - har du brugt browserens opdater eller tilbageknap???";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">";
 			exit;
 		}
+		$omlev=$row['omvbet'];
 		$konto_id=$row['konto_id'];
 		$query = db_select("select posnr from ordrelinjer where ordre_id = '$id' order by posnr desc",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) $posnr[0]=$row['posnr']+1;
@@ -263,8 +304,8 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		}
 	}
 	if (!$id) {
-		include_once('orderIncludes/insertAccount.php');
-		$id = insertAccount($id, $konto_id);
+		include_once(__DIR__ . '/orderIncludes/insertAccount.php');
+		$id = insertAccount($id, $konto_id, false);
 	}
 	$pris[0]=$pris[0]*1;
 	if(!$antal[0]) $antal[0]=1;
@@ -320,6 +361,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 			}
 		}
 	}
+	transaktion("commit");
 }
 
 ////// Tutorial //////
@@ -363,7 +405,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		if (if_isset($_POST, NULL, 'credit')) $submit = 'credit';
 		elseif (if_isset($_POST, NULL, 'copy')) $submit = 'copy';
 		
-		$id = if_isset($_POST, 0, 'id');
+		$id = (int) if_isset($_POST, 0, 'id');
 		$ordrenr = if_isset($_POST, NULL, 'ordrenr');
 		$kred_ord_id = if_isset($_POST, NULL, 'kred_ord_id');
 		$art = if_isset($_POST, NULL, 'art');
@@ -472,23 +514,43 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 			}
 		}
-	 if (isset($_POST['delete']) && $_POST['delete'])	{
-			$qtxt="select id from batch_kob where ordre_id='$id' limit 1";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) { #20200827
-				alert ('der ér modtaget varer på denne ordre, slet afbrudt');
-			} else {	
-				$qtxt="select dokument from ordrer where id='$id'"; # 20211121
-				if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && file_exists("../bilag/$db/scan/$r[dokument]")) { 
-					unlink ("../bilag/$db/scan/$r[dokument]");
-				}
-				db_modify("delete from ordrelinjer where ordre_id=$id",__FILE__ . " linje " . __LINE__);
-				db_modify("delete from ordrer where id=$id",__FILE__ . " linje " . __LINE__);
-				$back_url = "ordreliste.php" . ($valg ? "?valg=$valg" : "");
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=$back_url\">";
-			}
+		transaktion("begin");
+		if (!$status) $status = 0;
+		// Hold the same header lock as receipt/posting until this save commits.
+		include_once(__DIR__ . "/orderIncludes/lockOrderForSave.php");
+		$destinationId = null;
+		if (!empty($_POST['moveOrderLines'])) {
+			$destinationId = filter_var($_POST['MoveItemsTo'] ?? null, FILTER_VALIDATE_INT, array('options' => array('min_range' => 0)));
+			if ($destinationId === false) $destinationId = -1;
+		}
+		$allowPostedSource = in_array($submit, array('copy', 'credit'), true) && empty($_POST['delete']) && $destinationId === null;
+		if (!lockCreditorOrderForSave($id, $status, $destinationId, $allowPostedSource, $linje_id)) {
+			transaktion("rollback");
+			print "Ordren er ændret, slettet eller kan ikke modtage linjer. Åbn den igen før du fortsætter.";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+			exit;
 		}
 
-		transaktion("begin");
+		if (isset($_POST['delete']) && $_POST['delete']) {
+			$qtxt = "select id from batch_kob where ordre_id='$id' limit 1";
+			if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				transaktion("rollback");
+				alert('der ér modtaget varer på denne ordre, slet afbrudt');
+			} else {
+				$qtxt = "select dokument from ordrer where id='$id'";
+				$documentRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				db_modify("delete from ordrelinjer where ordre_id=$id", __FILE__ . " linje " . __LINE__);
+				db_modify("delete from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
+				transaktion("commit");
+				if ($documentRow && $documentRow['dokument'] && is_file("../bilag/$db/scan/{$documentRow['dokument']}")) {
+					unlink("../bilag/$db/scan/{$documentRow['dokument']}");
+				}
+			}
+			$back_url = "ordreliste.php" . ($valg ? "?valg=$valg" : "");
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=$back_url\">";
+			exit;
+		}
+
 		for ($x=0;$x<=$linjeantal;$x++) {
 			$solgt[$x]=0;
 			$y="posn".$x;
@@ -526,6 +588,18 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
 			$projekt[$x] = if_isset($projekt, NULL,$x);
+			# Expiry date / batch no for batch controlled items. NULL means the inputs were not
+			# rendered for this line, so the columns must be left untouched when saving.
+			$batch_due_date[$x] = $batch_batch_no[$x] = NULL;
+			$tmp_due = if_isset($_POST, NULL, 'batch_due_date');
+			if (is_array($tmp_due) && isset($tmp_due[$x])) {
+				$tmp_due = trim($tmp_due[$x]);
+				$batch_due_date[$x] = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $tmp_due)) ? $tmp_due : '';
+			}
+			$tmp_bno = if_isset($_POST, NULL, 'batch_batch_no');
+			if (is_array($tmp_bno) && isset($tmp_bno[$x])) {
+				$batch_batch_no[$x] = db_escape_string(substr(trim($tmp_bno[$x]), 0, 100));
+			}
 		}
 		if ($sletstart && $sletslut && $sletstart<$sletslut) {
 			for ($x=$sletstart; $x<=$sletslut; $x++) {
@@ -533,7 +607,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			}
 		}
 		if (isset($_POST['moveOrderLines']) && $_POST['moveOrderLines']) {
-			include("orderIncludes/moveOrderLines.php");
+			include(__DIR__ . "/orderIncludes/moveOrderLines.php");
 		}
 
 		$bogfor=1;
@@ -541,17 +615,6 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		if (!$status) $status= 0;
 
 
-		#Kontrol mod brug af browserens "tilbage" knap og mulighed for 2 x bogfring af samme ordre
-		if ($id) {
-			$query = db_select("select status from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($query)) {
-				if ($row['status']!=$status) {
-					print "Hmmm -a $row[status] - b $status har du brugt browserens tilbageknap?";
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">";
-					exit;
-				}
-			}
-		}
 		if ($submit == 'credit') $art='KK';
 		if ($submit == 'credit'|| $submit == 'copy') {
 			if ($art!='KK') {
@@ -611,9 +674,10 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		// If user typed a kontonr/firmanavn that doesn't match any creditor,
 		// open the lookup overlay (which auto-shows the create-new-supplier form).
 		if (!$id && !$konto_id && ($kontonr || $firmanavn)) {
-			include("../includes/kreditorOrderFuncIncludes/accountLookup.php");
+			include(__DIR__ . "/../includes/kreditorOrderFuncIncludes/accountLookup.php");
 			$lookup_find = $kontonr ? $kontonr : $firmanavn;
 			$lookup_fokus = $kontonr ? 'kontonr' : 'firmanavn';
+			transaktion("rollback");
 			kontoopslag($sort, $lookup_fokus, $id, $lookup_find);
 			exit;
 		}
@@ -630,12 +694,12 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$r=db_fetch_array(db_select($string,__FILE__ . " linje " . __LINE__));
 			$konto_id=$r['konto_id'];
 			$firmanavn=$r['firmanavn'];
-			include_once('orderIncludes/insertAccount.php');
-			$id = insertAccount($id, $konto_id);
+			include_once(__DIR__ . '/orderIncludes/insertAccount.php');
+			$id = insertAccount($id, $konto_id, false);
 		}
 		if ( !$id && $konto_id && $firmanavn) {
-			include_once('orderIncludes/insertAccount.php');
-			$id = insertAccount($id, $konto_id);
+			include_once(__DIR__ . '/orderIncludes/insertAccount.php');
+			$id = insertAccount($id, $konto_id, false);
 		}	elseif(($konto_id)&&($firmanavn)) {
 			$sum=0;
 			for($x=1; $x<=$linjeantal; $x++) {
@@ -673,7 +737,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 								else $rest=$rest+$row['antal'];
 								$llager[$x]=$row['lager'];
 							}
-							$tmp=$leveres[$x]*-1;
+							$tmp=((int) $leveres[$x])*-1;
 							if (($rest<$tmp)&&($llager[$x]<='0')) {
 								if ($batch[$x]) print "<BODY onLoad=\"javascript:alert('Du kan ikke returnere $tmp n&aring;r der er $rest tilbage fra ordre nr: $kred_ord_nr! (Varenr: $varenr[$x])')\">";
 								else print "<BODY onLoad=\"javascript:alert('Du kan ikke returnere $tmp n&aring;r der er k&oslash;bt $rest på ordre nr: $kred_ord_nr! (Varenr: $varenr[$x])')\">";
@@ -839,10 +903,23 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if (! $tidl_lev[$x]) $tidl_lev[$x]=0;
 						if ($omvbet[$x]) $omvbet[$x]='on';
-					if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
-					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
+						if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
+						$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
-						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager' where id='$linje_id[$x]'";
+						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'";
+						// Only touch batch_due_date/batch_batch_no when this line actually submitted
+						// that input - openOrderLines.php doesn't render them for a line whose
+						// tracking flag is off, and an unconditional SET was wiping stored batch
+						// data for any line whose tracking flag changed since it was last saved
+						// (CodeRabbit, PR #608). $batch_due_date[$x]/$batch_batch_no[$x] are set
+						// per-line above, NULL when that line's input wasn't submitted.
+						if (if_isset($batch_due_date, NULL, $x) !== NULL) {
+							$qtxt.= ",batch_due_date=" . ($batch_due_date[$x] ? "'$batch_due_date[$x]'" : "NULL");
+						}
+						if (if_isset($batch_batch_no, NULL, $x) !== NULL) {
+							$qtxt.= ",batch_batch_no=" . ($batch_batch_no[$x] !== '' ? "'$batch_batch_no[$x]'" : "NULL");
+						}
+						$qtxt.= " where id='$linje_id[$x]'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {
@@ -1071,7 +1148,34 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			}
 		} 
 		$vis=1;
-	transaktion("commit");
+		if ( $submit == 'postNow' && $bogfor!=0 && $status==2 ) {
+			if ($valuta && $valuta!='DKK') {
+				if ($r= db_fetch_array(db_select("select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=grupper.kodenr::INT and valuta.valdate <= '$ordredate' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
+					$valutakurs=$r['kurs'];
+				} else {
+					$valutakurs='';
+				}
+			} else $valutakurs=100;
+			if (!$valutakurs) {
+				$tmp = dkdato($ordredate);
+				print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredate')\">";
+			} elseif(!$fakturanr) print "<BODY onLoad=\"javascript:alert('Fakturanummer mangler')\">";
+			else {
+				db_modify("update ordrer set valutakurs = '$valutakurs' where id = '$id'",__FILE__ . " linje " . __LINE__);
+				$linjeantal=0;
+				$q = db_select("select id from ordrelinjer where ordre_id = '$id' order by posnr",__FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$linjeantal++;
+					$linje_id[$linjeantal]=$r['id'];
+				}
+				for ($x=1;$x<=$linjeantal;$x++) {
+					db_modify("update ordrelinjer set posnr = '$x' where id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+				}
+				if (!$linjeantal) print "<BODY onLoad=\"javascript:alert('Du kan ikke fakturere uden ordrelinjer')\">";
+				else print "<meta http-equiv=\"refresh\" content=\"0;URL=bogfor.php?id=$id\">";
+			}
+		}
+		transaktion("commit");
 	}
 	if ($submit == 'print') {
 		$id=if_isset($_POST['id']);
@@ -1133,33 +1237,6 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 
 ##########################BOGFOR################################
 
-	if ( $submit == 'postNow' && $bogfor!=0 && $status==2 ) {
-	if ($valuta && $valuta!='DKK') {
-		if ($r= db_fetch_array(db_select("select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=grupper.kodenr::INT and valuta.valdate <= '$ordredate' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
-			$valutakurs=$r['kurs'];
-		} else {
-			$valutakurs='';
-		}
-	} else $valutakurs=100;
-	if (!$valutakurs) {
-		$tmp = dkdato($ordredate);
-		print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredate')\">";
-	} elseif(!$fakturanr) print "<BODY onLoad=\"javascript:alert('Fakturanummer mangler')\">";
-	else {
-			db_modify("update ordrer set valutakurs = '$valutakurs' where id = '$id'",__FILE__ . " linje " . __LINE__);
-			$linjeantal=0;
-			$q = db_select("select id from ordrelinjer where ordre_id = '$id' order by posnr",__FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$linjeantal++;
-				$linje_id[$linjeantal]=$r['id'];
-			}
-			for ($x=1;$x<=$linjeantal;$x++) {
-				db_modify("update ordrelinjer set posnr = '$x' where id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
-			}
-			if (!$linjeantal) print "<BODY onLoad=\"javascript:alert('Du kan ikke fakturere uden ordrelinjer')\">";
-			else print "<meta http-equiv=\"refresh\" content=\"0;URL=bogfor.php?id=$id\">";
-		}
-	}
 	if ( ($submit=='receive' || $submit=='return') && $bogfor!=0 ) {
 		$query = db_select("select * from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
 		if (!$row = db_fetch_array($query)) {Print "Du kan ikke modtage uden ordrelinjer";}
@@ -1615,14 +1692,32 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 ######################################################################################################################################
 function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $bgcolor2;
+	global $brugernavn;
 	global $color;
 	global $menu;
 	global $sprog_id;
 	global $top_bund;
 	global $valg;
+	global $sessionLockToken;
 
 	$title= 'Leverandør ordre';
 	$alerttekst=findtekst(154,$sprog_id);
+
+	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
+	// includes/luk.php can confirm this tab still holds the lock before releasing it.
+	// 20260923 SZ SST-755 (CodeRabbit): now appends &lockToken instead - $sessionLockToken is
+	// one random value per render, reused for the unload beacon too, so a second tab on the
+	// same order that hasn't saved anything yet (and so still shares this tab's tidspkt) no
+	// longer shares a valid release credential.
+	$sidehovedLockToken = NULL;
+	if ($id) {
+		$sidehovedLockRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+		if ($sidehovedLockRow && $sidehovedLockRow['tidspkt'] !== '' && $sidehovedLockRow['tidspkt'] !== null) {
+			$sidehovedLockToken = $sessionLockToken;
+			refresh_lock_token('ordrer', (int)$id, $brugernavn, $sidehovedLockToken, $sidehovedLockRow['tidspkt']);
+		}
+	}
+	$sidehovedTidspktQs = $sidehovedLockToken !== null ? "&lockToken=" . urlencode($sidehovedLockToken) . "&tidspkt=" . urlencode($sidehovedLockRow['tidspkt']) : "";
 
 	include("../includes/topline_settings.php");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -1635,7 +1730,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 				accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i>
 				&nbsp;".findtekst(30,$sprog_id)."</a></div>";
 		else print "<div class=\"headerbtnLft headLink\"><a
-				href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\"
+				href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\"
 				accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i>
 				&nbsp;".findtekst(30,$sprog_id)."</a></div>";
 		print "<div class=\"headerTxt\">$title</div>";
@@ -1673,7 +1768,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 			print "<td width=10%><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
 			       <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
 		} else {
-			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst') accesskey=L>
+			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst') accesskey=L>
 				   <button type='button' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" onclick=\"loacation.href('ordreliste.php')\">".findtekst(30, $sprog_id)."</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
@@ -1714,7 +1809,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 		#	if ($returside != "ordre.php") {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		#	else {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		if ($kort) print "<td width=\"10%\" $top_bund> $color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
-		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
+		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
 		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
 		else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
@@ -1811,6 +1906,23 @@ if ($menu=='T') {
 }
 </style>
 
+<?php
+// 20260908 SZ SST-755: added table+tidspkt (required by the now-generalized, whitelisted
+// unlock_order.php) - re-read fresh here rather than trusting an earlier-computed value, since
+// $id can be reassigned by insertAccount() etc. earlier in this same render.
+// 20260923 SZ SST-755 (CodeRabbit): beacon now sends lockToken instead of tidspkt, reusing the
+// same $sessionLockToken minted at the top of this file (and re-stamping it here too, in case
+// $id changed since then) - see sidehoved()'s exit link earlier in this file for why.
+$beaconLockToken = NULL;
+if ($id) {
+	$beaconRow = db_fetch_array(db_select("select tidspkt from ordrer where id=" . (int)$id . " and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($beaconRow && $beaconRow['tidspkt'] !== '' && $beaconRow['tidspkt'] !== null) {
+		$beaconLockToken = $sessionLockToken;
+		refresh_lock_token('ordrer', (int)$id, $brugernavn, $beaconLockToken, $beaconRow['tidspkt']);
+	}
+}
+if ($beaconLockToken) {
+?>
 <script>
 let isSubmitting = false;
 document.addEventListener("DOMContentLoaded", function () {
@@ -1823,20 +1935,26 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 function unlockOrderBeacon(evtName) {
     if (!isSubmitting && !window.orderUnlocked) {
-        window.orderUnlocked = true;
         let data = new URLSearchParams();
-        data.append("id", "<?php echo (int)$id; ?>"); 
+        data.append("table", "ordrer");
+        data.append("id", "<?php echo (int)$id; ?>");
+        data.append("lockToken", "<?php echo htmlspecialchars($beaconLockToken, ENT_QUOTES); ?>");
+        data.append("tidspkt", "<?php echo htmlspecialchars($beaconRow['tidspkt'], ENT_QUOTES); ?>");
         data.append("event", evtName);
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon("../includes/unlock_order.php", data);
-        } else {
+        // sendBeacon() can return false (queue full/rejected) without sending anything - only
+        // treat the lock as released, and skip the sync XHR fallback, once one of the two has
+        // actually gone out (CodeRabbit).
+        let queued = navigator.sendBeacon && navigator.sendBeacon("../includes/unlock_order.php", data);
+        if (!queued) {
             let xhr = new XMLHttpRequest();
             xhr.open('POST', '../includes/unlock_order.php', false);
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             xhr.send(data.toString());
         }
+        window.orderUnlocked = true;
     }
 }
 window.addEventListener("beforeunload", function() { unlockOrderBeacon('beforeunload'); });
 window.addEventListener("pagehide", function() { unlockOrderBeacon('pagehide'); });
 </script>
+<?php } ?>

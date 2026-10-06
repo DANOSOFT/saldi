@@ -24,15 +24,18 @@
 // ----------------------------------------------------------------------
 // This function finds the Vat account belonging to an account in ledger.
 //
+// 20260827 Sawaneh create_debtor: kontonr availability is checked across all arts (a creditor's
+//                 number is refused too) and also for auto-assigned numbers right before
+//                 insert, so a concurrent creation cannot slip in a duplicate (SST-753)
+//
 function create_debtor($kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$email,$tlf,$cvrnr,$grp,$ean,$betalingsbet,$betalingsdage,$kontakt) {
-	if (!$kontonr) $kontonr=get_next_number('adresser','D');
-	else {
-		$qtxt="select id from adresser where kontonr='$kontonr' and art='D'";
-		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			alert("Kontonr $kontonr er ikke ledigt!");
-			return(NULL);
-			exit;
-		}
+	if (!$kontonr) {
+		$kontonr=get_next_number('adresser','D');
+	}
+	$qtxt="select id from adresser where kontonr='".db_escape_string($kontonr)."'";
+	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		alert("Kontonr $kontonr er ikke ledigt!");
+		return(NULL);
 	}
 	if ($postnr && !$bynavn) $bynavn=bynavn($postnr); #20190423
 	$betalingsdage = (int)$betalingsdage;
