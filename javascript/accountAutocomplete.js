@@ -11,6 +11,9 @@
 // 20261003 CL/SZ SD-716 window.closeAccountAutocomplete closes the panel, so Ctrl + arrow navigation (fieldNavigation.js) can move on from an open panel.
 // 20261003 CL/SZ SD-720 A search answer that arrives after the user left the field no longer opens the panel and takes the focus back.
 // 20261003 CL/SZ SD-721 A kreditor search that finds nothing offers "Opret kreditor", which opens kreditorFromCvr.js's dialog and puts the new kreditor in the field.
+// 20261005 CL/SZ SD-714 A Tab or Ctrl + arrow only keeps the panel closed for the focus change it makes. Before, a Tab that landed on a field without
+//                  the panel (Beløb, the type field) kept it closed for the next click into Debet or Kredit too.
+// 20261005 CL/SZ SD-714 A click in a document viewer (the pool's PDF) closes the panel; the click never reached the page, so the panel stayed open.
 (function () {
     'use strict'; 
 
@@ -118,6 +121,8 @@
         // });
 
         document.addEventListener('mousedown', function (e) {
+            // A click is never keyboard navigation: a Tab whose focus landed on a field without the panel must not stop this click from opening it
+            focusViaKeyboardNav = false;
             if (activeDropdown) {
                 if (activeDropdown.contains(e.target)) {
                     return;
@@ -129,11 +134,21 @@
             }
         });
 
+        // A click in a document viewer (the pool's PDF) never reaches the mousedown above; the focus moving into it closes the panel
+        window.addEventListener('blur', function () {
+            setTimeout(function () {
+                const el = document.activeElement;
+                if (activeDropdown && el && /^(IFRAME|EMBED|OBJECT)$/.test(el.tagName)) closeDropdown();
+            }, 0);
+        });
+
         document.addEventListener('keydown', function (e) {
             // Track keyboard navigation that moves focus (Tab, Shift+Tab, Ctrl+Arrow)
             // so the focus handler can suppress the dropdown opening
             if (e.key === 'Tab' || (e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) {
                 focusViaKeyboardNav = true;
+                // Only for the focus change this key makes: it happens before this timer, wherever the focus lands
+                setTimeout(function () { focusViaKeyboardNav = false; }, 0);
             }
 
             if (activeDropdown && !e.defaultPrevented) {
