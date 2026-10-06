@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-07-17 ---
+// --- api/rest_api.php --- lap 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -72,6 +72,7 @@
 // 20260911 Sawaneh insert_shop_order dispatch: blank the literal "dummyvalue" Shoptech
 //                     sends for empty address fields via strip_placeholder_value(); if_isset
 //                     calls in that block converted to ifset (JOB-115)
+// 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
 
 
 // ----------------------------------------------------------------------
@@ -140,9 +141,9 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	global $regnaar;
 
 	$betalingsdage=(int)$betalingsdage;
-	// havemøbelland
-	if($db == "pos_50"){
-		$lager = 10;
+	// Route this customer's shop orders to the replacement warehouse.
+	if ($db === 'pos_50') {
+		$lager = 4;
 	}
 	if(strtolower($ekstra1) == "betalingskort") {
 		$ekstra1 = "Ukendt kort";
@@ -437,9 +438,9 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	global $webservice;
 	global $regnaar;
 	
-	// havemøbelland
-	if($db == "pos_50"){
-		$lager = 10;
+	// Route this customer's shop orders to the replacement warehouse.
+	if ($db === 'pos_50') {
+		$lager = 4;
 	}
 
 	$varenr = NULL;

@@ -36,6 +36,7 @@
 //                detaljer goes in as audit_log_details_json(), since audit_log_write() takes strings.
 // 20261005 CL/SZ SD-727 A restore from the user's own upload in the pool ($via 'upload') is written with kilde 'ui'.
 // 20261004 CL/SZ SD-717 audit_log_write() takes strings (SD-724, the roles branch's signature): detaljer goes in as audit_log_details_json().
+// 20261006 CL/SZ SD-717 (CodeRabbit) poolArchiveSet() writes the archive change and its audit entry in one transaction; a failed write rolls both back.
 
 require_once __DIR__ . '/../auditLog.php';
 
@@ -124,6 +125,8 @@ if (!function_exists('poolArchiveSet')) {
 				$skipped[] = $filename;
 				continue;
 			}
+			// The change and its audit entry are written together or not at all: the archive's audit trail is kept for five years
+			transaktion('begin');
 			// The state is checked again in the update, so two users clicking at once give one change and one audit entry
 			if ($archive) {
 				// The database's clock, as audit_log.tidspunkt and pool_files.updated use
@@ -135,11 +138,18 @@ if (!function_exists('poolArchiveSet')) {
 			$check = db_fetch_array(db_select("SELECT archived FROM pool_files WHERE id = " . (int)$row['id'], __FILE__ . " linje " . __LINE__));
 			$nowArchived = $check && $check['archived'] !== null && $check['archived'] !== '';
 			if (!$check || $nowArchived !== (bool)$archive) {
+				transaktion('rollback');
 				$skipped[] = $filename;
 				continue;
 			}
 			$entry = poolArchiveAuditEntry($row, $archive, $archive ? (string)$check['archived'] : '', $userId === null ? null : (int)$userId);
 			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], audit_log_details_json($entry['detaljer']), 'ui');
+			if (!empty($GLOBALS['db_modify_fejl'])) {
+				transaktion('rollback');
+				$skipped[] = $filename;
+				continue;
+			}
+			transaktion('commit');
 			$changed[] = $filename;
 		}
 		return array('changed' => $changed, 'skipped' => $skipped);
