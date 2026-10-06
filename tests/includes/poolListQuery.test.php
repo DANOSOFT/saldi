@@ -97,6 +97,15 @@ final class poolListQuery extends TestCase
         $this->assertCount(3, poolListSearch($rows, '  '));
     }
 
+    public function testSearchFindsTheAmountAsShownWithDecimalComma(): void
+    {
+        $rows = [$this->row('a.pdf', '5.03'), $this->row('b.pdf', '1234.56'), $this->row('c.pdf', '')];
+        $this->assertSame(['a.pdf'], array_column(poolListSearch($rows, '5,03'), 'filename'));
+        $this->assertSame(['b.pdf'], array_column(poolListSearch($rows, '1.234,56'), 'filename'));
+        $this->assertSame(['b.pdf'], array_column(poolListSearch($rows, '1234,5'), 'filename'));
+        $this->assertSame(['a.pdf'], array_column(poolListSearch($rows, '5.03'), 'filename'));
+    }
+
     public function testSortByAmountReadsTheNumberAndKeepsTiesInOrder(): void
     {
         $rows = [$this->row('a.pdf', '1.000,00'), $this->row('b.pdf', '20,00'), $this->row('c.pdf', '20.00'), $this->row('d.pdf', '')];
