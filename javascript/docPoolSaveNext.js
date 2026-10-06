@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-04 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-06 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -19,11 +19,23 @@
 // 20261004 CL/SZ SD-726 With "Gem og gå til næste/forrige" (window.saldiShortcuts), Ctrl+↓ in an entry field does what Enter does.
 //                Ctrl+↑ saves the same way and opens the previous document in the list; without one, the next, as Enter.
 //                An unseen invoice-number warning takes the first Ctrl+↓ / Ctrl+↑, as it takes the first Enter.
+// 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
+// 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
+// 20261006 CL/SZ SD-716 Full-pass re-run: "Gem og næste" and the arrow keys go on from the first document after the last one, instead of
+//                stopping ("Ingen flere bilag i puljen") while more are only out of view; hosted here because it needs nextDocument() (SD-719).
+// 20261006 CL/SZ SD-716 The arrow keys open the other document with a new line and its own data when nothing was typed in the bilag, and leave the focus
+//                outside the fields so the next arrow key browses on. Before, the line kept the first document's transferred amount, which
+//                the other document would have been saved with, and the list re-sorted by that amount, so ← didn't go back.
+//                Also hosted here: needs the arrow keys' open() helper (SD-719).
 // 20261004 CL/SZ Pool account check: window.poolMarkFields() marks the Debet / Kredit the server refused ("eksisterer ikke"), as "Obligatorisk" is, and focuses the first.
 (function () {
     'use strict';
 
     var busy = false;
+    // Whether the user typed in the bilag's fields since the document opened; without that, the line holds only the document's transferred data
+    var lineTyped = false;
+    // Set when the arrow keys open a document: the focus stays outside the fields, so the next arrow key browses on
+    var keepFocusOutside = false;
     // The typed values of an unsaved line, which openPoolFile() carries in the URL
     var LINE_PARAMS = ['sourceId', 'bilag', 'dato', 'beskrivelse', 'debet', 'kredit', 'fakturanr', 'sum', 'afd', 'projekt', 'valuta', 'momsfri', 'forfald'];
 
@@ -114,6 +126,15 @@
         return Promise.resolve(neighbour(1, withArchived));
     }
 
+    /** The next document, else the first in the list: after the last row the pool goes on from the top, not to "Ingen flere bilag". */
+    function followingDocument() {
+        return nextDocument().then(function (next) {
+            if (next) return next;
+            var current = currentPoolFile();
+            return listedFiles().filter(function (file) { return file !== current; })[0] || null;
+        });
+    }
+
     /** The document before the current one, among those not yet processed; the next one when there is none before it. */
     function previousDocument() {
         var before = neighbour(-1);
@@ -156,6 +177,12 @@
         field.addEventListener('input', function () { clearMandatory(field); }, { once: true });
     }
 
+    /** True for an amount other than zero, as "1.234,56", "5,03", "-50" or "12.50"; letters and "0,00" are not. */
+    function isAmount(value) {
+        var number = value.replace(/\s/g, '').replace(/\.(?=\d{3}(?!\d))/g, '').replace(',', '.');
+        return /^-?\d+(\.\d+)?$/.test(number) && parseFloat(number) !== 0;
+    }
+
     /** Marks every missing mandatory field and returns the first one, or null when all are filled. */
     function firstMissing(entries) {
         var text = cfg().texts.mandatory;
@@ -168,7 +195,7 @@
                 var value = item[1] && typeof window.poolAccountValue === 'function'
                     ? window.poolAccountValue(prefix, item[1]).replace(/^[DKF]/i, '')
                     : field.value.trim();
-                if (value === '' || value === '0') {
+                if (value === '' || value === '0' || (item[0] === 'Amount' && !isAmount(value))) {
                     markMandatory(field, text);
                     if (!first) first = field;
                 } else {
@@ -237,6 +264,8 @@
         if (missing) {
             missing.focus();
             if (typeof missing.select === 'function') missing.select();
+            // A refused save carries nothing forward: the arrow keys treat this document as if nothing had been typed
+            lineTyped = false;
             return;
         }
         // SD-720: a split that doesn't add up warns on the first Enter; the second saves
@@ -245,7 +274,7 @@
         var file = currentPoolFile();
         var next = null;
         setBusy(true);
-        (step === -1 ? previousDocument() : nextDocument()).then(function (found) {
+        (step === -1 ? previousDocument() : followingDocument()).then(function (found) {
             next = found;
             return saveRowsInOrder(entries);
         }).then(function (newIds) {
@@ -263,13 +292,15 @@
             console.error(error);
             alert(error.message);
             setBusy(false);
+            // A refused save carries nothing forward: the arrow keys treat this document as if nothing had been typed
+            lineTyped = false;
         });
     }
 
     function skipDocument() {
         if (busy) return;
         busy = true;
-        nextDocument().then(function (next) {
+        followingDocument().then(function (next) {
             busy = false;
             leaveFor(next ? documentUrl(next, true) : doneUrl());
         });
@@ -304,6 +335,18 @@
         return true;
     };
     window.poolSkipDocument = skipDocument;
+
+    /**
+     * Pool URL for a document clicked in the list: a new line with its own data when nothing was typed in the new line, as
+     * the arrow keys and "Gem og næste" open it (spec: "read values pre-filled"); null keeps the typed line (docPool.php's openPoolFile()).
+     */
+    window.poolFreshDocumentUrl = function (href) {
+        var c = cfg();
+        if (!c || c.readOnly || lineTyped || !document.getElementById('bilagEntry_new')) return null;
+        if (editableEntries().length !== 1) return null;
+        var file = new URL(href, window.location.href).searchParams.get('poolFile');
+        return file ? documentUrl(file, true) : null;
+    };
 
     /** The lookup panel is open with a line highlighted: Enter belongs to it (it picks that line). */
     function panelHasSelection() {
@@ -341,6 +384,13 @@
             if (inField(target) || modalOpen() || busy) return;
             var open = function (other) {
                 if (!other) return;
+                // Nothing typed: the other document gets a new line with its own data, as "Spring over" gives it.
+                // Carrying this document's transferred amount would put it on the other document and re-sort the list by it.
+                if (!lineTyped) {
+                    keepFocusOutside = true;
+                    leaveFor(documentUrl(other, true));
+                    return;
+                }
                 var href = documentUrl(other, false);
                 if (typeof window.openPoolFile === 'function') window.openPoolFile(href); else leaveFor(href);
             };
@@ -388,6 +438,9 @@
     function init() {
         var params = new URLSearchParams(window.location.search);
         busy = false;
+        lineTyped = false;
+        var keepFocus = keepFocusOutside;
+        keepFocusOutside = false;
         var note = document.querySelector('#leftPanel .pool-done-note');
         if (note && params.get('poolDone') !== '1') note.remove();
         if (params.get('poolDone') === '1') showDone();
@@ -400,7 +453,7 @@
                 if (document.getElementById('bilagEntry_new') && typeof window.transferDataFromSelectedFile === 'function') {
                     window.transferDataFromSelectedFile({ auto: true });
                 }
-                focusNewLine();
+                if (!keepFocus) focusNewLine();
             });
         }
     }
@@ -416,6 +469,11 @@
             setTimeout(wait, 100);
         })();
     }
+
+    // Only the user's own typing counts (isTrusted): the transfer and the lookup panel fill the fields by script
+    document.addEventListener('input', function (e) {
+        if (e.isTrusted && e.target instanceof Element && e.target.closest('.kassebilag-entry')) lineTyped = true;
+    }, true);
 
     // A document opened in place (SD-719) is a new start for the transfer, the focus and the note
     document.addEventListener('poolswitch', init);

@@ -1,6 +1,6 @@
 <!doctype html>
 <?php
-// --- includes/documents.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/documents.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,9 @@
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 // 20261003 CL/SZ SD-722 An upload that was extracted stores the document's snapshot on its pool row (poolCapture.php).
 //                A document attached to a journal line gets "Rapportér fejl i aflæsning" in the viewer's left panel, when the company has it switched on.
+// 20261005 CL/SZ SD-727 An uploaded PDF or XML whose content is in the pool already is not kept: the answer names that document (duplicateOf).
+//                An archived one comes back to the list (poolArchiveRestoreOnArrival(), kilde 'ui'), also when the extraction is on.
+//                Rows without a content hash (from earlier uploads) get it first (poolContentHashBackfill()).
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -228,6 +231,26 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				// Move PDF and XML files unchanged onto the reserved placeholder.
 				if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile)) {
 					$reservation->discard();
+				}
+				// The pool's load drops a second copy of a bilag it holds (MB-42); the upload says so and opens the one there.
+				// Checked here, before the extraction gives the copy a row of its own and the load no longer sees it as new.
+				// A copy of an archived bilag brings that one back to the list (SD-727).
+				if (file_exists($targetFile)) {
+					include_once(__DIR__ . '/docsIncludes/poolContentHash.php');
+					// Rows from uploads before the hash was stored for them would never match otherwise
+					poolContentHashBackfill($poolDir);
+					$uploadHash = poolContentHashColumnExists() ? poolContentHashForFile($targetFile) : '';
+					$sameRow = $uploadHash ? db_fetch_array(db_select("SELECT * FROM pool_files WHERE content_sha256 = '" . db_escape_string($uploadHash) . "' AND filename != '" . db_escape_string(basename($targetFile)) . "' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__)) : false;
+					if ($sameRow && is_file("$poolDir/" . $sameRow['filename'])) {
+						if (!empty($sameRow['archived'])) {
+							include_once(__DIR__ . '/docsIncludes/poolArchive.php');
+							poolArchiveRestoreOnArrival($sameRow['filename'], basename($_FILES['uploadedFile']['name']), 'upload');
+						}
+						unlink($targetFile);
+						header('Content-Type: application/json');
+						echo json_encode(['success' => true, 'filename' => $sameRow['filename'], 'duplicateOf' => $sameRow['filename'], 'extracted' => null]);
+						exit;
+					}
 				}
 				// Extract PDF data through the API or UBL XML data locally.
 				if ($autoExtract && file_exists($targetFile)) {
