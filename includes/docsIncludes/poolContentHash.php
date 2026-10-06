@@ -23,6 +23,7 @@
 //                  connect.php but never betweenUpdates.php) and the pulje-folder sync both read and
 //                  write it, so an installation that only ever receives API traffic would otherwise
 //                  hit "column content_sha256 does not exist" on its first upload.
+// 20261004 LOE Support original-upload hashes and cache column availability per tenant.
 // 20261005 CL/SZ SD-727 poolContentHashStore() and poolContentHashBackfill(): a row an upload's extraction created had no hash, so the
 //                  same bilag arriving again was never recognised (MB-42) and an archived one never restored.
 
@@ -37,14 +38,20 @@ if (!function_exists('poolContentHashColumnExists')) {
 	 * CREATE TABLE fallback already includes the column).
 	 *
 	 * @param bool $create Create the column and its index when they are missing.
+	 * @param string $column Stored-file or original-upload hash column.
 	 * @return bool Whether the column exists (after the attempt).
 	 */
-	function poolContentHashColumnExists($create = false)
+	function poolContentHashColumnExists($create = false, $column = 'content_sha256')
 	{
-		global $db_type;
-		static $exists = null;
-
-		if ($exists === true) {
+		global $db_type, $db;
+		if (!in_array($column, array('content_sha256', 'source_sha256'), true)) {
+			throw new InvalidArgumentException('Invalid pool hash column');
+		}
+		static $columns = array();
+		static $indexes = array();
+		$key = $db_type . ':' . $db . ':' . $column;
+		$exists = isset($columns[$key]) ? $columns[$key] : null;
+		if ($exists === true && (!$create || isset($indexes[$key]))) {
 			return true;
 		}
 		if ($exists === false && !$create) {
@@ -53,56 +60,54 @@ if (!function_exists('poolContentHashColumnExists')) {
 
 		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
 		$schemaClause = $mysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
-		$probe = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = 'content_sha256'" . $schemaClause;
-
+		$probe = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$column'" . $schemaClause;
 		$exists = (bool) db_fetch_array(db_select($probe, __FILE__ . " linje " . __LINE__));
-		if ($exists || !$create) {
+		$columns[$key] = $exists;
+		if (!$create) {
 			return $exists;
 		}
-
-		// Without the table there is nothing to alter; the caller's CREATE TABLE fallback creates it
-		// with the column already in place.
-		$tableProbe = "SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'" . $schemaClause;
-		if (!db_fetch_array(db_select($tableProbe, __FILE__ . " linje " . __LINE__))) {
-			return false;
+		if (!$exists) {
+			$tableProbe = "SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'" . $schemaClause;
+			if (!db_fetch_array(db_select($tableProbe, __FILE__ . " linje " . __LINE__))) {
+				return false;
+			}
 		}
 
+		// MySQL lacks ADD COLUMN/CREATE INDEX IF NOT EXISTS. Hold the same schema lock
+		// through both operations so concurrent login/API requests cannot race either one.
+		$lock = "CONCAT('saldi:pool_files_hash_schema:', MD5(DATABASE()))";
 		if ($mysql) {
-			// No ADD COLUMN IF NOT EXISTS on MySQL and two concurrent uploads can both pass the check
-			// above, so serialize per tenant and recheck under the lock (same as betweenUpdates.php).
-			$lock = "CONCAT('saldi:pool_files_content_hash:', MD5(DATABASE()))";
 			$lockResult = db_fetch_array(db_select("SELECT GET_LOCK($lock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
 			if ((int) (isset($lockResult['acquired']) ? $lockResult['acquired'] : 0) !== 1) {
 				return false;
 			}
-			try {
-				if (!db_fetch_array(db_select($probe, __FILE__ . " linje " . __LINE__))) {
-					db_modify("ALTER TABLE pool_files ADD COLUMN content_sha256 CHAR(64)", __FILE__ . " linje " . __LINE__);
+		}
+		try {
+			if (!db_fetch_array(db_select($probe, __FILE__ . " linje " . __LINE__))) {
+				$ifNotExists = $mysql ? '' : 'IF NOT EXISTS ';
+				db_modify("ALTER TABLE pool_files ADD COLUMN " . $ifNotExists . "$column CHAR(64)", __FILE__ . " linje " . __LINE__);
+			}
+			$exists = (bool) db_fetch_array(db_select($probe, __FILE__ . " linje " . __LINE__));
+			$columns[$key] = $exists;
+			// Non-unique: older duplicate rows must remain valid until explicitly removed.
+			if ($exists) {
+				if ($mysql) {
+					$indexProbe = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'idx_pool_files_{$column}'";
+					$indexSql = "CREATE INDEX idx_pool_files_{$column} ON pool_files ($column)";
+				} else {
+					$indexProbe = "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexname = 'idx_pool_files_{$column}'";
+					$indexSql = "CREATE INDEX IF NOT EXISTS idx_pool_files_{$column} ON pool_files ($column)";
 				}
-			} finally {
+				if (!db_fetch_array(db_select($indexProbe, __FILE__ . " linje " . __LINE__))) {
+					db_modify($indexSql, __FILE__ . " linje " . __LINE__);
+				}
+				$indexes[$key] = true;
+			}
+		} finally {
+			if ($mysql) {
 				db_select("SELECT RELEASE_LOCK($lock)", __FILE__ . " linje " . __LINE__);
 			}
-		} else {
-			db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS content_sha256 CHAR(64)", __FILE__ . " linje " . __LINE__);
 		}
-
-		$exists = (bool) db_fetch_array(db_select($probe, __FILE__ . " linje " . __LINE__));
-
-		// Non-unique on purpose: two different bilag may share content, and a unique index would make
-		// the sync's own duplicate cleanup fail on the rows that cleanup exists to remove.
-		if ($exists) {
-			if ($mysql) {
-				$indexProbe = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'idx_pool_files_content_sha256'";
-				$indexSql = "CREATE INDEX idx_pool_files_content_sha256 ON pool_files (content_sha256)";
-			} else {
-				$indexProbe = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_content_sha256'";
-				$indexSql = "CREATE INDEX IF NOT EXISTS idx_pool_files_content_sha256 ON pool_files (content_sha256)";
-			}
-			if (!db_fetch_array(db_select($indexProbe, __FILE__ . " linje " . __LINE__))) {
-				db_modify($indexSql, __FILE__ . " linje " . __LINE__);
-			}
-		}
-
 		return $exists;
 	}
 }
