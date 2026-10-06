@@ -126,6 +126,7 @@
 //                Any row id starting with "new" is saved as a new line, and "Gem alle" saves the rows one after another so pos follows the order shown.
 //                chooseMultipleBilag()'s pre-save skips every new* row, not only "new": they are saved by then and would be saved twice as lines without a bilag.
 //                A new row remembers the line it was saved as in _saveRowFetch(), so "Gem" or "Gem alle" again after a refused row updates that line instead of adding a second.
+// 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -5980,12 +5981,23 @@ HTML;
             if (failed) {
                 alert("<?php echo $txt31 ?>: " + (failed.message || "<?php echo $txt38 ?>"));
                 if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt72 ?>"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
-            } else if (newSourceId) {
+            } else if (newSourceId && !(window.poolSplit && window.poolSplit.active())) {
                 savePoolListView();
                 var url = new URL(window.location.href);
                 url.searchParams.set("sourceId", newSourceId);
                 window.location.href = url.href;
             } else {
+                // A split bilag stays on the page: reloaded as its first line, the other rows were folded away and only
+                // that line got the document. The rows are their lines now (savedLineId) and every one stays ticked for it.
+                if (newSourceId) {
+                    entries.forEach(function(entry, i) {
+                        var box = entry.querySelector('.targetLineCheckbox');
+                        if (box && results[i] && results[i].success && results[i].sourceId) {
+                            box.value = results[i].sourceId;
+                            box.checked = true;
+                        }
+                    });
+                }
                 if (gemAlleBtn) {
                     gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt73 ?>";
                     setTimeout(() => {
