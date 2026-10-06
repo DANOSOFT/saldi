@@ -71,18 +71,6 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
-require_once __DIR__ . '/alignOpenpostIncludes/period.php';
-// A period change reloads the page as a plain GET, not a settlement submit - fall back to $_GET so
-// that reload can still carry forward the in-progress selections and invoice-reference draft below,
-// instead of silently losing them (they'd otherwise only ever be read from $_POST).
-$periodRequest = isset($_POST['submit']) ? $_POST : $_GET;
-$kilde = ifset($periodRequest, 'kilde') === 'show_all' ? 'show_all' : 'openpost';
-$requestedPeriodFrom = ifset($periodRequest, 'period_from');
-$requestedPeriodTo = ifset($periodRequest, 'period_to');
-$pendingInvoiceReference = null;
-$insertInvoiceNumbers = ifset($periodRequest, 'insert_invoice_numbers') === 'on';
-$invoiceReferenceEdited = ifset($_POST, 'invoice_reference_edited') === '1';
-$manualInvoiceReference = trim((string)ifset($periodRequest, 'manual_invoice_reference', ''));
 if (isset($_POST['submit'])) {
  	$submit=strtolower(trim($_POST['submit']));
 	$post_id=if_isset($_POST['post_id']);

@@ -1,6 +1,8 @@
 <?php
 
 // 20210712 LOE - Translated Some texts 
+// 20260811 Sawaneh Added 'batchExpiryEnabled' checkbox that switches the batch/expiry date section
+//                  on the item card on. Off by default.
 
 function productOptions($defaultProvision) {
 	global $sprog_id;
@@ -110,6 +112,8 @@ function productOptions($defaultProvision) {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		if ($r['var_value'] === 'on') $packagingModuleEnabled = 'checked';
 	}
+	$batchExpiryEnabled = '';
+	if (get_settings_value('batchExpiryEnabled', 'items', 'off') === 'on') $batchExpiryEnabled = 'checked';
 	print "<form name='productOptions' action='diverse.php?sektion=productOptions' method='post'>";
 	print "<tr><td colspan='6'><hr></td></tr>";
 	$text = findtekst('470|Varerelaterede valg',$sprog_id);
@@ -274,6 +278,21 @@ function productOptions($defaultProvision) {
 	$emb_title = ($sprog_id == 2) ? 'Activates the packaging module on product cards and reports' : 'Aktiverer emballagemodulet på varekort og rapporter';
 	print "<tr><td title='$emb_title'>$emb_label</td>";
 	print "<td title='$emb_title'><input type='checkbox' class='inputbox' name='packagingModuleEnabled' $packagingModuleEnabled></td></tr>";
+
+	# Inline texts as in the packaging row above - the text ids in tekster.csv differ between
+	# installations, so a hardcoded id can end up showing another setting's label.
+	if ($sprog_id == 2) {
+		$batch_label = 'Use batch and expiry date handling';
+		$batch_title = 'Shows the expiry date fields on the product card. The product group must also have batch control';
+	} elseif ($sprog_id == 3) {
+		$batch_label = 'Bruk batch- og utløpsdatostyring';
+		$batch_title = 'Viser feltene for utløpsdato på varekortet. Varegruppen må også ha batchkontroll';
+	} else {
+		$batch_label = 'Anvend batch- og udløbsdatostyring';
+		$batch_title = 'Viser felterne til udløbsdato på varekortet. Varegruppen skal desuden have batchkontrol';
+	}
+	print "<tr><td title='$batch_title'>$batch_label</td>";
+	print "<td title='$batch_title'><input type='checkbox' class='inputbox' name='batchExpiryEnabled' $batchExpiryEnabled></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td>";
 	$text = findtekst('471|Gem/opdatér', $sprog_id);
 	print "<td align = center><input class='button green medium' type=submit accesskey='g' value='$text' name='submit'><!--tekst 471--></td>";

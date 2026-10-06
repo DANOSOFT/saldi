@@ -35,7 +35,6 @@
 //                top-level reportFunc/ copy) - exact kontonr match first, second
 //                firmanavn query line appended instead of overwriting, and
 //                konto_fra/kontoart escaped before SQL interpolation
-// 20260925 CDX/PHR Default to open posts and preserve the report filter when opening settlement.
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -432,6 +431,11 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 		$pre_openpost=0;
 		for ($y=1;$y<=count($oppId);$y++) {
 			$diff=0;
+			# Filter Open Post: same rule as the classic layout below, otherwise
+			# "Vis åbne poster" still lists settled entries in the top-menu layout.
+			if ($OpenPost == 'on' && $udlignet[$y] == '1') {
+				continue;
+			}
 			if ($transdate[$y]<$fromdate) {
 				 $primoprint[$x]=0;
 				 $kontosum+=$amount[$y];
@@ -530,6 +534,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 		}
 		if ($primoprint[$x]==0) {
 			$tmp=dkdecimal($kontosum,2);
+			// Every entry may have been skipped by the open-post filter, so the loop never set $dkktmp.
+			$dkktmp=dkdecimal($dkksum ?? 0,2);
 			print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency sum $dkktmp\">$tmp<br></td></tr>\n";
 		}
 

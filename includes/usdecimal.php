@@ -29,4 +29,15 @@ if (!function_exists('usdecimal'))
     return $tal;
   }
 }
+
+if (!function_exists('usdecimal_strict'))
+{
+  function usdecimal_strict(string $amount): float
+  {
+    if (substr_count($amount, ".") === 1 && strpos($amount, ",") === false && preg_match('/\.\d{2}$/', $amount)) {
+      throw new InvalidArgumentException("Ambiguous decimal amount: $amount");
+    }
+    return usdecimal($amount);
+  }
+}
 ?>

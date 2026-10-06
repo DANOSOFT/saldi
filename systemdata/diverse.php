@@ -109,7 +109,6 @@
 // 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
 // 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
 // 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
-// 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 
 @session_start();
 $s_id = session_id();
@@ -639,6 +638,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'ordre_valg') {
 		$vatPrivateCustomers  = if_isset($_POST['vatPrivateCustomers']);
 		$vatBusinessCustomers = if_isset($_POST['vatBusinessCustomers']);
+		$hideRevenue          = (ifset($_POST, 'hideRevenue') === 'on') ? 'on' : 'off'; #SD-657
 		$box2                 = if_isset($_POST['box2']); #Rabatvarenr
 		$box3                 = if_isset($_POST['box3']); #folge_s_tekst
 		$box4                 = if_isset($_POST['box4']); #hurtigfakt
@@ -728,6 +728,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		// Save VAT options to settings table
 		update_settings_value("vatPrivateCustomers", "ordre", $vatPrivateCustomers, "Show VAT on orders for private customers");
 		update_settings_value("vatBusinessCustomers", "ordre", $vatBusinessCustomers, "Show VAT on orders for business customers");
+		update_settings_value("hideRevenue", "finans", $hideRevenue, "Keep turnover from users without access to Settings");
 		
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];

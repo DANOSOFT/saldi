@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-09-18--------------
+// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-05--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,12 +59,18 @@
 // 20260910 Sawaneh Order links carry the popup=1 request flag so a real popup window still closes on Back.
 // 20260911 CDX/LH SD-186 Label the searchable employee column Udført af in order and invoice lists.
 //                  Define it in the column pool so saved layouts use the same field configuration.
+// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260916 CDX/LH Translate the existing performed-by column using text ID 5231.
+// 20260916 LOE SD-685: headers declare headerText so a saved header can be told from a rename.
 // 20260917 CL/LH Lagerstatus: centrale farvekonstanter, status-ikoner og fremhævet
 //                 forklaring i popup'en, restordrer vises også, Vis lagerstatus/Tilbage
 //                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
+// 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
+// 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
+// 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
+// 20261005 LOE SD-687 Department names are escaped where the filter options are built.
 
 @session_start();
 $s_id = session_id();
@@ -535,6 +541,7 @@ if ($menu == 'T') include_once 'ordLstIncludes/topMenu.php';
 elseif ($menu == 'S') include_once 'ordLstIncludes/topLine.php';
 else include_once 'ordLstIncludes/oldTopLine.php';
 include(get_relative() . "includes/orderFuncIncludes/grid_order.php"); 
+include(get_relative() . "includes/orderFuncIncludes/dateRangeSearch.php"); 
 
 
 
@@ -696,58 +703,14 @@ while ($r = db_fetch_array($q)) {
     );
 }
 
-###########date range
-
-/**
- * Generate SQL condition for date range search
- */
-function generateDateRangeSearch($column, $term) {
-    $field = $column['sqlOverride'] ?: $column['field'];
-    $term = db_escape_string(trim($term, "'"));
-    
-    if (empty($term)) {
-        return "1=1";
-    }
-    
-    // Check if it's a date range (contains " : " or " - ")
-    if (strpos($term, ' : ') !== false || strpos($term, ' - ') !== false) {
-        // Normalize to colon separator for splitting
-        $term = str_replace(' - ', ' : ', $term);
-        $dates = explode(' : ', $term);
-        
-        if (count($dates) == 2) {
-            $startDate = trim($dates[0]);
-            $endDate = trim($dates[1]);
-            
-            // Convert DD-MM-YYYY to YYYY-MM-DD for SQL
-            $startParts = explode('-', $startDate);
-            $endParts = explode('-', $endDate);
-            
-            if (count($startParts) == 3 && count($endParts) == 3) {
-                $sqlStartDate = $startParts[2] . '-' . $startParts[1] . '-' . $startParts[0];
-                $sqlEndDate = $endParts[2] . '-' . $endParts[1] . '-' . $endParts[0];
-                
-                return "({$field} >= '$sqlStartDate' AND {$field} <= '$sqlEndDate')";
-            }
-        }
-    }
-    
-    // Single date search
-    $parts = explode('-', $term);
-    if (count($parts) == 3) {
-        $sqlDate = $parts[2] . '-' . $parts[1] . '-' . $parts[0];
-        return "({$field} = '$sqlDate')";
-    }
-    
-    return "1=1";
-}
-###########
+###########date range: see includes/orderFuncIncludes/dateRangeSearch.php###########
 
 // Default
 $custom_columns = array(
     "ordrenr" => array(
         "field" => "ordrenr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "headerText" => '500|Ordrenr.',
         "width" => "0.8",
         "align" => "right",
         "type"  => "number",
@@ -852,6 +815,7 @@ $custom_columns = array(
     "ordredate" => array(
         "field" => "ordredate",
         "headerName" => findtekst('881|Ordredato', $sprog_id),
+        "headerText" => '881|Ordredato',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -867,6 +831,7 @@ $custom_columns = array(
     "levdate" => array(
         "field" => "levdate",
         "headerName" => findtekst('886|Dato for levering', $sprog_id),
+        "headerText" => '886|Dato for levering',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -878,6 +843,7 @@ $custom_columns = array(
     "fakturanr" => array(
         "field" => "fakturanr",
         "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
+        "headerText" => '882|Fakt. nr.',
         "width" => "0.8",
         "align" => "right",
         "type" => "number",
@@ -912,6 +878,7 @@ $custom_columns = array(
     "fakturadate" => array(
         "field" => "fakturadate",
         "headerName" => findtekst('883|Fakt. dato', $sprog_id),
+        "headerText" => '883|Fakt. dato',
         "width" => "1",
         "type" => "date",
         "searchable" => true,
@@ -924,6 +891,7 @@ $custom_columns = array(
     "firmanavn" => array(
         "field" => "firmanavn",
         "headerName" => findtekst('360|Firmanavn', $sprog_id),
+        "headerText" => '360|Firmanavn',
         "width" => "2",
         "type" => "text",
         "searchable" => true,
@@ -987,6 +955,7 @@ $custom_columns = array(
     "kontonr" => array(
         "field" => "kontonr",
         "headerName" => findtekst('804|Kontonr.', $sprog_id),
+        "headerText" => '804|Kontonr.',
         "width" => "1",
         "type" => "text",
         "sqlOverride" => "o.kontonr",
@@ -1010,6 +979,7 @@ $custom_columns = array(
     "ref" => array(
         "field" => "ref",
         "headerName" => findtekst('884|Sælger', $sprog_id),
+        "headerText" => '884|Sælger',
         "width" => "1.5",
         "type" => "dropdown",
         "searchable" => true,
@@ -1093,6 +1063,7 @@ $custom_columns = array(
     "betalingsbet" => array(
         "field" => "betalingsbet",
         "headerName" => findtekst('56|Betalingsbet.', $sprog_id),
+        "headerText" => '56|Betalingsbet.',
         "width" => "1",
         "type" => "dropdown",
         "align" => "left",
@@ -1179,6 +1150,7 @@ $custom_columns = array(
     "kundeordnr" => array(
         "field" => "kundeordnr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "headerText" => '500|Ordrenr.',
         "width" => "1",
         "type" => "text",
         "align" => "right",
@@ -1199,6 +1171,7 @@ $custom_columns = array(
     "debitorgruppe" => array(
         "field" => "debitorgruppe",
         "headerName" => findtekst('2413|Debitorgruppe', $sprog_id),
+        "headerText" => '2413|Debitorgruppe',
         "width" => "1.5",
         "type" => "dropdown",
         "align" => "left",
@@ -1235,6 +1208,7 @@ $custom_columns = array(
     "land" => array(
         "field" => "land",
         "headerName" => findtekst('364|Land', $sprog_id),
+        "headerText" => '364|Land',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1253,6 +1227,7 @@ $custom_columns = array(
     "felt_1" => array(
         "field" => "felt_1",
         "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),
+        "headerText" => '255|Ekstrafelt 1',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1264,6 +1239,7 @@ $custom_columns = array(
     "felt_2" => array(
         "field" => "felt_2",
         "headerName" => findtekst('256|Ekstrafelt 2', $sprog_id),
+        "headerText" => '256|Ekstrafelt 2',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1275,6 +1251,7 @@ $custom_columns = array(
     "felt_3" => array(
         "field" => "felt_3",
         "headerName" => findtekst('257|Ekstrafelt 3', $sprog_id),
+        "headerText" => '257|Ekstrafelt 3',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1286,6 +1263,7 @@ $custom_columns = array(
     "felt_4" => array(
         "field" => "felt_4",
         "headerName" => findtekst('258|Ekstrafelt 4', $sprog_id),
+        "headerText" => '258|Ekstrafelt 4',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1297,6 +1275,7 @@ $custom_columns = array(
     "felt_5" => array(
         "field" => "felt_5",
         "headerName" => findtekst('259|Ekstrafelt 5', $sprog_id),
+        "headerText" => '259|Ekstrafelt 5',
         "width" => "1.5",
         "type" => "text",
         "align" => "left",
@@ -1415,6 +1394,20 @@ if ($saved_columns !== null) {
 
 ############
 
+// SD-657: the setting closes the list's money columns for users without the Indstillinger right. They are
+// dropped here - from the pool and in the generated-column loop below - because the fields would otherwise be
+// offered again as ordrer columns and a saved layout would bring them back on screen and into the export.
+// sum and sum_m_moms are the turnover; moms is the VAT on it and kostpris the cost behind it, and the review
+// pointed out that a saved layout could still surface the latter two. Display only, the totals are calculated.
+$revenue_columns = array();
+if (hide_revenue()) {
+    $revenue_columns = array('sum', 'sum_m_moms', 'moms', 'kostpris');
+    foreach ($revenue_columns as $revenue_column) {
+        unset($custom_columns[$revenue_column]);
+    }
+    $active_column_names = array_values(array_diff($active_column_names, $revenue_columns));
+}
+
 $active_set = array_flip($active_column_names);
 $column_pool = []; // keyed by field name
  
@@ -1428,7 +1421,7 @@ foreach ($custom_columns as $field_name => $column_def) {
 foreach ($all_db_columns as $field_name => $column_info) {
     $grid_type = $column_info['grid_type'];
     $decimalPrecision = $column_info['decimalPrecision'];
-    $skip_fields = ['id', 'tidspkt', 'copied', 'scan_id'];
+    $skip_fields = array_merge(array('id', 'tidspkt', 'copied', 'scan_id'), $revenue_columns);
     if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
         continue;
     }
@@ -1678,37 +1671,37 @@ $metaColumnHeaders = ['']; //
 // Filters setup
 $filters = array();
 
-// Order type filter
-$filters[] = array(
-    "filterName" => findtekst('2769|Ordretype', $sprog_id),
-    "joinOperator" => "or",
-    "options" => array(
-        array(
-            "name" => findtekst('2770|Tilbud', $sprog_id),
-            "checked" => ($valg == "tilbud") ? "checked" : "",
-            "sqlOn" => "o.status < 1",
-            "sqlOff" => "",
-        ),
-        array(
-            "name" => findtekst('107|Ordrer', $sprog_id),
-            "checked" => ($valg == "ordrer") ? "checked" : "",
-            "sqlOn" => $hurtigfakt ? "o.status < 3" : "(o.status = 1 OR o.status = 2)",
-            "sqlOff" => "",
-        ),
-        array(
-            "name" => findtekst('1777|Fakturaer', $sprog_id),
-            "checked" => ($valg == "faktura") ? "checked" : "",
-            "sqlOn" => "o.status >= 3",
-            "sqlOff" => "",
-        ),
-        array(
-            "name" => "BS",
-            "checked" => ($valg == "pbs") ? "checked" : "",
-            "sqlOn" => "o.art = 'PO' AND o.konto_id > '0'", // PBS orders
-            "sqlOff" => "",
-        )
-    )
-);
+// SD-687: the list's type comes from the menu ($valg), so a filter offering the types could only
+// repeat the base condition below or contradict it - a different type returned no rows at all.
+// What is left filters on something the tab does not already decide, following the lager lists:
+// the options come from the tenant's own rows, nothing ticked means no restriction, and ticking
+// only ever narrows.
+
+// Departments (grupper art='AFD')
+$q = db_select("SELECT kodenr, beskrivelse FROM grupper WHERE art = 'AFD' ORDER BY kodenr", __FILE__ . " linje " . __LINE__);
+$afd_options = array();
+while ($r = db_fetch_array($q)) {
+    $afd_options[] = array(
+        "optionKey" => "afd_" . $r['kodenr'],
+        "name" => htmlspecialchars($r['beskrivelse'], ENT_QUOTES, 'UTF-8'),
+        "checked" => "",
+        "sqlOn" => "o.afd = " . (int)$r['kodenr'],
+        "sqlOff" => "",
+    );
+}
+if ($afd_options) {
+    $filters[] = array(
+        "filterKey" => "afdelinger",
+        "filterName" => findtekst('772|Afdelinger', $sprog_id),
+        "joinOperator" => "or",
+        "options" => $afd_options,
+    );
+}
+
+// PBS is deliberately not a filter here. Its rows are the posted invoices of the PBS delivery, and
+// the PBS flow has its own screens already - the BS tab renders the delivery list (pbsliste.php),
+// and pbsfakt.php/pbsfile.php do the rest - so a filter on this page could only ever return the 0
+// rows of the open-order range. The filters keep to what can narrow any tab: the department.
 
 ###############################Data configuration##############*****************++++++++++++++++
 
@@ -1806,6 +1799,7 @@ if ($vis_lagerstatus) {
 
 $data = array(
     "table_name" => "ordrer",
+    "noRowsText" => findtekst('2730|Ingen ordrer matcher de angivne søgekriterier', $sprog_id),
     "query" => "SELECT 
         $select_fields
     FROM ordrer o
@@ -2699,19 +2693,23 @@ print "</div>";  // END LEFT
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
 print "<div>";
+    if (!hide_revenue()) {
     print "<a href='ordreliste.php?genberegn=1&valg=$valg'>
                 <b>" . findtekst('878|Samlet omsætning / db / dg (ekskl. moms.)', $sprog_id) . "</b>
            </a><br>";
     print "$ialt_formatted / $dk_db / $dk_dg%<br>";
     print "<b>" . findtekst('877|Samlet omsætning inkl. moms', $sprog_id)
           . ": $ialt_m_moms_formatted</b>";
+    }
 } else {
 print "<div id='center-turnover' style='flex:1; text-align:center;'>";
 print "<div style='display:flex;'>";
+    if (!hide_revenue()) {
     print findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id) . "<br>";
     print findtekst('2772|db / dg (ekskl. moms)', $sprog_id) . "<br>";
     print "<b style='margin-left: 20px;'>$ialt_m_moms_formatted ($ialt_formatted)<br>
            $dk_db / $dk_dg%</b>";
+    }
 }
 
 print "</div>";
