@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-04 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -101,6 +101,11 @@
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261006 LOE SST-858 A bilag is deleted, renamed and inventoried by the name it actually has, so a
+//                 file stored as AArsoversigt.PDF is removed from the pulje folder too and does not
+//                 return from the next folder sync; its .info/.xml side files follow whatever their
+//                 spelling, the rename keeps the metadata row instead of writing a lower case ghost,
+//                 and the missing-row check sees .PDF and .XML like the sync does.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -140,6 +145,143 @@ if (!function_exists('docPoolLog')) {
 		
 		error_log($message, 3, $logFile);
 	}
+}
+
+/**
+ * A pool file name as pool_files holds it: a bare name, never a path.
+ *
+ * A name that carries a directory part is refused rather than trimmed, so a request cannot make the
+ * delete, the rename or the unlink below reach a file outside the pulje folder. A value that is not a
+ * scalar (a request that sends unlinkFile[]=... arrives as an array) is refused as well.
+ *
+ * @param mixed $filename The name to check.
+ * @return string The bare name, or '' when it is empty, a dot name, not a scalar, or carries a path.
+ */
+function poolFileName($filename) {
+	if (!is_scalar($filename)) return '';
+	$filename = trim((string)$filename);
+	if ($filename === '' || $filename === '.' || $filename === '..') return '';
+	if (strpos($filename, '/') !== false) return '';
+	if (strpos($filename, '\\') !== false) return '';
+	return $filename;
+}
+
+/**
+ * Every file in the pulje folder that belongs to the same bilag as the given name.
+ *
+ * The document itself and its .info/.xml side files. The folder is listed once and the base names are
+ * compared without regard to case, because the file system is case sensitive and the side file is
+ * written from the base name the document was stored under: AArsoversigt.PDF has AArsoversigt.info
+ * next to it, while "AArsoversigt" . ".pdf" points at nothing.
+ *
+ * @param string $puljePath The pulje folder.
+ * @param string $filename The document's name.
+ * @return string[] The names sharing that base name; empty when the name is refused or the folder cannot be read.
+ */
+function poolFileCompanions($puljePath, $filename) {
+	$name = poolFileName($filename);
+	if ($name === '' || !is_dir($puljePath)) return array();
+	$files = scandir($puljePath);
+	if ($files === false) return array();
+	$base = pathinfo($name, PATHINFO_FILENAME);
+	$companions = array();
+	foreach ($files as $file) {
+		if ($file === '.' || $file === '..') continue;
+		$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+		if ($ext !== 'pdf' && $ext !== 'xml' && $ext !== 'info') continue;
+		if (strcasecmp(pathinfo($file, PATHINFO_FILENAME), $base) !== 0) continue;
+		$companions[] = $file;
+	}
+	return $companions;
+}
+
+/**
+ * Removes the file the name points to together with its side files.
+ *
+ * The exact name wins; only when no file carries it is a name that differs in case accepted, which is
+ * what a row written by the old rename left behind.
+ *
+ * @param string $puljePath The pulje folder.
+ * @param string $filename The document's name.
+ * @return array{
+ *   deleted: string[],  The names removed from the folder.
+ *   missing: string[],  The names that were not there, or could not be removed.
+ *   refused: string,    The name as it arrived when it carries a path, otherwise ''.
+ * }
+ */
+function poolDeleteFiles($puljePath, $filename) {
+	$result = array('deleted' => array(), 'missing' => array(), 'refused' => '');
+	$name = poolFileName($filename);
+	if ($name === '') {
+		$result['refused'] = (string)$filename;
+		return $result;
+	}
+	$companions = poolFileCompanions($puljePath, $name);
+	if (!in_array($name, $companions, true)) {
+		$sameName = '';
+		foreach ($companions as $companion) {
+			if (strcasecmp($companion, $name) === 0) $sameName = $companion;
+		}
+		if ($sameName === '') {
+			$result['missing'][] = $name;
+			return $result;
+		}
+		$name = $sameName;
+	}
+	foreach ($companions as $companion) {
+		# a pdf with the same base name but a different spelling is another document, not a side file
+		$companionExt = strtolower(pathinfo($companion, PATHINFO_EXTENSION));
+		if ($companionExt === 'pdf' && $companion !== $name) continue;
+		if (unlink("$puljePath/$companion")) $result['deleted'][] = $companion;
+		else $result['missing'][] = $companion;
+	}
+	return $result;
+}
+
+/**
+ * Deletes a bilag from the pulje folder and its pool_files row.
+ *
+ * The row is deleted even when the file was already gone, so a row orphaned by an earlier removal does
+ * not keep the list showing a document that is not there.
+ *
+ * @param string $puljePath The pulje folder.
+ * @param string $filename The document's name.
+ * @return array{
+ *   deleted: string[],  The names removed from the folder.
+ *   missing: string[],  The names that were not there, or could not be removed.
+ *   refused: string,    The name as it arrived when it carries a path, otherwise ''.
+ *   row: string,        The pool_files row that was deleted; absent when the name was refused.
+ * }
+ */
+function poolDeleteDocument($puljePath, $filename) {
+	$result = poolDeleteFiles($puljePath, $filename);
+	$name = poolFileName($filename);
+	if ($name !== '') {
+		$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($name) ."'";
+		// We execute directly because the table should exist (synced on load) and schema checks might be unreliable
+		@db_modify($qtxt, __FILE__ . " line " . __LINE__);
+		$result['row'] = $name;
+	}
+	return $result;
+}
+
+/**
+ * Whether the pulje folder still holds a document for this base name, whatever the spelling.
+ *
+ * Used by the orphan cleanup: an .info file whose document is gone is the only thing that may be
+ * removed, and the old test - file_exists("$baseName.pdf") - answered no for every .PDF document,
+ * which deleted the side file of a bilag that was still in the pool.
+ *
+ * @param string $puljePath The pulje folder.
+ * @param string $filename The name of the .info file being considered.
+ * @return bool True when a pdf or xml file with the same base name is there.
+ */
+function poolDocumentExists($puljePath, $filename) {
+	foreach (poolFileCompanions($puljePath, $filename) as $companion) {
+		$ext = strtolower(pathinfo($companion, PATHINFO_EXTENSION));
+		if ($ext === 'pdf' || $ext === 'xml') return true;
+	}
+	return false;
 }
 
 
@@ -415,7 +557,20 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 	}
 	global $db, $docFolder;
 	$puljePath = "$docFolder/$db/pulje";
-	$files = array_merge(glob("$puljePath/*.pdf") ?: [], glob("$puljePath/*.xml") ?: []);
+	# 20261006 SST-858 glob("*.pdf") matches on a case sensitive file system, so a bilag stored as
+	# AArsoversigt.PDF was never seen here - the one function whose job is to notice a file with no
+	# row. The folder is listed and the extension classified the way syncPuljeFilesToDatabase() does.
+	$files = array();
+	$dirFiles = scandir($puljePath);
+	if ($dirFiles === false) {
+		docPoolLog("checkIfAllPoolFilesAreInDatabase: scandir($puljePath) failed, skipping the check");
+		return;
+	}
+	foreach ($dirFiles as $dirFile) {
+		if ($dirFile === '.' || $dirFile === '..') continue;
+		$ext = strtolower(pathinfo($dirFile, PATHINFO_EXTENSION));
+		if ($ext === 'pdf' || $ext === 'xml') $files[] = $dirFile;
+	}
 	if (!$files) {
 		return;
 	}
@@ -484,20 +639,23 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				// Look for .info files
 				if ($ext === 'info') {
 					$baseName = pathinfo($file, PATHINFO_FILENAME);
-					$pdfFile = "$puljePath/$baseName.pdf";
 					
-					// If corresponding PDF does not exist
-					if (!file_exists($pdfFile)) {
+					// If the document it describes is gone. 20261006 SST-858: asked for
+					// "$baseName.pdf" by name, which never exists for a document stored as .PDF, so
+					// the side file of a bilag that is still in the pool was deleted and its
+					// metadata with it.
+					if (!poolDocumentExists($puljePath, $file)) {
 						$infoFile = "$puljePath/$file";
 						if (unlink($infoFile)) {
 							$count++;
 							docPoolLog("Cleanup: Removed orphaned info file: $file");
 							
-							// Cleanup database
+							// Cleanup database: the row is named after the file, so match its base
+							// name without regard to case, and for any of the pool's extensions
 							$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
 							if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-								$dbFilename = $baseName . '.pdf';
-								$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($dbFilename) ."'";
+								$base = strtolower(db_escape_string($baseName));
+								$qtxt = "DELETE FROM pool_files WHERE lower(filename) IN ('$base.pdf', '$base.xml', '$base.info')";
 								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 							}
 						}
@@ -1099,6 +1257,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				} else {
 					$allFiles = scandir($puljePath);
 					$renamedPdf = false;
+					$renamedOldName = '';
+					$renamedNewName = '';
 					
 					// First pass: perform file renames
 					foreach ($allFiles as $file) {
@@ -1106,8 +1266,10 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						$fileBase = pathinfo($file, PATHINFO_FILENAME);
 						$fileExt  = pathinfo($file, PATHINFO_EXTENSION);
 						
-						// Rename all files with the same base name (e.g., PDF and .info)
-						if ($fileBase === $origBase) {
+						// Rename all files with the same base name (e.g., PDF and .info). 20261006
+						// SST-858: compared without regard to case, so a document stored as .PDF has
+						// its .info side file renamed with it instead of being left behind.
+						if (strcasecmp($fileBase, $origBase) === 0) {
 							$oldPath = "$puljePath/$file";
 							$newPath = "$puljePath/$newBase.$fileExt";
 
@@ -1124,6 +1286,10 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								docPoolLog("Renamed: $oldPath -> $newPath");
 								if (strtolower($fileExt) === 'pdf') {
 									$renamedPdf = true;
+									# 20261006 SST-858 the row is named exactly like the file, so the
+									# names the rename actually used are the ones to look up and write
+									$renamedOldName = $file;
+									$renamedNewName = "$newBase.$fileExt";
 									// Update poolFile variable to new name
 									if ($poolFile === $file) {
 										$poolFile = "$newBase.$fileExt";
@@ -1137,8 +1303,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					
 					// Update Database - Do this cleanly after renames
 					if ($renamedPdf) {
-						$oldFilename = $origBase . '.pdf';
-						$newFilename = $newBase . '.pdf';
+						$oldFilename = $renamedOldName;
+						$newFilename = $renamedNewName;
 						
 						// Ensure table exists
 						$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
@@ -1278,39 +1444,23 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	###############
 	if ($unlink && $unlinkFile) {
 		
-		#if ($descFile) unlink("../".$docFolder."/$db/pulje/$descFile");
 		if ($unlinkFile) {
 			
 				$puljePath = "$docFolder/$db/pulje";
-				$origBase = pathinfo($unlinkFile, PATHINFO_FILENAME); 
-
-				
-				// Define the extensions you want to delete
-				$extensionsToDelete = ['pdf', 'xml', 'info'];
-
-				foreach ($extensionsToDelete as $ext) {
-					$fileToDelete = "$puljePath/$origBase.$ext";
-					if (is_file($fileToDelete)) {
-						if (unlink($fileToDelete)) {
-							#error_log("Deleted: $fileToDelete");
-						} else {
-							docPoolLog("Failed to delete: $fileToDelete");
-						}
-					} else {
-						docPoolLog("File not found: $fileToDelete");
-					}
-				}
-				
-				// Remove from database
-				// Remove from database
-				$filename = $unlinkFile;
-				$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($filename) ."'";
-				// We execute directly because the table should exist (synced on load) and schema checks might be unreliable
-				@db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				# 20261006 SST-858 Delete the file the name actually points to, and let its side files
+				# follow: guessing "$origBase.$ext" with a lower case extension found nothing for a
+				# document stored as AArsoversigt.PDF, so the file stayed in the folder and the next
+				# folder sync put the row back.
+				$removed = poolDeleteDocument($puljePath, $unlinkFile);
+				foreach ($removed['deleted'] as $deletedFile) docPoolLog("Deleted: $deletedFile");
+				foreach ($removed['missing'] as $missingFile) docPoolLog("File not found: $missingFile");
+				if ($removed['refused'] !== '') docPoolLog("Refused pool file name: " . $removed['refused']);
 
 
 		}elseif (isset($_POST['poolFile'])) {
 			$poolFile=if_isset($_POST['poolFile']);
+			# 20261006 the name comes from the request, so it may not carry a path
+			$poolFile=poolFileName($poolFile);
 
 			if ($poolFile) {
 				unlink("../".$docFolder."/$db/pulje/$poolFile");
