@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -148,11 +148,28 @@
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
+// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+//                That takes it from 7.5 s to under 0.1 s with 500 documents.
+//                Inside the sync window the pool folder is only read when its mtime changed.
+//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
+//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
+//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
+//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
+//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
+// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
+//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
+//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
+require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 include_once(__DIR__ . "/../kreditorFromCvr.php");
@@ -200,6 +217,20 @@ if (!function_exists('docPoolLog')) {
  * This runs once on page load and adds any missing PDF files to the database.
  */
 function syncPuljeFilesToDatabase($docFolder, $db) {
+	$poolDir = "$docFolder/$db/pulje";
+	if (!is_dir($poolDir)) {
+		return;
+	}
+	$lock = poolUploadLock($poolDir);
+	try {
+		syncPuljeFilesToDatabaseUnlocked($docFolder, $db);
+	} finally {
+		fclose($lock);
+	}
+}
+
+/** @return void Synchronize while the caller holds the pool ingestion lock. */
+function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 	global $db_type;
 	$puljePath = "$docFolder/$db/pulje";
 	
@@ -296,6 +327,11 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	// the folder is read then changes the mtime again, so the next load reads the folder once more.
 	$observedMtime = poolFolderMtime($puljePath);
 	$scanStart = time();
+
+	if (poolContentHashEnsureSchema()) {
+		poolUploadBackfillHashes($puljePath);
+	}
+
 	$pdfFiles = [];
 	$files = scandir($puljePath);
 	// scandir() returns false on a read failure (permission issue, a disconnected
@@ -479,6 +515,21 @@ function poolFolderChanged($puljePath, $store = false, $mtime = null, $scanStart
 }
 
 function checkIfAllPoolFilesAreInDatabase() {
+	global $db, $docFolder;
+	$poolDir = "$docFolder/$db/pulje";
+	if (!is_dir($poolDir)) {
+		return;
+	}
+	$lock = poolUploadLock($poolDir);
+	try {
+		checkIfAllPoolFilesAreInDatabaseUnlocked();
+	} finally {
+		fclose($lock);
+	}
+}
+
+/** @return void Check for missing rows while the caller holds the pool ingestion lock. */
+function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 	$skip = get_settings_value("skip_sync", "docs", 0);
 	if (date('U') - $skip > 600) $skip = 0;
 	
@@ -4767,13 +4818,14 @@ JS;
 		var totalFiles = validFiles.length;
 		var uploadedCount = 0;
 		var failedCount = 0;
+		var duplicateMessages = [];
 		var lastUploadedFilename = null;
 
 		if (dropZone) { dropZone.style.pointerEvents = 'none'; dropZone.style.opacity = '0.7'; }
 
 		function updateProgress() {
 			if (dropText) {
-				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> ".addslashes(findtekst('3328|Uploader', $sprog_id))." ' + (uploadedCount + failedCount + 1) + ' ".addslashes(lcfirst(findtekst('2767|Af', $sprog_id)))." ' + totalFiles + '...';
+				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> ".addslashes(findtekst('3328|Uploader', $sprog_id))." ' + (uploadedCount + failedCount + duplicateMessages.length + 1) + ' ".addslashes(lcfirst(findtekst('2767|Af', $sprog_id)))." ' + totalFiles + '...';
 			}
 		}
 
@@ -4792,6 +4844,7 @@ JS;
 				var message = '✓ ".addslashes(findtekst('3329|Upload færdig', $sprog_id))."!\\n';
 				message += uploadedCount + ' ".addslashes(lcfirst(findtekst('3330|Fil(er) uploadet', $sprog_id)))."';
 				if (failedCount > 0) message += '\\n' + failedCount + ' ".addslashes(lcfirst(findtekst('3331|Fil(er) fejlet', $sprog_id)))."';
+				if (duplicateMessages.length > 0) message += '\\n' + duplicateMessages.join('\\n');
 				alert(message);
 
 				savePoolListView();
@@ -4870,6 +4923,8 @@ JS;
 					}
 					uploadedCount++;
 					lastUploadedFilename = data.filename;
+				} else if (data && data.duplicate) {
+					duplicateMessages.push(data.message || (file.name + ': ' + data.existing));
 				} else {
 					failedCount++;
 					console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
