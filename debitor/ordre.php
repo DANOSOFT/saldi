@@ -156,6 +156,8 @@
 // 20260928 NTR Braced the single-statement konto_id credit-limit check and switched to
 //              (int) ifset($r, 'kreditmax', 0) instead of if_isset($r['kreditmax']) * 1, which evaluated
 //              the array offset before the call and warned when kreditmax was unset, and threw warnings due to string * int.
+// 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
+//                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
 
 @session_start();
 $s_id = session_id();
@@ -2801,6 +2803,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
 				</script>
 			<?php
+			} elseif ($digital_status == "SendFailed") {
+			?>
+				<script>
+					if (confirm(<?php echo json_encode(findtekst('5160|Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?', $sprog_id), JSON_UNESCAPED_UNICODE); ?>) == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+				</script>
+			<?php
 			} else {
 			?>
 				<script>
@@ -2826,6 +2835,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			?>
 				<script>
 					if (confirm('fakturen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+				</script>
+			<?php
+			} elseif ($digital_status == "SendFailed") {
+			?>
+				<script>
+					if (confirm(<?php echo json_encode(findtekst('5160|Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?', $sprog_id), JSON_UNESCAPED_UNICODE); ?>) == true)
 						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
 				</script>
 			<?php
@@ -2857,6 +2873,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
+			} elseif ($digital_status == "SendFailed") {
+			?>
+				<script>
+					if (confirm(<?php echo json_encode(findtekst('5160|Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?', $sprog_id), JSON_UNESCAPED_UNICODE); ?>) == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
+				</script>
+			<?php
 			} else {
 			?>
 				<script>
@@ -2882,6 +2905,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			?>
 				<script>
 					if (confirm('kreditnotaen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
+				</script>
+			<?php
+			} elseif ($digital_status == "SendFailed") {
+			?>
+				<script>
+					if (confirm(<?php echo json_encode(findtekst('5160|Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?', $sprog_id), JSON_UNESCAPED_UNICODE); ?>) == true)
 						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
