@@ -31,7 +31,7 @@
 // 20260624 CL/PHR apply 'vend' during reconciliation, show all CSV columns, and remember 'vend'.
 // 20260624 CL/PHR Normalize bank file text encoding when reconciling.
 // 20260916 CDX/LH Confine bank uploads to the tenant and retain all numeric CSV formats and rows.
-// 20261006 CL/LH SST-838: vis_data() decodes each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
+// 20261006 CL/LH SST-838: vis_data() and bankReconcileFileLines() decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
 
 ini_set("auto_detect_line_endings", true);
@@ -949,14 +949,11 @@ function bankReconcileFileLines($filnavn, $vend)
 	global $charset;
 
 	$filnavn = bankReconcilePath($filnavn);
-	$fileLines = file($filnavn, FILE_IGNORE_NEW_LINES);
+	// Same decoder as the preview (vis_data), so Afstem sees the lines the user approved.
+	$fileLines = bank_import_read_lines($filnavn, $charset);
 	if (!is_array($fileLines)) return array();
 	for ($i = 0; $i < count($fileLines); $i++) {
-		if ($charset == 'UTF-8' && !mb_check_encoding($fileLines[$i], 'UTF-8')) {
-			$fileLines[$i] = mb_convert_encoding($fileLines[$i], 'UTF-8', 'ISO-8859-1');
-		} elseif ($charset != 'UTF-8' && mb_check_encoding($fileLines[$i], 'UTF-8')) {
-			$fileLines[$i] = mb_convert_encoding($fileLines[$i], 'ISO-8859-1', 'UTF-8');
-		}
+		$fileLines[$i] = rtrim($fileLines[$i], "\r\n");
 	}
 	if ($vend) $fileLines = array_reverse($fileLines);
 	return $fileLines;
