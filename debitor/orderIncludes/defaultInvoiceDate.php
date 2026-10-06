@@ -12,17 +12,27 @@
  * and can land in a different accounting period. Orders created in Saldi itself keep
  * today's date as before.
  *
- * @param int|string $ordreId ordrer.id
+ * A part split off a webshop order with "Opdel ordre" has no shop_ordrer row of its own but keeps
+ * the ordrenr and art of the original, so the mapping is looked up through those as well.
+ *
+ * @param int|string $ordreId   ordrer.id
+ * @param string     $ordredate Order date submitted in the same request (Y-m-d), used instead of the
+ *                              stored one so an edited date and "Fakturer" in one submit agree.
  * @return string Date as Y-m-d.
  */
-function default_invoice_date($ordreId) {
+function default_invoice_date($ordreId, $ordredate = '') {
 	$ordreId = (int)$ordreId;
 	if ($ordreId > 0) {
-		$qtxt = "select ordrer.ordredate from ordrer, shop_ordrer ";
-		$qtxt .= "where shop_ordrer.saldi_id = ordrer.id and ordrer.id = '$ordreId'";
+		$qtxt = "select o.ordredate from ordrer o where o.id = '$ordreId' and exists (";
+		$qtxt .= "select 1 from shop_ordrer s, ordrer o2 where s.saldi_id = o2.id and o2.ordrenr = o.ordrenr and o2.art = o.art)";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r && strlen((string)$r['ordredate']) >= 10) {
-			return substr($r['ordredate'], 0, 10);
+		if ($r) {
+			if (preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$ordredate)) {
+				return substr($ordredate, 0, 10);
+			}
+			if (preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$r['ordredate'])) {
+				return substr($r['ordredate'], 0, 10);
+			}
 		}
 	}
 	return date("Y-m-d");

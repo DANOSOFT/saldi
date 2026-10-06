@@ -1151,7 +1151,7 @@ if ($b_submit) {
 	$levdato = trim(if_isset($_POST, NULL, 'levdato'));
 	#  $genfakt = trim(if_isset($_POST['genfakt']));
 	$fakturadato    = trim(if_isset($_POST, NULL, 'fakturadato'));
-	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = dkdato(default_invoice_date($id));
+	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = dkdato(default_invoice_date($id, $ordredate));
 	$cvrnr          = db_escape_string(trim(if_isset($_POST, NULL, 'cvrnr')));
 	$procenttillag  = usdecimal($procenttillag, 2);
 	$institution    = db_escape_string(trim(if_isset($_POST, NULL, 'institution')));
