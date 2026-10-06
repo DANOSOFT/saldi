@@ -201,6 +201,9 @@
                 e.preventDefault();
                 e.stopPropagation();
                 selectionMade = true;
+                // Supersede any request already in flight: the dropdown is closing, and a
+                // response that lands afterwards must not reopen it.
+                searchSeq++;
                 closeDropdown();
                 if (input) {
                     input.focus();
@@ -1475,6 +1478,9 @@
         clearTimeout(debounceTimer);
 
         selectionMade = true;
+        // Supersede any request already in flight: the dropdown is closing, and a
+        // response that lands afterwards must not reopen it.
+        searchSeq++;
 
         closeDropdown();
 
@@ -1558,6 +1564,9 @@
         clearTimeout(debounceTimer);
 
         selectionMade = true;
+        // Supersede any request already in flight: the dropdown is closing, and a
+        // response that lands afterwards must not reopen it.
+        searchSeq++;
 
         closeDropdown();
 

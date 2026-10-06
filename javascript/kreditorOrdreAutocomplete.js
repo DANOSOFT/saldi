@@ -374,6 +374,9 @@
 
     function handleSelection(input, selected) {
         selectionMade = true;
+        // Supersede any request already in flight: the dropdown is closing, and a
+        // response that lands afterwards must not reopen it.
+        searchSeq++;
         const type = input.autocompleteType;
         const value = selected.dataset.value;
         const id = selected.dataset.id;
