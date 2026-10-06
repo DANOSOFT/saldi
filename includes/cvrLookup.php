@@ -25,6 +25,9 @@
 // 20261003 CL/SZ SD-721 Created: the call to cvrapi.dk, moved here from sager/cvrLookupProxy.php so the server can use it too.
 //                The proxy (the browser's lookup on the kreditor and debitor cards) and the automatic kreditor creation call the same function.
 //                Answers for a CVR number are cached in temp/cvrcache: a company for 30 days, "not found" for 1 day; errors are not cached.
+// 20261006 CL/SZ SD-721 As cvrapi.dk's documentation asks: the User-Agent is "Firma - Projekt - Kontaktperson telefon/e-mail" ($cvrapi_contact in
+//                includes/connect.php), and a token ($cvrapi_token in includes/connect.php) is sent when the server has one.
+//                A refused call says why: cvrapi.dk's error code (QUOTA_EXCEEDED, BANNED, INVALID_UA ...), or BLOCKED for an empty 403, and it is logged.
 
 if (!function_exists('cvrLookupFetch')) {
 	/**
@@ -34,7 +37,8 @@ if (!function_exists('cvrLookupFetch')) {
 	 * @param string $param 8 digits.
 	 * @param string $country Two lowercase letters, e.g. 'dk'.
 	 * @param int $timeout Seconds before the call gives up.
-	 * @return array{code: int, body: string|null, cached: bool} code is the HTTP status (0 when no answer came); body is cvrapi.dk's JSON.
+	 * @return array{code: int, body: string|null, cached: bool, error: string|null} code is the HTTP status (0 when no answer came);
+	 *   body is cvrapi.dk's JSON; error is cvrapi.dk's error code for a refused call (BLOCKED when it gave no reason), else null.
 	 */
 	function cvrLookupFetch($type, $param, $country = 'dk', $timeout = 10) {
 		$cacheFile = cvrLookupCacheFile($type, $param, $country);
@@ -42,18 +46,20 @@ if (!function_exists('cvrLookupFetch')) {
 			$cached = json_decode((string)file_get_contents($cacheFile), true);
 			$maxAge = (isset($cached['code']) && (int)$cached['code'] === 200) ? 30 * 86400 : 86400;
 			if (is_array($cached) && isset($cached['time'], $cached['code']) && time() - (int)$cached['time'] < $maxAge) {
-				return array('code' => (int)$cached['code'], 'body' => $cached['body'], 'cached' => true);
+				return array('code' => (int)$cached['code'], 'body' => $cached['body'], 'cached' => true, 'error' => null);
 			}
 		}
 
 		$url = "https://cvrapi.dk/api?" . $type . "=" . urlencode($param) . "&country=" . urlencode($country);
+		$token = cvrLookupToken();
+		if ($token !== '') $url .= "&token=" . urlencode($token);
 		$ch = curl_init($url);
 		curl_setopt_array($ch, array(
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_FOLLOWLOCATION => true,
 			CURLOPT_CONNECTTIMEOUT => min(5, (int)$timeout),
 			CURLOPT_TIMEOUT        => (int)$timeout,
-			CURLOPT_USERAGENT      => 'saldi.dk - kundeopslag (support@saldi.dk)',
+			CURLOPT_USERAGENT      => cvrLookupUserAgent(),
 			CURLOPT_HTTPHEADER     => array('Accept: application/json'),
 		));
 		$body = curl_exec($ch);
@@ -64,7 +70,15 @@ if (!function_exists('cvrLookupFetch')) {
 		if ($body === false) {
 			// curl_error() can reveal internal network details, so it is logged and not returned
 			if ($err) error_log("cvrLookup: call to cvrapi.dk failed (status $code): $err");
-			return array('code' => $code, 'body' => null, 'cached' => false);
+			return array('code' => $code, 'body' => null, 'cached' => false, 'error' => 'UNAVAILABLE');
+		}
+		$error = null;
+		if ($code >= 400 && !($code === 404 && strpos($body, 'NOT_FOUND') !== false)) {
+			$data = json_decode($body, true);
+			$error = is_array($data) && !empty($data['error']) ? preg_replace('/[^A-Z_]/', '', strtoupper((string)$data['error'])) : '';
+			if ($error === '') $error = $code === 403 ? 'BLOCKED' : 'UNAVAILABLE';
+			// Never the URL: it carries the token
+			error_log("cvrLookup: cvrapi.dk refused the lookup (status $code, $error)");
 		}
 		if ($cacheFile && ($code === 200 || ($code === 404 && strpos($body, 'NOT_FOUND') !== false))) {
 			$dir = dirname($cacheFile);
@@ -72,7 +86,32 @@ if (!function_exists('cvrLookupFetch')) {
 				file_put_contents($cacheFile, json_encode(array('time' => time(), 'code' => $code, 'body' => $body)), LOCK_EX);
 			}
 		}
-		return array('code' => $code, 'body' => $body, 'cached' => false);
+		return array('code' => $code, 'body' => $body, 'cached' => false, 'error' => $error);
+	}
+}
+
+if (!function_exists('cvrLookupToken')) {
+	/**
+	 * The server's cvrapi.dk token ($cvrapi_token in includes/connect.php), or '' without one.
+	 *
+	 * @return string
+	 */
+	function cvrLookupToken() {
+		return isset($GLOBALS['cvrapi_token']) ? trim((string)$GLOBALS['cvrapi_token']) : '';
+	}
+}
+
+if (!function_exists('cvrLookupUserAgent')) {
+	/**
+	 * The User-Agent cvrapi.dk requires: "Firma - Projekt - Kontaktperson telefon/e-mail". The contact is $cvrapi_contact
+	 * in includes/connect.php (name and phone or e-mail), else Saldi's support address.
+	 *
+	 * @return string
+	 */
+	function cvrLookupUserAgent() {
+		$contact = isset($GLOBALS['cvrapi_contact']) ? trim(preg_replace('/[\r\n]+/', ' ', (string)$GLOBALS['cvrapi_contact'])) : '';
+		if ($contact === '') $contact = 'Saldi support support@saldi.dk';
+		return 'Danosoft ApS - Saldi - ' . $contact;
 	}
 }
 
