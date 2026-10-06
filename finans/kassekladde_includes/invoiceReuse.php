@@ -26,6 +26,8 @@
 //                Looks in open journals, posted kreditor entries (openpost) and the document pool.
 //                Only the invoice side counts (Kredit = K, negative openpost): a payment carries the invoice's number on purpose.
 //                Lines of the same voucher (journal + bilag) don't count either, since one invoice is often split over several lines.
+// 20261006 CL/SZ SD-715 (CodeRabbit) Dropped the single-check "limit 20": the exclusions (same voucher, the line itself) run in PHP after
+//                the query, so a real earlier use could be past the first 20 rows and never checked (e.g. an invoice split over 20+ lines of the same voucher).
 
 if (!function_exists('invoice_reuse_number')) {
 	/**
@@ -95,8 +97,7 @@ if (!function_exists('invoice_reuse_find')) {
 		$kontonrList = implode(',', $kontonrs);
 		$kontonrIntList = implode(',', array_map('intval', array_keys($kontonrs)));
 		$numberList = implode(',', $numbers);
-		// A single check (the pool) needs only the first few rows per source
-		$limit = count($wanted) == 1 ? ' limit 20' : '';
+		$limit = '';
 
 		// The same voucher (journal + bilag) and the line itself are never "used before"
 		$sameVoucher = function($want, $kladdeId, $bilag) {
