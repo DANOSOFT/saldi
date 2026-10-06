@@ -8,6 +8,7 @@
 //                "×" rejects a suggestion; the rejection is stored with the correction records.
 //                "Rapportér fejl i aflæsning" (when switched on for the company): captured and current values, a comment, "Send".
 //                Needs window.saldiPoolCapture (docPool.php, or includes/documents.php for a document attached to a journal line).
+// 20261006 CL/SZ SD-722 The suggestion box under Debet is styled also when it isn't filled in automatically: unstyled, it stretched the line and moved Debet and Kredit.
 (function () {
     'use strict';
 
@@ -225,12 +226,13 @@
     function showSuggestion(entry, kreditor, suggestion, auto) {
         var f = rowFields(entry);
         removeSuggestion(entry);
+        // Both kinds need the styles: without them the box under Debet stretches the line (a document without captured values)
+        addStyles();
         var box = el('div', 'pool-suggest');
         box.dataset.kreditor = kreditor;
         var reason = el('div', 'pool-capture-reason', suggestion.reason);
         if (auto) {
             fillDebet(f, suggestion);
-            addStyles();
             f.debet.classList.add('pool-suggested');
             badge(f.debet, texts().suggested, 'suggested');
             reason.appendChild(rejectButton(function () {
