@@ -39,11 +39,34 @@
 //                  still moving the balance, because the DKK amount only went into the cell title.
 //                  Show it as a labelled DKK figure so currency accounts can be reconciled.
 // 20260915 CDX/PHR Include simulated rows in pagination and keep merged row metadata aligned.
+// 20260929 MJ SST-809 Print did not match the screen. Four causes, all of them
+//                  pagination leaking into the printout:
+//                  1) The rows were counted with a COUNT(*) of their own and
+//                     printed from a list built separately, so anything merged
+//                     into that list afterwards was uncounted - stock rows from
+//                     Lagerbevaegelser always, and zero-amount rows, which the
+//                     count excluded but the renderer printed because
+//                     pg_fetch_array() returns numeric(15,3) as "0.000" and PHP
+//                     reads that string as true. Build once, count the built
+//                     rows, print the built rows.
+//                  2) An account with an opening balance but no movements in the
+//                     period was dropped from every page: the skip test
+//                     rows_to_skip >= acct_cnt holds when both are zero.
+//                  3) No way to print more than the loaded page. Added
+//                     udskriv=on, which renders the whole report in one pass.
+//                  4) The printout used the screen's scroll container, sticky
+//                     header and fixed pagination bar - hence "only page 1", the
+//                     meaningless footer and its clipped last line. @media print
+//                     releases the container and hides the bar; the footer moved
+//                     into a tfoot, which browsers repeat on every printed page.
+//                  Column widths are now declared, and the date column is
+//                  nowrap, so a posting cannot break over two lines.
+//                  Texts 5325-5326 added to importfiler/tekster.csv.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
                    $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,
-                   $simulering, $lagerbev, $page = 1, $per_page = 50){
+                   $simulering, $lagerbev, $page = 1, $per_page = 50, $udskriv = false){
 
 	global $afd_navn, $ansatte, $ansatte_id;
 	global $bgcolor, $bgcolor4, $bgcolor5;
@@ -53,6 +76,19 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	global $prj_navn_fra, $prj_navn_til;
 	global $top_bund;
 	global $sprog_id;
+
+	// SST-809 The screen's pagination is a navigation aid. A browser print of
+	// the screen can never contain more than the rows loaded for the current
+	// page, which is why the customer's printout stopped after page 1 and why
+	// printing from page 2 showed something else again. "Udskriv alle linjer"
+	// renders the report in one pass instead, so the printout is the whole
+	// kontokort regardless of where the user was on screen.
+	$udskriv = $udskriv ? true : false;
+	if ($udskriv) {
+		$page     = 1;
+		$per_page = 1000000000;
+	}
+
 	$query = db_select("select firmanavn, cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query))
 		$firmanavn = $row['firmanavn'];
@@ -183,6 +219,47 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	#	print "  <a accesskey=L href=\"rapport.php?rapportart=Kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
 	$csvfile = "../temp/$db/rapport.csv";
 	$csv = fopen($csvfile, "w");
+
+	// SST-809 "Udskriv" opens the same report un-paginated, in a popup, the way
+	// the debitor/kreditor kontoudtog does. Same selection, same renderer - so
+	// the printout cannot drift from the screen the way a separate print-only
+	// page would.
+	$udskrivUrl = "kontokort_standalone.php?" . http_build_query(array(
+		'regnaar'     => $regnaar,
+		'maaned_fra'  => $maaned_fra,
+		'maaned_til'  => $maaned_til,
+		'aar_fra'     => $aar_fra,
+		'aar_til'     => $aar_til,
+		'dato_fra'    => $dato_fra,
+		'dato_til'    => $dato_til,
+		'konto_fra'   => $konto_fra,
+		'konto_til'   => $konto_til,
+		'rapportart'  => $rapportart,
+		'ansat_fra'   => $ansat_fra,
+		'ansat_til'   => $ansat_til,
+		'afd'         => $afd,
+		'projekt_fra' => $projekt_fra,
+		'projekt_til' => $projekt_til,
+		'simulering'  => $simulering,
+		'lagerbev'    => $lagerbev,
+		'udskriv'     => 'on',
+	));
+	$udskrivJs  = "window.open('" . htmlspecialchars($udskrivUrl, ENT_QUOTES, 'UTF-8')
+	            . "','kontokortprint','width=1000,height=700,scrollbars=yes,resizable=yes')";
+	$txtUdskriv = findtekst('880|Udskriv', $sprog_id);
+	// SST-809 One title for both the screen heading and the print footer. They were
+	// separate - a hard-coded Danish heading and a findtekst() footer - so on any other
+	// language the printout disagreed with the screen it was printed from.
+	// Escaped here, once, rather than at each of the three places it is printed - the
+	// two screen headings and the print footer. Only findtekst ids 133 and 2175 ever
+	// reach it, so this is consistency rather than a live hole, but having one of the
+	// three escaped and two not is the kind of difference that stops being harmless
+	// the moment a fourth caller copies the wrong one.
+	$rapportTitel = htmlspecialchars($simulering
+		? findtekst('2175|Simuleret kontokort', $sprog_id)
+		: findtekst('133|Kontokort', $sprog_id), ENT_QUOTES, 'UTF-8');
+	$titUdskriv = htmlspecialchars(findtekst('5325|Udskriv alle linjer', $sprog_id), ENT_QUOTES, 'UTF-8');
+
 	if ($menu == 'T') {
 		$leftbutton = "<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> &nbsp;Luk</a>";
 		include_once '../includes/top_header.php';
@@ -190,7 +267,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<div id=\"header\">";
 		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
 		print "<div class=\"headerTxt\">$title</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>"; 
+		$rightbutton = $udskriv ? "&nbsp;&nbsp;&nbsp;"
+			: "<a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\"><i class='fa fa-print fa-lg'></i> $txtUdskriv</a>";
+		print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
 		print "</div>";
 		print "<div class='content-noside'>";
 	} elseif ($menu == 'S') {
@@ -207,12 +286,14 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 			   <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
-		print "<td width='75%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
+		print "<td width='70%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
 		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
+		if (!$udskriv)
+			print "<td width='5%' align='center' style='$buttonStyle'><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\" style='color:#ffffff'>$txtUdskriv</a></td>\n";
 
 		print "</tbody></table>";
 		print "</td></tr>";
-		($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
+		$tmp = $rapportTitel;
 		print "<tr><td colspan='4'><big><big><big>  $tmp</big></big></big></td>";
 		print "<td colspan=6 align=right>";
 		#######################
@@ -239,11 +320,13 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<tr><td colspan=\"6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
 		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
-		print "<td width=\"80%\" $top_bund>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>";
+		print "<td width=\"70%\" $top_bund>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>";
 		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
+		if (!$udskriv)
+			print "<td width=\"10%\" $top_bund><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\">$txtUdskriv</a></td>";
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";
-		($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
+		$tmp = $rapportTitel;
 		print "<tr><td colspan=\"4\"><big><big><big>  $tmp</big></big></big></td>";
 		#		fwrite($csv,"$tmp;");
 		print "<td colspan=6 align=right>";
@@ -412,18 +495,33 @@ print "</div>";
 
 
 	######
-print "<div style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
+// SST-809 The scroll container and the sticky thead are screen affordances.
+// Browsers routinely clip a scrollable element to its visible box when
+// printing, so the print view does not use one at all; @media print releases it
+// for a plain Ctrl+P of the paginated screen.
+if ($udskriv)
+	print "<div class=\"kontokort-data\">";
+else
+	print "<div class=\"kontokort-data\" style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
 print "<table style=\"width:100%; border-collapse:collapse;\" class='dataTable' id='datapg'>";
 
 // Sticky header
-print "<thead style=\"position: sticky; top: 0; background-color: #eeeef0; z-index: 10;\">";
+if ($udskriv)
+	print "<thead>";
+else
+	print "<thead style=\"position: sticky; top: 0; background-color: #eeeef0; z-index: 10;\">";
 print "<tr>";
-print "<th style=\"text-align:left; padding:8px 4px;\"><b>Dato</b></th>";
-print "<th style=\"text-align:left; padding:8px 4px;\"><b>Bilag</b></th>";
-print "<th style=\"text-align:left; padding:8px 4px;\"><b>Tekst</b></th>";
-print "<th style=\"text-align:right; padding:8px 4px;\"><b>Debet</b></th>";
-print "<th style=\"text-align:right; padding:8px 4px;\"><b>Kredit</b></th>";
-print "<th style=\"text-align:right; padding:8px 4px;\"><b>Saldo</b></th>";
+// SST-809 .dataTable is table-layout:fixed, and with no width on any column the
+// six share the width equally. On paper, where the page is narrower than the
+// screen, a sixth was not enough for a dd-mm-yyyy date and every line wrapped
+// onto two. Give the columns explicit widths so the date column's share does
+// not depend on the medium.
+print "<th style=\"text-align:left; padding:8px 4px; width:11%; white-space:nowrap;\"><b>" . findtekst('438|Dato', $sprog_id) . "</b></th>";
+print "<th style=\"text-align:left; padding:8px 4px; width:9%;\"><b>" . findtekst('671|Bilag', $sprog_id) . "</b></th>";
+print "<th style=\"text-align:left; padding:8px 4px; width:44%;\"><b>" . findtekst('1163|Tekst', $sprog_id) . "</b></th>";
+print "<th style=\"text-align:right; padding:8px 4px; width:12%;\"><b>" . findtekst('1000|Debet', $sprog_id) . "</b></th>";
+print "<th style=\"text-align:right; padding:8px 4px; width:12%;\"><b>" . findtekst('1001|Kredit', $sprog_id) . "</b></th>";
+print "<th style=\"text-align:right; padding:8px 4px; width:12%;\"><b>" . findtekst('1073|Saldo', $sprog_id) . "</b></th>";
 print "</tr>";
 print "</thead>";
 
@@ -431,53 +529,28 @@ print "</thead>";
 print "<tbody>";
 	fwrite($csv, "\"Dato\";\"Bilag\";\"Tekst\";\"Debet\";\"Kredit\";\"Saldo\"\n");
 	####
-	$total_rows = 0;
-	$accountRows = array();
-	for ($x = 0; $x < count($kontonr); $x++) {
-		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
-			$accountRows[$x] = 0;
-			$tables = $simulering ? array('transaktioner', 'simulering') : array('transaktioner');
-			foreach ($tables as $table) {
-				$qtxt = "SELECT COUNT(*) as c FROM $table WHERE kontonr=" . intval($kontonr[$x]);
-				$qtxt .= " AND transdate>='" . db_escape_string($regnstart) . "'";
-				$qtxt .= " AND transdate<='" . db_escape_string($regnslut) . "' $dim";
-				$qtxt .= " AND (COALESCE(debet,0) <> 0 OR COALESCE(kredit,0) <> 0)";
-				$cnt = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$accountRows[$x] += (int)$cnt['c'];
-			}
-			$total_rows += $accountRows[$x];
-		}
-	}
-	$total_pages = max(1, ceil($total_rows / $per_page));
-	$rows_to_skip = ($page - 1) * $per_page;
-	$rows_printed = 0;
+	// SST-809 The report used to size its pages with a COUNT(*) of its own, and
+	// then print from a row list assembled separately further down. Anything
+	// merged into that list afterwards was invisible to the count: simulated
+	// entries (counted since #627) and the synthetic stock rows from
+	// Lagerbevaegelser (never counted at all). rows_to_skip therefore described
+	// a shorter report than the one being printed, so every page boundary after
+	// the first injected row landed in the wrong place - which is why page 2 of
+	// a simulated kontokort opened mid-account, on rows that were not where the
+	// user left off. The rows are now built once below, counted from the built
+	// list, and printed from that same list, so the count and the page cannot
+	// describe different reports.
+	$total_rows     = 0;
+	$accountRows    = array();
+	$accountRowList = array();
+	$accountOnPage  = array();
+	$accountOffset = array();
+	$accountPrimo   = array();
+	$windowFrom     = ($page - 1) * $per_page;
+	$windowTo       = $windowFrom + $per_page;
 
 	for ($x = 0; $x < count($kontonr); $x++) {
 		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
-			$linjebg = $bgcolor5;
-			$acct_cnt = $accountRows[$x];
-
-            if ($rows_to_skip >= $acct_cnt) {
-                $rows_to_skip -= $acct_cnt;
-                continue;  // skip header, primosaldo, everything for this account
-            }
-
-			print "<tr><td colspan=6><hr></td></tr>";
-			fwrite($csv, "-----------\n");
-			print "<tr bgcolor=\"$bgcolor5\">
-					<td></td>
-					<td></td>
-					<td colspan=4>
-						<b>$kontonr[$x]</b> : 
-						<b>$kontobeskrivelse[$x]</b> : 
-						<b>$kontomoms[$x]</b>
-					</td>
-				</tr>";
-
-			fwrite($csv, ";;$kontonr[$x] : " . mb_convert_encoding($kontobeskrivelse[$x], 'ISO-8859-1', 'UTF-8') . " : $kontomoms[$x]\n");
-
-			print "<tr><td colspan=6><hr></td></tr>";
-			fwrite($csv, "-----------\n");
 			$kontosum = $primo[$x];
 			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,pos,bilag,id", __FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
@@ -487,13 +560,7 @@ print "<tbody>";
 			while ($row = db_fetch_array($query)) {
 				$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 			}
-			if ($primokurs[$x])
-				$tmp = $kontosum * 100 / $primokurs[$x];
-			else
-				$tmp = $kontosum;
-			#if (!$dim) #20180226 
-			print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>" . dkdecimal($tmp, 2) . "</td></tr>";
-			fwrite($csv, ";;Primosaldo;;;" . dkdecimal($tmp, 2) . "\n");
+			$accountPrimo[$x] = $kontosum;
 			$print = 1;
 			$tr = 0;
 			$transdate = array();
@@ -531,6 +598,7 @@ print "<tbody>";
 			if ($lagerbev && $aut_lager && (in_array($kontonr[$x], $varekob) || in_array($kontonr[$x], $varelager_i) || in_array($kontonr[$x], $varelager_u))) {
 				$z = 0;
 				$lager = array();
+				$kld = $tvl = $tks = array();
 				$gruppe = array();
 				$q = db_select("select kodenr,box1,box2 from grupper where art = 'VG' and box8 = 'on' and (box1 = '$kontonr[$x]' or box2 = '$kontonr[$x]' or box3 = '$kontonr[$x]' or box11 = '$kontonr[$x]' or box13 = '$kontonr[$x]')", __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
@@ -697,6 +765,13 @@ print "<tbody>";
 						$besk[$y] = $beskrivelse[$tr];
 						$deb[$y] = $debet[$tr];
 						$kre[$y] = $kredit[$tr];
+						// SST-809 review: these three move with the row. Rebuilding only the five
+						// above left them on their pre-merge positions, so a posting showed another
+						// row's kassekladde link and a currency account would have converted at
+						// another row's rate.
+						$kld[$y] = $kladde_id[$tr] ?? null;
+						$tvl[$y] = $transvaluta[$tr] ?? null;
+						$tks[$y] = $transkurs[$tr] ?? 100;
 						$tr++;
 						$y++;
 					}
@@ -706,6 +781,9 @@ print "<tbody>";
 						$besk[$y] = "lagertransaktion - Køb  F: $kobsfakt[$kd]";
 						$deb[$y] = $kobsdebet[$kd];
 						$kre[$y] = $kobskredit[$kd];
+						$kld[$y] = null;
+						$tvl[$y] = null;
+						$tks[$y] = 100;
 						$kd++;
 						$y++;
 					}
@@ -715,6 +793,9 @@ print "<tbody>";
 						$besk[$y] = "lagertransaktion - Salg  F: $salgsfakt[$sd]";
 						$deb[$y] = $salgsdebet[$sd];
 						$kre[$y] = $salgskredit[$sd];
+						$kld[$y] = null;
+						$tvl[$y] = null;
+						$tks[$y] = 100;
 						$sd++;
 						$y++;
 					}
@@ -742,6 +823,9 @@ print "<tbody>";
 					$beskrivelse[$y] = $besk[$y];
 					$debet[$y] = $deb[$y];
 					$kredit[$y] = $kre[$y];
+					$kladde_id[$y] = $kld[$y];
+					$transvaluta[$y] = $tvl[$y];
+					$transkurs[$y] = $tks[$y];
 				}
 			}
 			$sim_transdate = array();
@@ -784,29 +868,149 @@ print "<tbody>";
 				}
 			}
 		
+			// SST-809 Collapse the parallel arrays this account just built into one
+			// list of rows, and let every value the print pass needs travel with
+			// its own row. That also repairs the Lagerbevaegelser path: it rebuilt
+			// transdate/bilag/beskrivelse/debet/kredit in merged order but left
+			// kladde_id/valuta/valutakurs on the old indexes, so a currency
+			// account converted a row's amounts at a different row's rate.
+			$built = array();
 			for ($tr = 0; $tr < count($transdate); $tr++) {
-			if ($transdate[$tr] && ($debet[$tr] || $kredit[$tr])) {
+				if (!$transdate[$tr]) {
+					continue;
+				}
+				$rowdebet  = isset($debet[$tr])  ? $debet[$tr]  : 0;
+				$rowkredit = isset($kredit[$tr]) ? $kredit[$tr] : 0;
+				// A posting with nothing in either amount column moves no balance.
+				// The row count has excluded those ever since pagination arrived,
+				// but the renderer tested the raw values - and pg_fetch_array()
+				// hands numeric(15,3) back as the string "0.000", which PHP reads
+				// as true. So the page carried a row the pagination did not know
+				// about. Decide it numerically, once, here.
+				if ((float) $rowdebet == 0 && (float) $rowkredit == 0) {
+					continue;
+				}
+				$built[] = array(
+					'transdate'   => $transdate[$tr],
+					'bilag'       => isset($bilag[$tr]) ? $bilag[$tr] : '',
+					'beskrivelse' => isset($beskrivelse[$tr]) ? $beskrivelse[$tr] : '',
+					'debet'       => $rowdebet,
+					'kredit'      => $rowkredit,
+					'kladde_id'   => isset($kladde_id[$tr]) ? $kladde_id[$tr] : NULL,
+					'valuta'      => isset($transvaluta[$tr]) ? $transvaluta[$tr] : NULL,
+					'kurs'        => (isset($transkurs[$tr]) && $transkurs[$tr]) ? $transkurs[$tr] : 100,
+				);
+			}
+			$acct_cnt = count($built);
+			$acctFrom = $total_rows;
+			$accountOffset[$x] = $acctFrom;
+			$acctTo   = $total_rows + $acct_cnt;
 
-                // Always accumulate kontosum — even for skipped rows
-                // (moved up so it runs before the skip check)
-                $debet_val  = afrund($debet[$tr], 2);
-                $kredit_val = afrund($kredit[$tr], 2);
-                $kontosum += $debet_val - $kredit_val;
+			// Which accounts this page shows is decided here, once, while the
+			// running offset is known, and the print pass below just obeys it.
+			// An account whose rows overlap the page's window is on the page. One
+			// with no printable rows - holding only an opening balance, or only
+			// zero-amount postings - has no span to overlap with, so it belongs
+			// on whichever page its position falls in. The old test,
+			// rows_to_skip >= acct_cnt, was true for those accounts on every
+			// page because both sides were zero, so an account with a primo and
+			// no movements in the period was dropped from the report entirely -
+			// even though the condition above exists to include it.
+			if ($acct_cnt) {
+				$accountOnPage[$x] = ($acctFrom < $windowTo && $acctTo > $windowFrom);
+			} else {
+				// An account with no printable rows is placed after the loop, once total_pages
+				// is known - see below. Set false here only so the retention line underneath
+				// has a value to read; there is nothing to retain for it either way.
+				$accountOnPage[$x] = false;
+			}
 
-                if ($rows_to_skip > 0) {
-                    $rows_to_skip--;
-                    continue;
-                }
-                if ($rows_printed >= $per_page) {
-                    break;
-                }
+			// The balance has to run over every row of an account, so it is all
+			// of that account's rows or none of them. For the accounts this page
+			// does not show there is no reason to hold them: a full year of
+			// postings across the whole chart of accounts is a lot of memory,
+			// and before pagination this loop only ever held one account's rows.
+			$accountRows[$x]    = $acct_cnt;
+			$accountRowList[$x] = $accountOnPage[$x] ? $built : array();
+			$total_rows         = $acctTo;
+		}
+	}
+
+	$total_pages  = max(1, ceil($total_rows / $per_page));
+
+	// An account with no printable rows sits at a single offset instead of spanning a
+	// range, so the half-open window test above cannot place one whose offset is exactly
+	// total_rows - a primo-only account after the last row. With total_rows an exact
+	// multiple of per_page there is no page whose window contains it, and it was dropped
+	// from every screen page while print mode (one huge page) still showed it: the same
+	// screen-versus-print divergence this report is being fixed for. total_pages is only
+	// known now, so those accounts are placed here, on the page their offset falls on and
+	// never past the last one.
+	foreach ($accountRows as $x => $acct_cnt) {
+		if ($acct_cnt) {
+			continue;
+		}
+		$acctPage = min($total_pages, (int) floor($accountOffset[$x] / $per_page) + 1);
+		$accountOnPage[$x] = ($acctPage == $page);
+	}
+	$rowOffset = 0;
+
+	for ($x = 0; $x < count($kontonr); $x++) {
+		if (!isset($accountRows[$x])) {
+			continue;
+		}
+		$acct_cnt = $accountRows[$x];
+		if (!$accountOnPage[$x]) {
+			$rowOffset += $acct_cnt;
+			continue;
+		}
+
+		$linjebg = $bgcolor5;
+		print "<tr><td colspan=6><hr></td></tr>";
+		fwrite($csv, "-----------\n");
+		print "<tr bgcolor=\"$bgcolor5\">
+				<td></td>
+				<td></td>
+				<td colspan=4>
+					<b>$kontonr[$x]</b> :
+					<b>$kontobeskrivelse[$x]</b> :
+					<b>$kontomoms[$x]</b>
+				</td>
+			</tr>";
+
+		fwrite($csv, ";;$kontonr[$x] : " . mb_convert_encoding($kontobeskrivelse[$x], 'ISO-8859-1', 'UTF-8') . " : $kontomoms[$x]\n");
+
+		print "<tr><td colspan=6><hr></td></tr>";
+		fwrite($csv, "-----------\n");
+
+		$kontosum = $accountPrimo[$x];
+		if ($primokurs[$x])
+			$tmp = $kontosum * 100 / $primokurs[$x];
+		else
+			$tmp = $kontosum;
+		#if (!$dim) #20180226
+		print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>" . dkdecimal($tmp, 2) . "</td></tr>";
+		fwrite($csv, ";;Primosaldo;;;" . dkdecimal($tmp, 2) . "\n");
+
+		foreach ($accountRowList[$x] as $i => $row) {
+			// The balance runs across every row of the account, including rows an
+			// earlier page already showed, so the Saldo column is correct from the
+			// first line of whichever page is being rendered.
+			$kontosum += afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+			$rowIndex = $rowOffset + $i;
+			if ($rowIndex < $windowFrom) {
+				continue;
+			}
+			if ($rowIndex >= $windowTo) {
+				break;
+			}
 
 				($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
-				print "<tr bgcolor=\"$linjebg\"><td>  " . dkdato($transdate[$tr]) . " </td>";
-					fwrite($csv, dkdato($transdate[$tr]) . ";");
-					($kladde_id[$tr]) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&visipop=on')\"" : $js = NULL;
-					print "<td title='Kladde: $kladde_id[$tr]' $js>$bilag[$tr]</td><td>$kontonr[$x] : $beskrivelse[$tr] </td>";
-					fwrite($csv, "$bilag[$tr];$kontonr[$x] : " . mb_convert_encoding($beskrivelse[$tr], 'ISO-8859-1', 'UTF-8') . ";");
+				print "<tr bgcolor=\"$linjebg\"><td class=\"kontokort-dato\">  " . dkdato($row['transdate']) . " </td>";
+					fwrite($csv, dkdato($row['transdate']) . ";");
+					($row['kladde_id']) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id={$row['kladde_id']}&visipop=on')\"" : $js = NULL;
+					print "<td title='Kladde: {$row['kladde_id']}' $js>{$row['bilag']}</td><td>$kontonr[$x] : {$row['beskrivelse']} </td>";
+					fwrite($csv, "{$row['bilag']};$kontonr[$x] : " . mb_convert_encoding($row['beskrivelse'], 'ISO-8859-1', 'UTF-8') . ";");
 					// SST-769 A rate adjustment is posted in DKK only (valuta = -1, valutakurs = 100),
 					// so there is no foreign-currency amount to convert. Showing 0,00 left a row that
 					// moved the balance with no visible amount, which is why MEDSHOP could not
@@ -814,59 +1018,73 @@ print "<tbody>";
 					// so it is never read as an amount in the account's own currency, and export the
 					// bare number so the CSV still reconciles.
 					if ($kontovaluta[$x]) {
-						if ($transvaluta[$tr] == '-1') {
-							$csvval = $debet[$tr] * 1;
+						if ($row['valuta'] == '-1') {
+							$csvval = $row['debet'] * 1;
 							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
 							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
 						} else {
-							$csvval = $debet[$tr] * 100 / $transkurs[$tr];
+							$csvval = $row['debet'] * 100 / $row['kurs'];
 							$vis    = dkdecimal($csvval, 2);
-							$title  = "DKK " . dkdecimal($debet[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+							$title  = "DKK " . dkdecimal($row['debet'] * 1, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
 						}
 					} else {
-						$csvval = $debet[$tr];
+						$csvval = $row['debet'];
 						$vis    = dkdecimal($csvval, 2);
 						$title  = NULL;
 					}
 					print "<td align=\"right\" title=\"$title\">$vis</td>";
 					fwrite($csv, dkdecimal($csvval, 2) . ";");
 					if ($kontovaluta[$x]) {
-						if ($transvaluta[$tr] == '-1') {
-							$csvval = $kredit[$tr] * 1;
+						if ($row['valuta'] == '-1') {
+							$csvval = $row['kredit'] * 1;
 							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
 							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
 						} else {
-							$csvval = $kredit[$tr] * 100 / $transkurs[$tr];
+							$csvval = $row['kredit'] * 100 / $row['kurs'];
 							$vis    = dkdecimal($csvval, 2);
-							$title  = "DKK " . dkdecimal($kredit[$tr] * 1, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+							$title  = "DKK " . dkdecimal($row['kredit'] * 1, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
 						}
 					} else {
-						$csvval = $kredit[$tr];
+						$csvval = $row['kredit'];
 						$vis    = dkdecimal($csvval, 2);
 						$title  = NULL;
 					}
 					print "<td align=\"right\" title=\"$title\">$vis</td>";
 					fwrite($csv, dkdecimal($csvval, 2) . ";");
-					#$kontosum = $kontosum + afrund($debet[$tr], 2) - afrund($kredit[$tr], 2);
+					#$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 					if ($kontovaluta[$x]) {
-						$tmp = $kontosum * 100 / $transkurs[$tr];
-						$title = "DKK " . dkdecimal($kontosum, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
+						$tmp = $kontosum * 100 / $row['kurs'];
+						$title = "DKK " . dkdecimal($kontosum, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
 					} else {
 						$tmp = $kontosum;
 						$title = NULL;
 					}
 					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td></tr>";
 					fwrite($csv, dkdecimal($tmp, 2) . "\n");
-                $rows_printed++;
-			}
-			
 		}
-          if ($rows_printed >= $per_page) break; // stop processing more rows once we've printed enough for the current page
-		}
+		$rowOffset += $acct_cnt;
 	}
-				   			   
+
 	print "<tr><td colspan=6></td></tr>";
-	print "</tbody></table>";
+	print "</tbody>";
+
+	// SST-809 A real print footer, in place of the screen's pagination bar. That
+	// bar printed "1-50 af 76", a rows-per-page dropdown and two arrow icons -
+	// the meaningless footer the customer reported - and being position:fixed it
+	// was also clipped when the printout broke across pages. A tfoot is repeated
+	// by the browser on every printed page, in full, which a fixed element
+	// cannot be. It is hidden on screen, where the pagination bar does the job.
+	$tmp = $rapportTitel;
+	print "<tfoot class=\"kontokort-printfoot\">";
+	print "<tr><td colspan=6>";
+	print "<b>" . htmlspecialchars((string) $firmanavn, ENT_QUOTES, 'UTF-8') . "</b>";
+	print " | cvr: " . htmlspecialchars((string) $vatNo, ENT_QUOTES, 'UTF-8');
+	print " | $tmp";
+	print " | " . findtekst('899|Periode', $sprog_id) . ": $startdato/$mf $startaar - $slutdato/$mt $slutaar";
+	print " | " . findtekst('5326|Udskrevet', $sprog_id) . ": " . date('d-m-Y');
+	print "</td></tr>";
+	print "</tfoot>";
+	print "</table>";
 	#####
 	$base_url = "kontokort_standalone.php?" . http_build_query([
         'regnaar'     => $regnaar,
@@ -928,17 +1146,22 @@ print "<tbody>";
         $rowCountOptions .= "<option value='{$count}' {$sel}>{$count}</option>";
     }
 
+    // SST-809 Screen only: this is the bar that printed as a meaningless footer.
+    // The print view does not emit it at all, and @media print hides it for a
+    // plain Ctrl+P of the screen.
+    $txtLinjerPrSide = findtekst('2125|Linjer pr. side', $sprog_id);
+    if (!$udskriv) {
     echo "
-    <div style='position:fixed; bottom:0; left:0; width:100%; background:#f4f4f4;
+    <div id='kontokort-pagebar' style='position:fixed; bottom:0; left:0; width:100%; background:#f4f4f4;
                 border-top:2px solid #ddd; z-index:200; box-shadow:0 -2px 6px rgba(0,0,0,0.1);'>
         <div id='footer-box' style='display:flex; align-items:center; gap:10px;
                                     justify-content:flex-end; padding:6px 16px;'>
             <span id='page-status' style='display:flex;'>
-                {$offsetFrom}-{$offsetTo}&nbsp;af&nbsp;{$total_rows} 
+                {$offsetFrom}-{$offsetTo}&nbsp;af&nbsp;{$total_rows}
             </span>
             |
             <span style='display:flex; align-items:center; gap:4px;'>
-                <label style='font-size:0.9em; color:#666;'>Linjer pr. side</label>
+                <label style='font-size:0.9em; color:#666;'>{$txtLinjerPrSide}</label>
                 <select onchange=\"window.location.href='{$base_url}&page=1&per_page=' + this.value\"
                         style='height:24px; cursor:pointer;'>
                     {$rowCountOptions}
@@ -960,10 +1183,43 @@ print "<tbody>";
             </span>
         </div>
     </div>";
+    }
 	####
-	print "</tbody>";
-	print "</table>";
-	print "</div>"; // closes scrollable div
+	// SST-809 The tbody and table are closed above, before the tfoot. The stray
+	// second pair that used to be printed here left the markup unbalanced, which
+	// browsers recover from differently - and print layout is exactly where that
+	// recovery starts to show.
+	print "</div>"; // closes the data wrapper opened before the table
+
+	// SST-809 Print rules for a plain Ctrl+P of the paginated screen: release the
+	// scroll container so the rows are not clipped to the visible box, demote the
+	// sticky header so it does not overlay data, hide the fixed pagination bar,
+	// show the tfoot instead so every printed page carries a real footer, and
+	// keep a posting on one line.
+	print "
+<style>
+	.kontokort-printfoot { display: none; }
+	@media print {
+		#kontokort-pagebar { display: none !important; }
+		.kontokort-data {
+			overflow: visible !important;
+			max-height: none !important;
+		}
+		#datapg thead { position: static !important; }
+		.kontokort-printfoot {
+			display: table-footer-group;
+			font-size: 8pt;
+		}
+		#datapg .kontokort-dato { white-space: nowrap; }
+		#datapg tr { page-break-inside: avoid; }
+	}
+</style>";
+
+	if ($udskriv) {
+		// Opened from the Udskriv button, so go straight to the print dialog.
+		print "<script>window.addEventListener('load', function () { window.print(); });</script>";
+	}
+
 	fclose($csv);
 
 	if ($menu == 'T') {
