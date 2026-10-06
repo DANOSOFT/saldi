@@ -25,6 +25,7 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
+// 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token); the log endpoint now takes the tenant from the session.
 
 @session_start();
 $s_id = session_id();
@@ -142,8 +143,7 @@ function logToServer(message, level = 'INFO') {
             message: message,
             level: level,
             timestamp: new Date().toISOString(),
-            ordre_id: '<?php print $ordre_id; ?>',
-            db: '<?php print $db; ?>'
+            ordre_id: '<?php print (int)$ordre_id; ?>'
         })
     }).catch(err => console.error('Logging failed:', err));
 }
@@ -231,7 +231,8 @@ async function get_api_key(baseurl) {
         const jsondata = await res.json();
         
          // Log the response (don't wait for it to complete)
-        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
+        // Only the status is logged: the body carries the Connect@Cloud bearer token.
+        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}`, 'INFO');
         /*
         // write a put command to the settings for the terminal
         const putPromise = fetch(
