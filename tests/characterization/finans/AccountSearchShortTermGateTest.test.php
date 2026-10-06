@@ -44,20 +44,23 @@ final class AccountSearchShortTermGateTest extends TestCase
         $src = file_get_contents(self::ENDPOINT);
         self::assertNotFalse($src, 'could not read accountSearch.php');
 
-        $start = strpos($src, '$searchTooShort = ');
-        self::assertNotFalse($start, 'the gate condition is gone from accountSearch.php');
-        $end = strpos($src, ';', $start);
-        self::assertNotFalse($end, 'the gate condition is unterminated');
-        $expression = substr($src, $start, $end - $start + 1);
+        // The gate is three assignments feeding one branch; lift all of them so the test
+        // evaluates the real conditions rather than a restatement of them.
+        $block = '';
+        foreach (array('$searchableType = ', '$searchTooShort = ', '$searchHasNoTrigram = ') as $name) {
+            $at = strpos($src, $name);
+            self::assertNotFalse($at, "the gate is missing $name");
+            $semicolon = strpos($src, ';', $at);
+            self::assertNotFalse($semicolon, "$name is unterminated");
+            $block .= substr($src, $at, $semicolon - $at + 1) . "
+";
+        }
 
-        $minStart = strpos($src, '$minSearchLength = ');
-        self::assertNotFalse($minStart, 'the minimum is gone from accountSearch.php');
-        $minimum = (int)substr($src, $minStart + 19, 2);
+        $minSearchLength = $this->endpointMinimum();
+        eval($block);
 
-        $minSearchLength = $minimum;
-        eval($expression);
-
-        return (bool)$searchTooShort;
+        // The endpoint refuses when either condition holds - this mirrors its own branch.
+        return (bool)$searchTooShort || (bool)$searchHasNoTrigram;
     }
 
     /** The minimum the endpoint enforces, read from its source. */
@@ -99,6 +102,11 @@ final class AccountSearchShortTermGateTest extends TestCase
             'two characters, kreditor' => ['ab', 'kreditor'],
             // Two characters of Danish are two characters, not the four bytes they occupy.
             'two Danish letters'       => ['æø', 'debitor'],
+            // No letter or digit anywhere means pg_trgm extracts no key at all, so the
+            // index can never serve the term. Measured at 142-179 ms on 200,000 rows.
+            'only punctuation'         => ['---', 'debitor'],
+            'punctuation with a space' => ['- -', 'debitor'],
+            'only spaces'              => ['   ', 'kreditor'],
         ];
     }
 
@@ -128,6 +136,13 @@ final class AccountSearchShortTermGateTest extends TestCase
             'two digits, finance'       => ['10', 'finance', 0],
             // An equality lookup on a full account number is indexable at any length.
             'short but exact, debitor'  => ['7', 'debitor', 1],
+            // These two are why the gate is not based on the term's shape. Measured on
+            // 200,000 rows: 'a b' has no two-character alphanumeric run yet the index
+            // serves it in 0.2 ms, while 'Han' has a full trigram and seq scans in 196 ms
+            // because it matches every row. Selectivity decides the plan, not the shape,
+            // so both are allowed through and only the provably useless cases are refused.
+            'single letters and a space' => ['a b', 'debitor', 0],
+            'one letter then punctuation' => ['a--', 'debitor', 0],
         ];
     }
 
@@ -147,9 +162,9 @@ final class AccountSearchShortTermGateTest extends TestCase
         $condition = strpos($src, '$searchTooShort = ');
         self::assertNotFalse($condition, 'the gate condition is gone');
 
-        $branch = strpos($src, 'if ($searchTooShort) {', $condition);
+        $branch = strpos($src, 'if ($searchTooShort || $searchHasNoTrigram) {', $condition);
         self::assertNotFalse($branch,
-            'the gate condition is computed but nothing branches on it');
+            'the gate conditions are computed but the branch does not test both of them');
 
         $exit = strpos($src, 'exit;', $branch);
         self::assertNotFalse($exit, 'the gate branch does not exit');
@@ -230,6 +245,16 @@ final class AccountSearchShortTermGateTest extends TestCase
 
         self::assertStringContainsString('let searchSeq = 0;', $src,
             "$label has no request token, so a slow response can paint stale rows");
+
+        // Every request that paints the shared dropdown has to carry the token. Counting
+        // guards against captures alone would miss a newly added handler that captures
+        // nothing - which is how the first version of this guard shipped covering only the
+        // account search while every other field type went unguarded.
+        $fetches = substr_count($src, 'fetch(');
+        $selfGuarded = substr_count($src, 'dataset.lookupKey === lookupKey');
+        self::assertSame($fetches, substr_count($src, 'const seq = searchSeq;') + ($selfGuarded > 0 ? 1 : 0),
+            "$label has a fetch that neither carries the sequence token nor guards itself; "
+            . 'a response for an abandoned value can still paint the dropdown');
 
         $captures = substr_count($src, 'const seq = searchSeq;');
         $guards = substr_count($src, 'if (seq !== searchSeq) return;');

@@ -837,6 +837,7 @@
             '&currentAmount=' + encodeURIComponent(currentAmount) +
             '&page=' + page;
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -845,6 +846,7 @@
                 return response.text();
             })
             .then(function (text) {
+                if (seq !== searchSeq) return;
                 try {
                     const data = JSON.parse(text);
                     const results = data.results || data;
@@ -855,6 +857,7 @@
                 }
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Invoice search error:', error);
                 closeDropdown();
             });
@@ -876,6 +879,7 @@
 
         const url = basePath + '?search=' + encodeURIComponent(searchValue);
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -884,10 +888,12 @@
                 return response.json();
             })
             .then(function (data) {
+                if (seq !== searchSeq) return;
                 const results = data.results || [];
                 renderSimpleDropdown(input, results, 'department', searchValue);
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Department search error:', error);
                 closeDropdown();
             });
@@ -911,6 +917,7 @@
 
         const url = basePath + '?search=' + encodeURIComponent(searchValue);
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -919,10 +926,12 @@
                 return response.json();
             })
             .then(function (data) {
+                if (seq !== searchSeq) return;
                 const results = data.results || [];
                 renderSimpleDropdown(input, results, 'employee', searchValue);
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Employee search error:', error);
                 closeDropdown();
             });
@@ -944,6 +953,7 @@
 
         const url = basePath + '?search=' + encodeURIComponent(searchValue);
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -952,10 +962,12 @@
                 return response.json();
             })
             .then(function (data) {
+                if (seq !== searchSeq) return;
                 const results = data.results || [];
                 renderSimpleDropdown(input, results, 'currency', searchValue);
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Currency search error:', error);
                 closeDropdown();
             });
@@ -1024,6 +1036,7 @@
 
 
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -1032,10 +1045,12 @@
                 return response.json();
             })
             .then(function (data) {
+                if (seq !== searchSeq) return;
                 const results = data.results || [];
                 renderAmountDropdown(input, results, searchValue);
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Amount search error:', error);
                 closeDropdown();
             });

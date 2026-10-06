@@ -49,11 +49,18 @@ $fetchLimit = $limit + 1;
 // is still served: with no term there is no ILIKE at all, only a filtered first page,
 // requested once per focus rather than once per keystroke.
 $minSearchLength = 3;
-$searchTooShort = ($search !== '')
+$searchableType = ($search !== '')
     && !$exact
-    && in_array($type, array('debitor', 'kreditor'), true)
-    && mb_strlen($search, 'UTF-8') < $minSearchLength;
-if ($searchTooShort) {
+    && in_array($type, array('debitor', 'kreditor'), true);
+$searchTooShort = $searchableType && mb_strlen($search, 'UTF-8') < $minSearchLength;
+// SST-814 review: pg_trgm takes its trigrams from runs of letters and digits, so a term
+// made only of punctuation or spaces yields no index keys at all and can never be served
+// by the index however selective it looks. Measured on 200,000 rows: '---' seq scans at
+// 142 ms and matches nothing. This is narrower than "the index cannot help" - that depends
+// on how selective the extracted keys are against the actual data, not on the term's shape,
+// which is why the length check above cannot be replaced by one. See the PR discussion.
+$searchHasNoTrigram = $searchableType && !preg_match('/[\p{L}\p{N}]/u', $search);
+if ($searchTooShort || $searchHasNoTrigram) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(array(
         'results' => array(),
