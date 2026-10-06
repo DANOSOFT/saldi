@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.05
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -79,6 +79,9 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
+// 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
+//                  re-seeds the corrected csv text on the next call.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -869,6 +872,8 @@ if ($lockTokenMissing) {
 //                  flow is already doing per-tenant maintenance work.
 include_once(__DIR__ . "/docsIncludes/poolContentHash.php");
 poolContentHashEnsureSchema();
+// Original-image identity is separate from the hash of the converted PDF on disk.
+poolContentHashColumnExists(true, 'source_sha256');
 
 // One-time backfill of content_sha256 for the rows written before the column existed, gated by a
 // settings flag exactly like pool_files_norm_amount_backfilled above. A row whose file is no longer
@@ -942,6 +947,11 @@ $tekster_reworded_20260930 = [
 	[1208, 3, 'Start md.'],
 	[1210, 2, 'End mnth.'],
 	[1210, 3, 'Slutt md.'],
+	// 1408 kept the spelling from before the csv was corrected on 2025-07-02 (34378fb7), so the pool
+	// title and the documents header still showed "Kassebillag" wherever the row was cached.
+	[1408, 1, 'Kassebillag'],
+	[1408, 2, 'Cash bill'],
+	[1408, 3, 'Kontantregning'],
 	[2640, 2, ' Click here to add a new product'],
 	[2640, 3, 'Klikk her for å opprette et nytt produkt'],
 	[2641, 2, 'Your product list is displayed here. Click a item number to open it.'],
