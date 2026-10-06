@@ -29,6 +29,8 @@
 // 20261006 CL/SZ SD-715 (CodeRabbit) Dropped the single-check "limit 20": the exclusions (same voucher, the line itself) run in PHP after
 //                the query, so a real earlier use could be past the first 20 rows and never checked (e.g. an invoice split over 20+ lines of the same voucher).
 // 20261003 CL/SZ SD-717 Archived pool documents don't count as an earlier use.
+// 20261006 CL/SZ SD-715 (CodeRabbit) Open-journal lines match a kreditor number with leading zeros (kredit is numeric there),
+//                and the number is always lowered with mb_strtolower(), which the database's lower() agrees with.
 
 if (!function_exists('invoice_reuse_number')) {
 	/**
@@ -41,7 +43,8 @@ if (!function_exists('invoice_reuse_number')) {
 	function invoice_reuse_number($faktura) {
 		$faktura = is_scalar($faktura) ? trim((string)$faktura, ' ') : '';
 		if ($faktura === '0' || !preg_match('/[[:alnum:]]/u', $faktura)) return '';
-		return function_exists('mb_strtolower') ? mb_strtolower($faktura, 'UTF-8') : strtolower($faktura);
+		// The database's lower() lowers Æ, Ø and Å; strtolower() wouldn't, so mbstring is required here (as across Saldi)
+		return mb_strtolower($faktura, 'UTF-8');
 	}
 }
 
@@ -124,7 +127,8 @@ if (!function_exists('invoice_reuse_find')) {
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			foreach ($wanted as $key => $want) {
-				if ((string)(int)$r['kredit'] !== $want['kontonr'] || $r['fnr'] !== $want['number']) continue;
+				// kassekladde.kredit is numeric: compared as numbers, so a kreditor 0123 matches the line's 123
+				if ((int)$r['kredit'] !== (int)$want['kontonr'] || $r['fnr'] !== $want['number']) continue;
 				if ((int)$r['id'] == $want['line_id'] || $sameVoucher($want, $r['kladde_id'], $r['bilag'])) continue;
 				$add($key, 'kladde', $r);
 			}
