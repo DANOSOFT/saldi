@@ -25,6 +25,8 @@
 //                  Navnelighed er en PHP-udgave af pg_trgm's similarity(), så resultatet er
 //                  ens på Postgres og MySQL og kan testes uden database.
 // 20260922 CL/LAH Windows-1252 bytes in adresser rows are converted to UTF-8 in the index.
+// 20261005 CL/SZ SD-721 The name match skips a kreditor whose CVR number differs from the document's. A supplier with an unknown
+//                CVR number was matched to a kreditor with a similar name, so "Opret kreditor" was never offered for it.
 
 if (!function_exists('normalizePoolVendorCvr')) {
 	/**
@@ -219,6 +221,8 @@ if (!function_exists('poolVendorBuildIndex')) {
 			);
 			$cvr = normalizePoolVendorCvr($row['cvrnr'] ?? null);
 			if ($cvr !== null) $index['byCvr'][$cvr][] = $id;
+			// The name match below must not pick a kreditor whose CVR number differs from the document's
+			if ($cvr !== null) $index['cvrById'][$id] = $cvr;
 			foreach (poolVendorBankKeys($row['iban'] ?? null, $row['bank_reg'] ?? null, $row['bank_konto'] ?? null) as $key) {
 				$index['byBank'][$key][] = $id;
 			}
@@ -345,6 +349,8 @@ if (!function_exists('poolVendorMatch')) {
 		$best = 0.0;
 		$bestIds = array();
 		foreach ($candidateIds as $id) {
+			// Another CVR number is another company, however alike the names are ("Jensen Byg ApS" / "Jensen VVS ApS")
+			if ($cvr !== null && isset($index['cvrById'][$id]) && $index['cvrById'][$id] !== $cvr) continue;
 			$sim = poolVendorNameSimilarity($nameTrigrams, $index['trigrams'][$id]);
 			if ($sim < $threshold) continue;
 			if ($sim > $best + 0.0005) {
