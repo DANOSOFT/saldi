@@ -36,6 +36,7 @@
 //             guarded the vendor UPDATE that runs after poolMetadataSave() commits with an
 //             atomic manually_edited check, so a manual correction landing in between can't
 //             be overwritten by the still-in-flight automatic request's vendor match.
+// 20261004 LOE Register automatic-save fallback rows with a stored-file hash.
 
 // Set JSON response header FIRST
 header('Content-Type: application/json');
@@ -97,6 +98,8 @@ $s_id = session_id();
 // Include database connection
 include_once(__DIR__ . "/../connect.php");
 include_once(__DIR__ . "/poolAmountNormalizer.php");
+require_once __DIR__ . "/poolUpload.php";
+require_once __DIR__ . "/poolPaths.php";
 include_once(__DIR__ . "/poolDateNormalizer.php");
 require_once __DIR__ . "/poolMetadata.php";
 require_once __DIR__ . "/../std_func.php";
@@ -186,10 +189,13 @@ if ($poolFile !== basename($poolFile) || $poolFile === '.' || $poolFile === '..'
 
 // Get docFolder from POST, but only accept the same fixed values
 // documents.php itself ever assigns to $docFolder - a POSTed path is not
-// trusted for directory traversal (SST-776).
-$requestedDocFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : '../bilag';
+// trusted for directory traversal (SST-776). Without a usable value the
+// installation's own folder is detected (owncloud, bilag or documents), not
+// bilag blindly - the other two layouts would look in a folder that is empty.
+$detectedDocFolder = '../' . poolDocFolderName();
+$requestedDocFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : $detectedDocFolder;
 $allowedDocFolders = ['../owncloud', '../bilag', '../documents'];
-$docFolder = in_array($requestedDocFolder, $allowedDocFolders, true) ? $requestedDocFolder : '../bilag';
+$docFolder = in_array($requestedDocFolder, $allowedDocFolders, true) ? $requestedDocFolder : $detectedDocFolder;
 
 // Build full path to the pool file using the same path structure as docPool.php
 // docFolder is relative to the includes/ directory (e.g., "../bilag")
@@ -207,7 +213,7 @@ if (!file_exists($filePath)) {
 	
 	$altPaths = [
 		$docFolder . "/$db/pulje/$poolFile",           // Without the extra ../
-		"../../bilag/$db/pulje/$poolFile",              // Hardcoded fallback for standard location
+		'../../' . poolDocFolderName() . "/$db/pulje/$poolFile",  // This installation's own folder
 	];
 	
 	foreach ($altPaths as $alt) {
@@ -299,16 +305,12 @@ if ($action === 'save') {
 		// only for an automatic save - a manual save still 409s on a missing row exactly as
 		// before, so a stale tab still cannot recreate a deleted/moved document.
 		if (!$manual && file_exists($filePath)) {
-			$onConflictClause = ($db_type == 'mysql' || $db_type == 'mysqli')
-				? ' ON DUPLICATE KEY UPDATE id = id'
-				: ' ON CONFLICT (filename) DO NOTHING';
-			db_modify(
-				"INSERT INTO pool_files (filename, subject, file_date) VALUES ('" . db_escape_string($poolFile) . "', '"
-					. db_escape_string(pathinfo($poolFile, PATHINFO_FILENAME)) . "', '"
-					. db_escape_string(date('Y-m-d H:i:s', filemtime($filePath))) . "')" . $onConflictClause,
-				__FILE__ . ' line ' . __LINE__
-			);
+			poolUploadEnsureSchema();
+			if (!db_fetch_array(db_select("SELECT id FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'", __FILE__ . ' line ' . __LINE__))) {
+				poolUploadRegisterFile($filePath);
+			}
 		}
+
 		$result = poolMetadataSave($poolFile, $input, $manual, $version, $regnaar);
 
 		// Vendor identity is only (re)matched when the caller is one of the scanning paths
