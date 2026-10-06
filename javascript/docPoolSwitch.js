@@ -6,6 +6,7 @@
 //                The scripts inside the replaced parts run again; DOMContentLoaded handlers among them run right after.
 //                Other scripts follow through the "poolswitch" event on document.
 //                Anything unexpected (an error, a page without the same parts) falls back to loading the page normally.
+// 20261006 CL/SZ SD-719 options.keepLineContext: a document opened for the same line leaves the match groups as they are.
 (function () {
     'use strict';
 
@@ -62,6 +63,7 @@
     /**
      * Shows another document in place.
      * options.remove: file names that left the list (attached or archived) and are taken out of it.
+     * options.keepLineContext: the same journal line, so the list keeps matching against its date and amount.
      * Resolves when the new document is shown.
      */
     function poolSwitch(href, options) {
@@ -107,7 +109,7 @@
                     window.poolRemoveFiles(options.remove);
                 }
                 var context = lineContext(html);
-                if (context && typeof window.poolSetLineContext === 'function') window.poolSetLineContext(context.sum, context.dato);
+                if (context && !options.keepLineContext && typeof window.poolSetLineContext === 'function') window.poolSetLineContext(context.sum, context.dato);
                 if (typeof window.poolShowCurrent === 'function') window.poolShowCurrent();
                 document.dispatchEvent(new CustomEvent('poolswitch', { detail: { href: href } }));
             })
