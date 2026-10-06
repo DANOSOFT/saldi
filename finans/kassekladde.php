@@ -127,6 +127,7 @@
 // 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
 // 20261003 CL/SZ SD-721 "Opret kreditor automatisk" in the gear box, per user, off by default; stored in box3 as kred_auto when on (save_kk_cols).
 //                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
+// 20261006 CL/SZ SD-720 accountAutocomplete.js?v= bumped again: the invoice-number and amount searches got the same late-answer rule.
 // 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
 //                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
 //                and the journal then refused every save.
@@ -536,7 +537,7 @@ print "<script>
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.11" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.12" defer></script>';
 // SD-721: "Opret kreditor" in the lookup panel when a kreditor search finds nothing
 include_once("../includes/kreditorFromCvr.php");
 print kreditorCvrClientScript($sprog_id, '1');
