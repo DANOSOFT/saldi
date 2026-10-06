@@ -79,6 +79,7 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
 //                  re-seeds the corrected csv text on the next call.
 
@@ -871,6 +872,8 @@ if ($lockTokenMissing) {
 //                  flow is already doing per-tenant maintenance work.
 include_once(__DIR__ . "/docsIncludes/poolContentHash.php");
 poolContentHashEnsureSchema();
+// Original-image identity is separate from the hash of the converted PDF on disk.
+poolContentHashColumnExists(true, 'source_sha256');
 
 // One-time backfill of content_sha256 for the rows written before the column existed, gated by a
 // settings flag exactly like pool_files_norm_amount_backfilled above. A row whose file is no longer
