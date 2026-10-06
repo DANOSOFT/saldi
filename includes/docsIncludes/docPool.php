@@ -171,6 +171,7 @@
 // 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
 // 20261007 CL/SZ SD-719 The first page of the list comes with the page (poolListData()), so the list shows without a second request; it is used only when
 //                the browser would have asked for exactly that page (no stored search, more loaded rows, ticked documents or archive view) and not for a page from history.
+// 20261006 CL/SZ SD-722 After "Overfør data" (OK or Annuller) the cursor is back in the line (window.poolFocusNewLine()), so Enter takes the suggestion or saves.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -6250,6 +6251,7 @@ HTML;
 			// Cancel
 			document.getElementById('transferCancelBtn').addEventListener('click', function() {
 				overlay.remove();
+				if (typeof window.poolFocusNewLine === 'function') window.poolFocusNewLine();
 			});
 
 			// OK — populate fields
@@ -6266,6 +6268,8 @@ HTML;
 				}
 				overlay.remove();
 				applyTransfer(transferKredit, false);
+				// The cursor back in the line, where Enter takes the suggestion or saves (SD-722); the popup took it with it
+				if (typeof window.poolFocusNewLine === 'function') setTimeout(window.poolFocusNewLine, 0);
 
 				// Visual feedback on the button
 				const btn = document.getElementById('transferDataBtn');
