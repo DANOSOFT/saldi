@@ -67,9 +67,9 @@ $flatpayPrint = db_fetch_array($q)[0];
 $q = db_select("select var_value from settings where var_name = 'flatpay_terminal_print'", __FILE__ . " linje " . __LINE__);
 $terminal_print = db_fetch_array($q)[0];
 
-// 0, NULL or a missing row means the terminal must not print. The value is written
-// into JavaScript, so it must be a literal true/false (PHP prints false as '').
-$disableTerminalPrints = ((int)$terminal_print === 0) ? 'true' : 'false';
+// Same rule as before: 0, NULL or a missing row means the terminal must not print.
+// The value is written into JavaScript, so it must be a literal true/false (PHP prints false as '').
+$disableTerminalPrints = ($terminal_print == 0) ? 'true' : 'false';
 
 // Fetch printserver
 $r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
