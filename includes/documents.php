@@ -1,6 +1,6 @@
 <!doctype html>
 <?php
-// --- includes/documents.php --- ver 5.0.0 --- 2026-10-02 ---
+// --- includes/documents.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,8 @@
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 // 20261002 CL/SZ SD-701 viewOnly=1 shows only the line's document, for the voucher tab the journal opens.
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
+// 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
+//                  instead of always the first regardless, so a missing first file no longer hides the others.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -131,8 +133,12 @@ $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&f
 if (ifset($_GET, 'viewOnly') == '1' && $source && $sourceId) {
 	include_once(__DIR__ . '/docsIncludes/viewOnlyDocs.php');
 	$viewDocs = viewOnlyDocs($source, $sourceId, $docFolder, $db);
-	// Only a document of this line can be shown, whatever showDoc the URL carries
+	// Only a document of this line can be shown, whatever showDoc the URL carries.
+	// Without one in the URL, the first document whose file is on the server, so a missing first file doesn't hide the others.
 	$viewPath = $viewDocs ? $viewDocs[0]['path'] : '';
+	foreach ($viewDocs as $viewDoc) {
+		if (is_file($viewDoc['path'])) { $viewPath = $viewDoc['path']; break; }
+	}
 	foreach ($viewDocs as $viewDoc) {
 		if ($viewDoc['path'] == $showDoc) $viewPath = $viewDoc['path'];
 	}
