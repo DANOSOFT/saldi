@@ -1,3 +1,4 @@
+// 20261006 CL/LH SST-850: Settings password is checked server-side; the password is no longer compared in the browser.
 // Settings module
 class SettingsManager {
     constructor() {
@@ -30,9 +31,9 @@ class SettingsManager {
         const url = new URL(window.location.href);
         const pathSegments = url.pathname.split('/').filter(segment => segment !== '');
         const firstFolder = pathSegments[0];
-        const { getSettings, updateSettings } = await import(`/${firstFolder}/rental/api/api.js?v=${Date.now()}`);
+        const { getSettings, updateSettings, isSettingsUnlocked, checkSettingsPassword } = await import(`/${firstFolder}/rental/api/api.js?v=${Date.now()}`);
         
-        this.api = { getSettings, updateSettings };
+        this.api = { getSettings, updateSettings, isSettingsUnlocked, checkSettingsPassword };
         this.settings = await this.api.getSettings();
         
         await this.checkPassword();
@@ -40,15 +41,15 @@ class SettingsManager {
     }
 
     async checkPassword() {
-        if (this.settings.use_password === "1") {
-            const pass = prompt("Indtast adgangskode for at fortsætte");
-            if (pass !== this.settings.pass) {
-                alert("Forkert adgangskode");
-                const currentUrl = new URL(window.location.href);
-                const currentPathSegments = currentUrl.pathname.split('/').filter(segment => segment !== '');
-                const redirectFolder = currentPathSegments[0];
-                window.location.href = `/${redirectFolder}/rental/index.php?vare`;
-            }
+        if (this.settings.use_password !== "1" || (await this.api.isSettingsUnlocked()).success) return;
+        const pass = prompt("Indtast adgangskode for at fortsætte");
+        const result = await this.api.checkSettingsPassword(pass ?? "");
+        if (!result.success) {
+            alert("Forkert adgangskode");
+            const currentUrl = new URL(window.location.href);
+            const currentPathSegments = currentUrl.pathname.split('/').filter(segment => segment !== '');
+            const redirectFolder = currentPathSegments[0];
+            window.location.href = `/${redirectFolder}/rental/index.php?vare`;
         }
     }
 
@@ -66,14 +67,14 @@ class SettingsManager {
         elements.putTogether.checked = settings.put_together === '1';
         elements.invoiceDate.checked = settings.invoice_date === '1';
         elements.usePassword.checked = settings.use_password === '1';
-        elements.password.value = settings.pass || "";
+        elements.password.placeholder = settings.use_password === '1' ? "Lad feltet stå tomt for at beholde den nuværende adgangskode" : "";
         elements.toggleOrder.checked = settings.toggle_order === '1';
     }
 
     async handleSave(e) {
         e.preventDefault();
         
-        if (this.elements.usePassword.checked && !this.elements.password.value) {
+        if (this.elements.usePassword.checked && this.settings.use_password !== "1" && !this.elements.password.value) {
             alert("Du skal udfylde adgangskoden for at gemme ændringerne.");
             return;
         }
