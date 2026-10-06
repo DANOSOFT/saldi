@@ -10,6 +10,8 @@
 //                  journal edits are kept; the card's Tilbage closes the tab. A blocked popup falls back to the old ask-and-leave.
 // 20261005 CL/SZ SD-714 A Tab or Ctrl + arrow only keeps the panel closed for the focus change it makes. Before, a Tab that landed on a field without
 //                  the panel (Beløb, the type field) kept it closed for the next click into Debet or Kredit too.
+// 20261006 CL/SZ SD-714 window.focusAccountQuietly(input) puts the cursor in a field without opening the panel (the pool's new document), and a
+//                  click into a field that already has the cursor opens the panel, as the first click would.
 // 20261005 CL/SZ SD-714 A click in a document viewer (the pool's PDF) closes the panel; the click never reached the page, so the panel stayed open.
 (function () {
     'use strict'; 
@@ -250,6 +252,12 @@
                 return;
             }
             // Show dropdown with current input value as search
+            handleInputWithValue(this, this.value);
+        });
+
+        // The cursor already in the field (Escape, or a quiet focus): a click opens the panel the focus did not
+        input.addEventListener('click', function () {
+            if (selectionMade || (activeDropdown && activeInput === this)) return;
             handleInputWithValue(this, this.value);
         });
 
@@ -1856,5 +1864,12 @@
     });
 
     window.initAccountAutocomplete = initAccountAutocomplete;
+    /** Focuses a lookup field without opening its panel, as a Tab into it does; typing or a click opens it. */
+    window.focusAccountQuietly = function (input) {
+        if (!input) return;
+        focusViaKeyboardNav = true;
+        input.focus();
+        focusViaKeyboardNav = false;
+    };
 
 })();
