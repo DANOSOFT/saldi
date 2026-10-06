@@ -150,6 +150,7 @@
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
+// 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
 
 @session_start();
 $s_id = session_id();
@@ -186,6 +187,7 @@ include("../includes/std_func.php");
 
 include("../includes/connect.php");
 include("../includes/online.php");
+include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -1149,7 +1151,7 @@ if ($b_submit) {
 	$levdato = trim(if_isset($_POST, NULL, 'levdato'));
 	#  $genfakt = trim(if_isset($_POST['genfakt']));
 	$fakturadato    = trim(if_isset($_POST, NULL, 'fakturadato'));
-	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = date("d-m-Y");
+	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = dkdato(default_invoice_date($id));
 	$cvrnr          = db_escape_string(trim(if_isset($_POST, NULL, 'cvrnr')));
 	$procenttillag  = usdecimal($procenttillag, 2);
 	$institution    = db_escape_string(trim(if_isset($_POST, NULL, 'institution')));
@@ -3224,7 +3226,7 @@ if ($b_submit == 'del_ordre') {
 ########################## FAKTURER   - SKAL VAERE PLACERET EFTER "del_ordre" ################################
 if ($b_submit == 'doInvoice' && $status < 3) {
 	if (!$fakturadate) {
-		$fakturadate = date("Y-m-d");
+		$fakturadate = default_invoice_date($id);
 		db_modify("update ordrer set fakturadate='$fakturadate' where id = '$id'", __FILE__ . " linje " . __LINE__);
 	}
 	if ($udskriv_til == "oioubl") {
@@ -5078,7 +5080,7 @@ function ordreside($id, $regnskab)
 			print "<td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:130px\" name=\"levdato\" value=\"$levdato\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		}
 		if ($fakturadato || $status > 0) {
-			$dd = date("d-m-Y");
+			$dd = dkdato(default_invoice_date($id));
 			print "<tr><td ";
 			if ($art != 'DK') print "title=\"" . findtekst('1094|Fakturadato', $sprog_id) . "\">" . findtekst('883|Fakt. dato', $sprog_id) . "";
 			else print "title=\"" . findtekst('1470|Dato for kreditnota', $sprog_id) . "\">" . findtekst('1471|KN. dato', $sprog_id) . "";
@@ -6385,7 +6387,7 @@ function ordreside($id, $regnskab)
 				$disabled = NULL;
 				$titletext = '';
 				$tmp = "";
-				$dd = date("d-m-Y");
+				$dd = dkdato(default_invoice_date($id));
 
 				if ($art != 'DK' && !$dan_kn) {
 					if ($udskriv_til == 'email') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
