@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-06 ------
+// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-07 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,8 @@
 //                so a crafted fokus can't break out of the links, the hidden field or the kontofusion redirect either.
 // 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
+// 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
+//                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
 
 
 @session_start();
@@ -577,8 +579,6 @@ if ($menu == 'T') {
 print "</tbody></table>"; #tabel 1.3 slut
 print "</td></tr>";
 print "</tbody></table>\n"; #tabel 1 slut
-require_once("../includes/cvrLookup.php");
-print cvrLookupClientConfig($sprog_id);
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
 if (isset($_GET['cvrnr']) && $cvrnr) {
 	echo "<script type=\"text/javascript\">    cvrapi('$cvrnr', 'dk', 'vat');      </script>";
