@@ -92,6 +92,7 @@
 // 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
 // 20261002 CL/NTR Include stdFunc/findTxtUtf8.php (findtekst_utf8()).
 // 20261006 CL/NTR Docblocks of ifset()/if_isset(): plain-variable checks should use $var ?? $default (undefined variable still warns).
+// 20261007 NTR Added global function to get_settings_value and update_settings_value.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -3033,14 +3034,14 @@ if(!function_exists('get_settings_value')){
 	 *
 	 * @return mixed - The value of the setting if found, otherwise the default value.
 	 */
-	function get_settings_value($var_name, $var_grp, $default, $user=NULL, $kasse=NULL) {
+	function get_settings_value($var_name, $var_grp, $default, $user=NULL, $kasse=NULL, $global = false) {
 
 		$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
 
 		if ($user !== NULL) $qtxt = $qtxt." AND user_id=$user";
 		if ($kasse !== NULL) $qtxt = $qtxt." AND pos_id=$kasse";
 
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $global));
 		if ($r) {
 			return $r[0];
 		} else {
@@ -3108,7 +3109,7 @@ if (!function_exists('is_input_too_long')) {
 }
 
 if(!function_exists('update_settings_value')){
-        function update_settings_value($var_name, $var_grp, $var_value, $var_description, $user=NULL, $posid=NULL) {
+        function update_settings_value($var_name, $var_grp, $var_value, $var_description, $user=NULL, $posid=NULL, $global = false) {
 		/**
 		 * Updates or inserts a settings value in the database.
 		 *
@@ -3128,14 +3129,14 @@ if(!function_exists('update_settings_value')){
                 $qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
                 if ($user !== NULL)  $qtxt .= " AND user_id=$user";
 				if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
-                $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+                $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $global));
 				
                 # If the row already exsists
                 if ($r) {
                         $qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
                         if ($user !== NULL)  $qtxt .= " AND user_id=$user";
                         if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
-                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__, $global);
                 # If the row needs to be created in the database
                 } else {
                         $qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description";
@@ -3147,7 +3148,7 @@ if(!function_exists('update_settings_value')){
                         if ($posid !== NULL) $qtxt .= ", $posid";
                         $qtxt = $qtxt.")";
 
-                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__, $global);
                 }
         }
 }
@@ -3204,7 +3205,7 @@ if (!function_exists('send_sms')) {
 
 		# Access global db
 		include (get_relative().'includes/connect.php');
-		$apikey = get_settings_value("apikey", "cpsms", NULL);
+		$apikey = get_settings_value("apikey", "cpsms", NULL, NULL, NULL, true);
 		include (get_relative().'includes/online.php');
 
 		# Alert the user if it is unable to send if misconfigured
@@ -3243,13 +3244,13 @@ if (!function_exists('send_sms')) {
 
 				# Update the value for the client of how manu sms they send
 				include (get_relative().'includes/connect.php');
-				$r=db_fetch_array(db_select("select coalesce(sms, 0) as sms from regnskab where db='$regnskab'",__FILE__ . " linje " . __LINE__));
+				$r=db_fetch_array(db_select("select coalesce(sms, 0) as sms from regnskab where db='$regnskab'",__FILE__ . " linje " . __LINE__, true));
 				if ($r["sms"] == 0) {
 					echo "<script>alert('Dette er den første SMS der afsendes fra Saldi i dit regnskab. Bemærk venligst at såfremt du overstiger en grænse på 10 afstente sms'ser, vil du modregnes 0,89 kr. pr. sms på din næste faktura.');</script>";
 				}
 				$sms = $r["sms"] + $cost;
 
-				db_modify("update regnskab set sms = $sms where db='$regnskab'",__FILE__ . " linje " . __LINE__);
+				db_modify("update regnskab set sms = $sms where db='$regnskab'",__FILE__ . " linje " . __LINE__, true);
 				include (get_relative().'includes/online.php');
 				return true;
 			} else {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.06
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -87,6 +87,8 @@
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
 //                  re-seeds the corrected csv text on the next call.
+// 20261007 CL/NTR Add ordrer.shop_status as varchar(20) when the column is missing entirely,
+//                  so the Stripe paid-invoice index no longer fails on those tenants.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -321,7 +323,11 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	#                rest_api.php; existing numeric values keep their digits as text).
 	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'ordrer' AND column_name = 'shop_status'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if ($r && $r['data_type'] == 'integer') {
+	if (!$r) {
+		# 20261007 CL/NTR Some tenants have no shop_status column at all (opdat_4.0.php never ran
+		#                  its ADD COLUMN there), so the index below failed with "column does not exist".
+		db_modify("ALTER TABLE ordrer ADD COLUMN shop_status varchar(20)", __FILE__ . " linje " . __LINE__);
+	} elseif ($r['data_type'] == 'integer') {
 		db_modify("ALTER TABLE ordrer ALTER COLUMN shop_status TYPE varchar(20)", __FILE__ . " linje " . __LINE__);
 	}
 	$qtxt = "CREATE UNIQUE INDEX ordrer_stripe_paid_invoice_uidx ON ordrer (kundeordnr) WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'";
