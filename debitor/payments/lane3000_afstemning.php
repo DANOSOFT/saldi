@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/lane3000_afstemning.php --- lap 5.1.0 --- 2026.09.17 ---
+// --- payments/lane3000_afstemning.php --- ver 5.0.0 --- 2026.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,8 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 PHR Chaget ordre_id to 0 instead of 1000 if not set, as it returned to odrer 1000.
+// 20261007 CL/SZ SST-843 The Nets Connect@Cloud username and password are no longer written into the page.
+//                The login and the reconciliation run in lane3000_proxy.php, so the bearer token stays on the server too.
 
 @session_start();
 $s_id = session_id();
@@ -83,6 +85,10 @@ $terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
 # Print setup
 $printfile = 'https://'.$_SERVER['SERVER_NAME'];
 $printfile.= str_replace('debitor/payments/lane3000_afstemning.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
+
+# Session-bound token that lane3000_proxy.php checks; the Nets login itself is read there
+if (!isset($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf_token = $_SESSION['csrf_token'];
 ?>
 
 <script>
@@ -124,53 +130,21 @@ function leave() {
     }
 }
 
-// GET API KEY
-async function get_api_key(baseurl) {
-    try {
-        document.getElementById('status').innerText = "Authorizer...";
-        
-        const username = "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>";
-        const password = "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>";
-        
-        if (!username || !password) {
-            throw new Error("Manglende brugernavn eller adgangskode i indstillinger");
-        }
-        
-        const data = {
-            "username": username,
-            "password": password
-        }
-        
-        var res = await fetch(
-            `${baseurl}login`,
-            {
-                method: 'post',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
-            }
-        );
-
-        if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`HTTP ${res.status}: ${errorText}`);
-        }
-
-        var jsondata = await res.json();
-
-        if (!jsondata.token) {
-            throw new Error("Ingen token modtaget fra server");
-        }
-
-        return jsondata.token;
-    } catch (error) {
-        fail(`Autorisation fejlede: ${error.message}`);
-        return null;
-    }
+// Nets is called through lane3000_proxy.php, which logs in with this register's Connect@Cloud login
+// and starts the reconciliation on the server. It answers with the terminal's own status and body; a failed
+// login is marked with the X-Nets-Stage: login header.
+function netsApi(action, params) {
+    return fetch('lane3000_proxy.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': <?php print json_encode($csrf_token); ?>
+        },
+        body: JSON.stringify(Object.assign({ action: action, kasse: <?php print (int) $kasse; ?> }, params))
+    });
 }
 
-async function print_str(baseurl, apikey, data) {
+async function print_str(data) {
     try {
         document.getElementById('status').innerText = "Printer...";
         
@@ -207,32 +181,20 @@ async function print_str(baseurl, apikey, data) {
 }
 
 // START afstemning ON TERMINAL
-async function afstem(baseurl, apikey) {
+async function afstem() {
     try {
-        if (!apikey) {
-            throw new Error("Ingen API nøgle tilgængelig");
-        }
-        
         const terminalId = "<?php print $terminal_id; ?>";
         if (!terminalId) {
             throw new Error("Terminal ID ikke fundet");
         }
         
-        const data = {
-            "action": "reconciliation",
+        var res = await netsApi('reconciliation', {});
+
+        if (res.headers.get('X-Nets-Stage') === 'login') {
+            const loginError = await res.json().catch(() => ({}));
+            fail(`Autorisation fejlede: ${loginError.error || res.status}`);
+            return;
         }
-        
-        var res = await fetch(
-            `${baseurl}terminal/${terminalId}/administration`,
-            {
-                method: 'post',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `bearer ${apikey}`
-                },
-                body: JSON.stringify(data),
-            }
-        );
 
         if (!res.ok) {
             const errorText = await res.text();
@@ -252,7 +214,7 @@ async function afstem(baseurl, apikey) {
         console.log('Afstemning resultat:', jsondata);
         const lines = jsondata.result.reconciliation.printText?.Text || '';
         
-        await print_str(baseurl, apikey, lines);
+        await print_str(lines);
         leave();
         
     } catch (error) {
@@ -262,16 +224,8 @@ async function afstem(baseurl, apikey) {
 
 async function start() {
     try {
-        const baseurl = "https://connectcloud.aws.nets.eu/v1/";
-        var elm = document.getElementById('status');
-
-        const apikey = await get_api_key(baseurl);
-        if (!apikey || elm.innerText.includes("Fejl:")) {
-            return;
-        }
-        
         document.getElementById('status').innerText = "Afstemmer...";
-        await afstem(baseurl, apikey);
+        await afstem();
         
     } catch (error) {
         fail(`Generel fejl: ${error.message}`);
