@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-04 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,6 +100,10 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
+// 20261003 CL/SZ SD-714 Debet and Kredit get the journal's lookup panel, an F/D/K type field (new lines: Debet F, Kredit K) and the account's name and VAT code under them.
+//                Saved as type + number ("K1234").
+// 20261003 CL/SZ SD-714 Save posted to a hard-coded '/pblm/...' path outside the document root (e.g. an Apache Alias) and got 404.
+//                The fallback is now relative to includes/documents.php.
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
@@ -107,6 +111,8 @@ include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/poolVendorSuggestion.php");
+include_once(__DIR__ . "/poolAccountInfo.php");
+include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -1447,12 +1453,14 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$v4 = @filemtime("../css/datepickerDa.css") ?: 0;
 	$v5 = @filemtime("../javascript/accountAutocomplete.js") ?: 0;
 	$v6 = @filemtime("../javascript/datepickerDa.js") ?: 0;
+	$v7 = file_exists("../javascript/docPoolAccounts.js") ? filemtime("../javascript/docPoolAccounts.js") : 0;
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css?v=$v1\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css?v=$v2\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css?v=$v3\">\n";
     print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/datepickerDa.css?v=$v4\">";
     print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 	print "<script src=\"../javascript/accountAutocomplete.js?v=$v5\"></script>";
+	print "<script src=\"../javascript/docPoolAccounts.js?v=$v7\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1542,8 +1550,9 @@ if (strpos($currentFile, $docRoot) === 0) {
     $relPath = substr($currentFile, strlen($docRoot));
     $insertDocPath = dirname($relPath) . '/insertDoc.php';
 } else {
-    // Fallback if document root mismatch (e.g. symlinks), alias to common location
-    $insertDocPath = '/pblm/includes/docsIncludes/insertDoc.php';
+    // Outside the document root (Apache Alias, symlink): relative to includes/documents.php, the page the pool runs in.
+    // It used to be '/pblm/...', one specific install, so Save answered 404 everywhere else.
+    $insertDocPath = 'docsIncludes/insertDoc.php';
 }
 
 print "<div id='docPoolContainer' style='overflow: auto;'>";
@@ -1627,7 +1636,7 @@ if ($source == 'kassekladde') {
 	if ($escKladde && $displayBilag !== '') {
 		$escBilag = db_escape_string($displayBilag);
 		$qAll = db_select(
-			"SELECT id, bilag, beskrivelse, transdate, debet, kredit, faktura, amount, afd, projekt, valuta, momsfri, forfaldsdate " .
+			"SELECT id, bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, afd, projekt, valuta, momsfri, forfaldsdate " .
 			"FROM kassekladde WHERE kladde_id = '$escKladde' AND bilag = '$escBilag' ORDER BY id ASC",
 			__FILE__ . " linje " . __LINE__
 		);
@@ -1694,8 +1703,32 @@ if ($source == 'kassekladde') {
 		print "<div class='topbar-field'>" . $lbl(findtekst('438|Dato', $sprog_id).':') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('643|Faktura', $sprog_id).':') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}{$roBg}' placeholder='".findtekst('828|Fakturanr.', $sprog_id)."'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('914|Beskrivelse', $sprog_id).':') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}{$roBg}' placeholder='".findtekst('914|Beskrivelse', $sprog_id)."'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl(findtekst('1000|Debet', $sprog_id).':') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl(findtekst('1001|Kredit', $sprog_id).':') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}></div>";
+		// Debet/Kredit: F/D/K type + account, as in the journal. The names debe/kred/d_ty/k_ty + row number are what the
+		// lookup panel (accountAutocomplete.js) binds to; read-only rows don't get them, so they get no panel.
+		list($dType, $dNo) = poolAccountSplit($d['debet'] ?? '', $d['d_type'] ?? '', 'F');
+		list($kType, $kNo) = poolAccountSplit($d['kredit'] ?? '', $d['k_type'] ?? '', is_numeric($rowId) ? 'F' : 'K');
+		$rowNo = is_numeric($rowId) ? (int)$rowId : 0;
+		$accountCell = function($side, $label, $type, $no, $prefixes, $lastPostingsAttr) use ($pfx, $lbl, $inStyle, $roBg, $ro, $readOnly, $rowNo) {
+			global $sprog_id, $regnaar;
+			$info = $no !== '' ? poolAccountInfo($type, $no, $regnaar) : array('name' => '', 'moms' => '');
+			$typeName = $readOnly ? '' : " name='{$prefixes[0]}{$rowNo}'";
+			$noName = $readOnly ? '' : " name='{$prefixes[1]}{$rowNo}' autocomplete='off'{$lastPostingsAttr}";
+			$typeTitle = htmlspecialchars(findtekst('5285|F = finanskonto, D = debitor, K = kreditor', $sprog_id), ENT_QUOTES);
+			print "<div class='topbar-field pool-account-field'>" . $lbl(findtekst($label, $sprog_id).':');
+			print "<div class='pool-account-inputs'>";
+			print "<input type='text' id='{$pfx}_{$side}Type' class='pool-account-type' maxlength='1' value='$type' title='$typeTitle' style='width:20px;{$inStyle}{$roBg}'{$ro}{$typeName}>";
+			print "<input type='text' id='{$pfx}_{$side}' class='pool-account-no' data-side='$side' value=\"" . htmlspecialchars($no) . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}{$noName}>";
+			print "</div>";
+			$vat = $info['moms'] !== '' ? "<span class='pool-account-vat'>" . htmlspecialchars($info['moms']) . "</span>" : '';
+			print "<div class='pool-account-name' id='{$pfx}_{$side}Name' title=\"" . htmlspecialchars($info['name']) . "\">" . $vat . htmlspecialchars($info['name']) . "</div>";
+			print "</div>";
+		};
+		// "sidste 5 posteringer": the Debet panel offers the counter-accounts used with the Kredit account, and vice versa
+		$escKladdeId = (int)$escKladde;
+		$dLast = (!$readOnly && $kNo !== '') ? sidste_5_forslag_attr($kNo, $kType, 'D', 'UTF-8', $escKladdeId, $sprog_id) : '';
+		$kLast = (!$readOnly && $dNo !== '') ? sidste_5_forslag_attr($dNo, $dType, 'K', 'UTF-8', $escKladdeId, $sprog_id) : '';
+		$accountCell('Debet', '1000|Debet', $dType, $dNo, array('d_ty', 'debe'), $dLast);
+		$accountCell('Kredit', '1001|Kredit', $kType, $kNo, array('k_ty', 'kred'), $kLast);
 		print "<div class='topbar-field'>" . $lbl(findtekst('934|Beløb', $sprog_id).':') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('2464|Afd.', $sprog_id).':') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('2464|Afd.', $sprog_id)."'{$ro}></div>";
 		print "<div class='topbar-field'>" . $lbl(findtekst('3269|Proj.', $sprog_id).':') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('3269|Proj.', $sprog_id)."'{$ro}></div>";
@@ -1709,6 +1742,20 @@ if ($source == 'kassekladde') {
 		print "</div>"; // kassebilag-entry
 	};
 
+	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
+	print "<script>
+	window.saldiPoolAccounts = " . json_encode(array('lookupUrl' => 'docsIncludes/poolAccountLookup.php', 'kladdeId' => $escKladde)) . ";
+	window.saldiAccountCard = " . json_encode(array(
+		'url'      => '../finans/kassekladde_includes/openAccountCard.php',
+		'kladdeId' => $escKladde,
+		'titles'   => array(
+			'F' => findtekst('1196|Specifikation for', $sprog_id) . ' ' . findtekst('2131|konto', $sprog_id),
+			'D' => findtekst('356|Debitorkort', $sprog_id),
+			'K' => findtekst('1184|Kreditorkort', $sprog_id),
+		),
+		'unsaved'  => findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id),
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
+	</script>";
 	print "<div id='kassebilagTopBar'>";
 
 	// Title + bilag-group navigation
@@ -1777,7 +1824,9 @@ if ($source == 'kassekladde') {
 			'dato'        => $bl['transdate'] ? dkdato($bl['transdate']) : '',
 			'faktura'     => $bl['faktura'] ?? '',
 			'beskrivelse' => $bl['beskrivelse'] ?? '',
+			'd_type'      => $bl['d_type'] ?? '',
 			'debet'       => $bl['debet'] ?? '',
+			'k_type'      => $bl['k_type'] ?? '',
 			'kredit'      => $bl['kredit'] ?? '',
 			'amount'      => $bl['amount'] ? dkdecimal($bl['amount']) : '',
 			'afd'         => $bl['afd'] ?? '',
@@ -5352,8 +5401,8 @@ HTML;
             bilagsnr:    getVal(pfx + 'Bilag'),
             dato:        getVal(pfx + 'Dato'),
             beskrivelse: getVal(pfx + 'Beskrivelse'),
-            debet:       getVal(pfx + 'Debet'),
-            kredit:      getVal(pfx + 'Kredit'),
+            debet:       poolAccountValue(pfx, 'Debet'),
+            kredit:      poolAccountValue(pfx, 'Kredit'),
             fakturanr:   getVal(pfx + 'Faktura'),
             amount:      getVal(pfx + 'Amount'),
             afd:         getVal(pfx + 'Afd'),

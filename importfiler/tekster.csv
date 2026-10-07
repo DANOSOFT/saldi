@@ -5150,6 +5150,7 @@
 5281	Hvis du klikker OK mistes de sidste ændringer	If you click OK the latest changes will be lost	Hvis du klikker OK går de siste endringene tapt
 5282	Administrér bilag	Manage vouchers	Administrer bilag
 5283	Der er ikke længere et bilag på denne linje.	This line no longer has a voucher.	Det er ikke lenger et bilag på denne linjen.
+5285	F = finanskonto, D = debitor, K = kreditor	F = finance account, D = debtor, K = creditor	F = finanskonto, D = debitor, K = kreditor
 5300	Kladde	Journal	Kladd
 5301	Fremdrift	Progress	Fremdrift
 5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…
