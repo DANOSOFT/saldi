@@ -36,7 +36,7 @@
 // 2017-08-04 Finder ud af om feltet loendate er tomt. jQuery læser hidden field og fjerner link til akkordlister. Søg 20170804
 // 2017-08-11 Finder ud af om feltet sagnr er tomt. jQuery læser hidden field og fjerner link til sag og akkordlister. Søg 20170811
 // 20180612 PHR - Separat array for art_navn & alias så system kan tilrettes andre brancher (blot en start) #20180612
-
+// 20261007 NTR - Changed fixed size of wrapper and "slet sortering" to flow-root and improved margins and paddings for a better design.
 
 function loenliste() {
 	global $db;
@@ -572,12 +572,12 @@ function loenliste() {
 					}
 					if ($s_ansat) print "<OPTION value=\"\">&nbsp;</option>\n";
 				print "</select></div>       
-				<div class=\"felt11\" style=\"width:95px;margin-right:-20px;\"><input name=\"s_sum\" value=\"$s_sum\" type=\"text\" class=\"textinputloen\" style=\"width:52px\"><div style=\"margin-right:1px;float:right;\"><input class=\"button gray smallx\" type=\"submit\" name=\"find\" value=\"".findtekst('913|Søg', $sprog_id)."\"></div></div>
+				<div class=\"felt11\" style=\"width:95px;margin-right:-20px;\"><input name=\"s_sum\" value=\"$s_sum\" type=\"text\" class=\"textinputloen\" style=\"width:52px\"><div style=\"margin-right:10px;float:right;\"><input class=\"button gray smallx\" type=\"submit\" name=\"find\" value=\"".findtekst('913|Søg', $sprog_id)."\"></div></div>
 			</li>
 		</ul>
 	</div>
 	
-	<div style=\"height:25px;padding:5px 12px 0 12px;background-color: #F2F2F2;\">
+	<div style=\"padding:5px 12px 5px 12px;background-color: #F2F2F2; display: flow-root;\">
 		<span><a href=\"loen.php?funktion=loenliste&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>
 		<div style=\"float:right;\">
 		<p style=\"float:left;\">".findtekst('2797|Vælg antal viste linjer', $sprog_id).":&nbsp;</p>

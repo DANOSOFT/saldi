@@ -52,6 +52,7 @@
 // 20241126 PHP8
 // 20260312 PHP8
 // 20260805 CX/PHR Cache-bust autocomplete scripts after adding safe field separators.
+// 20271007 NTR Changed fixed size of wrapper and "slet sortering" to flow-root and improved margins and paddings for a better design.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -188,7 +189,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 			</div><!-- end of breadcrumbbar -->
 
 			<div id=\"leftmenuholder\">";
-				include ("leftmenu.php");
+				include (__DIR__ . "/leftmenu.php");
 			print "</div><!-- end of leftmenuholder -->
 			<div class=\"maincontent\">";
 			if (substr($sag_rettigheder,2,1)) $funktion($sag_id);
@@ -864,7 +865,7 @@ function sagsliste() {
 			}
 			print "
 			<form name=\"sagliste\" action=\"sager.php?funktion=sagsliste\" method=\"post\">
-				<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
+				<div style=\"display: flow-root; padding:5px 12px 5px 12px;\">
 					<span style=\"float:left;width:260px;\"><a href=\"sager.php?funktion=sagsliste&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>\n";
 					($antal_sager_ialt<=500)?$display="display:none;":$display=NULL;
 					print "

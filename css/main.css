@@ -79,6 +79,10 @@ img
     padding-bottom: 9px;
     padding-top: 9px;
 }
+#paging_container {
+    margin-bottom: 6px;
+}
+
 .floatright{float: right;}
 .floatleft{float: left;}
 
@@ -819,7 +823,6 @@ a.clearlink:hover {
 {
     width: 118px;
     float: left;
-    margin-right: 8px;
 }
 
 .leftmenuhead
@@ -882,9 +885,7 @@ a.clearlink:hover {
 .maincontent
 {
     width: 852px;  
-    float: left;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
+    float: right;
     border: 1px solid lightgray;
     -moz-border-radius:5px;
     -webkit-border-radius:5px;
@@ -904,7 +905,7 @@ a.clearlink:hover {
 {
     width: 828px;
     padding: 5px 12px;  
-    #overflow: hidden;
+    /*overflow: hidden;*/
 }
 
 .content hr
@@ -1027,8 +1028,7 @@ span.notatstatus {display: inline-block; width: 160px; #background-color: lightc
 /* her er style til vandret søgebar */
 .contentsoeg
 {
-    #margin: 10px 0px;
-		margin:10px 0 0 0;
+    margin:10px 0 0 0;
 }
 
 .contentsoeg table
@@ -1190,7 +1190,7 @@ span.notatstatus {display: inline-block; width: 160px; #background-color: lightc
 		white-space:nowrap;
 		text-overflow:ellipsis;
 		overflow:hidden;
-		#width:130px;
+		/*width:130px;*/
 		display:block;
 }
 .tableOmkostninger {#border-bottom: 1px solid lightgray;border-collapse: collapse;width:100%;}
@@ -1244,7 +1244,7 @@ span.notatstatus {display: inline-block; width: 160px; #background-color: lightc
 .contentkundehead
 {
     width: 852px;
-    #padding: 3px 0px;  
+    /*padding: 3px 0px;*/
     background-color: lightgray;
 }
 
@@ -1298,7 +1298,7 @@ span.notatstatus {display: inline-block; width: 160px; #background-color: lightc
 
 .contentkundehead a:hover
 {
-    #color:#0085cf;
+    /*color:#0085cf;*/
 }
 
 .contentkundesearch
@@ -1369,49 +1369,49 @@ span.notatstatus {display: inline-block; width: 160px; #background-color: lightc
 
 .contentkunde ul li:nth-child(even) span
 {
-		border-right:1px solid #fff;
-		padding:3px 0px 4px 0px;
-		margin:-4px 0px -3px 0px;
+    border-right:1px solid #fff;
+    padding:3px 0px 4px 0px;
+    margin:-4px 0px -3px 0px;
 }
 
 .contentkunde ul li:nth-child(odd) span
 {
-		border-right:1px solid #F2F2F2;
-		padding:3px 0px 4px 0px;
-		margin:-4px 0px -3px 0px;
+    border-right:1px solid #F2F2F2;
+    padding:3px 0px 4px 0px;
+    margin:-4px 0px -3px 0px;
 }
 
 .contentkunde ul li:nth-child(even) span:nth-last-child(-n+1)
 {
-		border-right: none;
+    border-right: none;
 }
 
 .contentkunde ul li:nth-child(odd) span:nth-last-child(-n+1)
 {
-		border-right: none;
+    border-right: none;
 }
 
 .contentkunde ul li:last-child
 {
-		border-bottom:1px solid #F2F2F2;
+    border-bottom:1px solid #F2F2F2;
 }
 
 .contentansatte ul li:nth-child(25n+25)
 {
-		border-bottom:1px solid #F2F2F2;
+    border-bottom:1px solid #F2F2F2;
 }
 
 .contentkundestatus
 {
-		width:16px;
-		height:16px;
-		float:left;
-		border-right:none !important;
-		text-align:center;
-		padding:2px !important;
-		margin:-3px 0px -4px 0px !important;
-		border-radius:10px;
-		#display:inline-block;
+    width:16px;
+    height:16px;
+    float:left;
+    border-right:none !important;
+    text-align:center;
+    padding:2px !important;
+    margin:-3px 0px -4px 0px !important;
+    border-radius:10px;
+    /*display:inline-block;*/
 }
 .contentkundesager
 {
@@ -1465,31 +1465,31 @@ span.notatstatus {display: inline-block; width: 160px; #background-color: lightc
 
 .contentkundesager ul li:nth-child(even) span
 {
-		border-right:1px solid #fff;
-		padding:3px 0px 4px 0px;
-		margin:-4px 0px -3px 0px;
+    border-right:1px solid #fff;
+    padding:3px 0px 4px 0px;
+    margin:-4px 0px -3px 0px;
 }
 
 .contentkundesager ul li:nth-child(odd) span
 {
-		border-right:1px solid #F2F2F2;
-		padding:3px 0px 4px 0px;
-		margin:-4px 0px -3px 0px;
+    border-right:1px solid #F2F2F2;
+    padding:3px 0px 4px 0px;
+    margin:-4px 0px -3px 0px;
 }
 
 .contentkundesager ul li:nth-child(even) span:nth-last-child(-n+1)
 {
-		#border-right: none;
+    /*border-right: none;*/
 }
 
 .contentkundesager ul li:nth-child(odd) span:nth-last-child(-n+1)
 {
-		#border-right: none;
+    /*border-right: none;*/
 }
 
 .contentkundesager ul li:last-child
 {
-		border-bottom:1px solid #F2F2F2;
+    border-bottom:1px solid #F2F2F2;
 }
 .contentkundestatussager 
 {
@@ -1690,7 +1690,8 @@ span.felt11 {display: inline-block; #background-color: lightgreen; vertical-alig
 }
 .contentkontaktborder
 {
-	border-top: 1px solid lightgray; border-bottom: 1px solid lightgray;
+	border-top: 1px solid lightgray;
+    border-bottom: 1px solid lightgray;
 }
 .contentkontaktbody
 {
@@ -1711,7 +1712,7 @@ span.felt11 {display: inline-block; #background-color: lightgreen; vertical-alig
 }
 .contentkontakt a
 {
-    #display: block;
+    /*display: block;*/
     padding: 3px 12px;
     margin: -3px -12px;
     color: #333;
@@ -1802,7 +1803,7 @@ span.email {display: inline-block; width: 250px; #background-color: lightgreen; 
     border: 1px solid lightgray;
     background:#fff url('../img/textinputbg.gif') repeat-x;
     color: #444;
-    #text-indent: 3px;
+    /*text-indent: 3px;*/
     padding: 3px 3px;  
     font-size: 12px;
 		overflow:visible;
@@ -1810,11 +1811,11 @@ span.email {display: inline-block; width: 250px; #background-color: lightgreen; 
 
 .textinputClear 
 {
-		width:100%;
+    width:100%;
     border: 1px solid lightgray;
     background:#fff url('../img/textinputbg.gif') repeat-x;
     color: #444;
-		line-height:15px;
+    line-height:15px;
 }
 .selectinput
 {
@@ -1828,19 +1829,19 @@ span.email {display: inline-block; width: 250px; #background-color: lightgreen; 
     font-size: 12px;
 }
 @-moz-document url-prefix() {
-		.selectinput{
-			width:100%;
-			border-top:1px solid #7E7E7E;
-			border-bottom:1px solid #AEAEAE;
-			border-left:1px solid #7E7E7E;
-			border-right:1px solid #AEAEAE;
-			border-radius:3px;
-			background:#fff url('../img/textinputbg.gif') repeat-x;
-			color: #444;
-			text-indent: 3px;
-			line-height: 15px;
-			padding: 2px 0;
-			font-size: 12px;
+    .selectinput{
+        width:100%;
+        border-top:1px solid #7E7E7E;
+        border-bottom:1px solid #AEAEAE;
+        border-left:1px solid #7E7E7E;
+        border-right:1px solid #AEAEAE;
+        border-radius:3px;
+        background:#fff url('../img/textinputbg.gif') repeat-x;
+        color: #444;
+        text-indent: 3px;
+        line-height: 15px;
+        padding: 2px 0;
+        font-size: 12px;
 	}
 }
 noindex:-o-prefocus, .selectinput {/* opera hack */
@@ -1848,7 +1849,7 @@ noindex:-o-prefocus, .selectinput {/* opera hack */
 }
 .textinputloen
 {
-    #width:100%;
+    /*width:100%;*/
     border: 1px solid lightgray;
     background:#fff url('../img/textinputbg.gif') repeat-x;
     color: #444;
@@ -1858,7 +1859,7 @@ noindex:-o-prefocus, .selectinput {/* opera hack */
 }
 .selectinputloen
 {
-    #width:100%;
+    /*width:100%;*/
     border: 1px solid lightgray;
     background:#fff url('../img/textinputbg.gif') repeat-x;
     color: #444;
@@ -1868,19 +1869,19 @@ noindex:-o-prefocus, .selectinput {/* opera hack */
     font-size: 12px;
 }
 @-moz-document url-prefix() {
-		.selectinputloen{
-			#width:100%;
-			border-top:1px solid #7E7E7E;
-			border-bottom:1px solid #AEAEAE;
-			border-left:1px solid #7E7E7E;
-			border-right:1px solid #AEAEAE;
-			border-radius:3px;
-			background:#fff url('../img/textinputbg.gif') repeat-x;
-			color: #444;
-			text-indent: 3px;
-			line-height: 15px;
-			padding: 1px 0;
-			font-size: 12px;
+    .selectinputloen{
+        /*width:100%;*/
+        border-top:1px solid #7E7E7E;
+        border-bottom:1px solid #AEAEAE;
+        border-left:1px solid #7E7E7E;
+        border-right:1px solid #AEAEAE;
+        border-radius:3px;
+        background:#fff url('../img/textinputbg.gif') repeat-x;
+        color: #444;
+        text-indent: 3px;
+        line-height: 15px;
+        padding: 1px 0;
+        font-size: 12px;
 	}
 }
 noindex:-o-prefocus, .selectinputloen {/* opera hack */
@@ -1892,27 +1893,27 @@ noindex:-o-prefocus, .selectinputloen {/* opera hack */
     border: 1px solid lightgray;
     background:#fff url('../img/textinputbg.gif') repeat-x;
     color: #444;
-    #text-indent: 3px;
+    /*text-indent: 3px;*/
     line-height: 15px;
     padding: 2px 0;
-		margin: 0 -7px 0 0;
+    margin: 0 -7px 0 0;
     font-size: 12px;
 }
 @-moz-document url-prefix() {
-		.selectinputsager{
-			width:100%;
-			border-top:1px solid #7E7E7E;
-			border-bottom:1px solid #AEAEAE;
-			border-left:1px solid #7E7E7E;
-			border-right:1px solid #AEAEAE;
-			border-radius:3px;
-			background:#fff url('../img/textinputbg.gif') repeat-x;
-			color: #444;
-			#text-indent: 3px;
-			line-height: 15px;
-			padding: 2px 0;
-			margin: 0 -7px 0 0;
-			font-size: 12px;
+    .selectinputsager{
+        width:100%;
+        border-top:1px solid #7E7E7E;
+        border-bottom:1px solid #AEAEAE;
+        border-left:1px solid #7E7E7E;
+        border-right:1px solid #AEAEAE;
+        border-radius:3px;
+        background:#fff url('../img/textinputbg.gif') repeat-x;
+        color: #444;
+        /*text-indent: 3px;*/
+        line-height: 15px;
+        padding: 2px 0;
+        margin: 0 -7px 0 0;
+        font-size: 12px;
 	}
 }
 noindex:-o-prefocus, .selectinputsager {/* opera hack */
@@ -1920,49 +1921,49 @@ noindex:-o-prefocus, .selectinputsager {/* opera hack */
 }
 .xmark{
     display:block;
-		border:none;
-		background-color: transparent;
+    border:none;
+    background-color: transparent;
     width: 16px;
     height: 16px;
-    #float: left;
-		margin:auto;
+    /*float: left;*/
+    margin:auto;
     background-repeat: no-repeat;
     background-image: url('../img/x_mark.png');
 }
 .xmark:hover{
-		border:none;
-		background-color: transparent;
+    border:none;
+    background-color: transparent;
     background-image: url('../img/x_mark_hover.png');
 }
 .xmark:active{
-		border:none;
-		background-color: transparent;
+    border:none;
+    background-color: transparent;
     background-image: url('../img/x_mark_active.png');
 }
 .cross{
     display:block;
-		border:none;
-		background-color: transparent;
+    border:none;
+    background-color: transparent;
     width: 16px;
     height: 16px;
-		margin:auto;
+    margin:auto;
     background-repeat: no-repeat;
     background-image: url('../img/cross_mark.png');
 }
 .cross:hover{
-		border:none;
-		background-color: transparent;
+    border:none;
+    background-color: transparent;
     background-image: url('../img/cross_mark_hover.png');
 }
 .cross:active{
-		border:none;
-		background-color: transparent;
+    border:none;
+    background-color: transparent;
     background-image: url('../img/cross_mark_active.png');
 }
 
 /* her er style til sortering af akkordliste */
 .highlight {
-		bacground-color: #ccc;
+    background-color: #ccc;
 }
 
 /* style til templateliste */
@@ -1971,7 +1972,7 @@ noindex:-o-prefocus, .selectinputsager {/* opera hack */
 .templateListTable th {border-bottom: 1px solid lightgray;}
 
 .valg-box {
-	#position:relative;
+	/*position:relative;*/
 	padding:3px;
 	border: 1px solid lightgray;
 	-webkit-border-radius:3px;
@@ -2067,9 +2068,9 @@ noindex:-o-prefocus, .selectinputsager {/* opera hack */
     background: -moz-linear-gradient(top,  #7db72f,  #4e7d0e);
     background: -o-linear-gradient(top,  #7db72f,  #4e7d0e);
     filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#7db72f', endColorstr='#4e7d0e');
-    #-moz-border-radius:20px;
-    #-webkit-border-radius:20px;
-    #border-radius:20px;
+    /*-moz-border-radius:20px;*/
+    /*-webkit-border-radius:20px;*/
+    /*border-radius:20px;*/
 }
 
 .staclrorange
@@ -2082,9 +2083,9 @@ noindex:-o-prefocus, .selectinputsager {/* opera hack */
     background: -moz-linear-gradient(top,  #faa51a,  #f47a20);
     background: -o-linear-gradient(top,  #faa51a,  #f47a20);
     filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#faa51a', endColorstr='#f47a20');
-    #-moz-border-radius:20px;
-    #-webkit-border-radius:20px;
-    #border-radius:20px;
+    /*-moz-border-radius:20px;*/
+    /*-webkit-border-radius:20px;*/
+    /*border-radius:20px;*/
 }
 
 .staclrred
@@ -2097,9 +2098,9 @@ noindex:-o-prefocus, .selectinputsager {/* opera hack */
     background: -moz-linear-gradient(top,  #ed1c24,  #aa1317);
     background: -o-linear-gradient(top,  #ed1c24,  #aa1317);
     filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ed1c24', endColorstr='#aa1317');
-    #-moz-border-radius:20px;
-    #-webkit-border-radius:20px;
-    #border-radius:20px;
+    /*-moz-border-radius:20px;*/
+    /*-webkit-border-radius:20px;*/
+    /*border-radius:20px;*/
 }
 
 /* Farver til status-selectbox */
@@ -2149,7 +2150,7 @@ noindex:-o-prefocus, .selectinputsager {/* opera hack */
 .kontrolskema_liste
 {
 	border: 3px solid lightgray; 
-	#border: 3px solid rgb(180, 180, 255); 
+    /*border: 3px solid rgb(180, 180, 255); */ 
 	padding: 0pt 0pt 1px;
 	text-align:left;
 }
@@ -2165,7 +2166,7 @@ noindex:-o-prefocus, .kontrolskema, .kontrolskema_liste {/* opera hack */
 .kontrolskema_tegning
 {
 	height:75px;
-	#min-width:279px;
+	/*min-width:279px;*/
 	width:100%;
 	font: bold 12px Arial, Helvetica, sans-serif;
   color:#cd3300 !important;
@@ -2177,25 +2178,25 @@ noindex:-o-prefocus, .kontrolskema, .kontrolskema_liste {/* opera hack */
 }
 .kontrol_status
 {
-		background: transparent;
-		width: 70px;
-		padding: 8px;
-		margin:-5px -7px;
-		font-size: 12px;
-		#text-align: center;
-		#display: block;
-		line-height: 1em;
-		border: 0;
-		border-radius: 0;
-		min-height: 30px;
-		height: 100%;
-		#box-sizing: padding-box;
-		appearance: none;
-		-o-appearance: none;
-		-ms-appearance: none;
-		-moz-appearance: none !important;/* 'none' virker ikke til mozilla. En workaround nedenunder */
-		-khtml-appearance: none;
-		-webkit-appearance: none;
+    background: transparent;
+    width: 70px;
+    padding: 8px;
+    margin:-5px -7px;
+    font-size: 12px;
+    #text-align: center;
+    #display: block;
+    line-height: 1em;
+    border: 0;
+    border-radius: 0;
+    min-height: 30px;
+    height: 100%;
+    #box-sizing: padding-box;
+    appearance: none;
+    -o-appearance: none;
+    -ms-appearance: none;
+    -moz-appearance: none !important;/* 'none' virker ikke til mozilla. En workaround nedenunder */
+    -khtml-appearance: none;
+    -webkit-appearance: none;
 }
 @-moz-document url-prefix() { /* Firefox only */
 	.kontrol_status {
@@ -2214,13 +2215,13 @@ noindex:-o-prefocus, .kontrolskema, .kontrolskema_liste {/* opera hack */
 }
 .textAreaSager
 {
-		#width: 100%;
-    #border: 1px solid lightgray;
+    /*width: 100%;*/
+    /*border: 1px solid lightgray;*/
     color: #444;
     font-size: 12px;
-		line-height: 1.2em;
-    #display: block;
-		resize: none;
+    line-height: 1.2em;
+    /*display: block;*/
+    resize: none;
     margin: -2px -2px -2px -3px;
     padding: 2px 2px 2px 3px;
 }
