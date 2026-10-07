@@ -113,32 +113,6 @@
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 // 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 // 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
-// 20260929 CL/SZ SD-698: The account lookup popup gets a card button on every line: a debtor opens the debitorkort, a creditor the kreditorkort, a finance account its kontospec.
-//                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
-//                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
-// 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
-// 20261003 CL/SZ SD-715 Fakturanr. is marked when the same kreditor already has that invoice number in an open journal, a posted entry or the pool (invoiceReuse.php, one query per source for the whole page).
-//                The warning doesn't block saving or posting.
-// 20261003 CL/SZ SD-716 Ctrl + arrow keys use fieldNavigation.js instead of jquery.formnavigation.js, which stopped at the VAT select after the account field and let the cursor jump inside the field.
-//                accountAutocomplete.js version bumped for its new close function.
-// 20261003 CL/SZ SD-716 The paper-clip on a line without a document saves the journal first and then opens the pool, instead of "Obs - Du har ikke gemt".
-//                The pool opens for the clicked line, or for the line the save just created from the new line, so the document can't land on a duplicate line.
-//                If the save fails validation, the journal stays with its normal error.
-// 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
-// 20261003 CL/SZ SD-721 "Opret kreditor automatisk" in the gear box, per user, off by default; stored in box3 as kred_auto when on (save_kk_cols).
-//                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
-// 20261006 CL/SZ SD-720 accountAutocomplete.js?v= bumped again: the invoice-number and amount searches got the same late-answer rule.
-// 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
-//                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
-//                and the journal then refused every save.
-// 20261006 CL/SZ SD-716 With SD-701 from master: the paper icon of a line with a document opens it in its own tab (openBilagTab()); without one it
-//                still saves first and opens the pool (clipSaveThenPool()).
-// 20261006 CL/SZ SD-716 (CodeRabbit) After the paper-clip save, the pool opens on the line this save inserted (kk_new_line_ids) instead of the
-//                journal's highest id, which could be a line another session added at the same time.
-// 20261006 CL/SZ SD-715 Fakturanr. is also checked while a line is typed (window.saldiInvoiceReuseJournal for invoiceReuse.js); invoiceReuse.js?v= bumped.
-// 20261006 CL/SZ SD-714 accountAutocomplete.js?v= bumped: a click into a field that already has the cursor opens the lookup panel.
-// 20261007 CL/SZ SD-716 The first save of a new journal keeps its lines again: the journal is created in that request, so its lines count as staged by it.
-
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
 //                  unload/pagehide beacon was added (there was none before).
@@ -159,6 +133,31 @@
 //                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
+// 20260929 CL/SZ SD-698: The account lookup popup gets a card button on every line: a debtor opens the debitorkort, a creditor the kreditorkort, a finance account its kontospec.
+//                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
+//                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
+// 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
+// 20261006 CL/SZ SD-714 accountAutocomplete.js?v= bumped: a click into a field that already has the cursor opens the lookup panel.
+// 20261003 CL/SZ SD-715 Fakturanr. is marked when the same kreditor already has that invoice number in an open journal, a posted entry or the pool (invoiceReuse.php, one query per source for the whole page).
+//                The warning doesn't block saving or posting.
+// 20261006 CL/SZ SD-715 Fakturanr. is also checked while a line is typed (window.saldiInvoiceReuseJournal for invoiceReuse.js); invoiceReuse.js?v= bumped.
+// 20261003 CL/SZ SD-716 Ctrl + arrow keys use fieldNavigation.js instead of jquery.formnavigation.js, which stopped at the VAT select after the account field and let the cursor jump inside the field.
+//                accountAutocomplete.js version bumped for its new close function.
+// 20261003 CL/SZ SD-716 The paper-clip on a line without a document saves the journal first and then opens the pool, instead of "Obs - Du har ikke gemt".
+//                The pool opens for the clicked line, or for the line the save just created from the new line, so the document can't land on a duplicate line.
+//                If the save fails validation, the journal stays with its normal error.
+// 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
+//                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
+//                and the journal then refused every save.
+// 20261006 CL/SZ SD-716 With SD-701 from master: the paper icon of a line with a document opens it in its own tab (openBilagTab()); without one it
+//                still saves first and opens the pool (clipSaveThenPool()).
+// 20261006 CL/SZ SD-716 (CodeRabbit) After the paper-clip save, the pool opens on the line this save inserted (kk_new_line_ids) instead of the
+//                journal's highest id, which could be a line another session added at the same time.
+// 20261007 CL/SZ SD-716 The first save of a new journal keeps its lines again: the journal is created in that request, so its lines count as staged by it.
+// 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
+// 20261006 CL/SZ SD-720 accountAutocomplete.js?v= bumped again: the invoice-number and amount searches got the same late-answer rule.
+// 20261003 CL/SZ SD-721 "Opret kreditor automatisk" in the gear box, per user, off by default; stored in box3 as kred_auto when on (save_kk_cols).
+//                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
