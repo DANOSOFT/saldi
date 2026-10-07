@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.05
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,8 @@
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
 //                  re-seeds the corrected csv text on the next call.
+// 20261007 CL/SZ SST-808: a login that finds the index lock taken skips the build instead of waiting for it.
+//                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -341,12 +343,17 @@ db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx')
 #                transaction, which CONCURRENTLY requires). An interrupted concurrent build leaves
 #                an INVALID index behind under the same name, so validity is checked and an
 #                invalid one is dropped and rebuilt instead of being skipped forever.
+# 20261007 CL/SZ SST-808: a second login that arrives during the build no longer waits for the advisory lock.
+#                Waiting deadlocked with CREATE INDEX CONCURRENTLY (it waits for that login's open snapshot): PostgreSQL
+#                aborted the build, the login got the error page and the index was left INVALID. It now skips instead.
 $sst808Indexes = array(
 	'ordrer_konto_id_fakturanr_idx' => "ON ordrer (konto_id, fakturanr)",
 	'openpost_open_idx'             => "ON openpost (konto_id) WHERE udlignet != '1' OR udlignet IS NULL",
 );
 foreach ($sst808Indexes as $indexName => $indexDefinition) {
-	db_select("SELECT pg_advisory_lock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
+	// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+	$lock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$indexName')) AS locked", __FILE__ . " linje " . __LINE__));
+	if (!$lock || $lock['locked'] !== 't') continue;
 	$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
 	$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
 	$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
