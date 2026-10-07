@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 5.0.0 ----2026-07-06--------------
+// -------debitor/rapport.php------patch 5.0.0 ----2026-10-06--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,8 @@
 //                CSV headers with nothing else sent yet.
 // 20260923 CL/NTR Guard count($konto_id) against the field being absent from $_POST when the openpost
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
+// 20261006 Sawaneh Openpost GET filters are read once and raw; both DRV report-setting updates
+//                  (salgsstat and report submit) escape every value at the query instead.
 
 @session_start();
 $s_id = session_id();
@@ -240,12 +242,12 @@ $rapportart = NULL;
 if (isset($_POST['openpost']) || $openpost)
 	$rapportart = 'openpost';
 if ($openpost) {
-	# Openpost GET requests (0,00 links, Udlign alle, pagination, iframe reload) must keep
-	# their filters; escaped here because the values are also stored in the DRV row below.
-	if (!isset($dato_fra) && isset($_GET['dato_fra'])) $dato_fra = db_escape_string($_GET['dato_fra']);
-	if (!isset($dato_til) && isset($_GET['dato_til'])) $dato_til = db_escape_string($_GET['dato_til']);
-	if (!isset($konto_fra) && isset($_GET['konto_fra'])) $konto_fra = db_escape_string($_GET['konto_fra']);
-	if (!isset($konto_til) && isset($_GET['konto_til'])) $konto_til = db_escape_string($_GET['konto_til']);
+	# Openpost GET requests (0,00 links, Udlign alle, pagination, BS toggle, iframe reload) must
+	# keep their filters. Read raw: the DRV updates below and the report queries escape at the query.
+	if (!isset($dato_fra) && isset($_GET['dato_fra'])) $dato_fra = $_GET['dato_fra'];
+	if (!isset($dato_til) && isset($_GET['dato_til'])) $dato_til = $_GET['dato_til'];
+	if (!isset($konto_fra) && isset($_GET['konto_fra'])) $konto_fra = $_GET['konto_fra'];
+	if (!isset($konto_til) && isset($_GET['konto_til'])) $konto_til = $_GET['konto_til'];
 }
 if (isset($_POST['kontosaldo']))
 	$rapportart = 'kontosaldo';
@@ -286,8 +288,16 @@ if (isset($_POST['konto'])) {
 }
 $husk = if_isset($_POST, NULL, 'husk');
 if (isset($_POST['salgsstat']) && $_POST['salgsstat']) {
-	if ($husk)
-		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+	if ($husk) {
+		$qtxt  = "update grupper set box1='" . db_escape_string((string) $husk) . "'";
+		$qtxt .= ", box2='" . db_escape_string((string) $dato_fra) . "'";
+		$qtxt .= ", box3='" . db_escape_string((string) $dato_til) . "'";
+		$qtxt .= ", box4='" . db_escape_string((string) $konto_fra) . "'";
+		$qtxt .= ", box5='" . db_escape_string((string) $konto_til) . "'";
+		$qtxt .= ", box6='" . db_escape_string((string) $rapportart) . "'";
+		$qtxt .= " where art='DRV' and kodenr='" . (int) $bruger_id . "'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&art=D\">";
 	exit;
 }
@@ -304,7 +314,14 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_fra = $_POST['dato_fra'];
 		$dato_til = $_POST['dato_til'];
 	} else {
-		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		$qtxt  = "update grupper set box1='" . db_escape_string((string) $husk) . "'";
+		$qtxt .= ", box2='" . db_escape_string((string) $dato_fra) . "'";
+		$qtxt .= ", box3='" . db_escape_string((string) $dato_til) . "'";
+		$qtxt .= ", box4='" . db_escape_string((string) $konto_fra) . "'";
+		$qtxt .= ", box5='" . db_escape_string((string) $konto_til) . "'";
+		$qtxt .= ", box6='" . db_escape_string((string) $rapportart) . "'";
+		$qtxt .= " where art='DRV' and kodenr='" . (int) $bruger_id . "'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
