@@ -73,8 +73,6 @@ img
 {
     margin: auto;
     width: 980px;
-		width: 981px \9;
-    min-height: calc(100%-9px-9px);
     display: flow-root;
     background-color: white;
     margin-bottom: -30px;
