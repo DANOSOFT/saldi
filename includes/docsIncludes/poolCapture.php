@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolCapture.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/poolCapture.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,8 @@
 //                At attach time every field that ends up different is written to pool_capture_log as a correction; the snapshot is kept there too.
 //                "Rapportér fejl i aflæsning" stores a report in pool_capture_log and e-mails it to support (PHPMailer), retried by the pool's folder sync.
 //                The pure functions (snapshot, diff, mail text) have no database access and are unit tested.
+// 20261007 CL/SZ SD-722 Without the company's own SMTP server a saldi.dk server sends the report as <database>@<server>, with the company in Reply-To,
+//                as sendMail.php does: sent from the company's own domain it was dropped by the receiving server (SPF).
 
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
@@ -756,6 +758,27 @@ if (!function_exists('poolCaptureClientTexts')) {
 	}
 }
 
+if (!function_exists('poolCaptureMailSender')) {
+	/**
+	 * Who a report is sent as when the company has no SMTP server of its own, the way includes/formFuncIncludes/sendMail.php
+	 * does it: a saldi.dk server may not send for the company's domain (SPF), so it sends as <database>@<server> and the
+	 * company's address goes into Reply-To. Other servers, and a company with its own SMTP server, keep the company's address.
+	 *
+	 * @param string $from The company's address (or the noreply fallback).
+	 * @param string $replyTo The reporting user's address, '' when there is none.
+	 * @param string $db The company's database.
+	 * @param string $serverName $_SERVER['SERVER_NAME'], '' outside a web request.
+	 * @return array{from: string, replyTo: string}
+	 */
+	function poolCaptureMailSender($from, $replyTo, $db, $serverName) {
+		$serverName = strtolower((string)$serverName);
+		if (!preg_match('/^([a-z0-9-]+\.)*saldi\.dk\z/', $serverName) || !preg_match('/^[A-Za-z0-9_]+\z/', (string)$db)) {
+			return array('from' => (string)$from, 'replyTo' => (string)$replyTo);
+		}
+		return array('from' => $db . '@' . $serverName, 'replyTo' => (string)$replyTo !== '' ? (string)$replyTo : (string)$from);
+	}
+}
+
 if (!function_exists('poolCaptureMailSend')) {
 	/**
 	 * Sends one report through PHPMailer, the way includes/formFuncIncludes/sendMail.php does: the company's own SMTP
@@ -797,6 +820,11 @@ if (!function_exists('poolCaptureMailSend')) {
 				$mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
 			} else {
 				$mail->isMail();
+				// Without the company's own SMTP server, sent as sendMail.php does (poolCaptureMailSender())
+				global $db;
+				$sender = poolCaptureMailSender($message['from'], $message['replyTo'] ?? '', (string)($db ?? ''), $_SERVER['SERVER_NAME'] ?? '');
+				$message['from'] = $sender['from'];
+				$message['replyTo'] = $sender['replyTo'];
 			}
 			$mail->setFrom($message['from'], $message['fromName'], false);
 			$mail->addAddress($message['to']);
