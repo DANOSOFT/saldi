@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// --- includes/alignOpenpostIncludes/doAlign.php --- ver 4.0.8 --- 2026-09-23--------
+// --- includes/alignOpenpostIncludes/doAlign.php --- ver 4.0.8 --- 2026-09-25--------
 // LICENS>
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -32,6 +32,7 @@
 //                  Also: the fiscal-year refresh was missing URL= and went nowhere, the openpost id
 //                  is int-cast, and nine debug echos are gone - one printed the server's absolute
 //                  path and four printed raw SQL to the browser.
+// 20260925 CDX/PHR Preserve the account-chart filter in settlement redirects.
 
 // This file is include()d by includes/udlign_openpost.php and shares its variable scope; it takes
 // no parameters and returns nothing. $faktnr[0] arrives here already merged by the caller (see its
@@ -59,6 +60,7 @@
  * @var string             $returside
  * @var string             $retur
  * @var string             $layout
+ * @var string             $kilde             Report filter from includes/udlign_openpost.php.
  */
 
 	$alignDate=usdate($diffdato);
@@ -88,7 +90,7 @@
 			$tilbage .= "&dato_fra=" . urlencode($dato_fra) . "&dato_til=" . urlencode($dato_til);
 			$tilbage .= "&konto_fra=" . urlencode($konto_fra) . "&konto_til=" . urlencode($konto_til);
 			$tilbage .= "&returside=" . urlencode($returside) . "&retur=" . urlencode($retur);
-			$tilbage .= "&layout=" . urlencode($layout);
+			$tilbage .= "&layout=" . urlencode($layout) . "&kilde=" . urlencode($kilde);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=$tilbage\">";
 			exit;
 	}
@@ -215,7 +217,7 @@
 		$maal .= "&returside=" . urlencode($returside) . "&submit=ok";
 	} else {
 		// $retur is the target path, not a parameter - urlencoding it would escape the slashes.
-		$maal  = $retur . "?rapportart=accountChart";
+		$maal  = $retur . "?rapportart=accountChart&kilde=" . urlencode($kilde);
 		$maal .= "&dato_fra=" . urlencode($dato_fra) . "&dato_til=" . urlencode($dato_til);
 		$maal .= "&konto_fra=" . urlencode($konto_fra) . "&konto_til=" . urlencode($konto_til);
 		$maal .= "&submit=ok&layout=" . urlencode($layout);
