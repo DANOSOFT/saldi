@@ -5151,6 +5151,10 @@
 5282	Administrér bilag	Manage vouchers	Administrer bilag
 5283	Der er ikke længere et bilag på denne linje.	This line no longer has a voucher.	Det er ikke lenger et bilag på denne linjen.
 5285	F = finanskonto, D = debitor, K = kreditor	F = finance account, D = debtor, K = creditor	F = finanskonto, D = debitor, K = kreditor
+5286	Fakturanr. {nr} er allerede brugt på denne kreditor	Invoice no. {nr} has already been used for this creditor	Fakturanr. {nr} er allerede brukt på denne kreditoren
+5287	Kladde {kladde}, bilag {bilag}	Journal {kladde}, voucher {bilag}	Kladd {kladde}, bilag {bilag}
+5288	Bogført som bilag {bilag} den {dato}	Posted as voucher {bilag} on {dato}	Bokført som bilag {bilag} den {dato}
+5289	Andet bilag i puljen: {fil}	Other document in the pool: {fil}	Annet bilag i puljen: {fil}
 5300	Kladde	Journal	Kladd
 5301	Fremdrift	Progress	Fremdrift
 5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…

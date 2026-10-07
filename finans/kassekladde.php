@@ -138,7 +138,11 @@
 //                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
 // 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
 // 20261006 CL/SZ SD-714 accountAutocomplete.js?v= bumped: a click into a field that already has the cursor opens the lookup panel.
+// 20261003 CL/SZ SD-715 Fakturanr. is marked when the same kreditor already has that invoice number in an open journal, a posted entry or the pool (invoiceReuse.php, one query per source for the whole page).
+//                The warning doesn't block saving or posting.
+// 20261006 CL/SZ SD-715 Fakturanr. is also checked while a line is typed (window.saldiInvoiceReuseJournal for invoiceReuse.js); invoiceReuse.js?v= bumped.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
+require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
@@ -497,6 +501,10 @@ print "<script>
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
 print '<script src="../javascript/accountAutocomplete.js?v=4.1.13" defer></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/invoiceReuse.css?v=1">';
+print '<script src="../javascript/invoiceReuse.js?v=3" defer></script>';
+// SD-715: the line being typed is checked too, not only the saved ones
+print "<script>window.saldiInvoiceReuseJournal = { url: 'kassekladde_includes/invoiceReuseCheck.php' };</script>";
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -3246,6 +3254,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!isset($bilag[$x + 1])) $bilag[$x + 1] = 0;
 	if (!isset($dato[0]))       $dato[0]       = NULL;
 	if (!isset($dato[$x + 1]))  $dato[$x + 1]  = NULL;
+	// SD-715: kreditor + invoice number used before, whatever the date or amount; all lines in one go
+	$invoiceReuseChecks = array();
+	for ($y = 1; $y <= $x; $y++) {
+		if (!empty($id[$y]) && strtoupper((string)($k_type[$y] ?? '')) == 'K' && !empty($faktura[$y])) {
+			$invoiceReuseChecks[$y] = array('kontonr' => $kredit[$y] ?? '', 'faktura' => $faktura[$y], 'line_id' => $id[$y],
+				'kladde_id' => $kladde_id, 'bilag' => $bilag[$y] ?? '');
+		}
+	}
+	$invoiceReuseHits = invoice_reuse_find($invoiceReuseChecks);
 	for ($y = 1; $y <= $x; $y++) {
 		if (!isset($bilag[$y]))      $bilag[$y]      = 0;
 		if (!isset($dato[$y]))       $dato[$y]       = NULL;
@@ -3384,7 +3401,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' autocomplete='off' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
 		}
 		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset, lookup_account_vat_code($kredit[$y], $k_type[$y], $regnaar, $vat_codes)) . "</td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
+		if (!empty($invoiceReuseHits[$y])) {
+			$poolLinkBase = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=" . rawurlencode($bilag[$y]);
+			print "<td class='invoice-reuse-cell'><input class='inputbox invoice-reuse-field' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'>";
+			print "<span class='invoice-reuse-flag' tabindex='0' role='note' data-invoice-reuse='1'>&#9888;<span class='invoice-reuse-pop'>";
+			print invoice_reuse_html($invoiceReuseHits[$y], $faktura[$y], $poolLinkBase) . "</span></span></td>\n";
+		} else {
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
+		}
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
 		if ($valuta[$y] == $baseCurrency) $title = "";
 		else 	$title = "$baseCurrency: " . dkdecimal($dkkamount[$y], 2);
