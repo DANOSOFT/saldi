@@ -1949,7 +1949,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // 20261006 Copy the ticked invoices to a bank draft, marked as paid by the customer. The result
     // is printed with the list below, so the reader sees both the draft and what was left out.
-    if ($submit == findtekst('5327|Kopiér til bankkladde', $sprog_id)) {
+    if ($submit == findtekst('5410|Kopiér til bankkladde', $sprog_id)) {
         $bankkladde_ids = array();
         foreach ($checked_orders as $order_id => $value) {
             if ($value == "on") $bankkladde_ids[] = $order_id;
@@ -1969,7 +1969,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($bankkladde_konto === '') {
                 $bankkladde_resultat = array('fejl' => 'ingen bankkonto');
             } else {
-                $bankkladde_note = findtekst('5331|Bankkladde fra fakturaliste', $sprog_id) . " - " . date("Y-m-d") . " - " . $brugernavn;
+                $bankkladde_note = findtekst('5414|Bankkladde fra fakturaliste', $sprog_id) . " - " . date("Y-m-d") . " - " . $brugernavn;
                 $bankkladde_resultat = bankkladdeFraFakturaer($bankkladde_ids, date("Y-m-d"), $bankkladde_konto, $bankkladde_note);
             }
         }
@@ -2040,18 +2040,18 @@ print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 // that was left out with the reason, so a partial batch is never silent.
 if (isset($bankkladde_resultat)) {
     if (isset($bankkladde_resultat['fejl']) && $bankkladde_resultat['fejl']) {
-        if ($bankkladde_resultat['fejl'] == 'ingen markeret') $fejltekst = findtekst('5328|Der er ikke markeret nogen fakturaer.', $sprog_id);
-        else $fejltekst = findtekst('5332|Bankkontoen kunne ikke findes. Angiv den under Indstillinger.', $sprog_id);
+        if ($bankkladde_resultat['fejl'] == 'ingen markeret') $fejltekst = findtekst('5411|Der er ikke markeret nogen fakturaer.', $sprog_id);
+        else $fejltekst = findtekst('5415|Bankkontoen kunne ikke findes. Angiv den under Indstillinger.', $sprog_id);
         print "<div style='padding:6px; margin-bottom:6px; border:1px solid #cc0000; color:#cc0000;'>" . htmlspecialchars($fejltekst, ENT_QUOTES, 'UTF-8') . "</div>";
     } else {
         $plan = $bankkladde_resultat['plan'];
-        $tekst = sprintf(findtekst('5329|Kladde %s er oprettet med %s fakturaer, i alt %s', $sprog_id),
+        $tekst = sprintf(findtekst('5412|Kladde %s er oprettet med %s fakturaer, i alt %s', $sprog_id),
             "<a href='../finans/kassekladde.php?kladde_id=" . (int)$bankkladde_resultat['kladde_id'] . "'>" . (int)$bankkladde_resultat['kladde_id'] . "</a>",
             (int)$bankkladde_resultat['antal'], dkdecimal($bankkladde_resultat['total']));
         print "<div style='padding:6px; margin-bottom:6px; border:1px solid #009900;'>" . $tekst . "</div>";
         if ($plan['udeladt']) {
             print "<div style='padding:6px; margin-bottom:6px; border:1px solid #cccccc;'>";
-            print htmlspecialchars(sprintf(findtekst('5330|Ikke kopieret: %s', $sprog_id), count($plan['udeladt'])), ENT_QUOTES, 'UTF-8');
+            print htmlspecialchars(sprintf(findtekst('5413|Ikke kopieret: %s', $sprog_id), count($plan['udeladt'])), ENT_QUOTES, 'UTF-8');
             print "<table style='font-size:11px;'>";
             foreach ($plan['udeladt'] as $udeladt) {
                 print "<tr><td>" . htmlspecialchars($udeladt['fakturanr'], ENT_QUOTES, 'UTF-8') . "</td>";
@@ -2804,12 +2804,12 @@ if ($valg == "faktura") {
     // accounts are offered here with the lowest numbered one first.
     $bankkladde_valgkonti = bankkladdeKonti($regnaar);
     if ($bankkladde_valgkonti) {
-        print "<select name='bankkonto' class='button blue small' style='padding:2px;' title='" . htmlspecialchars(findtekst('5333|Bankkonto', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>";
+        print "<select name='bankkonto' class='button blue small' style='padding:2px;' title='" . htmlspecialchars(findtekst('5416|Bankkonto', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>";
         foreach ($bankkladde_valgkonti as $bankkladde_kontonr => $bankkladde_kontonavn) {
             print "<option value='$bankkladde_kontonr'>" . htmlspecialchars($bankkladde_kontonr . " " . $bankkladde_kontonavn, ENT_QUOTES, 'UTF-8') . "</option>";
         }
         print "</select> ";
-        print "<input type='submit' name='submit' value='" . findtekst('5327|Kopiér til bankkladde',$sprog_id) . "' class='button blue small'> ";
+        print "<input type='submit' name='submit' value='" . findtekst('5410|Kopiér til bankkladde',$sprog_id) . "' class='button blue small'> ";
     }
 } else {
     print "<input 

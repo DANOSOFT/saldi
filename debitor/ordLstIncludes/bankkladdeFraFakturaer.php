@@ -87,36 +87,36 @@ function bankkladdePlan($ordre_ids,$konto) {
 		$qtxt.= "from ordrer where id='$ordre_id'";
 		$row = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if (!$row) {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>'','aarsag'=>findtekst('5334|Ordren findes ikke',$sprog));
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>'','aarsag'=>findtekst('5417|Ordren findes ikke',$sprog));
 			continue;
 		}
 		$fakturanr = trim($row['fakturanr']);
 		$kunde     = trim($row['firmanavn']);
 		if ($fakturanr === '' || $fakturanr === '0') {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>'','aarsag'=>findtekst('5335|Ikke faktureret',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>'','aarsag'=>findtekst('5418|Ikke faktureret',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		# a reminder or credit note number is not an invoice number, and the open item is looked up
 		# by the invoice number, so anything that is not numeric is left to the user
 		if (!is_numeric($fakturanr)) {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5336|Fakturanummeret er ikke numerisk',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5419|Fakturanummeret er ikke numerisk',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		if (substr(trim($row['art']),0,1) !== 'D') {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5337|Ikke en debitorfaktura',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5420|Ikke en debitorfaktura',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		if (!is_numeric(trim($row['kontonr']))) {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5338|Kunden har ikke et kontonummer',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5421|Kunden har ikke et kontonummer',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		$valuta = trim($row['valuta']);
 		if ($valuta !== '' && strtoupper($valuta) !== 'DKK') {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5339|Udenlandsk valuta',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5422|Udenlandsk valuta',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		if (isset($set[$fakturanr])) {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5340|Fakturaen er valgt mere end en gang',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5423|Fakturaen er valgt mere end en gang',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		# the open item is the evidence that the invoice is posted and still unpaid, and its amount
@@ -125,19 +125,19 @@ function bankkladdePlan($ordre_ids,$konto) {
 		$qtxt.= "and coalesce(udlignet,'')<>'1' and faktnr='$fakturanr' order by id";
 		$open = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if (!$open) {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5341|Ingen åben post',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5424|Ingen åben post',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		$belob = (float)$open['amount'];
 		if ($belob <= 0) {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5342|Beløbet er ikke positivt',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5425|Beløbet er ikke positivt',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		# the same invoice must not be copied twice, not even before the first draft is posted
 		$qtxt = "select k.id from kassekladde k, kladdeliste l where k.kladde_id=l.id ";
 		$qtxt.= "and k.ordre_id='$ordre_id' and (l.bogfort='-' or l.bogfort='!')";
 		if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5343|Ligger allerede i en åben kladde',$sprog),'kunde'=>$kunde);
+			$plan['udeladt'][] = array('id'=>$ordre_id,'fakturanr'=>$fakturanr,'aarsag'=>findtekst('5426|Ligger allerede i en åben kladde',$sprog),'kunde'=>$kunde);
 			continue;
 		}
 		$set[$fakturanr] = 1;

@@ -5177,20 +5177,20 @@
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
-5327	Kopiér til bankkladde	Copy to bank journal	Kopier til bankkladde
-5328	Der er ikke markeret nogen fakturaer.	No invoices are ticked.	Ingen fakturaer er merket.
-5329	Kladde %s er oprettet med %s fakturaer, i alt %s	Draft %s was created with %s invoices, %s in total	Kladde %s er opprettet med %s fakturaer, totalt %s
-5330	Ikke kopieret: %s	Not copied: %s	Ikke kopiert: %s
-5331	Bankkladde fra fakturaliste	Bank journal from the invoice list	Bankkladde fra fakturalisten
-5332	Bankkontoen kunne ikke findes. Angiv den under Indstillinger.	The bank account could not be found. Set it under Settings.	Bankkontoen ble ikke funnet. Angi den under Innstillinger.
-5333	Bankkonto	Bank account	Bankkonto
-5334	Ordren findes ikke	The order does not exist	Ordren finnes ikke
-5335	Ikke faktureret	Not invoiced	Ikke fakturert
-5336	Fakturanummeret er ikke numerisk	The invoice number is not numeric	Fakturanummeret er ikke numerisk
-5337	Ikke en debitorfaktura	Not a customer invoice	Ikke en debitorfaktura
-5338	Kunden har ikke et kontonummer	The customer has no account number	Kunden har ikke et kontonummer
-5339	Udenlandsk valuta	Foreign currency	Utenlandsk valuta
-5340	Fakturaen er valgt mere end en gang	The invoice is ticked more than once	Fakturaen er valgt mer enn en gang
-5341	Ingen åben post	No open item	Ingen åpen post
-5342	Beløbet er ikke positivt	The amount is not positive	Beløpet er ikke positivt
-5343	Ligger allerede i en åben kladde	Already in an open draft	Ligger allerede i en åpen kladde
+5410	Kopiér til bankkladde	Copy to bank journal	Kopier til bankkladde
+5411	Der er ikke markeret nogen fakturaer.	No invoices are ticked.	Ingen fakturaer er merket.
+5412	Kladde %s er oprettet med %s fakturaer, i alt %s	Draft %s was created with %s invoices, %s in total	Kladde %s er opprettet med %s fakturaer, totalt %s
+5413	Ikke kopieret: %s	Not copied: %s	Ikke kopiert: %s
+5414	Bankkladde fra fakturaliste	Bank journal from the invoice list	Bankkladde fra fakturalisten
+5415	Bankkontoen kunne ikke findes. Angiv den under Indstillinger.	The bank account could not be found. Set it under Settings.	Bankkontoen ble ikke funnet. Angi den under Innstillinger.
+5416	Bankkonto	Bank account	Bankkonto
+5417	Ordren findes ikke	The order does not exist	Ordren finnes ikke
+5418	Ikke faktureret	Not invoiced	Ikke fakturert
+5419	Fakturanummeret er ikke numerisk	The invoice number is not numeric	Fakturanummeret er ikke numerisk
+5420	Ikke en debitorfaktura	Not a customer invoice	Ikke en debitorfaktura
+5421	Kunden har ikke et kontonummer	The customer has no account number	Kunden har ikke et kontonummer
+5422	Udenlandsk valuta	Foreign currency	Utenlandsk valuta
+5423	Fakturaen er valgt mere end en gang	The invoice is ticked more than once	Fakturaen er valgt mer enn en gang
+5424	Ingen åben post	No open item	Ingen åpen post
+5425	Beløbet er ikke positivt	The amount is not positive	Beløpet er ikke positivt
+5426	Ligger allerede i en åben kladde	Already in an open draft	Ligger allerede i en åpen kladde
