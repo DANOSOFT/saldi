@@ -113,12 +113,6 @@
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 // 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 // 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
-// 20260929 CL/SZ SD-698: The account lookup popup gets a card button on every line: a debtor opens the debitorkort, a creditor the kreditorkort, a finance account its kontospec.
-//                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
-//                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
-// 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
-// 20261006 CL/SZ SD-714 accountAutocomplete.js?v= bumped: a click into a field that already has the cursor opens the lookup panel.
-
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
 //                  unload/pagehide beacon was added (there was none before).
@@ -139,6 +133,11 @@
 //                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
+// 20260929 CL/SZ SD-698: The account lookup popup gets a card button on every line: a debtor opens the debitorkort, a creditor the kreditorkort, a finance account its kontospec.
+//                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
+//                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
+// 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
+// 20261006 CL/SZ SD-714 accountAutocomplete.js?v= bumped: a click into a field that already has the cursor opens the lookup panel.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/accountCard.php';
