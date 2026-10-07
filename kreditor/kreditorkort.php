@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-09-28 ------
+// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-06 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
