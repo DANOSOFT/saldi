@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,8 @@
 // 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
 // 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
+// 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
+//                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
 @session_start();
 $s_id = session_id();
 
@@ -2680,8 +2682,6 @@ function split_navn($firmanavn)
 
 if (!$id || substr($cvrnr,0,1)  == '*') {
 	$cvrnr = trim($cvrnr,"*");
-	require_once("../includes/cvrLookup.php");
-	print cvrLookupClientConfig($sprog_id);
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
 }
 

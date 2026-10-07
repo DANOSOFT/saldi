@@ -150,6 +150,28 @@ final class poolCapture extends TestCase
         $this->assertSame('2026-10-03 12:16:00', poolCaptureNextAttempt(4, strtotime('2026-10-03 12:00:00')));
     }
 
+    public function testSaldiServerSendsAsTheDatabaseWithTheCompanyInReplyTo(): void
+    {
+        $this->assertSame(
+            ['from' => 'test_12@ssl12.saldi.dk', 'replyTo' => 'info@havemoebelland.dk'],
+            poolCaptureMailSender('info@havemoebelland.dk', '', 'test_12', 'ssl12.saldi.dk')
+        );
+        $this->assertSame(
+            ['from' => 'test_12@ssl12.saldi.dk', 'replyTo' => 'sz@danosoft.dk'],
+            poolCaptureMailSender('info@havemoebelland.dk', 'sz@danosoft.dk', 'test_12', 'SSL12.saldi.dk')
+        );
+    }
+
+    public function testOtherServersKeepTheCompanyAsSender(): void
+    {
+        $keep = ['from' => 'info@firma.dk', 'replyTo' => ''];
+        $this->assertSame($keep, poolCaptureMailSender('info@firma.dk', '', 'saldi_5', 'regnskab.firma.dk'));
+        $this->assertSame($keep, poolCaptureMailSender('info@firma.dk', '', 'saldi_5', 'saldi.dk.example.com'));
+        $this->assertSame($keep, poolCaptureMailSender('info@firma.dk', '', 'saldi_5', ''));
+        $this->assertSame($keep, poolCaptureMailSender('info@firma.dk', '', 'saldi_5', "ssl12.saldi.dk\n"));
+        $this->assertSame($keep, poolCaptureMailSender('info@firma.dk', '', 'bad-db;', 'ssl12.saldi.dk'));
+    }
+
     public function testSuggestionIsTheNewestAccountAndItsRun(): void
     {
         $rows = [

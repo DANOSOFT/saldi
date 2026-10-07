@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/cvrLookup.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/cvrLookup.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,17 +33,25 @@
 //                counts as a refusal too and is never cached as a company. cvrLookupCompany() passes these codes on.
 // 20261006 CL/SZ SD-721 cvrLookupClientConfig(): the kreditor and debitor cards' lookup (javascript/cvrapiopslag.js) goes through
 //                sager/cvrLookupProxy.php too. From the browser cvrapi.dk refused it: a browser cannot send the User-Agent it requires.
+// 20261007 CL/SZ SD-721 A Danish CVR number is looked up at Datafordeleren (the CVR register's own GraphQL service, flexibleCurrent) when the
+//                server has an API key (setting datafordeler / apikey in the master database): free and without a daily quota, which cvrapi.dk's 50 lookups
+//                a day per IP address can't give a server shared by every customer. The answer is turned into cvrapi.dk's fields, so the cache,
+//                the proxy and the kreditor creation stay as they were. Without the key a CVR number is not looked up (never cvrapi.dk), and
+//                $cvrapi_token is no longer used. Phone numbers and other countries, which Datafordeleren can't look up, keep cvrapi.dk.
+//                A failed call gives UNAVAILABLE (fill in the kreditor by hand) and is logged, never with the key.
 
 if (!function_exists('cvrLookupFetch')) {
 	/**
-	 * Looks a CVR or phone number up at cvrapi.dk, through the cache.
+	 * Looks a CVR or phone number up, through the cache: a Danish CVR number at Datafordeleren (UNAVAILABLE when the server has no
+	 * API key), a phone number or another country's number at cvrapi.dk.
 	 *
 	 * @param string $type 'vat' or 'phone'.
 	 * @param string $param 8 digits.
 	 * @param string $country Two lowercase letters, e.g. 'dk'.
 	 * @param int $timeout Seconds before the call gives up.
 	 * @return array{code: int, body: string|null, cached: bool, error: string|null} code is the HTTP status (0 when no answer came);
-	 *   body is cvrapi.dk's JSON; error is cvrapi.dk's error code for a refused call (BLOCKED when it gave no reason), else null.
+	 *   body is cvrapi.dk's JSON (Datafordeleren's answer in its fields); error is the code for a refused call (cvrapi.dk's own, BLOCKED when
+	 *   it gave no reason, UNAVAILABLE when Datafordeleren failed), else null.
 	 */
 	function cvrLookupFetch($type, $param, $country = 'dk', $timeout = 10) {
 		$cacheFile = cvrLookupCacheFile($type, $param, $country);
@@ -55,12 +63,22 @@ if (!function_exists('cvrLookupFetch')) {
 			}
 		}
 
-		$token = cvrLookupToken();
+		// A Danish CVR number only ever goes to Datafordeleren: cvrapi.dk's quota is per IP address, so the server would share it with every customer
+		if ($type === 'vat' && $country === 'dk') {
+			if (cvrLookupDatafordelerKey() === '') {
+				error_log('cvrLookup: no Datafordeleren API key (setting datafordeler / apikey in the master database), so no CVR lookup');
+				return array('code' => 0, 'body' => null, 'cached' => false, 'error' => 'UNAVAILABLE');
+			}
+			$answer = cvrLookupDatafordeler($param, $timeout);
+			if ($cacheFile && ($answer['code'] === 200 || $answer['code'] === 404)) cvrLookupCacheStore($cacheFile, $answer['code'], $answer['body']);
+			return $answer;
+		}
+
+		$token = '';
 		$paused = cvrLookupPaused($token);
 		if ($paused !== null) return array('code' => 0, 'body' => null, 'cached' => false, 'error' => $paused);
 
 		$url = "https://cvrapi.dk/api?" . $type . "=" . urlencode($param) . "&country=" . urlencode($country);
-		if ($token !== '') $url .= "&token=" . urlencode($token);
 		$ch = curl_init($url);
 		curl_setopt_array($ch, array(
 			CURLOPT_RETURNTRANSFER => true,
@@ -87,17 +105,199 @@ if (!function_exists('cvrLookupFetch')) {
 		// The documentation: errors come as codes in the answer, not always as an HTTP status
 		if (!$notFound && ($code >= 400 || $given !== '')) {
 			$error = $given !== '' ? $given : ($code === 403 ? 'BLOCKED' : 'UNAVAILABLE');
-			// Never the URL: it carries the token
+			// The answer, not the URL
 			error_log("cvrLookup: cvrapi.dk refused the lookup (status $code, $error)");
 			cvrLookupPause($error, $token);
 		}
-		if ($cacheFile && (($code === 200 && $error === null) || $notFound)) {
-			$dir = dirname($cacheFile);
-			if (is_dir($dir) || @mkdir($dir, 0775, true)) {
-				file_put_contents($cacheFile, json_encode(array('time' => time(), 'code' => $code, 'body' => $body)), LOCK_EX);
+		if ($cacheFile && (($code === 200 && $error === null) || $notFound)) cvrLookupCacheStore($cacheFile, $code, $body);
+		return array('code' => $code, 'body' => $body, 'cached' => false, 'error' => $error);
+	}
+}
+
+if (!function_exists('cvrLookupCacheStore')) {
+	/**
+	 * Stores an answer for a CVR number in temp/cvrcache.
+	 *
+	 * @param string $cacheFile From cvrLookupCacheFile().
+	 * @param int $code The HTTP status the answer is remembered with (200 a company, 404 not found).
+	 * @param string|null $body cvrapi.dk's JSON.
+	 * @return void
+	 */
+	function cvrLookupCacheStore($cacheFile, $code, $body) {
+		$dir = dirname($cacheFile);
+		if (is_dir($dir) || @mkdir($dir, 0775, true)) {
+			file_put_contents($cacheFile, json_encode(array('time' => time(), 'code' => (int)$code, 'body' => $body)), LOCK_EX);
+		}
+	}
+}
+
+if (!function_exists('cvrLookupDatafordelerKey')) {
+	/**
+	 * The server's Datafordeleren API key: setting datafordeler / apikey in the master database (one key for every company on the server),
+	 * or '' without one. Never written to git or a log.
+	 *
+	 * @return string
+	 */
+	function cvrLookupDatafordelerKey() {
+		if (!function_exists('get_settings_value')) return '';
+		return trim((string)get_settings_value('apikey', 'datafordeler', '', NULL, NULL, true));
+	}
+}
+
+if (!function_exists('cvrLookupDatafordelerQuery')) {
+	/**
+	 * The GraphQL query for one company as it is now: name, addresses, phone and e-mail. An ended company is not "now", so it is not found.
+	 *
+	 * @param string $cvr 8 digits (checked by the caller).
+	 * @param string $now The effective time, e.g. 2026-10-07T12:00:00Z.
+	 * @return string
+	 */
+	function cvrLookupDatafordelerQuery($cvr, $now) {
+		return 'query {
+	CVR_Virksomhed(first: 1, virkningstid: "' . $now . '", where: { CVRNummer: { eq: ' . (int)$cvr . ' } }) {
+		nodes {
+			CVRNummer
+			virksomhedOphoersdato
+			id_CVR_Navn_CVREnhedsId_ref { vaerdi }
+			id_CVR_Adressering_CVREnhedsId_ref(first: 10, where: { AdresseringAnvendelse: { in: ["beliggenhedsadresse", "postadresse"] } }) {
+				nodes {
+					AdresseringAnvendelse
+					coNavn
+					CVRAdresse_vejnavn
+					CVRAdresse_husnummerFra
+					CVRAdresse_husnummerTil
+					CVRAdresse_etagebetegnelse
+					CVRAdresse_doerbetegnelse
+					CVRAdresse_postnummer
+					CVRAdresse_postdistrikt
+					CVRAdresse_adresseFritekst
+				}
+			}
+			id_CVR_Telefonnummer_CVREnhedsId_ref { vaerdi }
+			id_CVR_e_mailadresse_CVREnhedsId_ref { vaerdi }
+		}
+	}
+}';
+	}
+}
+
+if (!function_exists('cvrLookupDatafordeler')) {
+	/**
+	 * Looks a Danish CVR number up at Datafordeleren and answers as cvrLookupFetch() does, with cvrapi.dk's JSON.
+	 *
+	 * @param string $cvr 8 digits.
+	 * @param int $timeout Seconds.
+	 * @return array{code: int, body: string|null, cached: bool, error: string|null} code 200 a company, 404 not found ({"error":"NOT_FOUND"}).
+	 */
+	function cvrLookupDatafordeler($cvr, $timeout) {
+		$fail = function ($why, $status) {
+			// Never the URL: it carries the API key
+			error_log("cvrLookup: Datafordeleren lookup failed (status $status): $why");
+			return array('code' => (int)$status, 'body' => null, 'cached' => false, 'error' => 'UNAVAILABLE');
+		};
+		$payload = json_encode(array('query' => cvrLookupDatafordelerQuery($cvr, gmdate('Y-m-d\TH:i:s\Z'))));
+		$ch = curl_init('https://graphql.datafordeler.dk/flexibleCurrent/v3?apiKey=' . rawurlencode(cvrLookupDatafordelerKey()));
+		curl_setopt_array($ch, array(
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_POST           => true,
+			CURLOPT_POSTFIELDS     => $payload,
+			CURLOPT_FOLLOWLOCATION => false,
+			CURLOPT_CONNECTTIMEOUT => min(5, (int)$timeout),
+			CURLOPT_TIMEOUT        => (int)$timeout,
+			CURLOPT_USERAGENT      => cvrLookupUserAgent(),
+			CURLOPT_HTTPHEADER     => array('Content-Type: application/json', 'Accept: application/json'),
+		));
+		$body = curl_exec($ch);
+		$code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$err  = curl_error($ch);
+		curl_close($ch);
+		if ($body === false) return $fail($err !== '' ? $err : 'no answer', $code);
+		if ($code === 401 || $code === 403) return $fail('the API key was refused', $code);
+		if ($code !== 200) return $fail('unexpected answer', $code);
+		$data = json_decode($body, true);
+		if (!is_array($data)) return $fail('the answer is not JSON', $code);
+		if (!empty($data['errors'])) {
+			$messages = array();
+			foreach ((array)$data['errors'] as $e) $messages[] = is_array($e) ? (string)($e['message'] ?? '') : (string)$e;
+			return $fail('GraphQL: ' . mb_substr(implode(' | ', $messages), 0, 300), $code);
+		}
+		$nodes = $data['data']['CVR_Virksomhed']['nodes'] ?? null;
+		if (!is_array($nodes)) return $fail('no CVR_Virksomhed in the answer', $code);
+		if (!$nodes) return array('code' => 404, 'body' => json_encode(array('error' => 'NOT_FOUND')), 'cached' => false, 'error' => null);
+		$company = cvrLookupDatafordelerCompany($nodes[0]);
+		if ($company['vat'] !== (string)(int)$cvr || $company['name'] === '') return $fail('the answer has no company for this number', $code);
+		return array('code' => 200, 'body' => json_encode($company), 'cached' => false, 'error' => null);
+	}
+}
+
+if (!function_exists('cvrLookupDatafordelerFirst')) {
+	/**
+	 * The first record of a relation, whether Datafordeleren gives it as {nodes: [...]}, as a list or as one object.
+	 *
+	 * @param mixed $relation
+	 * @return array<string, mixed>
+	 */
+	function cvrLookupDatafordelerFirst($relation) {
+		if (!is_array($relation)) return array();
+		if (isset($relation['nodes'])) $relation = $relation['nodes'];
+		if (array_key_exists(0, $relation)) return is_array($relation[0]) ? $relation[0] : array();
+		return $relation;
+	}
+}
+
+if (!function_exists('cvrLookupDatafordelerCompany')) {
+	/**
+	 * Datafordeleren's company in cvrapi.dk's fields (vat, name, address, addressco, zipcode, city, phone, email, enddate),
+	 * which cvrLookupCompanyFields() and javascript/cvrapiopslag.js read. The address is the beliggenhedsadresse, else the postadresse.
+	 *
+	 * @param array<string, mixed> $node One CVR_Virksomhed node.
+	 * @return array<string, string|null>
+	 */
+	function cvrLookupDatafordelerCompany(array $node) {
+		$text = function ($value) {
+			return $value === null ? '' : trim((string)$value);
+		};
+		$addresses = $node['id_CVR_Adressering_CVREnhedsId_ref'] ?? array();
+		if (isset($addresses['nodes'])) $addresses = $addresses['nodes'];
+		$address = array();
+		foreach (array('beliggenhedsadresse', 'postadresse') as $use) {
+			foreach ((array)$addresses as $a) {
+				if (is_array($a) && ($a['AdresseringAnvendelse'] ?? '') === $use) { $address = $a; break 2; }
 			}
 		}
-		return array('code' => $code, 'body' => $body, 'cached' => false, 'error' => $error);
+		$line = $text($address['CVRAdresse_vejnavn'] ?? null);
+		if ($line !== '') {
+			$number = $text($address['CVRAdresse_husnummerFra'] ?? null);
+			$to = $text($address['CVRAdresse_husnummerTil'] ?? null);
+			if ($to !== '' && $to !== $text($address['CVRAdresse_husnummerFra'] ?? null)) $number .= '-' . $to;
+			if ($number !== '') $line .= ' ' . $number;
+			$floor = $text($address['CVRAdresse_etagebetegnelse'] ?? null);
+			$door = $text($address['CVRAdresse_doerbetegnelse'] ?? null);
+			// As on a letter: "2. tv", "st. th"
+			if ($floor !== '' || $door !== '') $line .= ',' . ($floor !== '' ? ' ' . $floor . (preg_match('/^(\d+|st|kl)$/i', $floor) ? '.' : '') : '') . ($door !== '' ? ' ' . $door : '');
+		} else {
+			$line = $text($address['CVRAdresse_adresseFritekst'] ?? null);
+		}
+		$zipcode = $text($address['CVRAdresse_postnummer'] ?? null);
+		// Some companies have their own address in the c/o field; it would show twice on the kreditor
+		$co = $text($address['coNavn'] ?? null);
+		$street = $text($address['CVRAdresse_vejnavn'] ?? null);
+		if ($co !== '' && $street !== '' && mb_stripos($co, $street, 0, 'UTF-8') !== false) $co = '';
+		$value = function ($key) use ($node, $text) {
+			$first = cvrLookupDatafordelerFirst($node[$key] ?? null);
+			return $text($first['vaerdi'] ?? null);
+		};
+		return array(
+			'vat' => $text($node['CVRNummer'] ?? null),
+			'name' => $value('id_CVR_Navn_CVREnhedsId_ref'),
+			'address' => $line,
+			'addressco' => $co !== '' ? $co : null,
+			'zipcode' => $zipcode,
+			'city' => $text($address['CVRAdresse_postdistrikt'] ?? null),
+			'phone' => $value('id_CVR_Telefonnummer_CVREnhedsId_ref'),
+			'email' => $value('id_CVR_e_mailadresse_CVREnhedsId_ref'),
+			'enddate' => $text($node['virksomhedOphoersdato'] ?? null) !== '' ? $text($node['virksomhedOphoersdato']) : null,
+		);
 	}
 }
 
@@ -145,17 +345,6 @@ if (!function_exists('cvrLookupPaused')) {
 		$pause = json_decode((string)@file_get_contents($file), true);
 		if (!is_array($pause) || empty($pause['error']) || (int)($pause['until'] ?? 0) <= time() || ($pause['token'] ?? '') !== sha1($token)) return null;
 		return preg_replace('/[^A-Z_]/', '', (string)$pause['error']);
-	}
-}
-
-if (!function_exists('cvrLookupToken')) {
-	/**
-	 * The server's cvrapi.dk token ($cvrapi_token in includes/connect.php), or '' without one.
-	 *
-	 * @return string
-	 */
-	function cvrLookupToken() {
-		return isset($GLOBALS['cvrapi_token']) ? trim((string)$GLOBALS['cvrapi_token']) : '';
 	}
 }
 
@@ -217,6 +406,7 @@ if (!function_exists('cvrLookupCompany')) {
 if (!function_exists('cvrLookupDissolved')) {
 	/**
 	 * Whether cvrapi.dk reports the company as ended (an end date, or a credit status such as "OPLØST").
+	 * Datafordeleren doesn't return an ended company at all: it comes back as NOT_FOUND.
 	 *
 	 * @param array<string, mixed> $data cvrapi.dk's answer.
 	 * @return bool
