@@ -1490,7 +1490,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 #				</tbody> -->
 		print "</table>
 		</div><!-- end of content -->";
-		$sum_fra_liste = 0; # set below if the akkord list total takes over $sum
+		$seddel_total = $sum; # the payslip total, incl. the 'Andet' lines that $a_sum below is a breakdown of
 		print "<div class=\"content link\">
 			<!--<h3><a id=\"aTag\" href=\"javascript:toggleAndChangeText();\">".findtekst('3032|Vis akkordliste', $sprog_id)." &#9658;</a></h3>-->";
 			if (count($ansat_id) && $listevalg && ($loen_art=='akk_afr' || $loen_art=='akkord')) {
@@ -1531,7 +1531,6 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 				print "<tbody>";
 				include('loenIncludes/visListe.php');
 				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal);
-				$sum_fra_liste=1;
 				print "<tr>
 					<td colspan=\"13\" class=\"tableSagerBorder\"><b>".findtekst('3006|Lønlinjer ialt', $sprog_id).":</b></td>
 					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
@@ -1585,8 +1584,9 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 									print "</tr>";
 								}
 								# $aa_sum holds the 'Andet' lines and is distributed over the employees by hours (linje 1298),
-								# so they are already part of $sum. Subtract them, then 'Til fordeling' is the payslip total. #20261007
-								$andet_i_sum = (if_isset($l_timer) && !$sum_fra_liste) ? $a_sum : 0;
+								# so they are already inside the payslip total. With no hours to distribute on they are not
+								# part of it yet, and are added here as before. #20261007
+								$til_fordeling = if_isset($l_timer) ? $seddel_total : $a_sum+$sum;
 								print "</tbody>
 								<tbody class=\"akkordTableBody2 akkordTableBorderBottomAll\">
 									<tr>
@@ -1599,7 +1599,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 									</tr>
 									<tr>
 										<td colspan=\"3\"><b>".findtekst('3009|Til fordeling', $sprog_id).":</b></td>
-										<td colspan=\"1\" class=\"alignRight\" style=\"#border-bottom: 3px double #444;\"><b>".dkdecimal($a_sum+$sum-$andet_i_sum,2)."</b></td>
+										<td colspan=\"1\" class=\"alignRight\" style=\"#border-bottom: 3px double #444;\"><b>".dkdecimal($til_fordeling,2)."</b></td>
 								</tr>
 								</tbody>
 						</table>
