@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -104,6 +104,7 @@
 // 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
 // 20261003 CL/SZ SD-713 "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window (docWindow.php), which follows the selection.
 //                The viewer here collapses while that window is open.
+// 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -4852,10 +4853,15 @@ JS;
 		};
 
 		if (!('BroadcastChannel' in window)) return;
-		var channel = new BroadcastChannel('saldiDocWindow');
+		// The pool's in-place switch runs this script again: only the newest copy answers, with the current document
+		if (window.poolDocWindowChannel) window.poolDocWindowChannel.close();
+		var channel = window.poolDocWindowChannel = new BroadcastChannel('saldiDocWindow');
 		channel.onmessage = function (event) {
-			var type = (event.data || {}).type;
+			var message = event.data || {};
+			var type = message.type;
 			if (type === 'open') { clearTimeout(confirmTimer); setDetached(true); }
+			// A reloaded or restored window still shows the document it had then
+			if (type === 'open' && message.restored && current) channel.postMessage({ type: 'show', k: current.k, f: current.f });
 			if (type === 'closed') setDetached(false);
 		};
 		// The window was open when the pool last loaded: collapse at once, and restore if it does not answer

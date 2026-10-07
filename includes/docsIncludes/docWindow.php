@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docWindow.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/docWindow.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261003 CL/SZ SD-713 Created: the detached document window ("Åbn i nyt vindue" in the pool).
 //                Shows only the document, no menus, and follows the pool's selection over the BroadcastChannel 'saldiDocWindow'.
 //                The document itself is loaded through docFile.php (SD-723).
+// 20261007 CL/SZ SD-713 A window reloaded, reached with Back/Forward or restored from the back/forward cache asks the pool for its document (restored).
 //
 // Request: k and f as for docFile.php (k=doc f=pulje/x.pdf, or k=temp f=xml_preview_<md5>.html)
 
@@ -93,9 +94,13 @@ print "<!DOCTYPE html>
 		if (message.type === 'show') show(message.k, message.f);
 		if (message.type === 'show' || message.type === 'ping') channel.postMessage({ type: 'open' });
 	};
-	channel.postMessage({ type: 'open' });
+	// Reloaded or reached with Back/Forward, the URL's document may no longer be the pool's: the pool sends its own (restored)
+	var navigation = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || {};
+	channel.postMessage({ type: 'open', restored: !!navigation.type && navigation.type !== 'navigate' });
 	// Also fires when the journal reuses this window for its own document page
 	window.addEventListener('pagehide', function () { channel.postMessage({ type: 'closed' }); });
+	// Back from the back/forward cache the script does not run again
+	window.addEventListener('pageshow', function (event) { if (event.persisted) channel.postMessage({ type: 'open', restored: true }); });
 })();
 </script>
 </body>
