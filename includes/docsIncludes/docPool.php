@@ -217,6 +217,48 @@ function poolSideFileOwner($files, $companion) {
 }
 
 /**
+ * The pdf a rename acts on, among the files that share the document's base name.
+ *
+ * The selected file itself while the folder holds it under that name; otherwise the pdf whose base
+ * name is spelled exactly like the row's, which is what the old rename left behind when it wrote a row
+ * under a lower case name. A base name that differs in case is a different document, so a differently
+ * cased pdf is never picked up here.
+ *
+ * @param string[] $files The files in the pulje folder.
+ * @param string $poolFile The name the row and the form carry.
+ * @param string $origBase The base name of that name.
+ * @return string The pdf to rename, or '' when the folder holds none of that base name.
+ */
+function poolRenameTarget($files, $poolFile, $origBase) {
+	$fallback = '';
+	foreach ($files as $file) {
+		if ($file === '.' || $file === '..') continue;
+		if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'pdf') continue;
+		if ($file === $poolFile) return $file;
+		if (pathinfo($file, PATHINFO_FILENAME) === $origBase) $fallback = $file;
+	}
+	return $fallback;
+}
+
+/**
+ * Whether a file is moved along with the pdf the rename acts on.
+ *
+ * The selected pdf itself, and the side file that belongs to it. A side file owned by another pdf
+ * stays, and nothing moves when the rename has no target.
+ *
+ * @param string[] $files The files in the pulje folder.
+ * @param string $renameTarget The pdf being renamed, '' when there is none.
+ * @param string $file The file being considered.
+ * @return bool True when the file is part of the renamed document.
+ */
+function poolRenameMoves($files, $renameTarget, $file) {
+	if ($renameTarget === '' || $file === '') return false;
+	if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'pdf') return $file === $renameTarget;
+	$owner = poolSideFileOwner($files, $file);
+	return $owner === '' || $owner === $renameTarget;
+}
+
+/**
  * Removes the file the name points to together with its side files.
  *
  * The exact name wins; only when no file carries it is a name that differs in case accepted, which is
@@ -1301,13 +1343,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					# in different cases (X.PDF and x.pdf); only the selected one may be renamed, or the
 					# row update below would be written for the other document. A row the old rename
 					# left behind carries the name in the other case than the file, so the exact base
-					# name is accepted as well.
-					$renameTarget = '';
-					foreach ($allFiles as $file) {
-						if (in_array($file, ['.', '..'])) continue;
-						if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'pdf') continue;
-						if ($file === $poolFile) { $renameTarget = $file; break; }
-						if (pathinfo($file, PATHINFO_FILENAME) === $origBase) $renameTarget = $file;
+					# name is accepted as well - and then the content has to prove it is the same
+					# document, because the same base name in another case is a different file.
+					$renameTarget = poolRenameTarget($allFiles, $poolFile, $origBase);
+					if ($renameTarget !== '' && $renameTarget !== $poolFile) {
+						$targetHash = poolContentHashForFile("$puljePath/$renameTarget");
+						$rowHash = isset($currentRow['content_sha256']) ? trim((string)$currentRow['content_sha256']) : '';
+						if ($targetHash === '' || $rowHash === '' || !hash_equals($rowHash, $targetHash)) {
+							docPoolLog("Rename: $renameTarget carries the base name of $poolFile but not its content, left alone");
+							$renameTarget = '';
+						}
 					}
 					
 					// First pass: perform file renames
@@ -1320,13 +1365,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						// SST-858: compared without regard to case, so a document stored as .PDF has
 						// its .info side file renamed with it instead of being left behind.
 						if (strcasecmp($fileBase, $origBase) === 0) {
-							if (strtolower($fileExt) === 'pdf') {
-								if ($file !== $renameTarget) continue;
-							} else {
-								# a side file belongs to the pdf whose base name it spells exactly
-								$owner = poolSideFileOwner($allFiles, $file);
-								if ($owner !== '' && $owner !== $renameTarget) continue;
-							}
+							if (!poolRenameMoves($allFiles, $renameTarget, $file)) continue;
 							$oldPath = "$puljePath/$file";
 							$newPath = "$puljePath/$newBase.$fileExt";
 

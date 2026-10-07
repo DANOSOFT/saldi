@@ -183,7 +183,13 @@ if (!db_fetch_array(db_select("SELECT table_name FROM information_schema.tables 
 $upperName = 'pooltest_AArsoversigt.PDF';
 $upperInfo = 'pooltest_AArsoversigt.info';
 $lowerName = 'pooltest_faktura_7120.pdf';
+$ghostFile = 'pooltest_Ghost.PDF';
+$ghostRowUpper = 'pooltest_Ghost.PDF';
+$ghostRowLower = 'pooltest_Ghost.pdf';
 $created = array($upperName, $upperInfo, $lowerName);
+# rows this suite writes directly rather than through the folder sync: they are deleted at the end even
+# when a check fails in between, so a broken run cannot leave them behind in the tenant
+$createdRows = array($ghostRowUpper, $ghostRowLower);
 $savedSkip = get_settings_value('skip_sync', 'docs', 0);
 
 foreach ($created as $name) {
@@ -229,9 +235,6 @@ poolTestCheck(poolTestRow($lowerName) === array() && !is_file("$puljePath/$lower
 # the table's unique key is case sensitive, so both spellings can sit in it). Deleting from either
 # spelling has to take both rows: only one of them can be the document, and neither may be left
 # pointing at a file that is gone.
-$ghostFile = 'pooltest_Ghost.PDF';
-$ghostRowUpper = 'pooltest_Ghost.PDF';
-$ghostRowLower = 'pooltest_Ghost.pdf';
 db_modify("DELETE FROM pool_files WHERE filename IN ('" . db_escape_string($ghostRowUpper) . "', '" . db_escape_string($ghostRowLower) . "')", __FILE__ . ' line ' . __LINE__);
 poolTestWrite($puljePath, $ghostFile, "ghost content\n");
 db_modify("INSERT INTO pool_files (filename) VALUES ('" . db_escape_string($ghostRowUpper) . "')", __FILE__ . ' line ' . __LINE__);
@@ -243,6 +246,24 @@ poolTestCheck(!is_file("$puljePath/$ghostFile"), 'deleting by the lower case nam
 poolTestCheck($removed['name'] === $ghostFile, 'and reports the name it was resolved to');
 poolTestCheck(poolTestRow($ghostRowUpper) === array(), 'the row with the file spelling is deleted');
 poolTestCheck(poolTestRow($ghostRowLower) === array(), 'and so is the row that was asked for');
+
+# ---- the rename's two rules, exercised rather than only read ----------------------------
+# Two documents can share a base name in different cases. The rename acts on the selected pdf, or on
+# the file whose base name the row spells exactly (what the old rename left behind), and moves that
+# document's side file with it while leaving the other document alone.
+$renameFiles = array('.', '..', 'X.PDF', 'X.info', 'x.pdf', 'x.info', 'notat.txt');
+poolTestCheck(poolRenameTarget($renameFiles, 'X.PDF', 'X') === 'X.PDF', 'the rename acts on the selected pdf');
+poolTestCheck(poolRenameTarget($renameFiles, 'X.pdf', 'X') === 'X.PDF', 'and on the file the row spells, when the row was left in the other case');
+poolTestCheck(poolRenameTarget($renameFiles, 'x.pdf', 'x') === 'x.pdf', 'and on the lower case pdf when that is the selected one');
+poolTestCheck(poolRenameTarget(array('x.pdf'), 'X.PDF', 'X') === '', 'a pdf whose base name differs in case is not picked up');
+poolTestCheck(poolRenameTarget(array('X.info', 'notat.txt'), 'X.PDF', 'X') === '', 'a folder with no pdf of that base name has no target');
+
+poolTestCheck(poolRenameMoves($renameFiles, 'X.PDF', 'X.PDF'), 'the selected pdf moves');
+poolTestCheck(poolRenameMoves($renameFiles, 'X.PDF', 'X.info'), 'and its own side file moves with it');
+poolTestCheck(!poolRenameMoves($renameFiles, 'X.PDF', 'x.pdf'), 'the pdf whose base name differs in case stays');
+poolTestCheck(!poolRenameMoves($renameFiles, 'X.PDF', 'x.info'), 'and so does the side file that belongs to it');
+poolTestCheck(!poolRenameMoves($renameFiles, '', 'X.PDF'), 'nothing moves when the rename has no target');
+poolTestCheck(!poolRenameMoves($renameFiles, 'X.PDF', ''), 'and an empty name is never moved');
 
 # ---- the sources that used to guess the extension ---------------------------------------
 $source = file_get_contents(__DIR__ . '/../includes/docsIncludes/docPool.php');
@@ -256,13 +277,15 @@ poolTestCheck(strpos($source, '$pdfFile = "$puljePath/$baseName.pdf";') === fals
 	'the orphan cleanup no longer tests for a lower case .pdf');
 poolTestCheck(strpos($source, 'poolDeleteDocument($puljePath, $unlinkFile)') !== false,
 	'the pool page deletes through the helper');
-poolTestCheck(strpos($source, 'if ($file !== $renameTarget) continue;') !== false,
-	'the rename acts on the selected pdf only, not on another bilag sharing the base name');
-poolTestCheck(strpos($source, '$owner = poolSideFileOwner($allFiles, $file);') !== false,
-	'and leaves a side file that belongs to another pdf where it is');
+poolTestCheck(strpos($source, 'if (!poolRenameMoves($allFiles, $renameTarget, $file)) continue;') !== false,
+	'the rename loop asks the rule, rather than repeating the pdf and side-file checks inline');
+poolTestCheck(strpos($source, '$renameTarget = poolRenameTarget($allFiles, $poolFile, $origBase);') !== false,
+	'and the pdf it acts on comes from the tested target rule');
+poolTestCheck(strpos($source, '!hash_equals($rowHash, $targetHash)') !== false,
+	'a target accepted on the base name alone has to match the content stored for the row');
 
 # ---- cleanup ----------------------------------------------------------------------------
-foreach ($created as $name) {
+foreach (array_merge($created, $createdRows) as $name) {
 	db_modify("DELETE FROM pool_files WHERE filename = '" . db_escape_string($name) . "'", __FILE__ . ' line ' . __LINE__);
 }
 update_settings_value('skip_sync', 'docs', $savedSkip, 'pooltest');
