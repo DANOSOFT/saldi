@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.05
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,8 @@
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
 //                  re-seeds the corrected csv text on the next call.
+// 20261007 CL/SZ SST-818: a login that finds an index lock taken skips the build instead of waiting for it.
+//                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -309,6 +311,8 @@ db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpr
 // outside any transaction), with an advisory lock against two logins building the same index and a rebuild of an
 // index an interrupted build left INVALID; ALGORITHM=INPLACE, LOCK=NONE on MySQL. All five took about 2 s together
 // on a 163k-row kassekladde / 135k-row adresser tenant.
+// 20261007 CL/SZ SST-818: a second login arriving during the build skips it instead of waiting for the advisory lock: waiting
+// deadlocked with CREATE INDEX CONCURRENTLY, so PostgreSQL aborted the build and that login got the error page (as in SST-808).
 $kkIndexMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 $kkIndexes = array(
 	'kassekladde_kladde_id_idx'        => array('kassekladde', 'kladde_id', 'kladde_id'),
@@ -324,7 +328,9 @@ foreach ($kkIndexes as $kkIndexName => list($kkIndexTable, $kkIndexColumns, $kkI
 			db_modify("CREATE INDEX $kkIndexName ON $kkIndexTable ($kkIndexColumnsMysql) ALGORITHM=INPLACE LOCK=NONE", __FILE__ . " linje " . __LINE__);
 		}
 	} else {
-		db_select("SELECT pg_advisory_lock(hashtext('$kkIndexName'))", __FILE__ . " linje " . __LINE__);
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$kkLock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$kkIndexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$kkLock || $kkLock['locked'] !== 't') continue;
 		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
 		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
 		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
