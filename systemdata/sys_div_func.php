@@ -129,6 +129,7 @@
 // 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
 // 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
 //                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
+//                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -1431,7 +1432,9 @@ function removeDfmPickup(idx) {
         alert('Dit login til din vibrant terminalen: \\n\\n' + res.email + ' \\n' + res.password);
       })
       .catch(error => {
+        // e.g. an expired session, where the answer is the HTML login page instead of JSON
         console.error('Fetch Error:', error);
+        alert('Uventet svar fra serveren. Log evt. ind igen og prøv igen.');
       });
   }
 
@@ -1458,7 +1461,9 @@ function removeDfmPickup(idx) {
         location.reload();
       })
       .catch(error => {
+        // e.g. an expired session, where the answer is the HTML login page instead of JSON
         console.error('Fetch Error:', error);
+        alert('Uventet svar fra serveren. Log evt. ind igen og prøv igen.');
       });
 
 

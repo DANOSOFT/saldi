@@ -25,6 +25,7 @@
 // 20261007 CL/SZ SST-843 Creates the Vibrant user here with the API key from settings, instead of the
 //                Diverse valg page calling Vibrant with the key in its JavaScript.
 //                Needs the Indstillinger right and a CSRF token, and escapes the saved login.
+//                Refuses (409) when a Vibrant login is already saved, before calling Vibrant.
 
 /**
  * Injected by ../../includes/online.php, included below:
@@ -87,6 +88,12 @@ $email  = trim((string) ifset($post, 'email', ''));
 $passwd = (string) ifset($post, 'passwd', '');
 if ($name === '' || $email === '' || $passwd === '') {
 	vibrant_login_svar(400, false, 'Navn, email og adgangskode skal udfyldes');
+}
+
+# Diverse valg only offers "Opret login" when none is saved; a repeated or direct call must not create
+# a second user at Vibrant or a second row that "Vis login" might pick instead
+if (db_fetch_array(db_select("SELECT id FROM settings WHERE var_grp='vibrant_account'", __FILE__ . " linje " . __LINE__))) {
+	vibrant_login_svar(409, false, 'Der er allerede gemt et Vibrant login');
 }
 
 $r = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name='vibrant_auth'", __FILE__ . " linje " . __LINE__));
