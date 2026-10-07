@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,7 +113,6 @@
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
 // 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 // 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
-
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
 //                  unload/pagehide beacon was added (there was none before).
@@ -128,6 +127,10 @@
 //                  observed tidspkt, so a stale render can't overwrite a token a concurrent
 //                  tidspkt change has since replaced (unlockRecord.php's refresh_lock_token()
 //                  now requires it).
+// 20260930 CL/SZ SD-701 Clicking an attached voucher opens it in a separate tab (reused per click), so it can sit
+//                  on a second screen while the journal, incl. unsaved values, stays open in the original tab.
+// 20261002 CL/SZ SD-701 The voucher tab is view-only; managing attachments goes back to the journal tab via openBilagManage().
+//                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -454,6 +457,37 @@ print '<script>
 </script>';
 print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
+// SD-701 Attached vouchers open in one named tab that later clicks reuse, so a tab moved to a second
+// screen keeps showing the current voucher. The journal is not left, so there is no unsaved-changes prompt,
+// unless the popup is blocked and the fallback navigates the journal tab.
+// The tab is view-only (viewOnly=1), so the line cannot be edited in two places. Its "Administrér bilag"
+// button calls openBilagManage() here, which brings the full attachment page into this tab instead.
+/**
+ * jsString() comes from includes/stdFunc/jsString.php, which std_func.php includes.
+ *
+ * @see jsString()
+ */
+$bilagUnsavedTxt = jsString(array(
+	findtekst('5280|Obs - Du har ikke gemt.', $sprog_id), "\n ",
+	findtekst('5281|Hvis du klikker OK mistes de sidste ændringer', $sprog_id)
+));
+print "<script>
+	var bilagUnsavedTxt = $bilagUnsavedTxt;
+	function openBilagTab(url) {
+		var bilagTab = window.open(url + '&viewOnly=1', 'saldiBilag');
+		if (bilagTab) {
+			bilagTab.focus();
+		} else {
+			confirmClose(url, bilagUnsavedTxt);
+		}
+	}
+	// Same prompt as confirmClose(), but returns whether the journal is left, so the tab only closes then
+	function openBilagManage(url) {
+		if (docChange && !confirm(bilagUnsavedTxt)) return false;
+		document.location = url;
+		return true;
+	}
+</script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.4">';
 print '<script src="../javascript/accountAutocomplete.js?v=4.1.6" defer></script>';
@@ -1810,9 +1844,9 @@ $columns = array(
 			$dropAttr = "";
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
-			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href', bilagUnsavedTxt)";
 			return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
-				<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>
+				<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>
 				<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
 			</td>";
 		}
@@ -3266,8 +3300,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
-			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>";
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href', bilagUnsavedTxt)";
+			print "<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>";
 			#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
 		}
@@ -5545,8 +5579,7 @@ document.addEventListener('DOMContentLoaded', function() {
 					const span = clipCell.querySelector('span');
 					if (span) {
 						const docHref = '../includes/documents.php?source=kassekladde&sourceId=' + data.sourceId + '&kladde_id=' + data.kladde_id + '&bilag=' + encodeURIComponent(bilag);
-						const warnTxt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-						span.onclick = function() { confirmClose(docHref, warnTxt); };
+						span.onclick = function() { openBilagTab(docHref); };
 						span.draggable = true;
 						span.addEventListener('dragstart', function(e) {
 							clipDragStart(e, data.sourceId, bilag);

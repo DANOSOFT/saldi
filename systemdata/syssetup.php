@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-07-24 ---
+// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20132127 Indsat kontrol for at kodenr er numerisk på momskoder.
@@ -49,6 +49,7 @@
 // 20260723 MJ  Fjernet Rubrik-kolonne (box5) fra SM/KM/YM/EM-momskoder: bruges ikke laengere.
 // 20260724 MJ  EU-zone-dropdown (box10) paa KG-kreditorgrupper til Momsrubrikker Rubrik A.
 // 20260917 CDX/LH Correct VAT mapping label translation reference (MB-45).
+// 20261001 CDX/PHR Show one editable definition per warehouse, preferring the selected fiscal year.
 
 @session_start();
 $s_id=session_id();
@@ -116,8 +117,22 @@ if ($nopdat!=1) {
 	$qtxt.= "OR art = 'AFD' OR art = 'LG' OR art = 'VPG' OR art = 'VTG' OR art = 'VRG' ";
 	$qtxt.= "order by kodenr";
 	if ($valg=="projekter") $qtxt.=' desc';
+	if ($valg === 'lagre') {
+		// Keep the chosen row ID for saving; retain older warehouses without a current-year copy.
+		$qtxt = "SELECT * FROM grupper WHERE art='LG' ORDER BY kodenr, ";
+		$qtxt .= "case when fiscal_year=" . (int)$regnaar . " then 0 else 1 end, ";
+		$qtxt .= "coalesce(fiscal_year,0) desc,id desc";
+	}
+	$seenWarehouses = array();
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
+		if ($valg === 'lagre') {
+			$warehouseNumber = (int)ifset($row, 'kodenr', 0);
+			if (array_key_exists($warehouseNumber, $seenWarehouses)) {
+				continue;
+			}
+			$seenWarehouses[$warehouseNumber] = true;
+		}
 		$x++;
 		$id[$x]	=	$row['id'];
 		$beskrivelse[$x]	=	htmlentities(stripslashes($row['beskrivelse']),ENT_COMPAT,$charset);

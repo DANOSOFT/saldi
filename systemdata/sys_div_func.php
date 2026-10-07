@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.09.29 ---
+// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,6 +125,8 @@
 // 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
 // 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
+// 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
+// 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -747,6 +749,7 @@ function personlige_valg() {
 
 function div_valg() {
 	global $bgcolor, $bgcolor5;
+	global $csrf_token;
 	global $docubizz;
 	global $regnaar;
 	global $sprog_id;
@@ -1336,7 +1339,7 @@ function removeDfmPickup(idx) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='flatpay_auth'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-	# Guid form flatpay, looks like 9e802837-307b-48c3-9f0e-1b4cac291376
+	# Guid form flatpay, looks like 00000000-0000-4000-8000-000000000000 (example, not a real ID)
 	$guid   = $r ? str_split($r[0], 7)[0] . "-xxxx-xxxx-xxxx-xxxxxxxxxxxx" : "";
 
 	$mtxt   = findtekst('2314|Flatpay ID', $sprog_id);
@@ -1729,18 +1732,31 @@ function removeDfmPickup(idx) {
       close_popup();
 
       async function save_id(id){
-        var res = await fetch(
-          'diverseIncludes/save_flatpay_id.php',
-          {
-            method: 'post',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              'id': id
-            }),
-          }
-        )
+        var res = null;
+        var svar = null;
+        try {
+          res = await fetch(
+            'diverseIncludes/save_flatpay_id.php',
+            {
+              method: 'post',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': " . json_encode($csrf_token) . ",
+              },
+              body: JSON.stringify({
+                'id': id
+              }),
+            }
+          )
+          svar = await res.json();
+        } catch (fejl) {
+          res = null;
+          svar = null;
+        }
+        if (!res || !res.ok || !svar || !svar.success) {
+          alert('" . findtekst('3405|Ugyldig eller udløbet formular - genindlæs siden og prøv igen', $sprog_id) . "');
+          return;
+        }
         location.reload();
       }
 
@@ -1758,10 +1774,6 @@ function removeDfmPickup(idx) {
             }),
           }
         )
-        console.log({
-              'username': document.getElementById('flatpay-username').value,
-              'password': document.getElementById('flatpay-password').value
-            })
         if (res.status == 200) {
           const text = await res.text();
           close_popup();
