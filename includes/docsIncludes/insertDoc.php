@@ -38,6 +38,9 @@
 //                     $_POST reads in the edited blocks go through ifset(). A posted amount of "0"
 //                     is stored instead of being skipped as empty.
 // 20261003 CL/SZ SD-722 Before the pool row is deleted, a document attached from the pool writes its correction records and keeps its snapshot (poolCaptureRecordAttach()).
+// 20261007 CL/SZ SD-716 A company without a globalId setting (e.g. one just created) no longer gets alert('Missing global ID') printed in front
+//                of the pool's JSON answer: the save went through, but the pool showed "not valid JSON" and left the document unattached in the pool.
+//                globalId stays 1 as before; the missing setting is written to the error log.
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -58,7 +61,8 @@ $sourceId = isset($_REQUEST['sourceId']) ? $_REQUEST['sourceId'] : (isset($sourc
 if(!isset($globalId)) $globalId =1;
 $qtxt = "select var_value from settings where var_name = 'globalId'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $globalId = $r['var_value'];
-else alert ('Missing global ID');
+// SD-716: no alert here - it went in front of the pool's JSON answer and broke every save in a company without globalId
+else error_log('insertDoc: settings has no globalId, 1 is used');
 
 // Extract variables from REQUEST if not already set (for AJAX/POST support without register_globals)
 $source = isset($_REQUEST['source']) ? $_REQUEST['source'] : (isset($source) ? $source : null);
