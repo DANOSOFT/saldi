@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/accountLookupData.php --- patch 5.0.0--- 2026.05.01
+// --- debitor/accountLookupData.php --- patch 5.0.0--- 2026.10.08
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,11 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260501 PHR removed K (creditors) from address lookup
 // 20260827 CDX/PHR Restored supplier lookup when o_art is KO.
+// 20261008 CDX/PHR Include NULL closed flags in AJAX account lookup, matching the initial grid.
 
 
 header('Content-Type: application/json');
@@ -137,7 +138,7 @@ try {
 
     // Handle search parameters
     $searchParams = $requestParams['search'];
-    $whereClauses = ["art='$addressArt'", "lukket != 'on'"];
+    $whereClauses = ["art='$addressArt'", "COALESCE(lukket, '') != 'on'"];
 
     foreach ($validColumns as $col) {
         if (!empty($searchParams[$col])) {
