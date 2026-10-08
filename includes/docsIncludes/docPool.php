@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -106,6 +106,9 @@
 //                 return from the next folder sync; its .info/.xml side files follow whatever their
 //                 spelling, the rename keeps the metadata row instead of writing a lower case ghost,
 //                 and the missing-row check sees .PDF and .XML like the sync does.
+// 20261008 LOE SST-858 An xml bilag that shares its base name with a pdf is a bilag of its own, so deleting
+//                 it removes the xml itself, and deleting the pdf no longer takes the xml with it. Only
+//                 the .info written beside a pdf follows it.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -167,12 +170,14 @@ function poolFileName($filename) {
 }
 
 /**
- * Every file in the pulje folder that belongs to the same bilag as the given name.
+ * Every file in the pulje folder that shares the given name's base name.
  *
- * The document itself and its .info/.xml side files. The folder is listed once and the base names are
- * compared without regard to case, because the file system is case sensitive and the side file is
- * written from the base name the document was stored under: AArsoversigt.PDF has AArsoversigt.info
- * next to it, while "AArsoversigt" . ".pdf" points at nothing.
+ * The document itself, an xml bilag that happens to share the base name, and the .info metadata written
+ * beside a pdf. They are not one document: a pdf and an xml of the same base name are two bilag, each
+ * with its own row, and only the .info belongs to the pdf it was written beside. The folder is listed
+ * once and the base names are compared without regard to case, because the file system is case
+ * sensitive and the metadata is written from the base name the document was stored under: AArsoversigt.PDF
+ * has AArsoversigt.info next to it, while "AArsoversigt" . ".pdf" points at nothing.
  *
  * @param string $puljePath The pulje folder.
  * @param string $filename The document's name.
@@ -193,6 +198,19 @@ function poolFileCompanions($puljePath, $filename) {
 		$companions[] = $file;
 	}
 	return $companions;
+}
+
+/**
+ * Whether a file is a side file of a document rather than a document itself.
+ *
+ * Only the .info metadata is written beside a pdf and follows it. A pdf and an xml are first-class
+ * documents that may share a base name, so neither is ever a side file of the other.
+ *
+ * @param string $file The file name.
+ * @return bool True for the .info extension, in any case.
+ */
+function poolIsSideFile($file) {
+	return strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'info';
 }
 
 /**
@@ -243,8 +261,9 @@ function poolRenameTarget($files, $poolFile, $origBase) {
 /**
  * Whether a file is moved along with the pdf the rename acts on.
  *
- * The selected pdf itself, and the side file that belongs to it. A side file owned by another pdf
- * stays, and nothing moves when the rename has no target.
+ * The selected pdf itself, and the .info that belongs to it. An xml of the same base name is a bilag of
+ * its own and stays where it is, a side file owned by another pdf stays, and nothing moves when the
+ * rename has no target.
  *
  * @param string[] $files The files in the pulje folder.
  * @param string $renameTarget The pdf being renamed, '' when there is none.
@@ -253,24 +272,27 @@ function poolRenameTarget($files, $poolFile, $origBase) {
  */
 function poolRenameMoves($files, $renameTarget, $file) {
 	if ($renameTarget === '' || $file === '') return false;
-	if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'pdf') return $file === $renameTarget;
+	if (!poolIsSideFile($file)) return $file === $renameTarget;
 	$owner = poolSideFileOwner($files, $file);
 	return $owner === '' || $owner === $renameTarget;
 }
 
 /**
- * Removes the file the name points to together with its side files.
+ * Removes the file the name points to, together with the .info metadata written beside it.
  *
  * The exact name wins; only when no file carries it is a name that differs in case accepted, which is
- * what a row written by the old rename left behind. A side file whose exact base name belongs to
- * another pdf in the folder is left alone: it is that document's metadata, not this one's.
+ * what a row written by the old rename left behind. The document the name points to is always removed:
+ * a pdf and an xml that share a base name are two bilag, each with its own row, so neither stands in
+ * for the other. Only the .info written beside a pdf follows it, and it is left alone while another pdf
+ * carries that exact base name, since it is that document's metadata.
  *
  * @param string $puljePath The pulje folder.
  * @param string $filename The document's name.
  * @return array{
  *   deleted: string[],  The names removed from the folder.
  *   missing: string[],  The names that were not there, or could not be removed.
- *   refused: string,    The name as it arrived when it carries a path, otherwise ''.
+ *   refused: string,    The name as it arrived when it carries a path, otherwise ''. A name that is not
+ *                       a string at all is reported as its type.
  *   name: string,       The name the document was resolved to, '' when it was refused or not there.
  * }
  */
@@ -278,7 +300,7 @@ function poolDeleteFiles($puljePath, $filename) {
 	$result = array('deleted' => array(), 'missing' => array(), 'refused' => '', 'name' => '');
 	$name = poolFileName($filename);
 	if ($name === '') {
-		$result['refused'] = (string)$filename;
+		$result['refused'] = is_scalar($filename) ? (string)$filename : gettype($filename);
 		return $result;
 	}
 	$companions = poolFileCompanions($puljePath, $name);
@@ -294,15 +316,19 @@ function poolDeleteFiles($puljePath, $filename) {
 		$name = $sameName;
 	}
 	$result['name'] = $name;
+	if (file_exists("$puljePath/$name")) {
+		if (unlink("$puljePath/$name")) $result['deleted'][] = $name;
+		else $result['missing'][] = $name;
+	} else {
+		$result['missing'][] = $name;
+	}
 	foreach ($companions as $companion) {
-		# a pdf with the same base name but a different spelling is another document, not a side file
-		$companionExt = strtolower(pathinfo($companion, PATHINFO_EXTENSION));
-		if ($companionExt === 'pdf') {
-			if ($companion !== $name) continue;
-		} else {
-			$owner = poolSideFileOwner($companions, $companion);
-			if ($owner !== '' && $owner !== $name) continue;
-		}
+		# a pdf and an xml that share a base name are two bilag, and only the .info written beside a pdf is
+		# a side file, so neither document is removed or held back on account of the other
+		if (!poolIsSideFile($companion)) continue;
+		if ($companion === $name) continue;
+		$owner = poolSideFileOwner($companions, $companion);
+		if ($owner !== '' && $owner !== $name) continue;
 		if (unlink("$puljePath/$companion")) $result['deleted'][] = $companion;
 		else $result['missing'][] = $companion;
 	}
