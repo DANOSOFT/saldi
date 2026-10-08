@@ -10,6 +10,7 @@
 //
 // History:
 // 20260904 CL/NTR created.
+// 20261008 CL/LH products/groups list for the current fiscal year, codeNo lookup, non-group ids are 404.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -202,6 +203,44 @@ final class ReferenceDataEndpointsTest extends TestCase
 
         $del = RestApiEnv::http('DELETE', self::V1 . 'products/groups/?id=' . (int)$rows[0]['id'], null, RestApiEnv::authHeaders());
         $this->assertSame(405, $del['status'], $del['body']);
+    }
+
+    public function test_product_group_list_holds_the_current_fiscal_years_groups(): void
+    {
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $year = null;
+        $now = (int)date('Y') * 12 + (int)date('n');
+        foreach (RestApiEnv::rows($tenant, "SELECT kodenr, box1, box2, box3, box4 FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on')") as $ra) {
+            if ((int)$ra['box2'] * 12 + (int)$ra['box1'] <= $now && $now <= (int)$ra['box4'] * 12 + (int)$ra['box3']) {
+                $year = (int)$ra['kodenr'];
+            }
+        }
+        $this->assertNotNull($year, 'template tenant has a fiscal year covering today');
+        $expected = array_map('intval', array_column(RestApiEnv::rows($tenant, "SELECT id FROM grupper WHERE art = 'VG' AND fiscal_year = $1 ORDER BY id", [$year]), 'id'));
+        $other = RestApiEnv::rows($tenant, "SELECT id FROM grupper WHERE art <> 'VG' ORDER BY id LIMIT 1");
+        pg_close($tenant);
+        $this->assertNotEmpty($expected, 'template tenant has product groups in the current fiscal year');
+
+        $res = $this->get('products/groups/');
+
+        $this->assertSame(200, $res['status'], $res['body']);
+        $ids = array_map(fn($g) => (int)$g['id'], $res['json']['data']);
+        sort($ids);
+        $this->assertSame($expected, $ids);
+        foreach ($res['json']['data'] as $group) {
+            $this->assertSame($year, (int)$group['fiscalYear']);
+        }
+
+        $first = $res['json']['data'][0];
+        foreach (['codeNo', 'kodenr'] as $field) {
+            $byCode = $this->get("products/groups/?field=$field&value=" . (int)$first['codeNo']);
+            $this->assertSame(200, $byCode['status'], $byCode['body']);
+            $this->assertSame([(int)$first['id']], array_map(fn($g) => (int)$g['id'], $byCode['json']['data']), "field=$field");
+        }
+
+        $this->assertNotEmpty($other);
+        $notAGroup = $this->get('products/groups/?id=' . (int)$other[0]['id']);
+        $this->assertSame(404, $notAGroup['status'], 'a grupper row that is not a product group is not served as one');
     }
 
     public function test_dashboard_stats_answers_with_numeric_totals(): void

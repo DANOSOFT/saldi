@@ -32,7 +32,8 @@ docker-compose stack.
   creditor (art K) is invisible to the debtor endpoint.
 - `ProductsEndpointTest` — `products/`: create → read-back, duplicate SKU
   and missing description → 400, `field=varenr` search, whitelist on
-  `field`, update, delete, 404s.
+  `field`, update, delete, 404s, `limit` up to 200, `offset`/`page` paging
+  that returns every product exactly once, English `orderBy`/`field` names.
 - `AccountsEndpointTest` — `accounts/` (kontoplan): list, create → read-back
   stamped with the latest fiscal year, missing description → 400, update,
   404, DELETE → 405.
@@ -42,7 +43,9 @@ docker-compose stack.
 - `ReferenceDataEndpointsTest` — `currencies/`, `vat/`, `vat-codes/`,
   `accountingYear/`, `debitor/groups/`, `products/groups/`,
   `dashboard/stats.php`: all require a token, answer with the JSON envelope
-  and documented shape, read-only ones refuse POST with 405.
+  and documented shape, read-only ones refuse POST with 405; `products/groups/`
+  lists the groups of the fiscal year covering today, finds one by `codeNo`,
+  and 404s on a `grupper` row that is not a product group.
 
 Tests that need a token the API would never issue (expired, wrong type,
 foreign account id) sign it with the install's own secret via
@@ -113,3 +116,4 @@ production registry.
 <!-- 20260723 CL/LH SD-602: created. -->
 <!-- 20260904 CL/NTR Added the refresh/bearer/customers/products/accounts/orderlines/reference-data suites, the non-docker run recipe, the per-process random password from tests/TestCredentials.php, and the per-class tenant teardown. -->
 <!-- 20260928 CL/NTR Tenant db and account names carry a per-process suffix; teardown removes only the db and regnskab ids that bootstrap recorded. -->
+<!-- 20261008 CL/LH Products paging/field-name and product-group list cases. -->

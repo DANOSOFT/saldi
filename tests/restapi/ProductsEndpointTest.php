@@ -4,10 +4,11 @@
 // Integration tests for /restapi/endpoints/v1/products/ against the local
 // docker stack's self-provisioned tenant: auth enforcement, list, create ->
 // read-back, duplicate SKU and missing-field validation, field search,
-// update, delete, 404s.
+// update, delete, 404s, limit/offset/page paging, English field names.
 //
 // History:
 // 20260904 CL/NTR created.
+// 20261008 CL/LH paging (limit cap 200, offset, page) and the documented English orderBy/field names.
 
 use PHPUnit\Framework\TestCase;
 
@@ -66,6 +67,94 @@ final class ProductsEndpointTest extends TestCase
             $this->assertArrayHasKey('sku', $product);
             $this->assertArrayHasKey('salesPrice', $product);
         }
+    }
+
+    /** @return list<string> product ids of one list call */
+    private function listIds(string $query): array
+    {
+        $res = RestApiEnv::http('GET', self::PRODUCTS . $query, null, RestApiEnv::authHeaders());
+        $this->assertSame(200, $res['status'], $res['body']);
+        $this->assertIsArray($res['json']['data'], $res['body']);
+        return array_map(fn($p) => (string)$p['id'], $res['json']['data']);
+    }
+
+    /** Number of products in the tenant, topped up to $min with created ones. */
+    private function productCount(int $min = 0): int
+    {
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $n = (int)RestApiEnv::rows($tenant, 'SELECT count(*) AS n FROM varer')[0]['n'];
+        pg_close($tenant);
+        for (; $n < $min; $n++) {
+            $this->assertSame(201, $this->create(['sku' => $this->sku('fill'), 'description' => 'filler'])['status']);
+        }
+        return $n;
+    }
+
+    public function test_limit_above_100_is_honoured_up_to_200(): void
+    {
+        $total = $this->productCount();
+
+        $this->assertCount(min(150, $total), $this->listIds('?limit=150'));
+        $this->assertCount(min(200, $total), $this->listIds('?limit=500'));
+        $this->assertCount(min(20, $total), $this->listIds(''));
+    }
+
+    public function test_offset_and_page_return_the_next_slice(): void
+    {
+        $this->productCount(10);
+
+        $first = $this->listIds('?limit=5');
+        $second = $this->listIds('?limit=5&offset=5');
+
+        $this->assertCount(5, $second);
+        $this->assertSame([], array_intersect($first, $second), 'offset=5 starts after the first page');
+        $this->assertSame(array_merge($first, $second), $this->listIds('?limit=10'));
+        $this->assertSame($second, $this->listIds('?limit=5&page=2'));
+        $this->assertSame($first, $this->listIds('?limit=5&page=1'));
+    }
+
+    public function test_paging_returns_every_product_exactly_once(): void
+    {
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $expected = array_column(RestApiEnv::rows($tenant, 'SELECT id FROM varer ORDER BY id'), 'id');
+        pg_close($tenant);
+        $this->assertNotEmpty($expected, 'template tenant has products');
+        $limit = max(1, min(200, intdiv(count($expected), 5)));
+
+        // By page in id order, and by offset in description order - descriptions repeat, so
+        // this also needs a stable tiebreak to neither skip nor repeat products across pages.
+        foreach (['page', 'offset'] as $mode) {
+            $seen = [];
+            for ($i = 0; $i <= count($expected); $i++) {
+                $param = $mode === 'page' ? 'page=' . ($i + 1) : 'offset=' . ($i * $limit) . '&orderBy=description';
+                $ids = $this->listIds("?limit=$limit&$param");
+                $seen = array_merge($seen, $ids);
+                if (count($ids) < $limit) {
+                    break;
+                }
+            }
+            sort($seen);
+            $sortedExpected = $expected;
+            sort($sortedExpected);
+            $this->assertSame($sortedExpected, $seen, "paging by $mode");
+        }
+    }
+
+    public function test_documented_english_field_names_order_and_filter(): void
+    {
+        $this->productCount(10);
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $bySku = array_column(RestApiEnv::rows($tenant, 'SELECT id FROM varer ORDER BY varenr, id LIMIT 10'), 'id');
+        $group = RestApiEnv::rows($tenant, 'SELECT gruppe, count(*) AS n FROM varer WHERE gruppe IS NOT NULL GROUP BY gruppe ORDER BY 2, 1 LIMIT 1');
+        pg_close($tenant);
+
+        $this->assertSame($bySku, $this->listIds('?orderBy=sku&limit=10'));
+        $this->assertSame($bySku, $this->listIds('?orderBy=varenr&limit=10'));
+
+        $this->assertNotEmpty($group, 'template tenant has products with a group');
+        $inGroup = $this->listIds('?field=group&value=' . urlencode($group[0]['gruppe']));
+        $this->assertCount((int)$group[0]['n'], $inGroup);
+        $this->assertSame($inGroup, $this->listIds('?field=gruppe&value=' . urlencode($group[0]['gruppe'])));
     }
 
     public function test_created_product_can_be_read_back(): void

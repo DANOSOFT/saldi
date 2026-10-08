@@ -4,6 +4,28 @@ include_once __DIR__."/logging.php";
 
 $regnaar = NULL;
 
+// 20261008 CL/LH: JWT requests never ran access_check() below, so $regnaar stayed NULL and every
+// model that filters on fiscal_year built broken SQL (product groups came back empty, warehouses
+// fell back to a made-up default, group accounts were missing). BaseEndpoint::checkAuthorization()
+// now sets $regnaar from this after connecting to the account database. Same rule as
+// access_check() and /accountingYear/: the fiscal year covering today, else the newest open one.
+// Months are compared as numbers - box1-box4 are text, so a SQL text compare puts '9' after '10'.
+function api_current_fiscal_year()
+{
+    $now = (int)date('Y') * 12 + (int)date('n');
+    $qtxt = "select kodenr, box1, box2, box3, box4 from grupper where art = 'RA' and (box10 is null or box10 <> 'on') order by id";
+    $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    while ($q && $r = db_fetch_array($q)) {
+        $start = (int)$r['box2'] * 12 + (int)$r['box1'];
+        $end = (int)$r['box4'] * 12 + (int)$r['box3'];
+        if ($start <= $now && $now <= $end) {
+            return (int)$r['kodenr'];
+        }
+    }
+    $kodenr = newest_active_fiscal_year();
+    return $kodenr ? $kodenr : null;
+}
+
 
 function access_check($db, $saldiuser, $user_apikey)
 {
