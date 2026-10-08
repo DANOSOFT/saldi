@@ -41,7 +41,9 @@ $s_id=session_id();
 //                  Same features and same GET/POST parameters as before: sort/sort2/desc, showClosed,
 //                  rediger, beregn, submit. The dead $menu=='S' branch and the hard-coded blue
 //                  topline are gone; buttons use the user's buttonColor. Output is now escaped.
-//                  Recalculation no longer echoes its SQL; it reports a summary instead.
+//                  Recalculation no longer echoes its SQL; it reports a summary instead. Edit mode, saving and
+//                  recalculation are admin-only (users with adgang_til get the read-only list).
+//                  New texts go through vr_t() (da/en) instead of findtekst('plain text'), which is uncached.
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -70,10 +72,18 @@ if ($db != $sqdb) {
 	exit;
 }
 
+$q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
+$r = db_fetch_array($q);
+list($admin,$oprette,$slette,$tmp)=explode(",",$r['rettigheder'],4);
+$adgang_til=explode(",",$tmp);
+// Editing (rediger / submit) and recalculation are for administrators only. Users who only have
+// adgang_til a few regnskaber get the read-only list.
+if (!$admin) $rediger = NULL;
+
 $vr_saved = NULL; # number of regnskaber written by the last POST
 $vr_notes = array(); # messages from the recalculation
 
-if (isset($_POST['submit'])) {
+if (isset($_POST['submit']) && $admin) {
 	$rediger="on";
 	$db_antal = if_isset($_POST, NULL, 'db_antal');
 	$id = if_isset($_POST, NULL, 'id');
@@ -138,10 +148,29 @@ $vr_pathParts   = explode('/', trim(if_isset($_SERVER, '', 'PHP_SELF'), '/'));
 $vr_firstFolder = if_isset($vr_pathParts, '', 0);
 $vr_warnOpen    = ($vr_serverName == 'ssl3.saldi.dk' && $vr_firstFolder == 'master');
 
-$q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
-$r = db_fetch_array($q);
-list($admin,$oprette,$slette,$tmp)=explode(",",$r['rettigheder'],4);
-$adgang_til=explode(",",$tmp);
+
+// ---------- helpers for the view ----------
+function vr_cs() { global $db_encode; return ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1'; }
+function vr_h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, vr_cs()); }
+function vr_num($n) { return number_format((int)$n, 0, ',', '.'); }
+// Texts that have no id in tekster.csv yet. Danish/English by $sprog_id (1 = da, 2 = en, else da), converted
+// to the database charset like findtekst() does. Deliberately not findtekst('plain text'): that path does two
+// queries and a full read of tekster.csv per call and is never cached. Add ids to tekster.csv when convenient.
+function vr_t($da, $en) {
+	global $sprog_id, $db_encode;
+	$t = ($sprog_id == 2) ? $en : $da;
+	return ($db_encode == 'UTF8') ? $t : mb_convert_encoding($t, 'ISO-8859-1', 'UTF-8');
+}
+function vr_rel($ts) { # relative "sidst aktiv" text; $ts is unix time
+	if (!$ts) return '–';
+	$days = (int) floor((strtotime(date('Y-m-d')) - strtotime(date('Y-m-d', $ts))) / 86400);
+	if ($days <= 0) return vr_t('i dag', 'today');
+	if ($days == 1) return vr_t('i går', 'yesterday');
+	if ($days < 7)   return $days.' '.vr_t('dage siden', 'days ago');
+	if ($days < 60)  { $w = (int) round($days/7); return $w.' '.($w==1 ? vr_t('uge siden', 'week ago') : vr_t('uger siden', 'weeks ago')); }
+	if ($days < 400) { $mo = (int) round($days/30); return $mo.' '.vr_t('mdr. siden', 'months ago'); }
+	$yr = (int) floor($days/365); return $yr.' '.vr_t('år siden', 'years ago');
+}
 
 $id=array(); $regnskab=array(); $db_navn=array();
 
@@ -246,11 +275,11 @@ if ($beregn && $admin) {
 				} else $sidst[$x]=NULL;
 				include("../includes/connect.php");
 			} else {
-				$vr_notes[] = findtekst('Opretter database', $sprog_id)." $db_navn[$x]";
+				$vr_notes[] = vr_t('Opretter database', 'Creating database')." $db_navn[$x]";
 				db_create($db_navn[$x]);
 			}
 		} else {
-			$vr_notes[] = findtekst('Opretter database', $sprog_id)." $db_navn[$x]";
+			$vr_notes[] = vr_t('Opretter database', 'Creating database')." $db_navn[$x]";
 			db_create($db_navn[$x]);
 			$sidst[$x]=NULL;
 		}
@@ -259,38 +288,25 @@ if ($beregn && $admin) {
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$vr_recalced++;
 	}
-	array_unshift($vr_notes, findtekst('Posteringer og seneste aktivitet er genberegnet for', $sprog_id)." $vr_recalced ".findtekst('regnskaber', $sprog_id));
+	array_unshift($vr_notes, vr_t('Posteringer og seneste aktivitet er genberegnet for', 'Entries and latest activity recalculated for')." $vr_recalced ".vr_t('regnskaber', 'accounts'));
 }
 
-// ---------- helpers for the view ----------
-function vr_h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-function vr_num($n) { return number_format((int)$n, 0, ',', '.'); }
-function vr_rel($ts) { # relative "sidst aktiv" text; $ts is unix time
-	global $sprog_id;
-	if (!$ts) return '–';
-	$days = (int) floor((strtotime(date('Y-m-d')) - strtotime(date('Y-m-d', $ts))) / 86400);
-	if ($days <= 0) return findtekst('i dag', $sprog_id);
-	if ($days == 1) return findtekst('i går', $sprog_id);
-	if ($days < 7)   return $days.' '.findtekst('dage siden', $sprog_id);
-	if ($days < 60)  { $w = (int) round($days/7); return $w.' '.findtekst($w==1 ? 'uge siden' : 'uger siden', $sprog_id); }
-	if ($days < 400) { $mo = (int) round($days/30); return $mo.' '.findtekst('mdr. siden', $sprog_id); }
-	$yr = (int) floor($days/365); return $yr.' '.findtekst('år siden', $sprog_id);
-}
 function vr_url($params) { # link to this page with the given state
 	$params = array_filter($params, fn($v) => isset($v) && $v !== '' && $v !== false);
 	return 'vis_regnskaber.php'.($params ? '?'.http_build_query($params) : '');
 }
-function vr_sort_link($col, $label, $title='') {
+function vr_sort_th($col, $label, $title='', $cls='') {
 	global $sort, $sort2, $desc, $rediger, $showClosed;
 	$on = ($sort == $col);
 	$arrow = $on ? ($desc ? ' <span class="vr-ar" aria-hidden="true">&#9660;</span>' : ' <span class="vr-ar" aria-hidden="true">&#9650;</span>') : '';
 	$aria = $on ? ($desc ? 'descending' : 'ascending') : 'none';
+	$th = "<th aria-sort=\"$aria\"".($cls ? " class=\"$cls\"" : "").">";
 	$href = vr_url(['sort'=>$col, 'sort2'=>$sort, 'desc'=>$desc, 'rediger'=>$rediger, 'showClosed'=>$showClosed]);
-	return "<a href=\"".vr_h($href)."\" aria-sort=\"$aria\"".($title ? " title=\"".vr_h($title)."\"" : "").">".vr_h($label)."$arrow</a>";
+	return $th."<a href=\"".vr_h($href)."\"".($title ? " title=\"".vr_h($title)."\"" : "").">".vr_h($label)."$arrow</a></th>";
 }
 
 $vr_count = count($id);
-$vr_closedLabel = findtekst('Vis lukkede', $sprog_id);
+$vr_closedLabel = vr_t('Vis lukkede', 'Show closed');
 $vr_toggleClosed = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'rediger'=>$rediger, 'showClosed'=>$showClosed ? NULL : 'on']);
 $vr_toggleEdit   = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'showClosed'=>$showClosed, 'rediger'=>$rediger ? NULL : 'on']);
 $vr_recalcUrl    = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'showClosed'=>$showClosed, 'beregn'=>1]);
@@ -301,14 +317,14 @@ print "<div class=\"vr\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text
 // ---------- page head ----------
 print "<div class=\"vr-head\">\n<div class=\"vr-title\">\n";
 print "<a class=\"vr-back\" href=\"../index/admin_menu.php\" accesskey=\"L\">&larr; ".findtekst('30|Tilbage', $sprog_id)."</a>\n";
-print "<h1>".findtekst('Regnskaber', $sprog_id)."</h1>\n";
-if ($admin) print "<p class=\"vr-lead\">".findtekst('Alle regnskaber på denne installation. Klik på et regnskab for at åbne det, eller tryk Ret for at ændre brugergrænse, posteringsgrænse og lukning.', $sprog_id)."</p>\n";
-else print "<p class=\"vr-lead\">".findtekst('Regnskaber du har adgang til. Klik på et regnskab for at åbne det.', $sprog_id)."</p>\n";
+print "<h1>".vr_t('Regnskaber', 'Accounts')."</h1>\n";
+if ($admin) print "<p class=\"vr-lead\">".vr_t('Alle regnskaber på denne installation. Klik på et regnskab for at åbne det, eller tryk Ret for at ændre brugergrænse, posteringsgrænse og lukning.', 'All accounts on this installation. Click an account to open it, or press Edit to change the user limit, the posting limit and closing.')."</p>\n";
+else print "<p class=\"vr-lead\">".vr_t('Regnskaber du har adgang til. Klik på et regnskab for at åbne det.', 'Accounts you have access to. Click an account to open it.')."</p>\n";
 print "</div>\n<div class=\"vr-acts\">\n";
 if ($showAdminPanel) print "<a class=\"vr-btn vr-quiet\" href=\"admin_panel.php\">Admin Panel</a>\n";
 print "<a class=\"vr-tog\" role=\"switch\" aria-checked=\"".($showClosed ? 'true' : 'false')."\" href=\"".vr_h($vr_toggleClosed)."\"><span>$vr_closedLabel</span><span class=\"vr-sw\"></span></a>\n";
 if ($admin) {
-	if ($rediger) print "<a class=\"vr-btn\" aria-pressed=\"true\" href=\"".vr_h($vr_toggleEdit)."\" id=\"vrLock\">".findtekst('1908|Lås', $sprog_id)." <kbd>R</kbd></a>\n";
+	if ($rediger) print "<a class=\"vr-btn\" aria-pressed=\"true\" href=\"".vr_h($vr_toggleEdit)."\" id=\"vrLock\" data-confirm=\"".vr_t('Du har ugemte ændringer. Forlad uden at gemme?', 'You have unsaved changes. Leave without saving?')."\">".findtekst('1908|Lås', $sprog_id)." <kbd>R</kbd></a>\n";
 	else print "<a class=\"vr-btn\" href=\"".vr_h($vr_toggleEdit)."\" accesskey=\"R\">".findtekst('1206|Ret', $sprog_id)." <kbd>R</kbd></a>\n";
 }
 if ($admin || $oprette) print "<a class=\"vr-btn vr-primary\" href=\"opret.php\">+ ".findtekst('339|Opret regnskab', $sprog_id)."</a>\n";
@@ -322,22 +338,22 @@ if ($vr_notes) {
 
 // ---------- list ----------
 print "<section class=\"vr-sect\">\n";
-print "<h2>".findtekst('Alle regnskaber', $sprog_id)." <small>$vr_open ".findtekst('åbne', $sprog_id)." &middot; $vr_closed ".findtekst('lukkede', $sprog_id)."</small></h2>\n";
+print "<h2>".vr_t('Alle regnskaber', 'All accounts')." <small>$vr_open ".vr_t('åbne', 'open')." &middot; $vr_closed ".vr_t('lukkede', 'closed')."</small></h2>\n";
 print "<div class=\"vr-card\">\n";
-print "<div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"vrQ\" placeholder=\"".findtekst('Søg på navn, database eller e-mail', $sprog_id)."\" autocomplete=\"off\" aria-label=\"".findtekst('Søg', $sprog_id)."\"></label>";
-print "<span class=\"vr-hint\">".($rediger ? findtekst('Ret tallene direkte i listen. Kun ændrede rækker gemmes.', $sprog_id) : findtekst('Klik på et regnskab for at åbne det', $sprog_id))."</span></div>\n";
+print "<div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"vrQ\" placeholder=\"".vr_t('Søg på navn, database eller e-mail', 'Search by name, database or e-mail')."\" autocomplete=\"off\" aria-label=\"".findtekst('913|Søg', $sprog_id)."\"></label>";
+print "<span class=\"vr-hint\">".($rediger ? vr_t('Ret tallene direkte i listen. Kun ændrede rækker gemmes.', 'Edit the numbers directly in the list. Only changed rows are saved.') : vr_t('Klik på et regnskab for at åbne det', 'Click an account to open it'))."</span></div>\n";
 
 if ($rediger) print "<form name=\"regnskaber\" id=\"vrForm\" action=\"vis_regnskaber.php\" method=\"post\">\n";
 
 print "<table class=\"vr-t\" id=\"vrTable\">\n<thead><tr>";
-print "<th class=\"vr-r vr-id\">".vr_sort_link('id', 'Id')."</th>";
-print "<th>".vr_sort_link('regnskab', findtekst('2682|Regnskab', $sprog_id))."</th>";
-print "<th class=\"vr-r\">".vr_sort_link('brugerantal', findtekst('777|Brugere', $sprog_id), findtekst('Maks. antal brugere', $sprog_id))."</th>";
-print "<th class=\"vr-r\">".vr_sort_link('posteret', findtekst('1910|Posteringer', $sprog_id), findtekst('Posteringer de seneste 12 måneder / posteringsgrænse', $sprog_id))."</th>";
-print "<th class=\"vr-r\">".vr_sort_link('sidst', findtekst('Sidst aktiv', $sprog_id))."</th>";
-print "<th>".vr_sort_link('booking', findtekst('1116|Booking', $sprog_id))."</th>";
+print vr_sort_th('id', 'Id', '', 'vr-r vr-id');
+print vr_sort_th('regnskab', findtekst('2682|Regnskab', $sprog_id));
+print vr_sort_th('brugerantal', findtekst('777|Brugere', $sprog_id), vr_t('Maks. antal brugere', 'Maximum number of users'), 'vr-r');
+print vr_sort_th('posteret', findtekst('1910|Posteringer', $sprog_id), vr_t('Posteringer de seneste 12 måneder / posteringsgrænse', 'Entries in the last 12 months / entry limit'), 'vr-r');
+print vr_sort_th('sidst', vr_t('Sidst aktiv', 'Last active'), '', 'vr-r');
+print vr_sort_th('booking', findtekst('1116|Booking', $sprog_id));
 print "<th>e-mail</th>";
-print "<th>".vr_sort_link('lukket', findtekst('Status', $sprog_id))."</th>";
+print vr_sort_th('lukket', findtekst('494|Status', $sprog_id));
 print "</tr></thead>\n<tbody>\n";
 
 $vr_openAttr = $vr_warnOpen ? " onclick=\"return vrWarnOpen(this);\"" : "";
@@ -346,7 +362,7 @@ for ($x=0;$x<$vr_count;$x++) {
 	$n = $x+1; # form index, as before (db_antal counts from 1)
 	$pct = $posteringer[$x] ? min(100, (int) round($posteret[$x] / $posteringer[$x] * 100)) : 0;
 	$isClosed = ($lukket[$x] == 'on');
-	$q_attr = vr_h(mb_strtolower($regnskab[$x].' '.$db_navn[$x].' '.$email[$x], 'UTF-8'));
+	$q_attr = vr_h(mb_strtolower($regnskab[$x].' '.$db_navn[$x].' '.$email[$x], vr_cs()));
 	$openHref = "aaben_regnskab.php?db_id=".(int)$id[$x];
 	print "<tr".($isClosed ? " class=\"vr-closed\"" : "")." data-q=\"$q_attr\" data-href=\"$openHref\">";
 	print "<td class=\"vr-r vr-id\">";
@@ -360,30 +376,30 @@ for ($x=0;$x<$vr_count;$x++) {
 	print "<td class=\"vr-nm\"><a href=\"$openHref\"$vr_openAttr>".vr_h($regnskab[$x])."</a><small>".vr_h($db_navn[$x])."</small></td>";
 	if ($rediger) {
 		print "<td class=\"vr-r\"><input class=\"vr-e\" type=\"text\" inputmode=\"numeric\" name=\"brugerantal[$n]\" value=\"".vr_num($brugerantal[$x])."\" data-orig=\"".(int)$brugerantal[$x]."\" aria-label=\"".findtekst('777|Brugere', $sprog_id)."\"></td>";
-		print "<td class=\"vr-r\"><span class=\"vr-cap\"><span class=\"vr-mut\">".vr_num($posteret[$x])." /</span><input class=\"vr-e\" type=\"text\" inputmode=\"numeric\" name=\"posteringer[$n]\" value=\"".vr_num($posteringer[$x])."\" data-orig=\"".(int)$posteringer[$x]."\" aria-label=\"".findtekst('Posteringsgrænse', $sprog_id)."\"></span></td>";
+		print "<td class=\"vr-r\"><span class=\"vr-cap\"><span class=\"vr-mut\">".vr_num($posteret[$x])." /</span><input class=\"vr-e\" type=\"text\" inputmode=\"numeric\" name=\"posteringer[$n]\" value=\"".vr_num($posteringer[$x])."\" data-orig=\"".(int)$posteringer[$x]."\" aria-label=\"".vr_t('Posteringsgrænse', 'Entry limit')."\"></span></td>";
 	} else {
 		print "<td class=\"vr-r\">".vr_num($brugerantal[$x])."</td>";
-		print "<td class=\"vr-r\"><span class=\"vr-cap\" title=\"".vr_num($posteret[$x])." ".findtekst('af', $sprog_id)." ".vr_num($posteringer[$x])." ($pct %)\"><span>".vr_num($posteret[$x])."</span><span class=\"vr-mut2\">/ ".vr_num($posteringer[$x])."</span><span class=\"vr-b\"><i".($pct >= 90 ? " class=\"vr-hi\"" : "")." style=\"width:$pct%\"></i></span></span></td>";
+		print "<td class=\"vr-r\"><span class=\"vr-cap\" title=\"".vr_num($posteret[$x])." ".findtekst('5320|af', $sprog_id)." ".vr_num($posteringer[$x])." ($pct %)\"><span>".vr_num($posteret[$x])."</span><span class=\"vr-mut2\">/ ".vr_num($posteringer[$x])."</span><span class=\"vr-b\"><i".($pct >= 90 ? " class=\"vr-hi\"" : "")." style=\"width:$pct%\"></i></span></span></td>";
 	}
 	print "<td class=\"vr-r vr-mut\"".($sidst[$x] ? " title=\"".date("d-m-Y",$sidst[$x])."\"" : "").">".vr_rel($sidst[$x])."</td>";
-	print "<td>".($booking[$x] ? "<span class=\"vr-st\"><span class=\"vr-dot vr-ok\"></span>".findtekst('Ja', $sprog_id)."</span>" : "<span class=\"vr-mut2\">–</span>")."</td>";
+	print "<td>".($booking[$x] ? "<span class=\"vr-st\"><span class=\"vr-dot vr-ok\"></span>".findtekst('83|Ja', $sprog_id)."</span>" : "<span class=\"vr-mut2\">–</span>")."</td>";
 	print "<td class=\"vr-mut\">".($email[$x] ? vr_h($email[$x]) : "<span class=\"vr-mut2\">–</span>")."</td>";
 	if ($rediger) {
-		print "<td><label class=\"vr-tog\"><input type=\"checkbox\" class=\"vr-swin\" name=\"lukket[$n]\" value=\"on\"".($isClosed ? " checked" : "")." data-orig=\"".($isClosed ? '1' : '0')."\"><span class=\"vr-sw\"></span><span class=\"vr-swtx\" data-on=\"".findtekst('387|Lukket', $sprog_id)."\" data-off=\"".findtekst('Åbent', $sprog_id)."\">".($isClosed ? findtekst('387|Lukket', $sprog_id) : findtekst('Åbent', $sprog_id))."</span></label></td>";
+		print "<td><label class=\"vr-tog\"><input type=\"checkbox\" class=\"vr-swin\" name=\"lukket[$n]\" value=\"on\"".($isClosed ? " checked" : "")." data-orig=\"".($isClosed ? '1' : '0')."\"><span class=\"vr-sw\"></span><span class=\"vr-swtx\" data-on=\"".findtekst('387|Lukket', $sprog_id)."\" data-off=\"".vr_t('Åbent', 'Open')."\">".($isClosed ? findtekst('387|Lukket', $sprog_id) : vr_t('Åbent', 'Open'))."</span></label></td>";
 	} else {
-		print "<td><span class=\"vr-st\"><span class=\"vr-dot ".($isClosed ? 'vr-off' : 'vr-ok')."\"></span>".($isClosed ? findtekst('387|Lukket', $sprog_id) : findtekst('Åbent', $sprog_id))."</span></td>";
+		print "<td><span class=\"vr-st\"><span class=\"vr-dot ".($isClosed ? 'vr-off' : 'vr-ok')."\"></span>".($isClosed ? findtekst('387|Lukket', $sprog_id) : vr_t('Åbent', 'Open'))."</span></td>";
 	}
 	print "</tr>\n";
 }
 print "</tbody>\n</table>\n";
-print "<div class=\"vr-empty\" id=\"vrEmpty\"".($vr_count ? " hidden" : "")."><b>".findtekst('Ingen regnskaber matcher', $sprog_id)."</b><span>".findtekst('Prøv et andet søgeord, eller slå Vis lukkede til.', $sprog_id)."</span></div>\n";
-print "<div class=\"vr-foot\"><span><span id=\"vrFoot\" data-one=\"".findtekst('regnskab vist', $sprog_id)."\" data-many=\"".findtekst('regnskaber vist', $sprog_id)."\">$vr_count ".($vr_count == 1 ? findtekst('regnskab vist', $sprog_id) : findtekst('regnskaber vist', $sprog_id))."</span> &middot; ".findtekst('posteringer er talt for de seneste 12 måneder', $sprog_id)."</span><span class=\"vr-grow\"></span>";
+print "<div class=\"vr-empty\" id=\"vrEmpty\"".($vr_count ? " hidden" : "")."><b>".vr_t('Ingen regnskaber matcher', 'No accounts match')."</b><span>".vr_t('Prøv et andet søgeord, eller slå Vis lukkede til.', 'Try another search term, or switch on Show closed.')."</span></div>\n";
+print "<div class=\"vr-foot\"><span><span id=\"vrFoot\" data-one=\"".vr_t('regnskab vist', 'account shown')."\" data-many=\"".vr_t('regnskaber vist', 'accounts shown')."\">$vr_count ".($vr_count == 1 ? vr_t('regnskab vist', 'account shown') : vr_t('regnskaber vist', 'accounts shown'))."</span> &middot; ".vr_t('posteringer er talt for de seneste 12 måneder', 'entries are counted for the last 12 months')."</span><span class=\"vr-grow\"></span>";
 if ($admin && !$rediger) print "<button type=\"button\" class=\"vr-btn vr-quiet\" id=\"vrRecalc\">".findtekst('1916|Genberegn posteringer', $sprog_id)."</button>";
 print "</div>\n";
 
 if ($rediger) {
 	print "<input type=\"hidden\" name=\"db_antal\" value=\"$vr_count\">\n";
-	print "<div class=\"vr-save\" id=\"vrSave\"><div><span class=\"vr-msg\"><span class=\"vr-dot vr-warn\"></span><span id=\"vrSaveMsg\" data-one=\"".findtekst('regnskab ændret', $sprog_id)."\" data-many=\"".findtekst('regnskaber ændret', $sprog_id)."\"></span></span><span class=\"vr-grow\"></span><kbd>Ctrl S</kbd><button type=\"button\" class=\"vr-btn vr-quiet\" id=\"vrUndo\">".findtekst('Fortryd', $sprog_id)."</button><input type=\"submit\" class=\"vr-btn vr-primary\" name=\"submit\" value=\"".findtekst('898|Opdatér', $sprog_id)."\"></div></div>\n";
+	print "<div class=\"vr-save\" id=\"vrSave\"><div><span class=\"vr-msg\"><span class=\"vr-dot vr-warn\"></span><span id=\"vrSaveMsg\" data-one=\"".vr_t('regnskab ændret', 'account changed')."\" data-many=\"".vr_t('regnskaber ændret', 'accounts changed')."\"></span></span><span class=\"vr-grow\"></span><kbd>Ctrl S</kbd><button type=\"button\" class=\"vr-btn vr-quiet\" id=\"vrUndo\">".findtekst('159|Fortryd', $sprog_id)."</button><input type=\"submit\" class=\"vr-btn vr-primary\" name=\"submit\" value=\"".findtekst('898|Opdatér', $sprog_id)."\"></div></div>\n";
 	print "</form>\n";
 }
 print "</div>\n</section>\n";
@@ -391,7 +407,7 @@ print "</div>\n</section>\n";
 // ---------- dialogs and toast ----------
 print "<div class=\"vr-scrim\" id=\"vrScrim\"></div>\n";
 if ($admin && !$rediger) {
-	print "<div class=\"vr-dlg\" id=\"vrDlgRecalc\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgRecalcT\"><h3 id=\"vrDlgRecalcT\">".findtekst('Genberegn posteringer for alle regnskaber?', $sprog_id)."</h3><p>".findtekst('Saldi tæller posteringer de seneste 12 måneder og finder seneste aktivitet i hvert regnskabs database. Det kan tage et øjeblik, og regnskaber uden database bliver oprettet undervejs.', $sprog_id)."</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>".findtekst('Annullér', $sprog_id)."</button><a class=\"vr-btn vr-primary\" href=\"".vr_h($vr_recalcUrl)."\">".findtekst('Genberegn', $sprog_id)."</a></div></div>\n";
+	print "<div class=\"vr-dlg\" id=\"vrDlgRecalc\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgRecalcT\"><h3 id=\"vrDlgRecalcT\">".vr_t('Genberegn posteringer for alle regnskaber?', 'Recalculate entries for all accounts?')."</h3><p>".vr_t('Saldi tæller posteringer de seneste 12 måneder og finder seneste aktivitet i hvert regnskabs database. Det kan tage et øjeblik, og regnskaber uden database bliver oprettet undervejs.', 'Saldi counts entries in the last 12 months and finds the latest activity in each account database. It may take a moment, and accounts without a database are created on the way.')."</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>".findtekst('5|Annullér', $sprog_id)."</button><a class=\"vr-btn vr-primary\" href=\"".vr_h($vr_recalcUrl)."\">".vr_t('Genberegn', 'Recalculate')."</a></div></div>\n";
 }
 if ($vr_warnOpen) {
 	print "<div class=\"vr-dlg\" id=\"vrDlgWarn\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgWarnT\"><h3 id=\"vrDlgWarnT\">Du er ved at åbne et live-regnskab fra master</h3><div class=\"vr-ls\" id=\"vrWarnList\"></div><p id=\"vrWarnText\">Åbner du et live-regnskab fra master, kan du ændre databasestrukturen, så den bliver inkompatibel med live-versionen, eller forhindre at fremtidige opdateringer migrerer korrekt.</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>Annullér</button><a class=\"vr-btn vr-primary\" id=\"vrWarnGo\" href=\"#\">Åbn alligevel</a></div></div>\n";
@@ -402,11 +418,11 @@ print "</div>\n"; # .vr
 // ---------- script ----------
 $vr_savedMsg = '';
 if ($vr_saved !== NULL) {
-	$vr_savedMsg = $vr_saved ? "$vr_saved ".($vr_saved == 1 ? findtekst('regnskab opdateret', $sprog_id) : findtekst('regnskaber opdateret', $sprog_id)) : findtekst('Ingen ændringer', $sprog_id);
+	$vr_savedMsg = $vr_saved ? "$vr_saved ".($vr_saved == 1 ? vr_t('regnskab opdateret', 'account updated') : vr_t('regnskaber opdateret', 'accounts updated')) : vr_t('Ingen ændringer', 'No changes');
 }
 $vr_js_saved = json_encode($vr_savedMsg);
 $vr_js_warn  = $vr_warnOpen ? 'true' : 'false';
-$vr_js_fail  = json_encode(findtekst('Kunne ikke hente regnskabets oplysninger. Vil du fortsætte alligevel?', $sprog_id));
+$vr_js_fail  = json_encode(vr_t('Kunne ikke hente regnskabets oplysninger. Vil du fortsætte alligevel?', 'Could not fetch the account details. Continue anyway?'));
 print <<<JS
 <script>
 (function () {
@@ -473,7 +489,7 @@ print <<<JS
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && saveBar.classList.contains('vr-on')) { e.preventDefault(); form.querySelector('input[name=submit]').click(); }
 		});
 		var lock = document.getElementById('vrLock');
-		if (lock) lock.addEventListener('click', function (e) { if (changedRows() > 0 && !confirm(lock.getAttribute('data-confirm') || 'Du har ugemte ændringer. Forlad uden at gemme?')) e.preventDefault(); });
+		if (lock) lock.addEventListener('click', function (e) { if (changedRows() > 0 && !confirm(lock.getAttribute('data-confirm'))) e.preventDefault(); });
 		update();
 		var saved = $vr_js_saved; if (saved) toast(saved);
 	}

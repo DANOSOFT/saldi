@@ -76,7 +76,7 @@ html[data-theme="dark"] .vr{
 .vr-t td{padding:10px 10px;border-bottom:1px solid var(--grid);vertical-align:middle;font-size:14px}
 .vr-t tbody tr:last-child td{border-bottom:0}
 .vr-t tbody tr:hover td{background:var(--surface-2)}
-.vr-t tbody tr{cursor:pointer}
+.vr-t:not(.vr-edit) tbody tr{cursor:pointer}
 .vr-t .vr-r{text-align:right}
 .vr-t td.vr-id{color:var(--text-3);font-size:12.5px;width:56px}
 .vr-t td.vr-nm a{font-weight:500;color:var(--text)} .vr-t td.vr-nm a:hover{color:var(--link)}
