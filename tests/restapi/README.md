@@ -33,7 +33,8 @@ docker-compose stack.
 - `ProductsEndpointTest` — `products/`: create → read-back, duplicate SKU
   and missing description → 400, `field=varenr` search, whitelist on
   `field`, update, delete, 404s, `limit` up to 200, `offset`/`page` paging
-  that returns every product exactly once, English `orderBy`/`field` names.
+  that returns every product exactly once (also of a `field=group` filtered
+  list, including `value=0`), English `orderBy`/`field` names.
 - `AccountsEndpointTest` — `accounts/` (kontoplan): list, create → read-back
   stamped with the latest fiscal year, missing description → 400, update,
   404, DELETE → 405.
@@ -118,4 +119,4 @@ production registry.
 <!-- 20260723 CL/LH SD-602: created. -->
 <!-- 20260904 CL/NTR Added the refresh/bearer/customers/products/accounts/orderlines/reference-data suites, the non-docker run recipe, the per-process random password from tests/TestCredentials.php, and the per-class tenant teardown. -->
 <!-- 20260928 CL/NTR Tenant db and account names carry a per-process suffix; teardown removes only the db and regnskab ids that bootstrap recorded. -->
-<!-- 20261008 CL/LH Products paging/field-name, product-group list and warehouse list cases. -->
+<!-- 20261008 CL/LH Products paging/field-name/filtered-paging, product-group list and warehouse list cases. -->

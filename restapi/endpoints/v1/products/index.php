@@ -41,9 +41,11 @@ class ProductsEndpoint extends BaseEndpoint
                     $offset = (max(1, (int)($_GET['page'] ?? 1)) - 1) * $limit;
                 }
                 
-                if ($field && $value) {
+                // 20261008 CL/LH: presence, not truthiness - value=0 (e.g. group 0) was ignored and
+                // returned the unfiltered list. The filtered list is paged like the full one.
+                if (is_string($field) && $field !== '' && is_string($value) && $value !== '') {
                     // Search by specific field
-                    $products = VareModel::findBy($field, $value);
+                    $products = VareModel::findBy($field, $value, $orderBy, $orderDirection, $limit, $offset);
                 } else {
                     // Get all products
                     $products = VareModel::getAllItems($orderBy, $orderDirection, $limit, $offset);

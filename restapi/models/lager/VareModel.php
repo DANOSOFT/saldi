@@ -94,7 +94,10 @@ class VareModel
     /**
      * Find products by field value
      */
-    public static function findBy($field, $value)
+    // 20261008 CL/LH: paged and ordered like getAllItems - a group filter returned every product
+    // in the group in one response. Numeric columns only match numeric values; anything else
+    // made the SQL fail.
+    public static function findBy($field, $value, $orderBy = 'id', $orderDirection = 'ASC', $limit = 20, $offset = 0)
     {
         // Validate field name to prevent SQL injection
         $field = self::apiFieldToColumn($field);
@@ -103,32 +106,13 @@ class VareModel
             error_log("Invalid field name in VareModel::findBy: $field");
             return [];
         }
-        
-        // Escape the value to prevent SQL injection
-        $escapedValue = pg_escape_string($value);
-        $query = "SELECT * FROM varer WHERE $field = '$escapedValue'";
-        
-        // Execute query with error handling
-        $result = db_select($query, __FILE__ . " line " . __LINE__);
-        
-        // Check if query failed
-        if ($result === false) {
-            error_log("Database query failed in VareModel::findBy for field: $field, value: $value");
+        if (in_array($field, ['id', 'salgspris', 'kostpris', 'gruppe']) && !is_numeric($value)) {
             return [];
         }
         
-        $items = [];
-        if ($result && db_num_rows($result) > 0) {
-            while ($row = db_fetch_array($result)) {
-                if ($row) {
-                    $vare = new VareModel();
-                    $vare->loadFromArray($row);
-                    $items[] = $vare;
-                }
-            }
-        }
-        
-        return $items;
+        // Escape the value to prevent SQL injection
+        $escapedValue = pg_escape_string($value);
+        return self::loadList("WHERE $field = '$escapedValue'", $orderBy, $orderDirection, $limit, $offset);
     }
 
     /**
@@ -138,6 +122,14 @@ class VareModel
     // (id 1-20 by default) could ever be read. id is the tiebreaker so pages stay stable when
     // sorting on a non-unique column.
     public static function getAllItems($orderBy = 'id', $orderDirection = 'ASC', $limit = 20, $offset = 0)
+    {
+        return self::loadList('', $orderBy, $orderDirection, $limit, $offset);
+    }
+
+    /**
+     * One ordered page of products; $where is built by the caller from validated input
+     */
+    private static function loadList($where, $orderBy, $orderDirection, $limit, $offset)
     {
         // Validate orderBy to prevent SQL injection
         $orderBy = self::apiFieldToColumn($orderBy);
@@ -155,8 +147,14 @@ class VareModel
         $offset = max(0, (int)$offset);
         $tiebreak = ($orderBy == 'id') ? '' : ", id $orderDirection";
         
-        $query = "SELECT * FROM varer ORDER BY $orderBy $orderDirection$tiebreak LIMIT $limit OFFSET $offset";
+        $query = "SELECT * FROM varer $where ORDER BY $orderBy $orderDirection$tiebreak LIMIT $limit OFFSET $offset";
         $result = db_select($query, __FILE__ . " line " . __LINE__);
+        
+        // Check if query failed
+        if ($result === false) {
+            error_log("Database query failed in VareModel::loadList: $where");
+            return [];
+        }
         
         $items = [];
         if ($result && db_num_rows($result) > 0) {

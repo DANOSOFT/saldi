@@ -1395,7 +1395,8 @@ paths:
         - `costPrice` - Cost price
         - `group` - Product group code (matches `codeNo` in `/products/groups/`)
 
-        `limit`, `offset` and `page` apply to the unfiltered list.
+        `limit`, `offset`, `page`, `orderBy` and `orderDirection` apply to the full list and to a
+        `field`/`value` filtered list alike.
       parameters:
         
         

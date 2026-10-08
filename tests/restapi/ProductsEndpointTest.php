@@ -4,11 +4,13 @@
 // Integration tests for /restapi/endpoints/v1/products/ against the local
 // docker stack's self-provisioned tenant: auth enforcement, list, create ->
 // read-back, duplicate SKU and missing-field validation, field search,
-// update, delete, 404s, limit/offset/page paging, English field names.
+// update, delete, 404s, limit/offset/page paging (also of a filtered list),
+// English field names.
 //
 // History:
 // 20260904 CL/NTR created.
 // 20261008 CL/LH paging (limit cap 200, offset, page) and the documented English orderBy/field names.
+// 20261008 CL/LH a field/value filter accepts 0, pages like the full list, and ignores non-numeric values on numeric fields.
 
 use PHPUnit\Framework\TestCase;
 
@@ -155,6 +157,31 @@ final class ProductsEndpointTest extends TestCase
         $inGroup = $this->listIds('?field=group&value=' . urlencode($group[0]['gruppe']));
         $this->assertCount((int)$group[0]['n'], $inGroup);
         $this->assertSame($inGroup, $this->listIds('?field=gruppe&value=' . urlencode($group[0]['gruppe'])));
+    }
+
+    public function test_filter_accepts_zero_and_pages_like_the_full_list(): void
+    {
+        $create = $this->create(['sku' => $this->sku('zero'), 'description' => 'group zero']);
+        $this->assertSame(201, $create['status'], $create['body']);
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        RestApiEnv::rows($tenant, 'UPDATE varer SET gruppe = 0 WHERE id = $1', [(int)$create['json']['data']['id']]);
+        $zero = array_column(RestApiEnv::rows($tenant, 'SELECT id FROM varer WHERE gruppe = 0 ORDER BY id LIMIT 200'), 'id');
+        $big = RestApiEnv::rows($tenant, 'SELECT gruppe FROM varer WHERE gruppe IS NOT NULL GROUP BY gruppe ORDER BY count(*) DESC, 1 LIMIT 1')[0]['gruppe'];
+        $inBig = array_column(RestApiEnv::rows($tenant, 'SELECT id FROM varer WHERE gruppe = $1 ORDER BY id', [$big]), 'id');
+        pg_close($tenant);
+
+        $this->assertSame($zero, $this->listIds('?field=group&value=0&limit=200'), 'value=0 filters instead of returning the full list');
+
+        $this->assertSame(array_slice($inBig, 0, 20), $this->listIds('?field=group&value=' . $big));
+        $this->assertSame(array_slice($inBig, 2, 2), $this->listIds('?field=group&value=' . $big . '&limit=2&offset=2'));
+        $this->assertSame(array_slice($inBig, 2, 2), $this->listIds('?field=group&value=' . $big . '&limit=2&page=2'));
+        $paged = [];
+        for ($offset = 0; $page = $this->listIds('?field=group&value=' . $big . "&limit=200&offset=$offset"); $offset += 200) {
+            $paged = array_merge($paged, $page);
+        }
+        $this->assertSame($inBig, $paged, 'paging a filtered list returns each product once');
+
+        $this->assertSame([], $this->listIds('?field=group&value=abc'));
     }
 
     public function test_created_product_can_be_read_back(): void
