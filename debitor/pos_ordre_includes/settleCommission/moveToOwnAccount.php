@@ -87,7 +87,7 @@ for ($co=0;$co<count($coAc);$co++) {
 	$v=0;
 	$qtxt = "select distinct(ordrelinjer.vare_id) from ordrelinjer,ordrer,pos_betalinger where ";
 	$qtxt.= "(ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.fakturadate >= '$minDate' and ordrer.fakturadate <= '$maxDate' ";
-	$qtxt.= "and ordrelinjer.varenr like '$itNo[$co]' and ordrelinjer.kostpris > '0' ";
+	$qtxt.= "and ordrelinjer.varenr like '$itNo[$co]' ";
 	$qtxt.= "and (ordrer.report_number = '0' or ordrer.report_number = '$reportNumber') and ordrelinjer.ordre_id = ordrer.id ";
 	$qtxt.= "and pos_betalinger.ordre_id = ordrer.id and ordrer.felt_5 = '$kasse' order by ordrelinjer.vare_id";
 	// echo __line__." $qtxt<br>";
@@ -126,7 +126,7 @@ for ($co=0;$co<count($coAc);$co++) {
 			$qtxt.= "from ordrelinjer,ordrer,pos_betalinger where ";
 			$qtxt.= "(ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.fakturadate >= '$minDate' ";
 			$qtxt.= "and ordrer.fakturadate <= '$maxDate' and ordrelinjer.antal != '0' and ordrelinjer.pris != '0' ";
-			$qtxt.= "and ordrer.status = '3' and ordrelinjer.kostpris > '0' and ordrelinjer.ordre_id = ordrer.id ";
+			$qtxt.= "and ordrer.status = '3' and ordrelinjer.ordre_id = ordrer.id ";
 			$qtxt.= "and pos_betalinger.ordre_id = ordrer.id and ordrelinjer.vare_id='". $cItemId[$c][$v] ."' ";
 			$qtxt.= "and (ordrer.report_number = '0' or ordrer.report_number = '$reportNumber') ";
 			$qtxt.= "and ordrer.felt_5 = '$kasse' order by ordrer.id";
