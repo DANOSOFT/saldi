@@ -1,14 +1,19 @@
 <?php
 // 20260929 CDX/PHR Match HTML form typography and rule widths to the PostScript form settings.
 // 20260929 CDX/PHR Preserve repeated spaces in both HTML layouts while allowing text wrapping.
+// 20261006 CL/LH SST-837: Disable font ligatures in both HTML layouts so "Nr." is not rendered as "№" by Nimbus Sans.
 
 /**
+ * Ligatures are disabled: fontconfig substitutes Nimbus Sans for Helvetica on the
+ * servers, and its default "liga" table turns "Nr." into the single glyph "№".
+ * PostScript never applied ligatures, and the wrapping widths assume none.
+ *
  * @return string CSS declarations using the form's font size in PostScript points.
  */
 function formHtmlTextStyle($font, $size, $bold, $italic, $version = 2) {
     if ($version === 1) {
         $pixels = (float)$size * 1.2;
-        return "font-family:Arial, Helvetica, sans-serif;font-size:{$pixels}px;white-space:pre-wrap;";
+        return "font-family:Arial, Helvetica, sans-serif;font-size:{$pixels}px;white-space:pre-wrap;font-variant-ligatures:none;";
     }
     $families = array(
         'Helvetica' => 'Helvetica, Arial, sans-serif',
@@ -23,7 +28,7 @@ function formHtmlTextStyle($font, $size, $bold, $italic, $version = 2) {
     $size = max(0, (float)$size);
     $weight = $bold ? 'bold' : 'normal';
     $style = $italic ? 'italic' : 'normal';
-    return "font-family:$family;font-size:{$size}pt;font-weight:$weight;font-style:$style;white-space:pre-wrap;";
+    return "font-family:$family;font-size:{$size}pt;font-weight:$weight;font-style:$style;white-space:pre-wrap;font-variant-ligatures:none;";
 }
 
 /**
