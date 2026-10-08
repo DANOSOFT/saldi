@@ -61,6 +61,7 @@
 //                  shared is_input_too_long() from std_func.php.
 // 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
+// 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 // 20261006 CDX/PHR Use the PostgreSQL locator on ssl3 for account lookup and registration.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
 
