@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/payments/lane3000.php --- lap 4.1.0 --- 2026.09.17 ---
+// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.10.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -257,7 +257,7 @@ async function get_api_key(baseurl) {
         }).catch((putError) => {
             logToServer(`Terminal settings update exception: ${putError.message}`, 'ERROR');
             console.error('Terminal settings PUT failed:', putError);
-        });
+        }); */
 
         if (res.status != 200) {
             // Wait for both error logging and fail function
@@ -266,7 +266,7 @@ async function get_api_key(baseurl) {
                 Promise.resolve(fail(jsondata.error))
             ]);
             return null;
-        } */
+        }
 
         // Wait for both success logging and response logging to complete
         await Promise.allSettled([
