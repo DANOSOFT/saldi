@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- lap 4.1.0 --- 2024.3.13---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.0.0 --- 2024.3.13---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20260914 CDX/LH Require HTTPS for remote cash drawer redirects; allow HTTP only on loopback.
 // 20261006 CL/LH SST-839: Reach LAN print servers (private/reserved IPs, localhost, .local, single-label names) over HTTP
 //                 again (the mini-PCs do not serve HTTPS); other hosts still default to HTTPS and may not use HTTP.
+// 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
 
 /**
  * True for a print server on the shop's own network: a private or reserved IP (10/8,
@@ -253,7 +254,7 @@ print "\n<!-- Function afslut (start)-->\n";
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Move3500") {
-						$tmp="payments/move3500.php?amount=$belob&id=$id&indbetaling=$indbetaling";
+						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling"; // Nets Connect@Cloud terminal, served by lane3000.php (SST-846)
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
