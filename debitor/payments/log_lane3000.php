@@ -18,7 +18,9 @@ $tenant = basename((string)$db);
 if (is_array($input) && $tenant !== '' && $tenant !== '.' && $tenant !== '..') {
     $logFile = '../../temp/' . $tenant . '/lane3000.log';
     $timestamp = date('Y-m-d H:i:s');
-    $level = in_array($input['level'] ?? '', ['INFO', 'WARN', 'ERROR'], true) ? $input['level'] : 'INFO';
+    $rawLevel = strtoupper((string)($input['level'] ?? ''));
+    $rawLevel = ($rawLevel === 'WARNING') ? 'WARN' : $rawLevel;
+    $level = in_array($rawLevel, ['INFO', 'WARN', 'ERROR'], true) ? $rawLevel : 'INFO';
     $message = str_replace(["\r", "\n"], ' ', (string)($input['message'] ?? 'No message'));
     $ordre_id = (int)($input['ordre_id'] ?? 0);
 
