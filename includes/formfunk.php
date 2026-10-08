@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-10-08 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -72,6 +72,16 @@
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
 // 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
 // 20260930 CDX/PHR Fit descriptions using actual font and neighbouring field widths; share wrapping with page preflight.
+// 20261001 MJ SST-784 Wrap the remaining print text by characters, not bytes. wordwrap() counts
+//                  bytes, so on UTF-8 every ae/oe/aa spent two of the column budget and a Danish
+//                  line broke early by its number of non-ASCII characters. The order-line
+//                  description is no longer among them: formWrapDescription() above measures
+//                  characters and real font width, which supersedes this. What is left are the
+//                  three sites it does not cover - the description fallback used by the tekster
+//                  path, the lokation suffix and the varenr column.
+// 20261001 MJ SST-819 kontoprint(): printing a range of accounts printed only the first one.
+//             The branch test compared konto_fra with itself, so the range query was dead code and
+//             konto_til was ignored. The revived query also treats a NULL lukket as open.
 // 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
 
 #use PHPMailer\PHPMailer\PHPMailer;
