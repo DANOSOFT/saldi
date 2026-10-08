@@ -1,3 +1,4 @@
+// 20261006 CL/LH SST-850: Settings password is checked server-side; the password is no longer compared in the browser.
 // Constants
 const EDIT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
 <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
@@ -15,11 +16,12 @@ const createTdElement = text => createElement("td", text)
 const createThElement = text => createElement("th", text)
 
 // Authentication
-const checkPassword = async (settings) => {
-    if (settings.use_password !== "1") return true
+const checkPassword = async (settings, api) => {
+    if (settings.use_password !== "1" || (await api.isSettingsUnlocked()).success) return true
     
     const password = prompt("Indtast adgangskode for at fortsætte")
-    if (password !== settings.pass) {
+    const result = await api.checkSettingsPassword(password ?? "")
+    if (!result.success) {
         alert("Forkert adgangskode")
         const currentUrl = new URL(window.location.href)
         const currentPathSegments = currentUrl.pathname.split('/').filter(segment => segment !== '')
@@ -57,10 +59,10 @@ const createTableRow = (item, count) => {
 }
 
 const createTable = async () => {
-    const { getAllItems, getSettings } = await import(`/${window.location.pathname.split('/')[1]}/rental/api/api.js`)
+    const { getAllItems, getSettings, isSettingsUnlocked, checkSettingsPassword } = await import(`/${window.location.pathname.split('/')[1]}/rental/api/api.js`)
     const settings = await getSettings()
     
-    if (!await checkPassword(settings)) return
+    if (!await checkPassword(settings, { isSettingsUnlocked, checkSettingsPassword })) return
     
     const items = await getAllItems()
     if (items === "Der er ingen stande") return

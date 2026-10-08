@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.09.30
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -79,6 +79,12 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
+// 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
+// 20261006 CL/LH SST-850: hash a clear-text rentalsettings.pass once (idempotent, table-guarded).
+//                  re-seeds the corrected csv text on the next call.
+// 20261007 CL/NTR Add ordrer.shop_status as varchar(20) when the column is missing entirely,
+//                  so the Stripe paid-invoice index no longer fails on those tenants.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -313,7 +319,11 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	#                rest_api.php; existing numeric values keep their digits as text).
 	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'ordrer' AND column_name = 'shop_status'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if ($r && $r['data_type'] == 'integer') {
+	if (!$r) {
+		# 20261007 CL/NTR Some tenants have no shop_status column at all (opdat_4.0.php never ran
+		#                  its ADD COLUMN there), so the index below failed with "column does not exist".
+		db_modify("ALTER TABLE ordrer ADD COLUMN shop_status varchar(20)", __FILE__ . " linje " . __LINE__);
+	} elseif ($r['data_type'] == 'integer') {
 		db_modify("ALTER TABLE ordrer ALTER COLUMN shop_status TYPE varchar(20)", __FILE__ . " linje " . __LINE__);
 	}
 	$qtxt = "CREATE UNIQUE INDEX ordrer_stripe_paid_invoice_uidx ON ordrer (kundeordnr) WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'";
@@ -869,6 +879,8 @@ if ($lockTokenMissing) {
 //                  flow is already doing per-tenant maintenance work.
 include_once(__DIR__ . "/docsIncludes/poolContentHash.php");
 poolContentHashEnsureSchema();
+// Original-image identity is separate from the hash of the converted PDF on disk.
+poolContentHashColumnExists(true, 'source_sha256');
 
 // One-time backfill of content_sha256 for the rows written before the column existed, gated by a
 // settings flag exactly like pool_files_norm_amount_backfilled above. A row whose file is no longer
@@ -942,6 +954,11 @@ $tekster_reworded_20260930 = [
 	[1208, 3, 'Start md.'],
 	[1210, 2, 'End mnth.'],
 	[1210, 3, 'Slutt md.'],
+	// 1408 kept the spelling from before the csv was corrected on 2025-07-02 (34378fb7), so the pool
+	// title and the documents header still showed "Kassebillag" wherever the row was cached.
+	[1408, 1, 'Kassebillag'],
+	[1408, 2, 'Cash bill'],
+	[1408, 3, 'Kontantregning'],
 	[2640, 2, ' Click here to add a new product'],
 	[2640, 3, 'Klikk her for å opprette et nytt produkt'],
 	[2641, 2, 'Your product list is displayed here. Click a item number to open it.'],
@@ -965,5 +982,16 @@ if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null 
 // Preserve HTML users before the renderer changes; explicit choices survive later updates.
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);
+
+// 20261006 CL/LH SST-850: rentalsettings.pass used to be stored in clear text. Hash a remaining
+// clear-text value once; only tenants with the rental module have the table, and a value that is
+// already a password_hash() is left alone, so this is idempotent.
+if (db_fetch_array(db_select("select 1 from information_schema.tables where table_name = 'rentalsettings'", __FILE__ . " linje " . __LINE__))) {
+	$rentalPass = db_fetch_array(db_select("select pass from rentalsettings", __FILE__ . " linje " . __LINE__));
+	if ($rentalPass && (string)$rentalPass['pass'] !== '' && password_get_info((string)$rentalPass['pass'])['algoName'] === 'unknown') {
+		$rentalHash = db_escape_string(password_hash((string)$rentalPass['pass'], PASSWORD_DEFAULT));
+		db_modify("update rentalsettings set pass = '$rentalHash'", __FILE__ . " linje " . __LINE__);
+	}
+}
 
 ?>

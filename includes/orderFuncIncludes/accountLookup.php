@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//---includes/orderFuncIncludes/accountLookup.php ---patch 5.0.0 ----2026-08-29 ---
+//---includes/orderFuncIncludes/accountLookup.php ---patch 5.0.0 ----2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20260901 CL/LH Escape grid cell values before rendering (XSS) and pass
 //                 o_art=KO along on row select so supplier choice survives
 // 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
+// 20261008 CDX/PHR Include open accounts with a NULL closed flag in order lookups.
 
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
@@ -160,7 +161,7 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     // Base query
     $base_query = "SELECT id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, tlf
                    FROM adresser 
-                   WHERE art = '$art' AND lukket != 'on'";
+                   WHERE art = '$art' AND COALESCE(lukket, '') != 'on'";
 
     // Define columns for the grid
     $columns = [

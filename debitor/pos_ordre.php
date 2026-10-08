@@ -117,6 +117,11 @@
 //             existing pattern for the same problem.
 // 20261002 CL/SZ SST-812: Hand the final focus() to javascript/posScanBuffer.js (inlined in the head by includes/online.php), which replays scanner keystrokes typed while a scan reloads the page.
 //                The final focus() call now escapes $fokus and falls back to varenr_ny when the named field is missing or hidden, instead of throwing and leaving no focus.
+// 20261002 CL/SZ SST-813: function kundedisplay: the saldi.dk box-IP lookup moved to kundedisplayBoxLookup() with a 2 s timeout, tried once per request and logged on failure.
+//                An unreachable saldi.dk no longer holds the POS request for the 60 s default socket timeout.
+// 20261002 CL/SZ SST-813: Load stockWarningPopup.js with a filemtime version, as ordre.php does, so POS terminals pick up the keyboard/focus fix instead of a cached copy.
+// 20261002 CL/SZ SST-813: function kundedisplayBoxLookup: CodeRabbit review - make the 2 s a total limit for the whole lookup (cURL CURLOPT_TIMEOUT_MS), since the stream wrapper's timeout is per read.
+//                The stream fallback without cURL now gives the read only the time left after opening.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1579,7 +1584,9 @@ if ($vare_id) {
 					if ($swTextsJson === false) $swTextsJson = '{}';
 					print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
 					print "<script type=\"application/json\" id=\"saldi-sw-pos-payload\">$swPayloadJson</script>\n";
-					print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
+					$swPopFile = __DIR__ . '/../javascript/stockWarningPopup.js';
+					$swPopV = file_exists($swPopFile) ? filemtime($swPopFile) : time();
+					print "<script src=\"../javascript/stockWarningPopup.js?v=$swPopV\"></script>\n";
 					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['antal_ny'])f.elements['antal_ny'].value='';var vn=f.elements['varenr_ny'];if(vn){vn.value='';try{vn.focus();}catch(e2){}}}};SaldiStockWarning.show(__sw);});</script>\n";
 				}
 				if (!$blockOnStockWarning) {
@@ -3445,11 +3452,7 @@ function kundedisplay($beskrivelse, $pris, $ryd)
 		$tmp = $kasse - 1;
 		$printserver = $printer_ip[$tmp];
 		if (!$printserver || strtolower($printserver) == 'box') {
-			$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
-			if ($fp = fopen($filnavn, 'r')) {
-				$printserver = trim(fgets($fp));
-				fclose($fp);
-			}
+			$printserver = kundedisplayBoxLookup();
 		}
 	}
 	if ($printserver) {
@@ -3458,6 +3461,64 @@ function kundedisplay($beskrivelse, $pris, $ryd)
 		$href = "" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/kundedisplay.php?tekst=" . urlencode($beskrivelse) . "&pris=" . dkdecimal($pris, 2) . "&ryd=$ryd";
 		print "<script type=\"text/javascript\">window.open('$href','','$params');</script>";
 	}
+}
+
+/**
+ * Looks up the customer display box's IP for this terminal on saldi.dk.
+ *
+ * The lookup runs whenever the customer display is updated (new sale, payment,
+ * totals, quick-item buttons) while kundedisplay is on and no printserver is set
+ * for the kasse. Without a timeout, a slow or unreachable saldi.dk held the POS
+ * request for PHP's default_socket_timeout (60 s), which froze the screen.
+ * A failed lookup is tried only once per request and logged, and the page
+ * continues without the customer display.
+ *
+ * The 2 s limit covers the whole lookup. The http stream wrapper's own timeout
+ * applies to each read, so a server that answers slowly or trickles bytes could
+ * stretch it to several times that; cURL's CURLOPT_TIMEOUT_MS is a total limit.
+ * Without cURL the stream fallback gives the read only the time left after
+ * opening.
+ *
+ * @return string The box IP, or '' when the lookup failed or timed out.
+ */
+function kundedisplayBoxLookup()
+{
+	static $result = null;
+	if ($result !== null) return $result;
+
+	$result = '';
+	$timeout = 2.0;
+	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+	$started = microtime(true);
+	if (function_exists('curl_init')) {
+		$ch = curl_init($filnavn);
+		curl_setopt_array($ch, array(
+			CURLOPT_RETURNTRANSFER    => true,
+			CURLOPT_FAILONERROR       => true,
+			CURLOPT_NOSIGNAL          => true,
+			CURLOPT_CONNECTTIMEOUT_MS => (int)($timeout * 1000),
+			CURLOPT_TIMEOUT_MS        => (int)($timeout * 1000),
+		));
+		$body = curl_exec($ch);
+		curl_close($ch);
+		if (is_string($body)) $result = trim(strtok($body, "\n"));
+	} else {
+		$context = stream_context_create(array('http' => array('timeout' => $timeout)));
+		$fp = fopen($filnavn, 'r', false, $context);
+		if ($fp) {
+			$remaining = $timeout - (microtime(true) - $started);
+			if ($remaining > 0) {
+				stream_set_timeout($fp, (int)$remaining, (int)(($remaining - (int)$remaining) * 1000000));
+				$line = fgets($fp);
+				if ($line !== false) $result = trim($line);
+			}
+			fclose($fp);
+		}
+	}
+	if ($result === '') {
+		error_log(sprintf("kundedisplay: box lookup %s failed after %.1f s, customer display skipped", $filnavn, microtime(true) - $started));
+	}
+	return $result;
 }
 
 

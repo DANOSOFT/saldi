@@ -1,10 +1,11 @@
+// 20261006 CL/LH SST-850: Settings password is checked server-side; the password is no longer compared or logged in the browser.
 // Make sure you're in an async context
 (async () => {
     const url = new URL(window.location.href)
     const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
     const firstFolder = pathSegments[0]
     // Dynamically import the module
-    const { getClosedDays, insertClosedDay, deleteClosedDay, getSettings } = await import(`/${firstFolder}/rental/api/api.js`)
+    const { getClosedDays, insertClosedDay, deleteClosedDay, getSettings, isSettingsUnlocked, checkSettingsPassword } = await import(`/${firstFolder}/rental/api/api.js`)
 
 const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" style="pointer-events: none;" width="24" height="24" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
 <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
@@ -12,10 +13,10 @@ const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" style="pointer-event
 
 const settings = await getSettings()
 
-if(settings.use_password == "1"){
+if(settings.use_password == "1" && !(await isSettingsUnlocked()).success){
     const pass = prompt("Indtast adgangskode for at fortsætte")
-    if(pass != settings.pass){
-        console.log(pass + " " + settings.pass)
+    const result = await checkSettingsPassword(pass ?? "")
+    if(!result.success){
         alert("Forkert adgangskode")
         // get the first folder in url
         const currentUrl = new URL(window.location.href)
