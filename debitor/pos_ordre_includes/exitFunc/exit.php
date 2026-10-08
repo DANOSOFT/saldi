@@ -31,13 +31,40 @@
 // 20240313 MMK/PHR Vipps / Mobilepay
 // 20260914 CDX/LH Restore drawer redirect after cash payment without an automatic receipt (MB-48).
 // 20260914 CDX/LH Require HTTPS for remote cash drawer redirects; allow HTTP only on loopback.
+// 20261006 CL/LH SST-839: Reach LAN print servers (private/reserved IPs, localhost, .local, single-label names) over HTTP
+//                 again (the mini-PCs do not serve HTTPS); other hosts still default to HTTPS and may not use HTTP.
 // 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
 
 /**
- * Resolve a cash drawer endpoint without allowing remote cleartext requests.
+ * True for a print server on the shop's own network: a private or reserved IP (10/8,
+ * 172.16/12, 192.168/16, loopback, link-local, IPv6 ULA), localhost, a .local name or a
+ * single-label host name. Those are the mini-PCs that only speak plain HTTP.
+ *
+ * @param string $host Lower-cased host from parse_url(), IPv6 still in brackets.
+ * @return bool
+ */
+function cashDrawerPrintHostIsLan($host) {
+	$address = trim($host, '[]');
+	if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+		return !filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+	}
+	if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+		return !filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+	}
+	return $host === 'localhost' || substr($host, -6) === '.local' || strpos($host, '.') === false;
+}
+
+/**
+ * Resolve the cash drawer endpoint from the configured print server.
+ *
+ * Print servers on the shop LAN (see cashDrawerPrintHostIsLan()) are reached over plain
+ * HTTP, exactly like every other saldiprint.php/drawerstatus.php call in Saldi, so an
+ * address without a scheme becomes http:// for them. Any other host defaults to https://
+ * and may not be forced to http://. Anything that could smuggle credentials, a path, a
+ * query or a fragment into the redirect is rejected.
  *
  * @param string $printserver Host with optional port, HTTP(S) origin, or android.
- * @return string|null Printer origin, or null for an unsafe/invalid configuration.
+ * @return string|null Printer origin, or null for an invalid or unsafe configuration.
  */
 function cashDrawerPrintOrigin($printserver) {
 	$printserver = trim($printserver);
@@ -45,7 +72,7 @@ function cashDrawerPrintOrigin($printserver) {
 		return 'saldiprint://';
 	}
 	$hasScheme = strpos($printserver, '://') !== false;
-	$candidate = $hasScheme ? $printserver : 'https://' . $printserver;
+	$candidate = $hasScheme ? $printserver : 'http://' . $printserver;
 	if (!filter_var($candidate, FILTER_VALIDATE_URL)) {
 		return null;
 	}
@@ -55,12 +82,9 @@ function cashDrawerPrintOrigin($printserver) {
 		return null;
 	}
 	$host = strtolower($parts['host'] ?? '');
-	$address = trim($host, '[]');
-	$isLoopback = $host === 'localhost'
-		|| (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && strpos($address, '127.') === 0)
-		|| (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && inet_pton($address) === inet_pton('::1'));
-	$scheme = $hasScheme ? strtolower($parts['scheme']) : ($isLoopback ? 'http' : 'https');
-	if ($scheme !== 'https' && !($scheme === 'http' && $isLoopback)) {
+	$isLan = cashDrawerPrintHostIsLan($host);
+	$scheme = $hasScheme ? strtolower($parts['scheme']) : ($isLan ? 'http' : 'https');
+	if ($scheme !== 'https' && !($scheme === 'http' && $isLan)) {
 		return null;
 	}
 	return $scheme . '://' . $host . (isset($parts['port']) ? ':' . $parts['port'] : '');
@@ -348,7 +372,7 @@ print "\n<!-- Function afslut (start)-->\n";
 		$printOrigin = cashDrawerPrintOrigin($printserver);
 		if ($printOrigin === null) {
 			print "<p>Kasseskuffen kunne ikke åbnes. Kontrollér printserverens adresse. ";
-			print "Printservere på andre computere skal bruge HTTPS.</p>";
+			print "Printservere uden for det lokale netværk skal bruge HTTPS.</p>";
 			print '<a href="pos_ordre.php">Fortsæt til næste salg</a>';
 			exit;
 		}
