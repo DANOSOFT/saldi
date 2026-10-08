@@ -1,6 +1,6 @@
 <?php
 
-// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-05-18 --
+// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-10-01 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20120913 Der kan nu optaelles til 0
@@ -47,6 +47,8 @@
 // 20260518 CL/PHR Bedre fejlhåndtering ved fil-upload: viser fejlkode og returnerer. MAX_FILE_SIZE øget til 100 MB.
 // 20260707 CL/SZ Added Grid Framework sticky header and footer to Stock Count report
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
+// 20261001 CDX/PHR Show each warehouse number once, preferring its current-year name, and reuse the list during item lookup.
+// 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
 
 @session_start();
 $s_id = session_id();
@@ -170,13 +172,21 @@ if ($dato) { # 20140625
 }
 $date = usdate($dato); # 20140625
 
-$x = 0;
-$q = db_select("select * from grupper where art='LG' order by kodenr", __FILE__ . " linje " . __LINE__);
+// Stock is identified by warehouse number, independently of fiscal-year copies.
+$warehouseNames = array();
+$qtxt = "select kodenr,beskrivelse from grupper where art='LG' ";
+$qtxt .= "order by case when fiscal_year=" . (int)$regnaar . " then 0 else 1 end, ";
+$qtxt .= "coalesce(fiscal_year,0) desc,id desc";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-	$lagernr[$x] = $r['kodenr'];
-	$lagernavn[$x] = $r['beskrivelse'];
-	$x++;
+	$warehouseNumber = (int)ifset($r, 'kodenr', 0);
+	if ($warehouseNumber > 0 && !array_key_exists($warehouseNumber, $warehouseNames)) {
+		$warehouseNames[$warehouseNumber] = ifset($r, 'beskrivelse', '');
+	}
 }
+ksort($warehouseNames, SORT_NUMERIC);
+$lagernr = array_keys($warehouseNames);
+$lagernavn = array_values($warehouseNames);
 
 global $menu;
 $vnr = $varenr;
@@ -290,13 +300,7 @@ if ($varenr = trim($varenr)) {
 			$ktmp = "and kobsdate <= '$date'";
 		}
 
-		$x = 0;
-		$qtxt = "select kodenr from grupper where art='LG' order by kodenr";
-		$q2 = (db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		while ($r2 = db_fetch_array($q2)) {
-			$lagernr[$x] = $r['kodenr'];
-			$x++;
-		}
+		// Reuse the unique warehouse list loaded above when scanning an item.
 		if (!count($lagernr)) {
 			db_modify("update batch_kob set lager='1' where lager != '1'", __FILE__ . " linje " . __LINE__);
 			db_modify("update batch_salg set lager='1' where lager != '1'", __FILE__ . " linje " . __LINE__);
@@ -1211,6 +1215,9 @@ function importer($lager, $dato)
 	$indsat = 0;
 	$ej_indsat = 0;
 	$splitter = NULL;
+	$v_id = $v_str = $v_nr = $v_var_id = array();
+	$var_id = $var_str = $var_v_id = array();
+	$variant_id = 0;
 
 	$transdate = usdate($_POST['dato']);
 	list($y, $m, $d) = explode("-", $transdate);
