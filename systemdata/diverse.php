@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-29------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-10-08------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,6 +111,7 @@
 // 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 
 @session_start();
 $s_id = session_id();
@@ -1954,7 +1955,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 			
 			$ch       = curl_init();
-			$curl_url = "https://saldi.dk/locator/locator.php?action=insertUserCount&userCount=$new_max_users&dbName=$db";
+			$curl_url = "https://ssl3.saldi.dk/locator/locator.php?action=insertUserCount&userCount=$new_max_users&dbName=$db";
 			curl_setopt($ch, CURLOPT_URL, $curl_url);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 			curl_setopt($ch, CURLOPT_HTTPHEADER, array(
