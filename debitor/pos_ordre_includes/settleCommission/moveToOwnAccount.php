@@ -28,6 +28,20 @@
 // 20261006 CL/LH SST-824: Reset the commission totals per item group and order the groups, so a group's commission is posted once and the result does not depend on row order.
 // 20261008 CDX/NTR per-line query lacked report_number and kostpris > 0 filters; lines from a prior close on the same date could be counted again.
 
+/**
+ * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
+ * which includes this file:
+ * @var int      $kasse
+ * @var int      $reportNumber
+ * @var string   $regnaar
+ * @var string   $dd
+ * @var string   $logtime
+ * @var int      $ansat_id
+ * @var string   $afd
+ * @var string   $commissionAccountNew
+ * @var string   $commissionAccountUsed
+ * @var string[] $fakturadate
+ */
 $minDate=$fakturadate[0];
 $a=count($fakturadate)-1;
 $maxDate=$fakturadate[$a];
