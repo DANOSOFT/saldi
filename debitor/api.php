@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- patch 5.0.0 --- 2026-10-06 ---
+// --- debitor/api.php --- patch 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,14 @@
 // 20260825 CL/NTR - Added 0184 (Danish CVR) to the Peppol scheme map so an "0184:xxxxxxxx" EAN gets the DK prefix and correct country code instead of falling through unprefixed.
 // 20261006 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 // &&       Also added "0088" as a swedish prefix.
+// 20260914 Sawaneh    JOB-141: getInvoicesOrder() classifies EasyUBL's reply with
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+//                     easyubl_interpret_response() (includes/stdFunc/easyUblResponse.php) - the
+//                     error branch looked for errorMessage/error, which EasyUBL never sends
+//                     (it returns errNo/message), so real API errors showed as "Uventet svar".
+//                     Every failure now logs one fakture-error file, sets ordrer.digital_status
+//                     to SendFailed so the order shows it and a resend asks first, and reports
+//                     through findtekst(); an HTTP 500 with a document is no longer a success.
 
     @session_start();
     $s_id=session_id();

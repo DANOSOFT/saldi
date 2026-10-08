@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-06 ---
+// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 2025.05.14 LOE Added check for empty database and added error message if database is empty
 // 2025.05.14 LOE Added check for global_id in table regnskab and added error message if not exist as the former failed for mysql insert
 // 20261006 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 @session_start();
 $s_id=session_id();
 
