@@ -18,6 +18,7 @@
  *                          keys back to the field without triggering a second submitLikeEnter().
  *                          focusin reconciliation: flush a buffered prefix into an early-focused scan field
  *                          so a barcode split across pre-focus and post-focus keystrokes arrives intact.
+ *                          keydown: only preventDefault after save() succeeds; warn + release key on failure.
  */
 (function (global) {
 	if (global.PosScanBuffer) return;
@@ -165,10 +166,16 @@
 		if (e.key === 'Enter') ch = '\n';
 		else if (e.key && e.key.length === 1 && !e.metaKey && e.ctrlKey === e.altKey) ch = e.key;  // AltGr sets both
 		if (ch === null) return;
+		var prev = buffer;
+		buffer += ch;
+		if (!save()) {
+			// sessionStorage write failed; release the key so the operator can rescan.
+			buffer = prev;
+			console.warn('PosScanBuffer: sessionStorage write failed — scan keystroke released');
+			return;
+		}
 		e.preventDefault();
 		e.stopPropagation();
-		buffer += ch;
-		save();
 	}, true);
 
 	// The page is navigating away after a scan (Enter in a scan field). This fires however the
