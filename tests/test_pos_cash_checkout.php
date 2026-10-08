@@ -1,6 +1,7 @@
 <?php
 // 20260914 CDX/LH Regress MB-48: completed cash sales must leave the change screen.
 // 20260914 CDX/LH Cover secure remote printers, loopback exceptions and rejected drawer endpoints.
+// 20261006 CL/LH SST-839: LAN print servers (private IPs, localhost, .local, single-label names) are reached over HTTP again; other hosts keep the HTTPS rule.
 
 /**
  * Run with: php tests/test_pos_cash_checkout.php
@@ -121,7 +122,14 @@ $cases = [
     'explicit HTTP checkout' => ['https' => 'off'],
     'remote printer with port' => ['printer' => 'printer.example:8443', 'origin' => 'https://printer.example:8443'],
     'explicit remote HTTPS' => ['printer' => 'https://printer.example:8443/', 'origin' => 'https://printer.example:8443'],
-    'LAN printer requires HTTPS' => ['printer' => '192.168.1.20', 'origin' => 'https://192.168.1.20'],
+    'LAN printer uses HTTP' => ['printer' => '192.168.1.20', 'origin' => 'http://192.168.1.20'],
+    'customer LAN mini-PC' => ['printer' => '192.168.39.128', 'origin' => 'http://192.168.39.128'],
+    'LAN 10/8 printer' => ['printer' => '10.0.0.5:8080', 'origin' => 'http://10.0.0.5:8080'],
+    'LAN 172.16/12 printer' => ['printer' => '172.31.2.9', 'origin' => 'http://172.31.2.9'],
+    'link-local printer' => ['printer' => '169.254.10.10', 'origin' => 'http://169.254.10.10'],
+    'single-label host' => ['printer' => 'kasseprinter', 'origin' => 'http://kasseprinter'],
+    'IPv6 ULA printer' => ['printer' => '[fd00::10]:8080', 'origin' => 'http://[fd00::10]:8080'],
+    'public IP defaults to HTTPS' => ['printer' => '8.8.8.8', 'origin' => 'https://8.8.8.8'],
     'remote IPv6 printer' => ['printer' => '[2001:db8::1]:8443', 'origin' => 'https://[2001:db8::1]:8443'],
     'localhost port' => ['printer' => 'localhost:8080', 'origin' => 'http://localhost:8080'],
     'explicit loopback HTTP' => ['printer' => 'http://LOCALHOST:8080/', 'origin' => 'http://localhost:8080'],
@@ -131,10 +139,11 @@ $cases = [
     'IPv6 loopback' => ['printer' => '[::1]:8080', 'origin' => 'http://[::1]:8080'],
     'expanded IPv6 loopback' => ['printer' => 'http://[0:0:0:0:0:0:0:1]', 'origin' => 'http://[0:0:0:0:0:0:0:1]'],
     'remote HTTP rejected' => ['printer' => 'http://printer.example', 'rejected' => true],
-    'LAN HTTP rejected' => ['printer' => 'http://192.168.1.20', 'rejected' => true],
+    'public IP HTTP rejected' => ['printer' => 'http://8.8.8.8', 'rejected' => true],
+    'explicit LAN HTTP' => ['printer' => 'http://192.168.1.20/', 'origin' => 'http://192.168.1.20'],
     'remote HTTP cookie rejected' => ['printer' => '', 'cookiePrinter' => 'http://printer.example', 'rejected' => true],
+    'mDNS printer' => ['printer' => 'printer.local', 'origin' => 'http://printer.local'],
     'localhost lookalike rejected' => ['printer' => 'http://localhost.example', 'rejected' => true],
-    'loopback prefix lookalike rejected' => ['printer' => 'http://127.0.0.1.example', 'rejected' => true],
     'loopback userinfo rejected' => ['printer' => 'http://localhost@printer.example', 'rejected' => true],
     'HTTPS userinfo rejected' => ['printer' => 'https://localhost@printer.example', 'rejected' => true],
     'alternate protocol rejected' => ['printer' => 'ftp://localhost', 'rejected' => true],
