@@ -94,9 +94,12 @@ class LagerModel
     private function populateFromResult($query)
     {
         if ($r = db_fetch_array($query)) {
+            // 20261008 CL/LH: these wrote $this->beskrivelse / $this->nr, which toArray() and save()
+            // never read, so every warehouse came back with an empty description and number 1, and a
+            // PUT reset kodenr to 1. Inventory per warehouse now looks up its own lager number.
             $this->id = (int)$r['id'];
-            $this->beskrivelse = $r['beskrivelse'];
-            $this->nr = (int)$r['kodenr'];
+            $this->description = $r['beskrivelse'];
+            $this->number = (int)$r['kodenr'];
             $this->fiscal_year = (int)$r['fiscal_year'];
             return true;
         }

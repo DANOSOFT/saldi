@@ -3,14 +3,15 @@
 //
 // Integration tests for the read-mostly reference endpoints under
 // /restapi/endpoints/v1/ (currencies, vat, vat-codes, accountingYear,
-// debitor/groups, products/groups, dashboard/stats.php) against the local
-// docker stack's self-provisioned tenant: every one of them demands a bearer
-// token, answers with the JSON envelope and the documented shape, and the
-// read-only ones refuse writes with 405.
+// debitor/groups, products/groups, inventory/warehouses, dashboard/stats.php)
+// against the local docker stack's self-provisioned tenant: every one of them
+// demands a bearer token, answers with the JSON envelope and the documented
+// shape, and the read-only ones refuse writes with 405.
 //
 // History:
 // 20260904 CL/NTR created.
 // 20261008 CL/LH products/groups list for the current fiscal year, codeNo lookup, non-group ids are 404.
+// 20261008 CL/LH inventory/warehouses lists the real warehouses with their names, numbers and stock.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -205,9 +206,9 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertSame(405, $del['status'], $del['body']);
     }
 
-    public function test_product_group_list_holds_the_current_fiscal_years_groups(): void
+    /** kodenr of the tenant's fiscal year (grupper art RA) covering today. */
+    private function currentFiscalYear($tenant): int
     {
-        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
         $year = null;
         $now = (int)date('Y') * 12 + (int)date('n');
         foreach (RestApiEnv::rows($tenant, "SELECT kodenr, box1, box2, box3, box4 FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on')") as $ra) {
@@ -216,6 +217,13 @@ final class ReferenceDataEndpointsTest extends TestCase
             }
         }
         $this->assertNotNull($year, 'template tenant has a fiscal year covering today');
+        return $year;
+    }
+
+    public function test_product_group_list_holds_the_current_fiscal_years_groups(): void
+    {
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $year = $this->currentFiscalYear($tenant);
         $expected = array_map('intval', array_column(RestApiEnv::rows($tenant, "SELECT id FROM grupper WHERE art = 'VG' AND fiscal_year = $1 ORDER BY id", [$year]), 'id'));
         $other = RestApiEnv::rows($tenant, "SELECT id FROM grupper WHERE art <> 'VG' ORDER BY id LIMIT 1");
         pg_close($tenant);
@@ -241,6 +249,45 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertNotEmpty($other);
         $notAGroup = $this->get('products/groups/?id=' . (int)$other[0]['id']);
         $this->assertSame(404, $notAGroup['status'], 'a grupper row that is not a product group is not served as one');
+    }
+
+    public function test_warehouse_list_holds_the_current_fiscal_years_warehouses(): void
+    {
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $year = $this->currentFiscalYear($tenant);
+        $seeded = [];
+        foreach ([91 => ['Holbæk test', 3], 92 => ['Hillerød test', 7]] as $kodenr => [$name, $qty]) {
+            $id = (int)RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', $1, $2, $3) RETURNING id", [$kodenr, $name, $year])[0]['id'];
+            $seeded[$id] = ['number' => $kodenr, 'description' => $name, 'qty' => $qty];
+        }
+        RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', 93, 'other year', $1)", [$year + 100]);
+        $product = (int)RestApiEnv::rows($tenant, 'SELECT id FROM varer ORDER BY id LIMIT 1')[0]['id'];
+        foreach ($seeded as $w) {
+            RestApiEnv::rows($tenant, 'INSERT INTO lagerstatus (lager, vare_id, variant_id, beholdning) VALUES ($1, $2, 0, $3)', [$w['number'], $product, $w['qty']]);
+        }
+        $expected = array_map('intval', array_column(RestApiEnv::rows($tenant, "SELECT id FROM grupper WHERE art = 'LG' AND fiscal_year = $1 ORDER BY id", [$year]), 'id'));
+        pg_close($tenant);
+
+        $res = $this->get('inventory/warehouses/');
+        $this->assertSame(200, $res['status'], $res['body']);
+        $ids = array_map(fn($w) => (int)$w['id'], $res['json']['data']);
+        sort($ids);
+        $this->assertSame($expected, $ids, 'the real warehouses, not the id -1 placeholder');
+
+        $withStock = $this->get("inventory/warehouses/?productId=$product");
+        $this->assertSame(200, $withStock['status'], $withStock['body']);
+        $byId = array_column($withStock['json']['data'], null, 'id');
+        foreach ($seeded as $id => $w) {
+            $this->assertSame($w['description'], $byId[$id]['description']);
+            $this->assertSame($w['number'], (int)$byId[$id]['number']);
+            $this->assertSame($year, (int)$byId[$id]['fiscal_year']);
+            $this->assertSame($w['number'], (int)$byId[$id]['inventory']['inventory'], 'stock of this warehouse, not of warehouse 1');
+            $this->assertEquals($w['qty'], $byId[$id]['inventory']['quantity']);
+        }
+
+        $one = $this->get('inventory/warehouses/?id=' . array_key_first($seeded));
+        $this->assertSame(200, $one['status'], $one['body']);
+        $this->assertSame('Holbæk test', $one['json']['data']['description']);
     }
 
     public function test_dashboard_stats_answers_with_numeric_totals(): void
