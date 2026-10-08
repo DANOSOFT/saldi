@@ -26,6 +26,9 @@
 //
 // 20240529 PHR Block for deleteting invoiced orders
 // 20240603 PBLM Fixed booking deletion when invoice is credited
+// 20261006 CL/LH SST-850: Settings password is verified server-side (checkPassword/settingsUnlocked) and never sent to the browser.
+//                Stored with password_hash(); legacy clear-text values are upgraded on first correct entry. The unlock is bound
+//                to the stored hash, and the endpoints behind the protected pages require it too.
 
     @session_start();
     $s_id=session_id();
@@ -34,6 +37,23 @@
     include("../includes/connect.php");
     include("../includes/online.php");
     include_once("../includes/stdFunc/ensureTableAndColumns.php");
+
+    // "Brug adgangskode" (SST-850): true when no password protection applies or this session has
+    // entered the current password. The unlock marker is bound to the stored hash, so enabling or
+    // changing the password invalidates every earlier unlock.
+    function rentalSettingsUnlocked($db) {
+        $res = db_fetch_array(db_select("SELECT use_password, pass FROM rentalsettings", __FILE__ . " linje " . __LINE__));
+        if (!$res || (int)$res["use_password"] !== 1 || (string)$res["pass"] === "") {
+            return true;
+        }
+        return ($_SESSION["rentalSettingsUnlocked"] ?? "") === $db . ":" . hash("sha256", (string)$res["pass"]);
+    }
+    function rentalRequireUnlocked($db) {
+        if (!rentalSettingsUnlocked($db)) {
+            echo json_encode(["msg" => "Indstillingerne er låst. Indtast adgangskoden igen.", "success" => false]);
+            exit();
+        }
+    }
 /*     $query = db_select("SELECT * FROM online WHERE session_id = '$s_id' ORDER BY logtime DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $db = trim($res["db"]);
@@ -428,6 +448,7 @@
     }
 
     if(isset($_GET["updateItem"])){
+        rentalRequireUnlocked($db);
         $data = json_decode(file_get_contents('php://input'), true);
         if($data["item_name"] === ""){
             echo json_encode("Udfyld alle felter");
@@ -444,6 +465,7 @@
     }
     
     if(isset($_GET["deleteItem"])){
+        rentalRequireUnlocked($db);
         $id = db_escape_string($_GET["deleteItem"]);
         $query = db_modify("DELETE FROM rentalitems WHERE id = $id", __FILE__ . " linje " . __LINE__);
         /* $query = db_select("SELECT * FROM rentalperiod WHERE item_id = $id", __FILE__ . " linje " . __LINE__);
@@ -690,12 +712,14 @@
     } */
     
     if(isset($_GET["createItem"])){
+        rentalRequireUnlocked($db);
         $data = json_decode(file_get_contents('php://input'), true);
         $query = db_modify("INSERT INTO rentalitems (item_name, product_id) VALUES ('$data[item_name]', $data[product_id])", __FILE__ . " linje " . __LINE__);
         echo json_encode("Standen er nu oprettet");
     }
 
     if(isset($_GET["insertClosedDay"])){
+        rentalRequireUnlocked($db);
         $data = json_decode(file_get_contents('php://input'), true);
         $query = db_select("SELECT * FROM rentalclosed WHERE day = $data[day]", __FILE__ . " linje " . __LINE__);
         if(db_num_rows($query) > 0){
@@ -722,6 +746,7 @@
     }
 
     if(isset($_GET["deleteClosedDay"])){
+        rentalRequireUnlocked($db);
         $id = db_escape_string($_GET["deleteClosedDay"]);
         $query = db_modify("DELETE FROM rentalclosed WHERE id = $id", __FILE__ . " linje " . __LINE__);
         echo json_encode("Dagen er nu åben");
@@ -807,8 +832,37 @@
             echo json_encode(["msg" => "Der er ingen indstillinger", "success" => false]);
             exit();
         }
-        $res = db_fetch_array($query);
+        $res = array_filter(db_fetch_array($query), 'is_string', ARRAY_FILTER_USE_KEY);
+        unset($res["pass"]);
         echo json_encode($res);
+        exit();
+    }
+
+    if(isset($_GET["checkPassword"])){
+        $data = json_decode(file_get_contents('php://input'), true);
+        $password = (string)($data["password"] ?? "");
+        $res = db_fetch_array(db_select("SELECT pass FROM rentalsettings", __FILE__ . " linje " . __LINE__));
+        $stored = $res ? (string)$res["pass"] : "";
+        if($stored === ""){
+            $success = true; // no password stored: nothing to protect
+        }elseif(password_get_info($stored)["algoName"] === "unknown"){
+            $success = hash_equals($stored, $password);
+            if($success){
+                $stored = password_hash($password, PASSWORD_DEFAULT);
+                db_modify("UPDATE rentalsettings SET pass = '" . db_escape_string($stored) . "'", __FILE__ . " linje " . __LINE__);
+            }
+        }else{
+            $success = password_verify($password, $stored);
+        }
+        if($success){
+            $_SESSION["rentalSettingsUnlocked"] = $db . ":" . hash("sha256", $stored);
+        }
+        echo json_encode(["success" => $success]);
+        exit();
+    }
+
+    if(isset($_GET["settingsUnlocked"])){
+        echo json_encode(["success" => rentalSettingsUnlocked($db)]);
         exit();
     }
 
@@ -824,19 +878,31 @@
         $end_day = (int)$data["end_day"];
         $put_together = (int)$data["put_together"];
         $use_password = (int)$data["use_password"];
-        $password = db_escape_string($data["password"] ?? "");
+        $password = (string)($data["password"] ?? "");
         $invoice_date = (int)$data["invoice_date"];
         $toggle_order = (int)$data["toggle_order"];
-        $query = db_select("SELECT * FROM rentalsettings", __FILE__ . " linje " . __LINE__);
-        if(db_num_rows($query) <= 0)
-            $query = db_modify("INSERT INTO rentalsettings (id, booking_format, search_cust_name, search_cust_number, search_cust_tlf, start_day, deletion, find_weeks, end_day, put_together, pass, use_password, invoice_date, toggle_order) VALUES (1, $booking_format, $search_cust_name, $search_cust_number, $search_cust_tlf, $start_day, $deletion, $find_weeks, $end_day, $put_together, '$password', $use_password, $invoice_date, $toggle_order)", __FILE__ . " linje " . __LINE__);
-        else
-            $query = db_modify("UPDATE rentalsettings SET booking_format = $booking_format, search_cust_name = $search_cust_name, search_cust_number = $search_cust_number, search_cust_tlf = $search_cust_tlf, start_day = $start_day, deletion = $deletion, find_weeks = $find_weeks, end_day = $end_day, put_together = $put_together, use_password = $use_password, pass = '$password', invoice_date = $invoice_date, toggle_order = $toggle_order", __FILE__ . " linje " . __LINE__);
+        $current = db_fetch_array(db_select("SELECT use_password FROM rentalsettings", __FILE__ . " linje " . __LINE__));
+        if(!rentalSettingsUnlocked($db)){
+            echo json_encode("Indstillingerne er låst. Indtast adgangskoden igen.");
+            exit();
+        }
+        $newHash = ($password === "") ? "" : password_hash($password, PASSWORD_DEFAULT);
+        $hash = db_escape_string($newHash);
+        if($newHash !== ""){
+            $_SESSION["rentalSettingsUnlocked"] = $db . ":" . hash("sha256", $newHash);
+        }
+        if(!$current){
+            $query = db_modify("INSERT INTO rentalsettings (id, booking_format, search_cust_name, search_cust_number, search_cust_tlf, start_day, deletion, find_weeks, end_day, put_together, pass, use_password, invoice_date, toggle_order) VALUES (1, $booking_format, $search_cust_name, $search_cust_number, $search_cust_tlf, $start_day, $deletion, $find_weeks, $end_day, $put_together, '$hash', $use_password, $invoice_date, $toggle_order)", __FILE__ . " linje " . __LINE__);
+        }else{
+            $passUpdate = ($hash === "") ? "" : ", pass = '$hash'";
+            $query = db_modify("UPDATE rentalsettings SET booking_format = $booking_format, search_cust_name = $search_cust_name, search_cust_number = $search_cust_number, search_cust_tlf = $search_cust_tlf, start_day = $start_day, deletion = $deletion, find_weeks = $find_weeks, end_day = $end_day, put_together = $put_together, use_password = $use_password$passUpdate, invoice_date = $invoice_date, toggle_order = $toggle_order", __FILE__ . " linje " . __LINE__);
+        }
         echo json_encode("Indstillingerne er nu opdateret");
         exit();
     }
 
     if(isset($_GET["deleteProduct"])){
+        rentalRequireUnlocked($db);
         $id = db_escape_string($_GET["deleteProduct"]);
         $query = db_select("SELECT id FROM rentalitems WHERE product_id = $id", __FILE__ . " linje " . __LINE__);
         while($res = db_fetch_array($query)){
@@ -1201,6 +1267,7 @@
     }
 
     if(isset($_GET["updateMail"])){
+        rentalRequireUnlocked($db);
         $data = json_decode(file_get_contents('php://input'), true);
         $query = db_select("SELECT * FROM rentalmail", __FILE__ . " linje " . __LINE__);
         if(db_num_rows($query) > 0){
@@ -1216,18 +1283,21 @@
     }
 
     if(isset($_GET["getMailInfo"])){
+        rentalRequireUnlocked($db);
         $query = db_select("SELECT * FROM rentalmail", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
         echo json_encode($res);
     }
 
     if(isset($_GET["getPayment"])){
+        rentalRequireUnlocked($db);
         $query = db_select("SELECT * FROM rentalpayment", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
         echo json_encode($res);
     }
 
     if(isset($_GET["updatePayment"])){
+        rentalRequireUnlocked($db);
         $data = json_decode(file_get_contents('php://input'), true);
         $query = db_select("SELECT * FROM rentalpayment", __FILE__ . " linje " . __LINE__);
         if(db_num_rows($query) > 0){
@@ -1243,6 +1313,7 @@
     }
 
     if (isset($_GET["updateRemoteProduct"])) {
+        rentalRequireUnlocked($db);
         $data = json_decode(file_get_contents('php://input'), true);
     
         $productId = $data['id'];

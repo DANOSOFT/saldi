@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/settleCommission/moveToOwnAccount.php --- patch 4.1.1 -- 2025-07-01 --
+// --- debitor/pos_ordre_includes/settleCommission/moveToOwnAccount.php --- ver 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,23 @@
 // 20230912 corrected error in VAT sign (was positve when is should be negative)
 // 20231120	PHR Added checkLineId to avoid same line counnted more than once.
 // 20250701 PHR PHP8
+// 20261006 CL/LH SST-824: Reset the commission totals per item group and order the groups, so a group's commission is posted once and the result does not depend on row order.
+// 20261008 CDX/NTR per-line query lacked report_number and kostpris > 0 filters; lines from a prior close on the same date could be counted again.
 
+/**
+ * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
+ * which includes this file:
+ * @var int      $kasse
+ * @var int      $reportNumber
+ * @var string   $regnaar
+ * @var string   $dd
+ * @var string   $logtime
+ * @var int      $ansat_id
+ * @var string   $afd
+ * @var string   $commissionAccountNew
+ * @var string   $commissionAccountUsed
+ * @var string[] $fakturadate
+ */
 $minDate=$fakturadate[0];
 $a=count($fakturadate)-1;
 $maxDate=$fakturadate[$a];
@@ -51,18 +67,18 @@ for ($co=0;$co<count($coAc);$co++) {
 
 	$qtxt = "select moms from kontoplan where kontonr = '$coAc[$co]' and regnskabsaar <= '$regnaar' ";
 	$qtxt.= "order by regnskabsaar desc limit 1";
-#cho __line__." $qtxt<br>";
+	// echo __line__." $qtxt<br>";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($toVatCode=substr($r['moms'],1)) {
 		$qtxt = "select box1,box2 from grupper where art = 'SM' and kodenr = '$toVatCode' ";
-#cho __line__." $qtxt<br>";
+		// echo __line__." $qtxt<br>";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$toVatAccount = $r['box1']*1;
 		$toVatPercent  = $r['box2']*1;
 	} else $toVatAccount=$toVatPercent=0;
 
-	$qtxt = "select distinct(gruppe) as cgroup from varer where provision > '0' and varenr like '$itNo[$co]'";
-#cho __line__." $qtxt<br>";
+	$qtxt = "select distinct(gruppe) as cgroup from varer where provision > '0' and varenr like '$itNo[$co]' order by gruppe";
+	// echo __line__." $qtxt<br>";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$cGroup[$c]=$r['cgroup'];
@@ -71,10 +87,10 @@ for ($co=0;$co<count($coAc);$co++) {
 	$v=0;
 	$qtxt = "select distinct(ordrelinjer.vare_id) from ordrelinjer,ordrer,pos_betalinger where ";
 	$qtxt.= "(ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.fakturadate >= '$minDate' and ordrer.fakturadate <= '$maxDate' ";
-	$qtxt.= "and ordrelinjer.varenr like '$itNo[$co]' and ordrelinjer.kostpris > '0' ";
+	$qtxt.= "and ordrelinjer.varenr like '$itNo[$co]' ";
 	$qtxt.= "and (ordrer.report_number = '0' or ordrer.report_number = '$reportNumber') and ordrelinjer.ordre_id = ordrer.id ";
 	$qtxt.= "and pos_betalinger.ordre_id = ordrer.id and ordrer.felt_5 = '$kasse' order by ordrelinjer.vare_id";
-#cho __line__." $qtxt<br>";
+	// echo __line__." $qtxt<br>";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$itemId[$v]=$r['vare_id'];
@@ -85,7 +101,7 @@ for ($co=0;$co<count($coAc);$co++) {
 		$v=0;
 		$cItemId[$c]=array();
 		$qtxt = "select id, provision from varer where gruppe = '$cGroup[$c]' and provision > '0' and varenr like '$itNo[$co]' order by id";
-#cho __line__." $qtxt<br>";
+		// echo __line__." $qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			if (in_array($r['id'],$itemId)) {
@@ -96,9 +112,13 @@ for ($co=0;$co<count($coAc);$co++) {
 	}
 	$checkLineId = array();
 	$i=0;
-#cho __line__." ".count($cGroup)."<br>";
+	// echo __line__." ".count($cGroup)."<br>";
 	for ($c = 0;$c < count($cGroup);$c++) {
-#cho __line__." ".count($cItemId[$c])."<br>";
+		// Each group posts only its own commission. Without this reset the previous
+		// group's amount (minus its VAT) was carried over and posted again under the
+		// next group, even when nothing was sold in it (SST-824).
+		$commission = $costVat = $commissionVat = $fromVat = $toVat = 0;
+		// echo __line__." ".count($cItemId[$c])."<br>";
 		for ($v=0;$v<count($cItemId[$c]);$v++) {
 			$kontrol = 0;
 			$qtxt = "select ordrelinjer.id,ordrelinjer.varenr,ordrelinjer.ordre_id,ordrelinjer.pris,ordrelinjer.antal,";
@@ -108,8 +128,9 @@ for ($co=0;$co<count($coAc);$co++) {
 			$qtxt.= "and ordrer.fakturadate <= '$maxDate' and ordrelinjer.antal != '0' and ordrelinjer.pris != '0' ";
 			$qtxt.= "and ordrer.status = '3' and ordrelinjer.ordre_id = ordrer.id ";
 			$qtxt.= "and pos_betalinger.ordre_id = ordrer.id and ordrelinjer.vare_id='". $cItemId[$c][$v] ."' ";
+			$qtxt.= "and (ordrer.report_number = '0' or ordrer.report_number = '$reportNumber') ";
 			$qtxt.= "and ordrer.felt_5 = '$kasse' order by ordrer.id";
-#cho __line__." $qtxt<br>";
+			// echo __line__." $qtxt<br>";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) {
 				if (!in_array($r['id'],$checkLineId)) {
@@ -120,18 +141,18 @@ for ($co=0;$co<count($coAc);$co++) {
 					$costVat    +=afrund( $cost  * $r['momssats']/100,2);
 					$commission += afrund($linePrice-$cost,2);
 					$kontrol += afrund($linePrice-$cost,2);
-#cho __line__." $r[id] $r[varenr] $r[antal] $r[ordre_id] $linePrice | $cost ".afrund($linePrice-$cost,2) ." > $commission > $kontrol<br>";
+					// echo __line__." $r[id] $r[varenr] $r[antal] $r[ordre_id] $linePrice | $cost ".afrund($linePrice-$cost,2) ." > $commission > $kontrol<br>";
 					$i++;
 				}
 			}
 		}
 		$qtxt = "select box4 from grupper where art = 'VG' and kodenr = '$cGroup[$c]'";
-#cho __line__." $qtxt<br>";
+		// echo __line__." $qtxt<br>";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$fromAccount=$r['box4'];
 		$qtxt = "select moms from kontoplan where kontonr = '$fromAccount' and regnskabsaar <= '$regnaar' ";
 		$qtxt.= "order by regnskabsaar desc limit 1";
-#cho __line__." $qtxt<br>";
+		// echo __line__." $qtxt<br>";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if ($fromVatCode=substr($r['moms'],1)) {
 			$qtxt = "select box1,box2 from grupper where art = 'SM' and kodenr = '$fromVatCode' ";
@@ -139,9 +160,9 @@ for ($co=0;$co<count($coAc);$co++) {
 			$fromVatAccount = $r['box1']*1;
 			$fromVatPercent  = $r['box2']*1;
 		} else $fromVatAccount=$fromVatPercent=0;
-#cho __line__." $commission && $fromVatPercent<br>";
+		// echo __line__." $commission && $fromVatPercent<br>";
 		if ($commission && $fromVatPercent) {
-#			if ($costVat) $fromVat = afrund($commission * $fromVatPercent / (100+$fromVatPercent),2);
+			// if ($costVat) $fromVat = afrund($commission * $fromVatPercent / (100+$fromVatPercent),2);
 			$fromVat = afrund($commission * $fromVatPercent / 100,2);
 			$debet=$kredit=0;
 			($fromVat > 0)?$debet=$fromVat:$kredit=abs($fromVat);
@@ -150,7 +171,7 @@ for ($co=0;$co<count($coAc);$co++) {
 			$qtxt.=" values ";
 			$qtxt.="('0','$dd','Moms af kommisionssalg, Kasse $kasse','$fromVatAccount','0','$debet','$kredit',0,'$afd','$dd','$logtime','',";
 			$qtxt.="'$ansat_id','0','$kasse','$reportNumber','0')";
-#cho __line__." $qtxt<br>";
+			// echo __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} else $commissionVat = 0;
 		if ($commission) {
@@ -161,7 +182,7 @@ for ($co=0;$co<count($coAc);$co++) {
 			$qtxt.=" values ";
 			$qtxt.="('0','$dd','Kommisionssalg, Kasse $kasse','$fromAccount','0','$debet','$kredit',0,'$afd','$dd','$logtime','',";
 			$qtxt.="'$ansat_id','0','$kasse','$reportNumber','$commissionVat')";
-#cho __line__." $qtxt<br>";
+			// echo __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		if ($commission && $toVatPercent) {
@@ -174,7 +195,7 @@ for ($co=0;$co<count($coAc);$co++) {
 			$qtxt.=" values ";
 			$qtxt.="('0','$dd','Moms af kommisionssalg, Kasse $kasse','$toVatAccount','0','$debet','$kredit',0,'$afd','$dd','$logtime','',";
 			$qtxt.="'$ansat_id','0','$kasse','$reportNumber','0')";
-#cho __line__." $qtxt<br>";
+			// echo __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} else $toVat = 0;
 		if ($commission) {
@@ -187,10 +208,10 @@ for ($co=0;$co<count($coAc);$co++) {
 			$qtxt.=" values ";
 			$qtxt.="('0','$dd','Kommisionssalg, Kasse $kasse','$coAc[$co]','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
 			$qtxt.="'','$ansat_id','0','$kasse','$reportNumber','$toVat')";
-#cho __line__." $qtxt<br>";
+			// echo __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
 }
-#xit;
+// exit;
 ?> 
