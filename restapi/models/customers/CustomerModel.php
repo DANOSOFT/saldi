@@ -247,8 +247,13 @@ class CustomerModel
                 $this->id = (int)$r['id'];
             }
 
-            // Save kontakt_emails for new customer
-            $this->saveKontaktEmails();
+            // Save kontakt_emails for new customer - only when some were supplied, as on update:
+            // 20260904 CL/NTR syncing an empty list back to adresser.email wiped the email the
+            // caller had just inserted, so API-created customers lost their email (and the
+            // duplicate-email check never matched them).
+            if (!empty($this->kontakt_emails)) {
+                $this->saveKontaktEmails();
+            }
             return true;
         }
 
