@@ -1,3 +1,4 @@
+// 20261006 CL/LH SST-850: Added checkSettingsPassword and isSettingsUnlocked for the server-side settings password check.
 // Getting information from php file
 const apiUrl = "rental.php?"
 
@@ -232,6 +233,23 @@ export const getAllProductNames = async () => {
 
 export const getSettings = async () => {
   const url = `${apiUrl}getSettings`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" }
+  })
+}
+
+export const checkSettingsPassword = async (password) => {
+  const url = `${apiUrl}checkPassword`
+  return await fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password })
+  })
+}
+
+export const isSettingsUnlocked = async () => {
+  const url = `${apiUrl}settingsUnlocked`
   return await fetchJson(url, {
     method: "GET",
     headers: { "Content-Type": "application/json" }
