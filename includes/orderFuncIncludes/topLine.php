@@ -1,5 +1,5 @@
 <?php
-// ------orderFuncIncludes/topLine.php---patch 4.1.1 ----2025-11-15------------
+// ------orderFuncIncludes/topLine.php---patch 5.0.0 ----2026-10-06------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,7 +19,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20251115 LOE Created file to standardize top line  in ordrefunc includes 
-
+// 20261006 CL/LH SST-848: Updated to use new SVG icons
 
 
 ###############
