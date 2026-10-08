@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/settleCommission/moveToOwnAccount.php --- patch 4.1.1 -- 2025-07-01 --
+// --- debitor/pos_ordre_includes/settleCommission/moveToOwnAccount.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
