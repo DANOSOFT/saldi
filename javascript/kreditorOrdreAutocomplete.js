@@ -4,13 +4,40 @@
 
     const CONFIG = {
         minSearchLength: 1,
+        // SST-814 The customer field (type=kreditor here) searches adresser with
+        // ILIKE '%term%'. A trigram index cannot match fewer than three characters, so a
+        // shorter term is a full table scan no matter how the table is indexed - measured
+        // at 70-176 ms per keystroke on 200k rows, against 1-20 ms from three characters
+        // up. Three is therefore both where the index starts working and where the result
+        // list is short enough to be worth showing.
+        minAccountSearchLength: 3,
         debounceDelay: 200,
         maxResults: 50
     };
 
+    // SST-814 Only the item field used to have a minimum, so the account field searched on
+    // every keystroke - and on an empty field, which asked adresser for the first 50 of
+    // every creditor on the books.
+    function minLengthFor(type) {
+        // customer searches adresser, which accountSearch.php now refuses below three
+        // characters because a trigram index cannot match a shorter term.
+        if (type === 'customer') return CONFIG.minAccountSearchLength;
+        // item had its own one-character minimum before this ticket; it keeps it.
+        if (type === 'item') return CONFIG.minSearchLength;
+        // Everything else - currency, project, employee - queries a small table and listed
+        // its options when the field was focused empty. Review of #691 caught that sending
+        // these through the customer gate silently took that away, which was never the
+        // intent of the ticket: only the adresser lookup was supposed to change.
+        return 0;
+    }
+
     let activeDropdown = null;
     let activeInput = null;
     let debounceTimer = null;
+    // Bumped on every keystroke, including one that the length gate refuses. A response
+    // that comes back carrying an older number is for a value the field no longer holds,
+    // so it is dropped rather than painted over the current state.
+    let searchSeq = 0;
     let dropdownContainer = null;
     let selectionMade = false;
 
@@ -97,9 +124,9 @@
 
         input.addEventListener('focus', function () {
             if (selectionMade) return;
-            if (this.value.length >= CONFIG.minSearchLength || type !== 'item') {
-                handleInput(this);
-            }
+            // handleInput() is the single length gate now, so focusing an empty field no
+            // longer starts a search of its own.
+            handleInput(this);
         });
 
         input.addEventListener('keydown', function (e) {
@@ -140,9 +167,10 @@
 
     function handleInput(input) {
         clearTimeout(debounceTimer);
+        searchSeq++;
         const value = input.value.trim();
 
-        if (input.autocompleteType === 'item' && value.length < CONFIG.minSearchLength) {
+        if (value.length < minLengthFor(input.autocompleteType)) {
             closeDropdown();
             return;
         }
@@ -185,12 +213,15 @@
                 break;
         }
 
+        const seq = searchSeq;
         fetch(url)
             .then(response => response.json())
             .then(data => {
+                if (seq !== searchSeq) return;
                 renderDropdown(input, data.results);
             })
             .catch(error => {
+                if (seq !== searchSeq) return;
                 console.error('Search error:', error);
                 closeDropdown();
             });
@@ -343,6 +374,9 @@
 
     function handleSelection(input, selected) {
         selectionMade = true;
+        // Supersede any request already in flight: the dropdown is closing, and a
+        // response that lands afterwards must not reopen it.
+        searchSeq++;
         const type = input.autocompleteType;
         const value = selected.dataset.value;
         const id = selected.dataset.id;
