@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/settleCommission/moveToOwnAccount.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- debitor/pos_ordre_includes/settleCommission/moveToOwnAccount.php --- ver 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20231120	PHR Added checkLineId to avoid same line counnted more than once.
 // 20250701 PHR PHP8
 // 20261006 CL/LH SST-824: Reset the commission totals per item group and order the groups, so a group's commission is posted once and the result does not depend on row order.
+// 20261008 CDX/NTR per-line query lacked report_number and kostpris > 0 filters; lines from a prior close on the same date could be counted again.
 
 $minDate=$fakturadate[0];
 $a=count($fakturadate)-1;
@@ -111,8 +112,9 @@ for ($co=0;$co<count($coAc);$co++) {
 			$qtxt.= "from ordrelinjer,ordrer,pos_betalinger where ";
 			$qtxt.= "(ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.fakturadate >= '$minDate' ";
 			$qtxt.= "and ordrer.fakturadate <= '$maxDate' and ordrelinjer.antal != '0' and ordrelinjer.pris != '0' ";
-			$qtxt.= "and ordrer.status = '3' and ordrelinjer.ordre_id = ordrer.id ";
+			$qtxt.= "and ordrer.status = '3' and ordrelinjer.kostpris > '0' and ordrelinjer.ordre_id = ordrer.id ";
 			$qtxt.= "and pos_betalinger.ordre_id = ordrer.id and ordrelinjer.vare_id='". $cItemId[$c][$v] ."' ";
+			$qtxt.= "and (ordrer.report_number = '0' or ordrer.report_number = '$reportNumber') ";
 			$qtxt.= "and ordrer.felt_5 = '$kasse' order by ordrer.id";
 #cho __line__." $qtxt<br>";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
