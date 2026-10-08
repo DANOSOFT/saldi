@@ -14,6 +14,10 @@
  * 20261002 CL/SZ SST-812 Created.
  * 20261002 CL/SZ SST-812 CodeRabbit review: before focus is placed, only hold keys while no field has focus.
  *                          A click, tap or focus on a non-scan field ends a held scan so typing there is never blocked.
+ * 20261008 CL/SZ SST-813 CodeRabbit review: replay() with isRecovery=true on timeout so a failed submit hands
+ *                          keys back to the field without triggering a second submitLikeEnter().
+ *                          focusin reconciliation: flush a buffered prefix into an early-focused scan field
+ *                          so a barcode split across pre-focus and post-focus keystrokes arrives intact.
  */
 (function (global) {
 	if (global.PosScanBuffer) return;
@@ -44,10 +48,14 @@
 	}
 
 	function save() {
+		var saved = true;
 		try {
 			if (buffer) global.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ t: Date.now(), keys: buffer }));
 			else global.sessionStorage.removeItem(STORAGE_KEY);
-		} catch (e) {}
+		} catch (e) {
+			saved = false;
+		}
+		return saved;
 	}
 
 	function isScanField(el) {
@@ -86,9 +94,10 @@
 		busy = true;
 		clearTimeout(busyTimer);
 		busyTimer = setTimeout(function () {
-			// The submit did not lead to a new page; hand the held keys to the field instead.
+			// The submit did not lead to a new page; hand the held keys to the field without
+			// resubmitting — the user confirms with Enter when ready.
 			busy = false;
-			replay(document.activeElement);
+			replay(document.activeElement, true);
 		}, BUSY_TIMEOUT_MS);
 	}
 
@@ -115,7 +124,9 @@
 	}
 
 	// Deliver held keystrokes to el: at most one complete scan, which is then submitted.
-	function replay(el) {
+	// isRecovery = true when called from the busy timeout (failed submission): restore the
+	// characters to the field so the user can confirm with Enter, but do not resubmit.
+	function replay(el, isRecovery) {
 		if (!buffer) return;
 		if (!isScanField(el) || document.getElementById('saldi-sw-pos-payload')) {
 			// Not in scan mode (price/payment field, stock warning popup): never type a held
@@ -135,6 +146,7 @@
 		el.value += buffer.substring(0, end);
 		buffer = buffer.substring(end + 1);
 		save();
+		if (isRecovery) return;
 		setBusy();
 		submitLikeEnter(el);
 	}
@@ -177,6 +189,17 @@
 	document.addEventListener('mousedown', leaveScan, true);
 	document.addEventListener('touchstart', leaveScan, true);
 	document.addEventListener('focusin', leaveScan, true);
+
+	// A field gained focus before PosScanBuffer.focus() ran (e.g. the page focused early).
+	// Flush any buffered prefix typed before focus existed into the scan field so the barcode
+	// is not split; discard it silently for non-scan fields. A complete scan in the buffer
+	// (containing '\n') is left for replay() to handle.
+	document.addEventListener('focusin', function (e) {
+		if (ready || busy || !buffer || buffer.indexOf('\n') !== -1) return;
+		if (isScanField(e.target)) e.target.value += buffer;
+		buffer = '';
+		save();
+	}, true);
 
 	// Back/forward cache restores a page that was mid-submit; make it usable again.
 	global.addEventListener('pageshow', function (e) {
