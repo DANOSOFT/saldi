@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.1 --- 2025.09.16 ---
+// --- payments/flatpay.php --- ver 5.0.0 --- 2026.10.06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
