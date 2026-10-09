@@ -1,4 +1,4 @@
-// --- javascript/docPoolSwitch.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/docPoolSwitch.js --- ver 5.0.0 --- 2026-10-09 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-719 Created: switch document in the pool without reloading the page.
 //                The page for the new document is fetched and only the entry fields (#kassebilagTopBar) and the viewer (#rightPanel) are replaced.
@@ -10,6 +10,7 @@
 // 20261006 CL/SZ SD-719 An element marked data-pool-keep="<id>" stays in front of that element through the switch (the kreditor notice), so the list doesn't jump.
 // 20261006 CL/SZ SD-719 The bilag area keeps its height for 1.5 s after the switch while the new document's notes arrive, so the list moves at most once.
 // 20261007 CL/SZ SD-719 The page is asked for with X-Pool-Switch, so it doesn't build the first list page this switch doesn't use.
+// 20261009 CL/SZ SD-719 Inside the main menu (index/main.php) the menu's address (#...) follows the switch too, so F5 opens the document that is shown, not the first one.
 (function () {
     'use strict';
 
@@ -138,6 +139,11 @@
                 if (context && !options.keepLineContext && typeof window.poolSetLineContext === 'function') window.poolSetLineContext(context.sum, context.dato);
                 if (typeof window.poolShowCurrent === 'function') window.poolShowCurrent();
                 document.dispatchEvent(new CustomEvent('poolswitch', { detail: { href: href } }));
+                // The menu frame (index/main.php) only updates its address on a page load, and this switch doesn't load one.
+                // Once, after the poolswitch handlers: they may change the address again (transfer=1 is removed), and two quick writes would make the menu reload the frame.
+                try {
+                    if (window.parent !== window && typeof window.parent.trigger_iframe_load === 'function') window.parent.trigger_iframe_load();
+                } catch (e) {}
             })
             .catch(function (error) {
                 if (error && error.name === 'AbortError') return;
