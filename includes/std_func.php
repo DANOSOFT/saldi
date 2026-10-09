@@ -97,6 +97,9 @@
 //                  gives the image, the way the PNG it replaced did. Templates set both
 //                  width and height on $img, where the SVG default keeps its own ~9:1
 //                  proportions, so the code printed about half as tall.
+// 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
+//                  13-digit string is treated as an EAN-13 candidate (is_numeric also
+//                  accepted decimals, signs and scientific notation).
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2644,7 +2647,7 @@ if (!function_exists('barcode')) {
 
 		if ($dan_kode && $stregkoder[0] !== '') {
 			$ean13 = false;
-			if (is_numeric($stregkoder[0]) && strlen($stregkoder[0]) == 13) {
+			if (ctype_digit($stregkoder[0]) && strlen($stregkoder[0]) == 13) {
 				$a = substr($stregkoder[0], 11, 1) + substr($stregkoder[0], 9, 1) + substr($stregkoder[0], 7, 1) + substr($stregkoder[0], 5, 1) + substr($stregkoder[0], 3, 1) + substr($stregkoder[0], 1, 1);
 				$a *= 3;
 				$a += substr($stregkoder[0], 10, 1) + substr($stregkoder[0], 8, 1) + substr($stregkoder[0], 6, 1) + substr($stregkoder[0], 4, 1) + substr($stregkoder[0], 2, 1) + substr($stregkoder[0], 0, 1);
