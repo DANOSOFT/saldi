@@ -247,3 +247,8 @@ textarea.ur-input { resize: vertical; }
     .ur-f2 { grid-template-columns: 1fr; }
     .ur-table th:nth-child(3), .ur-table td:nth-child(3), .ur-table th:nth-child(5), .ur-table td:nth-child(5) { display: none; }
 }
+
+/* Oversigt rows (front-page addendum 4 §3): indented under Se Oversigt, greyed while it is off */
+.ur-prow-block { padding-left: 18px; }
+.ur-prow-block.ur-prow-off { opacity: .55; }
+.ur-prow-block b small { display: block; font-weight: 400; font-size: 11.5px; }

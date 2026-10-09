@@ -75,6 +75,7 @@
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 // 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
 // 20261009 Sawaneh css/saldi-fonts.css in the shell: Saldi Grotesk + Inter and the text-size base (front-page addendum 3 §3).
+// 20261009 Sawaneh Se Oversigt (front-page addendum 4): the Oversigt entry and the landing page follow dashboard.view once enforcement is on.
 @session_start();
 $s_id = session_id();
 
@@ -240,7 +241,8 @@ function brightenColor($color, $amount = 0.2) {
 
   <ul class="nav-links top-links" style='margin-top: 1em; background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;'>
     <!-- Finans -->
-    <li class="active">
+    <?php $dashView = !function_exists('perm_can') || perm_can('dashboard.view') || perm_enforcement_mode() !== 'deny'; // Se Oversigt (addendum 4) ?>
+    <li class="active"<?= $dashView ? '' : ' style="display:none"' ?>>
       <a href="#" id="dashboard" style="background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
         <i class='bx bxs-dashboard'></i>
         <span class="link_name"><?php print findtekst('2224|Oversigt', $sprog_id); ?></span>
@@ -1185,7 +1187,18 @@ function brightenColor($color, $amount = 0.2) {
   }
 
   // Check for page reloads and manage inital load of iframe
-  update_iframe(window.location.hash == "" ? "/index/dashboard.php" : window.location.hash.replace("#", ""));
+  <?php
+  // Without Se Oversigt the user lands on the first module in the sidebar they may use (addendum 4 §2.1).
+  $landing = '/index/dashboard.php';
+  if (!$dashView) {
+  	if (check_permissions(array(0, 2, 3, 4))) $landing = '/finans/kladdeliste.php';
+  	elseif (check_permissions(array(5, 6, 12))) $landing = '/debitor/ordreliste.php';
+  	elseif (check_permissions(array(7, 8, 13))) $landing = '/kreditor/ordreliste.php';
+  	elseif (check_permissions(array(9, 10, 14, 15))) $landing = '/lager/lister/vareliste.php';
+  	else $landing = '/systemdata/personalSettings.php';
+  }
+  ?>
+  update_iframe(window.location.hash == "" ? <?= json_encode($landing) ?> : window.location.hash.replace("#", ""));
 
   // Hash the shell wrote itself from an iframe load. hashchange is dispatched
   // asynchronously, so a timer-based flag could reset before the event arrived

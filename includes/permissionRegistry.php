@@ -23,6 +23,8 @@
 // Copyright (c) 2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20260916 Sawaneh Central registry of permission keys (spec R1), their mapping to the legacy
+// 20261009 Sawaneh Oversigt keys (front-page addendum 4): dashboard.view + dashboard.block.* as read-only keys in a group of their own,
+//                  first in the matrix, derived from the module keys ('derive_keys'); standard-role defaults per addendum §4.
 //                  16-position rettigheder string, and the built-in default roles (R3).
 //                  Same pattern as systemdata/settingsRegistry.php: one place to maintain.
 // 20260928 Sawaneh pos.kasse key (own group) so point-of-sale access is granted per role.
@@ -53,6 +55,21 @@ function permission_registry(): array
 		return $registry;
 	}
 	$registry = array(
+		// Oversigt (front-page addendum 4, 2026-10-09): may the role see the front page, and which blocks. Read-only keys;
+		// the block keys derive from the module keys ('derive_keys': read when any of them is open) when a role is created,
+		// seeded or reset. dashboard.view is granted to every existing role at upgrade.
+		'dashboard.view'                    => array('group' => 'dashboard', 'label' => '7066|Se Oversigt',              'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('*')),
+		'dashboard.block.kpis'              => array('group' => 'dashboard', 'label' => '2158|Nøgletal',                 'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.rapporter', 'debitor.rapporter'), 'block' => true),
+		'dashboard.block.unpaid_invoices'   => array('group' => 'dashboard', 'label' => '7032|Ubetalte salgsfakturaer',  'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.konti', 'debitor.rapporter'), 'block' => true),
+		'dashboard.block.revgraph'          => array('group' => 'dashboard', 'label' => '6928|Omsætning pr. måned',      'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.rapporter', 'debitor.rapporter'), 'block' => true),
+		'dashboard.block.customergraph'     => array('group' => 'dashboard', 'label' => '6951|Kunder pr. time',          'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.rapporter'), 'block' => true),
+		'dashboard.block.revweek'           => array('group' => 'dashboard', 'label' => '6955|Omsætning pr. dag',        'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.rapporter', 'debitor.rapporter'), 'block' => true),
+		'dashboard.block.varegrp_doughnut'  => array('group' => 'dashboard', 'label' => '6960|Omsætning pr. varegruppe', 'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.rapporter', 'lager.rapporter'), 'block' => true),
+		'dashboard.block.small'             => array('group' => 'dashboard', 'label' => '7059|Små tal',                  'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.ordre'), 'block' => true),
+		'dashboard.block.suggestions'       => array('group' => 'dashboard', 'label' => '6968|Forslag klar til bekræftelse', 'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.kassekladde'), 'block' => true),
+		'dashboard.block.expiry'            => array('group' => 'dashboard', 'label' => '7067|Batch-/udløbsadvarsel',    'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('lager.varer', 'lager.rapporter'), 'block' => true),
+		'dashboard.block.news'              => array('group' => 'dashboard', 'label' => '7068|Nyhedsbanner',              'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('*'), 'block' => true),
+
 		'finans.kassekladde'     => array('group' => 'finans',   'label' => '601|Kassekladde',         'legacy' => array(2),  'dangerous' => false),
 		'finans.regnskab'        => array('group' => 'finans',   'label' => '322|Regnskab',            'legacy' => array(3),  'dangerous' => false),
 		'finans.rapporter'       => array('group' => 'finans',   'label' => '895|Finansrapport',       'legacy' => array(4),  'dangerous' => false),
@@ -113,6 +130,7 @@ function permission_registry(): array
 function permission_groups(): array
 {
 	return array(
+		'dashboard' => '2224|Oversigt',
 		'finans'   => '600|Finans',
 		'debitor'  => '604|Debitor',
 		'kreditor' => '607|Kreditorer',
@@ -135,11 +153,17 @@ function permission_default_roles(): array
 	$allWrite = array();
 	$legacyRead = array();
 	foreach (permission_registry() as $key => $def) {
-		$allWrite[$key] = 'write';
+		$allWrite[$key] = !empty($def['readonly']) ? 'read' : 'write';
 		if ($def['legacy']) {
 			$legacyRead[$key] = 'read';
 		}
 	}
+	// Oversigt per standard role (front-page addendum 4 §4, approved 2026-10-09).
+	$dashAll = array('dashboard.view' => 'read', 'dashboard.block.kpis' => 'read', 'dashboard.block.unpaid_invoices' => 'read', 'dashboard.block.revgraph' => 'read', 'dashboard.block.customergraph' => 'read',
+		'dashboard.block.revweek' => 'read', 'dashboard.block.varegrp_doughnut' => 'read', 'dashboard.block.small' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
+	$dashSalg = array('dashboard.view' => 'read', 'dashboard.block.unpaid_invoices' => 'read', 'dashboard.block.customergraph' => 'read', 'dashboard.block.varegrp_doughnut' => 'read', 'dashboard.block.small' => 'read', 'dashboard.block.news' => 'read');
+	$dashIndkoeb = array('dashboard.view' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
+	$legacyRead += $dashAll;
 	return array(
 		'administrator' => array(
 			'label'       => '330|Administrator',
@@ -158,7 +182,7 @@ function permission_default_roles(): array
 				'debitor.konti' => 'write', 'debitor.rapporter' => 'write',
 				'kreditor.konti' => 'write', 'kreditor.rapporter' => 'write',
 				'debitor.ordre' => 'read', 'kreditor.ordre' => 'read',
-			),
+			) + $dashAll + array('dashboard.block.suggestions' => 'read'),
 		),
 		'salg' => array(
 			'label'       => '5544|Salg',
@@ -166,7 +190,7 @@ function permission_default_roles(): array
 			'levels'      => array(
 				'debitor.ordre' => 'write', 'debitor.konti' => 'write', 'debitor.rapporter' => 'write',
 				'lager.varer' => 'read', 'pos.kasse' => 'write',
-			),
+			) + $dashSalg,
 		),
 		'indkoeb' => array(
 			'label'       => '5545|Indkøb',
@@ -174,7 +198,7 @@ function permission_default_roles(): array
 			'levels'      => array(
 				'kreditor.ordre' => 'write', 'kreditor.konti' => 'write', 'kreditor.rapporter' => 'write',
 				'lager.varemodtagelse' => 'write', 'lager.varer' => 'read',
-			),
+			) + $dashIndkoeb,
 		),
 		'lager' => array(
 			'label'       => '608|Lager',
@@ -195,7 +219,7 @@ function permission_default_roles(): array
 			'levels'      => array(
 				'finans.kassekladde' => 'read', 'finans.regnskab' => 'read', 'finans.rapporter' => 'read',
 				'system.kontoplan' => 'read', 'debitor.rapporter' => 'read', 'kreditor.rapporter' => 'read',
-			),
+			) + $dashAll,
 		),
 	);
 }

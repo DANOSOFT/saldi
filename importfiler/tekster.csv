@@ -6700,6 +6700,11 @@
 7063	1 dag over	1 day overdue	1 dag over
 7064	om 1 dag	in 1 day	om 1 dag
 7065	Åbn %s	Open %s	Åpne %s
+7066	Se Oversigt	See Overview	Se Oversikt
+7067	Batch-/udløbsadvarsel	Batch/expiry warning	Batch-/utløpsvarsel
+7068	Nyhedsbanner	News banner	Nyhetsbanner
+7069	Kræver Se Oversigt	Requires See Overview	Krever Se Oversikt
+7070	Brugeren kan se tallene her, men ikke åbne rapporten bag.	The user can see the figures here but not open the report behind them.	Brukeren kan se tallene her, men ikke åpne rapporten bak.
 6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
 6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
 6932	Adgang nægtet	Access denied	Ingen tilgang

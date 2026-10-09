@@ -123,6 +123,7 @@ ob_end_flush();
 // 20260930 Sawaneh Roles stage 2 (§7.2): audit log with filters, search, pages and CSV export; Roles tab behind
 //                  settings.roles.manage, Log tab behind settings.audit.read.
 // 20261008 Sawaneh SD-657 (from master's brugere.php): losing the Indstillinger right on save switches hideRevenue on.
+// 20261009 Sawaneh Read-only Oversigt keys (addendum 4) are clamped to read when the matrix is saved.
 
 // ================================================================== controller
 
@@ -460,6 +461,9 @@ function ur_levels_from_post(array $post): array
 	$posted = isset($post['level']) && is_array($post['level']) ? $post['level'] : array();
 	foreach (permission_registry() as $key => $def) {
 		$levels[$key] = isset($posted[$key]) ? perm_level_valid((string) $posted[$key]) : 'none';
+		if ($levels[$key] === 'write' && !empty($def['readonly'])) {
+			$levels[$key] = 'read';
+		}
 	}
 	return $levels;
 }

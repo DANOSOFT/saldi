@@ -38,6 +38,7 @@
 // 20261001 Sawaneh Messages for a user above the actor's own access and for an expired form (CSRF); the Administrator
 //                  role's users and roles rows cannot be lowered.
 // 20261002 Sawaneh The page tells the shell its breadcrumb trail (settings redesign §8.0).
+// 20261009 Sawaneh Oversigt group (front-page addendum 4 §3): block rows under Se Oversigt, disabled while it is off, read-only radios, module note.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -526,10 +527,10 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
           	$own = isset($vm['ownLevels'][$key]) ? $vm['ownLevels'][$key] : 'none';
           	$adminLock = ($role['key'] === 'administrator' && in_array($key, UR_ADMIN_LOCKED, true));
           ?>
-          <div class="ur-prow"<?= $adminLock ? ' title="' . $t('5971|Administrator-rollen beholder altid adgang til brugere og roller') . '"' : '' ?>>
-            <b><?= $t($def['label']) ?><?php if ($def['dangerous']) { ?> <i class='bx bx-lock-alt ur-mut'></i><?php } ?></b>
+          <div class="ur-prow<?= !empty($def['block']) ? ' ur-prow-block' : '' ?>"<?= $adminLock ? ' title="' . $t('5971|Administrator-rollen beholder altid adgang til brugere og roller') . '"' : '' ?><?= !empty($def['derive_keys']) ? ' data-derive="' . $h(implode(',', $def['derive_keys'])) . '"' : '' ?>>
+            <b><?= $t($def['label']) ?><?php if ($def['dangerous']) { ?> <i class='bx bx-lock-alt ur-mut'></i><?php } ?><?php if (!empty($def['block'])) { ?> <small class="ur-mut ur-block-hint" hidden><?= $t('7070|Brugeren kan se tallene her, men ikke åbne rapporten bag.') ?></small><small class="ur-mut ur-block-needs" hidden><?= $t('7069|Kræver Se Oversigt') ?></small><?php } ?></b>
             <?php foreach (array('none', 'read', 'write') as $opt) {
-            	$locked = ($rank[$opt] > $rank[$own]) || ($adminLock && $opt !== 'write');
+            	$locked = ($rank[$opt] > $rank[$own]) || ($adminLock && $opt !== 'write') || ($opt === 'write' && !empty($def['readonly']));
             ?>
             <span class="ur-lv"><input type="radio" name="level[<?= $h($key) ?>]" value="<?= $opt ?>" aria-label="<?= $t($def['label']) ?>: <?= $h(perm_level_label($opt, $vm['sprogId'])) ?>"<?= $level === $opt ? ' checked' : '' ?><?= ($locked || !$write) ? ' disabled' : '' ?>></span>
             <?php } ?>
@@ -685,6 +686,21 @@ function ur_view_script(array $vm): void
 {
 	?>
 <script>
+	/* Oversigt (front-page addendum 4 §3): the block rows need Se Oversigt; a block without its module key gets a note. */
+	window.urDashRows = function () {
+		var first = document.querySelector('.ur-prow-block'), form = first && first.closest('form'); if (!form) return;
+		var lv = function (k) { var c = form.querySelector('input[name="level[' + k + ']"]:checked'); return c ? c.value : 'none'; };
+		var viewOn = lv('dashboard.view') !== 'none';
+		form.querySelectorAll('.ur-prow-block').forEach(function (row) {
+			row.classList.toggle('ur-prow-off', !viewOn);
+			var needs = row.querySelector('.ur-block-needs'); if (needs) needs.hidden = viewOn;
+			row.querySelectorAll('input[type="radio"]').forEach(function (r) { if (!r.dataset.lockedByOwn) r.dataset.lockedByOwn = r.disabled ? '1' : '0'; r.disabled = r.dataset.lockedByOwn === '1' || !viewOn; });
+			var hint = row.querySelector('.ur-block-hint'), from = (row.dataset.derive || '').split(',').filter(Boolean), on = row.querySelector('input[type="radio"]:checked');
+			if (hint) { var rowOn = viewOn && on && on.value !== 'none'; var anyModule = from.indexOf('*') >= 0 || from.some(function (k) { return lv(k) !== 'none'; }); hint.hidden = !(rowOn && !anyModule); }
+		});
+	};
+	document.addEventListener('change', function (e) { if (e.target && e.target.name && e.target.name.indexOf('level[') === 0) window.urDashRows(); });
+	window.urDashRows();
 (function () {
 	// ---------------------------------------------------------------- dialog
 	var dlg = document.getElementById('ur-dlg');
@@ -903,6 +919,8 @@ function ur_view_script(array $vm): void
 	document.querySelectorAll('[data-all-write]').forEach(function (b) {
 		b.addEventListener('click', function () {
 			b.closest('[data-grp]').querySelectorAll('input[type="radio"][value="write"]:not(:disabled)').forEach(function (r) { r.checked = true; });
+			b.closest('[data-grp]').querySelectorAll('.ur-prow-block input[type="radio"][value="read"]:not(:disabled)').forEach(function (r) { r.checked = true; });
+			if (window.urDashRows) window.urDashRows();
 		});
 	});
 })();

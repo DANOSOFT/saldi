@@ -35,6 +35,7 @@
 // 20261001 Sawaneh Review fixes: the migration leaves users without a rights string alone and never rewrites a
 //                  rights string; booleans written as true/false (MySQL); custom roles get no audit log;
 //                  notification check per database; one review flag per user (unique index on settings).
+// 20261009 Sawaneh Oversigt keys (addendum 4): 'derive_keys' resolution for users without a role and at seeding (built-in roles too), read-only clamp.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 
@@ -101,9 +102,13 @@ function perm_levels_from_legacy(string $rettigheder): array
 	$levels = array();
 	$settingsBit = substr($rettigheder, 1, 1);
 	$settingsLevel = ($settingsBit === '1') ? 'write' : (($settingsBit === '2') ? 'read' : 'none');
+	$derived = array();
 	foreach (permission_registry() as $key => $def) {
 		if (!$def['legacy']) {
-			if (isset($def['derive'])) {
+			if (isset($def['derive_keys'])) {
+				$derived[$key] = $def['derive_keys'];
+				$levels[$key] = 'none';
+			} elseif (isset($def['derive'])) {
 				$c = substr($rettigheder, (int) $def['derive'], 1);
 				$levels[$key] = ($c === '1') ? 'write' : (($c === '2') ? 'read' : 'none');
 			} else {
@@ -122,7 +127,27 @@ function perm_levels_from_legacy(string $rettigheder): array
 		}
 		$levels[$key] = $best;
 	}
+	// Keys derived from other keys (Oversigt blocks): read when any of them is open; '*' = always (everyone sees Oversigt today).
+	foreach ($derived as $key => $from) {
+		$levels[$key] = perm_derive_level($from, $levels);
+	}
 	return $levels;
+}
+
+/**
+ * The level a derived key gets from the keys it follows: 'read' when any of them is open, '*' meaning always.
+ *
+ * @param array<int, string> $from
+ * @param array<string, string> $levels
+ */
+function perm_derive_level(array $from, array $levels): string
+{
+	foreach ($from as $k) {
+		if ($k === '*' || (isset($levels[$k]) && $levels[$k] !== 'none')) {
+			return 'read';
+		}
+	}
+	return 'none';
 }
 
 /**
@@ -446,6 +471,9 @@ function perm_save_role_levels(int $roleId, array $levels): void
 	db_modify("delete from role_permissions where role_id = $roleId", __FILE__ . " linje " . __LINE__);
 	foreach (permission_registry() as $key => $def) {
 		$level = isset($levels[$key]) ? perm_level_valid($levels[$key]) : 'none';
+		if ($level === 'write' && !empty($def['readonly'])) {
+			$level = 'read'; // Oversigt keys are read-only (addendum 4 §2.4)
+		}
 		if ($level !== 'none') {
 			db_modify("insert into role_permissions (role_id, permission_key, level) values ($roleId, '" . db_escape_string($key) . "', '$level')", __FILE__ . " linje " . __LINE__);
 		}
@@ -535,6 +563,7 @@ function perm_ensure_default_roles(): void
 		return;
 	}
 	$existing = array();
+	$fresh = array();
 	foreach (perm_roles() as $role) {
 		if ($role['key'] !== '') {
 			$existing[$role['key']] = $role['id'];
@@ -544,6 +573,7 @@ function perm_ensure_default_roles(): void
 		if (isset($existing[$key])) {
 			continue;
 		}
+		$fresh[$key] = true;
 		$navn = db_escape_string(explode('|', $def['label'], 2)[1]);
 		$beskrivelse = db_escape_string(explode('|', $def['beskrivelse'], 2)[1]);
 		db_modify("insert into roles (role_key, navn, beskrivelse, system) values ('$key', '$navn', '$beskrivelse', true)", __FILE__ . " linje " . __LINE__);
@@ -556,7 +586,7 @@ function perm_ensure_default_roles(): void
 			$existing[$key] = $roleId;
 		}
 	}
-	perm_seed_new_keys($existing);
+	perm_seed_new_keys($existing, $fresh);
 	if (isset($existing['administrator'])) {
 		$adminId = (int) $existing['administrator'];
 		db_modify("update brugere set role_id = $adminId where (role_id is null or role_id = 0) and rettigheder = '1111111111111111'", __FILE__ . " linje " . __LINE__);
@@ -571,7 +601,7 @@ function perm_ensure_default_roles(): void
  *
  * @param array<string, int> $existing role_key => id of the built-in roles
  */
-function perm_seed_new_keys(array $existing): void
+function perm_seed_new_keys(array $existing, array $fresh = array()): void
 {
 	$r = db_fetch_array(db_select("select id, var_value from settings where var_grp = 'permissions' and var_name = 'known_keys'", __FILE__ . " linje " . __LINE__));
 	$known = $r ? array_filter(explode(',', (string) $r['var_value'])) : array();
@@ -609,8 +639,17 @@ function perm_seed_new_keys(array $existing): void
 		foreach (perm_roles() as $role) {
 			$levels = perm_levels_from_role($role['id']);
 			foreach ($new as $key) {
+				// A role that already holds the key (a company created with it in the defaults) keeps what it has.
+				if (db_fetch_array(db_select("select permission_key from role_permissions where role_id = " . (int) $role['id'] . " and permission_key = '" . db_escape_string($key) . "'", __FILE__ . " linje " . __LINE__))) {
+					continue;
+				}
 				$level = 'none';
-				if (isset($builtIn[$role['id']]) && isset($defaults[$builtIn[$role['id']]]['levels'][$key])) {
+				$freshBuiltIn = isset($builtIn[$role['id']]) && isset($fresh[$builtIn[$role['id']]]);
+				if (isset($registry[$key]['derive_keys']) && !$freshBuiltIn) {
+					// Oversigt blocks at upgrade (addendum 4 §5): derived from the role's module keys, built-in roles too, so nobody
+					// loses a block. A built-in role created in this run (a new company) takes the §4 table below instead.
+					$level = perm_derive_level($registry[$key]['derive_keys'], $levels);
+				} elseif (isset($builtIn[$role['id']]) && isset($defaults[$builtIn[$role['id']]]['levels'][$key])) {
 					$level = $defaults[$builtIn[$role['id']]]['levels'][$key];
 				} elseif (!isset($builtIn[$role['id']]) && isset($registry[$key]['derive']) && isset($legacyKeyOf[$registry[$key]['derive']])) {
 					$level = $levels[$legacyKeyOf[$registry[$key]['derive']]];

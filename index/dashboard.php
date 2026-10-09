@@ -39,6 +39,7 @@
 //                  (light/dark); "Rediger oversigt" is a drawer whose choices are per user and saved at once; the numbers
 //                  come from dashboardIncludes/dashData.php. Texts 6920-6929, 6944-6949, 6951-6999.
 // 20261009 Sawaneh Front page on prototype v8.13 (addendum 3): blocks in the user's order (settings dashboard_layout/order), the KPI band, Ubetalte salgsfakturaer (§5.9), Ufakturerede ordrer with the largest order, the suggestions list, 'Ingen omsætning endnu'. Texts 7032-7065.
+// 20261009 Sawaneh Oversigt access keys (front-page addendum 4): dashboard.view gates the page, dashboard.block.* the blocks and the drawer.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -185,8 +186,24 @@ $vatRegistration = vat_registration();
 if (!$vatRegistration['registered']) {
 	$widgets['vatcount'] = false;
 }
-// Who may see which block (§5.9.5 for the unpaid card; the role keys of addendum 4 plug in here).
-$blockAccess = array('unpaid_invoices' => check_permissions(array(6, 12)));
+// Who may see which block: the role keys of front-page addendum 4 (derived from the module keys for users without a role),
+// the unpaid card also needs the Debitorkonti/Debitorrapport rights (§5.9.5).
+$dashKey = function (string $id): bool { return !function_exists('perm_can') || perm_can('dashboard.block.' . $id); };
+$blockAccess = array();
+foreach ($blockDefaults as $bid) {
+	$blockAccess[$bid] = $dashKey($bid) && ($bid !== 'unpaid_invoices' || check_permissions(array(6, 12)));
+}
+if (!$dashKey('suggestions')) {
+	$widgets['suggest'] = false;
+	$widgetDefaults['suggest'] = 'off';
+}
+// Se Oversigt (addendum 4 §2.1): refused once enforcement is on, logged while it only observes.
+if (function_exists('perm_can') && !perm_can('dashboard.view')) {
+	if (perm_enforcement_mode() === 'deny') {
+		perm_refuse('dashboard.view (read)', '/index/dashboard.php');
+	}
+	perm_log_once('would_deny', 'dashboard.view /index/dashboard.php');
+}
 $blockOrder = dash_order($brugerId, $blockDefaults);
 
 $h = function ($s) use ($charset) {
@@ -397,6 +414,9 @@ $blockList = array(
 		array('ordercount', $u8($tx('2161|Ufakturerede ordrer')), $u8($tx('6982|Ordrer fra de sidste 30 dage'))),
 		array('suggest', $u8($tx('6968|Forslag klar til bekræftelse')), $u8($tx('6969|Notifikationer med forslag, der venter på dig'))))),
 );
+if (!$dashKey('suggestions')) {
+	$blockList[6]['items'] = array_values(array_filter($blockList[6]['items'], function ($it) { return $it[0] !== 'suggest'; }));
+}
 $blockList = array_values(array_filter($blockList, function ($b) use ($blockAccess) { return !isset($blockAccess[$b['id']]) || $blockAccess[$b['id']]; }));
 $donutItems = array();
 foreach ($data['donut']['items'] as $it) {
