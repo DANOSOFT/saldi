@@ -30,6 +30,7 @@
 // 20261008 Sawaneh Settings decision 20: old discount rows (G3.5) - group names by the old page's positions, the value,
 //                  and the per-row Overfør; row_locked 'always'.
 // 20261008 Sawaneh SST-769 from master: with Gem kurs uden bogføring the rate is saved and no adjustment is posted.
+// 20261009 Sawaneh Slet med data is refused while the year has stock movements (decision 22: no re-basing rule yet).
 
 // ---------------------------------------------------------------- fiscal years (grupper art RA)
 
@@ -120,6 +121,15 @@ function settings_fy_archive_refusal(array $raw): string
 	$n = settings_fy_count("select count(*) as n from brugere where cast(regnskabsaar as text) = '$k'");
 	if ($n) {
 		return sprintf(st_txt(6567), $n);
+	}
+	// Decision 22 (2026-10-09): stock re-basing after a delete has no rule yet, so a year with stock movements stays.
+	list($s, $e) = settings_fy_dates($raw);
+	$s = db_escape_string((string) $s);
+	$e = db_escape_string((string) $e);
+	$moves = settings_fy_count("select count(*) as n from batch_kob where (fakturadate between '$s' and '$e') or (fakturadate is null and kobsdate between '$s' and '$e')")
+		+ settings_fy_count("select count(*) as n from batch_salg where (fakturadate between '$s' and '$e') or (fakturadate is null and salgsdate between '$s' and '$e')");
+	if ($moves) {
+		return sprintf(st_txt(7023), $moves);
 	}
 	return '';
 }

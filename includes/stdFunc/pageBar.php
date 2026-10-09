@@ -24,8 +24,37 @@
 // 20261008 Sawaneh Migrated pages follow the theme: html.saldi-dark (css/saldi-theme.css) while the theme is dark.
 // 20261009 Sawaneh Asset links via get_relative(): pages two levels down (lager/lister) got no CSS.
 // 20261009 Sawaneh 'extra' html among the actions for the open-post mode select (rapportfunc).
+// 20261009 Sawaneh The gear (settings section for the page) is the last element of the page toolbar (decision 22, addendum 2 §5).
 
 if (!function_exists('page_bar')):
+
+/**
+ * The gear for this page (settings spec §8.11, addendum 2 §5): the settings section whose context names the page, with a
+ * way back. null when no section governs the page or the user may not read it.
+ *
+ * @return array{href: string, label: string}|null
+ */
+function page_bar_gear(string $title): ?array
+{
+	include_once(__DIR__ . '/pageChrome.php');
+	include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
+	if (!function_exists('settings_context_links') || !function_exists('page_route_key')) {
+		return null;
+	}
+	$page = page_route_key();
+	if ($page === '') {
+		return null;
+	}
+	$map = settings_context_links((int) $GLOBALS['sprog_id']);
+	if (empty($map[$page])) {
+		return null;
+	}
+	$link = $map[$page][0];
+	$back = '/' . $page . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '');
+	$href = str_repeat('../', substr_count($page, '/')) . ltrim((string) $link['url'], '/') . '&back=' . rawurlencode($back)
+		. ($title !== '' ? '&back_label=' . rawurlencode(mb_substr($title, 0, 60)) : '');
+	return array('href' => $href, 'label' => (string) $link['label']);
+}
 
 /**
  * Print the page head. $o: 'title', 'tabs' => [['label', 'href', on(bool)], ...], 'actions' => [['label', 'href', icon class,
@@ -85,6 +114,10 @@ function page_bar(array $o): void
 		} else {
 			print "<a class='pg-btn' href='" . $h($p[1]) . "'$key>+ " . $h($p[0]) . "</a>";
 		}
+	}
+	$gear = page_bar_gear($title);
+	if ($gear) {
+		print "<a class='pg-act pg-gear' href='" . $h($gear['href']) . "' title='" . $h($gear['label']) . "' aria-label='" . $h($gear['label']) . "'><i class='bx bx-cog'></i></a>";
 	}
 	print "</span></div></div>";
 }

@@ -84,6 +84,7 @@
 //                  G6.4, and "Gem kurs uden bogføring" (SST-769) as 'confirm_skip' on the currency rates.
 // 20261008 Sawaneh personal.profile.theme: light, dark or system (prototype_dashboard_tema v5), settings ui/theme per user.
 // 20261009 Sawaneh 4e: personal.documents.auto_extract and personal.ui.sidebar_closed replace the autoExtract/isSidebarOpen cookies.
+// 20261009 Sawaneh pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -1627,6 +1628,9 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('grupper', 'VK', (string) $kodenr, 'box5', 'raw', 'row_name' => $code, 'join' => "\t", 'list' => true), 'legacy' => $pos);
 			$defs['pos.tills.currency_difference_' . $kodenr] = array('sub' => 'tills', 'type' => 'account', 'label' => 6282, 'help' => 6338, 'per' => 'till', 'group_label' => array(6336, $code),
 				'storage' => array('grupper', 'VK', (string) $kodenr, 'box6', 'raw', 'row_name' => $code, 'join' => "\t", 'list' => true), 'legacy' => $pos);
+			// Decision 22 (2026-10-09): the till account per currency has its own key per till; VK box4 stays the "used in till" flag.
+			$defs['pos.tills.currency_account_' . $kodenr] = array('sub' => 'tills', 'type' => 'account', 'label' => 7027, 'help' => 7028, 'per' => 'till', 'group_label' => array(6336, $code), 'scope' => 'pos',
+				'storage' => array('settings', 'VK', 'till_account_' . $code, 'raw'), 'legacy' => $pos);
 		}
 		// G10.6: KDS colours by waiting time, one settings row color_<n> = "<minutes>-<#rrggbb>" per colour, plus one empty slot.
 		foreach (settings_kds_colour_slots() as $i) {

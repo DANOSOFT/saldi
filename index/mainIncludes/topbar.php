@@ -41,6 +41,8 @@
 // 20261002 Sawaneh Breadcrumb element in the left side, filled by the shell on settings pages (settings redesign §8.0).
 // 20261008 Sawaneh Tema (Lys / Mørk / System) as a segment in the chip menu, prototype_dashboard_tema v5.
 // 20261008 Sawaneh Sagsstyring in the chip menu, only for companies with the module (prototype_dashboard_tema v5).
+// 20261009 Sawaneh The Lys/Mørk/System row waits for round 2 (settings decision 23): shown only with SALDI_THEME_CHOICE.
+// 20261009 Sawaneh The gear left the bar for the page toolbar (page_bar, decision 22 / addendum 2 §5).
 
 /**
  * Sessions in the master `online` table that belong to the caller's company and
@@ -343,7 +345,6 @@ function topbar_render(array $ctx, int $sprogId): void
 		'min' => topbar_utf8(findtekst('6462|opdateret for %s min. siden', $sprogId)),
 	), JSON_UNESCAPED_UNICODE)) ?>" hidden><b id="topbar-hello-greet"></b><span class="topbar-hello-line"><i class="topbar-hello-dot" aria-hidden="true"></i><span id="topbar-hello-date"></span> · <span id="topbar-hello-upd"></span></span></div>
     <nav class="topbar-crumb" id="topbar-crumb" aria-label="<?= $t('6015|Du er her') ?>" data-company="<?= topbar_h($ctx['company']) ?>" hidden></nav>
-    <a class="topbar-gear" id="topbar-gear" href="#" title="<?= $t('6392|Indstillinger for denne side') ?>" aria-label="<?= $t('6392|Indstillinger for denne side') ?>" data-map="<?= topbar_h(json_encode(function_exists('settings_context_links') ? settings_context_links((int) $ctx['langId']) : array(), JSON_UNESCAPED_UNICODE)) ?>" hidden><i class='bx bx-cog' aria-hidden="true"></i></a>
     <span class="topbar-spacer"></span>
     <div class="topbar-cluster" id="topbar-cluster">
 
@@ -430,6 +431,7 @@ function topbar_render(array $ctx, int $sprogId): void
           <?php } ?>
 
           <?php $uiThemeNow = isset($GLOBALS['uiTheme']) ? (string) $GLOBALS['uiTheme'] : 'light'; ?>
+          <?php if (defined('SALDI_THEME_CHOICE') && SALDI_THEME_CHOICE) { // round 2 (decision 23) ?>
           <div class="topbar-pop-row topbar-theme">
             <span class="topbar-pop-lab"><i class='bx bx-palette'></i><?= $t('1075|Tema') ?></span>
             <div class="topbar-seg" role="group" aria-label="<?= $t('1075|Tema') ?>">
@@ -438,6 +440,7 @@ function topbar_render(array $ctx, int $sprogId): void
               <button type="button" data-theme-opt="system" aria-pressed="<?= $uiThemeNow === 'system' ? 'true' : 'false' ?>" onclick="topbarThemeSet('system')"><i class='bx bx-desktop'></i><?= $t('2377|System') ?></button>
             </div>
           </div>
+          <?php } ?>
 
           <div class="topbar-pop-section topbar-dash" hidden><?= $t('2224|Oversigt') ?></div>
           <button type="button" class="topbar-pop-item topbar-dash" role="menuitem" data-dash-hide="1" onclick="topbarDashHide()" hidden><i class='bx <?= $ctx['dashHidden'] ? 'bx-show' : 'bx-hide' ?>'></i><span class="topbar-dash-hide-label"><?= $ctx['dashHidden'] ? $t('5604|Vis oversigt') : $t('5603|Skjul oversigt') ?></span></button>

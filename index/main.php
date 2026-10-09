@@ -73,6 +73,7 @@
 // 20261009 Sawaneh topbarThemeSet() also writes the saldi_theme cookie (auditor/master-admin sessions have no settings row).
 // 20261009 Sawaneh Sidebar open/closed is a personal setting rendered server-side (was the isSidebarOpen cookie, 4e).
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
+// 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
 @session_start();
 $s_id = session_id();
 
@@ -476,7 +477,6 @@ function brightenColor($color, $amount = 0.2) {
       topbarSetDashState(this.contentWindow.location.pathname);
       topbarFrameLoaded(this.contentWindow);
       topbarSearchBindFrame(this.contentWindow);
-      topbarSetGear(this.contentWindow);
       console.log('Locaiton', this.contentWindow.document.location.href);
       trigger_iframe_load();
       stopLoading();
@@ -923,25 +923,6 @@ function brightenColor($color, $amount = 0.2) {
     if (topbarAssistPage().help.shortcuts) { e.preventDefault(); topbarAssistRun('shortcuts'); }
   }
   document.addEventListener('keydown', topbarAssistKeys);
-  // Gear in the sub-bar (settings redesign §8.11): shown when a settings section names the page in the frame
-  // (data-map from the registry, already filtered by the user's permissions); opens it with a way back.
-  function topbarSetGear(win) {
-    const gear = document.getElementById('topbar-gear');
-    if (!gear) return;
-    let map = {};
-    try { map = JSON.parse(gear.dataset.map || '{}'); } catch (e) { map = {}; }
-    const root = window.location.pathname.replace(/\/index\/main\.php$/, '');
-    let page = '', search = '';
-    try { page = win.location.pathname; search = win.location.search || ''; } catch (e) { page = ''; }
-    if (page.indexOf(root + '/') === 0) { page = page.slice(root.length + 1); }
-    const links = map[page];
-    if (!links || !links.length) { gear.hidden = true; return; }
-    gear.hidden = false;
-    gear.title = links[0].label;
-    let title = '';
-    try { title = String(win.document.title || '').replace(/^Saldi\s*-\s*/, '').trim().slice(0, 60); } catch (e) { title = ''; }
-    gear.onclick = (e) => { e.preventDefault(); update_iframe(links[0].url + '&back=' + encodeURIComponent('/' + page + search) + (title ? '&back_label=' + encodeURIComponent(title) : '')); };
-  }
   // Greeting on Oversigt (topbar addendum 2026-09-30 §3): only on the front page; "opdateret" counts from when the
   // front page was loaded. Line 2 goes first when space is short, then the whole greeting (CSS).
   let topbarHelloLoaded = 0, topbarHelloTimer = null;

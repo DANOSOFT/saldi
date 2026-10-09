@@ -78,6 +78,9 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 if (!isset($buttonColor))    $buttonColor = '#114691';
 if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
 if (!isset($uiTheme))        $uiTheme = 'light';
+// Settings spec decision 23 (2026-10-09): no dark mode in round 1 - the theme choice is hidden and every page renders
+// light. Set to true in round 2 (the dark tokens and the chip/personal-settings controls are kept behind it).
+if (!defined('SALDI_THEME_CHOICE')) define('SALDI_THEME_CHOICE', false);
 if (!isset($nextver))        $nextver = 0;
 if (!isset($useSettings))    $useSettings = '';
 
@@ -96,6 +99,7 @@ $relativePath = str_repeat('../', max(0, $slashCount - 2));
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh $uiTheme (settings ui/theme per user: light, dark or system) read with the colours and printed on <html data-theme>.
 // 20261009 Sawaneh $uiTheme falls back to the saldi_theme cookie (auditor/master-admin sessions have no settings row).
+// 20261009 Sawaneh SALDI_THEME_CHOICE (false in round 1, decision 23): the theme choice is hidden and $uiTheme stays light.
 date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
 $r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
@@ -348,11 +352,13 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			}
 			// The user's theme (Lys / Mørk / System, prototype_dashboard_tema v5): every page gets it on <html data-theme>;
 			// pages built on the Saldi tokens (css/saldi-theme.css) follow it, older pages ignore it.
-			$qtxt = "select var_value from settings where var_name = 'theme' and var_grp = 'ui' and user_id = '$bruger_id'";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				if (in_array(trim((string) $r['var_value']), array('light', 'dark', 'system'), true)) $uiTheme = trim((string) $r['var_value']);
-			} elseif (isset($_COOKIE['saldi_theme']) && in_array($_COOKIE['saldi_theme'], array('light', 'dark', 'system'), true)) {
-				$uiTheme = $_COOKIE['saldi_theme']; // auditor/master-admin sessions have no user row: the chip's choice lives in the cookie
+			if (SALDI_THEME_CHOICE) {
+				$qtxt = "select var_value from settings where var_name = 'theme' and var_grp = 'ui' and user_id = '$bruger_id'";
+				if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					if (in_array(trim((string) $r['var_value']), array('light', 'dark', 'system'), true)) $uiTheme = trim((string) $r['var_value']);
+				} elseif (isset($_COOKIE['saldi_theme']) && in_array($_COOKIE['saldi_theme'], array('light', 'dark', 'system'), true)) {
+					$uiTheme = $_COOKIE['saldi_theme']; // auditor/master-admin sessions have no user row: the chip's choice lives in the cookie
+				}
 			}
 		}
 		$textcolor = "#000077";

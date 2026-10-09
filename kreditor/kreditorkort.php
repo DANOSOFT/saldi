@@ -37,6 +37,7 @@
 //                  sanitised and encoded, one confirm text for every Tilbage, the junk dialog text and the broken S-menu Ny link fixed.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The card on the new page head (page_bar): title, Ny kreditor as the primary button.
+// 20261009 Sawaneh The record (kontonr + name, or Nyt kreditorkort) as the last breadcrumb level (decision 22).
 
 
 @session_start();
@@ -243,11 +244,13 @@ print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" class='dataTable
 
 
 
+if ($menu == 'S' && $id <= 0 && function_exists('page_record')) print page_record(findtekst('7025|Nyt kreditorkort', $sprog_id));
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
 	$kontonr = trim($r['kontonr']);
 	$firmanavn = htmlentities(trim($r['firmanavn']), ENT_COMPAT, $charset);
+	if ($menu == 'S' && function_exists('page_record')) print page_record(trim($kontonr . ' ' . $firmanavn));
 	$addr1 = htmlentities(trim($r['addr1']), ENT_COMPAT, $charset);
 	$addr2 = htmlentities(trim($r['addr2']), ENT_COMPAT, $charset);
 	$postnr = trim($r['postnr']);

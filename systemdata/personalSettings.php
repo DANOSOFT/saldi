@@ -38,6 +38,7 @@
 // 20261002 Sawaneh Print card: print to local printer is a personal setting (settings redesign G6.4), not a cookie.
 // 20261008 Sawaneh Tema (light / dark / system) under Udseende, stored as personal.profile.theme (settings ui/theme).
 // 20261009 Sawaneh 4e: auto-extract of invoice data (was the autoExtract cookie) saved here as a personal setting.
+// 20261009 Sawaneh The theme field waits for round 2 (settings decision 23): shown and saved only with SALDI_THEME_CHOICE.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -208,7 +209,7 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 
 		// Moved here from Ordrerelaterede valg: it was always a per-user choice (settings redesign spec §4).
 		$theme = isset($post['theme']) && in_array($post['theme'], array('light', 'dark', 'system'), true) ? (string) $post['theme'] : 'light';
-		if ($theme !== $current['theme']) {
+		if (defined('SALDI_THEME_CHOICE') && SALDI_THEME_CHOICE && $theme !== $current['theme']) {
 			SettingsService::save('personal.profile.theme', $theme, $brugerId);
 			$reloadShell = true;
 		}
@@ -595,6 +596,7 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
           <span class="ps-help"><?= $t('5535|Kontaktoplysninger, tofaktor-login og adgangskode hører til regnskabets egne brugere og kan ikke ændres her, da du er logget ind som revisor/administrator udefra.') ?></span>
         </div>
         <?php } ?>
+			<?php if (defined('SALDI_THEME_CHOICE') && SALDI_THEME_CHOICE) { // round 2 (settings decision 23) ?>
         <div class="ps-field">
           <label for="ps-theme"><?= $t('1075|Tema') ?></label>
           <select class="ps-select" id="ps-theme" name="theme">
@@ -604,6 +606,7 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
           </select>
           <small class="ps-help"><?= $t('6919|Lys eller mørk visning. System følger din enheds indstilling.') ?></small>
         </div>
+			<?php } ?>
         <div class="ps-field">
           <label for="ps-language"><?= $t('801|Sprog') ?></label>
           <select class="ps-select" id="ps-language" name="language_id">

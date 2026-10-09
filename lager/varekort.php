@@ -135,6 +135,7 @@
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The card on the new page head (page_bar): title, POS menuer as a page action, Ny vare as the primary button.
 // 20261009 Sawaneh The supplier lookup head (kontoopslag) on the page head too; the employee footer in debitor/ansatte lost its blue spacer cells.
+// 20261009 Sawaneh The record (varenr + name, or Nyt varekort) as the last breadcrumb level (decision 22).
 //
 ob_start(); //Starts output buffering
 
@@ -1339,10 +1340,12 @@ if ($menu == 'S') {
     print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"80%\"><tbody>\n";
 }
 $vare_varianter = array();
+if ($menu == 'S' && $id <= 0 && function_exists('page_record')) print page_record(findtekst('7026|Nyt varekort', $sprog_id));
 if ($id > 0) {
     $query = db_select("select * from varer where id = '$id'", __FILE__ . " linje " . __LINE__);
     $row = db_fetch_array($query);
     $varenr = $row['varenr'];
+    if ($menu == 'S' && function_exists('page_record')) print page_record(trim((string) $row['varenr'] . ' ' . (string) $row['beskrivelse']));
     $stregkode = $row['stregkode'];
     $beskrivelse[0] = $row['beskrivelse'];
     $beskrivelseAlias = $row['beskrivelse_alias'];

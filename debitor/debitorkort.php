@@ -120,6 +120,7 @@
 // 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The card on the new page head (page_bar): title, Ny debitor as the primary button, tour kept for Assist.
+// 20261009 Sawaneh The record (kontonr + name, or Nyt debitorkort) as the last breadcrumb level (decision 22).
 @session_start();
 $s_id = session_id();
 
@@ -1349,6 +1350,7 @@ $kontokortRetursideParam = rawurlencode($kontokortReturside);
 if ($menu == 'S') {
 	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
 	include_once("../includes/stdFunc/pageBar.php");
+	if (function_exists('page_record')) print page_record($id ? trim((string) $kontonr . ' ' . (string) $firmanavn) : findtekst('7024|Nyt debitorkort', $sprog_id));
 	page_bar(array(
 		'title' => findtekst('356|Debitorkort', $sprog_id),
 		'back' => $returside,

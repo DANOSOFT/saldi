@@ -36,6 +36,7 @@
 // 20261008 Sawaneh The breadcrumb handlers moved to javascript/pageChrome.js; the head carries only window.saldiPageChrome
 //                  (and the shell-nav style), so a page that redirects after online.php stays under the output buffer.
 // 20261008 Sawaneh The came-from chip keeps the whole path of a page in a subfolder (lager/lister/vareliste.php gave a 404).
+// 20261009 Sawaneh page_record(): the record as the last breadcrumb level on cards (decision 22 of 2026-10-09).
 
 if (!function_exists('page_breadcrumb')):
 
@@ -122,6 +123,27 @@ function page_title(string $text, ?string $tag = null): string
 	$tagJs = ($tag !== null && $tag !== '') ? ' c.tag = ' . json_encode(page_chrome_text($tag, $charset), $flags) . ';' : '';
 	return '<script>(function () { var c = window.saldiPageChrome; if (!c || !c.items || !c.items.length) { return; }'
 		. ' c.items[c.items.length - 1].label = ' . json_encode($label, $flags) . ';' . $tagJs
+		. ' if (window.parent && window.parent !== window) { window.parent.postMessage(c, window.location.origin); } })();</script>';
+}
+
+/**
+ * The record as one more breadcrumb level after the page ("Debitorer / Debitorkort / 1042 Jensen VVS", decision 22 of
+ * 2026-10-09): printed where the card knows its record, after the breadcrumb itself. The page level stays as plain text.
+ */
+function page_record(string $text): string
+{
+	$items = isset($GLOBALS['page_chrome_items']) ? $GLOBALS['page_chrome_items'] : array();
+	$charset = isset($GLOBALS['page_chrome_charset']) ? (string) $GLOBALS['page_chrome_charset'] : 'UTF-8';
+	$label = trim(preg_replace('/\s+/', ' ', page_chrome_text(html_entity_decode(strip_tags($text), ENT_QUOTES, $charset), $charset)));
+	if (!$items || $label === '') {
+		return '';
+	}
+	$items[] = array('label' => $label);
+	$GLOBALS['page_chrome_items'] = $items;
+	page_remember($items);
+	$flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE;
+	return '<script>(function () { var c = window.saldiPageChrome; if (!c || !c.items || !c.items.length) { return; }'
+		. ' c.items.push({ label: ' . json_encode($label, $flags) . ' });'
 		. ' if (window.parent && window.parent !== window) { window.parent.postMessage(c, window.location.origin); } })();</script>';
 }
 

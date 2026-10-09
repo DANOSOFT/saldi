@@ -39,6 +39,7 @@
 // 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The record (kontonr + name, or Ny konto) as the last breadcrumb level (decision 22).
 
 @session_start();
 $s_id = session_id();
@@ -372,6 +373,7 @@ elseif ($kontotype == 'X')
 
 if ($menu == 'S') {
 	include_once("../includes/stdFunc/pageBar.php");
+	if (function_exists('page_record')) print page_record($id ? trim((string) $kontonr . ' ' . (string) $beskrivelse) : findtekst('7006|Ny konto', $sprog_id));
 	page_bar(array(
 		'title' => findtekst('443|Kontokort', $sprog_id),
 		'primary' => array(findtekst('7006|Ny konto', $sprog_id), 'kontokort.php', 'accesskey' => 'N'),
