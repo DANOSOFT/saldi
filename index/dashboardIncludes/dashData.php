@@ -22,6 +22,7 @@
 //                  customers per hour, revenue per item group, orders, active users and waiting suggestions. Revenue is
 //                  the sum of credit minus debit on the accounts between the dashboard's kontomin and kontomaks, as the
 //                  old widgets counted it. Everything from one daily query over the last and the current fiscal year.
+// 20261009 Sawaneh The largest uninvoiced order (addendum 3 §7) and the three newest suggestions (§7a) for the small cards.
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
@@ -293,14 +294,22 @@ function dash_data(array $c): array
 	$thirty = dash_add($today, '-30 days');
 	$quick = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4 = 'on'", __FILE__ . " linje " . __LINE__));
 	$o = db_fetch_array(db_select("select count(*) as n, coalesce(sum(\"sum\"), 0) as s from ordrer where " . ($quick ? 'status <= 3' : 'status = 2') . " and art = 'DO' and ordredate > '$thirty'", __FILE__ . " linje " . __LINE__));
-	$orders = array('count' => $o ? (int) $o['n'] : 0, 'sum' => $o ? (float) $o['s'] : 0.0);
+	$orders = array('count' => $o ? (int) $o['n'] : 0, 'sum' => $o ? (float) $o['s'] : 0.0, 'largest' => null);
+	$lo = db_fetch_array(db_select("select firmanavn, \"sum\" as s from ordrer where " . ($quick ? 'status <= 3' : 'status = 2') . " and art = 'DO' and ordredate > '$thirty' order by \"sum\" desc limit 1", __FILE__ . " linje " . __LINE__));
+	if ($lo) {
+		$orders['largest'] = array('name' => trim((string) $lo['firmanavn']), 'sum' => (float) $lo['s']);
+	}
 
 	// Suggestions waiting: unread notifications of the type suggestion.
 	$suggest = 0;
+	$suggestList = array();
 	if (function_exists('notif_ready') && notif_ready() && function_exists('notif_list')) {
 		foreach (notif_list((int) $c['bruger_id']) as $n) {
 			if (!empty($n['unread']) && isset($n['type']) && $n['type'] === 'suggestion') {
 				$suggest++;
+				if (count($suggestList) < 3) {
+					$suggestList[] = array('title' => (string) $n['title'], 'body' => (string) $n['body'], 'link' => (string) $n['link']);
+				}
 			}
 		}
 	}
@@ -322,5 +331,6 @@ function dash_data(array $c): array
 		'orders' => $orders,
 		'online' => (int) $c['online'],
 		'suggest' => $suggest,
+		'suggestList' => $suggestList,
 	);
 }

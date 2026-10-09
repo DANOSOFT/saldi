@@ -75,7 +75,7 @@ function page_bar(array $o): void
 		$assets = true;
 		// Pages sit one level (debitor/) or two levels (lager/lister/) below the install root.
 		$rel = function_exists('get_relative') ? rtrim(get_relative(), '/') : '..';
-		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=6'><link rel='stylesheet' href='$rel/css/page.css?v=2'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
+		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=7'><link rel='stylesheet' href='$rel/css/page.css?v=2'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
 		// The page follows the user's theme: html.saldi-dark while the theme (or the device, for System) is dark.
 		print "<script>(function(){var r=document.documentElement;function ap(){var t=r.dataset.theme;r.classList.toggle('saldi-dark',t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches));}ap();"
 			. "new MutationObserver(ap).observe(r,{attributes:true,attributeFilter:['data-theme']});try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',ap);}catch(e){}})();</script>";

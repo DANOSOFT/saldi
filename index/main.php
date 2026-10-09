@@ -214,7 +214,7 @@ function brightenColor($color, $amount = 0.2) {
 <link href='../css/saldi-fonts.css?v=1' rel='stylesheet'>
 <link href='../css/sidebar_style.css?v=25' rel='stylesheet'>
 <link href='../css/topbar.css?v=20' rel='stylesheet'>
-<link href='../css/saldi-theme.css?v=6' rel='stylesheet'>
+<link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
 <script>document.documentElement.classList.add('saldi-shell');</script>
 <link href='../css/onboarding.css?v=1' rel='stylesheet'>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">

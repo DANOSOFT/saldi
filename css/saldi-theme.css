@@ -1,4 +1,5 @@
 /* ---- css/saldi-theme.css --- lap 5.0.0 --- 2026.10.08 ---
+   20261009 Sawaneh Premium light neutrals and 12 px corners (front-page addendum 3 §1/§8), --due-* for the unpaid card (§5.9.3).
    20261008 Sawaneh The Saldi theme tokens from Adam's prototype_dashboard_tema.html v5 (light, dark, system), and the
                     shell's colours mapped onto them so the top bar, menus and page follow the user's theme. The user's
                     own colour still rules the sidebar, buttons and avatar. Pages opt in by using the tokens. */
@@ -8,17 +9,18 @@
 	--grad-primary: linear-gradient(135deg, var(--saldi-purple-deep), var(--saldi-purple-mid));
 	--text-on-brand: rgba(255,255,255,.88); --text-on-brand-muted: rgba(255,255,255,.78); --border-on-brand: rgba(255,255,255,.32);
 	--border-rule-on-brand: rgba(255,255,255,.28); --tint-ghost-hover: rgba(255,255,255,.08);
-	--page: #eef3fb; --surface: #ffffff; --surface-2: #f6f9fe; --border: #dde5f1; --grid: #e9eef7; --band: rgba(79,160,238,.09);
+	--page: #f4f6fa; --surface: #ffffff; --surface-2: #f7f9fc; --border: #e4e8ef; --grid: #eef1f6; --band: rgba(79,160,238,.06);
 	--text: #0b1a3a; --text-2: #5b6b85; --text-3: #8a97ad; --link: #1b68bd;
 	--good: #15803d; --bad: #c2410c; --good-bg: #e8f6ee; --bad-bg: #fdecec;
 	--s1: var(--saldi-blue); --s2: var(--saldi-purple-mid); --s3: var(--saldi-amber); --s4: #12a5b8; --s5: #d4a017; --s6: #c22c78; --s7: #22a04e;
-	--context: #aab6cc; --accent: var(--saldi-purple);
+	--context: #c3ccdb; --accent: var(--saldi-purple);
+	--due-ok: #4FA0EE; --due-warn: #e0a100; --due-late: #d03b3b;
 	--q0: #f1f5fb; --q1: #dbe8fb; --q2: #b3cff6; --q3: #86b0ee; --q4: #5a91e3; --q5: #3372d3; --q6: #1e56b0; --q7: #123f88;
 	--glow-a: rgba(79,160,238,.16); --glow-b: rgba(139,51,212,.10);
 	--shadow: 0 1px 2px rgba(11,26,58,.05), 0 4px 14px rgba(11,26,58,.06);
 	--shadow-up: 0 2px 4px rgba(11,26,58,.06), 0 12px 28px rgba(11,26,58,.11);
 	--tip-bg: #0b1a3a; --tip-text: #ffffff; --tip-muted: rgba(255,255,255,.7);
-	--r: 16px; --e: cubic-bezier(.2,.8,.2,1); --e-io: cubic-bezier(.4,0,.2,1);
+	--r: 12px; --e: cubic-bezier(.2,.8,.2,1); --e-io: cubic-bezier(.4,0,.2,1);
 }
 [data-theme="dark"] {
 	color-scheme: dark;
@@ -26,7 +28,7 @@
 	--text: #e8eefc; --text-2: #9aa8c2; --text-3: #6f7f9d; --link: #4FA0EE;
 	--good: #4ade80; --bad: #f87171; --good-bg: rgba(74,222,128,.12); --bad-bg: rgba(248,113,113,.12);
 	--s1: #4596ea; --s2: var(--saldi-purple); --s3: #d47c24; --s4: #1aa3b8; --s5: #b58e00; --s6: #cc3f8f; --s7: #33a85b;
-	--context: #4b5b7a; --accent: #a875ec;
+	--context: #4b5b7a; --accent: #a875ec; --due-ok: #4596ea; --due-warn: #b58e00; --due-late: #e66767;
 	--q0: #1a2748; --q1: #1f3358; --q2: #294a80; --q3: #3563a8; --q4: #4a7fd0; --q5: #6d9df0; --q6: #96bcf8; --q7: #c0d8fc;
 	--glow-a: rgba(79,160,238,.12); --glow-b: rgba(139,51,212,.14);
 	--shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.28);
@@ -40,7 +42,7 @@
 		--text: #e8eefc; --text-2: #9aa8c2; --text-3: #6f7f9d; --link: #4FA0EE;
 		--good: #4ade80; --bad: #f87171; --good-bg: rgba(74,222,128,.12); --bad-bg: rgba(248,113,113,.12);
 		--s1: #4596ea; --s2: var(--saldi-purple); --s3: #d47c24; --s4: #1aa3b8; --s5: #b58e00; --s6: #cc3f8f; --s7: #33a85b;
-		--context: #4b5b7a; --accent: #a875ec;
+		--context: #4b5b7a; --accent: #a875ec; --due-ok: #4596ea; --due-warn: #b58e00; --due-late: #e66767;
 		--q0: #1a2748; --q1: #1f3358; --q2: #294a80; --q3: #3563a8; --q4: #4a7fd0; --q5: #6d9df0; --q6: #96bcf8; --q7: #c0d8fc;
 		--glow-a: rgba(79,160,238,.12); --glow-b: rgba(139,51,212,.14);
 		--shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.28);

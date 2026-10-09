@@ -6671,6 +6671,35 @@
 7029	Normal	Normal	Normal
 7030	Større (+11 %)	Larger (+11 %)	Større (+11 %)
 7031	Gør al tekst ca. 11 % større. Browserens egen zoom virker oveni.	Makes all text about 11 % larger. The browser's own zoom works on top.	Gjør all tekst ca. 11 % større. Nettleserens egen zoom virker i tillegg.
+7032	Ubetalte salgsfakturaer	Unpaid sales invoices	Ubetalte salgsfakturaer
+7033	Ikke forfalden	Not due	Ikke forfalt
+7034	Forfalden 1–15 dage	Overdue 1–15 days	Forfalt 1–15 dager
+7035	Forfalden over 15 dage	Overdue more than 15 days	Forfalt over 15 dager
+7036	kr i alt	kr in total	kr i alt
+7037	Vis alle (%s)	Show all (%s)	Vis alle (%s)
+7042	%s dage over	%s days overdue	%s dager over
+7043	forfalder i dag	due today	forfaller i dag
+7044	om %s dage	in %s days	om %s dager
+7045	Ikke-udlignede indbetalinger og kreditnotaer: %s	Unapplied payments and credit notes: %s	Ikke-utlignede innbetalinger og kreditnotaer: %s
+7047	Ingen ubetalte salgsfakturaer	No unpaid sales invoices	Ingen ubetalte salgsfakturaer
+7048	%s fakturaer	%s invoices	%s fakturaer
+7049	1 faktura	1 invoice	1 faktura
+7050	Forfaldne beløb og hvilke fakturaer det er	Overdue amounts and the invoices behind them	Forfalte beløp og hvilke fakturaer det gjelder
+7051	Største ufakturerede	Largest uninvoiced	Største ufakturerte
+7052	og %s forslag mere	and %s more suggestions	og %s forslag til
+7053	Ingen omsætning endnu	No revenue yet	Ingen omsetning ennå
+7054	Indhold og rækkefølge	Content and order	Innhold og rekkefølge
+7055	Træk i ⋮⋮ for at flytte	Drag ⋮⋮ to move	Dra i ⋮⋮ for å flytte
+7056	Flyt %s. Alt+pil op/ned	Move %s. Alt+Up/Down	Flytt %s. Alt+pil opp/ned
+7057	%s flyttet til plads %s af %s	%s moved to position %s of %s	%s flyttet til plass %s av %s
+7058	%s af %s vises	%s of %s shown	%s av %s vises
+7059	Små tal	Small figures	Små tall
+7060	Medarbejdere, ordrer, forslag	Employees, orders, suggestions	Medarbeidere, ordrer, forslag
+7061	Omsætning og moms	Revenue and VAT	Omsetning og mva
+7062	Vis kort i %s	Show cards in %s	Vis kort i %s
+7063	1 dag over	1 day overdue	1 dag over
+7064	om 1 dag	in 1 day	om 1 dag
+7065	Åbn %s	Open %s	Åpne %s
 6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
 6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
 6932	Adgang nægtet	Access denied	Ingen tilgang
