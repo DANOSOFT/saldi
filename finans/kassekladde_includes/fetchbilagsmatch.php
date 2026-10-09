@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
+// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.0.0 --- 2026-10-03 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -50,6 +50,8 @@
 //                   date_score CASE itself (same pattern amountTolerance already used
 //                   correctly), so it now only zeroes the date signal when out of range
 //                   instead of excluding the row outright.
+// 20261003 CL/SZ SD-717: archived pool documents are not offered as matches.
+//                The header named the wrong file (kassekladde.php); corrected.
 
     // Start buffering
     ob_start();
@@ -58,6 +60,7 @@
     $s_id=session_id();
     include("../../includes/connect.php");
     include("../../includes/online.php");
+    require_once __DIR__ . "/../../includes/docsIncludes/poolArchive.php";
 
 
     ini_set('display_errors', 0);
@@ -134,6 +137,7 @@
                 (CASE WHEN file_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN file_date::date ELSE NULL END) AS safe_file_date,
                 UPPER(TRIM(COALESCE(NULLIF(currency, ''), '$base_currency_escaped'))) AS currency_code
             FROM pool_files
+            WHERE " . poolArchiveActiveSql() . "
         )
         SELECT * FROM (
             SELECT

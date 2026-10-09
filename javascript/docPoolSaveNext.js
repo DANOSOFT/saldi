@@ -9,6 +9,7 @@
 // 20261004 CL/SZ SD-716 A new row that was saved keeps its line id (data-saved-line-id) until the document is left.
 //                When the attach then fails (e.g. a dropped connection) and Enter is pressed again, that line is updated instead of saved a second time.
 //                Needs window.saldiPoolSaveNext (docPool.php) and docPool.php's _saveRowFetch(), chooseMultipleBilag() and transferDataFromSelectedFile().
+// 20261003 CL/SZ SD-717 "Gem og næste" and "Spring over" never open an archived document; the arrow keys still browse the archive.
 // 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
 // 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
 // 20261006 CL/SZ SD-716 A new document puts the cursor in Debet without opening the lookup panel over the list (window.focusAccountQuietly()),
@@ -37,13 +38,23 @@
         return '';
     }
 
-    /** File names in the list, in the order shown (table rows or cards, whichever view is visible). */
-    function listedFiles() {
+    /** File names of archived documents in the loaded list (docData), as a lookup. */
+    function archivedFiles() {
+        var archived = {};
+        (window.docData || []).forEach(function (row) {
+            if (row && row.archived) archived[row.filename] = true;
+        });
+        return archived;
+    }
+
+    /** File names in the list, in the order shown (table rows or cards, whichever view is visible). withArchived: keep archived ones. */
+    function listedFiles(withArchived) {
         var seen = {};
         var files = [];
+        var archived = withArchived ? {} : archivedFiles();
         document.querySelectorAll('#leftPanel [data-pool-file]').forEach(function (el) {
             var name = el.getAttribute('data-pool-file');
-            if (!name || seen[name] || !el.getClientRects().length) return;
+            if (!name || seen[name] || archived[name] || !el.getClientRects().length) return;
             seen[name] = true;
             files.push(name);
         });
@@ -51,8 +62,8 @@
     }
 
     /** The document after (step 1) or before (step -1) the current one; null when there is none. */
-    function neighbour(step) {
-        var files = listedFiles();
+    function neighbour(step, withArchived) {
+        var files = listedFiles(withArchived);
         var current = currentPoolFile();
         var at = files.indexOf(current);
         if (at < 0) return step > 0 ? (files[0] || null) : null;
@@ -271,7 +282,7 @@
 
         if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.shiftKey) {
             if (inField(target) || modalOpen() || busy) return;
-            var other = neighbour(e.key === 'ArrowRight' ? 1 : -1);
+            var other = neighbour(e.key === 'ArrowRight' ? 1 : -1, true);
             if (!other) return;
             e.preventDefault();
             var href = documentUrl(other, false);
