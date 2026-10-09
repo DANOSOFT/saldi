@@ -22,6 +22,7 @@
 //                  Ny as the primary button, Hjælp kept as a hidden #tutorial-help for the Assist menu's tour, Tilbage as a
 //                  plain link with accesskey L (the shell hides it, standalone pages keep it).
 // 20261008 Sawaneh Migrated pages follow the theme: html.saldi-dark (css/saldi-theme.css) while the theme is dark.
+// 20261009 Sawaneh Asset links via get_relative(): pages two levels down (lager/lister) got no CSS.
 
 if (!function_exists('page_bar')):
 
@@ -42,7 +43,9 @@ function page_bar(array $o): void
 	};
 	if (!$assets) {
 		$assets = true;
-		print "<link rel='stylesheet' href='../css/saldi-theme.css?v=3'><link rel='stylesheet' href='../css/page.css?v=1'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
+		// Pages sit one level (debitor/) or two levels (lager/lister/) below the install root.
+		$rel = function_exists('get_relative') ? rtrim(get_relative(), '/') : '..';
+		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=3'><link rel='stylesheet' href='$rel/css/page.css?v=1'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
 		// The page follows the user's theme: html.saldi-dark while the theme (or the device, for System) is dark.
 		print "<script>(function(){var r=document.documentElement;function ap(){var t=r.dataset.theme;r.classList.toggle('saldi-dark',t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches));}ap();"
 			. "new MutationObserver(ap).observe(r,{attributes:true,attributeFilter:['data-theme']});try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',ap);}catch(e){}})();</script>";
