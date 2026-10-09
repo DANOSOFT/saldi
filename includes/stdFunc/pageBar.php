@@ -23,13 +23,14 @@
 //                  plain link with accesskey L (the shell hides it, standalone pages keep it).
 // 20261008 Sawaneh Migrated pages follow the theme: html.saldi-dark (css/saldi-theme.css) while the theme is dark.
 // 20261009 Sawaneh Asset links via get_relative(): pages two levels down (lager/lister) got no CSS.
+// 20261009 Sawaneh 'extra' html among the actions for the open-post mode select (rapportfunc).
 
 if (!function_exists('page_bar')):
 
 /**
  * Print the page head. $o: 'title', 'tabs' => [['label', 'href', on(bool)], ...], 'actions' => [['label', 'href', icon class,
  * target, 'onclick' => ...], ...], 'primary' => ['label', 'href', 'onclick' => '...'], 'back' => href, 'back_onclick' => js,
- * 'help' => bool (a hidden tour trigger).
+ * 'help' => bool (a hidden tour trigger), 'extra' => ready-made html printed among the actions (a select).
  *
  * @param array<string, mixed> $o
  */
@@ -67,6 +68,9 @@ function page_bar(array $o): void
 		}
 	}
 	print "<span class='pg-grow'></span><span class='pg-acts'>";
+	if (!empty($o['extra'])) {
+		print $o['extra']; // ready-made control (e.g. a mode select), the caller escapes it
+	}
 	foreach (isset($o['actions']) ? $o['actions'] : array() as $a) {
 		print "<a class='pg-act' href='" . $h($a[1]) . "'" . (!empty($a['accesskey']) ? " accesskey='" . $h($a['accesskey']) . "'" : '') . (!empty($a[3]) ? " target='" . $h($a[3]) . "' rel='noopener'" : '') . (!empty($a['onclick']) ? " onclick=\"" . $h($a['onclick']) . " return false;\"" : '') . ">" . (!empty($a[2]) ? "<i class='bx " . $h($a[2]) . "'></i>" : '') . $h($a[0]) . "</a>";
 	}

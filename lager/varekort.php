@@ -134,6 +134,7 @@
 //                  list. An empty field still creates nothing.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The card on the new page head (page_bar): title, POS menuer as a page action, Ny vare as the primary button.
+// 20261009 Sawaneh The supplier lookup head (kontoopslag) on the page head too; the employee footer in debitor/ansatte lost its blue spacer cells.
 //
 ob_start(); //Starts output buffering
 
@@ -2237,24 +2238,19 @@ function kontoopslag($sort, $fokus, $id)
     global $fokus;
     global $vare_lev_id;
     global $opener;
-    global $menu;
+    global $menu, $sprog_id;
 
     include("../includes/topline_settings.php");
 
     # Malenes topmenu
     if ($menu == 'S') {
-        print "<table width='100%'><tbody>";
-
-        print "<td width=\"10%\">
-           <a href=varekort.php?opener=$opener&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>
-           <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
-
-        print "<td width=\"80%\" align='center' style='$topStyle'>Varekort</td>";
-
-        print "<td width=\"10%\" align=\"right\" onClick=\"JavaScript:window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\">
-           <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Ny</button></td>";
-
-        print "</tbody></table></td></tr>";
+        include_once("../includes/stdFunc/pageBar.php");
+        page_bar(array(
+            'title' => findtekst('566|Varekort', $sprog_id),
+            'primary' => array(findtekst('7002|Ny kreditor', $sprog_id), '#', 'onclick' => "window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');"),
+            'back' => "varekort.php?opener=$opener&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus",
+        ));
+        print "</td></tr>";
 
     } else {
         print "<table width='100%'><tbody>";

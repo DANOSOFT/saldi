@@ -58,6 +58,7 @@
 //                  back to the report the user came from (rapportart) with the date range, error refresh with a
 //                  0-second delay and real report parameters, hidden retur/returside fields quoted and escaped.
 // 20260925 CDX/PHR Preserve the account-chart filter through settlement forms, period changes and return links.
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
  
 @session_start();
 $s_id=session_id();
@@ -369,11 +370,6 @@ if ($insertInvoiceNumbers) {
 }
 
 if ($menu=='S') {
-	#########
-    $tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
-	print "<tr><td colspan=8 align=center>";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
 	$contains = false;
 	if (strpos($retur, 'debitorkort.php') !== false) {
 		$contains = true;
@@ -392,31 +388,18 @@ if ($menu=='S') {
 			$returside = $returside ?? $returside = $_POST['returside'] ?? null;
 			$id = $id ?? $id = $_POST['id'][0] ?? null;	
 		if($id ){
-			print "<td width=\"10%\">$color
-				<a href=\"javascript:confirmClose('../debitor/rapport.php?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=" . urlencode((string) $returside) . "&submit=ok" . ($layoutParam !== '' ? $layoutParam : '&layout=grid') . "','$alerttekst')\" accesskey=L>
-				<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+			$udBack = "../debitor/rapport.php?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=" . urlencode((string) $returside) . "&submit=ok" . ($layoutParam !== '' ? $layoutParam : '&layout=grid');
 		}else{
-			print "<td width=\"10%\">$color
-			<a href=\"javascript:confirmClose('../debitor/rapport.php?$reportBack','$alerttekst')\" accesskey=L>
-			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-			
+			$udBack = "../debitor/rapport.php?$reportBack";
 		}
-
 	}else{
-		print "<td width=\"10%\">$color
-			<a href=\"javascript:confirmClose('$retur?$reportBack','$alerttekst')\" accesskey=L>
-			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		$udBack = "$retur?$reportBack";
 	}
-	print "<td width=\"90%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";
-	print "<td width=5% style=$buttonStyle>";
-	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-	print "</button></td>";
-
-	print "<tr>";
-	print "</tbody></table></td></tr>";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => findtekst(2189, $sprog_id), 'back' => "javascript:confirmClose('$udBack','$alerttekst')"));
+	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
+	print "<tr><td colspan=8 align=center>";
+	print "</td></tr>";
 
 	?>
 		<style>

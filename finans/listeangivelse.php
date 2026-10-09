@@ -32,6 +32,7 @@
 // 20260303 PHR - PHP8
 // 20260522 PHR - Fiscal year
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id=session_id();
@@ -245,19 +246,15 @@ if ( isset($_POST['debug']) || isset($_GET['debug']) ) {
 function listetopmenu($tekst) {
 	global $returside, $bgcolor, $buttonStyle, $topStyle, $sprog_id;
 
-	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	include_once("../includes/stdFunc/pageBar.php");
+	ob_start();
+	page_bar(array('title' => $tekst, 'back' => $returside));
+	$head = ob_get_clean();
 
 	$html  = "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	$html .= "<div id='laPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	$html .= "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-	$html .= "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
-	$html .= "<tr><td colspan=8 align=center>";
-	$html .= "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
-	$html .= "<td width='10%' align='center'><a accesskey=L href=\"$returside\">
-		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon".findtekst(30, $sprog_id)."</button></a></td>";
-	$html .= "<td width='90%' align='center' style='$topStyle'>$tekst</td>";
-	$html .= "</tbody></table>";
-	$html .= "</td></tr></tbody></table>";
+	$html .= "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+	$html .= $head;
 	$html .= "</div>\n";
 	$html .= "<div id='laGridWrapper' style='flex:1 1 auto;min-height:0;overflow-y:auto;width:100%;background-color:$bgcolor;padding:0 8px;box-sizing:border-box;'>\n";
 

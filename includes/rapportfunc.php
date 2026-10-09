@@ -90,6 +90,7 @@
 //                  returside is read from $_GET instead of re-glued from the query string; open-post Tilbage keeps the filters.
 //                  itself carries konto_fra or kontonr (pagination, filter links and the in-report account search).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The report heads (open post, front page, kontokort, kontosaldo) on the new page head (page_bar); the print legs untouched.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -228,29 +229,23 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 .center-btn{font-size:10pt;display:flex;align-items:center;gap:5px;width:100% !important;border-radius:5px;text-decoration:none;}
 a:link{text-decoration:none;}</style>\n";
 		print "<div id='opPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-		print "<table id='openpostHeaderBarTable' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n";
-		$opTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
 		$openpostBack = 'rapport.php?rapportart=openpost&dato_fra=' . urlencode((string) $dato_fra) . '&dato_til=' . urlencode((string) $dato_til) . '&konto_fra=' . urlencode((string) $konto_fra) . '&konto_til=' . urlencode((string) $konto_til);
-		print "<td width='7%'><a accesskey=l href=\"" . htmlspecialchars($openpostBack, ENT_QUOTES) . "\">
-			   <button class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start;' onMouseOver=\"this.style.cursor='pointer'\">$opTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
-		print "<td width='10%' align='center' style='$topStyle'>\n";
-		print "<select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
-		if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
-		elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
-		elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
-		elseif ($vis_alle_poster == 'on') print "<option>" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
-		else print "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-		if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
-		if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
-		if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
-		if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
-		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-		print "</select>\n";
-		print "</td>";
-		print "</tbody></table><!--Tabel 1.2 slut-->\n\n";
-		print "</div>\n"; // <- close flex:0 wrapper around the blue bar
+		$opMode = "<select name='aabenpostmode' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
+		if ($kun_debet == 'on') $opMode .= "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
+		elseif ($kun_kredit == 'on') $opMode .= "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
+		elseif ($vis_aabenpost == 'on') $opMode .= "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+		elseif ($vis_alle_poster == 'on') $opMode .= "<option>" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
+		else $opMode .= "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
+		if ($vis_aabenpost != 'on') $opMode .= "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+		if (!$vis_alle_poster) $opMode .= "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
+		if ($kun_debet != 'on') $opMode .= "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
+		if ($kun_kredit != 'on') $opMode .= "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
+		if ($skjul_aabenpost != 'on') $opMode .= "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
+		$opMode .= "</select>\n";
+		include_once("../includes/stdFunc/pageBar.php");
+		page_bar(array('title' => findtekst('1142|Rapport', $sprog_id) . " - $rapportart", 'extra' => $opMode, 'back' => $openpostBack));
+		print "</div>\n"; // <- close flex:0 wrapper around the page head
 		// Scrollable flex:1 region for everything below the header bar (vis_aabne_poster's grid,
 		// then the rykker overview). Closed by the two "close #opGridWrapper + #opPageFlex" prints
 		// below - this opening tag was missing, so that content rendered with no padding at all.
@@ -733,21 +728,10 @@ $backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 	
 	if ($menu == 'S') {
 			
-	#####################
-	$leftemptyBtn  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-	
-	#####################
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'back' => $returside));
 	print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
-	
-	print "<tr id='topTr'><td width=5% style='$topStyle'>";
-	print "<span class='headerbtn' style='$buttonStyle'>"
-	. $leftemptyBtn . "</span>";
-	print "</td>";
-
-	print "<td width='75%' align='center' style='$topStyle'>$title</td>";
-
-	
-	print "<td width='5%' align='center' style='$topStyle''><br></td>";
+	print "<tr id='topTr'><td colspan='3'></td>";
 
 		print "</tr><tr class='noHover'><td height=99%><br></td></td>";
 		print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
@@ -1075,8 +1059,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		// the fixed footer scrolls, inside its own contained #kkGridWrapper.
 		include("../includes/topline_settings.php");
 		$luk = "<a accesskey=L href=\"$returside\">";
-		$kkTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-		$kkPrintIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 -960 960 960" fill="#FFFFFF"><path d="M360-720H120v-120h720v120H600v120H360v-120Zm360 360q25 0 42.5-17.5T780-420q0-25-17.5-42.5T720-480q-25 0-42.5 17.5T660-420q0 25 17.5 42.5T720-360ZM240-120v-240H120v-240q0-50 35-85t85-35h480q50 0 85 35t35 85v240H720v240H240Zm120-80h240v-160H360v160Zm-160-240h560v-160H200v160Z"/></svg>';
 
 		if ($kontoart == 'K')
 			$tekst = findtekst(1140, $sprog_id) . " - " . lcfirst(findtekst(133, $sprog_id));
@@ -1089,15 +1071,14 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 
 		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:contain;}</style>\n";
 		print "<div id='kkPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-		print "<td width='10%' align='left'>$luk
-			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$kkTilbageIcon" . findtekst(30, $sprog_id) . "</button></a></td>";
-		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
-		print "<td width='10%' align='center'>
-			   <button type='button' style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\" onclick=\"showLangModalKontoprint()\">$kkPrintIcon" . findtekst(880, $sprog_id) . "</button></td>";
-		print "</tr></tbody></table>";
-		print "</div>\n"; // <- close flex:0 wrapper around the blue header bar
+		print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+		include_once("../includes/stdFunc/pageBar.php");
+		page_bar(array(
+			'title' => $tekst,
+			'actions' => array(array(findtekst(880, $sprog_id), '#', 'bx-printer', '', 'onclick' => 'showLangModalKontoprint();')),
+			'back' => $returside,
+		));
+		print "</div>\n"; // <- close flex:0 wrapper around the page head
 
 		$kkColgroupHtml = "<colgroup><col style='width:9%'><col style='width:8%'><col style='width:8%'><col style='width:28%'><col style='width:9%'><col style='width:9%'><col style='width:10%'><col style='width:10%'><col style='width:9%'></colgroup>";
 		print "<style>
@@ -1784,8 +1765,6 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		// (openpost() further up in this file). The header bar and the column-title row (printed
 		// below, just before the data loop) both sit in normal, non-scrolling flow; only the data
 		// grid between them and the totals row scrolls, inside its own contained #ksGridWrapper.
-		$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-
 		if ($kontoart == 'K')
 			$tekst = "Kreditorrapport - kontosaldo";
 		else
@@ -1797,19 +1776,10 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 
 		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 		print "<div id='ksPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-		print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
-		print "<tr><td colspan=8 align=center>";
-		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
-
-		print "<td width ='10%' align='center'>$luk
-			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon" . findtekst(30, $sprog_id) . "</button></a></td>";
-
-		print "<td width ='90%' align='center' style='$topStyle'>$tekst</td>";
-
-		print "</tbody></table>";
-		print "</td></tr></tbody></table>"; // <- close table#tableA
-		print "</div>\n"; // <- close flex:0 wrapper around the blue header bar
+		print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+		include_once("../includes/stdFunc/pageBar.php");
+		page_bar(array('title' => $tekst, 'back' => $returside));
+		print "</div>\n"; // <- close flex:0 wrapper around the page head
 	} else {
 		include("../includes/oldDesign/header.php");
 		print "<tr><td colspan=\"8\" height='30px'>";

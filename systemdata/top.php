@@ -46,18 +46,11 @@ if (findtekst(778,$sprog_id) == 'Regnskabså') {
 
 include("../includes/topline_settings.php");
 
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => findtekst(613, $sprog_id), 'back' => $returside));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
-
-print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('5647|Tilbage', $sprog_id)."</button></a></td>
-
-       <td align='center' style='$topStyle'>".findtekst(613, $sprog_id)."<br></td>
-
-       <td width=\"170px\" style='$topStyle'><br></td></tr>
-       </tbody></table></td></tr>"; # <- tabel 1.1.1
 
 print "</tr></tbody></table></td></tr>
   <tr><td id='sidebar-base'  width=\"125px\" align=\"left\" valign=\"top\">";
@@ -79,6 +72,7 @@ print "<tr><td width=\"170px\"><div class=\"settings-search-wrapper\"><input typ
 print "<tr><td width=\"170px\"><br></td></tr>";
 
 // 20260928 Phase 4: the column lists the pages of the group the current page belongs to
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // (settingsRegistry.php), filtered by the user's access; without a match, the groups.
 include_once(__DIR__ . "/settingsRegistry.php");
 $settingsGroups = settings_accessible_groups();

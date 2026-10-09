@@ -19,6 +19,7 @@
 .pg-act:hover { border-color: var(--saldi-blue); }
 .pg-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--user-primary, #114691); border-radius: 9px; background: var(--user-primary, #114691); color: var(--user-primary-text, #fff); font: inherit; font-size: 13px; font-weight: 600; padding: 7px 13px; cursor: pointer; text-decoration: none; transition: transform .15s, filter .15s; }
 .pg-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.pg-acts select { border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; padding: 6px 10px; }
 .pg-btn.outline { background: transparent; color: var(--user-primary, #114691); }
 .pg-hidden { display: none !important; }
 @media (max-width: 700px) { .pg-head h1 { font-size: 19px; } .pg-tab { padding: 8px 9px; font-size: 13px; } }

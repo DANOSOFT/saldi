@@ -34,6 +34,7 @@
 // 20260212 LOE Refactored to handle multiple files for orders.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261005 LOE SST-857 Kassebilag is spelled with one l in the page title.
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id=session_id();
@@ -85,25 +86,10 @@ if(($_GET)||($_POST)) {
 		exit;
 	}
 	
-	#############################
-	$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-
-	print "<td width='5%'>
-   <a href=\"$tmp\" accesskey=\"L\">
-   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-   $tilbage_icon " . findtekst(30, $sprog_id) . "
-   </button></a></td>\n";
-
-	print "<td width='75%' style='$topStyle' align='center'>
-	SALDI - " . findtekst(1408, $sprog_id) . "
-	</td>\n";
-
-	print "<td width='5%' style='$buttonStyle'>
-	<a href=\"#\" accesskey='N'>
-	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-	$add_icon
-	</button></a></td>";
-	###########################
+	include_once("../includes/stdFunc/pageBar.php");
+	print "<tr><td colspan='3'>";
+	page_bar(array('title' => findtekst(1408, $sprog_id), 'back' => $tmp));
+	print "</td></tr>";
 	print "</tbody></table>";
 	print "</td></tr>\n";
 	?>

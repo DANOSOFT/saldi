@@ -43,6 +43,7 @@
 // 20220901 MSC - Implementing new design
 // 20231213 MSC - Implementing new design
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 $dan_liste = $gem = $listenote = $slet_ugyldige = $udskriv = NULL;
 
@@ -142,31 +143,15 @@ $txt3 = findtekst('2739|Fra liste', $sprog_id);
 $txt4 = findtekst('2740|Fra kontokort', $sprog_id);
 
 if ($menu=='S') {
-	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
-	print "<tr><td height = '25' align='center' valign='top'>";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-	print "<form name='paylist' action='betalinger.php?liste_id=$liste_id' method = 'post'>";
-
-	print "<td width='10%'><a href='betalingsliste.php' style='$buttonStyle width:100%; display: block; text-decoration: none; text-align: center;' accesskey=L>";
-	print "$txt1</a></td>";
-
-	print "<td width='80%' style='$topStyle' align='center'>$txt2</td>";
-	print "<td width='10%'>";
-
 	$r = db_fetch_array(db_select("select bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
+	$findSelect = '';
 	if ($r['bogfort'] == '-') {
-
-		print "<select name='find' style='$buttonStyle; width:100%;' onchange='this.form.submit()'>";
-		print "<option value=''></option>";
-		print "<option value='fromList'>$txt3</option>";
-		print "<option value='saldo'>$txt4</option>";
-		print "</select>";
-	} # else print "<a href = 'betalinger.php?liste_id=$liste_id&reopen=$liste_id'>Lås op</a>";
-	
-	print "</td></tr>";
-	print "</form>";
-	print "</tbody></table>";
-	print "</td></tr>";
+		$findSelect = "<form name='paylist' action='betalinger.php?liste_id=" . (int) $liste_id . "' method='post' style='display:inline'>"
+			. "<select name='find' onchange='this.form.submit()'><option value=''></option><option value='fromList'>$txt3</option><option value='saldo'>$txt4</option></select></form>";
+	}
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $txt2, 'extra' => $findSelect, 'back' => 'betalingsliste.php'));
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	print "<tr><td valign='top'>";
 	print "<table border='0' cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top'><tbody>";
 } else {

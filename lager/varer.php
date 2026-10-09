@@ -140,6 +140,7 @@ if ($menu == "S") {
 	
 // 20260904 Sawaneh WP-1.3c: luk.php only when THIS window is a popup (popup=1 flag),
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // not on the user's popup preference — inline/iframe use otherwise ends on luk.php.
 $isPopupRequest = !empty($_GET['popup']);
 $returside = $isPopupRequest ? '../includes/luk.php' : nav_sanitize_returside($_GET['returside'] ?? null);
@@ -439,52 +440,34 @@ $txt3103 = findtekst(3103,$sprog_id); #Luk varelisten....
 $txt3105 = findtekst(3105,$sprog_id); #Opret indkøbsforslag /....
 $txt3101 = findtekst(3101,$sprog_id); #Vælg hvilke varegrupper.....
 if ($menu == 'S') {
-	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
-	print "<tr><td height = '25' align='center' valign='top'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
-	print "<tr><td width='10%'><a href='$retursideHref' accesskey=L>
-		   <button style='$buttonStyle; width:100%' title='$backTitle' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
+	$vlBase = "varer.php?{$listNavigationQuery}sort=$sort&start=$start&linjeantal=$linjeantal";
+	$vlActions = array();
 	if ($start<$linjeantal) {
 		if ($makeSuggestion) {
-			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>";
-			print "<button style='$buttonStyle; width:100%' title='$txt2113' onMouseOver=\"this.style.cursor='pointer'\">";
-			print "$txt159</button></a></td>\n";
+			$vlActions[] = array($txt159, $vlBase, 'bx-undo');
 		} else {
-			print "<td width='10%'>
-				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&find=$find'>
-				   <button style='$buttonStyle; width:100%' title='$txt3105'
-				   onMouseOver=\"this.style.cursor='pointer'\">
-				   $txt954</button></a></td>\n";
+			$vlActions[] = array($txt954, "$vlBase&forslag=ja&beskrivelse=$beskrivelse&find=$find", 'bx-cart');
+		}
+		if ($stock && !$makeSuggestion) {
+			$vlActions[] = array($txt30, $vlBase, 'bx-arrow-back');
+		} elseif ($stock && $makeSuggestion && !$alle_varer) {
+			$vlActions[] = array($txt955, "$vlBase&forslag=ja&beskrivelse=$beskrivelse&alle_varer=ja", 'bx-list-ul');
+		} elseif ($stock && $makeSuggestion && $alle_varer) {
+			$vlActions[] = array('Kun mangler', "$vlBase&forslag=ja&beskrivelse=$beskrivelse", 'bx-filter');
+		} else {
+			$vlActions[] = array($txt953, "$vlBase&beholdning=ja", 'bx-package');
 		}
 	}
-	print "<td style='$topStyle' align='center'> $txt957</td>\n";
-
-	if ($start<$linjeantal) {
-		if ($stock && !$makeSuggestion) {
-			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
-		} elseif ($stock && $makeSuggestion && !$alle_varer) {
-			print "<td width='10%'>
-				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Medtager alle varer fra valgte leverand&amp;oslash;rer, uanset ordrestatus'>$txt955</button></a></td>\n";
-		} elseif ($stock && $makeSuggestion && $alle_varer) {
-			print "<td width='10%'>
-				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Medtager kun varer fra valgte leverand&amp;oslash;rer, som vil komme under minimum udfra ordrer & tilbud'>Kun mangler</button></a></td>\n";
-		} else {
-			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Viser status for tilbud, salgsordrer og indk&oslash;bsordrer'>$txt953</button></a></td>\n";
-		}
-	} #else print "<td width='80%' $top_bund> Visning</td>\n";
-
-	print "<td width='5%'><a href='varevisning.php'>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$txt3101'>$txt813</button></a></td>";
-	print "<td width='5%'><a href='varekort.php?returside={$listReturnQuery}'>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Opret en ny vare'>Ny</button></a></td>";
-
-	print "</tr>\n";
-	print "</tbody></table>\n";
-
+	$vlActions[] = array($txt813, 'varevisning.php', 'bx-slider-alt');
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => $txt957,
+		'actions' => $vlActions,
+		'primary' => array(findtekst('7003|Ny vare', $sprog_id), "varekort.php?returside={$listReturnQuery}", 'accesskey' => 'N'),
+		'back' => $returside,
+	));
+	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
+	print "<tr><td height='1' align='center' valign='top'></td></tr>\n";
 } else {
 	print "<table style=\"width:100%;height:100%;\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";

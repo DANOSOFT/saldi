@@ -28,6 +28,7 @@
 //                  in the same window and the upload page returns here (FE5).
 // 20261006 Sawaneh Back link has accesskey L, so the shell's breadcrumb replaces it (breadcrumb step 2).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -843,11 +844,8 @@ function fe_render_besk_labels($besk) {
 // ---------------------------------------------------------------------------
 $menu = isset($menu) ? $menu : '';
 print "<div id=\"fe-header\">";
-print "<table width=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>";
-print "<td width=\"170\"><a href=\"" . htmlspecialchars($returside) . "\" accesskey=\"L\"><button type=\"button\" style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-print "<td align=\"center\" style='$topStyle'>" . htmlspecialchars($title) . "<br></td>";
-print "<td width=\"170\" style='$topStyle'><br></td>";
-print "</tr></tbody></table>";
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => $title, 'back' => $returside));
 print "</div>";
 ?>
 <style>

@@ -39,6 +39,7 @@
 // 20260513 PK Fixed style on csv button.
 // 20260915 CDX/PHR Paginate posted and simulated VAT rows together, including the final date.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 50) {
 
@@ -137,22 +138,14 @@ function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	if ($momsq) $momsq.=")";
 	$momsantal=$x;
 	include("../includes/topline_settings.php");
-	print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: #eeeef0;\">";
-		#########
-		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-		#########
-		print "<table bgcolor='#eeeef0' width = 100% cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
-		print "<tr><td colspan=8 align=center>";
-		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>"; #B
-
-	print "<td width=\"10%\">$color
-			<a href=\"javascript:confirmClose('rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')\" accesskey=L>
-			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>".findtekst('516|Rapport - kontokort med moms', $sprog_id)."</td>\n";
-	print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
-	print "</tbody></table>"; #B slut
-	print "</td></tr>";
+	print "<div class='pg-sticky' style=\"position: sticky; top: 0; z-index: 100; background-color: $bgcolor;\">";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('516|Rapport - kontokort med moms', $sprog_id),
+		'actions' => array(array('CSV', $csvfile, 'bx-download')),
+		'back' => "javascript:confirmClose('rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')",
+	));
+	print "<table width = 100% cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
 	#######################
 		
 		?>

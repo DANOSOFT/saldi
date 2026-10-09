@@ -32,6 +32,7 @@
 // 20260704 SZ Added Grid Framework sticky header and footer to Sales Statistics report
 // 20260704 SZ Fixed misaligned columns in Sales Statistics report list
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id=session_id();
@@ -106,25 +107,16 @@ if ($menu=='S') {
 	// account loop) + scrollable grid (flex:1) + fixed footer (printed after the account loop). No
 	// external stylesheet is loaded here (same as the three reference reports) — every style needed is
 	// inline/embedded below.
-	$ssTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-	$ssLukTekst = findtekst('2704|Klik her for at lukke \"Top100\"', $sprog_id);
-
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	print "<div id='ssPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-	// The Back button is taller than a plain text button because its 20x20 SVG icon forces a larger
-	// minimum content height; height:100% on a <td> child doesn't reliably work (percentage heights
-	// only resolve against an explicit, not row-stretched/auto, parent height). Instead, give the
-	// Search button the same 20px minimum content height directly via min-height — sidesteps the
-	// parent-height quirk entirely and matches the Back button's actual rendered size.
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-	print "<td width='10%' align='left' title='$ssLukTekst'><a href='$luk' accesskey=L>
-		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$ssTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>" . findtekst('922|Salgstatsstik', $sprog_id) . "</td>";
-	print "<td width='10%' align='center' title='$rtekst'><a href='salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on' accesskey=B>
-		   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('913|Søg', $sprog_id) . "</button></a></td>";
-	print "</tr></tbody></table>";
-	print "</div>\n"; // <- close flex:0 wrapper around the blue header bar
+	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('922|Salgstatsstik', $sprog_id),
+		'actions' => array(array(findtekst('913|Søg', $sprog_id), "salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on", 'bx-search', '', 'accesskey' => 'B')),
+		'back' => $luk,
+	));
+	print "</div>\n"; // <- close flex:0 wrapper around the page head
 
 	// Same colgroup widths drive both the column-title row and every data row below it (they live in
 	// the same #ssGridTable), so the header can never drift out of alignment with the data — this is

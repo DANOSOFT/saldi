@@ -40,6 +40,7 @@
 //                 the summed amount, and lastYear sum uses $lastYearYear instead of
 //                 indexing the integer $lastYear.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
 
 function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";
@@ -277,23 +278,13 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	include("../includes/topline_settings.php");
 	if ($menu == 'S') {
 		$title = findtekst(895, $sprog_id);
-		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-		
-		print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
-		print "<tr><td colspan=8 align=center>";
-		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
-		
 		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
-		
-		print "<td width=\"5%\"><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style='text-decoration: none;'>";
-		print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
-		print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-		
-		print "<td width='75%' align='center' style='$topStyle'>" . findtekst('895|Finansrapport', $sprog_id) . "</td>";
-		print "<td width='5%' align='center' style='$topStyle'><a href='$csvfile' style='color:#ffffff; text-decoration: none;'>csv</a></td>";
-		
-		print "</tbody></table>";
-		print "</td></tr></tbody></table>";
+		include_once("../includes/stdFunc/pageBar.php");
+		page_bar(array(
+			'title' => findtekst('895|Finansrapport', $sprog_id),
+			'actions' => array(array('CSV', $csvfile, 'bx-download')),
+			'back' => "javascript:confirmClose('$backUrl','')",
+		));
 		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
 		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 	} else {

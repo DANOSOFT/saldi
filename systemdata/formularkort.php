@@ -65,6 +65,7 @@
 //                          different capitalisation no longer creates a duplicate sprogrække.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 @session_start();
 $s_id=session_id();
 
@@ -278,7 +279,7 @@ if (isset($_POST) && $_POST) {
 	}
 }
 
-$fe_link = "formeditor.php?form_nr=".urlencode(($form_nr ?? '') ?: 4)."&amp;sprog=".urlencode(($formularsprog ?? '') ?: 'Dansk');
+$fe_link = "formeditor.php?form_nr=".urlencode(($form_nr ?? '') ?: 4)."&sprog=".urlencode(($formularsprog ?? '') ?: 'Dansk');
 $fe_label = ($sprog_id == 1) ? 'Visuel editor' : 'Visual editor';
 $fe_title = ($sprog_id == 1) ? 'Ny visuel formulareditor (træk og slip)' : 'New visual form editor (drag & drop)';
 
@@ -289,27 +290,20 @@ if ($menu=='S') {
 	print "<meta name='viewport' content='width=1024'>\n";
 	print "</head>\n";
 	print "<body>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('573|Formularkort', $sprog_id),
+		'actions' => array(
+			array($fe_label, $fe_link, 'bx-edit'),
+			array('Bg.' . findtekst('646|Navn', $sprog_id), 'formularkort.php?nyt_sprog=yes', 'bx-globe', '', 'accesskey' => 's'),
+			array('Email', 'settingsSection.php?s=documents.email', 'bx-envelope', '', 'accesskey' => 'e'),
+			array(findtekst('571|Baggrund', $sprog_id), 'logoupload.php?upload=yes', 'bx-image', '', 'accesskey' => 'u'),
+		),
+		'back' => $returside,
+	));
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
 	print "<tr><td width='' height='1%' align='center' valign='top' collspan='2'>\n";
-	print "<table width='100%' height='1%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
-
-	print "<td width='12%'><a href=$returside accesskey='l'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-	print findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
-
-	print "<td width='12%'><a href=\"$fe_link\" title='$fe_title'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$fe_label</button></a></td>\n";
-
-	print "<td width='64%' align='center' style='$topStyle'>".findtekst('573|Formularkort', $sprog_id)."</td>\n";
-
-	print "<td width='6%'><span title='".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."'><a href=formularkort.php?nyt_sprog=yes accesskey='s'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></span></td>\n";
-
-	print "<td width='6%'><span title='Email indstillinger for sprog'><a href=settingsSection.php?s=documents.email accesskey='e'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></a></span></td>\n";
-
-	print "<td width='6%'><span title='".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."'><a href=logoupload.php?upload=yes accesskey='u'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804
-
-	print "</tbody></table></td></tr>\n";
+	print "</td></tr>\n";
 
 	$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
 	$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
@@ -1221,12 +1215,12 @@ if ($menu=='S') {
 	print "<tr><td width='100%' height='2.5%' align='center' valign='bottom'>\n";		
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
 
-	print "<td width='38%' align='center' style='$topStyle'></td>\n";
+	print "<td width='38%' align='center'></td>\n";
 
 	print "<td width='24%'><a href=\"formular_indlaes_std.php\">";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</button></a></td>\n";
 
-	print "<td width='24%' style='$topStyle'></td>\n";
+	print "<td width='24%'></td>\n";
 
 	print "<td width=\"7%\"><title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></td>\n";

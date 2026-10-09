@@ -33,6 +33,7 @@
 //                 side som NULL; NULL-aritmetik gav NULL (vist som 0) i SUM.
 // 20260729 NTR - Reported by CodeRabbit - moved summery of over tolerance above table instead of in the table's body.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
 
 function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                          $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -123,16 +124,12 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     include("../includes/topline_settings.php");
 
     if ($menu == 'S') {
-        $back_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-        print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0'><tbody><tr><td colspan=8 align=center>";
-        print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
-        print "<td width='5%'><a href=\"javascript:confirmClose('$back_url','')\" accesskey=L>"
-            . "<button class='headerbtn' type='button' style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px;'>"
-            . "$back_icon Tilbage</button></a></td>";
-        print "<td width='80%' align='center' style='$topStyle'>Momsafstemning</td>";
-        print "<td width='10%' align='center' style='$buttonStyle'>$csv_btn</td>";
-        print "<td width='5%'></td>";
-        print "</tbody></table></td></tr></tbody></table>";
+        include_once("../includes/stdFunc/pageBar.php");
+        page_bar(array(
+            'title' => 'Momsafstemning',
+            'actions' => array(array('CSV', $csvfile, 'bx-download')),
+            'back' => "javascript:confirmClose('$back_url','')",
+        ));
     } else {
         print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top' align='center'>";
         print "<tr><td colspan='6' height='8'>";

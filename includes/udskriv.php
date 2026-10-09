@@ -87,6 +87,7 @@ $returside    = if_isset($_GET, NULL, 'returside');
 // 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261002 Sawaneh Local print read from the user's personal setting first; the old cookie still counts for one release.
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 $returside = (function($s) {
     $s = trim((string)$s);
     if ($s === '' || $s === 'ordreliste.php') return $s; // 'ordreliste.php' normaliseres nedenfor linje 93
@@ -401,14 +402,16 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				} else { 
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 				} 
-				print "<td width='10%'><a href=$href>
-					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-				print "<td width='80%' align='center' title='".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id)."'>
-					   <a href=../temp/$ps_fil.pdf target=blank>
-					   <button style='$topStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2180|Vis PDF udskrift', $sprog_id)."</button></a></td>";
-
-				print "<td width='10%' align='right' style='$topStyle'></td>";
+				// $href carries the old quoting hacks (a closing quote + accesskey inside); the page head gets the bare url.
+				$backHref = preg_replace('/^"|"\s+accesskey="L"$|"$/', '', $href);
+				include_once("../includes/stdFunc/pageBar.php");
+				print "<tr><td colspan='3'>";
+				page_bar(array(
+					'title' => trim("$ordre_antal " . findtekst('880|Udskriv', $sprog_id)),
+					'actions' => array(array(findtekst('2180|Vis PDF udskrift', $sprog_id), "../temp/$ps_fil.pdf", 'bx-file', '_blank')),
+					'back' => $backHref,
+				));
+				print "</td></tr>";
 				print "<tr><td width=100% height=99% align='center' valign='middle' colspan='3'><iframe frameborder='0' width='100%' height='100%' scrolling='auto' src='../temp/$ps_fil.pdf'></iframe></td></tr>";
 				print "</tbody></table>";
 
@@ -456,18 +459,10 @@ global $menu;
 include ("../includes/topline_settings.php");
 
 if ($menu == 'S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => 'Udskriftsvalg', 'back' => 'udskriv.php?valg=tilbage'));
 	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\"><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
-
-	print "<td width=\"80%\" align=\"center\" style='$topStyle'>Udskriftsvalg</td>";
-
-	print "<td width=\"10%\" align = \"right\" style='$topStyle'><br></td>";
-
-	print "</tbody></table>";
 	print "</td></tr>";
 	print "<tr><td height=\"99%\" align = center valign = middle>";
 	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";

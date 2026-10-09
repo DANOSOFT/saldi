@@ -364,7 +364,7 @@ if ($menu == 'S') {
     print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody><tr>";
 
 
-    print "<td width='25%' align='center' style='$topStyle'>&nbsp;</td>";
+    print "<td width='25%' align='center'>&nbsp;</td>";
 
   
     $tekst = findtekst('130|Vis historik.', $sprog_id);
@@ -413,7 +413,7 @@ if ($menu == 'S') {
                 </a>
               </td>";
     } else {
-        print "<td width='10%' align='center' style='$topStyle'>
+        print "<td width='10%' align='center'>
                 <span style='color:#999;'>$buttonText</span>
               </td>";
     }
@@ -430,13 +430,13 @@ if ($menu == 'S') {
                 </a>
               </td>";
     } else {
-        print "<td width='10%' align='center' style='$topStyle'>
+        print "<td width='10%' align='center'>
                 <span style='color:#999;'>$buttonText</span>
               </td>";
     }
 
     // Spacer cell
-    print "<td width='25%' style='$topStyle'>&nbsp;</td>";
+    print "<td width='25%'>&nbsp;</td>";
 
     print "</tr></tbody></table>";
 }
