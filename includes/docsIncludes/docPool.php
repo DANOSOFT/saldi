@@ -121,6 +121,12 @@
 //                Lookups by file name (poolAllRows()) also see the open and the ticked documents when they are not on a loaded page.
 //                "Opdatér alle" fetches every file name.
 //                Selecting a document switches in place (docPoolSwitch.js); the entry config moved inside kassebilagTopBar so it switches along.
+// 20261003 CL/SZ SD-720 "Fordeling" adds a row of the same bilag with the remaining amount, with "Bilagsbalance" under the rows (docPoolSplit.js).
+//                The row it copies is rendered once into <template id='poolSplitTemplate'>; the document's captured amount comes in saldiPoolSplit.
+//                Any row id starting with "new" is saved as a new line, and "Gem alle" saves the rows one after another so pos follows the order shown.
+//                chooseMultipleBilag()'s pre-save skips every new* row, not only "new": they are saved by then and would be saved twice as lines without a bilag.
+//                A new row remembers the line it was saved as in _saveRowFetch(), so "Gem" or "Gem alle" again after a refused row updates that line instead of adding a second.
+// 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -1649,6 +1655,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<script src=\"../javascript/docPoolArchive.js?v=$v12\"></script>";
 	$v13 = file_exists("../javascript/docPoolSwitch.js") ? filemtime("../javascript/docPoolSwitch.js") : 0;
 	print "<script src=\"../javascript/docPoolSwitch.js?v=$v13\"></script>";
+	$v14 = file_exists("../javascript/docPoolSplit.js") ? filemtime("../javascript/docPoolSplit.js") : 0;
+	print "<script src=\"../javascript/docPoolSplit.js?v=$v14\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1938,6 +1946,20 @@ if ($source == 'kassekladde') {
 	// SD-719: the config below is inside kassebilagTopBar, so an in-place document switch (docPoolSwitch.js) brings the new document's config along
 	print "<div id='kassebilagTopBar'>";
 
+	// SD-720: the captured amount of the document is the total "Fordeling" splits; without one, the first row's amount
+	$splitDocAmount = '';
+	if ($poolFile !== '' && $poolFile !== null) {
+		$splitRow = db_fetch_array(db_select("SELECT amount FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'", __FILE__ . " linje " . __LINE__));
+		$splitDocAmount = $splitRow ? (string)$splitRow['amount'] : '';
+	}
+	print "<script>window.saldiPoolSplit = " . json_encode(array(
+		'docAmount' => $splitDocAmount,
+		'texts'     => array(
+			'remove'    => findtekst('5351|Fjern linjen', $sprog_id),
+			'notBalanced' => findtekst('5350|Bilaget går ikke op: rest', $sprog_id),
+		),
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
+
 	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
 	print "<script>
 	window.saldiPoolAccounts = " . json_encode(array('lookupUrl' => 'docsIncludes/poolAccountLookup.php', 'kladdeId' => $escKladde)) . ";
@@ -1994,6 +2016,8 @@ if ($source == 'kassekladde') {
 		$txt2 = findtekst('3|Gem', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id));  #Gem alle
 		$txt3 = findtekst('3339|Overfør data', $sprog_id);
 		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus $txt1</a>";
+		// SD-720: a row of the same bilag with the remaining amount (docPoolSplit.js)
+		print "<a href='#' id='splitRowBtn' onclick='poolSplit.addRow(); return false;' style=\"$btnStyle\">$svgPlus " . findtekst('5348|Fordeling', $sprog_id) . "</a>";
 		// SD-716: "Gem og næste" is the main action (also on Enter); "Gem alle" saves without leaving the document
 		$txtSaveNext = findtekst('5332|Gem og næste', $sprog_id);
 		$txtSkip = findtekst('5333|Spring over', $sprog_id);
@@ -2057,6 +2081,19 @@ if ($source == 'kassekladde') {
 	}
 
 	print "</div>"; // bilagRowsContainer
+
+	if (!$readOnly) {
+		// SD-720: "Bilagsbalance" under the rows, and the empty row "Fordeling" copies (ids row_tpl_*, renamed per added row)
+		print "<div id='poolSplitBalance' class='pool-split-balance' style='display:none;'>";
+		print "<span class='pool-split-label'>" . findtekst('5349|Bilagsbalance', $sprog_id) . ":</span> <span class='pool-split-value'></span>";
+		print "<span class='pool-split-warning' role='alert'></span>";
+		print "</div>";
+		print "<template id='poolSplitTemplate'>";
+		print "<div class='bilag-row-wrapper'>";
+		$renderBilagRow('tpl', array('d_type' => 'F', 'k_type' => 'K'), false);
+		print "</div>";
+		print "</template>";
+	}
 
 	// Toggle button when more than 1 row
 	if ($collapsible) {
@@ -3860,7 +3897,8 @@ print <<<JS
 			.map(cb => cb.closest('.kassebilag-entry'))
 			.filter(Boolean)
 			.map(entry => entry.id.replace('bilagEntry_', ''))
-			.filter(rowId => rowId !== 'new' && rowId !== typedRowId);
+			// Unsaved rows (new, and "Fordeling"'s new2, new3 ...) are not saved lines; "Gem og næste" has saved them just before (SD-720)
+			.filter(rowId => !/^new/.test(rowId) && rowId !== typedRowId);
 		const preSave = (otherCheckedRowIds.length > 0 && typeof _saveRowFetch === 'function')
 			? Promise.all(otherCheckedRowIds.map(rowId => _saveRowFetch(rowId, url.searchParams.get('kladde_id') || 0, url.searchParams.get('bilag') || 0)))
 				.then(results => {
@@ -5812,7 +5850,7 @@ HTML;
         fd.append("action", "updateOnly");
         fd.append("ajax", "1");
         fd.append("source", "kassekladde");
-        if (includeSourceId && rowId !== 'new') fd.append("sourceId", rowId);
+        if (includeSourceId && !/^new/.test(String(rowId))) fd.append("sourceId", rowId);
         if (kladdeId) fd.append("kladde_id", kladdeId);
         if (bilag)    fd.append("bilag", bilag);
         // SD-716: a new row "Gem og næste" has already saved (its attach then failed) is that line now, not a new one
@@ -5835,7 +5873,13 @@ HTML;
 
     function _saveRowFetch(rowId, kladdeId, bilag) {
         return fetch(_insertUrl, { method: "POST", body: _buildFormData(rowId, kladdeId, bilag, true) })
-            .then(r => r.json());
+            .then(r => r.json())
+            .then(data => {
+                // A new row is that line once saved, so saving it again ("Gem", "Gem alle" after another row failed) updates it (SD-720)
+                var savedEntry = document.getElementById('bilagEntry_' + rowId);
+                if (data && data.success && /^new/.test(String(rowId)) && data.sourceId && savedEntry) savedEntry.dataset.savedLineId = data.sourceId;
+                return data;
+            });
     }
 
     function saveRow(rowId, kladdeId, bilag) {
@@ -5883,22 +5927,35 @@ HTML;
         if (gemAlleBtn) { gemAlleBtn.innerHTML = '<?php echo $txt49 ?>...'; gemAlleBtn.style.opacity = '0.7'; gemAlleBtn.style.pointerEvents = 'none'; }
 
         var rowIds = Array.from(entries).map(el => el.id.replace('bilagEntry_', ''));
-        Promise.all(rowIds.map(id => _saveRowFetch(id, kladdeId, bilag)))
-        .then(results => {
+        // One after another in the order shown, so new lines get their pos in that order (SD-720)
+        var results = [];
+        rowIds.reduce((chain, id) => chain.then(() => _saveRowFetch(id, kladdeId, bilag).then(d => { results.push(d); })), Promise.resolve())
+        .then(() => {
             var failed = results.find(d => !d.success);
             var newSourceId = null;
             results.forEach((d, i) => {
-                if (rowIds[i] === 'new' && d.success && d.sourceId) newSourceId = d.sourceId;
+                if (/^new/.test(rowIds[i]) && d.success && d.sourceId && !newSourceId) newSourceId = d.sourceId;
             });
             if (failed) {
                 alert("<?php echo $txt31 ?>: " + (failed.message || "<?php echo $txt38 ?>"));
                 if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt72 ?>"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
-            } else if (newSourceId) {
+            } else if (newSourceId && !(window.poolSplit && window.poolSplit.active())) {
                 savePoolListView();
                 var url = new URL(window.location.href);
                 url.searchParams.set("sourceId", newSourceId);
                 window.location.href = url.href;
             } else {
+                // A split bilag stays on the page: reloaded as its first line, the other rows were folded away and only
+                // that line got the document. The rows are their lines now (savedLineId) and every one stays ticked for it.
+                if (newSourceId) {
+                    entries.forEach(function(entry, i) {
+                        var box = entry.querySelector('.targetLineCheckbox');
+                        if (box && results[i] && results[i].success && results[i].sourceId) {
+                            box.value = results[i].sourceId;
+                            box.checked = true;
+                        }
+                    });
+                }
                 if (gemAlleBtn) {
                     gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt73 ?>";
                     setTimeout(() => {

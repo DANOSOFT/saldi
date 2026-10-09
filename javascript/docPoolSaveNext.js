@@ -14,6 +14,8 @@
 //                When the open document is the last loaded row, the next page of the list is fetched first.
 //                The right arrow on the last loaded row fetches the next page too, so it doesn't stop at row 50.
 //                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
+// 20261003 CL/SZ SD-720 Before saving, "Fordeling"'s balance check (docPoolSplit.js) may take the first Enter.
+//                Every new row (new, new2 ...) gets its line id, and a split bilag attaches the document to every row.
 // 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
 // 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
 // 20261006 CL/SZ SD-716 Full-pass re-run: "Gem og næste" and the arrow keys go on from the first document after the last one, instead of
@@ -216,10 +218,13 @@
         }
     }
 
-    /** Saves the rows one after another; resolves with the new row's id (or null) when all were saved. */
+    /**
+     * Saves the rows one after another in the order shown, so new lines get their pos in that order (SD-720).
+     * Resolves with the line id of each new row (new, new2 ...) by row id.
+     */
     function saveRowsInOrder(entries) {
         var c = cfg();
-        var newId = null;
+        var newIds = {};
         return entries.reduce(function (chain, entry) {
             return chain.then(function () {
                 var rowId = rowIdOf(entry);
@@ -227,10 +232,22 @@
                     // Saved once: a retry after a failed attach updates this line (docPool.php's _buildFormData()) instead of adding another
                     if (data && data.success && /^new/.test(rowId) && data.sourceId) entry.dataset.savedLineId = data.sourceId;
                     if (!data || !data.success) throw new Error((data && data.message) || 'save failed');
-                    if (rowId === 'new' && data.sourceId) newId = data.sourceId;
+                    if (/^new/.test(rowId) && data.sourceId) newIds[rowId] = data.sourceId;
                 });
             });
-        }, Promise.resolve()).then(function () { return newId; });
+        }, Promise.resolve()).then(function () { return newIds; });
+    }
+
+    /** The "attach here" boxes after saving: new rows get their line id; a split bilag ticks every row (SD-720). */
+    function markTargets(entries, newIds) {
+        var split = window.poolSplit && typeof window.poolSplit.active === 'function' && window.poolSplit.active();
+        entries.forEach(function (entry) {
+            var box = entry.querySelector('.targetLineCheckbox');
+            if (!box) return;
+            var id = newIds[rowIdOf(entry)];
+            if (id) box.value = id;
+            if (split && /^\d+$/.test(box.value) && box.value !== '0') box.checked = true;
+        });
     }
 
     /** Resolves false when the document has left the pool (attached in another tab) or isn't in the loaded list (the attach needs its row). */
@@ -254,6 +271,8 @@
             lineTyped = false;
             return;
         }
+        // SD-720: a split that doesn't add up warns on the first Enter; the second saves
+        if (window.poolSplit && typeof window.poolSplit.beforeSave === 'function' && !window.poolSplit.beforeSave()) return;
         // Chosen before the save: the current document leaves the list when it is attached
         var file = currentPoolFile();
         var next = null;
@@ -265,12 +284,9 @@
         }).then(function (found) {
             next = found;
             return saveRowsInOrder(entries);
-        }).then(function (newId) {
-            if (newId) {
-                // The new row's "attach here" box carried 0 until the row existed
-                var box = document.querySelector('#bilagEntry_new .targetLineCheckbox');
-                if (box) box.value = newId;
-            }
+        }).then(function (newIds) {
+            // The new rows' "attach here" boxes carried 0 until the rows existed
+            markTargets(entries, newIds);
             if (!file || typeof window.chooseMultipleBilag !== 'function') {
                 leaveFor(next ? documentUrl(next, true) : doneUrl());
                 return;
