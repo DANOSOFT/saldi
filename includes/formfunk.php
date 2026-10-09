@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,21 +69,10 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
-// 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
-//             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
 // 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
 // 20260930 CDX/PHR Fit descriptions using actual font and neighbouring field widths; share wrapping with page preflight.
-// 20261001 MJ SST-784 Wrap the remaining print text by characters, not bytes. wordwrap() counts
-//                  bytes, so on UTF-8 every ae/oe/aa spent two of the column budget and a Danish
-//                  line broke early by its number of non-ASCII characters. The order-line
-//                  description is no longer among them: formWrapDescription() above measures
-//                  characters and real font width, which supersedes this. What is left are the
-//                  three sites it does not cover - the description fallback used by the tekster
-//                  path, the lokation suffix and the varenr column.
-// 20261001 MJ SST-819 kontoprint(): printing a range of accounts printed only the first one.
-//             The branch test compared konto_fra with itself, so the range query was dead code and
-//             konto_til was ignored. The revived query also treats a NULL lukket as open.
+// 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -92,7 +81,6 @@
 require_once __DIR__ . '/formFuncIncludes/htmlStyle.php';
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 require_once __DIR__ . '/formFuncIncludes/descriptionLayout.php';
-include_once(__DIR__ . "/stdFunc/mbWordwrap.php");
 
 if (!function_exists('skriv')) {
 	function skriv($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $formular, $line)
@@ -448,7 +436,7 @@ if (!function_exists('ombryd')) {
 			$lokation = $parts[1] ?? NULL;
 			$vare_note = $parts[2] ?? NULL;
 		}
-		$tekst = $wrappedDescription !== null ? $wrappedDescription : mb_wordwrap($tekst, $laengde, "\n", true);
+		$tekst = $wrappedDescription !== null ? $wrappedDescription : wordwrap($tekst, $laengde, "\n", true);
 		$nytekst = "";
 		if (strstr($tekstinfo, 'ordrelinjer')) {
 			list($tmp, $Opkt) = explode("_", $tekstinfo);
@@ -478,7 +466,7 @@ if (!function_exists('ombryd')) {
 			$y = skriv($id, $str, $fed, $italic, $color, $nytekst, $tekstinfo, $x, $y, $format, $form_font, $formular, __LINE__);
 		}
 		if ($lokation) {
-			$lokation = mb_wordwrap($lokation, $laengde, "\n", true);
+			$lokation = wordwrap($lokation, $laengde, "\n", true);
 			$lok_lines = explode("\n", $lokation);
 			foreach ($lok_lines as $lok_line) {
 				$lok_line = trim($lok_line);
@@ -1563,8 +1551,6 @@ if (!function_exists('formularprint')) {
 						}
 					}
 					fclose($logofil);
-				} else {
-					$logo = ''; // never write the bare file path into the PostScript (Ghostscript aborts at the first page break)
 				}
 			}
 			########################
@@ -2238,7 +2224,7 @@ if (!function_exists('formularprint')) {
 									: 0;
 								$vn_wrap = max((int)$laengde[$z], $vn_span);
 								if ($vn_wrap > 0 && mb_strlen($varenr[$x]) > $vn_wrap) {
-									$vn_wrapped = explode("\n", mb_wordwrap($varenr[$x], $vn_wrap, "\n", true));
+									$vn_wrapped = explode("\n", wordwrap($varenr[$x], $vn_wrap, "\n", true));
 								} else {
 									$vn_wrapped = [$varenr[$x]]; 
 								}
@@ -2354,16 +2340,13 @@ if (!function_exists('formularprint')) {
 				if ($formgen == 'html') {
 					rename($mappe . "/" . $pfliste[$x] . ".htm", $mappe . "/" . $pfliste[$x] . "_1.htm");
 					$i = 1;
-					$sidepdf = array();
 					while (file_exists($mappe . "/" . $pfliste[$x] . "_" . $i . ".htm")) {
 						$indfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".htm";
 						$udfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".pdf";
 						system("weasyprint -e UTF-8 $indfil $udfil");
-						$sidepdf[] = escapeshellarg($udfil);
 						$i++;
 					}
-					// Merge in page order; the shell glob _*.pdf put _10.pdf before _2.pdf
-					system("$pdftk " . implode(' ', $sidepdf) . " output $mappe/$pfliste[$x].pdf");
+					system("$pdftk " . $mappe . "/" . $pfliste[$x] . "_*.pdf output $mappe/$pfliste[$x].pdf");
 					if (file_exists($mappe . "/" . $pfliste[$x] . "_*.htm"))
 						unlink($mappe . "/" . $pfliste[$x] . "_*.htm");
 					#				unlink ($mappe."/".$pfliste[$x]."_*.pdf");
@@ -2505,15 +2488,10 @@ if (!function_exists('bundtekst')) {
 		$side = $side + 1;
 
 
-		// Embed the EPS logo with the EPSF inclusion wrapper (own saved state and stacks, its showpage disabled),
-		// so exactly one showpage below ends every page. Relying on the logo's own showpage lost pages 2..N
-		// when logo.eps was missing or had none (SD-490).
-		if ($logoart == 'EPS' && $logo !== '') {
-			fwrite($psfp, "\n/b4_Inc_state save def\n/dict_count countdictstack def\n/op_count count 1 sub def\nuserdict begin\n/showpage { } def\n");
+		if ($logoart != 'EPS')
+			fwrite($psfp, "showpage\n");
+		else
 			fwrite($psfp, $logo);
-			fwrite($psfp, "\ncount op_count sub {pop} repeat\ncountdictstack dict_count sub {end} repeat\nb4_Inc_state restore\n");
-		}
-		fwrite($psfp, "showpage\n");
 		fwrite($htmfp, "</body>\n</html>\n");
 		#fclose($htmfp);
 		#$htmfp=fopen($mappe."/".$printfilnavn."_$side.htm","w");
@@ -2662,16 +2640,18 @@ if (!function_exists('rykkerprint')) {
 			fclose($logofil);
 		}
 
-		$mappe = "../temp/$db/$bruger_id" . "_*";
-		system("rm -r $mappe");
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_" . date("his");
-		mkdir("$mappe", 0775);
+		// Each print request keeps its own files so another tab cannot delete them.
+		$printDirectory = abs((int) $bruger_id) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8));
+		$mappe = "../temp/$db/" . $printDirectory;
+		if (!mkdir($mappe, 0775)) {
+			throw new RuntimeException('Udskriftsmappen kunne ikke oprettes.');
+		}
 		#	if ($inkasso) $printfilnavn=abs($bruger_id)."_".date("his")."/"."$inkasso";
 		#	else
 		if ($rykkernr[0])
-			$printfilnavn = abs($bruger_id) . "_" . date("his") . "/" . "$rykkernr[0]";
+			$printfilnavn = $printDirectory . "/" . "$rykkernr[0]";
 		else
-			$printfilnavn = abs($bruger_id) . "_" . date("his") . "/" . "rykker";
+			$printfilnavn = $printDirectory . "/" . "rykker";
 		$psfp = fopen("../temp/$db/$printfilnavn.ps", "w");
 		$htmfp = fopen("../temp/$db/$printfilnavn.htm", "w");
 		$htminitxt = "<html>\n";
@@ -2920,11 +2900,12 @@ if (!function_exists('kontoprint')) {
 			include("../includes/formularimport.php");
 			formularimport("../importfiler/formular.txt", '11');
 		}
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_*";
-		system("rm -r $mappe");
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_" . date("his");
-		if (!file_exists($mappe))
-			mkdir("$mappe", 0775);
+		// Each print request keeps its own files so another tab cannot delete them.
+		$printDirectory = abs((int) $bruger_id) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8));
+		$mappe = "../temp/$db/" . $printDirectory;
+		if (!mkdir($mappe, 0775)) {
+			throw new RuntimeException('Udskriftsmappen kunne ikke oprettes.');
+		}
 		$printfilnavn = "$mappe/" . "kontoudtog";
 		$psfp = fopen("$printfilnavn.ps", "w");
 		$htmfp = fopen("$printfilnavn.htm", "w");
@@ -2936,33 +2917,13 @@ if (!function_exists('kontoprint')) {
 			$konto_til = '9999999999';
 		if (!$konto_fra)
 			$konto_fra = '1';
-		// SST-819 review: the loop below assigns these only inside its while, so a selection
-		// matching nothing left them undefined and count($konto_id) threw a TypeError on PHP
-		// 8. Reachable before this change with a nonexistent account number, and now also
-		// with a range that contains only closed accounts.
-		$konto_id = array();
 		$x = 0;
 		if (is_numeric($konto_fra)) {
 			#20161124
-			// SST-819 This compared $konto_fra with itself, so it was never true and the range
-			// branch below was unreachable: printing a span of accounts silently printed only
-			// the one in konto_fra and ignored konto_til. The 2016 note beside it says the
-			// intent was "if konto_fra = konto_til, search specifically on kontonr", so the
-			// comparison is against konto_til.
-			// lukket is '' on most rows but NULL on others, and NULL != 'on' is NULL, not true -
-			// which would have dropped those accounts from a range print instead.
-			if ($konto_fra != $konto_til) {
-				// is_numeric() above constrains konto_fra but nothing constrains konto_til or
-				// kontoart, and both arrive from $_GET via debitor/kontoprint.php. While this
-				// branch was dead that did not reach the database; enabling it, it does, so
-				// escape them here.
-				$konto_fra_esc = db_escape_string($konto_fra);
-				$konto_til_esc = db_escape_string($konto_til);
-				$kontoart_esc  = db_escape_string($kontoart);
-				$qtxt = "select id,gruppe from adresser where kontonr>='$konto_fra_esc' and kontonr<='$konto_til_esc' and art = '$kontoart_esc' and (lukket is null or lukket != 'on')";
-			} else {
+			if ($konto_fra != $konto_fra)
+				$qtxt = "select id from adresser where kontonr>='$konto_fra' and kontonr<='$konto_til' and art = '$kontoart' and lukket != 'on'";
+			else
 				$qtxt = "select id,gruppe from adresser where kontonr='$konto_fra' and art = '$kontoart'";
-			}
 		} elseif ($konto_fra && $konto_fra != '*') {
 			$konto_fra = str_beskrivelsreplace("*", "%", $konto_fra);
 			$tmp1 = strtolower($konto_fra);
@@ -3233,25 +3194,21 @@ if (!function_exists('kontoprint')) {
 				$exec_path = "/usr/bin";
 			#	$qtxt="select * from formularer where formular = '11' and art = '5' and sprog='Dansk' order by xa,id";
 			#	$r=db_fetch_array(db_select($qtxt",__FILE__ . " linje " . __LINE__));
-			// SST-819 review: this ran once per account. $printfilnavn is a single document
-			// holding every selected account's statement, and nothing below varies with the
-			// counter, so a range of N accounts converted and emailed the same combined PDF N
-			// times. Harmless while the range branch was dead and only ever yielded one
-			// account; a visible regression once it works. Send it once.
-
-			#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
-			system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");
-			if (file_exists($pdftk) && file_exists("../logolib/$db_id/bg.pdf")) {
-				$out = $printfilnavn . "x.pdf";
-				system("$pdftk $printfilnavn.pdf background ../logolib/$db_id/bg.pdf output $out");
-				if (file_exists("$printfilnavn.pdf"))
-					unlink("$printfilnavn.pdf");
-				system("mv $out $printfilnavn.pdf");
-				#		} else {
-				#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
-				#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
+			for ($x = 1; $x <= $mailantal; $x++) {
+				#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
+				system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");
+				if (file_exists($pdftk) && file_exists("../logolib/$db_id/bg.pdf")) {
+					$out = $printfilnavn . "x.pdf";
+					system("$pdftk $printfilnavn.pdf background ../logolib/$db_id/bg.pdf output $out");
+					if (file_exists("$printfilnavn.pdf"))
+						unlink("$printfilnavn.pdf");
+					system("mv $out $printfilnavn.pdf");
+					#		} else {
+					#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
+					#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
+				}
+				send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
 			}
-			send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
 		}
 		if ($nomailantal > 0) {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$printfilnavn&udskriv_til=PDF&udskrift=kontokort\">";

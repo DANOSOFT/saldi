@@ -4,8 +4,6 @@
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261005 CDX/PHR Add resumable total-stock synchronization without price or warehouse updates.
 // 20261005 CDX/PHR Allow retrying an individual failed item/shop without advancing the queue.
-// 20261006 CL/NTR Documented why webshop requests deliberately follow customer-controlled redirects.
-// 20261006 CL/NTR Documented that a batch may exceed its 8 s budget by one cURL timeout.
 
 class ShopStockException extends RuntimeException {}
 
@@ -180,8 +178,6 @@ function shopStockSend(array $endpoints, array $params)
 			$bodies[$slot] = '';
 			curl_setopt_array($handle, array(
 				CURLOPT_CONNECTTIMEOUT => 4, CURLOPT_TIMEOUT => 12,
-				// Redirects are intentional: the endpoints and their redirects are customer-controlled
-				// (e.g. http to https, www), and the request only carries stock figures. Bounded below.
 				CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3,
 				CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
 				CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
@@ -269,9 +265,6 @@ function shopStockBatch(array $job, array $catalog, array $endpoints, callable $
 		throw new ShopStockException('Webshopopsætningen er ændret. Afslut kørslen og start en ny opdatering.');
 	}
 	$start = microtime(true);
-	// The 8 s threshold is a soft budget checked only before each item. An item started just under it can run
-	// for the full cURL timeout in shopStockSend(), so a batch may last about 20 s. That is deliberate: slow shops
-	// must not be failed artificially, and every item is saved as it completes, so a longer hold is harmless.
 	for ($n = 0; $n < 5 && microtime(true) - $start < 8; $n++) {
 		$retry = !empty($job['retry']);
 		if ($retry) {

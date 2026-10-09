@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-09-24 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,7 +61,8 @@
 //                  shared is_input_too_long() from std_func.php.
 // 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
-// 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
+// 20261006 CDX/PHR Use the PostgreSQL locator on ssl3 for account lookup and registration.
+// 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -79,6 +80,7 @@ include("../includes/connect.php");
 include("../includes/db_query.php");
 include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
+require_once(__DIR__ . '/../includes/locatorClient.php');
 
 #print "<!--";
 $timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
@@ -303,30 +305,11 @@ if (isset($_POST['regnskab'])) {
 		$tmp=date("U");
 		if ($masterversion > "1.1.3") db_modify("update regnskab set sidst='$tmp' where id = '$db_id'",__FILE__ . " linje " . __LINE__);
 	}	else {
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=getLocation&dbAlias=" . urlencode($regnskab));
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_HEADER, false);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
-
-		// Execute curl request
-		$result = curl_exec($ch);
-
-		// Check for curl errors
-		if(curl_errno($ch)) {
-			die('Curl error: ' . curl_error($ch));
-		}
-
-		curl_close($ch);
-
-		// Debug raw response
-		error_log("Raw response: " . $result);
-
-		// Decode JSON
-		$decoded = json_decode($result, true);
-
-		if ($decoded["status"] == "success") {
-			$url = 'https://' . preg_replace('#^https?://#', '', $decoded['location']) . '/index/login.php';
+		$decoded = loginLocatorRequest(array('action' => 'getLocation', 'dbAlias' => $regnskab));
+		$location = is_array($decoded) && ifset($decoded, 'status') === 'success'
+			? loginLocatorLocation(ifset($decoded, 'location')) : '';
+		if ($location !== '') {
+			$url = htmlspecialchars(preg_replace('#^http://#', 'https://', $location) . '/index/login.php', ENT_QUOTES, 'UTF-8');
 			print "<form name=\"login\" METHOD=\"POST\" ACTION=\"$url\" onSubmit=\"return handleLogin(this);\">\n";
 			print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">\n";
 			print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
@@ -744,7 +727,6 @@ if ($userId) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	if ($login=="cookie") {setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
 	include("../includes/online.php"); #20111105
-	if (!$regnskabsaar && $db != $sqdb) $regnskabsaar = if_isset($regnaar, '');
 
 	# ###################################################
 	#
@@ -860,7 +842,7 @@ if ($userId) {
 	# ###################################################
 	}
 	if ($post_max && $db!=$sqdb) {
-		$r=db_fetch_array(db_select("select box6 from grupper where art = 'RA' and kodenr = '".(int)$regnskabsaar."'",__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select box6 from grupper where art = 'RA' and kodenr = '$regnskabsaar'",__FILE__ . " linje " . __LINE__));
 		$post_antal=$r['box6']*1;
 #		if (($sqdb=="saldi" || $sqdb=="gratis" || $sqdb=="udvikling") && $post_max<=9000 && $post_max < $post_antal ) {
 			$diff=$post_antal-$post_max;
@@ -878,7 +860,8 @@ ob_end_flush();	//Sender det "bufferede" output afsted...
 #################################################################### *XCK IER DWN 20211094
 if(!isset($afbryd)){
 	if (file_exists("$db.html")) print "<BODY onLoad=\"JavaScript:window.open('$db.html')\">";
-	$db_skriv_id=$dbLocation=$usermail=NULL;
+	$db_skriv_id = NULL;
+	$dbLocation = loginLocatorInstallation($_SERVER);
 	
 	$fp=fopen("../temp/.ht_online.log","a");
 	fwrite($fp,date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n"); #20210902
@@ -894,23 +877,26 @@ if(!isset($afbryd)){
 			include("../includes/online.php");
 		}
 		if (1==1) {
-			$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&globalId=$globalId&dbName=$db&dbMail=$mainMail";
-			$url.= "&dbAlias=". urlencode($regnskab) ."&dbLocation=$dbLocation&userId=$userId&userName=". urlencode($brugernavn);
-			$url.= "&usermail=". urlencode($usermail);;
-			// 20260902 CL/LH  F-010: the locator call is synchronous on every login. Bound it so an
-			// unreachable saldi.dk cannot hang the login page, and tolerate a failed call.
-			$locatorCtx = stream_context_create(array('http' => array('timeout' => 5)));
-			$result = @file_get_contents($url, false, $locatorCtx);
-			if ($result === false) $result = '';
-			$a = explode(',', (string)json_decode($result, true));
-			if ($a[0] && (!$globalId || (!$dbMail && $mainMail))) {
-				$globalId = $a[0];
-				include("../includes/connect.php");
-					$qtxt = "update regnskab set global_id = '$globalId', email = '$mainMail' where id = '$db_id'";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				include("../includes/online.php");
+			// User email may come from the employee record; fall back to the authenticated user.
+			if (empty($userMail) && $userId) {
+				$mailRow = db_fetch_array(db_select("SELECT email FROM brugere WHERE id=" . (int) $userId, __FILE__ . " linje " . __LINE__));
+				$userMail = ifset($mailRow, 'email', '');
 			}
-			if ($globalId) {
+			$result = loginLocatorRequest(array(
+				'action' => 'getDBlocation', 'globalId' => (int) if_isset($globalId, 0),
+				'dbName' => $db, 'dbMail' => $mainMail, 'dbAlias' => $regnskab,
+				'dbLocation' => $dbLocation, 'userId' => (int) $userId,
+				'userName' => $brugernavn, 'userMail' => if_isset($userMail, '')
+			));
+			$locatorId = loginLocatorGlobalId($result, $db, (int) if_isset($globalId, 0));
+			if ($locatorId && (empty($globalId) || (!$dbMail && $mainMail))) {
+				$globalId = $locatorId;
+				include(__DIR__ . '/../includes/connect.php');
+				$qtxt = "UPDATE regnskab SET global_id=" . (int) $globalId . ", email='" . db_escape_string($mainMail) . "' WHERE id=" . (int) $db_id;
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				include(__DIR__ . '/../includes/online.php');
+			}
+			if (!empty($globalId)) {
 				$_SESSION['globalId']= $globalId; //20241202
 				$qtxt = "select id, var_value from settings where var_grp = 'globals' and var_name = 'globalId'"; 
 				if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {

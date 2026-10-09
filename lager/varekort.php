@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- lager/varekort.php --- lap 5.0.0 --- 2026-09-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -97,9 +97,6 @@
 // 20250924 PBLM - Alert for saved product is disabled
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260213 LOE  - Updated the back button for debitorkort reference.
-// 20260811 Sawaneh Expiry date section is now shown only when 'batchExpiryEnabled' (Varerelaterede
-//                  valg) is on and the item's product group has batch control (box9). Expiry fields
-//                  are only saved when the section was posted, so a hidden section cannot blank them.
 // 20260827 LOE  - SD-652 Added a guard for $varenrAlias and initialized few variables. Updated to use if_isset() for more variables to avoid undefined index notices.
 // 20260827 CL/SZ Defined the missing $icon_back and switched the "Tilbage"/
 //                "Luk"/"POS menuer"/"Ny" buttons in the $menu=='S' header
@@ -122,14 +119,7 @@
 //             values. Now zero the multipliers when the box is unchecked so "off"
 //             actually persists and stops updateProductPrice.php's auto-overwrite too.
 // 20260907 CDX/LH Retain popup context through product-card saves and local navigation.
-// 20260921 Sawaneh Merge with the 20260902 layout: the batchExpiryEnabled/box9 condition now wraps the
-//                  pcSecExpiry box instead of the old include inside the Diverse box.
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
-// 20261001 MJ SST-826 Save a warehouse location for an item that has no lagerstatus row:
-//                  create the row with no stock instead of discarding the location. The insert
-//                  had been commented out, so on an account with warehouses a location typed
-//                  for a new item vanished without a message and could never reach the picking
-//                  list. An empty field still creates nothing.
 //
 ob_start(); //Starts output buffering
 
@@ -190,7 +180,6 @@ include("productCardIncludes/percentageField.php");
 include_once("../includes/emballage_schema.php");
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
-$batchExpiryEnabled = (get_settings_value("batchExpiryEnabled", "items", "off") === "on");
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='specialtype'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -391,9 +380,6 @@ if ($saveItem || $submit = trim($submit)) {
     $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $lukket = if_isset($_POST, NULL, 'lukket');
     $serienr = db_escape_string(trim(if_isset($_POST, '','serienr')));
-    # Only trust the expiry fields when the section was actually rendered, so a hidden
-    # section can never blank out an existing due date setup on save.
-    $expirySectionPosted = (if_isset($_POST, NULL, 'expiry_section') == '1');
     $has_due_date = (if_isset($_POST,NULL,'has_due_date') == 'on') ? 'true' : 'false';
     $default_shelf_life_days = if_isset($_POST,NULL,'default_shelf_life_days');
     if ($default_shelf_life_days !== null && $default_shelf_life_days !== '') $default_shelf_life_days = intval($default_shelf_life_days);
@@ -563,26 +549,11 @@ if ($saveItem || $submit = trim($submit)) {
             if (!isset($lagerlok[$x])) {
                 continue;
             }
-            // Not named $location: that variable already holds the single-warehouse
-            // location from the POST and is written to varer.location further down.
-            $stockLocation = db_escape_string($lagerlok[$x]);
-            $warehouseNumber = (int) $x;
-            $qtxt = "select id from lagerstatus where vare_id='$id' and lager='$warehouseNumber' limit 1";
+            $qtxt = "select id from lagerstatus where vare_id='$id' and lager='$x' limit 1";
             if ($r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $qtxt = "update lagerstatus set lok1='$stockLocation' where vare_id='$id' and lager='$warehouseNumber'";
+                $qtxt = "update lagerstatus set lok1='" . db_escape_string($lagerlok[$x]) . "' where vare_id='$id' and lager='$x'";
                 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            } elseif (trim($lagerlok[$x]) !== '') {
-                // SST-826 An item with no stock has no lagerstatus row for the warehouse -
-                // showLocations.php only creates one when the recorded stock disagrees with
-                // batch_kob/batch_salg, and for a new item both are 0. The insert that
-                // belongs here was commented out, so the location was silently dropped and
-                // could never reach the picking list. Create the row with no stock, so
-                // saving a location records the location and nothing else; the first goods
-                // receipt then updates beholdning on this same row.
-                $qtxt = "insert into lagerstatus (vare_id,lager,variant_id,beholdning,lok1) ";
-                $qtxt .= "values ('$id','$warehouseNumber','0','0','$stockLocation')";
-                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            }
+            } #else $qtxt="insert into lagerstatus (vare_id,lager,lok1) values ('$id','$x','$lagerlok[$x]')";
         }
     }
 
@@ -1026,10 +997,8 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision',";// 20221004
-            if ($expirySectionPosted) {
-                $qtxt .= "has_due_date=$has_due_date,";
-                $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
-            }
+            $qtxt .= "has_due_date=$has_due_date,";
+            $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
             $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";
 
@@ -1836,15 +1805,11 @@ if (!$varenr) {
     print "</tbody></table></div></td></tr>";#  <- Variant tabel
 
     ####################################### UDLØBSDATO #############################################
-    # Requires both the company setting (Varerelaterede valg) and batch control on the
-    # item's product group (grupper.box9).
-    if ($batchExpiryEnabled && trim((string) $batchItem) == 'on') {
-        print "<tr><td id='pcSecExpiry' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # Udløbsdato tabel ->
-        print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
-        include('productCardIncludes/showExpirySettings.php');
-        print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
-        print "</tbody></table></td><td></td><td></td></tr>";#  <- Udløbsdato tabel
-    }
+    print "<tr><td id='pcSecExpiry' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # Udløbsdato tabel ->
+    print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
+    include('productCardIncludes/showExpirySettings.php');
+    print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
+    print "</tbody></table></td><td></td><td></td></tr>";#  <- Udløbsdato tabel
 
     ####################################### NOTER/BESKRIVELSE #############################################
     print "\n<!-- productCardIncludes/notesEtc.php begin -->\n";

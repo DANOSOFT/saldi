@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_modtagere.php --- ver 5.0.0 --- 2026.10.05 ---
+// --- debitor/mail_modtagere.php --- Patch 4.0.8 --- 2025.04.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2022-2026 Danosoft ApS
+// Copyright (c) 2022-2025.dk ApS
 // -----------------------------------------------------------------------------------
 // 20170613 PHR Tilføjet flere variabler til mailteksten og rettet datoudtræk fra beskrivelse. 
 // 20180417 PHR	rettet ',$mailtekst)' til ',$mtxt)' i '$mtxt=str_replace('$kontonr',$kontonr[$x],$mtxt)'
@@ -33,9 +33,6 @@
 // 20230718 PHR Added $begin & $end to be used in no dates in 'beskrivelse'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250407 PHR will now use phpmailer from composer if old phpmailer is not present
-// 20261005 MJ SST-853 Set $mail->CharSet so settlement mails declare UTF-8. The body is built
-//                  as UTF-8 and its meta tag says so, but PHPMailer defaults CharSet to
-//                  iso-8859-1, so recipients saw "KÃ¦re" where the text said "Kære".
 
 @session_start();
 $s_id=session_id();
@@ -277,11 +274,6 @@ if (file_exists(".:../phpmailer")) { #20250407
 		)
 	);
 }
-
-		// 20261005 MJ SST-853 The body above is assembled as UTF-8 and its meta tag says so,
-		// but PHPMailer defaults CharSet to iso-8859-1. Set outside the selection above - as
-		// includes/formFuncIncludes/oldSendMail.php does - so it applies to either PHPMailer.
-		$mail->CharSet = 'UTF-8';
 
 		if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121029
 			$from = $db."@".$_SERVER['SERVER_NAME']; #20220825 
