@@ -195,9 +195,13 @@ for ($l=0;$l<count($labels);$l++) {
 		$konto = $r2['box4'];
 		$qtxt="select moms from kontoplan where kontonr='$r2[box4]' order by id desc limit 1";
 		$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$momskode=str_replace("S","",$r2['moms']);	
-		$qtxt="select box2 from grupper where art='SM' and kodenr = '$momskode'";
-		$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$momskode=str_replace("S","",$r2['moms']);
+		if (ctype_digit($momskode)) {
+			$qtxt="select box2 from grupper where art='SM' and kodenr = '$momskode'";
+			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		} else {
+			$r2=false;
+		}
 		$incl_moms= $r2 ? floatval($r2['box2']) : 25; // $r2 can be false if not found, default to 25% VAT
 		$salgspris*=(100+$incl_moms)/(100);
 		$special_price*=(100+$incl_moms)/(100);
