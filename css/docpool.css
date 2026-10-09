@@ -299,11 +299,12 @@ body {
    FILE LIST CONTAINER
    ============================================ */
 
+/* SD-719: the list keeps room for a few rows on a low screen; the upload box below gives way instead (#fixedCell) */
 #fileListContainer {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  min-height: 0;
+  min-height: 200px;
   margin: 0 0 0 8px;
   padding: 0;
   position: relative;
@@ -540,8 +541,12 @@ body {
    FIXED BOTTOM SECTION
    ============================================ */
 
+/* SD-719: shrinks down to its header when the list needs the room, and scrolls inside itself */
 #fixedCell {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-height: 64px;
+  overflow-y: auto;
+  overflow-x: hidden;
   width: 100%;
   margin: 0;
   padding: 0;
