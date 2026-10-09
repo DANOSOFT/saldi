@@ -81,6 +81,7 @@
 //                  the current tenant's database/schema, matching the performed_by migration.
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
 // 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
+// 20261003 CL/SZ SD-721: adresser.auto_created, auto_created_by and bank_unconfirmed for the kreditor created from the CVR register, Postgres and MySQL.
 // 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
@@ -1064,6 +1065,48 @@ if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables W
 			foreach ($poolArchiveMissing as $poolArchiveColumn => $poolArchiveProbe) {
 				db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolArchiveColumn " . $poolArchiveColumns[$poolArchiveColumn], __FILE__ . " linje " . __LINE__);
 			}
+		}
+	}
+}
+
+// 20261003 CL/SZ SD-721: kreditor from the CVR register.
+// adresser.auto_created (when) and auto_created_by (brugere.id, -1 for a revisor session): the kreditor was created automatically from the CVR register.
+// adresser.bank_unconfirmed (when): the bank details were read from an invoice and are not used for a payment before "Bekræft"; NULL means confirmed.
+// bank_unconfirmed last: includes/kreditorFromCvr.php probes for it, so once it exists all three do.
+$kredCvrMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$kredCvrSchema = $kredCvrMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$kredCvrColumns = array(
+	'auto_created' => $kredCvrMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+	'auto_created_by' => 'INTEGER NULL',
+	'bank_unconfirmed' => $kredCvrMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+);
+$kredCvrMissing = array();
+foreach ($kredCvrColumns as $kredCvrColumn => $kredCvrType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'adresser' AND column_name = '$kredCvrColumn'$kredCvrSchema";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$kredCvrMissing[$kredCvrColumn] = $qtxt;
+	}
+}
+if ($kredCvrMissing) {
+	if ($kredCvrMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the pool_files columns)
+		$kredCvrLock = "CONCAT('saldi:adresser_cvr:', MD5(DATABASE()))";
+		$kredCvrLockResult = db_fetch_array(db_select("SELECT GET_LOCK($kredCvrLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($kredCvrLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the adresser CVR migration lock.');
+		}
+		try {
+			foreach ($kredCvrMissing as $kredCvrColumn => $kredCvrProbe) {
+				if (!db_fetch_array(db_select($kredCvrProbe, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE adresser ADD COLUMN $kredCvrColumn " . $kredCvrColumns[$kredCvrColumn], __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($kredCvrLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($kredCvrMissing as $kredCvrColumn => $kredCvrProbe) {
+			db_modify("ALTER TABLE adresser ADD COLUMN IF NOT EXISTS $kredCvrColumn " . $kredCvrColumns[$kredCvrColumn], __FILE__ . " linje " . __LINE__);
 		}
 	}
 }

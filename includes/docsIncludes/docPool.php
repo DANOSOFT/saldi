@@ -142,6 +142,7 @@
 //                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
 //                With no pool_files table yet, the full sync runs at once.
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
+// 20261003 CL/SZ SD-721 Loads kreditorFromCvr.js: a supplier that is not a kreditor is created from the CVR register, offered with "Opret kreditor", or entered in the dialog.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
@@ -176,6 +177,7 @@ include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/poolVendorSuggestion.php");
+include_once(__DIR__ . "/../kreditorFromCvr.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
 /**
@@ -1657,6 +1659,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<script src=\"../javascript/docPoolSwitch.js?v=$v13\"></script>";
 	$v14 = file_exists("../javascript/docPoolSplit.js") ? filemtime("../javascript/docPoolSplit.js") : 0;
 	print "<script src=\"../javascript/docPoolSplit.js?v=$v14\"></script>";
+	// SD-721: kreditor from the CVR register when the supplier is not a kreditor
+	$v15 = file_exists("../javascript/kreditorFromCvr.js") ? filemtime("../javascript/kreditorFromCvr.js") : 0;
+	print kreditorCvrClientScript($sprog_id, (string)$v15);
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>

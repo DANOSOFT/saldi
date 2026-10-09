@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-06 ------
+// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-07 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,8 @@
 //             debitor/debkort_save.php (SD-513)
 // 20260928 CL/SZ SD-698: Tilbage glued "?returside=" onto a returside that already had a query string (e.g. kassekladde.php?kladde_id=5), producing a broken URL.
 //                The back link is now built once with the right separator, and returside is sanitized like debitorkort.php.
+// 20261003 CL/SZ SD-721 The insert and the automatic numbering are includes/kreditorCreate.php's kreditorInsert() and kreditorNextKontonr(), shared with the kreditor created from the CVR register.
+//                Unconfirmed bank details (read from an invoice) are marked "Ubekræftede bankoplysninger" with "Bekræft"; a kreditor created automatically says so, with date and user.
 // 20261001 CL/SZ SD-698: returside is URL-encoded wherever this card passes it on (Ny, contact person, kontofusion), so a returside with its own query string (kassekladde.php?tjek=..&kladde_id=..) keeps its kladde_id.
 //                The Ny links are javascript: hrefs, which the browser decodes once before running them, so returside is encoded twice there.
 //                The menu S Ny link used undefined $kort/$ny_id/$alerttekst; it now uses kreditorkort.php, $ordre_id and $tekst like the other Ny link.
@@ -41,6 +43,10 @@
 //                sanitizer and became a quote there. The address is an escaped data attribute that onclick hands to confirmClose().
 // 20261006 CL/SZ SD-698 (CodeRabbit) The Ny links go the same way, and ordre_id (an integer) and fokus (a field name) are cleaned where they are read,
 //                so a crafted fokus can't break out of the links, the hidden field or the kontofusion redirect either.
+// 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
+//                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
+// 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
+//                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
 
 
 @session_start();
@@ -57,6 +63,7 @@ include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/kreditorCreate.php");
 include("../includes/topline_settings.php");
 # window.onbeforeunload = confirmBrowseAway;
 
@@ -146,16 +153,7 @@ if ($_POST) {
 		## Tildeler aut kontonr hvis det ikke er angivet
 		if (($firmanavn) && (($ny_kontonr < 1) || (!$ny_kontonr))) {
 			if (!$id) $id = "0";
-			$x = 0;
-			$ktoliste = array();
-			$qtxt = "select kontonr from adresser where art = 'K'	and id != $id order by kontonr";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$x++;
-				$ktoliste[$x] = $r['kontonr'];
-			}
-			$ny_kontonr = 1000;
-			while (in_array($ny_kontonr, $ktoliste)) $ny_kontonr++;
+			$ny_kontonr = kreditorNextKontonr($id);
 			print "<BODY onLoad=\"javascript:alert('Kontonummer $ny_kontonr tildelt automatisk')\">\n";
 		}
 		if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
@@ -170,10 +168,7 @@ if ($_POST) {
 				print "<BODY onLoad=\"javascript:alert('Der findes allerede en kreditor med Leverand&oslash;rnr: $ny_kontonr')\">\n";
 				$id = 0;
 			} elseif ($ny_kontonr) {
-				db_modify("insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,mobile,email,web,betalingsdage,kreditmax,betalingsbet,cvrnr,notes,art,gruppe,bank_navn,bank_reg,bank_konto,bank_fi,erh,swift,felt_1,felt_2,felt_3,felt_4,felt_5,lukket) values ('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$notes','K',$gruppe,'$bank_navn','$bank_reg','$bank_konto','$bank_fi','$erh','$swift','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$lukket')", __FILE__ . " linje " . __LINE__);
-				$query = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'K'", __FILE__ . " linje " . __LINE__);
-				$row = db_fetch_array($query);
-				$id = $row['id'];
+				$id = kreditorInsert(compact('firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'land', 'kontakt', 'tlf', 'mobile', 'email', 'web', 'betalingsdage', 'kreditmax', 'betalingsbet', 'cvrnr', 'notes', 'gruppe', 'bank_navn', 'bank_reg', 'bank_konto', 'bank_fi', 'erh', 'swift', 'felt_1', 'felt_2', 'felt_3', 'felt_4', 'felt_5', 'lukket') + array('kontonr' => $ny_kontonr));
 			}
 		} elseif ($id > 0) {
 			if ($ny_kontonr != $kontonr) {
@@ -335,6 +330,10 @@ if ($id > 0) {
 	$bank_fi = trim($r['bank_fi']);
 	$erh = trim($r['erh']);
 	$swift = trim($r['swift']);
+	// SD-721: created from the CVR register / bank details read from an invoice
+	$bankUnconfirmed = isset($r['bank_unconfirmed']) ? trim((string)$r['bank_unconfirmed']) : '';
+	$autoCreated = isset($r['auto_created']) ? trim((string)$r['auto_created']) : '';
+	$autoCreatedBy = isset($r['auto_created_by']) ? (int)$r['auto_created_by'] : 0;
 	$cvrnr = trim($r['cvrnr']);
 	$notes = htmlentities(trim($r['notes']), ENT_COMPAT, $charset);
 	$gruppe = trim($r['gruppe']);
@@ -346,6 +345,8 @@ if ($id > 0) {
 	($r['lukket']) ? $lukket = 'checked' : $lukket = '';
 } else {
 	$id = 0;
+	$bankUnconfirmed = $autoCreated = '';
+	$autoCreatedBy = 0;
 	$betalingsdage = 8;
 	$betalingsbet = "Netto\n";
 }
@@ -424,6 +425,23 @@ print "<tr bgcolor=$bg><td> " . findtekst('2227|Reg. nr.', $sprog_id) . "</td><t
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td><span title=\"For udenlandske kreditorer skrives IBAN nummer her\"> " . findtekst('440|Konto', $sprog_id) . "</span></td><td><input class=\"inputbox\" type=\"text\" name=\"bank_konto\" style='width:100px' value=\"$bank_konto\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+if ($bankUnconfirmed !== '') {
+	// SD-721: bank details read from an invoice are not used for a payment before "Bekræft"
+	$txtUnconfirmed = findtekst('5361|Ubekræftede bankoplysninger', $sprog_id);
+	$txtUnconfirmedHelp = findtekst('5363|Bankoplysningerne er læst fra en faktura og bruges ikke til betaling, før de er bekræftet.', $sprog_id);
+	$txtConfirm = findtekst('5362|Bekræft', $sprog_id);
+	print "<tr bgcolor=$bg id='kredBankUnconfirmed'><td colspan=2><span class='kred-bank-unconfirmed' title=\"" . htmlspecialchars($txtUnconfirmedHelp, ENT_QUOTES) . "\">&#9888; " . htmlspecialchars($txtUnconfirmed, ENT_QUOTES) . "</span> ";
+	print "<button type='button' onclick=\"kredConfirmBank($id)\">" . htmlspecialchars($txtConfirm, ENT_QUOTES) . "</button></td></tr>\n";
+	print "<script>
+	function kredConfirmBank(id){
+		var fd=new FormData();fd.append('action','confirmBank');fd.append('id',id);
+		fetch('kreditorFromCvr.php',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json();}).then(function(a){
+			if(a&&a.ok){var row=document.getElementById('kredBankUnconfirmed');if(row)row.remove();}
+		});
+	}
+	</script>\n";
+	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+}
 print "<tr bgcolor=$bg><td><span title=\"Anvendes kun ved udenlandske kreditorer som ikke har et IBAN nr.\"> " . findtekst('2228|SWIFT nr.', $sprog_id) . "</span></td><td><input class=\"inputbox\" type=\"text\" name=\"swift\" style='width:100px' value=\"$swift\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('1177|FI kreditor nr.', $sprog_id) . "</td><td><input class=\"inputbox\" type=\"text\" name=\"bank_fi\" style='width:100px' value=\"$bank_fi\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
@@ -431,6 +449,16 @@ print "<tr bgcolor=$bg><td>" . findtekst('1177|FI kreditor nr.', $sprog_id) . "<
 print "<tr bgcolor=$bg><td>" . findtekst('381|Kreditmax', $sprog_id) . "</td><td><input class=\"inputbox\" type=text style='width:100px' name=kreditmax value=\"$kreditmax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "</td><td><input class=\"inputbox\" type=checkbox name=lukket $lukket></td></tr>";
+if ($autoCreated !== '') {
+	// SD-721: who created it automatically, and when
+	// The user's name as the audit entry copied it, which also covers a revisor session (the user is only in the master database)
+	$autoBy = '';
+	$rBy = db_fetch_array(db_select("select brugernavn from audit_log where handling = 'kreditor.auto_created' and objekt_type = 'kreditor' and objekt_id = '" . (int)$id . "' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+	if (!$rBy && $autoCreatedBy > 0) $rBy = db_fetch_array(db_select("select brugernavn from brugere where id = $autoCreatedBy", __FILE__ . " linje " . __LINE__));
+	if ($rBy && trim((string)$rBy['brugernavn']) !== '') $autoBy = ' ' . findtekst('5346|af', $sprog_id) . ' ' . htmlspecialchars(trim($rBy['brugernavn']), ENT_QUOTES);
+	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+	print "<tr bgcolor=$bg><td colspan=2><i>" . htmlspecialchars(findtekst('5364|Oprettet automatisk fra CVR-registeret', $sprog_id), ENT_QUOTES) . " " . dkdato(substr($autoCreated, 0, 10)) . "$autoBy</i></td></tr>\n";
+}
 print "</tbody></table></td>"; #  <- tabel 1.2.1 
 print "<td valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>\n"; # tabel 1.2.3 ->
 print "<tr bgcolor=$bg><td colspan=2 height=25px align=center><b>" . findtekst(301, $sprog_id) . "</b>&nbsp;<a href=\"labelprint.php?id=$id\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></tr>\n";
