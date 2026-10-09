@@ -74,63 +74,87 @@ class VareModel
         }
     }
 
+    // 20261008 CL/LH: swagger documents the English field names (sku, description, ...) for
+    // orderBy/field, but only the Danish column names were accepted - the English ones silently
+    // fell back to id / returned []. Both are accepted now.
+    private static $apiFieldColumns = [
+        'sku' => 'varenr',
+        'barcode' => 'stregkode',
+        'description' => 'beskrivelse',
+        'salesPrice' => 'salgspris',
+        'costPrice' => 'kostpris',
+        'group' => 'gruppe',
+    ];
+
+    private static function apiFieldToColumn($field)
+    {
+        return self::$apiFieldColumns[$field] ?? $field;
+    }
+
     /**
      * Find products by field value
      */
-    public static function findBy($field, $value)
+    // 20261008 CL/LH: paged and ordered like getAllItems - a group filter returned every product
+    // in the group in one response. Numeric columns only match numeric values; anything else
+    // made the SQL fail.
+    public static function findBy($field, $value, $orderBy = 'id', $orderDirection = 'ASC', $limit = 20, $offset = 0)
     {
         // Validate field name to prevent SQL injection
-        $allowedFields = ['id', 'varenr', 'stregkode', 'beskrivelse'];
+        $field = self::apiFieldToColumn($field);
+        $allowedFields = ['id', 'varenr', 'stregkode', 'beskrivelse', 'salgspris', 'kostpris', 'gruppe'];
         if (!in_array($field, $allowedFields)) {
             error_log("Invalid field name in VareModel::findBy: $field");
+            return [];
+        }
+        if (in_array($field, ['id', 'salgspris', 'kostpris', 'gruppe']) && !is_numeric($value)) {
             return [];
         }
         
         // Escape the value to prevent SQL injection
         $escapedValue = pg_escape_string($value);
-        $query = "SELECT * FROM varer WHERE $field = '$escapedValue'";
-        
-        // Execute query with error handling
-        $result = db_select($query, __FILE__ . " line " . __LINE__);
-        
-        // Check if query failed
-        if ($result === false) {
-            error_log("Database query failed in VareModel::findBy for field: $field, value: $value");
-            return [];
-        }
-        
-        $items = [];
-        if ($result && db_num_rows($result) > 0) {
-            while ($row = db_fetch_array($result)) {
-                if ($row) {
-                    $vare = new VareModel();
-                    $vare->loadFromArray($row);
-                    $items[] = $vare;
-                }
-            }
-        }
-        
-        return $items;
+        return self::loadList("WHERE $field = '$escapedValue'", $orderBy, $orderDirection, $limit, $offset);
     }
 
     /**
      * Get all products
      */
-    public static function getAllItems($orderBy = 'id', $orderDirection = 'ASC', $limit)
+    // 20261008 CL/LH: added $offset - the list had no paging, so only the first $limit rows
+    // (id 1-20 by default) could ever be read. id is the tiebreaker so pages stay stable when
+    // sorting on a non-unique column.
+    public static function getAllItems($orderBy = 'id', $orderDirection = 'ASC', $limit = 20, $offset = 0)
+    {
+        return self::loadList('', $orderBy, $orderDirection, $limit, $offset);
+    }
+
+    /**
+     * One ordered page of products; $where is built by the caller from validated input
+     */
+    private static function loadList($where, $orderBy, $orderDirection, $limit, $offset)
     {
         // Validate orderBy to prevent SQL injection
-        $allowedOrderBy = ['id', 'varenr', 'beskrivelse', 'modtime'];
+        $orderBy = self::apiFieldToColumn($orderBy);
+        $allowedOrderBy = ['id', 'varenr', 'stregkode', 'beskrivelse', 'salgspris', 'kostpris', 'gruppe', 'modtime'];
         $allowedDirection = ['ASC', 'DESC'];
         
         if (!in_array($orderBy, $allowedOrderBy)) {
             $orderBy = 'id';
         }
+        $orderDirection = strtoupper($orderDirection);
         if (!in_array($orderDirection, $allowedDirection)) {
             $orderDirection = 'ASC';
         }
+        $limit = (int)$limit;
+        $offset = max(0, (int)$offset);
+        $tiebreak = ($orderBy == 'id') ? '' : ", id $orderDirection";
         
-        $query = "SELECT * FROM varer ORDER BY $orderBy $orderDirection LIMIT $limit";
+        $query = "SELECT * FROM varer $where ORDER BY $orderBy $orderDirection$tiebreak LIMIT $limit OFFSET $offset";
         $result = db_select($query, __FILE__ . " line " . __LINE__);
+        
+        // Check if query failed
+        if ($result === false) {
+            error_log("Database query failed in VareModel::loadList: $where");
+            return [];
+        }
         
         $items = [];
         if ($result && db_num_rows($result) > 0) {
