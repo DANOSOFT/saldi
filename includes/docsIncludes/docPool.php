@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -169,6 +169,8 @@
 // 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
 // 20261007 CL/SZ SD-719 The first page of the list comes with the page (poolListData()), so the list shows without a second request; it is used only when
 //                the browser would have asked for exactly that page (no stored search, more loaded rows, ticked documents or archive view) and not for a page from history.
+// 20261009 CL/SZ SD-719 On a low screen the upload box (#fixedCell) gives way to the list instead of squeezing it to nothing (docpool.css);
+//                #fixedBottom fills the cell (not the left panel's width in px), so the cell's scrollbar doesn't cut off its right edge.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -4729,7 +4731,7 @@ JS;
 	if (!isset($showDoc)) $showDoc = '';
 	$uploadParams = $params . "&openPool=1&poolFile=$poolFile&docFolder=" . urlencode($docFolder);
 	
-	print "<div id='fixedCell' style='width: 100%; flex-shrink: 0;'>";
+	print "<div id='fixedCell' style='width: 100%;'>";
 	print "<div id='contentWrapper'>";
 	
 	// Get button colors for fixedBottom
@@ -5314,10 +5316,8 @@ JS;
 				}
 
 				setTimeout(function() {
-					const leftPanelWidth = leftPanel.offsetWidth;
-					
-					// Set fixedBottom width to match the left panel width
-					fixedDiv.style.width = leftPanelWidth + 'px';
+					// The cell's own width: it is the left panel's, less the scrollbar the cell gets when it gives way to the list (SD-719)
+					fixedDiv.style.width = '100%';
 					
 					// No need for padding-bottom since fixedCell is now a normal flex item
 				}, 100);
