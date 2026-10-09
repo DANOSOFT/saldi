@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/diverseIncludes/save_flatpay_id.php ---------- ver 5.0.0----2026.10.02-------
+// ------------- systemdata/diverseIncludes/save_flatpay_id.php ---------- lap 3.9.9----2023.03.15-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,19 +20,8 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2012-2026 Danosoft ApS
+// Copyright (c) 2012-2023 saldi.dk aps
 // ----------------------------------------------------------------------
-// 20261002 LOE SST-844 Flatpay ID saves need the Indstillinger right, a CSRF token and a GUID value.
-
-ob_start();
-
-# $header and $bg are read by includes/online.php; "nix" keeps the answer free of the page frame
-$header = "nix";
-$bg     = "nix";
-# $modulnr is deliberately not passed to online.php: when it is set and the right is missing, online.php
-# prints an HTML denial page and exits from inside the include, so a refused call would answer with HTML
-# and HTTP 200 instead of this endpoint's JSON. The right is checked below with the same expression.
-
 @session_start();
 $s_id = session_id();
 
@@ -40,60 +29,10 @@ include ("../../includes/connect.php");
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 
-ob_end_clean();
-header('Content-Type: application/json; charset=utf-8');
-
-/**
- * Answer the popup with JSON and stop the request.
- *
- * @param int         $http_code HTTP status to send.
- * @param bool        $success   Whether the ID was saved.
- * @param string|null $fejl      Short reason when $success is false.
- *
- * @return void
- */
-function flatpay_id_svar($http_code, $success, $fejl = NULL) {
-	http_response_code($http_code);
-	$svar = array('success' => $success);
-	if ($fejl !== NULL) {
-		$svar['error'] = $fejl;
-	}
-	print json_encode($svar);
-	exit;
-}
-
-# Indstillinger is module 1. The script used to leave the module unset, so every logged-in user could
-# write the setting. An empty rights string counts as no right here: this writes a payment credential.
-if (!isset($rettigheder) || $rettigheder === '' || substr($rettigheder, 1, 1) < '1') {
-	flatpay_id_svar(403, false, 'Missing the Indstillinger right');
-}
-
-if (ifset($_SERVER, 'REQUEST_METHOD', '') !== 'POST') {
-	flatpay_id_svar(405, false, 'POST required');
-}
-
-# Session-bound token from the settings page, so a forged cross-site POST cannot change the ID
-$csrf_token = ifset($_SESSION, 'csrf_token', '');
-if ($csrf_token === '' || !hash_equals($csrf_token, (string) ifset($_SERVER, 'HTTP_X_CSRF_TOKEN', ''))) {
-	flatpay_id_svar(403, false, 'Invalid or expired form token');
-}
+$post = json_decode(file_get_contents('php://input'));
 
 # Expect a posted ID
-$post = json_decode(file_get_contents('php://input'), true);
-$id   = ifset($post, 'id', '');
-if (!is_string($id)) {
-	flatpay_id_svar(400, false, 'Expected an id');
-}
-$id = trim($id);
-
-# Flatpay returns the GUID, e.g. 00000000-0000-4000-8000-000000000000 (example, not a real ID).
-# An empty or malformed ID is refused, so a call without a usable ID can no longer blank or
-# overwrite the setting.
-if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
-	flatpay_id_svar(400, false, 'Expected a GUID');
-}
-$id = db_escape_string($id);
-
+$id = $post->{'id'};
 $qtxt = "SELECT var_value FROM settings WHERE var_name='flatpay_auth'";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
@@ -107,6 +46,6 @@ if ($r) {
   db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-flatpay_id_svar(200, true);
+print "Success";
 ?>
 

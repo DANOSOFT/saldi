@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/posmenufunc.php --- ver 4.0.5 --- 2026.09.25 ---
+//--- includes/posmenufunc.php --- ver 4.0.5 --- 2021.08.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2009-2026 Danosoft ApS
+// Copyright (c) 2009-2022 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20150820 Mulig for pris på varegenveje. Søg $pris
 // 20151023	Diverse nye ændringer
@@ -51,9 +51,8 @@
 // 20210812 LOE Added a block of code to for in description pose - stor for the text in a particular button and also added beskrivelse_old variable
 // 20210824 PHR Set $id to 0 if NULL;
 // 20210827 PHR Removed changed made 21020812 as it does not make sense.
-// 20220209 PHR  
+// 20220209 PHR
 // 20260907 CDX/LH Preserve explicit popup context in POS navigation and close the correct window.
-// 20260925 CDX/PHR Cast table IDs before SQL lookup and handle missing selections and empty table plans with findtekst.
 
 include(__DIR__ . "/posmenufunc_includes/buttonFunc.php");
 require_once __DIR__ . '/stdFunc/navStack.php';
@@ -78,7 +77,7 @@ if (!function_exists('menubuttons')) {
 		global $tilfravalgNy;
 		global $url;
 		global $varenr_ny, $vare_id, $vare_id_ny;
-		global $beskrivelse_ny, $beskrivelse_old; #20210812 
+		global $beskrivelse_ny, $beskrivelse_old; #20210812
 		global $sprog_id;
 
 		if (!$id)
@@ -144,7 +143,7 @@ if (!function_exists('menubuttons')) {
 			$qtxt = "select kodenr from grupper where art='POSBUT' and kode='$plads' and box1='$afd' and (box7 < box8) and (box7<='$tid' and box8>='$tid')";
 			if ($afd)
 				$qtxt .= " and (box12='$afd' or box12='') order by box12 desc limit 1";
-			
+
 			if($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))){
 				$menu_id = $r['kodenr'];
 			}
@@ -309,13 +308,12 @@ if (!function_exists('menubuttons')) {
 								$tmp = str_replace("setcolor: ;", "color: $b_font;", $tmp);
 								# New system
 							} else {
-								$bordnr = ifset($_GET, 'bordnr', -1);
-								if ($bordnr == -1) {
-									$bordnr = ifset($_COOKIE, 'saldi_bordnr', 1);
-								}
+								$bordnr = if_isset($_GET['bordnr'], -1);
+								if ($bordnr == -1)
+									$bordnr = if_isset($_COOKIE["saldi_bordnr"], 1);
 								if ($bordnr == -1) {
 									$r = db_fetch_array(db_select("SELECT id FROM table_plan ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
-									$bordnr = (int)ifset($r, 'id', 0);
+									$bordnr = (int)$r[0];
 								}
 								$bordnr = (int)$bordnr;
 								$r = db_fetch_array(db_select("select name from table_plan where id = $bordnr", __FILE__ . " linje " . __LINE__));
@@ -432,7 +430,7 @@ if (!function_exists('menubuttons')) {
 										$qtxt .= " and (box12='$afd' or box12='') order by box12 desc limit 1";
 									$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 									if ($r['kodenr']) {
-										#20201109 Added '& skift_bruger=1' as skift_bruger (forced user select) was not called 
+										#20201109 Added '& skift_bruger=1' as skift_bruger (forced user select) was not called
 										print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?{$posNavigationQuery}id=0&menuvalg=$r[kodenr]&skift_bruger=1\">\n";
 									} else {
 										print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?{$posNavigationQuery}id=0&skift_bruger=1\">\n";

@@ -28,8 +28,6 @@
 // included day 1.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
 // 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
-// 20261002 NTR - Added null coalescing operator to $PostalCode to avoid undefined index notice when postnr is null.
-
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
@@ -521,7 +519,7 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$StreetNumber = splitAddress($Address)[2];
 	$AdditionalAddressDetail = $r['addr2'];
 	$City = $r['bynavn'];
-	$PostalCode = $r['postnr'] ?? 0;
+	$PostalCode = $r['postnr'];
 	$CountryName = $r['land'];
 	if (!$CountryName)
 		$CountryName = 'Denmark';

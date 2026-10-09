@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posOptions.php --- ver 5.0.0 -- 2025-05-03 ---
+// --- systemdata/diverseIncludes/posOptions.php --- ver 4.1.0 -- 2025-05-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,6 @@
 // Kaldes fra systemdata/diverse.php
 // 20131230 PHR addad fiscal year to groups.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
-// 20261008 CDX/NTR pre-fetch terminal_type for all POS terminals before the render loop, as $terminal_type was never populated, throwing errors.
 
 function posOptions () {
 	global $bgcolor,$bgcolor5;
@@ -241,13 +240,9 @@ function posOptions () {
 #		print "<tr><td colspan='2' title='".findtekst(765,$sprog_id)."'>".findtekst(765,	$sprog_id)."</td><td title='".findtekst(766,$sprog_id)."'><input class='inputbox' type='text' style='text-align:right;width:25px' name='pfs' value='$pfs'></td></tr>\n";
 
 		print "</tr>\n";
-		$terminal_type = [];
-		$q = db_select("SELECT pos_id, var_value FROM settings WHERE var_name='terminal_type'", __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$terminal_type[$r['pos_id'] - 1] = $r['var_value'];
-		}
 		for($x=0;$x<$kasseantal;$x++) {
 			if (!$pfs[$x]) $pfs[$x]=10;
+			$terminal_type[$x] = if_isset($terminal_type[$x],NULL);
 			print "<tr bgcolor=$bgcolor5>";
 			$tmp=$x+1;
 			print "<td>$tmp</td>";
@@ -286,9 +281,12 @@ function posOptions () {
       # Payment terminal implementation
       print "<td align='center'>
 				<select class='inputbox' type='select' style='text-align:right;width:150px;'
-				name='terminal_type[$x]' value='".ifset($terminal_type, $x, '')."' onchange='type_change($x);'> ";
+				name='terminal_type[$x]' value='$terminal_type[$x]' onchange='type_change($x);'> ";
 
-			$posTermOption = ifset($terminal_type, $x);
+			$kasse_id = $x + 1;
+			$posTermOption = NULL;
+			$qtxt = "SELECT var_value FROM settings WHERE pos_id='$kasse_id' and var_name='terminal_type'";
+			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $posTermOption = $r[0];
 			if ($posTermOption == "Ip baseret"){
 				print "<option selected='selected' value='Ip baseret'>Ip baseret</option>
 					<option value='Flatpay'>Flatpay</option>

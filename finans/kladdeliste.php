@@ -36,13 +36,6 @@
 // 20260126 PHR fixed $exitDraft
 // 20260706 MJ Optimized cash journal list entry counts for large databases.
 // 20260904 Sawaneh WP-1.4: pass GET returside (sanitised) to topLineFinans; exitDraft cast to int
-// 20260908 SZ SST-755: exitDraft's release now also requires hvem to still match the
-//                  current user, so it can't clear a lock a different user has since taken.
-// 20260910 SZ SST-755 (CodeRabbit): removed the exitDraft release entirely - it still let a
-//                  stale tab clobber a lock a newer tab had since acquired (no tidspkt check),
-//                  and every real caller now goes through includes/luk.php instead (confirmed
-//                  no remaining ?exitDraft= link generator anywhere in the codebase).
-// 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
 
 @session_start();
 $s_id=session_id();
@@ -207,6 +200,12 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></scr
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
+$exitDraft = isset($_GET['exitDraft']) ? (int)$_GET['exitDraft'] : null;
+if ($exitDraft) {
+	$qtxt = "update kladdeliste set hvem = '', tidspkt = NULL where id = '$exitDraft'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 if (strpos(findtekst('639|Kladdeliste', $sprog_id),'undtrykke')) {
 	$qtxt = "update tekster set tekst = '' where tekst_id >= '600'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -270,12 +269,12 @@ $columns[] = array(
         
         if ($locked) {
             global $sprog_id;
-            $url = "kassekladde.php?tjek=$id&kladde_id=$id";
+            $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
             $bogfort = isset($row['bogfort']) ? htmlspecialchars($row['bogfort']) : '';
             return "<td align='{$column['align']}' data-bogfort='$bogfort' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url' title='" . findtekst('1607|Kladde er låst af', $sprog_id) . " {$row['hvem']}' style='color:#FF0000'>$value</a></td>";
         }
         
-        $url = "kassekladde.php?tjek=$id&kladde_id=$id";
+        $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
         $bogfort = isset($row['bogfort']) ? htmlspecialchars($row['bogfort']) : '';
         return "<td align='{$column['align']}' data-bogfort='$bogfort' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },

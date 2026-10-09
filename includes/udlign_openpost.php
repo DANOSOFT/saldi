@@ -76,7 +76,7 @@ require_once __DIR__ . '/alignOpenpostIncludes/period.php';
 // that reload can still carry forward the in-progress selections and invoice-reference draft below,
 // instead of silently losing them (they'd otherwise only ever be read from $_POST).
 $periodRequest = isset($_POST['submit']) ? $_POST : $_GET;
-$kilde = (ifset($periodRequest, 'kilde') === 'show_all') ? 'show_all' : 'openpost';
+$kilde = ifset($periodRequest, 'kilde') === 'show_all' ? 'show_all' : 'openpost';
 $requestedPeriodFrom = ifset($periodRequest, 'period_from');
 $requestedPeriodTo = ifset($periodRequest, 'period_to');
 $pendingInvoiceReference = null;
