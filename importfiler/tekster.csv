@@ -5150,6 +5150,7 @@
 5281	Hvis du klikker OK mistes de sidste ændringer	If you click OK the latest changes will be lost	Hvis du klikker OK går de siste endringene tapt
 5282	Administrér bilag	Manage vouchers	Administrer bilag
 5283	Der er ikke længere et bilag på denne linje.	This line no longer has a voucher.	Det er ikke lenger et bilag på denne linjen.
+5284	Åbn i nyt vindue	Open in new window	Åpne i nytt vindu
 5300	Kladde	Journal	Kladd
 5301	Fremdrift	Progress	Fremdrift
 5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…
@@ -5177,3 +5178,5 @@
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
+5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
+5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.

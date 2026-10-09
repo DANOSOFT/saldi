@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-04 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -101,11 +101,16 @@
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
+// 20261003 CL/SZ SD-713 "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window (docWindow.php), which follows the selection.
+//                The viewer here collapses while that window is open.
+// 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
+include_once(__DIR__ . "/docFileFunc.php");
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -3052,7 +3057,8 @@ print <<<JS
 			}
 			
 			// Build file path for preview
-			const filePath = docFolder + '/' + db + '/pulje/' + filename;
+			// Served through docFile.php (login and tenant checked), see docFileUrl() in docFileFunc.php
+			const filePath = '../includes/docsIncludes/docFile.php?k=doc&f=' + encodeURIComponent('pulje/' + filename);
 			
 			// Check matches
 			const isSelected         = currentPoolFile && filename === currentPoolFile;
@@ -4592,6 +4598,7 @@ JS;
 	// Right panel for document viewer
 	print "<div id='rightPanel' style='flex: 1; min-width: 200px; height: 100%; display: flex; flex-direction: column;'>";
 	print "<div id='documentViewer' style='flex: 1; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;'>";
+	$docWindowUrl = ''; // docFile.php URL of the shown document, for "Åbn i nyt vindue"
 	$corrected = 0;
 	$ext = pathinfo($poolFile, PATHINFO_EXTENSION);
 	$fullName = "$docFolder/$db/pulje/$poolFile";
@@ -4770,7 +4777,9 @@ JS;
 						// Save the HTML to a temp file for display in iframe
 						$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
 						file_put_contents($htmlTempFile, $htmlResult);
-						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
+						$docWindowUrl = docFileUrl($htmlTempFile, $docFolder, $db);
+						$htmlTempUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
+						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";
 						print "</iframe>";
 					} else {
 						docPoolLog("XML to HTML conversion failed for $poolFile: $curlError");
@@ -4799,11 +4808,72 @@ JS;
 			if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
 			else $src=$tmp;
 			
-			print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName#pagemode=none\" frameborder=\"0\">";
+			$docWindowUrl = docFileUrl($fullName, $docFolder, $db);
+			$fullNameUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
+			print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullNameUrl#pagemode=none\" frameborder=\"0\">";
 			print "</iframe>";
 		}
 	}
 	print "</div>"; // documentViewer
+
+	// "Åbn i nyt vindue": the document moves to docWindow.php in the shared 'saldiBilag' window (also used by
+	// the journal), which follows the selection over a BroadcastChannel; meanwhile the viewer here collapses
+	$docWindowParams = array();
+	if ($docWindowUrl) parse_str((string)parse_url($docWindowUrl, PHP_URL_QUERY), $docWindowParams);
+	$docWindowDoc = null;
+	if (isset($docWindowParams['k'], $docWindowParams['f'])) {
+		$docWindowDoc = array('k' => $docWindowParams['k'], 'f' => $docWindowParams['f']);
+		print "<div id='docViewerBar'>";
+		print "<button type='button' id='docWindowBtn' onclick='openDocWindow()' style='background-color: $buttonColor; color: $buttonTxtColor;'>";
+		print findtekst('5284|Åbn i nyt vindue', $sprog_id)."</button>";
+		print "</div>";
+	}
+	$docWindowJson = json_encode($docWindowDoc, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	print "<script>
+	(function () {
+		var current = $docWindowJson;
+		var main = document.getElementById('docPoolMain');
+		var hintKey = 'saldiDocWindowOpen';
+		var confirmTimer = null;
+
+		function setDetached(on) {
+			if (!main) return;
+			main.classList.toggle('docWindowDetached', on);
+			try { if (on) localStorage.setItem(hintKey, '1'); else localStorage.removeItem(hintKey); } catch (e) {}
+			if (typeof updateFixedDiv === 'function') updateFixedDiv();
+		}
+
+		window.openDocWindow = function () {
+			if (!current) return;
+			var width = Math.round(screen.availWidth / 2);
+			var url = '../includes/docsIncludes/docWindow.php?k=' + encodeURIComponent(current.k) + '&f=' + encodeURIComponent(current.f);
+			var features = 'popup=yes,width=' + width + ',height=' + screen.availHeight + ',left=' + (screen.availWidth - width) + ',top=0';
+			var docWindow = window.open(url, 'saldiBilag', features);
+			if (docWindow) docWindow.focus();
+		};
+
+		if (!('BroadcastChannel' in window)) return;
+		// The pool's in-place switch runs this script again: only the newest copy answers, with the current document
+		if (window.poolDocWindowChannel) window.poolDocWindowChannel.close();
+		var channel = window.poolDocWindowChannel = new BroadcastChannel('saldiDocWindow');
+		channel.onmessage = function (event) {
+			var message = event.data || {};
+			var type = message.type;
+			if (type === 'open') { clearTimeout(confirmTimer); setDetached(true); }
+			// A reloaded or restored window still shows the document it had then
+			if (type === 'open' && message.restored && current) channel.postMessage({ type: 'show', k: current.k, f: current.f });
+			if (type === 'closed') setDetached(false);
+		};
+		// The window was open when the pool last loaded: collapse at once, and restore if it does not answer
+		var hinted = false;
+		try { hinted = localStorage.getItem(hintKey) === '1'; } catch (e) {}
+		if (hinted && main) {
+			main.classList.add('docWindowDetached');
+			confirmTimer = setTimeout(function () { setDetached(false); }, 1000);
+		}
+		channel.postMessage(current ? { type: 'show', k: current.k, f: current.f } : { type: 'ping' });
+	})();
+	</script>";
 	print "</div>"; // rightPanel
 	
 	print "</div>"; // docPoolMain
