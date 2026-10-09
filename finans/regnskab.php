@@ -137,6 +137,7 @@ $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -
 
 // 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
 // 20261008 Sawaneh The page on the new page head (page_bar): Regnskab / Budget as tabs, tour kept for the Assist menu.
+// 20261009 Sawaneh The inline chart takes its colours from the theme tokens (bars, budget line, axes) so it reads in dark mode.
 include_once("../includes/stdFunc/pageBar.php");
 // WP-4.16: a close control again - Luk in a popup window, Tilbage when the page was opened with a returside;
 // opened inline from the menu (no returside) it has none, as before.
@@ -672,19 +673,24 @@ function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 	<canvas id='mixedChart<?php print $x; ?>'></canvas>
 	<script>
 		var ctx = document.getElementById('mixedChart<?php print $x; ?>').getContext('2d');
+		// Colours from the Saldi theme tokens (css/saldi-theme.css), so the chart reads in light and dark alike.
+		var cs = getComputedStyle(document.documentElement);
+		var tok = function (n, fb) { var v = cs.getPropertyValue(n).trim(); return v || fb; };
 		var data = {
 			datasets: [
 				{
 					type: 'bar',
 					label: '<?php print $beskrivelse; ?>',
 					data: [<?php print implode(",", $konti_total); ?>].map((x) => (x*-1)),
+					backgroundColor: tok('--s1', '#4FA0EE') + 'aa',
+					borderColor: tok('--s1', '#4FA0EE'),
 					borderWidth: 2
 				},
 				{
 					type: 'line',
 					label: 'Budget',
 					data: [<?php print implode(",", $budget); ?>].map((x) => (x*-1)),
-					borderColor: 'rgba(54, 162, 235, 1)',
+					borderColor: tok('--s2', 'rgba(54, 162, 235, 1)'),
 					borderWidth: 2,
 					fill: false,
 					tension: 0.4 // Smoother line
@@ -702,8 +708,11 @@ function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 			},
 			maintainAspectRatio: false,
 			scales: {
+				x: { ticks: { color: tok('--text-2', '#5b6b85') }, grid: { color: tok('--grid', '#e9eef7') } },
 				y: {
 					beginAtZero: true,
+					ticks: { color: tok('--text-2', '#5b6b85') },
+					grid: { color: tok('--grid', '#e9eef7') }
 				}
 			},
 			plugins: {
