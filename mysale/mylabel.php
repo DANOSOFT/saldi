@@ -43,6 +43,7 @@
 // 20250306 PHR inserted ceil after '$rows = ' as last row was not saved if rows was not divisible by 5
 // 20260914 CL/NTR The per-cell print link and the printLabels batch pass single=1 to labelprint.php
 //                 so they render one cell each; the printSheet button still fills the page grid.
+// 20260921 CDX/LH Retain ssl3 early label-condition default during master deployment.
 
 @session_start();
 $s_id = session_id();
@@ -119,7 +120,10 @@ else
 #if ($showForSale) $medlem = 1;
 if (isset($_GET['page']))
 	$page = $_GET['page'];
-(isset($_GET['condition'])) ? $condition = $_GET['condition'] : $condition = 'used';
+$condition = $_GET['condition'] ?? 'used';
+if (!$condition) {
+	$condition = 'used';
+}
 (isset($_POST['mySale'])) ? $mySale = $_POST['mySale'] : $mySale = NULL;
 (isset($_POST['new'])) ? $new = $_POST['new'] : $new = NULL;
 (isset($_POST['all'])) ? $all = "checked='checked'" : $all = NULL;
@@ -294,8 +298,6 @@ $qtxt = "select var_value from settings where var_name='medlemSetting'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $medlem=$r['var_value'];
 */
 
-if (!$condition)
-	$condition = 'used';
 ($condition == 'new') ? $tmp = 'n' : $tmp = 'b';
 
 

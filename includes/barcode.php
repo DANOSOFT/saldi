@@ -29,6 +29,10 @@ DEALINGS IN THE SOFTWARE.
 // Local modifications (not in upstream Kreative Software release):
 // 20260914 CL/NTR linear_render_svg: removed integer rounding of the scale so the
 //                 barcode fills the requested width instead of leaving wide margins.
+// 20261007 MJ SST-830 render_svg: new 'par' option writes preserveAspectRatio on the <svg>.
+//                 Needed because label templates give the image a fixed width and height,
+//                 where the SVG default keeps the 9:1 proportions and leaves the code half
+//                 as tall as the PNG it replaced. Unset means upstream behaviour.
 
 if (realpath(__FILE__) == realpath($_SERVER['SCRIPT_FILENAME'])) {
 	if (isset($_POST['s']) && isset($_POST['d'])) {
@@ -109,7 +113,16 @@ class barcode_generator {
 		$svg  = '<?xml version="1.0"?>';
 		$svg .= '<svg xmlns="http://www.w3.org/2000/svg" version="1.1"';
 		$svg .= ' width="' . $width . '" height="' . $height . '"';
-		$svg .= ' viewBox="0 0 ' . $width . ' ' . $height . '"><g>';
+		$svg .= ' viewBox="0 0 ' . $width . ' ' . $height . '"';
+		// Local modification, SST-830: let the caller decide whether the barcode keeps its
+		// own proportions. Without this the SVG default (xMidYMid meet) applies, which is
+		// correct in general but letterboxes the code when it is placed in a box whose
+		// width and height are both fixed - as every label template does. Opt-in, so the
+		// renderer still behaves as upstream for callers that do not ask.
+		if (isset($options['par']) && $options['par'] !== '') {
+			$svg .= ' preserveAspectRatio="' . htmlspecialchars($options['par']) . '"';
+		}
+		$svg .= '><g>';
 		$bgcolor = (isset($options['bc']) ? $options['bc'] : 'white');
 		if ($bgcolor) {
 			$svg .= '<rect x="0" y="0"';

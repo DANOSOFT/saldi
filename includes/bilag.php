@@ -1,5 +1,5 @@
 <?php
-// --- includes/bilag.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- includes/bilag.php --- patch 5.0.0 --- 2026-02-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20140112 Tilføjet ordre som kilde.
 // 20140122 Rettet if til elseif dat man ellers kommer tilbage til historik ved opslag fra kassekladde. Søg 2014.01.22
@@ -32,13 +32,12 @@
 // 20230123 PHR Corrected error if text in debet or credit
 // 20230304 PHR	Attachments can now be renamed
 // 20260212 LOE Refactored to handle multiple files for orders.
-// 20261005 LOE SST-857 Kassebilag is spelled with one l in the page title.
 
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
-$title="Kassebilag";
+$title="Kassebillag";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");

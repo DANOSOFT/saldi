@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 5.0.1 --- 2026-09-24 ---
+// ---------------finans/bogfor.php---------- patch 5.0.1 --- 2026.09.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,7 +63,6 @@
 //                  print icon on the simulation/posting view prints just the report
 // 20260907 CDX/PHR Update following fiscal years' opening balances within the journal posting transaction.
 // 20260907 CDX/LH Share the difference predicate with the read-only assistant checks.
-// 20260924 CDX/PHR Correct currency-rounding signs and reject unbalanced stored postings before commit.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -241,19 +240,16 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 			print "<BODY onLoad=\"javascript:alert('" . addslashes($periode_fejl) . "')\">";
 		} else {
 			transaktion('begin');
-			$postingError = bogfor($kladde_id, $kladdenote,'');
-			if (!$postingError && !$db_modify_fejl) {
-				db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
-			}
+			bogfor($kladde_id, $kladdenote,'');
+			db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
 			# 20260812 CL/LH (SD-644): SD-595-moenster som i includes/ordrefunc.php:1631 - en fejlet
 			# skrivning (fx trigger-RAISE fra periodelaasen) maa aldrig rapporteres som succes.
 			# Flaget tjekkes FOER commit og der rulles eksplicit tilbage: paa PostgreSQL er
 			# transaktionen allerede afbrudt, men paa MySQL/InnoDB ville et COMMIT ellers
 			# persistere de foregaaende succesfulde statements som en delvis kladde.
-			if ($postingError || $db_modify_fejl) {
+			if ($db_modify_fejl) {
 				transaktion('rollback');
-				$bogfor = false;
-				print "<BODY onLoad=\"javascript:alert('" . addslashes($postingError ?: "Bogfoering fejlede - databasen afviste transaktionen. Ingen posteringer er gemt.") . "')\">";
+				print "<BODY onLoad=\"javascript:alert('" . addslashes("Bogfoering fejlede - databasen afviste transaktionen. Ingen posteringer er gemt.") . "')\">";
 			} else {
 				transaktion('commit');
 				genberegn($regnaar);
@@ -263,17 +259,12 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 		}
 	} elseif ($simuler) {
 		transaktion('begin');
-		$postingError = bogfor($kladde_id, $kladdenote,'on');
-		if ($postingError || $db_modify_fejl) {
-			transaktion('rollback');
-			$simuler = false;
-			print "<script>alert(" . json_encode($postingError ?: 'Simulering fejlede. Ingen posteringer er gemt.') . ");</script>";
-		} else {
-			transaktion('commit');
-			if ($popup) {
-				print "<BODY onLoad=\"javascript=opener.location.reload();\">";
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-			}
+		bogfor($kladde_id, $kladdenote,'on');
+#		db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
+		transaktion('commit');
+		if ($popup) {
+			print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		}
 	}
 	if ($funktion=='bogfor' || $funktion=='simuler') {
@@ -728,7 +719,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 	global $regnaar;
 	global $brugernavn;
 
-	$CurencyCheckSum=$tjeksum=$posteringer=$transantal=$transtjek=$d_sum=$k_sum=0;
+	$CurencyCheckSum=$tjeksum=$posteringer=$transantal=$transtjek=0;
 
 	if (!isset ($valutakurs)) $valutakurs = NULL;
 	if (!isset ($b_antal)) $b_antal = NULL;
@@ -748,7 +739,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 	if ($kladdenote) db_modify("update kladdeliste set kladdenote = '$kladdenote' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
 	$y=0;
 	$v_antal=0;
-	$b_diff=$bv_diff=0;
+	$b_diff=0;
 	$query = db_select("select * from kassekladde where kladde_id = $kladde_id order by bilag",__FILE__ . " linje " . __LINE__);
 	while ($row =	db_fetch_array($query)) {
 		if ($row['debet'] || $row['kredit']) {
@@ -810,7 +801,6 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				$b_antal++;
 				$b_bilag[$b_antal]=$bilag[$y];
 				$b_sum[$b_antal]=0;
-				$bv_sum[$b_antal]=0;
 				$b_faktura[$b_antal]=$faktura[$y];
 				$b_transdate[$b_antal]=$transdate[$y];
 				if ($valuta[$y]!='DKK') {
@@ -1040,16 +1030,16 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				$tjeksum=$tjeksum+$b_sum[$i]; #20150527
 			}
 
-			if ($b_sum[$i] && abs($b_sum[$i]) < 0.1 && afrund($bv_sum[$i], 2) == 0 && $b_diffkonto[$i]) {
-					$roundingDebit = max(0, -$b_sum[$i]);
-					$roundingCredit = max(0, $b_sum[$i]);
+			if ($b_sum[$i] && abs($b_sum[$i]) < 0.1 && !$bvSum[$i] && $b_diffkonto[$i]) {
+					$debet=$kredit=0;
 					$beskrivelse ='valutadiff';
+					($b_sum[$i] < 0)?$debet=$b_sum[$i]:$kredit=$b_sum[$i];
 					$qtxt = "insert into $tabel "; 
 					$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,";
 					$qtxt.= "valuta,valutakurs,ordre_id,moms)";
 					$qtxt.= " values ";
-					$qtxt.= "('$b_diffkonto[$i]','$b_bilag[$i]','$b_transdate[$i]','$logdate','$logtime','$beskrivelse','$roundingDebit',";
-					$qtxt.= "'$roundingCredit','$b_faktura[$i]','$kladde_id','$b_afd[$i]','$b_ansat[$i]','$b_projekt[$i]','DKK',";
+					$qtxt.= "('$b_diffkonto[$i]','$b_bilag[$i]','$b_transdate[$i]','$logdate','$logtime','$beskrivelse','$debet',";
+					$qtxt.= "'$kredit','$b_faktura[$i]','$kladde_id','$b_afd[$i]','$b_ansat[$i]','$b_projekt[$i]','DKK',";
 					$qtxt.= "'100','$b_ordre_id[$i]','0')";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$tjeksum -= $b_sum[$i];
@@ -1084,14 +1074,6 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				exit;
 			}
 		}
-	}
-	// Check the actual stored entries, including VAT and currency corrections, not only working sums.
-	$qtxt = "SELECT COALESCE(SUM(COALESCE(debet,0)-COALESCE(kredit,0)),0) AS difference ";
-	$qtxt .= "FROM $tabel WHERE kladde_id=" . (int)$kladde_id;
-	$postedBalance = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if (!$postedBalance || (float)$postedBalance['difference'] != 0.0) {
-		$differenceText = $postedBalance ? dkdecimal($postedBalance['difference'], 3) : 'ukendt';
-		return "Kladde $kladde_id balancerer ikke efter bogføring (debet minus kredit: $differenceText). Ingen posteringer er gemt.";
 	}
 	if (abs($tjeksum)<=0.01) { # && $transtjek==$transantal){
 		$dato=date("Y-m-d");
@@ -1140,7 +1122,6 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		$valuta=$r['box1'];
 	} else $valuta='DKK';
 	$udlignet=0;
-	$udlign_date=$transdate;
 	$dato=date("Y-m-d");
 	$belob=$amount*-1;
 	$debet=str_replace(" ","",$debet);

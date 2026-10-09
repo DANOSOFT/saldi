@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/showDoc.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- includes/docsIncludes/listDocs.php --- patch 4.1.1------2025.09.30---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,11 +15,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023-2026 Danosoft ApS
+// Copyright (c) 2023-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // PLBM 2024.01.31
 //20240305 PHR Varioous corrections
-// 20261005 CL/SZ SD-701 The XML notices (no EasyUBL key, conversion failed) keep their own height, so in the voucher tab the raw XML shows below them instead of below the fold.
 
 
 // Check if we're in flexbox layout (docPool-style) or table layout
@@ -94,7 +93,7 @@ if (strtolower(substr($showDoc,-3,3))=='pdf') {
 				} else {
 					// Failed to convert
 					$tempFilePath = "";
-					echo "<div style='height:auto; color:red; padding:10px;'>Kunne ikke konvertere XML til visning. Fejl: " . ($curlError ? $curlError : "HTTP $httpCode") . "</div>";
+					echo "<div style='color:red; padding:10px;'>Kunne ikke konvertere XML til visning. Fejl: " . ($curlError ? $curlError : "HTTP $httpCode") . "</div>";
 				}
 			}
 		}
@@ -107,7 +106,7 @@ if (strtolower(substr($showDoc,-3,3))=='pdf') {
 		}
 	} else {
 		// No API key -> Show raw XML
-		echo "<div style='height:auto; padding:10px; color:#856404; background-color:#fff3cd; border:1px solid #ffeeba;'>EasyUBL API-nøgle mangler. Viser rå XML.</div>";
+		echo "<div style='padding:10px; color:#856404; background-color:#fff3cd; border:1px solid #ffeeba;'>EasyUBL API-nøgle mangler. Viser rå XML.</div>";
 		echo "<pre style='width:90%; margin:1rem auto; overflow:auto; max-height:100%;'>" . htmlspecialchars(file_get_contents($showDoc)) . "</pre>";
 	}
  } else print "<img src='$showDoc' style='max-width:100%;height:auto;'>";
