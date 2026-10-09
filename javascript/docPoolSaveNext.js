@@ -29,6 +29,7 @@
 //                Also hosted here: needs the arrow keys' open() helper (SD-719).
 // 20261006 CL/SZ SD-719 Before saving, the document must still be in the pool (window.poolStillListed()): a document attached in another tab,
 //                or one not in the loaded list, left a journal line without its document when the attach was then refused.
+// 20261004 CL/SZ Pool account check: window.poolMarkFields() marks the Debet / Kredit the server refused ("eksisterer ikke"), as "Obligatorisk" is, and focuses the first.
 // 20261006 CL/SZ SD-716 A new document puts the cursor in Debet without opening the lookup panel over the list (window.focusAccountQuietly()),
 //                or on "Brug forslag" when Debet has a suggestion; window.poolFocusNewLine() does the same after "Overfør data".
 // 20261009 CL/SZ SD-716 transfer=1 leaves the address while the script loads, before the page's load event, so the main menu (index/main.php) never
@@ -324,6 +325,23 @@
     }
 
     window.poolSaveAndNext = saveAndNext;
+
+    /** Marks the fields a save was refused for (insertDoc.php's account check): [{field: 'Debet', text: 'eksisterer ikke'}]. */
+    window.poolMarkFields = function (rowId, fields) {
+        var prefix = 'row_' + rowId + '_';
+        var first = null;
+        fields.forEach(function (item) {
+            var field = document.getElementById(prefix + item.field);
+            if (!field) return;
+            clearMandatory(field);
+            markMandatory(field, item.text);
+            if (!first) first = field;
+        });
+        if (first) {
+            first.focus();
+            if (typeof first.select === 'function') first.select();
+        }
+    };
 
     // SD-726: "Gem og gå til næste/forrige" - fieldNavigation.js hands Ctrl+↓ / Ctrl+↑ from an entry field here
     window.fieldNavigationSave = function (field, target, step) {
