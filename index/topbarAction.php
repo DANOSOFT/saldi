@@ -28,6 +28,7 @@
 // 20260927 Sawaneh Placement action (cluster_placement setting, spec 2.3).
 // 20261005 Sawaneh Placement action removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
 // 20261008 Sawaneh action=theme stores the user's light/dark/system choice (settings ui/theme).
+// 20261009 Sawaneh action=theme also sets the saldi_theme cookie so auditor/master-admin sessions keep the choice.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -79,8 +80,12 @@ if ($action === 'theme') {
 	// Lys / Mørk / System in the user chip (prototype_dashboard_tema v5): a personal setting, answered as JSON when asked by fetch.
 	include_once(__DIR__ . "/../includes/std_func.php");
 	$theme = isset($request['theme']) ? (string) $request['theme'] : '';
-	if (in_array($theme, array('light', 'dark', 'system'), true) && (int) $bruger_id > 0) {
-		update_settings_value('theme', 'ui', $theme, 'UI theme: light, dark or system', (int) $bruger_id);
+	if (in_array($theme, array('light', 'dark', 'system'), true)) {
+		if ((int) $bruger_id > 0) {
+			update_settings_value('theme', 'ui', $theme, 'UI theme: light, dark or system', (int) $bruger_id);
+		}
+		// Auditor/master-admin sessions have no user row: the cookie carries the choice (online.php reads it as the fallback).
+		setcookie('saldi_theme', $theme, time() + 31536000, '/', '', !empty($_SERVER['HTTPS']), false);
 	}
 	if (!empty($request['ajax'])) {
 		ob_end_clean();

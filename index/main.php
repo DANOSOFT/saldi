@@ -70,6 +70,7 @@
 //                  (SALDI Assist) with its context, kept across the shell reload and waited for until the widget is there.
 // 20261008 Sawaneh Tema: css/saldi-theme.css tokens on the shell (html.saldi-shell), topbarThemeSet() stores the user's choice
 //                  and applies it to the shell and the page in the frame.
+// 20261009 Sawaneh topbarThemeSet() also writes the saldi_theme cookie (auditor/master-admin sessions have no settings row).
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 @session_start();
 $s_id = session_id();
@@ -511,6 +512,7 @@ function brightenColor($color, $amount = 0.2) {
     document.documentElement.dataset.theme = theme;
     document.querySelectorAll('[data-theme-opt]').forEach((b) => { b.setAttribute('aria-pressed', b.dataset.themeOpt === theme ? 'true' : 'false'); });
     try { const doc = document.querySelector('.content-iframe').contentDocument; if (doc && doc.documentElement) { doc.documentElement.dataset.theme = theme; } } catch (e) { /* other origin */ }
+    document.cookie = 'saldi_theme=' + theme + ';path=/;max-age=31536000;SameSite=Lax';
     const fd = new FormData();
     fd.append('action', 'theme'); fd.append('theme', theme); fd.append('ajax', '1');
     fetch('topbarAction.php', { method: 'POST', body: fd, credentials: 'same-origin' }).catch(() => {});

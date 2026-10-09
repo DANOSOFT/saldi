@@ -94,6 +94,7 @@ $relativePath = str_repeat('../', max(0, $slashCount - 2));
 // 20261006 Sawaneh Every page prints its breadcrumb for the shell (page_auto_breadcrumb(), stdFunc/pageChrome.php).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh $uiTheme (settings ui/theme per user: light, dark or system) read with the colours and printed on <html data-theme>.
+// 20261009 Sawaneh $uiTheme falls back to the saldi_theme cookie (auditor/master-admin sessions have no settings row).
 date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
 $r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
@@ -349,6 +350,8 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$qtxt = "select var_value from settings where var_name = 'theme' and var_grp = 'ui' and user_id = '$bruger_id'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				if (in_array(trim((string) $r['var_value']), array('light', 'dark', 'system'), true)) $uiTheme = trim((string) $r['var_value']);
+			} elseif (isset($_COOKIE['saldi_theme']) && in_array($_COOKIE['saldi_theme'], array('light', 'dark', 'system'), true)) {
+				$uiTheme = $_COOKIE['saldi_theme']; // auditor/master-admin sessions have no user row: the chip's choice lives in the cookie
 			}
 		}
 		$textcolor = "#000077";
