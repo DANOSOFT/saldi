@@ -864,3 +864,33 @@ body {
   background-color: #e9ecef;
   color: #333;
 }
+
+/* ============================================
+   GEM OG NÆSTE (SD-716)
+   ============================================ */
+
+/* Mandatory field left empty when "Gem og næste" was pressed */
+.kassebilag-entry .pool-mandatory {
+  border-color: #dc3545 !important;
+  background-color: #fff5f5 !important;
+}
+
+.pool-mandatory-text {
+  display: block;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #dc3545;
+}
+
+/* After the last document: "Ingen flere bilag i puljen" with the way back to the journal */
+.pool-done-note {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #b8daff;
+  border-radius: 6px;
+  background-color: #e8f4fd;
+  font-size: 13px;
+}

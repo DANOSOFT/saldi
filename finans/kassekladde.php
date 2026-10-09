@@ -141,6 +141,19 @@
 // 20261003 CL/SZ SD-715 Fakturanr. is marked when the same kreditor already has that invoice number in an open journal, a posted entry or the pool (invoiceReuse.php, one query per source for the whole page).
 //                The warning doesn't block saving or posting.
 // 20261006 CL/SZ SD-715 Fakturanr. is also checked while a line is typed (window.saldiInvoiceReuseJournal for invoiceReuse.js); invoiceReuse.js?v= bumped.
+// 20261003 CL/SZ SD-716 Ctrl + arrow keys use fieldNavigation.js instead of jquery.formnavigation.js, which stopped at the VAT select after the account field and let the cursor jump inside the field.
+//                accountAutocomplete.js version bumped for its new close function.
+// 20261003 CL/SZ SD-716 The paper-clip on a line without a document saves the journal first and then opens the pool, instead of "Obs - Du har ikke gemt".
+//                The pool opens for the clicked line, or for the line the save just created from the new line, so the document can't land on a duplicate line.
+//                If the save fails validation, the journal stays with its normal error.
+// 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
+//                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
+//                and the journal then refused every save.
+// 20261006 CL/SZ SD-716 With SD-701 from master: the paper icon of a line with a document opens it in its own tab (openBilagTab()); without one it
+//                still saves first and opens the pool (clipSaveThenPool()).
+// 20261006 CL/SZ SD-716 (CodeRabbit) After the paper-clip save, the pool opens on the line this save inserted (kk_new_line_ids) instead of the
+//                journal's highest id, which could be a line another session added at the same time.
+// 20261007 CL/SZ SD-716 The first save of a new journal keeps its lines again: the journal is created in that request, so its lines count as staged by it.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
@@ -202,6 +215,7 @@ $vis_afd = $vis_ansat = $vis_bet_liste = $vis_forfald = $vis_projekt = $vis_valu
 $control_bal_fetched = FALSE;
 $control_bal_last = $control_next_date = $control_record_daet = $titletxt = NULL;
 $fejl = $kontrolsaldo = $kontrolsum = $x = $y = 0;
+$kkAfterSave = ''; // SD-716: set when the paper-clip saved first (clipSaveThenPool)
 
 
 if (!isset($kontrolmoms))
@@ -467,6 +481,26 @@ print '<script>
 </script>';
 print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
+// SD-716: the paper-clip to the pool saves unsaved lines first. line is the line's id, or 'new' for the line typed at the bottom.
+print '<script>
+	function clipSaveThenPool(href, line) {
+		var save = document.querySelector(\'input[name="save"]\');
+		if (!docChange || !save || !save.form) {
+			document.location = href;
+			return;
+		}
+		var after = save.form.querySelector(\'input[name="kkAfterSave"]\');
+		if (!after) {
+			after = document.createElement("input");
+			after.type = "hidden";
+			after.name = "kkAfterSave";
+			save.form.appendChild(after);
+		}
+		after.value = String(line);
+		docChange = false;
+		if (typeof save.form.requestSubmit === "function") save.form.requestSubmit(save); else save.click();
+	}
+</script>';
 // SD-701 Attached vouchers open in one named tab that later clicks reuse, so a tab moved to a second
 // screen keeps showing the current voucher. The journal is not left, so there is no unsaved-changes prompt,
 // unless the popup is blocked and the fallback navigates the journal tab.
@@ -875,6 +909,8 @@ if ($_POST) {
 	else $submit   = trim(if_isset($_POST['submit'], ''));
 	$tidspkt       = if_isset($_POST['tidspkt']);
 	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
+	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool)
+	$kkAfterSave   = (string)ifset($_POST, 'kkAfterSave', '');
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
 	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
@@ -894,6 +930,8 @@ if ($_POST) {
 	#			 alert('a'.$alerttekst);
 	#		}
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+		// This request stages the lines itself, so opdater() below may move them into the journal
+		$kkStaged = true;
 		if (isset($_POST['cancelSimulation']) && $_POST['cancelSimulation']) {
 			db_modify("delete from simulering where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 			$qtxt = "update kladdeliste set bogfort = '-', bogforingsdate = NULL, bogfort_af = '' where id = '$kladde_id' and bogfort = 'S'";
@@ -1380,6 +1418,8 @@ if ($_POST) {
 			$kladdedate = date("Y-m-d");	# OBS I naeste linje indsaettes tidspkt fratrukket 1 sek. Ellers bliver 1. gemning afvist af	"Refresktjek"
 			db_modify("insert into kladdeliste (id, kladdenote, kladdedate, bogfort, hvem, oprettet_af, tidspkt) values ('$kladde_id', '$ny_kladdenote', '$kladdedate', '-', '$brugernavn', '$brugernavn', '$tidspkt')", __FILE__ . " linje " . __LINE__);
 			journalRememberCreation($_SESSION, $kk_form_key, (int)$kladde_id);
+			// The new journal's lines are staged by this request (below), so opdater() moves them into it (SD-716)
+			$kkStaged = true;
 			$tidspkt = microtime();
 		}
 		if ($kladde_id) {
@@ -1675,7 +1715,9 @@ if (!$fejl && $kladde_id) {
 	// A replayed save (see $kk_replay above) must not move the staged lines into the journal
 	// again - that is exactly what produced the duplicate rows. Still clear the staging table.
 	if (empty($kk_replay)) {
-		opdater($kladde_id);
+		// Only lines this request staged and checked (kontroller()). What a refused save left in tmpkassekl must not
+		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
+		if (!empty($kkStaged)) opdater($kladde_id);
 		initializePositions($kladde_id);
 		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
 		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
@@ -1687,6 +1729,25 @@ if (!$fejl && $kladde_id) {
 		}
 	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now
+	if ($submit == 'save' && $kkAfterSave !== '') {
+		$kkPoolLine = 0;
+		if ($kkAfterSave === 'new') {
+			// The line typed at the bottom is the last one this save inserted, if it inserted one. The ids come from
+			// this request's own inserts (kk_note_new_line()), so a line another session adds meanwhile is never taken.
+			if (!empty($GLOBALS['kk_new_line_ids'])) $kkPoolLine = (int)max(array_map('intval', $GLOBALS['kk_new_line_ids']));
+		} else {
+			$r = db_fetch_array(db_select("select id from kassekladde where id = '" . (int)$kkAfterSave . "' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
+			if ($r) $kkPoolLine = (int)$r['id'];
+		}
+		$kkPoolUrl = "../includes/documents.php?source=kassekladde&sourceId=$kkPoolLine&kladde_id=" . (int)$kladde_id . "&fokus=&openPool=1";
+		if ($kkPoolLine) {
+			$r = db_fetch_array(db_select("select bilag from kassekladde where id = '$kkPoolLine'", __FILE__ . " linje " . __LINE__));
+			if ($r) $kkPoolUrl .= "&bilag=" . (int)$r['bilag'];
+		}
+		// After the journal has loaded, so its pagehide handler releases the lock as on a normal click
+		print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
+	}
 }
 /*
 if (strlen($kontrolkonto)==1) {
@@ -1879,7 +1940,7 @@ $columns = array(
 			$dropAttr = "";
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
-			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href', bilagUnsavedTxt)";
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "clipSaveThenPool('$href', " . (int)$id . ")";
 			return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
 				<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>
 				<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
@@ -3350,7 +3411,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
-			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href', bilagUnsavedTxt)";
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "clipSaveThenPool('$href', " . (int)$id[$y] . ")";
 			print "<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>";
 			#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
@@ -3612,7 +3673,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&fokus=bila$x&openPool=1";
 				########################
 				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-	            print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+	            print "<span onclick=\"clipSaveThenPool('$href', 'new')\" style='cursor:pointer;display:inline-block;'>";
 	            print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;'></span></td>\n";
 	        	// print "</tr>";
 			} else {
@@ -3776,12 +3837,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 ($udskriv) ? $div = '' : $div = '</div>';
 ?>
-	<script	src="../javascript/jquery.formnavigation.js"></script>
-	<script>
-	$(document).ready(function () {
-		$('.formnavi').formNavigation();
-	});
-	</script>
+	<?php
+	// SD-716: Ctrl + arrow keys between fields; works on the table with class formnavi, also for lines added later
+	$fieldNavVersion = file_exists('../javascript/fieldNavigation.js') ? filemtime('../javascript/fieldNavigation.js') : 0;
+	?>
+	<script src="../javascript/fieldNavigation.js?v=<?php echo $fieldNavVersion; ?>"></script>
 	<?php
 
 	print "</tbody></table></center></div>";   # Tabel 1.3 <- Kladdelinjer
