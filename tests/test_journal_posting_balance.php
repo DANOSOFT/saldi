@@ -1,6 +1,7 @@
 <?php
 // 20260924 CDX/PHR Replay journal 2698 in temporary tables and verify balance rollback.
 // Use a test_34 fixture containing journal 2698; all test writes target temporary tables.
+// 20260930 CL/SZ SD-699: Load the posting rules from finans/bogfor_includes/postingRules.php, where they moved from bogfor.php.
 if (!getenv('SALDI_CHAR_DSN')) {
     echo "SKIP: set SALDI_CHAR_DSN, SALDI_CHAR_PGUSER and SALDI_CHAR_PGPASS for the test_34 fixture.\n";
     exit;
@@ -18,9 +19,8 @@ function db_modify($sql,$context=null){
 }
 function db_escape_string($s){return substr($GLOBALS['pdo']->quote((string)$s),1,-1);}
 function transaktion($action){$GLOBALS['pdo']->exec($action);}
+require_once $repositoryRoot . '/finans/bogfor_includes/postingRules.php';
 $source=file_get_contents($repositoryRoot . '/finans/bogfor.php');
-$start=strpos($source,'function get_saved_vat_override(');$end=strpos($source,'$funktion=',$start);
-eval(substr($source,$start,$end-$start));
 $functionStart = strpos($source, 'function bogfor(');
 $functions = substr($source, $functionStart, strrpos($source, "if (\$menu=='T')") - $functionStart);
 $functions=str_replace('__DIR__',var_export($repositoryRoot . '/finans',true),$functions);

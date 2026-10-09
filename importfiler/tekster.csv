@@ -5177,3 +5177,8 @@
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
+5327	Kontokort med u-bogført	General ledger with unposted entries	Kontokort med ikke-bokførte
+5328	Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu	General ledger that also shows the entries from all journals that are not posted yet	Kontokort som også viser posteringene fra alle bilagsjournaler som ikke er bokført ennå
+5329	Poster i kursiv er ikke bogført endnu. De ligger i en kladde og påvirker kontoen, når kladden bogføres.	Entries in italics are not posted yet. They are in a journal and will affect the account when the journal is posted.	Poster i kursiv er ikke bokført ennå. De ligger i en bilagsjournal og påvirker kontoen når journalen bokføres.
+5330	Ikke bogført	Not posted	Ikke bokført
+5331	Kladdelinjer, der ikke er medtaget, fordi kontoopsætningen mangler:	Journal lines left out because the account setup is missing:	Bilagslinjer som ikke er tatt med fordi kontooppsettet mangler:
