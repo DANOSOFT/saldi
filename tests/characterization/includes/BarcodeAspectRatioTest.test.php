@@ -70,7 +70,7 @@ final class BarcodeAspectRatioTest extends TestCase
             // The customer's item number, and a valid EAN-13 - acceptance criterion 3.
             'code128, the reported item' => ['code128', 'kbfrh1282'],
             'code128, a Mit salg code' => ['code128', '291465000bb8'],
-            'ean13' => ['ean13', '5701234567897'],
+            'ean13' => ['ean13', '5701234567899'],
         ];
     }
 
