@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/_docPoolData.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/_docPoolData.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,12 @@
 // 20261001 CL/NTR Merged the two history blocks into one and grouped the includes.
 // 20261003 CL/SZ SD-717 Archived documents are left out of the list and the duplicate marking.
 //                With archived=1 ("Vis arkiverede") only archived documents are returned, newest archive first, with their archive time.
+// 20261003 CL/SZ SD-719 With limit: one page of the list as {rows, total, offset, limit, matches, extra, currentIndex}.
+//                Search (q), sort (sort, order) and the match against the journal line (sum, dato) are done here over the full set (poolListQuery.php).
+//                extra holds the open document (current) and the ticked ones (include[]) when they are not on the page; filesOnly=1 lists every file name.
+//                toCurrent=1 extends the page down to the open document.
+//                Without limit the whole list comes back as before.
+// 20261007 CL/SZ SD-719 The list is built by poolListData() (docsIncludes/poolListData.php), which docPool.php also calls to send the first page with the page.
 
 // Start output buffering FIRST to capture any output from includes
 ob_start();
@@ -57,6 +63,8 @@ include_once(__DIR__ . "/docsIncludes/poolVendorMatcher.php");
 include_once(__DIR__ . "/docsIncludes/poolDuplicateMarker.php");
 require_once __DIR__ . '/docsIncludes/poolMetadata.php';
 require_once __DIR__ . '/docsIncludes/poolArchive.php';
+require_once __DIR__ . '/docsIncludes/poolListQuery.php';
+require_once __DIR__ . '/docsIncludes/poolListData.php';
 
 // Get $db from session/online table
 $qtxt = "select db from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -75,115 +83,8 @@ while (ob_get_level()) {
 }
 ob_start();
 
-$dir = $_GET['dir'] ?? null;
-$params = isset($_GET['params']) ? urldecode($_GET['params']) : '';
-$poolParams = isset($_GET['poolParams']) ? urldecode($_GET['poolParams']) : '';
-
-// Database-only mode: Get all files from pool_files table
-$data = [];
-$fil_nr = 0;
-
-// Kreditor index for the vendor contract (one query, reused for every file). Built lazily
-// so a tenant whose betweenUpdates.php has not yet added the vendor_* columns costs nothing.
-$vendorIndex = null;
-$vendorColumnsExist = poolVendorColumnsExist();
-
-// Query all files from the pool_files table (database is the source of truth)
-$vendorSelect = $vendorColumnsExist ? ", vendor_name, vendor_cvr, vendor_iban, vendor_konto_id, vendor_match, vendor_score" : "";
-// SD-717: the normal list or the archive, never both
-$showArchived = ($_GET['archived'] ?? '') === '1' && poolArchiveReady();
-if ($showArchived) {
-    $archiveSelect = ", archived";
-    $archiveWhere = "WHERE archived IS NOT NULL";
-    $archiveOrder = "archived DESC, ";
-} else {
-    $archiveSelect = poolArchiveReady() ? ", archived" : "";
-    $archiveWhere = "WHERE " . poolArchiveActiveSql();
-    $archiveOrder = "";
-}
-$qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency, updated, manually_edited$vendorSelect$archiveSelect
-         FROM pool_files $archiveWhere ORDER BY {$archiveOrder}file_date DESC, updated DESC";
-$result = db_select($qtxt, __FILE__ . " line " . __LINE__);
-
-while ($row = db_fetch_array($result)) {
-    $file = $row['filename'];
-    $base = pathinfo($file, PATHINFO_FILENAME);
-    
-    $subject = $row['subject'] ?: $base;
-    $account = $row['account'] ?: '';
-    $amount = $row['amount'] ?? '';
-    $modDate = $row['file_date'] ?: '';
-    $invoiceNumber = $row['invoice_number'] ?: '';
-    $description = $row['description'] ?: '';
-    $currency = $row['currency'] ?: '';
-
-    // Vendor contract (kravspec afsnit 5), null for files scanned before vendor support.
-    $vendor = null;
-    if ($vendorColumnsExist && trim((string) ($row['vendor_match'] ?? '')) !== '') {
-        try {
-            if ($vendorIndex === null) $vendorIndex = poolVendorLoadIndex();
-            if (poolVendorNeedsRematch($row, $vendorIndex)) {
-                // AI-6: the kreditor may have been created (or deleted) after the scan. Pure
-                // lookups against the index already in memory - no extra queries per file
-                // beyond the UPDATE when the outcome changed.
-                $bank = poolVendorRowFromIban($row['vendor_iban'] ?? null);
-                $fresh = poolVendorMatch(array(
-                    'name' => $row['vendor_name'] ?? null,
-                    'cvr' => $row['vendor_cvr'] ?? null,
-                    'iban' => $bank['iban'],
-                    'bank_reg' => $bank['bank_reg'],
-                    'bank_konto' => $bank['bank_konto'],
-                ), $vendorIndex, array('nameScan' => 'tokens'));
-                $storedKontoId = ($row['vendor_konto_id'] === null || $row['vendor_konto_id'] === '') ? null : (int) $row['vendor_konto_id'];
-                if ($fresh['kontoId'] !== $storedKontoId || $fresh['match'] !== $row['vendor_match']) {
-                    db_modify(
-                        "UPDATE pool_files SET " . poolVendorUpdateSql($fresh) . " WHERE id = " . (int) $row['id'],
-                        __FILE__ . " line " . __LINE__
-                    );
-                }
-                $vendor = $fresh;
-            } else {
-                $vendor = poolVendorFromRow($row, $vendorIndex);
-            }
-        } catch (Throwable $e) {
-            // The vendor contract is a bonus on the file list; never let it break the list.
-            error_log("_docPoolData vendor for {$row['filename']} failed: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
-            $vendor = null;
-        }
-    }
-
-    $fil_nr++;
-    
-    // Build href - remove any existing poolFile from poolParams
-    $cleanPoolParams = preg_replace('/&?poolFile=[^&]*/', '', $poolParams);
-    $cleanPoolParams = ltrim($cleanPoolParams, '&');
-    $hreftxt = "../includes/documents.php?$params&$cleanPoolParams&docFocus=$fil_nr&poolFile=" . urlencode($file);
-    
-    $data[] = [
-        'filename' => $file,
-        'subject' => $subject,
-        'account' => $account,
-        'amount' => $amount,
-        'date' => $modDate,
-        'href' => $hreftxt,
-        'invoiceNumber' => $invoiceNumber,
-        'description' => $description,
-        'currency' => $currency,
-        'vendor' => $vendor,
-        'fil_nr' => $fil_nr,
-        'version' => poolMetadataVersion($row),
-        'manuallyEdited' => poolMetadataIsManual($row),
-        'archived' => $row['archived'] ?? null,
-    ];
-}
-
-// MB-42: the customer's pool held the same bilag under two or three filenames, with identical
-// fakturanr, amount and date, and nothing in the list said so. poolMarkDuplicates() groups those and
-// sets duplicateOf on every member (see poolDuplicateMarker.php for why a hash cannot do this part).
-// Not in the archive: an archived document is not a duplicate to act on (SD-717).
-if (!$showArchived) {
-    $data = poolMarkDuplicates($data);
-}
+// SD-719: the list itself is built by poolListData(), which docPool.php also calls for the first page
+$data = poolListData($_GET);
 
 // Clear any previous output and send proper JSON
 ob_end_clean();

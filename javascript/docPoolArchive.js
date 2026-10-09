@@ -5,6 +5,7 @@
 //                The list shows either the normal documents or the archived ones; search works on the list shown.
 //                Archiving the document in the viewer opens the next one, as "Spring over" does.
 //                Needs window.saldiPoolArchive (docPool.php) and docPoolSaveNext.js's poolSkipDocument().
+// 20261003 CL/SZ SD-719 Archived and restored documents are taken out of the loaded list instead of reloading the page.
 (function () {
     'use strict';
 
@@ -97,10 +98,11 @@
         busy = true;
         var current = currentPoolFile();
         var failed = [];
+        var done = [];
         var chain = Promise.resolve();
         files.forEach(function (file) {
             chain = chain.then(function () {
-                return post(action, file).then(function () { forget(file); }, function (error) {
+                return post(action, file).then(function () { forget(file); done.push(file); }, function (error) {
                     failed.push(file + ': ' + error.message);
                 });
             });
@@ -108,9 +110,21 @@
         chain.then(function () {
             busy = false;
             if (failed.length) alert(failed.join('\n'));
-            var leftCurrent = action === 'archive' && current !== '' && files.indexOf(current) >= 0 && failed.length < files.length;
+            var leftCurrent = action === 'archive' && done.indexOf(current) >= 0;
             if (leftCurrent && typeof window.poolSkipDocument === 'function') {
+                // The next document is picked while the archived one is still in the list, then it is taken out
                 window.poolSkipDocument();
+                if (typeof window.poolRemoveFiles === 'function') {
+                    document.addEventListener('poolswitch', function once() {
+                        document.removeEventListener('poolswitch', once);
+                        window.poolRemoveFiles(done);
+                    });
+                }
+                return;
+            }
+            if (typeof window.poolRemoveFiles === 'function') {
+                window.poolRemoveFiles(done);
+                if (typeof window.updateBulkButton === 'function') window.updateBulkButton();
                 return;
             }
             reloadList();

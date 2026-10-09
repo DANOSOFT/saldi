@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -116,9 +116,54 @@
 // 20261003 CL/SZ SD-717 "Arkivér" per document and for the selection (Del outside a field), "Vis arkiverede" and "Gendan" (docPoolArchive.js, poolArchive.php).
 //                Archived documents are not in the normal list, not opened first (database or folder route), not in "Opdatér alle", and get no match colours in the archive.
 //                pool_files.archived and archived_by added to both CREATE TABLE IF NOT EXISTS fallbacks.
+// 20261003 CL/SZ SD-719 The list loads 50 rows at a time and the next page on scroll ("50 af 497", "Vis flere").
+//                Search, sort and the match groups come from _docPoolData.php over every document; the renderers no longer compute matches.
+//                Lookups by file name (poolAllRows()) also see the open and the ticked documents when they are not on a loaded page.
+//                "Opdatér alle" fetches every file name.
+//                Selecting a document switches in place (docPoolSwitch.js); the entry config moved inside kassebilagTopBar so it switches along.
+// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+//                That takes it from 7.5 s to under 0.1 s with 500 documents.
+//                Inside the sync window the pool folder is only read when its mtime changed.
+//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
+//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
+//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
+//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
+//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
+// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
+//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
+//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+//                That takes it from 7.5 s to under 0.1 s with 500 documents.
+//                Inside the sync window the pool folder is only read when its mtime changed.
+//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
+//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
+//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
+//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
+//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
+// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
+//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
+//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
+// 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
+// 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
+// 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
+// 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
+// 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
+// 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
+// 20261007 CL/SZ SD-719 The first page of the list comes with the page (poolListData()), so the list shows without a second request; it is used only when
+//                the browser would have asked for exactly that page (no stored search, more loaded rows, ticked documents or archive view) and not for a page from history.
+// 20261009 CL/SZ SD-719 On a low screen the upload box (#fixedCell) gives way to the list instead of squeezing it to nothing (docpool.css);
+//                #fixedBottom fills the cell (not the left panel's width in px), so the cell's scrollbar doesn't cut off its right edge.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -271,11 +316,15 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 		}
 	}
 	
+	// Get all PDF and XML files from the pulje directory. The mtime is taken first: a file added while
+	// the folder is read then changes the mtime again, so the next load reads the folder once more.
+	$observedMtime = poolFolderMtime($puljePath);
+	$scanStart = time();
+
 	if (poolContentHashEnsureSchema()) {
 		poolUploadBackfillHashes($puljePath);
 	}
 
-	// Get all PDF and XML files from the pulje directory
 	$pdfFiles = [];
 	$files = scandir($puljePath);
 	// scandir() returns false on a read failure (permission issue, a disconnected
@@ -322,6 +371,9 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 	db_modify("DELETE FROM pool_files WHERE ($onDiskClause) AND $recentGuard", __FILE__ . " line " . __LINE__);
 
 	if (empty($pdfFiles)) {
+		// A successful scan of an empty folder: recorded, so the next full sync waits its 10 minutes (CodeRabbit on #719)
+		update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
+		poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 		return;
 	}
 
@@ -411,6 +463,48 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 		}
 	}
 	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
+	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
+}
+
+/**
+ * The pool folder's modification time, read fresh from disk (SD-718).
+ *
+ * @param string $puljePath The tenant's pool folder.
+ * @return int Unix time, or 0 when the folder doesn't exist or can't be read.
+ */
+function poolFolderMtime($puljePath) {
+	clearstatcache(true, $puljePath);
+	if (!is_dir($puljePath)) {
+		return 0;
+	}
+	$mtime = filemtime($puljePath);
+	return $mtime === false ? 0 : (int)$mtime;
+}
+
+/**
+ * The pool folder's modification time, as stored after the last look at its contents (SD-718).
+ * Adding or removing a file changes a folder's mtime, so comparing it is one stat() instead of listing the folder.
+ * A time in the current second is never stored: a file added later in that same second would not change it.
+ *
+ * @param string   $puljePath The tenant's pool folder.
+ * @param bool     $store     Store $mtime as seen, once the folder was read.
+ * @param int|null $mtime     The mtime taken before the folder was read; null reads it now.
+ * @param int|null $scanStart When the folder listing started; null is now. A file added after the listing in the
+ *                            same second as $mtime leaves the mtime unchanged, so $mtime is only stored when it is
+ *                            older than the start of the listing, however long the listing took.
+ * @return bool True when the folder changed since the stored time (or nothing is stored yet).
+ */
+function poolFolderChanged($puljePath, $store = false, $mtime = null, $scanStart = null) {
+	if ($mtime === null) {
+		$mtime = poolFolderMtime($puljePath);
+	}
+	if ($store) {
+		$scanStart = $scanStart === null ? time() : (int)$scanStart;
+		$seen = ($mtime && $mtime < $scanStart - 1) ? $mtime : 0;
+		update_settings_value("pool_dir_mtime", "docs", $seen, "Pool folder mtime when its files were last read");
+		return false;
+	}
+	return !$mtime || (int)get_settings_value("pool_dir_mtime", "docs", 0) !== (int)$mtime;
 }
 
 function checkIfAllPoolFilesAreInDatabase() {
@@ -437,8 +531,22 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 	}
 	global $db, $docFolder;
 	$puljePath = "$docFolder/$db/pulje";
-	$files = array_merge(glob("$puljePath/*.pdf") ?: [], glob("$puljePath/*.xml") ?: []);
+	// SD-718: inside the sync window, only read the folder when something was added or removed
+	$observedMtime = poolFolderMtime($puljePath);
+	if (!poolFolderChanged($puljePath, false, $observedMtime)) {
+		return;
+	}
+	$scanStart = time();
+	$pdfFiles = glob("$puljePath/*.pdf");
+	$xmlFiles = glob("$puljePath/*.xml");
+	// A failed listing is not an empty folder: nothing is stored, so the next load reads the folder again
+	if ($pdfFiles === false || $xmlFiles === false) {
+		docPoolLog("checkIfAllPoolFilesAreInDatabase: listing $puljePath failed, the folder is read again on the next load");
+		return;
+	}
+	$files = array_merge($pdfFiles, $xmlFiles);
 	if (!$files) {
+		poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 		return;
 	}
 	// select all files from db - must loop through all rows
@@ -475,9 +583,41 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 		$query = "INSERT INTO pool_files (filename, file_date" . $contentHashColumn . ") VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "'" . $contentHashSql . ")";
 		db_modify($query, __FILE__ . " line " . __LINE__);
 	}
+	// Only now is the folder as seen: every file listed has its row
+	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 }
 
-checkIfAllPoolFilesAreInDatabase();
+/**
+ * Brings pool_files in line with the pool folder, as page loads used to (SD-718: now called by includes/poolFolderSync.php after the page is shown).
+ * The full sync runs at most every 10 minutes; in between, the folder is only read when its mtime changed.
+ *
+ * @param string $docFolder The documents root (owncloud, bilag or documents).
+ * @param string $db        The tenant's database name.
+ * @return bool True when rows were added or removed, so the list should be fetched again.
+ */
+function poolFolderSync($docFolder, $db) {
+	$before = poolFilesSignature();
+	// No table yet: the full sync creates it, so it runs now instead of waiting for the 10-minute window to end
+	if ($before === '') update_settings_value("skip_sync", "docs", 0, "Skip pool sync after initial run");
+	checkIfAllPoolFilesAreInDatabase();
+	syncPuljeFilesToDatabase($docFolder, $db);
+	return poolFilesSignature() !== $before;
+}
+
+/**
+ * Number of pool_files rows and the highest id: changes when a row is added or removed.
+ *
+ * @return string '' when the table doesn't exist (yet).
+ */
+function poolFilesSignature() {
+	global $db_type;
+	$schema = ($db_type == 'mysql' || $db_type == 'mysqli') ? "DATABASE()" : "current_schema()";
+	if (!db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_schema = $schema AND table_name = 'pool_files'", __FILE__ . " line " . __LINE__))) {
+		return '';
+	}
+	$r = db_fetch_array(db_select("SELECT COUNT(*) AS n, MAX(id) AS m FROM pool_files", __FILE__ . " line " . __LINE__));
+	return (int)$r['n'] . '|' . (int)$r['m'];
+}
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 
@@ -486,8 +626,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	
 	$afd = $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 
-	// Sync missing files from pulje directory to database once on page load
-	syncPuljeFilesToDatabase($docFolder, $db);
+	// SD-718: the folder sync no longer runs here; poolFolderSync() is called in the background once the page is shown
 
 	((isset($_POST['unlink']) && $_POST['unlink']) || (isset($_GET['unlink']) && $_GET['unlink']))?$unlink=1:$unlink=0;
 	$cleanupOrphans = if_isset($_GET, NULL, 'cleanupOrphans');
@@ -1396,7 +1535,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	if (!$poolFile && $source != 'kassekladde') {
 		// Optimization: Try DB first to find latest file
 		// Check table existence first to avoid errors during migration
-		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+		// SD-718: the schema is the company's database on MySQL but 'public' on Postgres, where '$db' never matched and every load read the folder
+		global $db_type;
+		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = " . (($db_type == 'mysql' || $db_type == 'mysqli') ? "DATABASE()" : "current_schema()") . " AND table_name = 'pool_files'";
 		$hasTable = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		
 		$foundInDb = false;
@@ -1506,6 +1647,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<script src=\"../javascript/docPoolSaveNext.js?v=$v11\"></script>";
 	$v12 = file_exists("../javascript/docPoolArchive.js") ? filemtime("../javascript/docPoolArchive.js") : 0;
 	print "<script src=\"../javascript/docPoolArchive.js?v=$v12\"></script>";
+	$v13 = file_exists("../javascript/docPoolSwitch.js") ? filemtime("../javascript/docPoolSwitch.js") : 0;
+	print "<script src=\"../javascript/docPoolSwitch.js?v=$v13\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1792,6 +1935,9 @@ if ($source == 'kassekladde') {
 		print "</div>"; // kassebilag-entry
 	};
 
+	// SD-719: the config below is inside kassebilagTopBar, so an in-place document switch (docPoolSwitch.js) brings the new document's config along
+	print "<div id='kassebilagTopBar'>";
+
 	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
 	print "<script>
 	window.saldiPoolAccounts = " . json_encode(array('lookupUrl' => 'docsIncludes/poolAccountLookup.php', 'kladdeId' => $escKladde)) . ";
@@ -1824,7 +1970,6 @@ if ($source == 'kassekladde') {
 		'unsaved'  => findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id),
 	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
 	</script>";
-	print "<div id='kassebilagTopBar'>";
 
 	// Title + bilag-group navigation
 	print "<div class='topbar-nav' style='margin-bottom:8px;'>";
@@ -2041,6 +2186,31 @@ $poolFileJs = json_encode($poolFile); // safely escapes quotes
 $JsSum      = json_encode($sum); // safely escapes quotes
 $JsDato     = json_encode($dato); // kassekladde date for matching
 
+// SD-719: the first page of the list, as the browser's first request (fetchFiles()) asks for it when nothing is stored, so it
+// needn't wait for a second round trip. The browser compares the parameters and fetches as before when they differ.
+// Not for the in-place switch (docPoolSwitch.js), which keeps its list.
+$poolListSeedJs = 'null';
+if (empty($_SERVER['HTTP_X_POOL_SWITCH'])) {
+	$seedCurrent = '';
+	foreach ((array)($_GET['poolFile'] ?? array()) as $seedFile) {
+		if (trim((string)$seedFile) !== '') $seedCurrent = (string)$seedFile;
+	}
+	$seedQuery = array('dir' => $encodedDir, 'poolParams' => $poolParams, 'limit' => '50', 'offset' => '0');
+	if ($sum !== null && $sum !== '') $seedQuery['sum'] = (string)$sum;
+	if ($dato !== null && $dato !== '') $seedQuery['dato'] = (string)$dato;
+	if ($seedCurrent !== '') $seedQuery['current'] = $seedCurrent;
+	$seedQuery['toCurrent'] = '1';
+	try {
+		require_once __DIR__ . '/poolListData.php';
+		$poolListSeedJs = json_encode(array('query' => $seedQuery, 'data' => poolListData($seedQuery)),
+			JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+		if ($poolListSeedJs === false) $poolListSeedJs = 'null';
+	} catch (Throwable $e) {
+		error_log('docPool list seed: ' . $e->getMessage());
+		$poolListSeedJs = 'null';
+	}
+}
+
 
 // Calculate lightened button color using PHP function from topline_settings.php
 $lightButtonColor = brightenColor($buttonColor, 0.6); // Lighten by 60% (0.6 = 60%)
@@ -2127,6 +2297,8 @@ $txt73  = $txt15." ".lcfirst($txt50)."!";                                       
 $txt74  = $txt16." ".lcfirst($txt14);                                                           #Duplikér linje
 $poolSuggestedText = findtekst('5255|Forslag', $sprog_id);
 $poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
+$txtPoolOf   = findtekst('5346|af', $sprog_id);        // SD-719: "50 af 497"
+$txtPoolMore = findtekst('5347|Vis flere', $sprog_id);
 $poolStaleText = findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
 
 print <<<JS
@@ -2168,8 +2340,17 @@ print <<<JS
 	// Get poolFile from URL if present (user clicked on a row), otherwise null (no auto-selection)
 	const urlParams        = new URLSearchParams(window.location.search);
 	const poolFile         = urlParams.get('poolFile') || null;
-	const totalSum         = {$JsSum};
-	const targetDate       = {$JsDato}; // kassekladde date for matching
+	let totalSum           = {$JsSum};
+	let targetDate         = {$JsDato}; // kassekladde date for matching
+	// SD-719: the list holds the loaded pages only (docData); the server sends 50 rows at a time, already searched, sorted and grouped
+	const POOL_PAGE   = 50;
+	let poolTotal     = 0;    // rows in the whole (searched) list
+	let poolMatches   = null; // match groups over every document, from the server
+	let poolExtra     = {};   // the open and the ticked documents, when not on a loaded page
+	let poolLoading   = null; // the page request in flight
+	let poolRequest   = 0;    // a newer request makes an older answer void
+	let poolCurrentIndex = -1;
+	let poolOwnScroll    = 0;    // when the page itself last scrolled the list
 	const buttonColor      = {$buttonColorJs};
 	const buttonTxtColor   = {$buttonTxtColorJs};
 	const lightButtonColor = {$lightButtonColorJs};
@@ -2177,6 +2358,13 @@ print <<<JS
 	// View mode state (table or card) - default to table, save preference in localStorage
 	let viewMode           = localStorage.getItem('docPoolViewMode') || 'table';
 	let searchFilter       = '';
+	// SD-719: the amount as stored (5.03) and as the list shows it and people type it (5,03 / 1.234,56), as poolListSearch() has it
+	function searchableAmount(amount) {
+		const n = parseFloat(amount);
+		if (!amount || isNaN(n)) return amount || '';
+		const shown = n.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+		return amount + ' ' + shown + ' ' + shown.replace(/\./g, '');
+	}
 	let previewTimeout     = null;
 	let currentPreviewPath = null;
 	const docFolder        = '{$docFolder}';
@@ -2261,8 +2449,27 @@ print <<<JS
 		}
 	}
 	
+	// SD-718: true while the background folder sync's list refresh runs (poolFolderSync.php)
+	let poolBackgroundRefresh = false;
+	let poolRenderDeferred = false;
+
 	// Render based on current view mode
 	function renderCurrentView() {
+		// SD-718: the background refresh never wipes a row being edited; the list is drawn once the edit is saved or cancelled
+		if (poolBackgroundRefresh && document.querySelector("tr[data-editing='true']")) {
+			if (!poolRenderDeferred) {
+				poolRenderDeferred = true;
+				(function waitForEdit() {
+					if (document.querySelector("tr[data-editing='true']")) {
+						setTimeout(waitForEdit, 500);
+						return;
+					}
+					poolRenderDeferred = false;
+					renderCurrentView();
+				})();
+			}
+			return;
+		}
 		if (viewMode === 'card') {
 			renderFilesCard();
 		} else {
@@ -2295,7 +2502,8 @@ print <<<JS
 		try {
 			sessionStorage.setItem(poolListViewKey(), JSON.stringify({
 				search: searchBox ? searchBox.value : '',
-				scroll: container ? container.scrollTop : 0
+				scroll: container ? container.scrollTop : 0,
+				loaded: docData.length
 			}));
 		} catch (e) {}
 	};
@@ -2320,32 +2528,10 @@ print <<<JS
 		}
 	}
 
-	// Sort docData without rendering, so the column header and the render share one comparator.
+	// SD-719: the sort is done by _docPoolData.php over every document; this only records it for the request and the header marker
 	function applyPoolSort(sort) {
 		if (!sort || !sort.field) return;
-		const field = sort.field;
-		const asc   = !!sort.asc;
-
-		docData.sort((a, b) => {
-			let valA = a[field];
-			let valB = b[field];
-
-			if (field === 'amount') {
-					valA = parseFloat(valA) || 0;
-					valB = parseFloat(valB) || 0;
-			} else if (field === 'date') {
-					valA = new Date(valA).getTime() || 0;
-					valB = new Date(valB).getTime() || 0;
-			} else {
-					if (typeof valA === 'string') valA = valA.toLowerCase();
-					if (typeof valB === 'string') valB = valB.toLowerCase();
-			}
-
-			if (valA === valB) return 0;
-			return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-		});
-
-		currentSort = { field: field, asc: asc };
+		currentSort = { field: sort.field, asc: !!sort.asc };
 	}
 
 	// Re-apply the search text before the first render after a reload.
@@ -2366,6 +2552,14 @@ print <<<JS
 	function revealSelectedRow() {
 		const selected = document.querySelector('#' + containerId + " [data-selected='true']");
 		if (!selected || typeof selected.scrollIntoView !== 'function') return;
+		// SD-719: a row that is (partly) on screen, e.g. the one just clicked, leaves the list where it is
+		const container = document.getElementById(containerId);
+		if (container) {
+			const box = container.getBoundingClientRect();
+			const row = selected.getBoundingClientRect();
+			if (row.bottom > box.top && row.top < box.bottom) return;
+		}
+		poolOwnScroll = Date.now();
 		selected.scrollIntoView({ block: 'nearest' });
 	}
 
@@ -2374,6 +2568,7 @@ print <<<JS
 		const state     = readPoolListView();
 		const container = document.getElementById(containerId);
 
+		poolOwnScroll = Date.now();
 		if (container && state && state.scroll) container.scrollTop = state.scroll;
 		revealSelectedRow();
 	}
@@ -2386,6 +2581,9 @@ print <<<JS
 		container.addEventListener('scroll', function() {
 			if (timer) clearTimeout(timer);
 			timer = setTimeout(savePoolListView, 150);
+			// SD-719: the next page when the user scrolls near the end of the loaded rows (not when the page put the open document in view)
+			if (Date.now() - poolOwnScroll < 300) return;
+			if (container.scrollTop + container.clientHeight > container.scrollHeight - 400 && !container.querySelector('[data-editing]')) poolLoadMore();
 		});
 	}
 
@@ -2393,11 +2591,20 @@ print <<<JS
 	else attachPoolScrollSaver();
 	
 	// Filter pool files based on search input
+	// SD-719: searched on the server, so documents beyond the loaded pages are found too
+	let poolSearchTimer = null;
 	window.filterPoolFiles = function() {
 		const searchBox = document.getElementById('poolSearchBox');
 		searchFilter = searchBox ? searchBox.value.toLowerCase() : '';
-		renderCurrentView();
-		savePoolListView();
+		if (poolSearchTimer) clearTimeout(poolSearchTimer);
+		poolSearchTimer = setTimeout(function() {
+			poolFetch().then(function() {
+				const container = document.getElementById(containerId);
+				if (container) container.scrollTop = 0;
+				savePoolListView();
+				poolFillViewport();
+			});
+		}, 250);
 	};
 	
 	// Preview popup functions for card view
@@ -2479,30 +2686,205 @@ print <<<JS
 		popup.style.top  = y + 'px';
 	};
 
-    async function fetchFiles() {
-        const dir = '{$encodedDir}'; 
-      
-
+    // The ticked documents (SD-700 selection memory), so their data comes along even when they are not on a loaded page
+    function poolCheckedFiles() {
+        const files = [];
         try {
-            const archivedParam = (window.poolArchive && window.poolArchive.view()) ? '&archived=1' : '';
-            const response = await fetch('_docPoolData.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}') + archivedParam);
-            const data     = await response.json();
-
-            if (data.error) {
-                document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
-				console.error(dir + ': ' + data.error);
-                return;
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key && key.indexOf('docPool_checked_') === 0 && sessionStorage.getItem(key) === 'true') files.push(key.substring(16));
             }
+        } catch (e) {}
+        return files;
+    }
 
-            docData = data;
-			window.docData = docData;
-            applyStoredPoolListView();
-            renderCurrentView();
-            restorePoolScroll();
-        } catch (error) {
-            document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
-            console.error(error);
+    function poolCurrentFile() {
+        const all = new URLSearchParams(window.location.search).getAll('poolFile');
+        for (let i = all.length - 1; i >= 0; i--) {
+            if (all[i] && all[i].trim() !== '') return all[i];
         }
+        return '';
+    }
+
+    function poolListUrl(offset, limit, toCurrent) {
+        const q = new URLSearchParams();
+        q.set('dir', '{$encodedDir}');
+        q.set('poolParams', '{$poolParams}');
+        q.set('limit', limit);
+        q.set('offset', offset);
+        if (currentSort && currentSort.field) {
+            q.set('sort', currentSort.field);
+            q.set('order', currentSort.asc ? 'asc' : 'desc');
+        }
+        if (searchFilter) q.set('q', searchFilter);
+        if (totalSum) q.set('sum', totalSum);
+        if (targetDate) q.set('dato', targetDate);
+        if (poolCurrentFile()) q.set('current', poolCurrentFile());
+        if (toCurrent) q.set('toCurrent', '1');
+        poolCheckedFiles().forEach(function(file) { q.append('include[]', file); });
+        if (window.poolArchive && window.poolArchive.view()) q.set('archived', '1');
+        return '_docPoolData.php?' + q.toString();
+    }
+
+    // SD-719: the first page, sent with the page (poolListData()). Used once, and only when this is the request it was made for;
+    // a page shown again from history or the browser's cache would have an old list, so that one fetches.
+    let poolListSeed = {$poolListSeedJs};
+    function poolTakeSeed(url) {
+        const seed = poolListSeed;
+        poolListSeed = null;
+        if (!seed || !seed.data || !seed.query) return null;
+        try {
+            const nav = performance.getEntriesByType('navigation')[0];
+            if (nav && (nav.type === 'back_forward' || nav.transferSize === 0)) return null;
+        } catch (e) {}
+        const asked = Array.from(new URLSearchParams(url.split('?')[1] || '')).map(function(p) { return p[0] + '=' + p[1]; }).sort();
+        const sent = Object.keys(seed.query).map(function(k) { return k + '=' + seed.query[k]; }).sort();
+        return JSON.stringify(asked) === JSON.stringify(sent) ? seed.data : null;
+    }
+
+    // One request for the list: the first rows again (search, sort or a refresh), or the next page.
+    // options.append: add the next page; options.limit: how many rows to fetch from the top (at most 200);
+    // options.toCurrent: the page reaches down to the open document, so it is in the list (one request instead of two)
+    async function poolFetch(options) {
+        options = options || {};
+        const append = !!options.append;
+        const request = ++poolRequest;
+        const offset = append ? docData.length : 0;
+        const limit = append ? (options.limit || POOL_PAGE) : Math.max(POOL_PAGE, Math.min(200, options.limit || POOL_PAGE));
+        try {
+            const url = poolListUrl(offset, limit, !!options.toCurrent);
+            const data = poolTakeSeed(url) || await (await fetch(url, { credentials: 'same-origin' })).json();
+            if (request !== poolRequest) return false;
+            if (data.error) {
+                console.error('_docPoolData: ' + data.error);
+                // SD-718: a failed background refresh keeps the list shown, and with it a row being edited
+                if (poolBackgroundRefresh) return false;
+                document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
+                return false;
+            }
+            docData = append ? docData.concat(data.rows) : data.rows;
+            window.docData = docData;
+            poolTotal = data.total;
+            poolMatches = data.matches;
+            poolCurrentIndex = typeof data.currentIndex === 'number' ? data.currentIndex : -1;
+            if (!append) poolExtra = {};
+            (data.extra || []).forEach(function(row) { poolExtra[row.filename] = row; });
+            renderCurrentView();
+            return true;
+        } catch (error) {
+            if (request === poolRequest) {
+                console.error(error);
+                if (!poolBackgroundRefresh) document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
+            }
+            return false;
+        }
+    }
+
+    // The next page, once: scrolling, "Vis flere" and "Gem og næste" at the end of the loaded rows all call this
+    function poolLoadMore(limit, toCurrent) {
+        if (docData.length >= poolTotal) return Promise.resolve(false);
+        if (!poolLoading) {
+            poolLoading = poolFetch({ append: true, limit: limit, toCurrent: toCurrent }).then(function(result) { poolLoading = null; return result; });
+        }
+        return poolLoading;
+    }
+    window.poolLoadMore = poolLoadMore;
+    window.poolHasMore = function() { return docData.length < poolTotal; };
+
+    // Rows of the loaded pages plus the open and ticked documents, for code that looks a document up by name
+    function poolAllRows() {
+        return docData.concat(Object.keys(poolExtra).map(function(name) { return poolExtra[name]; }));
+    }
+    window.poolAllRows = poolAllRows;
+
+    // Whether a document is still in the pool: another tab may have attached it meanwhile, which removes its row.
+    // One list row plus the open document (the list endpoint's "extra"); true when the answer can't be read.
+    window.poolStillListed = function(file) {
+        return fetch(poolListUrl(0, 1, false), { credentials: 'same-origin' })
+            .then(function(response) { return response.ok ? response.json() : null; })
+            .then(function(data) {
+                if (!data || !Array.isArray(data.rows)) return true;
+                return data.rows.concat(data.extra || []).some(function(row) { return row.filename === file; });
+            })
+            .catch(function() { return true; });
+    };
+
+    // Under the loaded rows while more exist: how many are shown, and a button for the next page (scrolling fetches it too)
+    function poolMoreFooter() {
+        if (docData.length >= poolTotal) return '';
+        return "<div class='pool-more'>" + docData.length + ' {$txtPoolOf} ' + poolTotal +
+            " <button type='button' onclick='poolLoadMore()'>{$txtPoolMore}</button></div>";
+    }
+
+    // The server's match groups in the shape the renderers used to build themselves
+    function poolMatchSets() {
+        const m = poolMatches || {};
+        const combination = m.combination || {};
+        return {
+            perfect: m.perfect || [],
+            amount: m.amount || [],
+            date: m.date || [],
+            combinationFiles: new Set(combination.files || []),
+            combinationGroups: combination.first ? [combination.first] : []
+        };
+    }
+
+    // Documents that left the list (archived, attached) without fetching it again
+    window.poolRemoveFiles = function(files) {
+        const gone = new Set(files);
+        const before = docData.length;
+        docData = docData.filter(function(row) { return !gone.has(row.filename); });
+        window.docData = docData;
+        poolTotal = Math.max(0, poolTotal - (before - docData.length));
+        files.forEach(function(file) { delete poolExtra[file]; });
+        renderCurrentView();
+    };
+
+    // The journal line's amount and date changed (another line after an in-place switch): the match groups change with them
+    window.poolSetLineContext = function(sum, dato) {
+        if (sum === totalSum && dato === targetDate) return;
+        totalSum = sum;
+        targetDate = dato;
+        poolFetch({ limit: docData.length });
+    };
+
+    // After an in-place switch: the open document is marked, and loaded when it is further down than the loaded rows.
+    // SD-719: renderCurrentView() rebuilds the list's innerHTML, which resets its scrollTop to 0; the scroll
+    // position is restored before revealSelectedRow() checks visibility, or that check (and so "leaves the list
+    // where it is") would always run against a freshly-reset scroll of 0 instead of where the user actually was.
+    window.poolShowCurrent = async function() {
+        const container = document.getElementById(containerId);
+        const savedScroll = container ? container.scrollTop : 0;
+        renderCurrentView();
+        await poolEnsureCurrentLoaded();
+        if (container) container.scrollTop = savedScroll;
+        revealSelectedRow();
+    };
+
+    async function poolEnsureCurrentLoaded() {
+        const current = poolCurrentFile();
+        if (!current || docData.some(function(row) { return row.filename === current; })) return;
+        // The index is from the last answer; the server re-checks it against the open document
+        if (poolCurrentIndex < 0 || poolCurrentIndex >= docData.length) await poolLoadMore(POOL_PAGE, true);
+    }
+
+    // First load: as many rows as the stored view had loaded, so the scroll position can be restored
+    async function fetchFiles() {
+        const state = readPoolListView();
+        if (!docData.length) applyStoredPoolListView();
+        const loaded = await poolFetch({ limit: Math.max(docData.length, (state && state.loaded) || 0), toCurrent: true });
+        if (!loaded) return;
+        restorePoolScroll();
+        await poolEnsureCurrentLoaded();
+        revealSelectedRow();
+        poolFillViewport();
+    }
+
+    // More rows while the list is not tall enough to scroll, so scrolling can fetch the rest
+    function poolFillViewport() {
+        const container = document.getElementById(containerId);
+        if (!container || docData.length >= poolTotal) return;
+        if (container.scrollHeight <= container.clientHeight + 50) poolLoadMore().then(function(more) { if (more) poolFillViewport(); });
     }
 
     function renderFiles() {
@@ -2592,14 +2974,6 @@ print <<<JS
 		}
 		const hasDateToMatch = !inArchive && normalizedTargetDate !== null;
 		
-		// First pass: count matching documents and find combinations
-		let matchingCount      = 0;
-		let exactMatches       = []; // Store filenames that are exact amount matches
-		let perfectMatches     = []; // Store filenames that match BOTH amount AND date
-		let dateOnlyMatches    = []; // Store filenames that match date but not amount
-		let combinationMatches = new Set(); // Store filenames that are part of a combination
-		let combinationGroups  = []; // Store the actual combinations found
-		
 		// Helper function to normalize date for comparison
 		const normalizeDate = function(dateStr) {
 			if (!dateStr) return null;
@@ -2617,115 +2991,16 @@ print <<<JS
 			}
 			return null;
 		};
-		
-		if (hasAmountToMatch || hasDateToMatch) {
-			// Build list of documents with valid amounts
-			const docsWithAmounts = [];
-			for (let i = 0; i < docData.length; i++) {
-				const row = docData[i];
-				const normalizedAmount = parseAmountToFloat(row.amount);
-				const rowDate = normalizeDate(row.date);
-				const filename = row.filename || '';
-				
-				// Check date match
-				const isDateMatch = hasDateToMatch && rowDate === normalizedTargetDate;
-				
-				// Check amount match
-				const isAmountMatch = hasAmountToMatch && !isNaN(normalizedAmount) && Math.abs(normalizedAmount - normalizedTotal) < 0.01;
-				
-				if (!isNaN(normalizedAmount) && normalizedAmount > 0) {
-					docsWithAmounts.push({
-						index: i,
-						filename: filename,
-						amount: normalizedAmount,
-						date: rowDate,
-						row: row
-					});
-				}
-				
-				// Categorize matches
-				if (isAmountMatch && isDateMatch) {
-					// Perfect match - both amount AND date
-					perfectMatches.push(filename);
-					matchingCount++;
-				} else if (isAmountMatch) {
-					// Amount only match
-					exactMatches.push(filename);
-					matchingCount++;
-				} else if (isDateMatch) {
-					// Date only match
-					dateOnlyMatches.push(filename);
-				}
-			}
-			
-			// Only look for combinations if no exact matches found
-			if (matchingCount === 0 && docsWithAmounts.length >= 2) {
-				// Find pairs that sum to target
-				for (let i = 0; i < docsWithAmounts.length; i++) {
-					for (let j = i + 1; j < docsWithAmounts.length; j++) {
-						const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount;
-						if (Math.abs(sum - normalizedTotal) < 0.01) {
-							combinationMatches.add(docsWithAmounts[i].filename);
-							combinationMatches.add(docsWithAmounts[j].filename);
-							combinationGroups.push({
-								files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename],
-								amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount],
-								sum: sum
-							});
-						}
-					}
-				}
-				
-				// Find triplets that sum to target (only if no pairs found)
-				if (combinationGroups.length === 0 && docsWithAmounts.length >= 3) {
-					for (let i = 0; i < docsWithAmounts.length; i++) {
-						for (let j = i + 1; j < docsWithAmounts.length; j++) {
-							for (let k = j + 1; k < docsWithAmounts.length; k++) {
-								const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount + docsWithAmounts[k].amount;
-								if (Math.abs(sum - normalizedTotal) < 0.01) {
-									combinationMatches.add(docsWithAmounts[i].filename);
-									combinationMatches.add(docsWithAmounts[j].filename);
-									combinationMatches.add(docsWithAmounts[k].filename);
-									combinationGroups.push({
-										files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename, docsWithAmounts[k].filename],
-										amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount, docsWithAmounts[k].amount],
-										sum: sum
-									});
-								}
-							}
-						}
-					}
-				}
-				
-				// Find quads that sum to target (only if no pairs or triplets found)
-				if (combinationGroups.length === 0 && docsWithAmounts.length >= 4) {
-					for (let i = 0; i < docsWithAmounts.length; i++) {
-						for (let j = i + 1; j < docsWithAmounts.length; j++) {
-							for (let k = j + 1; k < docsWithAmounts.length; k++) {
-								for (let l = k + 1; l < docsWithAmounts.length; l++) {
-									const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount + 
-										docsWithAmounts[k].amount + docsWithAmounts[l].amount;
-									if (Math.abs(sum - normalizedTotal) < 0.01) {
-										combinationMatches.add(docsWithAmounts[i].filename);
-										combinationMatches.add(docsWithAmounts[j].filename);
-										combinationMatches.add(docsWithAmounts[k].filename);
-										combinationMatches.add(docsWithAmounts[l].filename);
-										combinationGroups.push({
-											files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename, 
-												docsWithAmounts[k].filename, docsWithAmounts[l].filename],
-											amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount,
-												docsWithAmounts[k].amount, docsWithAmounts[l].amount],
-											sum: sum
-										});
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		
+
+		// SD-719: the groups come from _docPoolData.php, over every document; the list holds only the loaded pages.
+		// The rows' own flags below are worked out the same way, so a row and its group header always agree.
+		const serverMatches      = poolMatchSets();
+		const perfectMatches     = serverMatches.perfect;
+		const exactMatches       = serverMatches.amount;
+		const dateOnlyMatches    = serverMatches.date;
+		const combinationMatches = serverMatches.combinationFiles;
+		const combinationGroups  = serverMatches.combinationGroups;
+
 		// Store combination info for display
 		const hasCombinationMatches = combinationMatches.size > 0;
 		const hasPerfectMatches = perfectMatches.length > 0;
@@ -2734,7 +3009,7 @@ print <<<JS
 		for (const row of docData) {
 			// Apply search filter
 			if (searchFilter) {
-				const searchText = ((row.filename || '') + ' ' + (row.subject || '') + ' ' + (row.account || '') + ' ' + (row.amount || '') + ' ' + (row.date || '') + ' ' + (row.invoiceNumber || '') + ' ' + (row.description || '')).toLowerCase();
+				const searchText = ((row.filename || '') + ' ' + (row.subject || '') + ' ' + (row.account || '') + ' ' + searchableAmount(row.amount) + ' ' + (row.date || '') + ' ' + (row.invoiceNumber || '') + ' ' + (row.description || '')).toLowerCase();
 				if (searchText.indexOf(searchFilter) === -1) {
 					continue;
 				}
@@ -2938,7 +3213,8 @@ print <<<JS
 		
 		// Add section header for combination matches
 		let combinationHeader = '';
-		if (hasCombinationMatches && combinationRows) {
+		// Also when every document of the combination is listed under "Dato match" (the line's date): the row is what selects them (SD-718)
+		if (hasCombinationMatches && combinationGroups.length > 0) {
 			// Build description of the combinations found
 			let comboDesc = '';
 			let comboFilesJson = '[]';
@@ -2952,7 +3228,7 @@ print <<<JS
 		combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson + ")' title='{$txt29}'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #ffc107;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.plus + "</span>" +
-				"{$txt62} (" + combinationMatches.size + " {$txt55}: " + escapeHTML(totalSum) + ")" +
+				"{$txt62} (" + combinationGroups[0].files.length + " {$txt55}: " + escapeHTML(totalSum) + ")" +
 				(comboDesc ? " <span style='font-weight: normal; font-size: 11px;'>(" + comboDesc + ")</span>" : "") +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " {$txt27}</span>" +
 				"</td></tr>";
@@ -2962,6 +3238,7 @@ print <<<JS
 		html += perfectMatchHeader + perfectMatchRows + matchingHeader + matchingAmountRows + dateMatchHeader + dateMatchRows + combinationHeader + combinationRows + otherRows;
 
 		html += "</tbody></table>";
+		html += poolMoreFooter();
 		
 		// Add bulk action button container at the bottom of the list (sticky so it's always visible)
 		html += "<div id='bulkActionsContainer' style='margin-top: 12px; padding: 8px; background-color: " + lightButtonColor + "; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;'>";
@@ -3063,68 +3340,14 @@ print <<<JS
 		}
 		const cardHasDateToMatch = !inArchive && cardNormalizedTargetDate !== null;
 		
-		let exactMatches       = [];
-		let perfectMatches     = [];
-		let dateOnlyMatches    = [];
-		let combinationMatches = new Set();
-		let combinationGroups  = [];
-		
-		if (hasAmountToMatch || cardHasDateToMatch) {
-			const docsWithAmounts = [];
-			for (let i = 0; i < docData.length; i++) {
-				const row = docData[i];
-				const normalizedAmount = parseAmountToFloat(row.amount);
-				const filename = row.filename || '';
-				
-				// Normalize row date
-				let rowDate = null;
-				if (row.date) {
-					const dateStr = row.date.split(' ')[0];
-					const parts = dateStr.split('-');
-					if (parts.length === 3) {
-						rowDate = parts[0].length === 4 ? dateStr : parts[2] + '-' + parts[1] + '-' + parts[0];
-					}
-				}
-				
-				const isDateMatch = cardHasDateToMatch && rowDate === cardNormalizedTargetDate;
-				const isAmountMatch = hasAmountToMatch && !isNaN(normalizedAmount) && Math.abs(normalizedAmount - normalizedTotal) < 0.01;
-				
-				if (!isNaN(normalizedAmount) && normalizedAmount > 0) {
-					docsWithAmounts.push({
-						index: i,
-						filename: filename,
-						amount: normalizedAmount,
-						row: row
-					});
-				}
-				
-				if (isAmountMatch && isDateMatch) {
-					perfectMatches.push(filename);
-				} else if (isAmountMatch) {
-					exactMatches.push(filename);
-				} else if (isDateMatch) {
-					dateOnlyMatches.push(filename);
-				}
-			}
-			
-			// Find combinations if no exact or perfect matches
-			if (exactMatches.length === 0 && perfectMatches.length === 0 && docsWithAmounts.length >= 2) {
-				for (let i = 0; i < docsWithAmounts.length; i++) {
-					for (let j = i + 1; j < docsWithAmounts.length; j++) {
-						const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount;
-						if (Math.abs(sum - normalizedTotal) < 0.01) {
-							combinationMatches.add(docsWithAmounts[i].filename);
-							combinationMatches.add(docsWithAmounts[j].filename);
-							combinationGroups.push({
-								files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename],
-								sum: sum
-							});
-						}
-					}
-				}
-			}
-		}
-		
+		// SD-719: the groups come from _docPoolData.php, over every document (pairs, triplets and quads, as in the table)
+		const serverMatches      = poolMatchSets();
+		const perfectMatches     = serverMatches.perfect;
+		const exactMatches       = serverMatches.amount;
+		const dateOnlyMatches    = serverMatches.date;
+		const combinationMatches = serverMatches.combinationFiles;
+		const combinationGroups  = serverMatches.combinationGroups;
+
 		let html = '<div class="doc-card-list" style="display: flex; flex-direction: column; gap: 8px; padding: 0 4px 80px 4px;">';
 		
 		// Add select all and bulk area
@@ -3133,7 +3356,7 @@ print <<<JS
 		html += '<input type="checkbox" id="selectAllCheckboxCard" onclick="toggleSelectAll(this)" style="width: 18px; height: 18px; cursor: pointer;">';
 		html += '<span>{$txt3}</span>';
 		html += '</label>';
-		html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + docData.length + ' {$txt53}</span>';
+		html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + poolTotal + ' {$txt53}</span>';
 		html += '</div>';
 		
 		// Perfect match header (amount + date) if applicable
@@ -3171,7 +3394,7 @@ print <<<JS
 			const comboFilesJson = JSON.stringify(combinationGroups[0].files).replace(/'/g, "&#39;");
 			html += '<div onclick="selectCombinationFiles(' + comboFilesJson + ')" style="cursor: pointer; padding: 10px; background: #ffc107; color: #212529; border-radius: 6px; margin-bottom: 8px;">';
 			html += '<span style="margin-right: 6px;">' + svgIcons.plus + '</span>';
-			html += '<strong>{$txt62}</strong> - ' + combinationMatches.size + ' {$txt59} ' + escapeHTML(totalSum);
+			html += '<strong>{$txt62}</strong> - ' + combinationGroups[0].files.length + ' {$txt59} ' + escapeHTML(totalSum);
 			html += '<span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' {$txt27}</span>';
 			html += '</div>';
 		}
@@ -3188,7 +3411,7 @@ print <<<JS
 			
 			// Apply search filter
 			if (searchFilter) {
-				const searchText = (filename + ' ' + subject + ' ' + account + ' ' + amount).toLowerCase();
+				const searchText = (filename + ' ' + subject + ' ' + account + ' ' + searchableAmount(amount)).toLowerCase();
 				if (searchText.indexOf(searchFilter) === -1) {
 					continue;
 				}
@@ -3290,6 +3513,7 @@ print <<<JS
 		html += '</div>';
 		
 		// Bulk actions
+		html += poolMoreFooter();
 		html += '<div id="bulkActionsContainer" style="margin-top: 12px; padding: 8px; background-color: ' + lightButtonColor + '; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;">';
 		html += '<button type="button" id="bulkInsertButton" onclick="chooseMultipleBilag()" style="padding: 8px 16px; background-color: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">';
 		html += '{$txt26} (<span id="selectedCount">0</span>)';
@@ -3344,7 +3568,7 @@ print <<<JS
 	
 	// Enable editing for a card item - opens a modal/inline form
 	window.enableCardEdit = function(poolFile, subject, account, amount, date) {
-		const fileData = docData.find(item => item.filename === poolFile) || {};
+		const fileData = poolAllRows().find(item => item.filename === poolFile) || {};
 		const poolVersion = fileData.version || '';
 		const description = fileData.description || '';
 		const invoiceNumber = fileData.invoiceNumber || '';
@@ -3419,8 +3643,13 @@ print <<<JS
 	
 	function sortFiles(field) {
 		applyPoolSort({ field: field, asc: currentSort && currentSort.field === field ? !currentSort.asc : true });
-		renderCurrentView();
-		savePoolListView();
+		// SD-719: sorted on the server, over every document
+		poolFetch().then(function() {
+			const container = document.getElementById(containerId);
+			if (container) container.scrollTop = 0;
+			savePoolListView();
+			poolFillViewport();
+		});
 	}
 
 
@@ -3493,7 +3722,7 @@ print <<<JS
 		
 		// poolFile[] (not poolFiles) so a filename containing a comma isn't split apart
 		// by docPool.php's legacy poolFiles=<comma-joined string> branch.
-		const selectedMetadata = docData.find(item => item.filename === selectedFiles[0]);
+		const selectedMetadata = poolAllRows().find(item => item.filename === selectedFiles[0]);
 		if (selectedMetadata) formData.append('poolAttachVersion', selectedMetadata.version || '');
 		selectedFiles.forEach(file => {
 			formData.append('poolFile[]', file);
@@ -3555,13 +3784,13 @@ print <<<JS
 			console.log('docData has', docData.length, 'entries');
 			
 			// Try multiple ways to find the file data
-			let fileData = docData.find(d => d.filename === firstFile);
+			let fileData = poolAllRows().find(d => d.filename === firstFile);
 			
 			// If not found, try with URL decoding
 			if (!fileData) {
 				try {
 					const decodedFirstFile = decodeURIComponent(firstFile);
-					fileData = docData.find(d => d.filename === decodedFirstFile);
+					fileData = poolAllRows().find(d => d.filename === decodedFirstFile);
 					if (fileData) console.log('Found via URL decoding');
 				} catch (e) {
 					console.log('URL decode failed:', e);
@@ -3571,7 +3800,7 @@ print <<<JS
 			// If still not found, try case-insensitive match
 			if (!fileData) {
 				const firstFileLower = firstFile.toLowerCase();
-				fileData = docData.find(d => d.filename && d.filename.toLowerCase() === firstFileLower);
+				fileData = poolAllRows().find(d => d.filename && d.filename.toLowerCase() === firstFileLower);
 				if (fileData) console.log('Found via case-insensitive match');
 			}
 			
@@ -3827,7 +4056,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 	row.dataset.originalActions = originalActions;
 	row.setAttribute('data-editing', 'true');
 	row.setAttribute('data-pool-file', poolFile);
-	row.dataset.poolVersion = (docData.find(item => item.filename === poolFile) || {}).version || '';
+	row.dataset.poolVersion = (poolAllRows().find(item => item.filename === poolFile) || {}).version || '';
 
 	// Make cells editable (update to handle 6 columns: checkbox, fil, beløb, fakturanr, dato, handlinger)
     if (cells.length >= 6) {
@@ -4010,8 +4239,15 @@ window.extractPoolFile = function(poolFile) {
 
 // Extract invoice data from ALL pool files
 window.extractAllPoolFiles = async function() {
-	// Get all pool files from the docData array; archived documents are not extracted (SD-717)
-	const activeDocs = (docData || []).filter(function(row) { return !row.archived; });
+	// Every document in the list, not only the loaded pages (SD-719); archived documents are not extracted (SD-717)
+	let activeDocs = [];
+	try {
+		const listResponse = await fetch('_docPoolData.php?dir={$encodedDir}&filesOnly=1', { credentials: 'same-origin' });
+		const listData = await listResponse.json();
+		activeDocs = (listData.files || []).map(function(name) { return { filename: name }; });
+	} catch (e) {
+		activeDocs = (docData || []).filter(function(row) { return !row.archived; });
+	}
 	if (activeDocs.length === 0) {
 		alert('{$txt41}');
 		return;
@@ -4393,7 +4629,20 @@ window.saveRowData = function(input) {
 
 
 
-    fetchFiles();
+    // SD-718: the list is shown from pool_files at once; the folder is checked afterwards, and the list is fetched again only when that added or removed documents
+    fetchFiles().then(function () {
+        return fetch('poolFolderSync.php', { method: 'POST', credentials: 'same-origin' });
+    }).then(function (response) {
+        return response.json();
+    }).then(function (result) {
+        if (!result || !result.changed) return;
+        // A row being edited would lose its fields in the re-render: renderCurrentView() holds the drawing back until the edit is closed,
+        // also when the edit is opened while the refreshed list is still being fetched
+        poolBackgroundRefresh = true;
+        return fetchFiles();
+    }).catch(function () { /* the next page load checks the folder again */ }).then(function () {
+        poolBackgroundRefresh = false;
+    });
     window.sortFiles = sortFiles;
 
 
@@ -4439,7 +4688,7 @@ JS;
 	if (!isset($showDoc)) $showDoc = '';
 	$uploadParams = $params . "&openPool=1&poolFile=$poolFile&docFolder=" . urlencode($docFolder);
 	
-	print "<div id='fixedCell' style='width: 100%; flex-shrink: 0;'>";
+	print "<div id='fixedCell' style='width: 100%;'>";
 	print "<div id='contentWrapper'>";
 	
 	// Get button colors for fixedBottom
@@ -4910,8 +5159,14 @@ JS;
 				session_start();
 				$s_id=session_id();
 				include "online.php";
-				
-				if ($easyUblApiKey) {
+
+				// SD-718: rendered once and reused, as showDoc.php already does; a newer XML file is rendered again
+				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
+				$xmlCached = is_file($htmlTempFile) && filesize($htmlTempFile) > 0 && filemtime($htmlTempFile) >= filemtime($fullName);
+				if ($xmlCached) {
+					print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
+					print "</iframe>";
+				} elseif ($easyUblApiKey) {
 					$postData = json_encode([
 						"language" => "",
 						"base64EncodedDocumentXml" => $base64Xml
@@ -4931,7 +5186,6 @@ JS;
 					
 					if ($htmlResult && !$curlError) {
 						// Save the HTML to a temp file for display in iframe
-						$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
 						file_put_contents($htmlTempFile, $htmlResult);
 						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
 						print "</iframe>";
@@ -5019,10 +5273,8 @@ JS;
 				}
 
 				setTimeout(function() {
-					const leftPanelWidth = leftPanel.offsetWidth;
-					
-					// Set fixedBottom width to match the left panel width
-					fixedDiv.style.width = leftPanelWidth + 'px';
+					// The cell's own width: it is the left panel's, less the scrollbar the cell gets when it gives way to the list (SD-719)
+					fixedDiv.style.width = '100%';
 					
 					// No need for padding-bottom since fixedCell is now a normal flex item
 				}, 100);
@@ -5532,7 +5784,9 @@ HTML;
         // SD-716: nothing typed in the new line, so the document opens with its own data (docPoolSaveNext.js)
         var fresh = typeof window.poolFreshDocumentUrl === 'function' ? window.poolFreshDocumentUrl(href) : null;
         if (fresh) {
-            if (typeof window.poolSwitch === 'function') window.poolSwitch(fresh); else window.location.href = fresh;
+            // Still the same journal line: its date and amount are left out of the URL so the document's own data
+            // fills the fields, but the list keeps matching against them (else the match groups go and the list jumps)
+            if (typeof window.poolSwitch === 'function') window.poolSwitch(fresh, { keepLineContext: true }); else window.location.href = fresh;
             return;
         }
         var url = new URL(href, window.location.href);
@@ -5543,6 +5797,11 @@ HTML;
                 var parameter = field === 'bilagsnr' ? 'bilag' : (field === 'amount' ? 'sum' : field);
                 url.searchParams.set(parameter, values[field]);
             });
+        }
+        // SD-719: in place, so the list keeps its loaded pages, scroll, sort and search
+        if (typeof window.poolSwitch === 'function') {
+            window.poolSwitch(url.href);
+            return;
         }
         window.location.href = url.href;
     };
@@ -5706,7 +5965,7 @@ HTML;
 
 		// Try to find data from the selected file in docData
 		if (currentPoolFile && typeof docData !== 'undefined' && docData.length) {
-			sourceData = docData.find(d => d.filename === currentPoolFile);
+			sourceData = (window.poolAllRows ? window.poolAllRows() : docData).find(d => d.filename === currentPoolFile);
 		}
 
 		// Fallback: check if a single checkbox is checked
@@ -5715,7 +5974,7 @@ HTML;
 			if (checked.length === 1) {
 				const filename = checked[0].value;
 				if (typeof docData !== 'undefined') {
-					sourceData = docData.find(d => d.filename === filename);
+					sourceData = (window.poolAllRows ? window.poolAllRows() : docData).find(d => d.filename === filename);
 				}
 			} else if (checked.length > 1) {
 				sourceData = "multiple"; // Indicate multiple selections
@@ -5730,7 +5989,7 @@ HTML;
 			if (matchRow) {
 				const filename = matchRow.getAttribute('data-pool-file');
 				if (filename && typeof docData !== 'undefined') {
-					sourceData = docData.find(d => d.filename === filename);
+					sourceData = (window.poolAllRows ? window.poolAllRows() : docData).find(d => d.filename === filename);
 				}
 			}
 		}

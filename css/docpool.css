@@ -299,11 +299,12 @@ body {
    FILE LIST CONTAINER
    ============================================ */
 
+/* SD-719: the list keeps room for a few rows on a low screen; the upload box below gives way instead (#fixedCell) */
 #fileListContainer {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  min-height: 0;
+  min-height: 200px;
   margin: 0 0 0 8px;
   padding: 0;
   position: relative;
@@ -540,8 +541,12 @@ body {
    FIXED BOTTOM SECTION
    ============================================ */
 
+/* SD-719: shrinks down to its header when the list needs the room, and scrolls inside itself */
 #fixedCell {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-height: 64px;
+  overflow-y: auto;
+  overflow-x: hidden;
   width: 100%;
   margin: 0;
   padding: 0;
@@ -893,4 +898,22 @@ body {
   border-radius: 6px;
   background-color: #e8f4fd;
   font-size: 13px;
+}
+
+/* SD-719: under the loaded rows while more exist ("50 af 497"); scrolling fetches the next page too */
+.pool-more {
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.pool-more button {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
 }
