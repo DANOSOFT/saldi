@@ -1,12 +1,15 @@
 <?php
 // 20260907 CDX/LH Preserve suggestion account types and match posted duplicates by currency and counterparty.
+// 20261003 CL/SZ SD-722 sidste_5_forslag() for a kreditor searches posted entries first (openpost to transaktioner, journal and kreditor invoices), then journal lines.
+//                A posted bilag that is also a journal line is shown once. Every row says where it came from (kilde: bogfort or kladde).
 
 /**
  * Find recent counter-accounts without losing their customer/supplier/finance identity.
+ * For a kreditor, posted entries come first and journal lines after them.
  *
  * @return array{
  *   heading: string,
- *   rows: array<array{bilag: mixed, dato: string, tekst: string, kontonr: mixed, art: string}>
+ *   rows: array<array{bilag: mixed, dato: string, tekst: string, kontonr: mixed, art: string, kilde: string}>
  * }
  */
 function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
@@ -33,11 +36,10 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		$d_artcond = "d_type = '$art'";
 		$k_artcond = "k_type = '$art'";
 	}
-	# NB: soger kun i kassekladde (aabne/tidligere kladdelinjer) - udvidelse til transaktioner er en senere opgave
 	if ($dk == "D") {
-		$txt = "select bilag,transdate,beskrivelse,debet as kontonr,d_type as kontoart from kassekladde where $k_artcond and kredit = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
+		$txt = "select bilag,kladde_id,transdate,beskrivelse,debet as kontonr,d_type as kontoart from kassekladde where $k_artcond and kredit = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
 	} else {
-		$txt = "select bilag,transdate,beskrivelse,kredit as kontonr,k_type as kontoart from kassekladde where $d_artcond and debet = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
+		$txt = "select bilag,kladde_id,transdate,beskrivelse,kredit as kontonr,k_type as kontoart from kassekladde where $d_artcond and debet = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
 	}
 
 	if ($art == 'K') {
@@ -52,25 +54,96 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		$forslag['heading'] = $heading;
 	}
 
-	$q = db_select($txt, __FILE__ . " linje " . __LINE__);
-	while (count($forslag['rows']) < 5 && ($r = db_fetch_array($q))) {
-		$counterType = strtoupper(trim((string)$r['kontoart'])) ?: 'F';
-		if ($r['kontonr'] && in_array($counterType, array('D', 'K', 'F'), true)) {
-			$tekst = stripslashes($r['beskrivelse']);
-			if ($charset && strtoupper($charset) != 'UTF-8' && function_exists('mb_convert_encoding')) {
-				$tekst = mb_convert_encoding($tekst, 'UTF-8', $charset);
+	$toUtf8 = function ($tekst) use ($charset) {
+		$tekst = stripslashes((string)$tekst);
+		if ($charset && strtoupper($charset) != 'UTF-8' && function_exists('mb_convert_encoding')) {
+			$tekst = mb_convert_encoding($tekst, 'UTF-8', $charset);
+		}
+		return $tekst;
+	};
+	// Posted bilag already shown, so its journal line is not shown again
+	$postedBilag = array();
+	if ($art == 'K') {
+		foreach (sidste_5_bogfoerte_kreditor($kontonr, $dk) as $r) {
+			$postedBilag[(int)$r['kladde_id'] . '|' . (int)$r['bilag']] = true;
+			if (count($forslag['rows']) < 5) {
+				$forslag['rows'][] = array(
+					'bilag' => $r['bilag'],
+					'dato' => dkdato($r['transdate']),
+					'tekst' => $toUtf8($r['beskrivelse']),
+					'kontonr' => $r['kontonr'],
+					'art' => 'F',
+					'kilde' => 'bogfort'
+				);
 			}
+		}
+	}
+
+	$q = count($forslag['rows']) < 5 ? db_select($txt, __FILE__ . " linje " . __LINE__) : false;
+	while ($q && count($forslag['rows']) < 5 && ($r = db_fetch_array($q))) {
+		$counterType = strtoupper(trim((string)$r['kontoart'])) ?: 'F';
+		if (isset($postedBilag[(int)$r['kladde_id'] . '|' . (int)$r['bilag']])) continue;
+		if ($r['kontonr'] && in_array($counterType, array('D', 'K', 'F'), true)) {
 			$forslag['rows'][] = array(
 				'bilag' => $r['bilag'],
 				'dato' => dkdato($r['transdate']),
-				'tekst' => $tekst,
+				'tekst' => $toUtf8($r['beskrivelse']),
 				'kontonr' => $r['kontonr'],
-				'art' => $counterType
+				'art' => $counterType,
+				'kilde' => 'kladde'
 			);
 		}
 	}
 
 	return $forslag;
+}
+##########################################################################################################
+/**
+ * The finance accounts a kreditor's posted bilag went to, newest first: the kreditor's open posts (invoices for Debet,
+ * credit notes and payments for Kredit) joined to the bilag's lines in transaktioner. A journal bilag is found by
+ * kladde_id and bilag, a kreditor invoice by its order (kladde_id 0, refnr = ordre_id).
+ * The VAT accounts and the debitor/kreditor collective accounts are left out: they are not what the bilag was spent on.
+ *
+ * @param string|int $kontonr Kreditor account number.
+ * @param string     $dk      'D' for the Debet side (kreditor in Kredit), 'K' for the Kredit side.
+ * @param int        $limit   Open posts to look at.
+ * @return array<array{kontonr: mixed, transdate: string, beskrivelse: string, bilag: mixed, kladde_id: mixed}>
+ */
+function sidste_5_bogfoerte_kreditor($kontonr, $dk, $limit = 30)
+{
+	// The journal asks once per line, often for the same kreditor
+	static $cache = array();
+	static $skip = null;
+	$rows = array();
+	if (!is_numeric($kontonr)) return $rows;
+	$key = $kontonr . '|' . $dk . '|' . (int)$limit;
+	if (isset($cache[$key])) return $cache[$key];
+	if ($skip === null) {
+		$skip = array();
+		$q = db_select("select art, box1, box2, box3 from grupper where art in ('SM','KM','EM','YM','KG','DG')", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$accounts = in_array($r['art'], array('KG', 'DG'), true) ? array($r['box2']) : array($r['box1'], $r['box3']);
+			foreach ($accounts as $account) {
+				if (ctype_digit(trim((string)$account))) $skip[(int)$account] = true;
+			}
+		}
+	}
+	$side = $dk == 'D' ? 'debet' : 'kredit';
+	$sign = $dk == 'D' ? 'o.amount < 0' : 'o.amount > 0';
+	$qtxt = "select t.kontonr, t.transdate, t.beskrivelse, t.bilag, t.kladde_id from ";
+	$qtxt .= "(select o.id, o.transdate, o.kladde_id, o.refnr from openpost o join adresser a on a.id = o.konto_id ";
+	$qtxt .= "where a.art = 'K' and a.kontonr = '" . db_escape_string($kontonr) . "' and $sign order by o.transdate desc, o.id desc limit " . (int)$limit . ") o ";
+	$qtxt .= "join transaktioner t on t.transdate = o.transdate and ((o.kladde_id > 0 and t.kladde_id = o.kladde_id and t.bilag = o.refnr) ";
+	$qtxt .= "or (coalesce(o.kladde_id, 0) = 0 and t.ordre_id = o.refnr)) ";
+	$qtxt .= "where t.$side > 0";
+	if ($skip) $qtxt .= " and t.kontonr not in (" . implode(',', array_keys($skip)) . ")";
+	$qtxt .= " order by t.transdate desc, t.id desc";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if ((int)$r['kontonr']) $rows[] = $r;
+	}
+	$cache[$key] = $rows;
+	return $rows;
 }
 ##########################################################################################################
 /** @return string HTML attribute containing the historical counter-accounts. */

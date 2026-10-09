@@ -5227,3 +5227,27 @@
 5409	cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.	cvrapi.dk refuses lookups from the server. Please fill in the fields manually.	cvrapi.dk avviser oppslag fra serveren. Fyll ut feltene manuelt.
 5369	Kreditoren kunne ikke oprettes	The creditor could not be created	Kreditoren kunne ikke opprettes
 5370	Intet CVR-nummer på bilaget	No CVR number on the document	Intet CVR-nummer på bilaget
+5371	Aflæst	Read	Lest
+5372	Foreslået fordi de sidste $antal bilag fra denne kreditor blev bogført på konto $konto	Suggested because the last $antal vouchers from this creditor were posted to account $konto	Foreslått fordi de siste $antal bilagene fra denne kreditoren ble bokført på konto $konto
+5373	Foreslået fordi det seneste bilag fra denne kreditor blev bogført på konto $konto	Suggested because the latest voucher from this creditor was posted to account $konto	Foreslått fordi det siste bilaget fra denne kreditoren ble bokført på konto $konto
+5374	Fundet via CVR-nr.	Found by CVR number	Funnet via org.nr.
+5375	Fundet via bankkonto	Found by bank account	Funnet via bankkonto
+5376	Fundet via navn	Found by name	Funnet via navn
+5377	Fra aflæsningen	From the capture	Fra avlesningen
+5378	Efter Saldi	After Saldi	Etter Saldi
+5379	Korrekt værdi	Correct value	Korrekt verdi
+5380	Kommentar	Comment	Kommentar
+5381	Firma	Company	Firma
+5382	Database	Database	Database
+5383	Tidspunkt	Time	Tidspunkt
+5384	Indholds-hash	Content hash	Innholds-hash
+5385	Aflæsnings-id	Capture id	Avlesnings-id
+5386	Rapportér fejl i aflæsning	Report a capture error	Rapporter feil i avlesning
+5387	Bilaget og de viste oplysninger sendes til Saldi support, så aflæsningen kan forbedres.	The document and the information shown are sent to Saldi support so the capture can be improved.	Bilaget og de viste opplysningene sendes til Saldi support, slik at avlesningen kan forbedres.
+5388	Tak — fejlen er rapporteret	Thank you — the error has been reported	Takk — feilen er rapportert
+5389	Du har allerede rapporteret dette bilag	You have already reported this document	Du har allerede rapportert dette bilaget
+5390	Udfyld modkonto automatisk	Fill in contra account automatically	Fyll ut motkonto automatisk
+5391	Afvis forslaget	Reject the suggestion	Avvis forslaget
+5392	Nu	Now	Nå
+5393	Fejlen kunne ikke rapporteres. Prøv igen.	The error could not be reported. Try again.	Feilen kunne ikke rapporteres. Prøv igjen.
+5394	Ingen aflæste værdier er gemt for dette bilag	No captured values are stored for this document	Ingen avleste verdier er lagret for dette bilaget

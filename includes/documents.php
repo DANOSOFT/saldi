@@ -33,6 +33,8 @@
 //                  via FileReservation instead of file_exists() polling, closing the window in
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20261003 CL/SZ SD-722 An upload that was extracted stores the document's snapshot on its pool row (poolCapture.php).
+//                A document attached to a journal line gets "Rapportér fejl i aflæsning" in the viewer's left panel, when the company has it switched on.
 // 20261004 CDX/LOE Share browser upload handling and redirect form uploads before rendering.
 // 20261002 CL/SZ SD-701 viewOnly=1 shows only the line's document, for the voucher tab the journal opens.
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
@@ -53,6 +55,8 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
+include_once(__DIR__ . "/docsIncludes/poolCapture.php");
+include_once(__DIR__ . "/docsIncludes/FileReservation.php");
 require_once __DIR__ . "/docsIncludes/poolUpload.php";
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
@@ -199,6 +203,10 @@ if (!empty($_FILES['uploadedFile']['name'])) {
 		|| !empty($_POST['openPool']);
 	$uploadResult = poolUploadFile($_FILES['uploadedFile'], "$docFolder/$db/pulje",
 		!isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0', $isAjax);
+	// SD-722: what the extraction read, kept before anything is saved or corrected
+	if ($uploadResult['success'] && !empty($uploadResult['extracted'])) {
+		poolCaptureStoreExtraction($uploadResult['filename'], "$docFolder/$db/pulje/" . $uploadResult['filename'], $uploadResult['extracted']);
+	}
 	if ($isAjax) {
 		while (ob_get_level()) {
 			ob_end_clean();
@@ -913,6 +921,19 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 		print "<a href='$linkUrl' style='display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
 		print "<i class='fa fa-link'></i> Link bilag fra anden linje";
 		print "</a>";
+		// SD-722: "Rapportér fejl i aflæsning" for the document shown, when the company has it switched on
+		if ($showDoc && poolCaptureReady() && poolCaptureReportSettings()['enabled']) {
+			print "<div id='poolCaptureReportSlot'></div>";
+			print "<script>window.saldiPoolCapture = " . json_encode(array(
+				'filename'      => basename((string)$showDoc),
+				'sourceId'      => (int)$sourceId,
+				'reportEnabled' => true,
+				'endpoint'      => 'docsIncludes/poolCaptureReport.php',
+				'texts'         => poolCaptureClientTexts($sprog_id),
+			), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
+			$vCapture = file_exists("../javascript/poolCapture.js") ? filemtime("../javascript/poolCapture.js") : 0;
+			print "<script src=\"../javascript/poolCapture.js?v=$vCapture\"></script>";
+		}
 	}
 	print "</div>";
 	

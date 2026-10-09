@@ -82,6 +82,7 @@
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
 // 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
 // 20261003 CL/SZ SD-721: adresser.auto_created, auto_created_by and bank_unconfirmed for the kreditor created from the CVR register, Postgres and MySQL.
+// 20261003 CL/SZ SD-722: pool_files.capture_raw, capture_values and captured, the pool_capture_log table and the settings rows for "Rapportér fejl i aflæsning", Postgres and MySQL.
 // 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
@@ -1108,6 +1109,118 @@ if ($kredCvrMissing) {
 		foreach ($kredCvrMissing as $kredCvrColumn => $kredCvrProbe) {
 			db_modify("ALTER TABLE adresser ADD COLUMN IF NOT EXISTS $kredCvrColumn " . $kredCvrColumns[$kredCvrColumn], __FILE__ . " linje " . __LINE__);
 		}
+	}
+}
+
+// 20261003 CL/SZ SD-722: data capture in the document pool.
+// pool_files.capture_raw (the extraction service's answer), capture_values (the values after Saldi's normalisation) and captured (when): the snapshot, written once.
+// captured last: includes/docsIncludes/poolCapture.php probes for it, so once it exists all three do.
+// pool_capture_log: correction records, rejected suggestions, the snapshot of an attached document and the reports to support, which carry a sent status.
+// It is the company's own record; rows are not deleted.
+$poolCaptureMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$poolCaptureSchema = $poolCaptureMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$poolCaptureColumns = array(
+	'capture_raw' => $poolCaptureMysql ? 'MEDIUMTEXT NULL' : 'TEXT NULL',
+	'capture_values' => 'TEXT NULL',
+	'captured' => $poolCaptureMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+);
+if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'$poolCaptureSchema", __FILE__ . " linje " . __LINE__))) {
+	$poolCaptureMissing = array();
+	foreach ($poolCaptureColumns as $poolCaptureColumn => $poolCaptureType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolCaptureColumn'$poolCaptureSchema";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$poolCaptureMissing[$poolCaptureColumn] = $qtxt;
+		}
+	}
+	if ($poolCaptureMissing) {
+		if ($poolCaptureMysql) {
+			// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the archive columns)
+			$poolCaptureLock = "CONCAT('saldi:pool_files_capture:', MD5(DATABASE()))";
+			$poolCaptureLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolCaptureLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int) ($poolCaptureLockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the pool_files capture migration lock.');
+			}
+			try {
+				foreach ($poolCaptureMissing as $poolCaptureColumn => $poolCaptureProbe) {
+					if (!db_fetch_array(db_select($poolCaptureProbe, __FILE__ . " linje " . __LINE__))) {
+						db_modify("ALTER TABLE pool_files ADD COLUMN $poolCaptureColumn " . $poolCaptureColumns[$poolCaptureColumn], __FILE__ . " linje " . __LINE__);
+					}
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($poolCaptureLock)", __FILE__ . " linje " . __LINE__);
+			}
+		} else {
+			foreach ($poolCaptureMissing as $poolCaptureColumn => $poolCaptureProbe) {
+				db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolCaptureColumn " . $poolCaptureColumns[$poolCaptureColumn], __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+}
+if (!db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_capture_log'$poolCaptureSchema", __FILE__ . " linje " . __LINE__))) {
+	if ($poolCaptureMysql) {
+		db_modify("CREATE TABLE IF NOT EXISTS pool_capture_log (
+			id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			kind VARCHAR(12) NOT NULL,
+			filename VARCHAR(255),
+			content_hash VARCHAR(64),
+			source_id INTEGER,
+			field VARCHAR(20),
+			raw_value TEXT,
+			norm_value TEXT,
+			final_value TEXT,
+			kreditor_cvr VARCHAR(20),
+			data MEDIUMTEXT,
+			comment TEXT,
+			user_id INTEGER,
+			user_name VARCHAR(80),
+			created DATETIME NOT NULL,
+			sent DATETIME NULL,
+			attempts INTEGER NOT NULL DEFAULT 0,
+			next_attempt DATETIME NULL,
+			claim VARCHAR(32),
+			claimed DATETIME NULL,
+			last_error TEXT,
+			INDEX pool_capture_log_kind_idx (kind, sent),
+			INDEX pool_capture_log_file_idx (filename),
+			INDEX pool_capture_log_hash_idx (content_hash)
+		)", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("CREATE TABLE IF NOT EXISTS pool_capture_log (
+			id SERIAL PRIMARY KEY,
+			kind VARCHAR(12) NOT NULL,
+			filename VARCHAR(255),
+			content_hash VARCHAR(64),
+			source_id INTEGER,
+			field VARCHAR(20),
+			raw_value TEXT,
+			norm_value TEXT,
+			final_value TEXT,
+			kreditor_cvr VARCHAR(20),
+			data TEXT,
+			comment TEXT,
+			user_id INTEGER,
+			user_name VARCHAR(80),
+			created TIMESTAMP NOT NULL,
+			sent TIMESTAMP NULL,
+			attempts INTEGER NOT NULL DEFAULT 0,
+			next_attempt TIMESTAMP NULL,
+			claim VARCHAR(32),
+			claimed TIMESTAMP NULL,
+			last_error TEXT
+		)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_kind_idx ON pool_capture_log (kind, sent)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_file_idx ON pool_capture_log (filename)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_hash_idx ON pool_capture_log (content_hash)", __FILE__ . " linje " . __LINE__);
+	}
+}
+// The support address and the switch for the report button, so both can be changed without a code change.
+// The button stays off ('off') until the customer terms for sending documents to support are approved; 'on' shows it.
+foreach (array(
+	'capture_report_email' => array('support@danosoft.dk', 'Aflæsningsfejl fra dokumentpuljen sendes hertil'),
+	'capture_report' => array('off', 'Knappen Rapportér fejl i aflæsning (on/off)'),
+) as $poolCaptureVar => $poolCaptureDefault) {
+	if (!db_fetch_array(db_select("SELECT id FROM settings WHERE var_grp = 'pool' AND var_name = '$poolCaptureVar'", __FILE__ . " linje " . __LINE__))) {
+		db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('$poolCaptureVar', 'pool', '" . db_escape_string($poolCaptureDefault[0]) . "', '" . db_escape_string($poolCaptureDefault[1]) . "')", __FILE__ . " linje " . __LINE__);
 	}
 }
 
