@@ -90,7 +90,7 @@ print "\n<!-- Function afslut (start)-->\n";
     if (!isset($_COOKIE['giftcard']) || $_COOKIE['giftcard'] == true) {
       $sum = betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, $kasse);
     } else {
-      setcookie('giftcard', '', time()-3600);
+      saldi_setcookie('giftcard', '', time()-3600);
       print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
       exit(0);
     }
@@ -197,7 +197,7 @@ print "\n<!-- Function afslut (start)-->\n";
 					if ($fp=fopen($filnavn,'r')) {
 						$terminal_ip=trim(fgets($fp));
 						fclose ($fp);
-						$tmp=setcookie("salditerm",$terminal_ip,time()+3600,'/');
+						$tmp=saldi_setcookie("salditerm",$terminal_ip,time()+3600,'/');
 					}
 				} #else $terminal_ip=$printserver;
 				$tidspkt=date("U");
@@ -210,7 +210,7 @@ print "\n<!-- Function afslut (start)-->\n";
 				// MobilePay
 				if ($payment == "mobilepay") {
 					$tmp="payments/mobilepay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-					setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+					saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 					exit;
 				} else {
@@ -220,29 +220,29 @@ print "\n<!-- Function afslut (start)-->\n";
 
 					if ($r[0] == "Flatpay") {
 						$tmp="payments/flatpay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Lane3000") {
 						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Move3500") {
 						$tmp="payments/move3500.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					# Compatibilaty search
 					} else if ("Vibrant" == substr($r[0], 0, 7)) {
 						$tmp="payments/vibrant.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					}
 				}
 				$tmp="http://$terminal_ip/pointd/kvittering.php?url=$url&server=$server&serverfile=$serverfile&id=$id&db=$db&pos_bet_id=$pos_bet_id&kommando=kortbetaling&belob=$belob&betaling=$betaling&betaling2=$betaling2&modtaget=$modtaget&modtaget2=$modtaget2&indbetaling=$indbetaling&tidspkt=$tidspkt";
-				setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+				saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 				exit;
 			}
@@ -336,7 +336,7 @@ print "\n<!-- Function afslut (start)-->\n";
 			if ($fp=fopen($filnavn,'r')) {
 				$printserver=trim(fgets($fp));
 				fclose ($fp);
-				if ($printserver) setcookie("saldi_printserver",$printserver,time()+60*60*24*7,'/');
+				if ($printserver) saldi_setcookie("saldi_printserver",$printserver,time()+60*60*24*7,'/');
 			}
 		}
 		if ($printserver=='box' || !$printserver) $printserver=$_COOKIE['saldi_printserver'] ?? '';

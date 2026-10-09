@@ -29,6 +29,7 @@
 // 20261005 Sawaneh Placement action removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
 // 20261008 Sawaneh action=theme stores the user's light/dark/system choice (settings ui/theme).
 // 20261009 Sawaneh action=theme also sets the saldi_theme cookie so auditor/master-admin sessions keep the choice.
+// 20261009 Sawaneh action=auto_extract / action=sidebar store the personal settings that replace two cookies (4e).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -85,12 +86,26 @@ if ($action === 'theme') {
 			update_settings_value('theme', 'ui', $theme, 'UI theme: light, dark or system', (int) $bruger_id);
 		}
 		// Auditor/master-admin sessions have no user row: the cookie carries the choice (online.php reads it as the fallback).
-		setcookie('saldi_theme', $theme, time() + 31536000, '/', '', !empty($_SERVER['HTTPS']), false);
+		saldi_setcookie('saldi_theme', $theme, time() + 31536000, '/', '', !empty($_SERVER['HTTPS']), false);
 	}
 	if (!empty($request['ajax'])) {
 		ob_end_clean();
 		header('Content-Type: application/json; charset=utf-8');
 		print json_encode(array('ok' => true, 'theme' => $theme));
+		exit;
+	}
+}
+// 4e (settings redesign §7.4 item 5): the autoExtract and isSidebarOpen cookies became user settings; the page toggles post here.
+if ($action === 'auto_extract' || $action === 'sidebar') {
+	include_once(__DIR__ . "/../includes/settings/SettingsService.php");
+	$on = !empty($request['value']) && $request['value'] !== '0' && $request['value'] !== 'false';
+	if ((int) $bruger_id > 0) {
+		SettingsService::save($action === 'sidebar' ? 'personal.ui.sidebar_closed' : 'personal.documents.auto_extract', $on, (int) $bruger_id);
+	}
+	if (!empty($request['ajax'])) {
+		ob_end_clean();
+		header('Content-Type: application/json; charset=utf-8');
+		print json_encode(array('ok' => true, 'value' => $on));
 		exit;
 	}
 }
@@ -100,7 +115,7 @@ if ($action === 'language') {
 		if (!$revisor && (int) $bruger_id > 0) {
 			db_modify("update brugere set language_id = $languageId where id = " . (int) $bruger_id, __FILE__ . " linje " . __LINE__);
 		}
-		setcookie('languageId', (string) $languageId, time() + (10 * 365 * 24 * 60 * 60), '/');
+		saldi_setcookie('languageId', (string) $languageId, time() + (10 * 365 * 24 * 60 * 60), '/');
 		include(__DIR__ . "/../includes/connect.php");
 		db_modify("update online set language_id = '$languageId' where session_id = '" . db_escape_string($s_id) . "'", __FILE__ . " linje " . __LINE__);
 	}

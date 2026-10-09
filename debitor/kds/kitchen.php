@@ -39,7 +39,7 @@ include ("../../includes/stdFunc/dkDecimal.php");
 include ("../../includes/stdFunc/usDecimal.php");
 
 if (isset($_GET["kitchen"])) {
-	setcookie("kitchen", $_GET["kitchen"]);
+	saldi_setcookie("kitchen", $_GET["kitchen"]);
 	header('Location: ../kds');
 }
 

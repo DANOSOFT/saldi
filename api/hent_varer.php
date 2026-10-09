@@ -100,7 +100,7 @@ fclose ($fp);
 #print __line__." <a href=$url&id=0&next_id=$next_id>next</a>";
 	exit;
 } elseif ($saldi_grp && $shop_id) {
-	setcookie("saldi_grp",$saldi_grp,time()+60);
+	saldi_setcookie("saldi_grp",$saldi_grp,time()+60);
 	$x=0;
 	$q=db_select("select varenr,id from varer",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)){
@@ -151,11 +151,11 @@ fclose ($fp);
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$linje=__line__;
 		if (isset($_COOKIE['saldi_shop_id']) && $_COOKIE['saldi_shop_id'] > $shop_id) {
-			setcookie("saldi_shop_id","0",time()+60);
+			saldi_setcookie("saldi_shop_id","0",time()+60);
 			print "<a href=$url&next_id=0&linje=$linje>next</a>";
 			exit;
 		} else {
-			setcookie("saldi_shop_id",$shop_id,time()+60);
+			saldi_setcookie("saldi_shop_id",$shop_id,time()+60);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=$url&next_id=$shop_id&linje=$linje\">";
 			exit;
 		}

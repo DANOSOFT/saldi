@@ -61,7 +61,7 @@ $custom_text		= "";
 $varegruppe = if_isset($_GET['varegruppe']);
 if ($varegruppe == "0:Alle") $varegruppe=NULL;
 else {
-	setcookie("saldi_pricelist", $varegruppe);
+	saldi_setcookie("saldi_pricelist", $varegruppe);
 	$returside="rapport.php?varegruppe=$varegruppe";
 }
 // 20260714 SZ - GET baseline (covers pagination/back-button/direct-link navigation - a plain GET
@@ -98,7 +98,7 @@ if (isset($_POST['submit'])) {
 	$show_salgspris 	= $_POST['show_salgspris'];
 	$show_retail_price  = $_POST['show_retail_price'];
 	$custom_text  		= $_POST['custom_text'];
-	setcookie("saldi_pricelist", $varegruppe);
+	saldi_setcookie("saldi_pricelist", $varegruppe);
 } elseif (!$varegruppe)  {
 	$varegruppe=($_COOKIE['saldi_pricelist']);
 	if (!$varegruppe) $varegruppe="0:Alle";

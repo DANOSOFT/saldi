@@ -84,7 +84,7 @@ print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"center\">\n";
 // Handle language setting (from POST or COOKIE)
 if (isset($_POST['language'])) {
     $sprog_id = $_POST['language'];
-    setcookie('sprog_id', $sprog_id, time() + (86400 * 30), "/");
+    saldi_setcookie('sprog_id', $sprog_id, time() + (86400 * 30), "/");
     $_SESSION['language'] = $sprog_id;
 } elseif (isset($_COOKIE['sprog_id'])) {
     $sprog_id = $_COOKIE['sprog_id'];

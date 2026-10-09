@@ -88,6 +88,7 @@ $returside    = if_isset($_GET, NULL, 'returside');
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261002 Sawaneh Local print read from the user's personal setting first; the old cookie still counts for one release.
 // 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 $returside = (function($s) {
     $s = trim((string)$s);
     if ($s === '' || $s === 'ordreliste.php') return $s; // 'ordreliste.php' normaliseres nedenfor linje 93
@@ -460,7 +461,7 @@ include ("../includes/topline_settings.php");
 
 if ($menu == 'S') {
 	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => 'Udskriftsvalg', 'back' => 'udskriv.php?valg=tilbage'));
+	page_bar(array('title' => findtekst('7014|Udskriftsvalg', $sprog_id), 'back' => 'udskriv.php?valg=tilbage'));
 	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
 	print "</td></tr>";

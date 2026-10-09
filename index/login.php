@@ -256,8 +256,8 @@ if (isset($_POST['regnskab'])) {
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
 	}
 	if (isset($_POST['huskmig'])) {
-		if ($_POST['huskmig']) setcookie("saldi_huskmig",$_POST['huskmig'].chr(9).$regnskab.chr(9).$brugernavn,time()+60*60*24*365*10);
-		else setcookie("saldi_huskmig",$huskmig.chr(9).$regnskab.chr(9).$brugernavn,time()-1);
+		if ($_POST['huskmig']) saldi_setcookie("saldi_huskmig",$_POST['huskmig'].chr(9).$regnskab.chr(9).$brugernavn,time()+60*60*24*365*10);
+		else saldi_setcookie("saldi_huskmig",$huskmig.chr(9).$regnskab.chr(9).$brugernavn,time()-1);
 	}#20211018
 	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone']; 
 	if (!isset($timezone)) $timezone='Europe/Copenhagen';
@@ -268,8 +268,8 @@ if (isset($_POST['regnskab'])) {
 		$r=db_fetch_array(db_select("select var_value from settings where var_name='timezone'",__FILE__ . " linje " . __LINE__));
 		if ($timezone=$r['var_value']) {
 			date_default_timezone_set($timezone);
-			#setcookie("saldi_timezone",$timezone,time(+60*60*24*365*10));
-			setcookie("saldi_timezone",$timezone,time() + (60*60*24*7*10*365));#20211007
+			#saldi_setcookie("saldi_timezone",$timezone,time(+60*60*24*365*10));
+			saldi_setcookie("saldi_timezone",$timezone,time() + (60*60*24*7*10*365));#20211007
 		} else {
 			date_default_timezone_set('Europe/Copenhagen');
         }
@@ -782,7 +782,7 @@ if ($userId) {
 	if ($dbver > '4.0.4') $qtxt.= ", language_id='$languageId' ";
 	$qtxt.= "where session_id = '$s_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($login=="cookie") {setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
+	if ($login=="cookie") {saldi_setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
 	include("../includes/online.php"); #20111105
 	include_once("../includes/permissions.php");
 	if (function_exists('audit_log')) {

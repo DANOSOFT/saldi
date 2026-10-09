@@ -152,7 +152,7 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal){
 		} else {
 			db_modify("insert into grupper(beskrivelse,kodenr,art,$box) values ('Importsettings','1','IMP','$tmp')",__FILE__ . " linje " . __LINE__);
 		}
-#	setcookie("saldi_debimp",$tmp,time()+60*60*24*30);
+#	saldi_setcookie("saldi_debimp",$tmp,time()+60*60*24*30);
 	} elseif ($r=db_fetch_array(db_select("select $box from grupper where art='IMP'",__FILE__ . " linje " . __LINE__))) {
 		$feltnavn=explode(";",$r[$box]);
 	} elseif (isset($_COOKIE['saldi_debimp'])) {

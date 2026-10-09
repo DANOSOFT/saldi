@@ -33,10 +33,11 @@
 // 20260522 PHR - Fiscal year
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 // 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 @session_start();
 $s_id=session_id();
-$title="Listeangivelse";
+$title = findtekst('7013|Listeangivelse', $sprog_id);
 $modulnr=4;
 $css="../css/standard.css";
 
@@ -89,7 +90,7 @@ if ($_POST){ # 20140729 Start afsnit 1
 } else {
 	# $bodyhtml.=vis_alle_kvartaler();
 	$bodyhtml.="\n<h1>Ingen perioder valgt</h1>\n<p>Klik p&aring; linket Tilbage og v&aelig;lg en periode.</p>\n\n";
-	$tophtml = listetopmenu("Listeangivelse");
+	$tophtml = listetopmenu(findtekst('7013|Listeangivelse', $sprog_id));
 	print $tophtml.$bodyhtml.$bottomhtml;
 	exit;
 }
@@ -187,7 +188,7 @@ while ($row = db_fetch_array($query)) {
 	$debughtml.= "</table>\n\n";
 } 
 
-$tophtml = listetopmenu("Listeangivelse ".$liste_md.". måned ".$liste_aar); # 20140729 afsnit 3
+$tophtml = listetopmenu(findtekst('7013|Listeangivelse', $sprog_id) . " " . $liste_md . ". " . lcfirst(findtekst('1217|Måned', $sprog_id)) . " " . $liste_aar); # 20140729 afsnit 3
 
 if ( $antal_poster > 0 ) {
 	$datafil .= "\n10,".$antal_poster.",".$totalsumdkk.",,,,,,\n";

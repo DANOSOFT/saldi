@@ -21,6 +21,7 @@
 //                  page). 'pages': 'dir/file.php' (or 'dir/file.php?param=value' for a variant of the same file) =>
 //                  module 'm', label 'l' ('textId|Danish'; '|Text' without an id) and parent page 'p' from the Saldi
 //                  root ('' = directly under the module). Read by page_auto_breadcrumb() in pageChrome.php.
+// 20261009 Sawaneh sager/tjeklister.php (checklists moved from Indstillinger, 4e).
 
 return array(
 	'modules' => array(
@@ -239,6 +240,7 @@ return array(
 		'bordplaner/table_plan.php' => array('m' => 'pos', 'l' => '|Bordplan', 'p' => '/debitor/pos_ordre.php'),
 		// sager/
 		'sager/sager.php' => array('m' => 'sager', 'l' => '2774|Sager', 'p' => ''),
+		'sager/tjeklister.php' => array('m' => 'sager', 'l' => '796|Tjeklister', 'p' => '/sager/sager.php'),
 		'sager/sager.php?funktion=vis_sag' => array('m' => 'sager', 'l' => '2792|Sag', 'p' => '/sager/sager.php', 'q' => array('funktion' => 'vis_sag')),
 		'sager/sager.php?funktion=ret_sag' => array('m' => 'sager', 'l' => '2960|Sagsinfo', 'p' => '/sager/sager.php?funktion=vis_sag', 'q' => array('funktion' => 'ret_sag')),
 		'sager/planlaeg.php' => array('m' => 'sager', 'l' => '2775|Planlægning', 'p' => ''),

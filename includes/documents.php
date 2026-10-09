@@ -41,6 +41,7 @@
 // 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
 //                  instead of always the first regardless, so a missing first file no longer hides the others.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh Auto-extract on upload follows the personal setting (was the autoExtract cookie, settings redesign 4e).
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -201,8 +202,9 @@ if (ifset($_GET, 'viewOnly') == '1' && $source && $sourceId) {
 if (!empty($_FILES['uploadedFile']['name'])) {
 	$isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
 		|| !empty($_POST['openPool']);
+	include_once(__DIR__ . "/settings/SettingsService.php");
 	$uploadResult = poolUploadFile($_FILES['uploadedFile'], "$docFolder/$db/pulje",
-		!isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0', $isAjax);
+		(bool) SettingsService::get('personal.documents.auto_extract', (int) $bruger_id), $isAjax);
 	if ($isAjax) {
 		while (ob_get_level()) {
 			ob_end_clean();

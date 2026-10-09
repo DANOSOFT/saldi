@@ -119,9 +119,10 @@ while ($r=db_fetch_array($q)) {
 }
 // 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
 // 20261008 Sawaneh The page on the new page head (page_bar): Regnskab / Budget as tabs, tour kept for the Assist menu.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 include_once("../includes/stdFunc/pageBar.php");
 page_bar(array(
-	'title' => 'Budget',
+	'title' => findtekst('1067|Budget', $sprog_id),
 	'tabs' => array(
 		array(findtekst('849|Regnskab', $sprog_id), 'regnskab.php?returside=' . urlencode(isset($returside) ? (string) $returside : ''), false),
 		array('Budget', 'budget.php', true),

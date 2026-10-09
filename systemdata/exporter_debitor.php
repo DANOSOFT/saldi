@@ -19,10 +19,11 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 @session_start();
 $s_id=session_id();
-$title="Eksporter debitorer";
+$title = findtekst('1355|Eksportér', $sprog_id) . ' ' . findtekst('908|Debitorer', $sprog_id);
 $css="../css/standard.css";
 
 include("../includes/connect.php");

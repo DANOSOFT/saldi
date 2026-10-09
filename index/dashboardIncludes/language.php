@@ -10,7 +10,7 @@ if(isset($_POST['cookieLanguageId'])){
     $permission_key = 'any';
     include("../includes/online.php");
     if ($cookieLanguageId) {
-        setcookie('languageId', $cookieLanguageId, time() + (10 * 365 * 24 * 60 * 60), '/');
+        saldi_setcookie('languageId', $cookieLanguageId, time() + (10 * 365 * 24 * 60 * 60), '/');
     }
     print "<meta http-equiv=\"refresh\" content=\"0;URL=menu.php\">";
     exit;

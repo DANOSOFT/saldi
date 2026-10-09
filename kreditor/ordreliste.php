@@ -125,7 +125,7 @@ if (!in_array($valg, ['forslag', 'ordrer', 'faktura'])) {
 ###############
 if (isset($valg)) {
     // Set the cookie to store the 'valg' value
-    setcookie("valg", $valg, time() + 3600 * 24, "/"); // Expires in 24 hours
+    saldi_setcookie("valg", $valg, time() + 3600 * 24, "/"); // Expires in 24 hours
 }
 // WP-3.6: an order opened from the list returns to the same tab and creditor filter (encoded, as luk.php passes it on).
 $rowReturside = urlencode("ordreliste.php?valg=" . urlencode((string) $valg) . ($konto_id ? "&konto_id=" . (int) $konto_id : ""));

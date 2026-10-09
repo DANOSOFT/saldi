@@ -307,9 +307,9 @@ if (isset($_GET['id']) && $_GET['id'])
 	$id = $_GET['id'];
 if (isset($_POST['kasse']) && $_POST['kasse']) {
 	$kasse = $_POST['kasse']; #20150402
-	setcookie('saldi_pos', $kasse, time() + 60 * 60 * 24 * 30, '/');
+	saldi_setcookie('saldi_pos', $kasse, time() + 60 * 60 * 24 * 30, '/');
 	if (isset($pfs) && $pfs)
-		setcookie('saldi_pfs', $pfs, time() - 60, '/');
+		saldi_setcookie('saldi_pfs', $pfs, time() - 60, '/');
 } elseif (!$kasse && isset($_COOKIE['saldi_pos']))
 	$kasse = $_COOKIE['saldi_pos'];
 $qtxt = "select box7 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
@@ -326,7 +326,7 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 		if (strstr(strtolower($bord[$i]), strtolower($brugernavn))) {
 			$bordnr = $i;
 			$konto_id = if_isset($_GET['konto_id']);
-			setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30); #20150505-2
+			saldi_setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30); #20150505-2
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}bordnr=$bordnr&konto_id=$konto_id\">\n"; #20150401
 			exit;
 			break 1;
@@ -422,7 +422,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 	if (isset($_GET['bordnr']))
 		$bordnr = $_GET['bordnr'];
 	if ($bordnr || $bordnr == '0') {
-		setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30);
+		saldi_setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30);
 	}
 	$qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name='pos_events'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -472,9 +472,9 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 /*
 if (isset($_POST['kasse']) && $_POST['kasse']) {
 	$kasse=$_POST['kasse']; #20150402
-	setcookie("saldi_pos",$kasse,time()+60*60*24*30);
-	setcookie($_COOKIE['saldi_pfs'],$pfs,time()-60);
-	setcookie($_COOKIE['saldi_pfs'],$pfs,time()-60,'/');
+	saldi_setcookie("saldi_pos",$kasse,time()+60*60*24*30);
+	saldi_setcookie($_COOKIE['saldi_pfs'],$pfs,time()-60);
+	saldi_setcookie($_COOKIE['saldi_pfs'],$pfs,time()-60,'/');
 }
 if (isset($_POST['id']) && $_POST['id']) $id=$_POST['id'];
 if (!$id && !$bordnr && $bordnr != '0') { #20150305
@@ -483,7 +483,7 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 		if (strstr(strtolower($bord[$i]),strtolower($brugernavn))) {
 			$bordnr=$i;
 			$konto_id=if_isset($_GET['konto_id']);
-			setcookie("saldi_bordnr",$bordnr,time()+60*60*24*30); #20150505-2
+			saldi_setcookie("saldi_bordnr",$bordnr,time()+60*60*24*30); #20150505-2
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?bordnr=$bordnr&konto_id=$konto_id\">\n"; #20150401
 			exit;
 			break 1;
@@ -585,7 +585,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 				$cookievalue .= chr(9) . $optval[$x];
 			}
 		}
-		setcookie("saldi_kasseoptael", $cookievalue, time() + 600);
+		saldi_setcookie("saldi_kasseoptael", $cookievalue, time() + 600);
 		$optalt = (int) $_POST['ore_10'] * 0.1 +
 			(int) $_POST['ore_20'] * 0.2 +
 			(int) $_POST['ore_50'] * 0.5 +
@@ -624,7 +624,7 @@ if (!$kasse || $kasse == "?")
 	$kasse = find_kasse($kasse);
 elseif ($kasse == "opdat") {
 	$kasse = $_POST['kasse'];
-	setcookie("saldi_pos", $kasse, time() + 60 * 60 * 24 * 30);
+	saldi_setcookie("saldi_pos", $kasse, time() + 60 * 60 * 24 * 30);
 }
 if (!isset($_COOKIE['saldi_pfs']) || !$_COOKIE['saldi_pfs'] || !$id) {
 	if (!$id)
@@ -634,8 +634,8 @@ if (!isset($_COOKIE['saldi_pfs']) || !$_COOKIE['saldi_pfs'] || !$id) {
 	$tmparray = explode(chr(9), $r['box2']);
 	if ($tmparray[$kasse - 1])
 		$pfs = $tmparray[$kasse - 1];
-	setcookie('saldi_pfs', $pfs, time() - 60);
-	setcookie('saldi_pfs', $pfs, time() + 60 * 60 * 24 * 365, '/');
+	saldi_setcookie('saldi_pfs', $pfs, time() - 60);
+	saldi_setcookie('saldi_pfs', $pfs, time() + 60 * 60 * 24 * 365, '/');
 	if ($pfs && $pfs != $old_pfs) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n"; # 20140424b
 	}
@@ -698,7 +698,7 @@ if ($godkendt == 'OK') { # 20131205
 	}
 
 	#} elseif ($godkendt) {
-#	setcookie("saldi_bet",$cookietxt,time()-3600);
+#	saldi_setcookie("saldi_bet",$cookietxt,time()-3600);
 #} elseif(!$godkendt && isset($_COOKIE['saldi_bet']) && $tmp=$_COOKIE['saldi_bet']){#
 	#print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 } elseif ($godkendt == 'afvist' || $godkendt == 'afbrudt' || $godkendt == 'Afstemning er ikke foretaget' || $godkendt == 'Terminal ikke startet' || strpos($godkendt, 'afbrudt')) {
@@ -1669,7 +1669,7 @@ if ($id && $betaling) {
 			exit;
 		}
 	} else {
-		setcookie('giftcard', '', time() - 3600);
+		saldi_setcookie('giftcard', '', time() - 3600);
 		if ($tracelog)
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kasse)\n");
 		$sum = betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, $kasse);
@@ -2142,7 +2142,7 @@ function opret_posordre($konto_id, $kasse) {
 	}
 */
 	if ($terminal_ip) {
-		setcookie("salditerm", $terminal_ip, time() + 3600, '/');
+		saldi_setcookie("salditerm", $terminal_ip, time() + 3600, '/');
 	}
 	if ($kasse && !$_GET['bordnr'] && !isset($_GET['flyt_til'])) {
 		$qtxt = "select box13 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
@@ -3003,7 +3003,7 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	transaktion('commit');
 	# <-- 20140709
-	setcookie("saldi_kasseoptael", NULL, time() - 10); #20200112
+	saldi_setcookie("saldi_kasseoptael", NULL, time() - 10); #20200112
 	$pfnavn = "../temp/" . $db . "/kasseopg" . str_replace("-", "", $kasse) . ".txt";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
 	return true;
@@ -3057,7 +3057,7 @@ function kasseoptalling( // Called from cashBalance.php
 	$udtages = if_isset($_POST['udtages']);
 	if ($udtages) {
 		$udtages = usdecimal($udtages);
-		setcookie("saldiPOSfromBox", $udtages, time() + 600);
+		saldi_setcookie("saldiPOSfromBox", $udtages, time() + 600);
 	} else
 		$udtages = if_isset($_COOKIE["saldiPOSfromBox"]);
 	$optplusbyt = if_isset($_POST['optplusbyt']);

@@ -29,12 +29,13 @@
 // 20251219 LOE Added new top header design
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
 
-$title = "Importer ordrer fra CSV";
+$title = findtekst('7009|Importér ordrer fra CSV', $sprog_id);
 
 include("../includes/connect.php");
 $permission_key = 'debitor.ordre';

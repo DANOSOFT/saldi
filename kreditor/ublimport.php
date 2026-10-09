@@ -27,6 +27,7 @@
 // ----------------------------------------------------------------------
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 2013.02.10 Break ændret til break 1
 // 2013.09.16 Tilføjet import fra pulje
 // 2016-12-07 Rettet puljesti - søg nfs_mount
@@ -37,7 +38,7 @@ $css="../css/standard.css";
 
 global $menu;
 
-$title="OIOUBL import";
+$title = findtekst('7011|OIOUBL import', $sprog_id);
 	
 include("../includes/connect.php");
 $permission_key = 'kreditor.ordre';

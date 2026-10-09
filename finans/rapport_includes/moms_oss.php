@@ -43,6 +43,7 @@
 //              - Reported by CodeRabbit - transactions that's not a varer nor a service doesn't add up to total as neither beloab_varer nor beloab_ydelser gets assigned, now beloab_andet takes the unknown transactions, for future use.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -126,7 +127,7 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     if ($menu == 'S') {
         include_once("../includes/stdFunc/pageBar.php");
         page_bar(array(
-            'title' => 'OSS B2C EU-salg',
+            'title' => findtekst('7017|OSS B2C EU-salg', $sprog_id),
             'actions' => array(array('Print', '#', 'bx-printer', '', 'onclick' => 'window.print();'), array('CSV', $csvfile, 'bx-download')),
             'back' => "javascript:confirmClose('$back_url','')",
         ));

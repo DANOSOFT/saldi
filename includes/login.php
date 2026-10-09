@@ -215,7 +215,7 @@ if ($bruger_id) {
 	else {db_modify("update online set rettigheder='$rettigheder' where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);}
 	$connection = db_connect ("'$sqhost'", "'$dbuser'", "'$sqpass'", "'$db'");
 	if (!isset($connection)) die( "Unable to connect to SQL");
-	if ($login=="cookie") {setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
+	if ($login=="cookie") {saldi_setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
 	if ($post_max && $db!=$sqdb) {
 		$r=db_fetch_array(db_select("select box6 from grupper where art = 'RA' and kodenr = '$regnskabsaar'",__FILE__ . " linje " . __LINE__));
 		$post_antal=$r['box6']*1;

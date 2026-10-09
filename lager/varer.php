@@ -94,14 +94,14 @@ $vis_lev_felt = NULL;
 
 if (isset($_GET['sort'])) {
 	$sort=$_GET['sort'];
-	setcookie("saldi_vare_sort", $sort, time()+3600*24*12);
+	saldi_setcookie("saldi_vare_sort", $sort, time()+3600*24*12);
 } elseif(isset($_COOKIE['saldi_vare_sort'])) $sort=$_COOKIE['saldi_vare_sort'];
 else $sort = "varenr";
 
 
 if (isset($_GET['lev_kto_navn']) && $_GET['lev_kto_navn']) {
 	$lev_kto_navn=$_GET['lev_kto_navn'];
-#	setcookie("saldi_lkn", $lev_kto_navn, time()+3600*24*12);
+#	saldi_setcookie("saldi_lkn", $lev_kto_navn, time()+3600*24*12);
 } #elseif(isset($_COOKIE['saldi_lkn'])) $lev_kto_navn=$_COOKIE['saldi_lkn'];
 else $lev_kto_navn = "";
 
@@ -222,12 +222,12 @@ if (isset($_GET)) {
 	$linjeantal = $start = NULL;
 	if (isset($_GET['start'])) $start = $_GET['start'];
 	elseif (isset($_POST['start'])) $start = $_POST['start'];
-	if ($start)	setcookie("saldiProductListStart", $start);
+	if ($start)	saldi_setcookie("saldiProductListStart", $start);
 	elseif(isset($_COOKIE['saldiProductListStart'])) $start=$_COOKIE['saldiProductListStart'];
 	else $start=1;
 	if (isset($_GET['linjeantal'])) $linjeantal = $_GET['linjeantal'];
 	elseif (isset($_POST['linjeantal'])) $linjeantal = $_POST['linjeantal'];
-	if ($linjeantal)	setcookie("saldiProductListLines", $linjeantal);
+	if ($linjeantal)	saldi_setcookie("saldiProductListLines", $linjeantal);
 	elseif(isset($_COOKIE['saldiProductListLines'])) $linjeantal=$_COOKIE['saldiProductListLines'];
 	else $linjeantal=100;
 	$slut = if_isset($_GET['slut']);

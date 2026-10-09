@@ -6,6 +6,7 @@
 //                 keeps them (kreditor/ordre.php reads ordredato/levdato from GET before insertAccount()).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 function kontoopslag($sort, $fokus, $id, $find){
 
@@ -43,7 +44,7 @@ function kontoopslag($sort, $fokus, $id, $find){
 	$txt37  = findtekst(37, $sprog_id);  // Telefon
 
 	// Render header matching the debitor's order lookup style per menu type
-	$tekst = "Leverand&oslash;rordre $id - Kontoopslag";
+	$tekst = findtekst('547|Leverandørordre', $sprog_id) . " $id - " . lcfirst(findtekst('2295|Kontoopslag', $sprog_id));
 	$alerttekst = findtekst(154, $sprog_id);
 	$luk_tekst = findtekst(30, $sprog_id);
 	$returside = "../kreditor/ordreliste.php";

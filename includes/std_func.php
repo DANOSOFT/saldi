@@ -99,6 +99,7 @@
 // 20261002 CL/NTR Include stdFunc/findTxtUtf8.php (findtekst_utf8()).
 // 20261006 CL/NTR Docblocks of ifset()/if_isset(): plain-variable checks should use $var ?? $default (undefined variable still warns).
 // 20261007 NTR Added global function to get_settings_value and update_settings_value.
+// 20261009 Sawaneh saldi_setcookie(): SameSite=Lax, Secure on https, HttpOnly unless JS reads it (settings redesign 4e, R11/C25).
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -191,6 +192,8 @@ if (!function_exists('get_relative')) {
         return $relativePath;
     }
 }
+
+include_once(__DIR__ . '/stdFunc/cookie.php');
 
 if (!function_exists('ifset')) {
     function ifset($arrayOrVar, $key = null, $default = null) {

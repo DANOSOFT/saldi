@@ -119,7 +119,7 @@ if ($submit=$_POST['submit']){
 	$nysort = $_POST['nysort'];
 
 	$cookievalue="$idnumre;$kontonumre;$fakturanumre;$bilagsnumre;$debetbelob;$kreditbelob;$transdatoer;$logdatoer;$logtid;$kladdenumre;$projeknumre;$beskrivelse;$linjeantal";
-	setcookie("saldi_kontrolspor", $cookievalue);
+	saldi_setcookie("saldi_kontrolspor", $cookievalue);
 } else {
 	list ($idnumre, $kontonumre, $fakturanumre, $bilagsnumre, $debetbelob, $kreditbelob, $transdatoer, $logdatoer, $logtid, $kladdenumre, $projeknumre, $beskrivelse, $linjeantal) = array_pad(explode(";", $_COOKIE['saldi_kontrolspor']), 13, null);
 	$beskrivelse=str_replace("semikolon",";",$beskrivelse);

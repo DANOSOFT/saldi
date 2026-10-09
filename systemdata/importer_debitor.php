@@ -20,12 +20,13 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261005 Sawaneh Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a 30-day cookie.
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
-$title="Importer debitorer";
+$title = findtekst('1356|Importér', $sprog_id) . ' ' . findtekst('908|Debitorer', $sprog_id);
 $returside="../includes/luk.php"; // WP-6.4: opened as a popup from diverse.php; Tilbage closes it
 include("../includes/connect.php");
 $permission_key = 'settings.import_export';

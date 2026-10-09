@@ -52,7 +52,7 @@ if ($printserver=='box') {
 	if ($fp=fopen($filnavn,'r')) {
 		$printserver=trim(fgets($fp));
 		fclose ($fp);
-		if ($printserver) setcookie("saldi_printserver",$printserver,time()+60*60*24*7,'/');
+		if ($printserver) saldi_setcookie("saldi_printserver",$printserver,time()+60*60*24*7,'/');
 	}
 }
 

@@ -76,7 +76,7 @@ if (!is_numeric($account)) {
 $accountId *= 1;
 $account  *= 1;
 
-setcookie("mylabel","$account|$db",0,"/");
+saldi_setcookie("mylabel","$account|$db",0,"/");
 
 include ('../includes/connect.php');
 $qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor)";

@@ -25,6 +25,7 @@
 // 20180328 Tilføjet $vis_lev_felt
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 2018.11.23 PHR $vis_kostpriser tilføjet
 // 2018.11.26 PHR href på varenr tilføjet
 // 2019.01.07 MSC Rettet isset fejl og tilføjet topmenu design
@@ -37,7 +38,7 @@
 @session_start();
 $s_id=session_id();
 
-$title="Varevisning";
+$title = findtekst('563|Varevisning', $sprog_id);
 $modulnr=9;	
 
 include("../includes/connect.php");

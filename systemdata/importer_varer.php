@@ -217,7 +217,7 @@ if ($feltnavn) {
 		else $tmp=$feltnavn[$y];
 	}
 	$tmp.="|$itemGroup";
-	setcookie("saldi_vareimp",$tmp,time()+60*60*24*30);
+	saldi_setcookie("saldi_vareimp",$tmp,time()+60*60*24*30);
 } elseif (isset($_COOKIE['saldi_vareimp'])) {
 	list($tmp,$itemGroup) =  explode("|",$_COOKIE['saldi_vareimp']);
 	$feltnavn=explode(";",$tmp);

@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 @session_start();
 $s_id=session_id();
@@ -76,7 +77,7 @@ if ($menu=='S') {
 	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
 	include_once("../includes/stdFunc/pageBar.php");
 	page_bar(array(
-		'title' => "Top Postnr i perioden: $fra - $til",
+		'title' => findtekst('7015|Top postnumre i perioden', $sprog_id) . ": $fra - $til",
 		'actions' => array(array(findtekst('899|Periode', $sprog_id), "postnr.php?periode=$periode&ret=on", 'bx-calendar', '', 'accesskey' => 'P')),
 		'back' => '../debitor/rapport.php',
 	));

@@ -56,7 +56,7 @@ if (($_POST['action'] ?? '') === 'logout_customer') {
 	}
 	include(__DIR__ . '/../includes/connect.php');
 	mySaleRemoveCustomerSession($s_id);
-	setcookie('mylabel', '', time() - 3600, '/');
+	saldi_setcookie('mylabel', '', time() - 3600, '/');
 	header('Location: mysale.php', true, 303);
 	exit;
 }
@@ -220,7 +220,7 @@ if (isset($_GET['st']) && $accountId && $db) {
 	}
 }
 if ($account && !$resetPW) {
-	setcookie("mylabel","$account|$db",time()-60,"/");
+	saldi_setcookie("mylabel","$account|$db",time()-60,"/");
 	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='online' and column_name='sprog'";
 	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		db_modify("ALTER table online ADD column sprog varchar(10)",__FILE__ . " linje " . __LINE__);
@@ -407,7 +407,7 @@ if ($account && !$resetPW) {
 					include ('../includes/connect.php');
 					if ($found) {
 						$qtxt = "select link from mysale where deb_id = '$accountId' and email = '$email' and db='$found'";
-#						setcookie("mySalePw", $s_id,0,"/");
+#						saldi_setcookie("mySalePw", $s_id,0,"/");
 						$_SESSION['mySalePw'] = $s_id;
 						$_SESSION['mySaleAcId'] = $accountId;
 						$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);

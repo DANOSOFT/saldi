@@ -41,6 +41,7 @@
 // 20260813 LOE Corrected wrong text and link that should have valg as debitor. 
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                      $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -117,7 +118,7 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     if ($menu == 'S') {
         include_once("../includes/stdFunc/pageBar.php");
         page_bar(array(
-            'title' => 'Momsrubrikker (A/B/C)',
+            'title' => findtekst('3363|Momsrubrikker', $sprog_id) . ' (A/B/C)',
             'actions' => array(array('CSV', $csvfile, 'bx-download')),
             'back' => "javascript:confirmClose('$back_url','')",
         ));

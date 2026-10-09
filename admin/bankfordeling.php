@@ -87,7 +87,7 @@ if ($_POST) {
 			($tmp)?$tmp.=chr(9).$feltnavn[$i]:$tmp=$feltnavn[$i];
 		}
 		$saldi_bnkfd.=$tmp.='|';
-		setcookie("saldi_bnkfd", $tmp);
+		saldi_setcookie("saldi_bnkfd", $tmp);
 	}	
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	if ($menu=='S') {

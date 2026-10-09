@@ -31,7 +31,7 @@
 #ob_start();
 @session_start();
 $s_id=session_id();
-setcookie("mySalePw", $s_id,0,"/");
+saldi_setcookie("mySalePw", $s_id,0,"/");
 
 $adresseantal=$check_all=$hrefslut=$javascript=$kontoid=$linjebg=$linjetext=NULL;
 $nextpil=$ny_sort=$prepil=$skjul_lukkede=$tidspkt=$understreg=$udv2=NULL;

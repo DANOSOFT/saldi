@@ -91,6 +91,7 @@
 //                  itself carries konto_fra or kontonr (pagination, filter links and the in-report account search).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh The report heads (open post, front page, kontokort, kontosaldo) on the new page head (page_bar); the print legs untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -200,23 +201,23 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	}
 
 	if ($vis_aabenpost == 'on') {
-		$title = "Åbne poster";
+		$title = findtekst('441|Åbne poster', $sprog_id);
 	}
 
 	if ($kun_debet == 'on') {
-		$title = "Kun konti i debet";
+		$title = findtekst('925|Kun konti i debet', $sprog_id);
 	}
 
 	if ($kun_kredit == 'on') {
-		$title = "Kun konti i kredit";
+		$title = findtekst('926|Kun konti i kredit', $sprog_id);
 	}
 
 	if ($skjul_aabenpost == 'on') {
-		$title = "Skjul åbne poster";
+		$title = findtekst('927|Skjul åbne poster', $sprog_id);
 	}
 
 	if ($vis_alle_poster == 'on') {
-		$title = "Alle poster";
+		$title = findtekst('2699|Vis alle poster', $sprog_id);
 	}
 
 	include("../includes/topline_settings.php");
@@ -244,7 +245,7 @@ a:link{text-decoration:none;}</style>\n";
 		if ($skjul_aabenpost != 'on') $opMode .= "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
 		$opMode .= "</select>\n";
 		include_once("../includes/stdFunc/pageBar.php");
-		page_bar(array('title' => findtekst('1142|Rapport', $sprog_id) . " - $rapportart", 'extra' => $opMode, 'back' => $openpostBack));
+		page_bar(array('title' => findtekst('1142|Rapport', $sprog_id) . ' - ' . (!empty($title) ? $title : findtekst('441|Åbne poster', $sprog_id)), 'extra' => $opMode, 'back' => $openpostBack));
 		print "</div>\n"; // <- close flex:0 wrapper around the page head
 		// Scrollable flex:1 region for everything below the header bar (vis_aabne_poster's grid,
 		// then the rykker overview). Closed by the two "close #opGridWrapper + #opPageFlex" prints
@@ -1766,9 +1767,9 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		// below, just before the data loop) both sit in normal, non-scrolling flow; only the data
 		// grid between them and the totals row scrolls, inside its own contained #ksGridWrapper.
 		if ($kontoart == 'K')
-			$tekst = "Kreditorrapport - kontosaldo";
+			$tekst = findtekst('1140|Kreditorrapport', $sprog_id) . ' - ' . lcfirst(findtekst('442|Kontosaldo', $sprog_id));
 		else
-			$tekst = "Debitorapport - kontosaldo";
+			$tekst = findtekst('1141|Debitorrapport', $sprog_id) . ' - ' . lcfirst(findtekst('442|Kontosaldo', $sprog_id));
 		if ($fromdate && $todate)
 			$tekst .= " &nbsp; " . dkdato($fromdate) . " - " . dkdato($todate);
 		elseif ($todate)

@@ -614,7 +614,7 @@ function settings_after_save(array $def, string $raw): void
 		// As the old page: the till re-reads its print server and terminal when the printer address changes.
 		foreach (array('saldi_pfs', 'saldi_printserver', 'salditerm') as $cookie) {
 			if (isset($_COOKIE[$cookie])) {
-				setcookie($cookie, '', time() - 60, '/');
+				saldi_setcookie($cookie, '', time() - 60, '/');
 			}
 		}
 	}

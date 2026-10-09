@@ -83,6 +83,7 @@
 // 20261008 Sawaneh Merge of master: hideRevenue (SD-657) in G3.3, the HTML/CSS layout version (forms/htmlLayoutVersion) in
 //                  G6.4, and "Gem kurs uden bogføring" (SST-769) as 'confirm_skip' on the currency rates.
 // 20261008 Sawaneh personal.profile.theme: light, dark or system (prototype_dashboard_tema v5), settings ui/theme per user.
+// 20261009 Sawaneh 4e: personal.documents.auto_extract and personal.ui.sidebar_closed replace the autoExtract/isSidebarOpen cookies.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -1585,6 +1586,15 @@ if (!function_exists('getSettingsSections')) {
 				'type' => 'bool', 'label' => 6007, 'help' => 6008, 'default' => false, 'permission' => 'any',
 				'storage' => array('settings', 'print', 'localPrint', 'onEmpty'), 'legacy' => $divvalg,
 				'keywords' => array('lokal printer', 'local printer')),
+			// 4e: the autoExtract and isSidebarOpen cookies become user settings (settings redesign §7.4 item 5).
+			'personal.documents.auto_extract' => array('group' => 'personal', 'section' => 'print', 'sub' => 'print', 'scope' => 'user',
+				'type' => 'bool', 'label' => 3271, 'help' => 7018, 'default' => true, 'permission' => 'any',
+				'storage' => array('settings', 'documents', 'auto_extract', 'oneZero'),
+				'keywords' => array('auto-udtræk', 'fakturadata', 'ai scan', 'auto extract', 'dokumentpulje')),
+			'personal.ui.sidebar_closed' => array('group' => 'personal', 'section' => 'profile', 'sub' => 'profile', 'scope' => 'user',
+				'type' => 'bool', 'label' => 7019, 'help' => 7020, 'default' => false, 'permission' => 'any',
+				'storage' => array('settings', 'ui', 'sidebar_closed', 'oneZero'),
+				'keywords' => array('sidemenu', 'sidebar')),
 		);
 
 		$sprog = isset($GLOBALS['sprog_id']) ? (int) $GLOBALS['sprog_id'] : 1;
@@ -1825,7 +1835,7 @@ if (!function_exists('getSettingsSections')) {
 			array('old' => array($d, 792), 'to' => array(array('purchase', 'purchase.pricelists', null))),
 			array('old' => array($d, 793), 'to' => array(array('sales', 'sales.reminders', null))),
 			array('old' => array($d, 794), 'to' => array(array('sales', 'sales.debtor_card', null), array('finance', 'finance.cash_journal', null), array('sales', 'sales.mysale', null), array('documents', 'documents.print', null), array('company', null, 'diverse.php?sektion=div_valg'), array('integrations', 'integrations.connections', null))),
-			array('old' => array($d, 796), 'to' => array(array('organisation', null, 'diverse.php?sektion=tjekliste'))),
+			array('old' => array($d, 796), 'to' => array(array('organisation', null, '../sager/tjeklister.php'))),
 			array('old' => array($d, 797), 'to' => array(array('finance', 'finance.document_storage', null))),
 			array('old' => array($d, 170), 'to' => array(array('finance', 'finance.cash_journal', null))),
 			array('old' => array(2732), 'to' => array(array('finance', 'finance.cash_journal', null))),

@@ -37,6 +37,7 @@
 // 20261005 Sawaneh Bar placement option removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
 // 20261002 Sawaneh Print card: print to local printer is a personal setting (settings redesign G6.4), not a cookie.
 // 20261008 Sawaneh Tema (light / dark / system) under Udseende, stored as personal.profile.theme (settings ui/theme).
+// 20261009 Sawaneh 4e: auto-extract of invoice data (was the autoExtract cookie) saved here as a personal setting.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -178,7 +179,7 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 			if (!$isRevisor) {
 				db_modify("update brugere set language_id = $lang where id = $brugerId", __FILE__ . " linje " . __LINE__);
 			}
-			setcookie('languageId', (string) $lang, time() + (10 * 365 * 24 * 60 * 60), '/');
+			saldi_setcookie('languageId', (string) $lang, time() + (10 * 365 * 24 * 60 * 60), '/');
 			$out['language'] = $lang;
 			$reloadShell = true;
 		}
@@ -213,6 +214,7 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 		}
 		SettingsService::save('personal.orders.autocomplete', !empty($post['order_autocomplete']), $brugerId);
 		SettingsService::save('personal.print.local_print', !empty($post['local_print']), $brugerId);
+		SettingsService::save('personal.documents.auto_extract', !empty($post['auto_extract']), $brugerId);
 		if (SettingsService::hasModule('bank')) {
 			// Moved here from the old bank page (settings redesign G2.7): the status icon in the cash journal is per user.
 			SettingsService::save('personal.profile.bank_status', !empty($post['bank_status']), $brugerId);
@@ -252,7 +254,7 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 
 	if ($reloadShell) {
 		// index/main.php polls this cookie and reloads itself, so sidebar colours and texts follow.
-		setcookie('refresh_opener', 'true', time() + 30, '/');
+		saldi_setcookie('refresh_opener', 'true', time() + 30, '/');
 	}
 	return $out;
 }
@@ -387,6 +389,7 @@ function personal_settings_load(int $brugerId, bool $isRevisor, string $brugerna
 		'warnDays'  => get_due_date_warning_days($brugerId),
 		'autocomplete' => (bool) SettingsService::get('personal.orders.autocomplete', $brugerId),
 		'localPrint' => (bool) SettingsService::get('personal.print.local_print', $brugerId),
+		'autoExtract' => (bool) SettingsService::get('personal.documents.auto_extract', $brugerId),
 		'bankFeature' => SettingsService::hasModule('bank'),
 		'bankStatus' => (bool) SettingsService::get('personal.profile.bank_status', $brugerId),
 		'sessions'  => $sessionRows,
@@ -671,6 +674,12 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
     <section class="ps-card">
       <h2><i class='bx bx-printer'></i><?= $t('5993|Udskrift') ?></h2>
       <div class="ps-grid">
+        <div class="ps-field ps-field-full" id="personal.documents.auto_extract">
+          <label class="ps-check">
+            <input type="checkbox" name="auto_extract" value="on"<?= $d['autoExtract'] ? ' checked' : '' ?>>
+            <span class="ps-check-txt"><b><?= $t('3271|Auto-udtræk fakturadata ved upload') ?></b><span><?= $t('7018|Nye bilag i dokumentpuljen læses automatisk for fakturadata. Gælder kun for dig.') ?></span></span>
+          </label>
+        </div>
         <div class="ps-field ps-field-full" id="personal.print.local_print">
           <label class="ps-check">
             <input type="checkbox" name="local_print" value="on"<?= $d['localPrint'] ? ' checked' : '' ?>>

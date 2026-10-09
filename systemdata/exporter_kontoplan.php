@@ -25,10 +25,11 @@
 // 20260928 Sawaneh Phase 4: top-menu branch removed; side-menu layout is the only one.
 // 20260825 Sawaneh JOB-086: fiscal year from the request is int-cast before use in SQL
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 @session_start();
 $s_id=session_id();
-$title="Eksporter kontoplan";
+$title = findtekst('1355|Eksportér', $sprog_id) . ' ' . findtekst('612|Kontoplan', $sprog_id);
 $css="../css/standard.css";
 
 include("../includes/connect.php");

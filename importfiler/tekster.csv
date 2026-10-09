@@ -6647,6 +6647,21 @@
 7005	Ny modtagelse	New receipt	Nytt mottak
 7006	Ny konto	New account	Ny konto
 7007	Ny ansat	New employee	Ny ansatt
+7008	Importér varelokationer	Import stock locations	Importer varelokasjoner
+7009	Importér ordrer fra CSV	Import orders from CSV	Importer ordrer fra CSV
+7010	Eksport til Multiroute	Export to Multiroute	Eksport til Multiroute
+7011	OIOUBL import	OIOUBL import	OIOUBL-import
+7012	Formulareditor	Form editor	Skjemaredigering
+7013	Listeangivelse	EU sales list	Listeangivelse
+7014	Udskriftsvalg	Print options	Utskriftsvalg
+7015	Top postnumre i perioden	Top postcodes in the period	Topp postnumre i perioden
+7016	Posteringer pr. momskode	Entries per VAT code	Posteringer per mva-kode
+7017	OSS B2C EU-salg	OSS B2C EU sales	OSS B2C EU-salg
+7018	Nye bilag i dokumentpuljen læses automatisk for fakturadata. Gælder kun for dig.	New documents in the pool are read for invoice data automatically. Only for you.	Nye bilag i dokumentpoolen leses automatisk for fakturadata. Gjelder bare deg.
+7019	Sidemenu foldet sammen	Sidebar collapsed	Sidemeny slått sammen
+7020	Husker om du har foldet sidemenuen sammen.	Remembers whether you collapsed the sidebar.	Husker om du har slått sammen sidemenyen.
+7021	Tjeklister til sager: faser, grupper og tjekpunkter. Flyttet hertil fra Indstillinger.	Checklists for cases: phases, groups and check points. Moved here from Settings.	Sjekklister for saker: faser, grupper og sjekkpunkter. Flyttet hit fra Innstillinger.
+7022	Nyt tjekpunkt	New check point	Nytt sjekkpunkt
 6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
 6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
 6932	Adgang nægtet	Access denied	Ingen tilgang

@@ -131,7 +131,7 @@ if ($submit= if_isset($_POST['submit'])){
 	$refs =  trim(if_isset($_POST['refs']));
 	$linjeantal = if_isset($_POST['linjeantal']);
 	$cookievalue="$sort;$nysort;$fakturadatoer;$logtimes;$afdelinger;$sort;$nysort;$idnumre;$fakturanumre;$summer;$betalinger;$betalinger2;$modtagelser;$modtagelser2;$kasser;$refs;$linjeantal;$borde;$status";
-	setcookie("saldi_kassespor", $cookievalue, time()+3600*24*365);
+	saldi_setcookie("saldi_kassespor", $cookievalue, time()+3600*24*365);
 } else {
 	list ($sort,$nysort,$fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$borde,$status) = array_pad(explode(";", $_COOKIE['saldi_kassespor']),19,NULL);
 	$beskrivelse=str_replace("semikolon",";",$beskrivelse);

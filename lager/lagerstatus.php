@@ -134,7 +134,7 @@ $returside="rapport.php";
 (isset($_GET['varegruppe'])) ? $varegruppe  = $_GET['varegruppe'] : $varegruppe = NULL;
 if ($varegruppe == "0:Alle") $varegruppe=NULL;
 else {
-	setcookie("saldi_lagerstatus", $varegruppe);
+	saldi_setcookie("saldi_lagerstatus", $varegruppe);
 	$returside="rapport.php?varegruppe=$varegruppe";
 }
 // 20260714 SZ - GET baseline (covers pagination/back-button/direct-link navigation, which is a plain
@@ -174,7 +174,7 @@ if (isset($_POST['dato']) && $_POST['dato']) {
 	$varenavn   = isset($_POST['varenavn']) ? trim($_POST['varenavn']) : null;
 	$enhedSoeg  = isset($_POST['enhed'])    ? trim($_POST['enhed'])    : null;
 	foreach ($lsSFields as $lsSField) $lsS[$lsSField] = isset($_POST['lss_'.$lsSField]) ? trim($_POST['lss_'.$lsSField]) : null;
-	setcookie("saldi_lagerstatus", $varegruppe);
+	saldi_setcookie("saldi_lagerstatus", $varegruppe);
 }
 if (!$dateType) $dateType   = 'levdate';
 $csv=if_isset($_GET['csv']);

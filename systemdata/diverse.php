@@ -127,6 +127,7 @@ if (!isset($_SESSION['csrf_token'])) {
 }
 $csrf_token = $_SESSION['csrf_token'];
 // 20260928 Sawaneh Security 4.0 (A12): every posted form in the output gets the token, also on early exits.
+// 20261009 Sawaneh sektion=tjekliste redirects to sager/tjeklister.php: checklists left Indstillinger (settings redesign §4, 4e).
 $diverseToken = "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token, ENT_QUOTES) . "'>";
 ob_start(function ($buffer) use ($diverseToken) {
 	return preg_replace_callback('/<form\b[^>]*>/i', function ($m) use ($diverseToken) {
@@ -741,47 +742,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		
 		// 20261005 Sawaneh G1.3/G1.4: rename, base currency, time zone, reset and delete are saved by the new sections.
 	} elseif ($sektion == 'tjekliste') {
-		$id            = if_isset($_POST['id']);
-		$tjekantal     = if_isset($_POST['tjekantal']);
-		$fase          = if_isset($_POST['fase']);
-		$ny_fase       = if_isset($_POST['ny_fase']);
-		$ny_tjekgruppe = if_isset($_POST['ny_tjekgruppe']);
-		$tjekpunkt     = if_isset($_POST['tjekpunkt']);
-		$nyt_tjekpunkt = if_isset($_POST['nyt_tjekpunkt']);
-		$liste_id      = if_isset($_POST['liste_id']);
-		$gruppe_id     = if_isset($_POST['gruppe_id']);
-		$ret           = if_isset($_POST['ret']);
-
-		if ($ny_tjekliste = $_POST['ny_tjekliste']) {
-			$r = db_fetch_array($q = db_select("select max(fase) as fase from tjekliste WHERE assign_to = 'sager'", __FILE__ . " linje " . __LINE__));
-			$nf = $r['fase'] + 1;
-			db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekliste','0','sager','$nf')", __FILE__ . " linje " . __LINE__);
-		}
-		for ($x = 1; $x <= $tjekantal; $x++) {
-			if (isset($ny_fase[$x]) && $ny_fase[$x])
-				$nf = $ny_fase[$x] + .1;
-			if ($fase[$x] != $nf)
-				db_modify("update tjekliste set fase='$nf' WHERE id = '$id[$x]'", __FILE__ . " linje " . __LINE__);
-			if ($ret && $ret == $id[$x] && $tjekpunkt[$x])
-				db_modify("update tjekliste set tjekpunkt='$tjekpunkt[$x]' WHERE id = '$id[$x]'", __FILE__ . " linje " . __LINE__);
-			if (isset($ny_tjekgruppe[$x]) && $ny_tjekgruppe[$x]) {
-				db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe[$x]','$liste_id[$x]','sager','$fase[$x]')", __FILE__ . " linje " . __LINE__);
-			}
-			if (isset($nyt_tjekpunkt[$x]) && $nyt_tjekpunkt[$x]) {
-				db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$nyt_tjekpunkt[$x]','$gruppe_id[$x]','sager','$fase[$x]')", __FILE__ . " linje " . __LINE__);
-			}
-		}
-
-		if ($ny_tjekgruppe = $_POST['ny_tjekgruppe']) {
-
-			$qtxt = "select max(fase) from tjekliste WHERE assign_to = 'sager'";
-			($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && isset($r['fase'])) ? $ny_fase = $r['fase'] : $ny_fase = NULL;
-			if ($ny_fase || $ny_fase == '0')
-				$ny_fase++;
-			else
-				$ny_fase = 0;
-			#			db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe','0','sager','$ny_fase')",__FILE__ . " linje " . __LINE__);
-		}
+		// 20261009 Sawaneh Checklists moved to the Sager module (settings redesign §4, phase 4e).
+		header('Location: ../sager/tjeklister.php');
+		exit;
 	}
 } else {
 	$valg    = if_isset($_GET['valg']);
@@ -828,8 +791,10 @@ if ($sektion == "sprog") {
 	include("diverseIncludes/language.php");
 	language();
 }
-if ($sektion == "tjekliste")
-	tjekliste();
+if ($sektion == "tjekliste") {
+	header('Location: ../sager/tjeklister.php'); // 20261009 Sawaneh moved to the Sager module (4e)
+	exit;
+}
 
 print "</tbody></table></td></tr>";
 #print "</form>";

@@ -125,7 +125,7 @@ if ($feltnavn) {
  		if ($tmp) $tmp=$tmp.";".$feltnavn[$y];
 		else $tmp=$feltnavn[$y];
 	}
-	setcookie("saldi_variantimp",$tmp,time()+60*60*24*30);
+	saldi_setcookie("saldi_variantimp",$tmp,time()+60*60*24*30);
 } elseif (isset($_COOKIE['saldi_variantimp'])) {
 	$tmp = $_COOKIE['saldi_variantimp'];
 	$feltnavn=explode(";",$tmp);

@@ -111,7 +111,7 @@ $copyFromCol = if_isset($_POST['copyFromCol']);
 $copyFromRow = if_isset($_POST['copyFromRow']);
 $folgevarer = if_isset($_POST['folgevarer']);
 
-setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_row]-$_GET[ret_col]", time() + (86400 * 30), "/");
+saldi_setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_row]-$_GET[ret_col]", time() + (86400 * 30), "/");
 
 if ($menu_id) {
 	if (!$beskrivelse)

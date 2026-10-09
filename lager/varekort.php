@@ -267,7 +267,7 @@ if ($returside) {
     $fokus = if_isset($_GET, NULL, 'fokus');
     $vare_lev_id = if_isset($_GET, NULL, 'leverandor');
     $vis_samlevarer = if_isset($_GET, NULL, 'vis_samlevarer');
-    setcookie("saldi", $returside, $ordre_id, $fokus, $vare_lev_id);
+    saldi_setcookie("saldi", $returside, $ordre_id, $fokus, $vare_lev_id);
 }
 if ($funktion = if_isset($_GET, NULL, 'funktion')) {
     $funktion(if_isset($_GET, NULL, 'sort'), if_isset($_GET, NULL, 'fokus'), $id, if_isset($_GET, NULL, 'vis_kost'), '', if_isset($_GET, NULL, 'find'), 'varekort.php');

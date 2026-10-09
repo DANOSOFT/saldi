@@ -34,7 +34,7 @@
 
 $s_id    = session_id();
 $modulnr = 12;
-$title   = "Salg pr. postnummer";
+$title   = findtekst('3360|Salg pr. postnummer', $sprog_id);
 $css     = "../css/standard.css";
 
 include("../includes/connect.php");
@@ -50,6 +50,7 @@ $title = findtekst('3360|Salg pr. postnummer', $sprog_id);
 // 20260714 SZ - rapport.php's redirect into this page (the only entry point - see
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 // lager/rapport.php's "Salg pr. postnummer" submit branch) never carries offset[salg_rapport]/
 // sort[salg_rapport]/rowcount[salg_rapport]/search[salg_rapport], since those are this grid's own
 // state params, not rapport.php's filters. includes/grid.php's create_datagrid() persists that state
