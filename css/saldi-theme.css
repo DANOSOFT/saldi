@@ -119,3 +119,7 @@ html.saldi-dark .datatable thead { border-bottom-color: var(--border) !important
 html.saldi-dark .datatable tbody tr:hover { outline-color: var(--border) !important; }
 html.saldi-dark #top-control-bar, html.saldi-dark .turnover-summary { color: var(--text); }
 html.saldi-dark #toggleButton { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+/* Order/card labels carry an inline grey (#444444) when the address matches the card; the red "differs" colour stays. */
+html.saldi-dark td[style*="color:#444444"], html.saldi-dark span[style*="color:#444444"], html.saldi-dark td[style*="color: #444444"], html.saldi-dark span[style*="color: #444444"] { color: var(--text) !important; }
+html.saldi-dark td[style*="color:#444"] b, html.saldi-dark td[style*="color:#444444"] b { color: var(--text); }
+html.saldi-dark .customer-info .info-label { color: var(--text-2); }

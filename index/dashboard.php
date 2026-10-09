@@ -176,7 +176,7 @@ $money = function ($v) {
 	return number_format(round(abs((float) $v)), 0, $GLOBALS['dashDec'], $GLOBALS['dashThou']) . ' kr';
 };
 
-print "<link rel='stylesheet' href='../css/saldi-theme.css?v=4'>";
+print "<link rel='stylesheet' href='../css/saldi-theme.css?v=5'>";
 if (!check_permissions(array(3,4)) || is_null($regnaar)) {
 	print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
 	if (is_null($regnaar)) {
