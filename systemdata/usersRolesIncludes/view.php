@@ -67,7 +67,7 @@ function ur_view(array $vm): void
 <script>document.title = <?= json_encode(mb_convert_encoding(findtekst('5536|Brugere & roller', $sprog), 'UTF-8', $charset)) ?>;</script>
 <?= function_exists('settings_breadcrumb') ? settings_breadcrumb_script(settings_breadcrumb('', findtekst('5536|Brugere & roller', $sprog), (int) $sprog), $charset) : '' ?>
 <div class="ur-page">
-  <a class="ur-back" style="<?= $h(ur_back_style()) ?>" href="<?= $h($back) ?>"><i class='bx bx-arrow-back'></i><?= $t('5647|Tilbage') ?></a>
+  <a class="ur-back" accesskey="l" style="<?= $h(ur_back_style()) ?>" href="<?= $h($back) ?>"><i class='bx bx-arrow-back'></i><?= $t('5647|Tilbage') ?></a>
 
   <?php if ($vm['reviewCount'] > 0 && $vm['canWrite']) {
   	$sum = function_exists('perm_migration_summary') ? perm_migration_summary() : array('admin' => 0, 'custom' => 0);
