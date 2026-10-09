@@ -251,4 +251,4 @@ textarea.ur-input { resize: vertical; }
 /* Oversigt rows (front-page addendum 4 §3): indented under Se Oversigt, greyed while it is off */
 .ur-prow-block { padding-left: 18px; }
 .ur-prow-block.ur-prow-off { opacity: .55; }
-.ur-prow-block b small { display: block; font-weight: 400; font-size: 11.5px; }
+.ur-prow-block b small:not([hidden]) { display: block; font-weight: 400; font-size: 11.5px; }

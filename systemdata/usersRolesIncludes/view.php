@@ -521,7 +521,7 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
         	}
         ?>
         <div class="ur-grp<?= $group === 'settings' ? ' ur-grp-danger' : '' ?>" data-grp>
-          <h4><span><?= $t($groupLabel) ?><?php if ($group === 'settings') { ?> <small>· <?= $t('5594|Farlige funktioner (kun administratorer som standard)') ?></small><?php } ?></span><?php if ($write) { ?><button type="button" class="ur-link" data-all-write><?= $t('5946|Sæt alle til skriv') ?></button><?php } ?></h4>
+          <h4><span><?= $t($groupLabel) ?><?php if ($group === 'settings') { ?> <small>· <?= $t('5594|Farlige funktioner (kun administratorer som standard)') ?></small><?php } ?></span><?php if ($write) { $allRead = !array_filter($keys, function ($d) { return empty($d['readonly']); }); ?><button type="button" class="ur-link" data-all-write><?= $t($allRead ? '7071|Sæt alle til læs' : '5946|Sæt alle til skriv') ?></button><?php } ?></h4>
           <?php foreach ($keys as $key => $def) {
           	$level = isset($role['levels'][$key]) ? $role['levels'][$key] : 'none';
           	$own = isset($vm['ownLevels'][$key]) ? $vm['ownLevels'][$key] : 'none';
