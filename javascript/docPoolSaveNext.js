@@ -16,6 +16,9 @@
 //                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
 // 20261003 CL/SZ SD-720 Before saving, "Fordeling"'s balance check (docPoolSplit.js) may take the first Enter.
 //                Every new row (new, new2 ...) gets its line id, and a split bilag attaches the document to every row.
+// 20261004 CL/SZ SD-726 With "Gem og gå til næste/forrige" (window.saldiShortcuts), Ctrl+↓ in an entry field does what Enter does.
+//                Ctrl+↑ saves the same way and opens the previous document in the list; without one, the next, as Enter.
+//                An unseen invoice-number warning takes the first Ctrl+↓ / Ctrl+↑, as it takes the first Enter.
 // 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
 // 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
 // 20261006 CL/SZ SD-716 Full-pass re-run: "Gem og næste" and the arrow keys go on from the first document after the last one, instead of
@@ -135,6 +138,12 @@
             var current = currentPoolFile();
             return listedFiles().filter(function (file) { return file !== current; })[0] || null;
         });
+    }
+
+    /** The document before the current one, among those not yet processed; the next one when there is none before it. */
+    function previousDocument() {
+        var before = neighbour(-1);
+        return before ? Promise.resolve(before) : nextDocument();
     }
 
     /** After the last document: the pool without a document, showing "Ingen flere bilag i puljen". */
@@ -258,7 +267,8 @@
         return typeof window.poolStillListed === 'function' ? window.poolStillListed(file) : Promise.resolve(true);
     }
 
-    function saveAndNext() {
+    /** Saves the bilag, attaches the document and opens the next one (step 1, Enter) or the previous one (step -1, Ctrl+↑). */
+    function saveAndNext(step) {
         var c = cfg();
         if (busy || !c || c.readOnly) return;
         var entries = editableEntries();
@@ -280,7 +290,7 @@
         stillInPool(file).then(function (inPool) {
             // Attached from another tab meanwhile, or not in the list loaded: no line is written, so none is left without its document
             if (!inPool) throw new Error(c.texts.stale);
-            return followingDocument();
+            return step === -1 ? previousDocument() : followingDocument();
         }).then(function (found) {
             next = found;
             return saveRowsInOrder(entries);
@@ -314,6 +324,16 @@
     }
 
     window.poolSaveAndNext = saveAndNext;
+
+    // SD-726: "Gem og gå til næste/forrige" - fieldNavigation.js hands Ctrl+↓ / Ctrl+↑ from an entry field here
+    window.fieldNavigationSave = function (field, target, step) {
+        var c = cfg();
+        if (!c || c.readOnly || !field.closest('.kassebilag-entry')) return false;
+        // An unseen invoice-number warning takes the first key, as it takes the first Enter (invoiceReuse.js)
+        if (typeof window.invoiceReuseStopsSave === 'function' && window.invoiceReuseStopsSave(field)) return true;
+        saveAndNext(step > 0 ? 1 : -1);
+        return true;
+    };
     window.poolSkipDocument = skipDocument;
     window.poolFocusNewLine = focusNewLine;
 

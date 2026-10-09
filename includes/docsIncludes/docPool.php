@@ -147,6 +147,8 @@
 //                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
 // 20261004 CL/SZ SD-725 A VAT code field per side of each row (dvat/kvat + row number, as in the journal), so the lookup panel fills it when an account is chosen.
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
+// 20261004 CL/SZ SD-726 The user's "Ctrl + pil op/ned" from the journal's gear box comes in window.saldiShortcuts.
+//                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
@@ -186,6 +188,7 @@ include_once(__DIR__ . "/../kreditorFromCvr.php");
 include_once(__DIR__ . "/poolCapture.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
+include_once(__DIR__ . "/../../finans/kassekladde_includes/shortcutProfile.php");
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -2027,6 +2030,7 @@ if ($source == 'kassekladde') {
 			'stale'     => findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id),
 		),
 	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
+	window.saldiShortcuts = " . json_encode(kkShortcutUserProfile($bruger_id)) . ";
 	" . ($readOnly ? '' : "window.saldiInvoiceReuse = " . json_encode(array(
 		'url'      => '../finans/kassekladde_includes/invoiceReuseCheck.php',
 		'kladdeId' => $escKladde,
