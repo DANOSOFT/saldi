@@ -109,3 +109,13 @@ html.saldi-dark .ordreform, html.saldi-dark .dataTableForm, html.saldi-dark .dat
 html.saldi-dark ::placeholder { color: var(--text-3); }
 
 html.saldi-dark .pg-sticky { background-color: var(--page) !important; }
+/* The grid engines' fixed pagination footer (#footer-box) and the search row paint their own light colours. */
+html.saldi-dark tfoot tr td #footer-box, html.saldi-dark .datatable tfoot #footer-box { background-color: var(--surface) !important; border-top-color: var(--border) !important; color: var(--text); }
+html.saldi-dark tfoot tr td #footer-box #navbuttons button, html.saldi-dark .datatable tfoot #footer-box button.navbutton { background: var(--surface-2) !important; color: var(--text) !important; border-color: var(--border) !important; }
+html.saldi-dark tfoot tr td #footer-box svg, html.saldi-dark .datatable tfoot #footer-box svg { fill: var(--text) !important; }
+html.saldi-dark tfoot tr td #footer-box #navbuttons button:disabled { opacity: .45; }
+html.saldi-dark .datatable thead tr[style*="background-color"] { background-color: var(--surface-2) !important; }
+html.saldi-dark .datatable thead { border-bottom-color: var(--border) !important; }
+html.saldi-dark .datatable tbody tr:hover { outline-color: var(--border) !important; }
+html.saldi-dark #top-control-bar, html.saldi-dark .turnover-summary { color: var(--text); }
+html.saldi-dark #toggleButton { background: var(--surface-2); color: var(--text); border-color: var(--border); }
