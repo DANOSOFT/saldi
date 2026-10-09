@@ -6668,6 +6668,9 @@
 7026	Nyt varekort	New item card	Nytt varekort
 7027	Kassekonto	Till account	Kassekonto
 7028	Finanskontoen for denne valuta i kassen. Bruges ved kasseoptælling.	The ledger account for this currency in the till. Used at cash count.	Finanskontoen for denne valutaen i kassen. Brukes ved kasseopptelling.
+7029	Normal	Normal	Normal
+7030	Større (+11 %)	Larger (+11 %)	Større (+11 %)
+7031	Gør al tekst ca. 11 % større. Browserens egen zoom virker oveni.	Makes all text about 11 % larger. The browser's own zoom works on top.	Gjør all tekst ca. 11 % større. Nettleserens egen zoom virker i tillegg.
 6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
 6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
 6932	Adgang nægtet	Access denied	Ingen tilgang

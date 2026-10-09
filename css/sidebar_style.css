@@ -2,7 +2,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-ui, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif); /* 20261009 Sawaneh Inter when loaded */
 }
 
 .sidebar {
@@ -166,8 +166,9 @@
 }
 
 .sidebar .nav-links li a .link_name {
-    font-size: 16px;
-    font-weight: 400;
+    font-family: var(--font-display, inherit); /* 20261009 Sawaneh Saldi Grotesk for the menu (addendum 3 §3) */
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .sidebar.closed .nav-links li a .link_name {

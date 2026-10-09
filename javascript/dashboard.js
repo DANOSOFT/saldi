@@ -1,5 +1,6 @@
 // ---- javascript/dashboard.js --- lap 5.0.0 --- 2026.10.08 ---
 // 20261008 Sawaneh Oversigt (index/dashboard.php) after Adam's prototype_dashboard_tema.html v5: counting numbers,
+// 20261009 Sawaneh Axis text at a fixed 0.78rem (--axis per chart), charts drawn after document.fonts.ready (addendum 3 §3.1, §5.1).
 //                  sparklines, bar charts (this year, last year, best), the customers-per-hour heatmap, the item-group
 //                  ring, tooltips, the "Rediger oversigt" drawer (changes saved at once) and the entry animation.
 //                  Data and texts come from window.SALDI_DASH, written by the page.
@@ -232,7 +233,15 @@
 
 	/* ---- entry: cards slide in staggered, charts start when seen ---- */
 	const anim = { month: () => monthChart && monthChart.update(M.now, M.last, { stagger: true }), day: () => dayChart && WK && dayChart.update(WK.list[0].now, WK.list[0].last, { stagger: true }), heat: () => heat && heat.enter(), donut: () => donut && donut.enter() };
+	/* Axis text at a fixed size (addendum 3 §5.1): SVG text scales with the viewBox, so --axis is set per chart to 0.78rem
+	   divided by the chart's scale; redone on resize and when the text-size choice changes. */
+	const fitAxisText = () => { const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+		$$('svg.chart[viewBox]').forEach((svg) => { const W = +svg.getAttribute('viewBox').split(' ')[2], w = svg.clientWidth || W; svg.style.setProperty('--axis', (0.78 * rem / (w / W)).toFixed(2) + 'px'); }); };
+	window.addEventListener('resize', fitAxisText);
+	new MutationObserver(fitAxisText).observe(document.documentElement, { attributes: true, attributeFilter: ['data-size', 'data-theme'] });
 	const cards = $$('.card');
 	const io = new IntersectionObserver((es) => { let k = 0; es.forEach((e) => { if (!e.isIntersecting) return; const c = e.target; io.unobserve(c); c.style.setProperty('--i', k++); c.classList.add('in'); const wait = reduced ? 0 : (k - 1) * 60; setTimeout(() => { c.querySelectorAll('[data-count]').forEach(countUp); const a = anim[c.dataset.anim]; a && a(); }, wait + 120); setTimeout(() => c.classList.add('ready'), wait + 800); }); }, { threshold: .12 });
-	cards.forEach((c) => io.observe(c));
+	/* Charts draw only once the web fonts are in (addendum 3 §3.1), so axis text never sticks to the system font. */
+	const start = () => { fitAxisText(); cards.forEach((c) => io.observe(c)); setTimeout(fitAxisText, 600); };
+	(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(start, start);
 })();

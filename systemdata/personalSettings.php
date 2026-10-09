@@ -39,6 +39,7 @@
 // 20261008 Sawaneh Tema (light / dark / system) under Udseende, stored as personal.profile.theme (settings ui/theme).
 // 20261009 Sawaneh 4e: auto-extract of invoice data (was the autoExtract cookie) saved here as a personal setting.
 // 20261009 Sawaneh The theme field waits for round 2 (settings decision 23): shown and saved only with SALDI_THEME_CHOICE.
+// 20261009 Sawaneh Tekststørrelse Normal / Større (personal.profile.text_size, front-page addendum 3 §3.3); the shell reloads on change.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -211,6 +212,11 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 		$theme = isset($post['theme']) && in_array($post['theme'], array('light', 'dark', 'system'), true) ? (string) $post['theme'] : 'light';
 		if (defined('SALDI_THEME_CHOICE') && SALDI_THEME_CHOICE && $theme !== $current['theme']) {
 			SettingsService::save('personal.profile.theme', $theme, $brugerId);
+			$reloadShell = true;
+		}
+		$textSize = isset($post['text_size']) && $post['text_size'] === 'large' ? 'large' : 'normal';
+		if ($textSize !== $current['textSize']) {
+			SettingsService::save('personal.profile.text_size', $textSize, $brugerId);
 			$reloadShell = true;
 		}
 		SettingsService::save('personal.orders.autocomplete', !empty($post['order_autocomplete']), $brugerId);
@@ -387,6 +393,7 @@ function personal_settings_load(int $brugerId, bool $isRevisor, string $brugerna
 		'colors'    => $colors,
 		'popup'     => ($uset && trim((string) $uset['box2']) !== ''),
 		'theme'     => in_array(SettingsService::get('personal.profile.theme', $brugerId), array('light', 'dark', 'system'), true) ? SettingsService::get('personal.profile.theme', $brugerId) : 'light',
+		'textSize'  => SettingsService::get('personal.profile.text_size', $brugerId) === 'large' ? 'large' : 'normal',
 		'warnDays'  => get_due_date_warning_days($brugerId),
 		'autocomplete' => (bool) SettingsService::get('personal.orders.autocomplete', $brugerId),
 		'localPrint' => (bool) SettingsService::get('personal.print.local_print', $brugerId),
@@ -607,6 +614,14 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
           <small class="ps-help"><?= $t('6919|Lys eller mørk visning. System følger din enheds indstilling.') ?></small>
         </div>
 			<?php } ?>
+        <div class="ps-field" id="personal.profile.text_size">
+          <label for="ps-text-size"><?= $t('2283|Tekststørrelse') ?></label>
+          <select class="ps-select" id="ps-text-size" name="text_size">
+            <option value="normal"<?= $d['textSize'] === 'normal' ? ' selected' : '' ?>><?= $t('7029|Normal') ?></option>
+            <option value="large"<?= $d['textSize'] === 'large' ? ' selected' : '' ?>><?= $t('7030|Større (+11 %)') ?></option>
+          </select>
+          <small class="ps-help"><?= $t('7031|Gør al tekst ca. 11 % større. Browserens egen zoom virker oveni.') ?></small>
+        </div>
         <div class="ps-field">
           <label for="ps-language"><?= $t('801|Sprog') ?></label>
           <select class="ps-select" id="ps-language" name="language_id">

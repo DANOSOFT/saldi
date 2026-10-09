@@ -138,6 +138,7 @@ $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -
 // 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
 // 20261008 Sawaneh The page on the new page head (page_bar): Regnskab / Budget as tabs, tour kept for the Assist menu.
 // 20261009 Sawaneh The inline chart takes its colours from the theme tokens (bars, budget line, axes) so it reads in dark mode.
+// 20261009 Sawaneh The inline chart draws its axis text in Inter at the fixed 0.78rem (front-page addendum 3).
 include_once("../includes/stdFunc/pageBar.php");
 // WP-4.16: a close control again - Luk in a popup window, Tilbage when the page was opened with a returside;
 // opened inline from the menu (no returside) it has none, as before.
@@ -676,6 +677,9 @@ function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 		// Colours from the Saldi theme tokens (css/saldi-theme.css), so the chart reads in light and dark alike.
 		var cs = getComputedStyle(document.documentElement);
 		var tok = function (n, fb) { var v = cs.getPropertyValue(n).trim(); return v || fb; };
+		// Addendum 3 §3.1/§5.1: axis text in Inter at a fixed 0.78rem, whatever the chart width.
+		Chart.defaults.font.family = tok('--font-ui', 'Inter, system-ui, sans-serif');
+		Chart.defaults.font.size = Math.round(0.78 * (parseFloat(cs.fontSize) || 16));
 		var data = {
 			datasets: [
 				{

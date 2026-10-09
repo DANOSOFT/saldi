@@ -44,7 +44,7 @@ ob_start();
 
 global $sprog_id;
 
-$css = "../css/dashboard.css?v=2";
+$css = "../css/dashboard.css?v=3";
 print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");

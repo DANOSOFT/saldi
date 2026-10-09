@@ -74,6 +74,7 @@
 // 20261009 Sawaneh Sidebar open/closed is a personal setting rendered server-side (was the isSidebarOpen cookie, 4e).
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 // 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
+// 20261009 Sawaneh css/saldi-fonts.css in the shell: Saldi Grotesk + Inter and the text-size base (front-page addendum 3 §3).
 @session_start();
 $s_id = session_id();
 
@@ -210,8 +211,9 @@ function brightenColor($color, $amount = 0.2) {
 <title>Sidebar</title>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <link rel="icon" href="../img/saldiLogo.png">
-<link href='../css/sidebar_style.css?v=24' rel='stylesheet'>
-<link href='../css/topbar.css?v=19' rel='stylesheet'>
+<link href='../css/saldi-fonts.css?v=1' rel='stylesheet'>
+<link href='../css/sidebar_style.css?v=25' rel='stylesheet'>
+<link href='../css/topbar.css?v=20' rel='stylesheet'>
 <link href='../css/saldi-theme.css?v=6' rel='stylesheet'>
 <script>document.documentElement.classList.add('saldi-shell');</script>
 <link href='../css/onboarding.css?v=1' rel='stylesheet'>

@@ -81,6 +81,7 @@ if (!isset($uiTheme))        $uiTheme = 'light';
 // Settings spec decision 23 (2026-10-09): no dark mode in round 1 - the theme choice is hidden and every page renders
 // light. Set to true in round 2 (the dark tokens and the chip/personal-settings controls are kept behind it).
 if (!defined('SALDI_THEME_CHOICE')) define('SALDI_THEME_CHOICE', false);
+if (!isset($uiSize))         $uiSize = 'normal'; // text size: normal | large (front-page addendum 3 §3.3), printed as data-size
 if (!isset($nextver))        $nextver = 0;
 if (!isset($useSettings))    $useSettings = '';
 
@@ -100,6 +101,7 @@ $relativePath = str_repeat('../', max(0, $slashCount - 2));
 // 20261008 Sawaneh $uiTheme (settings ui/theme per user: light, dark or system) read with the colours and printed on <html data-theme>.
 // 20261009 Sawaneh $uiTheme falls back to the saldi_theme cookie (auditor/master-admin sessions have no settings row).
 // 20261009 Sawaneh SALDI_THEME_CHOICE (false in round 1, decision 23): the theme choice is hidden and $uiTheme stays light.
+// 20261009 Sawaneh $uiSize (settings ui/text_size per user) printed as <html data-size>, css/saldi-fonts.css linked on every page.
 date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
 $r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
@@ -352,6 +354,10 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			}
 			// The user's theme (Lys / Mørk / System, prototype_dashboard_tema v5): every page gets it on <html data-theme>;
 			// pages built on the Saldi tokens (css/saldi-theme.css) follow it, older pages ignore it.
+			$qtxt = "select var_value from settings where var_name = 'text_size' and var_grp = 'ui' and user_id = '$bruger_id'";
+			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				if (trim((string) $r['var_value']) === 'large') $uiSize = 'large';
+			}
 			if (SALDI_THEME_CHOICE) {
 				$qtxt = "select var_value from settings where var_name = 'theme' and var_grp = 'ui' and user_id = '$bruger_id'";
 				if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -422,7 +428,7 @@ if ($header != 'nix') {
 	else $charset = "ISO-8859-1";
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	
-	<html data-theme=\"$uiTheme\">\n
+	<html data-theme=\"$uiTheme\"" . ($uiSize === 'large' ? " data-size=\"large\"" : '') . ">\n
 	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
@@ -435,6 +441,7 @@ if ($header != 'nix') {
 	// print '<meta name="google" content="notranslate">';
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldi-fonts.css?v=1\">\n"; // 20261009 Sawaneh fonts + text size on every page
 	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
 	else      print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldimenu.css\"/>\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saft.css\"/>\n";

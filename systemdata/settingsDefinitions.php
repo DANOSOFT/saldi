@@ -85,6 +85,7 @@
 // 20261008 Sawaneh personal.profile.theme: light, dark or system (prototype_dashboard_tema v5), settings ui/theme per user.
 // 20261009 Sawaneh 4e: personal.documents.auto_extract and personal.ui.sidebar_closed replace the autoExtract/isSidebarOpen cookies.
 // 20261009 Sawaneh pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
+// 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -1578,6 +1579,11 @@ if (!function_exists('getSettingsSections')) {
 				'type' => 'bool', 'label' => 6377, 'help' => 6378, 'default' => false, 'permission' => 'any',
 				'storage' => array('settings', 'bank_integration', 'show_status', 'oneZero'), 'visible_if' => array('module', 'bank'),
 				'keywords' => array('bank', 'bankstatus', 'kassekladde')),
+			'personal.profile.text_size' => array('group' => 'personal', 'section' => 'profile', 'sub' => 'profile', 'scope' => 'user',
+				'type' => 'select', 'label' => 2283, 'help' => 7031, 'default' => 'normal', 'permission' => 'any',
+				'options' => array('normal' => 7029, 'large' => 7030),
+				'storage' => array('settings', 'ui', 'text_size', 'raw'),
+				'keywords' => array('tekststørrelse', 'text size', 'større tekst', 'skriftstørrelse')),
 			'personal.profile.theme' => array('group' => 'personal', 'section' => 'profile', 'sub' => 'profile', 'scope' => 'user',
 				'type' => 'select', 'label' => 1075, 'help' => 6919, 'default' => 'light', 'permission' => 'any',
 				'options' => array('light' => 6917, 'dark' => 6918, 'system' => 2377),
