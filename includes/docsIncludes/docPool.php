@@ -149,6 +149,10 @@
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
 // 20261004 CL/SZ SD-726 The user's "Ctrl + pil op/ned" from the journal's gear box comes in window.saldiShortcuts.
 //                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
+// 20261004 CL/SZ SD-727 The periodic folder sync (every 10 minutes) deletes documents archived 12 months ago (poolArchivePurge()).
+//                The archive shows the date each document will be deleted.
+// 20261004 CL/SZ SD-727 A copy of an archived document arriving in the pool folder restores the archived one (the copy is still dropped, MB-42).
+//                poolFolderSync() reports that as a change, so the open pool fetches its list again.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
@@ -170,6 +174,8 @@
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
+// 20261005 CL/SZ SD-727 The folder sync hashes a batch of rows that have no content hash (poolContentHashBackfill()).
+// 20261005 CL/SZ SD-727 An upload whose document is in the pool already says so (5407 "Findes allerede i puljen") and opens that one, instead of "uploadet" for a copy the next load drops.
 // 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
 // 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
 // 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
@@ -430,6 +436,9 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 					// copy is dropped. When the row's file is gone, the row is an orphan the cleanup above
 					// removes (or one too recent for it to touch) and this file is the last copy of the
 					// bilag - so it falls through and gets a row of its own instead of being removed.
+					// SD-727: an archived bilag that arrives again is needed after all (e.g. a reminder), so it comes back to the list
+					require_once __DIR__ . '/poolArchive.php';
+					poolArchiveRestoreOnArrival($syncDuplicate['filename'], $file, 'folder');
 					@unlink($fullPath);
 					docPoolLog("syncPuljeFilesToDatabase: $file has the same content as " . $syncDuplicate['filename'] . ", file removed and no row inserted");
 					continue;
@@ -482,6 +491,11 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
+	// Rows an upload's extraction created have no content hash; a batch of them gets it here (MB-42, SD-727)
+	poolContentHashBackfill($puljePath);
+	// SD-727: documents archived 12 months ago are deleted here, with file and row, and written to audit_log and the pool log
+	require_once __DIR__ . '/poolArchive.php';
+	poolArchivePurge($puljePath, $db);
 	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
 	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 }
@@ -593,6 +607,9 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 				__FILE__ . " line " . __LINE__
 			));
 			if ($duplicateRow && is_file("$puljePath/" . $duplicateRow['filename'])) {
+				// SD-727: an archived bilag that arrives again comes back to the list
+				require_once __DIR__ . '/poolArchive.php';
+				poolArchiveRestoreOnArrival($duplicateRow['filename'], $file, 'folder');
 				@unlink("$puljePath/$file");
 				docPoolLog("checkIfAllPoolFilesAreInDatabase: $file has the same content as " . $duplicateRow['filename'] . ", file removed and no row inserted");
 				continue;
@@ -617,11 +634,13 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
  */
 function poolFolderSync($docFolder, $db) {
 	$before = poolFilesSignature();
+	$restoredBefore = $GLOBALS['poolArchiveRestoredOnArrival'] ?? 0;
 	// No table yet: the full sync creates it, so it runs now instead of waiting for the 10-minute window to end
 	if ($before === '') update_settings_value("skip_sync", "docs", 0, "Skip pool sync after initial run");
 	checkIfAllPoolFilesAreInDatabase();
 	syncPuljeFilesToDatabase($docFolder, $db);
-	return poolFilesSignature() !== $before;
+	// SD-727: a document restored because it arrived again changes neither the row count nor the highest id
+	return poolFilesSignature() !== $before || ($GLOBALS['poolArchiveRestoredOnArrival'] ?? 0) !== $restoredBefore;
 }
 
 /**
@@ -2255,6 +2274,7 @@ print "<script>window.saldiPoolArchive = " . json_encode(array(
 		'archive'      => findtekst('5337|Arkivér', $sprog_id),
 		'restore'      => findtekst('5339|Gendan', $sprog_id),
 		'archived'     => findtekst('5343|Arkiveret', $sprog_id),
+		'deletes'      => findtekst('5398|Slettes', $sprog_id),
 		'noneSelected' => findtekst('5345|Ingen bilag valgt.', $sprog_id),
 		'emptyArchive' => findtekst('5344|Ingen arkiverede bilag', $sprog_id),
 	),
@@ -3240,6 +3260,8 @@ print <<<JS
 			const metadataState = row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}';
 			subjectCell += "<br><small>" + escapeHTML(metadataState) + "</small>";
 			if (row.archived && window.poolArchive) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.archivedNote(row)) + "</small>";
+			// SD-727: the day it will be deleted, on its own line so the cell doesn't cut it off
+			if (row.archived && window.poolArchive && window.poolArchive.deleteNote(row)) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.deleteNote(row)) + "</small>";
 			const dataAttrs = "data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + 
 				(isMatch ? "data-selected='true' " : "") + 
 				(isPerfectMatch ? "data-perfect-match='true' " : "") +
@@ -3567,6 +3589,7 @@ print <<<JS
 			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
 			html += '<span>' + escapeHTML(row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}') + '</span>';
 			if (row.archived && window.poolArchive) html += '<span>' + escapeHTML(window.poolArchive.archivedNote(row)) + '</span>';
+			if (row.archived && window.poolArchive && window.poolArchive.deleteNote(row)) html += '<span>' + escapeHTML(window.poolArchive.deleteNote(row)) + '</span>';
 			if (account) html += '<span><strong>{$txt6}:</strong> ' + escapeHTML(account) + '</span>';
 			if (amount) {
 				let amountHtml = '<span><strong>{$txt10}:</strong> ';

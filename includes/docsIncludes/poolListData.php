@@ -25,6 +25,7 @@
 // 20261007 CL/SZ SD-719 Created: the pool list's data, moved out of includes/_docPoolData.php unchanged, so docPool.php can
 //                send the first page with the page itself (one request less before the list shows) and _docPoolData.php
 //                answers every later request with the same code. $q holds the request parameters ($_GET there).
+// 20261007 CL/SZ SD-727 An archived document carries the date it will be deleted (deletes), as _docPoolData.php sent it.
 
 require_once __DIR__ . '/poolVendorMatcher.php';
 require_once __DIR__ . '/poolDuplicateMarker.php';
@@ -139,6 +140,7 @@ function poolListData(array $q) {
             'version' => poolMetadataVersion($row),
             'manuallyEdited' => poolMetadataIsManual($row),
             'archived' => $row['archived'] ?? null,
+            'deletes' => !empty($row['archived']) ? poolArchiveDeleteDate($row['archived']) : null,
         ];
     }
 

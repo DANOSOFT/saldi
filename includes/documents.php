@@ -40,6 +40,8 @@
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
 // 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
 //                  instead of always the first regardless, so a missing first file no longer hides the others.
+// 20261006 CL/SZ SD-727 An upload whose content matches an archived pool row brings that row back to
+//                the list instead of staying refused as a duplicate (poolUploadRestoreIfArchived(), poolUpload.php).
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";

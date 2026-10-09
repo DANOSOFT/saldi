@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/poolUpload.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- includes/docsIncludes/poolUpload.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,8 @@
 //                 own name and date are used again instead of being stored empty.
 // 20261005 LOE SST-855 The upload lock sits in the tenant folder next to .pool-directories.lock, not
 //                 inside the pool, so the REST attachment listing can neither show nor delete it.
+// 20261005 CL/SZ SD-727 A duplicate that matches an archived row brings that row back to the list
+//                 (poolUploadRestoreIfArchived(), poolArchiveRestoreOnArrival(), kilde 'upload').
 
 require_once __DIR__ . '/../std_func.php';
 require_once __DIR__ . '/FileReservation.php';
@@ -235,6 +237,34 @@ function poolUploadDuplicateMessage($filename, $existing) {
 }
 
 /**
+ * Bring a matched pool row back from the archive when fresh content for it arrives.
+ *
+ * poolArchive.php is this epic's own file (SD-717), not part of a plain installation, so it is
+ * required here rather than at the top of this file.
+ *
+ * @param string $filename Existing pool row's filename, matched by content.
+ * @param string $uploadedAs Name the duplicate upload arrived under, for the audit trail.
+ * @return void
+ */
+function poolUploadRestoreIfArchived($filename, $uploadedAs) {
+	static $available = null;
+	if ($available === null) {
+		$archiveFile = __DIR__ . '/poolArchive.php';
+		$available = is_file($archiveFile);
+		if ($available) {
+			require_once $archiveFile;
+		}
+	}
+	if (!$available || !function_exists('poolArchiveRestoreOnArrival')) {
+		return;
+	}
+	$row = db_fetch_array(db_select("SELECT archived FROM pool_files WHERE filename = '" . db_escape_string($filename) . "'", __FILE__ . ' line ' . __LINE__));
+	if ($row && !empty($row['archived'])) {
+		poolArchiveRestoreOnArrival($filename, $uploadedAs, 'upload');
+	}
+}
+
+/**
  * Save a browser upload once, using original bytes for identity before AI or conversion.
  *
  * Transport only: the posted $_FILES entry is moved to a private staging directory and handed to
@@ -329,6 +359,7 @@ function poolUploadIngest($sourcePath, $filename, $poolDir, $autoExtract, $renam
 			$lock = null;
 		}
 		if ($duplicate !== null) {
+			poolUploadRestoreIfArchived($duplicate, $filename);
 			return array('success' => false, 'duplicate' => true, 'existing' => $duplicate,
 				'message' => poolUploadDuplicateMessage($filename, $duplicate));
 		}
@@ -382,6 +413,7 @@ function poolUploadIngest($sourcePath, $filename, $poolDir, $autoExtract, $renam
 				$duplicate = poolUploadFindDuplicate($poolDir, $contentHash);
 			}
 			if ($duplicate !== null) {
+				poolUploadRestoreIfArchived($duplicate, $filename);
 				return array('success' => false, 'duplicate' => true, 'existing' => $duplicate,
 					'message' => poolUploadDuplicateMessage($filename, $duplicate));
 			}
