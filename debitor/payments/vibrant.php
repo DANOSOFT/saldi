@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- payments/vibrant.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- payments/vibrant.php --- ver 5.0.0 --- 2026.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,19 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240301 PHR Added $printfile and call to saldiprint.php
 // 20260720 NTR Recreate temp/$db (cleared daily) before writing logs
+// 20261007 CL/SZ SST-843 The Vibrant API key is no longer written into the page.
+//                All Vibrant calls go through vibrant_proxy.php, which adds the key on the server and builds the request bodies.
+
+/**
+ * Injected by ../../includes/online.php, included below:
+ * @var string $db
+ * @var string $regnaar
+ */
 
 @session_start();
 $s_id = session_id();
@@ -107,13 +115,9 @@ if($type == "process_refund") {
   $receipt_parts = explode('-', isset($row['receipt_id']) ? $row['receipt_id'] : '');
   $charge_id = ($receipt_parts[0]) ? $receipt_parts[0] : '';
 }
-# Get settings
-vibrant_log("Fetching API Settings...");
-$measure_start = microtime(true);
-$q = db_select("select var_value from settings where var_name = 'vibrant_auth'", __FILE__ . " linje " . __LINE__);
-$APIKEY = db_fetch_array($q)[0];
-$duration = microtime(true) - $measure_start;
-vibrant_log("API Key fetched in " . round($duration, 4) . "s");
+# Session-bound token that vibrant_proxy.php checks; the API key itself stays on the server
+if (!isset($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf_token = $_SESSION['csrf_token'];
 
 # $q=db_select("SELECT name, terminal_id FROM vibrant_terms WHERE pos_id=$kasse",__FILE__ . " linje " . __LINE__);
 vibrant_log("Fetching Terminal ID...");
@@ -153,6 +157,19 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ db: db, message: msgWithTime })
     }).catch(err => console.error('Logging failed:', err));
+  }
+
+  // Vibrant is called through vibrant_proxy.php, which adds the API key and builds the request on the server.
+  // It answers with Vibrant's own status and body, so the response is read as before.
+  function vibrantApi(action, params) {
+    return fetch('vibrant_proxy.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': <?php print json_encode($csrf_token); ?>
+      },
+      body: JSON.stringify(Object.assign({ action: action }, params))
+    });
   }
 
   logToServer(`Page loaded (JS start). Amount: <?php print $amount; ?>, Type: <?php print $type; ?>, OrdreID: <?php print $ordre_id; ?>`);
@@ -214,22 +231,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
     console.log('Payment ID:', '<?php print $payment_id; ?>');
     console.log('Charge ID:', '<?php print ($charge_id) ? $charge_id : "N/A"; ?>');
     console.log('Terminal ID:', '<?php print $terminal_id; ?>');
-    
-    var refundData = {
-      'refund': {
-        'amount': <?php print $amount; ?>,
-        'paymentIntentId': '<?php print $payment_id; ?>',
-        <?php if (!empty($charge_id)) echo "'chargeId': '$charge_id',"; ?>
-        'description': 'Refund Bon <?php print $ordre_id; ?>',
-        'reason': 'requested_by_customer',
-        'metadata': {
-          'orderId': '<?php print $ordre_id; ?>'
-        }
-      }
-    }
-    
-    console.log('Refund data object:', refundData);
-    
+
     var cardScheme = 'unknown';
     var refund_id = null;
     var refund_check_count = 0;
@@ -257,15 +259,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       setTimeout(async () => {
         try {
           // logToServer(`Checking refund status for ${refundId}`);
-          var res = await fetch(
-            `https://pos.api.vibrant.app/pos/v1/refunds/${refundId}`,
-            {
-              method: 'get',
-              headers: {
-                'apikey': '<?php print $APIKEY; ?>'
-              }
-            }
-          );
+          var res = await vibrantApi('refund', { id: refundId });
           // logToServer(`Refund status response: ${res.status}`);
           
           if (!res.ok) {
@@ -399,22 +393,12 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       
       try {
         console.log('Making refund request to Vibrant API...');
-        console.log('Endpoint:', `https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/process_refund`);
-        console.log('Request body:', JSON.stringify(refundData, null, 2));
-        
         logToServer(`Initiating refund request to terminal ${"<?php print $terminal_id; ?>"}`);
         var start = Date.now();
-        var res = await fetch(
-          'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/process_refund',
-          {
-            method: 'post',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': '<?php print $APIKEY; ?>'
-            },
-            body: JSON.stringify(refundData),
-          }
-        );
+        var res = await vibrantApi('process_refund', {
+          amount: <?php print $amount; ?>,
+          ordre_id: <?php print (int) $ordre_id; ?>
+        });
         var duration = Date.now() - start;
         logToServer(`Refund request completed in ${duration}ms. Status: ${res.status}`);
         
@@ -488,17 +472,6 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
     console.log('Initiating refund process...');
     process_refund();
   } else {
-    console.log('Setting data')
-    var data = {
-      'paymentIntent': {
-        'amount': <?php print $amount; ?>,
-        'description': 'Bon <?php print $ordre_id; ?>',
-        'metadata': {
-          'correlationId': '<?php print $ordre_id; ?>'
-        }
-      }
-    }
-
     var cardScheme = 'unkowen';
     var payment_id = 'null';
 
@@ -508,15 +481,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       setTimeout(async () => {
         logToServer(`Checking payment status for ${pid}`);
         var pStart = Date.now();
-        var res = await fetch(
-          `https://pos.api.vibrant.app/pos/v1/payment_intents/${pid}`,
-          {
-            method: 'get',
-            headers: {
-              'apikey': '<?php print $APIKEY; ?>'
-            }
-          }
-        )
+        var res = await vibrantApi('payment_intent', { id: pid })
         logToServer(`Payment status check took ${Date.now() - pStart}ms. Status: ${res.status}`);
 
         if (!res.ok) {
@@ -536,15 +501,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
           // Get the cardtype
           var cStart = Date.now();
-          var charge = await fetch(
-            `https://pos.api.vibrant.app/pos/v1/charges/${json_data['latestCharge']}`,
-            {
-              method: 'get',
-              headers: {
-                'apikey': '<?php print $APIKEY; ?>'
-              }
-            }
-          );
+          var charge = await vibrantApi('charge', { id: json_data['latestCharge'] });
           var cDuration = Date.now() - cStart;
           logToServer(`Charges fetched in ${cDuration}ms`);
           var charge_json = await charge.json();
@@ -622,17 +579,10 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       try {
         logToServer(`Sending transaction to terminal ${"<?php print $terminal_id; ?>"} (${"<?php print $type; ?>"})`);
         var txStart = Date.now();
-        var res = await fetch(
-          'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/<?php print $type; ?>',
-          {
-            method: 'post',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': '<?php print $APIKEY; ?>'
-            },
-            body: JSON.stringify(data),
-          }
-        )
+        var res = await vibrantApi('process_payment_intent', {
+          amount: <?php print $amount; ?>,
+          ordre_id: <?php print (int) $ordre_id; ?>
+        })
         logToServer(`Transaction request took ${Date.now() - txStart}ms. Status: ${res.status}`);
         console.log(res);
         if (!res.ok) {
