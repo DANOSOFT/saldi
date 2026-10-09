@@ -115,6 +115,8 @@
 // 20260914 CL/SZ SST-744: function posbogfor: CodeRabbit review - embed the alert text via
 //             json_encode() instead of a manual string-replace, matching index/login.php's
 //             existing pattern for the same problem.
+// 20261002 CL/SZ SST-812: Hand the final focus() to javascript/posScanBuffer.js (inlined in the head by includes/online.php), which replays scanner keystrokes typed while a scan reloads the page.
+//                The final focus() call now escapes $fokus and falls back to varenr_ny when the named field is missing or hidden, instead of throwing and leaving no focus.
 // 20261002 CL/SZ SST-813: function kundedisplay: the saldi.dk box-IP lookup moved to kundedisplayBoxLookup() with a 2 s timeout, tried once per request and logged on failure.
 //                An unreachable saldi.dk no longer holds the POS request for the 60 s default socket timeout.
 // 20261002 CL/SZ SST-813: Load stockWarningPopup.js with a filemtime version, as ordre.php does, so POS terminals pick up the keyboard/focus fix instead of a cached copy.
@@ -3711,9 +3713,12 @@ if ($obstxt)
 </html>
 
 <script language="javascript">
-
-document.pos_ordre.<?php echo $fokus ?>.focus();
-
+<?php $fokusJs = json_encode((string) $fokus, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
+if (window.PosScanBuffer) {
+	PosScanBuffer.focus(<?php echo $fokusJs ?>);
+} else if (document.pos_ordre && document.pos_ordre.elements[<?php echo $fokusJs ?>]) {
+	document.pos_ordre.elements[<?php echo $fokusJs ?>].focus();
+}
 </script>
 <!--
 <script type="text/javascript">

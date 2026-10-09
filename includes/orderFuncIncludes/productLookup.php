@@ -371,7 +371,10 @@ function filterRows() {
 	print "</tbody></table>\n";
 	#	if ($findStr) print "<script language=\"javascript\">	document.vareopslag.varenr_ny.focus();</script>";
 #	else 
-	print "<body onload=\"document.links['opslag_1'].focus();\" >\n";
+	// With no matching items there is no opslag_1 link; focus the POS search field instead so a
+	// rescan can be typed straight in (SST-812), rather than throwing and leaving no focus.
+	print "<body onload=\"var l=document.links['opslag_1'],s=document.getElementById('opslag_0');";
+	print "if(l){l.focus();}else if(s){s.focus();s.select();}\" >\n";
 
 	#	print "<script language=\"javascript\">
 #		document.getElementById[\"opslag_1\"].focus();
