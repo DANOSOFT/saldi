@@ -123,3 +123,7 @@ html.saldi-dark #toggleButton { background: var(--surface-2); color: var(--text)
 html.saldi-dark td[style*="color:#444444"], html.saldi-dark span[style*="color:#444444"], html.saldi-dark td[style*="color: #444444"], html.saldi-dark span[style*="color: #444444"] { color: var(--text) !important; }
 html.saldi-dark td[style*="color:#444"] b, html.saldi-dark td[style*="color:#444444"] b { color: var(--text); }
 html.saldi-dark .customer-info .info-label { color: var(--text-2); }
+/* Report pages with their own sticky thead/tfoot styles (Regnskab, Budget and alike): the light grey rows follow the tokens. */
+html.saldi-dark thead, html.saldi-dark thead td, html.saldi-dark thead th, html.saldi-dark tfoot, html.saldi-dark tfoot td { background-color: var(--surface-2) !important; color: var(--text) !important; border-color: var(--border) !important; }
+html.saldi-dark .regnskab-wrapper table.dataTable tbody tr:hover, html.saldi-dark .budget-wrapper table tbody tr:hover, html.saldi-dark table.dataTable tbody tr:hover { background-color: var(--band) !important; outline-color: var(--border) !important; }
+html.saldi-dark .regnskab-wrapper table.dataTable tbody tr:nth-child(2n), html.saldi-dark .budget-wrapper table tbody tr:nth-child(2n) { background-color: var(--surface-2) !important; }
