@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-06 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-09 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -32,6 +32,8 @@
 // 20261004 CL/SZ Pool account check: window.poolMarkFields() marks the Debet / Kredit the server refused ("eksisterer ikke"), as "Obligatorisk" is, and focuses the first.
 // 20261006 CL/SZ SD-716 A new document puts the cursor in Debet without opening the lookup panel over the list (window.focusAccountQuietly()),
 //                or on "Brug forslag" when Debet has a suggestion; window.poolFocusNewLine() does the same after "Overfør data".
+// 20261009 CL/SZ SD-716 transfer=1 leaves the address while the script loads, before the page's load event, so the main menu (index/main.php) never
+//                takes an address with it (F5 would transfer again, and two quick address writes made the menu reload the page over and over).
 (function () {
     'use strict';
 
@@ -469,11 +471,9 @@
         var note = document.querySelector('#leftPanel .pool-done-note');
         if (note && params.get('poolDone') !== '1') note.remove();
         if (params.get('poolDone') === '1') showDone();
-        if (params.get('transfer') === '1') {
-            // A reload must not transfer again over what the user changed
-            var url = new URL(window.location.href);
-            url.searchParams.delete('transfer');
-            window.history.replaceState(null, '', url.href);
+        var transfer = transferAtLoad || dropTransferFromAddress();
+        transferAtLoad = false;
+        if (transfer) {
             whenListLoaded(function () {
                 if (document.getElementById('bilagEntry_new') && typeof window.transferDataFromSelectedFile === 'function') {
                     window.transferDataFromSelectedFile({ auto: true });
@@ -481,6 +481,18 @@
                 if (!keepFocus) focusNewLine();
             });
         }
+    }
+
+    /**
+     * A reload must not transfer again over what the user changed, so transfer=1 leaves the address.
+     * After a switch (SD-719) docPoolSwitch.js passes the cleaned address on to the main menu.
+     */
+    function dropTransferFromAddress() {
+        var url = new URL(window.location.href);
+        if (url.searchParams.get('transfer') !== '1') return false;
+        url.searchParams.delete('transfer');
+        window.history.replaceState(null, '', url.href);
+        return true;
     }
 
     /** The list's data (docData) arrives by fetch after the page has loaded; wait up to 5 s for it. */
@@ -502,6 +514,9 @@
 
     // A document opened in place (SD-719) is a new start for the transfer, the focus and the note
     document.addEventListener('poolswitch', init);
+
+    // Now, before the load event: the main menu takes the page's address at load
+    var transferAtLoad = dropTransferFromAddress();
 
     // After docPool.php's own DOMContentLoaded handlers (docData is filled by then)
     if (document.readyState === 'loading') {
