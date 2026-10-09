@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-02 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -93,6 +93,10 @@
 // 20261002 CL/NTR Include stdFunc/findTxtUtf8.php (findtekst_utf8()).
 // 20261006 CL/NTR Docblocks of ifset()/if_isset(): plain-variable checks should use $var ?? $default (undefined variable still warns).
 // 20261007 NTR Added global function to get_settings_value and update_settings_value.
+// 20261007 MJ SST-830 barcode(): ask the SVG renderer to fill the box the label template
+//                  gives the image, the way the PNG it replaced did. Templates set both
+//                  width and height on $img, where the SVG default keeps its own ~9:1
+//                  proportions, so the code printed about half as tall.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2660,6 +2664,13 @@ if (!function_exists('barcode')) {
 				'th' => 0,
 				'ts' => 0,
 				'bc' => '',
+				// 20261007 MJ SST-830 Fill the box the template gives the image, the way the
+				// PNG this replaced did. Label templates set both width and height on $img
+				// (Standard 80% x 2.15em, A4-Mit-salg 90% x 5mm, TD-4410 50mm x 5mm), and the
+				// SVG default keeps the 9:1 proportions, so the code came out about half as
+				// tall. Code 128 and EAN-13 encode data in relative bar widths and every bar
+				// scales by the same factor, so stretching does not affect scanning.
+				'par' => 'none',
 			]);
 			$svg_path = "../temp/$db/$stregkoder[0].svg";
 			if (file_put_contents($svg_path, $svg_content) === false) {
