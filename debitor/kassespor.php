@@ -55,6 +55,7 @@
 // 20260509 PHR '$svis_saet' was fetched from 'kodenr' 1. Changed to kodenr 2 and added fiscal_year
 // 20260709 SZ Added Grid Framework sticky header to Kassespor report
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 ob_start();
 @session_start();
@@ -194,17 +195,11 @@ if ($menu == 'S') {
 	// replaces an earlier, simpler position:sticky-in-a-<td> attempt — that only kept a single short
 	// row visible and let the whole page scroll natively, which doesn't match kontosaldo()'s actual
 	// internal-scroll behaviour or keep the column titles in view.
-	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	print "<div id='ksPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-	print "<td width='10%' align='left'><a href='rapport.php' accesskey=L style=\"text-decoration: none;\">";
-	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px; justify-content: flex-start; padding-left: 3px;' onMouseOver=\"this.style.cursor='pointer'\">";
-	print "$tilbage_icon " . findtekst(30,$sprog_id) . "</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>" . findtekst(455,$sprog_id) . "</td>";
-	print "<td width='10%' align='center' style='$topStyle'>&nbsp;</td>";
-	print "</tr></tbody></table>";
+	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => findtekst(455, $sprog_id), 'back' => 'rapport.php'));
 	print "</div>\n"; // close flex:0 header bar
 }
 if ($menu == 'S') {

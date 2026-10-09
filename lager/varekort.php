@@ -133,6 +133,7 @@
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The card on the new page head (page_bar): title, POS menuer as a page action, Ny vare as the primary button.
 //
 ob_start(); //Starts output buffering
 
@@ -1288,68 +1289,29 @@ include("../includes/topline_settings.php");
 
 print "<center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 if ($menu == 'S') {
-    print "<tr><td align=\"center\" valign=\"top\">\n";
-    print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
-
-    $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
-       $contains = false;
-
+    // 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+    include_once("../includes/stdFunc/pageBar.php");
+    $confirmTekstJs = json_encode((string) $tekst);
+    $reloadOpener = $popup ? "if (window.opener) { window.opener.location.reload(); }" : "";
     if (strpos($returside, 'debitorkort.php') !== false) {
-        $contains = true;
+        $backHref = $returside;
+    } elseif ($opener != 'varer.php') {
+        $backHref = "javascript:" . $reloadOpener . "confirmClose(" . json_encode($varekortBack(array('id' => $ordre_id, 'fokus' => $fokus, 'vare_id' => $id))) . "," . $confirmTekstJs . ")";
+    } else {
+        $backHref = "javascript:" . $reloadOpener . "confirmClose(" . json_encode($returside) . "," . $confirmTekstJs . ")";
     }
-
-    $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
-
-    // $returside/$opener are request-controlled; confirmTekst/confirmUrl below are
-    // JS-string-encoded via json_encode() then HTML-attribute-escaped, since they're
-    // interpolated into javascript: hrefs, not just plain HTML attributes.
-    $confirmTekst = htmlspecialchars(json_encode((string)$tekst), ENT_QUOTES);
-
-    if ($contains) {
-        print "<td width='200px'>
-            <a href=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\" accesskey=L>
-            <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor = 'pointer'\">"
-            . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-
-        print "<style>
-            a {
-                text-decoration: none !important;
-            } </style>";
-    }else{
-       if ($opener != 'varer.php') {
-            $confirmUrl = htmlspecialchars(json_encode($varekortBack(array('id' => $ordre_id, 'fokus' => $fokus, 'vare_id' => $id))), ENT_QUOTES);
-            print "<td width=\"10%\">
-                <a href=\"javascript:confirmClose($confirmUrl,$confirmTekst)\" accesskey=L>
-                <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">"
-                . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-        } else {
-            $confirmUrl = htmlspecialchars(json_encode($returside), ENT_QUOTES);
-            print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose($confirmUrl,$confirmTekst)\" accesskey=L>
-                <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">"
-                . $icon_back . findtekst('2172|Luk', $sprog_id) . "</button></a></td>\n";
-        }
-    }
-    print "<style>.center-btn{display:flex;align-items:center;text-decoration:none;gap:5px;}</style>\n";
-    print "<td align='center' style='$topStyle'>".findtekst('566|Varekort', $sprog_id)."</td>\n";
-    // print "<td width='10%' align='center' style='$topStyle'><br></td>\n";
-
-    # Open pos menus
-    $icon_posmenu = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 -960 960 960" fill="#ffffff"><path d="M120-520v-320h320v320H120Zm0 400v-320h320v320H120Zm400-400v-320h320v320H520Zm0 400v-320h320v320H520ZM200-600h160v-160H200v160Zm400 0h160v-160H600v160Zm0 400h160v-160H600v160Zm-400 0h160v-160H200v160Z"/></svg>';
-    $add_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 -960 960 960" fill="#ffffff"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+    $actions = array();
+    $primary = null;
     if ($id) {
         if ($usePos) {
-            print "<td width='10%' align='right'>
-        <a href=\"javascript:confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>
-        <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $icon_posmenu . "POS menuer" . "</button></a></td>\n";
+            $actions[] = array('POS menuer', '#', 'bx-grid-alt', 'onclick' => "confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst');");
         }
-        # Create new item
-        $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?{$productNavigationQuery}opener=$opener&returside=" . urlencode($returside) . "&ordre_id=$ordre_id"), ENT_QUOTES);
-        print "<td width='10%' align='right'>
-         <a href=\"javascript:confirmClose($confirmNewUrl,$confirmTekst)\" accesskey=N>
-         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
+        $primary = array(findtekst('7003|Ny vare', $sprog_id), '#', 'accesskey' => 'N',
+            'onclick' => "confirmClose(" . json_encode("varekort.php?{$productNavigationQuery}opener=$opener&returside=" . urlencode($returside) . "&ordre_id=$ordre_id") . "," . $confirmTekstJs . ");");
     }
-    print "</td></tbody></table>\n";
-    print "</td></tr>\n";
+    page_bar(array('title' => findtekst('566|Varekort', $sprog_id), 'back' => $backHref, 'actions' => $actions, 'primary' => $primary));
+    print "<style>a { text-decoration: none !important; }</style>\n";
+    print "<tr><td align=\"center\" valign=\"top\"></td></tr>\n";
     print "<td align = center valign = center>\n";
     print "<table cellpadding='1' cellspacing='1' border='0' width='80%'><tbody>\n";
 } else {

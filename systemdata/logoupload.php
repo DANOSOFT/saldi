@@ -84,6 +84,7 @@ $is_admin = !empty($revisor) || (function_exists('perm_can') ? perm_can('setting
 // 20260928 Sawaneh Security 4.0 (A3, R22): only the known background/attachment names, with an optional
 //                  language prefix, may be written or deleted under logolib/<db_id>/[<department>/].
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 function logo_name_ok($name) {
 	return (bool) preg_match('/^(?:\p{L}+_)?(bg|tilbud_bg|ordrer_bg|faktura_bg|tilbud_bilag|ordrer_bilag|faktura_bilag)$/u', (string) $name);
 }
@@ -188,17 +189,10 @@ if ($selected_department > 0 && !isset($departments[$selected_department]) && !$
 
 print "<div align=\"center\">";
 if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => findtekst('1745|Load File', $sprog_id), 'back' => $uploadBack));
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\"><a href=\"" . htmlspecialchars($uploadBack, ENT_QUOTES) . "\" accesskey=\"L\">";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Back', $sprog_id)."</button></a></td>"; #20210803
-
-	print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('1745|Load File', $sprog_id)."</td>";
-	print "<td width=\"10%\" align='center' style='$topStyle'><br></td>";
-
-	print "</tbody></table>";
 	print "</td></tr>";
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";

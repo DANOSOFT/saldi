@@ -18,6 +18,8 @@
 // -----------------------------------------------------------------------------------
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The list on the new page head (page_bar): title, Ny modtagelse as the primary button (the popup's
+//                  window features now really use $jsvars; the old bar printed the PHP tag as text).
 
 @session_start();
 $s_id=session_id();
@@ -52,20 +54,15 @@ if ($popup) $returside="../includes/luk.php";
 else $returside=$backUrl;
 
 if ($menu=='S') {
+	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('963|Modtageliste', $sprog_id),
+		'back' => $returside,
+		'primary' => array(findtekst('7005|Ny modtagelse', $sprog_id), "modtageliste.php?sort=$sort&rf=$rf&vis=$vis", 'accesskey' => 'N',
+			'onclick' => "liste=window.open('modtagelse.php?returside=modtageliste.php&tjek=-1','liste','" . (isset($jsvars) ? $jsvars : '') . "');liste.focus();"),
+	));
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
-		   <tr><td height = \"25\" align=\"center\" valign=\"top\">
-		   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>
-
-		   <td width='10%'><a href=$returside accesskey=L>
-		   <button style='$buttonStyle; width:100%' title='".findtekst('2230|Klik her for at lukke modtagelisten', $sprog_id)."' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>
-
-		   <td width='80%' align='center' style='$topStyle'>".findtekst('963|Modtageliste', $sprog_id)."</td>
-
-		   <td width='10%'><a href=modtageliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N>
-		   <button style='$buttonStyle; width:100%' title='".findtekst('2231|Klik her for at oprette en ny modtagelse', $sprog_id)."' onMouseOver=\"this.style.cursor='pointer'\" onClick=\"javascript:liste=window.open('modtagelse.php?returside=modtageliste.php&tjek=-1','liste','<?php echo $jsvars ?>');liste.focus();\">".findtekst(39,$sprog_id)."</button></a></td>
-
-		   </tbody></table>
-		   </td></tr>
 		   <tr><td valign=\"top\">
 		   <table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
 } else {

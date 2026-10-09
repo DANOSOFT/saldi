@@ -28,6 +28,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260416 PHP8
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
 
 @session_start();
 $s_id=session_id();
@@ -44,18 +45,13 @@ $returside="../includes/luk.php"; // WP-6.4: opened as a popup from diverse.php;
 
 print "<div align=\"center\">\n";
 
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => $title, 'back' => $returside));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
-print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
-
-       <td align='center' style='$topStyle'>".$title."<br></td>
-
-       <td width=\"170px\" style='$topStyle'><br></td></tr>
-       </tbody></table></td></tr>"; # <- tabel 1.1.1
 
 print "</tr></tbody></table></td></tr>";
 

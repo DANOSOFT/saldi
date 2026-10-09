@@ -49,6 +49,7 @@ $title = findtekst('3360|Salg pr. postnummer', $sprog_id);
 
 // 20260714 SZ - rapport.php's redirect into this page (the only entry point - see
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // lager/rapport.php's "Salg pr. postnummer" submit branch) never carries offset[salg_rapport]/
 // sort[salg_rapport]/rowcount[salg_rapport]/search[salg_rapport], since those are this grid's own
 // state params, not rapport.php's filters. includes/grid.php's create_datagrid() persists that state
@@ -149,16 +150,11 @@ ORDER BY {{SORT}}";
 $srGridMode = ($menu == 'S');
 
 if ($srGridMode) {
-    $srTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
     print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
     print "<div id='srPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-    print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-    print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-    print "<td width='10%' align='left'><a href='../lager/rapport.php' accesskey='L'>
-           <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$srTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-    print "<td width='80%' align='center' style='$topStyle'>$title</td>";
-    print "<td width='10%' align='center' style='$topStyle'>&nbsp;</td>";
-    print "</tr></tbody></table>\n";
+    print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+    include_once("../includes/stdFunc/pageBar.php");
+    page_bar(array('title' => $title, 'back' => '../lager/rapport.php'));
     print "</div>\n"; // close flex:0 header wrapper
 } else {
     print "<center><table width='100%' cellpadding='0' cellspacing='0' border='0'><tbody>";

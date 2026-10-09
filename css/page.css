@@ -22,3 +22,4 @@
 .pg-btn.outline { background: transparent; color: var(--user-primary, #114691); }
 .pg-hidden { display: none !important; }
 @media (max-width: 700px) { .pg-head h1 { font-size: 19px; } .pg-tab { padding: 8px 9px; font-size: 13px; } }
+@media print { .pg { display: none; } }

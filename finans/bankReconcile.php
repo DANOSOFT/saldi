@@ -34,6 +34,7 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261005 Sawaneh WP-4.10: Tilbage (all menu designs) returns to rapport.php with the received period and accounts.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 ini_set("auto_detect_line_endings", true);
 
@@ -72,21 +73,14 @@ foreach (array('regnaar', 'maaned_fra', 'maaned_til', 'aar_fra', 'aar_til', 'dat
 		$rapportBackParams[$k] = $_GET[$k];
 	}
 }
-$rapportBack = htmlspecialchars('rapport.php' . ($rapportBackParams ? '?' . http_build_query($rapportBackParams) : ''), ENT_QUOTES);
+$rapportBackUrl = 'rapport.php' . ($rapportBackParams ? '?' . http_build_query($rapportBackParams) : '');
+$rapportBack = htmlspecialchars($rapportBackUrl, ENT_QUOTES);
 
 if ($menu == 'S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => findtekst('2213|Bankafstemning', $sprog_id), 'back' => $rapportBackUrl));
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\"><a href='$rapportBack' accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-		   .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-	print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('2213|Bankafstemning', $sprog_id)."</td>";
-	print "<td width=\"10%\" align='center' style='$buttonStyle'><br></td>";
-
-	print "</tbody></table>";
 	print "</td></tr>";
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";

@@ -26,6 +26,7 @@
 // 20261006 Sawaneh WP-2.6-2.8: Tilbage returns to the customer card (not returside?returside=... with the employee id); icons use
 //                  the customer (konto_id, kontonr), nested retursides are urlencoded; id/konto_id cast, returside sanitised.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar): title, Ny ansat as the primary button.
 
 @session_start();
 $s_id=session_id();
@@ -233,29 +234,16 @@ $kontonr = $row ? (string) $row['kontonr'] : '';
 ########################### 
 
 if ($menu == 'S') {
+	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => trim((string) $row['firmanavn']) . ' - ' . findtekst('1262|Ansatte', $sprog_id),
+		'back' => "debitorkort.php?returside=$returside&id=$konto_id&fokus=$fokus",
+		'primary' => array(findtekst('7007|Ny ansat', $sprog_id), "ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id", 'accesskey' => 'N'),
+	));
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
-	print "<tr><td align=\"center\" valign=\"top\">\n";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-
-	print "<td width='10%'>
-    <a href=\"debitorkort.php?returside=$returside&id=$konto_id&fokus=$fokus\" accesskey=L>
-    <button style=\"$buttonStyle; width:100%\" onmouseover=\"this.style.cursor = 'pointer'\">". findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-
-
-	print "<td width='80%' style='$topStyle' align='center'>" . "$font$row[firmanavn] - Ansatte" . "</td>\n";
-
-
-	print "<td width='10%'>
-    <a href=\"ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id\" accesskey=N>
-    <button style=\"$buttonStyle; width:100%\" onmouseover=\"this.style.cursor = 'pointer'\">"
-. findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
-
-
-	print "</tbody></table>"; # <- TABEL 1.1
-	print "</td></tr>\n";
 	print "<tr><td align = center valign = center>\n";
-	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\"><tbody>\n"; # TABEL 1.2 -> 
-
+	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\"><tbody>\n"; # TABEL 1.2 ->
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";

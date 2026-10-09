@@ -24,6 +24,7 @@
 // --------------------------------------------------------------------
 // 20180328 Tilføjet $vis_lev_felt
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // 2018.11.23 PHR $vis_kostpriser tilføjet
 // 2018.11.26 PHR href på varenr tilføjet
 // 2019.01.07 MSC Rettet isset fejl og tilføjet topmenu design
@@ -97,21 +98,14 @@ if (isset($_POST) && $_POST) {
 if (isset($_POST['gemLuk'])) print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 
 print "<div align=\"center\">";
+if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'back' => $returside));
+}
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 
 if ($menu=='S') {
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">
-		   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>
-
-		   <td width=\"10%\"><a href=$returside accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>
-
-		   <td width=\"80%\" style='$topStyle' align='center'><font face='Arial, Helvetica, sans-serif'><small>Varevisning</small></td>
-		   <td width=\"10%\" style='$topStyle'></td>
-		   </tr>
-		   </tbody></table>
-		   </td></tr>
-<tr><td valign=\"top\">
+	print "<tr><td valign=\"top\">
 <table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">
 <tbody><td valign=top width=25%>";
 print "<table border=\"0\" width=\"100%\" valign = \"top\"><tbody>";

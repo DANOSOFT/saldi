@@ -22,6 +22,7 @@
 // --------------------------------------------------------------------------
 // 20211119 CA  Import PoS menus
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
 
 $saldifileformat="saldi_posmenus";
 $title="Importer POS menuer";
@@ -35,18 +36,13 @@ include("../includes/std_func.php"); #20210713
 include("../includes/topline_settings.php");
 $returside="../includes/luk.php"; // WP-6.4: opened as a popup from diverse.php; Tilbage closes it
 
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => findtekst(1934, $sprog_id), 'back' => $returside));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
-print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
-
-       <td align='center' style='$topStyle'>".findtekst(1934, $sprog_id)."<br></td>
-
-       <td width=\"170px\" style='$topStyle'><br></td></tr>
-       </tbody></table></td></tr>"; # <- tabel 1.1.1
 
 print "</tr></tbody></table></td></tr>";
 

@@ -44,6 +44,7 @@
 //                  rows still gets its separator detected and its columns can be mapped.
 // 20261008 Sawaneh Merge of master (JOB-086 rewrite): the column mapping is read and saved after the includes, in settings
 //                  importMapping (the old cookie is only read as a fallback).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
 
 @session_start();
 $s_id=session_id();
@@ -90,18 +91,13 @@ $filnavn = "../temp/".$db."_".str_replace(" ", "_", $brugernavn).".csv";
 
 print "<div align=\"center\">";
 
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => $title, 'back' => $returside));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
-print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
-
-       <td align='center' style='$topStyle'>".$title."<br></td>
-
-       <td width=\"170px\" style='$topStyle'><br></td></tr>
-       </tbody></table></td></tr>"; # <- tabel 1.1.1
 
 print "</tr></tbody></table></td></tr>";
 

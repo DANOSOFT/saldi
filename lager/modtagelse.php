@@ -18,6 +18,7 @@
 // ----------------------------------------------------------------------
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id = session_id();
@@ -164,21 +165,14 @@ if ($_POST) {
 $tekst = findtekst(154, $sprog_id);
 
 if ($menu == 'S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('566|Varekort', $sprog_id),
+		'primary' => $liste_id ? array(findtekst('7005|Ny modtagelse', $sprog_id), 'modtagelse.php', 'accesskey' => 'N') : null,
+		'back' => $returside,
+	));
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\"><a href=\"$returside\" accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-
-	print "<td width=\"80%\" style='$topStyle' align=\"center\"> " . findtekst('566|Varekort', $sprog_id) . "</td>";
-
-	print "<td width=\"10%\" style='$topStyle'></td>";
-
-	if ($liste_id)
-		print "<td width=\"10%\" style='$topStyle' align=\"right\"><a href=\"modtagelse.php\" accesskey=N>" . findtekst('39|Ny', $sprog_id) . "</a></td>";
-
-	print "</td></tbody></table>";
 	print "</td></tr>";
 	print "<td align = center valign = center>";
 	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\" valign=\"top\"><tbody>";

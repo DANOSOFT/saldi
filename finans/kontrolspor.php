@@ -37,6 +37,7 @@
 // 20261005 Sawaneh WP-4.9: CSV links quoted and without the space, so the filters reach the export; the project
 //                  correction link (WP-4.15) passes this view as returside.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 
 ob_start();
@@ -168,28 +169,15 @@ if (!isset ($projekt_fra)) $projekt_fra = 0;
 if (!isset ($projekt_til)) $projekt_til = 0;
 
 if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst(905, $sprog_id),
+		'actions' => array(array('CSV', "kontrolspor.php?csv=1&valg=$valg$hreftext", 'bx-download')),
+		'back' => $popup ? '../includes/luk.php' : 'rapport.php',
+	));
 	print "<table width=100% height=100% cellpadding=\"0\" cellspacing=\"0px\" border=\"0\" valign = \"top\" align='center'> ";
 	print "<tr><td height = 25 align=center valign=top>";
-	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-	print "<tr>";
-
-	print "<td width=10%>";
-
-	if ($popup) print "<a href=../includes/luk.php accesskey=L>
-					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-					   .findtekst(30,$sprog_id)."</button></a></td>";
-	else print "<a href=rapport.php accesskey=L>
-			    <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				.findtekst(30,$sprog_id)."</button></a></td>";
-
-	print "<td width=80% align='center' style='$topStyle'>".findtekst(905,$sprog_id)."</td>";
-
-	print "<td width=10%><a href='kontrolspor.php?csv=1&valg=$valg$hreftext' title=\"".findtekst(505,$sprog_id)."\">
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			CSV</button></a></td>";
-
-	print "</tr>\n";
-	print "</tbody></table></td></tr>";
+	print "</td></tr>";
 	print "<tr style='height: 10px;'><td>";
 } else {
 	print "<table width=100% height=100% cellpadding=\"0\" cellspacing=\"0px\" border=\"0\" valign = \"top\" align='center'> ";

@@ -79,3 +79,33 @@ html.saldi-shell[data-theme="dark"] body, html.saldi-shell[data-theme="dark"] .h
 @media (prefers-color-scheme: dark) {
 	html.saldi-shell[data-theme="system"] body, html.saldi-shell[data-theme="system"] .home-section { background: var(--page); color: var(--text); }
 }
+
+/* ---- Migrated pages (page_bar sets html.saldi-dark when the theme is dark): the old page styles follow the tokens. ---- */
+html.saldi-dark body, html.saldi-dark body[bgcolor] { background: var(--page) !important; color: var(--text); }
+html.saldi-dark table, html.saldi-dark td, html.saldi-dark th { color: var(--text); border-color: var(--border); }
+html.saldi-dark table[bgcolor], html.saldi-dark tr[bgcolor], html.saldi-dark td[bgcolor], html.saldi-dark div[bgcolor] { background-color: var(--surface) !important; }
+html.saldi-dark tr[bgcolor]:nth-child(2n) { background-color: var(--surface-2) !important; }
+html.saldi-dark font[color] { color: var(--text) !important; }
+html.saldi-dark a { color: var(--link); }
+html.saldi-dark hr { border-color: var(--border); }
+html.saldi-dark .inputbox, html.saldi-dark input[type="text"], html.saldi-dark input[type="password"], html.saldi-dark input[type="number"],
+html.saldi-dark input[type="date"], html.saldi-dark input[type="email"], html.saldi-dark input[type="search"], html.saldi-dark textarea, html.saldi-dark select {
+	background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+html.saldi-dark input:disabled, html.saldi-dark select:disabled, html.saldi-dark textarea:disabled { opacity: .6; }
+html.saldi-dark .datatable-wrapper, html.saldi-dark .datatable, html.saldi-dark .outer-datatable-wrapper, html.saldi-dark .form-wrapper { background: var(--surface); color: var(--text); }
+html.saldi-dark .datatable thead th { background-color: var(--surface-2) !important; color: var(--text); border-bottom-color: var(--border) !important; }
+html.saldi-dark .datatable thead { border-bottom-color: var(--border) !important; }
+html.saldi-dark .datatable tbody tr { background-color: var(--surface); }
+html.saldi-dark .datatable tbody tr:nth-child(2n) { background-color: var(--surface-2) !important; }
+html.saldi-dark .datatable tbody tr:hover { background-color: var(--band) !important; }
+html.saldi-dark .datatable tr td { border-color: var(--border) !important; }
+html.saldi-dark .datatable tfoot, html.saldi-dark .datatable tfoot td { background-color: var(--surface) !important; border-top-color: var(--border) !important; }
+html.saldi-dark .datatable .sortable-td:hover .sortable { color: var(--link); }
+html.saldi-dark .dropdown-content, html.saldi-dark .secondary-dropdown { background-color: var(--surface) !important; color: var(--text); box-shadow: var(--shadow-up); }
+html.saldi-dark .dropdown-content button, html.saldi-dark .dropdown-content #edit-button, html.saldi-dark .secondary-dropdown button { color: var(--text); }
+html.saldi-dark .dropdown-content button:hover, html.saldi-dark .dropdown-content #edit-button:hover, html.saldi-dark .secondary-dropdown button:hover { background-color: var(--surface-2) !important; }
+html.saldi-dark tfoot tr td #footer-box button { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+html.saldi-dark .ordreform, html.saldi-dark .dataTableForm, html.saldi-dark .dataTable2, html.saldi-dark .dataTableSmall { background: var(--surface); }
+html.saldi-dark ::placeholder { color: var(--text-3); }
+
+html.saldi-dark .pg-sticky { background-color: var(--page) !important; }

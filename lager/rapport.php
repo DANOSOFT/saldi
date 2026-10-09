@@ -146,6 +146,7 @@ if ($lokMinMax) {
 }
 // 20260714 SZ - hydrate from $_GET first (this is the only source for plain navigation - pagination,
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // back button, direct links - which is always a GET request with no $_POST at all), then let an actual
 // form submit (POST) overlay on top. Same "GET baseline, POST overlay" shape as includes/salgsstat.php's
 // input handling, chosen over the previous if($_POST)/else($_GET) fork specifically because that fork
@@ -516,14 +517,15 @@ function varegruppe($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,
 #	if ($returside) $luk= "<a accesskey=L href=\"$returside\">";
 #	else
 
-$luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$varegruppe&afd=$afd&lev=$lev&ref=$ref&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
+$lukHref = "rapport.php?varegruppe=$varegruppe&afd=$afd&lev=$lev&ref=$ref&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal";
+$luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 	if ($vrGridMode) {
 		// Grid Framework header bar - mirrors includes/salgsstat.php's $ssPageFlex header. The full title
 		// (incl. afd/lev/ref suffixes) and the grid table itself aren't printed until further down, once
 		// $vrTitleExtra / $lagergruppe are known - see the matching branches below.
 		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 		print "<div id='vrPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+		print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
 	} elseif ($menu=='S') {
 		print "<table width = 100% cellpadding='1' cellspacing='1' border='0'><tbody>";
 
@@ -581,14 +583,12 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		// Full header bar now that $vrTitleExtra/$luk are known - back button (with icon, matching
 		// includes/salgsstat.php) / title / CSV export (reuses the existing CSV feature as the header's
 		// 3rd button).
-		$vrTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-		print "<td width='10%' align='left'>$luk
-			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$vrTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " | " . findtekst('2746|Varesalg', $sprog_id) . " | " . dkdato($date_from) . " - " . dkdato($date_to) . $vrTitleExtra . "</td>";
-		print "<td width='10%' align='center'><a href='../temp/$db/salgsrapport.csv' target='_blank'>
-			   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
-		print "</tr></tbody></table>";
+		include_once("../includes/stdFunc/pageBar.php");
+		page_bar(array(
+			'title' => findtekst('1142|Rapport', $sprog_id) . " | " . findtekst('2746|Varesalg', $sprog_id) . " | " . dkdato($date_from) . " - " . dkdato($date_to) . $vrTitleExtra,
+			'actions' => array(array('CSV', "../temp/$db/salgsrapport.csv", 'bx-download', '_blank')),
+			'back' => $lukHref,
+		));
 		print "</div>\n"; // <- close flex:0 wrapper around the header bar
 	} elseif ($menu=='S') {
 	print "</td>";

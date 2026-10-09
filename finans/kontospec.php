@@ -32,6 +32,7 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261005 Sawaneh WP-4.6: order and journal drill-downs return to the same account and month (raw month).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 
 $fakturanr = array();
@@ -120,24 +121,16 @@ $txt2132 = findtekst('2132|bilag', $sprog_id);
 // Top navigation
 if ($menu == 'S') {
     ############################
-     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-
     ##########################
 	$center = "";
 	$width = "width=10%";
+	$ksTitle = findtekst(1196, $sprog_id) . " ";
+	if ($kontonr) $ksTitle .= "$txt2131: $kontonr";
+	if ($bilag) $ksTitle .= "$txt2132: $bilag";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $ksTitle, 'back' => 'regnskab.php'));
 	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
 	print "<tr><td align='center' valign='top' height='1%'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
-
-    print "<td width='10%'><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'>
-           <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" .$icon_back  . findtekst(30, $sprog_id) . "</button></a></td>";
-
-    print "<td width='80%' align='center' style='$topStyle'>" . findtekst(1196, $sprog_id) . " ";
-    if ($kontonr) print "$txt2131: $kontonr";
-    if ($bilag) print "$txt2132: $bilag";
-
-    print " </td><td width='10%' align='center' style='$topStyle'><br></td>";
-    print "</tbody></table>";
     print "</td></tr>";
     print "<tr><td valign=\"top\">";
 	####

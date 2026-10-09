@@ -26,6 +26,7 @@
 // 20260930 LOE SST-836 The report has menu entries now, so it takes its return page from the link
 //                  that opened it and offers the per-item batch overview from the item number.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id = session_id();
@@ -72,13 +73,10 @@ $export_csv = isset($_GET['csv']) ? $_GET['csv'] : '';
 
 // Header
 if ($menu == 'S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'back' => $returside));
 	print "<table width='100%' cellspacing='2'><tbody>";
 	print "<tr><td colspan='9'>";
-	print "<table width='100%' cellspacing='2'><tbody>";
-	print "<td width='10%'><a href='$returhref' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
-	print "<td width='10%' align='center' style='$topStyle'><br></td>";
-	print "</tbody></table>";
 } else {
 	print "<table width='100%' cellspacing='2'><tbody>";
 	print "<tr><td colspan='9'>";

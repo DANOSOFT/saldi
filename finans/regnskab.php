@@ -135,42 +135,21 @@ $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -
 // 	print "</td></tr> ";
 // }
 
-print "<div id='regnskab-topbar'>";
-print "<tr><td height='25' align='center' valign='top'>";
-print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+// 20261008 Sawaneh The page on the new page head (page_bar): Regnskab / Budget as tabs, tour kept for the Assist menu.
+include_once("../includes/stdFunc/pageBar.php");
 // WP-4.16: a close control again - Luk in a popup window, Tilbage when the page was opened with a returside;
 // opened inline from the menu (no returside) it has none, as before.
 $lukHref = !empty($_GET['popup']) ? '../includes/luk.php' : (nav_sanitize_returside(isset($_GET['returside']) ? $_GET['returside'] : '') !== '' ? $backUrl : '');
-if ($lukHref !== '') {
-	print "<td width='5%' style='$buttonStyle'><a href='" . htmlspecialchars($lukHref, ENT_QUOTES) . "' accesskey='L'>
-    <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(!empty($_GET['popup']) ? '2172|Luk' : '30|Tilbage', $sprog_id) . "</button></a></td>";
-}
-print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
-
-print "<td width='200px' align='center'>
-    <button class='headerbtn' style='$butDownStyle; width:100%'>
-    ". $finans .findtekst('849|Regnskab', $sprog_id)."
-    </button></td>";
-
-print "<td>&nbsp;</td>";
-
-print "<td id='budget-link' width='200px' align='center'>
-    <a href='budget.php?returside=" . urlencode($backUrl) . "'>
-    <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-    $icon_budget Budget
-    </button></a></td>";
-
-print "</tbody></table></td>";
-
-print "<td id='tutorial-help' width='5%' style='$buttonStyle'>
-    <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-    $help_icon ".findtekst('2564|Hjælp', $sprog_id)."
-    </button></td>";
-
-print "</tbody></table></td></tr>";
-
-print "</tbody></table>";
-print "</div>";
+page_bar(array(
+	'title' => findtekst('849|Regnskab', $sprog_id),
+	'tabs' => array(
+		array(findtekst('849|Regnskab', $sprog_id), 'regnskab.php', true),
+		array('Budget', 'budget.php?returside=' . urlencode($backUrl), false),
+	),
+	'back' => $lukHref,
+	'help' => true,
+));
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
 
@@ -392,7 +371,7 @@ while ($row = db_fetch_array($query)){
 $cols+=$maanedantal;
 print "<style>
 .regnskab-wrapper {
-    height: calc(100vh - 50px);
+    height: calc(100vh - 128px);
     width: 100%;
     overflow: auto;
     position: relative;

@@ -23,6 +23,7 @@
 // 
 // 20140704 Oprydning og sproglig forbedring                                 ca
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id=session_id();
@@ -86,22 +87,13 @@ else $luk="rapport.php";
 print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 if ($menu == 'S') {
 	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
-	print "<tr><td colspan='4' height='8'>";
-	print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>"; #B
-
-	$tekst=findtekst('2181|Klik her for at lukke Top100', $sprog_id);
-
-	print "<td width='10%'><a href='$luk' accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$tekst'>"
-		   .findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
-
-	print "<td width='80%' style='$topStyle' align='center'>".findtekst('922|Salgstatsstik',$sprog_id)."</td>";
-
-	print "<td width='10%' title='$rtekst'>
-		   <a href=salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on accesskey=B>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('913|Søg', $sprog_id)."<br></button></a></td>";
-
-	print "</tbody></table>";
+	print "<tr><td colspan='4'>";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('922|Salgstatsstik', $sprog_id),
+		'actions' => array(array(findtekst('913|Søg', $sprog_id), "salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on", 'bx-search', '', 'accesskey' => 'B')),
+		'back' => $luk,
+	));
 	print "</td></tr>\n";
 	print "<tr><td width='100%'>";
 } else {

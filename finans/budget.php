@@ -117,32 +117,17 @@ while ($r=db_fetch_array($q)) {
 	if ($x && $md[$x]==$md[$x-1] && $kontonr[$x]==$kontonr[$x-1]) db_modify("delete from budget where id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
 	$x++;
 }
-print "<tr><td height='25' align='center' valign='top'>";
-print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
-
-print "<td width='200px' align='center'>
-    <a href='regnskab.php?returside=" . urlencode($returside) . "'>
-    <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-    $icon_regnskab ".findtekst('849|Regnskab', $sprog_id)."
-    </button></a></td>";
-
-print "<td>&nbsp;</td>";
-
-print "<td width='200px' align='center'>
-    <button class='headerbtn' style='$butDownStyle; width:100%'>
-    $icon_budget Budget
-    </button></td>";
-
-print "</tbody></table></td>";
-
-print "<td id='tutorial-help' width='5%' style='$buttonStyle'>
-    <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-    $help_icon ".findtekst('2564|Hjælp', $sprog_id)."
-    </button></td>";
-
-print "</tbody></table></td></tr>";
-print "</tbody></table>";
+// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+// 20261008 Sawaneh The page on the new page head (page_bar): Regnskab / Budget as tabs, tour kept for the Assist menu.
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array(
+	'title' => 'Budget',
+	'tabs' => array(
+		array(findtekst('849|Regnskab', $sprog_id), 'regnskab.php?returside=' . urlencode(isset($returside) ? (string) $returside : ''), false),
+		array('Budget', 'budget.php', true),
+	),
+	'help' => true,
+));
 
 while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 #echo "$slutdato, $slutmaaned, $slutaar	";				
@@ -269,7 +254,7 @@ $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
 print "<style>
 .budget-wrapper {
-    height: calc(100vh - 50px);
+    height: calc(100vh - 128px);
     width: 100%;
     overflow: auto;
     position: relative;

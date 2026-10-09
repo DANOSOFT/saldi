@@ -138,6 +138,7 @@ else {
 	$returside="rapport.php?varegruppe=$varegruppe";
 }
 // 20260714 SZ - GET baseline (covers pagination/back-button/direct-link navigation, which is a plain
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // GET request with no $_POST at all) first, then an actual search-form submit (POST) overlays on top -
 // same GET-first/POST-overlay shape as includes/salgsstat.php's input handling. This also fixes
 // showClosed reading from $_POST here (a typo - every other field in this branch reads $_GET), which
@@ -340,18 +341,15 @@ $lsCsvHref = "lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zS
 foreach ($lsSFields as $lsSField) $lsCsvHref .= "&lss_".$lsSField."=".urlencode((string)$lsS[$lsSField]);
 
 if ($lsGridMode) {
-	$lsTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	print "<div id='lsPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-	print "<td width='10%' align='left'><a href='$returside' accesskey=L>
-		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$lsTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>" . ucfirst(findtekst('992|Lagerstatus', $sprog_id)) . "</td>";
-	print "<td width='10%' align='center'><a href='$lsCsvHref' title=\"".findtekst('1655|Klik her for at eksportere til csv', $sprog_id)."\">
-		   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
-	print "</tr></tbody></table>\n";
+	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => ucfirst(findtekst('992|Lagerstatus', $sprog_id)),
+		'actions' => array(array('CSV', $lsCsvHref, 'bx-download')),
+		'back' => $returside,
+	));
 } else {
 	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
 	print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";

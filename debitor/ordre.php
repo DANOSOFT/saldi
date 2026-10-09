@@ -155,6 +155,7 @@
 //                  embedded (form actions, prev/next, view toggles, swap, print, hidden input escaped); old encoded rows are decoded.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
+// 20261008 Sawaneh The order heading has no dangling dash when there is nothing after the number (breadcrumb and page head).
 
 @session_start();
 $s_id = session_id();
@@ -3835,8 +3836,7 @@ function ordreside($id, $regnskab)
 	} elseif ($krediteret) {
 		sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr ( krediteret p&aring; KN nr: $krediteret )");
 	} else {
-		if ($returside == "ordreliste.php") sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
-		else sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
+		sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr" . (trim((string) $temp) !== '' ? " - $temp" : ''));
 	}
 	// -- Stock-warning banner: sits between the title bar (rendered by sidehoved()) and the order form.
 	if ($id && function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {

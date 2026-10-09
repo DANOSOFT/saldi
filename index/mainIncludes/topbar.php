@@ -40,6 +40,7 @@
 // 20261004 Sawaneh Gear link next to the breadcrumb: the settings section that governs the page in the frame (settings redesign §8.11).
 // 20261002 Sawaneh Breadcrumb element in the left side, filled by the shell on settings pages (settings redesign §8.0).
 // 20261008 Sawaneh Tema (Lys / Mørk / System) as a segment in the chip menu, prototype_dashboard_tema v5.
+// 20261008 Sawaneh Sagsstyring in the chip menu, only for companies with the module (prototype_dashboard_tema v5).
 
 /**
  * Sessions in the master `online` table that belong to the caller's company and
@@ -454,6 +455,10 @@ function topbar_render(array $ctx, int $sprogId): void
           <?php } ?>
 
           <button type="button" class="topbar-pop-item" role="menuitem" onclick="topbarPrint()"><i class='bx bx-printer'></i><?= $t('5602|Print side') ?></button>
+          <?php if ($ctx['sagerUrl'] !== '') { ?>
+          <div class="topbar-pop-sep"></div>
+          <a class="topbar-pop-item" role="menuitem" href="<?= topbar_h($ctx['sagerUrl']) ?>" target="_top"><i class='bx bx-briefcase'></i><?= $t('5607|Sagsstyring') ?></a>
+          <?php } ?>
 
           <div class="topbar-mobile">
             <div class="topbar-pop-sep"></div>

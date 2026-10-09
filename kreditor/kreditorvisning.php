@@ -32,6 +32,7 @@
 // 20261008 Sawaneh WP-3.4: in a popup (popup=1) Tilbage closes it through luk.php, otherwise the returside or the creditor
 //                  list; the forms keep the popup flag.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 	
 @session_start();
 $s_id=session_id();
@@ -109,6 +110,10 @@ if (isset($_POST) && $_POST && isset($_POST["cat_antal"])) {
 }
 
 print "<div align=\"center\">";
+if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => findtekst('1189|Kreditorvisning', $sprog_id), 'back' => $returside));
+}
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #Tabel 1 ->
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>"; #Tabel 1.1 ->
@@ -145,11 +150,7 @@ global $sprog_id;
 include("../includes/topline_settings.php");
 
 if ($menu=='S') {
-	print "<td width='10%' align=center><a href='$backAttr' accesskey=L>
-		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-	print "<td width='80%' align=center style='$topStyle'>".findtekst('1189|Kreditorvisning', $sprog_id)."</a></td>
-		   <td width='10%' align=center style=$topStyle><br></div></td>
-		   </tr>";
+	print "<tr></tr>";
 } else {
 print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href='$backAttr' accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div></td>
 	   <td width=\"80%\" align=center><div class=\"top_bund\">".findtekst('1189|Kreditorvisning', $sprog_id)."</a></div></td>

@@ -38,6 +38,7 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id = session_id();
@@ -370,17 +371,15 @@ elseif ($kontotype == 'X')
 */
 
 if ($menu == 'S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('443|Kontokort', $sprog_id),
+		'primary' => array(findtekst('7006|Ny konto', $sprog_id), 'kontokort.php', 'accesskey' => 'N'),
+		'back' => 'kontoplan.php',
+	));
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\"  height=1% valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	print "<tr><td width=\"10%\"><a href=kontoplan.php accesskey=L>
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-  print "<td width=\"80%\" align='center' style='$topStyle'> ". findtekst('443|Kontokort', $sprog_id)."</td>";
-
-	print "<td width=\"10%\"><a href=kontokort.php accesskey=N>
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><br></td></tr>";
 
 	if ($previousPage)
 		print "<tr><td colspan=2><a href='kontokort.php?id=$previousPage'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";

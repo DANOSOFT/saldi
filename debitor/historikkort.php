@@ -29,6 +29,7 @@
 // 20261006 Sawaneh WP-2.4/2.5: Tilbage uses the returside (historikkort had no luk handler -> dashboard); Ny opens a blank
 //                  card that returns here (was: the same customer, returning without id).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The card on the new page head (page_bar).
 
 @session_start();
 $s_id = session_id();
@@ -281,45 +282,13 @@ if (strstr($returside, 'historikkort.php')) $returside = "historik.php";
 if ($returside == 'debitorkort.php') $returside.= "?id=$id";
 
 if ($menu == 'S') {
-    ############################
-     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-
-    ##########################
-	$center = "";
-	$width = "width=10%";
-	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
-	print "<tr><td align='center' valign='top' height='1%'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
-
-	$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-	print "<td width='10%' align=center><a href=\"javascript:confirmClose('$returside')\" accesskey=L>
-		  <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".$icon_back  . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-
-	print "<td width='80%' align=center style='$topStyle'>" . findtekst('1668|Historik for debitor', $sprog_id) . "</td>\n";
-
-	print "<td width='10%' align=center style='$buttonStyle;'>
-		   <br></td>\n";
-
-	print "</tbody></table>\n"; #tabel2a slut
-	print "</td></tr>\n";
-	print "<tr><td width=\"100%\" valign=\"top\">";
-    ####
-    print "</td></tr>\n";
-
-    print "</tbody></table>\n";  # tabel1 slut
-    #####
-
-    ?>
-    <style>
-    .headerbtn, .center-btn {
-		display: flex;
-		align-items: center;
-		text-decoration: none;
-		gap: 5px;
-	}
-    </style>
-    <?php
-
+	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('1668|Historik for debitor', $sprog_id),
+		'back' => "javascript:confirmClose('$returside')",
+	));
+	print "<style>a:link { text-decoration: none; }</style>\n";
 } else {
 	$center = "";
 	$width = "width=10%";

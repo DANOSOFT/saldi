@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id=session_id();
@@ -119,7 +120,8 @@ if ($rexists=db_fetch_array(db_select($qexists,__FILE__ . " linje " . __LINE__))
 // Top layout
 if ($menu=='S') {
 $classtable2 ="";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n   <td width=\"10%\" align=center><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>\n   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>\n   <td width='80%' align=center style='$topStyle'>$title</td>\n   <td width='10%' align=center style='$topStyle'><br></td></tr>\n   </tr>\n   </tbody></table>\n   </td></tr>";
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => $title, 'back' => "ordreliste.php?valg=$valg&sort=$sort"));
 print "<center>";
 } else {
 $classtable2 ="";

@@ -28,6 +28,7 @@
 // 20260618 LOE Added sticky header for S-mode and added a scrollable table for the data table in S-mode co-authored by Aj
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id = session_id();
@@ -310,8 +311,6 @@ if ($rapportart == "regnskabbasis")
 if ($menu == 'S') {
         $backUrl = "rapport.php?rapportart=regnskabbasis&regnaar=$regnaar&maaned_fra=$mf&aar_fra=$aar_fra&maaned_til=$mt&aar_til=$aar_til&dato_fra=$startdato&dato_til=$slutdato&konto_fra=$konto_fra&konto_til=$konto_til";
         
-        $tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-        
         // Get CVR number
         $query = db_select("select cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
         if ($row = db_fetch_array($query))
@@ -323,24 +322,18 @@ if ($menu == 'S') {
         if ($slutdato < 10) $slutdato_fmt = "0" . (int)$slutdato;
         else $slutdato_fmt = $slutdato;
 
-        print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: $bgcolor;\">";
+        print "<div class='pg-sticky' style=\"position: sticky; top: 0; z-index: 100; background-color: $bgcolor;\">";
 
         // Internal padding shell to align the elements cleanly with the rest of the application grid
         print "<div>";
 
         // Action Top Menu Bar
 
-        print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
-        print "<table width='100%' cellpadding='0' cellspacing='4' border='0'><tbody>";
-        print "<tr>";
-        print "<td width=\"5%\" align='center'><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style=\"text-decoration: none;\">";
-        print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
-        print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-        print "<td width='75%' align='center' style='$topStyle'>" . findtekst('2326|Regnskab Basis', $sprog_id) . " ". findtekst('895|Finansrapport', $sprog_id) . "</td>";
-        print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
-        print "</tr>";
-        print "</tbody></table>";
-        print "</div>";
+        include_once("../includes/stdFunc/pageBar.php");
+        page_bar(array(
+            'title' => findtekst('2326|Regnskab Basis', $sprog_id) . ' ' . findtekst('895|Finansrapport', $sprog_id),
+            'back' => "javascript:confirmClose('$backUrl','')",
+        ));
         
         // Customer Info Header Block
         print "<table width='100%' cellpadding='4' cellspacing='0' border='0' style='margin: 0 0 0 0;'>";

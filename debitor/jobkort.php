@@ -21,6 +21,7 @@
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The card sits under the new page head (topLineJobkort.php, page_bar): wrapper height adjusted.
 
 @session_start();
 $s_id=session_id();
@@ -205,7 +206,7 @@ if ($menu=='S') {
 
 // Add scrollable wrapper for side menu
 if ($menu=='S') {
-	print "<tr><td style='width: 100%; height: calc(100vh - 110px); overflow-y: auto; display: block;'>\n";
+	print "<tr><td style='width: 100%; height: calc(100vh - 176px); overflow-y: auto; display: block;'>\n";
 }
 
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" widht=\"800\"><tbody>";

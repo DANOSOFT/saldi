@@ -28,6 +28,7 @@
 // 20260907 CL/LH Saml kun rækker med samme linje_id (ikke modtime), bevar fortegn på
 //                lagerreguleringer og genopret tom firmanavn-celle ved slettet ordre (#495).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 function varesporBatchRows($table, $vareId, $excludeZero = false) {
 	if ($table !== 'batch_kob' && $table !== 'batch_salg') {
@@ -102,17 +103,10 @@ $query = db_select("select * from varer where id=$vare_id",__FILE__ . " linje " 
 $row = db_fetch_array($query);
 
 if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'back' => $returside));
 	print "<table width=100% cellspacing=2><tbody>";
 	print "<tr><td colspan=5>";
-	print "<table width=100% cellspacing=2><tbody>";
-
-	print "<td width=10%><a href=$returside accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-	print "<td width=80% align='center' style='$topStyle'>$title</td>";
-	print "<td width=10% align='center' style='$topStyle'><br></td>";
-
-	print "</tbody></table>";
 } else {
 	print "<table width=100% cellspacing=2><tbody>";
 	print "<tr><td colspan=5>";
