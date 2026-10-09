@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- patch 5.0.0 --- 2026-08-25 ---
+// --- debitor/api.php --- patch 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
@@ -41,6 +41,7 @@
 // 20260825 CL/NTR - Added 0184 (Danish CVR) to the Peppol scheme map so an "0184:xxxxxxxx" EAN gets the DK prefix and correct country code instead of falling through unprefixed.
 // &&       Also added "0088" as a swedish prefix.
 // 20260914 Sawaneh    JOB-141: getInvoicesOrder() classifies EasyUBL's reply with
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 //                     easyubl_interpret_response() (includes/stdFunc/easyUblResponse.php) - the
 //                     error branch looked for errorMessage/error, which EasyUBL never sends
 //                     (it returns errNo/message), so real API errors showed as "Uventet svar".
@@ -281,7 +282,7 @@
                 // 20260902 CL/LH  L4 finding integration-flows DEVY-1/3: bound the call so a hung EasyUBL/locator endpoint cannot wedge the request
                 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
                 curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-                curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=insertCompanyId&companyId=$companyId&globalId=$globalid");
+                curl_setopt($ch, CURLOPT_URL, "https://ssl3.saldi.dk/locator/locator.php?action=insertCompanyId&companyId=$companyId&globalId=$globalid");
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json"));
                 $res = curl_exec($ch);
