@@ -56,8 +56,10 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/partnerScope.php");
+include("../includes/entitlements.php");
 include("vr_ui.php");
 partner_tables_ensure();
+$vr_plans = ent_plans_by_ledger();
 
 $saldiregnskab = NULL; # Lukkes / Betalt til / Logintekst are kept out of this page (see Admin Panel)
 $lukket=array();
@@ -339,6 +341,7 @@ if ($rediger) print "<form name=\"regnskaber\" id=\"vrForm\" action=\"vis_regnsk
 print "<table class=\"vr-t\" id=\"vrTable\">\n<thead><tr>";
 print vr_sort_th('id', 'Id', '', 'vr-r vr-id');
 print vr_sort_th('regnskab', findtekst('2682|Regnskab', $sprog_id));
+print "<th>".vr_t('Pakke','Plan')."</th>";
 if ($admin) print "<th>".vr_t('Tilhører', 'Belongs to')."</th>";
 print vr_sort_th('brugerantal', findtekst('777|Brugere', $sprog_id), vr_t('Maks. antal brugere', 'Maximum number of users'), 'vr-r');
 print vr_sort_th('posteret', findtekst('1910|Posteringer', $sprog_id), vr_t('Posteringer de seneste 12 måneder / posteringsgrænse', 'Entries in the last 12 months / entry limit'), 'vr-r');
@@ -349,7 +352,7 @@ print vr_sort_th('lukket', findtekst('494|Status', $sprog_id));
 print "</tr></thead>\n<tbody>\n";
 
 $vr_openAttr = $vr_warnOpen ? " onclick=\"return vrWarnOpen(this);\"" : "";
-$vr_row = function($x, $indent = false) use (&$id, &$regnskab, &$db_navn, &$posteringer, &$posteret, &$brugerantal, &$sidst, &$email, &$booking, &$lukket, $rediger, $vr_openAttr, $admin, $vr_links, $vr_homes, $sprog_id) {
+$vr_row = function($x, $indent = false) use (&$id, &$regnskab, &$db_navn, &$posteringer, &$posteret, &$brugerantal, &$sidst, &$email, &$booking, &$lukket, $rediger, $vr_openAttr, $admin, $vr_links, $vr_homes, $sprog_id, $vr_plans) {
 	if (!$sidst[$x]) $sidst[$x]=0;
 	$n = $x+1; # form index, as before (db_antal counts from 1)
 	$pct = $posteringer[$x] ? min(100, (int) round($posteret[$x] / $posteringer[$x] * 100)) : 0;
@@ -367,6 +370,8 @@ $vr_row = function($x, $indent = false) use (&$id, &$regnskab, &$db_navn, &$post
 	print (int)$id[$x]."</td>";
 	$home = isset($vr_homes[(int)$id[$x]]) ? $vr_homes[(int)$id[$x]] : null;
 	print "<td class=\"vr-nm\"><a href=\"$openHref\"$vr_openAttr>".vr_h($regnskab[$x])."</a>".($home ? " <span class=\"vr-pill\">".vr_h(strtolower(vr_kind($home['kind'])))."</span>" : "")." <a class=\"vr-card-link\" href=\"regnskab.php?id=".(int)$id[$x]."\" title=\"".vr_t('Regnskabskort', 'Account card')."\">".vr_t('Kort', 'Card')."</a><small>".vr_h($db_navn[$x])."</small></td>";
+	$pk = isset($vr_plans[(int)$id[$x]]) ? $vr_plans[(int)$id[$x]] : null;
+	print "<td class=\"vr-mut\">".($pk ? vr_h(ent_plan_name($pk)) : '<span class="vr-mut2">–</span>')."</td>";
 	if ($admin) {
 		$lk = isset($vr_links[(int)$id[$x]]) ? $vr_links[(int)$id[$x]] : array();
 		if ($lk) print "<td class=\"vr-mut\"><a href=\"partnere.php?id=".(int)$lk[0]['id']."\">".vr_h($lk[0]['name'])."</a>".(count($lk) > 1 ? "<span class=\"vr-plus\">+".(count($lk)-1)."</span>" : "")."</td>";
