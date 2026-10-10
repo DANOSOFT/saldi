@@ -20,6 +20,8 @@ class CustomerModel
     private $notes;
     private $betalingsbet;
     private $betalingsdage;
+    private $pbs = null;          // 20261010 CL/ASR Betalingsservice agreement (adresser.pbs / pbs_nr), read-only
+    private $stripe = null;       // 20261010 CL/ASR Stripe subscription status from stripe_customers when the table exists, read-only
     private $ean;
     private $fornavn;
     private $efternavn;
@@ -95,6 +97,12 @@ class CustomerModel
             $this->kontakt = $r['kontakt'];
             $this->kontonr = $r['kontonr'];
             $this->gruppe = (int)$r['gruppe']; // 20260812 CL/LH (SD-621): gruppe was never hydrated, so toArray() returned null and the group was lost on API read-back
+            // 20261010 CL/ASR payment channel facts for the operator panel (read-only, additive)
+            $this->pbs = array('active' => (isset($r['pbs']) && ($r['pbs'] === 'on' || $r['pbs'] === 't' || $r['pbs'] === '1' || $r['pbs'] === true)), 'number' => isset($r['pbs_nr']) ? $r['pbs_nr'] : null, 'since' => isset($r['pbs_date']) ? $r['pbs_date'] : null);
+            if (function_exists('tbl_exists') && tbl_exists('stripe_customers')) {
+                $sq = db_select("SELECT stripe_subscription_id, status, updated_at FROM stripe_customers WHERE konto_id = " . (int)$this->id . " ORDER BY updated_at DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
+                if ($sq && ($sr = db_fetch_array($sq))) $this->stripe = array('status' => $sr['status'], 'subscriptionId' => $sr['stripe_subscription_id'], 'updatedAt' => $sr['updated_at']);
+            }
 
             // Load kontakt_emails
             $this->kontakt_emails = [];
@@ -395,7 +403,9 @@ class CustomerModel
             'gruppe' => $this->gruppe,
             'kontonr' => $this->kontonr,
             'kundenr' => $this->kontonr,
-            'kontakt_emails' => $this->kontakt_emails
+            'kontakt_emails' => $this->kontakt_emails,
+            'pbs' => $this->pbs,
+            'stripe' => $this->stripe
         );
     }
 

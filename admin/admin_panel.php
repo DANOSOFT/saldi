@@ -40,6 +40,7 @@ include("../includes/entitlements.php");
 include("vr_ui.php");
 include("inc_abonnement.php");
 include("inc_forbrug.php");
+include("inc_betalinger.php");
 partner_tables_ensure();
 ent_tables_ensure();
 
@@ -437,6 +438,7 @@ if ($filter_regnskab) {
 	}
 	ent_tab_actions($rid, $reg, $notes);
 	ent_forbrug_actions($rid, $notes);
+	bill_actions($rid, $notes);
 	// partner links (operator)
 	if (isset($_POST['vr_action'])) {
 		if ($_POST['vr_action'] == 'link') {
@@ -508,18 +510,10 @@ if ($filter_regnskab) {
 	} elseif ($tab == 'brugere') {
 		print "<section class=\"vr-sect\"><h2>".vr_t('Kundens brugere','Customer users')." <small>".($live['ok'] ? $live['users'].' '.vr_t('aktive','active') : '')."</small></h2><div class=\"vr-card\"><div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"uq\" placeholder=\"".vr_t('Søg bruger','Search user')."\" oninput=\"filterUsers(this.value)\"></label><span class=\"vr-hint\">".vr_t('Klik på en bruger for at rette adgangskode, e-mail, telefon, IP og 2FA','Click a user to edit password, e-mail, phone, IP and 2FA')."</span></div><div id=\"usersBox\"><div class=\"vr-empty\"><span>".vr_t('Henter brugere…','Loading users…')."</span></div></div></div></section>\n";
 	} elseif ($tab == 'betalinger') {
-		$api_search = $live['cvr'] ? $live['cvr'] : $reg['regnskab'];
-		$pd = fetch_customer_invoices($api_search);
-		print "<section class=\"vr-sect\"><h2>".vr_t('Seneste betaling','Latest payment')." <small>".vr_t('fra Saldis faktureringsregnskab via API','from Saldi\'s billing ledger via API')." · ".vr_t('søgt på','searched by')." ".vr_h($api_search)."</small></h2><div class=\"vr-card\">";
-		if (isset($pd['error'])) print "<div class=\"vr-empty\"><b>".vr_h($pd['error'])."</b><span>".vr_t('API-opslaget går til ssl3 og kræver, at kundens CVR eller navn findes i faktureringsregnskabet.','The API lookup goes to ssl3 and needs the customer CVR or name in the billing ledger.')."</span></div>";
-		else {
-			$inv = $pd['invoices']; $lt = $inv[0]; $sum = (float)($lt['economic']['sum'] ?? 0); $vat = (float)($lt['economic']['vat'] ?? 0); $paid = ($lt['paid'] == '1' || $lt['paid'] === true);
-			print "<div class=\"vr-kv\"><div><span>".vr_t('Seneste faktura','Latest invoice')."</span><b><a class=\"vr-link\" onclick=\"openInvoice(".(int)$lt['id'].")\">#".vr_h($lt['invoiceNo'] ?? $lt['orderNo'] ?? '-')."</a> · ".($lt['invoiceDate'] ? date('d-m-Y', strtotime($lt['invoiceDate'])) : '–')." · <span class=\"vr-st\"><span class=\"vr-dot ".($paid ? 'vr-ok' : 'vr-warn')."\"></span>".($paid ? vr_t('Betalt','Paid') : vr_t('Ubetalt','Unpaid'))."</span></b></div><div><span>".vr_t('Beløb inkl. moms','Amount incl. VAT')."</span><b>".number_format($sum + $vat, 2, ',', '.')." DKK</b></div><div><span>".vr_t('Ekskl. moms / moms','Excl. VAT / VAT')."</span><b>".number_format($sum, 2, ',', '.')." / ".number_format($vat, 2, ',', '.')."</b></div><div><span>".vr_t('Firma','Company')."</span><b>".vr_h($lt['companyName'] ?? '-')."</b></div><div><span>".vr_t('Betalingsbetingelser','Payment terms')."</span><b>".vr_h($lt['paymentInfo']['paymentTerms'] ?? '-')."</b></div></div>";
-			print "<table class=\"vr-t\"><thead><tr><th>".vr_t('Faktura','Invoice')."</th><th>".vr_t('Dato','Date')."</th><th class=\"vr-r\">".vr_t('Beløb','Amount')."</th><th>".vr_t('Status','Status')."</th></tr></thead><tbody>";
-			foreach ($inv as $i => $v) { $p = ($v['paid'] == '1' || $v['paid'] === true); print "<tr".($i >= 8 ? " class=\"vr-more\" hidden" : "")." onclick=\"openInvoice(".(int)$v['id'].")\" style=\"cursor:pointer\"><td class=\"vr-nm\"><a>#".vr_h($v['invoiceNo'] ?? $v['orderNo'] ?? '-')."</a></td><td class=\"vr-mut\">".($v['invoiceDate'] ? date('d-m-Y', strtotime($v['invoiceDate'])) : '–')."</td><td class=\"vr-r vr-num\">".number_format((float)($v['economic']['sum'] ?? 0) + (float)($v['economic']['vat'] ?? 0), 2, ',', '.')."</td><td><span class=\"vr-st\"><span class=\"vr-dot ".($p ? 'vr-ok' : 'vr-warn')."\"></span>".($p ? vr_t('Betalt','Paid') : vr_t('Ubetalt','Unpaid'))."</span></td></tr>"; }
-			print "</tbody></table>".(count($inv) > 8 ? "<div class=\"vr-foot\"><span class=\"vr-grow\"></span><button type=\"button\" class=\"vr-btn vr-quiet\" onclick=\"document.querySelectorAll('tr.vr-more').forEach(function(t){t.hidden=false});this.remove()\">".vr_t('Vis alle','Show all')." (".count($inv).")</button></div>" : "");
-		}
-		print "</div></section>\n<div class=\"vr-scrim\" id=\"invScrim\" onclick=\"closeInvoice()\"></div><div class=\"vr-dlg\" id=\"invDlg\" style=\"width:720px;max-width:95vw\"><h3 id=\"invTitle\">…</h3><p id=\"invMeta\"></p><div id=\"invBody\"></div><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" onclick=\"closeInvoice()\">".vr_t('Luk','Close')."</button></div></div>\n";
+		$cfg = bill_get($rid);
+		$search = $cfg['billing_kontonr'] ?: ($live['cvr'] ? $live['cvr'] : $reg['regnskab']);
+		$data = bill_fetch($search);
+		bill_render($rid, $reg, $ent, $live, $data, $cfg);
 	} elseif ($tab == 'indstillinger') {
 		$bt = $reg['betalt_til'] && $reg['betalt_til'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['betalt_til'])) : ''; $lk = $reg['lukkes'] && $reg['lukkes'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['lukkes'])) : '';
 		print "<div class=\"vr-grid2\"><section class=\"vr-sect\"><h2>".vr_t('Grænser og lukning','Limits and closing')."</h2><div class=\"vr-card\"><form method=\"post\" action=\"admin_panel.php?regnskab_id=$rid&tab=indstillinger\" class=\"vr-form\"><input type=\"hidden\" name=\"action\" value=\"update_settings\"><input type=\"hidden\" name=\"regnskab_id\" value=\"$rid\">";
