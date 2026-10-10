@@ -21,6 +21,10 @@
 //                  number in the database, split into not due / 1-15 days / over 15 days, the 8 oldest for the list,
 //                  unapplied payments and credit notes as one line. Foreign items with the placeholder rate 100 are
 //                  converted in PHP like openpost_account_aging() does. Links by refnr and ordrer.art (§5.9.4).
+// 20261009 Sawaneh Items without a due date get one from the customer's payment terms with forfaldsdag(), as the
+//                  account card does (§5.9.2 point 4); such items are grouped in PHP like the placeholder-rate ones.
+
+include_once(__DIR__ . "/../../includes/forfaldsdag.php");
 
 /**
  * The rate for a foreign-currency open item on its posting date (the report's rule: VK group, newest valuta row on or
@@ -51,6 +55,15 @@ function dash_unpaid_rate(string $valuta, string $date): float
  * Which page an item opens (§5.9.4): the order for invoices and credit notes, the dunning letter for fees, the journal
  * for journal items, otherwise the customer's account card.
  */
+function dash_unpaid_due(array $r): string
+{
+	if ((string) $r['forfaldsdate'] !== '') {
+		return (string) $r['forfaldsdate'];
+	}
+	$due = forfaldsdag((string) $r['transdate'], (string) $r['betalingsbet'], (int) $r['betalingsdage']);
+	return $due ? usdate($due) : (string) $r['transdate'];
+}
+
 function dash_unpaid_link(array $it): string
 {
 	$refnr = (int) $it['refnr'];
@@ -92,10 +105,11 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 		. "max(case when o.amount > 0 then coalesce(o.kladde_id, 0) else 0 end) as kladde_id, max(case when o.amount > 0 then coalesce(o.beskrivelse, '') else '' end) as beskrivelse, max(coalesce(o.valuta, '')) as valuta "
 		. "from openpost o join adresser a on a.id = o.konto_id and a.art = 'D' where (o.udlignet is null or o.udlignet != '1') "
 		. "group by o.konto_id, $itemKey, a.kontonr, a.firmanavn, a.betalingsbet, a.betalingsdage";
-	$days = ($db_type === 'mysql' || $db_type === 'mysqli') ? "datediff(curdate(), coalesce(i.forfaldsdate, i.transdate))" : "(current_date - coalesce(i.forfaldsdate, i.transdate))";
+	$days = ($db_type === 'mysql' || $db_type === 'mysqli') ? "datediff(curdate(), i.forfaldsdate)" : "(current_date - i.forfaldsdate)";
+	$inSql = "i.net > 0 and i.placeholder = 0 and i.forfaldsdate is not null";
 	$bucket = "case when $days <= 0 then 'ok' when $days <= 15 then 'warn' else 'late' end";
 	$groups = array('late' => array('sum' => 0.0, 'n' => 0), 'warn' => array('sum' => 0.0, 'n' => 0), 'ok' => array('sum' => 0.0, 'n' => 0));
-	$q = db_select("select $bucket as grp, sum(i.net) as s, count(*) as n from ($items) i where i.net > 0 and i.placeholder = 0 group by $bucket", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select $bucket as grp, sum(i.net) as s, count(*) as n from ($items) i where $inSql group by $bucket", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (isset($groups[$r['grp']])) {
 			$groups[$r['grp']] = array('sum' => (float) $r['s'], 'n' => (int) $r['n']);
@@ -104,14 +118,18 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 	$r = db_fetch_array(db_select("select coalesce(sum(i.net), 0) as s from ($items) i where i.net < 0 and i.placeholder = 0", __FILE__ . " linje " . __LINE__));
 	$unapplied = $r ? (float) $r['s'] : 0.0;
 	$list = array();
-	$q = db_select("select i.*, $days as days_over from ($items) i where i.net > 0 and i.placeholder = 0 order by coalesce(i.forfaldsdate, i.transdate), i.item limit " . ($limit * 2), __FILE__ . " linje " . __LINE__);
+	$q = db_select("select i.*, $days as days_over from ($items) i where $inSql order by i.forfaldsdate, i.item limit " . ($limit * 2), __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$list[] = $r;
 	}
-	// Foreign items with the placeholder rate: converted here, counted into the groups, merged into the list.
-	$q = db_select("select i.*, $days as days_over from ($items) i where i.placeholder = 1", __FILE__ . " linje " . __LINE__);
+	// Foreign items with the placeholder rate and items without a due date: converted and dated here, counted into the
+	// groups, merged into the list.
+	$today = strtotime(date('Y-m-d'));
+	$q = db_select("select i.* from ($items) i where i.placeholder = 1 or (i.forfaldsdate is null and i.net > 0)", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$r['net'] = (float) $r['net_cur'] * dash_unpaid_rate((string) $r['valuta'], (string) $r['transdate']) / 100;
+		if ((int) $r['placeholder'] === 1) {
+			$r['net'] = (float) $r['net_cur'] * dash_unpaid_rate((string) $r['valuta'], (string) $r['transdate']) / 100;
+		}
 		if ($r['net'] < 0) {
 			$unapplied += $r['net'];
 			continue;
@@ -119,6 +137,8 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 		if ($r['net'] <= 0) {
 			continue;
 		}
+		$r['forfaldsdate'] = dash_unpaid_due($r);
+		$r['days_over'] = (int) floor(($today - strtotime($r['forfaldsdate'])) / 86400);
 		$over = (int) $r['days_over'];
 		$g = $over <= 0 ? 'ok' : ($over <= 15 ? 'warn' : 'late');
 		$groups[$g]['sum'] += $r['net'];
