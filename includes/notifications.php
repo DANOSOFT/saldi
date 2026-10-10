@@ -29,6 +29,8 @@
 //                  sent by tools/notification_digest.php once a day for users who switched it on.
 // 20261001 Sawaneh notif_ready() remembers its answer per company database (the digest script visits several).
 // 20261002 Sawaneh notif_ready() checks the table's shape: an older unused table has the same name in most companies.
+// 20261010 Sawaneh The Oversigt role keys dashboard.block.news / dashboard.block.expiry (front-page addendum 4) hide the
+//                  news and batch-expiry items in the bell, as those banners now live there (topbar spec §3).
 
 /**
  * @return array<string, string> type -> label text id
@@ -70,6 +72,25 @@ function notif_disabled_types(int $brugerId): array
 		}
 	}
 	return $off;
+}
+
+/**
+ * Items the user's role hides. Resolved for the logged-in user only; the digest script sees everything.
+ */
+function notif_role_filter(int $brugerId): string
+{
+	global $bruger_id;
+	if (!function_exists('perm_can') || (int) $bruger_id !== $brugerId) {
+		return '';
+	}
+	$sql = '';
+	if (!perm_can('dashboard.block.news')) {
+		$sql .= " and n.source_key not like 'news:%'";
+	}
+	if (!perm_can('dashboard.block.expiry')) {
+		$sql .= " and n.source_key != 'batch:expiry'";
+	}
+	return $sql;
 }
 
 /**
@@ -226,7 +247,7 @@ function notif_list(int $brugerId, int $limit = 30): array
 		return $out;
 	}
 	$off = notif_disabled_types($brugerId);
-	$typeFilter = $off ? " and n.type not in ('" . implode("','", array_map('db_escape_string', $off)) . "')" : '';
+	$typeFilter = ($off ? " and n.type not in ('" . implode("','", array_map('db_escape_string', $off)) . "')" : '') . notif_role_filter($brugerId);
 	$qtxt = "select n.id, n.type, n.title, n.body, n.link, n.created, r.read_at from notifications n "
 		. "left join notification_read r on r.notification_id = n.id and r.user_id = $brugerId "
 		. "where (n.user_id is null or n.user_id = $brugerId) and (n.expires is null or n.expires >= current_date)$typeFilter "
