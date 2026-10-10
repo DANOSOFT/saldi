@@ -15,6 +15,8 @@ include("../includes/entitlements.php");
 include("../includes/partnerScope.php");
 include("vr_ui.php");
 include("inc_lifecycle.php");
+include("../includes/saldiBillingApi.php");
+include("inc_betalinger.php");
 $brugernavn = 'cron'; $sprog_id = 1;
 ent_tables_ensure(); partner_tables_ensure();
 $limit = isset($argv[1]) ? (int)$argv[1] : 0;
@@ -29,6 +31,17 @@ foreach ($ids as $reg) {
 	if ($u['ok']) { ent_snapshot_store((int)$reg['id'], $u); $n++; echo str_pad($reg['id'], 5)." ".str_pad($reg['regnskab'], 30)." users ".str_pad((string)$u['users_active'], 4)." post12m ".str_pad((string)$u['postings_12m'], 8)." month ".$u['postings_month']."\n"; }
 	else { $bad++; echo str_pad($reg['id'], 5)." ".str_pad($reg['regnskab'], 30)." (ingen database)\n"; }
 }
-partner_log('ledger.snapshot', null, null, "$n regnskaber, $bad uden database, ".round(microtime(true) - $t0, 1)." s");
+// billing status cache (skipped quietly when the billing API is unreachable, e.g. on test servers)
+$bn = 0;
+if (get_saldi_api_token()) {
+	foreach ($ids as $reg) {
+		if ($limit && $bn >= $limit) break;
+		$cfg = bill_get((int)$reg['id']); $cvr = '';
+		if ($reg['db'] && db_exists($reg['db']) && @db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) { $r = @db_fetch_array(@db_select("select cvrnr from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__)); if ($r) $cvr = str_replace(' ', '', preg_replace('/^DK\s*/i', '', trim((string)$r['cvrnr']))); include("../includes/connect.php"); }
+		$data = bill_fetch($cfg['billing_kontonr'] ?: ($cvr ?: $reg['regnskab'])); bill_cache_store((int)$reg['id'], $data, $cfg); $bn++;
+	}
+	echo "billing: $bn customers checked\n";
+} else echo "billing: API unreachable, cache not refreshed\n";
+partner_log('ledger.snapshot', null, null, "$n regnskaber, $bad uden database, $bn betalingsstatus, ".round(microtime(true) - $t0, 1)." s");
 echo "done: $n snapshots, $bad skipped, ".round(microtime(true) - $t0, 1)." s\n";
 ?>

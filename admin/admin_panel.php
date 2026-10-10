@@ -51,142 +51,7 @@ if (!$_col_check) {
     db_modify("ALTER TABLE regnskab ADD COLUMN lukkes_kommentar text", __FILE__ . " linje " . __LINE__);
 }
 
-// ---- REST API Configuration for ssl3.saldi.dk ----
-$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_user' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
-$saldi_api_user = $query['var_value'];
-$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_pass' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
-$saldi_api_pass = $query['var_value'];
-$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_account' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
-$saldi_api_account = $query['var_value'];
-define('SALDI_API_BASE', 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1');
-define('SALDI_API_USER', $saldi_api_user);
-define('SALDI_API_PASS', $saldi_api_pass);
-define('SALDI_API_ACCOUNT', $saldi_api_account);
-define('SALDI_API_TOKEN_FILE', '/tmp/saldi_api_token_admin.json');
-
-/**
- * Get a cached or fresh JWT token from the Saldi REST API
- */
-function get_saldi_api_token() {
-    // Check for cached token
-    if (file_exists(SALDI_API_TOKEN_FILE)) {
-        $cached = json_decode(file_get_contents(SALDI_API_TOKEN_FILE), true);
-        if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time()) {
-            return $cached['token'];
-        }
-    }
-    
-    $url = SALDI_API_BASE . '/auth/login.php';
-    $postData = json_encode([
-        'username' => SALDI_API_USER,
-        'password' => SALDI_API_PASS,
-        'account_name' => SALDI_API_ACCOUNT
-    ]);
-    
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $postData,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 10,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => 0
-    ]);
-    
-    $response = curl_exec($ch);
-    $curlError = curl_error($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if (!$response || $httpCode !== 200) return null;
-    
-    $data = json_decode($response, true);
-    if (!$data || !$data['success'] || !isset($data['data']['access_token'])) return null;
-    
-    $token = $data['data']['access_token'];
-    
-    // Cache token (expires in 55 min to be safe)
-    file_put_contents(SALDI_API_TOKEN_FILE, json_encode([
-        'token' => $token,
-        'expires' => time() + 3300
-    ]));
-    
-    return $token;
-}
-
-/**
- * Fetch data from the Saldi REST API
- */
-function fetch_saldi_api($endpoint, $token, $params = []) {
-    $url = SALDI_API_BASE . $endpoint;
-    if ($params) $url .= '?' . http_build_query($params);
-    
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $token,
-            'Content-Type: application/json'
-        ],
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 10,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => 0
-    ]);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode !== 200 || !$response) return null;
-    
-    $data = json_decode($response, true);
-    if (!$data || !$data['success']) return null;
-    
-    return $data['data'];
-}
-
-/**
- * Fetch customer invoices from the Saldi API by searching for matching customer name
- */
-function fetch_customer_invoices($search_term) {
-    $token = get_saldi_api_token();
-    if (!$token) return ['error' => 'Kunne ikke logge ind på Saldi API'];
-    
-    // First, search for the customer
-    $customers = fetch_saldi_api('/debitor/customers/index.php', $token, [
-        'search' => $search_term,
-        'limit' => 1
-    ]);
-    
-    if ($customers === null) {
-        return ['error' => 'Kunne ikke hente kunde fra API'];
-    }
-    
-    if (!is_array($customers) || count($customers) === 0 || !isset($customers[0]['kontonr'])) {
-        return ['error' => 'Ingen kunde fundet for "' . htmlspecialchars($search_term) . '"'];
-    }
-    
-    $customer_id = $customers[0]['kontonr'];
-    
-    // Fetch recent invoices for this customer
-    $invoices = fetch_saldi_api('/debitor/invoices/index.php', $token, [
-        'customer' => $customer_id,
-        'limit' => 50,
-        'page' => 1
-    ]);
-    
-    if ($invoices === null) return ['error' => 'Kunne ikke hente fakturaer fra API'];
-    if (!is_array($invoices) || count($invoices) === 0) return ['error' => 'Ingen fakturaer fundet for "' . htmlspecialchars($search_term) . '"'];
-    
-    // Sort by invoiceDate DESC
-    usort($invoices, function($a, $b) {
-        return strcmp($b['invoiceDate'] ?? '', $a['invoiceDate'] ?? '');
-    });
-    
-    return ['invoices' => $invoices];
-}
-
+include("../includes/saldiBillingApi.php");
 // Security check
 if ($db != $sqdb) {
     print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">"; 
@@ -515,7 +380,7 @@ if ($filter_regnskab) {
 	} elseif ($tab == 'betalinger') {
 		$cfg = bill_get($rid);
 		$search = $cfg['billing_kontonr'] ?: ($live['cvr'] ? $live['cvr'] : $reg['regnskab']);
-		$data = bill_fetch($search);
+		$data = bill_fetch($search); bill_cache_store($rid, $data, $cfg);
 		bill_render($rid, $reg, $ent, $live, $data, $cfg);
 	} elseif ($tab == 'indstillinger') {
 		$bt = $reg['betalt_til'] && $reg['betalt_til'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['betalt_til'])) : ''; $lk = $reg['lukkes'] && $reg['lukkes'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['lukkes'])) : '';

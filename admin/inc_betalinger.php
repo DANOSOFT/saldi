@@ -16,6 +16,21 @@ function bill_tables_ensure() {
 	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'regnskab_billing'", __FILE__ . " linje " . __LINE__))) return;
 	db_modify("CREATE TABLE IF NOT EXISTS regnskab_billing (regnskab_id int PRIMARY KEY, billing_kontonr varchar(30), channel varchar(20), payer_name varchar(120), payer_email varchar(120), note text, updated_by text, updated_at timestamp DEFAULT now())", __FILE__ . " linje " . __LINE__);
 }
+function bill_cache_ensure() { # cached payment summary (filled when the tab is viewed and by the nightly job)
+	static $d = false; if ($d) return; $d = true; bill_tables_ensure();
+	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'regnskab_billing' AND column_name = 'pay_status'", __FILE__ . " linje " . __LINE__)))
+		db_modify("ALTER TABLE regnskab_billing ADD COLUMN pay_status varchar(12), ADD COLUMN outstanding_ore bigint, ADD COLUMN overdue_n int, ADD COLUMN oldest_due date, ADD COLUMN last_invoice date, ADD COLUMN checked_at timestamp", __FILE__ . " linje " . __LINE__);
+}
+// Summarise fetched invoices and store the summary for the overview.
+function bill_cache_store($rid, $data, $cfg) {
+	bill_cache_ensure(); if (isset($data['error'])) return;
+	$c = $data['customer']; $defaultDays = (int)($c['betaling']['betalingsdage'] ?? 0); $open = 0; $openN = 0; $overdueN = 0; $oldest = null; $last = null;
+	foreach ($data['invoices'] as $i) { list($st, $due, $tot) = bill_classify($i, $defaultDays); if (!$last && !empty($i['invoiceDate'])) $last = $i['invoiceDate']; if ($st != 'paid') { $open += $tot; $openN++; if ($st == 'overdue') { $overdueN++; if (!$oldest || $due < $oldest) $oldest = $due; } } }
+	$failed = !empty($c['stripe']['status']) && in_array($c['stripe']['status'], array('past_due','unpaid'));
+	$status = $failed ? 'failed' : ($overdueN ? 'overdue' : ($openN ? 'pending' : ($data['invoices'] ? 'paid' : 'none')));
+	if (!db_fetch_array(db_select("select 1 from regnskab_billing where regnskab_id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__))) db_modify("insert into regnskab_billing (regnskab_id) values ('".(int)$rid."')", __FILE__ . " linje " . __LINE__);
+	db_modify("update regnskab_billing set pay_status = '$status', outstanding_ore = '".(int)round($open * 100)."', overdue_n = '$overdueN', oldest_due = ".($oldest ? "'$oldest'" : "NULL").", last_invoice = ".($last ? "'".db_escape_string(substr($last,0,10))."'" : "NULL").", checked_at = now() where regnskab_id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__);
+}
 function bill_get($rid) { bill_tables_ensure(); $r = db_fetch_array(db_select("select * from regnskab_billing where regnskab_id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__)); return $r ? $r : array('billing_kontonr' => '', 'channel' => '', 'payer_name' => '', 'payer_email' => '', 'note' => ''); }
 function bill_actions($rid, &$notes) {
 	if (!isset($_POST['bill_action']) || $_POST['bill_action'] != 'save') return;
