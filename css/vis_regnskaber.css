@@ -10,7 +10,7 @@
   --vr-user:#114691; --vr-user-text:#ffffff;
   --r:16px; --e:cubic-bezier(.2,.8,.2,1);
   --sans:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
-  box-sizing:border-box; width:100%; max-width:1180px; margin:0 auto; padding:26px 36px 120px;
+  box-sizing:border-box; width:100%; max-width:1180px; margin:0 auto; padding:26px 36px 120px; display:block;
   font:14px/1.5 var(--sans); color:var(--text); -webkit-font-smoothing:antialiased;
   font-variant-numeric:tabular-nums;
 }
@@ -154,3 +154,33 @@ html[data-theme="dark"] .vr{
 .vr-note-warn{border-left-color:var(--amber)}
 .vr-btn.vr-danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 35%,var(--border))}
 .vr-sect+.vr-sect{margin-top:22px}
+
+/* ===== shell for the admin layer: sidebar in the user's colour + topbar (20261010) ===== */
+body{margin:0}
+.vr-app{--page:#eef3fb;--surface:#ffffff;--surface-2:#f6f9fe;--border:#dde5f1;--text:#0b1a3a;--text-2:#5b6b85;--text-3:#8a97ad;--link:#1b68bd;--vr-user:#114691;--vr-user-text:#ffffff;
+  --sans:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh;background:var(--page);font:14px/1.5 var(--sans);color:var(--text);-webkit-font-smoothing:antialiased}
+.vr-app::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(900px 520px at 78% -8%,rgba(79,160,238,.16),transparent 62%),radial-gradient(760px 520px at 12% 108%,rgba(139,51,212,.10),transparent 60%)}
+.vr-side{position:sticky;top:0;height:100vh;z-index:3;background:var(--vr-user);color:var(--vr-user-text);padding:16px 12px;display:flex;flex-direction:column;overflow:hidden;background-image:linear-gradient(180deg,rgba(255,255,255,.07),transparent 38%);box-sizing:border-box}
+.vr-side *{box-sizing:border-box}
+.vr-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;padding:4px 6px 18px;white-space:nowrap}
+.vr-mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(160deg,#4FA0EE,#6A2AB8);display:grid;place-items:center;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.vr-side .vr-grp{font-size:11.5px;opacity:.6;padding:10px 12px 4px;letter-spacing:.02em}
+.vr-nav{display:flex;align-items:center;gap:12px;height:42px;padding:0 12px;border-radius:10px;color:inherit;opacity:.88;font-size:14.5px;white-space:nowrap;text-decoration:none;transition:background .15s}
+.vr-nav:hover{background:rgba(255,255,255,.08);opacity:1;color:inherit}
+.vr-nav.vr-on{opacity:1;font-weight:600;background:rgba(255,255,255,.16)}
+.vr-nav.vr-dim{opacity:.4}
+.vr-side .vr-spacer{flex:1} .vr-side hr{border:0;border-top:1px solid rgba(255,255,255,.28);margin:10px 4px;opacity:.6}
+.vr-ver{font-size:11.5px;opacity:.6;padding:8px 12px;white-space:nowrap}
+.vr-col{position:relative;z-index:1;display:flex;flex-direction:column;min-width:0}
+.vr-top{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:6px;height:58px;padding:0 20px 0 28px;background:rgba(255,255,255,.88);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--border);box-sizing:border-box}
+.vr-top .vr-bc{margin:0;font-size:13.5px} .vr-grow{flex:1}
+.vr-chip{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:4px 12px 4px 4px;font-size:13px;color:var(--text)}
+.vr-av{width:26px;height:26px;border-radius:50%;background:var(--vr-user);color:var(--vr-user-text);display:grid;place-items:center;font-size:11px;font-weight:700}
+.vr-who{display:flex;flex-direction:column;line-height:1.15} .vr-who small{font-size:11px;color:var(--text-3)}
+.vr-app .vr{padding-top:30px}
+.vr-app .vr-head .vr-bc{display:none}
+@media (max-width:900px){.vr-app{grid-template-columns:1fr}.vr-side{display:none}}
+/* menu landing page */
+.vr-menu .vr-frow{grid-template-columns:28px minmax(0,1fr) auto;cursor:pointer} .vr-menu .vr-frow:hover{background:var(--surface-2)}
+.vr-menu .vr-frow svg{color:var(--text-2)} .vr-menu .vr-frow .vr-chev{color:var(--text-3)}
