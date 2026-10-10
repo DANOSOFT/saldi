@@ -24,6 +24,8 @@
 // Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2020.02.27 PHR Check if db exist before dropping 20200227 
+// 20261010 CL/ASR Rendered in the admin-layer shell; deletion logic unchanged. Duplicate doctype removed; the
+//                  deleted-ledger message and list use the shared components.
 
 @session_start();
 $s_id=session_id();
@@ -33,6 +35,11 @@ $css="../css/standard.css";
 
 include("../includes/connect.php");
 include("../includes/online.php");
+include("../includes/std_func.php");
+include("../includes/topline_settings.php");
+include("../includes/partnerScope.php");
+include("vr_ui.php");
+partner_tables_ensure();
 if ($db != $sqdb) {
 	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
@@ -58,19 +65,8 @@ function Slet_Regnskab()
 if (!$font) $font="Helvetica, Arial, sans-serif";
 if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 0pt 1px;\" align=\"center\" background=\"../img/knap_bg.gif\";";
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head><title>Slet regnskab</title><meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
-<table width="100%" height="100%" border="0" cellspacing="0" cellpadding="0"><tbody>
-	<tr><td align="center" valign="top" height="25">
-		<table width="100%" align="center" border="0" cellspacing="2" cellpadding="0"><tbody>
-			<td width="10%" <?php echo $top_bund?>><a href=../index/admin_menu.php accesskey=L><?php echo findtekst('2172|Luk', $sprog_id)?></a></td>
-			<td width="80%" <?php echo $top_bund?> align="center"><?php echo findtekst('341|Slet regnskab', $sprog_id)?></td>
-			<td width="10%" <?php echo $top_bund?> align = "right"><br></td>
-		</tbody></table>
-	</td></tr>
-<td align = center valign = center>
-<table cellpadding="1" cellspacing="1" border="0"><tbody>
 <?php
-$id=array();$db_navn=array();$regnskab=array();$slet=array();
+$id=array();$db_navn=array();$regnskab=array();$slet=array();$vr_msg='';$vr_err=array();
 if ($_POST['regnskabsantal']) {
 	$regnskabsantal=$_POST['regnskabsantal'];
 	$id=$_POST['id'];
@@ -119,23 +115,22 @@ if ($_POST['regnskabsantal']) {
 						$qtxt="DROP DATABASE IF EXISTS $db_navn[$x]";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$slettet_regnskab=$regnskab[$x];
-					} else print "Backupfejl - $regnskab[$x] ikke slettet";
+					} else $vr_err[] = "Backupfejl - $regnskab[$x] ikke slettet";
 				}
 			}	
 		}
-		if ($slet_antal==1)	print "<BODY onLoad=\"javascript:alert('$slettet_regnskab slettet')\">";
-		else print "<BODY onLoad=\"javascript:alert('$slet_antal regnskaber slettet')\">";
+		$vr_msg = ($slet_antal==1) ? "$slettet_regnskab slettet" : "$slet_antal regnskaber slettet";
+		partner_log('ledger.deleted', null, null, $vr_msg);
 		}
 }
-$q = db_select("select * from brugere where brugernavn = '$brugernavn'");
-$r = db_fetch_array($q);
-list($admin,$oprette,$slette,$tmp)=explode(",",$r['rettigheder'],4);
-$adgang_til=explode(",",$tmp);
-
+// 20261010 CL/ASR db_select() was called with one argument here, which is fatal on PHP 8 (the page never loaded).
+//                  Scope now comes from partnerScope.php: operators see everything, others their own ledgers.
+$vr_scope = partner_ledgers();
 $x=0;
-$q1= db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket='on' order by id",__FILE__ . " linje " . __LINE__);
+include("inc_lifecycle.php"); lc_tables_ensure();
+$q1= db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket='on' and id not in (select regnskab_id from regnskab_lifecycle l where l.applied_at is not null and l.cancelled_at is null and l.state = 'suspended' and l.id = (select max(id) from regnskab_lifecycle where regnskab_id = l.regnskab_id and applied_at is not null and cancelled_at is null)) order by id",__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
-	if ($admin || in_array($r1['id'],$adgang_til)) {
+	if ($vr_scope === null || in_array((int)$r1['id'],$vr_scope)) {
 		$x++;
 		$id[$x]=$r1['id'];
 		$regnskab[$x]=$r1['regnskab'];	
@@ -144,22 +139,18 @@ while ($r1=db_fetch_array($q1)) {
 }
 $regnskabsantal=$x;
 
-print "<tr><td colspan=3>F&oslash;lgende regnskaber er markeret som lukket</td></tr>";
-print "<form name=slet_regnskab action=slet_regnskab.php method=post>";
+vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('341|Slet regnskab', $sprog_id)), findtekst('341|Slet regnskab', $sprog_id), vr_t('Kun regnskaber, der er lukket, kan slettes. Suspenderede regnskaber vises ikke her. Der tages en sikkerhedskopi til nedlagte_regnskaber, før databasen fjernes.', 'Only accounts marked as closed can be deleted. A backup is written to nedlagte_regnskaber before the database is dropped.'));
+if ($vr_msg) vr_note(array($vr_msg)); if ($vr_err) vr_note($vr_err, 'warn');
+print "<section class=\"vr-sect\"><h2>".vr_t('Lukkede regnskaber','Closed accounts')." <small>$regnskabsantal</small></h2><div class=\"vr-card\">";
+print "<form name=\"slet_regnskab\" action=\"slet_regnskab.php\" method=\"post\" onsubmit=\"return Slet_Regnskab()\">";
+print "<table class=\"vr-t\"><thead><tr><th style=\"width:40px\"></th><th class=\"vr-r vr-id\">Id</th><th>".findtekst('2682|Regnskab', $sprog_id)."</th><th>".vr_t('Database','Database')."</th></tr></thead><tbody>";
 for ($x=1; $x<=$regnskabsantal; $x++) {
-	print "<tr>";
-	//print "<td>X $x</td>";
-	print "<input type=\"hidden\" name=id[$x] value=\"$id[$x]\">";
-	print "<input type=\"hidden\" name=db_navn[$x] value=\"$db_navn[$x]\">";
-	print "<input type=\"hidden\" name=regnskab[$x] value=\"$regnskab[$x]\">";
-	print "<td>$id[$x]</td><td>$regnskab[$x]</td>";
-	print "<td><input type=checkbox name=slet[$x]</td>";
-	print "</tr>";
+	print "<input type=\"hidden\" name=\"id[$x]\" value=\"".(int)$id[$x]."\"><input type=\"hidden\" name=\"db_navn[$x]\" value=\"".vr_h($db_navn[$x])."\"><input type=\"hidden\" name=\"regnskab[$x]\" value=\"".vr_h($regnskab[$x])."\">";
+	print "<tr><td><input type=\"checkbox\" name=\"slet[$x]\"></td><td class=\"vr-r vr-id\">".(int)$id[$x]."</td><td class=\"vr-nm\"><a href=\"admin_panel.php?regnskab_id=".(int)$id[$x]."\">".vr_h($regnskab[$x])."</a></td><td class=\"vr-mut\">".vr_h($db_navn[$x])."</td></tr>";
 }
-print "<input type=\"hidden\" name=\"regnskabsantal\" value=\"$regnskabsantal\">";
-print "<tr><td colspan=2 align=center><hr></td></tr>\n";
-print "<tr><td colspan=2 align=center><input type=submit accesskey=\"a\" value=\"OK\" name=\"submit\" OnClick=\"return Slet_Regnskab()\"></td></tr>\n";
-print "</form>";
+if (!$regnskabsantal) print "<tr><td colspan=\"4\" class=\"vr-mut\" style=\"padding:24px 20px\">".vr_t('Ingen regnskaber er markeret som lukket. Luk et regnskab fra kundekortets Indstillinger først.','No accounts are marked as closed. Close an account from the customer card first.')."</td></tr>";
+print "</tbody></table><input type=\"hidden\" name=\"regnskabsantal\" value=\"$regnskabsantal\">";
+print "<div class=\"vr-foot\"><span>".vr_t('Sletning kan ikke fortrydes. Sikkerhedskopien ligger på serveren.','Deletion cannot be undone. The backup stays on the server.')."</span><span class=\"vr-grow\"></span>".($regnskabsantal ? "<button type=\"submit\" class=\"vr-btn vr-danger\" accesskey=\"a\" name=\"submit\" value=\"OK\">".vr_t('Slet valgte','Delete selected')."</button>" : "")."</div></form></div></section>";
+vr_close();
 ?>
-</tbody></table>
 </body></html>

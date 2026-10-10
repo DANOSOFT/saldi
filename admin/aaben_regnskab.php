@@ -5,6 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-16 ---
+// 20261010 CL/ASR Access check via partnerScope.php (see below).
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +52,16 @@ if ($db != $sqdb) {
 }
 
 $tmp_db_id=if_isset($_GET,NULL,'db_id');
+
+// 20261010 CL/ASR Access check (none existed): operators open everything, partner users their portfolio,
+//                  everyone else the legacy adgang_til list. See includes/partnerScope.php.
+include("../includes/partnerScope.php");
+partner_tables_ensure();
+if (!partner_can((int)$tmp_db_id, 'open')) {
+	print "<center><br><br>".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."<br><br>";
+	print "<a href='vis_regnskaber.php'>".findtekst('2692|Tilbage til oversigt', $sprog_id)."</a></center>";
+	exit;
+}
 
 $qtxt="select db from regnskab where id = '$tmp_db_id'";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
