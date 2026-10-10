@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-09-24---
+// --- kreditor/ordre.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -87,6 +87,9 @@
 //                superseded MB-36's version of that save logic with Sawaneh's (already
 //                submitted-vs-not-submitted safe, plus date-format validation and a
 //                batch_batch_no length cap that MB-36's version lacked).
+// 20261007 MJ SST-829 The Lager dropdown offers each warehouse once. Creating an
+//                  accounting year used to copy the art='LG' rows into it, so every
+//                  warehouse gained a row per year and this list showed them all.
 
 @session_start();
 $s_id=session_id();
@@ -1376,8 +1379,20 @@ function ordreside($id) {
 	} else alert ("Stamdata mangler");
 	$x = 0;
 	$lager_nr = array();
-	$q=db_select("select kodenr,beskrivelse from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
+	// 20261007 MJ SST-829 One entry per warehouse. Creating an accounting year used to copy
+	// the LG rows into it, so a tenant with ten warehouses and two years had two rows for
+	// each and this dropdown offered every warehouse twice. Preferring the current year and
+	// then the newest row matches how Indstillinger picks the definition to edit
+	// (systemdata/syssetup.php). Keyed on kodenr alone: pairing it with beskrivelse, as
+	// productLookup.php does, still duplicates once a later year's copy has been renamed.
+	$qtxt = "select kodenr,beskrivelse from grupper where art='LG' ";
+	$qtxt.= "order by kodenr, case when fiscal_year = " . (int)$regnaar . " then 0 else 1 end, ";
+	$qtxt.= "coalesce(fiscal_year,0) desc, id desc";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$set_lagre = array();
 	while ($r=db_fetch_array($q)) {
+		if (isset($set_lagre[$r['kodenr']])) continue;
+		$set_lagre[$r['kodenr']] = 1;
 		$lager_nr[$x]=$r['kodenr'];
 		$lager_navn[$x]=$r['beskrivelse'];
 		$x++;
