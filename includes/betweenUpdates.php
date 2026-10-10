@@ -565,6 +565,12 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		updated_at timestamp)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+// 20261010 CL/ASR Period end and payment-failure facts on the cached Stripe row, so the operator panel can show
+//                  the exact next invoice date and failed payments without calling Stripe. Written by the webhook.
+foreach (array('current_period_end' => 'timestamp', 'last_paid_at' => 'timestamp', 'last_failed_at' => 'timestamp', 'last_failed_invoice' => 'varchar(255)', 'failed_count' => 'integer DEFAULT 0') as $stripeCol => $stripeType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers' AND column_name='$stripeCol'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) db_modify("ALTER TABLE stripe_customers ADD COLUMN $stripeCol $stripeType", __FILE__ . " linje " . __LINE__);
+}
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_import_failures'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "CREATE TABLE stripe_import_failures (

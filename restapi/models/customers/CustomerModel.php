@@ -100,8 +100,10 @@ class CustomerModel
             // 20261010 CL/ASR payment channel facts for the operator panel (read-only, additive)
             $this->pbs = array('active' => (isset($r['pbs']) && ($r['pbs'] === 'on' || $r['pbs'] === 't' || $r['pbs'] === '1' || $r['pbs'] === true)), 'number' => isset($r['pbs_nr']) ? $r['pbs_nr'] : null, 'since' => isset($r['pbs_date']) ? $r['pbs_date'] : null);
             if (function_exists('tbl_exists') && tbl_exists('stripe_customers')) {
-                $sq = db_select("SELECT stripe_subscription_id, status, updated_at FROM stripe_customers WHERE konto_id = " . (int)$this->id . " ORDER BY updated_at DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
-                if ($sq && ($sr = db_fetch_array($sq))) $this->stripe = array('status' => $sr['status'], 'subscriptionId' => $sr['stripe_subscription_id'], 'updatedAt' => $sr['updated_at']);
+                $sq = db_select("SELECT * FROM stripe_customers WHERE konto_id = " . (int)$this->id . " ORDER BY updated_at DESC NULLS LAST LIMIT 1", __FILE__ . " linje " . __LINE__);
+                if ($sq && ($sr = db_fetch_array($sq))) $this->stripe = array('status' => $sr['status'], 'subscriptionId' => $sr['stripe_subscription_id'], 'updatedAt' => $sr['updated_at'],
+                    'currentPeriodEnd' => isset($sr['current_period_end']) ? $sr['current_period_end'] : null, 'lastPaidAt' => isset($sr['last_paid_at']) ? $sr['last_paid_at'] : null,
+                    'lastFailedAt' => isset($sr['last_failed_at']) ? $sr['last_failed_at'] : null, 'lastFailedInvoice' => isset($sr['last_failed_invoice']) ? $sr['last_failed_invoice'] : null, 'failedCount' => isset($sr['failed_count']) ? (int)$sr['failed_count'] : 0);
             }
 
             // Load kontakt_emails
