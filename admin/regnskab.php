@@ -70,7 +70,12 @@ if ($reg['db'] && db_exists($reg['db'])) {
 		$live['ok'] = true;
 		if ($r = db_fetch_array(db_select("select firmanavn, cvrnr from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__))) { $live['firma'] = $r['firmanavn']; $live['cvr'] = $r['cvrnr']; }
 		if (tbl_exists('brugere')) {
-			$q = db_select("select id, brugernavn, rettigheder, email, tlf, twofactor, revisor from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
+			// older customer databases lack some of these columns – select only what exists
+			$cols = array(); $q = db_select("select column_name from information_schema.columns where table_name = 'brugere'", __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) $cols[] = $r['column_name'];
+			$sel = array('id', 'brugernavn', 'rettigheder');
+			foreach (array('email', 'tlf', 'twofactor', 'revisor') as $c) $sel[] = in_array($c, $cols) ? $c : "NULL as $c";
+			$q = db_select("select ".implode(', ', $sel)." from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) { $live['users'][] = $r; if (!($r['revisor'] === 't' || $r['revisor'] === true || $r['revisor'] === '1')) $live['active']++; }
 		}
 		if (tbl_exists('transaktioner')) {
