@@ -172,7 +172,7 @@ if ($tab == 'oversigt') {
 		$on = !isset($lic[$k]) || (($lic[$k]['enabled'] === 't' || $lic[$k]['enabled'] === true) && (!$lic[$k]['expires_at'] || strtotime($lic[$k]['expires_at']) >= strtotime(date('Y-m-d'))));
 		print "<div class=\"vr-frow".($on ? "" : " vr-off")."\"><div><b>".$n."</b><small>$k".(isset($lic[$k]) && $lic[$k]['expires_at'] ? " &middot; ".vr_t('udløber','expires')." ".vr_h(substr($lic[$k]['expires_at'],0,10)) : "")."</small></div><span class=\"vr-lvl\">".($on ? vr_t('Slået til','Enabled') : vr_t('Slået fra','Disabled'))."</span><span class=\"vr-st\"><span class=\"vr-dot ".($on ? 'vr-ok' : 'vr-off')."\"></span></span></div>";
 	}
-	print "</div>".($op ? "<p class=\"vr-sub\"><a href=\"license_manager.php?regnskab_id=$rid\">".vr_t('Redigér i license_manager','Edit in license_manager')."</a></p>" : "")."</section>\n";
+	print "</div>".($op ? "<p class=\"vr-sub\"><a href=\"admin_panel.php?regnskab_id=$rid&tab=indstillinger\">".vr_t('Redigér i administrationspanelet','Edit in the administration panel')."</a></p>" : "")."</section>\n";
 } else {
 	$where = "regnskab_id = '$rid'".($op ? "" : " and actor_partner_id = '".(int)$me['partner']['partner_id']."'");
 	print "<section class=\"vr-sect\"><h2>".vr_t('Hændelser via panelet','Events via the panel')."</h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Tidspunkt','Time')."</th><th>".vr_t('Hvem','Who')."</th><th>".vr_t('Hvad','What')."</th><th>".vr_t('Detaljer','Details')."</th></tr></thead><tbody>";
