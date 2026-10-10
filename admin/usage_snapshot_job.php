@@ -5,7 +5,9 @@
 // 20261010 CL/ASR New. Nightly usage snapshot (entitlements spec §7.3 step 1 / panels spec §5.5): for every open
 //                  ledger measure usage in the customer database, store usage_snapshots for today and refresh
 //                  regnskab.posteret/sidst so the lists are fresh without "Genberegn posteringer".
-//                  CLI only:  cd admin && php usage_snapshot_job.php [limit]      (cron 03:00)
+//                  CLI only:  cd admin && php usage_snapshot_job.php [limit]
+//                  Cron (owner's decision 10/10-2026: 02:00 every night), as the web server user:
+//                    0 2 * * * cd /var/www/html/<map>/admin && /usr/bin/php usage_snapshot_job.php >> ../temp/usage_snapshot.log 2>&1
 if (php_sapi_name() !== 'cli') { http_response_code(403); exit("cli only\n"); }
 chdir(__DIR__);
 include("../includes/connect.php");
