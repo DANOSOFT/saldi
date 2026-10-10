@@ -42,6 +42,7 @@ function vr_menu() {
 	if ($u['is_operator'] || !$u['partner']) {
 		$full = (!isset($revisorregnskab) && !isset($forhandlerregnskab)) || !empty($revisorregnskab) || !empty($forhandlerregnskab);
 		$r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
+		if ($u['is_operator']) $items[] = array(vr_t('Kunder','Customers'), '../admin/admin_panel.php', 'shield', true);
 		$items[] = array(vr_t('Regnskaber','Accounts'), '../admin/vis_regnskaber.php', 'list', true);
 		if ($u['is_operator']) $items[] = array(vr_t('Bogholdere og koncerner','Accountants and groups'), '../admin/partnere.php', 'users', true);
 		$items[] = array(findtekst('339|Opret regnskab', $sprog_id), '../admin/opret.php', 'plus', $u['admin'] == 'on' || $u['oprette'] == 'on');
@@ -49,7 +50,6 @@ function vr_menu() {
 			$items[] = array(findtekst('341|Slet regnskab', $sprog_id), '../admin/slet_regnskab.php', 'trash', $u['admin'] == 'on' || $u['slette'] == 'on');
 			$items[] = array(findtekst('777|Brugere', $sprog_id), '../admin/admin_brugere.php', 'user', true);
 			$items[] = array(findtekst('613|Indstillinger', $sprog_id), '../admin/admin_settings.php', 'gear', true);
-			if ($r_ap && $r_ap['var_value']) $items[] = array('Admin Panel', '../admin/admin_panel.php', 'shield', true);
 			if (isset($mastername) && $mastername == "ROTARY") $items[] = array(findtekst('567|Kortbetalinger', $sprog_id), '../admin/bankfordeling.php', 'card', true);
 		}
 	} else {
@@ -83,7 +83,7 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	print "<aside class=\"vr-side\"><a class=\"vr-logo\" href=\"../index/admin_menu.php\"><span class=\"vr-mark\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M16 5H10a4 4 0 0 0 0 8h4a4 4 0 0 1 0 8H8\"/></svg></span>Saldi</a>";
 	print "<div class=\"vr-grp\">".($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration')))."</div><nav>";
 	foreach (vr_menu() as $it) {
-		$on = (basename($it[1]) == $self) || ($self == 'regnskab.php' && basename($it[1]) == 'vis_regnskaber.php');
+		$on = (basename($it[1]) == $self) || ($self == 'regnskab.php' && basename($it[1]) == 'vis_regnskaber.php') || ($self == 'partnere.php' && basename($it[1]) == 'partnere.php');
 		if ($it[3]) print "<a class=\"vr-nav".($on ? " vr-on" : "")."\" href=\"".vr_h($it[1])."\">".vr_icon($it[2]).vr_h($it[0])."</a>";
 		else print "<span class=\"vr-nav vr-dim\">".vr_icon($it[2]).vr_h($it[0])."</span>";
 	}

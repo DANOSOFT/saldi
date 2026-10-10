@@ -61,7 +61,7 @@ $desc = array(
 	'slet_regnskab.php'  => vr_t('Slet eller nulstil et regnskab','Delete or reset an account'),
 	'admin_brugere.php'  => vr_t('Brugere i administrationslaget','Users in the administration layer'),
 	'admin_settings.php' => vr_t('Indstillinger for installationen','Installation settings'),
-	'admin_panel.php'    => vr_t('Licenser, grænser, betalinger og Saldi-fakturaer','Licences, limits, payments and Saldi invoices'),
+	'admin_panel.php'    => vr_t('Saldis eget administrationspanel: kunder, abonnementer, brugere, betalinger og indstillinger','Saldi\'s own administration panel: customers, subscriptions, users, payments and settings'),
 	'bankfordeling.php'  => vr_t('Kortbetalinger','Card payments'),
 );
 if ($u['partner']) { $desc['vis_regnskaber.php'] = vr_t('Regnskaber du har adgang til','Accounts you have access to'); $desc['partnere.php'] = vr_t('Medarbejdere og kunder i dit firma','Employees and customers in your firm'); }
