@@ -185,3 +185,6 @@ body{margin:0}
 /* menu landing page */
 .vr-menu .vr-frow{grid-template-columns:28px minmax(0,1fr) auto;cursor:pointer} .vr-menu .vr-frow:hover{background:var(--surface-2)}
 .vr-menu .vr-frow svg{color:var(--text-2)} .vr-menu .vr-frow .vr-chev{color:var(--text-3)}
+
+/* legacy content inside a card (opret.php) */
+.vr-legacy{padding:18px 20px;font:14px/1.5 var(--sans)} .vr-legacy table{font:inherit} .vr-legacy td{padding:4px 6px}

@@ -39,18 +39,11 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td align=\"center\" valign=\"top\" height=\"25\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=../index/admin_menu.php accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>"; #20210917
-print "<td width=\"80%\" $top_bund align=\"center\">".findtekst('1927|Admin brugere', $sprog_id)."</td>";
-print "<td width=\"10%\" $top_bund align = \"right\"><br></td>";
-print "</tbody></table>";
-print "</td></tr>\n";
-print "<td align = center valign = center>";
-print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
-
-
+include("../includes/topline_settings.php");
+include("../includes/partnerScope.php");
+include("vr_ui.php");
+partner_tables_ensure();
+$vr_alerts = array();
 $ret_id = if_isset($_GET['ret_id'], 0);
 $slet_id=if_isset($_GET['slet_id'], 0);
 
@@ -64,7 +57,7 @@ if ($_POST) {
 	$ret_bruger=trim($ret_bruger);
 	if (is_input_too_long($ret_bruger)) {
 		$alerttext=findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id);
-		print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
+		$vr_alerts[] = $alerttext;
 		$ret_bruger=NULL;
 	}
 	$admin=$_POST['admin'];
@@ -76,7 +69,7 @@ if ($_POST) {
 
 	if ($kode && $kode != $kode2) {
 			$alerttext=findtekst('1345|Begge adgangskoder skal være ens', $sprog_id).".";
-			print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
+			$vr_alerts[] = $alerttext;
 			$kode=NULL;
 			$ret_id=$id;
 	}
@@ -93,7 +86,7 @@ if ($_POST) {
 		if ($row = db_fetch_array($query)) {
 			$txt = findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id); 
 			$alerttext="$txt: $ret_bruger!";
-			print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
+			$vr_alerts[] = $alerttext;
 #			print "<tr><td align=center>Der findes allerede en bruger med brugenavn: $ret_bruger!</td></tr>\n";
 		}	else {
 			db_modify("insert into brugere (brugernavn,rettigheder) values ('$ret_bruger','$rettigheder')",__FILE__ . " linje " . __LINE__);
@@ -107,92 +100,42 @@ if ($_POST) {
 	elseif (($id)&&($ret_bruger=="-")) {db_modify("delete from brugere where id = $id",__FILE__ . " linje " . __LINE__);}
 }
 
-print "<tr><td valign = top align=center>";
-# print "<table border=><tbody>";
-print "<form name=bruger action=admin_brugere.php method=post>";
-$td="width=\"8px\" align=\"center\"";
-print "<tr><td colspan=\"2\"></td><td title=\"".findtekst('337|Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til', $sprog_id)."\" colspan=\"4\" bgcolor=\"$bgcolor2\">".findtekst('332|Kan slette regnskaber', $sprog_id)."</td></tr>\n";
-print "<tr><td colspan=\"2\"></td><td title=\"".findtekst('336|Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse', $sprog_id)."\" colspan=\"3\" >".findtekst('331|Kan oprette regnskaber', $sprog_id)."</td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
-print "<tr><td colspan=\"2\"></td><td title=\"".findtekst('335|Afmærk her, hvis brugeren skal have administratorrettigheder', $sprog_id)."\" colspan=\"2\" bgcolor=\"$bgcolor2\">".findtekst('330|Administrator', $sprog_id)."</td><td></td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
-print "<tr><td><br></td><td  style=\"width:170px\" title='".findtekst('2681|Klik på brugernavn for at ændre password eller slette bruger', $sprog_id)."'><b>".findtekst('225|Brugernavn', $sprog_id)."</b></td>\n";
-print "<td title=\"".findtekst('334|Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til', $sprog_id)."\">".findtekst('329|Adgang til', $sprog_id)."</td><td bgcolor=\"$bgcolor2\"></td><td></td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
-
-print "<tr><td height=\"10px\" colspan=\"3\"><br></td><td bgcolor=\"$bgcolor2\"></td><td></td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
-
+$pu = array(); $q = db_select("select pu.bruger_id, p.name from partner_users pu join partners p on p.id = pu.partner_id", __FILE__ . " linje " . __LINE__); while ($pr = db_fetch_array($q)) $pu[(int)$pr['bruger_id']] = $pr['name'];
 $r = db_fetch_array(db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
 $bruger_id=$r['id'];
 list($br_admin,$tmp)=explode(",",$r['rettigheder'],2);
-if (!$br_admin) {
-	$ret_id=$bruger_id;
-	$disabled="disabled";
-} else $disabled="";
-
+if (!$br_admin) { $ret_id=$bruger_id; $disabled="disabled"; } else $disabled="";
+vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('1927|Admin brugere', $sprog_id)), findtekst('1927|Admin brugere', $sprog_id), vr_t('Brugere i administrationslaget: operatører og brugere med adgang til udvalgte regnskaber. Bogholderes medarbejdere styres under Bogholdere og koncerner.', 'Users in the administration layer: operators and users with access to selected accounts. Accountant employees are managed under Accountants and groups.'), $br_admin ? "<a class=\"vr-btn vr-primary\" href=\"admin_brugere.php#ny\">+ ".findtekst('333|Ny bruger', $sprog_id)."</a>" : '');
+vr_note($vr_alerts, 'warn');
+$fieldsRow = function($row, $isNew) use ($sprog_id, $disabled) {
+	$nm = $isNew ? "navn".rand(100,999) : $row['id'];
+	list($admin,$oprette,$slette,$adgang_til)=array_pad(explode(",", $isNew ? ',,,' : $row['rettigheder'], 4), 4, '');
+	$h = "<form name=\"bruger\" action=\"admin_brugere.php\" method=\"post\" class=\"vr-form\" style=\"max-width:none\">";
+	$h .= "<input type=\"hidden\" name=\"random\" value=\"$nm\">".($isNew ? "" : "<input type=\"hidden\" name=\"id\" value=\"".(int)$row['id']."\">");
+	$h .= "<div class=\"vr-inline\" style=\"gap:14px;align-items:flex-end\"><label>".($isNew ? findtekst('333|Ny bruger', $sprog_id) : findtekst('225|Brugernavn', $sprog_id))."<input class=\"vr-inp\" type=\"text\" maxlength=\"80\" name=\"$nm\" value=\"".($isNew ? '' : vr_h($row['brugernavn']))."\" title=\"".($isNew ? '' : findtekst('326|Skriv - (minus) som brugernavn for at slette bruger', $sprog_id))."\" required></label>";
+	$h .= "<label title=\"".findtekst('334|Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til', $sprog_id)."\">".findtekst('329|Adgang til', $sprog_id)."<input class=\"vr-inp\" type=\"text\" name=\"adgang_til\" value=\"".vr_h($adgang_til)."\" placeholder=\"* ".vr_t('eller id-liste','or id list')."\" $disabled></label>";
+	$h .= "<label>".findtekst('324|Adgangskode', $sprog_id)."<input class=\"vr-inp\" type=\"password\" name=\"kode\" value=\"".($isNew ? '' : '********************')."\"></label><label>".findtekst('328|Gentag adgangskode', $sprog_id)."<input class=\"vr-inp\" type=\"password\" name=\"kode2\" value=\"".($isNew ? '' : '********************')."\"></label></div>";
+	$h .= "<div class=\"vr-inline\" style=\"gap:18px\"><label class=\"vr-chk\" title=\"".findtekst('335|Afmærk her, hvis brugeren skal have administratorrettigheder', $sprog_id)."\"><input type=\"checkbox\" name=\"admin\" value=\"on\"".($admin ? " checked" : "")." $disabled> ".findtekst('330|Administrator', $sprog_id)."</label><label class=\"vr-chk\" title=\"".findtekst('336|Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse', $sprog_id)."\"><input type=\"checkbox\" name=\"oprette\" value=\"on\"".($oprette ? " checked" : "")." $disabled> ".vr_t('Må oprette regnskaber','May create accounts')."</label><label class=\"vr-chk\" title=\"".findtekst('337|Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til', $sprog_id)."\"><input type=\"checkbox\" name=\"slette\" value=\"on\"".($slette ? " checked" : "")." $disabled> ".vr_t('Må slette regnskaber','May delete accounts')."</label></div>";
+	if ($disabled) $h .= "<input type=\"hidden\" name=\"adgang_til\" value=\"".vr_h($adgang_til)."\"><input type=\"hidden\" name=\"admin\" value=\"".vr_h($admin)."\"><input type=\"hidden\" name=\"oprette\" value=\"".vr_h($oprette)."\"><input type=\"hidden\" name=\"slette\" value=\"".vr_h($slette)."\">";
+	$h .= "<div class=\"vr-inline\"><button type=\"submit\" class=\"vr-btn vr-primary\" name=\"submit\" value=\"".($isNew ? findtekst('1175|Tilføj', $sprog_id) : 'Opdatér')."\">".($isNew ? findtekst('1175|Tilføj', $sprog_id) : findtekst('898|Opdatér', $sprog_id))."</button>".($isNew ? "" : " <a class=\"vr-btn vr-quiet\" href=\"admin_brugere.php\">".findtekst('5|Annullér', $sprog_id)."</a><span class=\"vr-mut2\" style=\"font-size:12.5px\">".findtekst('326|Skriv - (minus) som brugernavn for at slette bruger', $sprog_id)."</span>")."</div></form>";
+	return $h;
+};
 if ($br_admin) {
+	print "<section class=\"vr-sect\"><h2>".vr_t('Alle brugere','All users')."</h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".findtekst('225|Brugernavn', $sprog_id)."</th><th>".findtekst('329|Adgang til', $sprog_id)."</th><th>".vr_t('Partner','Partner')."</th><th>".findtekst('330|Administrator', $sprog_id)."</th><th>".vr_t('Opret','Create')."</th><th>".vr_t('Slet','Delete')."</th><th></th></tr></thead><tbody>";
 	$query = db_select("select * from brugere order by brugernavn",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
-		if ($row['id']!=$ret_id) {
-			list($admin,$oprette,$slette,$adgang_til)=explode(",",$row['rettigheder'],4);
-			($admin)? $admin="checked":$admin="";
-			($oprette)? $oprette="checked":$oprette="";
-			($slette)? $slette="checked":$slette="";
-			print "<tr><td><br></td><td><a href=admin_brugere.php?ret_id=$row[id]>$row[brugernavn]</a></td>\n";
-			print "<td $td><input readonly=\"text\" style=\"width:170px\" name=\"adgang_til\" value=\"$adgang_til\"></td>\n";
-			print "<td $td bgcolor=\"$bgcolor2\">";($admin)? print "&#10004":print"";	print "</td>\n";
-			print "<td $td>";($oprette)? print "&#10004":print"";	print "</td>\n";
-			print "<td $td bgcolor=\"$bgcolor2\">";($slette)? print "&#10004":print"";	print "</td>\n";
-		}
+		list($admin,$oprette,$slette,$adgang_til)=array_pad(explode(",",$row['rettigheder'],4), 4, '');
+		$ok = fn($v) => $v ? '<span class="vr-st"><span class="vr-dot vr-ok"></span></span>' : '<span class="vr-mut2">–</span>';
+		print "<tr".((int)$row['id'] == (int)$ret_id ? " style=\"background:var(--surface-2)\"" : "")."><td class=\"vr-nm\"><a href=\"admin_brugere.php?ret_id=".(int)$row['id']."\">".vr_h($row['brugernavn'])."</a></td><td class=\"vr-mut vr-num\">".($adgang_til === '*' ? vr_t('alle','all') : vr_h($adgang_til))."</td><td class=\"vr-mut\">".(isset($pu[(int)$row['id']]) ? vr_h($pu[(int)$row['id']]) : '<span class="vr-mut2">–</span>')."</td><td>".$ok($admin)."</td><td>".$ok($oprette)."</td><td>".$ok($slette)."</td><td class=\"vr-r\"><a class=\"vr-link\" href=\"admin_brugere.php?ret_id=".(int)$row['id']."\">".findtekst('1206|Ret', $sprog_id)."</a></td></tr>";
 	}
+	print "</tbody></table></div></section>";
 }
-# print "<tr><td height=\"10px\" colspan=\"4\"></td><td></td><td bgcolor=\"$bgcolor2\"></td><td></td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
-
 if ($ret_id) {
-	$query = db_select("select * from brugere where id = $ret_id",__FILE__ . " linje " . __LINE__);
-	$row = db_fetch_array($query);
-	list($admin,$oprette,$slette,$adgang_til)=explode(",",$row['rettigheder'],4);
-	($admin)? $admin="checked":$admin="";
-	($oprette)? $oprette="checked":$oprette="";
-	($slette)? $slette="checked":$slette="";
-
-	print "<tr><td>".findtekst('225|Brugernavn', $sprog_id)."</td>";
-	print "<input type=hidden name=id value=$ret_id>";
-	print "<input type=hidden name=random value=$row[id]>";	#For at undgaa at browseren "husker" et forkert brugernavn.
-	print "<td title='".findtekst('326|Skriv - (minus) som brugernavn for at slette bruger', $sprog_id)."'><input type=\"text\" style=\"width:170px\" name=\"$row[id]\" value=\"$row[brugernavn]\"></td>\n";
-	print "<td title=\"".findtekst('334|Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til', $sprog_id)."\"><input type=\"text\" style=\"width:170px\" name=\"adgang_til\" value=\"$adgang_til\" $disabled></td>\n";
-	print "<td title=\"".findtekst('335|Afmærk her, hvis brugeren skal have administratorrettigheder', $sprog_id)."\" bgcolor=\"$bgcolor2\"><input type=\"checkbox\" name=\"admin\" $admin $disabled></td>\n";
-	print "<td title=\"".findtekst('336|Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse', $sprog_id)."\"><input type=\"checkbox\" name=\"oprette\" $oprette $disabled></td>\n";
-	print "<td title=\"".findtekst('337|Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til', $sprog_id)."\" bgcolor=\"$bgcolor2\"><input type=\"checkbox\" name=\"slette\" $slette $disabled></td></tr>\n";
-	print "<tr><td>".findtekst('324|Adgangskode', $sprog_id)."</td><td><input type=\"password\" style=\"width:170px\" name=\"kode\" value=\"********************\"></td>\n";
-	print "<tr><td style='padding-right: 5px;'>".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input type=\"password\" style=\"width:170px\" name=\"kode2\" value=\"********************\"></td></tr>\n";
-
-	if ($disabled) {
-		print "<input type=\"hidden\" name=\"adgang_til\" value=\"$adgang_til\"></td>\n";
-		print "<input type=\"hidden\" name=\"admin\" value=\"$admin\"></td>\n";
-		print "<input type=\"hidden\" name=\"oprette\" value=\"$oprette\"></td>\n";
-		print "<input type=\"hidden\" name=\"slette\" value=\"$slette\"></td></tr>\n";
-	}
-
-	$x=0;
-	print "<tr><td><br></td></tr>\n";
-	print "<td colspan=12 align = center><input type=submit value=\"Opdat&eacute;r\" name=\"submit\"></td>";
+	$row = db_fetch_array(db_select("select * from brugere where id = ".(int)$ret_id,__FILE__ . " linje " . __LINE__));
+	if ($row) { print "<section class=\"vr-sect\" id=\"ret\"><h2>".findtekst('1206|Ret', $sprog_id).": ".vr_h($row['brugernavn'])."</h2><div class=\"vr-card\">".$fieldsRow($row, false)."</div></section>"; }
 } elseif ($br_admin) {
-	$tmp="navn".rand(100,999); #For at undgaa at browseren "husker" et forkert brugernavn.
-	print "<input type=hidden name=random value = $tmp>";
-	print "<tr><td>".findtekst('333|Ny bruger', $sprog_id)."</td>";
-	print "<td><input type=text  style=\"width:170px\" maxlength=80 name=\"$tmp\" value=\" \"></td>";
-	print "<td title=\"".findtekst('334|Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til', $sprog_id)."\"><input type=\"text\" style=\"width:170px\" name=\"adgang_til\" value=\"*\"></td>\n";
-	print "<td title=\"".findtekst('335|Afmærk her, hvis brugeren skal have administratorrettigheder', $sprog_id)."\" bgcolor=\"$bgcolor2\"><input type=\"checkbox\" name=\"admin\"></td>\n";
-	print "<td title=\"".findtekst('336|Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse', $sprog_id)."\"><input type=\"checkbox\" name=\"oprette\" checked></td>\n";
-	print "<td title=\"".findtekst('337|Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til', $sprog_id)."\" bgcolor=\"$bgcolor2\"><input type=\"checkbox\" name=\"slette\" checked></td></tr>\n";
-	print "<tr><td>".findtekst('324|Adgangskode', $sprog_id)."</td><td><input type=\"password\"  style=\"width:170px\" name=\"kode\" value=\"\"></td></tr>\n";
-	print "<tr><td style='padding-right: 5px;'>".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input type=\"password\"  style=\"width:170px\" name=\"kode2\" value=\"\"></td></tr>\n";
-	print "<td colspan=12 align = center><input type=submit value=\"".findtekst('1175|Tilføj', $sprog_id)."\" name=\"submit\"></td>";
+	print "<section class=\"vr-sect\" id=\"ny\"><h2>".findtekst('333|Ny bruger', $sprog_id)."</h2><div class=\"vr-card\">".$fieldsRow(null, true)."</div></section>";
 }
-print "</tr>\n";
-# print "</tbody></table></td></tr>\n";
-
+vr_close();
 ?>
-</tbody>
-</table>
-</td></tr>
-</tbody></table>
 </body></html>

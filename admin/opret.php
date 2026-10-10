@@ -134,19 +134,15 @@ if ($online_result === 'Session expired' || $db != $sqdb) {
 # if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 0pt 1px;\" align=\"center\" background=\"../img/knap_bg.gif\";";
 $fra_formular=NULL;
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
-	<tr><td align=\"center\" valign=\"top\" height=\"25\">
-		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>
-			<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=../index/admin_menu.php accesskey=L>".findtekst('2172|Luk', $sprog_id)."</a></td>
-			<td width=\"80%\" $top_bund align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('339|Opret regnskab', $sprog_id)."</td>
-			<td width=\"10%\" $top_bund align = \"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>
-		</tbody></table>
-	</td></tr>
-<td align = center valign = center>
-<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+include("../includes/topline_settings.php");
+include("../includes/partnerScope.php");
+include("vr_ui.php");
+partner_tables_ensure();
+vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('339|Opret regnskab', $sprog_id)), findtekst('339|Opret regnskab', $sprog_id), vr_t('Opretter en ny kundedatabase med administrator og standardkontoplan. Tager normalt under et minut.', 'Creates a new customer database with an administrator and the standard chart of accounts. Usually takes less than a minute.'));
+print "<section class=\"vr-sect\"><div class=\"vr-card\"><div class=\"vr-legacy\">";
 if ($db_type=="mysql" or $db_type=="mysqli") {
 
-	echo '<p style="color: #1E90FF; font-weight: bold;">This installation may take up to 15 minutes. Thank you for your patience.</p>';
+	echo '<p class="vr-sub">This installation may take up to 15 minutes. Thank you for your patience.</p>';
 }
 
 if ($_POST){
@@ -243,21 +239,19 @@ if ($_POST){
 	if (!isset($regnskab)) $regnskab='';
 	if (!isset($brugernavn)) $brugernavn='';
 	forside($regnskab,$brugernavn);
-print "</tbody></table";
+	print "</div></div></section>"; vr_close();
 }
 
 function forside($regnskab,$brugernavn) {
 	global $charset;
 	global $sprog_id;
-
-	print "<form name=debitorkort action=opret.php method=post>";
-	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=60 name=regnskab value='$regnskab'></td></tr>";
-	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=80 name=brugernavn value='$brugernavn'></td></tr>";
-	print "<tr><td>".findtekst('2687|Administrators adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd></td></tr>";
-	print "<tr><td>".findtekst('2688|Gentag adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd2></td></tr>";
-	print "<tr><td>".findtekst('2689|Opret standardkontoplan', $sprog_id)."</td><td><br></td><td><input type=checkbox name=std_kto_plan checked></td></tr>";
-	print "<tr><td><br></td></tr><tr><td><br></td></tr><tr><td><br></td></tr>";
-	print "<tr><td colspan=3 align = center><input type=submit accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"submit\"></td></tr>";
+	print "<form name=\"debitorkort\" action=\"opret.php\" method=\"post\" class=\"vr-form\">";
+	print "<label>".findtekst('2685|Navn på regnskab', $sprog_id)."<input class=\"vr-inp\" type=\"text\" maxlength=\"60\" name=\"regnskab\" value=\"".vr_h($regnskab)."\" required></label>";
+	print "<label>".findtekst('2686|Administrators navn', $sprog_id)."<input class=\"vr-inp\" type=\"text\" maxlength=\"80\" name=\"brugernavn\" value=\"".vr_h($brugernavn)."\" required></label>";
+	print "<label>".findtekst('2687|Administrators adgangskode', $sprog_id)."<input class=\"vr-inp\" type=\"password\" name=\"passwd\" required></label>";
+	print "<label>".findtekst('2688|Gentag adgangskode', $sprog_id)."<input class=\"vr-inp\" type=\"password\" name=\"passwd2\" required></label>";
+	print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"std_kto_plan\" checked> ".findtekst('2689|Opret standardkontoplan', $sprog_id)."</label>";
+	print "<div><button type=\"submit\" class=\"vr-btn vr-primary\" accesskey=\"g\" name=\"submit\" value=\"1\">".findtekst('339|Opret regnskab', $sprog_id)."</button></div>";
 	print "</form>";
 }
 
