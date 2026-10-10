@@ -186,6 +186,7 @@ $landedSections = array(
 	'formular_io'    => 'settingsSection.php?s=import_export.data&moved=div_io#sub-forms',
 	'solar_io'       => 'settingsSection.php?s=import_export.data&moved=div_io',
 	'variant_valg'   => 'settingsSection.php?s=items.variants&moved=variant_valg',
+	'labels'         => 'labels.php?moved=labels',
 );
 if (isset($landedSections[$sektion]) && !($sektion == 'api_valg' && !empty($_GET['varesync']))) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . $landedSections[$sektion] . "\">";
@@ -214,6 +215,7 @@ if (!$sektion && $_SERVER['REQUEST_METHOD'] != 'POST') {
 // 20261004 Sawaneh G5.8: labels - valg limited to box1/box2, new labels only from the six shipped templates and with an allowed name
 //                  (a forged template name could copy any readable file into a label).
 // 20261004 Sawaneh G4.3: pricelists landed in Køb » Leverandørprislister (diverseIncludes/pricelists.php is no longer reached).
+// 20261010 Sawaneh G5.8: labels redirects to the new Mærkater page (systemdata/labels.php); its save code below is no longer reached.
 // 20261004 Sawaneh Pick-up addresses landed in Integrationer » Afhentningsadresser; their save code is gone (it deleted every
 //                  address missing from the form, B-D17). Stripe only opens in the operator ledger (G9.6).
 // 20261004 Sawaneh G10: PoS-valg landed in Kasse » Kasser, Betalingskort, Kasseoptælling, Kvittering, Køkken, Skærm og Borde; its save code is gone.

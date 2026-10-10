@@ -74,6 +74,7 @@
 // 20261004 Sawaneh G10 batch B: Betalingskort and Borde entries; the PoS-valg entry is gone (its keywords moved to Kasser).
 // 20261004 Sawaneh Projekter opens projekter.php (syssetup.php?valg=projekter shows no projects, spec C7).
 // 20261009 Sawaneh The tjekliste entry removed: checklists live in the Sager module now (settings redesign §4, 4e).
+// 20261010 Sawaneh The labels entry opens the new Mærkater page (labels.php, G5.8).
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -146,7 +147,7 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'stripe_valg',           'group' => 'integrations', 'url' => 'diverse.php?sektion=stripe_valg',          'category' => 'integrations', 'visibilityRule' => 'masterDb', 'labelDa' => 'Stripe abonnement', 'labelEn' => 'Stripe subscriptions',
 				'keywords' => array('stripe','subscription','subscriptions','abonnement','recurring payment','recurring billing','checkout','webhook','webhook secret','secret key','api key stripe',
 					'kortbetaling','card payment','betalingslink','payment link','tax rate','vat rate id','base url','bogholder email','bookkeeper email','stripe mode','test mode','live mode')),
-			array('key' => 'labels',                'group' => 'items', 'url' => 'diverse.php?sektion=labels',               'category' => 'documents', 'textId' => 791,
+			array('key' => 'labels',                'group' => 'items', 'url' => 'labels.php',                              'category' => 'documents', 'textId' => 791,
 				'keywords' => array('label printer template','price tag design','price label','barcode label layout','product label template','sticker template','label size','label width and height','label columns and rows','label font size','label margins','show item number on label','show barcode on label','mærkater','label editor','vareetiket','klistremerker','skriftstørrelse',
 					'dymo','dymo 11354','brother printer','brother 22606','label print html code','product card label html','a4 label sheet','simple labels','label templates')),
 			array('key' => 'pricelists',            'group' => 'purchase', 'url' => 'settingsSection.php?s=purchase.pricelists', 'section' => 'purchase.pricelists', 'category' => 'pricing', 'textId' => 6219,

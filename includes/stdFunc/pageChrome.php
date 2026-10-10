@@ -37,6 +37,7 @@
 //                  (and the shell-nav style), so a page that redirects after online.php stays under the output buffer.
 // 20261008 Sawaneh The came-from chip keeps the whole path of a page in a subfolder (lager/lister/vareliste.php gave a 404).
 // 20261009 Sawaneh page_record(): the record as the last breadcrumb level on cards (decision 22 of 2026-10-09).
+// 20261010 Sawaneh systemdata/labels.php prints the settings breadcrumb itself, like settingsSection.php.
 
 if (!function_exists('page_breadcrumb')):
 
@@ -361,7 +362,7 @@ function page_auto_breadcrumb(string $title, int $sprogId, string $charset): str
 {
 	$key = page_route_key();
 	$routes = page_routes();
-	if ($key === '' || in_array($key, array('index/main.php', 'index/dashboard.php', 'index/index.php', 'index/login.php', 'index/menu.php', 'index/onboarding.php', 'systemdata/settingsSection.php', 'systemdata/settings.php'), true)) {
+	if ($key === '' || in_array($key, array('index/main.php', 'index/dashboard.php', 'index/index.php', 'index/login.php', 'index/menu.php', 'index/onboarding.php', 'systemdata/settingsSection.php', 'systemdata/settings.php', 'systemdata/labels.php'), true)) {
 		return '';
 	}
 	$tx = function (string $l) use ($sprogId) {

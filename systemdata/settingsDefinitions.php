@@ -86,6 +86,7 @@
 // 20261009 Sawaneh 4e: personal.documents.auto_extract and personal.ui.sidebar_closed replace the autoExtract/isSidebarOpen cookies.
 // 20261009 Sawaneh pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
 // 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
+// 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -1841,7 +1842,7 @@ if (!function_exists('getSettingsSections')) {
 			array('old' => array($d, 787), 'to' => array(array('items', 'items.stock', null), array('items', 'items.consignment', null), array('items', 'items.packaging', null))),
 			array('old' => array($d, 788), 'to' => array(array('items', 'items.variants', null))),
 			array('old' => array($d, 790), 'to' => array(array('integrations', 'integrations.connections', null))),
-			array('old' => array($d, 791), 'to' => array(array('items', null, 'diverse.php?sektion=labels'))),
+			array('old' => array($d, 791), 'to' => array(array('items', null, 'labels.php'))),
 			array('old' => array($d, 792), 'to' => array(array('purchase', 'purchase.pricelists', null))),
 			array('old' => array($d, 793), 'to' => array(array('sales', 'sales.reminders', null))),
 			array('old' => array($d, 794), 'to' => array(array('sales', 'sales.debtor_card', null), array('finance', 'finance.cash_journal', null), array('sales', 'sales.mysale', null), array('documents', 'documents.print', null), array('company', null, 'diverse.php?sektion=div_valg'), array('integrations', 'integrations.connections', null))),
