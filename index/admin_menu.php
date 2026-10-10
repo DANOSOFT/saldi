@@ -66,7 +66,7 @@ $desc = array(
 );
 if ($u['partner']) { $desc['vis_regnskaber.php'] = vr_t('Regnskaber du har adgang til','Accounts you have access to'); $desc['partnere.php'] = vr_t('Medarbejdere og kunder i dit firma','Employees and customers in your firm'); }
 
-vr_open(array(vr_t('Administration','Administration')), vr_t('Administration','Administration'), $u['is_operator'] ? vr_t('Du er logget ind som operatør. Vælg et område i menuen, eller gå direkte til regnskaberne.','You are logged in as operator. Pick an area in the menu, or go straight to the accounts.') : ($u['partner'] ? vr_h($u['partner']['name']).' · '.vr_t('Vælg et område i menuen.','Pick an area in the menu.') : vr_t('Vælg et område i menuen.','Pick an area in the menu.')), "<a class=\"vr-btn vr-primary\" href=\"../admin/vis_regnskaber.php\">".($u['partner'] && !$u['is_operator'] ? vr_t('Mine regnskaber','My accounts') : vr_t('Regnskaber','Accounts'))."</a>");
+vr_open(array(vr_t('Overblik','Overview')), vr_t('Overblik','Overview'), $u['is_operator'] ? vr_t('Du er logget ind som operatør. Vælg et område i menuen, eller gå direkte til regnskaberne.','You are logged in as operator. Pick an area in the menu, or go straight to the accounts.') : ($u['partner'] ? vr_h($u['partner']['name']).' · '.vr_t('Vælg et område i menuen.','Pick an area in the menu.') : vr_t('Vælg et område i menuen.','Pick an area in the menu.')), "<a class=\"vr-btn vr-primary\" href=\"../admin/vis_regnskaber.php\">".($u['partner'] && !$u['is_operator'] ? vr_t('Mine regnskaber','My accounts') : vr_t('Regnskaber','Accounts'))."</a>");
 print "<section class=\"vr-sect vr-menu\"><h2>".vr_t('Områder','Areas')."</h2><div class=\"vr-card\">";
 foreach (vr_menu() as $it) {
 	$k = basename($it[1]);

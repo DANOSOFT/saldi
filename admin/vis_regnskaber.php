@@ -305,10 +305,10 @@ if ($admin) {
 if ($admin || $oprette == 'on') $vr_acts .= "<a class=\"vr-btn vr-primary\" href=\"opret.php\">+ ".findtekst('339|Opret regnskab', $sprog_id)."</a>\n"; # partner-created ledgers come in P4
 if ($admin) {
 	$vr_lead = vr_t('Alle regnskaber på installationen. Fanerne deler dem op efter, hvem de tilhører. Klik på et regnskab for at åbne det, eller på kortet for detaljer, bogholdere og brugere.', 'All accounts on this installation. The tabs split them by owner. Click an account to open it, or its card for details, accountants and users.');
-	$vr_crumbs = array(array(vr_t('Operatørpanel', 'Operator panel'), 'vis_regnskaber.php'), vr_t('Regnskaber', 'Accounts'));
+	$vr_crumbs = array(array(vr_t('Operatørpanel', 'Operator panel'), '../index/admin_menu.php'), vr_t('Regnskaber', 'Accounts'));
 } else {
 	$vr_lead = ($vr_partner ? vr_h($vr_partner['name']).' · ' : '').vr_t('Regnskaber du har adgang til. Klik på et regnskab for at åbne det.', 'Accounts you have access to. Click an account to open it.');
-	$vr_crumbs = array(array(vr_t('Bogholderpanel', 'Accountant panel'), 'vis_regnskaber.php'), vr_t('Mine regnskaber', 'My accounts'));
+	$vr_crumbs = array(array(vr_t('Bogholderpanel', 'Accountant panel'), '../index/admin_menu.php'), vr_t('Mine regnskaber', 'My accounts'));
 }
 vr_open($vr_crumbs, $admin ? vr_t('Regnskaber', 'Accounts') : vr_t('Mine regnskaber', 'My accounts'), $vr_lead, $vr_acts);
 vr_note($vr_notes);

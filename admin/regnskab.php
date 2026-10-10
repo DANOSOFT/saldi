@@ -95,7 +95,7 @@ $isClosed = ($reg['lukket'] == 'on');
 $acts = '';
 $acts .= "<a class=\"vr-btn vr-primary\" href=\"aaben_regnskab.php?db_id=$rid\">".vr_t('Åbn regnskab', 'Open account')."</a>";
 $lead = ($isClosed ? '<span class="vr-st"><span class="vr-dot vr-off"></span>'.findtekst('387|Lukket', $sprog_id).'</span> · ' : '').vr_h($reg['db']).' · '.($links ? vr_t('Bogholder', 'Accountant').': '.implode(', ', array_map(fn($l) => vr_h($l['name']), $links)) : ($home ? vr_t('Partnerens eget regnskab', 'The partner\'s own account') : vr_t('Direkte kunde', 'Direct customer')));
-$crumb0 = $op ? array(vr_t('Operatørpanel','Operator panel'), 'vis_regnskaber.php') : array(vr_t('Bogholderpanel','Accountant panel'), 'vis_regnskaber.php');
+$crumb0 = $op ? array(vr_t('Operatørpanel','Operator panel'), '../index/admin_menu.php') : array(vr_t('Bogholderpanel','Accountant panel'), '../index/admin_menu.php');
 vr_open(array($crumb0, array(vr_t('Regnskaber','Accounts'), 'vis_regnskaber.php'), $reg['regnskab']), $reg['regnskab'], $lead, $acts, $home ? strtolower(vr_kind($home['kind'])) : '');
 vr_note($notes);
 $tu = fn($t) => "regnskab.php?id=$rid&tab=$t";

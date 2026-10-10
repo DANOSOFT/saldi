@@ -38,7 +38,7 @@ function vr_kind($kind) { return $kind == 'koncern' ? vr_t('Koncern', 'Group') :
 function vr_menu() {
 	global $sprog_id, $revisorregnskab, $forhandlerregnskab, $mastername;
 	$u = partner_current_user();
-	$items = array();
+	$items = array(array(vr_t('Overblik','Overview'), '../index/admin_menu.php', 'home', true));
 	if ($u['is_operator'] || !$u['partner']) {
 		$full = (!isset($revisorregnskab) && !isset($forhandlerregnskab)) || !empty($revisorregnskab) || !empty($forhandlerregnskab);
 		$r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
@@ -60,6 +60,7 @@ function vr_menu() {
 }
 function vr_icon($k) {
 	$d = array(
+		'home' => '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
 		'list' => '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
 		'users' => '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5A5 5 0 0 1 22 19"/>',
 		'plus' => '<path d="M12 5v14M5 12h14"/>', 'trash' => '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
@@ -76,10 +77,10 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	if (!isset($version)) { $version = ''; if (file_exists("../includes/version.php")) include("../includes/version.php"); }
 	$u = partner_current_user();
 	$self = basename($_SERVER['PHP_SELF']);
-	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.1.3\">\n";
+	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.1.4\">\n";
 	print "<div class=\"vr-app\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
 	// sidebar
-	print "<aside class=\"vr-side\"><div class=\"vr-logo\"><span class=\"vr-mark\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M16 5H10a4 4 0 0 0 0 8h4a4 4 0 0 1 0 8H8\"/></svg></span>Saldi</div>";
+	print "<aside class=\"vr-side\"><a class=\"vr-logo\" href=\"../index/admin_menu.php\"><span class=\"vr-mark\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M16 5H10a4 4 0 0 0 0 8h4a4 4 0 0 1 0 8H8\"/></svg></span>Saldi</a>";
 	print "<div class=\"vr-grp\">".($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration')))."</div><nav>";
 	foreach (vr_menu() as $it) {
 		$on = (basename($it[1]) == $self) || ($self == 'regnskab.php' && basename($it[1]) == 'vis_regnskaber.php');
