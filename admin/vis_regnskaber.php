@@ -297,13 +297,11 @@ $vr_links = partner_links_by_ledger();
 $vr_partners = partner_all();
 $vr_homes = array(); foreach ($vr_partners as $pp) if ($pp['home_regnskab_id']) $vr_homes[(int)$pp['home_regnskab_id']] = $pp;
 $vr_acts = '';
-if ($showAdminPanel && $admin) $vr_acts .= "<a class=\"vr-btn vr-quiet\" href=\"admin_panel.php\">Admin Panel</a>\n";
 $vr_acts .= "<a class=\"vr-tog\" role=\"switch\" aria-checked=\"".($showClosed ? 'true' : 'false')."\" href=\"".vr_h($vr_toggleClosed)."\"><span>$vr_closedLabel</span><span class=\"vr-sw\"></span></a>\n";
 if ($admin) {
 	if ($rediger) $vr_acts .= "<a class=\"vr-btn\" aria-pressed=\"true\" href=\"".vr_h($vr_toggleEdit)."\" id=\"vrLock\" data-confirm=\"".vr_t('Du har ugemte ændringer. Forlad uden at gemme?', 'You have unsaved changes. Leave without saving?')."\">".findtekst('1908|Lås', $sprog_id)." <kbd>R</kbd></a>\n";
 	else $vr_acts .= "<a class=\"vr-btn\" href=\"".vr_h($vr_toggleEdit)."\" accesskey=\"R\">".findtekst('1206|Ret', $sprog_id)." <kbd>R</kbd></a>\n";
 }
-if ($admin) $vr_acts = "<a class=\"vr-btn vr-quiet\" href=\"partnere.php\">".vr_t('Bogholdere og koncerner', 'Accountants and groups')."</a>\n".$vr_acts;
 if ($admin || $oprette == 'on') $vr_acts .= "<a class=\"vr-btn vr-primary\" href=\"opret.php\">+ ".findtekst('339|Opret regnskab', $sprog_id)."</a>\n"; # partner-created ledgers come in P4
 if ($admin) {
 	$vr_lead = vr_t('Alle regnskaber på installationen. Fanerne deler dem op efter, hvem de tilhører. Klik på et regnskab for at åbne det, eller på kortet for detaljer, bogholdere og brugere.', 'All accounts on this installation. The tabs split them by owner. Click an account to open it, or its card for details, accountants and users.');

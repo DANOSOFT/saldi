@@ -76,7 +76,7 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	if (!isset($version)) { $version = ''; if (file_exists("../includes/version.php")) include("../includes/version.php"); }
 	$u = partner_current_user();
 	$self = basename($_SERVER['PHP_SELF']);
-	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.1.2\">\n";
+	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.1.3\">\n";
 	print "<div class=\"vr-app\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
 	// sidebar
 	print "<aside class=\"vr-side\"><div class=\"vr-logo\"><span class=\"vr-mark\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M16 5H10a4 4 0 0 0 0 8h4a4 4 0 0 1 0 8H8\"/></svg></span>Saldi</div>";

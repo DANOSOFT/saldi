@@ -167,6 +167,7 @@ body{margin:0}
 .vr-mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(160deg,#4FA0EE,#6A2AB8);display:grid;place-items:center;box-shadow:0 4px 12px rgba(0,0,0,.25)}
 .vr-side .vr-grp{font-size:11.5px;opacity:.6;padding:10px 12px 4px;letter-spacing:.02em}
 .vr-nav{display:flex;align-items:center;gap:12px;height:42px;padding:0 12px;border-radius:10px;color:inherit;opacity:.88;font-size:14.5px;white-space:nowrap;text-decoration:none;transition:background .15s}
+.vr-nav svg{flex:none}
 .vr-nav:hover{background:rgba(255,255,255,.08);opacity:1;color:inherit}
 .vr-nav.vr-on{opacity:1;font-weight:600;background:rgba(255,255,255,.16)}
 .vr-nav.vr-dim{opacity:.4}
