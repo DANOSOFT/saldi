@@ -1,0 +1,30 @@
+<?php
+// --- admin/usage_snapshot_job.php --- ver 5.1.0 --- 2026.10.10 ---
+// LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261010 CL/ASR New. Nightly usage snapshot (entitlements spec §7.3 step 1 / panels spec §5.5): for every open
+//                  ledger measure usage in the customer database, store usage_snapshots for today and refresh
+//                  regnskab.posteret/sidst so the lists are fresh without "Genberegn posteringer".
+//                  CLI only:  cd admin && php usage_snapshot_job.php [limit]      (cron 03:00)
+if (php_sapi_name() !== 'cli') { http_response_code(403); exit("cli only\n"); }
+chdir(__DIR__);
+include("../includes/connect.php");
+if (!function_exists('db_select')) include("../includes/db_query.php");
+include("../includes/std_func.php");
+include("../includes/entitlements.php");
+include("../includes/partnerScope.php");
+$brugernavn = 'cron';
+ent_tables_ensure(); partner_tables_ensure();
+$limit = isset($argv[1]) ? (int)$argv[1] : 0;
+$ids = array(); $q = db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket != 'on' order by id", __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) $ids[] = $r;
+$n = 0; $bad = 0; $t0 = microtime(true);
+foreach ($ids as $reg) {
+	if ($limit && $n + $bad >= $limit) break;
+	$u = ent_usage_collect($reg);
+	if ($u['ok']) { ent_snapshot_store((int)$reg['id'], $u); $n++; echo str_pad($reg['id'], 5)." ".str_pad($reg['regnskab'], 30)." users ".str_pad((string)$u['users_active'], 4)." post12m ".str_pad((string)$u['postings_12m'], 8)." month ".$u['postings_month']."\n"; }
+	else { $bad++; echo str_pad($reg['id'], 5)." ".str_pad($reg['regnskab'], 30)." (ingen database)\n"; }
+}
+partner_log('ledger.snapshot', null, null, "$n regnskaber, $bad uden database, ".round(microtime(true) - $t0, 1)." s");
+echo "done: $n snapshots, $bad skipped, ".round(microtime(true) - $t0, 1)." s\n";
+?>

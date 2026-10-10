@@ -188,3 +188,11 @@ body{margin:0}
 
 /* legacy content inside a card (opret.php) */
 .vr-legacy{padding:18px 20px;font:14px/1.5 var(--sans)} .vr-legacy table{font:inherit} .vr-legacy td{padding:4px 6px}
+
+/* usage tab */
+.vr-b i.vr-mid{background:var(--amber)}
+.vr-bars{display:flex;align-items:flex-end;gap:6px;height:140px;padding:18px 20px 8px}
+.vr-barcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px}
+.vr-barcol i{display:block;width:100%;max-width:34px;background:var(--text-3);border-radius:4px 4px 0 0;min-height:2px}
+.vr-barcol i.vr-cur{background:var(--vr-user)}
+.vr-barcol span{font-size:11.5px;color:var(--text-3)}

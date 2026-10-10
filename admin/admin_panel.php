@@ -39,6 +39,7 @@ include("../includes/partnerScope.php");
 include("../includes/entitlements.php");
 include("vr_ui.php");
 include("inc_abonnement.php");
+include("inc_forbrug.php");
 partner_tables_ensure();
 ent_tables_ensure();
 
@@ -435,6 +436,7 @@ if ($filter_regnskab) {
 		$reg['lukket'] = 'on'; partner_log('ledger.auto_closed', $rid, null, 'lukkes '.$reg['lukkes']);
 	}
 	ent_tab_actions($rid, $reg, $notes);
+	ent_forbrug_actions($rid, $notes);
 	// partner links (operator)
 	if (isset($_POST['vr_action'])) {
 		if ($_POST['vr_action'] == 'link') {
@@ -465,7 +467,7 @@ if ($filter_regnskab) {
 	$links = array(); $q = db_select("select rp.*, p.name, p.kind from regnskab_partners rp join partners p on p.id = rp.partner_id where rp.regnskab_id = '$rid' and rp.until is null order by p.name", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $links[] = $r;
 	$home = db_fetch_array(db_select("select * from partners where home_regnskab_id = '$rid' and status = 'active'", __FILE__ . " linje " . __LINE__));
 	$isClosed = ($reg['lukket'] == 'on');
-	if (!in_array($tab, array('oversigt','abonnement','brugere','betalinger','indstillinger','log'), true)) $tab = 'oversigt';
+	if (!in_array($tab, array('oversigt','abonnement','forbrug','brugere','betalinger','indstillinger','log'), true)) $tab = 'oversigt';
 
 	$lead = '<span class="vr-st"><span class="vr-dot '.($isClosed ? 'vr-off' : 'vr-ok').'"></span>'.($isClosed ? findtekst('387|Lukket', $sprog_id) : vr_t('Aktiv','Active')).'</span> · '.vr_h($reg['db']).' · ID '.$rid.' · '.($ent['plan'] ? vr_h($ent['plan']['name']) : vr_t('ingen pakke','no plan')).($links ? ' · '.vr_t('Bogholder','Accountant').': '.implode(', ', array_map(fn($l) => vr_h($l['name']), $links)) : ($home ? ' · '.vr_t('partnerens eget regnskab','the partner\'s own account') : ' · '.vr_t('direkte kunde','direct customer')));
 	vr_open(array(array('Administrationspanel', 'admin_panel.php'), array(vr_t('Kunder','Customers'), 'admin_panel.php'), $reg['regnskab']), $reg['regnskab'], $lead, "<a class=\"vr-btn vr-primary\" href=\"aaben_regnskab.php?db_id=$rid\">".vr_t('Åbn regnskab','Open account')."</a>", $home ? strtolower(vr_kind($home['kind'])) : '');
@@ -474,6 +476,7 @@ if ($filter_regnskab) {
 	vr_tabs(array(
 		'oversigt' => array(vr_t('Oversigt','Overview'), $tu('oversigt'), null),
 		'abonnement' => array(vr_t('Abonnement','Subscription'), $tu('abonnement'), null),
+		'forbrug' => array(vr_t('Forbrug','Usage'), $tu('forbrug'), null),
 		'brugere' => array(vr_t('Brugere','Users'), $tu('brugere'), $live['ok'] ? $live['users'] : null),
 		'betalinger' => array(vr_t('Betalinger','Payments'), $tu('betalinger'), null),
 		'indstillinger' => array(vr_t('Indstillinger','Settings'), $tu('indstillinger'), null),
@@ -499,6 +502,9 @@ if ($filter_regnskab) {
 		print "<div class=\"vr-foot\"><form method=\"post\" class=\"vr-inline\"><input type=\"hidden\" name=\"vr_action\" value=\"link\"><select name=\"partner_id\" class=\"vr-sel\" required><option value=\"\">".vr_t('Vælg bogholder eller koncern…','Choose accountant or group…')."</option>"; foreach (partner_all() as $pp) print "<option value=\"".(int)$pp['id']."\">".vr_h($pp['name'])." · ".vr_h(vr_kind($pp['kind']))."</option>"; print "</select><select name=\"access\" class=\"vr-sel\"><option value=\"full\">".vr_t('Fuld adgang','Full access')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option><option value=\"owner\">".vr_t('Ejer (koncern)','Owner (group)')."</option></select><button type=\"submit\" class=\"vr-btn\">+ ".vr_t('Tilknyt','Link')."</button></form></div></div></section>\n</div>\n";
 	} elseif ($tab == 'abonnement') {
 		ent_tab_render($rid, $ent, $cat);
+	} elseif ($tab == 'forbrug') {
+		$usage = ent_usage_collect($reg); if ($usage['ok']) ent_snapshot_store($rid, $usage);
+		ent_forbrug_render($rid, $reg, $ent, $cat, $usage);
 	} elseif ($tab == 'brugere') {
 		print "<section class=\"vr-sect\"><h2>".vr_t('Kundens brugere','Customer users')." <small>".($live['ok'] ? $live['users'].' '.vr_t('aktive','active') : '')."</small></h2><div class=\"vr-card\"><div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"uq\" placeholder=\"".vr_t('Søg bruger','Search user')."\" oninput=\"filterUsers(this.value)\"></label><span class=\"vr-hint\">".vr_t('Klik på en bruger for at rette adgangskode, e-mail, telefon, IP og 2FA','Click a user to edit password, e-mail, phone, IP and 2FA')."</span></div><div id=\"usersBox\"><div class=\"vr-empty\"><span>".vr_t('Henter brugere…','Loading users…')."</span></div></div></div></section>\n";
 	} elseif ($tab == 'betalinger') {

@@ -246,5 +246,67 @@ function ent_expire_override($rid, $id) {
 	ent_log('entitlement.override_expired', (int)$rid, "$r[kind] $r[key] = $r[value]");
 }
 
+// ---------- usage (area 2 "Forbrug og begrænsninger") ----------
+// Live measurement in the customer database, rules from the entitlements spec §2.3/§5.6.
+function ent_usage_collect($reg) {
+	global $sqhost, $squser, $sqpass;
+	$u = array('ok' => false, 'users_active' => null, 'users_total' => null, 'postings_12m' => null, 'postings_month' => null, 'postings_by_month' => array(), 'items' => null, 'webshops' => null, 'pos_tills' => null, 'pos_locations' => null, 'warehouses' => null, 'invoices_12m' => null, 'last_activity' => null, 'modules' => array());
+	if (!$reg['db'] || !db_exists($reg['db'])) return $u;
+	if (!@db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) return $u;
+	$u['ok'] = true;
+	$one = function($q) { $r = @db_fetch_array(@db_select($q, __FILE__ . " linje " . __LINE__)); return $r ? $r : array(); };
+	$cols = function($t) { $c = array(); $q = db_select("select column_name from information_schema.columns where table_name = '$t'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $c[] = $r['column_name']; return $c; };
+	if (tbl_exists('brugere')) {
+		$bc = $cols('brugere'); $w = array(); if (in_array('revisor', $bc)) $w[] = "revisor is not true"; 
+		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_total'] = (int)($r['n'] ?? 0);
+		if (in_array('status', $bc)) $w[] = "(status is true or status is null)";
+		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_active'] = (int)($r['n'] ?? 0);
+	}
+	if (tbl_exists('transaktioner')) {
+		$from = date('Y-m-d', strtotime('-1 year')); $r = $one("select count(id) as n, max(logdate) as l from transaktioner where logdate >= '$from'"); $u['postings_12m'] = (int)($r['n'] ?? 0); $u['last_activity'] = $r['l'] ?? null;
+		$r = $one("select count(id) as n from transaktioner where logdate >= '".date('Y-m-01')."'"); $u['postings_month'] = (int)($r['n'] ?? 0);
+		$q = @db_select("select to_char(logdate, 'YYYY-MM') as m, count(id) as n from transaktioner where logdate >= '".date('Y-m-01', strtotime('-23 months'))."' group by 1 order by 1", __FILE__ . " linje " . __LINE__);
+		if ($q) while ($r = db_fetch_array($q)) $u['postings_by_month'][$r['m']] = (int)$r['n'];
+	}
+	if (tbl_exists('varer')) { $vc = $cols('varer'); $r = $one("select count(id) as n from varer".(in_array('lukket', $vc) ? " where lukket is null or lukket = '' or lukket = '0'" : "")); $u['items'] = (int)($r['n'] ?? 0); if (in_array('serienr', $vc)) { $r = $one("select count(id) as n from varer where serienr = '1' or serienr = 'on' or serienr = 'true'"); $u['modules']['lager.serienumre'] = (int)($r['n'] ?? 0) > 0; } }
+	if (tbl_exists('ordrer')) { $oc = $cols('ordrer'); $r = $one("select count(id) as n from ordrer where art = 'DF' and fakturadate >= '".date('Y-m-d', strtotime('-1 year'))."'"); $u['invoices_12m'] = (int)($r['n'] ?? 0); if (in_array('nextfakt', $oc)) { $r = $one("select count(id) as n from ordrer where nextfakt is not null and nextfakt <> ''"); $u['modules']['debitor.abonnement'] = (int)($r['n'] ?? 0) > 0; } $r = $one("select count(id) as n from ordrer where art = 'KO' or art = 'KF'"); $u['modules']['kreditor.indkob'] = (int)($r['n'] ?? 0) > 0; $r = $one("select count(id) as n from ordrer where art = 'DT'"); $u['modules']['debitor.tilbud'] = (int)($r['n'] ?? 0) > 0; }
+	if (tbl_exists('grupper')) {
+		$r = $one("select box1, box3 from grupper where art = 'POS' and kodenr = '1'"); $u['pos_tills'] = isset($r['box1']) ? (int)$r['box1'] : 0; $u['modules']['pos'] = $u['pos_tills'] > 0;
+		if (isset($r['box3']) && $r['box3'] !== '') $u['pos_locations'] = count(array_unique(array_filter(array_map('trim', explode(',', $r['box3']))))); else $u['pos_locations'] = $u['pos_tills'] > 0 ? 1 : 0;
+		$r = $one("select box4, box5, box6 from grupper where art = 'API' and kodenr = '1'"); $u['webshops'] = ($r && (trim((string)($r['box4'] ?? '')) !== '' || trim((string)($r['box5'] ?? '')) !== '' || trim((string)($r['box6'] ?? '')) !== '')) ? 1 : 0; $u['modules']['shop.integration'] = $u['webshops'] > 0;
+		$r = $one("select count(id) as n from grupper where art = 'LG'"); $u['warehouses'] = (int)($r['n'] ?? 0); $u['modules']['lager.multilocation'] = $u['warehouses'] > 1;
+		$r = $one("select count(id) as n from grupper where art = 'AFD' or art = 'PRJ'"); $u['modules']['finans.dimensioner'] = (int)($r['n'] ?? 0) > 0;
+		$r = $one("select box7 from grupper where art = 'DIV' and kodenr = '2'"); $u['modules']['sager'] = isset($r['box7']) && $r['box7'] !== '' && $r['box7'] !== '0';
+		$r = $one("select box4 from grupper where art = 'DIV' and kodenr = '3'"); $u['modules']['debitor.fakturering_fuld'] = !(isset($r['box4']) && ($r['box4'] === 'on' || $r['box4'] === '1'));
+		$r = $one("select count(id) as n from grupper where art = 'DIV' and kodenr = '4'"); $u['modules']['debitor.rykker'] = (int)($r['n'] ?? 0) > 0;
+	}
+	if (tbl_exists('settings')) {
+		$r = $one("select count(id) as n from settings where var_grp = 'debitor' and var_name = 'mySale' and var_value <> '' and var_value is not null"); $u['modules']['kommission'] = (int)($r['n'] ?? 0) > 0;
+		$r = $one("select count(id) as n from settings where var_grp = 'rental'"); $u['modules']['booking'] = (int)($r['n'] ?? 0) > 0;
+		$r = $one("select count(id) as n from settings where var_grp = 'productOptions' and var_name = 'min_beholdning' and var_value <> '' and var_value <> '0'"); $u['modules']['lager.minmax'] = (int)($r['n'] ?? 0) > 0;
+	}
+	if (tbl_exists('lagerstatus')) { $r = $one("select count(id) as n from lagerstatus"); $u['modules']['lager.styring'] = (int)($r['n'] ?? 0) > 0; }
+	if (tbl_exists('adresser')) { $r = $one("select count(id) as n from adresser where art = 'K'"); $u['modules']['kreditor.register'] = (int)($r['n'] ?? 0) > 0; }
+	if (tbl_exists('budget')) { $r = $one("select count(*) as n from budget"); $u['modules']['finans.budget'] = (int)($r['n'] ?? 0) > 0; }
+	include("../includes/connect.php");
+	return $u;
+}
+// Store today's snapshot (upsert) and refresh the legacy columns the lists read.
+function ent_snapshot_store($rid, $u) {
+	if (!$u['ok']) return;
+	$rid = (int)$rid; $n = fn($v) => $v === null ? 'NULL' : (int)$v;
+	db_modify("delete from usage_snapshots where regnskab_id = '$rid' and taken_at = current_date", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into usage_snapshots (regnskab_id, taken_at, postings_12m, postings_month, users_active, users_invited, items, webshops, pos_tills, pos_locations, warehouses) values ('$rid', current_date, ".$n($u['postings_12m']).", ".$n($u['postings_month']).", ".$n($u['users_active']).", 0, ".$n($u['items']).", ".$n($u['webshops']).", ".$n($u['pos_tills']).", ".$n($u['pos_locations']).", ".$n($u['warehouses']).")", __FILE__ . " linje " . __LINE__);
+	$sidst = $u['last_activity'] ? (int)strtotime($u['last_activity']) : 0;
+	db_modify("update regnskab set posteret = '".(int)$u['postings_12m']."'".($sidst ? ", sidst = '$sidst'" : "")." where id = '$rid'", __FILE__ . " linje " . __LINE__);
+}
+// Last snapshot per month (newest first).
+function ent_usage_history($rid, $months = 12) {
+	$out = array(); $q = db_select("select distinct on (to_char(taken_at, 'YYYY-MM')) to_char(taken_at, 'YYYY-MM') as m, * from usage_snapshots where regnskab_id = '".(int)$rid."' order by to_char(taken_at, 'YYYY-MM') desc, taken_at desc limit ".(int)$months, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) $out[] = $r;
+	return $out;
+}
+function ent_limit_label($k) { $l = array('max_users' => vr_t('Brugere','Users'), 'included_postings' => vr_t('Posteringer (12 mdr.)','Entries (12 m)'), 'max_items' => vr_t('Varer','Items'), 'max_webshops' => vr_t('Webshops','Webshops'), 'pos_tills' => vr_t('Kasser','Tills'), 'warehouses' => vr_t('Lagre','Warehouses')); return isset($l[$k]) ? $l[$k] : $k; }
+
 } // function_exists
 ?>
