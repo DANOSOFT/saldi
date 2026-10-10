@@ -23,6 +23,7 @@
 //                  the sum of credit minus debit on the accounts between the dashboard's kontomin and kontomaks, as the
 //                  old widgets counted it. Everything from one daily query over the last and the current fiscal year.
 // 20261009 Sawaneh The largest uninvoiced order (addendum 3 §7) and the three newest suggestions (§7a) for the small cards.
+// 20261010 Sawaneh Key figures 1 and 3 of §7 (open point 9 settled): status 2 = delivered, not invoiced; levdate is the delivery date.
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
@@ -299,6 +300,12 @@ function dash_data(array $c): array
 	if ($lo) {
 		$orders['largest'] = array('name' => trim((string) $lo['firmanavn']), 'sum' => (float) $lo['s']);
 	}
+	// Delivered and not invoiced (status 2): ready to invoice now, and the ones delivered more than 14 days ago.
+	$fourteen = dash_add($today, '-14 days');
+	$r = db_fetch_array(db_select("select count(*) as n, coalesce(sum(\"sum\"), 0) as s from ordrer where status = 2 and art = 'DO'", __FILE__ . " linje " . __LINE__));
+	$orders['ready'] = array('count' => $r ? (int) $r['n'] : 0, 'sum' => $r ? (float) $r['s'] : 0.0);
+	$r = db_fetch_array(db_select("select count(*) as n, coalesce(sum(\"sum\"), 0) as s from ordrer where status = 2 and art = 'DO' and levdate < '$fourteen'", __FILE__ . " linje " . __LINE__));
+	$orders['late'] = array('count' => $r ? (int) $r['n'] : 0, 'sum' => $r ? (float) $r['s'] : 0.0);
 
 	// Suggestions waiting: unread notifications of the type suggestion.
 	$suggest = 0;

@@ -6706,6 +6706,30 @@
 7069	Kræver Se Oversigt	Requires See Overview	Krever Se Oversikt
 7070	Brugeren kan se tallene her, men ikke åbne rapporten bag.	The user can see the figures here but not open the report behind them.	Brukeren kan se tallene her, men ikke åpne rapporten bak.
 7071	Sæt alle til læs	Set all to read	Sett alle til les
+7072	Leveret for over 14 dage siden	Delivered more than 14 days ago	Levert for over 14 dager siden
+7073	Klar til fakturering nu	Ready to invoice now	Klar til fakturering nå
+7074	Dymo 11354	Dymo 11354	Dymo 11354
+7075	Skabeloner til vareetiketter, der udskrives fra varekortet og varelisten.	Templates for item labels printed from the item card and the item list.	Maler for vareetiketter som skrives ut fra varekortet og varelisten.
+7076	Ny mærkat	New label	Ny etikett
+7077	Rækker	Rows	Rader
+7078	Topmargen	Top margin	Toppmarg
+7079	Venstre margen	Left margin	Venstre marg
+7080	Indhold	Content	Innhold
+7081	Varemærke	Brand	Merke
+7082	Egne tekstlinjer	Custom text lines	Egne tekstlinjer
+7083	Rå HTML	Raw HTML	Rå HTML
+7084	Visuel editor	Visual editor	Visuell editor
+7085	Mærkaten er gemt	The label has been saved	Etiketten er lagret
+7086	Mærkaten er oprettet	The label has been created	Etiketten er opprettet
+7087	Mærkaten er slettet	The label has been deleted	Etiketten er slettet
+7088	Der findes allerede en mærkat med det navn	A label with that name already exists	Det finnes allerede en etikett med det navnet
+7089	Slet mærkaten %s?	Delete the label %s?	Slette etiketten %s?
+7090	Mærkaten kan ikke længere vælges ved udskrift. Varer og ordrer berøres ikke.	The label can no longer be chosen when printing. Items and orders are not affected.	Etiketten kan ikke lenger velges ved utskrift. Varer og ordrer berøres ikke.
+7091	Layout	Layout	Oppsett
+7092	Mærkattype	Label type	Etikettype
+7093	Standardmærkaten kan ikke slettes.	The standard label cannot be deleted.	Standardetiketten kan ikke slettes.
+7094	Bogstaver a-z, tal og + . - , højst 40 tegn	Letters a-z, digits and + . - , at most 40 characters	Bokstaver a-z, tall og + . - , maks. 40 tegn
+7095	Navnet er ikke gyldigt	The name is not valid	Navnet er ikke gyldig
 6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
 6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
 6932	Adgang nægtet	Access denied	Ingen tilgang

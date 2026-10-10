@@ -40,6 +40,7 @@
 //                  come from dashboardIncludes/dashData.php. Texts 6920-6929, 6944-6949, 6951-6999.
 // 20261009 Sawaneh Front page on prototype v8.13 (addendum 3): blocks in the user's order (settings dashboard_layout/order), the KPI band, Ubetalte salgsfakturaer (§5.9), Ufakturerede ordrer with the largest order, the suggestions list, 'Ingen omsætning endnu'. Texts 7032-7065.
 // 20261009 Sawaneh Oversigt access keys (front-page addendum 4): dashboard.view gates the page, dashboard.block.* the blocks and the drawer.
+// 20261010 Sawaneh Ufakturerede ordrer: key figures 1 and 3 of addendum 3 §7 (delivered over 14 days ago, ready to invoice now). Texts 7072-7073.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -349,7 +350,9 @@ $blocks['small'] = function () use ($data, $widgets, $tx, $h, $money) {
 	print "<section data-widget='onlineusers' class='card" . ($widgets['onlineusers'] ? '' : ' gone') . "'><h3>" . $h($tx('2379|Aktive medarbejdere')) . "</h3><div class='val' data-count='" . (int) $data['online'] . "' data-fmt='int'>0</div><div class='note'>" . $h($tx('6965|Aktive inden for den sidste time')) . "</div></section>";
 	$o = $data['orders'];
 	print "<section data-widget='ordercount' class='card" . ($widgets['ordercount'] ? '' : ' gone') . "'><h3>" . $h($tx('2161|Ufakturerede ordrer')) . " <span class='sub'>" . $h($tx('6966|30 dage')) . "</span></h3><div class='val'><span data-count='" . (int) $o['count'] . "' data-fmt='int'>0</span> <small>· " . $h($money($o['sum'])) . "</small></div>"
-		. ($o['largest'] ? "<ul class='kv'><li><span>" . $h($tx('7051|Største ufakturerede')) . "</span><b>" . $h($o['largest']['name'] . ' · ' . $money($o['largest']['sum'])) . "</b></li></ul>" : '')
+		. "<ul class='kv'><li><span>" . $h($tx('7072|Leveret for over 14 dage siden')) . "</span><b" . ($o['late']['count'] ? " class='warn'" : '') . ">" . $h((int) $o['late']['count'] . ' · ' . $money($o['late']['sum'])) . "</b></li>"
+		. ($o['largest'] ? "<li><span>" . $h($tx('7051|Største ufakturerede')) . "</span><b>" . $h($o['largest']['name'] . ' · ' . $money($o['largest']['sum'])) . "</b></li>" : '')
+		. "<li><span>" . $h($tx('7073|Klar til fakturering nu')) . "</span><b>" . $h((int) $o['ready']['count'] . ' · ' . $money($o['ready']['sum'])) . "</b></li></ul>"
 		. "<div class='foot'><a class='link' href='../debitor/ordreliste.php'>" . $h($tx('6967|Gå til ordrer')) . "</a></div></section>";
 	$sl = $data['suggestList'];
 	print "<section data-widget='suggest' class='card cta" . ($widgets['suggest'] ? '' : ' gone') . "'><h3>" . $h($tx('6968|Forslag klar til bekræftelse')) . "</h3><div class='val' data-count='" . (int) $data['suggest'] . "' data-fmt='int'>0</div><div class='note'>" . $h($tx('6969|Notifikationer med forslag, der venter på dig')) . "</div>";
