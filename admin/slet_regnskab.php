@@ -123,15 +123,13 @@ if ($_POST['regnskabsantal']) {
 		partner_log('ledger.deleted', null, null, $vr_msg);
 		}
 }
-$q = db_select("select * from brugere where brugernavn = '$brugernavn'");
-$r = db_fetch_array($q);
-list($admin,$oprette,$slette,$tmp)=explode(",",$r['rettigheder'],4);
-$adgang_til=explode(",",$tmp);
-
+// 20261010 CL/ASR db_select() was called with one argument here, which is fatal on PHP 8 (the page never loaded).
+//                  Scope now comes from partnerScope.php: operators see everything, others their own ledgers.
+$vr_scope = partner_ledgers();
 $x=0;
 $q1= db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket='on' order by id",__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
-	if ($admin || in_array($r1['id'],$adgang_til)) {
+	if ($vr_scope === null || in_array((int)$r1['id'],$vr_scope)) {
 		$x++;
 		$id[$x]=$r1['id'];
 		$regnskab[$x]=$r1['regnskab'];	
