@@ -127,7 +127,8 @@ if ($_POST['regnskabsantal']) {
 //                  Scope now comes from partnerScope.php: operators see everything, others their own ledgers.
 $vr_scope = partner_ledgers();
 $x=0;
-$q1= db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket='on' order by id",__FILE__ . " linje " . __LINE__);
+include("inc_lifecycle.php"); lc_tables_ensure();
+$q1= db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket='on' and id not in (select regnskab_id from regnskab_lifecycle l where l.applied_at is not null and l.cancelled_at is null and l.state = 'suspended' and l.id = (select max(id) from regnskab_lifecycle where regnskab_id = l.regnskab_id and applied_at is not null and cancelled_at is null)) order by id",__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
 	if ($vr_scope === null || in_array((int)$r1['id'],$vr_scope)) {
 		$x++;
@@ -138,7 +139,7 @@ while ($r1=db_fetch_array($q1)) {
 }
 $regnskabsantal=$x;
 
-vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('341|Slet regnskab', $sprog_id)), findtekst('341|Slet regnskab', $sprog_id), vr_t('Kun regnskaber, der er markeret som lukket, kan slettes. Der tages en sikkerhedskopi til nedlagte_regnskaber, før databasen fjernes.', 'Only accounts marked as closed can be deleted. A backup is written to nedlagte_regnskaber before the database is dropped.'));
+vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('341|Slet regnskab', $sprog_id)), findtekst('341|Slet regnskab', $sprog_id), vr_t('Kun regnskaber, der er lukket, kan slettes. Suspenderede regnskaber vises ikke her. Der tages en sikkerhedskopi til nedlagte_regnskaber, før databasen fjernes.', 'Only accounts marked as closed can be deleted. A backup is written to nedlagte_regnskaber before the database is dropped.'));
 if ($vr_msg) vr_note(array($vr_msg)); if ($vr_err) vr_note($vr_err, 'warn');
 print "<section class=\"vr-sect\"><h2>".vr_t('Lukkede regnskaber','Closed accounts')." <small>$regnskabsantal</small></h2><div class=\"vr-card\">";
 print "<form name=\"slet_regnskab\" action=\"slet_regnskab.php\" method=\"post\" onsubmit=\"return Slet_Regnskab()\">";

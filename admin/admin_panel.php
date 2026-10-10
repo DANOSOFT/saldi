@@ -41,6 +41,7 @@ include("vr_ui.php");
 include("inc_abonnement.php");
 include("inc_forbrug.php");
 include("inc_betalinger.php");
+include("inc_lifecycle.php");
 partner_tables_ensure();
 ent_tables_ensure();
 
@@ -439,6 +440,8 @@ if ($filter_regnskab) {
 	ent_tab_actions($rid, $reg, $notes);
 	ent_forbrug_actions($rid, $notes);
 	bill_actions($rid, $notes);
+	lc_actions($rid, $notes);
+	lc_apply_due($rid); $reg = db_fetch_array(db_select("SELECT * FROM regnskab WHERE id = $rid", __FILE__ . " linje " . __LINE__));
 	// partner links (operator)
 	if (isset($_POST['vr_action'])) {
 		if ($_POST['vr_action'] == 'link') {
@@ -471,7 +474,7 @@ if ($filter_regnskab) {
 	$isClosed = ($reg['lukket'] == 'on');
 	if (!in_array($tab, array('oversigt','abonnement','forbrug','brugere','betalinger','indstillinger','log'), true)) $tab = 'oversigt';
 
-	$lead = '<span class="vr-st"><span class="vr-dot '.($isClosed ? 'vr-off' : 'vr-ok').'"></span>'.($isClosed ? findtekst('387|Lukket', $sprog_id) : vr_t('Aktiv','Active')).'</span> · '.vr_h($reg['db']).' · ID '.$rid.' · '.($ent['plan'] ? vr_h($ent['plan']['name']) : vr_t('ingen pakke','no plan')).($links ? ' · '.vr_t('Bogholder','Accountant').': '.implode(', ', array_map(fn($l) => vr_h($l['name']), $links)) : ($home ? ' · '.vr_t('partnerens eget regnskab','the partner\'s own account') : ' · '.vr_t('direkte kunde','direct customer')));
+	$lcs = lc_state($rid, $reg); $lead = '<span class="vr-st"><span class="vr-dot '.($lcs['state'] == 'active' ? 'vr-ok' : ($lcs['state'] == 'suspended' ? 'vr-warn' : 'vr-off')).'"></span>'.($lcs['state'] == 'active' ? vr_t('Aktiv','Active') : ($lcs['state'] == 'suspended' ? vr_t('Suspenderet','Suspended') : findtekst('387|Lukket', $sprog_id))).'</span> · '.vr_h($reg['db']).' · ID '.$rid.' · '.($ent['plan'] ? vr_h($ent['plan']['name']) : vr_t('ingen pakke','no plan')).($links ? ' · '.vr_t('Bogholder','Accountant').': '.implode(', ', array_map(fn($l) => vr_h($l['name']), $links)) : ($home ? ' · '.vr_t('partnerens eget regnskab','the partner\'s own account') : ' · '.vr_t('direkte kunde','direct customer')));
 	vr_open(array(array('Administrationspanel', 'admin_panel.php'), array(vr_t('Kunder','Customers'), 'admin_panel.php'), $reg['regnskab']), $reg['regnskab'], $lead, "<a class=\"vr-btn vr-primary\" href=\"aaben_regnskab.php?db_id=$rid\">".vr_t('Åbn regnskab','Open account')."</a>", $home ? strtolower(vr_kind($home['kind'])) : '');
 	vr_note($notes);
 	$tu = fn($t) => "admin_panel.php?regnskab_id=$rid&tab=$t";
@@ -516,11 +519,12 @@ if ($filter_regnskab) {
 		bill_render($rid, $reg, $ent, $live, $data, $cfg);
 	} elseif ($tab == 'indstillinger') {
 		$bt = $reg['betalt_til'] && $reg['betalt_til'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['betalt_til'])) : ''; $lk = $reg['lukkes'] && $reg['lukkes'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['lukkes'])) : '';
-		print "<div class=\"vr-grid2\"><section class=\"vr-sect\"><h2>".vr_t('Grænser og lukning','Limits and closing')."</h2><div class=\"vr-card\"><form method=\"post\" action=\"admin_panel.php?regnskab_id=$rid&tab=indstillinger\" class=\"vr-form\"><input type=\"hidden\" name=\"action\" value=\"update_settings\"><input type=\"hidden\" name=\"regnskab_id\" value=\"$rid\">";
+		lc_render($rid, $reg, $ent);
+		print "<div class=\"vr-grid2\" style=\"margin-top:22px\"><section class=\"vr-sect\"><h2>".vr_t('Grænser og felter','Limits and fields')."</h2><div class=\"vr-card\"><form method=\"post\" action=\"admin_panel.php?regnskab_id=$rid&tab=indstillinger\" class=\"vr-form\"><input type=\"hidden\" name=\"action\" value=\"update_settings\"><input type=\"hidden\" name=\"regnskab_id\" value=\"$rid\">";
 		print "<p class=\"vr-sub\">".vr_t('Disse to grænser er de gamle felter på regnskabet. Når pakkelaget håndhæver, styres de fra Abonnement.','These two limits are the legacy fields. Once the entitlement layer enforces, they are managed from Subscription.')."</p>";
 		print "<label>".vr_t('Maks. brugere (gammelt felt)','Max users (legacy)')."<input class=\"vr-inp\" type=\"number\" name=\"brugerantal\" value=\"".(int)$reg['brugerantal']."\" min=\"0\"></label><label>".vr_t('Maks. posteringer (gammelt felt)','Max entries (legacy)')."<input class=\"vr-inp\" type=\"number\" name=\"posteringer\" value=\"".(int)$reg['posteringer']."\" min=\"0\"></label>";
 		print "<label>".vr_t('Betalt til','Paid until')."<input class=\"vr-inp\" type=\"date\" name=\"betalt_til\" value=\"$bt\"></label><label>".vr_t('Logintekst (vises ved login)','Login text')."<input class=\"vr-inp\" name=\"logintekst\" value=\"".vr_h($reg['logintekst'])."\"></label>";
-		print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"lukket\"".($isClosed ? " checked" : "")."> ".vr_t('Regnskabet er lukket','The account is closed')."</label><label>".vr_t('Lukkes automatisk den','Close automatically on')."<input class=\"vr-inp\" type=\"date\" name=\"lukkes\" value=\"$lk\"></label><label>".vr_t('Kommentar til lukning','Closing note')."<textarea class=\"vr-inp\" name=\"lukkes_kommentar\" style=\"height:70px;padding:8px 12px\">".vr_h($reg['lukkes_kommentar'] ?? '')."</textarea></label>";
+		print ($isClosed ? "<input type=\"hidden\" name=\"lukket\" value=\"on\">" : "")."<input type=\"hidden\" name=\"lukkes\" value=\"$lk\"><input type=\"hidden\" name=\"lukkes_kommentar\" value=\"".vr_h($reg['lukkes_kommentar'] ?? '')."\">"; # lifecycle is managed in the section above
 		print "<div><button type=\"submit\" class=\"vr-btn vr-primary\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section>";
 		$lic = array(); $q = db_select("SELECT feature_key, enabled, expires_at FROM license_features WHERE regnskab_id = $rid", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $lic[$r['feature_key']] = $r;
 		print "<section class=\"vr-sect\"><h2>".vr_t('Licenser (gamle flag)','Licences (legacy flags)')."</h2><div class=\"vr-card\"><form method=\"post\" action=\"admin_panel.php?regnskab_id=$rid&tab=indstillinger\" class=\"vr-form\"><input type=\"hidden\" name=\"action\" value=\"bulk_update\"><input type=\"hidden\" name=\"regnskab_id\" value=\"$rid\"><p class=\"vr-sub\">".vr_t('De tre flag, koden stadig læser (license_features). Afløses af Abonnement, når pakkelaget håndhæver.','The three flags the code still reads (license_features). Replaced by Subscription once the entitlement layer enforces.')."</p>";

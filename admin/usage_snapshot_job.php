@@ -13,12 +13,16 @@ if (!function_exists('db_select')) include("../includes/db_query.php");
 include("../includes/std_func.php");
 include("../includes/entitlements.php");
 include("../includes/partnerScope.php");
-$brugernavn = 'cron';
+include("vr_ui.php");
+include("inc_lifecycle.php");
+$brugernavn = 'cron'; $sprog_id = 1;
 ent_tables_ensure(); partner_tables_ensure();
 $limit = isset($argv[1]) ? (int)$argv[1] : 0;
 $ids = array(); $q = db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket != 'on' order by id", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) $ids[] = $r;
 $n = 0; $bad = 0; $t0 = microtime(true);
+$due = lc_apply_due(); foreach ($ids as $reg) ent_apply_due_changes((int)$reg['id']);
+echo "lifecycle: $due due event(s) applied\n";
 foreach ($ids as $reg) {
 	if ($limit && $n + $bad >= $limit) break;
 	$u = ent_usage_collect($reg);
