@@ -120,3 +120,37 @@ html[data-theme="dark"] .vr{
 
 @media (max-width:900px){.vr{padding:16px 16px 120px}.vr-hint{display:none}.vr-save{padding:0 12px 12px}}
 @media (prefers-reduced-motion:reduce){.vr *{transition:none!important}}
+
+/* ===== partner panels (regnskab.php, partnere.php, tabs in vis_regnskaber.php) – 20261010 ===== */
+.vr-bc{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);margin-bottom:4px}
+.vr-bc a{color:var(--text-2)} .vr-bc a:hover{color:var(--link)} .vr-bc i{color:var(--text-4);font-style:normal} .vr-bc b{color:var(--text);font-weight:600}
+.vr-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:-6px 0 18px;overflow-x:auto}
+.vr-tab{padding:10px 14px;color:var(--text-2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:13.5px;white-space:nowrap;text-decoration:none}
+.vr-tab:hover{color:var(--text)} .vr-tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--vr-user);font-weight:600}
+.vr-cnt{font-size:12.5px;color:var(--text-3);margin-left:4px;font-weight:400}
+.vr-pill{display:inline-block;font-size:11.5px;color:var(--text-2);border:1px solid var(--border);border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:2px;font-weight:400}
+.vr-plus{font-size:11.5px;color:var(--text-3);margin-left:6px}
+.vr-card-link{font-size:12px;color:var(--text-3);margin-left:8px;font-weight:400} .vr-card-link:hover{color:var(--link)}
+.vr-t tr.vr-grp td{background:var(--surface-2);padding:9px 10px 9px 20px;font-size:13px;font-weight:600;color:var(--text)}
+.vr-t tr.vr-grp td small{font-weight:400;color:var(--text-2);margin-left:8px}
+.vr-t tr.vr-grp td a{color:var(--text)} .vr-t tr.vr-grp td a:hover{color:var(--link)}
+.vr-t tr.vr-grp:hover td{background:var(--surface-2)}
+.vr-t tr.vr-in td.vr-nm{padding-left:24px} td.vr-in{padding-left:34px!important}
+.vr-grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+@media (max-width:1000px){.vr-grid2{grid-template-columns:1fr}}
+.vr-kv div{display:flex;justify-content:space-between;gap:16px;padding:10px 20px;border-bottom:1px solid var(--grid);font-size:13.5px}
+.vr-kv div:last-child{border-bottom:0} .vr-kv div span:first-child{color:var(--text-2)} .vr-kv div b{font-weight:500;text-align:right}
+.vr-frow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--grid);font-size:13.5px}
+.vr-frow:last-child{border-bottom:0} .vr-frow b{font-weight:500;display:block} .vr-frow small{color:var(--text-2);font-size:12px}
+.vr-frow .vr-lvl{font-size:12.5px;color:var(--text-2)} .vr-frow.vr-off b{color:var(--text-3)}
+.vr-sub{font-size:13px;color:var(--text-2);margin:-6px 0 14px}
+.vr-link{background:none;border:0;padding:0;font:inherit;font-size:12.5px;color:var(--link);cursor:pointer} .vr-link:hover{color:var(--text)}
+.vr-sel,.vr-inp{height:36px;border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:0 10px;font-size:13.5px;color:var(--text);max-width:100%}
+.vr-sel[multiple]{height:auto;padding:4px}
+.vr-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vr-form{display:flex;flex-direction:column;gap:12px;padding:16px 20px;max-width:520px}
+.vr-form label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--text-2)}
+.vr-form label.vr-chk{flex-direction:row;align-items:center;gap:8px;font-size:13.5px;color:var(--text)}
+.vr-note-warn{border-left-color:var(--amber)}
+.vr-btn.vr-danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 35%,var(--border))}
+.vr-sect+.vr-sect{margin-top:22px}
