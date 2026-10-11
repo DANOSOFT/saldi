@@ -1,5 +1,5 @@
 <?php
-// ------------------debitor/batch.php--------lap 3.2.9----2013.02.10--
+// ------------------debitor/batch.php--------ver 5.0.0----2026.10.08--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,9 +18,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2012.09.06 break ændret til break 1
+// 20261008 MJ SST-833 Show Batchnr. and Udløbsdato for each batch, read from the
+//                  batch_kob row this window already selects, so the user can see which
+//                  batch is being sold from. Fixed recucer() -> reducer(), which made the
+//                  unreceived-credit-note row fatal.
 
 @session_start();
 $s_id=session_id();
@@ -133,8 +137,10 @@ print "<tr><td align=center><b>Posnr: $posnr - Varenr: $varenr</td></tr>\n";
 print "<form name=ordre batch.php?linje_id=$linje_id method=post>";
 print "<tr><td><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" valign = \"top\" align=\"center\" width=\"100%\"><tbody>";
 if (($antal>=0)&&($art!="DK")){	
-	print "<tr><td><b>K&oslash;bsordre nr.</td><td align = right><b>Antal</td><td align = right><b>V&aelig;lg</td></tr>\n";
-#	print "<tr><td colspan=3><hr></td></tr>\n";
+	// 20261008 MJ SST-833 Show which batch is being sold from. The window already reads the
+	// whole batch_kob row and printed neither the batch number nor the expiry date, which is
+	// batch_udlobsdato.txt §8 item 3 and why the feature looked inert to the customer.
+	print "<tr><td><b>K&oslash;bsordre nr.</td><td><b>" . findtekst('5005|Batchnr.', $sprog_id) . "</td><td><b>" . findtekst('5001|Udløbsdato', $sprog_id) . "</td><td align = right><b>Antal</td><td align = right><b>V&aelig;lg</td></tr>\n";
 	$x=0;
 	$rest=array();
 	$lev_rest=$leveres;
@@ -144,6 +150,8 @@ if (($antal>=0)&&($art!="DK")){
 		$x++;
 		$batch_kob_id[$x]=$row['id'];
 		$kobsdate[$x]=$row['kobsdate'];
+		$batch_no[$x]=$row['batch_no'];
+		$udlobsdato[$x]=$row['due_date'];
 		$rest[$x]=$row['rest'];
 		$reserveret[$x]=0;
 		$pris[$x]=dkdecimal($row['pris']);
@@ -160,6 +168,10 @@ if (($antal>=0)&&($art!="DK")){
 		}
 		print "<tr>";
 		print "<td><span title= 'kostpris: $pris[$x]'>$ordrenr[$x]</td>";
+		// Stock that predates the feature has neither, so those cells stay empty rather than
+		// showing a placeholder that would read as a value.
+		print "<td>" . htmlspecialchars((string)$batch_no[$x]) . "</td>";
+		print "<td>" . ($udlobsdato[$x] ? dkdato($udlobsdato[$x]) : "") . "</td>";
 		print "<td align = right>".reducer($rest[$x])."</td>";
 		print "<td align = right><input type=text style=\"text-align:right\" size=3 name=valg_$x value=".reducer($valg[$x])."></td>";
 			if (($status>0)&&($valg[$x]>0)&&($serienr)){
@@ -169,14 +181,17 @@ if (($antal>=0)&&($art!="DK")){
 		print "</tr>\n";
 		print "<input type=hidden name=ordrenr_$x value=$ordrenr[$x]><input type=hidden name=batch_kob_id_$x value=$batch_kob_id[$x]><input type=hidden name=rest_$x value=$rest[$x]>";
 	}
-	print "<tr><td colspan=3><hr></td></tr>\n";
-	
+	print "<tr><td colspan=5><hr></td></tr>\n";
+
 	# Soeger efter reservationer i ikke modtagne koebsordrer
 	$query = db_select("select * from reservation where batch_salg_id='0' and vare_id = '$vare_id' and antal > '0'",__FILE__ . " linje " . __LINE__); 
 	if ($row = db_fetch_array($query)) {
-		print "<tr><td colspan=3 align=center> Varer p&aring; vej</tr>\n";
-		print "<tr><td><b>K&oslash;bsordre nr.</td><td align = right><b>Antal</td><td align = right><b>V&aelig;lg</td></tr>\n";
-		print "<tr><td colspan=3><hr></td></tr>\n";
+		// These are reservations against purchase orders that have not been received, so there
+		// is no batch number or expiry date yet - but the rows share the table above, so the
+		// column count has to match.
+		print "<tr><td colspan=5 align=center> Varer p&aring; vej</tr>\n";
+		print "<tr><td><b>K&oslash;bsordre nr.</td><td></td><td></td><td align = right><b>Antal</td><td align = right><b>V&aelig;lg</td></tr>\n";
+		print "<tr><td colspan=5><hr></td></tr>\n";
 	}
 	$temp=$linje_id*-1;
 	$query = db_select("select * from reservation where batch_salg_id=0 and vare_id = $vare_id",__FILE__ . " linje " . __LINE__); 
@@ -211,8 +226,11 @@ if (($antal>=0)&&($art!="DK")){
 		}
 		if ($rest[$x]>0) {
 			print "<tr>";
-			if ($art[$x]=='DK') print "<td> $ordrenr[$x] (KN)</td><td align = right>".recucer($rest[$x])."</td>";
-			else print "<td> $ordrenr[$x]</td><td align = right>".reducer($rest[$x])."</td>";
+			// 20261008 MJ SST-833 recucer() does not exist - this line fatalled whenever an
+			// unreceived credit note appeared in this list. The two empty cells keep the row
+			// aligned with the batch columns above.
+			if ($art[$x]=='DK') print "<td> $ordrenr[$x] (KN)</td><td></td><td></td><td align = right>".reducer($rest[$x])."</td>";
+			else print "<td> $ordrenr[$x]</td><td></td><td></td><td align = right>".reducer($rest[$x])."</td>";
 			print "<td align = right><input type=text style=\"text-align:right\" size=3 name=valg_$x value=$valg[$x]></td>";
 			print "</tr>\n";
 		}
