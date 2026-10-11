@@ -1214,7 +1214,13 @@ if (db_fetch_array(db_select("select 1 from information_schema.tables where tabl
 # outcome is likely rather than theoretical. A plain CREATE INDEX either completes or leaves
 # nothing, which is what makes IF NOT EXISTS idempotent - the pattern the nine other index
 # statements in this file already use. The cost is one brief lock on adresser, once per tenant.
-if (db_fetch_array(db_select("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", __FILE__ . " linje " . __LINE__))) {
+# Postgres only, and checked before the probe runs: pg_extension does not exist on MySQL, so
+# querying it there fails on every login. gin_trgm_ops is Postgres syntax regardless, so a
+# MySQL tenant keeps the unindexed but correct ILIKE path, the same as a tenant without the
+# extension. Reported by ZaynSaul on PR #691; the pg_trgm bootstrap further up this file has
+# the same gap and is left alone here because it is not this ticket's code.
+$trgmIndexMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", __FILE__ . " linje " . __LINE__))) {
 	db_modify("CREATE INDEX IF NOT EXISTS adresser_firmanavn_trgm_idx ON adresser USING gin (firmanavn gin_trgm_ops)", __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX IF NOT EXISTS adresser_kontonr_trgm_idx ON adresser USING gin (kontonr gin_trgm_ops)", __FILE__ . " linje " . __LINE__);
 }

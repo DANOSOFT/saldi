@@ -188,6 +188,32 @@ final class AccountSearchShortTermGateTest extends TestCase
         self::assertLessThan($closingBrace, $exit, 'the exit is outside the gate branch');
     }
 
+    /**
+     * The trigram index migration is Postgres-only, and has to decide that before it probes.
+     * pg_extension does not exist on MySQL, so querying it there fails on every login -
+     * reported by ZaynSaul on PR #691. gin_trgm_ops is Postgres syntax regardless, so a MySQL
+     * tenant keeps the unindexed but correct ILIKE path.
+     */
+    public function testTheTrigramMigrationSkipsMysqlBeforeProbing(): void
+    {
+        $src = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
+        self::assertNotFalse($src, 'could not read includes/betweenUpdates.php');
+
+        $guard = strpos($src, "\$trgmIndexMysql = in_array(\$db_type, ['mysql', 'mysqli'], true);");
+        self::assertNotFalse($guard, 'the trigram index block no longer checks the database type');
+
+        $probe = strpos($src, "SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", $guard);
+        self::assertNotFalse($probe, 'the pg_trgm probe is gone from the index block');
+        self::assertLessThan($probe, $guard, 'the type check happens after the probe, so MySQL still runs it');
+
+        // Short-circuit, not a nested if: the probe must not be evaluated at all on MySQL.
+        self::assertStringContainsString(
+            "if (!\$trgmIndexMysql && db_fetch_array(db_select(\"SELECT 1 FROM pg_extension",
+            $src,
+            'the probe is no longer short-circuited by the database-type check'
+        );
+    }
+
     /** Each client must carry the same minimum, so none sends a request the endpoint refuses. */
     #[DataProvider('clientFiles')]
     public function testEachClientCarriesTheSameMinimum(string $label, string $path): void
