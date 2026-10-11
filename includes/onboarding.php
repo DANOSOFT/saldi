@@ -1,5 +1,5 @@
 <?php
-// ---- includes/onboarding.php --- lap 5.0.0 --- 2026.10.06 ---
+// ---- includes/onboarding.php --- lap 5.0.0 --- 2026.10.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,9 @@
 // 20261008 Sawaneh Step 3 VAT is the settings vat.registered / vat.period, period month|quarter|halfyear (decision 19).
 // 20261008 Sawaneh Spec 2026-10-07 §7a hand-over to Sally: onb_handover_context() (profile, situation, source system, skipped
 //                  steps, VAT, invited users); the card offers Få hjælp af Sally when the shell reports her not live.
+// 20261011 Sawaneh Steps company/fiscal/users count as done when their data exists (settings spec §8.8,
+//                  settings_section_complete(); fiscal also needs the VAT answer); onb_steps_stored() keeps what the
+//                  guide recorded; onb_steps() answers once per request.
 
 if (!function_exists('onb_get')):
 
@@ -72,7 +75,30 @@ function onb_state(): string
 /**
  * @return array<string, string> step => done|skipped
  */
-function onb_steps(): array
+function onb_steps(bool $fresh = false): array
+{
+	static $cache = null;
+	if ($cache !== null && !$fresh) {
+		return $cache;
+	}
+	$steps = onb_steps_stored();
+	if (!function_exists('settings_section_complete')) {
+		include_once(__DIR__ . "/../systemdata/settingsRegistry.php");
+	}
+	// The fiscal step also asks the VAT question (decision 19), so a year alone does not finish it.
+	$vatAnswered = (bool) db_fetch_array(db_select("select id from settings where var_grp = 'vat' and var_name = 'vat_registered' and (user_id is null or user_id = 0)", __FILE__ . " linje " . __LINE__));
+	foreach (array('company' => 'G1.1', 'fiscal' => 'G1.2', 'users' => 'G8') as $step => $section) {
+		if ((!isset($steps[$step]) || $steps[$step] !== 'done') && settings_section_complete($section) && ($step !== 'fiscal' || $vatAnswered)) {
+			$steps[$step] = 'done';
+		}
+	}
+	return $cache = $steps;
+}
+
+/**
+ * @return array<string, string> what the guide itself recorded
+ */
+function onb_steps_stored(): array
 {
 	$j = json_decode(onb_get('onboarding_steps'), true);
 	return is_array($j) ? $j : array();
@@ -81,12 +107,13 @@ function onb_steps(): array
 function onb_mark(string $step, string $status): void
 {
 	onb_set('onboarding_touched', (string) time());
-	$steps = onb_steps();
+	$steps = onb_steps_stored();
 	if ($status === 'skipped' && isset($steps[$step]) && $steps[$step] === 'done') {
 		return;
 	}
 	$steps[$step] = $status;
 	onb_set('onboarding_steps', json_encode($steps));
+	$steps = onb_steps(true);
 	$all = true;
 	foreach (array_keys(onb_steps_def()) as $k) {
 		if (!isset($steps[$k])) {
@@ -446,8 +473,11 @@ function onb_footer_set(string $text): void
 function onb_render_card(int $userId, int $sprogId): void
 {
 	$state = onb_get('onboarding_state');
+	if ($state === '' || $state === 'hidden') {
+		return;
+	}
 	$steps = onb_steps();
-	if ($state === '' || $state === 'hidden' || ($state === 'completed' && !$steps)) {
+	if ($state === 'completed' && !$steps) {
 		return;
 	}
 	$canRun = onb_can_run();

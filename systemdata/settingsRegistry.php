@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-09-30 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-10-11 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -75,6 +75,8 @@
 // 20261004 Sawaneh Projekter opens projekter.php (syssetup.php?valg=projekter shows no projects, spec C7).
 // 20261009 Sawaneh The tjekliste entry removed: checklists live in the Sager module now (settings redesign §4, 4e).
 // 20261010 Sawaneh The labels entry opens the new Mærkater page (labels.php, G5.8).
+// 20261011 Sawaneh settings_section_complete() (spec §8.8): 'done' from data for the onboarding checklist and the landing
+//                  cards, which show 'Grundopsætning mangler' for Salg/Køb/Varer until their base rows exist.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -371,9 +373,7 @@ if (!function_exists('settings_optional_modules')) {
 		}
 		if (isset($groups['documents'])) {
 			// Mail falls back to the company's own address, so a sender is only missing when both are empty.
-			$sender = db_fetch_array(db_select("select id from settings where var_grp = 'email_settings' and var_name = 'sender_email' and coalesce(var_value, '') <> '' limit 1", __FILE__ . " linje " . __LINE__));
-			$own = db_fetch_array(db_select("select email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
-			if (!$sender && (!$own || trim((string) $own['email']) === '')) {
+			if (!settings_section_complete('G6.3')) {
 				$out['documents'] = array('kind' => 'warn', 'title' => findtekst('6025|Afsender-e-mail mangler', $sprogId), 'sub' => findtekst('5671|Dokumenter & e-mail', $sprogId), 'button' => findtekst('6026|Tilføj afsender', $sprogId), 'url' => 'settingsSection.php?s=documents.email&field=documents.email.sender_email.0');
 			}
 		}
@@ -384,6 +384,41 @@ if (!function_exists('settings_optional_modules')) {
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Whether a section is set up, read from the data it owns (spec §8.8): never from a manual tick. Sections not listed
+	 * here have nothing to measure and count as complete.
+	 */
+	function settings_section_complete(string $section): bool
+	{
+		global $regnaar, $db_id;
+		$any = function (string $qtxt): bool {
+			return (bool) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		};
+		switch ($section) {
+			case 'G1.1':
+				return $any("select id from adresser where art = 'S' and coalesce(firmanavn, '') <> '' and coalesce(addr1, '') <> '' and coalesce(postnr, '') <> ''");
+			case 'G1.2':
+				return $any("select id from grupper where art = 'RA'");
+			case 'G2.2':
+				return (int) $regnaar > 0 && $any("select id from grupper where art = 'SM' and fiscal_year = '" . (int) $regnaar . "'")
+					&& $any("select id from grupper where art = 'KM' and fiscal_year = '" . (int) $regnaar . "'");
+			case 'G3.1':
+			case 'G4.1':
+			case 'G5.1':
+				$art = array('G3.1' => 'DG', 'G4.1' => 'KG', 'G5.1' => 'VG');
+				return (int) $regnaar > 0 && $any("select id from grupper where art = '" . $art[$section] . "' and fiscal_year = '" . (int) $regnaar . "' and coalesce(inaktiv, false) = false");
+			case 'G6.2':
+				$dir = __DIR__ . '/../logolib/' . (int) $db_id;
+				return is_file($dir . '/fe_logo.png') || (bool) glob($dir . '/*.pdf');
+			case 'G6.3':
+				return $any("select id from settings where var_grp = 'email_settings' and var_name = 'sender_email' and coalesce(var_value, '') <> ''")
+					|| $any("select id from adresser where art = 'S' and coalesce(email, '') <> ''");
+			case 'G8':
+				return $any("select id from brugere where coalesce(status, '') not in ('f', '0') and id <> (select min(id) from brugere)");
+		}
+		return true;
 	}
 
 	/**
@@ -428,7 +463,12 @@ if (!function_exists('settings_optional_modules')) {
 			}
 			$st['users'] = array('kind' => '', 'text' => sprintf(findtekst('6036|%s brugere', $sprogId), $n));
 		}
-		if (isset($groups['items'])) {
+		foreach (array('sales' => 'G3.1', 'purchase' => 'G4.1', 'items' => 'G5.1') as $g => $section) {
+			if (isset($groups[$g]) && !isset($attention[$g]) && !settings_section_complete($section)) {
+				$st[$g] = array('kind' => 'warn', 'text' => findtekst('7096|Grundopsætning mangler', $sprogId));
+			}
+		}
+		if (isset($groups['items']) && !isset($st['items'])) {
 			$n = $count("select count(*) as antal from grupper where art = 'LG'");
 			$fifo = db_fetch_array(db_select("select box6 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
 			$text = $n > 0 ? sprintf(findtekst('6035|%s lagre', $sprogId), $n) : '';

@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-09-29 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-10-10 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

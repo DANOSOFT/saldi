@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-09-25---
+// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-10-11---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -396,7 +396,7 @@ if ($menu=='S') {
 		$udBack = "$retur?$reportBack";
 	}
 	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => findtekst(2189, $sprog_id), 'back' => "javascript:confirmClose('$udBack','$alerttekst')"));
+	page_bar(array('title' => findtekst(2189, $sprog_id), 'back' => $udBack, 'back_onclick' => 'confirmClose(' . json_encode($udBack) . ', ' . json_encode($alerttekst) . '); return false;'));
 	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
 	print "<tr><td colspan=8 align=center>";
 	print "</td></tr>";

@@ -86,7 +86,7 @@ if ($action === 'theme') {
 			update_settings_value('theme', 'ui', $theme, 'UI theme: light, dark or system', (int) $bruger_id);
 		}
 		// Auditor/master-admin sessions have no user row: the cookie carries the choice (online.php reads it as the fallback).
-		saldi_setcookie('saldi_theme', $theme, time() + 31536000, '/', '', !empty($_SERVER['HTTPS']), false);
+		saldi_setcookie('saldi_theme', $theme, time() + 31536000, '/', '', null, false);
 	}
 	if (!empty($request['ajax'])) {
 		ob_end_clean();

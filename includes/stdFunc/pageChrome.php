@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageChrome.php --- lap 5.0.0 --- 2026.10.05 ---
+// ---- includes/stdFunc/pageChrome.php --- lap 5.0.0 --- 2026.10.10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

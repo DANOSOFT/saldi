@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/unpaidInvoices.php --- lap 5.0.0 --- 2026.10.09 ---
+// ---- index/dashboardIncludes/unpaidInvoices.php --- lap 5.0.0 --- 2026.10.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -156,7 +156,7 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 		$over = (int) $r['days_over'];
 		$out[] = array(
 			'due' => (string) ($r['forfaldsdate'] ?: $r['transdate']), 'over' => $over, 'g' => $over <= 0 ? 'ok' : ($over <= 15 ? 'warn' : 'late'),
-			'nr' => (string) (strpos((string) $r['item'], 'r') === 0 && (string) ($r['refnr'] ?? '') === '0' ? '' : $r['item']),
+			'nr' => (string) (strpos((string) $r['item'], 'r') === 0 ? ((int) $r['kladde_id'] > 0 ? $r['refnr'] : '') : $r['item']),
 			'kunde' => trim((string) $r['firmanavn']) . ((string) $r['item'] !== '' && strpos((string) $r['item'], 'r') === 0 && trim((string) $r['beskrivelse']) !== '' ? ' · ' . trim((string) $r['beskrivelse']) : ''),
 			'amount' => round((float) $r['net'], 2), 'href' => dash_unpaid_link($r),
 		);

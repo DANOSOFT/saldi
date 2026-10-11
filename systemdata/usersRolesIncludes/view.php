@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRolesIncludes/view.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- systemdata/usersRolesIncludes/view.php --- lap 5.0.0 --- 2026.10.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 //                  role's users and roles rows cannot be lowered.
 // 20261002 Sawaneh The page tells the shell its breadcrumb trail (settings redesign §8.0).
 // 20261009 Sawaneh Oversigt group (front-page addendum 4 §3): block rows under Se Oversigt, disabled while it is off, read-only radios, module note.
+// 20261011 Sawaneh Block rows under Se Oversigt = Ingen are greyed but still submitted, so their levels survive a save.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -694,7 +695,7 @@ function ur_view_script(array $vm): void
 		form.querySelectorAll('.ur-prow-block').forEach(function (row) {
 			row.classList.toggle('ur-prow-off', !viewOn);
 			var needs = row.querySelector('.ur-block-needs'); if (needs) needs.hidden = viewOn;
-			row.querySelectorAll('input[type="radio"]').forEach(function (r) { if (!r.dataset.lockedByOwn) r.dataset.lockedByOwn = r.disabled ? '1' : '0'; r.disabled = r.dataset.lockedByOwn === '1' || !viewOn; });
+			row.querySelectorAll('input[type="radio"]').forEach(function (r) { if (!r.dataset.lockedByOwn) r.dataset.lockedByOwn = r.disabled ? '1' : '0'; r.disabled = r.dataset.lockedByOwn === '1'; r.readOnly = !viewOn; r.tabIndex = viewOn ? 0 : -1; r.setAttribute('aria-disabled', viewOn ? 'false' : 'true'); });
 			var hint = row.querySelector('.ur-block-hint'), from = (row.dataset.derive || '').split(',').filter(Boolean), on = row.querySelector('input[type="radio"]:checked');
 			if (hint) { var rowOn = viewOn && on && on.value !== 'none'; var anyModule = from.indexOf('*') >= 0 || from.some(function (k) { return lv(k) !== 'none'; }); hint.hidden = !(rowOn && !anyModule); }
 		});

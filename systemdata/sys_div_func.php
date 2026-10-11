@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.02 ---
+// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -145,7 +145,8 @@
 // 20261008 Sawaneh Settings 4e: the dead prislister() removed (price lists live in Indstillinger » Prislister).
 // 20261010 Sawaneh G5.8: the label template functions moved unchanged to includes/labelTemplates.php (shared with
 //                  systemdata/labels.php); labels() stays only for the old page, which now redirects.
-include("sys_div_func_includes/chooseProvision.php");
+// 20261011 Sawaneh The include of sys_div_func_includes/chooseProvision.php removed: the file left with 4a on 2 October
+//                  (provision lives in Organisation » Provision) and the include has warned on every load since.
 include_once("../includes/connect.php"); 
 include_once(__DIR__ . "/../includes/labelTemplates.php");
 

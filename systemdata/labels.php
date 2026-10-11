@@ -68,7 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	if ($action === 'create') {
 		$template = isset($_POST['template']) ? (string) $_POST['template'] : '';
 		$templates = label_templates();
-		if (!label_name_valid($name) || !isset($templates[$template])) {
+		$file = __DIR__ . '/../importfiler/' . $template;
+		if (!label_name_valid($name) || !isset($templates[$template]) || !is_file($file)) {
 			$go($current, 'invalid', array('new' => 1, 'n' => mb_substr($name, 0, 40)));
 		}
 		foreach (array_keys($names) as $existing) {
@@ -76,8 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				$go($current, 'exists', array('new' => 1, 'n' => $name));
 			}
 		}
-		$file = __DIR__ . '/../importfiler/' . $template;
-		saveLabelText('box1', $name, is_file($file) ? (string) file_get_contents($file) : '', 'sheet');
+		saveLabelText('box1', $name, (string) file_get_contents($file), 'sheet');
 		audit_log('setting.row_created', 'Mærkat ' . $name . ' (' . $template . ')', 'labels', $name);
 		$go($name, 'created');
 	}
