@@ -90,6 +90,7 @@ $csrf_token = $_SESSION['csrf_token'];
 
 $fejl = array();
 $gemt = 0;
+$genvis = false;
 
 ########## Save ##########
 if (isset($_POST['gem'])) {
@@ -103,74 +104,81 @@ if (isset($_POST['gem'])) {
 		$userName = db_escape_string(substr($brugernavn, 0, 10));
 		$logtime = date('U');
 
+		# Validate everything first: either all changes are saved or none, so a typo on one
+		# line never leaves the page half saved.
+		$ops = array();
 		transaktion('begin');
 		foreach ($ids as $bk_id) {
 			if ($bk_id <= 0) continue;
-			$r = db_fetch_array(db_select("select bk.*, v.varenr from batch_kob bk join varer v on v.id = bk.vare_id where bk.id = '$bk_id' for update", __FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("select bk.*, v.varenr from batch_kob bk join varer v on v.id = bk.vare_id where bk.id = '$bk_id' and bk.rest > 0 for update", __FILE__ . " linje " . __LINE__));
 			if (!$r) continue;
-			$varenr = $r['varenr'];
+			$varenr = htmlspecialchars($r['varenr'], ENT_QUOTES, 'UTF-8');
 			$old_no = (string)$r['batch_no'];
 			$old_due = (string)$r['due_date'];
 			$new_no = trim((string)ifset($p_batch_no, $bk_id, $old_no));
+			if (mb_strlen($new_no) > 100) $new_no = mb_substr($new_no, 0, 100);
 			$new_due = batch_udfyld_date(ifset($p_due_date, $bk_id, $old_due));
 			if ($new_due === false) {
 				$fejl[] = "$varenr: " . batch_txt('bad_date') . " (" . htmlspecialchars((string)$p_due_date[$bk_id], ENT_QUOTES, 'UTF-8') . ")";
 				continue;
 			}
-			if (mb_strlen($new_no) > 100) $new_no = mb_substr($new_no, 0, 100);
 
 			# Split: each part becomes a new batch row with the same purchase line, date and cost price
 			$parts = array();
 			$part_sum = 0;
 			foreach ((array)ifset($p_split, $bk_id, array()) as $part) {
-				$antal = usdecimal(trim((string)ifset($part, 'antal', '')));
+				$antal = (float)usdecimal(trim((string)ifset($part, 'antal', '')));
 				$p_no = trim((string)ifset($part, 'batch_no', ''));
+				if (mb_strlen($p_no) > 100) $p_no = mb_substr($p_no, 0, 100);
 				$p_due = batch_udfyld_date(ifset($part, 'due_date', ''));
 				if ($antal == 0 && $p_no === '' && !$p_due) continue;
 				if ($antal <= 0 || $p_due === false) {
 					$fejl[] = "$varenr: " . batch_txt('bad_split');
-					$parts = NULL;
-					break;
+					continue 2;
 				}
-				if (mb_strlen($p_no) > 100) $p_no = mb_substr($p_no, 0, 100);
 				$parts[] = array($antal, $p_no, $p_due);
 				$part_sum += $antal;
 			}
-			if ($parts === NULL) continue;
-			$reserved = 0;
 			if ($parts) {
 				$r2 = db_fetch_array(db_select("select coalesce(sum(antal),0) as antal from reservation where batch_kob_id = '$bk_id'", __FILE__ . " linje " . __LINE__));
-				$reserved = (float)$r2['antal'];
-				if ($part_sum > (float)$r['rest'] - $reserved + 0.0001) {
-					$fejl[] = "$varenr: " . batch_txt('max_split') . " " . dkdecimal((float)$r['rest'] - $reserved) . " (" . findtekst('5008|Restlager', $sprog_id) . " " . dkdecimal($r['rest']) . ")";
+				$max = (float)$r['rest'] - (float)$r2['antal'];
+				if ($part_sum > $max + 0.0001) {
+					$fejl[] = "$varenr: " . batch_txt('max_split') . " " . dkdecimal($max) . " (" . findtekst('5008|Restlager', $sprog_id) . " " . dkdecimal($r['rest']) . ")";
 					continue;
 				}
 			}
+			$changed = ($new_no !== $old_no || (string)$new_due !== $old_due);
+			if ($changed || $parts) $ops[] = array($bk_id, $r['vare_id'], $changed, $old_no, $old_due, $new_no, $new_due, $parts);
+		}
 
-			$log = array();
-			if ($new_no !== $old_no || (string)$new_due !== $old_due) {
-				$qtxt = "update batch_kob set batch_no = " . ($new_no === '' ? "NULL" : "'" . db_escape_string($new_no) . "'");
-				$qtxt .= ", due_date = " . ($new_due ? "'$new_due'" : "NULL") . " where id = '$bk_id'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				$log[] = "batchnr. '$old_no' -> '$new_no', udløb '$old_due' -> '$new_due'";
-			}
-			foreach ($parts as $part) {
-				list($antal, $p_no, $p_due) = $part;
-				$qtxt = "insert into batch_kob (kobsdate,fakturadate,vare_id,variant_id,linje_id,ordre_id,pris,antal,rest,lager,due_date,batch_no) ";
-				$qtxt .= "select kobsdate,fakturadate,vare_id,variant_id,linje_id,ordre_id,pris,'$antal','$antal',lager,";
-				$qtxt .= ($p_due ? "'$p_due'" : "NULL") . "," . ($p_no === '' ? "NULL" : "'" . db_escape_string($p_no) . "'");
-				$qtxt .= " from batch_kob where id = '$bk_id'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				db_modify("update batch_kob set antal = antal - '$antal', rest = rest - '$antal' where id = '$bk_id'", __FILE__ . " linje " . __LINE__);
-				$log[] = "opdelt " . dkdecimal($antal) . " til batchnr. '$p_no', udløb '$p_due'";
-			}
-			if ($log) {
+		if (!$fejl) {
+			foreach ($ops as $op) {
+				list($bk_id, $op_vare_id, $changed, $old_no, $old_due, $new_no, $new_due, $parts) = $op;
+				$log = array();
+				if ($changed) {
+					$qtxt = "update batch_kob set batch_no = " . ($new_no === '' ? "NULL" : "'" . db_escape_string($new_no) . "'");
+					$qtxt .= ", due_date = " . ($new_due ? "'$new_due'" : "NULL") . " where id = '$bk_id'";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					$log[] = "batchnr. '$old_no' -> '$new_no', udløb '$old_due' -> '$new_due'";
+				}
+				foreach ($parts as $part) {
+					list($antal, $p_no, $p_due) = $part;
+					$qtxt = "insert into batch_kob (kobsdate,fakturadate,vare_id,variant_id,linje_id,ordre_id,pris,antal,rest,lager,due_date,batch_no) ";
+					$qtxt .= "select kobsdate,fakturadate,vare_id,variant_id,linje_id,ordre_id,pris,'$antal','$antal',lager,";
+					$qtxt .= ($p_due ? "'$p_due'" : "NULL") . "," . ($p_no === '' ? "NULL" : "'" . db_escape_string($p_no) . "'");
+					$qtxt .= " from batch_kob where id = '$bk_id'";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					db_modify("update batch_kob set antal = antal - '$antal', rest = rest - '$antal' where id = '$bk_id'", __FILE__ . " linje " . __LINE__);
+					$log[] = "opdelt " . dkdecimal($antal) . " til batchnr. '$p_no', udløb '$p_due'";
+				}
 				$reason = db_escape_string("Batch $bk_id: " . implode('; ', $log));
-				db_modify("insert into stocklog (item_id,username,initials,correction,reason,logtime) values ('$r[vare_id]','$userName','','0','$reason','$logtime')", __FILE__ . " linje " . __LINE__);
+				db_modify("insert into stocklog (item_id,username,initials,correction,reason,logtime) values ('$op_vare_id','$userName','','0','$reason','$logtime')", __FILE__ . " linje " . __LINE__);
 				$gemt++;
 			}
 		}
-		transaktion('commit');
+		transaktion($fejl ? 'rollback' : 'commit');
+		# On error the page shows what was typed, so nothing has to be entered again
+		if ($fejl) $genvis = true;
 	}
 }
 
@@ -288,6 +296,8 @@ foreach ($rows as $r) {
 		$suggest = date('Y-m-d', strtotime($r['kobsdate'] . " +" . (int)$r['default_shelf_life_days'] . " days"));
 	}
 	$max_split = (float)$r['rest'] - (float)$r['reserveret'];
+	$v_no = ($genvis && isset($p_batch_no[$id])) ? $p_batch_no[$id] : $r['batch_no'];
+	$v_due = ($genvis && isset($p_due_date[$id])) ? $p_due_date[$id] : $r['due_date'];
 	print "<tr id='bu-row-$id'>";
 	print "<td>" . htmlspecialchars($r['varenr'], ENT_QUOTES, 'UTF-8') . "</td>";
 	print "<td>" . htmlspecialchars($r['beskrivelse'], ENT_QUOTES, 'UTF-8') . "</td>";
@@ -296,8 +306,8 @@ foreach ($rows as $r) {
 	print "<td align='right'>" . dkdecimal($r['rest']);
 	if ((float)$r['reserveret'] > 0) print "<br><small title='" . batch_txt('reserved') . "'>(" . dkdecimal($r['reserveret']) . " res.)</small>";
 	print "</td>";
-	print "<td><input class='inputbox' type='text' maxlength='100' style='width:120px' name='batch_no[$id]' value='" . htmlspecialchars((string)$r['batch_no'], ENT_QUOTES, 'UTF-8') . "' onchange='docChange=true'></td>";
-	print "<td><input class='inputbox' type='date' style='width:140px' name='due_date[$id]' value='" . htmlspecialchars((string)$r['due_date'], ENT_QUOTES, 'UTF-8') . "' data-suggest='$suggest' onchange=\"docChange=true;this.classList.remove('bu-suggest')\"></td>";
+	print "<td><input class='inputbox' type='text' maxlength='100' style='width:120px' name='batch_no[$id]' value='" . htmlspecialchars((string)$v_no, ENT_QUOTES, 'UTF-8') . "' onchange='docChange=true'></td>";
+	print "<td><input class='inputbox' type='date' style='width:140px' name='due_date[$id]' value='" . htmlspecialchars((string)$v_due, ENT_QUOTES, 'UTF-8') . "' data-suggest='$suggest' onchange=\"docChange=true;this.classList.remove('bu-suggest')\"></td>";
 	print "<td>";
 	if ($max_split > 0) print "<button type='button' class='LightButton' onclick='buSplit($id)' title='" . batch_txt('split_title') . "'>" . batch_txt('split') . "</button>";
 	print "</td>";
@@ -318,7 +328,7 @@ function buSuggest() {
 		if (!el.value && el.dataset.suggest) { el.value = el.dataset.suggest; el.classList.add('bu-suggest'); docChange = true; }
 	});
 }
-function buSplit(id) {
+function buSplit(id, v) {
 	var n = buSeq[id] = (buSeq[id] || 0) + 1;
 	var anchor = document.getElementById('bu-row-' + id);
 	while (anchor.nextElementSibling && anchor.nextElementSibling.classList.contains('bu-part-' + id)) anchor = anchor.nextElementSibling;
@@ -331,10 +341,25 @@ function buSplit(id) {
 		+ '<td><input class=\"inputbox\" type=\"date\" style=\"width:140px\" name=\"' + p + '[due_date]\"></td>'
 		+ '<td><button type=\"button\" class=\"LightButton\" onclick=\"this.closest(\\'tr\\').remove()\">" . addslashes($t_fjern) . "</button></td>';
 	anchor.parentNode.insertBefore(tr, anchor.nextElementSibling);
-	tr.querySelector('input').focus();
+	var f = tr.querySelectorAll('input');
+	if (v) { f[0].value = v.antal || ''; f[1].value = v.batch_no || ''; f[2].value = v.due_date || ''; }
+	else f[0].focus();
 	docChange = true;
 }
 </script>";
+if ($genvis) {
+	# Put the split lines typed before the error back on the page
+	print "<script>";
+	foreach ((array)$p_split as $bk_id => $parts) {
+		foreach ((array)$parts as $part) {
+			$v = array('antal' => (string)ifset($part, 'antal', ''), 'batch_no' => (string)ifset($part, 'batch_no', ''), 'due_date' => (string)ifset($part, 'due_date', ''));
+			if ($v['antal'] === '' && $v['batch_no'] === '' && $v['due_date'] === '') continue;
+			if (!(int)$bk_id) continue;
+			print "if (document.getElementById('bu-row-" . (int)$bk_id . "')) buSplit(" . (int)$bk_id . ", " . json_encode($v, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ");";
+		}
+	}
+	print "</script>";
+}
 
 if ($menu == 'T') print "</div>";
 ?>
