@@ -189,6 +189,38 @@ final class WarehouseDropdownTest extends TestCase
     }
 
     /**
+     * Deleting an accounting year must not take the warehouses with it.
+     *
+     * Until this change a new year copied the art='LG' rows forward, so the newest year always
+     * held one and deleting an old year was harmless. It no longer copies them, so the year
+     * holding a warehouse's last row would otherwise remove it from every list while its stock
+     * stayed behind - lagerstatus.lager and batch_kob.lager point at grupper.kodenr, not at the
+     * row. Raised by ZaynSaul on PR #769.
+     */
+    public function testDeletingAnAccountingYearKeepsTheWarehouses(): void
+    {
+        $src = file_get_contents(__DIR__ . '/../../../systemdata/fiscalYearInc/deleteFiscalYear.php');
+        self::assertNotFalse($src, 'could not read deleteFiscalYear.php');
+
+        self::assertStringContainsString("delete from grupper where fiscal_year = '\$year' and art != 'LG'", $src,
+            'deleting an accounting year removes its warehouse rows again, which can orphan stock');
+        self::assertSame(0, substr_count($src, "delete from grupper where fiscal_year = '\$year}\""),
+            'an unguarded grupper delete is back');
+    }
+
+    /** Resetting the account has the same hazard and the same exclusion. */
+    public function testResettingTheAccountKeepsTheWarehouses(): void
+    {
+        $src = file_get_contents(__DIR__ . '/../../../systemdata/resetAccount.php');
+        self::assertNotFalse($src, 'could not read resetAccount.php');
+
+        self::assertStringContainsString("art NOT IN ('RA','LG') AND fiscal_year>0", $src,
+            'the account reset deletes warehouse rows outside the retained year again');
+        self::assertStringNotContainsString("art!='RA' AND fiscal_year>0", $src,
+            'the old unguarded condition is back');
+    }
+
+    /**
      * Deleting the rows that already exist is deliberately not part of this change: PR #743
      * chose to tolerate duplicates and pick one per warehouse at read time. This pins that
      * nothing here started deleting grupper rows behind that decision.
