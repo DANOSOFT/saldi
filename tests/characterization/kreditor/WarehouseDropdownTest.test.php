@@ -221,6 +221,44 @@ final class WarehouseDropdownTest extends TestCase
     }
 
     /**
+     * The REST API reads warehouses too, and filtered every read on the current accounting
+     * year. With warehouses now stored year-agnostically, that filter hid them - a warehouse
+     * saved in Indstillinger never appeared in /v1/inventory/warehouses, and after a year
+     * rollover no existing one did either. Raised by ZaynSaul on PR #769.
+     */
+    public function testTheRestApiDoesNotFilterWarehousesByAccountingYear(): void
+    {
+        $src = file_get_contents(__DIR__ . '/../../../restapi/models/lager/LagerModel.php');
+        self::assertNotFalse($src, 'could not read LagerModel.php');
+
+        self::assertSame(0, substr_count($src, 'AND fiscal_year = $regnaar'),
+            'a warehouse read is filtered on the accounting year again, so year-0 rows vanish');
+        self::assertSame(0, substr_count($src, 'AND fiscal_year = " . $this->fiscal_year'),
+            'a warehouse read or delete is filtered on the accounting year again');
+        self::assertStringContainsString('$this->fiscal_year = 0;', $src,
+            'the model defaults to the current year again, recreating per-year rows');
+    }
+
+    /**
+     * Dropping that filter on its own would hand the duplicates to the API instead: a tenant
+     * with one row per year would get each warehouse once per year. Both list methods keep one
+     * row per kodenr, the same rule the dropdown uses.
+     */
+    public function testTheRestApiReturnsEachWarehouseOnce(): void
+    {
+        $src = file_get_contents(__DIR__ . '/../../../restapi/models/lager/LagerModel.php');
+
+        self::assertSame(2, substr_count($src, "if (isset(\$seen[\$r['kodenr']])) continue;"),
+            'getAllItems() and findBy() must both keep one row per warehouse number');
+        self::assertSame(2, substr_count($src, 'SELECT id, kodenr FROM'),
+            'both list queries need kodenr selected to de-duplicate on it');
+        // Ordered the way Indstillinger picks the definition to edit, so the row kept is the
+        // same one the rest of the system shows.
+        self::assertSame(3, substr_count($src, 'CASE WHEN fiscal_year = '),
+            'the preference order is gone from one of the warehouse queries');
+    }
+
+    /**
      * Deleting the rows that already exist is deliberately not part of this change: PR #743
      * chose to tolerate duplicates and pick one per warehouse at read time. This pins that
      * nothing here started deleting grupper rows behind that decision.
