@@ -308,5 +308,16 @@ function ent_usage_history($rid, $months = 12) {
 }
 function ent_limit_label($k) { $l = array('max_users' => vr_t('Brugere','Users'), 'included_postings' => vr_t('Posteringer (12 mdr.)','Entries (12 m)'), 'max_items' => vr_t('Varer','Items'), 'max_webshops' => vr_t('Webshops','Webshops'), 'pos_tills' => vr_t('Kasser','Tills'), 'warehouses' => vr_t('Lagre','Warehouses')); return isset($l[$k]) ? $l[$k] : $k; }
 
+// New ledger: base plan + trial override (entitlements spec §6.5). $plan_key = the plan tried, $days = trial length.
+function ent_start_trial($rid, $plan_key, $days = 30, $base = 'finans') {
+	$c = ent_catalog(); if (!isset($c['plans'][$plan_key])) return 'Ukendt pakke';
+	$rid = (int)$rid; $days = max(1, (int)$days);
+	if (!db_fetch_array(db_select("select 1 from regnskab_entitlements where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__))) ent_write_plan($rid, isset($c['plans'][$base]) ? $base : $plan_key, date('Y-m-d'), 'manual');
+	$until = date('Y-m-d', strtotime("+$days days"));
+	db_modify("insert into regnskab_overrides (regnskab_id, kind, key, value, reason, expires_at, created_by) values ('$rid', 'plan', 'plan', '".db_escape_string($plan_key)."', 'trial', '$until', '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__);
+	ent_log('entitlement.trial_started', $rid, ent_plan_name($plan_key)." i $days dage (til $until)");
+	return '';
+}
+
 } // function_exists
 ?>

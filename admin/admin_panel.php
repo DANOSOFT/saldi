@@ -17,6 +17,8 @@ ob_start();
 // ----------------------------------------------------------------------
 // Admin Panel - Comprehensive admin page for managing customer accounts,
 // feature licenses, usage stats, and account settings.
+// 20261011 CL/ASR Purchase proposals with customer approval link (inc_forslag.php, godkend.php) on the Abonnement tab;
+//                  create users in the customer ledger from the Brugere tab (ajax user_action=create).
 // 20261010 CL/ASR Rebuilt as Saldi's own administration panel in the new shell (admin/vr_ui.php): customer list with
 //                  tabs (Normale kunder / Bogholdere/revisorer / Koncernregnskaber / Alle), customer card with
 //                  Oversigt, Abonnement (includes/entitlements.php, replaces the three licence flags), Brugere,
@@ -42,6 +44,7 @@ include("inc_abonnement.php");
 include("inc_forbrug.php");
 include("inc_betalinger.php");
 include("inc_lifecycle.php");
+include("inc_forslag.php");
 partner_tables_ensure();
 ent_tables_ensure();
 
@@ -211,6 +214,22 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         exit;
     }
     
+    if ($user_action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') { // 20261011 CL/ASR create a user in the customer db
+        $input = json_decode(file_get_contents('php://input'), true);
+        $un = trim((string)($input['brugernavn'] ?? '')); $pw = (string)($input['password'] ?? ''); $role = (($input['role'] ?? 'all') === 'readonly') ? 'readonly' : 'all';
+        $fail = function($m) { include("../includes/connect.php"); echo json_encode(['error' => $m]); exit; };
+        if ($un === '' || strlen($pw) < 6) $fail('Brugernavn og adgangskode (min. 6 tegn) er påkrævet');
+        if (db_fetch_array(db_select("SELECT id FROM brugere WHERE brugernavn = '" . db_escape_string($un) . "'", __FILE__ . " linje " . __LINE__))) $fail('Brugernavnet findes allerede i regnskabet');
+        $rights = str_repeat($role === 'readonly' ? '2' : '1', 21);
+        $ry = db_fetch_array(db_select("SELECT max(kodenr) as k FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__)); $regnaar = ($ry && $ry['k']) ? (int)$ry['k'] : 1;
+        db_modify("INSERT INTO brugere (brugernavn, kode, rettigheder, regnskabsaar, email, tlf) VALUES ('" . db_escape_string($un) . "', '', '$rights', '$regnaar', '" . db_escape_string(trim((string)($input['email'] ?? ''))) . "', '" . db_escape_string(trim((string)($input['tlf'] ?? ''))) . "')", __FILE__ . " linje " . __LINE__);
+        $nr = db_fetch_array(db_select("SELECT id FROM brugere WHERE brugernavn = '" . db_escape_string($un) . "' ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__)); $nid = (int)$nr['id'];
+        db_modify("UPDATE brugere SET kode = '" . db_escape_string(saldikrypt($nid, $pw)) . "' WHERE id = $nid", __FILE__ . " linje " . __LINE__);
+        include("../includes/connect.php");
+        partner_log('ledger.user_created', $reg_id, null, "$un ($role)");
+        echo json_encode(['success' => true, 'id' => $nid]);
+        exit;
+    }
     if ($user_action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $input = json_decode(file_get_contents('php://input'), true);
         $user_id = (int)($input['user_id'] ?? 0);
@@ -306,6 +325,8 @@ if ($filter_regnskab) {
 	ent_forbrug_actions($rid, $notes);
 	bill_actions($rid, $notes);
 	lc_actions($rid, $notes);
+	$vr_cfg0 = bill_get($rid); $vr_to0 = $vr_cfg0['payer_email'] ?: $reg['email'];
+	fs_actions($rid, $notes, $vr_to0);
 	lc_apply_due($rid); $reg = db_fetch_array(db_select("SELECT * FROM regnskab WHERE id = $rid", __FILE__ . " linje " . __LINE__));
 	// partner links (operator)
 	if (isset($_POST['vr_action'])) {
@@ -371,12 +392,13 @@ if ($filter_regnskab) {
 		else print "<div class=\"vr-empty\"><b>".vr_t('Ingen bogholder','No accountant')."</b><span>".($home ? vr_t('Regnskabet er partnerens eget.','This is the partner\'s own account.') : vr_t('Regnskabet er en direkte kunde.','The account is a direct customer.'))."</span></div>";
 		print "<div class=\"vr-foot\"><form method=\"post\" class=\"vr-inline\"><input type=\"hidden\" name=\"vr_action\" value=\"link\"><select name=\"partner_id\" class=\"vr-sel\" required><option value=\"\">".vr_t('Vælg bogholder eller koncern…','Choose accountant or group…')."</option>"; foreach (partner_all() as $pp) print "<option value=\"".(int)$pp['id']."\">".vr_h($pp['name'])." · ".vr_h(vr_kind($pp['kind']))."</option>"; print "</select><select name=\"access\" class=\"vr-sel\"><option value=\"full\">".vr_t('Fuld adgang','Full access')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option><option value=\"owner\">".vr_t('Ejer (koncern)','Owner (group)')."</option></select><button type=\"submit\" class=\"vr-btn\">+ ".vr_t('Tilknyt','Link')."</button></form></div></div></section>\n</div>\n";
 	} elseif ($tab == 'abonnement') {
+		fs_render($rid, $ent, $cat, $vr_to0);
 		ent_tab_render($rid, $ent, $cat);
 	} elseif ($tab == 'forbrug') {
 		$usage = ent_usage_collect($reg); if ($usage['ok']) ent_snapshot_store($rid, $usage);
 		ent_forbrug_render($rid, $reg, $ent, $cat, $usage);
 	} elseif ($tab == 'brugere') {
-		print "<section class=\"vr-sect\"><h2>".vr_t('Kundens brugere','Customer users')." <small>".($live['ok'] ? $live['users'].' '.vr_t('aktive','active') : '')."</small></h2><div class=\"vr-card\"><div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"uq\" placeholder=\"".vr_t('Søg bruger','Search user')."\" oninput=\"filterUsers(this.value)\"></label><span class=\"vr-hint\">".vr_t('Klik på en bruger for at rette adgangskode, e-mail, telefon, IP og 2FA','Click a user to edit password, e-mail, phone, IP and 2FA')."</span></div><div id=\"usersBox\"><div class=\"vr-empty\"><span>".vr_t('Henter brugere…','Loading users…')."</span></div></div></div></section>\n";
+		print "<section class=\"vr-sect\"><h2>".vr_t('Kundens brugere','Customer users')." <small>".($live['ok'] ? $live['users'].' '.vr_t('aktive','active') : '')."</small></h2><div class=\"vr-card\"><div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"uq\" placeholder=\"".vr_t('Søg bruger','Search user')."\" oninput=\"filterUsers(this.value)\"></label><span class=\"vr-hint\">".vr_t('Klik på en bruger for at rette adgangskode, e-mail, telefon, IP og 2FA','Click a user to edit password, e-mail, phone, IP and 2FA')."</span></div><div id=\"usersBox\"><div class=\"vr-empty\"><span>".vr_t('Henter brugere…','Loading users…')."</span></div></div><div class=\"vr-foot\" style=\"display:block\"><b style=\"font-weight:600;display:block;margin-bottom:8px\">".vr_t('Opret bruger i regnskabet','Create user in the account')."</b><div class=\"vr-inline\"><input class=\"vr-inp\" id=\"nuName\" placeholder=\"".vr_t('Brugernavn','Username')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuPw\" type=\"password\" placeholder=\"".vr_t('Adgangskode (min. 6)','Password (min. 6)')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuMail\" type=\"email\" placeholder=\"E-mail\" style=\"width:210px\"><select class=\"vr-sel\" id=\"nuRole\"><option value=\"all\">".vr_t('Alle rettigheder','All rights')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option></select><button type=\"button\" class=\"vr-btn vr-primary\" onclick=\"createUser()\">".vr_t('Opret','Create')."</button><span class=\"vr-mut2\" style=\"font-size:12px\">".vr_t('Roller pr. modul kommer med roller etape 2.','Per-module roles come with roles stage 2.')."</span></div></div></div></section>\n";
 	} elseif ($tab == 'betalinger') {
 		$cfg = bill_get($rid);
 		$search = $cfg['billing_kontonr'] ?: ($live['cvr'] ? $live['cvr'] : $reg['regnskab']);
@@ -415,6 +437,7 @@ function toggleUser(id){const e=document.getElementById('ue'+id);if(e)e.hidden=!
 function filterUsers(q){q=(q||'').toLowerCase();renderUsers(USERS.filter(u=>((u.brugernavn||'')+' '+(u.email||'')).toLowerCase().includes(q)));}
 function post(action,body){return fetch('admin_panel.php?ajax_users=1&regnskab_id='+REGNSKAB_ID+'&user_action='+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());}
 function saveUser(id){post('update',{user_id:id,password:document.getElementById('pw'+id).value,email:document.getElementById('em'+id).value,tlf:document.getElementById('tl'+id).value,ip_address:document.getElementById('ip'+id).value,twofactor:document.getElementById('tf'+id).checked}).then(d=>{if(d.error)alert(d.error);else loadUsers();});}
+function createUser(){var b={brugernavn:document.getElementById('nuName').value.trim(),password:document.getElementById('nuPw').value,email:document.getElementById('nuMail').value.trim(),role:document.getElementById('nuRole').value};if(!b.brugernavn||b.password.length<6){alert('Brugernavn og adgangskode (min. 6 tegn) er påkrævet');return;}post('create',b).then(d=>{if(d.error)alert(d.error);else{['nuName','nuPw','nuMail'].forEach(i=>document.getElementById(i).value='');loadUsers();}});}
 function delUser(id,n){if(!confirm('Slet brugeren '+n+'? Handlingen kan ikke fortrydes.'))return;post('delete',{user_id:id}).then(d=>{if(d.error)alert(d.error);else loadUsers();});}
 function clearDT(id,n){if(!confirm('Nulstil gemte tabelopsætninger for '+n+'?'))return;post('clear_datatables',{user_id:id}).then(d=>{if(d.error)alert(d.error);else alert('Nulstillet');});}
 function nf(v){return Number(v||0).toLocaleString('da-DK',{minimumFractionDigits:2,maximumFractionDigits:2});}

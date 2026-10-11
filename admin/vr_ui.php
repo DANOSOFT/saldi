@@ -109,6 +109,12 @@ function vr_note($lines, $kind = 'ok') {
 	foreach ((array)$lines as $l) print "<div>".vr_h($l)."</div>";
 	print "</div>\n";
 }
+// One mail with Saldi headers (std_func's send_email() calls mail() twice, so it is not used here).
+function vr_mail($to, $subject, $html) {
+	if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+	$h = "From: Saldi <info@saldi.dk>\r\nReply-To: info@saldi.dk\r\nContent-Type: text/html; charset=UTF-8\r\n";
+	return @mail($to, '=?UTF-8?B?'.base64_encode($subject).'?=', $html, $h);
+}
 function vr_close() { print "</main></div></div>\n"; }
 }
 ?>

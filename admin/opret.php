@@ -136,6 +136,7 @@ $fra_formular=NULL;
 
 include("../includes/topline_settings.php");
 include("../includes/partnerScope.php");
+include("../includes/entitlements.php");
 include("vr_ui.php");
 partner_tables_ensure();
 vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('339|Opret regnskab', $sprog_id)), findtekst('339|Opret regnskab', $sprog_id), vr_t('Opretter en ny kundedatabase med administrator og standardkontoplan. Tager normalt under et minut.', 'Creates a new customer database with an administrator and the standard chart of accounts. Usually takes less than a minute.'));
@@ -229,6 +230,14 @@ if ($_POST){
 			}
 		}
 		transaktion('commit');
+		// 20261011 CL/ASR plan/trial and partner link chosen on the form (entitlements spec §6.5, panels spec D6)
+		$vr_trial = (string)if_isset($_POST, '', 'trial'); $vr_partner = (int)if_isset($_POST, 0, 'partner_id');
+		if (in_array($vr_trial, array('professionel','business'), true)) ent_start_trial((int)$db_id, $vr_trial, 30);
+		elseif ($vr_trial === 'finans') ent_write_plan((int)$db_id, 'finans', date('Y-m-d'), 'manual');
+		if ($vr_partner && ($vr_pp = db_fetch_array(db_select("select * from partners where id = '$vr_partner' and status = 'active'", __FILE__ . " linje " . __LINE__)))) {
+			db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note) values ('".(int)$db_id."', '$vr_partner', '".($vr_pp['kind'] == 'koncern' ? 'owner' : 'full')."', '".(int)partner_current_user()['id']."', 'oprettet med regnskabet')", __FILE__ . " linje " . __LINE__);
+			partner_log('partner.link_added', (int)$db_id, $vr_partner, $vr_pp['name'].' (ved oprettelse)');
+		}
 #		$brugernavn=db_escape_string($brugernavn);
 #		$passwd=db_escape_string($passwd);
 		opret($sqhost,$squser ,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan);
@@ -251,6 +260,8 @@ function forside($regnskab,$brugernavn) {
 	print "<label>".findtekst('2687|Administrators adgangskode', $sprog_id)."<input class=\"vr-inp\" type=\"password\" name=\"passwd\" required></label>";
 	print "<label>".findtekst('2688|Gentag adgangskode', $sprog_id)."<input class=\"vr-inp\" type=\"password\" name=\"passwd2\" required></label>";
 	print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"std_kto_plan\" checked> ".findtekst('2689|Opret standardkontoplan', $sprog_id)."</label>";
+	print "<label>".vr_t('Pakke og prøveperiode','Plan and trial')."<select name=\"trial\" class=\"vr-sel\"><option value=\"\">".vr_t('Ingen pakke endnu','No plan yet')."</option><option value=\"finans\">Finans</option><option value=\"professionel\" selected>".vr_t('30 dages prøve på Professionel, derefter Finans','30-day trial of Professionel, then Finans')."</option><option value=\"business\">".vr_t('30 dages prøve på Business, derefter Finans','30-day trial of Business, then Finans')."</option></select></label>";
+	print "<label>".vr_t('Tilknyt bogholder eller koncern (valgfrit)','Link accountant or group (optional)')."<select name=\"partner_id\" class=\"vr-sel\"><option value=\"0\">–</option>"; foreach (partner_all() as $vp) print "<option value=\"".(int)$vp['id']."\">".vr_h($vp['name'])." · ".vr_h(vr_kind($vp['kind']))."</option>"; print "</select></label>";
 	print "<div><button type=\"submit\" class=\"vr-btn vr-primary\" accesskey=\"g\" name=\"submit\" value=\"1\">".findtekst('339|Opret regnskab', $sprog_id)."</button></div>";
 	print "</form>";
 }
