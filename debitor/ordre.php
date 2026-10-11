@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -150,9 +150,10 @@
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
-// 20261006 MJ SST-828 The plukliste buttons now follow the order's own status instead of
+// 20261011 MJ SST-828 The plukliste buttons now follow the order's own status instead of
 //                  $opValue ($_GET['valg']), which made them disappear entirely whenever
-//                  hurtigfakturering was on. The Send plukliste field in the button row
+//                  hurtigfakturering was on. They are shown on anything but a tilbud, so
+//                  nothing loses them, and the Send plukliste field in the button row
 //                  follows the same rule as the button beside it.
 
 @session_start();
@@ -3805,13 +3806,14 @@ function ordreside($id, $regnskab)
 	if ($status == 0) $tmp = "tilbud";
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
-	// 20261006 MJ SST-828 Decided from the order's own status, not from $opValue, which is
-	// $_GET['valg'] - the tab the user arrived from. Same thresholds as the mapping above and
-	// as ordreliste.php's queries: a plukliste belongs to an order, not a tilbud (status 0)
-	// or a finished faktura (status >= 3). With hurtigfakturering there are no tilbud, so
-	// status 0 counts as an order, exactly as ordreliste.php lists it. $tmp cannot serve
-	// here - the next line overwrites it with the navigation value.
-	$visPlukliste = $id && (($hurtigfakt == "on") ? ($status < 3) : ($status == 1 || $status == 2));
+	// 20261011 MJ SST-828 Decided from the order's own status, not from $opValue, which is
+	// $_GET['valg'] - the tab the user arrived from. With hurtigfakturering it could never be
+	// 'faktura' for an open order, so the buttons were hidden on every one of them.
+	// A plukliste belongs to anything that is not a tilbud. With hurtigfakturering there are
+	// no tilbud: ordreliste.php lists status 0 under 'ordrer' (line 531) and gives those rows
+	// the plukliste icon, so the only case left out is status 0 without hurtigfakturering.
+	// $tmp cannot serve here - the next line overwrites it with the navigation value.
+	$visPlukliste = $id && ($hurtigfakt == "on" || $status > 0);
 	$value_type = if_isset($_GET, 'ordrer', 'valg');
 	if($tmp != $value_type) $tmp = $value_type;
 	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));

@@ -5,12 +5,18 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-// 20261006 MJ SST-828 Pins which orders show the plukliste buttons on the order card.
+// 20261011 MJ SST-828 Pins which orders show the plukliste buttons on the order card.
 //                  debitor/ordre.php decided this from $opValue, which is $_GET['valg'] -
 //                  the list tab the user arrived from, not what the order is. With
 //                  hurtigfakturering on, ordreliste.php turns the tilbud tab into 'ordrer'
 //                  (ordreliste.php:369), so valg was never 'faktura' for an open order and
 //                  Whesco never saw the button at all. It now reads the order's own status.
+//
+//                  The rule is "anything but a tilbud", so no order that shows the buttons
+//                  today loses them. SST-579 (f5b603d2, 20260429) put them on invoices on
+//                  purpose: the same commit added the leveret column to formular 9 and
+//                  filled it from batch_salg "for invoice printing". testNothingThatShows
+//                  TheButtonsTodayLosesThem below pins that against the old expression.
 //
 //                  ordreside() is a 3000-line function inside a page script that opens a
 //                  session, so the decision is lifted out of the source and evaluated here
@@ -56,10 +62,21 @@ final class PluklisteButtonVisibilityTest extends TestCase
     }
 
     /**
+     * The expression this branch replaces, kept verbatim for the superset check below.
+     * It is history, not the thing under test - the assertions always compare it against
+     * the lifted condition, never against a restatement of the new rule.
+     */
+    private function visPluklisteOnMaster(string $hurtigfakt, ?string $opValue): bool
+    {
+        return ($hurtigfakt == 'on' && $opValue == 'faktura')
+            || ($hurtigfakt != 'on' && $opValue != 'tilbud');
+    }
+
+    /**
      * With hurtigfakturering on, an order that is not yet invoiced shows the buttons.
      * This is the reported bug: every one of these was hidden.
      */
-    #[DataProvider('quickInvoicingShown')]
+    #[DataProvider('quickInvoicingUninvoiced')]
     public function testWithQuickInvoicingAnUninvoicedOrderShowsThem(int $status): void
     {
         self::assertTrue($this->visPlukliste(4711, 'on', $status),
@@ -67,25 +84,31 @@ final class PluklisteButtonVisibilityTest extends TestCase
     }
 
     /** @return array<string, array{int}> */
-    public static function quickInvoicingShown(): array
+    public static function quickInvoicingUninvoiced(): array
     {
         return [
             // With hurtigfakturering there are no tilbud, so status 0 is an order here -
-            // matching how ordreliste.php lists it (status < 3 for the ordrer tab).
+            // matching how ordreliste.php lists it (status < 3 for the ordrer tab), and it
+            // is reachable: ordre.php:1689 raises a saved order to status 1, then the
+            // delivery-date check at 1698-1701 puts it back to 0.
             'status 0, listed as an order' => [0],
             'status 1' => [1],
             'status 2' => [2],
         ];
     }
 
-    /** An invoiced order is finished; the plukliste belongs to the order stage. */
+    /**
+     * An invoice keeps them. SST-579 added them there deliberately for hurtigfakturering,
+     * where the invoice exists before the goods are picked, and without hurtigfakturering
+     * master shows them on an invoice too. Taking them away would be a regression.
+     */
     #[DataProvider('invoicedStatuses')]
-    public function testAnInvoicedOrderDoesNotShowThem(int $status): void
+    public function testAnInvoicedOrderStillShowsThem(int $status): void
     {
-        self::assertFalse($this->visPlukliste(4711, 'on', $status),
-            "status $status is invoiced and should not show the plukliste buttons");
-        self::assertFalse($this->visPlukliste(4711, '', $status),
-            "status $status is invoiced and should not show them without hurtigfakturering either");
+        self::assertTrue($this->visPlukliste(4711, 'on', $status),
+            "status $status with hurtigfakturering should keep the plukliste buttons");
+        self::assertTrue($this->visPlukliste(4711, '', $status),
+            "status $status without hurtigfakturering should keep the plukliste buttons");
     }
 
     /** @return array<string, array{int}> */
@@ -98,8 +121,8 @@ final class PluklisteButtonVisibilityTest extends TestCase
         ];
     }
 
-    /** Without hurtigfakturering: orders yes, tilbud no. */
-    public function testWithoutQuickInvoicingOrdersShowThemAndTilbudDoesNot(): void
+    /** Without hurtigfakturering a tilbud is the one thing left out. */
+    public function testWithoutQuickInvoicingATilbudIsTheOnlyThingExcluded(): void
     {
         self::assertFalse($this->visPlukliste(4711, '', 0),
             'a tilbud (status 0) must not show the plukliste buttons');
@@ -119,9 +142,112 @@ final class PluklisteButtonVisibilityTest extends TestCase
     }
 
     /**
-     * The thresholds have to agree with the categorisation three lines above them, which is
-     * the same one ordreliste.php's queries use. If those drift apart, one screen will
-     * disagree with the other about what an order is.
+     * The point of the change: it only ever adds. For every saved order the order list can
+     * open, if the old expression showed the buttons the new one must show them too.
+     *
+     * @param string      $hurtigfakt 'on' when quick invoicing is enabled.
+     * @param string|null $opValue    The tab the row was opened from ($_GET['valg']).
+     * @param int         $status     The order's own status.
+     */
+    #[DataProvider('rowsMasterShowsThemOn')]
+    public function testNothingThatShowsTheButtonsTodayLosesThem(
+        string $hurtigfakt,
+        ?string $opValue,
+        int $status
+    ): void {
+        self::assertTrue($this->visPluklisteOnMaster($hurtigfakt, $opValue),
+            'this row is in the wrong provider - master hid the buttons here');
+        self::assertTrue($this->visPlukliste(4711, $hurtigfakt, $status),
+            "master showed the plukliste buttons for hurtigfakt='$hurtigfakt', "
+            . "valg='$opValue', status $status, and this branch hides them");
+    }
+
+    /**
+     * The reachable rows the old expression showed the buttons on. Built by running that
+     * expression, so a row cannot quietly fall out of the check.
+     *
+     * @return array<string, array{string, string|null, int}>
+     */
+    public static function rowsMasterShowsThemOn(): array
+    {
+        $rows = array();
+        foreach (self::reachableFromTheOrderList() as $name => $row) {
+            list($hurtigfakt, $opValue, $status) = $row;
+            $onMaster = ($hurtigfakt == 'on' && $opValue == 'faktura')
+                || ($hurtigfakt != 'on' && $opValue != 'tilbud');
+            if ($onMaster) {
+                $rows[$name] = $row;
+            }
+        }
+        self::assertNotEmpty($rows, 'the old expression never showed the buttons anywhere');
+        return $rows;
+    }
+
+    /**
+     * And the other half: over every row the order list can open, a tilbud without
+     * hurtigfakturering is the only one still hidden. This is the whole behaviour change in
+     * one assertion - anything that widens or narrows the rule shows up here as a diff.
+     */
+    public function testATilbudIsTheOnlyReachableRowStillHidden(): void
+    {
+        $hidden = array();
+        foreach (self::reachableFromTheOrderList() as $name => $row) {
+            list($hurtigfakt, $opValue, $status) = $row;
+            if (!$this->visPlukliste(4711, $hurtigfakt, $status)) {
+                $hidden[] = $name;
+            }
+        }
+        self::assertSame(array('off, tilbud tab, status 0'), $hidden,
+            'the set of orders without plukliste buttons changed');
+    }
+
+    /**
+     * Every (tab, status) pair ordreliste.php can hand to the order card, from its own
+     * per-tab filters at ordreliste.php:526-533 plus the tilbud -> ordrer rewrite at 369.
+     *
+     * @return array<string, array{string, string|null, int}>
+     */
+    public static function reachableFromTheOrderList(): array
+    {
+        $rows = [];
+        // Quick invoicing: no tilbud tab, and the ordrer tab lists status < 3.
+        foreach ([0, 1, 2] as $status) {
+            $rows["on, ordrer tab, status $status"] = ['on', 'ordrer', $status];
+        }
+        foreach ([3, 4] as $status) {
+            $rows["on, faktura tab, status $status"] = ['on', 'faktura', $status];
+            $rows["on, pbs tab, status $status"] = ['on', 'pbs', $status];
+        }
+        // Without it: tilbud is its own tab and the ordrer tab lists status 1-2 only.
+        $rows['off, tilbud tab, status 0'] = ['', 'tilbud', 0];
+        foreach ([1, 2] as $status) {
+            $rows["off, ordrer tab, status $status"] = ['', 'ordrer', $status];
+        }
+        foreach ([3, 4] as $status) {
+            $rows["off, faktura tab, status $status"] = ['', 'faktura', $status];
+            $rows["off, pbs tab, status $status"] = ['', 'pbs', $status];
+        }
+        return $rows;
+    }
+
+    /**
+     * The one narrowing, pinned on purpose. Opened without a valg parameter - a direct link
+     * or a return path - master read $opValue as NULL, so without hurtigfakturering
+     * NULL != "tilbud" showed the buttons on a tilbud as well. They no longer do.
+     */
+    public function testATilbudOpenedWithoutATabNoLongerShowsThem(): void
+    {
+        self::assertTrue($this->visPluklisteOnMaster('', null),
+            'master showed them for a tilbud opened without a tab');
+        self::assertFalse($this->visPlukliste(4711, '', 0),
+            'a tilbud should stay excluded however the card was reached');
+    }
+
+    /**
+     * The decision has to agree with the categorisation three lines above it and with
+     * ordreliste.php's own per-tab filters, which are what make status 0 an order under
+     * hurtigfakturering. If those drift apart, one screen disagrees with the other about
+     * what an order is.
      */
     public function testTheThresholdsMatchTheCategorisationAboveThem(): void
     {
@@ -138,6 +264,8 @@ final class PluklisteButtonVisibilityTest extends TestCase
             "ordreliste.php's own threshold for the ordrer tab with hurtigfakturering changed");
         self::assertStringContainsString('$status = "(ordrer.status = 1 or ordrer.status = 2)"', $list,
             "ordreliste.php's own threshold for the ordrer tab without hurtigfakturering changed");
+        self::assertStringContainsString('if ($valg == "tilbud" && $hurtigfakt) $valg = "ordrer";', $list,
+            'ordreliste.php no longer folds the tilbud tab into ordrer under hurtigfakturering');
     }
 
     /**
@@ -158,6 +286,8 @@ final class PluklisteButtonVisibilityTest extends TestCase
         self::assertStringNotContainsString("\$opValue == 'faktura'", $src,
             'the buttons are keyed off the navigation value again, which is the reported bug');
         self::assertStringNotContainsString('$opValue != "tilbud"', $src,
+            'the buttons are keyed off the navigation value again, which is the reported bug');
+        self::assertStringNotContainsString("\$opValue != 'tilbud'", $src,
             'the buttons are keyed off the navigation value again, which is the reported bug');
     }
 
