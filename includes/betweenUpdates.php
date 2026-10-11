@@ -81,6 +81,7 @@
 //                  the current tenant's database/schema, matching the performed_by migration.
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
+// 20261006 CL/LH SST-850: hash a clear-text rentalsettings.pass once (idempotent, table-guarded).
 //                  re-seeds the corrected csv text on the next call.
 // 20261007 CL/NTR Add ordrer.shop_status as varchar(20) when the column is missing entirely,
 //                  so the Stripe paid-invoice index no longer fails on those tenants.
@@ -981,5 +982,16 @@ if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null 
 // Preserve HTML users before the renderer changes; explicit choices survive later updates.
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);
+
+// 20261006 CL/LH SST-850: rentalsettings.pass used to be stored in clear text. Hash a remaining
+// clear-text value once; only tenants with the rental module have the table, and a value that is
+// already a password_hash() is left alone, so this is idempotent.
+if (db_fetch_array(db_select("select 1 from information_schema.tables where table_name = 'rentalsettings'", __FILE__ . " linje " . __LINE__))) {
+	$rentalPass = db_fetch_array(db_select("select pass from rentalsettings", __FILE__ . " linje " . __LINE__));
+	if ($rentalPass && (string)$rentalPass['pass'] !== '' && password_get_info((string)$rentalPass['pass'])['algoName'] === 'unknown') {
+		$rentalHash = db_escape_string(password_hash((string)$rentalPass['pass'], PASSWORD_DEFAULT));
+		db_modify("update rentalsettings set pass = '$rentalHash'", __FILE__ . " linje " . __LINE__);
+	}
+}
 
 ?>

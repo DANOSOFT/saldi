@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.10.07 ---
+// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.10.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,8 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
+// 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token) and the login itself in the
+//                 browser console; the log endpoint now takes the tenant from the session.
 // 20261007 CL/SZ SST-843 The Nets Connect@Cloud username and password are no longer written into the page or the console.
 //                The login and the transaction run in lane3000_proxy.php, so the bearer token stays on the server too.
 
@@ -148,8 +150,7 @@ function logToServer(message, level = 'INFO') {
             message: message,
             level: level,
             timestamp: new Date().toISOString(),
-            ordre_id: '<?php print $ordre_id; ?>',
-            db: '<?php print $db; ?>'
+            ordre_id: '<?php print (int)$ordre_id; ?>'
         })
     }).catch(err => console.error('Logging failed:', err));
 }

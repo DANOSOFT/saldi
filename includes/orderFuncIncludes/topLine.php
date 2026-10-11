@@ -1,5 +1,5 @@
 <?php
-// ------orderFuncIncludes/topLine.php---patch 4.1.1 ----2025-11-15------------
+// ------orderFuncIncludes/topLine.php---patch 5.0.0 ----2026-10-06------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,7 +19,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20251115 LOE Created file to standardize top line  in ordrefunc includes 
-
+// 20261006 CL/LH SST-848: Updated to use new SVG icons
 
 
 ###############
@@ -34,16 +34,19 @@ $add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -9
 print "<tr><td height='25' align='center' valign='top'>";
 print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>"; # Tabel 1.1 ->
 
+// The onclick ignores clicks in the first 600 ms after the button exists (data-ready is stamped
+// by the script right after it): the print page's Tilbage sits at the same spot, so the second
+// click of a double-click on it would otherwise close the order that has just opened (SST-851).
 if (!strstr($returside, "ordre.php")) {
 	print "<td width=5% style='$buttonStyle'>
-		<a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey='L'>
+		<a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey='L' onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">
 		<button class='headerbtn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-		$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 } else {
 	print "<td width=5% style='$buttonStyle'>
-		<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey='L'>
+		<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey='L' onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">
 		<button class='headerbtn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-		$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 }
 
 print "<td width=75% style='$topStyle' align=center>$tekst</td>\n";
