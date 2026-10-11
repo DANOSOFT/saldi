@@ -1,5 +1,5 @@
 <?php
-// ------------------debitor/batch.php--------ver 5.0.0----2026.10.08--
+// ------------------debitor/batch.php--------ver 5.0.0----2026.10.11--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,6 +25,10 @@
 //                  batch_kob row this window already selects, so the user can see which
 //                  batch is being sold from. Fixed recucer() -> reducer(), which made the
 //                  unreceived-credit-note row fatal.
+// 20261011 MJ SST-833 Review: the incoming-order rows keep their order type in their own
+//                  array. $art is a string, so $art[$x] wrote a single byte into it - the
+//                  credit-note test never matched, every row warned, and $art itself was
+//                  corrupted before being posted back in a hidden field.
 
 @session_start();
 $s_id=session_id();
@@ -194,7 +198,12 @@ if (($antal>=0)&&($art!="DK")){
 		print "<tr><td colspan=5><hr></td></tr>\n";
 	}
 	$temp=$linje_id*-1;
-	$query = db_select("select * from reservation where batch_salg_id=0 and vare_id = $vare_id",__FILE__ . " linje " . __LINE__); 
+	// 20261011 MJ SST-833 The order type of each incoming line needs its own array. $art is a
+	// string - the current order's type, read at line 119 - so writing $art[$x] into it stored
+	// only the first byte, left the "(KN)" test below permanently false, emitted a PHP warning
+	// per row, and corrupted $art itself, which is posted back in a hidden field further down.
+	$incomingArt = array();
+	$query = db_select("select * from reservation where batch_salg_id=0 and vare_id = $vare_id",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$x++;
 		$res_linje_id[$x]=$row['linje_id'];
@@ -208,7 +217,7 @@ if (($antal>=0)&&($art!="DK")){
 		$r2 = db_fetch_array($q2);
 		if ($r2[status]<3) {
 			$ordrenr[$x]=$r2['ordrenr'];
-			$art[$x]=$r2['art'];
+			$incomingArt[$x]=$r2['art'];
 		}
 		else { #Tilfoejet 200606 PHR 
 			 db_modify("delete from reservation where linje_id=$res_linje_id[$x]",__FILE__ . " linje " . __LINE__);
@@ -226,10 +235,12 @@ if (($antal>=0)&&($art!="DK")){
 		}
 		if ($rest[$x]>0) {
 			print "<tr>";
-			// 20261008 MJ SST-833 recucer() does not exist - this line fatalled whenever an
-			// unreceived credit note appeared in this list. The two empty cells keep the row
-			// aligned with the batch columns above.
-			if ($art[$x]=='DK') print "<td> $ordrenr[$x] (KN)</td><td></td><td></td><td align = right>".reducer($rest[$x])."</td>";
+			// 20261008 MJ SST-833 recucer() does not exist, so this line fatalled - but only in
+			// theory: the test beside it compared a single byte of $art against 'DK' and was
+			// always false, so an unreceived credit note silently lost its "(KN)" label instead
+			// and the broken call was never reached. Both are fixed; the two empty cells keep
+			// the row aligned with the batch columns above.
+			if ($incomingArt[$x]=='DK') print "<td> $ordrenr[$x] (KN)</td><td></td><td></td><td align = right>".reducer($rest[$x])."</td>";
 			else print "<td> $ordrenr[$x]</td><td></td><td></td><td align = right>".reducer($rest[$x])."</td>";
 			print "<td align = right><input type=text style=\"text-align:right\" size=3 name=valg_$x value=$valg[$x]></td>";
 			print "</tr>\n";

@@ -127,6 +127,33 @@ final class BatchSelectionDisplayTest extends TestCase
             'both branches should format the quantity with reducer()');
     }
 
+    /**
+     * The incoming-order rows must keep their order type in their own array.
+     *
+     * $art holds the current order's type as a string (batch.php line ~119), so the old
+     * $art[$x] = $r2['art'] was a string-offset write: PHP stored only the first byte, the
+     * "(KN)" test was therefore always false, every row emitted "Only the first byte will be
+     * assigned to the string offset", and $art itself was corrupted before being posted back
+     * in a hidden field. Reported by CodeRabbit on PR #789.
+     */
+    public function testIncomingOrderTypesAreKeptInTheirOwnArray(): void
+    {
+        $src = $this->read(self::BATCH);
+
+        self::assertStringContainsString('$incomingArt = array();', $src,
+            'the incoming order types have no array of their own again');
+        self::assertStringContainsString("\$incomingArt[\$x]=\$r2['art'];", $src,
+            'the incoming order type is not stored in that array');
+        self::assertStringContainsString("if (\$incomingArt[\$x]=='DK')", $src,
+            'the credit-note test reads something other than the incoming order type');
+
+        // Nothing may write into $art by offset - that is the defect itself.
+        self::assertSame(0, preg_match('/\$art\[\$x\]\s*=/', $src),
+            'a value is written into the $art string by offset again');
+        self::assertSame(0, preg_match('/if \(\$art\[\$x\]\s*==/', $src),
+            'the credit-note test reads a byte of the $art string again');
+    }
+
     /** The known-gaps list records what changed. */
     public function testTheDocumentationRecordsThis(): void
     {
