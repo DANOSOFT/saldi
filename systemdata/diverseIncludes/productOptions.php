@@ -3,6 +3,7 @@
 // 20210712 LOE - Translated Some texts 
 // 20260811 Sawaneh Added 'batchExpiryEnabled' checkbox that switches the batch/expiry date section
 //                  on the item card on. Off by default.
+// 20261011 ASR Link to lager/batch_udfyld.php below the batch/expiry setting when it is on.
 
 function productOptions($defaultProvision) {
 	global $sprog_id;
@@ -293,6 +294,12 @@ function productOptions($defaultProvision) {
 	}
 	print "<tr><td title='$batch_title'>$batch_label</td>";
 	print "<td title='$batch_title'><input type='checkbox' class='inputbox' name='batchExpiryEnabled' $batchExpiryEnabled></td></tr>";
+	if ($batchExpiryEnabled) {
+		$batchMissing = batch_missing_info_count();
+		print "<tr><td colspan='2'><a href='../lager/batch_udfyld.php'>" . batch_txt('fill_stock') . "</a>";
+		if ($batchMissing) print " ($batchMissing)";
+		print "</td></tr>";
+	}
 	print "<td><br></td><td><br></td><td><br></td>";
 	$text = findtekst('471|Gem/opdatér', $sprog_id);
 	print "<td align = center><input class='button green medium' type=submit accesskey='g' value='$text' name='submit'><!--tekst 471--></td>";
