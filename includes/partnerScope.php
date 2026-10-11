@@ -28,6 +28,25 @@ function partner_tables_ensure() {
 	);
 	foreach ($sql as $q) db_modify($q, __FILE__ . " linje " . __LINE__);
 }
+// 20261011 CL/ASR Group billing on the partner (own table): 'individual' (each ledger pays) or 'consolidated' (billed via
+//                  billing_regnskab_id, default the home ledger). Per-ledger exceptions live in regnskab_billing.payer_regnskab_id.
+function partner_billing_cols_ensure() {
+	static $d = false; if ($d) return; $d = true;
+	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'partners' AND column_name = 'billing_mode'", __FILE__ . " linje " . __LINE__)))
+		db_modify("ALTER TABLE partners ADD COLUMN billing_mode varchar(12) NOT NULL DEFAULT 'individual', ADD COLUMN billing_regnskab_id int", __FILE__ . " linje " . __LINE__);
+}
+// Move a ledger from one partner to another: the old link gets an end date, a new one starts. Nothing on the ledger
+// (lifecycle, snapshots, log, entitlements) is touched, so history stays with the ledger.
+function partner_move_ledger($rid, $from_pid, $to_pid, $access, $note) {
+	$rid = (int)$rid; $from_pid = (int)$from_pid; $to_pid = (int)$to_pid;
+	$to = db_fetch_array(db_select("select * from partners where id = '$to_pid' and status = 'active'", __FILE__ . " linje " . __LINE__)); if (!$to) return 'Ukendt partner';
+	if ($access == 'owner' && db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and access = 'owner' and until is null and partner_id <> '$from_pid'", __FILE__ . " linje " . __LINE__))) return 'Regnskabet har allerede en anden ejer';
+	db_modify("update regnskab_partners set until = now() where regnskab_id = '$rid' and partner_id = '$from_pid' and until is null", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note) values ('$rid', '$to_pid', '".db_escape_string($access)."', '".(int)partner_current_user()['id']."', '".db_escape_string($note)."')", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from partner_user_access where regnskab_id = '$rid' and bruger_id in (select bruger_id from partner_users where partner_id = '$from_pid')", __FILE__ . " linje " . __LINE__);
+	partner_log('partner.ledger_moved', $rid, $to_pid, "fra partner $from_pid til ".$to['name']." ($access)".($note ? " – $note" : ''));
+	return '';
+}
 
 // The master user row of the current session.
 function partner_current_user() {

@@ -20,6 +20,24 @@ function bill_cache_ensure() { # cached payment summary (filled when the tab is 
 	static $d = false; if ($d) return; $d = true; bill_tables_ensure();
 	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'regnskab_billing' AND column_name = 'pay_status'", __FILE__ . " linje " . __LINE__)))
 		db_modify("ALTER TABLE regnskab_billing ADD COLUMN pay_status varchar(12), ADD COLUMN outstanding_ore bigint, ADD COLUMN overdue_n int, ADD COLUMN oldest_due date, ADD COLUMN last_invoice date, ADD COLUMN checked_at timestamp", __FILE__ . " linje " . __LINE__);
+	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'regnskab_billing' AND column_name = 'payer_regnskab_id'", __FILE__ . " linje " . __LINE__)))
+		db_modify("ALTER TABLE regnskab_billing ADD COLUMN payer_regnskab_id int", __FILE__ . " linje " . __LINE__);
+}
+// Who is invoiced for this ledger: own ledger, or another ledger (parent) via the partner's consolidated billing or a per-ledger choice.
+// Returns array(payer_regnskab_id|null, source text). null = the ledger itself.
+function bill_payer($rid) {
+	bill_cache_ensure(); partner_billing_cols_ensure(); $rid = (int)$rid;
+	$own = db_fetch_array(db_select("select payer_regnskab_id from regnskab_billing where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__));
+	if ($own && $own['payer_regnskab_id']) return array((int)$own['payer_regnskab_id'], vr_t('valgt for dette regnskab','set for this account'));
+	$q = db_select("select p.* from regnskab_partners rp join partners p on p.id = rp.partner_id where rp.regnskab_id = '$rid' and rp.until is null and p.status = 'active' and p.billing_mode = 'consolidated' order by (rp.access = 'owner') desc, rp.id limit 1", __FILE__ . " linje " . __LINE__);
+	if ($p = db_fetch_array($q)) { $pay = $p['billing_regnskab_id'] ? (int)$p['billing_regnskab_id'] : (int)$p['home_regnskab_id']; if ($pay && $pay != $rid) return array($pay, vr_t('samlet fakturering via','consolidated billing via').' '.$p['name']); }
+	return array(null, '');
+}
+function bill_set_payer($rid, $payer) {
+	bill_cache_ensure(); $rid = (int)$rid; $payer = (int)$payer;
+	if (!db_fetch_array(db_select("select 1 from regnskab_billing where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__))) db_modify("insert into regnskab_billing (regnskab_id) values ('$rid')", __FILE__ . " linje " . __LINE__);
+	db_modify("update regnskab_billing set payer_regnskab_id = ".($payer && $payer != $rid ? "'$payer'" : "NULL").", updated_by = '".db_escape_string(ent_actor())."', updated_at = now() where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__);
+	partner_log('billing.payer_set', $rid, null, $payer && $payer != $rid ? "faktureres via regnskab $payer" : 'faktureres selv');
 }
 // Summarise fetched invoices and store the summary for the overview.
 function bill_cache_store($rid, $data, $cfg) {
@@ -105,6 +123,8 @@ function bill_render($rid, $reg, $ent, $live, $data, $cfg) {
 	print "<div><span>".vr_t('Faktureringskunde','Billing customer')."</span><b>".($c ? vr_h($c['firmanavn'] ?? '')." <span class=\"vr-mut2\">· ".vr_t('kundenr.','no.')." ".vr_h($c['kontonr'])." · CVR ".vr_h($c['cvrnr'] ?? '–')."</span>" : '<span class="vr-mut2">'.vr_t('ikke fundet','not found').'</span>')."</b></div>";
 	print "<div><span>".vr_t('Betalingsbetingelser','Payment terms')."</span><b>".($c ? vr_h(($c['betaling']['betalingsbet'] ?? '–').' '.(int)($c['betaling']['betalingsdage'] ?? 0).' '.vr_t('dage','days')) : '–')."</b></div>";
 	if ($c && !empty($c['pbs']['active'])) print "<div><span>Betalingsservice</span><b>".vr_t('Aktiv','Active')." <span class=\"vr-mut2\">· nr. ".vr_h($c['pbs']['number'] ?? '')."</span></b></div>";
+	list($payerId, $payerSrc) = bill_payer($rid); $payerName = ''; if ($payerId) { $pr = db_fetch_array(db_select("select regnskab from regnskab where id = '".(int)$payerId."'", __FILE__ . " linje " . __LINE__)); $payerName = $pr ? $pr['regnskab'] : "#$payerId"; }
+	print "<div><span>".vr_t('Faktureres via','Invoiced via')."</span><b>".($payerId ? "<a href=\"admin_panel.php?regnskab_id=".(int)$payerId."&tab=betalinger\">".vr_h($payerName)."</a> <span class=\"vr-mut2\">· ".vr_h($payerSrc)."</span>" : vr_t('regnskabet selv','the account itself'))."</b></div>";
 	print "<div><span>".vr_t('Regnskabets e-mail','Account e-mail')."</span><b>".($reg['email'] ? vr_h($reg['email']) : '–')."</b></div></div>";
 	// manual settings
 	print "<h2 style=\"margin-top:18px\">".vr_t('Manuelle oplysninger','Manual details')." <small>".vr_t('bruges når API\'et ikke kan afgøre det','used when the API cannot tell')."</small></h2><div class=\"vr-card\"><form method=\"post\" class=\"vr-form\" style=\"max-width:none\"><input type=\"hidden\" name=\"bill_action\" value=\"save\">";
