@@ -259,7 +259,7 @@ function ent_usage_collect($reg) {
 	if (tbl_exists('brugere')) {
 		$bc = $cols('brugere'); $w = array(); if (in_array('revisor', $bc)) $w[] = "revisor is not true"; 
 		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_total'] = (int)($r['n'] ?? 0);
-		if (in_array('status', $bc)) $w[] = "(status is true or status is null)";
+		if (in_array('status', $bc)) { $st = $one("select data_type from information_schema.columns where table_name = 'brugere' and column_name = 'status'"); $w[] = (($st['data_type'] ?? '') == 'boolean') ? "(status is true or status is null)" : "(status is null or lower(status::text) in ('t','true','1','on',''))"; } # older ledgers store status as text
 		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_active'] = (int)($r['n'] ?? 0);
 	}
 	if (tbl_exists('transaktioner')) {
