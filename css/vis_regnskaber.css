@@ -267,3 +267,21 @@ div.vr-stat:hover{background:transparent}
 .vr-sp-desc{font-size:13.5px;color:var(--text-2);margin-top:8px;line-height:1.55;max-width:900px}
 .vr-sp-ret b,.vr-sp-ret .vr-sp-desc{color:var(--text-3)}
 .vr-foot details>summary{list-style:none} .vr-foot details>summary::-webkit-details-marker{display:none}
+
+/* trial lists: Nye kunder / Overskredet prøveperiode (20261012) */
+.vr-tr td{vertical-align:middle}
+.vr-tr-days{white-space:nowrap} .vr-tr-days b{font-size:22px;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums;margin-right:6px;color:var(--text)}
+.vr-tr-days>span:not(.vr-b){font-size:12.5px;color:var(--text-3)} .vr-tr-days .vr-b{display:block;width:120px;margin-top:6px} .vr-tr-days small{display:block;margin-top:4px;font-size:12px;color:var(--text-3)}
+.vr-tr-days.vr-tr-warn b{color:var(--warn-ink)} .vr-tr-days.vr-tr-warn .vr-b i{background:var(--amber)}
+.vr-tr-days.vr-tr-bad b{color:var(--bad)} .vr-tr-days.vr-tr-bad .vr-b i{background:var(--bad)}
+.vr-tr-days.vr-tr-paid b{color:var(--text-3)} .vr-tr-days.vr-tr-paid .vr-b i{background:var(--good)}
+.vr-tr td>small,.vr-tr .vr-nm small{display:block;font-size:12px;color:var(--text-3);margin-top:2px}
+.vr-tr-note{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2)!important}
+.vr-tr-more{position:relative;display:inline-block} .vr-tr-more>summary{list-style:none;cursor:pointer} .vr-tr-more>summary::-webkit-details-marker{display:none}
+.vr-tr-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:340px;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:14px 16px;display:flex;flex-direction:column;gap:12px;cursor:default}
+.vr-tr-pop form{margin:0} .vr-tr-acts{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--grid);padding-top:12px}
+.vr-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.vr-chip2{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:4px 12px;text-decoration:none}
+.vr-chip2 span{font-variant-numeric:tabular-nums;color:var(--text-3)} .vr-chip2.on{border-color:var(--text-2);color:var(--text);font-weight:600}
+.vr-tr-ex{margin-top:16px} .vr-tr-ex>summary{cursor:pointer;font-size:13px}
+.vr-card:has(>.vr-tr){overflow:visible} .vr-tr thead th:first-child{border-top-left-radius:var(--r)} .vr-tr thead th:last-child{border-top-right-radius:var(--r)}

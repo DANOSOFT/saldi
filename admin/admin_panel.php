@@ -17,6 +17,7 @@ ob_start();
 // ----------------------------------------------------------------------
 // Admin Panel - Comprehensive admin page for managing customer accounts,
 // feature licenses, usage stats, and account settings.
+// 20261012 CL/ASR Tabs "Nye kunder" (trial, days left) and "Overskredet prøveperiode" (follow-up), inc_proeve.php.
 // 20261012 CL/ASR Specialtilpasninger (inc_special.php): Abonnement tab, Oversigt note, header link, list marker.
 // 20261012 CL/ASR Tab "Egne installationer" (self-hosted customers with a support agreement), inc_installationer.php.
 // 20261012 CL/ASR Merged with "Regnskaber" for operators: one sidebar entry; master@ssl3 open-warning and "Genberegn nu"
@@ -51,6 +52,7 @@ include("inc_lifecycle.php");
 include("inc_forslag.php");
 include("inc_installationer.php");
 include("inc_special.php");
+include("inc_proeve.php");
 partner_tables_ensure();
 ent_tables_ensure();
 
@@ -383,6 +385,7 @@ if ($filter_regnskab) {
 	if (!in_array($tab, array('oversigt','abonnement','forbrug','brugere','betalinger','indstillinger','log'), true)) $tab = 'oversigt';
 
 	$lcs = lc_state($rid, $reg); $lead = '<span class="vr-st"><span class="vr-dot '.($lcs['state'] == 'active' ? 'vr-ok' : ($lcs['state'] == 'suspended' ? 'vr-warn' : 'vr-off')).'"></span>'.($lcs['state'] == 'active' ? vr_t('Aktiv','Active') : ($lcs['state'] == 'suspended' ? vr_t('Suspenderet','Suspended') : findtekst('387|Lukket', $sprog_id))).'</span> · '.vr_h($reg['db']).' · ID '.$rid.' · '.($ent['plan'] ? vr_h($ent['plan']['name']) : vr_t('ingen pakke','no plan')).($links ? ' · '.vr_t('Bogholder','Accountant').': '.implode(', ', array_map(fn($l) => vr_h($l['name']), $links)) : ($home ? ' · '.vr_t('partnerens eget regnskab','the partner\'s own account') : ' · '.vr_t('direkte kunde','direct customer')));
+	if ($trl = tr_card_lead($rid, $reg)) $lead .= ' · '.$trl;
 	$spa = sp_list($rid, 0, true); if ($spa) { $spi = count(array_filter($spa, fn($x) => $x['important'] === 't' || $x['important'] === true)); $lead .= ' · <a href="admin_panel.php?regnskab_id='.$rid.'&tab=abonnement#special" style="color:'.($spi ? 'var(--warn-ink)' : 'inherit').'">'.count($spa).' '.(count($spa) == 1 ? vr_t('specialtilpasning','customization') : vr_t('specialtilpasninger','customizations')).'</a>'; } # 20261012 CL/ASR
 	vr_open(array(array('Administrationspanel', 'admin_panel.php'), array(vr_t('Regnskaber','Accounts'), 'admin_panel.php'), $reg['regnskab']), $reg['regnskab'], $lead, "<a class=\"vr-btn vr-primary\" href=\"aaben_regnskab.php?db_id=$rid\"".vr_warn_attr().">".vr_t('Åbn regnskab','Open account')."</a>", $home ? strtolower(vr_kind($home['kind'])) : '');
 	vr_note($notes);
@@ -489,7 +492,8 @@ $sort_col = if_isset($_GET['sort'], 'regnskab');
 $sort_dir = strtolower(if_isset($_GET['dir'], 'asc')) === 'desc' ? 'desc' : 'asc';
 $allowed_sorts = array('id' => 'id', 'regnskab' => 'regnskab', 'db' => 'db', 'brugerantal' => "COALESCE(NULLIF(brugerantal::text,''),'0')::integer", 'posteringer' => "COALESCE(NULLIF(posteringer::text,''),'0')::integer", 'posteret' => "COALESCE(NULLIF(posteret::text,''),'0')::integer", 'sidst' => "COALESCE(NULLIF(sidst::text,''),'0')::integer", 'lukket' => 'lukket');
 $order_column = isset($allowed_sorts[$sort_col]) ? $allowed_sorts[$sort_col] : 'regnskab';
-if (!in_array($ltab, array('normale','bogholdere','koncerner','alle','egne'), true)) $ltab = 'normale';
+if (!in_array($ltab, array('normale','bogholdere','koncerner','alle','nye','overskredet','egne'), true)) $ltab = 'normale';
+if (in_array($ltab, array('nye','overskredet'), true)) tr_actions($notes);
 if ($search !== '') $ltab = 'alle'; # a search looks across every customer
 $lurl = fn($o) => vr_url('admin_panel.php', array_merge(array('ltab' => $ltab, 'search' => $search, 'sort' => $sort_col, 'dir' => $sort_dir, 'showClosed' => $showClosed), $o));
 function ap_th($col, $label, $cls = '') { global $sort_col, $sort_dir, $lurl; $on = ($col === $sort_col); $dir = ($on && $sort_dir === 'asc') ? 'desc' : 'asc'; return "<th".($cls ? " class=\"$cls\"" : "")." aria-sort=\"".($on ? ($sort_dir == 'asc' ? 'ascending' : 'descending') : 'none')."\"><a href=\"".vr_h($lurl(array('sort' => $col, 'dir' => $dir)))."\">".vr_h($label).($on ? ' <span class="vr-ar">'.($sort_dir == 'asc' ? '&#9650;' : '&#9660;').'</span>' : '')."</a></th>"; }
@@ -507,8 +511,10 @@ if (isset($_GET['msg']) && $_GET['msg'] !== '') $notes[] = (string)$_GET['msg'];
 vr_note($notes);
 if ($ltab == 'bogholdere') { $legacy = 0; $q = db_select("select b.id, b.rettigheder from brugere b left join partner_users pu on pu.bruger_id = b.id where pu.bruger_id is null", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) { $t = explode(",", $r['rettigheder'], 4); if (isset($t[3]) && strpos($t[3], '*') === false && array_filter(array_map('intval', explode(",", $t[3])))) $legacy++; }
 	if ($legacy) print "<div class=\"vr-note vr-note-warn\"><form method=\"post\" action=\"partnere.php\" class=\"vr-inline\"><span>$legacy ".vr_t('masterbrugere har en gammel adgangsliste uden bogholder. Importér dem som bogholdere (én pr. bruger).','master users have a legacy access list without a bookkeeper. Import them as bookkeepers (one per user).')."</span><input type=\"hidden\" name=\"vr_action\" value=\"migrate\"><button class=\"vr-btn\" type=\"submit\">".vr_t('Importér','Import')."</button></form></div>"; }
-vr_tabs(array('normale' => array(vr_t('Normale kunder','Direct customers'), $lurl(array('ltab' => 'normale')), $nDirect), 'bogholdere' => array(vr_t('Bogholdere/revisorer','Accountants'), $lurl(array('ltab' => 'bogholdere')), $nB), 'koncerner' => array(vr_t('Koncernregnskaber','Group accounts'), $lurl(array('ltab' => 'koncerner')), $nK), 'alle' => array(vr_t('Alle','All'), $lurl(array('ltab' => 'alle')), count($rows)), 'egne' => array(vr_t('Egne installationer','Self-hosted'), $lurl(array('ltab' => 'egne')), count(inst_all('active')))), $ltab);
+list($trN, $trO) = tr_counts();
+vr_tabs(array('normale' => array(vr_t('Normale kunder','Direct customers'), $lurl(array('ltab' => 'normale')), $nDirect), 'bogholdere' => array(vr_t('Bogholdere/revisorer','Accountants'), $lurl(array('ltab' => 'bogholdere')), $nB), 'koncerner' => array(vr_t('Koncernregnskaber','Group accounts'), $lurl(array('ltab' => 'koncerner')), $nK), 'alle' => array(vr_t('Alle','All'), $lurl(array('ltab' => 'alle')), count($rows)), 'nye' => array(vr_t('Nye kunder','New customers'), 'admin_panel.php?ltab=nye', $trN), 'overskredet' => array(vr_t('Overskredet prøveperiode','Trial expired'), 'admin_panel.php?ltab=overskredet', $trO), 'egne' => array(vr_t('Egne installationer','Self-hosted'), $lurl(array('ltab' => 'egne')), count(inst_all('active')))), $ltab);
 if ($ltab == 'egne') { inst_list_render(); vr_close(); print "</body></html>"; exit; }
+if ($ltab == 'nye' || $ltab == 'overskredet') { $ltab == 'nye' ? tr_new_render() : tr_over_render(); vr_close(); print "</body></html>"; exit; }
 print "<section class=\"vr-sect\"><h2>".vr_t('Regnskaber','Accounts')." <small>$cntOpen ".vr_t('åbne','open')." &middot; $cntClosed ".vr_t('lukkede','closed')."</small></h2><div class=\"vr-card\">";
 print "<div class=\"vr-bar\"><form method=\"get\" action=\"admin_panel.php\" class=\"vr-search\" style=\"display:flex\"><input type=\"hidden\" name=\"ltab\" value=\"".vr_h($ltab)."\"><input type=\"hidden\" name=\"sort\" value=\"".vr_h($sort_col)."\"><input type=\"hidden\" name=\"dir\" value=\"".vr_h($sort_dir)."\"><input type=\"hidden\" name=\"showClosed\" value=\"".vr_h($showClosed)."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" style=\"align-self:center\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" name=\"search\" value=\"".vr_h($search)."\" placeholder=\"".vr_t('Søg på navn, database eller e-mail','Search by name, database or e-mail')."\"></form>".($search !== '' ? "<a class=\"vr-btn vr-quiet\" href=\"".vr_h($lurl(array('search' => '')))."\">".vr_t('Nulstil','Reset')."</a>" : "")."<span class=\"vr-grow\"></span><span class=\"vr-hint\">".vr_t('Klik på et regnskab for kortet','Click an account for its card')."</span></div>";
 print "<table class=\"vr-t\"><thead><tr>".ap_th('id', 'Id', 'vr-r vr-id').ap_th('regnskab', findtekst('2682|Regnskab', $sprog_id))."<th>".vr_t('Pakke','Plan')."</th><th>".vr_t('Tilhører','Belongs to')."</th>".ap_th('brugerantal', findtekst('777|Brugere', $sprog_id), 'vr-r').ap_th('posteret', findtekst('1910|Posteringer', $sprog_id), 'vr-r').ap_th('sidst', vr_t('Sidst aktiv','Last active'), 'vr-r').ap_th('lukket', vr_t('Status','Status'))."<th></th></tr></thead><tbody>";

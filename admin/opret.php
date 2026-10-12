@@ -138,6 +138,7 @@ include("../includes/topline_settings.php");
 include("../includes/partnerScope.php");
 include("../includes/entitlements.php");
 include("vr_ui.php");
+include("inc_proeve.php");
 $vr_type = (string)if_isset($_POST, if_isset($_GET, 'normal', 'type'), 'type'); if (!in_array($vr_type, array_merge(array('normal'), partner_kinds()), true)) $vr_type = 'normal';
 partner_tables_ensure();
 vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('339|Opret regnskab', $sprog_id)), findtekst('339|Opret regnskab', $sprog_id), vr_t('Opretter et nyt regnskab med administrator og standardkontoplan. Vælg typen øverst: et normalt kunderegnskab, eller en bogholders, revisors eller koncerns eget regnskab. Tager normalt under et minut.', 'Creates a new account with an administrator and the standard chart of accounts. Choose the type at the top. Usually takes less than a minute.'));
@@ -239,6 +240,7 @@ if ($_POST){
 		$vr_trial = (string)if_isset($_POST, '', 'trial'); $vr_partner = (int)if_isset($_POST, 0, 'partner_id');
 		if (in_array($vr_trial, array('professionel','business'), true)) ent_start_trial((int)$db_id, $vr_trial, 30);
 		elseif ($vr_trial === 'finans') ent_write_plan((int)$db_id, 'finans', date('Y-m-d'), 'manual');
+		tr_register((int)$db_id); # 20261012 CL/ASR trial follow-up (inc_proeve.php)
 		if ($vr_type != 'normal') { $vr_partner = 0; list($vr_pid, $vr_perr) = partner_create_for_ledger((int)$db_id, $vr_type, trim((string)$_POST['regnskab']), trim((string)if_isset($_POST, '', 'cvr')), isset($_POST['can_create']), isset($_POST['partner_login']) ? array(trim($_POST['brugernavn']), trim($_POST['passwd'])) : null); }
 		if ($vr_partner && ($vr_pp = db_fetch_array(db_select("select * from partners where id = '$vr_partner' and status = 'active'", __FILE__ . " linje " . __LINE__)))) {
 			db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note) values ('".(int)$db_id."', '$vr_partner', '".($vr_pp['kind'] == 'koncern' ? 'owner' : 'full')."', '".(int)partner_current_user()['id']."', 'oprettet med regnskabet')", __FILE__ . " linje " . __LINE__);
