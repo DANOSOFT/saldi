@@ -190,7 +190,7 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "select regnskab.*, 'on' as booking from regnskab";
 }
 $qtxt.= " where regnskab.db != '$sqdb'";
-if (!$showClosed) $qtxt.= " and lukket != 'on'";
+if (!$showClosed) $qtxt.= " and coalesce(lukket,'') != 'on'";
 $qtxt.= " $order";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {

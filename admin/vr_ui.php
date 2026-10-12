@@ -78,6 +78,7 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	$u = partner_current_user();
 	$self = basename($_SERVER['PHP_SELF']);
 	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.2.1\">\n";
+	if (!vr_csrf_exempt()) print vr_csrf_js();
 	if (isset($_GET['msg'])) print "<script>try{var vrU=new URL(location.href);[...vrU.searchParams.keys()].filter(function(k){return k.indexOf('msg')===0||k==='mk'}).forEach(function(k){vrU.searchParams.delete(k)});history.replaceState(null,'',vrU.pathname+vrU.search+vrU.hash);}catch(e){}</script>"; # a reload does not show the note again
 	print "<div class=\"vr-app\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
 	// sidebar
@@ -154,6 +155,44 @@ function vr_warn_open_js() {
 function vr_close() {
 	print "</main></div></div>\n";
 	print "<script>function vrToggleSide(){var d=document.documentElement;if(window.matchMedia('(max-width:900px)').matches){d.classList.toggle('vr-side-open');return;}var c=d.classList.toggle('vr-collapsed');try{localStorage.setItem('vrSideCollapsed',c?'1':'0');}catch(e){}}document.addEventListener('keydown',function(e){if(e.key==='Escape')document.documentElement.classList.remove('vr-side-open');});</script>\n";
+}
+
+// 20261012 CL/ASR CSRF protection for the admin layer: one secret token per login session. It is added to every POST
+//                  form by an output filter (no form needs changing), sent as the X-VR-CSRF header by fetch(), and every
+//                  POST without a valid token is refused before any action runs. godkend.php (the customer's own approval
+//                  page, protected by its one-time link), the nightly job and the public sign-up form on opret.php
+//                  (fra_formular) are exempt. In CLI tests the token comes from VR_CSRF_TOKEN.
+function vr_csrf_token() {
+	if (session_status() !== PHP_SESSION_ACTIVE) @session_start();
+	if (empty($_SESSION['vr_csrf'])) $_SESSION['vr_csrf'] = (php_sapi_name() == 'cli' && getenv('VR_CSRF_TOKEN')) ? getenv('VR_CSRF_TOKEN') : bin2hex(random_bytes(32));
+	return (string)$_SESSION['vr_csrf'];
+}
+function vr_csrf_exempt() {
+	$self = basename($_SERVER['PHP_SELF'] ?? '');
+	if ($self == 'godkend.php' || $self == 'usage_snapshot_job.php') return true;
+	if (php_sapi_name() == 'cli' && !getenv('VR_CSRF_TOKEN')) return true; # cron/CLI scripts
+	return $self == 'opret.php' && isset($_POST['fra_formular']);
+}
+function vr_csrf_filter($html) {
+	if (stripos($html, '<form') === false) return $html;
+	$in = '<input type="hidden" name="vr_csrf" value="'.vr_h(vr_csrf_token()).'">';
+	return preg_replace_callback('/<form\b[^>]*\bmethod\s*=\s*(["\']?)post\1[^>]*>/i', fn($m) => $m[0].$in, $html);
+}
+function vr_csrf_js() { # fetch() sends the token on every non-GET request
+	return "<script>(function(){var t=".json_encode(vr_csrf_token()).",f=window.fetch;if(!f||f.vrCsrf)return;window.fetch=function(u,o){o=o||{};if(String(o.method||'GET').toUpperCase()!=='GET'){o.headers=new Headers(o.headers||{});o.headers.set('X-VR-CSRF',t);}return f.call(this,u,o);};window.fetch.vrCsrf=1;})();</script>";
+}
+if (!vr_csrf_exempt()) {
+	if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+		$vr_got = (string)($_POST['vr_csrf'] ?? ($_SERVER['HTTP_X_VR_CSRF'] ?? ''));
+		if ($vr_got === '' || !hash_equals(vr_csrf_token(), $vr_got)) {
+			while (ob_get_level()) ob_end_clean();
+			http_response_code(403);
+			if (isset($_SERVER['HTTP_X_VR_CSRF']) || stripos($_SERVER['CONTENT_TYPE'] ?? '', 'json') !== false) { header('Content-Type: application/json'); print json_encode(array('error' => 'Sessionen er udløbet – genindlæs siden og prøv igen.'), JSON_UNESCAPED_UNICODE); exit; }
+			print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">Handlingen blev ikke udført</h1><p>Siden var for gammel eller kom fra et andet sted, så formularen blev afvist af sikkerhedshensyn. Gå tilbage, genindlæs siden og prøv igen.</p><p><a href=\"javascript:history.back()\">Tilbage</a></p></body></html>";
+			exit;
+		}
+	}
+	ob_start('vr_csrf_filter');
 }
 }
 ?>
