@@ -1,5 +1,4 @@
 <?php
-ob_start(); # for the redirect after an action (vr_prg)
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -25,8 +24,6 @@ ob_start(); # for the redirect after an action (vr_prg)
 // Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2020.02.27 PHR Check if db exist before dropping 20200227 
-// 20261010 CL/ASR Rendered in the admin-layer shell; deletion logic unchanged. Duplicate doctype removed; the
-//                  deleted-ledger message and list use the shared components.
 
 @session_start();
 $s_id=session_id();
@@ -36,11 +33,6 @@ $css="../css/standard.css";
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/topline_settings.php");
-include("../includes/partnerScope.php");
-include("vr_ui.php");
-partner_tables_ensure();
 if ($db != $sqdb) {
 	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
@@ -66,57 +58,84 @@ function Slet_Regnskab()
 if (!$font) $font="Helvetica, Arial, sans-serif";
 if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 0pt 1px;\" align=\"center\" background=\"../img/knap_bg.gif\";";
 ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head><title>Slet regnskab</title><meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<table width="100%" height="100%" border="0" cellspacing="0" cellpadding="0"><tbody>
+	<tr><td align="center" valign="top" height="25">
+		<table width="100%" align="center" border="0" cellspacing="2" cellpadding="0"><tbody>
+			<td width="10%" <?php echo $top_bund?>><a href=../index/admin_menu.php accesskey=L><?php echo findtekst('2172|Luk', $sprog_id)?></a></td>
+			<td width="80%" <?php echo $top_bund?> align="center"><?php echo findtekst('341|Slet regnskab', $sprog_id)?></td>
+			<td width="10%" <?php echo $top_bund?> align = "right"><br></td>
+		</tbody></table>
+	</td></tr>
+<td align = center valign = center>
+<table cellpadding="1" cellspacing="1" border="0"><tbody>
 <?php
-$id=array();$db_navn=array();$regnskab=array();$slet=array();$vr_msg='';$vr_err=array();
-// 20261012 CL/ASR Deletion hardened: only the ticked ids are taken from the form; name and database come from the
-//                  master table, and each ledger must be closed, not suspended and within the user's scope (before,
-//                  the posted db name went straight into shell commands and DROP DATABASE). The backup check now looks
-//                  at the real .sdat file (the variable it used was never set, so the check always passed). Each
-//                  deleted ledger is logged; the page then redirects (vr_prg) so a reload cannot repeat the deletion.
-include("inc_lifecycle.php"); lc_tables_ensure();
-$vr_deletable = function($rid) use ($sqdb) {
-	$scope = partner_ledgers(); if ($scope !== null && !in_array((int)$rid, $scope)) return null;
-	$r = db_fetch_array(db_select("select id, regnskab, db, lukket from regnskab where id = '".(int)$rid."' and db != '".db_escape_string($sqdb)."'", __FILE__ . " linje " . __LINE__));
-	if (!$r || $r['lukket'] != 'on' || !preg_match('/^[a-z0-9_]+$/i', (string)$r['db'])) return null;
-	$st = lc_state((int)$rid, $r); if ($st['state'] == 'suspended') return null;
-	return $r;
-};
-if (isset($_POST['regnskabsantal'])) {
-	$pid = (array)if_isset($_POST, array(), 'id'); $pslet = (array)if_isset($_POST, array(), 'slet'); $done = array();
-	foreach ($pslet as $x => $on) {
-		if ($on != 'on' || !isset($pid[$x])) continue;
-		$r = $vr_deletable((int)$pid[$x]);
-		if (!$r) { $vr_err[] = vr_t('Regnskab','Account').' '.(int)$pid[$x].' '.vr_t('kan ikke slettes (ikke lukket, suspenderet eller uden adgang)','cannot be deleted (not closed, suspended or no access)'); continue; }
-		$dbn = $r['db']; $mappe = '../nedlagte_regnskaber/'; $tmpmappe = $mappe.$dbn;
-		if (!file_exists($mappe)) mkdir($mappe, 0777);
-		if (!file_exists($tmpmappe)) mkdir($tmpmappe, 0777);
-		if (!file_exists($tmpmappe)) { $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet"; continue; }
-		$dump_filnavn = $tmpmappe."/".$dbn.".sql"; $dat_filnavn = $dbn."_".date("Ymd-Hi").".sdat";
-		if ($fp = fopen($tmpmappe."/backup.info", "w")) { fwrite($fp, date("YmdHis").chr(9).$dbn.chr(9).chr(9).$r['regnskab'].chr(9)."$db_encode".chr(9)."$db_type".chr(9)."$r[regnskab] slettet ".date("d-m-Y H:i")." af $brugernavn"); fclose($fp); }
-		if ($db_type == 'mysql') system("mysqldump -h ".escapeshellarg($sqhost)." -u ".escapeshellarg($squser)." --password=".escapeshellarg($sqpass)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn));
-		else system("export PGPASSWORD=".escapeshellarg($sqpass)."\npg_dump -h ".escapeshellarg($sqhost)." -U ".escapeshellarg($squser)." -f ".escapeshellarg($dump_filnavn)." ".escapeshellarg($dbn));
-		$dumpOk = file_exists($dump_filnavn) && filesize($dump_filnavn) > 0;
-		if ($dumpOk) system("cd ".escapeshellarg($mappe)."\ntar -pzcf ".escapeshellarg($dat_filnavn)." ".escapeshellarg($dbn));
-		system("rm -r ".escapeshellarg($tmpmappe));
-		if (!$dumpOk || !file_exists($mappe.$dat_filnavn) || !filesize($mappe.$dat_filnavn)) { $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet"; continue; }
-		if ($k = db_fetch_array(db_select("select id from kundedata where regnskab_id='".(int)$r['id']."'", __FILE__ . " linje " . __LINE__))) db_modify("update kundedata set slettet='on' where id='$k[id]'", __FILE__ . " linje " . __LINE__);
-		else db_modify("update kundedata set slettet='on',regnskab_id='".(int)$r['id']."' where regnskab='".db_escape_string($r['regnskab'])."'", __FILE__ . " linje " . __LINE__);
-		db_modify("delete from regnskab where id = '".(int)$r['id']."'", __FILE__ . " linje " . __LINE__);
-		db_modify("DROP DATABASE IF EXISTS $dbn", __FILE__ . " linje " . __LINE__);
-		partner_log('ledger.deleted', (int)$r['id'], null, "$r[regnskab] ($dbn), backup nedlagte_regnskaber/$dat_filnavn");
-		$done[] = $r['regnskab'];
-	}
-	if ($done) $vr_msg = count($done) == 1 ? $done[0].' '.vr_t('er slettet','deleted') : count($done).' '.vr_t('regnskaber slettet','accounts deleted');
-	vr_prg(array_merge($vr_msg ? array($vr_msg) : array(), $vr_err), null, $vr_err ? 'warn' : 'ok');
+$id=array();$db_navn=array();$regnskab=array();$slet=array();
+if ($_POST['regnskabsantal']) {
+	$regnskabsantal=$_POST['regnskabsantal'];
+	$id=$_POST['id'];
+	$db_navn=$_POST['db_navn'];
+	$regnskab=$_POST['regnskab'];
+	$slet=$_POST['slet'];
+
+	if ($regnskabsantal) {
+		$slet_antal=0;
+		for ($x=1; $x<=$regnskabsantal; $x++) {
+			if ($slet[$x]=='on'){
+			 	$slet_antal++;
+				$mappe='../nedlagte_regnskaber/';
+				$tmpmappe='../nedlagte_regnskaber/'.$db_navn[$x];
+				if (!file_exists($mappe)) mkdir("$mappe", 0777);
+				mkdir("$tmpmappe", 0777);
+				if (file_exists($tmpmappe)) {
+					$logofil="../logolib/logo_".$db_id[$x].".eps";
+					$dump_filnavn=$tmpmappe."/".trim($db_navn[$x].".sql");
+					$info_filnavn=$tmpmappe."/backup.info";
+					$tgz_filnavn=trim($db_navn[$x]."_".date("Ymd-Hi")).".tgz";
+					$tgz_filnavn=trim($db_navn[$x]."_".date("Ymd-Hi")).".sdat";
+					$tidspkt= date("d-m-Y H:i");
+					$infotekst="$regnskab[$x] slettet $tidspkt af $brugernavn";$fp=fopen($info_filnavn,"w");
+					$fp=fopen($info_filnavn,"w");
+					if ($fp) {
+						fwrite($fp,"$timestamp".chr(9)."$db".chr(9)."$dbver".chr(9)."$regnskab".chr(9)."$db_encode".chr(9)."$db_type".chr(9)."$infotekst");
+					} 
+					fclose($fp);
+					if ($db_type=='mysql') system ("mysqldump -h $sqhost -u $squser --password=$sqpass -n $db_navn[$x] > $dump_filnavn");
+					else system ("export PGPASSWORD=$sqpass\npg_dump -h $sqhost -U $squser -f $dump_filnavn $db_navn[$x]");
+					//system("export PGPASSWORD=$sqpass\npg_dump -h $sqhost -U $squser -f $dump_filnavn $db_navn[$x]");
+					system ("cd $mappe\ntar -pzcf $tgz_filnavn $db_navn[$x]\nmv $tgz_filnavn $dat_filnavn\nrm -r $tmpmappe");
+					if (file_exists("$mappe/$dat_filnavn")) {
+ 						//print "Sletter regnskab: $regnskab[$x]<br>";
+						
+						if ($r=db_fetch_array(db_select("select id from kundedata where regnskab_id='$id[$x]'",__FILE__ . " linje " . __LINE__))) {
+							$qtxt="update kundedata set slettet='on' where id='$r[id]'";
+							db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
+						} else {
+							$qtxt="update kundedata set slettet='on',regnskab_id='$id[$x]' where regnskab='".db_escape_string($regnskab[$x])."'";
+							db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
+						}
+						$qtxt="delete from regnskab where id = $id[$x]";
+						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						$qtxt="DROP DATABASE IF EXISTS $db_navn[$x]";
+						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						$slettet_regnskab=$regnskab[$x];
+					} else print "Backupfejl - $regnskab[$x] ikke slettet";
+				}
+			}	
+		}
+		if ($slet_antal==1)	print "<BODY onLoad=\"javascript:alert('$slettet_regnskab slettet')\">";
+		else print "<BODY onLoad=\"javascript:alert('$slet_antal regnskaber slettet')\">";
+		}
 }
-$vr_flash = vr_flash();
-// 20261010 CL/ASR db_select() was called with one argument here, which is fatal on PHP 8 (the page never loaded).
-//                  Scope now comes from partnerScope.php: operators see everything, others their own ledgers.
-$vr_scope = partner_ledgers();
+$q = db_select("select * from brugere where brugernavn = '$brugernavn'");
+$r = db_fetch_array($q);
+list($admin,$oprette,$slette,$tmp)=explode(",",$r['rettigheder'],4);
+$adgang_til=explode(",",$tmp);
+
 $x=0;
-$q1= db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket='on' and id not in (select regnskab_id from regnskab_lifecycle l where l.applied_at is not null and l.cancelled_at is null and l.state = 'suspended' and l.id = (select max(id) from regnskab_lifecycle where regnskab_id = l.regnskab_id and applied_at is not null and cancelled_at is null)) order by id",__FILE__ . " linje " . __LINE__);
+$q1= db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket='on' order by id",__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
-	if ($vr_scope === null || in_array((int)$r1['id'],$vr_scope)) {
+	if ($admin || in_array($r1['id'],$adgang_til)) {
 		$x++;
 		$id[$x]=$r1['id'];
 		$regnskab[$x]=$r1['regnskab'];	
@@ -125,18 +144,22 @@ while ($r1=db_fetch_array($q1)) {
 }
 $regnskabsantal=$x;
 
-vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('341|Slet regnskab', $sprog_id)), findtekst('341|Slet regnskab', $sprog_id), vr_t('Kun regnskaber, der er lukket, kan slettes. Suspenderede regnskaber vises ikke her. Der tages en sikkerhedskopi til nedlagte_regnskaber, før databasen fjernes.', 'Only accounts marked as closed can be deleted. A backup is written to nedlagte_regnskaber before the database is dropped.'));
-vr_note($vr_flash, vr_flash_kind());
-print "<section class=\"vr-sect\"><h2>".vr_t('Lukkede regnskaber','Closed accounts')." <small>$regnskabsantal</small></h2><div class=\"vr-card\">";
-print "<form name=\"slet_regnskab\" action=\"slet_regnskab.php\" method=\"post\" onsubmit=\"return Slet_Regnskab()\">";
-print "<table class=\"vr-t\"><thead><tr><th style=\"width:40px\"></th><th class=\"vr-r vr-id\">Id</th><th>".findtekst('2682|Regnskab', $sprog_id)."</th><th>".vr_t('Database','Database')."</th></tr></thead><tbody>";
+print "<tr><td colspan=3>F&oslash;lgende regnskaber er markeret som lukket</td></tr>";
+print "<form name=slet_regnskab action=slet_regnskab.php method=post>";
 for ($x=1; $x<=$regnskabsantal; $x++) {
-	print "<input type=\"hidden\" name=\"id[$x]\" value=\"".(int)$id[$x]."\"><input type=\"hidden\" name=\"db_navn[$x]\" value=\"".vr_h($db_navn[$x])."\"><input type=\"hidden\" name=\"regnskab[$x]\" value=\"".vr_h($regnskab[$x])."\">";
-	print "<tr><td><input type=\"checkbox\" name=\"slet[$x]\"></td><td class=\"vr-r vr-id\">".(int)$id[$x]."</td><td class=\"vr-nm\"><a href=\"admin_panel.php?regnskab_id=".(int)$id[$x]."\">".vr_h($regnskab[$x])."</a></td><td class=\"vr-mut\">".vr_h($db_navn[$x])."</td></tr>";
+	print "<tr>";
+	//print "<td>X $x</td>";
+	print "<input type=\"hidden\" name=id[$x] value=\"$id[$x]\">";
+	print "<input type=\"hidden\" name=db_navn[$x] value=\"$db_navn[$x]\">";
+	print "<input type=\"hidden\" name=regnskab[$x] value=\"$regnskab[$x]\">";
+	print "<td>$id[$x]</td><td>$regnskab[$x]</td>";
+	print "<td><input type=checkbox name=slet[$x]</td>";
+	print "</tr>";
 }
-if (!$regnskabsantal) print "<tr><td colspan=\"4\" class=\"vr-mut\" style=\"padding:24px 20px\">".vr_t('Ingen regnskaber er markeret som lukket. Luk et regnskab fra kundekortets Indstillinger først.','No accounts are marked as closed. Close an account from the customer card first.')."</td></tr>";
-print "</tbody></table><input type=\"hidden\" name=\"regnskabsantal\" value=\"$regnskabsantal\">";
-print "<div class=\"vr-foot\"><span>".vr_t('Sletning kan ikke fortrydes. Sikkerhedskopien ligger på serveren.','Deletion cannot be undone. The backup stays on the server.')."</span><span class=\"vr-grow\"></span>".($regnskabsantal ? "<button type=\"submit\" class=\"vr-btn vr-danger\" accesskey=\"a\" name=\"submit\" value=\"OK\">".vr_t('Slet valgte','Delete selected')."</button>" : "")."</div></form></div></section>";
-vr_close();
+print "<input type=\"hidden\" name=\"regnskabsantal\" value=\"$regnskabsantal\">";
+print "<tr><td colspan=2 align=center><hr></td></tr>\n";
+print "<tr><td colspan=2 align=center><input type=submit accesskey=\"a\" value=\"OK\" name=\"submit\" OnClick=\"return Slet_Regnskab()\"></td></tr>\n";
+print "</form>";
 ?>
+</tbody></table>
 </body></html>

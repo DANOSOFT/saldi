@@ -5,7 +5,7 @@
 // 20261012 CL/ASR New. Trial follow-up for the operator panel: tabs "Nye kunder" (ledgers still in the 30-day trial, with
 //                  days left) and "Overskredet prøveperiode" (trial ended without payment, with follow-up status and note).
 //                  The trial is kept in regnskab_trial (one row per ledger):
-//                    - opret.php registers new ledgers (start = today, end = trial override expiry or +30 days);
+//                    - operator_opret.php registers new ledgers (start = today, end = trial override expiry or +30 days);
 //                    - ledgers created elsewhere are picked up from the trial override, or from the creation time of the
 //                      customer database (PG_VERSION, needs superuser/pg_read_server_files) when created within the
 //                      last 60 days. Older ledgers are treated as existing customers and never enter the lists.
@@ -20,7 +20,7 @@ function tr_tables_ensure() {
 	db_modify("CREATE TABLE IF NOT EXISTS regnskab_trial (regnskab_id int PRIMARY KEY, started date NOT NULL, ends date NOT NULL, source varchar(10), followup varchar(12) NOT NULL DEFAULT 'open', note text, contacted date, resolved varchar(10), resolved_at timestamp, updated_at timestamp, updated_by text)", __FILE__ . " linje " . __LINE__);
 }
 function tr_followups() { return array('open' => vr_t('Ikke kontaktet','Not contacted'), 'contacted' => vr_t('Kontaktet','Contacted'), 'promised' => vr_t('Lovet betaling','Payment promised'), 'closing' => vr_t('Skal lukkes','To be closed')); }
-// Register a new ledger (called from opret.php).
+// Register a new ledger (called from operator_opret.php).
 function tr_register($rid, $days = TR_DAYS) {
 	tr_tables_ensure(); $rid = (int)$rid; if (!$rid) return;
 	$o = db_fetch_array(db_select("select expires_at from regnskab_overrides where regnskab_id = '$rid' and reason = 'trial' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
@@ -28,7 +28,7 @@ function tr_register($rid, $days = TR_DAYS) {
 	if (!db_fetch_array(db_select("select 1 from regnskab_trial where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__)))
 		db_modify("insert into regnskab_trial (regnskab_id, started, ends, source, updated_by) values ('$rid', current_date, '$ends', 'opret', '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__);
 }
-// Pick up ledgers created without opret.php (once per request).
+// Pick up ledgers created without operator_opret.php (once per request).
 function tr_sync() {
 	static $d = false; if ($d) return; $d = true; tr_tables_ensure(); global $sqdb;
 	db_modify("insert into regnskab_trial (regnskab_id, started, ends, source) select distinct on (o.regnskab_id) o.regnskab_id, o.created_at::date, o.expires_at::date, 'trial' from regnskab_overrides o join regnskab r on r.id = o.regnskab_id left join regnskab_trial t on t.regnskab_id = o.regnskab_id where o.reason = 'trial' and o.expires_at is not null and t.regnskab_id is null order by o.regnskab_id, o.id desc", __FILE__ . " linje " . __LINE__);
@@ -91,9 +91,9 @@ function tr_actions(&$notes) {
 function tr_card_lead($rid, $reg) {
 	$t = tr_get($rid); if (!$t || $t['resolved'] == 'exempt' || $reg['lukket'] == 'on') return null;
 	$left = tr_days_left($t); list($paid) = tr_payment($t, $reg);
-	if ($left >= 0) return '<a href="admin_panel.php?ltab=nye" style="color:'.($left <= 3 ? 'var(--bad)' : ($left <= 10 ? 'var(--warn-ink)' : 'inherit')).'">'.vr_t('Prøveperiode','Trial').': '.($left == 0 ? vr_t('sidste dag','last day') : $left.' '.($left == 1 ? vr_t('dag','day') : vr_t('dage','days')).' '.vr_t('tilbage','left')).'</a>'.($paid ? ' ('.vr_t('betalt','paid').')' : '');
+	if ($left >= 0) return '<a href="operator_panel.php?ltab=nye" style="color:'.($left <= 3 ? 'var(--bad)' : ($left <= 10 ? 'var(--warn-ink)' : 'inherit')).'">'.vr_t('Prøveperiode','Trial').': '.($left == 0 ? vr_t('sidste dag','last day') : $left.' '.($left == 1 ? vr_t('dag','day') : vr_t('dage','days')).' '.vr_t('tilbage','left')).'</a>'.($paid ? ' ('.vr_t('betalt','paid').')' : '');
 	if ($paid) return null;
-	return '<a href="admin_panel.php?ltab=overskredet" style="color:var(--bad)">'.vr_t('Prøveperiode overskredet for','Trial ended').' '.(-$left).' '.(-$left == 1 ? vr_t('dag','day') : vr_t('dage','days')).' '.vr_t('siden','ago').'</a>';
+	return '<a href="operator_panel.php?ltab=overskredet" style="color:var(--bad)">'.vr_t('Prøveperiode overskredet for','Trial ended').' '.(-$left).' '.(-$left == 1 ? vr_t('dag','day') : vr_t('dage','days')).' '.vr_t('siden','ago').'</a>';
 }
 function tr_pay_badge($r) {
 	if ($r['paid']) return "<span class=\"vr-st\"><span class=\"vr-dot vr-ok\"></span>".vr_h($r['pay_label'])."</span>";
@@ -111,18 +111,18 @@ function tr_sort(&$rows, $sorts, $def, $defdir) {
 }
 function tr_th($ltab, $col, $label, $cur, $dir, $cls = '') {
 	$on = ($col == $cur); $nd = ($on && $dir == 1) ? 'desc' : 'asc';
-	return "<th".($cls ? " class=\"$cls\"" : "")." aria-sort=\"".($on ? ($dir == 1 ? 'ascending' : 'descending') : 'none')."\"><a href=\"admin_panel.php?ltab=$ltab&tsort=$col&tdir=$nd\">".vr_h($label).($on ? ' <span class="vr-ar">'.($dir == 1 ? '&#9650;' : '&#9660;').'</span>' : '')."</a></th>";
+	return "<th".($cls ? " class=\"$cls\"" : "")." aria-sort=\"".($on ? ($dir == 1 ? 'ascending' : 'descending') : 'none')."\"><a href=\"operator_panel.php?ltab=$ltab&tsort=$col&tdir=$nd\">".vr_h($label).($on ? ' <span class="vr-ar">'.($dir == 1 ? '&#9650;' : '&#9660;').'</span>' : '')."</a></th>";
 }
 function tr_name_cell($r) {
 	$id = (int)$r['id'];
-	return "<td class=\"vr-nm\"><a href=\"admin_panel.php?regnskab_id=$id\">".vr_h($r['regnskab'])."</a><small>".vr_h($r['db']).($r['email'] ? ' · '.vr_h($r['email']) : '')."</small></td>";
+	return "<td class=\"vr-nm\"><a href=\"operator_panel.php?regnskab_id=$id\">".vr_h($r['regnskab'])."</a><small>".vr_h($r['db']).($r['email'] ? ' · '.vr_h($r['email']) : '')."</small></td>";
 }
 function tr_hidden($r, $a) { return "<input type=\"hidden\" name=\"tr_action\" value=\"$a\"><input type=\"hidden\" name=\"tr_rid\" value=\"".(int)$r['id']."\">"; }
 function tr_exempt_render() {
 	$q = db_select("select r.id, r.regnskab, t.resolved_at, t.updated_by from regnskab_trial t join regnskab r on r.id = t.regnskab_id where t.resolved = 'exempt' and coalesce(r.lukket,'') != 'on' order by t.resolved_at desc", __FILE__ . " linje " . __LINE__);
 	$ex = array(); while ($r = db_fetch_array($q)) $ex[] = $r; if (!$ex) return;
 	print "<details class=\"vr-tr-ex\"><summary class=\"vr-link\">".count($ex)." ".(count($ex) == 1 ? vr_t('regnskab er markeret som ikke en prøvekunde','account is marked as not a trial customer') : vr_t('regnskaber er markeret som ikke prøvekunder','accounts are marked as not trial customers'))."</summary><div class=\"vr-card\" style=\"margin-top:8px\"><table class=\"vr-t\"><tbody>";
-	foreach ($ex as $r) print "<tr><td class=\"vr-nm\"><a href=\"admin_panel.php?regnskab_id=".(int)$r['id']."\">".vr_h($r['regnskab'])."</a><small>".vr_t('markeret','marked')." ".($r['resolved_at'] ? date('d-m-Y', strtotime($r['resolved_at'])) : '')." ".vr_t('af','by')." ".vr_h($r['updated_by'])."</small></td><td class=\"vr-r\"><form method=\"post\">".tr_hidden($r, 'reopen')."<button class=\"vr-link\" type=\"submit\">".vr_t('Sæt tilbage på listerne','Put back on the lists')."</button></form></td></tr>";
+	foreach ($ex as $r) print "<tr><td class=\"vr-nm\"><a href=\"operator_panel.php?regnskab_id=".(int)$r['id']."\">".vr_h($r['regnskab'])."</a><small>".vr_t('markeret','marked')." ".($r['resolved_at'] ? date('d-m-Y', strtotime($r['resolved_at'])) : '')." ".vr_t('af','by')." ".vr_h($r['updated_by'])."</small></td><td class=\"vr-r\"><form method=\"post\">".tr_hidden($r, 'reopen')."<button class=\"vr-link\" type=\"submit\">".vr_t('Sæt tilbage på listerne','Put back on the lists')."</button></form></td></tr>";
 	print "</tbody></table></div></details>";
 }
 function tr_new_render() {
@@ -134,7 +134,7 @@ function tr_new_render() {
 	foreach ($rows as $r) {
 		$id = (int)$r['id']; $l = $r['left']; $tot = max(1, (int)round((strtotime($r['ends']) - strtotime($r['started'])) / 86400)); $pct = max(0, min(100, (int)round(($tot - $l) / $tot * 100)));
 		$cls = $r['paid'] ? 'vr-tr-paid' : ($l <= 3 ? 'vr-tr-bad' : ($l <= 10 ? 'vr-tr-warn' : ''));
-		print "<tr onclick=\"location.href='admin_panel.php?regnskab_id=$id'\" style=\"cursor:pointer\">".tr_name_cell($r);
+		print "<tr onclick=\"location.href='operator_panel.php?regnskab_id=$id'\" style=\"cursor:pointer\">".tr_name_cell($r);
 		print "<td class=\"vr-tr-days $cls\"><b>".($l == 0 ? vr_t('Sidste dag','Last day') : $l)."</b>".($l ? "<span>".($l == 1 ? vr_t('dag tilbage','day left') : vr_t('dage tilbage','days left'))."</span>" : "")."<span class=\"vr-b\"><i style=\"width:$pct%\"></i></span><small>".vr_t('udløber','ends')." ".date('d-m-Y', strtotime($r['ends']))."</small></td>";
 		print "<td class=\"vr-mut\">".date('d-m-Y', strtotime($r['started']))."<small>".vr_rel($r['started'].' 00:00:00')."</small></td><td class=\"vr-nm\">".tr_activity($r)."</td><td>".tr_pay_badge($r)."</td>";
 		print "<td class=\"vr-r\" onclick=\"event.stopPropagation()\"><details class=\"vr-tr-more\"><summary class=\"vr-link\">".vr_t('Handlinger','Actions')."</summary><div class=\"vr-tr-pop\">";
@@ -155,12 +155,12 @@ function tr_over_render() {
 	if ($ff) $rows = array_values(array_filter($rows, fn($r) => $r['followup'] == $ff));
 	list($s, $dir) = tr_sort($rows, array('over' => fn($r) => -$r['left'], 'regnskab' => fn($r) => mb_strtolower($r['regnskab']), 'posteret' => fn($r) => (int)$r['posteret'], 'sidst' => fn($r) => (int)$r['sidst'], 'followup' => fn($r) => $ford[$r['followup']] ?? 9), 'over', 'desc');
 	print "<section class=\"vr-sect\"><h2>".vr_t('Overskredet prøveperiode','Trial expired')." <small>".vr_t('prøveperioden er udløbet uden betaling – følg op, forlæng, markér betalt eller luk regnskabet','trial ended without payment – follow up, extend, mark paid or close the account')."</small></h2>";
-	print "<div class=\"vr-chips\"><a class=\"vr-chip2".($ff == '' ? ' on' : '')."\" href=\"admin_panel.php?ltab=overskredet\">".vr_t('Alle','All')." <span>".array_sum($cnt)."</span></a>";
-	foreach ($fu as $k => $t) print "<a class=\"vr-chip2".($ff == $k ? ' on' : '')."\" href=\"admin_panel.php?ltab=overskredet&fu=$k\">".vr_h($t)." <span>".(int)$cnt[$k]."</span></a>";
+	print "<div class=\"vr-chips\"><a class=\"vr-chip2".($ff == '' ? ' on' : '')."\" href=\"operator_panel.php?ltab=overskredet\">".vr_t('Alle','All')." <span>".array_sum($cnt)."</span></a>";
+	foreach ($fu as $k => $t) print "<a class=\"vr-chip2".($ff == $k ? ' on' : '')."\" href=\"operator_panel.php?ltab=overskredet&fu=$k\">".vr_h($t)." <span>".(int)$cnt[$k]."</span></a>";
 	print "</div><div class=\"vr-card\"><table class=\"vr-t vr-tr\"><thead><tr>".tr_th('overskredet', 'regnskab', vr_t('Regnskab','Account'), $s, $dir).tr_th('overskredet', 'over', vr_t('Overskredet','Expired'), $s, $dir).tr_th('overskredet', 'posteret', vr_t('Aktivitet','Activity'), $s, $dir)."<th>".vr_t('Betaling','Payment')."</th>".tr_th('overskredet', 'followup', vr_t('Opfølgning','Follow-up'), $s, $dir)."<th></th></tr></thead><tbody>";
 	foreach ($rows as $r) {
 		$id = (int)$r['id']; $o = -$r['left'];
-		print "<tr onclick=\"location.href='admin_panel.php?regnskab_id=$id'\" style=\"cursor:pointer\">".tr_name_cell($r);
+		print "<tr onclick=\"location.href='operator_panel.php?regnskab_id=$id'\" style=\"cursor:pointer\">".tr_name_cell($r);
 		print "<td class=\"vr-tr-days vr-tr-bad\"><b>$o</b><span>".($o == 1 ? vr_t('dag siden','day ago') : vr_t('dage siden','days ago'))."</span><small>".vr_t('udløb','ended')." ".date('d-m-Y', strtotime($r['ends']))." · ".vr_t('oprettet','created')." ".date('d-m-Y', strtotime($r['started']))."</small></td>";
 		print "<td class=\"vr-nm\">".tr_activity($r)."</td><td>".tr_pay_badge($r)."</td>";
 		$dot = array('open' => 'vr-off', 'contacted' => 'vr-warn', 'promised' => 'vr-ok', 'closing' => 'vr-bad');
@@ -170,7 +170,7 @@ function tr_over_render() {
 		print "<label>".vr_t('Note','Note')."<textarea class=\"vr-inp\" name=\"note\" style=\"height:70px;padding:8px 12px\" placeholder=\"".vr_t('Fx Ringet 12/10, vender tilbage fredag','e.g. Called 12/10, will reply Friday')."\">".vr_h($r['note'])."</textarea></label><div><button class=\"vr-btn vr-primary\" type=\"submit\">".vr_t('Gem opfølgning','Save follow-up')."</button></div></form>";
 		print "<div class=\"vr-tr-acts\"><form method=\"post\" class=\"vr-inline\">".tr_hidden($r, 'extend')."<select name=\"days\" class=\"vr-sel\"><option value=\"7\">7 ".vr_t('dage','days')."</option><option value=\"14\" selected>14 ".vr_t('dage','days')."</option><option value=\"30\">30 ".vr_t('dage','days')."</option></select><button class=\"vr-btn\" type=\"submit\">".vr_t('Forlæng prøveperiode','Extend trial')."</button></form>";
 		print "<form method=\"post\">".tr_hidden($r, 'paid')."<button class=\"vr-link\" type=\"submit\">".vr_t('Markér som betalt','Mark as paid')."</button></form>";
-		print "<a class=\"vr-link\" href=\"admin_panel.php?regnskab_id=$id&tab=indstillinger\">".vr_t('Luk regnskabet…','Close the account…')."</a>";
+		print "<a class=\"vr-link\" href=\"operator_panel.php?regnskab_id=$id&tab=indstillinger\">".vr_t('Luk regnskabet…','Close the account…')."</a>";
 		print "<form method=\"post\" onsubmit=\"return confirm('".vr_t('Fjern regnskabet fra prøvelisterne (fx internt regnskab eller gratisaftale)?','Remove the account from the trial lists (e.g. internal or free)?')."')\">".tr_hidden($r, 'exempt')."<button class=\"vr-link\" type=\"submit\">".vr_t('Ikke en prøvekunde','Not a trial customer')."</button></form></div>";
 		print "</div></details></td></tr>";
 	}

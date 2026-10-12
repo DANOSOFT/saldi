@@ -34,28 +34,24 @@ function vr_url($page, $params) {
 }
 function vr_kind($kind) { return $kind == 'koncern' ? vr_t('Koncern', 'Group') : ($kind == 'revisor' ? vr_t('Revisor', 'Auditor') : vr_t('Bogholder', 'Bookkeeper')); }
 // ---------- shell: sidebar in the user's colour + topbar, as in the approved prototypes ----------
-// Menu entries follow index/admin_menu.php (same rights and gating). Partner users get the partner menu.
+// 20261012 CL/ASR The operator panel is for Saldi's own staff only (admin flag 'on'). Bookkeepers and other users keep
+//                  the existing pages (index/admin_menu.php, vis_regnskaber.php, opret.php …) unchanged; every page in
+//                  this shell calls vr_require_operator() and sends anyone else back to the existing menu.
+function vr_require_operator() {
+	partner_tables_ensure();
+	if (partner_current_user()['is_operator']) return;
+	while (ob_get_level()) ob_end_clean();
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/admin_menu.php\">"; exit;
+}
 function vr_menu() {
-	global $sprog_id, $revisorregnskab, $forhandlerregnskab, $mastername;
-	$u = partner_current_user();
-	$items = array(array(vr_t('Overblik','Overview'), '../index/admin_menu.php', 'home', true));
-	if ($u['is_operator'] || !$u['partner']) {
-		$full = (!isset($revisorregnskab) && !isset($forhandlerregnskab)) || !empty($revisorregnskab) || !empty($forhandlerregnskab);
-		$r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
-		// 20261012 CL/ASR One "Regnskaber" entry: operators get the administration panel (it replaces vis_regnskaber for them),
-		//                  other legacy admin users keep vis_regnskaber.php.
-		$items[] = $u['is_operator'] ? array(vr_t('Regnskaber','Accounts'), '../admin/admin_panel.php', 'list', true) : array(vr_t('Regnskaber','Accounts'), '../admin/vis_regnskaber.php', 'list', true);
-		$items[] = array(findtekst('339|Opret regnskab', $sprog_id), '../admin/opret.php', 'plus', $u['admin'] == 'on' || $u['oprette'] == 'on');
-		if ($full) {
-			$items[] = array(findtekst('341|Slet regnskab', $sprog_id), '../admin/slet_regnskab.php', 'trash', $u['admin'] == 'on' || $u['slette'] == 'on');
-			$items[] = array(findtekst('777|Brugere', $sprog_id), '../admin/admin_brugere.php', 'user', true);
-			$items[] = array(findtekst('613|Indstillinger', $sprog_id), '../admin/admin_settings.php', 'gear', true);
-			if (isset($mastername) && $mastername == "ROTARY") $items[] = array(findtekst('567|Kortbetalinger', $sprog_id), '../admin/bankfordeling.php', 'card', true);
-		}
-	} else {
-		$items[] = array(vr_t('Mine regnskaber','My accounts'), '../admin/vis_regnskaber.php', 'list', true);
-		$items[] = array(vr_t('Mit firma','My firm'), '../admin/partnere.php', 'users', true);
-	}
+	global $sprog_id, $mastername;
+	$items = array(array(vr_t('Overblik','Overview'), '../admin/operator_overblik.php', 'home', true));
+	$items[] = array(vr_t('Regnskaber','Accounts'), '../admin/operator_panel.php', 'list', true);
+	$items[] = array(findtekst('339|Opret regnskab', $sprog_id), '../admin/operator_opret.php', 'plus', true);
+	$items[] = array(findtekst('341|Slet regnskab', $sprog_id), '../admin/operator_slet.php', 'trash', true);
+	$items[] = array(findtekst('777|Brugere', $sprog_id), '../admin/operator_brugere.php', 'user', true);
+	$items[] = array(findtekst('613|Indstillinger', $sprog_id), '../admin/operator_indstillinger.php', 'gear', true);
+	if (isset($mastername) && $mastername == "ROTARY") $items[] = array(findtekst('567|Kortbetalinger', $sprog_id), '../admin/bankfordeling.php', 'card', true);
 	return $items;
 }
 function vr_icon($k) {
@@ -77,7 +73,7 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	if (!isset($version)) { $version = ''; if (file_exists("../includes/version.php")) include("../includes/version.php"); }
 	$u = partner_current_user();
 	$self = basename($_SERVER['PHP_SELF']);
-	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.2.1\">\n";
+	print "<link rel=\"stylesheet\" href=\"../css/operator_panel.css?v=5.2.1\">\n";
 	if (!vr_csrf_exempt()) print vr_csrf_js();
 	if (isset($_GET['msg'])) print "<script>try{var vrU=new URL(location.href);[...vrU.searchParams.keys()].filter(function(k){return k.indexOf('msg')===0||k==='mk'}).forEach(function(k){vrU.searchParams.delete(k)});history.replaceState(null,'',vrU.pathname+vrU.search+vrU.hash);}catch(e){}</script>"; # a reload does not show the note again
 	print "<div class=\"vr-app\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
@@ -85,11 +81,11 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	// 20261012 CL/ASR Danosoft logo (white, from the brand file) and a collapsible sidebar. The state is kept per browser
 	//                  in localStorage and applied before paint by the inline script, so the page does not jump.
 	print "<script>try{if(localStorage.getItem('vrSideCollapsed')==='1')document.documentElement.classList.add('vr-collapsed');}catch(e){}</script>";
-	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"../index/admin_menu.php\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"../img/danosoft_logo_white.png\" alt=\"Danosoft\" width=\"170\" height=\"26\"><img class=\"vr-logo-mark\" src=\"../img/danosoft_mark_white.png\" alt=\"Danosoft\" width=\"38\" height=\"26\"></a>";
+	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"../admin/operator_overblik.php\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"../img/danosoft_logo_white.png\" alt=\"Danosoft\" width=\"170\" height=\"26\"><img class=\"vr-logo-mark\" src=\"../img/danosoft_mark_white.png\" alt=\"Danosoft\" width=\"38\" height=\"26\"></a>";
 	print "<button type=\"button\" class=\"vr-collapse\" id=\"vrCollapse\" onclick=\"vrToggleSide()\" aria-label=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\" title=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 6l-6 6 6 6\"/></svg></button></div>";
 	print "<div class=\"vr-grp\">".($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration')))."</div><nav>";
 	foreach (vr_menu() as $it) {
-		$on = (basename($it[1]) == $self) || ($self == 'regnskab.php' && basename($it[1]) == 'vis_regnskaber.php') || ($self == 'partnere.php' && basename($it[1]) == (partner_current_user()['is_operator'] ? 'admin_panel.php' : 'partnere.php'));
+		$on = (basename($it[1]) == $self) || ($self == 'partnere.php' && basename($it[1]) == 'operator_panel.php');
 		if ($it[3]) print "<a class=\"vr-nav".($on ? " vr-on" : "")."\" href=\"".vr_h($it[1])."\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></a>";
 		else print "<span class=\"vr-nav vr-dim\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></span>";
 	}
@@ -160,8 +156,8 @@ function vr_close() {
 // 20261012 CL/ASR CSRF protection for the admin layer: one secret token per login session. It is added to every POST
 //                  form by an output filter (no form needs changing), sent as the X-VR-CSRF header by fetch(), and every
 //                  POST without a valid token is refused before any action runs. godkend.php (the customer's own approval
-//                  page, protected by its one-time link), the nightly job and the public sign-up form on opret.php
-//                  (fra_formular) are exempt. In CLI tests the token comes from VR_CSRF_TOKEN.
+//                  page, protected by its one-time link) and the nightly job are exempt. In CLI tests the token comes
+//                  from VR_CSRF_TOKEN.
 function vr_csrf_token() {
 	if (session_status() !== PHP_SESSION_ACTIVE) @session_start();
 	if (empty($_SESSION['vr_csrf'])) $_SESSION['vr_csrf'] = (php_sapi_name() == 'cli' && getenv('VR_CSRF_TOKEN')) ? getenv('VR_CSRF_TOKEN') : bin2hex(random_bytes(32));
@@ -171,7 +167,7 @@ function vr_csrf_exempt() {
 	$self = basename($_SERVER['PHP_SELF'] ?? '');
 	if ($self == 'godkend.php' || $self == 'usage_snapshot_job.php') return true;
 	if (php_sapi_name() == 'cli' && !getenv('VR_CSRF_TOKEN')) return true; # cron/CLI scripts
-	return $self == 'opret.php' && isset($_POST['fra_formular']);
+	return false;
 }
 function vr_csrf_filter($html) {
 	if (stripos($html, '<form') === false) return $html;

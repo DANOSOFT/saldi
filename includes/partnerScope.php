@@ -135,7 +135,7 @@ function partner_migrate_adgang_til() {
 	return $n;
 }
 
-// 20261012 CL/ASR Partner created together with its own ledger (opret.php "Regnskabstype"). $kind: bogholder|revisor|koncern.
+// 20261012 CL/ASR Partner created together with its own ledger (operator_opret.php "Regnskabstype"). $kind: bogholder|revisor|koncern.
 // $login = array(username, password) creates a master login as partner owner (refused if the username exists in master).
 function partner_kinds() { return array('bogholder', 'revisor', 'koncern'); }
 function partner_login_free($username) { return !db_fetch_array(db_select("select 1 from brugere where brugernavn = '".db_escape_string($username)."'", __FILE__ . " linje " . __LINE__)); }

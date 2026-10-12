@@ -1,5 +1,4 @@
 <?php
-ob_start(); # for the redirect after an action (vr_prg)
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -32,7 +31,6 @@ ob_start(); # for the redirect after an action (vr_prg)
 // 20260212 PHR pdfmerge replaced by pdftk and some errors
 // 20260320 PHR cleanup (pdftk)
 // 20260326 PHR Fixed error in weasyprint
-// 20261010 CL/ASR Rendered in the admin-layer shell; save logic unchanged. Missing programs are shown as a notice.
 
 @session_start();
 $s_id=session_id();
@@ -41,18 +39,9 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include("../includes/partnerScope.php");
-include("vr_ui.php");
 
 $languages = array();
 
-// 20261012 CL/ASR The master-database check now runs before saving (it ran after), and saving redirects (vr_prg).
-if ($db != $sqdb) {
-	$txt1 = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id);
-	print "<BODY onLoad=\"javascript:alert('$txt1')\">\n";
-	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">\n";
-	exit;
-}
 if (isset($_POST['gem'])) {
 	$ps2pdfId = if_isset($_POST, NULL, 'ps2pdfId');
 	$ps2pdf = if_isset($_POST, NULL, 'ps2pdf');
@@ -121,12 +110,18 @@ if (isset($_POST['gem'])) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="update online set language_id='$languageId' where session_id = '$s_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	vr_prg(array(findtekst('3|Gem', $sprog_id).': '.vr_t('indstillingerne er gemt','settings saved')));
+	
 } else {
 	$ps2pdf=$weasyprint=$pdftk=$ftp=$dbdump=$zip=$unzip=$tar=$alertText=NULL;
 	$ps2pdfId=$weasyprintId=$pdftkId=$ftpId=$dbdumpId=$zipId=$unzipId=$tarId=$alertTextId=NULL;
 }
 
+if ($db != $sqdb) {
+	$txt1 = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id);
+	print "<BODY onLoad=\"javascript:alert('$txt1')\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">\n";
+	exit;
+}
 
 $q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
@@ -171,12 +166,25 @@ while ($r=db_fetch_array($q)) {
 	}
 }
 
-include("../includes/topline_settings.php");
-partner_tables_ensure();
-$vr_missing = array(); $vr_saved = isset($_POST['gem']);
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+print "<tr><td align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>\n";
+print "<td $top_bund width=\"10%\"><a href='../index/admin_menu.php'>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n"; 
+print "<td $top_bund width=\"35%\">&nbsp;</td>\n";
+print "<td $top_bund width=\"10%\" align = \"center\"></td>\n";
+print "<td $top_bund width=\"35%\">&nbsp;</td>";
+print "<td $top_bund width=\"10%\" align = \"right\"></td>\n";
+print "</tr></tbody></table></td></tr>\n<tr><td align=\"center\" valign=\"center\">\n";
 $td=" align=\"center\" height=\"35\"";
 $txt = findtekst('1926|ikke fundet!', $sprog_id); #20210917
-foreach (array($ps2pdf, $weasyprint, $pdftk, $ftp, $dbdump, $zip, $unzip, $tar) as $vr_p) if ($vr_p && !file_exists($vr_p)) $vr_missing[] = "$vr_p $txt";
+if ($ps2pdf && !file_exists($ps2pdf)) echo "$ps2pdf $txt";
+if ($weasyprint && !file_exists($weasyprint)) echo "$weasyprint $txt";
+if ($pdftk && !file_exists($pdftk)) echo "$pdftk $txt";
+if ($ftp && !file_exists($ftp)) echo "$ftp $txt";
+if ($dbdump && !file_exists($dbdump)) echo "$dbdump $txt";
+if ($zip && !file_exists($zip)) echo "$zip $txt";
+if ($unzip && !file_exists($unzip)) echo "$unzip $txt";
+if ($tar && !file_exists($tar)) echo "$tar $txt";
 
 if (!$ps2pdf) $ps2pdf=system("which ps2pdf");
 if (!$weasyprint) $weasyprint=system("which weasyprint");
@@ -193,18 +201,58 @@ if (!$alertText) $alertText=findtekst('534|Uforudset hændelse, kontakt salditea
 $newssnippet = get_settings_value("nyhed", "dashboard", "");
 
 #include("../includes/languages.php"); #20210920
-vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('122|Indstillinger', $sprog_id)), findtekst('122|Indstillinger', $sprog_id), vr_t('Indstillinger for installationen: stier til eksterne programmer, tekst ved uforudset hændelse og infotekst på kundernes dashboard.', 'Installation settings: paths to external programs, the unexpected-event text and the news snippet on customer dashboards.'));
-vr_note(vr_flash());
-if ($vr_missing) vr_note($vr_missing, 'warn');
-print "<form name=\"admin_settings\" action=\"admin_settings.php\" method=\"post\">";
-foreach (array('ps2pdfId'=>$ps2pdfId,'weasyprintId'=>$weasyprintId,'pdftkId'=>$pdftkId,'ftpId'=>$ftpId,'dbdumpId'=>$dbdumpId,'zipId'=>$zipId,'unzipId'=>$unzipId,'tarId'=>$tarId,'alertTextId'=>$alertTextId) as $k => $v) print "<input type=\"hidden\" name=\"$k\" value=\"".vr_h($v)."\">";
-print "<div class=\"vr-grid2\"><section class=\"vr-sect\"><h2>".vr_t('Eksterne programmer','External programs')."</h2><div class=\"vr-card\"><div class=\"vr-form\" style=\"max-width:none\">";
-foreach (array(array('1917|Program til konvertering af PostScript til PDF','ps2pdf',$ps2pdf),array('1918|Program til konvertering af HTML til PDF','weasyprint',$weasyprint),array('1919|Program til sammenlægning af PDF filer','pdftk',$pdftk),array('1920|Program til FTP','ftp',$ftp),array('1921|Program til databasedump','dbdump',$dbdump),array('1922|Program til komprimering af filer','zip',$zip),array('1923|Program til dekomprimering af filer','unzip',$unzip),array('1924|Program til pakning af filer','tar',$tar)) as $f)
-	print "<label>".findtekst($f[0], $sprog_id)."<input class=\"vr-inp\" name=\"$f[1]\" value=\"".vr_h(trim((string)$f[2]))."\"".($f[2] && !file_exists(trim((string)$f[2])) ? " style=\"border-color:var(--bad)\"" : "")."></label>";
-print "</div></div></section><section class=\"vr-sect\"><h2>".vr_t('Tekster','Texts')."</h2><div class=\"vr-card\"><div class=\"vr-form\" style=\"max-width:none\">";
-print "<label>".findtekst('1925|Tekst ved \'uforudset hændelse\'', $sprog_id)."<input class=\"vr-inp\" name=\"alertText\" value=\"".vr_h($alertText)."\"></label>";
-print "<label>".findtekst('2952|Infotekst på dashboard', $sprog_id)."<input class=\"vr-inp\" name=\"newssnippet\" value=\"".vr_h($newssnippet)."\"></label>";
-print "<div><button type=\"submit\" class=\"vr-btn vr-primary\" name=\"gem\" value=\"1\">".findtekst('3|Gem', $sprog_id)."</button></div></div></div></section></div></form>";
-vr_close();
+print "<form name='admin_settings' action='admin_settings.php' method='post'>";
+print "<input type='hidden' name='ps2pdfId' value='$ps2pdfId'>";
+print "<input type='hidden' name='weasyprintId' value='$weasyprintId'>";
+print "<input type='hidden' name='pdftkId' value='$pdftkId'>";
+print "<input type='hidden' name='ftpId' value='$ftpId'>";
+print "<input type='hidden' name='dbdumpId' value='$dbdumpId'>";
+print "<input type='hidden' name='zipId' value='$zipId'>";
+print "<input type='hidden' name='unzipId' value='$unzipId'>";
+print "<input type='hidden' name='tarId' value='$tarId'>";
+print "<input type='hidden' name='alertTextId' value='$alertTextId'>";
+print "<table align=\"center\" border=\"0\" cellspacing=\"5\" cellpadding=\"0\"><tbody>";
+print "<tr><td colspan=\"2\" height=\"35\" align=\"center\" background=\"../img/blaa2hvid_bg.gif\">";
+print "<big<big><big><b>SALDI</b></big></big></big></td></tr>";
+print "<tr><td  colspan=\"2\" height=\"35\" align=\"center\"><b><big>".findtekst('122|Indstillinger', $sprog_id)."</big></b></td></tr>";
+print "<tr><td>".findtekst('1917|Program til konvertering af PostScript til PDF', $sprog_id)."</td><td><input style='width:400px' name='ps2pdf' value='$ps2pdf'></td></tr>"; 
+print "<tr><td>".findtekst('1918|Program til konvertering af HTML til PDF', $sprog_id)."</td><td><input style='width:400px' name='weasyprint' value='$weasyprint'></td></tr>";
+print "<tr><td>".findtekst('1919|Program til sammenlægning af PDF filer', $sprog_id)."</td><td><input style='width:400px' name='pdftk' value='$pdftk'></td></tr>";
+print "<tr><td>".findtekst('1920|Program til FTP', $sprog_id)."</td><td><input style='width:400px' name='ftp' value='$ftp'></td></tr>"; 
+print "<tr><td>".findtekst('1921|Program til databasedump', $sprog_id)."</td><td><input style='width:400px' name='dbdump' value='$dbdump'></td></tr>";
+print "<tr><td>".findtekst('1922|Program til komprimering af filer', $sprog_id)."</td><td><input style='width:400px' name='zip' value='$zip'></td></tr>";
+print "<tr><td>".findtekst('1923|Program til dekomprimering af filer', $sprog_id)."</td><td><input style='width:400px' name='unzip' value='$unzip'></td></tr>";
+print "<tr><td>".findtekst('1924|Program til pakning af filer', $sprog_id)."</td><td><input style='width:400px' name='tar' value='$tar'></td></tr>";
+print "<tr><td>".findtekst('1925|Tekst ved \'uforudset hændelse\'', $sprog_id)."</td><td><input style='width:400px' name='alertText' value='$alertText'></td></tr>";
+print "<tr><td>".findtekst('2952|Infotekst på dashboard', $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
+
+##################### #20210920
+/*
+print "<tr><td title='".findtekst('2|Vælg aktivt sprog', $sprog_id)."'>".findtekst('436|Skift', $sprog_id)." ".lcfirst(findtekst('801|Sprog', $sprog_id))."</td>";
+print"<td> <SELECT class ='inputbox' NAME = 'LanguageId' title=''>";
+/*
+foreach ($languages as $k => $v) {
+	print "<option  value='$v'>$v</option>";
+}
+
+for ($l=1;$l<count($languages);$l++) {
+	if ($languageId == $l) print "<option  value='$l'>$languages[$l]</option>";
+}
+for ($l=1;$l<count($languages);$l++) {
+	if ($languageId != $l) print "<option value='$l'>$languages[$l]</option>";
+}
+print "</SELECT></td></tr>";
+*/
+#####################
+print "<tr><td colspan=\"2\" height=\"35\" align=\"center\"><input type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."'></b></td></tr>";
+print "</tbody></table>";
+print "</form>";
+print "</td></tr>";
+print "<tr><td align=\"center\" valign=\"bottom\">";
+print "<div class=top_bund><small>SALDI&nbsp;version&nbsp;$version&nbsp;-&nbsp;Copyright&nbsp;&copy;&nbsp;$copyright&nbsp;DANOSOFT&nbsp;aps</small></div></td></tr>\n";
+print "</td></tr>";
+print "</tbody></table>";
 print "</body></html>";
+
 ?>
+

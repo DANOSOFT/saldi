@@ -25,6 +25,7 @@ include("../includes/partnerScope.php");
 include("../includes/entitlements.php");
 include("inc_betalinger.php");
 include("vr_ui.php");
+vr_require_operator(); # Saldi staff only; everyone else keeps the existing pages
 partner_tables_ensure();
 partner_billing_cols_ensure(); bill_cache_ensure();
 
@@ -129,11 +130,11 @@ if (isset($_POST['vr_action'])) vr_prg($notes, $pid ? 'partnere.php?'.http_build
 $regNames = array(); $q = db_select("select id, regnskab, db, lukket from regnskab where db != '$sqdb' order by regnskab", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $regNames[(int)$r['id']] = $r;
 
 // ================= LIST (operator) =================
-// 20261012 CL/ASR The partner list is no longer a menu item: partners are created on opret.php (Regnskabstype) and
+// 20261012 CL/ASR The partner list is no longer a menu item: partners are created on operator_opret.php (Regnskabstype) and
 //                  listed on the customer list's tabs. Without an id the operator is sent there (after a legacy import).
 if (!$pid && $op) {
 	$t = isset($_GET['ltab']) && $_GET['ltab'] == 'koncerner' ? 'koncerner' : 'bogholdere';
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_panel.php?ltab=$t".($notes ? '&msg='.rawurlencode(implode(' ', $notes)) : '')."\">"; exit;
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=operator_panel.php?ltab=$t".($notes ? '&msg='.rawurlencode(implode(' ', $notes)) : '')."\">"; exit;
 }
 if (!$pid) {
 	$partners = partner_all();
@@ -141,7 +142,7 @@ if (!$pid) {
 	while ($r = db_fetch_array($q)) { $t = explode(",", $r['rettigheder'], 4); if (isset($t[3]) && strpos($t[3], '*') === false && array_filter(array_map('intval', explode(",", $t[3])))) $legacy++; }
 	$pending = 0; $q = db_select("select bruger_id from partner_users", __FILE__ . " linje " . __LINE__); $inP = array(); while ($r = db_fetch_array($q)) $inP[] = (int)$r['bruger_id'];
 	$acts = "<a class=\"vr-btn vr-primary\" href=\"#opret\">+ ".vr_t('Opret partner','Create partner')."</a>";
-	vr_open(array(array(vr_t('Operatørpanel','Operator panel'), '../index/admin_menu.php'), vr_t('Bogholdere og koncerner','Accountants and groups')), vr_t('Bogholdere og koncerner','Accountants and groups'), vr_t('Partnere med adgang til flere regnskaber: bogholdere/revisorer med kunder og koncerner med selskaber.','Partners with access to several accounts: accountants with customers and groups with companies.'), $acts);
+	vr_open(array(array(vr_t('Operatørpanel','Operator panel'), '../admin/operator_overblik.php'), vr_t('Bogholdere og koncerner','Accountants and groups')), vr_t('Bogholdere og koncerner','Accountants and groups'), vr_t('Partnere med adgang til flere regnskaber: bogholdere/revisorer med kunder og koncerner med selskaber.','Partners with access to several accounts: accountants with customers and groups with companies.'), $acts);
 	vr_note($notes, vr_flash_kind());
 	if ($legacy) print "<div class=\"vr-note vr-note-warn\"><form method=\"post\" class=\"vr-inline\"><span>$legacy ".vr_t('brugere har en gammel adgang_til-liste uden partner. Importér dem som bogholdere (én partner pr. bruger – kan slås sammen bagefter).','users still have a legacy adgang_til list without a partner. Import them as accountants (one partner per user; merge afterwards).')."</span><input type=\"hidden\" name=\"vr_action\" value=\"migrate\"><button class=\"vr-btn\" type=\"submit\">".vr_t('Importér','Import')."</button></form></div>";
 	print "<section class=\"vr-sect\"><h2>".vr_t('Alle partnere','All partners')." <small>".count($partners)."</small></h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Navn','Name')."</th><th>".vr_t('Type','Type')."</th><th>CVR</th><th>".vr_t('Eget regnskab','Own account')."</th><th class=\"vr-r\">".vr_t('Kunder/selskaber','Customers')."</th><th class=\"vr-r\">".vr_t('Medarbejdere','Employees')."</th><th>".vr_t('Må oprette','May create')."</th></tr></thead><tbody>";
@@ -163,7 +164,7 @@ if (!$pid) {
 
 // ================= CARD =================
 $p = db_fetch_array(db_select("select * from partners where id = '$pid' and status = 'active'", __FILE__ . " linje " . __LINE__));
-if (!$p) { vr_open(array(array(vr_t('Regnskaber','Accounts'), 'admin_panel.php?ltab=bogholdere'), vr_t('Partner','Partner')), vr_t('Partneren findes ikke','Partner not found'), ''); vr_close(); exit; }
+if (!$p) { vr_open(array(array(vr_t('Regnskaber','Accounts'), 'operator_panel.php?ltab=bogholdere'), vr_t('Partner','Partner')), vr_t('Partneren findes ikke','Partner not found'), ''); vr_close(); exit; }
 $isK = ($p['kind'] == 'koncern');
 $KU = $isK ? vr_t('Selskaber','Companies') : vr_t('Kunder','Customers');
 if (!in_array($tab, array('oversigt','kunder','medarbejdere','indstillinger','log'), true)) $tab = 'oversigt';
@@ -171,7 +172,7 @@ $links = array(); $q = db_select("select * from regnskab_partners where partner_
 $emps = array(); $q = db_select("select pu.*, b.brugernavn, b.email from partner_users pu join brugere b on b.id = pu.bruger_id where pu.partner_id = '$pid' order by pu.partner_role desc, b.brugernavn", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $emps[] = $r;
 $home = $p['home_regnskab_id'] && isset($regNames[(int)$p['home_regnskab_id']]) ? $regNames[(int)$p['home_regnskab_id']] : null;
 
-$crumbs = $op ? array(array(vr_t('Operatørpanel','Operator panel'), '../index/admin_menu.php'), array(vr_t('Regnskaber','Accounts'), 'admin_panel.php?ltab='.($isK ? 'koncerner' : 'bogholdere')), $p['name']) : array(array(vr_t('Bogholderpanel','Accountant panel'), '../index/admin_menu.php'), vr_t('Mit firma','My firm'));
+$crumbs = $op ? array(array(vr_t('Operatørpanel','Operator panel'), '../admin/operator_overblik.php'), array(vr_t('Regnskaber','Accounts'), 'operator_panel.php?ltab='.($isK ? 'koncerner' : 'bogholdere')), $p['name']) : array(array(vr_t('Bogholderpanel','Accountant panel'), '../admin/operator_overblik.php'), vr_t('Mit firma','My firm'));
 $lead = ($isK ? vr_t('Koncern','Group').($home ? ' · '.vr_t('moderselskab','parent').' '.vr_h($home['regnskab']) : '') : vr_h(vr_kind($p['kind'])).($home ? ' · '.vr_t('eget regnskab','own account').' '.vr_h($home['regnskab']) : '')).($p['cvr'] ? ' · CVR '.vr_h($p['cvr']) : '').' · '.count($links).' '.strtolower($KU).' · '.count($emps).' '.vr_t('medarbejdere','employees');
 vr_open($crumbs, $p['name'], $lead, '', strtolower(vr_kind($p['kind'])));
 vr_note($notes, vr_flash_kind());
@@ -203,7 +204,7 @@ if ($tab == 'oversigt') {
 		if ($e['plan'] && $e['price_ore'] !== null && $r['lukket'] != 'on') { $m = $e['interval'] == 'year' ? (int)round($e['price_ore'] / 12) : (int)$e['price_ore']; foreach ($e['addons'] as $ak => $ar) if (isset($cat['addons'][$ak]) && $cat['addons'][$ak]['price_ore'] !== null) $m += (int)$cat['addons'][$ak]['price_ore'] * max(1, (int)$ar['quantity']); $mrr += $m; }
 		if ($b && $b['outstanding_ore']) $out += (int)$b['outstanding_ore'];
 		$uPct = ($sn && $e['plan'] && $e['limits']['max_users']) ? min(100, (int)round($sn['users_active'] / $e['limits']['max_users'] * 100)) : 0; $pPct = ($sn && $e['plan'] && $e['limits']['included_postings']) ? min(100, (int)round($sn['postings_12m'] / $e['limits']['included_postings'] * 100)) : 0;
-		print "<tr".($r['lukket']=='on' ? " class=\"vr-closed\"" : "")."><td class=\"vr-r vr-id\">$rid</td><td class=\"vr-nm\"><a href=\"admin_panel.php?regnskab_id=$rid\">".vr_h($r['regnskab'])."</a><small>".vr_h($r['db']).($r['lukket']=='on' ? ' · '.findtekst('387|Lukket', $sprog_id) : '')."</small></td>";
+		print "<tr".($r['lukket']=='on' ? " class=\"vr-closed\"" : "")."><td class=\"vr-r vr-id\">$rid</td><td class=\"vr-nm\"><a href=\"operator_panel.php?regnskab_id=$rid\">".vr_h($r['regnskab'])."</a><small>".vr_h($r['db']).($r['lukket']=='on' ? ' · '.findtekst('387|Lukket', $sprog_id) : '')."</small></td>";
 		print "<td class=\"vr-mut\">".($e['plan'] ? vr_h($e['plan']['name']) : '<span class="vr-mut2">–</span>')."</td>";
 		print "<td class=\"vr-r vr-num\">".($sn ? (int)$sn['users_active'].($e['plan'] && $e['limits']['max_users'] !== null ? ' <span class="vr-mut2">/ '.(int)$e['limits']['max_users'].'</span>' : '').($uPct >= 80 ? ' <span class="vr-dot vr-warn"></span>' : '') : '<span class="vr-mut2">–</span>')."</td>";
 		print "<td class=\"vr-r vr-num\">".($sn ? vr_num($sn['postings_12m']).($e['plan'] && $e['limits']['included_postings'] !== null ? ' <span class="vr-mut2">/ '.vr_num($e['limits']['included_postings']).'</span>' : '').($pPct >= 80 ? ' <span class="vr-dot vr-warn"></span>' : '') : '<span class="vr-mut2">–</span>')."</td>";
