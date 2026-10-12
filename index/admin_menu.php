@@ -36,6 +36,7 @@ include("../includes/partnerScope.php");
 include("../admin/vr_ui.php");
 include("../includes/entitlements.php");
 include("../admin/inc_betalinger.php");
+include("../admin/inc_installationer.php");
 include("../admin/inc_overblik.php");
 partner_tables_ensure();
 

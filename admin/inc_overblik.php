@@ -53,7 +53,8 @@ function ov_render() {
 	$kr = fn($ore) => number_format($ore / 100, 0, ',', '.').' kr.';
 	print "<section class=\"vr-sect\"><h2>".vr_t('Kommercielt overblik','Commercial overview')." <small>".vr_t('beregnet nu fra panelets data','computed now from the panel data')."</small></h2><div class=\"vr-card\"><div class=\"vr-stats\">";
 	$stat = fn($label, $val, $sub, $href) => "<a class=\"vr-stat\" href=\"".vr_h($href)."\"><span>".$label."</span><b>".$val."</b><small>".$sub."</small></a>";
-	print $stat(vr_t('Aktive regnskaber','Active accounts'), vr_num($d['active']), $d['no_plan'].' '.vr_t('uden pakke','without plan').' · '.$d['closed'].' '.vr_t('lukkede','closed'), '../admin/admin_panel.php?ltab=alle');
+	$ni = function_exists('inst_all') ? count(inst_all('active')) : 0;
+	print $stat(vr_t('Aktive regnskaber','Active accounts'), vr_num($d['active']), $d['no_plan'].' '.vr_t('uden pakke','without plan').' · '.$d['closed'].' '.vr_t('lukkede','closed').($ni ? ' · '.$ni.' '.vr_t('egne installationer','self-hosted') : ''), '../admin/admin_panel.php?ltab=alle');
 	print $stat('MRR', $kr($d['mrr_ore']), $d['mrr_n'].' '.vr_t('betalende pakker','paying plans').($d['erp_n'] ? ' · '.$d['erp_n'].' ERP '.vr_t('efter aftale','by agreement') : '').($d['canceled'] ? ' · '.$d['canceled'].' '.vr_t('opsagt','cancelled') : ''), '../admin/admin_panel.php?ltab=alle');
 	print $stat(vr_t('Forfaldne betalinger','Overdue payments'), vr_num(count($d['overdue'])), $kr($d['overdue_sum_ore']).' '.vr_t('udestående','outstanding').' · '.$d['checked'].' '.vr_t('kunder tjekket','customers checked'), '#ov-overdue');
 	print $stat(vr_t('Tæt på grænser','Near limits'), vr_num(count($d['near'])), ($d['snap_date'] ? vr_t('måling','measured').' '.vr_h($d['snap_date']) : vr_t('ingen måling endnu','no measurement yet')), '#ov-near');
