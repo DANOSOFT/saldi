@@ -36,6 +36,8 @@
 //                 an empty group failed the query), and "Difference" uses text 2396 (3095 is "Slet ansat"). The row links
 //                 encode Bilagstekst and the invoice number: a "#" or "&" in the text cut the link and blanked the columns.
 //                 They also carry Forfaldsdato and Betalings-id, which kassekladde.php emptied on the way back (CodeRabbit).
+//                 (CodeRabbit) Indsæt only when the ticked posts belong to one account, and the lookup finds the invoices of a line
+//                 with a;b (split into an IN list, without the amount filter, which no single post of a sum matches).
 
 function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr){
 # ($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr) {
@@ -152,7 +154,9 @@ print "<center>";
 	# -> 2009.05.04
 	$tmp1=$amount-0.005;$tmp2=$amount+0.005;$tmp3=($amount*-1)-0.005;$tmp4=($amount*-1)+0.005;
 	$critA = "WHERE udlignet !='1'";
-	if ($faktura) $critB = " AND faktnr ='".$faktura."'";
+	// A line can hold several invoice numbers (a;b, from "Indsæt"); each open post has one
+	$invoiceList = $faktura ? array_values(array_filter(array_map('trim', explode(';', urldecode($faktura))), 'strlen')) : array();
+	if ($invoiceList) $critB = " AND faktnr IN ('" . implode("','", array_map('db_escape_string', $invoiceList)) . "')";
 	if ((($d_type=='K')|| ($d_type=='D')) AND ($debet)) {
 		if ($ktoId) $critC = " AND konto_id='".$ktoId."'"; #20120809
 		if ($amount != 0) $critD = " AND amount >= '".$tmp3."' AND amount < '".$tmp4."'";
@@ -163,6 +167,8 @@ print "<center>";
 	}	elseif ($amount != 0) {
 		$critD = " AND ((amount >= '".$tmp1."' AND amount <= '".$tmp2."') or (amount >= '".$tmp3."' AND amount <= '".$tmp4."'))";
 	}
+	// With several invoices the line's amount is their sum, so no single post matches it
+	if (count($invoiceList) > 1) $critD = NULL;
 	$criteria = $critA.$critB.$critC.$critD;
 	if ($sort=="firmanavn") $sort="konto_nr";
 	$qtxt = "select * from openpost $criteria order by $sort";
@@ -294,7 +300,7 @@ print "<center>";
 			// The row's own link is what "Indsæt" follows, with the invoice numbers of all ticked rows
 			print "<td style=\"text-align:center\"><input type = 'checkbox' class = 'openPostAlign' $checked";
 			print " data-href = '".htmlspecialchars($lnktxt, ENT_QUOTES)."' data-invoice = '".htmlspecialchars((string)$invoiceNo[$x], ENT_QUOTES)."'";
-			print " data-amount = '".(float)$openAamount[$x]."' onchange = 'openPostRecalc()'></td>";
+			print " data-amount = '".(float)$openAamount[$x]."' data-account = '".(int)$accountId[$x]."' onchange = 'openPostRecalc()'></td>";
 		}
 		print "</tr>\n";
 	}
@@ -322,7 +328,9 @@ print "<center>";
 			var diff = $lineAmount ? $lineAmount - Math.abs(sum) : 0;
 			document.getElementById('openPostChecked').textContent = openPostDk(sum);
 			document.getElementById('openPostDiff').textContent = openPostDk(diff);
-			document.getElementById('openPostInsert').disabled = !ticked.length || Math.abs(diff) >= 0.005 || Math.abs(sum) < 0.005;
+			// One line has one account, so the ticked posts must all belong to it
+			var oneAccount = ticked.every(function (b) { return b.dataset.account === ticked[0].dataset.account; });
+			document.getElementById('openPostInsert').disabled = !ticked.length || !oneAccount || Math.abs(diff) >= 0.005 || Math.abs(sum) < 0.005;
 			return sum;
 		}
 		function openPostInsert() {
