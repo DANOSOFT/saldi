@@ -26,6 +26,9 @@
 // 20260807 CL/LH Created: Stripe webhook receiver. Contract:
 //                doc/stripe/INTERFACE_CONTRACT.md.
 // 20260818 CL/LH Hardened claims, DB failures, and invoice identity.
+// 20261010 CL/ASR invoice.paid stores current_period_end/last_paid_at and resets failed_count; invoice.payment_failed
+//                  stores last_failed_at/last_failed_invoice, bumps failed_count and sets status past_due (cache row
+//                  only). Columns come from betweenUpdates; both writes are skipped until they exist.
 //
 // PILOT MODE OF RECORD = record-only: verify + dedupe + record + PDF + alert;
 // nothing is booked. The import path is gated behind the import_enabled
@@ -232,6 +235,31 @@ function stripe_wh_upsert_customer($customerId, $subscriptionId, $kontoId, $kont
 	}
 }
 
+
+// 20261010 CL/ASR Period end / payment-failure facts (columns added by betweenUpdates; skipped when they are
+//                  not there yet, so an older billing ledger keeps working).
+function stripe_wh_has_period_cols() {
+	static $has = null;
+	if ($has === null) $has = (bool)db_fetch_array(stripe_wh_db_select("SELECT 1 FROM information_schema.columns WHERE table_name='stripe_customers' AND column_name='failed_count'"));
+	return $has;
+}
+function stripe_wh_note_paid($customerId, $obj) {
+	if (!stripe_wh_has_period_cols()) return;
+	$cEsc = db_escape_string((string)$customerId); if ($cEsc === '') return;
+	$end = 0;
+	if (isset($obj['lines']['data'][0]['period']['end'])) $end = (int)$obj['lines']['data'][0]['period']['end'];
+	elseif (isset($obj['period_end'])) $end = (int)$obj['period_end'];
+	$set = "last_paid_at = CURRENT_TIMESTAMP, failed_count = 0";
+	if ($end > 0) $set .= ", current_period_end = to_timestamp($end)";
+	stripe_wh_db_modify("update stripe_customers set $set where stripe_customer_id = '$cEsc'");
+}
+function stripe_wh_note_failed($customerId, $obj) {
+	if (!stripe_wh_has_period_cols()) return;
+	$cEsc = db_escape_string((string)$customerId); if ($cEsc === '') return;
+	$inv = db_escape_string((string)(isset($obj['number']) ? $obj['number'] : (isset($obj['id']) ? $obj['id'] : '')));
+	stripe_wh_db_modify("update stripe_customers set last_failed_at = CURRENT_TIMESTAMP, last_failed_invoice = '$inv', failed_count = coalesce(failed_count, 0) + 1, status = 'past_due', updated_at = CURRENT_TIMESTAMP where stripe_customer_id = '$cEsc'");
+}
+
 // Identity for an invoice event: Basil/Dahlia subscription metadata first,
 // then the local customer cache, with the Stripe API as the final fallback.
 function stripe_wh_resolve_identity($inv) {
@@ -342,6 +370,7 @@ if ($eventType === 'invoice.paid') {
 		stripe_wh_finish($rowId, 'failed', 500, 'unmapped_customer', 0, (string)(isset($obj['number']) ? $obj['number'] : ''), 'unmapped_customer');
 	}
 	stripe_wh_upsert_customer(isset($obj['customer']) ? $obj['customer'] : '', isset($obj['subscription']) ? $obj['subscription'] : '', $who['konto_id'], $who['kontonr'], $who['order_id'], 'active');
+	stripe_wh_note_paid(isset($obj['customer']) ? $obj['customer'] : '', $obj);
 
 	$invoiceNumber = (string)(isset($obj['number']) ? $obj['number'] : $obj['id']);
 	$paidKr  = number_format(((int)$obj['amount_paid']) / 100, 2, ',', '.');
@@ -364,6 +393,7 @@ if ($eventType === 'invoice.paid') {
 
 if ($eventType === 'invoice.payment_failed') {
 	$who = stripe_wh_resolve_identity($obj);
+	stripe_wh_note_failed(isset($obj['customer']) ? $obj['customer'] : '', $obj);
 	stripeAlertMail('Stripe-betaling FEJLEDE - konto ' . ($who['kontonr'] !== '' ? $who['kontonr'] : '?'),
 		"Stripe-faktura: " . (isset($obj['number']) ? $obj['number'] : $obj['id']) . "\nOrdre: " . $who['order_id'] . "\nKonto: " . $who['kontonr']
 		. "\n\nStripe forsøger selv igen efter sin dunning-plan. Manuel opfølgning hvis det gentager sig.",
