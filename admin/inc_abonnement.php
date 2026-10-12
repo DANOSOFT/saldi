@@ -120,4 +120,5 @@ function ent_tab_render($rid, $ent, $cat) {
 	print "<div><button type=\"submit\" class=\"vr-btn\">+ ".vr_t('Opret aftale','Create term')."</button></div></form></div>";
 	print "</div></section>\n</div>\n";
 }
+}
 ?>
