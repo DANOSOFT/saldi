@@ -91,7 +91,7 @@
 		function paint(st) { slots.forEach((o, i) => { setBar(o.now, st.now[i], st.max); setBar(o.last, st.last[i], st.max); }); }
 		function markBest() {
 			const bi = tgt.now.indexOf(Math.max(...tgt.now)); slots.forEach((o, i) => o.now.setAttribute('class', 'bar ' + (i === bi && tgt.now[bi] > 0 ? 'acc' : 'now')));
-			const o = slots[bi]; if (!o) return; best.textContent = fmtAxis(tgt.now[bi]); best.setAttribute('x', o.cx + 1 + bw / 2); best.setAttribute('y', base - tgt.now[bi] / tgt.max * ph - 7);
+			const o = slots[bi]; if (!o || !(tgt.now[bi] > 0)) { best.classList.remove('show'); return; } best.textContent = fmtAxis(tgt.now[bi]); best.setAttribute('x', o.cx + 1 + bw / 2); best.setAttribute('y', base - tgt.now[bi] / tgt.max * ph - 7);
 		}
 		slots.forEach((o, i) => interactive(o.hit, () => {
 			const a = tgt.now[i], b = tgt.last[i], rows = [{ color: 'var(--s1)', label: nowLabel, value: kr(a) }];

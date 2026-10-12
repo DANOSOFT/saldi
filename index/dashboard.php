@@ -468,4 +468,4 @@ $js = array(
 	'links' => array('openpost' => '../debitor/rapport.php?rapportart=openpost', 'settle' => '../debitor/rapport.php?rapportart=openpost'),
 );
 print "<script>window.SALDI_DASH = " . json_encode($js, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PARTIAL_OUTPUT_ON_ERROR) . ";</script>\n";
-print "<script src='../javascript/dashboard.js?v=2'></script>\n";
+print "<script src='../javascript/dashboard.js?v=3'></script>\n";
