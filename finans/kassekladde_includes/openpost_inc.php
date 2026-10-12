@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/openpost_inc.php --- ver 4.1.1 --- 2025.06.26 ---
+// --- finans/kassekladde_includes/openpost_inc.php --- ver 5.0.0 --- 2026.10.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,13 @@
 // 20230828 PHR Gets Company name from inviince instead of order.
 // 20250509 PHR Fiscal year
 // 20250626 PHR '==' replaved by '='
+// 20261012 CL/SZ SD-730 "Indsæt" posted to kassekladde.php, which has no handler for it, so the line reloaded from the
+//                 database and lost what was typed before "Opslag". It now goes back the way an invoice row's link
+//                 does, with the line's values and the ticked invoice numbers; the ticked sum and the difference are
+//                 recalculated as boxes are ticked ("Beregn" posted to the same missing handler). The group's offset
+//                 account is read with the matched account's own group (it used the last address of the whole list, and
+//                 an empty group failed the query), and "Difference" uses text 2396 (3095 is "Slet ansat"). The row links
+//                 encode Bilagstekst and the invoice number: a "#" or "&" in the text cut the link and blanked the columns.
 
 function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr){
 # ($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr) {
@@ -133,7 +140,7 @@ print "<center>";
 		$kontonr[$x]=$r['kontonr'];
 		$firmanavn[$x]=stripslashes($r['firmanavn']);
 		$art[$x]=$r['art'];
-		$grp=$r['gruppe'];
+		$gruppe[$x]=(int)$r['gruppe'];
 	#	$grpArt=$art[$x]."G"; (20220823)
 	#	$r2 = db_fetch_array(db_select("SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr	= '$grp'",__FILE__ . " linje " . __LINE__));
 	#		$modkonto[$x]=$r2['box5'];
@@ -181,9 +188,12 @@ print "<center>";
 
 				}
 				$grpArt=$art[$y]."G"; #20220823
-				$qtxt = "SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr	= '$grp' and fiscal_year = '$regnaar'";
-				$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$offsetAccount[$x] = $r2['box5'];
+				$offsetAccount[$x] = NULL;
+				if ($gruppe[$y]) {
+					$qtxt = "SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr = '$gruppe[$y]' and fiscal_year = '".(int)$regnaar."'";
+					$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					if ($r2) $offsetAccount[$x] = $r2['box5'];
+				}
 				$x++;
 			}
 		}
@@ -210,9 +220,12 @@ print "<center>";
 					$currency[$x]    = $r['valuta'];
 					$transdate[$x]   = $r['transdate'];
 					$grpArt=$art[$y]."G"; #20220823
-					$qtxt = "SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr	= '$grp' and fiscal_year = '$regnaar'";
-					$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-					$offsetAccount[$x] = $r2['box5'];
+					$offsetAccount[$x] = NULL;
+					if ($gruppe[$y]) {
+						$qtxt = "SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr = '$gruppe[$y]' and fiscal_year = '".(int)$regnaar."'";
+						$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+						if ($r2) $offsetAccount[$x] = $r2['box5'];
+					}
 					$qtxt = "SELECT art FROM adresser WHERE id ='$accountId[$x]'";
 					$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 					$accountType[$x] = $r2['art'];
@@ -235,9 +248,6 @@ print "<center>";
 	}
 	$diff = usdecimal($belob,2);
 	$checkedSum = 0;
-	print "<form name = 'OpenPost' action='kassekladde.php' method='post'>";
-	print "<input type = 'hidden' name = 'fokus' value = '$fokus'>\n";
-	print "<input type = 'hidden' name = 'postId'    value = '$id'>\n";
 	for ($x=0;$x<count($accountId);$x++) {
 		if (!$beskrivelse) {
 #			$beskr=htmlentities($accountName,ENT_QUOTES,$charset);
@@ -250,8 +260,8 @@ print "<center>";
 		if ($openAamount[$x]<0) {
 			($kredit)?$newCredit=$kredit:$newCredit=$offsetAccount[$x];
 			($amount)?$newAmount=dkdecimal($belob):$newAmount=dkdecimal($openAamount[$x]*-1,2);
-			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskr";
-			$lnktxt.= "&d_type=$accountType[$x]&debet=$accountNo[$x]&k_type=$k_type&kredit=$newCredit&faktura=$invoiceNo[$x]";
+			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=".urlencode($beskr);
+			$lnktxt.= "&d_type=$accountType[$x]&debet=$accountNo[$x]&k_type=$k_type&kredit=$newCredit&faktura=".urlencode((string)$invoiceNo[$x]);
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
 			$lnktxt.= "&lobenr=$lobenr&find=$find";
 			$tmp="<a href='$lnktxt'>";
@@ -259,8 +269,8 @@ print "<center>";
 		} else {
 			($amount)?$newAmount=dkdecimal($belob):$newAmount=dkdecimal($openAamount[$x],2);
 			($debet)?$newDebet=$debet:$newDebet=$offsetAccount[$x];
-			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskr";
-			$lnktxt.= "&d_type=$d_type&debet=$newDebet&k_type=$accountType[$x]&kredit=$accountNo[$x]&faktura=$invoiceNo[$x]";
+			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=".urlencode($beskr);
+			$lnktxt.= "&d_type=$d_type&debet=$newDebet&k_type=$accountType[$x]&kredit=$accountNo[$x]&faktura=".urlencode((string)$invoiceNo[$x]);
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
 			$lnktxt.= "&lobenr=$lobenr&find=$find";
 			$tmp="<a href='$lnktxt'>";
@@ -279,28 +289,53 @@ print "<center>";
 				$diff-= $openAamount[$x];
 				$checkedSum+= $openAamount[$x];
 			} else $checked = NULL;
-			print "<td style=\"text-align:center\"><input type = 'checkbox' name = 'alignThis[$x]' $checked></td>";
-			print "<input type = 'hidden' name = 'openPostId[$x]'  value = '$openPostId[$x]'>\n";
-			print "<input type = 'hidden' name = 'opptext[$x]'     value = '$opptext[$x]'>\n";
-			print "<input type = 'hidden' name = 'accountNo[$x]'   value = '$accountNo[$x]'>\n";
-			print "<input type = 'hidden' name = 'accountType[$x]' value = '$accountType[$x]'>\n";
-			print "<input type = 'hidden' name = 'invoiceNo[$x]'   value = '$invoiceNo[$x]'>\n";
-			print "<input type = 'hidden' name = 'openAamount[$x]' value = '$openAamount[$x]'>\n";
-			print "<input type = 'hidden' name = 'currency[$x]'    value = '$currency[$x]'>\n";
+			// The row's own link is what "Indsæt" follows, with the invoice numbers of all ticked rows
+			print "<td style=\"text-align:center\"><input type = 'checkbox' class = 'openPostAlign' $checked";
+			print " data-href = '".htmlspecialchars($lnktxt, ENT_QUOTES)."' data-invoice = '".htmlspecialchars((string)$invoiceNo[$x], ENT_QUOTES)."'";
+			print " data-amount = '".(float)$openAamount[$x]."' onchange = 'openPostRecalc()'></td>";
 		}
 		print "</tr>\n";
 	}
 	if (count($openPostId)) {
-		print "<input type = 'hidden' name = 'insertId' value = '$id'>\n";
-		print "<input type = 'hidden' name = 'kladde_id' value = '$kladde_id'>\n";
 		print "<tr><td colspan = '4'></td><td style='text-align:right'><b>". dkdecimal($oppSum). "</b></td>";
-		print "<td style='text-align:center'>(". dkdecimal($checkedSum,2). ")</td><br>";
-		print "<tr><td colspan = '4'><b>".findtekst('3095|Difference', $sprog_id)."</b></td><td style='text-align:right'><b>". dkdecimal($diff). "</b></td><br>";
-
+		print "<td style='text-align:center'>(<span id = 'openPostChecked'>". dkdecimal($checkedSum,2). "</span>)</td><br>";
+		print "<tr><td colspan = '4'><b>".findtekst('2396|Difference', $sprog_id)."</b></td><td style='text-align:right'><b id = 'openPostDiff'>". dkdecimal($diff). "</b></td><br>";
 		print "<td style='text-align:center'>";
-		if ($diff) print "<input type = 'submit' name = 'calculateOpenPost' value = '".findtekst('3089|Beregn', $sprog_id)."'>";
-		else       print "<input type = 'submit' name = 'updateInvoiceField' value = '".findtekst('1415|Indsæt', $sprog_id)."'>";
+		print "<input type = 'button' id = 'openPostInsert' value = '".findtekst('1415|Indsæt', $sprog_id)."' onclick = 'openPostInsert()'>";
 		print "</td></tr>\n";
+		$lineAmount = (float)usdecimal($belob,2);
+		print "<script>
+		// The ticked sum and the difference to the line's amount; \"Indsæt\" only when they match. A kreditor's open
+		// posts are negative, so the line's amount is compared with the size of the sum.
+		// A line without an amount takes the ticked sum, as an invoice row's link takes the invoice's amount.
+		function openPostTicked() {
+			return Array.prototype.slice.call(document.querySelectorAll('input.openPostAlign')).filter(function (b) { return b.checked; });
+		}
+		function openPostDk(n) {
+			return n.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+		}
+		function openPostRecalc() {
+			var ticked = openPostTicked(), sum = 0;
+			ticked.forEach(function (b) { sum += parseFloat(b.dataset.amount); });
+			var diff = $lineAmount ? $lineAmount - Math.abs(sum) : 0;
+			document.getElementById('openPostChecked').textContent = openPostDk(sum);
+			document.getElementById('openPostDiff').textContent = openPostDk(diff);
+			document.getElementById('openPostInsert').disabled = !ticked.length || Math.abs(diff) >= 0.005 || Math.abs(sum) < 0.005;
+			return sum;
+		}
+		function openPostInsert() {
+			var ticked = openPostTicked(), sum = openPostRecalc();
+			if (!ticked.length || document.getElementById('openPostInsert').disabled) return;
+			// The side (debet or kredit) comes from a ticked row with the sum's sign: an invoice and a credit note
+			// ticked together follow the invoice, whichever is listed first
+			var src = ticked.filter(function (b) { return (parseFloat(b.dataset.amount) < 0) === (sum < 0); })[0] || ticked[0];
+			var url = new URL(src.dataset.href, window.location.href);
+			url.searchParams.set('faktura', ticked.map(function (b) { return b.dataset.invoice; }).join(';'));
+			if (!$lineAmount) url.searchParams.set('belob', openPostDk(Math.abs(sum)));
+			window.location.href = url.href;
+		}
+		openPostRecalc();
+		</script>";
 	}
 	print "</tbody></table></td></tr></tbody></table>";
 	exit;
