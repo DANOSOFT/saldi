@@ -40,6 +40,8 @@
 //                  come from dashboardIncludes/dashData.php. Texts 6920-6929, 6944-6949, 6951-6999.
 // 20261009 Sawaneh Front page on prototype v8.13 (addendum 3): blocks in the user's order (settings dashboard_layout/order), the KPI band, Ubetalte salgsfakturaer (§5.9), Ufakturerede ordrer with the largest order, the suggestions list, 'Ingen omsætning endnu'. Texts 7032-7065.
 // 20261009 Sawaneh Oversigt access keys (front-page addendum 4): dashboard.view gates the page, dashboard.block.* the blocks and the drawer.
+// 20261011 Sawaneh Review: the block order is saved (action=order, cleared by reset); the old Finans-only gate replaced by
+//                  dashboard.view, so Salg/Indkøb roles get the page their keys promise.
 // 20261010 Sawaneh Ufakturerede ordrer: key figures 1 and 3 of addendum 3 §7 (delivered over 14 days ago, ready to invoice now). Texts 7072-7073.
 @session_start();
 $s_id = session_id();
@@ -74,7 +76,7 @@ include ("../includes/online.php");
 include ("../includes/stdFunc/dkDecimal.php");
 include_once("../includes/notifications.php");
 include_once("dashboardIncludes/dashData.php");
-include_once("dashboardIncludes/unpaidInvoices.php");
+include_once(__DIR__ . "/dashboardIncludes/unpaidInvoices.php");
 include_once("../includes/onboarding.php");
 include_once("dashboardIncludes/roleReview.php");
 
@@ -156,8 +158,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($
 			update_settings_value((string) $_POST['key'], 'dashboard_toggles', !empty($_POST['on']) ? 'on' : 'off', 'Dashboard widget (per user)', $brugerId);
 		} elseif ($action === 'hide') {
 			update_settings_value('hide_dash', 'dashboard', !empty($_POST['hidden']) ? 1 : 0, 'Whether the overview is hidden for the user', $brugerId);
+		} elseif ($action === 'order') {
+			$order = json_decode((string) ifset($_POST, 'order', ''), true);
+			$order = is_array($order) ? array_values(array_filter($order, 'is_string')) : array();
+			update_settings_value('order', 'dashboard_layout', json_encode($order), 'Dashboard block order (per user)', $brugerId);
 		} elseif ($action === 'reset') {
-			db_modify("delete from settings where var_grp = 'dashboard_toggles' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
+			db_modify("delete from settings where var_grp in ('dashboard_toggles', 'dashboard_layout') and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
 			update_settings_value('hide_dash', 'dashboard', 0, 'Whether the overview is hidden for the user', $brugerId);
 		} elseif ($action === 'accounts' && $canEditAccounts) {
 			update_settings_value('kontomin', 'dashboard_values', (int) ifset($_POST, 'kontomin', 0), 'Dashboard revenue accounts from');
@@ -224,7 +230,7 @@ $money = function ($v) {
 };
 
 print "<link rel='stylesheet' href='../css/saldi-theme.css?v=7'>";
-if (!check_permissions(array(3,4)) || is_null($regnaar)) {
+if ((function_exists('perm_can') ? !perm_can('dashboard.view') : !check_permissions(array(3,4))) || is_null($regnaar)) {
 	print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
 	if (is_null($regnaar)) {
 		print "<p>".findtekst('2575|Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår', $sprog_id)."</p>";

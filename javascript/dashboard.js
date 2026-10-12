@@ -222,7 +222,7 @@
 	function markSaved() { const m = $('#savedMsg'); if (!m) return; m.classList.add('on'); clearTimeout(savedT); savedT = setTimeout(() => m.classList.remove('on'), 1500); }
 	function setWidget(k, on, animate = true) {
 		const c = cardOf(k); dash[k] = on; if (!c) return; clearTimeout(c._t);
-		if (on) { c.classList.remove('gone', 'leaving'); if (animate && c.classList.contains('in')) { c.classList.remove('arriving'); void c.offsetWidth; c.classList.add('arriving'); } }
+		if (on) { c.classList.remove('gone', 'leaving'); requestAnimationFrame(fitAxisText); if (animate && c.classList.contains('in')) { c.classList.remove('arriving'); void c.offsetWidth; c.classList.add('arriving'); } }
 		else if (animate && !reduced) { c.classList.add('leaving'); c._t = setTimeout(() => { c.classList.add('gone'); c.classList.remove('leaving'); }, 220); }
 		else c.classList.add('gone');
 	}
@@ -310,7 +310,7 @@
 	/* Axis text at a fixed size (addendum 3 §5.1): SVG text scales with the viewBox, so --axis is set per chart to 0.78rem
 	   divided by the chart's scale; redone on resize and when the text-size choice changes. */
 	const fitAxisText = () => { const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-		$$('svg.chart[viewBox]').forEach((svg) => { const W = +svg.getAttribute('viewBox').split(' ')[2], w = svg.clientWidth || W; svg.style.setProperty('--axis', (0.78 * rem / (w / W)).toFixed(2) + 'px'); }); };
+		$$('svg.chart[viewBox]').forEach((svg) => { const W = +svg.getAttribute('viewBox').split(' ')[2], w = svg.getBoundingClientRect().width || W; svg.style.setProperty('--axis', (0.78 * rem / (w / W)).toFixed(2) + 'px'); }); };
 	window.addEventListener('resize', fitAxisText);
 	new MutationObserver(fitAxisText).observe(document.documentElement, { attributes: true, attributeFilter: ['data-size', 'data-theme'] });
 	const cards = $$('.card');

@@ -416,7 +416,7 @@ if (!function_exists('settings_optional_modules')) {
 				return $any("select id from settings where var_grp = 'email_settings' and var_name = 'sender_email' and coalesce(var_value, '') <> ''")
 					|| $any("select id from adresser where art = 'S' and coalesce(email, '') <> ''");
 			case 'G8':
-				return $any("select id from brugere where coalesce(status, '') not in ('f', '0') and id <> (select min(id) from brugere)");
+				return $any("select id from brugere where status is distinct from false and id <> (select min(id) from brugere)");
 		}
 		return true;
 	}

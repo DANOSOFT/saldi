@@ -124,7 +124,7 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 	}
 	// Foreign items with the placeholder rate and items without a due date: converted and dated here, counted into the
 	// groups, merged into the list.
-	$today = strtotime(date('Y-m-d'));
+	$today = new DateTime(date('Y-m-d'));
 	$q = db_select("select i.* from ($items) i where i.placeholder = 1 or (i.forfaldsdate is null and i.net > 0)", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ((int) $r['placeholder'] === 1) {
@@ -138,7 +138,8 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 			continue;
 		}
 		$r['forfaldsdate'] = dash_unpaid_due($r);
-		$r['days_over'] = (int) floor(($today - strtotime($r['forfaldsdate'])) / 86400);
+		$due = new DateTime(substr((string) $r['forfaldsdate'], 0, 10));
+		$r['days_over'] = (int) $due->diff($today)->format('%r%a');
 		$over = (int) $r['days_over'];
 		$g = $over <= 0 ? 'ok' : ($over <= 15 ? 'warn' : 'late');
 		$groups[$g]['sum'] += $r['net'];
@@ -156,7 +157,7 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 		$over = (int) $r['days_over'];
 		$out[] = array(
 			'due' => (string) ($r['forfaldsdate'] ?: $r['transdate']), 'over' => $over, 'g' => $over <= 0 ? 'ok' : ($over <= 15 ? 'warn' : 'late'),
-			'nr' => (string) (strpos((string) $r['item'], 'r') === 0 ? ((int) $r['kladde_id'] > 0 ? $r['refnr'] : '') : $r['item']),
+			'nr' => (string) (strpos((string) $r['item'], 'r') === 0 ? ((int) $r['kladde_id'] > 0 && (int) $r['refnr'] > 0 ? $r['refnr'] : '') : $r['item']),
 			'kunde' => trim((string) $r['firmanavn']) . ((string) $r['item'] !== '' && strpos((string) $r['item'], 'r') === 0 && trim((string) $r['beskrivelse']) !== '' ? ' · ' . trim((string) $r['beskrivelse']) : ''),
 			'amount' => round((float) $r['net'], 2), 'href' => dash_unpaid_link($r),
 		);

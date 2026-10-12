@@ -47,9 +47,6 @@
 .topbar-crumb b { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 5px 7px; color: var(--topbar-txt); font-weight: 600; }
 .topbar-crumb .topbar-from { margin-right: 6px; padding: 4px 9px; border: 1px solid var(--topbar-line); border-radius: 999px; font-size: 0.7812rem; color: var(--topbar-txt); }
 .topbar-crumb .topbar-crumb-tag { margin-left: 2px; padding: 2px 8px; border-radius: 999px; background: var(--topbar-accent-soft); color: var(--topbar-accent); font-size: 0.7188rem; font-weight: 600; }
-.topbar-gear { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin-left: 4px; border-radius: 10px; color: inherit; font-size: 1.125rem; opacity: .75; text-decoration: none; }
-.topbar-gear:hover, .topbar-gear:focus-visible { opacity: 1; background: rgba(0, 0, 0, .06); }
-.topbar-gear[hidden] { display: none; }
 .topbar-item { position: relative; }
 .topbar-mobile { display: none; }
 

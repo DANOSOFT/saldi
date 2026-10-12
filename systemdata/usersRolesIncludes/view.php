@@ -528,7 +528,7 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
           	$own = isset($vm['ownLevels'][$key]) ? $vm['ownLevels'][$key] : 'none';
           	$adminLock = ($role['key'] === 'administrator' && in_array($key, UR_ADMIN_LOCKED, true));
           ?>
-          <div class="ur-prow<?= !empty($def['block']) ? ' ur-prow-block' : '' ?>"<?= $adminLock ? ' title="' . $t('5971|Administrator-rollen beholder altid adgang til brugere og roller') . '"' : '' ?><?= !empty($def['derive_keys']) ? ' data-derive="' . $h(implode(',', $def['derive_keys'])) . '"' : '' ?>>
+          <div class="ur-prow<?= !empty($def['block']) ? ' ur-prow-block' : '' ?>"<?= $key === 'dashboard.view' ? ' data-view-row' : '' ?><?= $adminLock ? ' title="' . $t('5971|Administrator-rollen beholder altid adgang til brugere og roller') . '"' : '' ?><?= !empty($def['derive_keys']) ? ' data-derive="' . $h(implode(',', $def['derive_keys'])) . '"' : '' ?>>
             <b><?= $t($def['label']) ?><?php if ($def['dangerous']) { ?> <i class='bx bx-lock-alt ur-mut'></i><?php } ?><?php if (!empty($def['block'])) { ?> <small class="ur-mut ur-block-hint" hidden><?= $t('7070|Brugeren kan se tallene her, men ikke åbne rapporten bag.') ?></small><small class="ur-mut ur-block-needs" hidden><?= $t('7069|Kræver Se Oversigt') ?></small><?php } ?></b>
             <?php foreach (array('none', 'read', 'write') as $opt) {
             	$locked = ($rank[$opt] > $rank[$own]) || ($adminLock && $opt !== 'write') || ($opt === 'write' && !empty($def['readonly']));
@@ -920,7 +920,7 @@ function ur_view_script(array $vm): void
 	document.querySelectorAll('[data-all-write]').forEach(function (b) {
 		b.addEventListener('click', function () {
 			b.closest('[data-grp]').querySelectorAll('input[type="radio"][value="write"]:not(:disabled)').forEach(function (r) { r.checked = true; });
-			b.closest('[data-grp]').querySelectorAll('.ur-prow-block input[type="radio"][value="read"]:not(:disabled)').forEach(function (r) { r.checked = true; });
+			b.closest('[data-grp]').querySelectorAll('.ur-prow-block input[type="radio"][value="read"]:not(:disabled), .ur-prow[data-view-row] input[type="radio"][value="read"]:not(:disabled)').forEach(function (r) { r.checked = true; });
 			if (window.urDashRows) window.urDashRows();
 		});
 	});
