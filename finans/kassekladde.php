@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -165,6 +165,9 @@
 //                With "Gem og gå til næste/forrige", Ctrl+↓ / Ctrl+↑ save through the normal save and focus the same field in the line below / above (kkNavFocus).
 //                If the save fails validation, focus stays in the field and the normal error is shown.
 //                An unseen invoice-number warning takes the first Ctrl+↓ / Ctrl+↑, as it takes the first Enter; invoiceReuse.js?v= bumped.
+// 20261012 CL/SZ SD-716 A pick on a lookup page (an invoice row, an account) is saved again; only a save had moved staged lines, so the
+//                lookup's GET back lost it. The lookup marks the journal in the session and only the GET coming back from it may
+//                move the lines. A later POST or a completed request clears the mark, so a refused save still never gets through.
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
@@ -907,6 +910,9 @@ if ($_GET) {
 			}
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
+			// Back from a lookup page (an invoice row, Indsæt, an account). The lookup POST staged and checked the other lines and
+			// this line was checked just above, so this GET may move them into the journal like a save.
+			if (!empty($_SESSION['kk_lookup_staged'][$kladde_id])) $kkStaged = true;
 		}
 		if ($fejl)
 			$submit = 'save';
@@ -954,6 +960,8 @@ if ($_POST) {
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 		// This request stages the lines itself, so opdater() below may move them into the journal
 		$kkStaged = true;
+		// A lookup page opened before this request no longer returns to the lines it replaces (see 'lookup' below)
+		unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 		if (isset($_POST['cancelSimulation']) && $_POST['cancelSimulation']) {
 			db_modify("delete from simulering where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 			$qtxt = "update kladdeliste set bogfort = '-', bogforingsdate = NULL, bogfort_af = '' where id = '$kladde_id' and bogfort = 'S'";
@@ -1591,6 +1599,9 @@ if ($_POST) {
 				}
 			}
 			if ($submit === 'lookup') {
+				// Every other line was staged and checked above (a refused one never gets here), and the lookup page comes
+				// back with a GET that must save the chosen value, so that GET may run opdater() (see the GET path).
+				$_SESSION['kk_lookup_staged'][$kladde_id] = true;
 				if (isset($debet[$opslag_id])) {
 					if (strtoupper($debet[$opslag_id]) == "K") $d_type[$opslag_id] = "K";
 					elseif (strtoupper($debet[$opslag_id]) == "D") $d_type[$opslag_id] = "D";
@@ -1751,6 +1762,7 @@ if (!$fejl && $kladde_id) {
 		}
 	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+	unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now
 	if ($submit == 'save' && $kkAfterSave !== '') {
 		$kkPoolLine = 0;
