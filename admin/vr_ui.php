@@ -42,8 +42,9 @@ function vr_menu() {
 	if ($u['is_operator'] || !$u['partner']) {
 		$full = (!isset($revisorregnskab) && !isset($forhandlerregnskab)) || !empty($revisorregnskab) || !empty($forhandlerregnskab);
 		$r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
-		if ($u['is_operator']) $items[] = array(vr_t('Kunder','Customers'), '../admin/admin_panel.php', 'shield', true);
-		$items[] = array(vr_t('Regnskaber','Accounts'), '../admin/vis_regnskaber.php', 'list', true);
+		// 20261012 CL/ASR One "Regnskaber" entry: operators get the administration panel (it replaces vis_regnskaber for them),
+		//                  other legacy admin users keep vis_regnskaber.php.
+		$items[] = $u['is_operator'] ? array(vr_t('Regnskaber','Accounts'), '../admin/admin_panel.php', 'list', true) : array(vr_t('Regnskaber','Accounts'), '../admin/vis_regnskaber.php', 'list', true);
 		$items[] = array(findtekst('339|Opret regnskab', $sprog_id), '../admin/opret.php', 'plus', $u['admin'] == 'on' || $u['oprette'] == 'on');
 		if ($full) {
 			$items[] = array(findtekst('341|Slet regnskab', $sprog_id), '../admin/slet_regnskab.php', 'trash', $u['admin'] == 'on' || $u['slette'] == 'on');
@@ -118,6 +119,18 @@ function vr_mail($to, $subject, $html) {
 	if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
 	$h = "From: Saldi <info@saldi.dk>\r\nReply-To: info@saldi.dk\r\nContent-Type: text/html; charset=UTF-8\r\n";
 	return @mail($to, '=?UTF-8?B?'.base64_encode($subject).'?=', $html, $h);
+}
+// Warning before opening a live ledger from the master install on ssl3 (ported from vis_regnskaber.php, 20260717 CL/NTR):
+// links get onclick="return vrWarnOpen(this)"; details come from master_warning_info.php on click.
+function vr_warn_open_enabled() {
+	$parts = explode('/', trim((string)if_isset($_SERVER, '', 'PHP_SELF'), '/'));
+	return (if_isset($_SERVER, '', 'SERVER_NAME') == 'ssl3.saldi.dk' && if_isset($parts, '', 0) == 'master');
+}
+function vr_warn_attr() { return vr_warn_open_enabled() ? ' onclick="event.stopPropagation();return vrWarnOpen(this);"' : ''; }
+function vr_warn_open_js() {
+	if (!vr_warn_open_enabled()) return;
+	print "<div class=\"vr-scrim\" id=\"vrWarnScrim\" onclick=\"vrWarnClose()\"></div><div class=\"vr-dlg\" id=\"vrDlgWarn\" role=\"dialog\" aria-modal=\"true\"><h3>Du er ved at åbne et live-regnskab fra master</h3><div class=\"vr-ls\" id=\"vrWarnList\"></div><p>Åbner du et live-regnskab fra master, kan du ændre databasestrukturen, så den bliver inkompatibel med live-versionen, eller forhindre at fremtidige opdateringer migrerer korrekt.</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" onclick=\"vrWarnClose()\">Annullér</button><a class=\"vr-btn vr-primary\" id=\"vrWarnGo\" href=\"#\">Åbn alligevel</a></div></div>";
+	print "<script>function vrWarnClose(){document.getElementById('vrWarnScrim').classList.remove('vr-on');document.getElementById('vrDlgWarn').classList.remove('vr-open');}\nfunction vrWarnOpen(link){var id=new URLSearchParams(link.search).get('db_id'),list=document.getElementById('vrWarnList');function row(k,v){var d=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');a.textContent=k;b.textContent=v;d.appendChild(a);d.appendChild(b);return d;}document.getElementById('vrWarnGo').href=link.href;list.innerHTML='';fetch('master_warning_info.php?db_id='+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){if(d.error){alert(d.error);return;}list.appendChild(row('Database',d.db));list.appendChild(row('Databasens version',d.dbver));list.appendChild(row('Masters version',d.master));document.getElementById('vrWarnScrim').classList.add('vr-on');document.getElementById('vrDlgWarn').classList.add('vr-open');}).catch(function(){if(confirm('Kunne ikke hente regnskabets oplysninger. Vil du fortsætte alligevel?'))window.location.href=link.href;});return false;}</script>\n";
 }
 function vr_close() {
 	print "</main></div></div>\n";

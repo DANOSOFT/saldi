@@ -17,6 +17,8 @@ ob_start();
 // ----------------------------------------------------------------------
 // Admin Panel - Comprehensive admin page for managing customer accounts,
 // feature licenses, usage stats, and account settings.
+// 20261012 CL/ASR Merged with "Regnskaber" for operators: one sidebar entry; master@ssl3 open-warning and "Genberegn nu"
+//                  ported from vis_regnskaber.php.
 // 20261011 CL/ASR Purchase proposals with customer approval link (inc_forslag.php, godkend.php) on the Abonnement tab;
 //                  create users in the customer ledger from the Brugere tab (ajax user_action=create).
 // 20261010 CL/ASR Rebuilt as Saldi's own administration panel in the new shell (admin/vr_ui.php): customer list with
@@ -361,7 +363,7 @@ if ($filter_regnskab) {
 	if (!in_array($tab, array('oversigt','abonnement','forbrug','brugere','betalinger','indstillinger','log'), true)) $tab = 'oversigt';
 
 	$lcs = lc_state($rid, $reg); $lead = '<span class="vr-st"><span class="vr-dot '.($lcs['state'] == 'active' ? 'vr-ok' : ($lcs['state'] == 'suspended' ? 'vr-warn' : 'vr-off')).'"></span>'.($lcs['state'] == 'active' ? vr_t('Aktiv','Active') : ($lcs['state'] == 'suspended' ? vr_t('Suspenderet','Suspended') : findtekst('387|Lukket', $sprog_id))).'</span> · '.vr_h($reg['db']).' · ID '.$rid.' · '.($ent['plan'] ? vr_h($ent['plan']['name']) : vr_t('ingen pakke','no plan')).($links ? ' · '.vr_t('Bogholder','Accountant').': '.implode(', ', array_map(fn($l) => vr_h($l['name']), $links)) : ($home ? ' · '.vr_t('partnerens eget regnskab','the partner\'s own account') : ' · '.vr_t('direkte kunde','direct customer')));
-	vr_open(array(array('Administrationspanel', 'admin_panel.php'), array(vr_t('Kunder','Customers'), 'admin_panel.php'), $reg['regnskab']), $reg['regnskab'], $lead, "<a class=\"vr-btn vr-primary\" href=\"aaben_regnskab.php?db_id=$rid\">".vr_t('Åbn regnskab','Open account')."</a>", $home ? strtolower(vr_kind($home['kind'])) : '');
+	vr_open(array(array('Administrationspanel', 'admin_panel.php'), array(vr_t('Regnskaber','Accounts'), 'admin_panel.php'), $reg['regnskab']), $reg['regnskab'], $lead, "<a class=\"vr-btn vr-primary\" href=\"aaben_regnskab.php?db_id=$rid\"".vr_warn_attr().">".vr_t('Åbn regnskab','Open account')."</a>", $home ? strtolower(vr_kind($home['kind'])) : '');
 	vr_note($notes);
 	$tu = fn($t) => "admin_panel.php?regnskab_id=$rid&tab=$t";
 	vr_tabs(array(
@@ -424,6 +426,7 @@ if ($filter_regnskab) {
 		if (!$n) print "<tr><td colspan=\"4\" class=\"vr-mut\">".vr_t('Ingen hændelser endnu','No events yet')."</td></tr>";
 		print "</tbody></table></div></section>\n";
 	}
+	vr_warn_open_js();
 	vr_close();
 	// ---- JS: users (same ajax endpoints as before) and invoice dialog ----
 	print <<<JS
@@ -451,6 +454,13 @@ JS;
 }
 
 // ---------------- customer list ----------------
+if (isset($_POST['vr_recalc'])) { # 20261012 CL/ASR "Genberegn tal" (replaces vis_regnskaber.php?beregn=1 for operators): same measurement as the nightly job
+	@set_time_limit(600); $n = 0; $bad = 0;
+	$q = db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket != 'on' order by id", __FILE__ . " linje " . __LINE__); $ids = array(); while ($r = db_fetch_array($q)) $ids[] = $r;
+	foreach ($ids as $r) { $u = ent_usage_collect($r); if ($u['ok']) { ent_snapshot_store((int)$r['id'], $u); $n++; } else $bad++; }
+	partner_log('ledger.snapshot', null, null, "manuel genberegning: $n regnskaber, $bad uden database");
+	$notes[] = vr_t('Tal genberegnet for','Figures recalculated for')." $n ".vr_t('regnskaber','accounts').($bad ? " · $bad ".vr_t('uden database','without database') : '');
+}
 $sort_col = if_isset($_GET['sort'], 'regnskab');
 $sort_dir = strtolower(if_isset($_GET['dir'], 'asc')) === 'desc' ? 'desc' : 'asc';
 $allowed_sorts = array('id' => 'id', 'regnskab' => 'regnskab', 'db' => 'db', 'brugerantal' => "COALESCE(NULLIF(brugerantal::text,''),'0')::integer", 'posteringer' => "COALESCE(NULLIF(posteringer::text,''),'0')::integer", 'posteret' => "COALESCE(NULLIF(posteret::text,''),'0')::integer", 'sidst' => "COALESCE(NULLIF(sidst::text,''),'0')::integer", 'lukket' => 'lukket');
@@ -467,15 +477,15 @@ $isDirect = fn($r) => empty($links[(int)$r['id']]) && empty($homes[(int)$r['id']
 $nDirect = count(array_filter($rows, $isDirect)); $nB = count(array_filter($partners, fn($p) => $p['kind'] != 'koncern')); $nK = count(array_filter($partners, fn($p) => $p['kind'] == 'koncern'));
 $cntOpen = 0; $cntClosed = 0; $q = db_select("select lukket from regnskab where db != '$sqdb'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) { if ($r['lukket'] == 'on') $cntClosed++; else $cntOpen++; }
 
-vr_open(array(array('Administrationspanel', 'admin_panel.php'), vr_t('Kunder','Customers')), vr_t('Kunder','Customers'), vr_t('Alle regnskaber på installationen med pakke, forbrug og status. Klik på en kunde for kundekortet med abonnement, brugere, betalinger og indstillinger.','All accounts on this installation with plan, usage and status. Click a customer for the card with subscription, users, payments and settings.'),
+vr_open(array(array('Administrationspanel', 'admin_panel.php'), vr_t('Regnskaber','Accounts')), vr_t('Regnskaber','Accounts'), vr_t('Alle regnskaber på installationen med pakke, forbrug og status. Klik på et regnskab for kortet med abonnement, brugere, betalinger og indstillinger, eller på Åbn for at gå ind i det.','All accounts on this installation with plan, usage and status. Click an account for its card, or Open to enter it.'),
 	"<a class=\"vr-tog\" role=\"switch\" aria-checked=\"".($showClosed ? 'true' : 'false')."\" href=\"".vr_h($lurl(array('showClosed' => $showClosed ? '' : 'on')))."\"><span>".vr_t('Vis lukkede','Show closed')."</span><span class=\"vr-sw\"></span></a><a class=\"vr-btn vr-primary\" href=\"opret.php".($ltab == 'bogholdere' ? '?type=bogholder' : ($ltab == 'koncerner' ? '?type=koncern' : ''))."\">+ ".($ltab == 'bogholdere' ? vr_t('Opret bogholder eller revisor','Create bookkeeper or auditor') : ($ltab == 'koncerner' ? vr_t('Opret koncern','Create group') : findtekst('339|Opret regnskab', $sprog_id)))."</a>");
 if (isset($_GET['msg']) && $_GET['msg'] !== '') $notes[] = (string)$_GET['msg'];
 vr_note($notes);
 if ($ltab == 'bogholdere') { $legacy = 0; $q = db_select("select b.id, b.rettigheder from brugere b left join partner_users pu on pu.bruger_id = b.id where pu.bruger_id is null", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) { $t = explode(",", $r['rettigheder'], 4); if (isset($t[3]) && strpos($t[3], '*') === false && array_filter(array_map('intval', explode(",", $t[3])))) $legacy++; }
 	if ($legacy) print "<div class=\"vr-note vr-note-warn\"><form method=\"post\" action=\"partnere.php\" class=\"vr-inline\"><span>$legacy ".vr_t('masterbrugere har en gammel adgangsliste uden bogholder. Importér dem som bogholdere (én pr. bruger).','master users have a legacy access list without a bookkeeper. Import them as bookkeepers (one per user).')."</span><input type=\"hidden\" name=\"vr_action\" value=\"migrate\"><button class=\"vr-btn\" type=\"submit\">".vr_t('Importér','Import')."</button></form></div>"; }
 vr_tabs(array('normale' => array(vr_t('Normale kunder','Direct customers'), $lurl(array('ltab' => 'normale')), $nDirect), 'bogholdere' => array(vr_t('Bogholdere/revisorer','Accountants'), $lurl(array('ltab' => 'bogholdere')), $nB), 'koncerner' => array(vr_t('Koncernregnskaber','Group accounts'), $lurl(array('ltab' => 'koncerner')), $nK), 'alle' => array(vr_t('Alle','All'), $lurl(array('ltab' => 'alle')), count($rows))), $ltab);
-print "<section class=\"vr-sect\"><h2>".vr_t('Kunder','Customers')." <small>$cntOpen ".vr_t('åbne','open')." &middot; $cntClosed ".vr_t('lukkede','closed')."</small></h2><div class=\"vr-card\">";
-print "<div class=\"vr-bar\"><form method=\"get\" action=\"admin_panel.php\" class=\"vr-search\" style=\"display:flex\"><input type=\"hidden\" name=\"ltab\" value=\"".vr_h($ltab)."\"><input type=\"hidden\" name=\"sort\" value=\"".vr_h($sort_col)."\"><input type=\"hidden\" name=\"dir\" value=\"".vr_h($sort_dir)."\"><input type=\"hidden\" name=\"showClosed\" value=\"".vr_h($showClosed)."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" style=\"align-self:center\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" name=\"search\" value=\"".vr_h($search)."\" placeholder=\"".vr_t('Søg på navn, database eller e-mail','Search by name, database or e-mail')."\"></form>".($search !== '' ? "<a class=\"vr-btn vr-quiet\" href=\"".vr_h($lurl(array('search' => '')))."\">".vr_t('Nulstil','Reset')."</a>" : "")."<span class=\"vr-grow\"></span><span class=\"vr-hint\">".vr_t('Klik på en kunde for kundekortet','Click a customer for the card')."</span></div>";
+print "<section class=\"vr-sect\"><h2>".vr_t('Regnskaber','Accounts')." <small>$cntOpen ".vr_t('åbne','open')." &middot; $cntClosed ".vr_t('lukkede','closed')."</small></h2><div class=\"vr-card\">";
+print "<div class=\"vr-bar\"><form method=\"get\" action=\"admin_panel.php\" class=\"vr-search\" style=\"display:flex\"><input type=\"hidden\" name=\"ltab\" value=\"".vr_h($ltab)."\"><input type=\"hidden\" name=\"sort\" value=\"".vr_h($sort_col)."\"><input type=\"hidden\" name=\"dir\" value=\"".vr_h($sort_dir)."\"><input type=\"hidden\" name=\"showClosed\" value=\"".vr_h($showClosed)."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" style=\"align-self:center\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" name=\"search\" value=\"".vr_h($search)."\" placeholder=\"".vr_t('Søg på navn, database eller e-mail','Search by name, database or e-mail')."\"></form>".($search !== '' ? "<a class=\"vr-btn vr-quiet\" href=\"".vr_h($lurl(array('search' => '')))."\">".vr_t('Nulstil','Reset')."</a>" : "")."<span class=\"vr-grow\"></span><span class=\"vr-hint\">".vr_t('Klik på et regnskab for kortet','Click an account for its card')."</span></div>";
 print "<table class=\"vr-t\"><thead><tr>".ap_th('id', 'Id', 'vr-r vr-id').ap_th('regnskab', findtekst('2682|Regnskab', $sprog_id))."<th>".vr_t('Pakke','Plan')."</th><th>".vr_t('Tilhører','Belongs to')."</th>".ap_th('brugerantal', findtekst('777|Brugere', $sprog_id), 'vr-r').ap_th('posteret', findtekst('1910|Posteringer', $sprog_id), 'vr-r').ap_th('sidst', vr_t('Sidst aktiv','Last active'), 'vr-r').ap_th('lukket', vr_t('Status','Status'))."<th></th></tr></thead><tbody>";
 $row = function($r, $indent = false) use ($links, $homes, $plans, $sprog_id) {
 	$id = (int)$r['id']; $closed = ($r['lukket'] == 'on'); $pct = $r['posteringer'] > 0 ? min(100, (int)round($r['posteret'] / $r['posteringer'] * 100)) : 0; $home = isset($homes[$id]) ? $homes[$id] : null; $lk = isset($links[$id]) ? $links[$id] : array();
@@ -485,7 +495,7 @@ $row = function($r, $indent = false) use ($links, $homes, $plans, $sprog_id) {
 	print "<td class=\"vr-mut\">".($lk ? vr_h($lk[0]['name']).(count($lk) > 1 ? "<span class=\"vr-plus\">+".(count($lk)-1)."</span>" : "") : ($home ? '<span class="vr-mut2">'.vr_t('eget regnskab','own account').'</span>' : '<span class="vr-mut2">'.vr_t('direkte kunde','direct customer').'</span>'))."</td>";
 	print "<td class=\"vr-r vr-num\">".vr_num($r['brugerantal'])."</td><td class=\"vr-r\"><span class=\"vr-cap\"><span class=\"vr-num\">".vr_num($r['posteret'])."</span><span class=\"vr-mut2\">/ ".vr_num($r['posteringer'])."</span><span class=\"vr-b\"><i".($pct >= 90 ? " class=\"vr-hi\"" : "")." style=\"width:$pct%\"></i></span></span></td>";
 	print "<td class=\"vr-r vr-mut\">".vr_rel($r['sidst'])."</td><td><span class=\"vr-st\"><span class=\"vr-dot ".($closed ? 'vr-off' : 'vr-ok')."\"></span>".($closed ? findtekst('387|Lukket', $sprog_id) : vr_t('Åbent','Open'))."</span></td>";
-	print "<td class=\"vr-r\"><a class=\"vr-link\" href=\"admin_panel.php?regnskab_id=$id\" onclick=\"event.stopPropagation()\">".vr_t('Administrer','Manage')."</a> · <a class=\"vr-link\" href=\"aaben_regnskab.php?db_id=$id\" onclick=\"event.stopPropagation()\">".vr_t('Åbn','Open')."</a></td></tr>\n";
+	print "<td class=\"vr-r\"><a class=\"vr-link\" href=\"admin_panel.php?regnskab_id=$id\" onclick=\"event.stopPropagation()\">".vr_t('Administrer','Manage')."</a> · <a class=\"vr-link\" href=\"aaben_regnskab.php?db_id=$id\"".(vr_warn_open_enabled() ? vr_warn_attr() : " onclick=\"event.stopPropagation()\"").">".vr_t('Åbn','Open')."</a></td></tr>\n";
 };
 $byId = array(); foreach ($rows as $r) $byId[(int)$r['id']] = $r; $shown = 0;
 if ($ltab == 'bogholdere' || $ltab == 'koncerner') {
@@ -498,8 +508,9 @@ if ($ltab == 'bogholdere' || $ltab == 'koncerner') {
 		if (!$members) print "<tr><td colspan=\"9\" class=\"vr-mut2 vr-in\">".vr_t('Ingen regnskaber tilknyttet endnu','No accounts linked yet')."</td></tr>";
 	}
 } else { foreach ($rows as $r) { if ($ltab == 'normale' && !$isDirect($r)) continue; $row($r); $shown++; } }
-if (!$shown) print "<tr><td colspan=\"9\" class=\"vr-mut\" style=\"padding:24px 20px\">".vr_t('Ingen kunder matcher','No customers match')."</td></tr>";
-print "</tbody></table><div class=\"vr-foot\"><span>$shown ".vr_t('kunder vist','customers shown')." &middot; ".vr_t('posteringer er fra sidste genberegning','entries are from the last recalculation')."</span></div></div></section>\n";
+if (!$shown) print "<tr><td colspan=\"9\" class=\"vr-mut\" style=\"padding:24px 20px\">".vr_t('Ingen regnskaber matcher','No accounts match')."</td></tr>";
+print "</tbody></table><div class=\"vr-foot\"><span>$shown ".vr_t('regnskaber vist','accounts shown')." &middot; ".vr_t('posteringer og sidst aktiv opdateres hver nat kl. 02','entries and last activity refresh nightly at 02:00')."</span><span class=\"vr-grow\"></span><form method=\"post\" onsubmit=\"return confirm('".vr_t('Genberegn posteringer og sidst aktiv for alle åbne regnskaber nu? Det kan tage et minut.','Recalculate entries and last activity for all open accounts now? This may take a minute.')."')\"><button type=\"submit\" name=\"vr_recalc\" value=\"1\" class=\"vr-btn vr-quiet\">".vr_t('Genberegn nu','Recalculate now')."</button></form></div></div></section>\n";
+vr_warn_open_js();
 vr_close();
 print "</body></html>";
 ?>
