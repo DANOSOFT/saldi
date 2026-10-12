@@ -163,8 +163,9 @@
 // 20261012 CL/SZ SD-716 A pick on a lookup page (an invoice row, an account) is saved again; only a save had moved staged lines, so the
 //                lookup's GET back lost it. The lookup marks the journal in the session and only the GET coming back from it may
 //                move the lines. A later POST or a completed request clears the mark, so a refused save still never gets through.
-// 20261012 CL/SZ SD-716 The paper-clip on a journal that was never saved saves it first even with nothing typed; it opened the pool
+// 20261012 CL/SZ SD-730 The paper-clip on a journal that was never saved saves it first even with nothing typed; it opened the pool
 //                with kladde_id=0, where "Indsæt valgte" inserted nothing and came back to an empty journal.
+//                (Reported under SD-730; the fix is here because the save-first clip is SD-716's.)
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
