@@ -240,3 +240,6 @@ html.vr-collapsed .vr-side hr{margin:10px 6px}
   html.vr-side-open .vr-side-scrim{display:block;position:fixed;inset:0;z-index:59;background:rgba(11,26,58,.5)}
 }
 @media (prefers-reduced-motion:reduce){.vr-app,.vr-side,.vr-collapse{transition:none}}
+
+/* hidden must win over display rules on .vr-form/label (20261012) */
+.vr-app [hidden]{display:none!important}
