@@ -243,3 +243,15 @@ html.vr-collapsed .vr-side hr{margin:10px 6px}
 
 /* hidden must win over display rules on .vr-form/label (20261012) */
 .vr-app [hidden]{display:none!important}
+
+/* subscription tab layout (20261012) */
+.vr-grid2>.vr-sect+.vr-sect{margin-top:0}
+.vr-fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media (max-width:700px){.vr-fgrid{grid-template-columns:1fr}}
+.vr-fgrid label{min-width:0} .vr-fgrid .vr-sel,.vr-fgrid .vr-inp{width:100%}
+.vr-form .vr-sel,.vr-form .vr-inp{width:100%;box-sizing:border-box}
+.vr-hint-line{font-size:12.5px;color:var(--text-3);margin:-4px 0 0}
+.vr-planhead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:18px 20px 14px;border-bottom:1px solid var(--grid)}
+.vr-planname{font-size:22px;font-weight:600;letter-spacing:-.01em}
+.vr-planprice{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap} .vr-planprice small{font-weight:400;color:var(--text-3);font-size:12px}
+div.vr-stat:hover{background:transparent}
+.vr-mods .vr-frow{grid-template-columns:minmax(0,1fr) 150px 110px}

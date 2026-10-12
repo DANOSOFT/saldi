@@ -394,8 +394,9 @@ if ($filter_regnskab) {
 		else print "<div class=\"vr-empty\"><b>".vr_t('Ingen bogholder','No accountant')."</b><span>".($home ? vr_t('Regnskabet er partnerens eget.','This is the partner\'s own account.') : vr_t('Regnskabet er en direkte kunde.','The account is a direct customer.'))."</span></div>";
 		print "<div class=\"vr-foot\"><form method=\"post\" class=\"vr-inline\"><input type=\"hidden\" name=\"vr_action\" value=\"link\"><select name=\"partner_id\" class=\"vr-sel\" required><option value=\"\">".vr_t('Vælg bogholder eller koncern…','Choose accountant or group…')."</option>"; foreach (partner_all() as $pp) print "<option value=\"".(int)$pp['id']."\">".vr_h($pp['name'])." · ".vr_h(vr_kind($pp['kind']))."</option>"; print "</select><select name=\"access\" class=\"vr-sel\"><option value=\"full\">".vr_t('Fuld adgang','Full access')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option><option value=\"owner\">".vr_t('Ejer (koncern)','Owner (group)')."</option></select><button type=\"submit\" class=\"vr-btn\">+ ".vr_t('Tilknyt','Link')."</button></form></div></div></section>\n</div>\n";
 	} elseif ($tab == 'abonnement') {
-		fs_render($rid, $ent, $cat, $vr_to0);
 		ent_tab_render($rid, $ent, $cat);
+		print "<div style=\"height:22px\"></div>";
+		fs_render($rid, $ent, $cat, $vr_to0);
 	} elseif ($tab == 'forbrug') {
 		$usage = ent_usage_collect($reg); if ($usage['ok']) ent_snapshot_store($rid, $usage);
 		ent_forbrug_render($rid, $reg, $ent, $cat, $usage);
