@@ -41,7 +41,7 @@ function lc_apply_due($rid = null) {
 	$rows = array(); while ($r = db_fetch_array($q)) $rows[] = $r;
 	foreach ($rows as $r) { lc_apply_row($r); $n++; }
 	// legacy: regnskab.lukkes date reached without a lifecycle row (set in the old panel)
-	$q = db_select("select id, lukkes from regnskab where lukket != 'on' and lukkes is not null and lukkes <> '2099-12-31' and lukkes <= current_date".($rid ? " and id = '".(int)$rid."'" : ""), __FILE__ . " linje " . __LINE__);
+	$q = db_select("select id, lukkes from regnskab where coalesce(lukket,'') != 'on' and lukkes is not null and lukkes <> '2099-12-31' and lukkes <= current_date".($rid ? " and id = '".(int)$rid."'" : ""), __FILE__ . " linje " . __LINE__);
 	$rows = array(); while ($r = db_fetch_array($q)) $rows[] = $r;
 	foreach ($rows as $r) { db_modify("update regnskab set lukket = 'on' where id = '".(int)$r['id']."'", __FILE__ . " linje " . __LINE__); db_modify("delete from online where db = (select db from regnskab where id = '".(int)$r['id']."')", __FILE__ . " linje " . __LINE__); partner_log('ledger.auto_closed', (int)$r['id'], null, 'lukkes '.$r['lukkes']); $n++; }
 	return $n;
@@ -59,7 +59,7 @@ function lc_schedule($rid, $state, $date, $reason) {
 }
 function lc_cancel_pending($rid) {
 	db_modify("update regnskab_lifecycle set cancelled_at = now() where regnskab_id = '".(int)$rid."' and applied_at is null and cancelled_at is null", __FILE__ . " linje " . __LINE__);
-	db_modify("update regnskab set lukkes = NULL where id = '".(int)$rid."' and lukket != 'on'", __FILE__ . " linje " . __LINE__);
+	db_modify("update regnskab set lukkes = NULL where id = '".(int)$rid."' and coalesce(lukket,'') != 'on'", __FILE__ . " linje " . __LINE__);
 	partner_log('ledger.schedule_cancelled', (int)$rid, null, '');
 }
 // Subscription cancellation at a date: entitlement status 'canceled' with period end, and the ledger closes on that date.

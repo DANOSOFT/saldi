@@ -219,7 +219,7 @@ if ($_POST){
 		transaktion('begin');
 		$brugerantal=$brugerantal*1;
 		$posteringer=$posteringer*1;
-		db_modify("insert into regnskab (regnskab,dbhost,dbuser,brugerantal,posteringer,email,bilag) values ('$regnskab','$sqhost','$squser','$brugerantal','$posteringer','$email','0')",__FILE__ . " linje " . __LINE__);
+		db_modify("insert into regnskab (regnskab,dbhost,dbuser,brugerantal,posteringer,email,bilag,lukket) values ('$regnskab','$sqhost','$squser','$brugerantal','$posteringer','$email','0','')",__FILE__ . " linje " . __LINE__);
 		$row=db_fetch_array(db_select("select id from regnskab where regnskab='$regnskab' and dbhost='$sqhost' and dbuser='$squser'",__FILE__ . " linje " . __LINE__));
 		$db_id=$row['id'];
 		$db=$sqdb."_".$row['id'];
@@ -236,7 +236,9 @@ if ($_POST){
 			}
 		}
 		transaktion('commit');
-		// 20261011 CL/ASR plan/trial and partner link chosen on the form (entitlements spec §6.5, panels spec D6)
+		// 20261012 CL/ASR lukket='' on insert (it was NULL, and "lukket != 'on'" then hid new accounts from lists and the
+//                  nightly job); the operator is sent to the new account's card with a note; trial registered (inc_proeve.php).
+// 20261011 CL/ASR plan/trial and partner link chosen on the form (entitlements spec §6.5, panels spec D6)
 		$vr_trial = (string)if_isset($_POST, '', 'trial'); $vr_partner = (int)if_isset($_POST, 0, 'partner_id');
 		if (in_array($vr_trial, array('professionel','business'), true)) ent_start_trial((int)$db_id, $vr_trial, 30);
 		elseif ($vr_trial === 'finans') ent_write_plan((int)$db_id, 'finans', date('Y-m-d'), 'manual');
@@ -945,6 +947,12 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 		db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13,box14) values ('Div_valg (Rykker)','4','DIV','','','','','','','','','1','','','','','')",__FILE__ . " linje " . __LINE__); //since table indexes starts from one, manual insertions gives id =1
 	}
 	transaktion("commit");
+	if (!$fra_formular) { # 20261012 CL/ASR operator: straight to the new account's card with a note, instead of an alert and the overview
+		$vr_db = $db; include("../includes/connect.php");
+		$vr_r = db_fetch_array(db_select("select id, regnskab from regnskab where db = '".db_escape_string($vr_db)."'", __FILE__ . " linje " . __LINE__));
+		$vr_url = $vr_r ? 'admin_panel.php?'.http_build_query(array('regnskab_id' => (int)$vr_r['id'], 'msg' => array(vr_t('Regnskabet','Account').' '.$vr_r['regnskab'].' '.vr_t('er oprettet og aktiveret','was created and activated')))) : '../index/admin_menu.php';
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=".vr_h($vr_url)."\">"; return;
+	}
 	print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab er oprettet og aktiveret')\">";
 	if ($fra_formular) {
 		$regnskab=urlencode($regnskab);

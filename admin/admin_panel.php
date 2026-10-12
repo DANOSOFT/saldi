@@ -17,6 +17,7 @@ ob_start();
 // ----------------------------------------------------------------------
 // Admin Panel - Comprehensive admin page for managing customer accounts,
 // feature licenses, usage stats, and account settings.
+// 20261012 CL/ASR Post/Redirect/Get after every action (vr_prg): the card and lists are always drawn from fresh data.
 // 20261012 CL/ASR Tabs "Nye kunder" (trial, days left) and "Overskredet prøveperiode" (follow-up), inc_proeve.php.
 // 20261012 CL/ASR Specialtilpasninger (inc_special.php): Abonnement tab, Oversigt note, header link, list marker.
 // 20261012 CL/ASR Tab "Egne installationer" (self-hosted customers with a support agreement), inc_installationer.php.
@@ -211,9 +212,11 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
     
     if ($user_action === 'list') {
         $users = [];
-        $q = db_select("SELECT id, brugernavn, rettigheder, ansat_id, ip_address, tlf, email, twofactor FROM brugere ORDER BY brugernavn", __FILE__ . " linje " . __LINE__);
+        $hasRev = (bool)db_fetch_array(db_select("select 1 from information_schema.columns where table_name = 'brugere' and column_name = 'revisor'", __FILE__ . " linje " . __LINE__));
+        $q = db_select("SELECT id, brugernavn, rettigheder, ansat_id, ip_address, tlf, email, twofactor".($hasRev ? ", revisor" : "")." FROM brugere ORDER BY brugernavn", __FILE__ . " linje " . __LINE__);
         while ($r = db_fetch_array($q)) {
             $r['twofactor'] = ($r['twofactor'] === 't' || $r['twofactor'] === true || $r['twofactor'] === '1') ? true : false;
+            $r['revisor'] = $hasRev && ($r['revisor'] === 't' || $r['revisor'] === true); # counted apart, as on the tab
             $users[] = $r;
         }
         // Reconnect master
@@ -319,11 +322,12 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
 // 20261012 CL/ASR self-hosted installation card
 $inst_id = (int)if_isset($_GET, 0, 'inst_id');
 if ($inst_id || (isset($_POST['inst_action']) && $_POST['inst_action'] == 'create')) {
-	inst_tables_ensure(); $inst_notes = array(); if ($message) $inst_notes[] = $message;
+	inst_tables_ensure(); $inst_notes = vr_flash(); if ($message) $inst_notes[] = $message;
 	inst_actions($inst_notes, $inst_id);
 	if ($inst_id) sp_actions(0, $inst_id, $inst_notes);
 	$inst = $inst_id ? inst_get($inst_id) : null;
-	if (!$inst) { if (!$inst_id) { header('Location: admin_panel.php?ltab=egne&msg='.rawurlencode(implode(' ', $inst_notes))); exit; } vr_open(array(array('Administrationspanel', 'admin_panel.php'), vr_t('Installation','Installation')), vr_t('Installationen findes ikke','Installation not found'), ''); vr_close(); print "</body></html>"; exit; }
+	vr_prg($inst_notes, $inst ? null : 'admin_panel.php?ltab=egne');
+	if (!$inst) { vr_open(array(array('Administrationspanel', 'admin_panel.php'), vr_t('Installation','Installation')), vr_t('Installationen findes ikke','Installation not found'), ''); vr_close(); print "</body></html>"; exit; }
 	$itab = if_isset($_GET, 'oversigt', 'tab'); if (!in_array($itab, array('oversigt','betalinger','log'), true)) $itab = 'oversigt';
 	inst_card_render($inst, $itab, $inst_notes); exit;
 }
@@ -331,7 +335,7 @@ $tab    = if_isset($_GET, 'oversigt', 'tab');
 $ltab   = if_isset($_GET, 'normale', 'ltab');
 $search = trim((string)if_isset($_GET, '', 'search'));
 $showClosed = if_isset($_GET, '', 'showClosed');
-$notes = array(); if ($message) $notes[] = $message;
+$notes = vr_flash(); if ($message) $notes[] = $message;
 
 if ($filter_regnskab) {
 	// ---------------- customer card ----------------
@@ -351,7 +355,6 @@ if ($filter_regnskab) {
 	$vr_cfg0 = bill_get($rid); $vr_to0 = $vr_cfg0['payer_email'] ?: $reg['email'];
 	fs_actions($rid, $notes, $vr_to0);
 	sp_actions($rid, 0, $notes);
-	lc_apply_due($rid); $reg = db_fetch_array(db_select("SELECT * FROM regnskab WHERE id = $rid", __FILE__ . " linje " . __LINE__));
 	// partner links (operator)
 	if (isset($_POST['vr_action'])) {
 		if ($_POST['vr_action'] == 'link') {
@@ -364,9 +367,11 @@ if ($filter_regnskab) {
 		} elseif ($_POST['vr_action'] == 'unlink') {
 			$lid = (int)if_isset($_POST, 0, 'link_id');
 			$l = db_fetch_array(db_select("select rp.*, p.name from regnskab_partners rp join partners p on p.id = rp.partner_id where rp.id = '$lid' and rp.regnskab_id = '$rid' and rp.until is null", __FILE__ . " linje " . __LINE__));
-			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', $rid, (int)$l['partner_id'], $l['name']); $notes[] = vr_h($l['name']).' '.vr_t('har ikke længere adgang','no longer has access'); }
+			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', $rid, (int)$l['partner_id'], $l['name']); $notes[] = $l['name'].' '.vr_t('har ikke længere adgang','no longer has access'); }
 		}
 	}
+	vr_prg($notes); # POST -> redirect, so the card below is always drawn from fresh data
+	lc_apply_due($rid); $reg = db_fetch_array(db_select("SELECT * FROM regnskab WHERE id = $rid", __FILE__ . " linje " . __LINE__));
 	// live data from the customer database
 	$live = array('ok' => false, 'cvr' => '', 'firma' => '', 'users' => 0, 'trans12' => null, 'last' => null, 'items' => null, 'online' => 0);
 	$time_limit = time() - 1200; $qr = db_fetch_array(db_select("SELECT COUNT(DISTINCT session_id) as cnt FROM online WHERE db = '".db_escape_string($reg['db'])."' AND logtime >= '$time_limit'", __FILE__ . " linje " . __LINE__)); $live['online'] = (int)$qr['cnt'];
@@ -388,7 +393,7 @@ if ($filter_regnskab) {
 	if ($trl = tr_card_lead($rid, $reg)) $lead .= ' · '.$trl;
 	$spa = sp_list($rid, 0, true); if ($spa) { $spi = count(array_filter($spa, fn($x) => $x['important'] === 't' || $x['important'] === true)); $lead .= ' · <a href="admin_panel.php?regnskab_id='.$rid.'&tab=abonnement#special" style="color:'.($spi ? 'var(--warn-ink)' : 'inherit').'">'.count($spa).' '.(count($spa) == 1 ? vr_t('specialtilpasning','customization') : vr_t('specialtilpasninger','customizations')).'</a>'; } # 20261012 CL/ASR
 	vr_open(array(array('Administrationspanel', 'admin_panel.php'), array(vr_t('Regnskaber','Accounts'), 'admin_panel.php'), $reg['regnskab']), $reg['regnskab'], $lead, "<a class=\"vr-btn vr-primary\" href=\"aaben_regnskab.php?db_id=$rid\"".vr_warn_attr().">".vr_t('Åbn regnskab','Open account')."</a>", $home ? strtolower(vr_kind($home['kind'])) : '');
-	vr_note($notes);
+	vr_note($notes, vr_flash_kind());
 	$tu = fn($t) => "admin_panel.php?regnskab_id=$rid&tab=$t";
 	vr_tabs(array(
 		'oversigt' => array(vr_t('Oversigt','Overview'), $tu('oversigt'), null),
@@ -427,7 +432,7 @@ if ($filter_regnskab) {
 		$usage = ent_usage_collect($reg); if ($usage['ok']) ent_snapshot_store($rid, $usage);
 		ent_forbrug_render($rid, $reg, $ent, $cat, $usage);
 	} elseif ($tab == 'brugere') {
-		print "<section class=\"vr-sect\"><h2>".vr_t('Kundens brugere','Customer users')." <small>".($live['ok'] ? $live['users'].' '.vr_t('aktive','active') : '')."</small></h2><div class=\"vr-card\"><div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"uq\" placeholder=\"".vr_t('Søg bruger','Search user')."\" oninput=\"filterUsers(this.value)\"></label><span class=\"vr-hint\">".vr_t('Klik på en bruger for at rette adgangskode, e-mail, telefon, IP og 2FA','Click a user to edit password, e-mail, phone, IP and 2FA')."</span></div><div id=\"usersBox\"><div class=\"vr-empty\"><span>".vr_t('Henter brugere…','Loading users…')."</span></div></div><div class=\"vr-foot\" style=\"display:block\"><b style=\"font-weight:600;display:block;margin-bottom:8px\">".vr_t('Opret bruger i regnskabet','Create user in the account')."</b><div class=\"vr-inline\"><input class=\"vr-inp\" id=\"nuName\" placeholder=\"".vr_t('Brugernavn','Username')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuPw\" type=\"password\" placeholder=\"".vr_t('Adgangskode (min. 6)','Password (min. 6)')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuMail\" type=\"email\" placeholder=\"E-mail\" style=\"width:210px\"><select class=\"vr-sel\" id=\"nuRole\"><option value=\"all\">".vr_t('Alle rettigheder','All rights')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option></select><button type=\"button\" class=\"vr-btn vr-primary\" onclick=\"createUser()\">".vr_t('Opret','Create')."</button><span class=\"vr-mut2\" style=\"font-size:12px\">".vr_t('Roller pr. modul kommer med roller etape 2.','Per-module roles come with roles stage 2.')."</span></div></div></div></section>\n";
+		print "<section class=\"vr-sect\"><h2>".vr_t('Kundens brugere','Customer users')." <small id=\"usersCnt\">".($live['ok'] ? $live['users'].' '.vr_t('aktive','active') : '')."</small></h2><div id=\"usersFlash\"></div><div class=\"vr-card\"><div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"uq\" placeholder=\"".vr_t('Søg bruger','Search user')."\" oninput=\"filterUsers(this.value)\"></label><span class=\"vr-hint\">".vr_t('Klik på en bruger for at rette adgangskode, e-mail, telefon, IP og 2FA','Click a user to edit password, e-mail, phone, IP and 2FA')."</span></div><div id=\"usersBox\"><div class=\"vr-empty\"><span>".vr_t('Henter brugere…','Loading users…')."</span></div></div><div class=\"vr-foot\" style=\"display:block\"><b style=\"font-weight:600;display:block;margin-bottom:8px\">".vr_t('Opret bruger i regnskabet','Create user in the account')."</b><div class=\"vr-inline\"><input class=\"vr-inp\" id=\"nuName\" placeholder=\"".vr_t('Brugernavn','Username')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuPw\" type=\"password\" placeholder=\"".vr_t('Adgangskode (min. 6)','Password (min. 6)')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuMail\" type=\"email\" placeholder=\"E-mail\" style=\"width:210px\"><select class=\"vr-sel\" id=\"nuRole\"><option value=\"all\">".vr_t('Alle rettigheder','All rights')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option></select><button type=\"button\" class=\"vr-btn vr-primary\" onclick=\"createUser()\">".vr_t('Opret','Create')."</button><span class=\"vr-mut2\" style=\"font-size:12px\">".vr_t('Roller pr. modul kommer med roller etape 2.','Per-module roles come with roles stage 2.')."</span></div></div></div></section>\n";
 	} elseif ($tab == 'betalinger') {
 		$cfg = bill_get($rid);
 		$search = $cfg['billing_kontonr'] ?: ($live['cvr'] ? $live['cvr'] : $reg['regnskab']);
@@ -461,15 +466,16 @@ if ($filter_regnskab) {
 const REGNSKAB_ID = $rid;
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 let USERS=[];
-function loadUsers(){const box=document.getElementById('usersBox');if(!box)return;fetch('admin_panel.php?ajax_users=1&regnskab_id='+REGNSKAB_ID+'&user_action=list').then(r=>r.json()).then(d=>{if(d.error){box.innerHTML='<div class="vr-empty"><b>'+esc(d.error)+'</b></div>';return;}USERS=d.users||[];renderUsers(USERS);}).catch(()=>{box.innerHTML='<div class="vr-empty"><b>Kunne ikke hente brugere</b></div>';});}
-function renderUsers(list){const box=document.getElementById('usersBox');if(!list.length){box.innerHTML='<div class="vr-empty"><b>Ingen brugere</b></div>';return;}let h='<table class="vr-t"><thead><tr><th>Brugernavn</th><th>E-mail</th><th>Telefon</th><th>2FA</th><th>IP</th><th></th></tr></thead><tbody>';list.forEach(u=>{h+='<tr id="ur'+u.id+'" onclick="toggleUser('+u.id+')" style="cursor:pointer"><td class="vr-nm"><a>'+esc(u.brugernavn)+'</a></td><td class="vr-mut">'+esc(u.email||'–')+'</td><td class="vr-mut">'+esc(u.tlf||'–')+'</td><td>'+(u.twofactor?'<span class="vr-st"><span class="vr-dot vr-ok"></span>Ja</span>':'<span class="vr-mut2">–</span>')+'</td><td class="vr-mut">'+esc(u.ip_address||'–')+'</td><td class="vr-r"><span class="vr-link">Ret</span></td></tr>';h+='<tr id="ue'+u.id+'" hidden><td colspan="6" style="background:var(--surface-2)"><div class="vr-inline" style="padding:6px 0 10px;gap:10px"><input class="vr-inp" type="password" id="pw'+u.id+'" placeholder="Ny adgangskode (tom = uændret)" style="width:220px"><input class="vr-inp" id="em'+u.id+'" value="'+esc(u.email||'')+'" placeholder="E-mail (2FA)" style="width:220px"><input class="vr-inp" id="tl'+u.id+'" value="'+esc(u.tlf||'')+'" placeholder="Telefon (2FA)" style="width:150px"><input class="vr-inp" id="ip'+u.id+'" value="'+esc(u.ip_address||'')+'" placeholder="Tilladte IP-adresser" style="width:200px"><label class="vr-chk" style="display:inline-flex;gap:6px;font-size:13px"><input type="checkbox" id="tf'+u.id+'" '+(u.twofactor?'checked':'')+'> 2FA</label><button type="button" class="vr-btn vr-primary" onclick="event.stopPropagation();saveUser('+u.id+')">Gem</button><button type="button" class="vr-btn vr-quiet" onclick="event.stopPropagation();clearDT('+u.id+',\\''+esc(u.brugernavn).replace(/'/g,"\\\\'")+'\\')">Nulstil tabeller</button><button type="button" class="vr-btn vr-danger" onclick="event.stopPropagation();delUser('+u.id+',\\''+esc(u.brugernavn).replace(/'/g,"\\\\'")+'\\')">Slet bruger</button></div></td></tr>';});box.innerHTML=h+'</tbody></table>';}
+function loadUsers(){const box=document.getElementById('usersBox');if(!box)return;fetch('admin_panel.php?ajax_users=1&regnskab_id='+REGNSKAB_ID+'&user_action=list').then(r=>r.json()).then(d=>{if(d.error){box.innerHTML='<div class="vr-empty"><b>'+esc(d.error)+'</b></div>';return;}USERS=d.users||[];renderUsers(USERS);var n=USERS.filter(u=>!u.revisor).length,c=document.getElementById('usersCnt');if(c)c.textContent=n+' aktive';var t=document.querySelector('.vr-tab[aria-selected="true"] .vr-cnt');if(t)t.textContent=n;}).catch(()=>{box.innerHTML='<div class="vr-empty"><b>Kunne ikke hente brugere</b></div>';});}
+function renderUsers(list){const box=document.getElementById('usersBox');if(!list.length){box.innerHTML='<div class="vr-empty"><b>Ingen brugere</b></div>';return;}let h='<table class="vr-t"><thead><tr><th>Brugernavn</th><th>E-mail</th><th>Telefon</th><th>2FA</th><th>IP</th><th></th></tr></thead><tbody>';list.forEach(u=>{h+='<tr id="ur'+u.id+'" onclick="toggleUser('+u.id+')" style="cursor:pointer"><td class="vr-nm"><a>'+esc(u.brugernavn)+'</a>'+(u.revisor?' <span class="vr-pill">revisor</span>':'')+'</td><td class="vr-mut">'+esc(u.email||'–')+'</td><td class="vr-mut">'+esc(u.tlf||'–')+'</td><td>'+(u.twofactor?'<span class="vr-st"><span class="vr-dot vr-ok"></span>Ja</span>':'<span class="vr-mut2">–</span>')+'</td><td class="vr-mut">'+esc(u.ip_address||'–')+'</td><td class="vr-r"><span class="vr-link">Ret</span></td></tr>';h+='<tr id="ue'+u.id+'" hidden><td colspan="6" style="background:var(--surface-2)"><div class="vr-inline" style="padding:6px 0 10px;gap:10px"><input class="vr-inp" type="password" id="pw'+u.id+'" placeholder="Ny adgangskode (tom = uændret)" style="width:220px"><input class="vr-inp" id="em'+u.id+'" value="'+esc(u.email||'')+'" placeholder="E-mail (2FA)" style="width:220px"><input class="vr-inp" id="tl'+u.id+'" value="'+esc(u.tlf||'')+'" placeholder="Telefon (2FA)" style="width:150px"><input class="vr-inp" id="ip'+u.id+'" value="'+esc(u.ip_address||'')+'" placeholder="Tilladte IP-adresser" style="width:200px"><label class="vr-chk" style="display:inline-flex;gap:6px;font-size:13px"><input type="checkbox" id="tf'+u.id+'" '+(u.twofactor?'checked':'')+'> 2FA</label><button type="button" class="vr-btn vr-primary" onclick="event.stopPropagation();saveUser('+u.id+')">Gem</button><button type="button" class="vr-btn vr-quiet" onclick="event.stopPropagation();clearDT('+u.id+',\\''+esc(u.brugernavn).replace(/'/g,"\\\\'")+'\\')">Nulstil tabeller</button><button type="button" class="vr-btn vr-danger" onclick="event.stopPropagation();delUser('+u.id+',\\''+esc(u.brugernavn).replace(/'/g,"\\\\'")+'\\')">Slet bruger</button></div></td></tr>';});box.innerHTML=h+'</tbody></table>';}
+function uFlash(m,bad){const f=document.getElementById('usersFlash');if(!f)return;f.innerHTML='<div class="vr-note '+(bad?'vr-note-warn':'vr-note-ok')+'" role="status"><div>'+esc(m)+'</div></div>';clearTimeout(window.uFlashT);window.uFlashT=setTimeout(()=>{f.innerHTML='';},6000);}
 function toggleUser(id){const e=document.getElementById('ue'+id);if(e)e.hidden=!e.hidden;}
 function filterUsers(q){q=(q||'').toLowerCase();renderUsers(USERS.filter(u=>((u.brugernavn||'')+' '+(u.email||'')).toLowerCase().includes(q)));}
 function post(action,body){return fetch('admin_panel.php?ajax_users=1&regnskab_id='+REGNSKAB_ID+'&user_action='+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());}
-function saveUser(id){post('update',{user_id:id,password:document.getElementById('pw'+id).value,email:document.getElementById('em'+id).value,tlf:document.getElementById('tl'+id).value,ip_address:document.getElementById('ip'+id).value,twofactor:document.getElementById('tf'+id).checked}).then(d=>{if(d.error)alert(d.error);else loadUsers();});}
-function createUser(){var b={brugernavn:document.getElementById('nuName').value.trim(),password:document.getElementById('nuPw').value,email:document.getElementById('nuMail').value.trim(),role:document.getElementById('nuRole').value};if(!b.brugernavn||b.password.length<6){alert('Brugernavn og adgangskode (min. 6 tegn) er påkrævet');return;}post('create',b).then(d=>{if(d.error)alert(d.error);else{['nuName','nuPw','nuMail'].forEach(i=>document.getElementById(i).value='');loadUsers();}});}
-function delUser(id,n){if(!confirm('Slet brugeren '+n+'? Handlingen kan ikke fortrydes.'))return;post('delete',{user_id:id}).then(d=>{if(d.error)alert(d.error);else loadUsers();});}
-function clearDT(id,n){if(!confirm('Nulstil gemte tabelopsætninger for '+n+'?'))return;post('clear_datatables',{user_id:id}).then(d=>{if(d.error)alert(d.error);else alert('Nulstillet');});}
+function saveUser(id){post('update',{user_id:id,password:document.getElementById('pw'+id).value,email:document.getElementById('em'+id).value,tlf:document.getElementById('tl'+id).value,ip_address:document.getElementById('ip'+id).value,twofactor:document.getElementById('tf'+id).checked}).then(d=>{if(d.error)uFlash(d.error,1);else{uFlash('Ændringerne er gemt');loadUsers();}});}
+function createUser(){var b={brugernavn:document.getElementById('nuName').value.trim(),password:document.getElementById('nuPw').value,email:document.getElementById('nuMail').value.trim(),role:document.getElementById('nuRole').value};if(!b.brugernavn||b.password.length<6){uFlash('Brugernavn og adgangskode (min. 6 tegn) er påkrævet',1);return;}post('create',b).then(d=>{if(d.error)uFlash(d.error,1);else{['nuName','nuPw','nuMail'].forEach(i=>document.getElementById(i).value='');uFlash('Brugeren '+b.brugernavn+' er oprettet');loadUsers();}});}
+function delUser(id,n){if(!confirm('Slet brugeren '+n+'? Handlingen kan ikke fortrydes.'))return;post('delete',{user_id:id}).then(d=>{if(d.error)uFlash(d.error,1);else{uFlash('Brugeren '+n+' er slettet');loadUsers();}});}
+function clearDT(id,n){if(!confirm('Nulstil gemte tabelopsætninger for '+n+'?'))return;post('clear_datatables',{user_id:id}).then(d=>{if(d.error)uFlash(d.error,1);else uFlash('Tabelopsætninger for '+n+' er nulstillet');});}
 function nf(v){return Number(v||0).toLocaleString('da-DK',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function openInvoice(id){const s=document.getElementById('invScrim'),d=document.getElementById('invDlg');if(!d)return;s.classList.add('vr-on');d.classList.add('vr-open');document.getElementById('invTitle').textContent='Henter…';document.getElementById('invMeta').textContent='';document.getElementById('invBody').innerHTML='';fetch('admin_panel.php?ajax_invoice_id='+id).then(r=>r.json()).then(x=>{if(x.error){document.getElementById('invTitle').textContent='Fejl';document.getElementById('invBody').textContent=x.error;return;}const inv=x.invoice;document.getElementById('invTitle').textContent=inv.companyName||'Faktura';let ds='-';if(inv.invoiceDate){const p=inv.invoiceDate.split('-');if(p.length===3)ds=p[2]+'-'+p[1]+'-'+p[0];}document.getElementById('invMeta').textContent='Faktura #'+(inv.invoiceNo||inv.orderNo||'-')+' · '+ds;let h='<table class="vr-t"><thead><tr><th>Varenr</th><th>Beskrivelse</th><th class="vr-r">Antal</th><th class="vr-r">Pris</th><th class="vr-r">I alt</th></tr></thead><tbody>';(inv.lines||[]).forEach(l=>{if(!l.description&&!l.sku)return;const q=(l.quantity!=null?l.quantity:'');h+='<tr><td class="vr-mut">'+esc(l.sku||'')+'</td><td>'+esc(l.description||'')+'</td><td class="vr-r">'+esc(q)+' '+esc(l.unit||'')+'</td><td class="vr-r">'+(l.price?nf(l.price):'')+'</td><td class="vr-r">'+((l.quantity&&l.price)?nf(l.quantity*l.price):'')+'</td></tr>';});const sum=parseFloat((inv.economic&&inv.economic.sum)||0),vat=parseFloat((inv.economic&&inv.economic.vat)||0);h+='</tbody></table><div class="vr-kv" style="margin-top:10px"><div><span>Subtotal ekskl. moms</span><b>'+nf(sum)+' DKK</b></div><div><span>Moms</span><b>'+nf(vat)+' DKK</b></div><div><span>I alt</span><b>'+nf(sum+vat)+' DKK</b></div></div>';document.getElementById('invBody').innerHTML=h;}).catch(()=>{document.getElementById('invTitle').textContent='Fejl';});}
 function closeInvoice(){document.getElementById('invScrim').classList.remove('vr-on');document.getElementById('invDlg').classList.remove('vr-open');}
@@ -483,7 +489,7 @@ JS;
 // ---------------- customer list ----------------
 if (isset($_POST['vr_recalc'])) { # 20261012 CL/ASR "Genberegn tal" (replaces vis_regnskaber.php?beregn=1 for operators): same measurement as the nightly job
 	@set_time_limit(600); $n = 0; $bad = 0;
-	$q = db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket != 'on' order by id", __FILE__ . " linje " . __LINE__); $ids = array(); while ($r = db_fetch_array($q)) $ids[] = $r;
+	$q = db_select("select id, regnskab, db from regnskab where db != '$sqdb' and coalesce(lukket,'') != 'on' order by id", __FILE__ . " linje " . __LINE__); $ids = array(); while ($r = db_fetch_array($q)) $ids[] = $r;
 	foreach ($ids as $r) { $u = ent_usage_collect($r); if ($u['ok']) { ent_snapshot_store((int)$r['id'], $u); $n++; } else $bad++; }
 	partner_log('ledger.snapshot', null, null, "manuel genberegning: $n regnskaber, $bad uden database");
 	$notes[] = vr_t('Tal genberegnet for','Figures recalculated for')." $n ".vr_t('regnskaber','accounts').($bad ? " · $bad ".vr_t('uden database','without database') : '');
@@ -494,10 +500,11 @@ $allowed_sorts = array('id' => 'id', 'regnskab' => 'regnskab', 'db' => 'db', 'br
 $order_column = isset($allowed_sorts[$sort_col]) ? $allowed_sorts[$sort_col] : 'regnskab';
 if (!in_array($ltab, array('normale','bogholdere','koncerner','alle','nye','overskredet','egne'), true)) $ltab = 'normale';
 if (in_array($ltab, array('nye','overskredet'), true)) tr_actions($notes);
+vr_prg($notes);
 if ($search !== '') $ltab = 'alle'; # a search looks across every customer
 $lurl = fn($o) => vr_url('admin_panel.php', array_merge(array('ltab' => $ltab, 'search' => $search, 'sort' => $sort_col, 'dir' => $sort_dir, 'showClosed' => $showClosed), $o));
 function ap_th($col, $label, $cls = '') { global $sort_col, $sort_dir, $lurl; $on = ($col === $sort_col); $dir = ($on && $sort_dir === 'asc') ? 'desc' : 'asc'; return "<th".($cls ? " class=\"$cls\"" : "")." aria-sort=\"".($on ? ($sort_dir == 'asc' ? 'ascending' : 'descending') : 'none')."\"><a href=\"".vr_h($lurl(array('sort' => $col, 'dir' => $dir)))."\">".vr_h($label).($on ? ' <span class="vr-ar">'.($sort_dir == 'asc' ? '&#9650;' : '&#9660;').'</span>' : '')."</a></th>"; }
-$rows = array(); $where = "db != '$sqdb'"; if ($search !== '') { $s = db_escape_string($search); $where .= " and (regnskab ilike '%$s%' or db ilike '%$s%' or email ilike '%$s%')"; } if (!$showClosed) $where .= " and lukket != 'on'";
+$rows = array(); $where = "db != '$sqdb'"; if ($search !== '') { $s = db_escape_string($search); $where .= " and (regnskab ilike '%$s%' or db ilike '%$s%' or email ilike '%$s%')"; } if (!$showClosed) $where .= " and coalesce(lukket,'') != 'on'";
 $q = db_select("select * from regnskab where $where order by $order_column $sort_dir, id", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $rows[] = $r;
 $links = partner_links_by_ledger(); $partners = partner_all(); $plans = ent_plans_by_ledger();
 $homes = array(); foreach ($partners as $pp) if ($pp['home_regnskab_id']) $homes[(int)$pp['home_regnskab_id']] = $pp;
@@ -507,8 +514,7 @@ $cntOpen = 0; $cntClosed = 0; $q = db_select("select lukket from regnskab where 
 
 vr_open(array(array('Administrationspanel', 'admin_panel.php'), vr_t('Regnskaber','Accounts')), vr_t('Regnskaber','Accounts'), ($ltab == 'egne' ? vr_t('Kunder, der selv kører Saldi og har en supportaftale med os. Her følger I aftale, version og betalinger – selve installationen styres hos kunden.','Customers running Saldi themselves with a support agreement. Track agreement, version and payments here – the installation itself is managed by the customer.') : vr_t('Alle regnskaber på installationen med pakke, forbrug og status. Klik på et regnskab for kortet med abonnement, brugere, betalinger og indstillinger, eller på Åbn for at gå ind i det.','All accounts on this installation with plan, usage and status. Click an account for its card, or Open to enter it.')),
 	($ltab == 'egne' ? "<a class=\"vr-btn vr-primary\" href=\"#ny\">+ ".vr_t('Tilføj installation','Add installation')."</a>" : "<a class=\"vr-tog\" role=\"switch\" aria-checked=\"".($showClosed ? 'true' : 'false')."\" href=\"".vr_h($lurl(array('showClosed' => $showClosed ? '' : 'on')))."\"><span>".vr_t('Vis lukkede','Show closed')."</span><span class=\"vr-sw\"></span></a><a class=\"vr-btn vr-primary\" href=\"opret.php".($ltab == 'bogholdere' ? '?type=bogholder' : ($ltab == 'koncerner' ? '?type=koncern' : ''))."\">+ ".($ltab == 'bogholdere' ? vr_t('Opret bogholder eller revisor','Create bookkeeper or auditor') : ($ltab == 'koncerner' ? vr_t('Opret koncern','Create group') : findtekst('339|Opret regnskab', $sprog_id)))."</a>"));
-if (isset($_GET['msg']) && $_GET['msg'] !== '') $notes[] = (string)$_GET['msg'];
-vr_note($notes);
+vr_note($notes, vr_flash_kind());
 if ($ltab == 'bogholdere') { $legacy = 0; $q = db_select("select b.id, b.rettigheder from brugere b left join partner_users pu on pu.bruger_id = b.id where pu.bruger_id is null", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) { $t = explode(",", $r['rettigheder'], 4); if (isset($t[3]) && strpos($t[3], '*') === false && array_filter(array_map('intval', explode(",", $t[3])))) $legacy++; }
 	if ($legacy) print "<div class=\"vr-note vr-note-warn\"><form method=\"post\" action=\"partnere.php\" class=\"vr-inline\"><span>$legacy ".vr_t('masterbrugere har en gammel adgangsliste uden bogholder. Importér dem som bogholdere (én pr. bruger).','master users have a legacy access list without a bookkeeper. Import them as bookkeepers (one per user).')."</span><input type=\"hidden\" name=\"vr_action\" value=\"migrate\"><button class=\"vr-btn\" type=\"submit\">".vr_t('Importér','Import')."</button></form></div>"; }
 list($trN, $trO) = tr_counts();

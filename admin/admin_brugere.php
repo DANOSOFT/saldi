@@ -1,4 +1,5 @@
 <?php
+ob_start(); # for the redirect after an action (vr_prg)
 //                         ___   _   _   __  _
 //                        / __| / \ | | |  \| |
 //                        \__ \/ _ \| |_| | | |
@@ -47,6 +48,12 @@ $vr_alerts = array();
 $ret_id = if_isset($_GET['ret_id'], 0);
 $slet_id=if_isset($_GET['slet_id'], 0);
 
+// 20261012 CL/ASR Rights are checked before saving (a user without admin rights may only change their own password, not
+//                  rights or other users), changes are logged, and a successful save redirects with a note (vr_prg).
+$vr_meRow = db_fetch_array(db_select("select id, rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
+$vr_isAdm = $vr_meRow && explode(',', (string)$vr_meRow['rettigheder'])[0];
+if ($_POST && !$vr_isAdm && ((int)if_isset($_POST, 0, 'id') != (int)$vr_meRow['id'] || strstr((string)if_isset($_POST, '', 'submit'), 'Tilf'))) { $vr_alerts[] = vr_t('Du kan kun rette din egen bruger','You can only edit your own user'); $_POST = array(); }
+$vr_done = '';
 if ($_POST) {
 	$submit=$_POST['submit'];
 	$id=$_POST['id'];	
@@ -63,9 +70,10 @@ if ($_POST) {
 	$admin=$_POST['admin'];
 	$oprette=if_isset($_POST['oprette'], 0);
 	$slette=if_isset($_POST['slette'], 0);
-	$adgang_til=addslashes(trim($_POST['adgang_til']));
+	$adgang_til=trim((string)$_POST['adgang_til']); # escaped in the queries
 
 	$rettigheder="$admin,$oprette,$slette,$adgang_til";
+	if (!$vr_isAdm) $rettigheder = $vr_meRow['rettigheder']; # own password only
 
 	if ($kode && $kode != $kode2) {
 			$alerttext=findtekst('1345|Begge adgangskoder skal være ens', $sprog_id).".";
@@ -82,22 +90,28 @@ if ($_POST) {
 		$kode=trim($row['kode']);
 	}
 	if ((strstr($submit,'Tilf'))&&($ret_bruger)&&($ret_bruger!="-")) {
-		$query = db_select("select id from brugere where brugernavn = '$ret_bruger'",__FILE__ . " linje " . __LINE__);
+		$query = db_select("select id from brugere where brugernavn = '".db_escape_string($ret_bruger)."'",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			$txt = findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id); 
 			$alerttext="$txt: $ret_bruger!";
 			$vr_alerts[] = $alerttext;
 #			print "<tr><td align=center>Der findes allerede en bruger med brugenavn: $ret_bruger!</td></tr>\n";
 		}	else {
-			db_modify("insert into brugere (brugernavn,rettigheder) values ('$ret_bruger','$rettigheder')",__FILE__ . " linje " . __LINE__);
-			$r=db_fetch_array(db_select("select id from brugere where brugernavn = '$ret_bruger'",__FILE__ . " linje " . __LINE__));
+			db_modify("insert into brugere (brugernavn,rettigheder) values ('".db_escape_string($ret_bruger)."','".db_escape_string($rettigheder)."')",__FILE__ . " linje " . __LINE__);
+			$r=db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($ret_bruger)."'",__FILE__ . " linje " . __LINE__));
 			$kode = saldikrypt($r['id'],$insetKode);
 			db_modify("update brugere set kode='$kode' where id=$r[id]",__FILE__ . " linje " . __LINE__);
+			$vr_done = vr_t('Brugeren','User')." $ret_bruger ".vr_t('er oprettet','created'); partner_log('master_user.created', null, null, "$ret_bruger ($rettigheder)");
 		}
 	} elseif ((strstr($submit,'Opdat'))&&($ret_bruger)&&($ret_bruger!="-")) {
-		db_modify("update brugere set brugernavn='$ret_bruger',kode='$kode',rettigheder='$rettigheder' where id=$id",__FILE__ . " linje " . __LINE__);
+		db_modify("update brugere set brugernavn='".db_escape_string($ret_bruger)."',kode='".db_escape_string($kode)."',rettigheder='".db_escape_string($rettigheder)."' where id=".(int)$id,__FILE__ . " linje " . __LINE__);
+		$vr_done = vr_t('Brugeren','User')." $ret_bruger ".vr_t('er gemt','saved'); partner_log('master_user.updated', null, null, "$ret_bruger ($rettigheder)".(isset($insetKode) ? ', ny adgangskode' : ''));
 	}
-	elseif (($id)&&($ret_bruger=="-")) {db_modify("delete from brugere where id = $id",__FILE__ . " linje " . __LINE__);}
+	elseif (($id)&&($ret_bruger=="-")) {
+		if (!$vr_isAdm || (int)$id == (int)$vr_meRow['id']) $vr_alerts[] = vr_t('Du kan ikke slette din egen bruger','You cannot delete your own user');
+		else { $vr_old = db_fetch_array(db_select("select brugernavn from brugere where id = '".(int)$id."'",__FILE__ . " linje " . __LINE__)); db_modify("delete from brugere where id = ".(int)$id,__FILE__ . " linje " . __LINE__); db_modify("delete from partner_users where bruger_id = ".(int)$id,__FILE__ . " linje " . __LINE__); db_modify("delete from partner_user_access where bruger_id = ".(int)$id,__FILE__ . " linje " . __LINE__); $vr_done = vr_t('Brugeren','User').' '.($vr_old['brugernavn'] ?? $id).' '.vr_t('er slettet','deleted'); partner_log('master_user.deleted', null, null, (string)($vr_old['brugernavn'] ?? $id)); }
+	}
+	if ($vr_done && !$vr_alerts) vr_prg(array($vr_done), 'admin_brugere.php');
 }
 
 $pu = array(); $q = db_select("select pu.bruger_id, p.name from partner_users pu join partners p on p.id = pu.partner_id", __FILE__ . " linje " . __LINE__); while ($pr = db_fetch_array($q)) $pu[(int)$pr['bruger_id']] = $pr['name'];
@@ -106,7 +120,7 @@ $bruger_id=$r['id'];
 list($br_admin,$tmp)=explode(",",$r['rettigheder'],2);
 if (!$br_admin) { $ret_id=$bruger_id; $disabled="disabled"; } else $disabled="";
 vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('1927|Admin brugere', $sprog_id)), findtekst('1927|Admin brugere', $sprog_id), vr_t('Brugere i administrationslaget: operatører og brugere med adgang til udvalgte regnskaber. Bogholderes medarbejdere styres under Bogholdere og koncerner.', 'Users in the administration layer: operators and users with access to selected accounts. Accountant employees are managed under Accountants and groups.'), $br_admin ? "<a class=\"vr-btn vr-primary\" href=\"admin_brugere.php#ny\">+ ".findtekst('333|Ny bruger', $sprog_id)."</a>" : '');
-vr_note($vr_alerts, 'warn');
+vr_note(vr_flash()); vr_note($vr_alerts, 'warn');
 $fieldsRow = function($row, $isNew) use ($sprog_id, $disabled) {
 	$nm = $isNew ? "navn".rand(100,999) : $row['id'];
 	list($admin,$oprette,$slette,$adgang_til)=array_pad(explode(",", $isNew ? ',,,' : $row['rettigheder'], 4), 4, '');

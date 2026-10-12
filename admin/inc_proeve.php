@@ -54,7 +54,7 @@ function tr_payment($t, $reg) {
 function tr_lists() {
 	static $c = null; if ($c !== null) return $c;
 	tr_sync(); $new = array(); $over = array();
-	$q = db_select("select r.*, t.started, t.ends, t.source, t.followup, t.note, t.contacted, t.resolved, t.updated_at as tr_updated, t.updated_by as tr_by from regnskab_trial t join regnskab r on r.id = t.regnskab_id where r.lukket != 'on' and (t.resolved is null or t.resolved = 'paid') and r.id not in (select home_regnskab_id from partners where home_regnskab_id is not null)", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select r.*, t.started, t.ends, t.source, t.followup, t.note, t.contacted, t.resolved, t.updated_at as tr_updated, t.updated_by as tr_by from regnskab_trial t join regnskab r on r.id = t.regnskab_id where coalesce(r.lukket,'') != 'on' and (t.resolved is null or t.resolved = 'paid') and r.id not in (select home_regnskab_id from partners where home_regnskab_id is not null)", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$r['left'] = tr_days_left($r); list($r['paid'], $r['pay_status'], $r['pay_label']) = tr_payment(array('regnskab_id' => $r['id']) + $r, $r);
 		if ($r['left'] >= 0) $new[] = $r; elseif (!$r['paid']) $over[] = $r;
@@ -119,7 +119,7 @@ function tr_name_cell($r) {
 }
 function tr_hidden($r, $a) { return "<input type=\"hidden\" name=\"tr_action\" value=\"$a\"><input type=\"hidden\" name=\"tr_rid\" value=\"".(int)$r['id']."\">"; }
 function tr_exempt_render() {
-	$q = db_select("select r.id, r.regnskab, t.resolved_at, t.updated_by from regnskab_trial t join regnskab r on r.id = t.regnskab_id where t.resolved = 'exempt' and r.lukket != 'on' order by t.resolved_at desc", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select r.id, r.regnskab, t.resolved_at, t.updated_by from regnskab_trial t join regnskab r on r.id = t.regnskab_id where t.resolved = 'exempt' and coalesce(r.lukket,'') != 'on' order by t.resolved_at desc", __FILE__ . " linje " . __LINE__);
 	$ex = array(); while ($r = db_fetch_array($q)) $ex[] = $r; if (!$ex) return;
 	print "<details class=\"vr-tr-ex\"><summary class=\"vr-link\">".count($ex)." ".(count($ex) == 1 ? vr_t('regnskab er markeret som ikke en prøvekunde','account is marked as not a trial customer') : vr_t('regnskaber er markeret som ikke prøvekunder','accounts are marked as not trial customers'))."</summary><div class=\"vr-card\" style=\"margin-top:8px\"><table class=\"vr-t\"><tbody>";
 	foreach ($ex as $r) print "<tr><td class=\"vr-nm\"><a href=\"admin_panel.php?regnskab_id=".(int)$r['id']."\">".vr_h($r['regnskab'])."</a><small>".vr_t('markeret','marked')." ".($r['resolved_at'] ? date('d-m-Y', strtotime($r['resolved_at'])) : '')." ".vr_t('af','by')." ".vr_h($r['updated_by'])."</small></td><td class=\"vr-r\"><form method=\"post\">".tr_hidden($r, 'reopen')."<button class=\"vr-link\" type=\"submit\">".vr_t('Sæt tilbage på listerne','Put back on the lists')."</button></form></td></tr>";

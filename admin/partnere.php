@@ -1,9 +1,11 @@
 <?php
+ob_start(); # for the redirect after an action (vr_prg)
 @session_start();
 $s_id=session_id();
 // --- admin/partnere.php --- ver 5.1.0 --- 2026.10.10 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261012 CL/ASR Post/Redirect/Get after every action (vr_prg), so the card is drawn from fresh data.
 // 20261011 CL/ASR Groups and larger customers: per-ledger plan/usage/payment columns on the Kunder tab, group totals,
 //                  billing mode (individual/consolidated) with a billing ledger, per-ledger payer, move to another
 //                  partner without losing history.
@@ -32,7 +34,7 @@ $me = partner_current_user();
 $op = $me['is_operator'];
 $pid = (int) if_isset($_GET, 0, 'id');
 $tab = if_isset($_GET, 'oversigt', 'tab');
-$notes = array();
+$notes = vr_flash();
 if (!$op) { # partner users only see their own partner
 	if (!$me['partner']) { vr_open(array(vr_t('Mit firma','My firm')), vr_t('Du er ikke knyttet til en partner','You are not linked to a partner'), ''); vr_close(); exit; }
 	$pid = (int)$me['partner']['partner_id'];
@@ -123,6 +125,7 @@ if (isset($_POST['vr_action'])) {
 	}
 }
 
+if (isset($_POST['vr_action'])) vr_prg($notes, $pid ? 'partnere.php?'.http_build_query(array('id' => $op ? $pid : null, 'tab' => $tab)) : null);
 $regNames = array(); $q = db_select("select id, regnskab, db, lukket from regnskab where db != '$sqdb' order by regnskab", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $regNames[(int)$r['id']] = $r;
 
 // ================= LIST (operator) =================
@@ -139,7 +142,7 @@ if (!$pid) {
 	$pending = 0; $q = db_select("select bruger_id from partner_users", __FILE__ . " linje " . __LINE__); $inP = array(); while ($r = db_fetch_array($q)) $inP[] = (int)$r['bruger_id'];
 	$acts = "<a class=\"vr-btn vr-primary\" href=\"#opret\">+ ".vr_t('Opret partner','Create partner')."</a>";
 	vr_open(array(array(vr_t('Operatørpanel','Operator panel'), '../index/admin_menu.php'), vr_t('Bogholdere og koncerner','Accountants and groups')), vr_t('Bogholdere og koncerner','Accountants and groups'), vr_t('Partnere med adgang til flere regnskaber: bogholdere/revisorer med kunder og koncerner med selskaber.','Partners with access to several accounts: accountants with customers and groups with companies.'), $acts);
-	vr_note($notes);
+	vr_note($notes, vr_flash_kind());
 	if ($legacy) print "<div class=\"vr-note vr-note-warn\"><form method=\"post\" class=\"vr-inline\"><span>$legacy ".vr_t('brugere har en gammel adgang_til-liste uden partner. Importér dem som bogholdere (én partner pr. bruger – kan slås sammen bagefter).','users still have a legacy adgang_til list without a partner. Import them as accountants (one partner per user; merge afterwards).')."</span><input type=\"hidden\" name=\"vr_action\" value=\"migrate\"><button class=\"vr-btn\" type=\"submit\">".vr_t('Importér','Import')."</button></form></div>";
 	print "<section class=\"vr-sect\"><h2>".vr_t('Alle partnere','All partners')." <small>".count($partners)."</small></h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Navn','Name')."</th><th>".vr_t('Type','Type')."</th><th>CVR</th><th>".vr_t('Eget regnskab','Own account')."</th><th class=\"vr-r\">".vr_t('Kunder/selskaber','Customers')."</th><th class=\"vr-r\">".vr_t('Medarbejdere','Employees')."</th><th>".vr_t('Må oprette','May create')."</th></tr></thead><tbody>";
 	foreach ($partners as $p) {
@@ -171,7 +174,7 @@ $home = $p['home_regnskab_id'] && isset($regNames[(int)$p['home_regnskab_id']]) 
 $crumbs = $op ? array(array(vr_t('Operatørpanel','Operator panel'), '../index/admin_menu.php'), array(vr_t('Regnskaber','Accounts'), 'admin_panel.php?ltab='.($isK ? 'koncerner' : 'bogholdere')), $p['name']) : array(array(vr_t('Bogholderpanel','Accountant panel'), '../index/admin_menu.php'), vr_t('Mit firma','My firm'));
 $lead = ($isK ? vr_t('Koncern','Group').($home ? ' · '.vr_t('moderselskab','parent').' '.vr_h($home['regnskab']) : '') : vr_h(vr_kind($p['kind'])).($home ? ' · '.vr_t('eget regnskab','own account').' '.vr_h($home['regnskab']) : '')).($p['cvr'] ? ' · CVR '.vr_h($p['cvr']) : '').' · '.count($links).' '.strtolower($KU).' · '.count($emps).' '.vr_t('medarbejdere','employees');
 vr_open($crumbs, $p['name'], $lead, '', strtolower(vr_kind($p['kind'])));
-vr_note($notes);
+vr_note($notes, vr_flash_kind());
 $tu = fn($t) => "partnere.php?id=$pid&tab=$t";
 $tabs = array('oversigt' => array(vr_t('Oversigt','Overview'), $tu('oversigt'), null), 'kunder' => array($KU, $tu('kunder'), count($links)), 'medarbejdere' => array(vr_t('Medarbejdere','Employees'), $tu('medarbejdere'), count($emps)));
 if ($op) $tabs['indstillinger'] = array(vr_t('Indstillinger','Settings'), $tu('indstillinger'), null);

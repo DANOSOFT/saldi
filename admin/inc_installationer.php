@@ -112,7 +112,7 @@ function inst_card_render($r, $tab, $notes) {
 	$id = (int)$r['id']; list($dot, $txt) = inst_agreement($r); $latest = inst_latest_version();
 	$lead = "<span class=\"vr-st\"><span class=\"vr-dot $dot\"></span>".vr_h($txt)."</span> · ".vr_t('egen installation','self-hosted').($r['version'] ? ' · Saldi '.vr_h($r['version']) : '').($r['support_level'] ? ' · '.vr_h(inst_levels()[$r['support_level']] ?? '') : '');
 	vr_open(array(array('Administrationspanel', 'admin_panel.php'), array(vr_t('Regnskaber','Accounts'), 'admin_panel.php?ltab=egne'), $r['name']), $r['name'], $lead, $r['url'] ? "<a class=\"vr-btn\" href=\"".vr_h($r['url'])."\" target=\"_blank\" rel=\"noopener\">".vr_t('Åbn installation','Open installation')."</a>" : '', vr_t('egen installation','self-hosted'));
-	vr_note($notes);
+	vr_note($notes, vr_flash_kind());
 	$tu = fn($t) => "admin_panel.php?inst_id=$id&tab=$t";
 	vr_tabs(array('oversigt' => array(vr_t('Oversigt','Overview'), $tu('oversigt'), null), 'betalinger' => array(vr_t('Betalinger','Payments'), $tu('betalinger'), null), 'log' => array(vr_t('Log','Log'), $tu('log'), null)), $tab);
 	if ($tab == 'betalinger') {

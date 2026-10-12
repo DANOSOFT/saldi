@@ -77,7 +77,8 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	if (!isset($version)) { $version = ''; if (file_exists("../includes/version.php")) include("../includes/version.php"); }
 	$u = partner_current_user();
 	$self = basename($_SERVER['PHP_SELF']);
-	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.2.0\">\n";
+	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.2.1\">\n";
+	if (isset($_GET['msg'])) print "<script>try{var vrU=new URL(location.href);[...vrU.searchParams.keys()].filter(function(k){return k.indexOf('msg')===0||k==='mk'}).forEach(function(k){vrU.searchParams.delete(k)});history.replaceState(null,'',vrU.pathname+vrU.search+vrU.hash);}catch(e){}</script>"; # a reload does not show the note again
 	print "<div class=\"vr-app\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
 	// sidebar
 	// 20261012 CL/ASR Danosoft logo (white, from the brand file) and a collapsible sidebar. The state is kept per browser
@@ -107,6 +108,24 @@ function vr_tabs($tabs, $active) { # $tabs = [key => [label, href, count|null]]
 	print "<div class=\"vr-tabs\" role=\"tablist\">";
 	foreach ($tabs as $k => $t) print "<a class=\"vr-tab\" role=\"tab\" aria-selected=\"".($k == $active ? 'true' : 'false')."\" href=\"".vr_h($t[1])."\">".vr_h($t[0]).(isset($t[2]) && $t[2] !== null ? " <span class=\"vr-cnt\">".(int)$t[2]."</span>" : "")."</a>";
 	print "</div>\n";
+}
+// 20261012 CL/ASR Post/Redirect/Get: after a POST action the page redirects (303) to itself as a GET, carrying the
+//                  notes in msg[]. The page is then always drawn from fresh data, and a reload does not repeat the action.
+function vr_prg($notes, $url = null, $kind = 'ok') {
+	if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') return;
+	if ($url === null) { $q = $_GET; unset($q['msg']); $url = basename($_SERVER['PHP_SELF']).($q ? '?'.http_build_query($q) : ''); }
+	$m = array(); foreach ((array)$notes as $n) { $n = trim((string)$n); if ($n !== '') $m[] = mb_substr($n, 0, 500, vr_cs()); }
+	if ($kind == 'ok' && preg_match('/mangler|påkrævet|ikke gennemført|findes ikke|kan ikke|allerede|fejl|ugyldig|ukendt|missing|required|not found|cannot|already|invalid|unknown/iu', implode(' ', $m))) $kind = 'warn'; # errors in amber, not green
+	if ($m) $url .= (strpos($url, '?') === false ? '?' : '&').http_build_query(array('msg' => array_slice($m, 0, 12)) + ($kind == 'warn' ? array('mk' => 'warn') : array()));
+	while (ob_get_level()) ob_end_clean();
+	if (php_sapi_name() == 'cli') { print "<!--VR-PRG $url-->"; exit; } # test harness follows this
+	if (!headers_sent()) { header('Location: '.$url, true, 303); exit; }
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=".vr_h($url)."\"><script>location.replace(".json_encode($url).");</script>"; exit;
+}
+function vr_flash_kind() { return ($_GET['mk'] ?? '') == 'warn' ? 'warn' : 'ok'; }
+function vr_flash() { # notes carried by vr_prg
+	$m = $_GET['msg'] ?? null; if ($m === null || $m === '') return array();
+	return array_values(array_filter(array_map('strval', (array)$m), fn($x) => $x !== ''));
 }
 function vr_note($lines, $kind = 'ok') {
 	if (!$lines) return;

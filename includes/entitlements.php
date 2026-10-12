@@ -126,6 +126,7 @@ function ent_catalog() {
 }
 function ent_kr($ore) { return $ore === null ? null : number_format($ore / 100, 0, ',', '.').' kr.'; }
 function ent_log($action, $rid, $details = '') {
+	if ($rid) ent_resolve_flush($rid); # every entitlement change is logged, so the cached resolution is dropped here
 	if (function_exists('partner_log')) partner_log($action, $rid, null, $details);
 }
 function ent_actor() { global $brugernavn; if (function_exists('partner_current_user')) { $u = partner_current_user(); if (!empty($u['brugernavn'])) return (string)$u['brugernavn']; } return (string)$brugernavn; } # the logged-in user, also on opret.php where \$brugernavn is reused for the new admin
@@ -141,6 +142,7 @@ function ent_apply_due_changes($rid) {
 	}
 }
 function ent_write_plan($rid, $plan_key, $valid_from, $source = 'manual') {
+	ent_resolve_flush($rid);
 	$c = ent_catalog(); $cv = $c['version'] ? (int)$c['version']['id'] : 'NULL';
 	$rid = (int)$rid; $pk = db_escape_string($plan_key); $vf = db_escape_string($valid_from);
 	if (db_fetch_array(db_select("select 1 from regnskab_entitlements where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__)))
@@ -148,9 +150,12 @@ function ent_write_plan($rid, $plan_key, $valid_from, $source = 'manual') {
 	else db_modify("insert into regnskab_entitlements (regnskab_id, catalog_version_id, plan_key, source, valid_from, subscription_status) values ('$rid', $cv, '$pk', '".db_escape_string($source)."', '$vf', 'none')", __FILE__ . " linje " . __LINE__);
 }
 
+// 20261012 CL/ASR The per-request cache is dropped for a ledger whenever it changes (ent_log / ent_write_plan); before,
+//                  a page that resolved the ledger before the change showed the old plan until it was reloaded.
+function ent_resolve_flush($rid = null) { if ($rid === null) $GLOBALS['ent_resolve_cache'] = array(); else unset($GLOBALS['ent_resolve_cache'][(int)$rid]); }
 // §5.2 resolution: plan matrix -> add-ons -> overrides. NULL limit = unlimited.
 function ent_resolve($rid) {
-	static $cache = array(); $rid = (int)$rid;
+	$cache = &$GLOBALS['ent_resolve_cache']; if (!is_array($cache)) $cache = array(); $rid = (int)$rid;
 	if (isset($cache[$rid])) return $cache[$rid];
 	ent_apply_due_changes($rid);
 	$c = ent_catalog();

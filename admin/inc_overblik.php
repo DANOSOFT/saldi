@@ -32,7 +32,7 @@ function ov_data() {
 		if (isset($addons[$id])) foreach ($addons[$id] as $a) if (isset($cat['addons'][$a['addon_key']]) && $cat['addons'][$a['addon_key']]['price_ore'] !== null) $m += (int)$cat['addons'][$a['addon_key']]['price_ore'] * max(1, (int)$a['quantity']);
 		$d['mrr_ore'] += $m; $d['mrr_n']++; $d['by_plan'][$pk]['mrr_ore'] += $m;
 	}
-	$q = db_select("select b.*, r.regnskab from regnskab_billing b join regnskab r on r.id = b.regnskab_id where b.checked_at is not null and r.lukket != 'on' order by b.oldest_due nulls last, b.outstanding_ore desc", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select b.*, r.regnskab from regnskab_billing b join regnskab r on r.id = b.regnskab_id where b.checked_at is not null and coalesce(r.lukket,'') != 'on' order by b.oldest_due nulls last, b.outstanding_ore desc", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) { $d['checked']++; if (in_array($r['pay_status'], array('overdue','failed'))) { $d['overdue'][] = $r; $d['overdue_sum_ore'] += (int)$r['outstanding_ore']; } }
 	$q = db_select("select distinct on (regnskab_id) * from usage_snapshots order by regnskab_id, taken_at desc", __FILE__ . " linje " . __LINE__);
 	$snaps = array(); while ($r = db_fetch_array($q)) { $snaps[(int)$r['regnskab_id']] = $r; if (!$d['snap_date'] || $r['taken_at'] > $d['snap_date']) $d['snap_date'] = $r['taken_at']; }

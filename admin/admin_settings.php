@@ -1,4 +1,5 @@
 <?php
+ob_start(); # for the redirect after an action (vr_prg)
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -40,9 +41,18 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/partnerScope.php");
+include("vr_ui.php");
 
 $languages = array();
 
+// 20261012 CL/ASR The master-database check now runs before saving (it ran after), and saving redirects (vr_prg).
+if ($db != $sqdb) {
+	$txt1 = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id);
+	print "<BODY onLoad=\"javascript:alert('$txt1')\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">\n";
+	exit;
+}
 if (isset($_POST['gem'])) {
 	$ps2pdfId = if_isset($_POST, NULL, 'ps2pdfId');
 	$ps2pdf = if_isset($_POST, NULL, 'ps2pdf');
@@ -111,18 +121,12 @@ if (isset($_POST['gem'])) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="update online set language_id='$languageId' where session_id = '$s_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	
+	vr_prg(array(findtekst('3|Gem', $sprog_id).': '.vr_t('indstillingerne er gemt','settings saved')));
 } else {
 	$ps2pdf=$weasyprint=$pdftk=$ftp=$dbdump=$zip=$unzip=$tar=$alertText=NULL;
 	$ps2pdfId=$weasyprintId=$pdftkId=$ftpId=$dbdumpId=$zipId=$unzipId=$tarId=$alertTextId=NULL;
 }
 
-if ($db != $sqdb) {
-	$txt1 = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id);
-	print "<BODY onLoad=\"javascript:alert('$txt1')\">\n";
-	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">\n";
-	exit;
-}
 
 $q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
@@ -168,8 +172,6 @@ while ($r=db_fetch_array($q)) {
 }
 
 include("../includes/topline_settings.php");
-include("../includes/partnerScope.php");
-include("vr_ui.php");
 partner_tables_ensure();
 $vr_missing = array(); $vr_saved = isset($_POST['gem']);
 $td=" align=\"center\" height=\"35\"";
@@ -192,7 +194,7 @@ $newssnippet = get_settings_value("nyhed", "dashboard", "");
 
 #include("../includes/languages.php"); #20210920
 vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('122|Indstillinger', $sprog_id)), findtekst('122|Indstillinger', $sprog_id), vr_t('Indstillinger for installationen: stier til eksterne programmer, tekst ved uforudset hændelse og infotekst på kundernes dashboard.', 'Installation settings: paths to external programs, the unexpected-event text and the news snippet on customer dashboards.'));
-if ($vr_saved) vr_note(array(findtekst('3|Gem', $sprog_id).': '.vr_t('indstillingerne er gemt','settings saved')));
+vr_note(vr_flash());
 if ($vr_missing) vr_note($vr_missing, 'warn');
 print "<form name=\"admin_settings\" action=\"admin_settings.php\" method=\"post\">";
 foreach (array('ps2pdfId'=>$ps2pdfId,'weasyprintId'=>$weasyprintId,'pdftkId'=>$pdftkId,'ftpId'=>$ftpId,'dbdumpId'=>$dbdumpId,'zipId'=>$zipId,'unzipId'=>$unzipId,'tarId'=>$tarId,'alertTextId'=>$alertTextId) as $k => $v) print "<input type=\"hidden\" name=\"$k\" value=\"".vr_h($v)."\">";
