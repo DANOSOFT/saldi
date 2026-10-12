@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-12 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -50,6 +50,8 @@
 //                   date_score CASE itself (same pattern amountTolerance already used
 //                   correctly), so it now only zeroes the date signal when out of range
 //                   instead of excluding the row outright.
+// 20261012 CL/SZ SD-730 Each match carries its pool row's version (poolMetadataVersion()): since SST-777 docPool.php refuses an
+//                   attach without it, so "Match valgte" attached nothing.
 
     // Start buffering
     ob_start();
@@ -58,6 +60,7 @@
     $s_id=session_id();
     include("../../includes/connect.php");
     include("../../includes/online.php");
+    require_once __DIR__ . "/../../includes/docsIncludes/poolMetadata.php";
 
 
     ini_set('display_errors', 0);
@@ -213,6 +216,9 @@
             },
             ARRAY_FILTER_USE_KEY
         );
+        // docPool.php refuses an attach without the pool row's metadata version (SST-777), so send it along
+        $pfRow = db_fetch_array(db_select("SELECT * FROM pool_files WHERE id = " . (int)$row['pf_id'], __FILE__ . " linje " . __LINE__));
+        $row['version'] = $pfRow ? poolMetadataVersion($pfRow) : '';
 
         $score = round(
             (float) ($row['amount_score'] ?? 0)

@@ -136,6 +136,7 @@
 // 20261012 CL/SZ SD-730 Regnskabsår select in the header (fiscalYearSwitch.php): switches the active year and comes back to
 //                  the same journal. A clip next to Bemærkning opens the journal's own documents (journalDocuments.php).
 //                  Coming back from the open-posts page keeps the line's Forfaldsdato and Betalings-id (they were emptied).
+//                  Close on a journal opened with returside=kladdeliste.php (Ny) went to includes/kladdeliste.php (Not Found).
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
@@ -1737,6 +1738,9 @@ if (!$simuler) {
 	} else {
 		$backUrl = "../finans/kladdeliste.php";
 	}
+	// SD-730: Close goes through ../includes/luk.php, so a bare file name (returside=kladdeliste.php from Ny) has to point
+	// back into finans/; it ended on includes/kladdeliste.php (Not Found)
+	if (strpos($backUrl, '/') === false) $backUrl = "../finans/" . $backUrl;
 	if ($returside != "regnskab") {
 		$returside = "../finans/kladdeliste.php";
 	}
