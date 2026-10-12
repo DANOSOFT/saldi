@@ -24,6 +24,7 @@
 //                  old widgets counted it. Everything from one daily query over the last and the current fiscal year.
 // 20261009 Sawaneh The largest uninvoiced order (addendum 3 §7) and the three newest suggestions (§7a) for the small cards.
 // 20261010 Sawaneh Key figures 1 and 3 of §7 (open point 9 settled): status 2 = delivered, not invoiced; levdate is the delivery date.
+// 20261012 Sawaneh The headline counts every uninvoiced order (Adam): the 30-day window is gone.
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
@@ -291,12 +292,11 @@ function dash_data(array $c): array
 		}
 	}
 
-	// Uninvoiced orders of the last 30 days (all open ones with quick invoicing on, as the old widget did).
-	$thirty = dash_add($today, '-30 days');
+	// Uninvoiced orders, all of them (Adam 2026-10-12: no 30-day window, so the key figures never exceed the headline).
 	$quick = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4 = 'on'", __FILE__ . " linje " . __LINE__));
-	$o = db_fetch_array(db_select("select count(*) as n, coalesce(sum(\"sum\"), 0) as s from ordrer where " . ($quick ? 'status <= 3' : 'status = 2') . " and art = 'DO' and ordredate > '$thirty'", __FILE__ . " linje " . __LINE__));
+	$o = db_fetch_array(db_select("select count(*) as n, coalesce(sum(\"sum\"), 0) as s from ordrer where " . ($quick ? 'status <= 3' : 'status = 2') . " and art = 'DO'", __FILE__ . " linje " . __LINE__));
 	$orders = array('count' => $o ? (int) $o['n'] : 0, 'sum' => $o ? (float) $o['s'] : 0.0, 'largest' => null);
-	$lo = db_fetch_array(db_select("select firmanavn, \"sum\" as s from ordrer where " . ($quick ? 'status <= 3' : 'status = 2') . " and art = 'DO' and ordredate > '$thirty' order by \"sum\" desc limit 1", __FILE__ . " linje " . __LINE__));
+	$lo = db_fetch_array(db_select("select firmanavn, \"sum\" as s from ordrer where " . ($quick ? 'status <= 3' : 'status = 2') . " and art = 'DO' order by \"sum\" desc limit 1", __FILE__ . " linje " . __LINE__));
 	if ($lo) {
 		$orders['largest'] = array('name' => trim((string) $lo['firmanavn']), 'sum' => (float) $lo['s']);
 	}

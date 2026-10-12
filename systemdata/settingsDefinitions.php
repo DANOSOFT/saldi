@@ -84,6 +84,7 @@
 //                  G6.4, and "Gem kurs uden bogføring" (SST-769) as 'confirm_skip' on the currency rates.
 // 20261008 Sawaneh personal.profile.theme: light, dark or system (prototype_dashboard_tema v5), settings ui/theme per user.
 // 20261009 Sawaneh 4e: personal.documents.auto_extract and personal.ui.sidebar_closed replace the autoExtract/isSidebarOpen cookies.
+// 20261012 Sawaneh personal.ui.sidebar_closed removed again: the sidebar is a per-device cookie (Adam, settings spec §7.4 (5)).
 // 20261009 Sawaneh pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
 // 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
 // 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
@@ -1594,15 +1595,11 @@ if (!function_exists('getSettingsSections')) {
 				'type' => 'bool', 'label' => 6007, 'help' => 6008, 'default' => false, 'permission' => 'any',
 				'storage' => array('settings', 'print', 'localPrint', 'onEmpty'), 'legacy' => $divvalg,
 				'keywords' => array('lokal printer', 'local printer')),
-			// 4e: the autoExtract and isSidebarOpen cookies become user settings (settings redesign §7.4 item 5).
+			// 4e: the autoExtract cookie becomes a user setting (settings redesign §7.4 item 5); the sidebar stays a cookie per device.
 			'personal.documents.auto_extract' => array('group' => 'personal', 'section' => 'print', 'sub' => 'print', 'scope' => 'user',
 				'type' => 'bool', 'label' => 3271, 'help' => 7018, 'default' => true, 'permission' => 'any',
 				'storage' => array('settings', 'documents', 'auto_extract', 'oneZero'),
 				'keywords' => array('auto-udtræk', 'fakturadata', 'ai scan', 'auto extract', 'dokumentpulje')),
-			'personal.ui.sidebar_closed' => array('group' => 'personal', 'section' => 'profile', 'sub' => 'profile', 'scope' => 'user',
-				'type' => 'bool', 'label' => 7019, 'help' => 7020, 'default' => false, 'permission' => 'any',
-				'storage' => array('settings', 'ui', 'sidebar_closed', 'oneZero'),
-				'keywords' => array('sidemenu', 'sidebar')),
 		);
 
 		$sprog = isset($GLOBALS['sprog_id']) ? (int) $GLOBALS['sprog_id'] : 1;

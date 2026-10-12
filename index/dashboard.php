@@ -355,7 +355,7 @@ $blocks['small'] = function () use ($data, $widgets, $tx, $h, $money) {
 	print "<div class='krow blk' data-block='small' style='--w:1'>";
 	print "<section data-widget='onlineusers' class='card" . ($widgets['onlineusers'] ? '' : ' gone') . "'><h3>" . $h($tx('2379|Aktive medarbejdere')) . "</h3><div class='val' data-count='" . (int) $data['online'] . "' data-fmt='int'>0</div><div class='note'>" . $h($tx('6965|Aktive inden for den sidste time')) . "</div></section>";
 	$o = $data['orders'];
-	print "<section data-widget='ordercount' class='card" . ($widgets['ordercount'] ? '' : ' gone') . "'><h3>" . $h($tx('2161|Ufakturerede ordrer')) . " <span class='sub'>" . $h($tx('6966|30 dage')) . "</span></h3><div class='val'><span data-count='" . (int) $o['count'] . "' data-fmt='int'>0</span> <small>· " . $h($money($o['sum'])) . "</small></div>"
+	print "<section data-widget='ordercount' class='card" . ($widgets['ordercount'] ? '' : ' gone') . "'><h3>" . $h($tx('2161|Ufakturerede ordrer')) . "</h3><div class='val'><span data-count='" . (int) $o['count'] . "' data-fmt='int'>0</span> <small>· " . $h($money($o['sum'])) . "</small></div>"
 		. "<ul class='kv'><li><span>" . $h($tx('7072|Leveret for over 14 dage siden')) . "</span><b" . ($o['late']['count'] ? " class='warn'" : '') . ">" . $h((int) $o['late']['count'] . ' · ' . $money($o['late']['sum'])) . "</b></li>"
 		. ($o['largest'] ? "<li><span>" . $h($tx('7051|Største ufakturerede')) . "</span><b>" . $h($o['largest']['name'] . ' · ' . $money($o['largest']['sum'])) . "</b></li>" : '')
 		. "<li><span>" . $h($tx('7073|Klar til fakturering nu')) . "</span><b>" . $h((int) $o['ready']['count'] . ' · ' . $money($o['ready']['sum'])) . "</b></li></ul>"

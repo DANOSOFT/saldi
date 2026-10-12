@@ -95,12 +95,13 @@ if ($action === 'theme') {
 		exit;
 	}
 }
-// 4e (settings redesign §7.4 item 5): the autoExtract and isSidebarOpen cookies became user settings; the page toggles post here.
-if ($action === 'auto_extract' || $action === 'sidebar') {
+// 4e (settings redesign §7.4 item 5): the autoExtract cookie became a user setting; the page toggle posts here.
+// 20261012 Sawaneh The sidebar action is gone: its state is the isSidebarOpen cookie again (Adam, per device).
+if ($action === 'auto_extract') {
 	include_once(__DIR__ . "/../includes/settings/SettingsService.php");
 	$on = !empty($request['value']) && $request['value'] !== '0' && $request['value'] !== 'false';
 	if ((int) $bruger_id > 0) {
-		SettingsService::save($action === 'sidebar' ? 'personal.ui.sidebar_closed' : 'personal.documents.auto_extract', $on, (int) $bruger_id);
+		SettingsService::save('personal.documents.auto_extract', $on, (int) $bruger_id);
 	}
 	if (!empty($request['ajax'])) {
 		ob_end_clean();

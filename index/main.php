@@ -72,6 +72,8 @@
 //                  and applies it to the shell and the page in the frame.
 // 20261009 Sawaneh topbarThemeSet() also writes the saldi_theme cookie (auditor/master-admin sessions have no settings row).
 // 20261009 Sawaneh Sidebar open/closed is a personal setting rendered server-side (was the isSidebarOpen cookie, 4e).
+// 20261012 Sawaneh Adam: the sidebar state is per device again (settings spec §7.4 (5), topbar spec §4.6): the isSidebarOpen
+//                  cookie, read server-side so the first paint is right.
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 // 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
 // 20261009 Sawaneh css/saldi-fonts.css in the shell: Saldi Grotesk + Inter and the text-size base (front-page addendum 3 §3).
@@ -106,7 +108,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/stdFunc/dkDecimal.php");
 include_once("../includes/settings/SettingsService.php");
-$sidebarClosed = (int) $bruger_id > 0 && (bool) SettingsService::get('personal.ui.sidebar_closed', (int) $bruger_id);
+$sidebarClosed = isset($_COOKIE['isSidebarOpen']) && $_COOKIE['isSidebarOpen'] === 'true';
 $topbar = topbar_context($topbarOnlineRows, (string) $brugernavn, (int) $bruger_id, (string) $rettigheder, $revisor, $regnaar, (int) $sprog_id, (string) $regnskab);
 include_once(__DIR__ . "/../systemdata/settingsRegistry.php");
 $settingsGroups = settings_accessible_groups();
@@ -1124,10 +1126,7 @@ function brightenColor($color, $amount = 0.2) {
   let sidebarBtn = document.querySelector(".logo.wide");
   sidebarBtn.addEventListener("click", () => {
     sidebar.classList.toggle("closed");
-    // Stored for the user (settings redesign 4e), no longer the isSidebarOpen cookie.
-    const fd = new FormData();
-    fd.append('action', 'sidebar'); fd.append('value', sidebar.classList.contains("closed") ? '1' : '0'); fd.append('ajax', '1');
-    fetch('topbarAction.php', { method: 'POST', body: fd, credentials: 'same-origin' }).catch(() => {});
+    document.cookie = "isSidebarOpen=" + sidebar.classList.contains("closed") + "; path=/; max-age=31536000; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : "");
   });
 
   const get_iframe_path = () => {
