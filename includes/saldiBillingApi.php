@@ -4,15 +4,20 @@
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR Moved unchanged from admin/admin_panel.php so the nightly job and the operator overview can
 //                  use the same REST client against the billing ledger on ssl3 (settings var_grp='internal_api').
+// 20261012 CL/ASR The billing ledger's URL comes from settings too (var_name 'saldi_api_base', same group) with the
+//                  old constant as default, so nothing hardcodes the billing ledger (owner's decision 12/10-2026);
+//                  the customer-side invoice overview (billing overview spec) reuses this client and these settings.
 if (!defined('SALDI_API_BASE')) {
-// ---- REST API Configuration for ssl3.saldi.dk ----
+// ---- REST API Configuration for the billing ledger (default ssl3.saldi.dk) ----
+$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_base' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
+$saldi_api_base = ($query && trim((string)$query['var_value']) !== '') ? rtrim(trim($query['var_value']), '/') : 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1';
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_user' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
 $saldi_api_user = $query['var_value'];
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_pass' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
 $saldi_api_pass = $query['var_value'];
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_account' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
 $saldi_api_account = $query['var_value'];
-define('SALDI_API_BASE', 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1');
+define('SALDI_API_BASE', $saldi_api_base);
 define('SALDI_API_USER', $saldi_api_user);
 define('SALDI_API_PASS', $saldi_api_pass);
 define('SALDI_API_ACCOUNT', $saldi_api_account);

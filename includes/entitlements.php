@@ -6,7 +6,9 @@
 //                  Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the
 //                  operator's subscription card: prices on plans/addons (price_ore, billing_interval,
 //                  extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for
-//                  changes with a future effective date. Source is 'manual' until the Stripe webhook (§6) exists;
+//                  changes with a future effective date. Source is 'manual' until the plan is synced from the billing
+//                  ledger's recurring invoicing order (payment model B1, 12/10-2026: "Saldi invoices, Stripe collects" –
+//                  the recurring order is the truth for the plan; spec §6's per-installation Stripe webhook is dropped);
 //                  the resolver (§5.2) is the same either way. Every change is written to partner_log as
 //                  entitlement.* (the stage 2 audit_log mirrors it when it exists).
 

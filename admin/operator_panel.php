@@ -438,7 +438,7 @@ if ($filter_regnskab) {
 	} elseif ($tab == 'betalinger') {
 		$cfg = bill_get($rid);
 		$search = $cfg['billing_kontonr'] ?: ($live['cvr'] ? $live['cvr'] : $reg['regnskab']);
-		$data = bill_fetch($search); bill_cache_store($rid, $data, $cfg);
+		$data = bill_fetch($search); bill_cache_store($rid, $data, $cfg, $search); $cfg = bill_get($rid);
 		bill_render($rid, $reg, $ent, $live, $data, $cfg);
 	} elseif ($tab == 'indstillinger') {
 		$bt = $reg['betalt_til'] && $reg['betalt_til'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['betalt_til'])) : ''; $lk = $reg['lukkes'] && $reg['lukkes'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['lukkes'])) : '';

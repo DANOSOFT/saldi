@@ -41,7 +41,7 @@ if (get_saldi_api_token()) {
 		if ($limit && $bn >= $limit) break;
 		$cfg = bill_get((int)$reg['id']); $cvr = '';
 		if ($reg['db'] && db_exists($reg['db']) && @db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) { $r = @db_fetch_array(@db_select("select cvrnr from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__)); if ($r) $cvr = str_replace(' ', '', preg_replace('/^DK\s*/i', '', trim((string)$r['cvrnr']))); include("../includes/connect.php"); }
-		$data = bill_fetch($cfg['billing_kontonr'] ?: ($cvr ?: $reg['regnskab'])); bill_cache_store((int)$reg['id'], $data, $cfg); $bn++;
+		$bs = $cfg['billing_kontonr'] ?: ($cvr ?: $reg['regnskab']); $data = bill_fetch($bs); bill_cache_store((int)$reg['id'], $data, $cfg, $bs); $bn++;
 	}
 	echo "billing: $bn customers checked\n";
 	$in = 0; foreach (inst_all() as $ir) { if ($ir['status'] == 'ended') continue; inst_payments($ir); $in++; } echo "billing: $in self-hosted installations checked\n";

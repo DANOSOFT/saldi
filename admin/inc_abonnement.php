@@ -49,14 +49,15 @@ function ent_tab_render($rid, $ent, $cat) {
 	print "<section class=\"vr-sect\"><h2>".vr_t('Nuværende pakke','Current plan')."</h2><div class=\"vr-card\">";
 	if ($P) {
 		$price = $ent['price_ore'] === null ? vr_t('efter aftale','by agreement') : ent_kr($ent['price_ore']).' / '.($ent['interval'] == 'year' ? vr_t('år','year') : vr_t('md.','month'));
-		$src = array('manual' => vr_t('sat af operatør','set by operator'), 'stripe' => 'Stripe', 'override' => vr_t('tilsidesættelse','override'), 'migration' => vr_t('overgangsordning','grandfathered'), 'scheduled' => vr_t('planlagt skift','scheduled change'));
+		$src = array('manual' => vr_t('sat af operatør','set by operator'), 'billing' => vr_t('faktureringsregnskabet (genfaktureringsordre)','billing ledger (recurring order)'), 'stripe' => 'Stripe', 'override' => vr_t('tilsidesættelse','override'), 'migration' => vr_t('overgangsordning','grandfathered'), 'scheduled' => vr_t('planlagt skift','scheduled change'));
 		$viaOv = count(array_filter($ent['overrides'], fn($o) => $o['kind']=='plan'));
 		print "<div class=\"vr-planhead\"><div><span class=\"vr-planname\">".vr_h($P['name'])."</span>".($viaOv ? " <span class=\"vr-pill\">".vr_t('via tilsidesættelse','via override')."</span>" : "")."</div><div class=\"vr-planprice\">".$price." <small>".vr_t('ekskl. moms','excl. VAT')."</small></div></div><div class=\"vr-kv\">";
 		foreach (array(
 			array(vr_t('Faktureringsinterval','Billing interval'), $ent['interval'] == 'year' ? vr_t('Årligt','Yearly') : vr_t('Månedligt','Monthly')),
 			array(vr_t('Gældende fra','Valid from'), $ent['row']['valid_from'] ? date('d-m-Y', strtotime($ent['row']['valid_from'])) : '–'),
 			array(vr_t('Kilde','Source'), isset($src[$ent['row']['source']]) ? $src[$ent['row']['source']] : vr_h($ent['row']['source'])),
-			array('Stripe', $ent['row']['subscription_status'] && $ent['row']['subscription_status'] != 'none' ? vr_h($ent['row']['subscription_status']) : '<span class="vr-mut2">'.vr_t('ikke koblet','not linked').'</span>'),
+			// 20261012 CL/ASR Payment model B1: the truth for the plan is the recurring invoicing order in the billing ledger; the coupling is the billing customer number.
+			array(vr_t('Fakturering','Billing'), (($bk = function_exists('bill_get') ? (string)bill_get($rid)['billing_kontonr'] : '') !== '' ? vr_t('kundenr.','customer no.').' '.vr_h($bk).' <span class="vr-mut2">· '.vr_t('i faktureringsregnskabet','in the billing ledger').'</span>' : '<span class="vr-mut2">'.vr_t('ikke koblet – gem kundenr. under Betalinger','not linked – save the customer no. under Betalinger').'</span>').($ent['row']['subscription_status'] == 'canceled' ? ' <span class="vr-pill">'.vr_t('opsagt','cancelled').'</span>' : '')),
 			array(vr_t('Håndhævelse','Enforcement'), $ent['row']['enforcement'] == 'enforce' ? vr_t('Håndhæves','Enforced') : '<span class="vr-mut2">'.vr_t('Observerer – begrænser ikke endnu','Observe – no gating yet').'</span>'),
 		) as $row) print "<div><span>$row[0]</span><b>$row[1]</b></div>";
 		print "</div>";
