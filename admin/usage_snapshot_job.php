@@ -19,6 +19,7 @@ include("vr_ui.php");
 include("inc_lifecycle.php");
 include("../includes/saldiBillingApi.php");
 include("inc_betalinger.php");
+include("inc_installationer.php");
 $brugernavn = 'cron'; $sprog_id = 1;
 ent_tables_ensure(); partner_tables_ensure();
 $limit = isset($argv[1]) ? (int)$argv[1] : 0;
@@ -43,6 +44,7 @@ if (get_saldi_api_token()) {
 		$data = bill_fetch($cfg['billing_kontonr'] ?: ($cvr ?: $reg['regnskab'])); bill_cache_store((int)$reg['id'], $data, $cfg); $bn++;
 	}
 	echo "billing: $bn customers checked\n";
+	$in = 0; foreach (inst_all() as $ir) { if ($ir['status'] == 'ended') continue; inst_payments($ir); $in++; } echo "billing: $in self-hosted installations checked\n";
 } else echo "billing: API unreachable, cache not refreshed\n";
 partner_log('ledger.snapshot', null, null, "$n regnskaber, $bad uden database, $bn betalingsstatus, ".round(microtime(true) - $t0, 1)." s");
 echo "done: $n snapshots, $bad skipped, ".round(microtime(true) - $t0, 1)." s\n";
