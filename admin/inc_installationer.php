@@ -31,6 +31,7 @@ function inst_fields() {
 	$f['billing_interval'] = "'".(if_isset($_POST, 'year', 'billing_interval') == 'month' ? 'month' : 'year')."'";
 	return $f;
 }
+function inst_url_ok($u) { return (bool)preg_match('#^https?://#i', trim((string)$u)); } # only http(s) addresses become links
 function inst_actions(&$notes, &$id) {
 	if (!isset($_POST['inst_action'])) return;
 	inst_tables_ensure(); $a = $_POST['inst_action'];
@@ -38,8 +39,7 @@ function inst_actions(&$notes, &$id) {
 		if (trim((string)if_isset($_POST, '', 'name')) === '') { $notes[] = vr_t('Navn mangler','Name missing'); return; }
 		$f = inst_fields();
 		if ($a == 'create') {
-			db_modify("insert into self_hosted (".implode(', ', array_keys($f)).", created_by) values (".implode(', ', $f).", '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__);
-			$r = db_fetch_array(db_select("select max(id) as id from self_hosted", __FILE__ . " linje " . __LINE__)); $id = (int)$r['id'];
+			$r = db_fetch_array(db_select("insert into self_hosted (".implode(', ', array_keys($f)).", created_by) values (".implode(', ', $f).", '".db_escape_string(ent_actor())."') returning id", __FILE__ . " linje " . __LINE__)); $id = (int)$r['id'];
 			inst_log($id, 'install.created', trim($_POST['name'])); $notes[] = vr_t('Installationen er oprettet','Installation created');
 		} else {
 			$set = array(); foreach ($f as $k => $v) $set[] = "$k = $v";
@@ -111,7 +111,7 @@ function inst_list_render() {
 function inst_card_render($r, $tab, $notes) {
 	$id = (int)$r['id']; list($dot, $txt) = inst_agreement($r); $latest = inst_latest_version();
 	$lead = "<span class=\"vr-st\"><span class=\"vr-dot $dot\"></span>".vr_h($txt)."</span> · ".vr_t('egen installation','self-hosted').($r['version'] ? ' · Saldi '.vr_h($r['version']) : '').($r['support_level'] ? ' · '.vr_h(inst_levels()[$r['support_level']] ?? '') : '');
-	vr_open(array(array('Administrationspanel', 'operator_panel.php'), array(vr_t('Regnskaber','Accounts'), 'operator_panel.php?ltab=egne'), $r['name']), $r['name'], $lead, $r['url'] ? "<a class=\"vr-btn\" href=\"".vr_h($r['url'])."\" target=\"_blank\" rel=\"noopener\">".vr_t('Åbn installation','Open installation')."</a>" : '', vr_t('egen installation','self-hosted'));
+	vr_open(array(array('Administrationspanel', 'operator_panel.php'), array(vr_t('Regnskaber','Accounts'), 'operator_panel.php?ltab=egne'), $r['name']), $r['name'], $lead, inst_url_ok($r['url']) ? "<a class=\"vr-btn\" href=\"".vr_h($r['url'])."\" target=\"_blank\" rel=\"noopener\">".vr_t('Åbn installation','Open installation')."</a>" : '', vr_t('egen installation','self-hosted'));
 	vr_note($notes, vr_flash_kind());
 	$tu = fn($t) => "operator_panel.php?inst_id=$id&tab=$t";
 	vr_tabs(array('oversigt' => array(vr_t('Oversigt','Overview'), $tu('oversigt'), null), 'betalinger' => array(vr_t('Betalinger','Payments'), $tu('betalinger'), null), 'log' => array(vr_t('Log','Log'), $tu('log'), null)), $tab);
@@ -148,7 +148,7 @@ INVJS;
 		if (function_exists('sp_render_compact')) sp_render_compact(0, $id, "operator_panel.php?inst_id=$id");
 		print "<div class=\"vr-grid2\"><section class=\"vr-sect\"><h2>".vr_t('Installation','Installation')."</h2><div class=\"vr-card vr-kv\">";
 		$old = $r['version'] && $latest && version_compare($r['version'], $latest, '<');
-		foreach (array(array(vr_t('Kontaktperson','Contact'), $r['contact_name'] ? vr_h($r['contact_name']) : '–'), array('E-mail', $r['contact_email'] ? "<a href=\"mailto:".vr_h($r['contact_email'])."\">".vr_h($r['contact_email'])."</a>" : '–'), array(vr_t('Telefon','Phone'), $r['contact_phone'] ? vr_h($r['contact_phone']) : '–'), array('CVR', $r['cvr'] ? vr_h($r['cvr']) : '–'), array(vr_t('Adresse','Address'), $r['url'] ? "<a href=\"".vr_h($r['url'])."\" target=\"_blank\" rel=\"noopener\">".vr_h($r['url'])."</a>" : '–'), array(vr_t('Saldi-version','Saldi version'), ($r['version'] ? vr_h($r['version']) : '–').($old ? " <span class=\"vr-pill\">".vr_t('nyeste er','latest is')." ".vr_h($latest)."</span>" : '')), array(vr_t('Betaling','Payment'), inst_pay_badge($r['pay_status']).($r['checked_at'] ? " <span class=\"vr-mut2\">· ".vr_t('tjekket','checked')." ".vr_h(substr($r['checked_at'],0,10))."</span>" : '')), array(vr_t('Note','Note'), $r['note'] ? nl2br(vr_h($r['note'])) : '–')) as $row) print "<div><span>$row[0]</span><b>$row[1]</b></div>";
+		foreach (array(array(vr_t('Kontaktperson','Contact'), $r['contact_name'] ? vr_h($r['contact_name']) : '–'), array('E-mail', $r['contact_email'] ? "<a href=\"mailto:".vr_h($r['contact_email'])."\">".vr_h($r['contact_email'])."</a>" : '–'), array(vr_t('Telefon','Phone'), $r['contact_phone'] ? vr_h($r['contact_phone']) : '–'), array('CVR', $r['cvr'] ? vr_h($r['cvr']) : '–'), array(vr_t('Adresse','Address'), inst_url_ok($r['url']) ? "<a href=\"".vr_h($r['url'])."\" target=\"_blank\" rel=\"noopener\">".vr_h($r['url'])."</a>" : '–'), array(vr_t('Saldi-version','Saldi version'), ($r['version'] ? vr_h($r['version']) : '–').($old ? " <span class=\"vr-pill\">".vr_t('nyeste er','latest is')." ".vr_h($latest)."</span>" : '')), array(vr_t('Betaling','Payment'), inst_pay_badge($r['pay_status']).($r['checked_at'] ? " <span class=\"vr-mut2\">· ".vr_t('tjekket','checked')." ".vr_h(substr($r['checked_at'],0,10))."</span>" : '')), array(vr_t('Note','Note'), $r['note'] ? nl2br(vr_h($r['note'])) : '–')) as $row) print "<div><span>$row[0]</span><b>$row[1]</b></div>";
 		print "</div>";
 		print "<h2 style=\"margin-top:18px\">".vr_t('Status på aftalen','Agreement status')."</h2><div class=\"vr-card\"><form method=\"post\" class=\"vr-inline\" style=\"padding:14px 20px\"><input type=\"hidden\" name=\"inst_action\" value=\"status\"><select name=\"status\" class=\"vr-sel\">"; foreach (inst_states() as $k => $t) print "<option value=\"$k\"".($r['status'] == $k ? " selected" : "").">".vr_h($t)."</option>"; print "</select><button type=\"submit\" class=\"vr-btn\">".vr_t('Gem status','Save status')."</button></form></div></section>";
 		print "<section class=\"vr-sect\"><h2>".vr_t('Rediger oplysninger','Edit details')."</h2><div class=\"vr-card\">"; inst_form($r, 'update'); print "</div></section></div>";

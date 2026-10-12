@@ -32,9 +32,13 @@ function ent_tab_actions($rid, $reg, &$notes) {
 	elseif ($ea == 'expire_override') { ent_expire_override($rid, (int)if_isset($_POST, 0, 'override_id')); $notes[] = vr_t('Tilsidesættelsen er udløbet','Override expired'); }
 	elseif ($ea == 'feature_toggle') { # on/off within the plan: kind='feature' override; 'on' for a locked feature needs reason+expiry
 		$fk = trim(if_isset($_POST, '', 'feature_key')); $to = if_isset($_POST, 'off', 'to') == 'on' ? 'on' : 'off';
+		if (if_isset($_POST, '', 'mode') != 'restore') { # validate before the active override is expired
+			$vReason = trim(if_isset($_POST, '', 'reason')) ?: ($to == 'off' ? 'Slået fra af operatør' : ''); $vExp = trim(if_isset($_POST, '', 'expires_at'));
+			if ($e = ent_override_error('feature', $vReason, $to == 'off' && !$vExp ? date('Y-m-d', strtotime('+10 years')) : $vExp)) { $notes[] = $e; return; }
+		}
 		db_modify("update regnskab_overrides set expires_at = current_date - 1 where regnskab_id = '".(int)$rid."' and kind = 'feature' and key = '".db_escape_string($fk)."' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
 		if (if_isset($_POST, '', 'mode') == 'restore') { ent_log('entitlement.override_expired', (int)$rid, "feature $fk – tilbage til pakken"); $notes[] = vr_t('Funktionen følger igen pakken','Feature follows the plan again'); }
-		else { $reason = trim(if_isset($_POST, '', 'reason')) ?: ($to == 'off' ? 'Slået fra af operatør' : ''); $exp = trim(if_isset($_POST, '', 'expires_at')); $err = ent_add_override($rid, 'feature', $fk, $to, $reason, $to == 'off' && !$exp ? date('Y-m-d', strtotime('+10 years')) : $exp); $notes[] = $err ? $err : ($to == 'on' ? vr_t('Funktionen er tildelt','Feature granted') : vr_t('Funktionen er slået fra for kunden','Feature switched off for the customer')); }
+		else { $reason = trim(if_isset($_POST, '', 'reason')) ?: ($to == 'off' ? 'Slået fra af operatør' : ''); $exp = trim(if_isset($_POST, '', 'expires_at')); if ($e = ent_override_error('feature', $reason, $to == 'off' && !$exp ? date('Y-m-d', strtotime('+10 years')) : $exp)) { $notes[] = $e; return; } $err = ent_add_override($rid, 'feature', $fk, $to, $reason, $to == 'off' && !$exp ? date('Y-m-d', strtotime('+10 years')) : $exp); $notes[] = $err ? $err : ($to == 'on' ? vr_t('Funktionen er tildelt','Feature granted') : vr_t('Funktionen er slået fra for kunden','Feature switched off for the customer')); }
 	}
 	if ($err) $notes[] = $err;
 }

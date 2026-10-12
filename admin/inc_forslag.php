@@ -44,9 +44,9 @@ function fs_open($rid) {
 	while ($r = db_fetch_array($q)) $out[] = $r; return $out;
 }
 // Apply or reject. $by = 'kunde (link)' or the operator's username.
-function fs_decide($id, $accept, $by) {
+function fs_decide($id, $accept, $by, $rid = 0) { # $rid: the card the decision comes from (0 = the customer's own link, matched by token)
 	fs_tables_ensure();
-	$p = db_fetch_array(db_select("select * from partner_proposals where id = '".(int)$id."' and status = 'open'", __FILE__ . " linje " . __LINE__));
+	$p = db_fetch_array(db_select("select * from partner_proposals where id = '".(int)$id."' and status = 'open'".($rid ? " and regnskab_id = '".(int)$rid."'" : ""), __FILE__ . " linje " . __LINE__));
 	if (!$p) return vr_t('Forslaget er ikke længere åbent','The proposal is no longer open');
 	$err = '';
 	if ($accept) $err = ($p['kind'] == 'plan') ? ent_set_plan((int)$p['regnskab_id'], $p['key'], date('Y-m-d'), 'Godkendt forslag af '.$by) : ent_set_addon((int)$p['regnskab_id'], $p['key'], 1, '');
@@ -63,7 +63,7 @@ function fs_actions($rid, &$notes, $defaultTo) {
 		$err = fs_create($rid, $kind, $key, trim((string)if_isset($_POST, '', 'reason')), $to);
 		$notes[] = $err ? $err : ($to ? vr_t('Forslaget er sendt til','Proposal sent to').' '.$to : vr_t('Forslag oprettet uden e-mail – afgør det her','Proposal created without e-mail – decide here'));
 	} elseif ($a == 'accept' || $a == 'reject') {
-		$err = fs_decide((int)if_isset($_POST, 0, 'proposal_id'), $a == 'accept', ent_actor());
+		$err = fs_decide((int)if_isset($_POST, 0, 'proposal_id'), $a == 'accept', ent_actor(), $rid);
 		$notes[] = $err ? $err : ($a == 'accept' ? vr_t('Forslaget er godkendt og gennemført','Proposal approved and applied') : vr_t('Forslaget er afvist','Proposal rejected'));
 	}
 }

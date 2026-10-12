@@ -15,7 +15,8 @@ function ent_forbrug_actions($rid, &$notes) {
 		if (!in_array($key, array('max_users','included_postings','max_items','max_webshops','pos_tills','warehouses'), true)) { $notes[] = vr_t('Ukendt grænse','Unknown limit'); return; }
 		if ($val === '' ) { $notes[] = vr_t('Angiv en værdi (tal eller "ubegrænset")','Enter a value (number or "unlimited")'); return; }
 		$val = (strtolower($val) == 'ubegrænset' || strtolower($val) == 'unlimited' || $val == '*') ? '*' : (string)(int)preg_replace('/\D/', '', $val);
-		// one active limit override per key: expire the old one first
+		// one active limit override per key: validate first, then expire the old one and add the new one
+		if ($e = ent_override_error('limit', $reason, $exp)) { $notes[] = $e; return; }
 		db_modify("update regnskab_overrides set expires_at = current_date - 1 where regnskab_id = '".(int)$rid."' and kind = 'limit' and key = '".db_escape_string($key)."' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
 		$err = ent_add_override($rid, 'limit', $key, $val, $reason, $exp);
 		$notes[] = $err ? $err : vr_t('Grænsen er justeret','Limit adjusted');

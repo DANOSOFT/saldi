@@ -7,6 +7,7 @@
 // 20261012 CL/ASR The billing ledger's URL comes from settings too (var_name 'saldi_api_base', same group) with the
 //                  old constant as default, so nothing hardcodes the billing ledger (owner's decision 12/10-2026);
 //                  the customer-side invoice overview (billing overview spec) reuses this client and these settings.
+//                  TLS certificates are now verified (verification was off; the billing ledger has a valid certificate).
 if (!defined('SALDI_API_BASE')) {
 // ---- REST API Configuration for the billing ledger (default ssl3.saldi.dk) ----
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_base' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
@@ -49,8 +50,8 @@ function get_saldi_api_token() {
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 10,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => 0
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2
     ]);
     
     $response = curl_exec($ch);
@@ -89,8 +90,8 @@ function fetch_saldi_api($endpoint, $token, $params = []) {
         ],
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 10,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => 0
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2
     ]);
     
     $response = curl_exec($ch);

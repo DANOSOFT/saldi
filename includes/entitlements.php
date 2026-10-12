@@ -174,10 +174,12 @@ function ent_resolve($rid) {
 		$out['addons'][$r['addon_key']] = $r;
 		if (isset($c['addons'][$r['addon_key']])) { $fk = $c['addons'][$r['addon_key']]['feature_key']; $out['features'][$fk] = 'included'; if ($r['addon_key'] == 'webshop_simple' || $r['addon_key'] == 'webshop_advanced') $out['limits']['max_webshops'] = max(1, (int)($out['limits']['max_webshops'] ?? 0)); }
 	}
-	$q = db_select("select * from regnskab_overrides where regnskab_id = '$rid' and (expires_at is null or expires_at >= current_date) order by id", __FILE__ . " linje " . __LINE__);
+	// 20261012 CL/ASR Plan overrides first (they reset features and limits to the plan), then feature/limit/addon overrides
+	//                  on top – regardless of the order they were created in.
+	$q = db_select("select * from regnskab_overrides where regnskab_id = '$rid' and (expires_at is null or expires_at >= current_date) order by (kind = 'plan') desc, id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$out['overrides'][] = $r;
-		if ($r['kind'] == 'plan' && isset($c['plans'][$r['value']])) { $out['plan_key'] = $r['value']; $out['plan'] = $c['plans'][$r['value']]; $out['features'] = array_merge($c['features'][$r['value']], array_intersect_key($out['features'], array())); foreach ($out['addons'] as $ak => $ar) if (isset($c['addons'][$ak])) $out['features'][$c['addons'][$ak]['feature_key']] = 'included'; $pp = $out['plan']; $out['limits'] = array('included_users' => (int)$pp['included_users'], 'max_users' => $pp['max_users'] === null ? null : (int)$pp['max_users'], 'included_postings' => $pp['included_postings'] === null ? null : (int)$pp['included_postings'], 'max_items' => $pp['max_items'] === null ? null : (int)$pp['max_items'], 'max_webshops' => (int)$pp['included_webshops']); }
+		if ($r['kind'] == 'plan' && isset($c['plans'][$r['value']])) { $out['plan_key'] = $r['value']; $out['plan'] = $c['plans'][$r['value']]; $out['features'] = array_merge($c['features'][$r['value']], array_intersect_key($out['features'], array())); foreach ($out['addons'] as $ak => $ar) if (isset($c['addons'][$ak])) $out['features'][$c['addons'][$ak]['feature_key']] = 'included'; $pp = $out['plan']; $out['limits'] = array('included_users' => (int)$pp['included_users'], 'max_users' => $pp['max_users'] === null ? null : (int)$pp['max_users'], 'included_postings' => $pp['included_postings'] === null ? null : (int)$pp['included_postings'], 'max_items' => $pp['max_items'] === null ? null : (int)$pp['max_items'], 'max_webshops' => (int)$pp['included_webshops']); if (isset($out['addons']['webshop_simple']) || isset($out['addons']['webshop_advanced'])) $out['limits']['max_webshops'] = max(1, $out['limits']['max_webshops']); }
 		elseif ($r['kind'] == 'feature') $out['features'][$r['key']] = ($r['value'] == 'on') ? 'included' : 'none';
 		elseif ($r['kind'] == 'limit') $out['limits'][$r['key']] = ($r['value'] === '' || strtolower($r['value']) == 'ubegrænset' || $r['value'] == '*') ? null : (int)$r['value'];
 		elseif ($r['kind'] == 'addon') { $out['addons'][$r['key']] = array('addon_key' => $r['key'], 'quantity' => (int)$r['value'] ?: 1, 'source' => 'override', 'expires_at' => $r['expires_at']); if (isset($c['addons'][$r['key']])) $out['features'][$c['addons'][$r['key']]['feature_key']] = 'included'; }
@@ -237,11 +239,19 @@ function ent_remove_addon($rid, $addon_key) {
 	$c = ent_catalog(); db_modify("delete from regnskab_addons where regnskab_id = '".(int)$rid."' and addon_key = '".db_escape_string($addon_key)."'", __FILE__ . " linje " . __LINE__);
 	ent_log('entitlement.addon_removed', (int)$rid, isset($c['addons'][$addon_key]) ? $c['addons'][$addon_key]['name'] : $addon_key);
 }
-function ent_add_override($rid, $kind, $key, $value, $reason, $expires) {
+// 20261012 CL/ASR Validation split out so callers that replace an active override can check BEFORE expiring the old one
+//                  (an invalid replacement used to remove the active override). The grandfather/overgangsordning
+//                  exemption from the expiry date now applies to plan overrides only (the parentheses were wrong).
+function ent_override_error($kind, $reason, $expires) {
 	if (!in_array($kind, array('plan','feature','limit','addon'), true)) return 'Ugyldig type';
-	if (trim($reason) === '') return 'Begrundelse mangler';
+	if (trim((string)$reason) === '') return 'Begrundelse mangler';
+	$hasEx = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$expires);
+	if (!$hasEx && !($kind == 'plan' && (stripos($reason, 'grandfather') !== false || stripos($reason, 'overgangsordning') !== false))) return 'Udløbsdato er påkrævet (undtagen overgangsordning)';
+	return '';
+}
+function ent_add_override($rid, $kind, $key, $value, $reason, $expires) {
+	if ($e = ent_override_error($kind, $reason, $expires)) return $e;
 	$ex = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$expires) ? "'$expires'" : 'NULL';
-	if ($ex == 'NULL' && !($kind == 'plan' && stripos($reason, 'grandfather') !== false || stripos($reason, 'overgangsordning') !== false)) return 'Udløbsdato er påkrævet (undtagen overgangsordning)';
 	db_modify("insert into regnskab_overrides (regnskab_id, kind, key, value, reason, expires_at, created_by) values ('".(int)$rid."', '$kind', '".db_escape_string($key)."', '".db_escape_string($value)."', '".db_escape_string($reason)."', $ex, '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__);
 	ent_log('entitlement.override_added', (int)$rid, "$kind $key = $value".($ex != 'NULL' ? " indtil $expires" : '').' – '.$reason);
 	return '';

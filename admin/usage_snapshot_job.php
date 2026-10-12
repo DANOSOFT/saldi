@@ -23,10 +23,11 @@ include("inc_installationer.php");
 $brugernavn = 'cron'; $sprog_id = 1;
 ent_tables_ensure(); partner_tables_ensure();
 $limit = isset($argv[1]) ? (int)$argv[1] : 0;
+$due = lc_apply_due(); # lifecycle first, so the list of open ledgers below reflects today's changes
 $ids = array(); $q = db_select("select id, regnskab, db from regnskab where db != '$sqdb' and coalesce(lukket,'') != 'on' order by id", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) $ids[] = $r;
 $n = 0; $bad = 0; $t0 = microtime(true);
-$due = lc_apply_due(); foreach ($ids as $reg) ent_apply_due_changes((int)$reg['id']);
+foreach ($ids as $reg) ent_apply_due_changes((int)$reg['id']);
 echo "lifecycle: $due due event(s) applied\n";
 foreach ($ids as $reg) {
 	if ($limit && $n + $bad >= $limit) break;
