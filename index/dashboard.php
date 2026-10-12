@@ -42,6 +42,8 @@
 // 20261009 Sawaneh Oversigt access keys (front-page addendum 4): dashboard.view gates the page, dashboard.block.* the blocks and the drawer.
 // 20261011 Sawaneh Review: the block order is saved (action=order, cleared by reset); the old Finans-only gate replaced by
 //                  dashboard.view, so Salg/Indkøb roles get the page their keys promise.
+// 20261012 Sawaneh Test pass: the view key only refuses in deny mode (perm_refuse above), observe mode shows the page; widget
+//                  choices are per user with the fixed defaults, no fallback to old company-wide rows.
 // 20261010 Sawaneh Ufakturerede ordrer: key figures 1 and 3 of addendum 3 §7 (delivered over 14 days ago, ready to invoice now). Texts 7072-7073.
 @session_start();
 $s_id = session_id();
@@ -141,9 +143,6 @@ function dash_toggle(string $key, int $userId, string $default): bool
 	if (!$r && $key === 'weekkpi') {
 		$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'dashboard_toggles' and var_name = 'revweek' and user_id = $userId order by id desc limit 1", __FILE__ . " linje " . __LINE__));
 	}
-	if (!$r) {
-		$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'dashboard_toggles' and var_name = '$k' and coalesce(user_id, 0) = 0 order by id desc limit 1", __FILE__ . " linje " . __LINE__));
-	}
 	$v = $r ? trim((string) $r['var_value']) : $default;
 	return $v !== 'off';
 }
@@ -230,7 +229,7 @@ $money = function ($v) {
 };
 
 print "<link rel='stylesheet' href='../css/saldi-theme.css?v=7'>";
-if ((function_exists('perm_can') ? !perm_can('dashboard.view') : !check_permissions(array(3,4))) || is_null($regnaar)) {
+if ((function_exists('perm_can') ? false : !check_permissions(array(3,4))) || is_null($regnaar)) {
 	print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
 	if (is_null($regnaar)) {
 		print "<p>".findtekst('2575|Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår', $sprog_id)."</p>";
