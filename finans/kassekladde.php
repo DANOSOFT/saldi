@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -133,6 +133,9 @@
 //                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
+// 20261012 CL/SZ SD-730 Regnskabsår select in the header (fiscalYearSwitch.php): switches the active year and comes back to
+//                  the same journal. A clip next to Bemærkning opens the journal's own documents (journalDocuments.php).
+//                  Coming back from the open-posts page keeps the line's Forfaldsdato and Betalings-id (they were emptied).
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
@@ -218,6 +221,10 @@ if ($kk_saved_journal !== null) {
 	exit;
 }
 include("../includes/std_func.php");
+// SD-730: ?aktiver_regnaar=<year> from the header's Regnskabsår select switches the year and comes back here
+require_once __DIR__ . '/kassekladde_includes/fiscalYearSwitch.php';
+require_once __DIR__ . '/kassekladde_includes/journalDocumentsFunc.php';
+if (!$_POST) fiscalYearSwitchHandle($_GET, $regnaar, $brugernavn, $bruger_id, $revisor, $db_id, session_id());
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
@@ -742,6 +749,9 @@ if ($_GET) {
 	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
 	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
 	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	// SD-730: the open-posts links (an invoice row, Indsæt, Luk) carry these, so the line keeps them
+	if (isset($_GET['forfaldsdato'])) $forfaldsdato[$x] = db_escape_string(trim((string)$_GET['forfaldsdato']));
+	if (isset($_GET['betal_id']))     $betal_id[$x]     = db_escape_string(trim((string)$_GET['betal_id']));
 	$find            =       if_isset($_GET, 		'',		'find');
 	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
 	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
@@ -2641,6 +2651,8 @@ print "<td width='14%' align='center'><span id='kk-balance-status'></span></td>"
 print "<td align='left' style='white-space: nowrap;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
 <input class='inputbox' type='text' style='width:750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
 onchange='javascript:docChange = true;'></td>";
+print journalDocumentsClip($kladde_id, $sprog_id);
+print fiscalYearSwitchCell($regnaar, $kladde_id, $bogfort, $sprog_id);
 if ($bogfort == "-") {
 	$page_display = false;
     if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];

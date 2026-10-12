@@ -35,6 +35,7 @@
 //                 account is read with the matched account's own group (it used the last address of the whole list, and
 //                 an empty group failed the query), and "Difference" uses text 2396 (3095 is "Slet ansat"). The row links
 //                 encode Bilagstekst and the invoice number: a "#" or "&" in the text cut the link and blanked the columns.
+//                 They also carry Forfaldsdato and Betalings-id, which kassekladde.php emptied on the way back (CodeRabbit).
 
 function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr){
 # ($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr) {
@@ -83,6 +84,7 @@ print "<center>";
 	$lnktxt = "&funktion=openpost&x=$x&fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&";
 	$lnktxt.= "beskrivelse=".urlencode($beskrivelse)."&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura";
 	$lnktxt.= "&belob=$belob&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$valuta&lobenr=$lobenr&find=$find";
+	$lnktxt.= "&forfaldsdato=".urlencode((string)$forfaldssato)."&betal_id=".urlencode((string)$betailngs_id);
 	if ($menu=='T') {
 		include_once '../includes/top_menu.php';
 		include_once '../includes/top_header.php';
@@ -263,7 +265,7 @@ print "<center>";
 			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=".urlencode($beskr);
 			$lnktxt.= "&d_type=$accountType[$x]&debet=$accountNo[$x]&k_type=$k_type&kredit=$newCredit&faktura=".urlencode((string)$invoiceNo[$x]);
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
-			$lnktxt.= "&lobenr=$lobenr&find=$find";
+			$lnktxt.= "&lobenr=$lobenr&find=$find&forfaldsdato=".urlencode((string)$forfaldssato)."&betal_id=".urlencode((string)$betailngs_id);
 			$tmp="<a href='$lnktxt'>";
 			$newAmount=dkdecimal($openAamount[$x],2);
 		} else {
@@ -272,7 +274,7 @@ print "<center>";
 			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=".urlencode($beskr);
 			$lnktxt.= "&d_type=$d_type&debet=$newDebet&k_type=$accountType[$x]&kredit=$accountNo[$x]&faktura=".urlencode((string)$invoiceNo[$x]);
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
-			$lnktxt.= "&lobenr=$lobenr&find=$find";
+			$lnktxt.= "&lobenr=$lobenr&find=$find&forfaldsdato=".urlencode((string)$forfaldssato)."&betal_id=".urlencode((string)$betailngs_id);
 			$tmp="<a href='$lnktxt'>";
 			$newAmount=dkdecimal($openAamount[$x],2);
 			$oppSum+= $openAamount[$x];
