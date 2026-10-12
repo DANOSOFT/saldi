@@ -264,6 +264,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         }
         // Reconnect master
         include("../includes/connect.php");
+        partner_log('ledger.user_updated', $reg_id, null, "bruger $user_id: ".implode(', ', array_map(function($x) { return preg_replace("/=.*/", '', $x); }, $sets))); // 20261012 CL/ASR fields only, never values
         echo json_encode(['success' => true]);
         exit;
     }
@@ -278,10 +279,12 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         if ($r && $r['ansat_id']) {
             db_modify("UPDATE ansatte SET lukket='on', slutdate='" . date('Y-m-d') . "' WHERE id = " . (int)$r['ansat_id'], __FILE__ . " linje " . __LINE__);
         }
+        $vr_un = db_fetch_array(db_select("SELECT brugernavn FROM brugere WHERE id = $user_id", __FILE__ . " linje " . __LINE__));
         db_modify("DELETE FROM brugere WHERE id = $user_id", __FILE__ . " linje " . __LINE__);
         
         // Reconnect master
         include("../includes/connect.php");
+        partner_log('ledger.user_deleted', $reg_id, null, ($vr_un ? $vr_un['brugernavn'] : 'ukendt')." (id $user_id)"); // 20261012 CL/ASR
         echo json_encode(['success' => true]);
         exit;
     }
@@ -295,6 +298,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         
         // Reconnect master
         include("../includes/connect.php");
+        partner_log('ledger.user_tables_reset', $reg_id, null, "bruger $user_id"); // 20261012 CL/ASR
         echo json_encode(['success' => true]);
         exit;
     }
