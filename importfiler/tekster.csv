@@ -6731,6 +6731,7 @@
 7094	Bogstaver a-z, tal og + . - , højst 40 tegn	Letters a-z, digits and + . - , at most 40 characters	Bokstaver a-z, tall og + . - , maks. 40 tegn
 7095	Navnet er ikke gyldigt	The name is not valid	Navnet er ikke gyldig
 7096	Grundopsætning mangler	Basic setup missing	Grunnoppsett mangler
+7097	Leverede ordrer, der ikke er faktureret	Delivered orders not yet invoiced	Leverte ordrer som ikke er fakturert
 6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
 6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
 6932	Adgang nægtet	Access denied	Ingen tilgang

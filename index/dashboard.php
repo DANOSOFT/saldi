@@ -420,7 +420,7 @@ $blockList = array(
 	array('id' => 'unpaid_invoices', 'name' => $u8($tx('7032|Ubetalte salgsfakturaer')), 'desc' => $u8($tx('7050|Forfaldne beløb og hvilke fakturaer det er'))),
 	array('id' => 'small', 'name' => $u8($tx('7059|Små tal')), 'desc' => $u8($tx('7060|Medarbejdere, ordrer, forslag')), 'items' => array(
 		array('onlineusers', $u8($tx('2379|Aktive medarbejdere')), $u8($tx('6981|Hvem der har været aktive den sidste time'))),
-		array('ordercount', $u8($tx('2161|Ufakturerede ordrer')), $u8($tx('6982|Ordrer fra de sidste 30 dage'))),
+		array('ordercount', $u8($tx('2161|Ufakturerede ordrer')), $u8($tx('7097|Leverede ordrer, der ikke er faktureret'))),
 		array('suggest', $u8($tx('6968|Forslag klar til bekræftelse')), $u8($tx('6969|Notifikationer med forslag, der venter på dig'))))),
 );
 if (!$dashKey('suggestions')) {
