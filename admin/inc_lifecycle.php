@@ -80,6 +80,11 @@ function lc_actions($rid, &$notes) {
 	elseif ($a == 'reopen') $err = lc_schedule($rid, 'active', $date, $reason);
 	elseif ($a == 'cancel_sub') $err = lc_cancel_subscription($rid, $date, $reason);
 	elseif ($a == 'cancel_pending') lc_cancel_pending($rid);
+	elseif ($a == 'resume_sub') { # undo a subscription cancellation
+		db_modify("update regnskab_entitlements set subscription_status = 'none', current_period_end = NULL, updated_at = now() where regnskab_id = '".(int)$rid."' and subscription_status = 'canceled'", __FILE__ . " linje " . __LINE__);
+		lc_cancel_pending($rid); ent_log('entitlement.subscription_resumed', (int)$rid, 'opsigelse fortrudt');
+		$notes[] = vr_t('Abonnementet er genoptaget','Subscription resumed'); return;
+	}
 	$notes[] = $err ? $err : vr_t('Gemt','Saved');
 }
 function lc_render($rid, $reg, $ent) {
@@ -94,8 +99,15 @@ function lc_render($rid, $reg, $ent) {
 	print "</div>";
 	// actions
 	$f = function($action, $label, $cls, $needReason = true) use ($today) { return "<form method=\"post\" class=\"vr-inline\" style=\"padding:10px 20px;border-top:1px solid var(--grid)\"><input type=\"hidden\" name=\"lc_action\" value=\"$action\"><b style=\"font-weight:500;min-width:170px\">$label</b><input class=\"vr-inp\" type=\"date\" name=\"effective_from\" value=\"$today\" min=\"$today\" title=\"".vr_t('Dato (i dag = straks)','Date (today = now)')."\"><input class=\"vr-inp\" name=\"reason\" placeholder=\"".vr_t('Begrundelse','Reason').($needReason ? ' ('.vr_t('påkrævet','required').')' : '')."\" style=\"flex:1;min-width:220px\"".($needReason ? " required" : "")."><button type=\"submit\" class=\"vr-btn $cls\" onclick=\"return confirm('".vr_t('Er du sikker?','Are you sure?')."')\">".vr_t('Udfør','Apply')."</button></form>"; };
-	if ($st['state'] == 'active') { print $f('suspend', vr_t('Suspendér regnskabet','Suspend the account'), ''); print $f('close', vr_t('Luk regnskabet','Close the account'), 'vr-danger'); print $f('cancel_sub', vr_t('Opsig abonnementet','Cancel the subscription'), 'vr-danger'); }
-	else print $f('reopen', vr_t('Genåbn regnskabet','Reopen the account'), 'vr-primary', false);
+	// 20261012 CL/ASR "Genåbn" is always shown (disabled while the account is active), and a cancelled subscription can be resumed.
+	$off = function($label, $why) { return "<div class=\"vr-inline\" style=\"padding:10px 20px;border-top:1px solid var(--grid);opacity:.55\"><b style=\"font-weight:500;min-width:170px\">$label</b><span class=\"vr-mut2\" style=\"flex:1;font-size:13px\">$why</span><button type=\"button\" class=\"vr-btn\" disabled>".vr_t('Udfør','Apply')."</button></div>"; };
+	$canceled = $ent['row'] && $ent['row']['subscription_status'] == 'canceled';
+	if ($st['state'] != 'active') print $f('reopen', vr_t('Genåbn regnskabet','Reopen the account'), 'vr-primary', false);
+	if ($st['state'] == 'active') print $f('suspend', vr_t('Suspendér regnskabet','Suspend the account'), '');
+	if ($st['state'] != 'closed') print $f('close', vr_t('Luk regnskabet','Close the account'), 'vr-danger');
+	if ($canceled) print "<form method=\"post\" class=\"vr-inline\" style=\"padding:10px 20px;border-top:1px solid var(--grid)\"><input type=\"hidden\" name=\"lc_action\" value=\"resume_sub\"><b style=\"font-weight:500;min-width:170px\">".vr_t('Genoptag abonnementet','Resume the subscription')."</b><span class=\"vr-mut2\" style=\"flex:1;font-size:13px\">".vr_t('Fortryder opsigelsen og annullerer den planlagte lukning.','Undoes the cancellation and the scheduled closing.')."</span><button type=\"submit\" class=\"vr-btn vr-primary\" onclick=\"return confirm('".vr_t('Genoptag abonnementet?','Resume the subscription?')."')\">".vr_t('Genoptag','Resume')."</button></form>";
+	elseif ($st['state'] == 'active') print $f('cancel_sub', vr_t('Opsig abonnementet','Cancel the subscription'), 'vr-danger');
+	if ($st['state'] == 'active') print $off(vr_t('Genåbn regnskabet','Reopen the account'), vr_t('Regnskabet er aktivt. Knappen bliver aktiv, når regnskabet er suspenderet eller lukket.','The account is active. Available when it is suspended or closed.'));
 	print "<div class=\"vr-foot\"><span>".vr_t('Suspenderet: login afvises, men regnskabet kan ikke slettes. Lukket: login afvises, og regnskabet kan slettes under Slet regnskab. En dato i fremtiden planlægger handlingen; den udføres automatisk af det natlige job. Opsigelse lukker regnskabet ved periodens udløb.','Suspended: login refused, cannot be deleted. Closed: login refused, deletable. A future date schedules the action; the nightly job applies it. Cancellation closes the account at period end.')."</span></div></div></section>";
 }
 }
