@@ -255,3 +255,15 @@ html.vr-collapsed .vr-side hr{margin:10px 6px}
 .vr-planprice{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap} .vr-planprice small{font-weight:400;color:var(--text-3);font-size:12px}
 div.vr-stat:hover{background:transparent}
 .vr-mods .vr-frow{grid-template-columns:minmax(0,1fr) 150px 110px}
+
+/* customizations (20261012) */
+.vr-sp{padding:14px 20px;border-bottom:1px solid var(--grid)} .vr-sp:last-of-type{border-bottom:0}
+.vr-sp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px} .vr-sp-head b{font-weight:600;font-size:14.5px}
+.vr-sp-acts{display:flex;gap:14px;align-items:flex-start;flex:none} .vr-sp-acts form{display:inline}
+.vr-sp-acts details{position:relative} .vr-sp-acts details[open]{flex-basis:100%}
+.vr-sp-acts summary{list-style:none;cursor:pointer} .vr-sp-acts summary::-webkit-details-marker{display:none}
+.vr-sp-head:has(details[open]){flex-wrap:wrap}
+.vr-sp-meta{font-size:12.5px;color:var(--text-3);margin-top:4px}
+.vr-sp-desc{font-size:13.5px;color:var(--text-2);margin-top:8px;line-height:1.55;max-width:900px}
+.vr-sp-ret b,.vr-sp-ret .vr-sp-desc{color:var(--text-3)}
+.vr-foot details>summary{list-style:none} .vr-foot details>summary::-webkit-details-marker{display:none}

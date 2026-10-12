@@ -145,12 +145,14 @@ INVJS;
 		if (!$n) print "<tr><td colspan=\"4\" class=\"vr-mut\">".vr_t('Ingen hændelser endnu','No events yet')."</td></tr>";
 		print "</tbody></table></div></section>";
 	} else {
+		if (function_exists('sp_render_compact')) sp_render_compact(0, $id, "admin_panel.php?inst_id=$id");
 		print "<div class=\"vr-grid2\"><section class=\"vr-sect\"><h2>".vr_t('Installation','Installation')."</h2><div class=\"vr-card vr-kv\">";
 		$old = $r['version'] && $latest && version_compare($r['version'], $latest, '<');
 		foreach (array(array(vr_t('Kontaktperson','Contact'), $r['contact_name'] ? vr_h($r['contact_name']) : '–'), array('E-mail', $r['contact_email'] ? "<a href=\"mailto:".vr_h($r['contact_email'])."\">".vr_h($r['contact_email'])."</a>" : '–'), array(vr_t('Telefon','Phone'), $r['contact_phone'] ? vr_h($r['contact_phone']) : '–'), array('CVR', $r['cvr'] ? vr_h($r['cvr']) : '–'), array(vr_t('Adresse','Address'), $r['url'] ? "<a href=\"".vr_h($r['url'])."\" target=\"_blank\" rel=\"noopener\">".vr_h($r['url'])."</a>" : '–'), array(vr_t('Saldi-version','Saldi version'), ($r['version'] ? vr_h($r['version']) : '–').($old ? " <span class=\"vr-pill\">".vr_t('nyeste er','latest is')." ".vr_h($latest)."</span>" : '')), array(vr_t('Betaling','Payment'), inst_pay_badge($r['pay_status']).($r['checked_at'] ? " <span class=\"vr-mut2\">· ".vr_t('tjekket','checked')." ".vr_h(substr($r['checked_at'],0,10))."</span>" : '')), array(vr_t('Note','Note'), $r['note'] ? nl2br(vr_h($r['note'])) : '–')) as $row) print "<div><span>$row[0]</span><b>$row[1]</b></div>";
 		print "</div>";
 		print "<h2 style=\"margin-top:18px\">".vr_t('Status på aftalen','Agreement status')."</h2><div class=\"vr-card\"><form method=\"post\" class=\"vr-inline\" style=\"padding:14px 20px\"><input type=\"hidden\" name=\"inst_action\" value=\"status\"><select name=\"status\" class=\"vr-sel\">"; foreach (inst_states() as $k => $t) print "<option value=\"$k\"".($r['status'] == $k ? " selected" : "").">".vr_h($t)."</option>"; print "</select><button type=\"submit\" class=\"vr-btn\">".vr_t('Gem status','Save status')."</button></form></div></section>";
 		print "<section class=\"vr-sect\"><h2>".vr_t('Rediger oplysninger','Edit details')."</h2><div class=\"vr-card\">"; inst_form($r, 'update'); print "</div></section></div>";
+		if (function_exists('sp_render')) sp_render(0, $id);
 	}
 	vr_close(); print "</body></html>";
 }
