@@ -32,7 +32,7 @@ function vr_url($page, $params) {
 	$params = array_filter($params, fn($v) => isset($v) && $v !== '' && $v !== false);
 	return $page.($params ? '?'.http_build_query($params) : '');
 }
-function vr_kind($kind) { return $kind == 'koncern' ? vr_t('Koncern', 'Group') : vr_t('Bogholder/revisor', 'Accountant'); }
+function vr_kind($kind) { return $kind == 'koncern' ? vr_t('Koncern', 'Group') : ($kind == 'revisor' ? vr_t('Revisor', 'Auditor') : vr_t('Bogholder', 'Bookkeeper')); }
 // ---------- shell: sidebar in the user's colour + topbar, as in the approved prototypes ----------
 // Menu entries follow index/admin_menu.php (same rights and gating). Partner users get the partner menu.
 function vr_menu() {
@@ -44,7 +44,6 @@ function vr_menu() {
 		$r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
 		if ($u['is_operator']) $items[] = array(vr_t('Kunder','Customers'), '../admin/admin_panel.php', 'shield', true);
 		$items[] = array(vr_t('Regnskaber','Accounts'), '../admin/vis_regnskaber.php', 'list', true);
-		if ($u['is_operator']) $items[] = array(vr_t('Bogholdere og koncerner','Accountants and groups'), '../admin/partnere.php', 'users', true);
 		$items[] = array(findtekst('339|Opret regnskab', $sprog_id), '../admin/opret.php', 'plus', $u['admin'] == 'on' || $u['oprette'] == 'on');
 		if ($full) {
 			$items[] = array(findtekst('341|Slet regnskab', $sprog_id), '../admin/slet_regnskab.php', 'trash', $u['admin'] == 'on' || $u['slette'] == 'on');
@@ -87,7 +86,7 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	print "<button type=\"button\" class=\"vr-collapse\" id=\"vrCollapse\" onclick=\"vrToggleSide()\" aria-label=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\" title=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 6l-6 6 6 6\"/></svg></button></div>";
 	print "<div class=\"vr-grp\">".($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration')))."</div><nav>";
 	foreach (vr_menu() as $it) {
-		$on = (basename($it[1]) == $self) || ($self == 'regnskab.php' && basename($it[1]) == 'vis_regnskaber.php') || ($self == 'partnere.php' && basename($it[1]) == 'partnere.php');
+		$on = (basename($it[1]) == $self) || ($self == 'regnskab.php' && basename($it[1]) == 'vis_regnskaber.php') || ($self == 'partnere.php' && basename($it[1]) == (partner_current_user()['is_operator'] ? 'admin_panel.php' : 'partnere.php'));
 		if ($it[3]) print "<a class=\"vr-nav".($on ? " vr-on" : "")."\" href=\"".vr_h($it[1])."\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></a>";
 		else print "<span class=\"vr-nav vr-dim\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></span>";
 	}

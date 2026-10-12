@@ -138,8 +138,9 @@ include("../includes/topline_settings.php");
 include("../includes/partnerScope.php");
 include("../includes/entitlements.php");
 include("vr_ui.php");
+$vr_type = (string)if_isset($_POST, if_isset($_GET, 'normal', 'type'), 'type'); if (!in_array($vr_type, array_merge(array('normal'), partner_kinds()), true)) $vr_type = 'normal';
 partner_tables_ensure();
-vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('339|Opret regnskab', $sprog_id)), findtekst('339|Opret regnskab', $sprog_id), vr_t('Opretter en ny kundedatabase med administrator og standardkontoplan. Tager normalt under et minut.', 'Creates a new customer database with an administrator and the standard chart of accounts. Usually takes less than a minute.'));
+vr_open(array(array('Administrationspanel', 'admin_panel.php'), findtekst('339|Opret regnskab', $sprog_id)), findtekst('339|Opret regnskab', $sprog_id), vr_t('Opretter et nyt regnskab med administrator og standardkontoplan. Vælg typen øverst: et normalt kunderegnskab, eller en bogholders, revisors eller koncerns eget regnskab. Tager normalt under et minut.', 'Creates a new account with an administrator and the standard chart of accounts. Choose the type at the top. Usually takes less than a minute.'));
 print "<section class=\"vr-sect\"><div class=\"vr-card\"><div class=\"vr-legacy\">";
 if ($db_type=="mysql" or $db_type=="mysqli") {
 
@@ -205,6 +206,10 @@ if ($_POST){
 		print "<BODY onLoad=\"javascript:alert('".findtekst('2682|Regnskab', $sprog_id)." $regnskab ".findtekst('2683|findes allerede', $sprog_id)."')\">";
 		forside($regnskab,$brugernavn);
 		exit;
+	} elseif ($vr_type != 'normal' && isset($_POST['partner_login']) && !partner_login_free(trim($_POST['brugernavn']))) {
+		print "<BODY onLoad=\"javascript:alert('".vr_t('Brugernavnet findes allerede som login i administrationslaget. Vælg et andet administratornavn, eller fravælg login til panelet.','The username already exists as an administration login. Choose another administrator name, or untick the panel login.')."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
 	} elseif ((!$revisorregnskab && (!$brugernavn||!$passwd)) || (!$regnskab))  {
 		print "<BODY onLoad=\"javascript:alert('".findtekst('2684|Alle felter SKAL udfyldes', $sprog_id)."')\">";
 		forside($regnskab,$brugernavn);
@@ -234,6 +239,7 @@ if ($_POST){
 		$vr_trial = (string)if_isset($_POST, '', 'trial'); $vr_partner = (int)if_isset($_POST, 0, 'partner_id');
 		if (in_array($vr_trial, array('professionel','business'), true)) ent_start_trial((int)$db_id, $vr_trial, 30);
 		elseif ($vr_trial === 'finans') ent_write_plan((int)$db_id, 'finans', date('Y-m-d'), 'manual');
+		if ($vr_type != 'normal') { $vr_partner = 0; list($vr_pid, $vr_perr) = partner_create_for_ledger((int)$db_id, $vr_type, trim((string)$_POST['regnskab']), trim((string)if_isset($_POST, '', 'cvr')), isset($_POST['can_create']), isset($_POST['partner_login']) ? array(trim($_POST['brugernavn']), trim($_POST['passwd'])) : null); }
 		if ($vr_partner && ($vr_pp = db_fetch_array(db_select("select * from partners where id = '$vr_partner' and status = 'active'", __FILE__ . " linje " . __LINE__)))) {
 			db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note) values ('".(int)$db_id."', '$vr_partner', '".($vr_pp['kind'] == 'koncern' ? 'owner' : 'full')."', '".(int)partner_current_user()['id']."', 'oprettet med regnskabet')", __FILE__ . " linje " . __LINE__);
 			partner_log('partner.link_added', (int)$db_id, $vr_partner, $vr_pp['name'].' (ved oprettelse)');
@@ -254,15 +260,26 @@ if ($_POST){
 function forside($regnskab,$brugernavn) {
 	global $charset;
 	global $sprog_id;
-	print "<form name=\"debitorkort\" action=\"opret.php\" method=\"post\" class=\"vr-form\">";
+	global $vr_type;
+	$types = array('normal' => vr_t('Normalt regnskab','Standard account'), 'bogholder' => vr_t('Bogholder','Bookkeeper'), 'revisor' => vr_t('Revisor','Auditor'), 'koncern' => vr_t('Koncern (moderselskab)','Group (parent company)'));
+	print "<form name=\"debitorkort\" action=\"opret.php\" method=\"post\" class=\"vr-form\" id=\"vrOpret\">";
+	print "<label>".vr_t('Regnskabstype','Account type')."<select name=\"type\" class=\"vr-sel\" id=\"vrType\" onchange=\"vrTypeChange()\">"; foreach ($types as $k => $t) print "<option value=\"$k\"".($vr_type == $k ? " selected" : "").">".vr_h($t)."</option>"; print "</select><span class=\"vr-mut2\" id=\"vrTypeHelp\" style=\"font-size:12.5px\"></span></label>";
 	print "<label>".findtekst('2685|Navn på regnskab', $sprog_id)."<input class=\"vr-inp\" type=\"text\" maxlength=\"60\" name=\"regnskab\" value=\"".vr_h($regnskab)."\" required></label>";
 	print "<label>".findtekst('2686|Administrators navn', $sprog_id)."<input class=\"vr-inp\" type=\"text\" maxlength=\"80\" name=\"brugernavn\" value=\"".vr_h($brugernavn)."\" required></label>";
 	print "<label>".findtekst('2687|Administrators adgangskode', $sprog_id)."<input class=\"vr-inp\" type=\"password\" name=\"passwd\" required></label>";
 	print "<label>".findtekst('2688|Gentag adgangskode', $sprog_id)."<input class=\"vr-inp\" type=\"password\" name=\"passwd2\" required></label>";
 	print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"std_kto_plan\" checked> ".findtekst('2689|Opret standardkontoplan', $sprog_id)."</label>";
 	print "<label>".vr_t('Pakke og prøveperiode','Plan and trial')."<select name=\"trial\" class=\"vr-sel\"><option value=\"\">".vr_t('Ingen pakke endnu','No plan yet')."</option><option value=\"finans\">Finans</option><option value=\"professionel\" selected>".vr_t('30 dages prøve på Professionel, derefter Finans','30-day trial of Professionel, then Finans')."</option><option value=\"business\">".vr_t('30 dages prøve på Business, derefter Finans','30-day trial of Business, then Finans')."</option></select></label>";
-	print "<label>".vr_t('Tilknyt bogholder eller koncern (valgfrit)','Link accountant or group (optional)')."<select name=\"partner_id\" class=\"vr-sel\"><option value=\"0\">–</option>"; foreach (partner_all() as $vp) print "<option value=\"".(int)$vp['id']."\">".vr_h($vp['name'])." · ".vr_h(vr_kind($vp['kind']))."</option>"; print "</select></label>";
-	print "<div><button type=\"submit\" class=\"vr-btn vr-primary\" accesskey=\"g\" name=\"submit\" value=\"1\">".findtekst('339|Opret regnskab', $sprog_id)."</button></div>";
+	print "<label id=\"vrLinkPartner\">".vr_t('Tilknyt bogholder, revisor eller koncern (valgfrit)','Link bookkeeper, auditor or group (optional)')."<select name=\"partner_id\" class=\"vr-sel\"><option value=\"0\">–</option>"; foreach (partner_all() as $vp) print "<option value=\"".(int)$vp['id']."\">".vr_h($vp['name'])." · ".vr_h(vr_kind($vp['kind']))."</option>"; print "</select></label>";
+	print "<div id=\"vrPartnerFields\" class=\"vr-form\" style=\"padding:14px 16px;margin:2px 0;background:var(--surface-2);border-radius:10px;max-width:none\">";
+	print "<label>CVR<input class=\"vr-inp\" name=\"cvr\" value=\"".vr_h((string)if_isset($_POST, '', 'cvr'))."\" maxlength=\"20\"></label>";
+	print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"partner_login\" value=\"1\" checked> ".vr_t('Opret login til bogholderpanelet med samme navn og adgangskode','Create a panel login with the same name and password')."</label>";
+	print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"can_create\" value=\"1\"> <span id=\"vrCanCreate\">".vr_t('Må selv oprette kunderegnskaber','May create customer accounts')."</span></label>";
+	print "</div>";
+	print "<div><button type=\"submit\" class=\"vr-btn vr-primary\" accesskey=\"g\" name=\"submit\" value=\"1\" id=\"vrSubmit\">".findtekst('339|Opret regnskab', $sprog_id)."</button></div>";
+	$help = array('normal' => vr_t('Et almindeligt kunderegnskab.','A standard customer account.'), 'bogholder' => vr_t('Bogholderens eget regnskab. Bogholderen får et panel med sine kunder, som tilknyttes bagefter.','The bookkeeper\'s own account. They get a panel with their customers, linked afterwards.'), 'revisor' => vr_t('Revisorens eget regnskab. Virker som bogholder, men vises som revisor.','The auditor\'s own account. Works like a bookkeeper, shown as auditor.'), 'koncern' => vr_t('Moderselskabets regnskab. Datterselskaber tilknyttes bagefter og ejes af koncernen.','The parent company\'s account. Subsidiaries are linked afterwards and owned by the group.'));
+	$btn = array('normal' => findtekst('339|Opret regnskab', $sprog_id), 'bogholder' => vr_t('Opret bogholder','Create bookkeeper'), 'revisor' => vr_t('Opret revisor','Create auditor'), 'koncern' => vr_t('Opret koncern','Create group'));
+	print "<script>var VR_HELP=".json_encode($help).",VR_BTN=".json_encode($btn).";function vrTypeChange(){var t=document.getElementById('vrType').value,p=t!=='normal';document.getElementById('vrPartnerFields').hidden=!p;document.getElementById('vrLinkPartner').hidden=p;document.getElementById('vrTypeHelp').textContent=VR_HELP[t];document.getElementById('vrSubmit').textContent=VR_BTN[t];document.getElementById('vrCanCreate').textContent=t==='koncern'?'".vr_t('Må selv oprette datterselskaber','May create subsidiaries')."':'".vr_t('Må selv oprette kunderegnskaber','May create customer accounts')."';}vrTypeChange();</script>";
 	print "</form>";
 }
 

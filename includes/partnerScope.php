@@ -135,5 +135,26 @@ function partner_migrate_adgang_til() {
 	return $n;
 }
 
+// 20261012 CL/ASR Partner created together with its own ledger (opret.php "Regnskabstype"). $kind: bogholder|revisor|koncern.
+// $login = array(username, password) creates a master login as partner owner (refused if the username exists in master).
+function partner_kinds() { return array('bogholder', 'revisor', 'koncern'); }
+function partner_login_free($username) { return !db_fetch_array(db_select("select 1 from brugere where brugernavn = '".db_escape_string($username)."'", __FILE__ . " linje " . __LINE__)); }
+function partner_create_for_ledger($rid, $kind, $name, $cvr, $can_create, $login = null) {
+	if (!in_array($kind, partner_kinds(), true)) return array(0, 'Ukendt type');
+	partner_tables_ensure();
+	db_modify("insert into partners (kind, name, cvr, home_regnskab_id, can_create, created_by) values ('$kind', '".db_escape_string($name)."', '".db_escape_string($cvr)."', '".(int)$rid."', ".($can_create ? 'true' : 'false').", '".(int)partner_current_user()['id']."')", __FILE__ . " linje " . __LINE__);
+	$r = db_fetch_array(db_select("select max(id) as id from partners", __FILE__ . " linje " . __LINE__)); $pid = (int)$r['id'];
+	partner_log('partner.created', (int)$rid, $pid, "$kind: $name (med eget regnskab)");
+	if ($login && $login[0] !== '' && strlen($login[1]) >= 6) {
+		if (!partner_login_free($login[0])) return array($pid, 'Login findes allerede i masterlaget – medarbejder kan tilføjes på partnerkortet');
+		db_modify("insert into brugere (brugernavn, rettigheder, status) values ('".db_escape_string($login[0])."', ',,,', true)", __FILE__ . " linje " . __LINE__);
+		$u = db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($login[0])."' order by id desc limit 1", __FILE__ . " linje " . __LINE__)); $bid = (int)$u['id'];
+		db_modify("update brugere set kode = '".db_escape_string(saldikrypt($bid, $login[1]))."' where id = '$bid'", __FILE__ . " linje " . __LINE__);
+		db_modify("insert into partner_users (bruger_id, partner_id, partner_role) values ('$bid', '$pid', 'owner')", __FILE__ . " linje " . __LINE__);
+		partner_log('partner.employee_added', (int)$rid, $pid, "login ".$login[0]." (ejer)");
+	}
+	return array($pid, '');
+}
+
 } // function_exists
 ?>

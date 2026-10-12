@@ -128,7 +128,7 @@ function ent_kr($ore) { return $ore === null ? null : number_format($ore / 100, 
 function ent_log($action, $rid, $details = '') {
 	if (function_exists('partner_log')) partner_log($action, $rid, null, $details);
 }
-function ent_actor() { global $brugernavn; return (string)$brugernavn; }
+function ent_actor() { global $brugernavn; if (function_exists('partner_current_user')) { $u = partner_current_user(); if (!empty($u['brugernavn'])) return (string)$u['brugernavn']; } return (string)$brugernavn; } # the logged-in user, also on opret.php where \$brugernavn is reused for the new admin
 
 // Apply plan changes whose effective date has arrived (lazy, on read and on the nightly job).
 function ent_apply_due_changes($rid) {
