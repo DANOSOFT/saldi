@@ -411,17 +411,22 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
             // poolFiles=<comma-joined string> branch.
             body.append('poolFile[]', filename);
             if (otherIds) body.set('targetSourceIds', otherIds);
-            const res = await fetch(`../includes/documents.php`, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body:    body.toString(),
-            });
-            // A refused attach (409 changed document, 422 account) used to vanish in the reload; say which and why
-            if (!res.ok) {
-                const page = new DOMParser().parseFromString(await res.text(), 'text/html');
-                page.querySelectorAll('style, script').forEach(e => e.remove());
-                const txt = (page.body ? page.body.textContent : '').replace(/\s+/g, ' ').trim();
-                failed.push(filename + ': ' + txt.slice(-160));
+            // A refused attach (409 changed document, 422 account) or a failed request used to vanish in the reload;
+            // say which and why, and go on with the other documents
+            try {
+                const res = await fetch(`../includes/documents.php`, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    body.toString(),
+                });
+                if (!res.ok) {
+                    const page = new DOMParser().parseFromString(await res.text(), 'text/html');
+                    page.querySelectorAll('style, script').forEach(e => e.remove());
+                    const txt = (page.body ? page.body.textContent : '').replace(/\s+/g, ' ').trim();
+                    failed.push(filename + ': ' + txt.slice(-160));
+                }
+            } catch (err) {
+                failed.push(filename + ': ' + (err && err.message ? err.message : err));
             }
         }
         if (failed.length) alert(failed.join('\n'));

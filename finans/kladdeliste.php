@@ -43,7 +43,8 @@
 //                  and every real caller now goes through includes/luk.php instead (confirmed
 //                  no remaining ?exitDraft= link generator anywhere in the codebase).
 // 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
-// 20261012 CL/SZ SD-730 Deleting an empty journal also deletes the journal's own documents (journalDocumentsDelete()).
+// 20261012 CL/SZ SD-730 Deleting an empty journal also deletes the journal's own documents (journalDocumentsDelete()); if a
+//                 document's file can't be removed, the journal and that document's row stay (CodeRabbit).
 
 @session_start();
 $s_id=session_id();
@@ -74,12 +75,14 @@ if (isset($_GET['delete_kladde'])) {
                 $entry_count = intval($count_row['entry_count']);
                 
                 if ($entry_count == 0) {
-                    // SD-730: the journal's own documents go with it
+                    // SD-730: the journal's own documents go with it; if a file can't be removed, the journal stays
                     require_once __DIR__ . '/kassekladde_includes/journalDocumentsFunc.php';
-                    journalDocumentsDelete($db, $kladde_id);
-                    db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
-                    header("Location: kladdeliste.php?reset_grid=kladdelst");
-                    exit;
+                    if (journalDocumentsDelete($db, $kladde_id)) {
+                        db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
+                        header("Location: kladdeliste.php?reset_grid=kladdelst");
+                        exit;
+                    }
+                    $delete_error = "documents_not_deleted";
                 } else {
                     $delete_error = "not_empty:$entry_count";
                 }
@@ -150,9 +153,14 @@ if (isset($_POST['delete_kladde'])) {
                     $entry_count = intval($count_row['entry_count']);
                     
                     if ($entry_count == 0) {
-                        // SD-730: the journal's own documents go with it
+                        // SD-730: the journal's own documents go with it; if a file can't be removed, the journal stays
                         require_once __DIR__ . '/kassekladde_includes/journalDocumentsFunc.php';
-                        journalDocumentsDelete($db, $kladde_id);
+                        if (!journalDocumentsDelete($db, $kladde_id)) {
+                            ob_end_clean();
+                            header('Content-Type: application/json');
+                            echo json_encode(['status' => 'error', 'message' => findtekst('5437|Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet', $sprog_id ?? 1)]);
+                            exit;
+                        }
                         db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
                         ob_end_clean();
                         header('Content-Type: application/json');

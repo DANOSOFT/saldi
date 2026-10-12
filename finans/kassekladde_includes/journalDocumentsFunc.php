@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // 20261012 CL/SZ SD-730 Documents for the journal itself (e.g. a bank statement), not for a line: rows in documents with
 //                 source 'kladdeliste' and source_id = kladde_id, files in <docFolder>/<db>/finance/<kladde_id>/journal.
+//                 (CodeRabbit) journalDocumentsType() checks the content; the clip works by keyboard; a document whose file can't be
+//                 removed keeps its row and stops the journal's deletion.
 
 /**
  * The document folder as seen from finans/ (owncloud, bilag or documents, as insertDoc.php picks it).
@@ -43,6 +45,18 @@ function journalDocumentsRoot()
 function journalDocumentsFolder($db, $kladde_id)
 {
 	return journalDocumentsRoot() . '/' . basename((string)$db) . '/finance/' . (int)$kladde_id . '/journal';
+}
+
+/**
+ * The kind of file from its first bytes: 'pdf', 'jpg', 'png' or '' for anything else.
+ */
+function journalDocumentsType($path)
+{
+	$head = (string)@file_get_contents($path, false, null, 0, 8);
+	if (strncmp($head, '%PDF-', 5) === 0) return 'pdf';
+	if (strncmp($head, "\xFF\xD8\xFF", 3) === 0) return 'jpg';
+	if ($head === "\x89PNG\r\n\x1A\n") return 'png';
+	return '';
 }
 
 /**
@@ -91,22 +105,34 @@ function journalDocumentsClip($kladde_id, $sprog_id)
 	}
 	$title = htmlspecialchars($title, ENT_QUOTES);
 	$href  = "journalDocuments.php?kladde_id=$kladde_id";
-	return "<td $style title='$title'><span id='kkJournalDocs' onclick=\"confirmClose('$href', bilagUnsavedTxt)\" style='cursor:pointer;display:inline-block;'>"
+	// Focusable and opened with Enter/Space too, not only by mouse
+	return "<td $style title='$title'><span id='kkJournalDocs' role='button' tabindex='0' aria-label='$title' onclick=\"confirmClose('$href', bilagUnsavedTxt)\""
+		. " onkeydown=\"if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); confirmClose('$href', bilagUnsavedTxt); }\" style='cursor:pointer;display:inline-block;'>"
 		. "<img src='../ikoner/$icon' style='width:20px;height:20px;' alt=''></span></td>";
 }
 
 /**
  * Remove a journal's documents (files, folder and rows). For deleting an empty journal in kladdeliste.php.
+ * A row is only removed when its file is gone, so a file that can't be deleted keeps its row.
+ *
+ * @return bool true when every document was removed; false means the journal must not be deleted.
  */
 function journalDocumentsDelete($db, $kladde_id)
 {
 	$folder = journalDocumentsFolder($db, $kladde_id);
+	$all = true;
 	foreach (journalDocumentsList($kladde_id) as $doc) {
 		$file = $folder . '/' . basename($doc['filename']);
-		if (is_file($file)) unlink($file);
+		if (is_file($file) && !@unlink($file)) {
+			$all = false;
+			continue;
+		}
+		db_modify("delete from documents where id = '" . (int)$doc['id'] . "'", __FILE__ . " linje " . __LINE__);
 	}
-	if (is_dir($folder)) @rmdir($folder);
-	// finance/<kladde_id> too, when it's empty (an empty journal has no line folders)
-	if (is_dir(dirname($folder))) @rmdir(dirname($folder));
-	db_modify("delete from documents where source = 'kladdeliste' and source_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__);
+	if ($all) {
+		if (is_dir($folder)) @rmdir($folder);
+		// finance/<kladde_id> too, when it's empty (an empty journal has no line folders)
+		if (is_dir(dirname($folder))) @rmdir(dirname($folder));
+	}
+	return $all;
 }

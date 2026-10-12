@@ -25,6 +25,8 @@
 // 20261012 CL/SZ SD-730 Documents for the journal itself (e.g. a bank statement), opened from the clip next to Bemærkning.
 //                 Upload (PDF, JPG, PNG), list, view and delete. No pool: such a document is not a voucher for a line.
 //                 On a posted journal a document older than 24 hours can't be deleted, as for line documents.
+//                 (CodeRabbit) The file's content must match its PDF/JPG/PNG name; the name is reserved atomically (fopen 'x'),
+//                 so two uploads of one name can't both write it; a file that can't be deleted keeps its row.
 
 ob_start();
 @session_start();
@@ -61,11 +63,18 @@ if (isset($_FILES['uploadedFile']['name']) && $_FILES['uploadedFile']['name'] !=
 	} elseif ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
 		// e.g. larger than upload_max_filesize
 		$notice = findtekst('5436|Dokumentet kunne ikke gemmes', $sprog_id);
+	} elseif (journalDocumentsType($file['tmp_name']) !== ($ext == 'jpeg' ? 'jpg' : $ext)) {
+		// The content has to be what the name says: a renamed file of another kind is refused
+		$notice = findtekst('5434|Kun PDF, JPG og PNG kan vedhæftes', $sprog_id);
 	} else {
 		$exists = db_fetch_array(db_select("select id from documents where source = 'kladdeliste' and source_id = '$kladde_id' and filename = '" . db_escape_string($name) . "'", __FILE__ . " linje " . __LINE__));
-		if ($exists || file_exists("$folder/$name")) {
+		if (!$exists && !is_dir($folder) && !mkdir($folder, 0777, true) && !is_dir($folder)) {
+			$notice = findtekst('5436|Dokumentet kunne ikke gemmes', $sprog_id);
+		} elseif ($exists || !($reserved = @fopen("$folder/$name", 'x'))) {
+			// fopen 'x' creates the file only if it doesn't exist, so two uploads of one name can't both get it
 			$notice = findtekst('5435|Kladden har allerede et dokument med det navn', $sprog_id);
-		} elseif ((!is_dir($folder) && !mkdir($folder, 0777, true) && !is_dir($folder)) || !move_uploaded_file($file['tmp_name'], "$folder/$name")) {
+		} elseif (!fclose($reserved) || !move_uploaded_file($file['tmp_name'], "$folder/$name")) {
+			@unlink("$folder/$name");
 			$notice = findtekst('5436|Dokumentet kunne ikke gemmes', $sprog_id);
 		} else {
 			$r = db_fetch_array(db_select("select var_value from settings where var_name = 'globalId'", __FILE__ . " linje " . __LINE__));
@@ -84,10 +93,14 @@ if (isset($_FILES['uploadedFile']['name']) && $_FILES['uploadedFile']['name'] !=
 		$notice = findtekst('5433|Kladden er bogført, og dokumentet er ældre end 24 timer', $sprog_id);
 	} elseif ($doc) {
 		$file = "$folder/" . basename($doc['filename']);
-		if (is_file($file)) unlink($file);
-		db_modify("delete from documents where id = '$docId'", __FILE__ . " linje " . __LINE__);
-		header("Location: $self", true, 303);
-		exit;
+		if (is_file($file) && !@unlink($file)) {
+			// The row stays, so the document can still be found and deleted later
+			$notice = findtekst('5438|Dokumentet kunne ikke slettes', $sprog_id);
+		} else {
+			db_modify("delete from documents where id = '$docId'", __FILE__ . " linje " . __LINE__);
+			header("Location: $self", true, 303);
+			exit;
+		}
 	}
 }
 
