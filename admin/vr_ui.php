@@ -77,19 +77,24 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	if (!isset($version)) { $version = ''; if (file_exists("../includes/version.php")) include("../includes/version.php"); }
 	$u = partner_current_user();
 	$self = basename($_SERVER['PHP_SELF']);
-	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.1.4\">\n";
+	print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.1.5\">\n";
 	print "<div class=\"vr-app\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
 	// sidebar
-	print "<aside class=\"vr-side\"><a class=\"vr-logo\" href=\"../index/admin_menu.php\"><span class=\"vr-mark\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M16 5H10a4 4 0 0 0 0 8h4a4 4 0 0 1 0 8H8\"/></svg></span>Saldi</a>";
+	// 20261012 CL/ASR Danosoft logo (white, from the brand file) and a collapsible sidebar. The state is kept per browser
+	//                  in localStorage and applied before paint by the inline script, so the page does not jump.
+	print "<script>try{if(localStorage.getItem('vrSideCollapsed')==='1')document.documentElement.classList.add('vr-collapsed');}catch(e){}</script>";
+	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"../index/admin_menu.php\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"../img/danosoft_logo_white.png\" alt=\"Danosoft\" width=\"170\" height=\"26\"><img class=\"vr-logo-mark\" src=\"../img/danosoft_mark_white.png\" alt=\"Danosoft\" width=\"38\" height=\"26\"></a>";
+	print "<button type=\"button\" class=\"vr-collapse\" id=\"vrCollapse\" onclick=\"vrToggleSide()\" aria-label=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\" title=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 6l-6 6 6 6\"/></svg></button></div>";
 	print "<div class=\"vr-grp\">".($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration')))."</div><nav>";
 	foreach (vr_menu() as $it) {
 		$on = (basename($it[1]) == $self) || ($self == 'regnskab.php' && basename($it[1]) == 'vis_regnskaber.php') || ($self == 'partnere.php' && basename($it[1]) == 'partnere.php');
-		if ($it[3]) print "<a class=\"vr-nav".($on ? " vr-on" : "")."\" href=\"".vr_h($it[1])."\">".vr_icon($it[2]).vr_h($it[0])."</a>";
-		else print "<span class=\"vr-nav vr-dim\">".vr_icon($it[2]).vr_h($it[0])."</span>";
+		if ($it[3]) print "<a class=\"vr-nav".($on ? " vr-on" : "")."\" href=\"".vr_h($it[1])."\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></a>";
+		else print "<span class=\"vr-nav vr-dim\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></span>";
 	}
-	print "</nav><div class=\"vr-spacer\"></div><hr><a class=\"vr-nav\" href=\"http://saldi.dk/dok/komigang.html\" target=\"_blank\">".vr_icon('help').findtekst('92|Vejledning', $sprog_id)."</a><a class=\"vr-nav\" href=\"../index/logud.php\" accesskey=\"L\">".vr_icon('out').findtekst('93|Log ud', $sprog_id)."</a><div class=\"vr-ver\">Saldi version ".vr_h($version)."</div></aside>\n";
+	print "</nav><div class=\"vr-spacer\"></div><hr><a class=\"vr-nav\" href=\"http://saldi.dk/dok/komigang.html\" target=\"_blank\" title=\"".findtekst('92|Vejledning', $sprog_id)."\">".vr_icon('help')."<span class=\"vr-lbl\">".findtekst('92|Vejledning', $sprog_id)."</span></a><a class=\"vr-nav\" href=\"../index/logud.php\" accesskey=\"L\" title=\"".findtekst('93|Log ud', $sprog_id)."\">".vr_icon('out')."<span class=\"vr-lbl\">".findtekst('93|Log ud', $sprog_id)."</span></a><div class=\"vr-ver\">Saldi version ".vr_h($version)."</div></aside>\n";
 	// column: topbar + main
-	print "<div class=\"vr-col\"><div class=\"vr-top\"><nav class=\"vr-bc\" aria-label=\"Du er her\">";
+	print "<div class=\"vr-side-scrim\" onclick=\"vrToggleSide()\"></div>";
+	print "<div class=\"vr-col\"><div class=\"vr-top\"><button type=\"button\" class=\"vr-menu-btn\" onclick=\"vrToggleSide()\" aria-label=\"".vr_t('Menu','Menu')."\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M4 7h16M4 12h16M4 17h16\"/></svg></button><nav class=\"vr-bc\" aria-label=\"Du er her\">";
 	foreach ($crumbs as $i => $c) { if ($i) print "<i>/</i>"; if (is_array($c)) print "<a href=\"".vr_h($c[1])."\">".vr_h($c[0])."</a>"; else print "<b>".vr_h($c)."</b>"; }
 	$ini = strtoupper(mb_substr((string)$brugernavn, 0, 2, vr_cs()));
 	$sub = $u['is_operator'] ? vr_t('Saldi · Operatør','Saldi · Operator') : ($u['partner'] ? $u['partner']['name'].' · '.($u['partner']['partner_role'] == 'owner' ? vr_t('Ejer','Owner') : vr_t('Medarbejder','Employee')) : vr_t('Administration','Administration'));
@@ -115,6 +120,9 @@ function vr_mail($to, $subject, $html) {
 	$h = "From: Saldi <info@saldi.dk>\r\nReply-To: info@saldi.dk\r\nContent-Type: text/html; charset=UTF-8\r\n";
 	return @mail($to, '=?UTF-8?B?'.base64_encode($subject).'?=', $html, $h);
 }
-function vr_close() { print "</main></div></div>\n"; }
+function vr_close() {
+	print "</main></div></div>\n";
+	print "<script>function vrToggleSide(){var d=document.documentElement;if(window.matchMedia('(max-width:900px)').matches){d.classList.toggle('vr-side-open');return;}var c=d.classList.toggle('vr-collapsed');try{localStorage.setItem('vrSideCollapsed',c?'1':'0');}catch(e){}}document.addEventListener('keydown',function(e){if(e.key==='Escape')document.documentElement.classList.remove('vr-side-open');});</script>\n";
+}
 }
 ?>

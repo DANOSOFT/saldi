@@ -181,7 +181,7 @@ body{margin:0}
 .vr-who{display:flex;flex-direction:column;line-height:1.15} .vr-who small{font-size:11px;color:var(--text-3)}
 .vr-app .vr{padding-top:30px}
 .vr-app .vr-head .vr-bc{display:none}
-@media (max-width:900px){.vr-app{grid-template-columns:1fr}.vr-side{display:none}}
+
 /* menu landing page */
 .vr-menu .vr-frow{grid-template-columns:28px minmax(0,1fr) auto;cursor:pointer} .vr-menu .vr-frow:hover{background:var(--surface-2)}
 .vr-menu .vr-frow svg{color:var(--text-2)} .vr-menu .vr-frow .vr-chev{color:var(--text-3)}
@@ -202,3 +202,41 @@ body{margin:0}
 .vr-stats{display:grid;grid-template-columns:repeat(4,1fr)} @media (max-width:1000px){.vr-stats{grid-template-columns:repeat(2,1fr)}}
 .vr-stat{display:flex;flex-direction:column;gap:4px;padding:18px 20px;border-right:1px solid var(--grid);color:var(--text);text-decoration:none} .vr-stat:last-child{border-right:0} .vr-stat:hover{background:var(--surface-2);color:var(--text)}
 .vr-stat span{font-size:12.5px;color:var(--text-2)} .vr-stat b{font-size:26px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--text)} .vr-stat small{font-size:12px;color:var(--text-3)}
+
+/* ===== Danosoft logo + collapsible sidebar (20261012) ===== */
+.vr-app{transition:grid-template-columns .22s cubic-bezier(.2,.8,.2,1)}
+.vr-logo-row{display:flex;align-items:center;gap:6px;padding:6px 4px 20px 8px;min-height:58px}
+.vr-logo{display:flex;align-items:center;padding:0;min-width:0}
+.vr-logo img{display:block;height:26px;width:auto}
+.vr-logo .vr-logo-mark{display:none}
+.vr-collapse{margin-left:auto;flex:none;width:28px;height:28px;border-radius:8px;border:0;background:transparent;color:inherit;opacity:.7;cursor:pointer;display:grid;place-items:center;transition:transform .22s}
+.vr-collapse:hover{background:rgba(255,255,255,.1);opacity:1}
+.vr-menu-btn{display:none;width:38px;height:38px;margin:0 6px 0 -8px;border:0;border-radius:10px;background:transparent;color:var(--text-2);cursor:pointer;place-items:center}
+.vr-menu-btn:hover{background:var(--surface-2);color:var(--text)}
+.vr-side-scrim{display:none}
+.vr-nav .vr-lbl{overflow:hidden;text-overflow:ellipsis}
+/* collapsed (desktop) */
+html.vr-collapsed .vr-app{grid-template-columns:72px minmax(0,1fr)}
+html.vr-collapsed .vr-side{padding:16px 10px}
+html.vr-collapsed .vr-logo-row{flex-direction:column;gap:10px;padding:6px 0 14px;align-items:center}
+html.vr-collapsed .vr-logo .vr-logo-full{display:none}
+html.vr-collapsed .vr-logo .vr-logo-mark{display:block}
+html.vr-collapsed .vr-collapse{margin:0;transform:rotate(180deg)}
+html.vr-collapsed .vr-side .vr-grp,html.vr-collapsed .vr-ver,html.vr-collapsed .vr-nav .vr-lbl{display:none}
+html.vr-collapsed .vr-nav{justify-content:center;padding:0;gap:0}
+html.vr-collapsed .vr-side hr{margin:10px 6px}
+/* small screens: off-canvas */
+@media (max-width:900px){
+  .vr-app,html.vr-collapsed .vr-app{grid-template-columns:1fr}
+  .vr-side{position:fixed;left:0;top:0;bottom:0;width:260px;z-index:60;transform:translateX(-102%);transition:transform .25s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 40px rgba(0,0,0,.25)}
+  html.vr-side-open .vr-side{transform:none}
+  html.vr-collapsed .vr-side{padding:16px 12px}
+  html.vr-collapsed .vr-side .vr-grp,html.vr-collapsed .vr-ver,html.vr-collapsed .vr-nav .vr-lbl{display:revert}
+  html.vr-collapsed .vr-nav{justify-content:flex-start;padding:0 12px;gap:12px}
+  html.vr-collapsed .vr-logo .vr-logo-full{display:block} html.vr-collapsed .vr-logo .vr-logo-mark{display:none}
+  html.vr-collapsed .vr-logo-row{flex-direction:row;padding:6px 4px 20px 8px}
+  html.vr-collapsed .vr-collapse{transform:none}
+  .vr-menu-btn{display:grid}
+  html.vr-side-open .vr-side-scrim{display:block;position:fixed;inset:0;z-index:59;background:rgba(11,26,58,.35)}
+}
+@media (prefers-reduced-motion:reduce){.vr-app,.vr-side,.vr-collapse{transition:none}}
