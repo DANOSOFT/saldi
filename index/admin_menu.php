@@ -57,6 +57,9 @@ if ($bruger_id=$r['id']) {
 // 20261012 CL/ASR Saldi staff (admin flag 'on') go to the operator panel; everyone else sees this menu unchanged.
 //                  ?klassisk=1 shows this menu to staff as well.
 if (isset($admin) && $admin == 'on' && !isset($_GET['klassisk'])) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/operator_overblik.php\">\n"; exit; }
+// 20261012 CL/ASR Users who belong to a bookkeeper, auditor or group (partner_users) go to the accountant panel.
+include("../includes/partnerScope.php"); partner_tables_ensure();
+if (!isset($_GET['klassisk']) && partner_current_user()['partner']) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/bogholder_overblik.php\">\n"; exit; }
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>\n";

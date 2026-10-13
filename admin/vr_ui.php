@@ -45,6 +45,7 @@ function vr_require_operator() {
 }
 function vr_menu() {
 	global $sprog_id, $mastername;
+	if (isset($GLOBALS['vr_menu_items'])) return $GLOBALS['vr_menu_items']; # 20261012 CL/ASR a panel may bring its own menu (bogholderpanelet: admin/bogholder_ui.php)
 	$items = array(array(vr_t('Overblik','Overview'), '../admin/operator_overblik.php', 'home', true));
 	$items[] = array(vr_t('Regnskaber','Accounts'), '../admin/operator_panel.php', 'list', true);
 	$items[] = array(findtekst('339|Opret regnskab', $sprog_id), '../admin/operator_opret.php', 'plus', true);
@@ -81,11 +82,12 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	// 20261012 CL/ASR Danosoft logo (white, from the brand file) and a collapsible sidebar. The state is kept per browser
 	//                  in localStorage and applied before paint by the inline script, so the page does not jump.
 	print "<script>try{if(localStorage.getItem('vrSideCollapsed')==='1')document.documentElement.classList.add('vr-collapsed');}catch(e){}</script>";
-	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"../admin/operator_overblik.php\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"../img/danosoft_logo_white.png\" alt=\"Danosoft\" width=\"170\" height=\"26\"><img class=\"vr-logo-mark\" src=\"../img/danosoft_mark_white.png\" alt=\"Danosoft\" width=\"38\" height=\"26\"></a>";
+	$vr_home = isset($GLOBALS['vr_home']) ? $GLOBALS['vr_home'] : '../admin/operator_overblik.php'; # 20261012 CL/ASR the panel's own landing page
+	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"".vr_h($vr_home)."\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"../img/danosoft_logo_white.png\" alt=\"Danosoft\" width=\"170\" height=\"26\"><img class=\"vr-logo-mark\" src=\"../img/danosoft_mark_white.png\" alt=\"Danosoft\" width=\"38\" height=\"26\"></a>";
 	print "<button type=\"button\" class=\"vr-collapse\" id=\"vrCollapse\" onclick=\"vrToggleSide()\" aria-label=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\" title=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 6l-6 6 6 6\"/></svg></button></div>";
-	print "<div class=\"vr-grp\">".($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration')))."</div><nav>";
+	print "<div class=\"vr-grp\">".(isset($GLOBALS['vr_panel_label']) ? vr_h($GLOBALS['vr_panel_label']) : ($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration'))))."</div><nav>";
 	foreach (vr_menu() as $it) {
-		$on = (basename($it[1]) == $self) || ($self == 'partnere.php' && basename($it[1]) == 'operator_panel.php');
+		$on = (basename($it[1]) == $self) || ($self == 'partnere.php' && basename($it[1]) == 'operator_panel.php') || (isset($it[4]) && in_array($self, (array)$it[4], true));
 		if ($it[3]) print "<a class=\"vr-nav".($on ? " vr-on" : "")."\" href=\"".vr_h($it[1])."\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></a>";
 		else print "<span class=\"vr-nav vr-dim\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></span>";
 	}

@@ -116,6 +116,7 @@
 // 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
 //                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
 
+if (defined('VR_OPRET_FUNCTIONS_ONLY')) return; # 20261012 CL/ASR bogholder_opret.php includes this file for opret()/forside() only (declared at compile time; the page code below is skipped)
 @session_start();
 $s_id=session_id();
 
