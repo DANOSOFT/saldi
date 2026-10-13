@@ -76,3 +76,29 @@ details.bp-more>div{padding:10px 20px 14px;background:var(--surface-2);border-to
 
 /* dark theme follows the shell tokens; only our own colours need care */
 html[data-theme="dark"] .bp-prov{border-color:color-mix(in srgb,var(--amber) 45%,var(--border))}
+
+/* ===== the accountant panel's own shell: light grey sidebar, Saldi logo in colour (20261013 CL/ASR) =====
+   Scoped to .vr-app.bp-shell so the operator panel keeps its coloured sidebar and the Danosoft logo. */
+.vr-app.bp-shell{--bp-side:#f3f5f9;--bp-side-2:#e9edf4;--bp-side-3:#dfe4ee;--bp-side-ink:#0b1a3a;--bp-side-ink-2:#5b6b85;--bp-side-ink-3:#8a97ad;--bp-side-line:#dde3ee}
+.vr-app.bp-shell .vr-side{background:var(--bp-side);background-image:none;color:var(--bp-side-ink);border-right:1px solid var(--bp-side-line);box-shadow:none}
+.vr-app.bp-shell .vr-logo img{height:28px}
+.vr-app.bp-shell .vr-logo-row{padding-bottom:16px}
+.vr-app.bp-shell .vr-side .vr-grp{color:var(--bp-side-ink-3);opacity:1;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.vr-app.bp-shell .vr-nav{color:var(--bp-side-ink-2);opacity:1;font-size:14px;font-weight:500}
+.vr-app.bp-shell .vr-nav svg{color:var(--bp-side-ink-3)}
+.vr-app.bp-shell .vr-nav:hover{background:var(--bp-side-2);color:var(--bp-side-ink)} .vr-app.bp-shell .vr-nav:hover svg{color:var(--bp-side-ink-2)}
+.vr-app.bp-shell .vr-nav.vr-on{background:#fff;color:var(--bp-side-ink);font-weight:600;box-shadow:0 1px 2px rgba(11,26,58,.06),0 0 0 1px var(--bp-side-line)}
+.vr-app.bp-shell .vr-nav.vr-on svg{color:var(--vr-user)}
+.vr-app.bp-shell .vr-nav.vr-dim{opacity:.45}
+.vr-app.bp-shell .vr-side hr{border-top-color:var(--bp-side-line);opacity:1}
+.vr-app.bp-shell .vr-ver{color:var(--bp-side-ink-3);opacity:1}
+.vr-app.bp-shell .vr-collapse{color:var(--bp-side-ink-2);opacity:1} .vr-app.bp-shell .vr-collapse:hover{background:var(--bp-side-2)}
+.vr-app.bp-shell .vr-top{background:rgba(255,255,255,.92)}
+/* collapsed: only the mark */
+html.vr-collapsed .vr-app.bp-shell .vr-logo .vr-logo-mark{height:28px;width:28px}
+/* small screens: the off-canvas menu is the same light panel */
+@media (max-width:900px){.vr-app.bp-shell .vr-side{box-shadow:0 0 40px rgba(11,26,58,.18)}}
+/* dark theme: a muted dark surface instead of the user colour */
+html[data-theme="dark"] .vr-app.bp-shell{--bp-side:#121c33;--bp-side-2:#1a2745;--bp-side-3:#22304f;--bp-side-ink:#e8eefc;--bp-side-ink-2:#9aa8c2;--bp-side-ink-3:#6f7f9d;--bp-side-line:#26365a}
+html[data-theme="dark"] .vr-app.bp-shell .vr-nav.vr-on{background:#1c2a49;box-shadow:0 0 0 1px var(--bp-side-line)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-top{background:rgba(22,34,61,.9)}

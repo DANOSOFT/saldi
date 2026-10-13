@@ -77,13 +77,14 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	print "<link rel=\"stylesheet\" href=\"../css/operator_panel.css?v=5.2.1\">\n";
 	if (!vr_csrf_exempt()) print vr_csrf_js();
 	if (isset($_GET['msg'])) print "<script>try{var vrU=new URL(location.href);[...vrU.searchParams.keys()].filter(function(k){return k.indexOf('msg')===0||k==='mk'}).forEach(function(k){vrU.searchParams.delete(k)});history.replaceState(null,'',vrU.pathname+vrU.search+vrU.hash);}catch(e){}</script>"; # a reload does not show the note again
-	print "<div class=\"vr-app\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
+	print "<div class=\"vr-app".(isset($GLOBALS['vr_app_class']) ? ' '.vr_h($GLOBALS['vr_app_class']) : '')."\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n"; # 20261013 CL/ASR a panel may add its own shell class
 	// sidebar
 	// 20261012 CL/ASR Danosoft logo (white, from the brand file) and a collapsible sidebar. The state is kept per browser
 	//                  in localStorage and applied before paint by the inline script, so the page does not jump.
 	print "<script>try{if(localStorage.getItem('vrSideCollapsed')==='1')document.documentElement.classList.add('vr-collapsed');}catch(e){}</script>";
 	$vr_home = isset($GLOBALS['vr_home']) ? $GLOBALS['vr_home'] : '../admin/operator_overblik.php'; # 20261012 CL/ASR the panel's own landing page
-	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"".vr_h($vr_home)."\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"../img/danosoft_logo_white.png\" alt=\"Danosoft\" width=\"170\" height=\"26\"><img class=\"vr-logo-mark\" src=\"../img/danosoft_mark_white.png\" alt=\"Danosoft\" width=\"38\" height=\"26\"></a>";
+	$vr_logo = isset($GLOBALS['vr_logo']) ? $GLOBALS['vr_logo'] : array('../img/danosoft_logo_white.png', '../img/danosoft_mark_white.png', 'Danosoft'); # 20261013 CL/ASR [full, mark, alt] – a panel may bring its own logo
+	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"".vr_h($vr_home)."\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"".vr_h($vr_logo[0])."\" alt=\"".vr_h($vr_logo[2])."\" height=\"26\"><img class=\"vr-logo-mark\" src=\"".vr_h($vr_logo[1])."\" alt=\"".vr_h($vr_logo[2])."\" height=\"26\"></a>";
 	print "<button type=\"button\" class=\"vr-collapse\" id=\"vrCollapse\" onclick=\"vrToggleSide()\" aria-label=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\" title=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 6l-6 6 6 6\"/></svg></button></div>";
 	print "<div class=\"vr-grp\">".(isset($GLOBALS['vr_panel_label']) ? vr_h($GLOBALS['vr_panel_label']) : ($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration'))))."</div><nav>";
 	foreach (vr_menu() as $it) {
