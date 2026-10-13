@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/InvoicePaymentOperations.php --- 2026.10.12
+// --- includes/stripeIncludes/InvoicePaymentOperations.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261012 CL/LH Durable immutable creating requests with tenant/mode keys and a 20-hour replay limit.
 // 20261012 CL/LH Preserve definitive rejections and prepare fresh keys; ambiguous requests retain their cutoff.
 // 20261012 CL/LH Persist dispatch ambiguity before Stripe calls; later rejections require reconciliation instead of fresh keys.
+// 20261013 CL/LH Treat explicit local no-dispatch refusals as rejections while preserving earlier dispatch ambiguity.
 
 namespace Saldi\Stripe;
 
@@ -35,6 +36,8 @@ use Throwable;
 final class InvoicePaymentOperations
 {
     public const REPLAY_SECONDS = 20 * 3600;
+    // 20261013 CL/LH Explicit no-dispatch refusals returned by stripeHttpRequest before curl_exec.
+    private const LOCAL_REFUSALS = ['config_mode', 'config_key', 'config_mode_mismatch', 'config_method'];
     private InvoicePaymentStore $db;
     private string $tenant;
 
@@ -114,8 +117,12 @@ final class InvoicePaymentOperations
                 return $response;
             } catch (Throwable $e) {
                 // 20261012 CL/LH A definitive rejection proves only this delivery failed, never an earlier unknown outcome.
-                $rejected = $e instanceof InvoicePaymentApiError && $e->status >= 400 && $e->status < 500
-                    && !$e->transient() && !in_array($e->status, [409, 429], true) && is_array($e->body['error'] ?? null);
+                // 20261013 CL/LH Status zero is definitive only for known local refusals, never arbitrary transport errors.
+                $rejected = $e instanceof InvoicePaymentApiError && (
+                    ($e->status === 0 && in_array($e->stripeCode, self::LOCAL_REFUSALS, true))
+                    || ($e->status >= 400 && $e->status < 500 && !$e->transient()
+                        && !in_array($e->status, [409, 429], true) && is_array($e->body['error'] ?? null))
+                );
                 $ambiguous = (int)$row['ambiguous_dispatch'] === 1 || !$rejected;
                 $status = $rejected ? ($ambiguous ? 'needs_reconcile' : 'rejected') : 'dispatched';
                 $this->db->transaction(function () use ($id, $row, $e, $ambiguous, $status, $reconcile) {

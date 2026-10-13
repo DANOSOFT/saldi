@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/InvoicePaymentReadModel.php --- 2026.10.12
+// --- includes/stripeIncludes/InvoicePaymentReadModel.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20261012 CL/LH Read-only REST payment projections on the authenticated tenant connection.
 // 20261012 CL/LH Include real hosted card declines while excluding technical errors.
+// 20261013 CL/LH Exclude settled historical positive items from REST due dates to match the worker.
 
 namespace Saldi\Stripe;
 
@@ -314,7 +315,8 @@ final class InvoicePaymentReadModel
     private function dueDate(array $order, array $items): ?string
     {
         foreach ($items as $item) {
-            if ((int)$item['refnr'] === (int)$order['id'] && (float)$item['amount'] > 0) {
+            // 20261013 CL/LH Match the worker: settled historical items cannot supply the outstanding due date.
+            if ((int)$item['refnr'] === (int)$order['id'] && (float)$item['amount'] > 0 && (string)$item['udlignet'] !== '1') {
                 $date = $this->validDate($item['forfaldsdate']);
                 if ($date !== null) return $date;
             }

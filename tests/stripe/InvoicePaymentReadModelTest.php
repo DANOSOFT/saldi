@@ -1,5 +1,6 @@
 <?php
 // 20261012 CL/LH REST read-model contract, immutable ordering, reconciliation and tenant isolation.
+// 20261013 CL/LH Verify due-date parity with settled history, outstanding items and the worker fallback.
 
 use PHPUnit\Framework\TestCase;
 use Saldi\Stripe\InvoicePaymentReadModel;
@@ -267,6 +268,21 @@ final class InvoicePaymentReadModelTest extends TestCase
         $this->db->query("UPDATE openpost SET forfaldsdate='2026-02-30' WHERE id=1");
         $this->db->query("UPDATE ordrer SET due_date='2026-02-30',fakturadate='2026-02-30' WHERE id=10");
         $this->assertNull($this->model()->invoicePayments([10])[10]['dueDate']);
+    }
+
+    public function testDueDateSkipsSettledHistoryAndMatchesWorkerOutstandingItem(): void
+    {
+        $this->fixture();
+        $this->db->query("UPDATE openpost SET udlignet='1',forfaldsdate='2026-09-01' WHERE id=1");
+        $this->db->query("INSERT INTO openpost VALUES (4,1,'100',10,100,'0','2026-10-25')");
+        $service = new InvoicePaymentService($this->db, static function () { throw new RuntimeException('No Stripe calls expected'); },
+            new InvoicePaymentLedger($this->db), static function () { throw new RuntimeException('No notifications expected'); }, 'fixture');
+        $this->assertSame('2026-10-25', $this->model()->invoicePayments([10])[10]['dueDate']);
+        $this->assertSame($service->invoice(10)['dueDate'], $this->model()->invoicePayments([10])[10]['dueDate']);
+        $this->db->query("UPDATE openpost SET udlignet='1' WHERE id=4");
+        $this->db->query("UPDATE ordrer SET due_date='2026-11-01' WHERE id=10");
+        $this->assertSame('2026-11-01', $this->model()->invoicePayments([10])[10]['dueDate']);
+        $this->assertSame($service->invoice(10)['dueDate'], $this->model()->invoicePayments([10])[10]['dueDate']);
     }
 
     public function testExactContractKeysTypesCopenhagenTimesAndNoSecrets(): void

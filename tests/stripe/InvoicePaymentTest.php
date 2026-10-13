@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/stripe/InvoicePaymentTest.php --- 2026.10.12
+// --- tests/stripe/InvoicePaymentTest.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20261012 CL/LH Release fixture connections after each test, including unfinished transactions and partial setup.
 // 20261012 CL/LH Regress hosted recovery, actual consent time, REST declines, year-end receipt dates and rejected requests.
 // 20261012 CL/LH Regress sticky unknown charge outcomes and stable recovered declines without advancing signed event ordering.
+// 20261013 CL/LH Regress recovery beyond 100 abandoned intents, later decline evidence, successor totals and local refusal repair.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -248,7 +249,7 @@ final class InvoicePaymentTest extends TestCase
             'CREATE TABLE ordrelinjer (id INTEGER PRIMARY KEY,ordre_id INTEGER,posnr INTEGER,varenr TEXT,beskrivelse TEXT,enhed TEXT,pris NUMERIC,antal NUMERIC,rabat NUMERIC)',
             'CREATE TABLE openpost (id INTEGER PRIMARY KEY,konto_id INTEGER,konto_nr TEXT,faktnr TEXT,amount NUMERIC,refnr INTEGER,beskrivelse TEXT,udlignet TEXT,transdate TEXT,uxtid TEXT,kladde_id INTEGER,valuta TEXT,valutakurs NUMERIC,forfaldsdate TEXT,betalings_id TEXT,udlign_id INTEGER,udlign_date TEXT)',
             'CREATE TABLE grupper (id INTEGER PRIMARY KEY,art TEXT,kodenr INTEGER,fiscal_year INTEGER,box1 TEXT,box2 TEXT,box3 TEXT,box4 TEXT,box5 TEXT)',
-            'CREATE TABLE kontoplan (id INTEGER PRIMARY KEY,kontonr NUMERIC,regnskabsaar INTEGER,kontotype TEXT,lukket TEXT,saldo NUMERIC)',
+            'CREATE TABLE kontoplan (id INTEGER PRIMARY KEY,kontonr NUMERIC,regnskabsaar INTEGER,kontotype TEXT,lukket TEXT,saldo NUMERIC,fra_kto NUMERIC)',
             'CREATE TABLE transaktioner (id INTEGER PRIMARY KEY,kontonr NUMERIC,bilag NUMERIC,transdate TEXT,logdate TEXT,logtime TEXT,beskrivelse TEXT,debet NUMERIC,kredit NUMERIC,faktura TEXT,kladde_id INTEGER,projekt TEXT,ansat INTEGER,afd INTEGER,ordre_id INTEGER,valuta TEXT,valutakurs NUMERIC,moms NUMERIC,adresser_id INTEGER,kasse_nr INTEGER)',
             'CREATE TABLE moms_periode_luk (kalender_aar INTEGER,kalender_maaned INTEGER,status TEXT)',
         ] as $sql) {
@@ -1075,6 +1076,42 @@ final class InvoicePaymentTest extends TestCase
         $this->assertNull($this->service->card(1)['broken_at']);
     }
 
+    /** @return list<array{string,?string}> Initial decline, later stronger issuer advice. */
+    public static function strongerDeclineEvidence(): array
+    {
+        return [['expired_card', null], ['insufficient_funds', 'do_not_try_again'], ['insufficient_funds', 'confirm_card_data']];
+    }
+
+    #[DataProvider('strongerDeclineEvidence')]
+    public function testSignedFailureBreaksMatchingCardAfterSynchronousNotification(string $code, ?string $advice): void
+    {
+        $this->payAndSaveCard();
+        self::addInvoice($this->db->pdo, 11, '1002', '2026-10-07', 0, 200.0);
+        $this->stripe->decline = $code;
+        $worker = new InvoicePaymentService($this->db, function ($method, $path, $params, $options) {
+            $response = $this->stripe->transport($method, $path, $params, $options);
+            if (!$response['ok'] && isset($response['body']['error']['payment_intent'])) {
+                $response['body']['error']['payment_intent']['payment_method'] = null;
+            }
+            return $response;
+        }, new InvoicePaymentLedger($this->db), function ($subject, $body, $key, $throttle) {
+            $this->alerts[] = [$subject, $body, $key, $throttle];
+        }, 'saldi_test');
+        $this->assertSame(1, $worker->autopay()['failed']);
+        $this->assertNull($this->service->card(1)['broken_at']);
+        $payment = $this->payments(11)[0];
+        $pi = $this->stripe->intents[$payment['payment_intent_id']];
+        $pi['last_payment_error']['advice_code'] = $advice;
+        $this->assertSame('failed', $this->eventAt('payment_intent.payment_failed', $pi, $this->now + 10));
+        $this->assertSame($this->now + 10, (int)$this->service->card(1)['broken_at']);
+        $this->eventAt('payment_intent.payment_failed', $pi, $this->now + 20);
+        $this->assertSame($this->now + 10, (int)$this->service->card(1)['broken_at']);
+        $this->assertSame(1, (int)$this->db->row("SELECT COUNT(*) AS n FROM stripe_invoice_audit WHERE entity_type='payment' AND entity_id=? AND action='auto_failed'", [$payment['id']])['n']);
+        $this->assertSame(1, (int)$this->db->row("SELECT COUNT(*) AS n FROM stripe_invoice_audit WHERE action='card_broken'")['n']);
+        $this->assertSame(1, (int)$this->db->row("SELECT COUNT(*) AS n FROM stripe_invoice_notifications WHERE kind='card_decline'")['n']);
+        $this->assertSame(1, count(array_filter($this->alertSubjects(), static fn($subject) => $subject === 'Automatisk kortbetaling afvist')));
+    }
+
     public function testAutomaticMetadataCannotClaimAnotherOrdersPendingRow(): void
     {
         $pi = $this->delayedAutomaticIntent();
@@ -1661,6 +1698,44 @@ final class InvoicePaymentTest extends TestCase
         $this->assertSame([50000,-50000,0], array_map(static fn($r) => \Saldi\Stripe\InvoicePaymentMath::fromDb($r['saldo']), $rows));
     }
 
+    public function testAutopayPostingRecalculatesSuccessorSubtotalsAndResultsLikeJournal(): void
+    {
+        $this->setting('mode', 'live');
+        $this->stripe->liveMode = true;
+        $this->payAndSaveCard();
+        self::addInvoice($this->db->pdo, 11, '1002', '2026-10-07', 0, 200.0);
+        if ($this->db->driver() === 'sqlite') {
+            $this->db->query('ALTER TABLE kontoplan ADD COLUMN primo NUMERIC');
+            $this->db->query('ALTER TABLE kontoplan ADD COLUMN overfor_til NUMERIC');
+        }
+        $this->db->query("UPDATE kontoplan SET kontotype='S',primo=0,overfor_til=kontonr");
+        $this->db->query("INSERT INTO grupper (art,kodenr,box1,box2,box3,box4,box5) VALUES ('RA',2,'1','2027','12','2027','on')");
+        $this->db->query("INSERT INTO kontoplan (kontonr,regnskabsaar,kontotype,lukket,primo,saldo,overfor_til,fra_kto) VALUES
+            (8000,1,'X','',0,0,9000,0),
+            (1000,2,'D','',123,999,0,0),(1100,2,'D','',123,999,0,0),(1200,2,'H','',123,999,0,0),
+            (1300,2,'Z','',123,10,0,1000),(1400,2,'R','',123,10,0,1300),
+            (1500,2,'Z','',123,20,0,1000),(1600,2,'R','',123,999,0,1000),
+            (3000,2,'S','',0,10,3000,0),(3100,2,'Z','',123,10,0,3000),(3200,2,'R','',123,10,0,3100),
+            (7000,2,'S','',0,0,7000,0),(9000,2,'S','',0,0,9000,0),(9900,2,'X','',123,999,0,0)");
+        foreach ([[1000,20,5], [1100,0,5], [1200,99,0], [1300,99,0], [3000,10,0], [9900,99,0]] as [$account, $debit, $credit]) {
+            $this->db->query('INSERT INTO transaktioner (kontonr,transdate,debet,kredit) VALUES (?,?,?,?)', [$account, '2027-02-01', $debit, $credit]);
+        }
+        $this->setting('posting_enabled', 'on');
+        $this->assertSame(1, $this->service->autopay()['charged']);
+        $this->assertSame('posted', $this->payments(11)[0]['settlement']);
+        // 20261013 CL/LH These are genberegn's ordered ranges/references, including R in Z and excluding H/Z transactions.
+        $expected = [1000 => 1500, 1100 => -500, 1200 => 0, 1300 => 1000, 1400 => 1000,
+            1500 => 2000, 1600 => 0, 3000 => 26000, 3100 => 26000, 3200 => 26000,
+            7000 => -25000, 9000 => 0, 9900 => 0];
+        foreach ($this->db->rows('SELECT kontonr,kontotype,primo,saldo FROM kontoplan WHERE regnskabsaar=2 ORDER BY kontonr') as $account) {
+            $number = (int)$account['kontonr'];
+            $this->assertSame($expected[$number], \Saldi\Stripe\InvoicePaymentMath::fromDb($account['saldo']), 'Successor account ' . $number);
+            if ($account['kontotype'] !== 'S') $this->assertSame(0, \Saldi\Stripe\InvoicePaymentMath::fromDb($account['primo']));
+        }
+        $this->assertSame(25000, \Saldi\Stripe\InvoicePaymentMath::fromDb($this->db->row('SELECT primo FROM kontoplan WHERE regnskabsaar=2 AND kontonr=3000')['primo']));
+        $this->assertFalse($this->db->inTransaction());
+    }
+
     public function testDecimalMoneyRoundingStaysInIntegerOre(): void
     {
         $this->assertSame(101, \Saldi\Stripe\InvoicePaymentMath::lineTotal('1.005', '1', '0'));
@@ -1860,6 +1935,44 @@ final class InvoicePaymentTest extends TestCase
         $this->assertNull($this->service->card(1));
     }
 
+    /** @return list<array{bool}> Successful retrievals or failures for the first hundred abandoned intents. */
+    public static function abandonedRecoveryOutcomes(): array
+    {
+        return [[false], [true]];
+    }
+
+    #[DataProvider('abandonedRecoveryOutcomes')]
+    public function testRecoveryVisitsSuccessAfterOneHundredAbandonedIntentsInOneRun(bool $retrievalFails): void
+    {
+        // 20261013 CL/LH Real hosted attempts exercise keyset paging, including cursor progress on GET failures.
+        foreach (range(20, 120) as $orderId) {
+            self::addInvoice($this->db->pdo, $orderId, (string)(2000 + $orderId), '2026-10-07', 0, 100.0);
+            $start = $this->service->startPayment($orderId, false);
+        }
+        $successfulId = $start['payment_intent'];
+        $this->stripe->succeed($successfulId);
+        $this->stripe->intents[$successfulId]['latest_charge'] = ['id' => 'ch_recovered', 'created' => $this->now];
+        if ($retrievalFails) {
+            $this->stripe->intercept = static function ($method, $path) use ($successfulId) {
+                if ($method === 'GET' && str_starts_with($path, '/v1/payment_intents/') && $path !== '/v1/payment_intents/' . $successfulId) {
+                    return ['ok' => false, 'status' => 0, 'error_code' => 'network', 'error' => 'Retrieval failed', 'body' => null];
+                }
+                return null;
+            };
+        }
+        $this->setting('autopay_enabled', 'off');
+        $this->setting('invoice_pay_enabled', 'off');
+        $this->now += 3601;
+        $this->stripe->calls = [];
+        $this->service->autopay();
+        $this->assertCount(101, $this->stripe->callsTo('GET', '/v1/payment_intents/'));
+        $this->assertSame('succeeded', $this->payments(120)[0]['status']);
+        $this->assertSame('manual', $this->payments(120)[0]['settlement']);
+        $this->assertSame(100, (int)$this->db->row("SELECT COUNT(*) AS n FROM stripe_invoice_payments WHERE status='requires_payment_method'")['n']);
+        $this->assertCount(0, $this->stripe->callsTo('POST', '/v1/payment_intents'));
+        $this->assertSame(1, (int)$this->db->row("SELECT COUNT(*) AS n FROM stripe_invoice_notifications WHERE subject='Testbetaling modtaget - ingen bogføring'")['n']);
+    }
+
     public function testEveryKnownNonterminalHostedStateIsRecovered(): void
     {
         foreach (['created', 'requires_confirmation', 'requires_action', 'processing'] as $index => $state) {
@@ -1988,12 +2101,19 @@ final class InvoicePaymentTest extends TestCase
         $this->assertNull((new \Saldi\Stripe\InvoicePaymentReadModel($this->db->pdo))->debtorStatuses([1])[1]['lastDecline']);
     }
 
-    public function testConfigurationRepairAfterTwentyHoursResumesCollectionWithNewOperationKey(): void
+    /** @return list<array{int,string}> Definitive HTTP rejection and explicit local no-dispatch refusals. */
+    public static function configurationRefusals(): array
+    {
+        return [[401, 'api_key_invalid'], [0, 'config_key'], [0, 'config_mode_mismatch']];
+    }
+
+    #[DataProvider('configurationRefusals')]
+    public function testConfigurationRepairAfterTwentyHoursResumesCollectionWithNewOperationKey(int $status, string $code): void
     {
         $this->payAndSaveCard();
         self::addInvoice($this->db->pdo, 11, '1002', '2026-10-07', 0, 200.0);
-        $this->stripe->intercept = static function ($method, $path) {
-            if ($method === 'POST' && $path === '/v1/payment_intents') return ['ok' => false, 'status' => 401, 'error_code' => 'api_key_invalid', 'error' => 'Configuration failure', 'body' => ['error' => ['type' => 'authentication_error']]];
+        $this->stripe->intercept = static function ($method, $path) use ($status, $code) {
+            if ($method === 'POST' && $path === '/v1/payment_intents') return ['ok' => false, 'status' => $status, 'error_code' => $code, 'error' => 'Configuration failure', 'body' => $status === 0 ? null : ['error' => ['type' => 'authentication_error']]];
             return null;
         };
         $this->service->autopay();

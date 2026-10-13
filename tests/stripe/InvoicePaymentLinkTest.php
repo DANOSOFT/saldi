@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/stripe/InvoicePaymentLinkTest.php --- 2026.10.12
+// --- tests/stripe/InvoicePaymentLinkTest.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/LH Exercise real mail helpers with an injected PDO store and generated signing key.
+// 20261013 CL/LH Cover read-only Systemdata POST refusal and disabled settings controls alongside authorized driver guards.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -159,6 +160,7 @@ final class InvoicePaymentLinkTest extends TestCase
         }
         require_once __DIR__ . '/../../includes/std_func.php';
         require_once __DIR__ . '/../../systemdata/diverseIncludes/stripeValg.php';
+        $GLOBALS['rettigheder'] = '010000000';
         $cache = $GLOBALS['stripe_settings_cache'];
         $token = bin2hex(random_bytes(32));
         $_SESSION['csrf_token'] = $token;
@@ -188,10 +190,75 @@ final class InvoicePaymentLinkTest extends TestCase
         unset($_SESSION['csrf_token'], $GLOBALS['stripe_link_saved_settings']);
     }
 
+    public function testReadOnlySystemdataPostWithValidCsrfCannotMutateAnyStripeSetting(): void
+    {
+        if (!function_exists('update_settings_value')) {
+            function update_settings_value($name, $group, $value, $description) {
+                $GLOBALS['stripe_link_saved_settings'][$name] = $value;
+            }
+        }
+        require_once __DIR__ . '/../../includes/std_func.php';
+        require_once __DIR__ . '/../../systemdata/diverseIncludes/stripeValg.php';
+        $token = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token'] = $token;
+        $_POST = ['csrf_token' => $token, 'stripe_mode' => 'live', 'stripe_enabled' => '1',
+            'stripe_invoice_pay_enabled' => '1', 'stripe_autopay_enabled' => '1', 'stripe_posting_enabled' => '1',
+            'stripe_clearing_account' => '3000', 'stripe_regen_link_secret' => '1',
+            'stripe_secret_key' => 'sk_live_' . bin2hex(random_bytes(16)),
+            'stripe_webhook_secret' => 'whsec_' . bin2hex(random_bytes(16))];
+        $before = $this->db->rows('SELECT * FROM settings');
+        $cache = $GLOBALS['stripe_settings_cache'];
+        foreach (['020000100', '000000100', '', '0'] as $rights) {
+            $GLOBALS['rettigheder'] = $rights;
+            $GLOBALS['stripe_link_saved_settings'] = [];
+            ob_start();
+            try { stripeValgSave(); } finally { $output = ob_get_clean(); }
+            $this->assertStringContainsString('ikke skriverettighed til Systemdata', $output);
+            $this->assertSame([], $GLOBALS['stripe_link_saved_settings']);
+            $this->assertSame($before, $this->db->rows('SELECT * FROM settings'));
+            $this->assertSame($cache, $GLOBALS['stripe_settings_cache']);
+        }
+        $this->assertTrue(stripeValgCanWrite('010000000'), 'Systemdata uses index 1, independently of debtor rights');
+    }
+
+    public function testReadOnlySystemdataRendersEveryMutationControlDisabledWithSavedValues(): void
+    {
+        if (!function_exists('findtekst')) {
+            function findtekst($text, $language) { return explode('|', $text, 2)[1]; }
+        }
+        require_once __DIR__ . '/../../systemdata/diverseIncludes/stripeValg.php';
+        if ($this->db->driver() === 'sqlite') {
+            $this->db->pdo->sqliteCreateFunction('to_regclass', static fn($name) => null);
+        }
+        $GLOBALS['csrf_token'] = bin2hex(random_bytes(32));
+        $GLOBALS['sprog_id'] = 1;
+        $GLOBALS['stripe_settings_cache']['posting_enabled'] = 'on';
+        $GLOBALS['stripe_settings_cache']['clearing_account'] = '3000';
+        $GLOBALS['stripe_settings_cache']['secret_key'] = 'sk_test_' . bin2hex(random_bytes(16));
+        $GLOBALS['stripe_settings_cache']['webhook_secret'] = 'whsec_' . bin2hex(random_bytes(16));
+        foreach (['020000100' => true, '010000000' => false] as $rights => $disabled) {
+            $GLOBALS['rettigheder'] = $rights;
+            ob_start();
+            try { stripeValg(); } finally { $html = ob_get_clean(); }
+            preg_match_all('/<(?:input|select)\b[^>]*>/i', $html, $matches);
+            $controls = array_values(array_filter($matches[0], static fn($tag) => preg_match("/name='stripe_|type='submit'/", $tag) === 1));
+            $this->assertCount(14, $controls);
+            foreach ($controls as $control) {
+                $this->assertSame($disabled, preg_match('/\bdisabled\b/', $control) === 1, $control);
+            }
+            $this->assertMatchesRegularExpression("/name='stripe_invoice_pay_enabled'[^>]*checked/", $html);
+            $this->assertMatchesRegularExpression("/name='stripe_clearing_account'[^>]*value='3000'/", $html);
+            $this->assertStringNotContainsString($GLOBALS['stripe_settings_cache']['secret_key'], $html);
+            $this->assertStringNotContainsString($GLOBALS['stripe_settings_cache']['webhook_secret'], $html);
+        }
+    }
+
     protected function tearDown(): void
     {
         // Explicitly call the trait cleanup before resetting injected globals.
         if ($this->schema !== null) $this->db->pdo->exec('DROP SCHEMA ' . $this->schema . ' CASCADE');
+        $_POST = [];
+        unset($_SESSION['csrf_token'], $GLOBALS['stripe_link_saved_settings'], $GLOBALS['rettigheder'], $GLOBALS['csrf_token'], $GLOBALS['sprog_id']);
         unset($GLOBALS['stripe_link_test_store'], $GLOBALS['stripe_settings_cache'], $GLOBALS['db'], $GLOBALS['db_type']);
     }
 }

@@ -5,6 +5,7 @@
 <!-- 20261012 CL/LH Correct Slice B child-process request initialization and document method-guard coverage. -->
 <!-- 20261012 CL/LH Document payment fixture connection cleanup and the PostgreSQL gate regression. -->
 <!-- 20261012 CL/LH Document sticky dispatch ambiguity, Stripe failure-time recovery and signed-only event ordering (N-01/N-02). -->
+<!-- 20261013 CL/LH Document Q-01–Q-06 fair recovery, settings authorization, decline evidence, journal totals, local refusals and due-date parity. -->
 
 Adam's 2026-10-07 mockup, built as an invoice-first flow: Saldi stays the
 invoicing system and Stripe is only the payment rail. The customer opens a
@@ -137,7 +138,8 @@ Use a separate pinned test tenant/install, test credentials and its own webhook
 endpoint for acceptance. Never change the live billing tenant's shared mode or
 keys: the four retained subscribers need their live events to keep processing.
 
-1. Go to Systemdata → Diverse → Stripe and fill in:
+1. With Systemdata write permission (`rettigheder` index 1 equals `1`),
+   go to Systemdata → Diverse → Stripe and fill in:
    - `secret_key`: `sk_`/`rk_` test or live.
    - `publishable_key`: `pk_`, same mode.
    - `webhook_secret`.
@@ -188,7 +190,11 @@ keys: the four retained subscribers need their live events to keep processing.
    and idempotency key in Stripe, then reconcile the actual outcome before any
    new collection. `ambiguous_dispatch=1` records an unknown dispatch outcome;
    repairing credentials or receiving a later 4xx does not clear it or authorize
-   a fresh key. A later definitive rejection parks it immediately in
+   a fresh key. A local status-0 refusal (`config_mode`, `config_key`,
+   `config_mode_mismatch`, `config_method`) before any ambiguous dispatch
+   is rejected safely: repair the configuration and the next attempt uses a
+   fresh operation/key, even after 20 hours. A later definitive rejection parks
+   it immediately in
    `needs_reconcile`. Reconcile by the stored identity/metadata, including a
    delayed signed event for the original intent. The worker never invents a
    replacement for an unknown result.
@@ -218,6 +224,12 @@ by API recovery.
 
 ## Behaviour
 
+- **Stripe settings authorization.** Every settings mutation, including keys,
+  collection switches, clearing account and posting, requires explicit
+  Systemdata write permission (`rettigheder` index 1 equals `1`) and valid
+  session CSRF. Read permission `2`, absent rights and other permissions
+  cannot save even with a valid CSRF token. All mutation controls are disabled
+  for read-only sessions while still displaying the saved values.
 - **Webhook ownership and retry.** Verify the signature, receive/claim the
   event, check mode, dispatch, then finish. The unique `event_id` and a
   conditional UPDATE protect claims on PostgreSQL and SQLite. A fresh foreign
@@ -257,7 +269,12 @@ by API recovery.
   after dispatch does not discard real money.
   Card save/removal/failure decisions share a mode/debtor lock. Save and removal
   advance `generation`; automatic attempts remember their method/generation.
-  A delayed hard decline can break only that matching, unrevoked generation.
+  A delayed hard decline can break only that matching, unrevoked generation,
+  even when a synchronous decline already recorded `auto_failed` without
+  sufficient method identity. Later accepted issuer advice is applied too.
+  Card-state changes are separate from notification dedupe: each attempt
+  still sends one decline alert, and an already broken card keeps its first
+  break time without another card audit.
   Saved-card consent is ordered by actual consent-grant time, then the local payment id
   for ties, so an older success cannot replace a newer choice. Detach rechecks
   that the method is no longer the current active choice under the same lock.
@@ -384,7 +401,11 @@ by API recovery.
     collection disabled or a revoked card. Known object ids use GET recovery.
     A Stripe error object with definitive HTTP 4xx (including 400/401/402/403/404,
     excluding 409/429) marks the operation `rejected` **only if no earlier
-    dispatch was ambiguous**; later retry prepares a fresh operation/key for
+    dispatch was ambiguous**. The explicit local status-0 no-dispatch codes
+    from `stripeHttpRequest` (`config_mode`, `config_key`,
+    `config_mode_mismatch`, `config_method`) follow the same rule; an unknown
+    status-0 code remains ambiguous. A later retry prepares a fresh operation/key
+    for
     the same durable payment, even after 20 hours. The rejected request and key
     remain immutable and auditable. Dispatch persists `ambiguous_dispatch=1`
     before the POST so interrupted requests are also protected. A definitive
@@ -408,7 +429,13 @@ by API recovery.
   - Known `created`, `processing`, `requires_payment_method`,
     `requires_confirmation` and `requires_action` intents older than one hour are retrieved and
     transitioned through the same receipt logic, including when both collection
-    switches are off. GET failure stays pending and is alerted.
+    switches are off. Recovery pages by id in batches of 100 through all
+    eligible rows up to the run's initial maximum id, using one age cutoff.
+    Each candidate is checked once in that run, including failed retrievals.
+    Thus 100 older abandoned intents cannot prevent a later successful
+    intent from being recorded in the same run. New rows wait for a later run
+    and the one-hour age threshold. GET failure stays pending and is alerted,
+    while recovery continues to later candidates.
 - **Manual receipts.** In live mode, reconciliation runs before the worker's
   eligibility and credit guard, and on payment initiation. A `manual` receipt
   becomes `posted_manual` when the matching debtor/invoice has a positive
@@ -468,6 +495,12 @@ by API recovery.
   transaction/store lock. PostgreSQL table locks coordinate legacy allocation
   writers using `MAX(udlign_id)` and protect accounting balances. Following
   fiscal-year openings use the journal's transfer rules on that same connection.
+  Successor-year balances follow `includes/genberegn.php`: only D/S accounts
+  receive their own transaction movements; non-S opening balances are zero.
+  In account-number order, Z subtotals sum the preceding balances from
+  `fra_kto` through their account number, excluding H and Z but including R;
+  R accounts copy a preceding Z referenced by `fra_kto`. These recalculations
+  share the receipt's PDO transaction, so posting cannot erase successor totals.
 
 ## REST: autopay and payment blocks
 
@@ -526,7 +559,7 @@ Invoice `payment` has exactly these fields:
 |---|---|
 | `ledgerPaid` | boolean; at least one positive invoice `openpost` exists and all positive items are `udlignet='1'`; independent of `ordrer.betalt` |
 | `ledgerOpenOre` | integer øre, sum of matching unsettled `openpost` items, including credits/partial bank receipts |
-| `dueDate` | `YYYY-MM-DD` string or null; positive invoice open item's `forfaldsdate` by order `refnr`, else `ordrer.due_date`, else invoice date plus payment terms (`lb` starts at month end); invalid dates are skipped |
+| `dueDate` | `YYYY-MM-DD` string or null; outstanding positive invoice item's `forfaldsdate` (settled `udlignet='1'` items are excluded) by order `refnr`, else `ordrer.due_date`, else invoice date plus payment terms (`lb` starts at month end); invalid dates are skipped |
 | `receivedUnpostedOre` | integer øre of successful card receipts still unreconciled |
 | `processing` | boolean; any configured-mode attempt is `created` or `processing` |
 | `collectionHold` | boolean; any configured-mode payment has a collection hold |
@@ -610,6 +643,10 @@ planned. These are also defaults, not Adam's decisions:
   original Stripe outcome to be reconciled by stored identity/metadata; never
   reset its status/key merely to resume charging. The 20-hour cutoff still
   applies to unknown requests without a later definitive rejection.
+- **Recovery run duration.** All aged candidates are checked per run in pages
+  of 100. Large abandoned backlogs and slow/failed Stripe GETs can lengthen
+  a run or trigger rate limiting; failed retrievals remain pending and retry
+  on a later run, without starving later ids in the current run.
 - **Recovery failure times.** Stripe can omit a failed charge/time. The first
   clock fallback then remains stable for unchanged polls, but is an observation
   estimate until signed facts arrive. API polls do not make delayed signed
@@ -689,6 +726,40 @@ collection while retaining saved consent; clearing it may resume an otherwise
 valid card. Use **Fjern kort** to revoke consent and prevent reuse of that generation.
 
 ## Tests
+
+2026-10-13 review regressions (Q-01–Q-06):
+
+- Q-01 — `InvoicePaymentTest.php`: 100 abandoned hosted intents followed by
+  a remotely successful intent recover the receipt in one worker run with
+  collection off, both when the first 100 GETs succeed and when they fail;
+  no replacement POSTs occur.
+- Q-02 — `InvoicePaymentLinkTest.php`: direct read-only Systemdata POSTs with
+  valid CSRF change no setting/cache, even with debtor write permission;
+  all mutation controls are disabled and saved values remain visible;
+  authorized writes retain the existing supported/unsupported-driver checks.
+- Q-03 — `InvoicePaymentTest.php`: a synchronous decline without method
+  identity sends one alert; matching signed failure evidence or stronger
+  issuer advice then breaks the current method/generation, without another
+  decline alert or duplicate card audit on repeated evidence.
+  `StripeWebhookTest.php` also sends actual signed webhook deliveries in a
+  fresh process after an earlier API decline was already notified, checking
+  the real signature, lease, card break and alert dedupe path.
+- Q-04 — `InvoicePaymentTest.php`: an automatic live posting into an earlier
+  year preserves/rebuilds successor D/S balances, Z ranges (including R,
+  excluding H/Z) and R references exactly as the journal; non-S openings
+  are reset and direct H/Z/X transactions do not supply balances.
+- Q-05 — `InvoicePaymentOperationsTest.php`: all four explicit local refusal
+  codes permit a fresh key after 20 hours only without earlier ambiguity;
+  unknown status-0 codes remain ambiguous, and a lost success followed by
+  a local refusal stays `needs_reconcile` after repair. `InvoicePaymentTest.php`
+  also verifies collection resumes after a 21-hour configuration repair for
+  `config_key`/`config_mode_mismatch`, preserving the rejected operation.
+- Q-06 — `InvoicePaymentReadModelTest.php`: an earlier settled positive item
+  cannot override a later outstanding item's due date; REST and the worker
+  agree on that date and on the order fallback once both items are settled.
+
+PHP lint and the full suite on SQLite and PostgreSQL remain for the separate
+verification runner; the implementation sandbox does not execute PHP/tests.
 
 2026-10-12 follow-up regressions (N-01/N-02):
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/InvoicePaymentLedger.php --- 2026.10.12
+// --- includes/stripeIncludes/InvoicePaymentLedger.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20261012 CL/LH Refuse test-mode ledger writes regardless of the posting switch.
 
 // 20261012 CL/LH Lock shared accounting tables during checks/posting and propagate subsequent opening balances.
+// 20261013 CL/LH Recalculate successor-year D/S, Z ranges and R references using the journal rules in the receipt transaction.
 
 namespace Saldi\Stripe;
 
@@ -215,10 +216,48 @@ final class InvoicePaymentLedger
                 $account = (int)$r['kontonr'];
                 $targetMovements[$account] = ($targetMovements[$account] ?? 0) + InvoicePaymentMath::fromDb($r['debet']) - InvoicePaymentMath::fromDb($r['kredit']);
             }
-            foreach ($this->db->rows('SELECT id,kontonr,kontotype FROM kontoplan WHERE regnskabsaar=?', [$targetYear]) as $r) {
-                $primo = $r['kontotype'] === 'S' ? ($opening[(int)$r['kontonr']] ?? 0) : 0;
-                $this->db->query('UPDATE kontoplan SET primo=?,saldo=? WHERE id=?', [InvoicePaymentMath::decimal($primo), InvoicePaymentMath::decimal($primo + ($targetMovements[(int)$r['kontonr']] ?? 0)), $r['id']]);
+            $this->recalculateBalances($targetYear, $targetMovements);
+        }
+    }
+
+    /**
+     * Apply includes/genberegn.php's D/S balances, Z ranges and R references on the receipt transaction.
+     * @param array<int,int> $movements Signed fiscal-year movements in øre, keyed by account number.
+     */
+    private function recalculateBalances(int $year, array $movements): void
+    {
+        // 20261013 CL/LH genberegn resets non-S openings and all balances, then rebuilds only D/S transactions.
+        $accounts = $this->db->rows('SELECT id,kontonr,kontotype,primo,fra_kto FROM kontoplan WHERE regnskabsaar=? ORDER BY kontonr', [$year]);
+        foreach ($accounts as &$account) {
+            $primo = $account['kontotype'] === 'S' ? InvoicePaymentMath::fromDb($account['primo']) : 0;
+            $account['balance_ore'] = in_array($account['kontotype'], ['D', 'S'], true)
+                ? $primo + ($movements[(int)$account['kontonr']] ?? 0) : 0;
+            $this->db->query('UPDATE kontoplan SET primo=?,saldo=? WHERE id=?',
+                [InvoicePaymentMath::decimal($primo), InvoicePaymentMath::decimal($account['balance_ore']), $account['id']]);
+        }
+        unset($account);
+        $preceding = [];
+        foreach ($accounts as $account) {
+            if ($account['kontotype'] === 'H') {
+                continue;
             }
+            // 20261013 CL/LH Z sums earlier non-H/non-Z balances (including R); R copies an earlier referenced Z.
+            if (in_array($account['kontotype'], ['Z', 'R'], true)) {
+                $balance = 0;
+                foreach ($preceding as $prior) {
+                    if ($account['kontotype'] === 'R') {
+                        if ($prior['kontotype'] === 'Z' && (int)$prior['kontonr'] === (int)$account['fra_kto']) {
+                            $balance = $prior['balance_ore'];
+                        }
+                    } elseif ($prior['kontotype'] !== 'Z' && (int)$prior['kontonr'] >= (int)$account['fra_kto']
+                        && (int)$prior['kontonr'] <= (int)$account['kontonr']) {
+                        $balance += $prior['balance_ore'];
+                    }
+                }
+                $account['balance_ore'] = $balance;
+                $this->db->query('UPDATE kontoplan SET saldo=? WHERE id=?', [InvoicePaymentMath::decimal($balance), $account['id']]);
+            }
+            $preceding[] = $account;
         }
     }
 

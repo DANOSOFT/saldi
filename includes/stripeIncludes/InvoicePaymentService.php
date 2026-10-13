@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/InvoicePaymentService.php --- 2026.10.12
+// --- includes/stripeIncludes/InvoicePaymentService.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20261012 CL/LH Record versioned consent, expose effective autopay state and report card removal outcomes separately.
 // 20261012 CL/LH Recover hosted intents with Stripe receipt dates, record consent grant time and bind early corrections.
 // 20261012 CL/LH Keep API recovery separate from signed event ordering and preserve unchanged decline times by charge identity.
+// 20261013 CL/LH Page all aged intents fairly and apply later card-breaking evidence independently of decline notification dedupe.
 
 namespace Saldi\Stripe;
 
@@ -667,7 +668,8 @@ final class InvoicePaymentService
                 [$id, $newStatus, $amount, $error ? mb_substr($code, 0, 64) : $row['error_code'], $error ? mb_substr((string)($error['type'] ?? ''), 0, 32) : $row['error_type'], $error ? mb_substr((string)($error['message'] ?? ''), 0, 500) : $row['error_message'], $status === 'succeeded' ? $factTime : null, $failedAt, $hasFailure ? $failedCharge : $row['failed_charge'], $eventCreated ?? $row['event_created'], $method !== '' ? $method : $row['payment_method'], $generation, $status === 'succeeded' ? $this->ledgerOpen($orderId) : null, $error['advice_code'] ?? $row['advice_code'], $now, $row['id']]);
 
             $row = $this->db->row('SELECT * FROM stripe_invoice_payments WHERE id=?', [$row['id']]);
-            if ($failed && $row['failed_at'] !== null && !$this->db->row("SELECT id FROM stripe_invoice_audit WHERE entity_type='payment' AND entity_id=? AND action='auto_failed' LIMIT 1", [(int)$row['id']])) {
+            // 20261013 CL/LH Later accepted evidence may break the matching card even after the decline was notified.
+            if ($failed && $row['failed_at'] !== null) {
                 $this->autoFailed($row, $id, $code, (string)($error['message'] ?? ''));
             }
             if ($status !== 'succeeded') return $newStatus;
@@ -793,15 +795,24 @@ final class InvoicePaymentService
                 $this->db->query("UPDATE stripe_invoice_payments SET payment_intent_id=? WHERE id=? AND status='created' AND payment_intent_id IS NULL", [$known['result_id'], $known['id']]);
             }
         });
-        foreach ($this->db->rows("SELECT * FROM stripe_invoice_payments WHERE mode=? AND status IN ('created','processing','requires_payment_method','requires_confirmation','requires_action') AND payment_intent_id IS NOT NULL AND updated_at<=? ORDER BY id LIMIT 100", [$this->db->mode(), $this->db->now() - 3600]) as $row) {
-            try {
-                $pi = $this->api('GET', '/v1/payment_intents/' . rawurlencode($row['payment_intent_id']), ['expand' => ['latest_charge']]);
-                $this->paymentIntentEvent($pi);
-                $n++;
-            } catch (Throwable $e) {
-                $this->notify('Betaling kunne ikke afstemmes hos Stripe', 'Ordre ' . $row['order_id'] . ', Stripe ' . $row['payment_intent_id'] . ': ' . $e->getMessage(), 'recover-' . $row['id'], 86400, 'transport');
+        // 20261013 CL/LH Keyset pages visit every candidate once, including failed retrievals, in a bounded snapshot.
+        $mode = $this->db->mode();
+        $cutoff = $this->db->now() - 3600;
+        $lastId = 0;
+        $maxId = (int)$this->db->row('SELECT COALESCE(MAX(id),0) AS id FROM stripe_invoice_payments WHERE mode=?', [$mode])['id'];
+        do {
+            $rows = $this->db->rows("SELECT * FROM stripe_invoice_payments WHERE mode=? AND status IN ('created','processing','requires_payment_method','requires_confirmation','requires_action') AND payment_intent_id IS NOT NULL AND updated_at<=? AND id>? AND id<=? ORDER BY id LIMIT 100", [$mode, $cutoff, $lastId, $maxId]);
+            foreach ($rows as $row) {
+                $lastId = (int)$row['id'];
+                try {
+                    $pi = $this->api('GET', '/v1/payment_intents/' . rawurlencode($row['payment_intent_id']), ['expand' => ['latest_charge']]);
+                    $this->paymentIntentEvent($pi);
+                    $n++;
+                } catch (Throwable $e) {
+                    $this->notify('Betaling kunne ikke afstemmes hos Stripe', 'Ordre ' . $row['order_id'] . ', Stripe ' . $row['payment_intent_id'] . ': ' . $e->getMessage(), 'recover-' . $row['id'], 86400, 'transport');
+                }
             }
-        }
+        } while (count($rows) === 100);
         return $n;
     }
 
@@ -1087,12 +1098,18 @@ final class InvoicePaymentService
         $mode = $this->db->mode();
         $order = $this->db->row('SELECT fakturanr,firmanavn FROM ordrer WHERE id=?', [(int)$row['order_id']]) ?? ['fakturanr' => '?', 'firmanavn' => ''];
         $text = 'Faktura ' . $order['fakturanr'] . ' (' . $order['firmanavn'] . '), ' . InvoicePaymentMath::display((int)$row['amount_ore']) . "\nForsøg " . $row['attempt'] . ' af ' . self::MAX_AUTO_ATTEMPTS . "\nÅrsag: " . ($code !== '' ? $code . ' - ' : '') . $message;
-        $this->db->audit('payment', (int)$row['id'], 'auto_failed', 'Stripe', ['code' => $code, 'payment_intent' => $piId]);
+        // 20261013 CL/LH Card state follows all accepted evidence; audit/outbox dedupe only suppresses repeated alerts.
         $this->db->lock('stripe-card-' . $mode . '-' . (int)$row['konto_id']);
         $broken = (in_array($code, self::CARD_BROKEN, true) || in_array($row['advice_code'] ?? '', ['do_not_try_again', 'confirm_card_data'], true)) && !empty($row['payment_method']) && $row['card_generation'] !== null
-            && $this->db->query('UPDATE stripe_invoice_cards SET broken_at=?,broken_reason=?,updated_at=? WHERE mode=? AND konto_id=? AND payment_method_id=? AND generation=? AND revoked_at IS NULL', [$row['failed_at'] ?? $this->db->now(), mb_substr($code, 0, 64), $this->db->now(), $mode, (int)$row['konto_id'], $row['payment_method'], (int)$row['card_generation']])->rowCount() > 0;
+            && $this->db->query('UPDATE stripe_invoice_cards SET broken_at=?,broken_reason=?,updated_at=? WHERE mode=? AND konto_id=? AND payment_method_id=? AND generation=? AND revoked_at IS NULL AND broken_at IS NULL', [$row['failed_at'] ?? $this->db->now(), mb_substr($code, 0, 64), $this->db->now(), $mode, (int)$row['konto_id'], $row['payment_method'], (int)$row['card_generation']])->rowCount() > 0;
         if ($broken) {
             $this->db->audit('card', (int)$row['konto_id'], 'card_broken', 'Stripe', ['code' => $code, 'payment_intent' => $piId]);
+        }
+        if ($this->db->row("SELECT id FROM stripe_invoice_audit WHERE entity_type='payment' AND entity_id=? AND action='auto_failed' LIMIT 1", [(int)$row['id']])) {
+            return;
+        }
+        $this->db->audit('payment', (int)$row['id'], 'auto_failed', 'Stripe', ['code' => $code, 'payment_intent' => $piId]);
+        if ($broken) {
             $text .= "\n\nKortet kan ikke trækkes automatisk igen. Kunden skal betale via fakturalinket og gemme kortet på ny.";
         } elseif ((int)$row['attempt'] >= self::MAX_AUTO_ATTEMPTS) {
             $text .= "\n\nDer forsøges ikke igen. Kontakt kunden.";

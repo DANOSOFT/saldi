@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/stripe/InvoicePaymentOperationsTest.php --- 2026.10.12
+// --- tests/stripe/InvoicePaymentOperationsTest.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261012 CL/LH Immutable requests, tenant/mode isolation, committed dispatch and replay expiration.
 // 20261012 CL/LH Distinguish definitive Stripe rejections from transport/conflict/throttle/server ambiguity.
 // 20261012 CL/LH Regress sticky ambiguity across later rejections, repaired credentials and interrupted dispatches.
+// 20261013 CL/LH Cover explicit local refusals, fresh keys after cutoff and sticky earlier dispatch ambiguity.
 
 use PHPUnit\Framework\TestCase;
 use Saldi\Stripe\InvoicePaymentOperations;
@@ -130,22 +131,25 @@ final class InvoicePaymentOperationsTest extends TestCase
         } finally { $this->db->pdo->rollBack(); }
         $this->assertSame(0, (int)$this->db->row('SELECT COUNT(*) AS n FROM stripe_invoice_operations')['n']);
     }
-    /** @return list<array{int,bool,bool}> HTTP status, error object present, definitive rejection. */
+    /** @return list<array{0:int,1:bool,2:bool,3?:string}> HTTP status, error object present, definitive rejection, optional local code. */
     public static function stripeRejections(): array
     {
         return [[400, true, true], [401, true, true], [402, true, true], [403, true, true], [404, true, true],
-            [409, true, false], [429, true, false], [500, true, false], [0, false, false], [400, false, false]];
+            [409, true, false], [429, true, false], [500, true, false], [0, false, false], [400, false, false],
+            [0, false, true, 'config_mode'], [0, false, true, 'config_key'],
+            [0, false, true, 'config_mode_mismatch'], [0, false, true, 'config_method'],
+            [0, false, false, 'config_unknown']];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('stripeRejections')]
-    public function testDefinitiveErrorsAllowFreshKeyAfterCutoffWhileAmbiguousErrorsBlock(int $status, bool $errorObject, bool $rejected): void
+    public function testDefinitiveErrorsAllowFreshKeyAfterCutoffWhileAmbiguousErrorsBlock(int $status, bool $errorObject, bool $rejected, string $localCode = ''): void
     {
         require_once __DIR__ . '/../../includes/stripeIncludes/InvoicePaymentService.php';
         $operations = new InvoicePaymentOperations($this->db, 'tenant-a');
         $op = $operations->prepare('intent_create', '1', '/v1/payment_intents', ['amount' => 12345], 10, 12345, 2, 1);
         try {
-            $operations->dispatch((int)$op['id'], static function () use ($status, $errorObject) {
-                throw new \Saldi\Stripe\InvoicePaymentApiError('Stripe rejected or timed out', $status === 0 ? 'network' : 'invalid_request_error', $errorObject ? ['error' => ['type' => 'invalid_request_error']] : [], $status);
+            $operations->dispatch((int)$op['id'], static function () use ($status, $errorObject, $localCode) {
+                throw new \Saldi\Stripe\InvoicePaymentApiError('Stripe rejected or timed out', $localCode !== '' ? $localCode : ($status === 0 ? 'network' : 'invalid_request_error'), $errorObject ? ['error' => ['type' => 'invalid_request_error']] : [], $status);
             }, static function () {});
             $this->fail('Expected Stripe failure');
         } catch (\Saldi\Stripe\InvoicePaymentApiError $e) {
@@ -185,14 +189,15 @@ final class InvoicePaymentOperationsTest extends TestCase
         }
     }
 
-    /** @return list<array{int}> Definitive rejection statuses after an earlier unknown outcome. */
+    /** @return list<array{0:int,1?:string}> Definitive HTTP/local rejections after an earlier unknown outcome. */
     public static function laterRejections(): array
     {
-        return [[400], [401], [402], [403], [404]];
+        return [[400], [401], [402], [403], [404], [0, 'config_mode'], [0, 'config_key'],
+            [0, 'config_mode_mismatch'], [0, 'config_method']];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('laterRejections')]
-    public function testLaterRejectionCannotEraseAmbiguityOrAllowFreshPost(int $status): void
+    public function testLaterRejectionCannotEraseAmbiguityOrAllowFreshPost(int $status, string $localCode = ''): void
     {
         require_once __DIR__ . '/../../includes/stripeIncludes/InvoicePaymentService.php';
         $operations = new InvoicePaymentOperations($this->db, 'tenant-a');
@@ -215,9 +220,9 @@ final class InvoicePaymentOperationsTest extends TestCase
         // Reconstruct the adapter: ambiguity must survive a new request/process.
         $operations = new InvoicePaymentOperations($this->db, 'tenant-a');
         try {
-            $operations->dispatch((int)$op['id'], function ($method, $path, $params, $key) use (&$keys, $status) {
+            $operations->dispatch((int)$op['id'], function ($method, $path, $params, $key) use (&$keys, $status, $localCode) {
                 $keys[] = $key;
-                throw new \Saldi\Stripe\InvoicePaymentApiError('Rejected retry', 'invalid_request_error', ['error' => ['type' => 'invalid_request_error']], $status);
+                throw new \Saldi\Stripe\InvoicePaymentApiError('Rejected retry', $localCode !== '' ? $localCode : 'invalid_request_error', $localCode !== '' ? [] : ['error' => ['type' => 'invalid_request_error']], $status);
             }, function () use (&$alerts) {
                 $this->assertTrue($this->db->inTransaction());
                 $alerts++;

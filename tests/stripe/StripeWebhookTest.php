@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/stripe/StripeWebhookTest.php --- 2026.10.12
+// --- tests/stripe/StripeWebhookTest.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20261012 CL/LH Include ledger facts in the receipt fixture for the committed receipt balance baseline.
 // 20261012 CL/LH Initialize request adapters before webhook entry and verify non-POST rejection.
 // 20261012 CL/LH Regress production event migration, real mail throttling and corrections before intent binding.
+// 20261013 CL/LH Verify signed hard-decline evidence breaks the matching card after an earlier API decline alert.
 
 use PHPUnit\Framework\TestCase;
 use Saldi\Stripe\InvoicePaymentStore;
@@ -236,6 +237,41 @@ final class StripeWebhookTest extends TestCase
         $this->assertSame(50000, (int)$row['open_ore_at_receipt']);
         $event = $this->db->row('SELECT event_created FROM stripe_events');
         $this->assertSame((int)$event['event_created'], (int)$row['received_at']);
+    }
+
+    public function testSignedDeclineBreaksCardAfterEarlierApiFailureWasAlreadyNotified(): void
+    {
+        require_once __DIR__ . '/../../includes/stripeIncludes/InvoicePaymentMath.php';
+        require_once __DIR__ . '/../../includes/stripeIncludes/InvoicePaymentLedger.php';
+        require_once __DIR__ . '/../../includes/stripeIncludes/InvoicePaymentService.php';
+        foreach (InvoicePaymentSchema::statements($this->db->driver()) as $sql) $this->db->query($sql);
+        $this->db->query("CREATE TABLE ordrer (id INTEGER,konto_id INTEGER,fakturanr TEXT,firmanavn TEXT,art TEXT,status INTEGER,valuta TEXT)");
+        $this->db->query("INSERT INTO ordrer VALUES (10,1,'1001','Kunde','DO',3,'DKK')");
+        $this->db->query("INSERT INTO stripe_invoice_customers (mode,konto_id,customer_id,created_at) VALUES ('test',1,'cus_invoice',1)");
+        $this->db->query("INSERT INTO stripe_invoice_cards (mode,konto_id,customer_id,payment_method_id,generation,autopay,consent_at,updated_at) VALUES ('test',1,'cus_invoice','pm_current',1,1,1,1)");
+        $this->db->query("INSERT INTO stripe_invoice_payments (mode,order_id,konto_id,payment_intent_id,amount_ore,kind,status,card_generation,created_at,updated_at) VALUES ('test',10,1,'pi_failure',50000,'auto','created',1,1,1)");
+        $object = ['id' => 'pi_failure', 'status' => 'requires_payment_method', 'amount' => 50000, 'currency' => 'dkk',
+            'customer' => 'cus_invoice', 'livemode' => false, 'payment_method' => null, 'latest_charge' => null,
+            'metadata' => ['saldi_db' => 'saldi_test', 'saldi_kind' => 'invoice_auto', 'saldi_order_id' => '10', 'saldi_konto_id' => '1', 'saldi_card_generation' => '1'],
+            'last_payment_error' => ['type' => 'card_error', 'code' => 'card_declined', 'decline_code' => 'expired_card', 'message' => 'Expired']];
+        $service = new \Saldi\Stripe\InvoicePaymentService($this->db, static function () { throw new RuntimeException('No Stripe request expected'); },
+            new \Saldi\Stripe\InvoicePaymentLedger($this->db), function ($subject, $body, $key, $throttle) {
+                $this->db->query('INSERT INTO fixture_alerts (subject,body,dedupe_key) VALUES (?,?,?)', [$subject, $body, $key]);
+                return true;
+            }, 'saldi_test');
+        $this->assertSame('failed', $service->paymentIntentEvent($object));
+        $this->assertNull($this->db->row('SELECT broken_at FROM stripe_invoice_cards')['broken_at']);
+        $this->assertSame(1, (int)$this->db->row('SELECT COUNT(*) AS n FROM fixture_alerts')['n']);
+        $object['payment_method'] = 'pm_current';
+        // 20261013 CL/LH deliver() signs the payload and runs the real signature/lease/dispatch path in a fresh process.
+        $this->assertSame(['status' => 'ok', 'http' => 200], $this->deliver('evt_stronger_failure', 'payment_intent.payment_failed', $object));
+        $event = $this->db->row("SELECT event_created FROM stripe_events WHERE event_id='evt_stronger_failure'");
+        $this->assertSame((int)$event['event_created'], (int)$this->db->row('SELECT broken_at FROM stripe_invoice_cards')['broken_at']);
+        $this->assertSame(['status' => 'ok', 'http' => 200], $this->deliver('evt_repeated_failure', 'payment_intent.payment_failed', $object));
+        $this->assertSame(1, (int)$this->db->row('SELECT COUNT(*) AS n FROM fixture_alerts')['n']);
+        $this->assertSame(1, (int)$this->db->row("SELECT COUNT(*) AS n FROM stripe_invoice_notifications WHERE kind='card_decline'")['n']);
+        $this->assertSame(1, (int)$this->db->row("SELECT COUNT(*) AS n FROM stripe_invoice_audit WHERE action='auto_failed'")['n']);
+        $this->assertSame(1, (int)$this->db->row("SELECT COUNT(*) AS n FROM stripe_invoice_audit WHERE action='card_broken'")['n']);
     }
 
     public function testCheckoutFailureAndDeletionRetainSubscriptionDispatch(): void
