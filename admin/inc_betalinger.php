@@ -94,7 +94,7 @@ function bill_fetch($search) {
 	if (!is_array($customers) || !count($customers) || !isset($customers[0]['kontonr'])) return array('error' => vr_t('Ingen kunde fundet i faktureringsregnskabet for','No billing customer found for').' "'.$search.'"');
 	$c = $customers[0];
 	$inv = fetch_saldi_api('/debitor/invoices/index.php', $token, array('customer' => $c['kontonr'], 'limit' => 100, 'page' => 1));
-	if (!is_array($inv)) $inv = array();
+	if (!is_array($inv)) return array('error' => vr_t('Kunne ikke hente fakturaer fra faktureringsregnskabet','Could not fetch invoices from the billing ledger')); # keep the cached summary
 	usort($inv, fn($a, $b) => strcmp($b['invoiceDate'] ?? '', $a['invoiceDate'] ?? ''));
 	return array('customer' => $c, 'invoices' => $inv);
 }

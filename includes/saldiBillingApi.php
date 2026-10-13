@@ -12,6 +12,8 @@ if (!defined('SALDI_API_BASE')) {
 // ---- REST API Configuration for the billing ledger (default ssl3.saldi.dk) ----
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_base' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
 $saldi_api_base = ($query && trim((string)$query['var_value']) !== '') ? rtrim(trim($query['var_value']), '/') : 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1';
+// 20261013 CL/ASR Credentials are only sent over HTTPS to a saldi.dk host; anything else falls back to the default (review #785).
+if (!preg_match('#^https://([a-z0-9-]+\.)*saldi\.dk(:\d+)?/#i', $saldi_api_base.'/')) $saldi_api_base = 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1';
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_user' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
 $saldi_api_user = $query['var_value'];
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_pass' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
@@ -31,7 +33,7 @@ function get_saldi_api_token() {
     // Check for cached token
     if (file_exists(SALDI_API_TOKEN_FILE)) {
         $cached = json_decode(file_get_contents(SALDI_API_TOKEN_FILE), true);
-        if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time()) {
+        if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time() && ($cached['base'] ?? '') === SALDI_API_BASE) { # token is bound to the API base it came from
             return $cached['token'];
         }
     }
@@ -69,6 +71,7 @@ function get_saldi_api_token() {
     // Cache token (expires in 55 min to be safe)
     file_put_contents(SALDI_API_TOKEN_FILE, json_encode([
         'token' => $token,
+        'base' => SALDI_API_BASE,
         'expires' => time() + 3300
     ]));
     
