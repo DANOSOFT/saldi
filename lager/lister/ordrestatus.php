@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/ordrestatus.php --- lap 4.1.0 --- 2026.09.23 ---
+// ---- lager/lister/ordrestatus.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,10 @@
 // 20260807 CL/MS Converted hardcoded Danish UI text to findtekst() calls for multi-language support
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260923 CDX/PHR Generate warehouse columns and joins once per warehouse across fiscal years.
+// 20261013 CL/MJ The Indkoebsordre hover box dates its orders by the expected delivery date
+//              (ordrer.levdate) instead of the order date, and says so in the column header.
+//              An order without a delivery date is still listed, with a dash for the date.
+// 20261029 CL/MJ Use free translation ids after rebasing onto current master; preserve cached voucher texts.
 
 @session_start();
 $s_id = session_id();
@@ -129,7 +133,7 @@ $columns[] = array(
 );
 
 // Add in_sales_offer field
-function renderColumn($value, $row, $column, $type, $idField, $orderField, $amountField, $dateField, $style = "") {
+function renderColumn($value, $row, $column, $type, $idField, $orderField, $amountField, $dateField, $style = "", $dateText = '438|Dato') {
     global $sprog_id;
     if ($value == "0,00" || !$value) {
         return "<td align='$column[align]' style='$style'>0,00</td>";
@@ -143,21 +147,23 @@ function renderColumn($value, $row, $column, $type, $idField, $orderField, $amou
 
     // Create a dropdown with table details
     $details = '';
-    if ($orders && $amounts && $dates) {
-        $idList = explode(', ', $ids);
-        $ordrenrList = explode(', ', $orders);
-        $antalList = explode(', ', $amounts);
-        $dateList = explode(', ', $dates);
+    // Only the order numbers decide whether there is a table. An order with no date belongs in
+    // the list as much as a dated one, and the date list is empty when that is the only order.
+    if ($orders) {
+        $idList = explode(', ', (string)$ids);
+        $ordrenrList = explode(', ', (string)$orders);
+        $antalList = explode(', ', (string)$amounts);
+        $dateList = explode(', ', (string)$dates);
 
         $details .= '<table>';
-        $details .= '<thead><tr><th>'.findtekst('500|Ordrenr.', $sprog_id).'</th><th>'.findtekst('916|Antal', $sprog_id).'</th><th>'.findtekst('438|Dato', $sprog_id).'</th><th>('.count($idList).')</th></tr></thead>';
+        $details .= '<thead><tr><th>'.findtekst('500|Ordrenr.', $sprog_id).'</th><th>'.findtekst('916|Antal', $sprog_id).'</th><th>'.findtekst($dateText, $sprog_id).'</th><th>('.count($idList).')</th></tr></thead>';
         $details .= '<tbody>';
         foreach ($ordrenrList as $index => $ordrenr) {
-            $id = $idList[$index];
-            $antal = $antalList[$index];
-            $date = $dateList[$index];
+            $id = ifset($idList, $index, '');
+            $antal = ifset($antalList, $index, '');
+            $date = ifset($dateList, $index, '');
             $url = "../../$type/ordre.php?id=$id&returside=../lager/lister/ordrestatus.php";
-            $details .= "<tr><td><a href='$url'>$ordrenr</a></td><td>".dkdecimal($antal)."</td><td colspan=2>".dkdato($date)."</td></tr>";
+            $details .= "<tr><td><a href='$url'>$ordrenr</a></td><td>".dkdecimal($antal)."</td><td colspan=2>".($date !== '' ? dkdato($date) : '&ndash;')."</td></tr>";
         }
         $details .= '</tbody></table>';
     }
@@ -213,7 +219,7 @@ $columns[] = array(
     "width" => "0.2",
     "sqlOverride" => "COALESCE(os.in_buy_order, 0)",
     "render" => function ($value, $row, $column) {
-        return renderColumn($value, $row, $column, 'kreditor', 'buy_order_orders_id', 'buy_order_orders', 'buy_order_qty', 'buy_order_date', 'border-right: 1px black solid');
+        return renderColumn($value, $row, $column, 'kreditor', 'buy_order_orders_id', 'buy_order_orders', 'buy_order_qty', 'buy_order_date', 'border-right: 1px black solid', '7636|Forventet lev. dato');
     }
 );
 
@@ -572,13 +578,16 @@ sales_summary AS (
 categorized_orders AS (
     SELECT 
         ol.vare_id AS vare_id,
+        ol.id AS linjeid,
         o.ordrenr::text AS ordrenr,
+        o.ordrenr AS ordrenr_sort,
         o.id::text AS ordreid,
         o.status AS status,
         o.art AS art,
         ol.antal AS antal,
         ol.leveret AS leveret,
         o.ordredate AS ordredate,
+        o.levdate AS levdate,
         CASE 
             WHEN o.status < 1 AND o.art = 'DO' THEN 'sales_offer_qty'
             WHEN o.status < 3 AND o.art = 'DO' THEN 'sales_order_qty'
@@ -612,10 +621,20 @@ order_summary AS (
         STRING_AGG(CASE WHEN category   = 'buy_proposal_qty' THEN ordredate::text ELSE NULL END, ', ')                      AS buy_proposal_orders_date,
 
         COALESCE(SUM(CASE WHEN category = 'buy_order_qty' THEN (antal - COALESCE(leveret, 0)) ELSE 0 END), 0)               AS in_buy_order,
-        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordrenr ELSE NULL END, ', ')                                 AS buy_order_orders,
-        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordreid ELSE NULL END, ', ')                                 AS buy_order_orders_id,
-        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN (antal - COALESCE(leveret, 0))::text ELSE NULL END, ', ')    AS buy_order_qty,
-        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordredate::text ELSE NULL END, ', ')                         AS buy_order_date
+        -- renderColumn() zips these four lists by index, so they have to agree on both length
+        -- and order. Every one of them carries the same ORDER BY, ending on linjeid, which is
+        -- unique - without a unique last key two rows with the same date and order number
+        -- could sort differently in one list than in another. COALESCE keeps an undated order
+        -- in the date list: STRING_AGG drops NULLs, which would move every later date up onto
+        -- the wrong order.
+        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordrenr ELSE NULL END, ', '
+            ORDER BY levdate NULLS LAST, ordrenr_sort, linjeid)                                                             AS buy_order_orders,
+        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordreid ELSE NULL END, ', '
+            ORDER BY levdate NULLS LAST, ordrenr_sort, linjeid)                                                             AS buy_order_orders_id,
+        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN (antal - COALESCE(leveret, 0))::text ELSE NULL END, ', '
+            ORDER BY levdate NULLS LAST, ordrenr_sort, linjeid)                                                             AS buy_order_qty,
+        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN COALESCE(levdate::text, '') ELSE NULL END, ', '
+            ORDER BY levdate NULLS LAST, ordrenr_sort, linjeid)                                                             AS buy_order_date
     FROM categorized_orders
     GROUP BY vare_id
 )
@@ -784,7 +803,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => findtekst('2646|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag. <br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
+    "content" => findtekst('7637|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer. For indkøbsordrer er datoen den forventede leveringsdato.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",
