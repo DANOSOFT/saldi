@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,10 +85,20 @@
 //                  re-seeds the corrected csv text on the next call.
 // 20261007 CL/NTR Add ordrer.shop_status as varchar(20) when the column is missing entirely,
 //                  so the Stripe paid-invoice index no longer fails on those tenants.
+// 20261007 CL/LH Stripe invoice payment tables (stripe_invoice_*), PostgreSQL only.
+// 20261012 CL/LH Add the stripe_events lease columns (claim_token, claimed_at, attempts, event_created)
+//                  ahead of the invoice-payment webhook, which needs them from its first request.
+// 20261012 CL/LH Make complete invoice-schema provisioning non-fatal at tenant login.
+// 20261012 CL/LH Check the newest notification table before the full autopay schema assertion.
+// 20261013 CL/LH stripe_events columns: schema-scoped check, concurrent-login safe (CodeRabbit on #795).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
  * @var string $db_type
+ * @var string $db
+ * @var string $sqhost
+ * @var string $squser
+ * @var string $sqpass
  */
 
 // ===== PROTECTED: when a version is cut (see doc/ai/convention_database_changes.md), COPY this =====
@@ -552,6 +562,56 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		processed_at timestamp)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+// 20261012 CL/LH Event leases for the Stripe webhook: who holds an event (claim_token/claimed_at),
+//                  how often it was retried (attempts) and Stripe's own event time (event_created).
+//                  Shipped before the webhook change, because a merge to master deploys /master at once.
+// 20261013 CL/LH (CodeRabbit) Scoped to the current schema/database and safe for concurrent logins, like
+//                  the lock_token migration: ADD COLUMN IF NOT EXISTS on PostgreSQL, GET_LOCK + recheck on MySQL.
+$stripeEventMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$stripeEventColumns = array('claim_token' => 'varchar(64)', 'claimed_at' => 'timestamp', 'attempts' => 'integer NOT NULL DEFAULT 0', 'event_created' => 'bigint');
+$stripeEventMissing = array();
+foreach ($stripeEventColumns as $stripeEventColumn => $stripeEventType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn'";
+	$qtxt .= $stripeEventMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$stripeEventMissing[] = $stripeEventColumn;
+	}
+}
+if ($stripeEventMissing) {
+	if ($stripeEventMysql) {
+		$stripeEventLock = "CONCAT('saldi:stripe_events:', MD5(DATABASE()))";
+		$stripeEventLockResult = db_fetch_array(db_select("SELECT GET_LOCK($stripeEventLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($stripeEventLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the stripe_events migration lock.');
+		}
+		try {
+			foreach ($stripeEventMissing as $stripeEventColumn) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE stripe_events ADD COLUMN $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($stripeEventLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($stripeEventMissing as $stripeEventColumn) {
+			db_modify("ALTER TABLE stripe_events ADD COLUMN IF NOT EXISTS $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+// 20261012 CL/LH Separate tenant connection for the non-fatal invoice-schema provisioning below.
+//                  The stripe_events lease columns come from the block above, which ships first.
+$stripeSchemaStore = null;
+if (!in_array($db_type, ['mysql', 'mysqli'], true)) {
+	include_once(__DIR__ . '/stripeIncludes/InvoicePaymentStore.php');
+	include_once(__DIR__ . '/stripeIncludes/InvoicePaymentSchema.php');
+	try {
+		$stripeSchemaStore = new \Saldi\Stripe\InvoicePaymentStore(new PDO('pgsql:host=' . $sqhost . ';dbname=' . $db, $squser, $sqpass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]));
+	} catch (Throwable $e) {
+		error_log('Stripe-fakturabetaling kunne ikke klargøres i ' . $db . ': ' . $e->getMessage());
+	}
+}
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "CREATE TABLE stripe_customers (
@@ -604,6 +664,18 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='stripe_fravalg'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE adresser ADD stripe_fravalg varchar(2)", __FILE__ . " linje " . __LINE__);
+}
+// 20261012 CL/LH Verify all objects, so a missing table/index is repaired even when audit exists.
+// The invoice tables have never shipped; their CREATE definitions are the schema truth.
+// PDO failures are logged and collection fails closed, without terminating an ordinary login.
+if ($stripeSchemaStore !== null) {
+	try {
+		// 20261012 CL/LH Earlier invoice schemas have no outbox; provision it at the next login.
+		$stripeSchemaStore->query('SELECT id FROM stripe_invoice_notifications LIMIT 0');
+		\Saldi\Stripe\InvoicePaymentSchema::assertProvisioned($stripeSchemaStore);
+	} catch (Throwable $e) {
+		\Saldi\Stripe\InvoicePaymentSchema::provision($stripeSchemaStore);
+	}
 }
 
 

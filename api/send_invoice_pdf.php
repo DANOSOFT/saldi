@@ -177,6 +177,13 @@ function send_invoice_pdf($ordre_id, $db, $db_id) {
         $mailtext = str_replace('$abonnementslink', $abonnementslink ? "Tilmeld automatisk betaling: $abonnementslink" : '', $mailtext);
         $subjekt  = str_replace('$abonnementslink', '', $subjekt);
     }
+    // 20261007 CL/LH $fakturalink parity (Stripe invoice payment page).
+    if (strpos($mailtext, '$fakturalink') !== false || strpos($subjekt, '$fakturalink') !== false) {
+        include_once(__DIR__ . '/../includes/formFuncIncludes/invoicePaymentLink.php');
+        $fakturalink = invoicePaymentLinkUrl($ordre_id);
+        $mailtext = str_replace('$fakturalink', $fakturalink ? "Se faktura og betal: $fakturalink" : '', $mailtext);
+        $subjekt  = str_replace('$fakturalink', '', $subjekt);
+    }
     
     fwrite($log, "Subject: $subjekt\n");
     fwrite($log, "Sending to: $customer_email from $sender_email\n");

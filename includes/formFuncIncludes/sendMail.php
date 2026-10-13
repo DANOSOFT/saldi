@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-10-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
 //                  (source=debitorOrdrer) før fallback til gammelt bilag-system
@@ -34,6 +34,8 @@
 //                  recipient escaped before output.
 // 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
 //                  and offers the ASCII suggestion via emailLookalike.php.
+// 20261007 CL/LH $fakturalink token: signed Stripe "Se faktura og betal" link.
+// 20261012 CL/LH Use the dated comment convention on the invoice-payment token block.
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -140,6 +142,13 @@ print "<!--function send_mails start-->";
 		# 20260820 CL/LH styled CTA block (shared builder) instead of a naked anchor.
 		$mailtext = str_replace('$abonnementslink', subscriptionLinkHtml($abonnementslink), $mailtext);
 		$subjekt  = str_replace('$abonnementslink', '', $subjekt);
+	}
+	// 20261012 CL/LH $fakturalink: signed "Se faktura og betal" link (Stripe
+	// invoice payment), same rules as $abonnementslink above.
+	if (strpos($mailtext,'$fakturalink') !== false || strpos($subjekt,'$fakturalink') !== false) {
+		include_once(__DIR__ . "/invoicePaymentLink.php");
+		$mailtext = str_replace('$fakturalink', invoicePaymentLinkHtml(invoicePaymentLinkUrl($ordre_id)), $mailtext);
+		$subjekt  = str_replace('$fakturalink', '', $subjekt);
 	}
 	$mailtext = str_replace("\n\r","\n\r<br>",$mailtext);
 

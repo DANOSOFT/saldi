@@ -1,4 +1,5 @@
 <?php
+// 20261012 CL/LH Batch additive invoice payment facts before serializing the invoice page.
 /**
  * Invoices Endpoints
  * 
@@ -104,10 +105,14 @@ class InvoicesEndpoint extends BaseEndpoint
 
             
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-            $invoices = [];
-            
+            $ids = [];
             while ($r = db_fetch_array($q)) {
-                $order = new OrderModel($r['id'], 'DO');
+                $ids[] = (int)$r['id'];
+            }
+            InvoicePaymentReadContext::prepareInvoices($ids);
+            $invoices = [];
+            foreach ($ids as $orderId) {
+                $order = new OrderModel($orderId, 'DO');
                 if ($order->getId()) {
                     $invoices[] = $order->toArray();
                 }

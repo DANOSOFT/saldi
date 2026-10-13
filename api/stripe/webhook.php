@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/webhook.php --- 2026.08.07
+// --- api/stripe/webhook.php --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,18 +21,22 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: Stripe webhook receiver. Contract:
 //                doc/stripe/INTERFACE_CONTRACT.md.
 // 20260818 CL/LH Hardened claims, DB failures, and invoice identity.
+// 20261007 CL/LH payment_intent.* events for the hosted invoice page and the
+//                autopay worker go to InvoicePaymentService::handleEvent().
+// 20261012 CL/LH Lease webhook events, isolate invoice routing/import, and hold refunds/disputes.
+// 20261012 CL/LH Alert on missing event migrations, retry booking mail failures and resolve unbound invoice corrections.
+// 20261013 CL/LH (CodeRabbit) Record subscription payments without a recipient instead of retrying indefinitely.
 //
 // PILOT MODE OF RECORD = record-only: verify + dedupe + record + PDF + alert;
 // nothing is booked. The import path is gated behind the import_enabled
 // setting AND the boot asserts (par. 6 of the contract) - on this branch the
-// asserts fail by construction (the import service lives on the unmerged
-// fix/stripe-paid-invoice-api branch), so flipping the setting alone can
-// never book anything half-wired.
+// asserts apply only to subscription invoice.paid imports. Missing import
+// prerequisites never block unrelated subscription or invoice-payment events.
 //
 // Response policy: 2xx fast and always - EXCEPT (a) signature failure -> 400,
 // (b) infrastructure failure (boot/insert) -> 5xx, and (c) the documented
@@ -45,6 +49,16 @@
 //
 // nextfakt is never selected, read, or written here (locked decision).
 
+
+/**
+ * Injected by includes/connect.php and stripeBootstrap.php below.
+ * @var string $sqhost
+ * @var string $squser
+ * @var string $sqpass
+ * @var string $db_type
+ * @var string $db
+ * @var bool $stripe_boot_ok
+ */
 ob_start(); // injecttjek()/alert() print HTML on error paths - the JSON response stays ours
 
 // 1. Raw body FIRST, before any include can touch input streams.
@@ -66,6 +80,8 @@ include(__DIR__ . '/../../includes/connect.php');
 include(__DIR__ . '/../../includes/stripeIncludes/stripeBootstrap.php');
 include(__DIR__ . '/../../includes/stripeIncludes/stripeHttp.php');
 include(__DIR__ . '/../../includes/stripeIncludes/stripeAlertMail.php');
+require_once __DIR__ . '/../../includes/stripeIncludes/StripeEventLedger.php';
+require_once __DIR__ . '/../../includes/stripeIncludes/stripeWebhookRouting.php';
 
 if (!$stripe_boot_ok) stripe_wh_respond(503, 'unavailable');
 
@@ -74,7 +90,7 @@ function stripe_wh_db_select($qtext) {
 	$query = db_select($qtext, __FILE__ . " linje " . __LINE__);
 	if ($query === false) {
 		stripe_log('webhook: database read failed - responding 500');
-		stripe_wh_respond(500, 'database_failed');
+		stripe_wh_retry(500, 'database_failed');
 	}
 	http_response_code(200);
 	return $query;
@@ -90,37 +106,12 @@ function stripe_wh_db_modify($qtext) {
 function stripe_wh_require_modify($qtext) {
 	if (stripe_wh_db_modify($qtext) === false) {
 		stripe_log('webhook: database write failed - responding 500');
-		stripe_wh_respond(500, 'database_failed');
+		stripe_wh_retry(500, 'database_failed');
 	}
 }
 
-// 2. Boot asserts (contract par. 6): never process against a half-deployed install.
-$tblChk = db_fetch_array(stripe_wh_db_select("SELECT column_name FROM information_schema.columns WHERE table_name='stripe_events' AND column_name='event_id'"));
-if (!$tblChk) {
-	stripe_log('webhook: BOOT ASSERT FAILED - stripe_events table missing (partial deploy?)');
-	stripe_wh_respond(503, 'not_provisioned');
-}
+// 20261012 CL/LH Import readiness is checked only in the subscription import branch.
 $importEnabled = (stripe_setting('import_enabled', 'off') === 'on');
-if ($importEnabled) {
-	$svc = dirname(__DIR__, 2) . '/restapi/services/ExternalPaidInvoiceImportService.php';
-	$idxChk = db_fetch_array(stripe_wh_db_select("SELECT indexname FROM pg_indexes WHERE tablename='ordrer' AND indexname='ordrer_stripe_paid_invoice_uidx'"));
-	$fnOk = false;
-	if (function_exists('get_next_order_number')) {
-		$rf = new ReflectionFunction('get_next_order_number');
-		$fnOk = ($rf->getNumberOfParameters() >= 2);
-	}
-	if (!file_exists($svc) || !$idxChk) {
-		// PHP silently discards extra args to user functions, so a partial
-		// deploy books NON-atomically while returning 200 - hence the loud 503.
-		stripeAlertMail('Stripe webhook: import_enabled men installationen er ikke komplet',
-			"Boot assert fejlede (service-fil eller partial unique index mangler).\nWebhooken svarer 503 og behandler INTET, til import_enabled slås fra eller filerne deployes samlet.",
-			'boot_assert', 3600);
-		stripe_wh_respond(503, 'import_prereqs_missing');
-	}
-	// fnOk + the SALDI_CALLER_OWNED_POSTING constant are asserted again at call
-	// time below, after ordrefunc.php is actually loaded.
-	if (!$fnOk) { /* not loaded yet here - checked at call time */ }
-}
 
 // 3. Signature verification (manual - no SDK). Empty secret NEVER means accept.
 $secret = stripe_setting('webhook_secret');
@@ -148,65 +139,78 @@ if (!$sigOk || abs(time() - $sigT) > 300) {
 
 // 4. Parse + mode check.
 $event = json_decode($rawBody, true);
-if (!is_array($event) || empty($event['id']) || empty($event['type']) || !isset($event['data']['object'])) {
+if (!is_array($event) || empty($event['id']) || empty($event['type']) || !is_array($event['data']['object'] ?? null)) {
 	stripe_wh_respond(400, 'bad_payload');
 }
 $eventId   = (string)$event['id'];
 $eventType = (string)$event['type'];
 $obj       = $event['data']['object'];
-$mode      = stripe_setting('mode');
-$liveMode  = !empty($event['livemode']);
-if (!in_array($mode, ['test', 'live'], true)) {
-	stripe_log('webhook: invalid Stripe mode configuration - responding 503');
-	stripe_wh_respond(503, 'config_error');
+$eventCreated = (int)($event['created'] ?? 0);
+
+// 20261012 CL/LH Signature -> race-safe lease -> mode -> dispatch; no invoice runtime here.
+try {
+	if (in_array($db_type, ['mysql', 'mysqli'], true)) throw new RuntimeException('Stripe-webhook kræver PostgreSQL');
+	$eventPdo = new PDO('pgsql:host=' . $sqhost . ';dbname=' . stripeConfigDb(), $squser, $sqpass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+	$eventLedger = new \Saldi\Stripe\StripeEventLedger($eventPdo);
+	$claim = $eventLedger->receive($eventId, $eventType, base64_encode($rawBody), $eventCreated);
+} catch (Throwable $e) {
+	stripe_log('webhook: event store failed: ' . $e->getMessage());
+	stripe_wh_event_store_alert();
+	stripe_wh_respond(503, 'store_failed');
+}
+if ($claim['action'] === 'duplicate') stripe_wh_respond(200, 'duplicate');
+if ($claim['action'] === 'busy') stripe_wh_respond(503, 'busy');
+$rowId = $claim['id'];
+$claimToken = $claim['token'];
+set_exception_handler(static function (Throwable $e) {
+	stripe_log('webhook: dispatch failed: ' . $e->getMessage());
+	stripe_wh_retry(503, 'retry', $e->getMessage());
+});
+
+/** Alert operators without consuming the hourly throttle on a failed mail. */
+function stripe_wh_event_store_alert(): void {
+	try {
+		stripeAlertMail('Stripe-webhook kan ikke gemme events - log ind i regnskabet, så databasen opdateres',
+			'Regnskab: ' . stripeConfigDb() . "\nWebhooken svarer 503, så Stripe prøver igen. Log ind på /master og kontrollér stripe_events-kolonnerne.",
+			'event-store-' . stripeConfigDb(), 3600);
+	} catch (Throwable $e) {
+		stripe_log('webhook: event store alert failed: ' . $e->getMessage());
+	}
 }
 
-// 5. Dedupe via the DB unique index, with an ownership token so a concurrent
-// duplicate delivery can never double-process. The token borrows the error
-// column for the microseconds between insert and claim-check.
-$eventIdEsc = db_escape_string($eventId);
-$token = bin2hex(random_bytes(16));
-$existing = db_fetch_array(stripe_wh_db_select("select id, status from stripe_events where event_id = '$eventIdEsc'"));
-if ($existing) {
-	if ($existing['status'] !== 'received') stripe_wh_respond(200, 'duplicate');
-	// Crashed mid-processing >15 min ago: claim it for reprocessing.
-	$staleSql = ($db_type === 'mysql' || $db_type === 'mysqli')
-		? 'received_at < CURRENT_TIMESTAMP - INTERVAL 15 MINUTE'
-		: "received_at < CURRENT_TIMESTAMP - INTERVAL '15 minutes'";
-	stripe_wh_require_modify("update stripe_events set status = 'retrying', error = '$token' where id = " . (int)$existing['id']
-		. " and status = 'received' and $staleSql");
-	$claim = db_fetch_array(stripe_wh_db_select("select error from stripe_events where id = " . (int)$existing['id']));
-	if (!$claim || $claim['error'] !== $token) stripe_wh_respond(200, 'duplicate');
-	$rowId = (int)$existing['id'];
-} else {
-	$insertResult = stripe_wh_db_modify("insert into stripe_events (event_id, event_type, payload, status, error) values ('$eventIdEsc', '"
-		. db_escape_string($eventType) . "', '" . db_escape_string(base64_encode($rawBody)) . "', 'received', '$token')");
-	$mine = db_fetch_array(stripe_wh_db_select("select id, error from stripe_events where event_id = '$eventIdEsc'"));
-	if ($insertResult === false) {
-		if ($mine && $mine['error'] !== $token) stripe_wh_respond(200, 'duplicate');
-		stripe_log("webhook: stripe_events insert failed for $eventId - responding 500");
-		stripe_wh_respond(500, 'store_failed');
+/** Fail an owned event immediately; infrastructure errors before a claim still return 5xx. */
+function stripe_wh_retry($respCode, $message, $error = '') {
+	global $eventLedger, $rowId, $claimToken;
+	if (isset($eventLedger, $rowId, $claimToken)) {
+		try {
+			$eventLedger->fail((int)$rowId, $claimToken, stripe_redact($error !== '' ? $error : $message));
+		} catch (Throwable $e) {
+			stripe_log('webhook: could not release failed lease: ' . $e->getMessage());
+			stripe_wh_event_store_alert();
+		}
 	}
-	if (!$mine) {
-		// Insert failed outright (not a duplicate - the row is absent): 5xx so Stripe retries.
-		stripe_log("webhook: stripe_events insert failed for $eventId - responding 500");
-		stripe_wh_respond(500, 'store_failed');
-	}
-	if ($mine['error'] !== $token) stripe_wh_respond(200, 'duplicate'); // concurrent delivery won the index race
-	$rowId = (int)$mine['id'];
+	stripe_wh_respond($respCode, $message);
 }
-stripe_wh_require_modify("update stripe_events set error = null where id = $rowId");
 
+/** Complete only while this delivery still owns the lease; all retryable paths use fail(). */
 function stripe_wh_finish($rowId, $status, $respCode, $respMsg, $orderId = 0, $invoiceNumber = '', $error = '') {
-	$set = "status = '" . db_escape_string($status) . "', processed_at = CURRENT_TIMESTAMP";
-	if ($orderId > 0)            $set .= ", saldi_order_id = " . (int)$orderId;
-	if ($invoiceNumber !== '')   $set .= ", invoice_number = '" . db_escape_string($invoiceNumber) . "'";
-	if ($error !== '')           $set .= ", error = '" . db_escape_string(stripe_redact($error)) . "'";
-	stripe_wh_require_modify("update stripe_events set $set where id = " . (int)$rowId);
+	global $eventLedger, $claimToken;
+	if ($respCode >= 500) stripe_wh_retry($respCode, $respMsg, $error);
+	$fields = ['error' => $error !== '' ? stripe_redact($error) : null];
+	if ($orderId > 0) $fields['saldi_order_id'] = (int)$orderId;
+	if ($invoiceNumber !== '') $fields['invoice_number'] = $invoiceNumber;
+	try {
+		if (!$eventLedger->finish((int)$rowId, $claimToken, $status, $fields)) stripe_wh_respond(503, 'busy');
+	} catch (Throwable $e) {
+		stripe_wh_event_store_alert();
+		stripe_wh_retry(503, 'store_failed', $e->getMessage());
+	}
 	stripe_wh_respond($respCode, $respMsg);
 }
 
-// Mode mismatch: recorded and ignored, 200.
+$mode = stripe_setting('mode');
+$liveMode = !empty($event['livemode']);
+if (!in_array($mode, ['test', 'live'], true)) stripe_wh_retry(503, 'config_error');
 if (($mode === 'live') !== $liveMode) stripe_wh_finish($rowId, 'ignored_mode', 200, 'ignored_mode');
 
 // ---- helpers ---------------------------------------------------------------
@@ -273,13 +277,15 @@ function stripe_wh_resolve_identity($inv) {
 	return ['order_id' => $orderId, 'konto_id' => $kontoId, 'kontonr' => $kontonr];
 }
 
-// PDF download/write into bilag/<db>/pulje is best-effort with a 5s cap.
-// Once written, failure to record the pool_files row is a retryable DB error.
+/**
+ * Download the subscription PDF, then insert or overwrite its pool metadata.
+ * @return string Empty on success, otherwise a best-effort download diagnostic.
+ */
 function stripe_wh_attach_pdf($inv, $db) {
 	if (empty($inv['invoice_pdf'])) return 'no pdf url';
 	$number = preg_replace('/[^A-Za-z0-9_-]/', '_', (string)(isset($inv['number']) ? $inv['number'] : $inv['id']));
 	$dir = dirname(__DIR__, 2) . '/bilag/' . $db . '/pulje';
-	if (!is_dir($dir) && !@mkdir($dir, 0777, true)) return 'mkdir failed';
+	if (!is_dir($dir) && !mkdir($dir, 0777, true)) return 'mkdir failed';
 	$file = 'stripe_' . $number . '.pdf';
 	$ch = curl_init($inv['invoice_pdf']);
 	curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3,
@@ -288,15 +294,65 @@ function stripe_wh_attach_pdf($inv, $db) {
 	$code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 	curl_close($ch);
 	if ($pdf === false || $code !== 200 || strncmp((string)$pdf, '%PDF', 4) !== 0) return 'download failed (' . $code . ')';
-	if (@file_put_contents($dir . '/' . $file, $pdf) === false) return 'write failed';
+	if (file_put_contents($dir . '/' . $file, $pdf, LOCK_EX) === false) return 'write failed';
 	$amountOre = (int)(isset($inv['amount_paid']) ? $inv['amount_paid'] : 0);
 	$kr = number_format($amountOre / 100, 2, ',', '.');
 	$normAmount = number_format($amountOre / 100, 2, '.', '');
-	stripe_wh_require_modify("insert into pool_files (filename, subject, amount, norm_amount, file_date, invoice_number, description, currency) values ('"
-		. db_escape_string($file) . "', 'Stripe faktura " . db_escape_string((string)$inv['number']) . "', '"
-		. db_escape_string($kr) . "', $normAmount, '" . db_escape_string(date('Y-m-d')) . "', '"
-		. db_escape_string((string)$inv['number']) . "', 'Stripe abonnementsfaktura (automatisk hentet af webhook)', 'DKK')");
+	// 20261012 CL/LH A retried invoice overwrites its PDF metadata instead of adding pool rows.
+	$filename = db_escape_string($file);
+	$invoiceNumber = db_escape_string((string)($inv['number'] ?? $inv['id']));
+	$existing = db_fetch_array(stripe_wh_db_select("select id from pool_files where filename='$filename'"));
+	$set = "subject='Stripe faktura $invoiceNumber', amount='" . db_escape_string($kr) . "', norm_amount=$normAmount, file_date='" . db_escape_string(date('Y-m-d')) . "', invoice_number='$invoiceNumber', description='Stripe abonnementsfaktura (automatisk hentet af webhook)', currency='DKK'";
+	if ($existing) {
+		stripe_wh_require_modify("update pool_files set $set where id=" . (int)$existing['id']);
+	} else {
+		stripe_wh_require_modify("insert into pool_files (filename, subject, amount, norm_amount, file_date, invoice_number, description, currency) values ('$filename', 'Stripe faktura $invoiceNumber', '" . db_escape_string($kr) . "', $normAmount, '" . db_escape_string(date('Y-m-d')) . "', '$invoiceNumber', 'Stripe abonnementsfaktura (automatisk hentet af webhook)', 'DKK')");
+	}
 	return '';
+}
+
+/**
+ * Resolve invoice corrections without requiring invoice tables for retained subscriptions.
+ * @return bool Whether an invoice payment was held; errors respond with retryable 503.
+ */
+function stripe_wh_invoice_charge($event, $charge) {
+	global $eventPdo, $mode;
+	$intent = $charge['payment_intent'] ?? '';
+	$intentId = is_array($intent) ? (string)($intent['id'] ?? '') : (string)$intent;
+	try {
+		// 20261012 CL/LH Some correction snapshots supply only a charge id; resolve its intent before routing.
+		if ($intentId === '' && !empty($charge['id'])) {
+			$response = stripeHttpRequest('GET', '/v1/charges/' . rawurlencode((string)$charge['id']), ['expand' => ['payment_intent']]);
+			if (empty($response['ok']) || !is_array($response['body'] ?? null)) throw new RuntimeException('Charge til rettelsen kunne ikke hentes');
+			$intent = $response['body']['payment_intent'] ?? '';
+			$charge['payment_intent'] = $intent;
+			$intentId = is_array($intent) ? (string)($intent['id'] ?? '') : (string)$intent;
+		}
+		if ($intentId === '') return false;
+		$present = $eventPdo->query("SELECT to_regclass('stripe_invoice_payments')")->fetchColumn();
+		$known = false;
+		if ($present) {
+			$q = $eventPdo->prepare('SELECT id FROM stripe_invoice_payments WHERE mode=? AND payment_intent_id=?');
+			$q->execute([$mode, $intentId]);
+			$known = (bool)$q->fetchColumn();
+		}
+		$pi = null;
+		if (!$known) {
+			// 20261012 CL/LH A lost creation response leaves the durable attempt unbound; metadata still owns the correction.
+			$pi = is_array($intent) && isset($intent['metadata']) ? $intent : null;
+			if ($pi === null) {
+				$response = stripeHttpRequest('GET', '/v1/payment_intents/' . rawurlencode($intentId), ['expand' => ['latest_charge']]);
+				if (empty($response['ok']) || !is_array($response['body'] ?? null)) throw new RuntimeException('Betalingsreference til rettelsen kunne ikke hentes');
+				$pi = $response['body'];
+			}
+			if (!stripe_wh_is_invoice_payment($pi, stripeConfigDb())) return false;
+			if (!$present) throw new RuntimeException('Fakturabetalingens rettelse afventer klargøring af databasen');
+		}
+		include_once __DIR__ . '/../../includes/stripeIncludes/invoicePaymentRuntime.php';
+		return stripe_invoice_payment_service()->chargeEvent($event, $charge, $pi);
+	} catch (Throwable $e) {
+		stripe_wh_retry(503, 'retry', $e->getMessage());
+	}
 }
 
 // ---- dispatch ---------------------------------------------------------------
@@ -339,27 +395,43 @@ if ($eventType === 'invoice.paid') {
 			. "\nStripe customer: " . (isset($obj['customer']) ? $obj['customer'] : '?')
 			. "\n\nWebhooken svarer 5xx, så Stripe prøver igen automatisk. Sker det ved sidste retry (efter ~3 døgn), skal fakturaen håndteres manuelt.",
 			'unmapped_' . (string)$obj['id'], 3600);
-		stripe_wh_finish($rowId, 'failed', 500, 'unmapped_customer', 0, (string)(isset($obj['number']) ? $obj['number'] : ''), 'unmapped_customer');
+		stripe_wh_retry(500, 'unmapped_customer');
 	}
 	stripe_wh_upsert_customer(isset($obj['customer']) ? $obj['customer'] : '', isset($obj['subscription']) ? $obj['subscription'] : '', $who['konto_id'], $who['kontonr'], $who['order_id'], 'active');
 
 	$invoiceNumber = (string)(isset($obj['number']) ? $obj['number'] : $obj['id']);
 	$paidKr  = number_format(((int)$obj['amount_paid']) / 100, 2, ',', '.');
+	// 20261012 CL/LH Session advisory lock serializes retry side effects for one Stripe invoice.
+	try {
+		$eventPdo->prepare('SELECT pg_advisory_lock(hashtext(?))')->execute(['stripe-sub-invoice-' . (string)$obj['id']]);
+	} catch (Throwable $e) { stripe_wh_retry(503, 'store_failed', $e->getMessage()); }
 	$pdfNote = stripe_wh_attach_pdf($obj, $db);
 
 	if (!$importEnabled) {
 		// RECORD-ONLY (pilot mode of record): record + PDF + alert, book manually.
-		stripeAlertMail("Stripe-faktura betalt - bogfør manuelt (ordre " . $who['order_id'] . ")",
+		$mailAccepted = stripeAlertMail("Stripe-faktura betalt - bogfør manuelt (ordre " . $who['order_id'] . ")",
 			"Stripe-faktura: $invoiceNumber\nBeløb betalt: $paidKr kr (inkl. moms)\nKonto: " . $who['kontonr'] . " (id " . $who['konto_id'] . ")\nOrdre: " . $who['order_id'] . "\nAarsag: $billingReason\n"
 			. ($pdfNote === '' ? "PDF er lagt i bilagspuljen (bilag/$db/pulje).\n" : "PDF kunne ikke hentes automatisk: $pdfNote - hent den i Stripe Dashboard.\n")
 			. "\nWebhooken kører i record-only: fakturaen er registreret men IKKE bogført.\nBogfør den manuelt mod kortclearing-kontoen efter den faste procedure.",
-			'', 0);
+			'subscription-paid-' . (string)$obj['id'], PHP_INT_MAX);
+		// 20261013 CL/LH (CodeRabbit) Only transport failures with a recipient can recover through mail retries.
+		if (!$mailAccepted) {
+			if (stripe_alert_recipient() !== '') stripe_wh_retry(503, 'mail_failed', 'Mail til manuel bogføring kunne ikke sendes');
+			stripe_log("webhook: no_alert_recipient for event $eventId invoice $invoiceNumber");
+			stripe_wh_finish($rowId, 'recorded', 200, 'recorded', $who['order_id'], $invoiceNumber, 'no_alert_recipient');
+		}
 		stripe_wh_finish($rowId, 'recorded', 200, 'recorded', $who['order_id'], $invoiceNumber);
 	}
 
-	// IMPORT MODE (gated; wiring completes when fix/stripe-paid-invoice-api is
-	// merged - until then the boot asserts above respond 503 before we get here).
-	stripe_wh_finish($rowId, 'failed', 503, 'import_not_wired', $who['order_id'], $invoiceNumber, 'import_enabled but service not present on this deploy');
+	// 20261012 CL/LH import_enabled prerequisites belong only to this import route.
+	$svc = dirname(__DIR__, 2) . '/restapi/services/ExternalPaidInvoiceImportService.php';
+	$idxChk = db_fetch_array(stripe_wh_db_select("SELECT indexname FROM pg_indexes WHERE tablename='ordrer' AND indexname='ordrer_stripe_paid_invoice_uidx'"));
+	if (!file_exists($svc) || !$idxChk) {
+		stripeAlertMail('Stripe webhook: import_enabled men installationen er ikke komplet',
+			"Abonnementsimporten kan ikke udføres. Dette event svarer 503 og forsøges igen; øvrige events behandles fortsat. Slå import_enabled fra for record-only.", 'boot_assert', 3600);
+		stripe_wh_retry(503, 'import_prereqs_missing');
+	}
+	stripe_wh_retry(503, 'import_not_wired', 'Abonnementsimporten er ikke tilsluttet på denne installation');
 }
 
 if ($eventType === 'invoice.payment_failed') {
@@ -387,6 +459,7 @@ if ($eventType === 'customer.subscription.deleted') {
 }
 
 if ($eventType === 'charge.refunded') {
+	if (stripe_wh_invoice_charge($event, $obj)) stripe_wh_finish($rowId, 'processed', 200, 'ok');
 	$kontonr = '';
 	$cEsc = db_escape_string((string)(isset($obj['customer']) ? $obj['customer'] : ''));
 	if ($cEsc !== '') {
@@ -398,6 +471,36 @@ if ($eventType === 'charge.refunded') {
 		"Charge: " . (isset($obj['id']) ? $obj['id'] : '?') . "\nRefunderet: $refKr kr\nKonto: $kontonr\n\nManuel handling: kreditnota/ompostering efter den faste procedure.",
 		'', 0);
 	stripe_wh_finish($rowId, 'processed', 200, 'ok');
+}
+
+// 20261012 CL/LH Every dispute correction retains the receipt and requires manual accounting, even when closed.
+if (str_starts_with($eventType, 'charge.dispute.')) {
+	try {
+		$charge = $obj['charge'] ?? '';
+		if (!is_array($charge)) {
+			$response = stripeHttpRequest('GET', '/v1/charges/' . rawurlencode((string)$charge));
+			if (!$response['ok']) throw new RuntimeException('Charge til indsigelse kunne ikke hentes');
+			$charge = $response['body'];
+		}
+		if (stripe_wh_invoice_charge($event, $charge)) stripe_wh_finish($rowId, 'processed', 200, 'ok');
+	} catch (Throwable $e) {
+		stripe_wh_retry(503, 'retry', $e->getMessage());
+	}
+	stripe_wh_finish($rowId, 'ignored', 200, 'ignored');
+}
+
+// 20261012 CL/LH Reject foreign/subscription PaymentIntents before loading or constructing runtime.
+if (strpos($eventType, 'payment_intent.') === 0) {
+	if (!stripe_wh_is_invoice_payment($obj, stripeConfigDb())) stripe_wh_finish($rowId, 'ignored', 200, 'ignored');
+	$piOrder = (int)($obj['metadata']['saldi_order_id'] ?? 0);
+	try {
+		include_once __DIR__ . '/../../includes/stripeIncludes/invoicePaymentRuntime.php';
+		$result = stripe_invoice_payment_service()->handleEvent($event);
+	} catch (Throwable $e) {
+		stripe_log("webhook: invoice payment $eventId failed: " . $e->getMessage());
+		stripe_wh_retry(503, 'retry', mb_substr($e->getMessage(), 0, 300));
+	}
+	stripe_wh_finish($rowId, $result === 'ignored' ? 'ignored' : 'processed', 200, $result === 'ignored' ? 'ignored' : 'ok', $piOrder);
 }
 
 // Unknown/unhandled events: stored (audit + replay) and ignored.

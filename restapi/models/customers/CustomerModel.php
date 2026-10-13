@@ -1,9 +1,13 @@
 <?php
+// 20261012 CL/LH Add tenant-scoped autopay facts; batch payment hydration per customer page.
+
+require_once __DIR__ . '/../../core/InvoicePaymentReadContext.php';
 
 class CustomerModel
 {
     // Properties to match database columns from adresser table
     private $id;
+    private $autopay = null;
     private $firmanavn;
     private $tlf;
     private $email;
@@ -57,7 +61,8 @@ class CustomerModel
      */
     private function loadFromId($id, $art)
     {
-        
+        $id = (int)$id;
+        $art = db_escape_string((string)$art);
         $qtxt = "SELECT * FROM adresser WHERE id = $id AND art = '$art'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if(!$q) {
@@ -95,6 +100,8 @@ class CustomerModel
             $this->kontakt = $r['kontakt'];
             $this->kontonr = $r['kontonr'];
             $this->gruppe = (int)$r['gruppe']; // 20260812 CL/LH (SD-621): gruppe was never hydrated, so toArray() returned null and the group was lost on API read-back
+
+            $this->autopay = $art === 'D' ? InvoicePaymentReadContext::debtor($this->id) : null;
 
             // Load kontakt_emails
             $this->kontakt_emails = [];
@@ -294,6 +301,7 @@ class CustomerModel
         $limit = (int)$limit;
         $offset = (int)$offset;
 
+        $art = db_escape_string((string)$art);
         $qtxt = "SELECT id FROM adresser WHERE art = '$art'";
         
         // Add search condition if provided
@@ -313,9 +321,15 @@ class CustomerModel
         
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
-        $items = [];
+        // 20261012 CL/LH Prefetch the page before constructors hydrate individual customers.
+        $ids = [];
         while ($r = db_fetch_array($q)) {
-            $items[] = new CustomerModel($r['id'], $art);
+            $ids[] = (int)$r['id'];
+        }
+        if ($art === 'D') InvoicePaymentReadContext::prepareDebtors($ids);
+        $items = [];
+        foreach ($ids as $id) {
+            $items[] = new CustomerModel($id, $art);
         }
 
         return $items;
@@ -395,6 +409,7 @@ class CustomerModel
             'gruppe' => $this->gruppe,
             'kontonr' => $this->kontonr,
             'kundenr' => $this->kontonr,
+            'autopay' => $this->autopay,
             'kontakt_emails' => $this->kontakt_emails
         );
     }
