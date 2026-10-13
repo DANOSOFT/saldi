@@ -164,7 +164,7 @@ if ($dbver<$version) {
 if (file_exists("../includes/betweenUpdates.php")) {
 	include("../includes/betweenUpdates.php");
 }
-$vr_goto = array('kassekladde' => '../finans/kassekladde.php', 'pulje' => '../bilag/pulje_review.php'); # deep links from the accountant panel
+$vr_goto = array('kassekladde' => '../finans/kassekladde.php', 'pulje' => '../finans/pulje_review.php'); # deep links from the accountant panel
 print "<meta http-equiv=\"refresh\" content=\"1;URL=".(isset($vr_goto[$_GET['goto'] ?? '']) ? $vr_goto[$_GET['goto']] : '../index/menu.php')."\">";
 
 ?>
