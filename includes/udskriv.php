@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.0.0 --- 2026-10-06---
+// --- includes/udskriv.php --- ver 5.0.0 --- 2026-10-08---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,7 @@ $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 // 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
+// 20261008 CDX/PHR Explain unavailable print files without incorrectly blaming PS2PDF.
 $returside = (function($s) {
     $s = trim((string)$s);
     if ($s === '' || $s === 'ordreliste.php') return $s; // 'ordreliste.php' normaliseres nedenfor linje 93
@@ -428,7 +429,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 		} else {
 			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
-			print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+			print "<BODY onLoad=\"javascript:alert('PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.')\">";
 			print "<p><a href=\"$fejl_retur\">" . findtekst('2172|Luk', $sprog_id) . "</a></p>";
 		}
 	}
