@@ -1,6 +1,7 @@
 <?php
 // 20261012 CL/LH REST read-model contract, immutable ordering, reconciliation and tenant isolation.
 // 20261013 CL/LH Verify due-date parity with settled history, outstanding items and the worker fallback.
+// 20261013 CL/LH (CodeRabbit) Regress blank and NULL invoice numbers against unrelated debtor open items.
 
 use PHPUnit\Framework\TestCase;
 use Saldi\Stripe\InvoicePaymentReadModel;
@@ -194,6 +195,25 @@ final class InvoicePaymentReadModelTest extends TestCase
         $this->assertSame(0, $paid['ledgerOpenOre']);
         $this->db->query("DELETE FROM openpost WHERE konto_id=1 AND faktnr='100'");
         $this->assertFalse($this->model()->invoicePayments([10])[10]['ledgerPaid'], 'No positive posting is not proof of payment');
+    }
+
+    public function testOrdersWithoutInvoiceNumbersHaveNoLedgerFacts(): void
+    {
+        $this->fixture();
+        $this->db->query("INSERT INTO openpost VALUES (4,1,'',10,50,'0','2026-10-20'),(5,1,'',10,100,'1','2026-10-21'),(6,1,'   ',10,75,'0','2026-10-22'),(7,1,'   ',10,100,'1','2026-10-23')");
+        foreach (['', '   ', null] as $invoiceNumber) {
+            $this->db->query('UPDATE ordrer SET fakturanr=? WHERE id=10', [$invoiceNumber]);
+            $blocks = $this->model()->invoicePayments([10, 11]);
+            $this->assertFalse($blocks[10]['ledgerPaid']);
+            $this->assertSame(0, $blocks[10]['ledgerOpenOre']);
+            $this->assertSame(10000, $blocks[11]['ledgerOpenOre'], 'Numbered invoices in the same batch retain their ledger facts');
+        }
+        // 20261013 CL/LH (CodeRabbit) Settled blank-number items are not evidence that an unnumbered order is paid.
+        $this->db->query("UPDATE ordrer SET fakturanr='' WHERE id=10");
+        $this->db->query("UPDATE openpost SET udlignet='1' WHERE konto_id=1 AND faktnr=''");
+        $block = $this->model()->invoicePayments([10])[10];
+        $this->assertFalse($block['ledgerPaid']);
+        $this->assertSame(0, $block['ledgerOpenOre']);
     }
 
     public function testManualReconciliationIsReadOnlyForSettledAndPartialLedgerReceipts(): void

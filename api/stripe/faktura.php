@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura.php --- 2026.10.12
+// --- api/stripe/faktura.php --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // Every dynamic value goes through htmlspecialchars. The only script is the
 // nonce'd inline block below plus js.stripe.com (CSP enforced).
 // 20261012 CL/LH Document the boot status injected by stripeBootstrap.php.
+// 20261013 CL/LH (CodeRabbit) Keep database diagnostics out of public payment errors.
 
 /**
  * Injected by includes/stripeIncludes/stripeBootstrap.php, included below:
@@ -235,6 +236,10 @@ if ($isPost) {
 	} catch (\Saldi\Stripe\InvoicePaymentApiError $e) {
 		stripe_log("faktura: start failed order $order_id: " . $e->getMessage() . ' (' . $e->stripeCode . ')');
 		fp_json(502, ['error' => 'Betalingen kunne ikke startes. Prøv igen om lidt.']);
+	} catch (\PDOException $e) {
+		// 20261013 CL/LH (CodeRabbit) PDOException extends RuntimeException; log SQL errors privately.
+		stripe_log("faktura: db error order $order_id: " . $e->getMessage());
+		fp_json(500, ['error' => 'Betalingen kunne ikke startes. Prøv igen om lidt.']);
 	} catch (RuntimeException $e) {
 		fp_json(409, ['error' => $e->getMessage()]);
 	} catch (Throwable $e) {

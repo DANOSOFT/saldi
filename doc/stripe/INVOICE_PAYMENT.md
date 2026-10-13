@@ -6,6 +6,7 @@
 <!-- 20261012 CL/LH Document payment fixture connection cleanup and the PostgreSQL gate regression. -->
 <!-- 20261012 CL/LH Document sticky dispatch ambiguity, Stripe failure-time recovery and signed-only event ordering (N-01/N-02). -->
 <!-- 20261013 CL/LH Document Q-01–Q-06 fair recovery, settings authorization, decline evidence, journal totals, local refusals and due-date parity. -->
+<!-- 20261013 CL/LH (CodeRabbit) Document C-1–C-4 generic database errors, missing mail recipients, normalized currency and unnumbered orders. -->
 
 Adam's 2026-10-07 mockup, built as an invoice-first flow: Saldi stays the
 invoicing system and Stripe is only the payment rail. The customer opens a
@@ -146,6 +147,12 @@ keys: the four retained subscribers need their live events to keep processing.
    - `public_base_url`: https, no trailing slash.
    - `bookkeeper_email`: receives every alert.
    - `link_secret`: created automatically on the first save.
+
+   If `bookkeeper_email` is empty, alerts use the tenant's first seller
+   (`adresser.art='S'`) email when valid. With no valid recipient, record-only
+   subscription payments are completed with `error='no_alert_recipient'`;
+   configure an address and follow up on those recorded payments manually.
+
 2. Turn on **Fakturabetaling** (`invoice_pay_enabled`).
 3. In the Stripe dashboard, point the webhook endpoint at
    `<public_base_url>/api/stripe/webhook.php`. Retain the subscription events:
@@ -242,9 +249,11 @@ by API recovery.
   Database, unmapped subscription identity and invoice runtime failures return
   5xx and remain retryable. Retried subscription PDFs overwrite their existing
   pool entry; the manual-booking alert is throttled by Stripe invoice id.
-  The throttle is recorded only after mail acceptance. Failed or throwing
-  booking mail returns 503 and releases the event for retry; already accepted
-  mail counts as success during a forced event replay.
+  The throttle is recorded only after mail acceptance. With a valid recipient,
+  failed or throwing booking mail returns 503 and releases the event for retry;
+  already accepted mail counts as success during a forced event replay. With
+  no valid recipient, the event finishes `recorded` (HTTP 200), stores
+  `error='no_alert_recipient'` and logs that reason instead of retrying forever.
 - **Routing and switches.** PaymentIntents with another tenant's `saldi_db`,
   missing metadata or a kind other than `invoice_manual`/`invoice_auto` finish
   `ignored` before the invoice runtime is loaded. Runtime loading and
@@ -362,6 +371,9 @@ by API recovery.
     carrying `payment_intent` retrieves Stripe and commits reconciliation.
   - The PaymentIntent is created or reused only when the customer presses
     Pay. Card only.
+  - Database failures while starting a payment are logged privately and return
+    HTTP 500 with "Betalingen kunne ikke startes. Prøv igen om lidt."; SQL
+    diagnostics are never included in that public error.
   - Ticking "save card" sets `setup_future_usage=off_session` on the same
     intent.
 - **Saved card.** On `payment_intent.succeeded`, a card the customer chose to
@@ -483,6 +495,9 @@ by API recovery.
   - adds a negative `openpost`, and settles the open items and sets
     `ordrer.betalt` when they sum to zero.
 
+  Invoice currency is trimmed and uppercased before the DKK posting check,
+  matching collection eligibility; a stored value such as ` dkk` posts normally.
+
   Posting is refused, and the bookkeeper alerted, if any of these hold:
   - the fiscal year is closed or missing;
   - the VAT period is locked;
@@ -568,8 +583,11 @@ Invoice `payment` has exactly these fields:
 Attempt `kind` is `manual` or `auto`, `status` is the stored status string and
 `code` is a safe code string or null. Attempt `at` is immutable failure time
 for a failed attempt, immutable receipt time for success, otherwise creation
-time. The ledger match uses both debtor id and invoice number. Payment facts
-also require that the order still belongs to the payment's debtor.
+time. The ledger match uses both debtor id and invoice number. Orders whose
+invoice number is empty after trimming or NULL skip the ledger join and report
+`ledgerPaid=false` and `ledgerOpenOre=0`, even when the debtor has blank-number
+open items. Payment facts also require that the order still belongs to the
+payment's debtor.
 
 A manual receipt is projected as `posted_manual` when the positive invoice
 posting is settled, or the open balance has fallen by at least the receipt's
@@ -709,9 +727,11 @@ planned. These are also defaults, not Adam's decisions:
 - **Lease and notification recovery.** A crashed handler can be reclaimed after
   five minutes. The subscription invoice lock serializes PDF/mail side effects,
   but production acceptance still needs concurrent deliveries. The outbox retains
-  invoice receipt/hold mail failures. Subscription booking mail failure keeps
-  its event retryable; throttles represent only accepted deliveries. Other
-  subscription informational/park alerts remain best effort, while technical
+  invoice receipt/hold mail failures. Subscription booking mail failure with a
+  valid recipient keeps its event retryable; throttles represent only accepted
+  deliveries. Missing recipients instead leave a terminal recorded event with
+  `no_alert_recipient`; those payments require manual bookkeeping follow-up.
+  Other subscription informational/park alerts remain best effort, while technical
   alerts accompany an already retrying request. Mail acceptance does not prove
   inbox delivery. A process crash after mail acceptance and
   before `sent_at` can deliver that mail twice; delivery is at least once. This
@@ -726,6 +746,24 @@ collection while retaining saved consent; clearing it may resume an otherwise
 valid card. Use **Fjern kort** to revoke consent and prevent reuse of that generation.
 
 ## Tests
+
+2026-10-13 CodeRabbit regressions (C-1–C-4):
+
+- C-1 — `InvoicePaymentPageTest::testDatabaseErrorsReturnGenericMessageBeforeRuntimeErrors`
+  checks PDOException catch ordering, private logging and the generic HTTP 500 response.
+- C-2 — `StripeWebhookTest::testSubscriptionWithoutAlertRecipientRecordsInsteadOfRetrying`
+  covers empty bookkeeper email and absent/NULL/empty/invalid seller emails, terminal
+  recording, diagnostics and duplicate delivery without transport attempts.
+  `testSubscriptionBookingMailUsesSellerWhenBookkeeperEmailIsEmpty` retains the
+  valid seller fallback. Existing
+  `testFailedSubscriptionBookingMailRetriesWithoutConsumingItsPermanentThrottle`
+  retains 503/retry behavior for failed and throwing mail transports with a recipient.
+- C-3 — `InvoicePaymentTest::testPostingEnabledAcceptsTrimmedLowercaseDkkInvoiceCurrency`
+  posts a live receipt for an invoice stored with `valuta=' dkk'` and verifies
+  balanced postings and ledger settlement.
+- C-4 — `InvoicePaymentReadModelTest::testOrdersWithoutInvoiceNumbersHaveNoLedgerFacts`
+  covers empty, whitespace-only and NULL invoice numbers against unrelated
+  open and settled blank-number items; numbered invoices in the batch retain their facts.
 
 2026-10-13 review regressions (Q-01–Q-06):
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeAlertMail.php --- 2026.10.12
+// --- includes/stripeIncludes/stripeAlertMail.php --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 //                and not PHPMailer (hardcoded vendor path in its one api/
 //                usage) - plain mail() like debitor/easyUBL.php.
 // 20261012 CL/LH Record mail throttles only after acceptance and report delivery failure to retrying callers.
+// 20261013 CL/LH (CodeRabbit) Share recipient resolution so callers distinguish missing recipients from transport failure.
 
 include_once(__DIR__ . '/stripeSettings.php');
 
@@ -76,6 +77,21 @@ function stripe_alert_deliver(callable $send, string $key, int $window): bool
 	}
 }
 
+/**
+ * Resolve bookkeeper_email or the tenant's seller address.
+ * @return string Valid alert email address, or an empty string when none is configured.
+ */
+function stripe_alert_recipient(): string
+{
+	// 20261013 CL/LH (CodeRabbit) Resolve independently of delivery and its transport result.
+	$to = trim(stripe_setting('bookkeeper_email'));
+	if (!$to) {
+		$r = db_fetch_array(db_select("select email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
+		if ($r && filter_var(trim((string)$r['email']), FILTER_VALIDATE_EMAIL)) $to = trim((string)$r['email']);
+	}
+	return $to && filter_var($to, FILTER_VALIDATE_EMAIL) ? $to : '';
+}
+
 if (!function_exists('stripeAlertMail')) {
 	/**
 	 * Log every alert and deliver to bookkeeper_email or the tenant's seller address.
@@ -84,12 +100,8 @@ if (!function_exists('stripeAlertMail')) {
 	function stripeAlertMail($subject, $body, $throttleKey = '', $throttleSec = 3600): bool {
 		stripe_log('ALERT ' . $subject . ' :: ' . $body);
 
-		$to = trim(stripe_setting('bookkeeper_email'));
-		if (!$to) {
-			$r = db_fetch_array(db_select("select email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
-			if ($r && filter_var(trim((string)$r['email']), FILTER_VALIDATE_EMAIL)) $to = trim($r['email']);
-		}
-		if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+		$to = stripe_alert_recipient();
+		if ($to === '') return false;
 
 		$host = parse_url(stripe_setting('public_base_url'), PHP_URL_HOST);
 		if (!$host) $host = isset($_SERVER['HTTP_HOST']) ? preg_replace('/[^A-Za-z0-9.-]/', '', $_SERVER['HTTP_HOST']) : 'saldi.dk';

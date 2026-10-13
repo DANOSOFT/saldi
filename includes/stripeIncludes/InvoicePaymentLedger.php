@@ -34,6 +34,7 @@
 
 // 20261012 CL/LH Lock shared accounting tables during checks/posting and propagate subsequent opening balances.
 // 20261013 CL/LH Recalculate successor-year D/S, Z ranges and R references using the journal rules in the receipt transaction.
+// 20261013 CL/LH (CodeRabbit) Normalize invoice currency consistently before receipt posting.
 
 namespace Saldi\Stripe;
 
@@ -139,7 +140,8 @@ final class InvoicePaymentLedger
             }
             $suffix = $this->db->driver() === 'pgsql' ? ' FOR UPDATE' : '';
             $order = $this->db->row('SELECT * FROM ordrer WHERE id=?' . $suffix, [$orderId]);
-            if (!$order || $order['art'] !== 'DO' || (int)$order['status'] < 3 || !in_array((string)$order['valuta'], ['', 'DKK'], true)) throw new RuntimeException('Indbetalingen kræver en bogført DKK debitorfaktura');
+            // 20261013 CL/LH (CodeRabbit) Accept the same trimmed, case-insensitive DKK values as collection.
+            if (!$order || $order['art'] !== 'DO' || (int)$order['status'] < 3 || !in_array(strtoupper(trim((string)$order['valuta'])), ['', 'DKK'], true)) throw new RuntimeException('Indbetalingen kræver en bogført DKK debitorfaktura');
             foreach ($this->db->rows("SELECT valuta FROM openpost WHERE konto_id=? AND faktnr=? AND COALESCE(udlignet,'0')<>'1'", [$order['konto_id'], $order['fakturanr']]) as $item) {
                 if (!in_array(strtoupper(trim((string)$item['valuta'])), ['', 'DKK'], true)) throw new RuntimeException('Fakturaens åbne poster skal være i DKK; afstem valuta manuelt');
             }

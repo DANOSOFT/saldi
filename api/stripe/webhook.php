@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/webhook.php --- 2026.10.12
+// --- api/stripe/webhook.php --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 //                autopay worker go to InvoicePaymentService::handleEvent().
 // 20261012 CL/LH Lease webhook events, isolate invoice routing/import, and hold refunds/disputes.
 // 20261012 CL/LH Alert on missing event migrations, retry booking mail failures and resolve unbound invoice corrections.
+// 20261013 CL/LH (CodeRabbit) Record subscription payments without a recipient instead of retrying indefinitely.
 //
 // PILOT MODE OF RECORD = record-only: verify + dedupe + record + PDF + alert;
 // nothing is booked. The import path is gated behind the import_enabled
@@ -413,7 +414,12 @@ if ($eventType === 'invoice.paid') {
 			. ($pdfNote === '' ? "PDF er lagt i bilagspuljen (bilag/$db/pulje).\n" : "PDF kunne ikke hentes automatisk: $pdfNote - hent den i Stripe Dashboard.\n")
 			. "\nWebhooken kører i record-only: fakturaen er registreret men IKKE bogført.\nBogfør den manuelt mod kortclearing-kontoen efter den faste procedure.",
 			'subscription-paid-' . (string)$obj['id'], PHP_INT_MAX);
-		if (!$mailAccepted) stripe_wh_retry(503, 'mail_failed', 'Mail til manuel bogføring kunne ikke sendes');
+		// 20261013 CL/LH (CodeRabbit) Only transport failures with a recipient can recover through mail retries.
+		if (!$mailAccepted) {
+			if (stripe_alert_recipient() !== '') stripe_wh_retry(503, 'mail_failed', 'Mail til manuel bogføring kunne ikke sendes');
+			stripe_log("webhook: no_alert_recipient for event $eventId invoice $invoiceNumber");
+			stripe_wh_finish($rowId, 'recorded', 200, 'recorded', $who['order_id'], $invoiceNumber, 'no_alert_recipient');
+		}
 		stripe_wh_finish($rowId, 'recorded', 200, 'recorded', $who['order_id'], $invoiceNumber);
 	}
 

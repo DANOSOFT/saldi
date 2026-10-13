@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/stripe/support/WebhookFixture.php --- 2026.10.12
+// --- tests/stripe/support/WebhookFixture.php --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261012 CL/LH Child-process adapters for the actual webhook dispatch; no network, credentials or mail.
 // 20261012 CL/LH Supply the request method during preloading for POST and method-guard regressions.
 // 20261012 CL/LH Use real delivery-aware mail throttles with a failing transport and recover unbound Stripe snapshots.
+// 20261013 CL/LH (CodeRabbit) Allow explicit missing alert recipients while retaining the default fixture address.
 
 $stripe_test_raw_body = base64_decode((string)getenv('SALDI_WEBHOOK_TEST_BODY'));
 $stripe_test_pdo = new PDO((string)getenv('SALDI_WEBHOOK_TEST_DSN'), getenv('SALDI_STRIPE_TEST_USER') ?: null, getenv('SALDI_STRIPE_TEST_PASSWORD') ?: null,
@@ -64,7 +65,7 @@ function stripe_db_modify($sql, $trace) {
 }
 function stripe_setting($key, $default = '') {
     global $stripe_test_pdo;
-    if ($key === 'bookkeeper_email') return 'bookkeeper@example.test';
+    if ($key === 'bookkeeper_email') $default = 'bookkeeper@example.test';
     if ($key === 'public_base_url') return 'https://example.test';
     if ($key === 'webhook_secret') return (string)getenv('SALDI_WEBHOOK_TEST_SECRET');
     $q = $stripe_test_pdo->prepare('SELECT var_value FROM settings WHERE var_name=?');

@@ -28,6 +28,7 @@
 // 20261012 CL/LH Initialize request adapters before webhook entry and verify non-POST rejection.
 // 20261012 CL/LH Regress production event migration, real mail throttling and corrections before intent binding.
 // 20261013 CL/LH Verify signed hard-decline evidence breaks the matching card after an earlier API decline alert.
+// 20261013 CL/LH (CodeRabbit) Regress missing booking-alert recipients and preserve seller fallback and transport retries.
 
 use PHPUnit\Framework\TestCase;
 use Saldi\Stripe\InvoicePaymentStore;
@@ -339,6 +340,46 @@ final class StripeWebhookTest extends TestCase
         InvoicePaymentSchema::upgradeEvents($this->db);
         $this->assertSame(['status' => 'recorded', 'http' => 200], $this->deliver('evt_migration', 'invoice.paid', $this->subscriptionInvoice(), true));
         $this->assertSame('recorded', $this->db->row('SELECT status FROM stripe_events')['status']);
+    }
+
+    public function testSubscriptionWithoutAlertRecipientRecordsInsteadOfRetrying(): void
+    {
+        $this->db->query("INSERT INTO stripe_customers (stripe_customer_id,konto_id,kontonr,order_id,status) VALUES ('cus_subscription',1,'1001',10,'active')");
+        $this->db->query("INSERT INTO settings VALUES ('stripe','bookkeeper_email','')");
+        $this->db->query('CREATE TABLE adresser (id INTEGER PRIMARY KEY,art TEXT,email TEXT)');
+        $this->db->query("INSERT INTO adresser VALUES (1,'D','debtor@example.test')");
+        foreach (['absent' => null, 'null' => null, 'empty' => '', 'invalid' => 'invalid-address'] as $case => $email) {
+            $this->db->query("DELETE FROM adresser WHERE art='S'");
+            if ($case !== 'absent') {
+                $this->db->query('INSERT INTO adresser VALUES (2,?,?)', ['S', $email]);
+            }
+            $event = 'evt_no_recipient_' . $case;
+            $this->assertSame(['status' => 'recorded', 'http' => 200], $this->deliver($event, 'invoice.paid', $this->subscriptionInvoice()));
+            $row = $this->db->row('SELECT * FROM stripe_events WHERE event_id=?', [$event]);
+            $this->assertSame('recorded', $row['status']);
+            $this->assertSame('no_alert_recipient', $row['error']);
+            $this->assertSame(0, (int)$row['attempts']);
+            $this->assertNull($row['claim_token']);
+            $this->assertNotNull($row['processed_at']);
+            $this->assertSame(10, (int)$row['saldi_order_id']);
+            $this->assertSame('S1001', $row['invoice_number']);
+            $this->assertSame(['status' => 'duplicate', 'http' => 200], $this->deliver($event, 'invoice.paid', $this->subscriptionInvoice()));
+        }
+        $this->assertSame(0, (int)$this->db->row('SELECT COUNT(*) AS n FROM fixture_mail_attempts')['n']);
+        $this->assertSame(0, (int)$this->db->row('SELECT COUNT(*) AS n FROM fixture_alerts')['n']);
+        $this->assertSame(1, (int)$this->db->row('SELECT COUNT(*) AS n FROM pool_files')['n']);
+    }
+
+    public function testSubscriptionBookingMailUsesSellerWhenBookkeeperEmailIsEmpty(): void
+    {
+        $this->db->query("INSERT INTO stripe_customers (stripe_customer_id,konto_id,kontonr,order_id,status) VALUES ('cus_subscription',1,'1001',10,'active')");
+        $this->db->query("INSERT INTO settings VALUES ('stripe','bookkeeper_email','')");
+        $this->db->query('CREATE TABLE adresser (id INTEGER PRIMARY KEY,art TEXT,email TEXT)');
+        $this->db->query("INSERT INTO adresser VALUES (1,'S',' seller@example.test ')");
+        $this->assertSame(['status' => 'recorded', 'http' => 200], $this->deliver('evt_seller_recipient', 'invoice.paid', $this->subscriptionInvoice()));
+        $this->assertNull($this->db->row('SELECT error FROM stripe_events')['error']);
+        $this->assertSame(1, (int)$this->db->row('SELECT COUNT(*) AS n FROM fixture_mail_attempts')['n']);
+        $this->assertSame(1, (int)$this->db->row('SELECT COUNT(*) AS n FROM fixture_alerts')['n']);
     }
 
     public function testFailedSubscriptionBookingMailRetriesWithoutConsumingItsPermanentThrottle(): void

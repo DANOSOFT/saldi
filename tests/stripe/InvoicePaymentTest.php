@@ -34,6 +34,7 @@
 // 20261012 CL/LH Regress hosted recovery, actual consent time, REST declines, year-end receipt dates and rejected requests.
 // 20261012 CL/LH Regress sticky unknown charge outcomes and stable recovered declines without advancing signed event ordering.
 // 20261013 CL/LH Regress recovery beyond 100 abandoned intents, later decline evidence, successor totals and local refusal repair.
+// 20261013 CL/LH (CodeRabbit) Regress live receipt posting with whitespace and lowercase invoice currency.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -536,6 +537,25 @@ final class InvoicePaymentTest extends TestCase
 
         $this->assertSame('duplicate', $this->event('payment_intent.succeeded', $pi));
         $this->assertSame(2, (int)$this->db->row('SELECT COUNT(*) AS n FROM transaktioner')['n']);
+    }
+
+    public function testPostingEnabledAcceptsTrimmedLowercaseDkkInvoiceCurrency(): void
+    {
+        $this->setting('mode', 'live');
+        $this->stripe->liveMode = true;
+        $this->setting('posting_enabled', 'on');
+        $this->db->query('UPDATE ordrer SET valuta=? WHERE id=10', [' dkk']);
+        $start = $this->service->startPayment(10, false);
+        $this->assertSame('succeeded', $this->event('payment_intent.succeeded', $this->stripe->succeed($start['payment_intent'])));
+
+        $this->assertSame('posted', $this->payments(10)[0]['settlement']);
+        $this->assertSame([], $this->alerts);
+        $transactions = $this->db->rows('SELECT kontonr,debet,kredit FROM transaktioner ORDER BY id');
+        $this->assertCount(2, $transactions);
+        $this->assertSame([3000, 500.0, 0.0], [(int)$transactions[0]['kontonr'], (float)$transactions[0]['debet'], (float)$transactions[0]['kredit']]);
+        $this->assertSame([7000, 0.0, 500.0], [(int)$transactions[1]['kontonr'], (float)$transactions[1]['debet'], (float)$transactions[1]['kredit']]);
+        $this->assertSame(0, (int)$this->db->row("SELECT COUNT(*) AS n FROM openpost WHERE faktnr='1001' AND udlignet<>'1'")['n']);
+        $this->assertSame('paid', $this->service->invoice(10)['reason']);
     }
 
     public function testPostingFailureIsRetriedBySettlePending(): void

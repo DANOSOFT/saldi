@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/stripe/InvoicePaymentPageTest.php --- 2026.10.12
+// --- tests/stripe/InvoicePaymentPageTest.php --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,11 +24,27 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/LH Confirm current amounts and committed outcomes through the actual browser controller.
+// 20261013 CL/LH (CodeRabbit) Regress PDOException catch ordering and generic public payment errors.
 
 use PHPUnit\Framework\TestCase;
 
 final class InvoicePaymentPageTest extends TestCase
 {
+    public function testDatabaseErrorsReturnGenericMessageBeforeRuntimeErrors(): void
+    {
+        $page = (string)file_get_contents(__DIR__ . '/../../api/stripe/faktura.php');
+        $pdoCatch = strpos($page, 'catch (\\PDOException $e)');
+        $runtimeCatch = strpos($page, 'catch (RuntimeException $e)');
+        $this->assertNotFalse($pdoCatch);
+        $this->assertNotFalse($runtimeCatch);
+        $this->assertLessThan($runtimeCatch, $pdoCatch);
+        $handler = substr($page, $pdoCatch, $runtimeCatch - $pdoCatch);
+        $this->assertStringContainsString('stripe_log("faktura: db error order $order_id: " . $e->getMessage());', $handler);
+        $this->assertSame(1, preg_match('/fp_json\((.*?)\);/s', $handler, $response));
+        $this->assertSame("500, ['error' => 'Betalingen kunne ikke startes. Prøv igen om lidt.']", $response[1]);
+        $this->assertStringNotContainsString('$e->getMessage()', $response[1]);
+    }
+
     private function browser(string $scenario): void
     {
         $node = trim((string)shell_exec('command -v node'));

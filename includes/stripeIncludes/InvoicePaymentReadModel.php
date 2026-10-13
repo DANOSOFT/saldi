@@ -26,6 +26,7 @@
 // 20261012 CL/LH Read-only REST payment projections on the authenticated tenant connection.
 // 20261012 CL/LH Include real hosted card declines while excluding technical errors.
 // 20261013 CL/LH Exclude settled historical positive items from REST due dates to match the worker.
+// 20261013 CL/LH (CodeRabbit) Exclude orders without invoice numbers from ledger joins.
 
 namespace Saldi\Stripe;
 
@@ -225,10 +226,13 @@ final class InvoicePaymentReadModel
     private function invoiceFacts(array $ids): array
     {
         $out = [];
+        $invoicedIds = [];
         foreach ($this->batch('SELECT id,konto_id,art,fakturanr,fakturadate,due_date,betalingsbet,betalingsdage FROM ordrer WHERE id IN (%s)', $ids) as $order) {
             $out[(int)$order['id']] = ['order' => $order, 'items' => [], 'paid' => false, 'open' => 0];
+            // 20261013 CL/LH (CodeRabbit) Unnumbered orders must not inherit unrelated blank-number open items.
+            if (trim((string)$order['fakturanr']) !== '') $invoicedIds[] = (int)$order['id'];
         }
-        foreach ($this->batch('SELECT o.id AS order_id,p.id,p.amount,p.udlignet,p.forfaldsdate,p.refnr FROM ordrer o JOIN openpost p ON p.konto_id=o.konto_id AND p.faktnr=o.fakturanr WHERE o.id IN (%s) ORDER BY p.id', $ids) as $item) {
+        foreach ($this->batch('SELECT o.id AS order_id,p.id,p.amount,p.udlignet,p.forfaldsdate,p.refnr FROM ordrer o JOIN openpost p ON p.konto_id=o.konto_id AND p.faktnr=o.fakturanr WHERE o.id IN (%s) ORDER BY p.id', $invoicedIds) as $item) {
             $id = (int)$item['order_id'];
             $out[$id]['items'][] = $item;
             if ((string)$item['udlignet'] !== '1') $out[$id]['open'] += InvoicePaymentMath::fromDb($item['amount']);
