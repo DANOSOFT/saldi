@@ -102,6 +102,8 @@ $relativePath = str_repeat('../', max(0, $slashCount - 2));
 // 20261009 Sawaneh $uiTheme falls back to the saldi_theme cookie (auditor/master-admin sessions have no settings row).
 // 20261009 Sawaneh SALDI_THEME_CHOICE (false in round 1, decision 23): the theme choice is hidden and $uiTheme stays light.
 // 20261009 Sawaneh $uiSize (settings ui/text_size per user) printed as <html data-size>, css/saldi-fonts.css linked on every page.
+// 20261013 Sawaneh data-size is also set by a one-line script: pages print a <title> before this html tag, and not every
+//                  parser merges the attributes of a second html tag onto the element it already created.
 date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
 $r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
@@ -429,7 +431,7 @@ if ($header != 'nix') {
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	
 	<html data-theme=\"$uiTheme\"" . ($uiSize === 'large' ? " data-size=\"large\"" : '') . ">\n
-	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
+	<head><title>$title</title>" . ($uiSize === 'large' ? "<script>document.documentElement.setAttribute('data-size','large')</script>" : '') . "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
 	// print '<!DOCTYPE html>';
