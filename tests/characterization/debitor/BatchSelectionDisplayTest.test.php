@@ -172,6 +172,12 @@ final class BatchSelectionDisplayTest extends TestCase
      * batch_salg on the line's kred_linje_id, which is 0 for a manually typed return line,
      * and then writes batch_kob.rest for whatever came back first. If that moves, it should
      * be because Nicolai or Lui decided it.
+     *
+     * TO WHOEVER FIXES THAT: this test is a tripwire, not a specification. Both strings below
+     * are the broken behaviour. When the escalated krediter() defect is fixed, delete this
+     * test rather than updating the strings to match the new code - there is nothing here
+     * worth keeping once the real fix lands, and a test that tracks a defect's wording only
+     * makes the fix look like a regression. Raised by ZaynSaul on PR #789.
      */
     public function testTheCreditLookupIsUnchanged(): void
     {

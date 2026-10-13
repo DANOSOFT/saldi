@@ -1,5 +1,5 @@
 <?php
-// ------------------debitor/batch.php--------ver 5.0.0----2026.10.11--
+// ------------------debitor/batch.php--------ver 5.0.0----2026.10.13--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -29,6 +29,10 @@
 //                  array. $art is a string, so $art[$x] wrote a single byte into it - the
 //                  credit-note test never matched, every row warned, and $art itself was
 //                  corrupted before being posted back in a hidden field.
+// 20261013 MJ SST-833 Review: quoted the seven array keys that were written as bare
+//                  identifiers outside a string. On PHP 8 each is an undefined constant and
+//                  throws, and the first one ($row[art], reached on every open of this
+//                  window) made the page a 500 before it printed anything.
 
 @session_start();
 $s_id=session_id();
@@ -120,7 +124,7 @@ if ($row = db_fetch_array($query)) {
 	$row = db_fetch_array($query);
 	$konto_id=$row['konto_id'];
 	$status=$row['status'];
-	$art=$row[art];
+	$art=$row['art'];
 
 	if ($art=="DK") {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=serienummer.php?linje_id=$linje_id\">";
@@ -133,7 +137,7 @@ if ($row = db_fetch_array($query)) {
 
 $query = db_select("select * from batch_salg where linje_id = $linje_id",__FILE__ . " linje " . __LINE__);
 while($row = db_fetch_array($query)) {
-	$leveres=$antal-$row[antal];
+	$leveres=$antal-$row['antal'];
 }
 
 print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"1\" valign = \"top\" align=\"center\"><tbody>";
@@ -215,7 +219,7 @@ if (($antal>=0)&&($art!="DK")){
 		$ordre_id[$x]=$r2['ordre_id'];
 		$q2 = db_select("select art, ordrenr, status from ordrer where id=$ordre_id[$x]",__FILE__ . " linje " . __LINE__); 
 		$r2 = db_fetch_array($q2);
-		if ($r2[status]<3) {
+		if ($r2['status']<3) {
 			$ordrenr[$x]=$r2['ordrenr'];
 			$incomingArt[$x]=$r2['art'];
 		}
@@ -223,14 +227,14 @@ if (($antal>=0)&&($art!="DK")){
 			 db_modify("delete from reservation where linje_id=$res_linje_id[$x]",__FILE__ . " linje " . __LINE__);
 			break 1;
 		}
-		if ($row[batch_kob_id]>0) {
+		if ($row['batch_kob_id']>0) {
 			$q2 = db_select("select rest from batch_kob where id=$row[batch_kob_id]",__FILE__ . " linje " . __LINE__); 
 			$r2 = db_fetch_array($q2);
-			$rest[$x]=$rest[$x]+$r2[rest];	
+			$rest[$x]=$rest[$x]+$r2['rest'];
 		}
 		$q2 = db_select("select * from reservation where linje_id=$res_linje_id[$x] and batch_salg_id != 0",__FILE__ . " linje " . __LINE__); 
 		while ($r2 = db_fetch_array($q2)) {
-			if ($r2[batch_salg_id]==$temp) {$valg[$x]=$valg[$x]+$r2['antal'];}
+			if ($r2['batch_salg_id']==$temp) {$valg[$x]=$valg[$x]+$r2['antal'];}
 			else {$rest[$x]=$rest[$x]-$r2['antal'];}
 		}
 		if ($rest[$x]>0) {
@@ -271,7 +275,7 @@ if (($antal>=0)&&($art!="DK")){
 			print "<tr><td onClick=\"javascript:window.open('ordre.php?id=$kred_ordre_id[$x]','$kred_ordrenr[$x]','width=400,height=400,scrollbars=1,resizable=1,menubar=no,location=no');\";><a href> $kred_ordrenr[$x]</a></td><td></td><td><td align = right>".reducer($row['antal'])."</td>";
 	#		 print "<td align = right><input type=text style=\"text-align:right\" size=3 name=valg_$x value=$valg[$x]></td></tr>\n";
 			print "<td align = center><input type=radio name=valg_1 value=$y";
-			if ($kred_linje_id==$row[id]) print " checked='checked'></td>";
+			if ($kred_linje_id==$row['id']) print " checked='checked'></td>";
 			else print "></td>";
 			if ($serienr){
 				print "<td onClick=\"javascript:batch=window.open('serienummer.php?linje_id=$linje_id&batch_kob_id=$batch_kob_id[$x]','batch','left=60,top=60,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no')\">";
