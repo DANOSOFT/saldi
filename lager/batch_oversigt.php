@@ -23,7 +23,7 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Batch overview for a given item. Shows all batches with expiry info.
-// 20261011 ASR Link to batch_udfyld.php and count of batches missing batch number/expiry date.
+// 20261011 CL/ASR Link to batch_udfyld.php and count of batches missing batch number/expiry date.
 
 @session_start();
 $s_id = session_id();

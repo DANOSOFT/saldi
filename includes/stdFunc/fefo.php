@@ -26,7 +26,7 @@
 // 20260923 CL/SZ Validate $vare_id as an integer in item_has_due_date() before interpolating it
 //                 into the query (CodeRabbit, PR #608).
 // 20260930 LOE SST-836 Added batch_expiry_in_use() for the expiry report's menu entry.
-// 20261011 ASR Added batch_missing_info_count() and batch_txt() for lager/batch_udfyld.php and its entry points.
+// 20261011 CL/ASR Added batch_missing_info_count() and batch_txt() for lager/batch_udfyld.php and its entry points.
 
 if (!function_exists('fefo_order_clause')) {
 	/**

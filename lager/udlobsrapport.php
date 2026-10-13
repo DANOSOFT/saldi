@@ -25,7 +25,7 @@
 // Expiry report - shows items expiring within X days or already expired.
 // 20260930 LOE SST-836 The report has menu entries now, so it takes its return page from the link
 //                  that opened it and offers the per-item batch overview from the item number.
-// 20261011 ASR Notice with link to batch_udfyld.php when batches in stock lack expiry date/batch number.
+// 20261011 CL/ASR Notice with link to batch_udfyld.php when batches in stock lack expiry date/batch number.
 
 @session_start();
 $s_id = session_id();

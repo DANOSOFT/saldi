@@ -3,7 +3,7 @@
 // 20210712 LOE - Translated Some texts 
 // 20260811 Sawaneh Added 'batchExpiryEnabled' checkbox that switches the batch/expiry date section
 //                  on the item card on. Off by default.
-// 20261011 ASR Link to lager/batch_udfyld.php below the batch/expiry setting when it is on.
+// 20261011 CL/ASR Link to lager/batch_udfyld.php below the batch/expiry setting when it is on.
 
 function productOptions($defaultProvision) {
 	global $sprog_id;

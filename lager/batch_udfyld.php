@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Fill in batch number and expiry date on batches already in stock, and split a batch
 // into several lots. Made for accounts that turn on batch/expiry handling with stock
@@ -28,7 +28,9 @@
 // FEFO sorts them last. Only batch_kob metadata and the split of rest/antal change -
 // quantities, cost prices and postings stay the same.
 //
-// 20261011 ASR Created.
+// 20261011 CL/ASR Created.
+// 20261013 CL/ASR Review: Post/Redirect/Get after saving, no LIKE ESCAPE clause (MySQL), leave guard
+//                 on the filter link and search form, lock only the batch row.
 
 @session_start();
 $s_id = session_id();
@@ -121,7 +123,7 @@ if (isset($_POST['gem'])) {
 		}
 		foreach ($ids as $bk_id) {
 			if ($bk_id <= 0) continue;
-			$r = db_fetch_array(db_select("select bk.*, v.varenr from batch_kob bk join varer v on v.id = bk.vare_id where bk.id = '$bk_id' and bk.rest > 0 for update", __FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("select bk.*, v.varenr from batch_kob bk join varer v on v.id = bk.vare_id where bk.id = '$bk_id' and bk.rest > 0 for update of bk", __FILE__ . " linje " . __LINE__));
 			if (!$r) {
 				# Sold out or removed by someone else since the page was loaded
 				$fejl[] = batch_txt('gone') . " (batch $bk_id)";
@@ -196,7 +198,19 @@ if (isset($_POST['gem'])) {
 		# On error the page shows what was typed, so nothing has to be entered again
 		if ($fejl) $genvis = true;
 	}
+	# After a commit, redirect (Post/Redirect/Get) so a browser reload cannot send the same
+	# split again; the message comes from the URL. On error the page renders from the POST.
+	if (!$fejl) {
+		$url = "$selfurl&gemt=$gemt";
+		if (!headers_sent()) {
+			header("Location: $url", true, 303);
+		} else {
+			print "<meta http-equiv='refresh' content='0;URL=" . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . "'>";
+		}
+		exit;
+	}
 }
+$gemt = max($gemt, (int)ifset($_GET, 'gemt', 0));
 
 ########## Header ##########
 if ($menu == 'T') {
@@ -236,6 +250,13 @@ print "<style>
 .bu-info{background:#eef3fb;border-left:4px solid #4785ff}
 </style>";
 
+# Defined before the filter link and search form, which use it even when the list is empty
+print "<script>
+function buLeave() {
+	return (typeof docChange === 'undefined' || !docChange) || confirm(" . json_encode(batch_txt('unsaved'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ");
+}
+</script>";
+
 foreach ($fejl as $f) print "<div class='bu-msg bu-err'>" . $f . "</div>";
 if ($gemt && !$fejl) print "<div class='bu-msg bu-ok'>" . batch_txt('saved') . "</div>";
 
@@ -257,7 +278,8 @@ if ($vare_id) {
 }
 if ($sog !== '') {
 	$like = db_escape_string('%' . db_escape_like_pattern(mb_strtolower($sog)) . '%');
-	$from .= "and (lower(v.varenr) like '$like' escape '\\' or lower(v.beskrivelse) like '$like' escape '\\') ";
+	# Backslash is the default LIKE escape on Postgres and MySQL, so no ESCAPE clause (it is a syntax error on MySQL)
+	$from .= "and (lower(v.varenr) like '$like' or lower(v.beskrivelse) like '$like') ";
 }
 # Large accounts can have thousands of batches in stock, so the list comes in pages
 $r = db_fetch_array(db_select("select count(*) as antal $from", __FILE__ . " linje " . __LINE__));
@@ -277,10 +299,10 @@ while ($r = db_fetch_array($q)) $rows[] = $r;
 if (!$vare_id) {
 	print "<div class='bu-msg bu-info'>";
 	print batch_txt('intro');
-	print "<br><a href='batch_udfyld.php?alle=" . ($vis_alle ? 0 : 1) . "&sog=" . urlencode($sog) . "&returside=" . urlencode($returside) . "'>";
+	print "<br><a href='batch_udfyld.php?alle=" . ($vis_alle ? 0 : 1) . "&sog=" . urlencode($sog) . "&returside=" . urlencode($returside) . "' onclick='return buLeave()'>";
 	print $vis_alle ? batch_txt('only_missing') : batch_txt('show_all');
 	print "</a></div>";
-	print "<form method='get' action='batch_udfyld.php' style='margin:.4em 0'>";
+	print "<form method='get' action='batch_udfyld.php' style='margin:.4em 0' onsubmit='return buLeave()'>";
 	print "<input type='hidden' name='alle' value='$vis_alle'>";
 	print "<input type='hidden' name='returside' value='" . htmlspecialchars($returside, ENT_QUOTES, 'UTF-8') . "'>";
 	print "<input class='inputbox' type='search' name='sog' style='width:260px' placeholder='" . batch_txt('search') . "' value='" . htmlspecialchars($sog, ENT_QUOTES, 'UTF-8') . "'> ";
@@ -365,9 +387,6 @@ $t_fjern = batch_txt('remove');
 $t_split = batch_txt('new_batch');
 print "<script>
 var buSeq = {};
-function buLeave() {
-	return (typeof docChange === 'undefined' || !docChange) || confirm(" . json_encode(batch_txt('unsaved'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ");
-}
 function buSuggest() {
 	document.querySelectorAll('#bu-table input[data-suggest]').forEach(function (el) {
 		if (!el.value && el.dataset.suggest) { el.value = el.dataset.suggest; el.classList.add('bu-suggest'); docChange = true; }
