@@ -24,8 +24,6 @@
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
-// 20260807 CL/MS Converted hardcoded Danish UI text to findtekst() calls for multi-language support
-// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260923 CDX/PHR Generate warehouse columns and joins once per warehouse across fiscal years.
 
 @session_start();
@@ -58,7 +56,7 @@ $columns = array();
 
 $columns[] =    array(
     "field" => "varenr",
-    "headerName" => findtekst('917|Varenr.', $sprog_id),
+    "headerName" => "Vare Nr.",
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/ordrestatus.php";
 
@@ -69,7 +67,7 @@ $columns[] =    array(
 );
 $columns[] =    array(
     "field" => "beskrivelse",
-    "headerName" => findtekst('138|Navn', $sprog_id),
+    "headerName" => "Navn",
     "width" => "3",
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
@@ -81,31 +79,31 @@ $columns[] =    array(
 );
 $columns[] =    array(
     "field" => "trademark",
-    "headerName" => findtekst('2015|Varemærke', $sprog_id),
+    "headerName" => "Varemærke",
     "hidden" => false,
     "sqlOverride" => "v.trademark"
 );
 $columns[] =    array(
     "field" => "varegruppe",
-    "headerName" => findtekst('429|Varegruppe', $sprog_id),
+    "headerName" => "Varegruppe",
     "sqlOverride" => "vg.beskrivelse",
     "hidden" => false,
 );
 $columns[] =    array(
     "field" => "momssats",
-    "headerName" => findtekst('1095|Momssats', $sprog_id),
+    "headerName" => "Momssats",
     "width" => "0.5",
     "sqlOverride" => "sm.box2",
     "hidden" => true,
 );
 $columns[] =    array(
     "field" => "stregkode",
-    "headerName" => findtekst('2016|Stregkode', $sprog_id),
+    "headerName" => "Stregkode",
     "sqlOverride" => "v.stregkode"
 );
 $columns[] = array(
     "field" => "leverandør",
-    "headerName" => findtekst('951|Leverandør', $sprog_id),
+    "headerName" => "Leverandør",
     "width" => "1.5",
     "sqlOverride" => "levs.lev",
     "render" => function ($value, $row, $column) {
@@ -123,14 +121,13 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "enhed",
-    "headerName" => findtekst('945|Enhed', $sprog_id),
+    "headerName" => "Enhed",
     "width" => "0.5",
     "sqlOverride" => "v.enhed"
 );
 
 // Add in_sales_offer field
 function renderColumn($value, $row, $column, $type, $idField, $orderField, $amountField, $dateField, $style = "") {
-    global $sprog_id;
     if ($value == "0,00" || !$value) {
         return "<td align='$column[align]' style='$style'>0,00</td>";
     }
@@ -150,7 +147,7 @@ function renderColumn($value, $row, $column, $type, $idField, $orderField, $amou
         $dateList = explode(', ', $dates);
 
         $details .= '<table>';
-        $details .= '<thead><tr><th>'.findtekst('500|Ordrenr.', $sprog_id).'</th><th>'.findtekst('916|Antal', $sprog_id).'</th><th>'.findtekst('438|Dato', $sprog_id).'</th><th>('.count($idList).')</th></tr></thead>';
+        $details .= '<thead><tr><th>Ordrenr</th><th>Antal</th><th>Dato</th><th>('.count($idList).')</th></tr></thead>';
         $details .= '<tbody>';
         foreach ($ordrenrList as $index => $ordrenr) {
             $id = $idList[$index];
@@ -174,7 +171,7 @@ function renderColumn($value, $row, $column, $type, $idField, $orderField, $amou
 
 $columns[] = array(
     "field" => "in_sales_offer",
-    "headerName" => findtekst('812|Tilbud', $sprog_id),
+    "headerName" => "Tilbud",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -185,7 +182,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_sales_order",
-    "headerName" => findtekst('605|Ordre', $sprog_id),
+    "headerName" => "Ordre",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -196,7 +193,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_buy_proposal",
-    "headerName" => findtekst('954|Indkøbsforslag', $sprog_id),
+    "headerName" => "Indkøbsforslag",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -207,7 +204,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_buy_order",
-    "headerName" => findtekst('4986|Indkøbsordre', $sprog_id),
+    "headerName" => "Indkøbsordre",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -272,7 +269,7 @@ foreach ($warehouseRows as $row) {
 // Add lager_total field
 $columns[] = array(
     "field" => "lager_total",
-    "headerName" => findtekst('2373|I alt', $sprog_id),
+    "headerName" => "Ialt",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -290,7 +287,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "min_lager",
-    "headerName" => findtekst('2153|Min.', $sprog_id),
+    "headerName" => "Min.",
     "type" => "number",
     "align" => "right",
     "hidden" => true,
@@ -308,7 +305,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "max_lager",
-    "headerName" => findtekst('2154|Maks.', $sprog_id),
+    "headerName" => "Max.",
     "type" => "number",
     "align" => "right",
     "hidden" => true,
@@ -346,7 +343,7 @@ $columns[] = array(
     "field" => "genbestil",
     'defaultSort' => true,
     'defaultSortDirection' =>'desc',
-    "headerName" => findtekst('4987|Gen.', $sprog_id),
+    "headerName" => "Gen.",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -375,7 +372,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "sales_last_6_months",
-    "headerName" => "6".findtekst('4990|md.', $sprog_id), #6md.
+    "headerName" => "6md.",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -386,7 +383,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_3_months",
-    "headerName" => "3".findtekst('4990|md.', $sprog_id), #3md.
+    "headerName" => "3md.",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -394,7 +391,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_1_month",
-    "headerName" => "1".findtekst('4990|md.', $sprog_id), #1md.
+    "headerName" => "1md.",
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -407,7 +404,7 @@ $columns[] = array(
 // Continue adding other fields if needed
 $columns[] = array(
     "field" => "salgspris",
-    "headerName" => findtekst('4988|Salgspris u.m.', $sprog_id),
+    "headerName" => "Salgspris u.m",
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -416,8 +413,8 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "momspris",
-    "headerName" => findtekst('949|Salgspris', $sprog_id),
-    "description" => "(".strtolower(findtekst('2747|Inkl. moms', $sprog_id)).")",
+    "headerName" => "Salgspris",
+    "description" => "(incl.moms)",
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -429,7 +426,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "dg",
-    "headerName" => findtekst('4989|DG', $sprog_id),
+    "headerName" => "DG",
     "type" => "number",
     "align" => "right",
     "sqlOverride" => "
@@ -446,7 +443,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "kostpris",
-    "headerName" => findtekst('950|Kostpris', $sprog_id),
+    "headerName" => "Kostpris",
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -454,8 +451,6 @@ $columns[] = array(
 );
 
 // Filtersetup
-// TODO: filterName og valgenes "name" står bevidst på dansk. grid.php bruger dem som nøgle
-//       til brugerens gemte filtervalg, så en oversættelse nulstiller fluebenene.
 $filters = array();
 
 // Vargrupper
@@ -464,7 +459,6 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $VGs = array();
 while ($row = db_fetch_array($q)) {
     $VGs[] = array(
-        "optionKey" => "vg_" . $row["kodenr"],
         "name" => $row["beskrivelse"],
         "checked" => "",
         "sqlOn" => "vg.kodenr = $row[kodenr]",
@@ -472,9 +466,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
-    "filterKey" => "varegrupper",
     "filterName" => "Varegrupper",
-#   "filterName" => findtekst('774|Varegrupper', $sprog_id),
     "joinOperator" => "or",
     "options" => $VGs
 );
@@ -491,7 +483,6 @@ $q = db_select($query, __FILE__ . " line " . __LINE__);
 $levs = array();
 while ($row = db_fetch_array($q)) {
     $levs[] = array(
-        "optionKey" => "lev_" . $row["kontonr"],
         "name" => $row["firmanavn"],
         "checked" => "",
         "sqlOn" => "levs.kontonr_concat LIKE '%$row[kontonr]%'", 
@@ -499,24 +490,18 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
-    "filterKey" => "leverandorer",
     "filterName" => "Leverandøre",
-#   "filterName" => findtekst('988|Leverandører', $sprog_id),
     "joinOperator" => "or",
     "options" => $levs
 );
 
 // Misc
 $filters[] = array(
-    "filterKey" => "misc",
     "filterName" => "Misc",
-#   "filterName" => findtekst('782|Diverse', $sprog_id),
     "joinOperator" => "and",
     "options" => array(
         array(
-            "optionKey" => "show_discontinued",
             "name" => "Vis udgået",
-#           "name" => findtekst('4991|Vis udgået', $sprog_id),
             "checked" => "checked",
             "sqlOn" => "",
             "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",

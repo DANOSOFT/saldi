@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitor_kommission.php -----patch 4.1.0 ----2025-04-15--------------
+// --- debitor/debitor_kommission.php -----patch 5.1.0 ----2026-09-15--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,11 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Kommission view - separate file for better grid differentiation
 // 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
+// 20260915 CDX/PHR Restore server sender/Reply-To and own SMTP for MySale invitations.
 
 #ob_start();
 @session_start();
@@ -130,8 +131,9 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 	# Hent egen stamdata
 	$qtxt="select * from adresser where art='S'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$afsendermail=$r['email'];
 	$afsendernavn=$r['firmanavn'];
+	$invitationSender = $r;
+	require_once(__DIR__ . '/commissionMail.php');
 
 	for ($i=0;$i<count($debId);$i++) {
 		$mailToI = isset($mailTo[$i]) ? $mailTo[$i] : NULL;
@@ -147,11 +149,18 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 				$mailText .= "Bedste hilsner<br>{$afsendernavn}<br>";
 			}
 			if ($subject && $mailText) {
-				$headers  = "From: $afsendernavn <$afsendermail>\r\n";
-				$headers .= "Reply-To: $afsendermail\r\n";
-				$headers .= "MIME-Version: 1.0\r\n";
-				$headers .= "Content-Type: text/html; charset=$charset\r\n";
-				$svar = mail($custMail[$i], $subject, $mailText, $headers) ? NULL : "Mailer Error: mail() failed";
+				try {
+					$mail = commissionMail($invitationSender, $db, $_SERVER['SERVER_NAME'], $charset);
+					$recipientOk = true;
+					foreach (explode(';', str_replace(',', ';', $custMail[$i])) as $recipient) {
+						$recipientOk = $mail->addAddress(trim($recipient)) && $recipientOk;
+					}
+					$mail->Subject = $subject;
+					$mail->Body = $mailText;
+					$svar = ($recipientOk && $mail->send()) ? NULL : 'Mailer Error: ' . $mail->ErrorInfo;
+				} catch (\InvalidArgumentException $e) {
+					$svar = $e->getMessage();
+				}
 				if ($svar) {
 					echo $svar."<br>";
 					exit;

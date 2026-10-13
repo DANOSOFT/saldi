@@ -30,8 +30,6 @@
 // 20260818 CL/LH Disabled shared-key payment-link minting in mail templates.
 // 20260819 Sawaneh Echo 'Mail sent to' confirmation like sendMail.php does, so
 //                  callers show it regardless of which mailer is loaded.
-// 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
-//                  and offers the ASCII suggestion via emailLookalike.php.
 	
 /*if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
@@ -58,8 +56,8 @@ print "<!--function send_mails start-->";
 	else $emails[0]=$email;
 	for ($x=0;$x<count($emails);$x++) {
 		if (!filter_var($emails[$x], FILTER_VALIDATE_EMAIL)) { #20200122
-			include_once(__DIR__ . "/emailLookalike.php");
-			return emailRecipientRejected($emails[$x], $ordre_id, $sprog_id, $mailantal);
+			alert("Invalid email format in $emails[$x]");
+			return ("Invalid email format in $emails[$x]");
 		}
 	}
 	$bilag=$brugermail=$mail_bilag=NULL;

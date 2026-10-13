@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/posmenuer.php --- ver 5.0.0 -- 2026-10-05 --
+// --- systemdata/posmenuer.php --- ver 4.0.8 -- 2023-09-28 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2009-2026 Danosoft ApS
+// Copyright (c) 2009-2023 Saldi.dk ApS
 // --------------------------------------------------------------------------
 // 20131017 Ku max ha' 10 menuer.
 // 20141111 Tilføjet knapdesign på menu 0: Tastatur og tilføjet radius på knapper.
@@ -53,8 +53,6 @@
 //                menu_id-ret_col-ret_row, callers read it as
 //                menu_id-ret_row-ret_col) and a $bud_id/$but_id typo that
 //                made a re-fetch guard always fire.
-// 20261005 LOE SST-849 Removed the unused input() function, which held its own copy of the
-//                system button list with the same wrong "Sæt" option.
 
 @session_start();
 $s_id = session_id();
@@ -869,6 +867,184 @@ function tid($tid)
 		$b = "0" . $b;
 	$tid = $a . ":" . $b;
 	return ($tid);
+}
+function input($menu_id, $rows, $cols)
+{
+	for ($x = 1; $x <= $rows; $x++) {
+		print "<tr>";
+		print "<td style='width:140px;height:" . $height . "px;text-align:left'>
+		<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Tekst'><br>
+		<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Pris'><br>
+		<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Farvekode'><br>
+		<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Vare-/menunr'><br>
+		<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Funktion'>
+		<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Byt plads med'>
+		</td>";
+		for ($y = 1; $y <= $cols; $y++) {
+			$r = db_fetch_array(db_select("select * from pos_buttons where menu_id='$menu_id' and row='$x' and col='$y'", __FILE__ . " linje " . __LINE__));
+			$a = str_replace("\n", "<br>", $r['beskrivelse']);
+			$b = $r['color'];
+			$c = $r['vare_id'] * 1;
+			$d = $r['funktion'] * 1;
+			if ($d == 1 && $c) {
+				$r = db_fetch_array(db_select("select varenr from varer where id='$c' and lukket !='on'", __FILE__ . " linje " . __LINE__));
+				$c = $r['varenr'];
+			}
+			if ($d == 3 && $c) {
+				$r = db_fetch_array(db_select("select kontonr from adresser where id='$c' and lukket !='on'", __FILE__ . " linje " . __LINE__));
+				$c = $r['kontonr'];
+			}
+			if (!$c)
+				$c = '';
+			print "<td style='width:100px;height:100px;text-align:center'>
+			<INPUT CLASS='inputbox' TYPE='text' style='width:100px;text-align:center' name='buttxt' value='$a'><br>
+			<INPUT CLASS='inputbox' TYPE='text' style='width:100px;text-align:center' name='butcolor' value='$b'><br>\n";
+			if ($d == 6) {
+				print "<SELECT CLASS='inputbox' style='width:100px;' name='butvnr'
+				onchange=\"document.getElementsByName('posmenuer')[0].submit();\">";
+				/*if ($c==1) print "<OPTION value='1'>Bordvalg</OPTION>";
+										if ($c==2) print "<OPTION value='2'>$buttonTextArr[user]</OPTION>";
+										if ($c==3) print "<OPTION value='3'>Del bord</OPTION>";
+										if ($c==4) print "<OPTION value='4'>Enter</OPTION>";
+										if ($c==5) print "<OPTION value='5'>Find bon</OPTION>";
+										if ($c==6) print "<OPTION value='6'>$buttonTextArr[movetable]</OPTION>";
+										if ($c==7) print "<OPTION value='7'>$buttonTextArr[boxCount]</OPTION>";
+										if ($c==8) print "<OPTION value='8'>Kassevalg</OPTION>";
+										if ($c==9) print "<OPTION value='9'>Køkkenprint</OPTION>";
+										if ($c==10) print "<OPTION value='10'>$buttonTextArr[close]</OPTION>";
+										if ($c==11) print "<OPTION value='11'>$buttonTextArr[draw]</OPTION>";
+										if ($c==12) print "<OPTION value='12'>$buttonTextArr[print]</OPTION>";
+										if ($c==40 && $landeconfig == 'Norway') print "<OPTION value='40'>Proforma</OPTION>"; # LN 20190205
+										elseif ($c==40) print "<OPTION value='40'>Udskriv</OPTION>"; # LN 20190205
+										if ($c==41) print "<OPTION value='41'>X-Rapport</OPTION>"; # LN 20190205
+										if ($c==42) print "<OPTION value='42'>Z-Rapport</OPTION>"; # LN 20190305
+										if ($c==43) print "<OPTION value='43'>$buttonTextArr[copy]</OPTION>"; # LN 20190305
+										if ($c==44) print "<OPTION value='44'>Hent bestilling</OPTION>"; # LN 20190709
+										if ($c==45) print "<OPTION value='45'>Gem bestilling</OPTION>"; # LN 20190709
+										if ($c!=1) print "<OPTION value='1'>Bordvalg</OPTION>";
+										if ($c!=2) print "<OPTION value='2'>$buttonTextArr[user]</OPTION>";
+										if ($c!=3) print "<OPTION value='3'>Del bord</OPTION>";
+										if ($c!=4) print "<OPTION value='4'>Enter</OPTION>";
+										if ($c!=5) print "<OPTION value='5'>Find bon</OPTION>";
+										if ($c!=6) print "<OPTION value='6'>$buttonTextArr[moveTable]</OPTION>";
+										if ($c!=7) print "<OPTION value='7'>$buttonTextArr[boxCount]</OPTION>";
+										if ($c!=8) print "<OPTION value='8'>Kassevalg</OPTION>";
+										if ($c!=9) print "<OPTION value='9'>Køkkenprint</OPTION>";
+										if ($c!=10) print "<OPTION value='10'>$buttonTextArr[close]</OPTION>";
+										if ($c!=11) print "<OPTION value='11'>$buttonTextArr[draw]</OPTION>";
+										if ($c!=12) print "<OPTION value='12'>$buttonTextArr[print]</OPTION>";
+										if ($c!=40) print "<OPTION value='40'>Udskriv</OPTION>"; # LN 20190205
+										if ($c!=41) print "<OPTION value='41'>X-Rapport</OPTION>"; # LN 20190205
+										if ($c!=42) print "<OPTION value='42'>Z-Rapport</OPTION>"; # LN 20190305
+										if ($c!=43) print "<OPTION value='43'>$buttonTextArr[copy]</OPTION>"; # LN 20190305
+										if ($c!=44) print "<OPTION value='44'>Hent bestilling</OPTION>"; # LN 20190709
+										if ($c!=45) print "<OPTION value='45'>Gem bestilling</OPTION>"; */# LN 20190709
+				print "<OPTION value='1'" . ($c == 1 ? " selected" : "") . ">$buttonTextArr[table]</OPTION>\n";
+				print "<OPTION value='3'" . ($c == 3 ? " selected" : "") . ">$buttonTextArr[splitTable]</OPTION>\n";
+				print "<OPTION value='6'" . ($c == 6 ? " selected" : "") . ">$buttonTextArr[moveTable]</OPTION>\n";
+				print "<OPTION value='24'" . ($c == 24 ? " selected" : "") . ">Kør bord</OPTION>\n";
+
+				# User
+				print "<OPTION value='2'" . ($c == 2 ? " selected" : "") . ">$buttonTextArr[user]</OPTION>\n";
+				print "<OPTION value='14'" . ($c == 14 ? " selected" : "") . ">Ekspedient</OPTION>\n";
+
+				# Fysiske
+				print "<OPTION value='11'" . ($c == 11 ? " selected" : "") . ">$buttonTextArr[draw]</OPTION>\n";
+				if ($country == "Denmark")
+					print "<OPTION value='12'" . ($c == 12 ? " selected" : "") . ">$buttonTextArr[print]</OPTION>\n";
+				print "<OPTION value='32'" . ($c == 32 ? " selected" : "") . ">Udskriv sidste</OPTION>\n";
+				print "<OPTION value='9'" . ($c == 9 ? " selected" : "") . ">Køkkenprint</OPTION>\n";
+				print "<OPTION value='23'" . ($c == 23 ? " selected" : "") . ">$buttonTextArr[sendToKitchen]</OPTION>\n";
+
+				# Varer / rabatter
+				print "<OPTION value='33'" . ($c == 33 ? " selected" : "") . ">Sæt</OPTION>\n";
+				print "<OPTION value='17'" . ($c == 17 ? " selected" : "") . ">$buttonTextArr[price]</OPTION>\n";
+				print "<OPTION value='18'" . ($c == 18 ? " selected" : "") . ">$buttonTextArr[discount]</OPTION>\n";
+				print "<OPTION value='47'" . ($c == 47 ? " selected" : "") . ">Sæt</OPTION>"; # PHR 20240823
+				print "<OPTION value='38'" . ($c == 38 ? " selected" : "") . ">Totalrabat</OPTION>\n";	# 20190104
+
+				# Generelle knapper
+				print "<OPTION value='4'" . ($c == 4 ? " selected" : "") . ">Enter</OPTION>\n";
+				print "<OPTION value='28'" . ($c == 28 ? " selected" : "") . ">Enter+Menu</OPTION>\n";
+				print "<OPTION value='16'" . ($c == 16 ? " selected" : "") . ">Afslut</OPTION>\n";
+				print "<OPTION value='5'" . ($c == 5 ? " selected" : "") . ">$buttonTextArr[findReceipt]</OPTION>\n";
+				print "<OPTION value='8'" . ($c == 8 ? " selected" : "") . ">Kassevalg</OPTION>\n";
+				print "<OPTION value='44'" . ($c == 44 ? " selected" : "") . ">Hent bestilling</OPTION>\n"; # LN 20190709
+				print "<OPTION value='45'" . ($c == 45 ? " selected" : "") . ">Gem bestilling</OPTION>\n"; # LN 20190709
+
+				# Bogført
+				print "<OPTION value='20'" . ($c == 20 ? " selected" : "") . ">$buttonTextArr[newCustomer]</OPTION>\n";
+				print "<OPTION value='21'" . ($c == 21 ? " selected" : "") . ">$buttonTextArr[correction]</OPTION>\n";
+
+				print "<OPTION value='7'" . ($c == 7 ? " selected" : "") . ">$buttonTextArr[boxCount]</OPTION>\n";
+				print "<OPTION value='10'" . ($c == 10 ? " selected" : "") . ">$buttonTextArr[close]</OPTION>\n";
+				print "<OPTION value='13'" . ($c == 13 ? " selected" : "") . ">$buttonTextArr[start]</OPTION>\n";
+				print "<OPTION value='15'" . ($c == 15 ? " selected" : "") . ">$buttonTextArr[clear]</OPTION>\n";
+				print "<OPTION value='19'" . ($c == 19 ? " selected" : "") . ">$buttonTextArr[back]</OPTION>\n";
+				print "<OPTION value='22'" . ($c == 22 ? " selected" : "") . ">Kortterminal</OPTION>\n";
+				print "<OPTION value='25'" . ($c == 25 ? " selected" : "") . ">Debitoropslag</OPTION>\n";
+				print "<OPTION value='26'" . ($c == 26 ? " selected" : "") . ">Indbetaling</OPTION>\n";
+				print "<OPTION value='27'" . ($c == 27 ? " selected" : "") . ">Konto</OPTION>\n";
+				print "<OPTION value='29'" . ($c == 29 ? " selected" : "") . ">Vareopslag</OPTION>\n";
+				print "<OPTION value='30'" . ($c == 30 ? " selected" : "") . ">Stamkunder</OPTION>\n";
+				print "<OPTION value='31'" . ($c == 31 ? " selected" : "") . ">Kontoudtog</OPTION>\n";
+				print "<OPTION value='34'" . ($c == 34 ? " selected" : "") . ">Følgeseddel</OPTION>\n";
+				print "<OPTION value='35'" . ($c == 35 ? " selected" : "") . ">Kreditoropslag</OPTION>\n";
+				print "<OPTION value='36'" . ($c == 36 ? " selected" : "") . ">Gavekortsalg</OPTION>\n";	# 20181029
+				print "<OPTION value='37'" . ($c == 37 ? " selected" : "") . ">Gavekortstatus</OPTION>\n";	# 20181029
+				if ($country == "Norway")
+					print "<OPTION value='39'" . ($c == 39 ? " selected" : "") . ">Retur</OPTION>\n";  # LN 20190205
+				if ($country == "Norway")
+					print "<OPTION value='40'" . ($c == 40 ? " selected" : "") . ">Udskriv</OPTION>\n";   # LN 20190205
+				if ($country == "Norway")
+					print "<OPTION value='41'" . ($c == 41 ? " selected" : "") . ">X-Rapport</OPTION>\n";   # LN 20190205
+				if ($country == "Norway")
+					print "<OPTION value='42'" . ($c == 42 ? " selected" : "") . ">Z-Rapport</OPTION>\n";   # LN 20190305
+				if ($country == "Norway")
+					print "<OPTION value='43'" . ($c == 43 ? " selected" : "") . ">$buttonTextArr[copy]</OPTION>\n";   # LN 20190305
+				print "<OPTION value='46'" . ($c == 46 ? " selected" : "") . ">Åben scannermodul</OPTION>\n"; # MMK 20242208
+				# Latest id: 47 next id: 48
+				print "</SELECT>";
+			} else
+				print "<INPUT 
+                      CLASS='inputboxxx' 
+                      TYPE='text' 
+                      style='width:100px;text-align:center' 
+                      name='butvnr' 
+					  onchange=\"document.getElementsByName('posmenuer')[0].submit();\"
+                      value='$c'
+                    >
+                  <br>\n";
+			print "<SELECT CLASS='inputbox' style='width:100px;' name='butfunc'>";
+			if ($d == 1)
+				print "<OPTION value='1'>Varenr</OPTION>";
+			if ($d == 2)
+				print "<OPTION value='2'>Menu</OPTION>";
+			if ($d == 3)
+				print "<OPTION value='3'>Kundenr</OPTION>";
+			if ($d == 4)
+				print "<OPTION value='4'>Specialfunktion</OPTION>";
+			if ($d == 5)
+				print "<OPTION value='5'>Tastatur</OPTION>";
+			if ($d == 6)
+				print "<OPTION value='6'>Systemknap</OPTION>";
+
+			if ($d != 1)
+				print "<OPTION value='1'>Varenr</OPTION>";
+			if ($d != 2)
+				print "<OPTION value='2'>Menu</OPTION>";
+			if ($d != 3)
+				print "<OPTION value='3'>Kundenr</OPTION>";
+			if ($d != 4)
+				print "<OPTION value='4'>Specialfunktion</OPTION>";
+			if ($d != 5)
+				print "<OPTION value='5'>Tastatur</OPTION>";
+			if ($d != 6)
+				print "<OPTION value='6'>Systemknap</OPTION>";
+			print "</SELECT></td>";
+		}
+		print "</tr>";
+	}
 }
 function output($menu_id, $rows, $cols, $radius, $width, $height, $fontsize, $bgcolor2)
 {

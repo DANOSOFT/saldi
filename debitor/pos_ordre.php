@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.0.0 --- 2026.10.02 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
@@ -106,20 +106,12 @@
 //                 accounts only, and a missing/wrong-art account no longer wipes the order
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20260907 CDX/LH Preserve popup context through POS forms, redirects and menu actions.
-// 20260907 CDX/PHR Include calculated cash balances in the approval freshness check.
-// 20260907 CDX/PHR Assign the cash report to included sales that were already posted.
-// 20260908 CDX/LH Keep approval validation and eligible-order reads in one transaction snapshot.
 // 20260914 CL/SZ SST-744: function posbogfor: on the $id (cash-line) branch, show bogfor_nu's
 //             actual return instead of a hardcoded generic uoverensstemmelse alert, which masked
 //             actionable errors (e.g. a missing VAT code on a posting account) from the user.
 // 20260914 CL/SZ SST-744: function posbogfor: CodeRabbit review - embed the alert text via
 //             json_encode() instead of a manual string-replace, matching index/login.php's
 //             existing pattern for the same problem.
-// 20261002 CL/SZ SST-813: function kundedisplay: the saldi.dk box-IP lookup moved to kundedisplayBoxLookup() with a 2 s timeout, tried once per request and logged on failure.
-//                An unreachable saldi.dk no longer holds the POS request for the 60 s default socket timeout.
-// 20261002 CL/SZ SST-813: Load stockWarningPopup.js with a filemtime version, as ordre.php does, so POS terminals pick up the keyboard/focus fix instead of a cached copy.
-// 20261002 CL/SZ SST-813: function kundedisplayBoxLookup: CodeRabbit review - make the 2 s a total limit for the whole lookup (cURL CURLOPT_TIMEOUT_MS), since the stream wrapper's timeout is per read.
-//                The stream fallback without cURL now gives the read only the time left after opening.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1582,9 +1574,7 @@ if ($vare_id) {
 					if ($swTextsJson === false) $swTextsJson = '{}';
 					print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
 					print "<script type=\"application/json\" id=\"saldi-sw-pos-payload\">$swPayloadJson</script>\n";
-					$swPopFile = __DIR__ . '/../javascript/stockWarningPopup.js';
-					$swPopV = file_exists($swPopFile) ? filemtime($swPopFile) : time();
-					print "<script src=\"../javascript/stockWarningPopup.js?v=$swPopV\"></script>\n";
+					print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
 					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['antal_ny'])f.elements['antal_ny'].value='';var vn=f.elements['varenr_ny'];if(vn){vn.value='';try{vn.focus();}catch(e2){}}}};SaldiStockWarning.show(__sw);});</script>\n";
 				}
 				if (!$blockOnStockWarning) {
@@ -2591,38 +2581,25 @@ function fejl($id, $fejltekst)
  * @param int $kasse Cash register (kasse) number being closed.
  * @param string $regnstart Start-of-fiscal-year date, used to scope which orders are pending.
  * @param int $reportNumber Report batch number this closing is filed under.
- * @param string|null $cashCountSignature Optional signature for cash count verification.
- * @param bool $requireCashCountSignature Whether a cash count signature is required.
- * 
- * @return bool False when the cash count changed; true after posting. */
-function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null, $requireCashCountSignature = false)
+ * @return void Ends the request via exit() on a posting failure; otherwise falls through to printing.
+ */
+function posbogfor($kasse, $regnstart, $reportNumber)
 {
 	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	global $afd;
 	global $baseCurrency,$bruger_id, $brugernavn;
-	global $db, $db_type;
+	global $db;
 	global $regnaar, $reportNumber;
 	global $vis_saet;
 	global $tracelog;
 
-	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php');
-	if (!beginCashCountPosting($kasse, $baseCurrency, $cashCountSignature, $db_type, $requireCashCountSignature)) {
-		return false;
-	}
-
-	$kasse = (int)$kasse;
-	$regnstart = db_escape_string($regnstart);
-	$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
-	$qtxt .= "values ('13009','" . date('U') . "','$kasse','" . (int)$bruger_id . "','0','" . __FILE__ . "','" . __LINE__ . "')";
-	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
 	$dd = date("Y-m-d");
 	$logtime = date("H:i:s");
 	$udtages = if_isset($_POST['udtages']);
 	$kassediff = if_isset($_POST['kassediff']);
 	$kassediff = afrund($kassediff, 2);
-	if ($udtages) {
+	if ($udtages)
 		$udtages = (float) usdecimal($udtages, 2);
-	}
 	$valuta = if_isset($_POST['valuta'], array());
 	$ValutaUdtages = if_isset($_POST['ValutaUdtages']);
 	$ValutaKasseDiff = if_isset($_POST['ValutaKasseDiff']);
@@ -2668,6 +2645,11 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	$r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
 	$ansat_id = (int) $r['ansat_id'];
 
+	$kassekonti = explode(chr(9), $r['box2']);
+	$kassekonto = $kassekonti[$kasse - 1];
+	$afdelinger = explode(chr(9), $r['box3']);
+	$afd = (int) $afdelinger[$kasse - 1];
+
 	$r = db_fetch_array(db_select("select box2,box3 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
 	$kassekonti = explode(chr(9), $r['box2']);
 	$kassekonto = $kassekonti[$kasse - 1];
@@ -2691,24 +2673,20 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 				$tmp2 = substr($tmp, 1); #f.eks 3
 				$qtxt = "select box1,box2 from grupper where art = '$tmp1' and kodenr = '$tmp2'";
 				$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r2['box1']) {
+				if ($r2['box1'])
 					$diffVatAccount = (int) $r2['box1'];
-				}
-				if ($r2['box2']) {
+				if ($r2['box2'])
 					$diffVatRate = (int) $r2['box2'];
-				}
 			}
 		}
 	}
 	$x = 0;
 	$fakturadate = array();
 	$qtxt = "select distinct(fakturadate) as fakturadate from ordrer where felt_5='$kasse' ";
-	if ($vis_saet) {
+	if ($vis_saet)
 		$qtxt .= "and (art = 'PO' or art like 'D%') and status='3' ";
-	}
-	else {
+	else
 		$qtxt .= "and (konto_id='0' or betalingsbet='Kontant') and art = 'PO' and status='3' ";
-	}
 	$qtxt .= "and fakturadate >= '$regnstart' order by fakturadate";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -2758,12 +2736,10 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 					$tmp = substr($tmp, 1); #f.eks 3
 					$qtxt = "select box1,box2 from grupper where art = 'SM' and kodenr = '$tmp'";
 					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					if ($r2['box1']) {
+					if ($r2['box1'])
 						$ValutaDiffVatAccount[$x] = (int) $r2['box1'];
-					}
-					if ($r2['box2']) {
+					if ($r2['box2'])
 						$ValutaDiffVatRate[$x] = (int) $r2['box2'];
-					}
 				}
 			}
 		}
@@ -2785,13 +2761,7 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 */
 
 	$ko_id = NULL; #Salg på konto
-	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/findBoxSale.php');
-	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/assignCashReport.php');
-	$cashReportOrderIds = array();
-	foreach (array_unique($valuta) as $cashReportCurrency) {
-		findBoxSale($kasse, 0, $cashReportCurrency, $currencyOrderIds);
-		$cashReportOrderIds = array_merge($cashReportOrderIds, $currencyOrderIds);
-	}
+	transaktion('begin');
 	// $qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) "; #20240227
 	// $qtxt.= "values ";
 	// $qtxt.= "('13009','". date('U') ."','$kasse','$bruger_id','0','".__file__."','".__line__."')";
@@ -2803,12 +2773,11 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	$qtxt = "insert into report (date,type,description,count,total,report_number) ";
 	$qtxt.= "values ('$dd','Head line','Cash count, box $kasse','0','0','$reportNumber')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	assignCashReport($cashReportOrderIds, $reportNumber);
 	if (count($fakturadate) && (($ownCommissionAccountNew) || ($ownCommissionAccountUsed))) {
-		include(__DIR__ . '/pos_ordre_includes/settleCommission/moveToOwnAccount.php');
+		include('pos_ordre_includes/settleCommission/moveToOwnAccount.php');
 	}
 	if (($settleCommission || $createPayList) && (($customerCommissionAccountNew && $commissionAccountNew) || ($customerCommissionAccountUsed && $commissionAccountUsed))) {
-		include(__DIR__ . '/pos_ordre_includes/settleCommission/moveToCustomerAccount.php');
+		include('pos_ordre_includes/settleCommission/moveToCustomerAccount.php');
 	}
 	for ($z = 0; $z < count($valuta); $z++) { #201606132 Flyttet fra nederst (af de 3 for løkker) til øverst"
 		for ($x = 0; $x < count($fakturadate); $x++) {
@@ -3081,7 +3050,6 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	setcookie("saldi_kasseoptael", NULL, time() - 10); #20200112
 	$pfnavn = "../temp/" . $db . "/kasseopg" . str_replace("-", "", $kasse) . ".txt";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
-	return true;
 } #?id=$id&udskriv_kasseopg=$pfnavn&kasse=$kasse
 
 function kasseoptalling( // Called from cashBalance.php
@@ -3184,10 +3152,8 @@ function kasseoptalling( // Called from cashBalance.php
 			print tekstboks($txt);
 		}
 	}
-	include_once(__DIR__ . "/pos_ordre_includes/boxCountMethods/findBoxSale.php");
-	include_once(__DIR__ . "/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php");
+	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
 	$svar = findBoxSale($kasse, $optalt, $baseCurrency);
-	$cashCountSales = array($baseCurrency => $svar);
 	$byttepenge = $svar[0];
 	$tilgang = (float)$svar[1];
 	$diff = (float)$svar[2];
@@ -3295,7 +3261,6 @@ function kasseoptalling( // Called from cashBalance.php
 	for ($x = 0; $x < count($valuta); $x++) {
 		if ($valuta[$x]) {
 			$svar = findBoxSale($kasse, $optval[$x] * $valutakurs[$x] / 100, $valuta[$x]);
-			$cashCountSales[$valuta[$x]] = $svar;
 			if (is_array($svar)) { #20160824
 				$byttepenge = $svar[0] * 100 / $valutakurs[$x];
 				$omsatning += $svar[1];
@@ -3304,6 +3269,7 @@ function kasseoptalling( // Called from cashBalance.php
 				$ValutaKasseDiff[$x] = $optval[$x] - ($byttepenge + $tilgang);
 				#cho "$valuta[$x] TG $tilgang Om $omsatning<br>"; 	
 				print "<tr><td colspan=\"3\" align=\"center\">";
+				print "<input type=\"hidden\" name=\"kontosum\" value=\"$valuta[$x]\">\n";
 				print "<input type=\"hidden\" name=\"valuta[$x]\" value=\"$valuta[$x]\">\n";
 				print "<input type=\"hidden\" name=\"ValutaKasseDiff[$x]\" value=\"$ValutaKasseDiff[$x]\">\n";
 				print "<input type=\"hidden\" name=\"ValutaByttePenge[$x]\" value=\"$byttepenge\">\n";
@@ -3336,8 +3302,6 @@ function kasseoptalling( // Called from cashBalance.php
 			}
 		}
 	}
-	$cashCountSignature = cashCountSignature($cashCountSales);
-	print "<input type='hidden' name='cashCountSignature' value='$cashCountSignature'>\n";
 #	$calcTxtArr = setCashCountText();
 	if (($optalt || $optalt == '0') && isset($_POST['calculate'])) { #LN 20190219
 #		if($kortdiff) {
@@ -3450,7 +3414,11 @@ function kundedisplay($beskrivelse, $pris, $ryd)
 		$tmp = $kasse - 1;
 		$printserver = $printer_ip[$tmp];
 		if (!$printserver || strtolower($printserver) == 'box') {
-			$printserver = kundedisplayBoxLookup();
+			$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+			if ($fp = fopen($filnavn, 'r')) {
+				$printserver = trim(fgets($fp));
+				fclose($fp);
+			}
 		}
 	}
 	if ($printserver) {
@@ -3459,64 +3427,6 @@ function kundedisplay($beskrivelse, $pris, $ryd)
 		$href = "" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/kundedisplay.php?tekst=" . urlencode($beskrivelse) . "&pris=" . dkdecimal($pris, 2) . "&ryd=$ryd";
 		print "<script type=\"text/javascript\">window.open('$href','','$params');</script>";
 	}
-}
-
-/**
- * Looks up the customer display box's IP for this terminal on saldi.dk.
- *
- * The lookup runs whenever the customer display is updated (new sale, payment,
- * totals, quick-item buttons) while kundedisplay is on and no printserver is set
- * for the kasse. Without a timeout, a slow or unreachable saldi.dk held the POS
- * request for PHP's default_socket_timeout (60 s), which froze the screen.
- * A failed lookup is tried only once per request and logged, and the page
- * continues without the customer display.
- *
- * The 2 s limit covers the whole lookup. The http stream wrapper's own timeout
- * applies to each read, so a server that answers slowly or trickles bytes could
- * stretch it to several times that; cURL's CURLOPT_TIMEOUT_MS is a total limit.
- * Without cURL the stream fallback gives the read only the time left after
- * opening.
- *
- * @return string The box IP, or '' when the lookup failed or timed out.
- */
-function kundedisplayBoxLookup()
-{
-	static $result = null;
-	if ($result !== null) return $result;
-
-	$result = '';
-	$timeout = 2.0;
-	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
-	$started = microtime(true);
-	if (function_exists('curl_init')) {
-		$ch = curl_init($filnavn);
-		curl_setopt_array($ch, array(
-			CURLOPT_RETURNTRANSFER    => true,
-			CURLOPT_FAILONERROR       => true,
-			CURLOPT_NOSIGNAL          => true,
-			CURLOPT_CONNECTTIMEOUT_MS => (int)($timeout * 1000),
-			CURLOPT_TIMEOUT_MS        => (int)($timeout * 1000),
-		));
-		$body = curl_exec($ch);
-		curl_close($ch);
-		if (is_string($body)) $result = trim(strtok($body, "\n"));
-	} else {
-		$context = stream_context_create(array('http' => array('timeout' => $timeout)));
-		$fp = fopen($filnavn, 'r', false, $context);
-		if ($fp) {
-			$remaining = $timeout - (microtime(true) - $started);
-			if ($remaining > 0) {
-				stream_set_timeout($fp, (int)$remaining, (int)(($remaining - (int)$remaining) * 1000000));
-				$line = fgets($fp);
-				if ($line !== false) $result = trim($line);
-			}
-			fclose($fp);
-		}
-	}
-	if ($result === '') {
-		error_log(sprintf("kundedisplay: box lookup %s failed after %.1f s, customer display skipped", $filnavn, microtime(true) - $started));
-	}
-	return $result;
 }
 
 

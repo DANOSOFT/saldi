@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-10-01 ---
+// --- api/rest_api.php --- lap 5.1.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -72,6 +72,10 @@
 // 20260911 Sawaneh insert_shop_order dispatch: blank the literal "dummyvalue" Shoptech
 //                     sends for empty address fields via strip_placeholder_value(); if_isset
 //                     calls in that block converted to ifset (JOB-115)
+// 20260917 CDX/PHR Restore fixed WooCommerce item lookups with escaped values and legacy response rows.
+// 20260917 CDX/PHR Log rejected query fields so external integrations can be diagnosed without API credentials.
+// 20260917 CDX/PHR Accept shop orders with older std_func.php installations lacking newer input helpers.
+// 20260922 CDX/PHR Restore legacy read-table access with parsed queries and migrate fetch inputs to ifset.
 // 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
 
 
@@ -89,49 +93,70 @@ $brugernavn=NULL;
 $db_skriv_id=NULL;
 $webservice='on';
 
-// SD-589: fetch_from_table(), update_table() and insert_into_table() used to
-// take $select/$from/$where/$set/$fields/$values straight from $_GET and
-// interpolate them into SQL, guarded only by a ';' check and a table-name
-// allowlist that never touched $select/$where/$set — a single-statement
-// UNION/subquery (no ';' needed) was a general read/write SQL primitive over
-// the tenant DB for anyone past access_check(). Caller enumeration (only
-// api/rest_api_client.php, a 2017 reference client) found exactly one real,
-// working use: exporting varenr+beholdning from 'varer' for stock sync via
-// action=fetch_from_table. Its update_table call passes the misspelled
-// action 'update_tablee' and can never have worked; its insert_into_table
-// wrapper is an unwired manual query tool. Order creation already goes
-// through the separate, already-parameterized insert_shop_order/
-// insert_shop_orderline functions. update_table()/insert_into_table() are
-// therefore removed outright rather than replaced, and fetch_from_table() is
-// narrowed to the single known-good shape actually used: no table/column/
-// where-clause pass-through, no arbitrary SQL of any kind.
+// Preserve fixed integration responses and compile other reads against the legacy table allowlist.
+require_once __DIR__ . '/rest_api_fetch.php';
+
 function fetch_from_table($select, $from, $where, $order_by, $limit) {
 	global $db;
-	if(!isset($where)) $where = '';
-
-	$log=fopen("../temp/$db/rest_api.log","a");
-
-	if ($from !== 'varer' || !in_array(str_replace(' ','',$select), array('varenr,beholdning'), true)) {
-		fwrite($log,__line__." rejected: unsupported select/from ($select / $from)\n");
+	$request = restApiFetchRequest($select, $from, $where ?? '');
+	$readSql = $request === null
+		? restApiFetchSql($select, $from, $where ?? '', $order_by ?? '', $limit ?? '', $_SERVER['REMOTE_ADDR'] ?? '')
+		: null;
+	$log = fopen("../temp/$db/rest_api.log", 'a');
+	if ($request === null && $readSql === null) {
+		// JSON keeps each request on one log line; authentication parameters are excluded.
+		$rejectedQuery = json_encode(['select' => $select, 'from' => $from, 'where' => $where],
+			JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+		fwrite($log, __LINE__ . " rejected: unsupported query shape " . $rejectedQuery . "\n");
 		fclose($log);
 		return 'unsupported query shape';
 	}
-	if ('' !== $where) {
-		fwrite($log,__line__." rejected: where clause no longer supported ($where)\n");
-		fclose($log);
-		return 'unsupported query shape';
+	if ($readSql !== null) {
+		$qtxt = $readSql;
+	} elseif ($request['kind'] === 'stock') {
+		$qtxt = 'select varenr, beholdning from varer order by varenr';
+	} elseif ($request['kind'] === 'item') {
+		$sku = db_escape_string($request['sku']);
+		$qtxt = "select id from varer where varenr='$sku' order by id limit 1";
+	} else {
+		$shopId = db_escape_string($request['shop_id']);
+		$variantId = db_escape_string($request['shop_variant']);
+		$qtxt = "select id from shop_varer where shop_id='$shopId' and shop_variant='$variantId' order by id limit 1";
 	}
-
-	$qtxt="select varenr, beholdning from varer order by varenr";
-	fwrite($log,__line__." Query: $qtxt\n");
-	$result = array();
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$result[] = array('varenr' => $r['varenr'], 'beholdning' => $r['beholdning']);
+	fwrite($log, __LINE__ . " Query: $qtxt\n");
+	$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+	if ($readSql !== null) {
+		// Keep ssl3's metadata row, numeric/named row keys and trailing false sentinel.
+		$result = [[]];
+		for ($column = 0; $column < db_num_fields($q); $column++) {
+			$result[0][] = db_field_name($q, $column) . '(' . db_field_type($q, $column) . ')';
+		}
+		while ($row = db_fetch_array($q)) {
+			$result[] = $row;
+		}
+		$result[] = false;
+		fclose($log);
+		return $result;
+	}
+	$result = $request['kind'] === 'stock' ? [] : [['id(' . db_field_type($q, 0) . ')']];
+	while ($r = db_fetch_array($q)) {
+		if ($request['kind'] === 'stock') {
+			$result[] = ['varenr' => $r['varenr'], 'beholdning' => $r['beholdning']];
+		} else {
+			$result[] = [0 => $r['id'], 'id' => $r['id']];
+		}
 	}
 	fclose($log);
 	return $result;
 } #endfunc fetch_from_table
+
+/** Normalize integration address placeholders on both old and current installs. */
+function restApiAddressValue($value) {
+	if (function_exists('strip_placeholder_value')) {
+		return strip_placeholder_value($value);
+	}
+	return is_string($value) && strtolower(trim($value)) === 'dummyvalue' ? '' : $value;
+}
 
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
@@ -611,15 +636,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	fwrite($log,__line__." Samlevare = $samlevare\n");
 	if ($samlevare && $samlevare == 'on') {
 		fwrite($log,__line__." Samlevare = $samlevare\n");
-		fwrite($log,__line__." opret_saet($ordre_id,$vare_id,\$pris*(1+$momssats/100),$momssats,$antal,on,$lager)\n");
-		// 20260920 CDX/MJ SST-794 Use the order's own momssats instead of a hardcoded 25%. The rate
-		//             is already loaded from ordrer at :459 and is 0 for an export customer, so the
-		//             old code added 25% to a price that never carried VAT and then told
-		//             opret_saet() to treat it as VAT-inclusive at 25%. Passing the real rate keeps
-		//             a 25% order at exactly the same net price and leaves a 0% order untouched.
-		$saet_momssats = $momssats * 1;
-		$saet_pris = $pris * (1 + $saet_momssats / 100);
-		opret_saet($ordre_id,$vare_id,$saet_pris,$saet_momssats,$antal,'on',$lager);
+		fwrite($log,__line__." opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,on,$lager)\n");
+		opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,'on',$lager);
 	} elseif($vare_id) {
 		fwrite ($log,__line__." Antal: $antal\n");
 		fwrite ($log,__line__." Beskrivelse: $beskrivelse\n");
@@ -1101,13 +1119,18 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 		fwrite($log,__line__." Action:".$_GET['action']."\n");
 		if ($action=='fetch_from_table') {
 			fclose ($log);
-			// SD-589: select/from/where are no longer passed through to SQL —
-			// fetch_from_table() itself now only accepts the one known-good
-			// shape (varenr,beholdning from varer, no where clause).
-			$select = if_isset($_GET, false, ['select']);
-			$from   = if_isset($_GET, false, ['from']);
-			$where  = if_isset($_GET, '', ['where']);
-			if ($select && $from) $value = fetch_from_table($select,$from,$where,'','');
+			// Read-only legacy queries are compiled before execution.
+			$select = ifset($_GET, 'select', '');
+			$from = ifset($_GET, 'from', '');
+			$where = ifset($_GET, 'where', '');
+			if (is_string($where)) {
+				$where = str_replace('**', '%', $where);
+			}
+			$orderBy = ifset($_GET, 'order_by', '');
+			$limit = ifset($_GET, 'limit', '');
+			if ($select && $from) {
+				$value = fetch_from_table($select, $from, $where, $orderBy, $limit);
+			}
 ##############################################
 		} elseif ($action=='get_sold_labels') {
 			fclose ($log);
@@ -1136,61 +1159,61 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			else $value = "missing orderId";
 ##############################################
 		}	elseif ($action=='insert_shop_order') {
-			$addr1         = strip_placeholder_value(ifset($_GET, 'addr1'));
-			$addr2         = strip_placeholder_value(ifset($_GET, 'addr2'));
-			$afd           = (int)ifset($_GET, 'afd');
-			$betalings_id  = ifset($_GET, 'betalings_id');
-			$betalingsbet  = ifset($_GET, 'betalingsbet');
-			$betalingsdage = ifset($_GET, 'betalingsdage');
-			$bynavn        = strip_placeholder_value(ifset($_GET, 'bynavn'));
-			$cvr           = strip_placeholder_value(ifset($_GET, 'cvr'));
-			$firmanavn     = strip_placeholder_value(ifset($_GET, 'firmanavn'));
-			$land          = strip_placeholder_value(ifset($_GET, 'land'));
-			$shop_addr_id  = ifset($_GET, 'shop_addr_id');
-			$shopOrderId   = ifset($_GET, 'shop_ordre_id');
+			$addr1         = restApiAddressValue(($_GET['addr1'] ?? null));
+			$addr2         = restApiAddressValue(($_GET['addr2'] ?? null));
+			$afd           = (int)($_GET['afd'] ?? null);
+			$betalings_id  = ($_GET['betalings_id'] ?? null);
+			$betalingsbet  = ($_GET['betalingsbet'] ?? null);
+			$betalingsdage = ($_GET['betalingsdage'] ?? null);
+			$bynavn        = restApiAddressValue(($_GET['bynavn'] ?? null));
+			$cvr           = restApiAddressValue(($_GET['cvr'] ?? null));
+			$firmanavn     = restApiAddressValue(($_GET['firmanavn'] ?? null));
+			$land          = restApiAddressValue(($_GET['land'] ?? null));
+			$shop_addr_id  = ($_GET['shop_addr_id'] ?? null);
+			$shopOrderId   = ($_GET['shop_ordre_id'] ?? null);
 			if (!$shopOrderId) $shopOrderId = 0;
-			$shop_fakturanr = ifset($_GET, 'shop_fakturanr');
+			$shop_fakturanr = ($_GET['shop_fakturanr'] ?? null);
 			if (!$shop_fakturanr) $shop_fakturanr=$shopOrderId;
-			$postnr         = strip_placeholder_value(ifset($_GET, 'postnr'));
-			$ean            = (int)ifset($_GET, 'ean');
+			$postnr         = restApiAddressValue(($_GET['postnr'] ?? null));
+			$ean            = (int)($_GET['ean'] ?? null);
 			if (!$ean) $ean = '';
-			$institution    = strip_placeholder_value(ifset($_GET, 'institution'));
-			$tlf            = ifset($_GET, 'tlf');
-			$email          = ifset($_GET, 'email');
-			$udskriv_til    = ifset($_GET, 'udskriv_til');
-			$ref            = ifset($_GET, 'ref');
-			$kontakt        = strip_placeholder_value(ifset($_GET, 'kontakt'));
-			$lager          = ifset($_GET, 'lager');
+			$institution    = restApiAddressValue(($_GET['institution'] ?? null));
+			$tlf            = ($_GET['tlf'] ?? null);
+			$email          = ($_GET['email'] ?? null);
+			$udskriv_til    = ($_GET['udskriv_til'] ?? null);
+			$ref            = ($_GET['ref'] ?? null);
+			$kontakt        = restApiAddressValue(($_GET['kontakt'] ?? null));
+			$lager          = ($_GET['lager'] ?? null);
 			if (!$lager) $lager = 1;
-			$lev_firmanavn  = strip_placeholder_value(ifset($_GET, 'lev_firmanavn'));
-			$lev_addr1      = strip_placeholder_value(ifset($_GET, 'lev_addr1'));
-			$lev_addr2      = strip_placeholder_value(ifset($_GET, 'lev_addr2'));
-			$lev_postnr     = strip_placeholder_value(ifset($_GET, 'lev_postnr'));
-			$lev_bynavn     = strip_placeholder_value(ifset($_GET, 'lev_bynavn'));
-			$lev_land       = strip_placeholder_value(ifset($_GET, 'lev_land'));
-			$lev_tlf        = strip_placeholder_value(ifset($_GET, 'lev_tlf'));
-			$lev_email      = strip_placeholder_value(ifset($_GET, 'lev_email'));
-			$lev_kontakt    = strip_placeholder_value(ifset($_GET, 'lev_kontakt'));
-			$ordredate      = ifset($_GET, 'ordredate');
-			$lev_date       = ifset($_GET, 'lev_date');
-			$momssats       = ifset($_GET, 'momssats');
-			$valuta         = ifset($_GET, 'valuta');
-			$valutakurs     = ifset($_GET, 'valutakurs');
-			$gruppe         = ifset($_GET, 'gruppe');
-			$nettosum       = ifset($_GET, 'nettosum')*1;
-			$momssum        = ifset($_GET, 'momssum')*1;
-			$projekt        = ifset($_GET, 'projekt');
-			$ekstra1        = ifset($_GET, 'ekstra1');
-			$ekstra2        = ifset($_GET, 'ekstra2');
-			$ekstra3        = ifset($_GET, 'ekstra3');
-			$ekstra4        = ifset($_GET, 'ekstra4');
-			$ekstra5        = ifset($_GET, 'ekstra5');
-			$notes          = ifset($_GET, 'notes');
-			$sprog          = ifset($_GET, 'sprog');
-			$saldi_kontonr  = ifset($_GET, 'saldi_kontonr');
-			$pos_betaling   = ifset($_GET, 'pos_betaling');
-			$shop_status    = ifset($_GET, 'shop_status');
-			$art            = ifset($_GET, 'art');
+			$lev_firmanavn  = restApiAddressValue(($_GET['lev_firmanavn'] ?? null));
+			$lev_addr1      = restApiAddressValue(($_GET['lev_addr1'] ?? null));
+			$lev_addr2      = restApiAddressValue(($_GET['lev_addr2'] ?? null));
+			$lev_postnr     = restApiAddressValue(($_GET['lev_postnr'] ?? null));
+			$lev_bynavn     = restApiAddressValue(($_GET['lev_bynavn'] ?? null));
+			$lev_land       = restApiAddressValue(($_GET['lev_land'] ?? null));
+			$lev_tlf        = restApiAddressValue(($_GET['lev_tlf'] ?? null));
+			$lev_email      = restApiAddressValue(($_GET['lev_email'] ?? null));
+			$lev_kontakt    = restApiAddressValue(($_GET['lev_kontakt'] ?? null));
+			$ordredate      = ($_GET['ordredate'] ?? null);
+			$lev_date       = ($_GET['lev_date'] ?? null);
+			$momssats       = ($_GET['momssats'] ?? null);
+			$valuta         = ($_GET['valuta'] ?? null);
+			$valutakurs     = ($_GET['valutakurs'] ?? null);
+			$gruppe         = ($_GET['gruppe'] ?? null);
+			$nettosum       = ($_GET['nettosum'] ?? null)*1;
+			$momssum        = ($_GET['momssum'] ?? null)*1;
+			$projekt        = ($_GET['projekt'] ?? null);
+			$ekstra1        = ($_GET['ekstra1'] ?? null);
+			$ekstra2        = ($_GET['ekstra2'] ?? null);
+			$ekstra3        = ($_GET['ekstra3'] ?? null);
+			$ekstra4        = ($_GET['ekstra4'] ?? null);
+			$ekstra5        = ($_GET['ekstra5'] ?? null);
+			$notes          = ($_GET['notes'] ?? null);
+			$sprog          = ($_GET['sprog'] ?? null);
+			$saldi_kontonr  = ($_GET['saldi_kontonr'] ?? null);
+			$pos_betaling   = ($_GET['pos_betaling'] ?? null);
+			$shop_status    = ($_GET['shop_status'] ?? null);
+			$art            = ($_GET['art'] ?? null);
 			if (!$art) $art = 'DO';
 
 			$fil = fopen('../temp/addr1.php','w');

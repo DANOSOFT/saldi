@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-29------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-10-08------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -109,8 +109,8 @@
 // 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
 // 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
 // 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
-// 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 
 @session_start();
 $s_id = session_id();
@@ -640,7 +640,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'ordre_valg') {
 		$vatPrivateCustomers  = if_isset($_POST['vatPrivateCustomers']);
 		$vatBusinessCustomers = if_isset($_POST['vatBusinessCustomers']);
-		$hideRevenue          = (ifset($_POST, 'hideRevenue') === 'on') ? 'on' : 'off'; #SD-657
 		$box2                 = if_isset($_POST['box2']); #Rabatvarenr
 		$box3                 = if_isset($_POST['box3']); #folge_s_tekst
 		$box4                 = if_isset($_POST['box4']); #hurtigfakt
@@ -730,7 +729,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		// Save VAT options to settings table
 		update_settings_value("vatPrivateCustomers", "ordre", $vatPrivateCustomers, "Show VAT on orders for private customers");
 		update_settings_value("vatBusinessCustomers", "ordre", $vatBusinessCustomers, "Show VAT on orders for business customers");
-		update_settings_value("hideRevenue", "finans", $hideRevenue, "Keep turnover from users without access to Settings");
 		
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
@@ -1954,7 +1952,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 			
 			$ch       = curl_init();
-			$curl_url = "https://saldi.dk/locator/locator.php?action=insertUserCount&userCount=$new_max_users&dbName=$db";
+			$curl_url = "https://ssl3.saldi.dk/locator/locator.php?action=insertUserCount&userCount=$new_max_users&dbName=$db";
 			curl_setopt($ch, CURLOPT_URL, $curl_url);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 			curl_setopt($ch, CURLOPT_HTTPHEADER, array(

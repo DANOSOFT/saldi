@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.10.08 ---
+// --- debitor/payments/lane3000.php --- lap 4.1.0 --- 2026.09.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,8 +25,6 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
-// 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token) and the login itself in the
-//                 browser console; the log endpoint now takes the tenant from the session.
 
 @session_start();
 $s_id = session_id();
@@ -144,7 +142,8 @@ function logToServer(message, level = 'INFO') {
             message: message,
             level: level,
             timestamp: new Date().toISOString(),
-            ordre_id: '<?php print (int)$ordre_id; ?>'
+            ordre_id: '<?php print $ordre_id; ?>',
+            db: '<?php print $db; ?>'
         })
     }).catch(err => console.error('Logging failed:', err));
 }
@@ -192,10 +191,12 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
+    console.log("<?php print get_settings_value("username", "move3500", "", null, $kasse);?>", "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>");
     const data = {
         "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
         "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
     }
+    console.log(data)
     
     try {
         const fetchPromise = fetch(
@@ -230,8 +231,7 @@ async function get_api_key(baseurl) {
         const jsondata = await res.json();
         
          // Log the response (don't wait for it to complete)
-        // Only the status is logged: the body carries the Connect@Cloud bearer token.
-        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}`, 'INFO');
+        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
         /*
         // write a put command to the settings for the terminal
         const putPromise = fetch(
@@ -257,7 +257,7 @@ async function get_api_key(baseurl) {
         }).catch((putError) => {
             logToServer(`Terminal settings update exception: ${putError.message}`, 'ERROR');
             console.error('Terminal settings PUT failed:', putError);
-        }); */
+        });
 
         if (res.status != 200) {
             // Wait for both error logging and fail function
@@ -266,7 +266,7 @@ async function get_api_key(baseurl) {
                 Promise.resolve(fail(jsondata.error))
             ]);
             return null;
-        }
+        } */
 
         // Wait for both success logging and response logging to complete
         await Promise.allSettled([

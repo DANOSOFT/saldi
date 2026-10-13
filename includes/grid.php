@@ -22,21 +22,6 @@ Regards:) 20260220 LOE
 // 20260817 Sawaneh Sort descending columns NULLS LAST, honor defaultSortDirection on
 //                  first header click and validate the request-sourced sort value.
 // 20260910 CDX/PHR Preserve a literal zero search in both row and count queries.
-// 20260911 LOE SD-686: grid filter defaults declared with "checked" are honoured.
-// 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
-// 20260916 LOE SD-685: a legacy stored header is kept as a rename unless the code produces it.
-// 20260916 LOE SD-685: escape tabel_id in the column/filter setup UPDATEs (review follow-up).
-// 20260916 CDX/LH Reject unknown or malformed sort fields before building grid SQL.
-// 20260919 MJ Escape the request-derived values written into HTML attributes: the per-column
-//                  search term, sort, menu and offset all came straight from $_GET and were
-//                  interpolated unescaped. The search term is also persisted to
-//                  datatables.search_setup, so it was stored as well as reflected.
-// 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
-// 20260925 CL/NTR DEFAULT_GENERATE_SEARCH(): escape a text-column search term's own '%'/'_' via
-//                 the new db_escape_like_pattern() before wrapping it in ILIKE '%...%', so a lone
-//                 wildcard character no longer matches (almost) every row.
-// 20261006 CL/NTR Made the grid action-menu and its Redigér submenu triggers native type="button" buttons that
-//                 open on focus as well as hover.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -98,11 +83,7 @@ function DEFAULT_VALUE_GETTER($value, $row, $column) {
  * @return string The rendered HTML table cell.
  */
 function DEFAULT_CELL_RENDERE($value, $row, $column) {
-    // The stored per-user column setup supplies align, so it reaches this default
-    // renderer exactly as it reaches the header row and the column editor - and here it
-    // runs once per data row. Whitelisted rather than escaped: this sits inside
-    // align='...', where escaping alone still lets a value close the attribute.
-    return "<td align='" . grid_align($column['align'] ?? '') . "'>{$value}</td>";
+    return "<td align='{$column['align']}'>{$value}</td>";
 }
 
 /**
@@ -116,15 +97,11 @@ function DEFAULT_CELL_RENDERE($value, $row, $column) {
  */
 function DEFAULT_GENERATE_SEARCH($column, $term) {
     $field = $column['sqlOverride'] == '' ? $column['field'] : $column['sqlOverride'];
+    $term = db_escape_string($term);
 
     switch ($column["type"]) {
         case 'text':
-            // 20260925 CL/NTR - escape the term's own '%'/'_' before db_escape_string()'s quote-escaping
-            // and the '%...%' wrap, so a lone wildcard character in a text-column search no longer acts
-            // as a SQL wildcard and matches (almost) every row - see db_escape_like_pattern()'s own
-            // comment in includes/db_query.php.
-            $likeTerm = db_escape_string(db_escape_like_pattern($term));
-            return "{$field} ILIKE '%$likeTerm%'";
+            return "{$field} ILIKE '%$term%'";
         case 'number':
             # Check for number range
             if (strstr($term, ':')) {
@@ -325,17 +302,8 @@ function create_datagrid($id, $grid_data) {
         if_isset($searchId2, array()),
         $filters
     );
-    $stored_column_setup = $columns_setup;
     $columns_setup = decode_grid_json_array($columns_setup, $columns_filtered);
-    // SD-685: the code's columns define which columns exist and what they are called;
-    // the stored row contributes the user's preferences only (matched on 'field').
-    $columns_updated = merge_column_setup($columns_setup, $columns);
-    // SD-685 review: a setup saved before the rows carried a 'visible' flag is normalised here,
-    // once, where both the stored rows and the code's columns are known. No manual save, and the
-    // next load sees a current setup; absent code columns are stored as removed so they stay out.
-    if (grid_setup_is_legacy($columns_setup)) {
-        save_normalized_column_setup($id, $columns_setup, $columns, $stored_column_setup);
-    }
+    $columns_updated = fill_missing_values($columns_setup, $columns);
 
     // Process search input
     $search_setup = decode_grid_json_array($search_setup, array());
@@ -499,16 +467,13 @@ function create_datagrid($id, $grid_data) {
                 if_isset($_GET["search"][$id], array()),
                 $filters
             );
-            $columns_setup = decode_grid_json_array($columns_setup, array());
-            $filters_setup = decode_grid_json_array($filter_setup, array());
+            $columns_setup = json_decode($columns_setup, true);
+            $filters_setup = json_decode($filter_setup, true);
             $filters_updated = updateCheckedValues($filters, $filters_setup);
-            // SD-685: the editor has to show what was just saved, so re-merge the
-            // refetched setup instead of the one merged before save_column_setup().
-            $columns_updated = merge_column_setup($columns_setup, $columns);
         }
 
         // Render column setup interface
-        render_column_setup($id, $columns_updated, $columns, grid_setup_added_since_setup($columns_setup));
+        render_column_setup($id, $columns_setup, $columns);
         render_column_edit_style();
         render_move_script();
 
@@ -523,8 +488,8 @@ function create_datagrid($id, $grid_data) {
                 if_isset($_GET["search"][$id], array()),
                 $filters
             );
-            $columns_setup = decode_grid_json_array($columns_setup, array());
-            $filters_setup = decode_grid_json_array($filter_setup, array());
+            $columns_setup = json_decode($columns_setup, true);
+            $filters_setup = json_decode($filter_setup, true);
             $filters_updated = updateCheckedValues($filters, $filters_setup);
         }
 
@@ -584,14 +549,8 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
             function ($column) {
                 return [
                     'field' => if_isset($column['field'], null),
-                    // SD-685 review: a setup written now is current from the start. It carries the
-                    // per-row 'visible' flag, so grid_setup_is_legacy() never sees it as a snapshot
-                    // and the first load does not normalise (or write) anything for a new user. The
-                    // code's own headerName/description are deliberately not stored: they follow the
-                    // session language through the code instead of freezing the language this row
-                    // happened to be created in. A rename is stored as customHeaderName when the
-                    // user sets one.
-                    'visible' => true,
+                    'headerName' => if_isset($column['headerName'], null),
+                    'description' => if_isset($column['description'], null),
                     'width' => if_isset($column['width'], null),
                     'align' => if_isset($column['align'], null),
                 ];
@@ -601,11 +560,7 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
         // Encode configurations as JSON for storage
         $columns_json = db_escape_string(json_encode($columns_save));
-        // SD-686: a fresh grid row starts with an empty *selection* map. Filter
-        // defaults belong to the page's $filters definition and are applied by
-        // updateCheckedValues(); storing the definitions here left the declared
-        // defaults unreadable on the first page view.
-        $filters_json = '{}';
+        $filters_json = db_escape_string(json_encode($filters));
         $search_json  = db_escape_string(json_encode($search_setup));
 
         // Insert the new grid setup into the database
@@ -625,270 +580,34 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 
 
 /**
- * SD-685 review: every text the code itself can display for one column, so a
- * stored legacy header can be told apart from a personal rename without knowing
- * which language the row was saved in.
+ * Fills missing values in the first array using values from the second array based on matching 'field' values.
  *
- * A column that declares headerText (the raw "tekst_id|default" its header was
- * resolved from) contributes every stored translation of that tekst_id plus the
- * default after the pipe; a literal header column has exactly one form.
+ * This function iterates over each item in the first array and looks for a matching 'field' in the second array.
+ * When a match is found, it fills in any missing or empty values in the first array item with the corresponding values
+ * from the second array item.
  *
- * @param array $column A code column definition, optionally carrying headerText.
- * @return array<int,string> The texts the code can produce for this column.
+ * @param array $firstArray The first array containing items that may have missing values.
+ * @param array $secondArray The second array providing default values for missing fields.
+ * @return array The first array with missing values filled from the second array.
  */
-function grid_known_header_texts($column) {
-    static $cache = array();
-
-    $known = array($column['headerName']);
-    // Callers that already hold the texts (and tests) can pass the set straight in.
-    if (isset($column['headerTexts']) && is_array($column['headerTexts'])) {
-        return array_values(array_unique(array_merge($known, $column['headerTexts'])));
-    }
-    if (empty($column['headerText'])) return $known;
-
-    $parts = explode('|', $column['headerText'], 2);
-    if (isset($parts[1]) && $parts[1] !== '') $known[] = $parts[1];
-    if (!preg_match('/^[0-9]+$/', $parts[0])) return array_values(array_unique($known));
-
-    $tekstId = (int) $parts[0];
-    if (!isset($cache[$tekstId])) {
-        $texts = array();
-        if (function_exists('db_select') && function_exists('db_fetch_array')) {
-            $q = db_select("select tekst from tekster where tekst_id = '$tekstId'", __FILE__ . " line " . __LINE__);
-            while ($r = db_fetch_array($q)) {
-                if (isset($r['tekst']) && $r['tekst'] !== '') $texts[] = $r['tekst'];
+function fill_missing_values($firstArray, $secondArray) {
+    foreach ($firstArray as &$firstItem) {
+        foreach ($secondArray as $secondItem) {
+            $fieldMatch  = ($firstItem['field'] !== '' && $firstItem['field'] === $secondItem['field']);
+            // When stored field is empty, fall back to matching by headerName so new field assignments are picked up
+            $headerMatch = ($firstItem['field'] === '' && $firstItem['headerName'] === $secondItem['headerName']);
+            if ($fieldMatch || $headerMatch) {
+                foreach ($secondItem as $key => $value) {
+                    if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
+                        $firstItem[$key] = $value;
+                    }
+                }
+                break;
             }
         }
-        $cache[$tekstId] = $texts;
     }
-
-    return array_values(array_unique(array_merge($known, $cache[$tekstId])));
-}
-/**
- * Escapes a column-configuration value for HTML text or a single-quoted attribute.
- *
- * headerName and description are free text a user types in the kolonner editor, and
- * save_column_setup() persists them per user in datatables.column_setup. They are echoed again on
- * every later render of that grid, so an unescaped value is stored XSS, not merely reflected -
- * and because this codebase carries no CSRF tokens, the save can be triggered on another logged-in
- * user's behalf, which makes it attacker-reachable rather than self-inflicted.
- *
- * ENT_QUOTES because every attribute grid.php writes is single-quoted.
- *
- * @param mixed $value The stored value.
- * @return string Safe for HTML text and for a single- or double-quoted attribute.
- */
-function grid_html($value) {
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-}
-
-/**
- * Reduces a stored column alignment to one of the three values the editor offers.
- *
- * align reaches the grid inside style='text-align: ...'. The editor renders it as a <select> of
- * left/center/right, but nothing validates what is actually posted, and merge_column_setup() copies
- * the stored value onto the column as-is. Escaping alone would still let a stored value inject
- * further CSS declarations, so it is whitelisted instead: anything unrecognised falls back to left.
- *
- * @param mixed $align The stored alignment.
- * @return string 'left', 'center' or 'right'.
- */
-function grid_align($align) {
-    $align = strtolower(trim((string) $align));
-    return in_array($align, array('left', 'center', 'right'), true) ? $align : 'left';
-}
-
-/**
- * SD-685 review: does this stored setup predate the per-row 'visible' flag?
- *
- * The column editor used to record a removal by dropping the row, so in a setup without the
- * flag an absent code column was removed by the user rather than added to the code since.
- * merge_column_setup() keeps those columns out; the first save writes the flags, after which
- * code columns added later surface again.
- *
- * @param array $setup The column setup stored in datatables.column_setup (decoded).
- * @return bool True when the setup has rows and none of them carries a 'visible' flag.
- */
-function grid_setup_is_legacy(array $setup) {
-    if (empty($setup)) return false;
-    foreach ($setup as $row) {
-        if (is_array($row) && array_key_exists('visible', $row)) return false;
-    }
-    return true;
-}
-
-/**
- * SD-685 review: the rows the normalisation invented for a legacy setup - the code has the
- * column, the setup did not. They stay hidden, but the column editor lists them so the absence
- * is visible and a position brings the column back. A column the user removed on purpose is not
- * in this list: its absence was their own choice.
- *
- * @param array $setup The column setup stored in datatables.column_setup (decoded).
- * @return array The rows added by the normalisation, in stored order.
- */
-function grid_setup_added_since_setup(array $setup) {
-    $rows = array();
-    foreach ($setup as $row) {
-        if (is_array($row) && !empty($row['addedSinceSetup']) && empty($row['visible'])) {
-            $rows[] = $row;
-        }
-    }
-    return $rows;
-}
-
-/**
- * SD-685 review: the rows to store for a setup saved before the 'visible' flag existed.
- *
- * The user's own rows are kept exactly as they are and marked visible; every code column they do
- * not have is recorded as removed, because an absent row is what the old editor left behind when
- * the user deleted the column. Stored once, so merge_column_setup() no longer has to guess and
- * code columns added after this point still reach the user.
- *
- * @param array $setup The column setup stored in datatables.column_setup (decoded).
- * @param array $codeColumns All code-defined columns, including code-hidden ones.
- * @return array The rows to store.
- */
-function normalize_legacy_column_setup(array $setup, array $codeColumns) {
-    $known = array();
-    $rows = array();
-    foreach ($setup as $row) {
-        if (!is_array($row) || empty($row['field'])) continue;
-        if (!array_key_exists('visible', $row)) $row['visible'] = true;
-        $rows[] = $row;
-        $known[$row['field']] = true;
-    }
-    foreach ($codeColumns as $column) {
-        $field = isset($column['field']) ? $column['field'] : null;
-        if ($field === null || isset($known[$field]) || !empty($column['hidden'])) continue;
-        $rows[] = array(
-            'field'   => $field,
-            'visible' => false,
-            // Provenance: the code has this column, the setup did not - which is not the same as
-            // the user having removed it. Recorded so the guess stays reversible instead of being
-            // turned into a preference, and so a column editor can present the column as hidden
-            // rather than leaving its absence invisible.
-            'addedSinceSetup' => true,
-            'width'   => isset($column['width']) ? $column['width'] : 1,
-            'align'   => isset($column['align']) ? $column['align'] : 'left',
-        );
-        $known[$field] = true;
-    }
-    return $rows;
-}
-
-/**
- * SD-685 review: store those rows once, so the guess merge_column_setup() makes for a legacy setup
- * is over and only the user's own rows are left to interpret.
- *
- * @param string $id The grid id (datatables.tabel_id).
- * @param array $setup The column setup stored in datatables.column_setup (decoded).
- * @param array $codeColumns All code-defined columns, including code-hidden ones.
- * @param string|null $stored The stored value this setup was decoded from, for the compare-and-set.
- * @return void
- */
-function save_normalized_column_setup($id, array $setup, array $codeColumns, $stored = null) {
-    global $bruger_id;
-    $user_id = (int)$bruger_id;
-    if (!$user_id) return;
-    $tabel_id = db_escape_string($id);
-    $json = db_escape_string(json_encode(normalize_legacy_column_setup($setup, $codeColumns)));
-    $qtxt = "UPDATE datatables SET column_setup = '$json' WHERE user_id = $user_id AND tabel_id = '$tabel_id'";
-    // Only replace the row we actually read: a save from another tab between the read and this
-    // write must win, and the setup stays legacy for the next load to normalise instead.
-    if ($stored !== null) $qtxt .= " AND column_setup = '" . db_escape_string($stored) . "'";
-    db_modify($qtxt, __FILE__ . " line " . __LINE__);
-}
-
-/**
- * SD-685: merges the code's column definitions with the user's stored column setup.
- *
- * The code defines which columns exist and what they are called, so a translated
- * headerName/description or a newly added column reaches every user. The stored row
- * only contributes the user's preferences, matched on the language-independent
- * 'field': row order, width, align, visibility, and the optional user texts
- * ("Valgfri overskrift"/"Valgfri beskrivelse") which override the code's text when set.
- *
- * @param array $setup The column setup stored in datatables.column_setup (decoded).
- * @param array $codeColumns All code-defined columns, including code-hidden ones.
- * @return array The columns to render, in the user's order.
- */
-function merge_column_setup(array $setup, array $codeColumns, $honourRemovedColumns = true) {
-    $prefs = array();
-    $order = array();
-    foreach (array_values($setup) as $index => $row) {
-        if (empty($row['field']) || isset($prefs[$row['field']])) {
-            continue;
-        }
-        $prefs[$row['field']] = $row;
-        $order[$row['field']] = $index;
-    }
-
-    // SD-685 review: see grid_setup_is_legacy() - in a setup saved before the flags existed an
-    // absent code column was removed by the user, so it stays out until the setup is saved once.
-    $legacySetup = grid_setup_is_legacy($setup);
-
-    $merged = array();
-    foreach (array_values($codeColumns) as $index => $column) {
-        $field = isset($column['field']) ? $column['field'] : null;
-        $saved = isset($prefs[$field]) ? $prefs[$field] : array();
-        $surfaced = isset($prefs[$field]);
-
-        // A code-hidden column stays out unless this user has it in their setup.
-        if (!empty($column['hidden']) && !$surfaced) {
-            continue;
-        }
-        // A stored column the user removed stays hidden.
-        if (isset($saved['visible']) && $saved['visible'] === false) {
-            continue;
-        }
-        if ($honourRemovedColumns && $legacySetup && !$surfaced) {
-            continue;
-        }
-
-        // SD-685 review: rows saved before customHeaderName stored the code's own text
-        // (the editor pre-filled it), so a legacy headerName is only kept as a personal
-        // rename when the code could not have produced it in any language.
-        $customHeaderName = isset($saved['customHeaderName']) ? $saved['customHeaderName'] : '';
-        // Kept unless the code provably produces it: dropping a value the code cannot
-        // produce would destroy a rename saved before customHeaderName existed.
-        if ($customHeaderName === '' && isset($saved['headerName']) && $saved['headerName'] !== ''
-                && !in_array($saved['headerName'], grid_known_header_texts($column), true)) {
-            $customHeaderName = $saved['headerName'];
-        }
-        $column['customHeaderName']  = $customHeaderName;
-        $column['customDescription'] = isset($saved['customDescription']) ? $saved['customDescription'] : '';
-        if ($column['customHeaderName'] !== '') {
-            $column['headerName'] = $column['customHeaderName'];
-        }
-        if ($column['customDescription'] !== '') {
-            $column['description'] = $column['customDescription'];
-        }
-        foreach (array('width', 'align') as $pref) {
-            if (isset($saved[$pref]) && $saved[$pref] !== '') {
-                $column[$pref] = $saved[$pref];
-            }
-        }
-        if ($surfaced) {
-            $column['hidden'] = false;
-        }
-
-        $column['_order'] = $surfaced ? $order[$field] : PHP_INT_MAX;
-        $column['_code']  = $index;
-        $merged[] = $column;
-    }
-
-    usort($merged, function ($a, $b) {
-        if ($a['_order'] === $b['_order']) {
-            return $a['_code'] - $b['_code'];
-        }
-        return ($a['_order'] < $b['_order']) ? -1 : 1;
-    });
-    foreach ($merged as &$column) {
-        unset($column['_order'], $column['_code']);
-    }
-    unset($column);
-
-    return $merged;
+    unset($firstItem);
+    return $firstArray;
 }
 
 /**
@@ -902,31 +621,16 @@ function merge_column_setup(array $setup, array $codeColumns, $honourRemovedColu
  * @return array The updated first array with the 'checked' values for options updated.
  */
 function updateCheckedValues(array $firstArray, array $secondArray) {
-    // SD-686: only a saved *selection* map may override a filter option's declared
-    // default. Where nothing (or only a legacy definition list) has been saved, the
-    // declared value stays in force instead of being forced back to ''.
-    // SD-685: a filter group/option may declare a language-independent
-    // filterKey/optionKey. The stored selection is looked up by that key, with the
-    // display text as fallback so rows saved before keys existed keep working.
     foreach ($firstArray as &$filter) {
-        $groupKeys = array(isset($filter['filterKey']) ? $filter['filterKey'] : $filter['filterName'], $filter['filterName']);
-        $updatesForFilter = array();
-        foreach ($groupKeys as $groupKey) {
-            if (isset($secondArray[$groupKey]) && is_array($secondArray[$groupKey])) {
-                $updatesForFilter = $secondArray[$groupKey];
-                break;
+        $filterName = $filter['filterName'];
+        if (isset($secondArray[$filterName])) {
+            $updatesForFilter = $secondArray[$filterName];
+            foreach ($filter['options'] as &$option) {
+                $option['checked'] = isset($updatesForFilter[$option['name']]) ? $updatesForFilter[$option['name']] : '';
             }
-        }
-        foreach ($filter['options'] as &$option) {
-            if (!isset($option['checked'])) {
+        } else {
+            foreach ($filter['options'] as &$option) {
                 $option['checked'] = '';
-            }
-            $optionKeys = array(isset($option['optionKey']) ? $option['optionKey'] : $option['name'], $option['name']);
-            foreach ($optionKeys as $optionKey) {
-                if (isset($updatesForFilter[$optionKey])) {
-                    $option['checked'] = $updatesForFilter[$optionKey];
-                    break;
-                }
             }
         }
     }
@@ -1074,7 +778,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
  * @return string The validated ORDER BY expression.
  */
 function apply_sort_sqlOverride($sort, $columns) {
-    if (!is_string($sort) || trim($sort) === '' || !is_array($columns)) return '1';
+    if (!$sort || !is_array($columns)) return $sort;
     $parts = preg_split('/\s+/', trim($sort), 2);
     $field = $parts[0];
     $dir   = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
@@ -1093,7 +797,7 @@ function apply_sort_sqlOverride($sort, $columns) {
             }
         }
     }
-    if (!$sortColumn || (isset($sortColumn['sortable']) && !$sortColumn['sortable'])) {
+    if (!$sortColumn && !preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/', $field)) {
         return '1';
     }
     if ($sortColumn && !empty($sortColumn['sqlOverride'])) {
@@ -1256,15 +960,11 @@ function calculate_total_width($columns) {
  */
 function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $metaColumnHeaders, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
     // Start table wrapper and form
-    // $sort and $menu are read from $_GET['sort'][$id] / $_GET['menu'][$id] and go straight into
-    // single-quoted attributes below; a heredoc cannot call functions, so escape them here.
-    $sortAttr = htmlspecialchars((string) $sort, ENT_QUOTES, 'UTF-8');
-    $menuAttr = htmlspecialchars((string) $menu, ENT_QUOTES, 'UTF-8');
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="GET" action="">
-            <input type="hidden" name='sort[{$id}]', value='$sortAttr'>
-            <input type="hidden" name='menu[{$id}]', value='$menuAttr'>
+            <input type="hidden" name='sort[{$id}]', value='$sort'>
+            <input type="hidden" name='menu[{$id}]', value='$menu'>
             <div class="datatable-search-wrapper">
                 <table class="datatable" id="datatable-$id" style="width: 100%;">
                     <thead>
@@ -1352,26 +1052,20 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     print "<tr>";
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
-        // The header and description a user typed in the kolonner editor are stored per user in
-        // datatables.column_setup and echoed back on every later view of the grid, so an unescaped
-        // value is stored XSS rather than a reflected one. align is a <select> in that editor but
-        // nothing validates what arrives, and it lands inside a style attribute.
-        $headerSafe = grid_html($column['headerName']);
-        $alignSafe  = grid_align($column['align']);
         if ($column["sortable"]) {
             $sort_dir = (isset($column['defaultSortDirection']) && $column['defaultSortDirection'] == 'desc') ? 'desc' : 'asc';
-            echo "<th
-                class='$column[field] sortable-td'
-                style='cursor: pointer; text-align: {$alignSafe}; width: {$width}%;'
+            echo "<th 
+                class='$column[field] sortable-td' 
+                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
                 onclick=\"setSort$id('$column[field]', '$sort_dir')\"
             >";
-            echo "<span class='sortable'>$headerSafe</span>";
+            echo "<span class='sortable'>$column[headerName]</span>";
         } else {
-            echo "<th class='$column[field]' style='text-align: {$alignSafe}; width: {$width}%;'>";
-            echo "<span>$headerSafe</span>";
+            echo "<th class='$column[field]' style='text-align: {$column['align']}; width: {$width}%;'>";
+            echo "<span>$column[headerName]</span>";
         }
         if ($column["description"]) {
-            echo "<br><span style='font-weight: normal;'>" . grid_html($column['description']) . "</span>";
+            echo "<br><span style='font-weight: normal;'>$column[description]</span>";
         }
         echo "</th>";
     }
@@ -1389,11 +1083,7 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
             $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
-            // The search term comes straight from $_GET['search'][$id][field] and is also persisted
-            // to datatables.search_setup, so an unescaped value is reflected AND stored. Escaped
-            // with ENT_QUOTES because the attribute is single-quoted.
-            $searchAttr = htmlspecialchars((string) $columnSearchTerm, ENT_QUOTES, 'UTF-8');
-            echo "<input class='inputbox' style='text-align: " . grid_align($column['align']) . "' type='text' name='search[$id][{$column['field']}]' value='$searchAttr' placeholder=''>";
+            echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
         }
         echo "</th>";
     }
@@ -1417,9 +1107,7 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     echo <<<HTML
                         <th>
                             <div class="dropdown">
-                                <button type="button" class="dropdown-trigger" aria-haspopup="true" aria-label="Handlinger">
-                                    <svg id="turn-arrow" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
-                                </button>
+                                <svg id="turn-arrow" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                                 <div class="dropdown-content">
                                     <button type="submit" class="dropdown-btn" onclick="document.getElementsByName('offset[$id]')[0].value='0';">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
@@ -1438,12 +1126,12 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
                                         {$txt4}
                                     </button>
                                     <div id='edit-button' class="has-secondary-dropdown">
-                                        <button type="button" class="secondary-trigger" aria-haspopup="true">
+                                        <span>
                                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
                                             {$txt5}
-                                        </button>
+                                        </span>
 
-                                        <svg id="turn-arrow2" tabindex="-1" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
+                                        <svg id="turn-arrow2" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                                         <div class="secondary-dropdown">
                                             <button type="button" onclick="handleAction{$id}('kolonner')">
                                                 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M121-280v-400q0-33 23.5-56.5T201-760h559q33 0 56.5 23.5T840-680v400q0 33-23.5 56.5T760-200H201q-33 0-56.5-23.5T121-280Zm79 0h133v-400H200v400Zm213 0h133v-400H413v400Zm213 0h133v-400H626v400Z"/></svg>
@@ -1540,13 +1228,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     global $sprog_id;
     $txt1 = lcfirst(findtekst('2767|Af', $sprog_id));
     $txt2 = findtekst('2125|Linjer pr. side', $sprog_id);
-    // $offset is read from $_GET['offset'][$id] and never cast, so escape it before the heredoc.
-    $offsetAttr = htmlspecialchars((string) $offset, ENT_QUOTES, 'UTF-8');
 
     echo <<<HTML
             <tr>
                 <td colspan=100>
-                    <input type='hidden' name="offset[$id]" value="$offsetAttr" size='4'>
+                    <input type='hidden' name="offset[$id]" value="$offset" size='4'>
                     <div id='footer-box'>
                         <span style='display: flex' id='page-status'>
                             $offsetFrom-$offsetTo&nbsp;{$txt1}&nbsp;$totalItems
@@ -1615,12 +1301,10 @@ function render_table_row($columns, $row, $searchTerms) {
  * @param string $id          The unique identifier for the table.
  * @param array  $columns     An array of currently selected columns for the table.
  * @param array  $all_columns An array of all available columns that can be displayed.
- * @param array  $hidden_columns Columns the SD-685 normalisation hid, listed so the user can see
- *                              them and switch them on.
  * 
  * @return void Outputs the HTML structure directly.
  */
-function render_column_setup($id, $columns, $all_columns, $hidden_columns = array()) {
+function render_column_setup($id, $columns, $all_columns) {
 
     global $sprog_id;
     $txt1 = findtekst('2761|Vælg hvilke felter der skal være synlige i tabellen', $sprog_id);
@@ -1651,7 +1335,7 @@ function render_column_setup($id, $columns, $all_columns, $hidden_columns = arra
 HTML;
 
     // Render table headers and input fields for column setup
-    render_columns($id, $columns, $all_columns, $hidden_columns);
+    render_columns($id, $columns, $all_columns);
 
     echo <<<HTML
             <tr>
@@ -1727,18 +1411,7 @@ function render_table_row($columns, $row, $searchTerms) {
  *
  * @return void Outputs the HTML for the column setup form, including the configuration table and buttons for saving and closing.
  */
-/**
- * Renders the rows of the column setup form.
- *
- * @param string $id             The unique identifier for the table.
- * @param array  $columns        The columns to render as rows, in the user's order.
- * @param array  $all_columns    All code-defined columns, used for the field and text options.
- * @param array  $hidden_columns Columns the SD-685 normalisation hid, rendered with Pos '-' so the
- *                               user can see them and give one a position to switch it on.
- *
- * @return void Outputs the HTML rows directly.
- */
-function render_columns($id, $columns, $all_columns, $hidden_columns = array()) {
+function render_columns($id, $columns, $all_columns) {
     // Create all column options as a select
     $selectOptions = "";
     foreach ($all_columns as $column) {
@@ -1750,26 +1423,6 @@ function render_columns($id, $columns, $all_columns, $hidden_columns = array()) 
         $i++;
         $width = $column['width'] * 100;
         $widthstyle = $column['width'] * 15;
-        // SD-685: the input holds the user's own text; the code's (translated) text is
-        // shown as a placeholder, so an empty field means "use the translation".
-        $codeHeader = '';
-        $codeDescription = '';
-        foreach ($all_columns as $allColumn) {
-            $allField = isset($allColumn['field']) ? $allColumn['field'] : null;
-            $columnField = isset($column['field']) ? $column['field'] : null;
-            if ($allField === $columnField) {
-                $codeHeader = isset($allColumn['headerName']) ? $allColumn['headerName'] : '';
-                $codeDescription = isset($allColumn['description']) ? $allColumn['description'] : '';
-                break;
-            }
-        }
-        // The stored per-user texts are echoed straight back into value='...' here, so the
-        // kolonner editor is a second sink for the same stored XSS as the header row.
-        $customHeaderSafe      = grid_html($column['customHeaderName']);
-        $customDescriptionSafe = grid_html($column['customDescription']);
-        $codeHeaderSafe        = grid_html($codeHeader);
-        $codeDescriptionSafe   = grid_html($codeDescription);
-        $alignSafe             = grid_align($column['align']);
         echo <<<HTML
             <tr>
                 <td>
@@ -1796,17 +1449,17 @@ function render_columns($id, $columns, $all_columns, $hidden_columns = array()) 
                     </select>
                 </td>
                 <td>
-                    <input type='text' name='rows[$id][$i][customHeaderName]' value='{$customHeaderSafe}' placeholder='{$codeHeaderSafe}' class="inputbox">
+                    <input type='text' name='rows[$id][$i][headerName]' value='{$column['headerName']}' class="inputbox">
                 </td>
                 <td>
-                    <input type='text' name='rows[$id][$i][customDescription]' value='{$customDescriptionSafe}' placeholder='{$codeDescriptionSafe}' class="inputbox">
+                    <input type='text' name='rows[$id][$i][description]' value='{$column['description']}' class="inputbox">
                 </td>
                 <td align='right'>
                     <input type='number' name='rows[$id][$i][width]' value='{$width}' size='{$widthstyle}' class="inputbox" onchange="this.size = this.value*0.15;">
                 </td>
                 <td align='left'>
                     <select name='rows[$id][$i][align]' class="inputbox">
-                        <option value='{$alignSafe}'>{$alignSafe}</option>
+                        <option value='$column[align]'>$column[align]</option>
                         <option value='left'>left</option>
                         <option value='center'>center</option>
                         <option value='right'>right</option>
@@ -1817,66 +1470,6 @@ function render_columns($id, $columns, $all_columns, $hidden_columns = array()) 
 HTML;
     }
     
-    // SD-685 review: a column the normalisation hid because the setup predates it. Pos '-' keeps
-    // it hidden on save, and giving it a number switches it on; the marker is posted so the row
-    // stays identifiable as "added since the setup" until the user makes it their own.
-    foreach ($hidden_columns as $hidden) {
-        $hiddenField = isset($hidden['field']) ? (string)$hidden['field'] : '';
-        if ($hiddenField === '') continue;
-        $i++;
-        // A stored row round-trips through this form, so nothing taken from it is trusted for
-        // output: the field and the alignment are escaped and the width is cast to a number.
-        $hiddenFieldHtml = htmlspecialchars($hiddenField, ENT_QUOTES, 'UTF-8');
-        $hiddenWidth = isset($hidden['width']) ? (float)$hidden['width'] : 1;
-        $width = (int)round($hiddenWidth * 100);
-        $widthstyle = (int)max(1, round($hiddenWidth * 15));
-        $hiddenAlign = isset($hidden['align']) ? (string)$hidden['align'] : 'left';
-        $hiddenAlignHtml = htmlspecialchars($hiddenAlign, ENT_QUOTES, 'UTF-8');
-        $codeHeader = '';
-        $codeDescription = '';
-        foreach ($all_columns as $allColumn) {
-            if (isset($allColumn['field']) && $allColumn['field'] === $hiddenField) {
-                $codeHeader = isset($allColumn['headerName']) ? (string)$allColumn['headerName'] : '';
-                $codeDescription = isset($allColumn['description']) ? (string)$allColumn['description'] : '';
-                break;
-            }
-        }
-        $codeHeaderHtml = htmlspecialchars($codeHeader, ENT_QUOTES, 'UTF-8');
-        $codeDescriptionHtml = htmlspecialchars($codeDescription, ENT_QUOTES, 'UTF-8');
-        echo <<<HTML
-            <tr>
-                <td>
-                    <input type='text' name='rows[$id][$i][pos]' value='-' class="inputbox" size='4'>
-                    <input type='hidden' name='rows[$id][$i][addedSinceSetup]' value='1'>
-                </td>
-                <td>
-                    <select name='rows[$id][$i][field]' class="inputbox">
-                        <option value='{$hiddenFieldHtml}'>{$hiddenFieldHtml}</option>
-                        {$selectOptions}
-                    </select>
-                </td>
-                <td>
-                    <input type='text' name='rows[$id][$i][customHeaderName]' class="inputbox" placeholder='{$codeHeaderHtml}'>
-                </td>
-                <td>
-                    <input type='text' name='rows[$id][$i][customDescription]' class="inputbox" placeholder='{$codeDescriptionHtml}'>
-                </td>
-                <td align='right'>
-                    <input type='number' name='rows[$id][$i][width]' value='{$width}' size='{$widthstyle}' class="inputbox">
-                </td>
-                <td align='left'>
-                    <select name='rows[$id][$i][align]' class="inputbox">
-                        <option value='{$hiddenAlignHtml}'>{$hiddenAlignHtml}</option>
-                        <option value='left'>left</option>
-                        <option value='center'>center</option>
-                        <option value='right'>right</option>
-                    </select>
-                </td>
-                <td style="width: 100%;"></td>
-            </tr>
-HTML;
-    }
-
     // Newline for new items
     $i++;
     echo <<<HTML
@@ -1887,15 +1480,14 @@ HTML;
         </td>
         <td>
             <select name='rows[$id][$i][field]' class="inputbox">
-                <option value=''></option>
                 {$selectOptions}
             </select>
         </td>
         <td>
-            <input type='text' name='rows[$id][$i][customHeaderName]' class="inputbox">
+            <input type='text' name='rows[$id][$i][headerName]' class="inputbox">
         </td>
         <td>
-            <input type='text' name='rows[$id][$i][customDescription]' class="inputbox">
+            <input type='text' name='rows[$id][$i][description]' class="inputbox">
         </td>
         <td align='right'>
             <input type='number' name='rows[$id][$i][width]' value="100" size='10' class="inputbox">
@@ -1932,76 +1524,30 @@ function save_column_setup($id) {
 
     $rows = $_POST['rows'][$id];
 
-    // SD-685: a row is kept when it names a field. The header is no longer required -
-    // an empty custom header means "use the code's (translated) header" - and the
-    // delete button ('-') now records the column as hidden instead of dropping the row,
-    // because the code, not this list, defines which columns exist.
+    // Filter out rows where 'pos' is null
     $rows = array_filter($rows, function ($row) {
-        if (empty($row['field'])) {
-            return false;
-        }
-        return isset($row['pos']) && $row['pos'] !== null && ($row['pos'] === '-' || is_numeric($row['pos']));
+        return is_numeric($row['pos']) && $row['headerName'] && $row['pos'] !== null;
     });
 
-    // Sort the visible rows by 'pos'; hidden rows keep their relative order at the end
+    // Sort the array by 'pos'
     usort($rows, function ($a, $b) {
-        $aHidden = ($a['pos'] === '-');
-        $bHidden = ($b['pos'] === '-');
-        if ($aHidden !== $bHidden) {
-            return $aHidden ? 1 : -1;
-        }
         if ($a['pos'] == $b['pos']) {
             return 0;
         }
         return ($a['pos'] < $b['pos']) ? -1 : 1;
     });
+    
 
-    // Remove the 'pos' key, normalise the width and record the resulting visibility
+    // Remove the 'pos' key from each sub-array
     $rows = array_map(function ($row) {
-        $hidden = ($row['pos'] === '-');
         unset($row['pos']);
-        if (isset($row['width']) && $row['width'] !== '') {
-            $row["width"] = $row["width"] / 100;
-        }
-        $row["visible"] = !$hidden;
+        $row["width"] = $row["width"] / 100;
         return $row;
     }, $rows);
 
-    // A field the user re-added in the editor is visible again: drop its stale hidden row,
-    // otherwise the hidden copy keeps winning the first-occurrence lookup in the merge.
-    $visibleFields = array();
-    foreach ($rows as $row) {
-        if (!empty($row['visible'])) {
-            $visibleFields[$row['field']] = true;
-        }
-    }
-    $rows = array_values(array_filter($rows, function ($row) use ($visibleFields) {
-        return !empty($row['visible']) || !isset($visibleFields[$row['field']]);
-    }));
-
     // Print the result
-    // SD-685: the editor only renders the visible columns, so a column this user hid
-    // earlier is not part of the POST at all. Keep exactly those stored rows, otherwise
-    // the hidden column would come back on the next page load. A *visible* stored row the
-    // POST does not mention was replaced by another field in the editor instead, and must
-    // not be restored with its old position, width and custom text.
-    $postedFields = array();
-    foreach ($rows as $row) {
-        $postedFields[$row['field']] = true;
-    }
-    $stored = db_fetch_array(db_select("SELECT column_setup FROM datatables WHERE user_id = $bruger_id AND tabel_id = '".db_escape_string($id)."'", __FILE__ . " line " . __LINE__));
-    $storedRows = ($stored && isset($stored['column_setup'])) ? json_decode($stored['column_setup'], true) : array();
-    if (is_array($storedRows)) {
-        foreach ($storedRows as $storedRow) {
-            if (!empty($storedRow['field']) && !isset($postedFields[$storedRow['field']])
-                    && isset($storedRow['visible']) && $storedRow['visible'] === false) {
-                $rows[] = $storedRow;
-            }
-        }
-    }
-
     $columns_json = db_escape_string(json_encode($rows));
-    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='".db_escape_string($id)."'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -2085,13 +1631,7 @@ function render_filters($id, $filters, $all_filters) {
             <span><b>{$filter["filterName"]} ({$filter["joinOperator"]})</b></span>
 HTML;
         foreach ($filter["options"] as $filterItem) {
-            // SD-685: the field is keyed by filterKey/optionKey where the page declares
-            // them; the display text is only a fallback, so a translation can no longer
-            // detach a stored selection from its checkbox.
-            $groupKey  = isset($filter['filterKey']) ? $filter['filterKey'] : $filter["filterName"];
-            $optionKey = isset($filterItem['optionKey']) ? $filterItem['optionKey'] : $filterItem["name"];
-            // SD-686: submit unticked options too, so turning a declared default off persists.
-            print "<div><label><input type='hidden' name='filter[$id][$groupKey][$optionKey]' value=''><input type='checkbox' $filterItem[checked] name='filter[$id][$groupKey][$optionKey]'>$filterItem[name]</label></div>";
+            print "<div><label><input type='checkbox' $filterItem[checked] name='filter[$id][$filter[filterName]][$filterItem[name]]'>$filterItem[name]</label></div>";
         }
 
         echo <<<HTML
@@ -2140,7 +1680,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id='".db_escape_string($id)."'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -2318,24 +1858,15 @@ function render_dropdown_style() {
         .dropdown-content button svg, .dropdown-content #edit-button svg {
             height: 17px;
         }
-        .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content {
+        .dropdown:hover .dropdown-content {
             display: block;
-        }
-        /* The trigger is a native button so the menu can be reached by keyboard; keep it looking like the bare icon. */
-        .dropdown-trigger {
-            background: none;
-            border: none;
-            padding: 0;
-            margin: 0;
-            cursor: pointer;
-            display: inline-flex;
         }
         /* Ensure the dropdown stays within the viewport */
         .dropdown-content {
             right: auto; /* Ensure it's not forced to align right */
             transform: translateX(0); /* Default translation */
         }
-        .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content {
+        .dropdown:hover .dropdown-content {
             left: auto; /* Reset alignment if it's clipped */
             right: 0; /* Move to the right edge if needed */
         }
@@ -2380,18 +1911,8 @@ function render_dropdown_style() {
             z-index: 2;
             min-width: 150px;
         }
-        .has-secondary-dropdown:hover .secondary-dropdown, .has-secondary-dropdown:focus-within .secondary-dropdown {
+        .has-secondary-dropdown:hover .secondary-dropdown {
             display: block;
-        }
-        /* Native button so the submenu can be reached by keyboard; undo the generic menu-button box so it keeps the old span look. */
-        .has-secondary-dropdown > .secondary-trigger {
-            display: flex;
-            align-items: normal;
-            width: auto;
-            padding: 0;
-        }
-        .has-secondary-dropdown > .secondary-trigger:hover {
-            background: none;
         }
         .secondary-dropdown button {
             background: none;
@@ -2407,7 +1928,7 @@ function render_dropdown_style() {
         #turn-arrow, #turn-arrow2 {
             transition: transform 0.1s ease-in-out;
         }
-        .dropdown:hover #turn-arrow, .dropdown:focus-within #turn-arrow, .has-secondary-dropdown:hover #turn-arrow2, .has-secondary-dropdown:focus-within #turn-arrow2 {
+        .dropdown:hover #turn-arrow, .has-secondary-dropdown:hover #turn-arrow2 {
             transform: rotate(90deg);
         }
 

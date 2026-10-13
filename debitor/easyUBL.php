@@ -1,4 +1,6 @@
 <?php
+// 20261006 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 
     // This file is used to receive webhooks from EasyUBL
 
@@ -52,7 +54,7 @@
     $companyId = json_decode($webhookData, true);
     $companyId = $companyId['companyId'];
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=getDBNameByCompanyId&companyId=$companyId");
+    curl_setopt($ch, CURLOPT_URL, "https://ssl3.saldi.dk/locator/locator.php?action=getDBNameByCompanyId&companyId=$companyId");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $output = curl_exec($ch);
     $jsonOutPut = $output;
