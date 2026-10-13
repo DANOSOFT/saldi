@@ -214,6 +214,13 @@ if (!function_exists('batch_txt')) {
 		static $t = array(
 			'title'       => array('Batchoplysninger', 'Batch details', 'Batchopplysninger'),
 			'expired'     => array('Formularen er udløbet. Genindlæs siden og prøv igen.', 'The form has expired. Reload the page and try again.', 'Skjemaet er utløpt. Last inn siden på nytt og prøv igjen.'),
+			'gone'        => array('Et batch er solgt ud eller fjernet, mens siden var åben. Intet er gemt - indlæs siden igen.', 'A batch was sold out or removed while the page was open. Nothing was saved - reload the page.', 'En batch er utsolgt eller fjernet mens siden var åpen. Ingenting er lagret - last inn siden på nytt.'),
+			'search'      => array('Søg på varenr. eller beskrivelse', 'Search item no. or description', 'Søk på varenr. eller beskrivelse'),
+			'no_match'    => array('Ingen batches matcher søgningen.', 'No batches match the search.', 'Ingen batcher passer til søket.'),
+			'showing'     => array('Viser $a-$b af $n', 'Showing $a-$b of $n', 'Viser $a-$b av $n'),
+			'prev'        => array('Forrige', 'Previous', 'Forrige'),
+			'next'        => array('Næste', 'Next', 'Neste'),
+			'unsaved'     => array('Du har ændringer, der ikke er gemt. Vil du forlade siden?', 'You have unsaved changes. Leave the page?', 'Du har endringer som ikke er lagret. Vil du forlate siden?'),
 			'bad_date'    => array('Ugyldig udløbsdato', 'Invalid expiry date', 'Ugyldig utløpsdato'),
 			'bad_split'   => array('En opdeling skal have et antal over 0 og en gyldig dato', 'A split needs a quantity above 0 and a valid date', 'En oppdeling må ha et antall over 0 og en gyldig dato'),
 			'max_split'   => array('Der kan højst opdeles', 'The most you can split off is', 'Det kan maksimalt deles opp'),

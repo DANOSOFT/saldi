@@ -83,7 +83,12 @@ $returhref = htmlspecialchars($returside, ENT_QUOTES, 'UTF-8');
 
 $vare_id = (int)ifset($_GET, 'vare_id', 0);
 $vis_alle = ($vare_id || ifset($_GET, 'alle', '')) ? 1 : 0;
-$selfurl = "batch_udfyld.php?vare_id=$vare_id&alle=$vis_alle&returside=" . urlencode($returside);
+$sog = mb_substr(trim((string)ifset($_GET, 'sog', '')), 0, 60);
+$side = max(1, (int)ifset($_GET, 'side', 1));
+$pr_side = 100;
+# Query string for links back to this view; the page number is added where needed
+$viewparam = "vare_id=$vare_id&alle=$vis_alle&sog=" . urlencode($sog) . "&returside=" . urlencode($returside);
+$selfurl = "batch_udfyld.php?$viewparam&side=$side";
 
 if (!isset($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 $csrf_token = $_SESSION['csrf_token'];
@@ -108,18 +113,29 @@ if (isset($_POST['gem'])) {
 		# line never leaves the page half saved.
 		$ops = array();
 		transaktion('begin');
+		# A split reads the reservations on the batch before lowering its rest. Holding this lock
+		# until commit stops a reservation being written in between. It is taken before any
+		# batch_kob row lock, and only when something is split, so plain edits never wait.
+		if ($p_split && $db_type != 'mysql' && $db_type != 'mysqli') {
+			db_modify("lock table reservation in share row exclusive mode", __FILE__ . " linje " . __LINE__);
+		}
 		foreach ($ids as $bk_id) {
 			if ($bk_id <= 0) continue;
 			$r = db_fetch_array(db_select("select bk.*, v.varenr from batch_kob bk join varer v on v.id = bk.vare_id where bk.id = '$bk_id' and bk.rest > 0 for update", __FILE__ . " linje " . __LINE__));
-			if (!$r) continue;
+			if (!$r) {
+				# Sold out or removed by someone else since the page was loaded
+				$fejl[] = batch_txt('gone') . " (batch $bk_id)";
+				continue;
+			}
 			$varenr = htmlspecialchars($r['varenr'], ENT_QUOTES, 'UTF-8');
 			$old_no = (string)$r['batch_no'];
 			$old_due = (string)$r['due_date'];
 			$new_no = trim((string)ifset($p_batch_no, $bk_id, $old_no));
 			if (mb_strlen($new_no) > 100) $new_no = mb_substr($new_no, 0, 100);
-			$new_due = batch_udfyld_date(ifset($p_due_date, $bk_id, $old_due));
+			$due_input = (string)ifset($p_due_date, $bk_id, $old_due);
+			$new_due = batch_udfyld_date($due_input);
 			if ($new_due === false) {
-				$fejl[] = "$varenr: " . batch_txt('bad_date') . " (" . htmlspecialchars((string)$p_due_date[$bk_id], ENT_QUOTES, 'UTF-8') . ")";
+				$fejl[] = "$varenr: " . batch_txt('bad_date') . " (" . htmlspecialchars($due_input, ENT_QUOTES, 'UTF-8') . ")";
 				continue;
 			}
 
@@ -230,19 +246,30 @@ while ($r = db_fetch_array($q)) $lagernavn[$r['kodenr']] = $r['beskrivelse'];
 if (!isset($lagernavn[1])) $lagernavn[1] = findtekst('5012|Hovedlager', $sprog_id);
 
 # Items with expiry tracking (has_due_date) or lot tracking on the product group (box9)
+$from = "from batch_kob bk join varer v on v.id = bk.vare_id ";
+$from .= "left join grupper g on g.art = 'VG' and g.kodenr = v.gruppe and g.fiscal_year = '" . (int)$regnaar . "' ";
+$from .= "where bk.rest > 0 ";
+if ($vare_id) {
+	$from .= "and bk.vare_id = '$vare_id' ";
+} else {
+	$from .= "and (v.has_due_date = true or g.box9 = 'on') ";
+	if (!$vis_alle) $from .= "and ((v.has_due_date = true and bk.due_date is null) or coalesce(bk.batch_no,'') = '') ";
+}
+if ($sog !== '') {
+	$like = db_escape_string('%' . db_escape_like_pattern(mb_strtolower($sog)) . '%');
+	$from .= "and (lower(v.varenr) like '$like' escape '\\' or lower(v.beskrivelse) like '$like' escape '\\') ";
+}
+# Large accounts can have thousands of batches in stock, so the list comes in pages
+$r = db_fetch_array(db_select("select count(*) as antal $from", __FILE__ . " linje " . __LINE__));
+$total = $r ? (int)$r['antal'] : 0;
+$sider = max(1, (int)ceil($total / $pr_side));
+if ($side > $sider) $side = $sider;
 $qtxt = "select bk.id, bk.vare_id, bk.kobsdate, bk.rest, bk.lager, bk.due_date, bk.batch_no, ";
 $qtxt .= "v.varenr, v.beskrivelse, v.has_due_date, v.default_shelf_life_days, ";
 $qtxt .= "coalesce((select sum(r.antal) from reservation r where r.batch_kob_id = bk.id),0) as reserveret ";
-$qtxt .= "from batch_kob bk join varer v on v.id = bk.vare_id ";
-$qtxt .= "left join grupper g on g.art = 'VG' and g.kodenr = v.gruppe and g.fiscal_year = '" . (int)$regnaar . "' ";
-$qtxt .= "where bk.rest > 0 ";
-if ($vare_id) {
-	$qtxt .= "and bk.vare_id = '$vare_id' ";
-} else {
-	$qtxt .= "and (v.has_due_date = true or g.box9 = 'on') ";
-	if (!$vis_alle) $qtxt .= "and ((v.has_due_date = true and bk.due_date is null) or coalesce(bk.batch_no,'') = '') ";
-}
-$qtxt .= "order by v.varenr, bk.lager, case when bk.due_date is null then 1 else 0 end, bk.due_date, bk.kobsdate, bk.id";
+$qtxt .= $from;
+$qtxt .= "order by v.varenr, bk.lager, case when bk.due_date is null then 1 else 0 end, bk.due_date, bk.kobsdate, bk.id ";
+$qtxt .= "limit $pr_side offset " . (($side - 1) * $pr_side);
 $rows = array();
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) $rows[] = $r;
@@ -250,13 +277,19 @@ while ($r = db_fetch_array($q)) $rows[] = $r;
 if (!$vare_id) {
 	print "<div class='bu-msg bu-info'>";
 	print batch_txt('intro');
-	print "<br><a href='batch_udfyld.php?alle=" . ($vis_alle ? 0 : 1) . "&returside=" . urlencode($returside) . "'>";
+	print "<br><a href='batch_udfyld.php?alle=" . ($vis_alle ? 0 : 1) . "&sog=" . urlencode($sog) . "&returside=" . urlencode($returside) . "'>";
 	print $vis_alle ? batch_txt('only_missing') : batch_txt('show_all');
 	print "</a></div>";
+	print "<form method='get' action='batch_udfyld.php' style='margin:.4em 0'>";
+	print "<input type='hidden' name='alle' value='$vis_alle'>";
+	print "<input type='hidden' name='returside' value='" . htmlspecialchars($returside, ENT_QUOTES, 'UTF-8') . "'>";
+	print "<input class='inputbox' type='search' name='sog' style='width:260px' placeholder='" . batch_txt('search') . "' value='" . htmlspecialchars($sog, ENT_QUOTES, 'UTF-8') . "'> ";
+	print "<input type='submit' value='" . findtekst('913|Søg', $sprog_id) . "' style='$buttonStyle'>";
+	print "</form>";
 }
 
 if (!$rows) {
-	print "<p>" . batch_txt('none') . "</p>";
+	print "<p>" . ($sog !== '' ? batch_txt('no_match') : batch_txt('none')) . "</p>";
 	if ($menu == 'T') print "</div>";
 	print "</body></html>";
 	exit;
@@ -315,6 +348,15 @@ foreach ($rows as $r) {
 }
 print "<tr><td colspan='8'><hr></td></tr>";
 print "</tbody></table>";
+if ($total > $pr_side) {
+	$fra = ($side - 1) * $pr_side + 1;
+	$til = min($total, $side * $pr_side);
+	print "<p>" . str_replace(array('$a', '$b', '$n'), array($fra, $til, $total), batch_txt('showing'));
+	# Unsaved input on this page is lost when changing page, so the links ask first
+	if ($side > 1) print " &nbsp; <a href='batch_udfyld.php?$viewparam&side=" . ($side - 1) . "' onclick='return buLeave()'>&laquo; " . batch_txt('prev') . "</a>";
+	if ($side < $sider) print " &nbsp; <a href='batch_udfyld.php?$viewparam&side=" . ($side + 1) . "' onclick='return buLeave()'>" . batch_txt('next') . " &raquo;</a>";
+	print "</p>";
+}
 print "<p><input type='submit' name='gem' value='" . findtekst('3|Gem', $sprog_id) . "' style='$buttonStyle'></p>";
 print "</form>";
 
@@ -323,6 +365,9 @@ $t_fjern = batch_txt('remove');
 $t_split = batch_txt('new_batch');
 print "<script>
 var buSeq = {};
+function buLeave() {
+	return (typeof docChange === 'undefined' || !docChange) || confirm(" . json_encode(batch_txt('unsaved'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ");
+}
 function buSuggest() {
 	document.querySelectorAll('#bu-table input[data-suggest]').forEach(function (el) {
 		if (!el.value && el.dataset.suggest) { el.value = el.dataset.suggest; el.classList.add('bu-suggest'); docChange = true; }
