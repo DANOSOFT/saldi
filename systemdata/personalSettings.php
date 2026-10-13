@@ -40,6 +40,7 @@
 // 20261009 Sawaneh 4e: auto-extract of invoice data (was the autoExtract cookie) saved here as a personal setting.
 // 20261009 Sawaneh The theme field waits for round 2 (settings decision 23): shown and saved only with SALDI_THEME_CHOICE.
 // 20261009 Sawaneh Tekststørrelse Normal / Større (personal.profile.text_size, front-page addendum 3 §3.3); the shell reloads on change.
+// 20261013 Sawaneh The back link carries accesskey L, so the shell hides it like on every migrated page (breadcrumb instead).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -467,7 +468,7 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <script>document.title = <?= json_encode(mb_convert_encoding(findtekst('5500|Personlige indstillinger', $sprogId), 'UTF-8', $charset)) ?>;</script>
 <div class="ps-page">
-  <a class="ps-back" style="<?= $h($backStyle) ?>" href="<?= $h($backUrl) ?>"><i class='bx bx-arrow-back'></i><?= $t('5647|Tilbage') ?></a>
+  <a class="ps-back" accesskey="l" style="<?= $h($backStyle) ?>" href="<?= $h($backUrl) ?>"><i class='bx bx-arrow-back'></i><?= $t('5647|Tilbage') ?></a>
   <header class="ps-head">
     <div>
       <h1><i class='bx bx-cog'></i><?= $t('5500|Personlige indstillinger') ?></h1>
