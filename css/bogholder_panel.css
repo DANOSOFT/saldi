@@ -125,3 +125,35 @@ html[data-theme="dark"] .vr-app.bp-shell .vr-sw{background:var(--text-4)} html[d
 html[data-theme="dark"] .vr-app.bp-shell .vr-chip2{background:var(--surface);border-color:var(--border);color:var(--text-2)}
 html[data-theme="dark"] .vr-app.bp-shell .vr-b{background:var(--grid)}
 html[data-theme="dark"] .vr-app.bp-shell .vr-toast{background:#e8eefc;color:#0b1a3a}
+
+/* ===== contrast, round 2 (20261013 CL/ASR) – the first light theme was too pale and the dark one too deep, so lines,
+   buttons and secondary text faded out. Tokens are set on both the shell and .vr (which defines its own), and the light
+   set is limited to non-dark so it never wins over the dark one. ===== */
+html:not([data-theme="dark"]) .vr-app.bp-shell,html:not([data-theme="dark"]) .vr-app.bp-shell .vr{
+  --page:#e9eef5;--surface:#ffffff;--surface-2:#f2f5f9;--border:#c9d2df;--grid:#dde3ec;
+  --text:#0b1a3a;--text-2:#45536b;--text-3:#6a778e;--text-4:#9aa6b8;--link:#1760b0;
+  --shadow:0 1px 2px rgba(11,26,58,.08),0 4px 14px rgba(11,26,58,.08)}
+html:not([data-theme="dark"]) .vr-app.bp-shell{--bp-side:#e3e8ef;--bp-side-2:#d6dde7;--bp-side-line:#c6cfdc;--bp-side-ink:#0b1a3a;--bp-side-ink-2:#34425a;--bp-side-ink-3:#5f6c84}
+html:not([data-theme="dark"]) .vr-app.bp-shell .vr-nav.vr-on{box-shadow:0 1px 3px rgba(11,26,58,.12),0 0 0 1px #c6cfdc}
+html:not([data-theme="dark"]) .vr-app.bp-shell .vr-btn{border-color:#bcc6d5}
+html:not([data-theme="dark"]) .vr-app.bp-shell .vr-top{background:rgba(255,255,255,.95);border-bottom-color:var(--border)}
+
+html[data-theme="dark"] .vr-app.bp-shell,html[data-theme="dark"] .vr-app.bp-shell .vr{
+  --page:#18233a;--surface:#212f4c;--surface-2:#2a3a5a;--border:#40537a;--grid:#35476a;
+  --text:#f0f4fb;--text-2:#bcc7db;--text-3:#95a3bd;--text-4:#6c7c99;--link:#6cb2f5;
+  --good:#5ee08f;--bad:#ff8a80;--warn-ink:#f5bf62;--shadow:0 1px 2px rgba(0,0,0,.25),0 6px 18px rgba(0,0,0,.22)}
+html[data-theme="dark"] .vr-app.bp-shell{--bp-side:#1d2943;--bp-side-2:#283757;--bp-side-line:#3a4c70;--bp-side-ink:#f0f4fb;--bp-side-ink-2:#bcc7db;--bp-side-ink-3:#95a3bd}
+html[data-theme="dark"] .vr-app.bp-shell .vr-nav.vr-on{background:#2d3e60;box-shadow:0 0 0 1px #4a5e86}
+html[data-theme="dark"] .vr-app.bp-shell .vr-top{background:rgba(33,47,76,.95)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-btn{border-color:#4d628b}
+
+/* logo: white letters in the dark theme (the mark is the same) */
+.vr-app.bp-shell .vr-logo .vr-logo-dark{display:none}
+html[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-full{display:none}
+html[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-dark{display:block}
+html.vr-collapsed[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-dark{display:none}
+@media (max-width:900px){
+  html.vr-collapsed .vr-app.bp-shell .vr-logo .vr-logo-dark{display:none}
+  html.vr-collapsed[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-full{display:none}
+  html.vr-collapsed[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-dark{display:block}
+}

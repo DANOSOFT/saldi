@@ -17,7 +17,7 @@ function bp_shell_globals() {
 	// 20261013 CL/ASR Own look for the accountant panel, so users can tell it from Saldi itself: light grey sidebar with the
 	//                  Saldi logo in colour (css/bogholder_panel.css, .vr-app.bp-shell). The operator panel keeps its own shell.
 	$GLOBALS['vr_app_class'] = 'bp-shell';
-	$GLOBALS['vr_logo'] = array('../img/saldi_logo_color.png', '../img/saldi_mark_color.png', 'Saldi');
+	$GLOBALS['vr_logo'] = array('../img/saldi_logo_color.png', '../img/saldi_mark_color.png', 'Saldi', '../img/saldi_logo_white.png');
 	// 20261013 CL/ASR Light/dark theme for the panel: the choice is kept per browser (localStorage bpTheme: light|dark), the
 	//                  system preference is the default, and it is applied before the shell paints. The switch sits in the topbar.
 	print "<script>(function(){try{var t=localStorage.getItem('bpTheme');if(t!=='light'&&t!=='dark')t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();function bpTheme(){var d=document.documentElement,t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);try{localStorage.setItem('bpTheme',t);}catch(e){}}</script>";
@@ -51,7 +51,7 @@ function bp_require_partner() {
 function bp_crumb_root() { return array($GLOBALS['vr_panel_label'] ?? bp_t('Bogholderpanel','Accountant panel'), '../admin/bogholder_overblik.php'); }
 function bp_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	vr_open($crumbs, $h1, $lead, $actions, $pill);
-	print "<link rel=\"stylesheet\" href=\"../css/bogholder_panel.css?v=5.1.2\">\n";
+	print "<link rel=\"stylesheet\" href=\"../css/bogholder_panel.css?v=5.1.3\">\n";
 }
 function bp_close() { vr_close(); print "</body></html>"; }
 
