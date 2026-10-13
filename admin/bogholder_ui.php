@@ -17,6 +17,7 @@ function bp_shell_globals() {
 	// 20261013 CL/ASR Own look for the accountant panel, so users can tell it from Saldi itself: light grey sidebar with the
 	//                  Saldi logo in colour (css/bogholder_panel.css, .vr-app.bp-shell). The operator panel keeps its own shell.
 	$GLOBALS['vr_app_class'] = 'bp-shell';
+	$GLOBALS['vr_version_text'] = 'Saldi Bogholderpanel 2.0'; # 20261013 CL/ASR the panel's own version line at the bottom of the sidebar
 	$GLOBALS['vr_help'] = '../admin/bogholder_vejledning.php'; # 20261013 CL/ASR the sidebar guide link opens the panel's own guide
 	$GLOBALS['vr_logo'] = array('../img/saldi_logo_color.png', '../img/saldi_mark_color.png', 'Saldi', '../img/saldi_logo_white.png');
 	// 20261013 CL/ASR Light/dark theme for the panel: the choice is kept per browser (localStorage bpTheme: light|dark), the
