@@ -18,6 +18,10 @@ function bp_shell_globals() {
 	//                  Saldi logo in colour (css/bogholder_panel.css, .vr-app.bp-shell). The operator panel keeps its own shell.
 	$GLOBALS['vr_app_class'] = 'bp-shell';
 	$GLOBALS['vr_logo'] = array('../img/saldi_logo_color.png', '../img/saldi_mark_color.png', 'Saldi');
+	// 20261013 CL/ASR Light/dark theme for the panel: the choice is kept per browser (localStorage bpTheme: light|dark), the
+	//                  system preference is the default, and it is applied before the shell paints. The switch sits in the topbar.
+	print "<script>(function(){try{var t=localStorage.getItem('bpTheme');if(t!=='light'&&t!=='dark')t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();function bpTheme(){var d=document.documentElement,t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);try{localStorage.setItem('bpTheme',t);}catch(e){}}</script>";
+	$GLOBALS['vr_top_extra'] = "<button type=\"button\" class=\"vr-menu-btn bp-theme\" onclick=\"bpTheme()\" title=\"".bp_t('Skift mellem lys og mørk','Switch between light and dark')."\" aria-label=\"".bp_t('Skift mellem lys og mørk','Switch between light and dark')."\"><svg class=\"bp-sun\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/></svg><svg class=\"bp-moon\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z\"/></svg></button>";
 }
 function bp_menu() {
 	$items = array(array(bp_t('Overblik','Overview'), '../admin/bogholder_overblik.php', 'home', true));
@@ -47,7 +51,7 @@ function bp_require_partner() {
 function bp_crumb_root() { return array($GLOBALS['vr_panel_label'] ?? bp_t('Bogholderpanel','Accountant panel'), '../admin/bogholder_overblik.php'); }
 function bp_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	vr_open($crumbs, $h1, $lead, $actions, $pill);
-	print "<link rel=\"stylesheet\" href=\"../css/bogholder_panel.css?v=5.1.1\">\n";
+	print "<link rel=\"stylesheet\" href=\"../css/bogholder_panel.css?v=5.1.2\">\n";
 }
 function bp_close() { vr_close(); print "</body></html>"; }
 

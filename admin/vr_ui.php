@@ -99,7 +99,7 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	foreach ($crumbs as $i => $c) { if ($i) print "<i>/</i>"; if (is_array($c)) print "<a href=\"".vr_h($c[1])."\">".vr_h($c[0])."</a>"; else print "<b>".vr_h($c)."</b>"; }
 	$ini = strtoupper(mb_substr((string)$brugernavn, 0, 2, vr_cs()));
 	$sub = $u['is_operator'] ? vr_t('Saldi · Operatør','Saldi · Operator') : ($u['partner'] ? $u['partner']['name'].' · '.($u['partner']['partner_role'] == 'owner' ? vr_t('Ejer','Owner') : vr_t('Medarbejder','Employee')) : vr_t('Administration','Administration'));
-	print "</nav><div class=\"vr-grow\"></div><div class=\"vr-chip\"><span class=\"vr-av\">".vr_h($ini)."</span><span class=\"vr-who\"><span>".vr_h($brugernavn)."</span><small>".vr_h($sub)."</small></span></div></div>\n";
+	print "</nav><div class=\"vr-grow\"></div>".(isset($GLOBALS['vr_top_extra']) ? $GLOBALS['vr_top_extra'] : "")."<div class=\"vr-chip\"><span class=\"vr-av\">".vr_h($ini)."</span><span class=\"vr-who\"><span>".vr_h($brugernavn)."</span><small>".vr_h($sub)."</small></span></div></div>\n";
 	print "<main class=\"vr\">\n<div class=\"vr-head\">\n<div class=\"vr-title\">\n<h1>".vr_h($h1).($pill ? " <span class=\"vr-pill\">".vr_h($pill)."</span>" : "")."</h1>\n";
 	if ($lead) print "<p class=\"vr-lead\">".$lead."</p>\n";
 	print "</div>\n<div class=\"vr-acts\">$actions</div>\n</div>\n";

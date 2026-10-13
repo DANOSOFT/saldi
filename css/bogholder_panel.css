@@ -102,3 +102,26 @@ html.vr-collapsed .vr-app.bp-shell .vr-logo .vr-logo-mark{height:28px;width:28px
 html[data-theme="dark"] .vr-app.bp-shell{--bp-side:#121c33;--bp-side-2:#1a2745;--bp-side-3:#22304f;--bp-side-ink:#e8eefc;--bp-side-ink-2:#9aa8c2;--bp-side-ink-3:#6f7f9d;--bp-side-line:#26365a}
 html[data-theme="dark"] .vr-app.bp-shell .vr-nav.vr-on{background:#1c2a49;box-shadow:0 0 0 1px var(--bp-side-line)}
 html[data-theme="dark"] .vr-app.bp-shell .vr-top{background:rgba(22,34,61,.9)}
+
+/* ===== dark theme for the whole panel (20261013 CL/ASR). Content tokens (.vr) already have a dark variant in
+   operator_panel.css; this adds the shell tokens, the topbar, dialogs and the panel's own pieces – scoped to .bp-shell. ===== */
+.bp-theme{display:grid;margin:0 2px 0 0} .bp-theme .bp-moon{display:none}
+html[data-theme="dark"] .bp-theme .bp-sun{display:none} html[data-theme="dark"] .bp-theme .bp-moon{display:block}
+html[data-theme="dark"] .vr-app.bp-shell{--page:#0c1529;--surface:#16223d;--surface-2:#1c2a49;--border:#26365a;--grid:#22304f;--text:#e8eefc;--text-2:#9aa8c2;--text-3:#6f7f9d;--text-4:#4b5b7a;--link:#4FA0EE;--good:#4ade80;--bad:#f87171;--warn-ink:#f0b354;--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.28);--scrim:rgba(0,0,0,.5);color-scheme:dark}
+html[data-theme="dark"] .vr-app.bp-shell::before{background:radial-gradient(900px 520px at 78% -8%,rgba(79,160,238,.12),transparent 62%),radial-gradient(760px 520px at 12% 108%,rgba(139,51,212,.14),transparent 60%)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-top{border-bottom-color:var(--border)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-chip{background:var(--surface);border-color:var(--border);color:var(--text)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-menu-btn{color:var(--text-2)} html[data-theme="dark"] .vr-app.bp-shell .vr-menu-btn:hover{background:var(--surface-2);color:var(--text)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-full,html[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-mark{filter:none}
+html[data-theme="dark"] .vr-app.bp-shell .vr-btn{background:var(--surface);border-color:var(--border);color:var(--text)} html[data-theme="dark"] .vr-app.bp-shell .vr-btn:hover{background:var(--surface-2)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-btn.vr-primary{background:var(--vr-user);border-color:var(--vr-user);color:var(--vr-user-text)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-sel,html[data-theme="dark"] .vr-app.bp-shell .vr-inp,html[data-theme="dark"] .vr-app.bp-shell .vr-search,html[data-theme="dark"] .vr-app.bp-shell .vr-t input.vr-e{background:var(--surface);border-color:var(--border);color:var(--text)}
+html[data-theme="dark"] .vr-app.bp-shell .bp-filters{background:var(--surface-2);border-color:var(--border)} html[data-theme="dark"] .vr-app.bp-shell .bp-filters .vr-sel{background:var(--surface)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-note{background:var(--surface);border-color:var(--border);color:var(--text-2)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-dlg,html[data-theme="dark"] .vr-app.bp-shell .vr-tr-pop,html[data-theme="dark"] .vr-app.bp-shell .vr-save>div{background:var(--surface);border-color:var(--border);color:var(--text)}
+html[data-theme="dark"] .vr-app.bp-shell .bp-choice label{background:var(--surface);border-color:var(--border);color:var(--text-2)}
+html[data-theme="dark"] .vr-app.bp-shell .bp-consequence,html[data-theme="dark"] .vr-app.bp-shell details.bp-more>div{background:var(--surface-2)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-sw{background:var(--text-4)} html[data-theme="dark"] .vr-app.bp-shell .vr-sw::after{background:#e8eefc}
+html[data-theme="dark"] .vr-app.bp-shell .vr-chip2{background:var(--surface);border-color:var(--border);color:var(--text-2)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-b{background:var(--grid)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-toast{background:#e8eefc;color:#0b1a3a}
