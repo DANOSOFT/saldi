@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrders.php --- lap 4.1.0 --- 2024.06.26 ---
+// --- kreditor/orderIncludes/selectOrder.php --- ver 5.0.0 --- 2026.10.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240626 PHR Added 'fiscal_year' in queries
+// 20261013 MJ On a purchase order the delivery-date field is labelled Forventet lev. dato
+//              (text 5439) instead of sharing text 886 with sales orders, where it keeps
+//              reading Dato for levering.
 
 print "<table cellpadding='1' cellspacing='0' bordercolor='#ffffff' border='1' valign = 'top' width = '100'><tbody>";
 print "<tr><td width=33%><table cellpadding='0' cellspacing='0' border='0' width='100'>";
@@ -64,7 +67,7 @@ print "<td>".findtekst(770,$sprog_id)."</td><td><input class='inputbox' type='te
 print "onchange='javascript:docChange = true;'>%</td></tr>\n";
 print "<tr><td>".findtekst(881,$sprog_id)."</td><td><input class='inputbox' type='text' style='text-align:right;width:110px;' name='ordredato' value='$ordredato' ";
 print "onchange='javascript:docChange = true;'></td>";
-print "<td>".findtekst(886,$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
+print "<td>".findtekst('5439|Forventet lev. dato',$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
 print "onchange='javascript:docChange = true;'></td></tr>\n";
 $list=array();
 $beskriv=array();

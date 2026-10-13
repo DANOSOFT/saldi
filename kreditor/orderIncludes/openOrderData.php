@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- patch 5.0.0 --- 2026-09-24 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.0.0 --- 2026-10-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,9 @@
 // 20260924 CL/SZ Left-join grupper instead of inner-joining it (CodeRabbit, PR #608): an item
 //                 with has_due_date=TRUE but no current-year VG group row was still being
 //                 dropped by the join before the has_due_date check ran.
+// 20261013 MJ On a purchase order the delivery-date field is labelled Forventet lev. dato
+//              (text 5439) instead of sharing text 886 with sales orders, where it keeps
+//              reading Dato for levering.
 
 /*
 $attachId    = null;
@@ -106,7 +109,7 @@ print "<td>".findtekst(770,$sprog_id)."</td><td><input class='inputbox' type='te
 print "onchange='javascript:docChange = true;'>%</td></tr>\n";
 print "<tr><td>".findtekst(881,$sprog_id)."</td><td><input class='inputbox' type='text' style='text-align:right;width:110px;' name='ordredato' value='$ordredato' ";
 print "onchange='javascript:docChange = true;'></td>";
-print "<td>".findtekst(886,$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
+print "<td>".findtekst('5439|Forventet lev. dato',$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
 print "onchange='javascript:docChange = true;'></td></tr>\n";
 $list=array();
 $beskriv=array();
