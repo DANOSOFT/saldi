@@ -1,9 +1,13 @@
 <?php
+// 20261012 CL/LH Add ledger/payment facts without changing paid; batch list hydration.
+
+require_once __DIR__ . '/../../core/InvoicePaymentReadContext.php';
 
 class OrderModel
 {
     // Properties to match database columns
     private $id;
+    private $payment = null;
     private $konto_id;
     private $firmanavn;
     private $telefon;
@@ -59,6 +63,8 @@ class OrderModel
      */
     private function loadFromId($id, $art)
     {
+        $id = (int)$id;
+        $art = db_escape_string((string)$art);
         $qtxt = "SELECT * FROM ordrer WHERE id = $id AND art = '$art'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -99,6 +105,7 @@ class OrderModel
             $this->valutakurs = (float)$r['valutakurs'];
             $this->fakturadate = $r['fakturadate'];
             $this->fakturanr = $r['fakturanr'];
+            $this->payment = $art === 'DO' ? InvoicePaymentReadContext::invoice($this->id) : null;
 
             return true;
         }
@@ -227,12 +234,17 @@ class OrderModel
         $qtxt = "SELECT id FROM ordrer $whereClause ORDER BY $orderBy $orderDirection LIMIT $limit";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
-        $items = [];
+        $ids = [];
         if ($q && db_num_rows($q) > 0) {
             while ($r = db_fetch_array($q)) {
-                // Pass the art parameter to the constructor
-                $items[] = new OrderModel($r['id'], $art);
+                $ids[] = (int)$r['id'];
             }
+        }
+        // 20261012 CL/LH One payment batch serves the entire order page.
+        if ($art === 'DO') InvoicePaymentReadContext::prepareInvoices($ids);
+        $items = [];
+        foreach ($ids as $id) {
+            $items[] = new OrderModel($id, $art);
         }
 
         return $items;
@@ -324,6 +336,7 @@ class OrderModel
             'invoiceDate' => $this->fakturadate,
             'notes' => $this->notes,
             'paid' => $this->betalt,
+            'payment' => $this->payment,
             'paymentInfo' => array(
                 'paymentTerms' => $this->betalingsbet,
                 'paymentDays' => $this->betalingsdage

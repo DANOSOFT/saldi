@@ -21,6 +21,9 @@
     <testsuite name="includes">
       <directory suffix=".test.php">tests/includes</directory>
     </testsuite>
+    <testsuite name="stripe">
+      <directory suffix="Test.php">tests/stripe</directory>
+    </testsuite>
     <testsuite name="restapi">
       <directory suffix="Test.php">tests/restapi</directory>
     </testsuite>

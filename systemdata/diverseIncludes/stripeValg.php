@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/stripeValg.php --- 2026.08.07
+// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: Stripe-abonnement settings sektion (stripe_valg).
 //                Exactly eight settings rows, var_grp='stripe' - the contract in
@@ -29,11 +29,17 @@
 //                Secrets are write-only: never rendered back into the HTML;
 //                a blank secret field means "unchanged". Invalid values are
 //                rejected with an alert, never silently sanitized.
+// 20261007 CL/LH Fakturabetaling (api/stripe/faktura.php): publishable_key,
+//                invoice_pay_enabled, autopay_enabled, posting_enabled and
+//                clearing_account. Doc: doc/stripe/INVOICE_PAYMENT.md.
+// 20261012 CL/LH Disable invoice collection switches on unsupported database drivers.
+// 20261012 CL/LH Short help for publishable key, autopay and posting; read-only consent text version.
 
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeSettings.php');
+include_once(__DIR__ . '/../../includes/stripeIncludes/InvoicePaymentConsent.php');
 
 function stripeValgSave() {
-	global $csrf_token;
+	global $csrf_token, $db_type;
 
 	$posted_token = if_isset($_POST['csrf_token']);
 	if (!$posted_token || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $posted_token)) {
@@ -111,6 +117,35 @@ function stripeValgSave() {
 		$fejl[] = 'Bogholder-email afvist: ugyldig adresse (feltet er IKKE gemt)';
 	}
 
+	# Fakturabetaling. publishable_key is public by design (it is sent to the
+	# browser), so it is rendered back; it must match the mode.
+	$pk = trim((string)if_isset($_POST['stripe_publishable_key'], ''));
+	$pk_mode = ($mode == 'test' || $mode == 'live') ? $mode : stripe_setting('mode');
+	if ($pk === '' || preg_match('/^pk_' . preg_quote((string)$pk_mode, '/') . '_[A-Za-z0-9]+$/', $pk)) {
+		update_settings_value('publishable_key', 'stripe', db_escape_string($pk), 'Stripe publishable key (pk_...) til fakturabetaling');
+	} else {
+		$fejl[] = "Publishable key afvist: forventet pk_{$pk_mode}_... (feltet er IKKE gemt)";
+	}
+	// 20261012 CL/LH Unsupported drivers cannot advertise or enable invoice collection.
+	$invoice_supported = !in_array($db_type, ['mysql', 'mysqli'], true);
+	update_settings_value('invoice_pay_enabled', 'stripe', $invoice_supported && !empty($_POST['stripe_invoice_pay_enabled']) ? 'on' : 'off', 'Fakturabetaling med kort aktiv (til/fra)');
+	update_settings_value('autopay_enabled', 'stripe', $invoice_supported && !empty($_POST['stripe_autopay_enabled']) ? 'on' : 'off', 'Automatisk træk af gemte kort på forfaldsdato (til/fra)');
+	# posting_enabled needs a usable clearing account; the ledger re-checks
+	# per year and alerts the bookkeeper instead of posting when it is wrong.
+	$clearing = trim((string)if_isset($_POST['stripe_clearing_account'], ''));
+	if ($clearing === '' || (preg_match('/^\d+$/', $clearing) && db_fetch_array(db_select("select id from kontoplan where kontonr = '" . db_escape_string($clearing) . "' and kontotype in ('D','S') and coalesce(lukket,'') = '' limit 1", __FILE__ . " linje " . __LINE__)))) {
+		update_settings_value('clearing_account', 'stripe', db_escape_string($clearing), 'Stripe mellemregningskonto for kortbetalinger');
+	} else {
+		$fejl[] = 'Mellemregningskonto afvist: skal være en åben drifts- eller statuskonto i kontoplanen (feltet er IKKE gemt)';
+		$clearing = stripe_setting('clearing_account');
+	}
+	$posting = $invoice_supported && !empty($_POST['stripe_posting_enabled']) ? 'on' : 'off';
+	if ($posting === 'on' && $clearing === '') {
+		$fejl[] = 'Automatisk bogføring kræver en mellemregningskonto - slået fra';
+		$posting = 'off';
+	}
+	update_settings_value('posting_enabled', 'stripe', $posting, 'Bogfør kortbetalinger automatisk (til/fra)');
+
 	stripe_settings_flush();
 	if ($fejl) {
 		print "<script>alert('" . htmlspecialchars(implode('\n', $fejl), ENT_QUOTES, 'UTF-8') . "');</script>";
@@ -118,7 +153,7 @@ function stripeValgSave() {
 }
 
 function stripeValg() {
-	global $bgcolor, $sprog_id, $csrf_token, $buttonStyle;
+	global $bgcolor, $sprog_id, $csrf_token, $buttonStyle, $db_type;
 
 	$mode        = stripe_setting('mode');
 	$has_secret  = stripe_setting('secret_key') ? true : false;
@@ -128,6 +163,9 @@ function stripeValg() {
 	$base_url    = htmlspecialchars(stripe_setting('public_base_url'), ENT_QUOTES, 'UTF-8');
 	$bookkeeper  = htmlspecialchars(stripe_setting('bookkeeper_email'), ENT_QUOTES, 'UTF-8');
 	$target_db   = htmlspecialchars(stripeConfigDb(), ENT_QUOTES, 'UTF-8');
+	$pk          = htmlspecialchars(stripe_setting('publishable_key'), ENT_QUOTES, 'UTF-8');
+	$clearing    = htmlspecialchars(stripe_setting('clearing_account'), ENT_QUOTES, 'UTF-8');
+	$invoice_disabled = in_array($db_type, ['mysql', 'mysqli'], true) ? ' disabled' : '';
 
 	print "<form name=diverse action=diverse.php?sektion=stripe_valg method=post autocomplete=off>";
 	print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') . "'>";
@@ -172,6 +210,28 @@ function stripeValg() {
 	}
 
 	print "<tr><td><br></td></tr>";
+	print "<tr><td colspan='4'><b>Fakturabetaling med kort</b></td></tr>";
+	if ($invoice_disabled !== '') print "<tr><td colspan='4'>Kortbetaling af fakturaer kræver PostgreSQL og er ikke tilgængelig i dette regnskab.</td></tr>";
+	print "<tr><td title='Med flueben virker \$fakturalink i fakturamailens tekst: knappen Se faktura og betal fører til en side hvor kunden kan betale fakturaen med kort og gemme kortet til fremtidige fakturaer.'>Aktiv:</td>";
+	print "<td colspan='3'><input type='checkbox' name='stripe_invoice_pay_enabled' value='1'" . (stripe_setting('invoice_pay_enabled', 'off') == 'on' && $invoice_disabled === '' ? " checked" : "") . $invoice_disabled . "></td></tr>";
+	// 20261012 CL/LH Visible one-line help next to the three invoice-payment settings.
+	$help = "<span style='color:#666;font-size:90%'> ";
+	print "<tr><td title='Stripe publishable key (pk_test_... eller pk_live_...) - samme mode som secret key. Den er offentlig og sendes til kundens browser.'>Publishable key:</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_publishable_key' value='$pk' placeholder='pk_test_...'>"
+		. $help . "Offentlig nøgle fra Stripe. Skal passe til mode. Uden den vises kun bankoverførsel.</span></td></tr>";
+	print "<tr><td title='Træk fakturaer automatisk på forfaldsdatoen fra kunder der har gemt et kort. Kræver at tools/stripe_invoice_autopay.php kører fra cron.'>Automatisk betaling:</td>";
+	print "<td colspan='3'><input type='checkbox' name='stripe_autopay_enabled' value='1'" . (stripe_setting('autopay_enabled', 'off') == 'on' && $invoice_disabled === '' ? " checked" : "") . $invoice_disabled . ">"
+		. $help . "Trækker gemte kort på forfaldsdatoen. Uden flueben kan kunden ikke vælge automatisk betaling, og ingen kort trækkes.</span></td></tr>";
+	$consent_state = \Saldi\Stripe\InvoicePaymentConsent::APPROVED ? 'godkendt' : 'udkast, ikke godkendt endnu';
+	print "<tr><td title='Versionen af den tekst kunden accepterer ved Betal fremtidige fakturaer automatisk. Den gemmes sammen med kortet. Teksten ændres i koden, ikke her.'>Samtykketekst:</td>";
+	print "<td colspan='3'>" . htmlspecialchars(\Saldi\Stripe\InvoicePaymentConsent::VERSION . ' (' . $consent_state . ')', ENT_QUOTES, 'UTF-8') . "</td></tr>";
+	print "<tr><td title='Kontonummer i kontoplanen som kortbetalinger bogføres på, indtil Stripe udbetaler til banken.'>Mellemregningskonto:</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:100px;' name='stripe_clearing_account' value='$clearing'></td></tr>";
+	print "<tr><td title='Uden flueben får bogholderen en mail ved hver betaling og bogfører selv. Med flueben bogføres betalingen automatisk (debitor mod mellemregningskonto) og fakturaen udlignes.'>Bogfør automatisk:</td>";
+	print "<td colspan='3'><input type='checkbox' name='stripe_posting_enabled' value='1'" . (stripe_setting('posting_enabled', 'off') == 'on' && $invoice_disabled === '' ? " checked" : "") . $invoice_disabled . ">"
+		. $help . "Bogfører kortbetalinger på mellemregningskontoen og udligner fakturaen. Uden flueben får bogholderen en mail og bogfører selv. Bogfører aldrig i test mode.</span></td></tr>";
+
+	print "<tr><td><br></td></tr>";
 	print "<tr><td colspan='4'><input type='submit' value='" . findtekst('471|Gem/opdatér', $sprog_id) . "'></td></tr>";
 	print "</form>";
 
@@ -179,6 +239,7 @@ function stripeValg() {
 	# scriptet admin/stripe_setup.php; en redigerbar grid-side kommer separat).
 	# Tabellen oprettes først ved regnskabs-login (betweenUpdates) - guard, saa
 	# siden ikke doer paa en frisk deploy hvor login endnu ikke er sket.
+	if ($invoice_disabled !== '') return;
 	$cat_tbl = db_fetch_array(db_select("select to_regclass('stripe_catalog') as t", __FILE__ . " linje " . __LINE__));
 	if (!$cat_tbl || empty($cat_tbl['t'])) {
 		print "<tr><td colspan='6'><hr></td></tr>";

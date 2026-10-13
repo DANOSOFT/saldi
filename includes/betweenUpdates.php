@@ -85,13 +85,20 @@
 //                  re-seeds the corrected csv text on the next call.
 // 20261007 CL/NTR Add ordrer.shop_status as varchar(20) when the column is missing entirely,
 //                  so the Stripe paid-invoice index no longer fails on those tenants.
+// 20261007 CL/LH Stripe invoice payment tables (stripe_invoice_*), PostgreSQL only.
 // 20261012 CL/LH Add the stripe_events lease columns (claim_token, claimed_at, attempts, event_created)
 //                  ahead of the invoice-payment webhook, which needs them from its first request.
+// 20261012 CL/LH Make complete invoice-schema provisioning non-fatal at tenant login.
+// 20261012 CL/LH Check the newest notification table before the full autopay schema assertion.
 // 20261013 CL/LH stripe_events columns: schema-scoped check, concurrent-login safe (CodeRabbit on #795).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
  * @var string $db_type
+ * @var string $db
+ * @var string $sqhost
+ * @var string $squser
+ * @var string $sqpass
  */
 
 // ===== PROTECTED: when a version is cut (see doc/ai/convention_database_changes.md), COPY this =====
@@ -593,6 +600,18 @@ if ($stripeEventMissing) {
 		}
 	}
 }
+// 20261012 CL/LH Separate tenant connection for the non-fatal invoice-schema provisioning below.
+//                  The stripe_events lease columns come from the block above, which ships first.
+$stripeSchemaStore = null;
+if (!in_array($db_type, ['mysql', 'mysqli'], true)) {
+	include_once(__DIR__ . '/stripeIncludes/InvoicePaymentStore.php');
+	include_once(__DIR__ . '/stripeIncludes/InvoicePaymentSchema.php');
+	try {
+		$stripeSchemaStore = new \Saldi\Stripe\InvoicePaymentStore(new PDO('pgsql:host=' . $sqhost . ';dbname=' . $db, $squser, $sqpass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]));
+	} catch (Throwable $e) {
+		error_log('Stripe-fakturabetaling kunne ikke klargøres i ' . $db . ': ' . $e->getMessage());
+	}
+}
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "CREATE TABLE stripe_customers (
@@ -645,6 +664,18 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='stripe_fravalg'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE adresser ADD stripe_fravalg varchar(2)", __FILE__ . " linje " . __LINE__);
+}
+// 20261012 CL/LH Verify all objects, so a missing table/index is repaired even when audit exists.
+// The invoice tables have never shipped; their CREATE definitions are the schema truth.
+// PDO failures are logged and collection fails closed, without terminating an ordinary login.
+if ($stripeSchemaStore !== null) {
+	try {
+		// 20261012 CL/LH Earlier invoice schemas have no outbox; provision it at the next login.
+		$stripeSchemaStore->query('SELECT id FROM stripe_invoice_notifications LIMIT 0');
+		\Saldi\Stripe\InvoicePaymentSchema::assertProvisioned($stripeSchemaStore);
+	} catch (Throwable $e) {
+		\Saldi\Stripe\InvoicePaymentSchema::provision($stripeSchemaStore);
+	}
 }
 
 

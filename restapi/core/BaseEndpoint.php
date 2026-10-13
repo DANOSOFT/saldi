@@ -1,4 +1,5 @@
 <?php
+// 20261012 CL/LH Configure read-only payment hydration from the authenticated REST tenant.
 
 include_once __DIR__ . "/../../includes/db_query.php";
 include_once __DIR__ . "/../../includes/connect.php";
@@ -9,6 +10,7 @@ include_once __DIR__ . "/cors.php";
 require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/JWT.php';
 require_once __DIR__ . '/JWTAuth.php';
+require_once __DIR__ . '/InvoicePaymentReadContext.php';
 
 // JWT signing secret (SD-587, self-provisioning added SD-634): install-specific,
 // >=256 bits, stored outside the repo at restapi/.ht_jwt_secret.bin (git-ignored,
@@ -233,6 +235,8 @@ abstract class BaseEndpoint
 
     protected function checkAuthorization()
     {
+        // 20261012 CL/LH No payment context survives a failed or changed authentication.
+        InvoicePaymentReadContext::configure(null);
         // Retrieve all headers
         $headers = getallheaders();
 
@@ -260,13 +264,23 @@ abstract class BaseEndpoint
             }
             
             // Connect to the selected account database
-            global $sqhost, $squser, $sqpass;
+            // Connection configuration comes from includes/connect.php above.
+            global $sqhost, $squser, $sqpass, $db_type;
             $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
             if (!$conn) {
                 $this->sendResponse(false, null, 'Database connection failed', 500);
                 return false;
             }
             
+            // 20261012 CL/LH REST reads need no Stripe pin file or runtime credentials.
+            if (!in_array($db_type ?? '', ['mysql', 'mysqli'], true)) {
+                $tenant = $this->db;
+                InvoicePaymentReadContext::configure(static function () use ($sqhost, $squser, $sqpass, $tenant): PDO {
+                    return new PDO('pgsql:host=' . $sqhost . ';dbname=' . $tenant, $squser, $sqpass,
+                        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                });
+            }
+
             write_log("JWT auth successful for user: {$this->username}, db: {$this->db}", $this->db, 'INFO');
             return true;
         }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/subscriptionLink.php --- 2026.08.17
+// --- includes/formFuncIncludes/subscriptionLink.php --- 2026.10.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260817 CL/LH Created: $abonnementslink helper for the invoice mailers.
 //                Derives the signed Stripe subscription URL from THIS order
@@ -34,6 +34,7 @@
 // 20260818 CL/LH Guarded subscription links when stripe_catalog is unavailable.
 // 20260820 CL/LH Added subscriptionLinkHtml(): shared email-safe CTA block for
 //                the HTML invoice mailers (sendMail.php/oldSendMail.php).
+// 20261012 CL/LH Suppress subscription CTA while invoice payment is enabled.
 
 include_once(__DIR__ . '/../stripeIncludes/stripeSettings.php');
 include_once(__DIR__ . '/../stripeIncludes/stripeLink.php');
@@ -49,6 +50,8 @@ if (!function_exists('subscriptionLinkUrl')) {
 		// tenant may mint.
 		$target = stripeConfigDb();
 		if (!$target || !isset($db) || $db !== $target) return '';
+		// 20261012 CL/LH Invoice-first mails must never advertise a second collection CTA.
+		if (stripe_setting('invoice_pay_enabled', 'off') === 'on') return '';
 		if (stripe_setting('enabled', 'off') !== 'on') return '';
 		$mode = stripe_setting('mode');
 		if ($mode !== 'test' && $mode !== 'live') return '';

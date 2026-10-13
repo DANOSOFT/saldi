@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20250911 LOE Create a contact employee if none exists for erhverv accounts 
@@ -113,21 +113,56 @@
 // 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
 // 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
 // 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
+// 20261007 CL/LH Stripe invoice payment: shows the debtor's saved card (Stripe tenant only)
+//                  and a "Fjern kort" checkbox that stops automatic payment on save.
+// 20261012 CL/LH Add an authenticated, CSRF-checked hold release action with Post/Redirect/Get.
+// 20261012 CL/LH Anchor invoice-payment includes to __DIR__ and repair the invoice history entry placement.
+// 20261012 CL/LH Saved card row shows the effective autopay state, consent date and terms version.
+// 20261012 CL/LH Protect card removal and hold release with session CSRF and explicit write permission before address saves.
+
+/**
+ * Injected by includes/online.php below.
+ * @var string $rettigheder
+ * @var string $brugernavn
+ */
+// 20261012 CL/LH Buffer legacy output until the dedicated hold controller has redirected.
+ob_start();
 @session_start();
 $s_id = session_id();
 
 $fokus = $katString = NULL;
 $konto_id = $lukket = $ordre_id = $productlimit = $status = $status_antal = 0;
 $cat_id = $kategori = array();
-print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
 
 $modulnr = 6;
 $title = "Debitorkort";
 $css = "../css/standard.css";
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/online.php");
+include(__DIR__ . "/../includes/std_func.php");
+// 20261012 CL/LH Payment POSTs redirect before the legacy address save branch or rendering.
+require_once __DIR__ . '/../includes/stripeIncludes/invoicePaymentStaffActions.php';
+$stripeHoldRequest = $_POST;
+$stripeHoldKonto = (int)($_GET['id'] ?? $_GET['konto_id'] ?? $stripeHoldRequest['id'] ?? 0);
+$stripeStaffWrite = stripe_invoice_staff_can_write((string)($rettigheder ?? ''));
+if (empty($_SESSION['stripe_hold_csrf'])) $_SESSION['stripe_hold_csrf'] = bin2hex(random_bytes(32));
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (isset($stripeHoldRequest['stripe_release_hold']) || isset($stripeHoldRequest['stripe_fjern_kort']))) {
+	try {
+		$_SESSION['stripe_hold_notice'] = stripe_invoice_staff_payment_request($stripeHoldRequest, $stripeHoldKonto,
+			'Saldi: ' . $brugernavn, $_SESSION['stripe_hold_csrf'], (string)($rettigheder ?? ''), static function () {
+				include_once __DIR__ . '/../includes/stripeIncludes/invoicePaymentRuntime.php';
+				return stripe_invoice_payment_service();
+			});
+	} catch (Throwable $e) {
+		$_SESSION['stripe_hold_notice'] = 'Handlingen kunne ikke udføres: ' . $e->getMessage();
+	}
+	ob_end_clean();
+	header('Location: debitorkort.php?id=' . $stripeHoldKonto);
+	exit;
+}
+
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
@@ -1448,6 +1483,12 @@ function validateDebitorkort(form) {
 }
 </script>\n";
 
+// 20261012 CL/LH Separate form avoids saving address changes or nesting a form in debitorkort.
+if ((int)$id > 0 && $stripeStaffWrite) {
+	print "<form id=stripe_hold_release action='debitorkort.php?id=" . (int)$id . "' method=post>"
+		. "<input type=hidden name=stripe_hold_csrf value='" . htmlspecialchars($_SESSION['stripe_hold_csrf'], ENT_QUOTES, 'UTF-8') . "'></form>";
+}
+
 print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
@@ -1957,7 +1998,34 @@ if ($new_status) {
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
-print "<tr bgcolor=$bg><td title=\"Tilbyd aldrig kortbetaling til denne debitor: abonnementslinket i fakturamails bliver tomt, og allerede udsendte links parkerer venligt. Stopper IKKE et abonnement der allerede er aktivt.\">Ingen kortbetaling</td><td><input class='inputbox' type=checkbox name=stripe_fravalg $stripe_fravalg></td></tr>\n";
+print "<tr bgcolor=$bg><td title=\"Tilbyd aldrig kortbetaling til denne debitor: betalings- og abonnementslinket i fakturamails bliver tomt, allerede udsendte links parkerer venligt, og et gemt kort trækkes ikke automatisk. Stopper IKKE et abonnement der allerede er aktivt.\">Ingen kortbetaling</td><td><input class='inputbox' type=checkbox name=stripe_fravalg $stripe_fravalg></td></tr>\n";
+if ($id) {
+	include_once(__DIR__ . "/../includes/stripeIncludes/invoicePaymentRuntime.php");
+	if (isset($_SESSION['stripe_hold_notice'])) {
+		print "<tr><td colspan=2>" . htmlspecialchars($_SESSION['stripe_hold_notice'], ENT_QUOTES, 'UTF-8') . "</td></tr>";
+		unset($_SESSION['stripe_hold_notice']);
+	}
+	$stripeHolds = stripe_invoice_staff_holds((int)$id);
+	if ($stripeHolds) {
+		foreach ($stripeHolds as $stripeHold) {
+			$stripeHoldText = 'Faktura ' . $stripeHold['fakturanr'] . ' - ' . ($stripeHold['hold_reason'] === 'refund' ? 'refusion' : 'indsigelse');
+			print "<tr bgcolor=$bg><td>Opkrævning på hold</td><td>" . htmlspecialchars($stripeHoldText, ENT_QUOTES, 'UTF-8')
+				. ($stripeStaffWrite ? " <button type=submit form=stripe_hold_release name=stripe_release_hold value='" . (int)$stripeHold['id'] . "' formnovalidate>Frigiv opkrævning</button>" : '') . "</td></tr>";
+		}
+	}
+	if ($stripeCard = stripe_invoice_staff_card((int)$id)) {
+		// 20261012 CL/LH Effective state: say "aktiv" only when the worker would charge the card (AP-21).
+		$stripeReasonTexts = ['pbs' => 'debitoren betaler via Betalingsservice', 'subscription' => 'debitoren har et aktivt Stripe-abonnement', 'optout' => 'kortbetaling er fravalgt',
+			'disabled' => 'fakturabetaling med kort er slået fra', 'autopay_disabled' => 'automatisk betaling er slået fra i indstillingerne', 'no_card' => 'intet aktivt samtykke', 'card_broken' => 'kortet er afvist', 'card_revoked' => 'kortet er fjernet'];
+		$stripeReasons = $stripeCard['autopay_reasons'] ?? [];
+		$stripeCardText = ucfirst($stripeCard['brand']) . ' **** ' . $stripeCard['last4'] . ' (' . sprintf('%02d/%02d', (int)$stripeCard['exp_month'], (int)$stripeCard['exp_year'] % 100) . ')'
+			. ($stripeReasons ? ' - trækkes ikke: ' . ($stripeReasonTexts[$stripeReasons[0]] ?? $stripeReasons[0]) : ' - automatisk betaling aktiv')
+			. ($stripeCard['consent_at'] ? ' - samtykke ' . date('d-m-Y', (int)$stripeCard['consent_at']) . ($stripeCard['terms_version'] ? ' (' . $stripeCard['terms_version'] . ')' : '') : '');
+		print "<tr bgcolor=$bg><td title=\"Kunden har gemt kortet ved betaling af en faktura. Når automatisk betaling er aktiv, trækkes fakturaer med fakturadato fra samtykkedatoen på forfaldsdatoen. Fjern kort for at stoppe automatisk betaling og slette kortet hos Stripe.\">Gemt kort</td><td>"
+			. htmlspecialchars($stripeCardText, ENT_QUOTES, 'UTF-8')
+			. ($stripeStaffWrite ? " <button type=submit form=stripe_hold_release name=stripe_fjern_kort value=1 formnovalidate>Fjern kort</button>" : '') . "</td></tr>\n";
+	}
+}
 if ($packagingModuleEnabled) {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	$eu = isset($enduser_type) ? $enduser_type : '';

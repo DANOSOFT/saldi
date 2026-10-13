@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------/admin/opret.php-----patch 5.0.0 ----2026-09-18--------------
+// ------------/admin/opret.php-----ver 5.0.0 ----2026-10-12--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,7 +113,9 @@
 // 20260918 CDX/PHR Add ordrer.performed_by when creating a new account.
 // 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
 //                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
+// 20261007 CL/LH Create the stripe_invoice_* tables (Stripe invoice payment) on PostgreSQL.
 // 20261012 CL/LH stripe_events gets the webhook lease columns (claim_token, claimed_at, attempts, event_created).
+// 20261012 CL/LH Use shared non-fatal invoice-schema provisioning.
 
 @session_start();
 $s_id=session_id();
@@ -680,6 +682,18 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "reason varchar(50), http_code integer, message text, payload_json text, ";
 	$qtxt.= "created_at timestamp DEFAULT CURRENT_TIMESTAMP, resolved_at timestamp, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	// 20261012 CL/LH Same non-fatal, serialized provisioning as the tenant login migration.
+	if ($db_type != "mysql" && $db_type != "mysqli") {
+		include_once(__DIR__ . '/../includes/stripeIncludes/InvoicePaymentStore.php');
+		include_once(__DIR__ . '/../includes/stripeIncludes/InvoicePaymentSchema.php');
+		try {
+			$stripeSchemaStore = new \Saldi\Stripe\InvoicePaymentStore(new PDO('pgsql:host=' . $sqhost . ';dbname=' . $db, $squser, $sqpass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]));
+			\Saldi\Stripe\InvoicePaymentSchema::provision($stripeSchemaStore);
+		} catch (Throwable $e) {
+			error_log('Stripe-fakturabetaling kunne ikke klargøres i ' . $db . ': ' . $e->getMessage());
+		}
+	}
 
 	db_modify("CREATE TABLE notifications ($id_column, msg varchar(255), read_status integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 
