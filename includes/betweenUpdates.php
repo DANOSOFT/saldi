@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -91,6 +91,7 @@
 //                  so the Stripe paid-invoice index no longer fails on those tenants.
 // 20261007 CL/SZ SST-808: a login that finds the index lock taken skips the build instead of waiting for it.
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
+// 20261013 CL/SZ SST-808 (CodeRabbit): skip the auto-udlign index block on MySQL tenants.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -353,26 +354,31 @@ db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx')
 # 20261007 CL/SZ SST-808: a second login that arrives during the build no longer waits for the advisory lock.
 #                Waiting deadlocked with CREATE INDEX CONCURRENTLY (it waits for that login's open snapshot): PostgreSQL
 #                aborted the build, the login got the error page and the index was left INVALID. It now skips instead.
-$sst808Indexes = array(
-	'ordrer_konto_id_fakturanr_idx' => "ON ordrer (konto_id, fakturanr)",
-	'openpost_open_idx'             => "ON openpost (konto_id) WHERE udlignet != '1' OR udlignet IS NULL",
-);
-foreach ($sst808Indexes as $indexName => $indexDefinition) {
-	// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
-	$lock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$indexName')) AS locked", __FILE__ . " linje " . __LINE__));
-	if (!$lock || $lock['locked'] !== 't') continue;
-	$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
-	$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
-	$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
-	$qtxt.= " WHERE pg_class.relname = '$indexName' AND pg_namespace.nspname = current_schema()";
-	$existingIndex = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if ($existingIndex && $existingIndex['indisvalid'] !== 't') {
-		db_modify("DROP INDEX CONCURRENTLY $indexName", __FILE__ . " linje " . __LINE__);
+# 20261013 CL/SZ SST-808 (CodeRabbit): advisory locks, pg_index and CONCURRENTLY are PostgreSQL-only, and a
+#                failed db_select() exits, so a MySQL tenant skips this block instead of failing its login.
+$sst808Mysql = in_array($db_type, ['mysql', 'mysqli'], true);
+if (!$sst808Mysql) {
+	$sst808Indexes = array(
+		'ordrer_konto_id_fakturanr_idx' => "ON ordrer (konto_id, fakturanr)",
+		'openpost_open_idx'             => "ON openpost (konto_id) WHERE udlignet != '1' OR udlignet IS NULL",
+	);
+	foreach ($sst808Indexes as $indexName => $indexDefinition) {
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$lock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$indexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$lock || $lock['locked'] !== 't') continue;
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$indexName' AND pg_namespace.nspname = current_schema()";
+		$existingIndex = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($existingIndex && $existingIndex['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $indexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$existingIndex || $existingIndex['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $indexName $indexDefinition", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
 	}
-	if (!$existingIndex || $existingIndex['indisvalid'] !== 't') {
-		db_modify("CREATE INDEX CONCURRENTLY $indexName $indexDefinition", __FILE__ . " linje " . __LINE__);
-	}
-	db_select("SELECT pg_advisory_unlock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
 }
 
 #####
