@@ -74,6 +74,7 @@
 // 20261009 Sawaneh Sidebar open/closed is a personal setting rendered server-side (was the isSidebarOpen cookie, 4e).
 // 20261012 Sawaneh Adam: the sidebar state is per device again (settings spec §7.4 (5), topbar spec §4.6): the isSidebarOpen
 //                  cookie, read server-side so the first paint is right.
+// 20261013 Sawaneh Test pass: without Se Oversigt the chip menu shows no dashboard items and the greeting bar stays off.
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 // 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
 // 20261009 Sawaneh css/saldi-fonts.css in the shell: Saldi Grotesk + Inter and the text-size base (front-page addendum 3 §3).
@@ -955,7 +956,7 @@ function brightenColor($color, $amount = 0.2) {
     topbarHelloTimer = setInterval(upd, 30000);
   }
   function topbarSetDashState(path) {
-    const onDash = /\/index\/dashboard\.php$/.test(path || '');
+    const onDash = /\/index\/dashboard\.php$/.test(path || '') && <?= $dashView ? 'true' : 'false' ?>;
     document.querySelectorAll('.topbar-dash').forEach((el) => { el.hidden = !onDash; });
     document.documentElement.classList.toggle('topbar-tall', onDash);
     topbarHello(onDash);
