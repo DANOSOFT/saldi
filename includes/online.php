@@ -441,7 +441,7 @@ if ($header != 'nix') {
 	// print '<meta name="google" content="notranslate">';
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
-	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldi-fonts.css?v=1\">\n"; // 20261009 Sawaneh fonts + text size on every page
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldi-fonts.css?v=2\">\n"; // 20261009 Sawaneh fonts + text size on every page
 	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
 	else      print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldimenu.css\"/>\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saft.css\"/>\n";

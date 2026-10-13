@@ -215,7 +215,7 @@ function brightenColor($color, $amount = 0.2) {
 <title>Sidebar</title>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <link rel="icon" href="../img/saldiLogo.png">
-<link href='../css/saldi-fonts.css?v=1' rel='stylesheet'>
+<link href='../css/saldi-fonts.css?v=2' rel='stylesheet'>
 <link href='../css/sidebar_style.css?v=25' rel='stylesheet'>
 <link href='../css/topbar.css?v=20' rel='stylesheet'>
 <link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
