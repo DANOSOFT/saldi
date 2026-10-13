@@ -157,3 +157,25 @@ html.vr-collapsed[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-dark{dis
   html.vr-collapsed[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-full{display:none}
   html.vr-collapsed[data-theme="dark"] .vr-app.bp-shell .vr-logo .vr-logo-dark{display:block}
 }
+
+/* active menu icon: the user colour is too dark on the dark sidebar (20261013) */
+html[data-theme="dark"] .vr-app.bp-shell .vr-nav.vr-on svg{color:var(--link)}
+html[data-theme="dark"] .vr-app.bp-shell .vr-nav svg{color:var(--bp-side-ink-2)}
+
+/* guide page (bogholder_vejledning.php) */
+.bp-guide{display:grid;grid-template-columns:240px minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:1000px){.bp-guide{grid-template-columns:1fr}.bp-toc{position:static!important}}
+.bp-toc{position:sticky;top:80px;display:flex;flex-direction:column;gap:2px;font-size:13.5px}
+.bp-toc a{color:var(--text-2);padding:6px 10px;border-radius:8px;text-decoration:none} .bp-toc a:hover{background:var(--surface-2);color:var(--text)}
+.bp-toc b{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:12px 10px 4px}
+.bp-guide-body{display:flex;flex-direction:column;gap:18px;min-width:0}
+.bp-gs{scroll-margin-top:80px}
+.bp-gs .vr-card{padding:18px 22px}
+.bp-gs h2{font-size:15px!important;font-weight:600;color:var(--text)}
+.bp-gs p{font-size:14px;line-height:1.6;color:var(--text-2);margin:0 0 10px} .bp-gs p:last-child{margin-bottom:0}
+.bp-gs ol{margin:4px 0 12px;padding-left:22px;font-size:14px;line-height:1.65;color:var(--text)} .bp-gs ol li{margin:2px 0}
+.bp-gs .bp-g-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--grid)}
+.bp-gs .bp-g-lock{font-size:12.5px;color:var(--warn-ink)}
+.bp-faq details{border-top:1px solid var(--grid);padding:10px 0} .bp-faq details:first-child{border-top:0;padding-top:0}
+.bp-faq summary{cursor:pointer;font-size:14px;font-weight:500;color:var(--text)} .bp-faq details p{margin:8px 0 0}
+.bp-gsearch{margin-bottom:6px}
