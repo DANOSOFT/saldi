@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,8 @@
 //                  re-seeds the corrected csv text on the next call.
 // 20261007 CL/NTR Add ordrer.shop_status as varchar(20) when the column is missing entirely,
 //                  so the Stripe paid-invoice index no longer fails on those tenants.
+// 20261012 CL/LH Add the stripe_events lease columns (claim_token, claimed_at, attempts, event_created)
+//                  ahead of the invoice-payment webhook, which needs them from its first request.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -551,6 +553,15 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		received_at timestamp DEFAULT CURRENT_TIMESTAMP,
 		processed_at timestamp)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// 20261012 CL/LH Event leases for the Stripe webhook: who holds an event (claim_token/claimed_at),
+//                  how often it was retried (attempts) and Stripe's own event time (event_created).
+//                  Shipped before the webhook change, because a merge to master deploys /master at once.
+foreach (array('claim_token' => 'varchar(64)', 'claimed_at' => 'timestamp', 'attempts' => 'integer NOT NULL DEFAULT 0', 'event_created' => 'bigint') as $stripeEventColumn => $stripeEventType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_events' AND column_name='$stripeEventColumn'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE stripe_events ADD COLUMN $stripeEventColumn $stripeEventType", __FILE__ . " linje " . __LINE__);
+	}
 }
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
