@@ -19,6 +19,8 @@
 // ----------------------------------------------------------------------
 // PLBM 2024.01.31
 //20240305 PHR Varioous corrections
+// 20261003 CL/SZ SD-723 The document is shown through docFile.php (login and tenant checked) instead of its direct path.
+// 20261005 CL/SZ SD-723 A document whose file is not on the server shows "Bilaget findes ikke på serveren" instead of an empty or "Not found" frame.
 // 20261005 CL/SZ SD-701 The XML notices (no EasyUBL key, conversion failed) keep their own height, so in the voucher tab the raw XML shows below them instead of below the fold.
 
 
@@ -37,8 +39,13 @@ if ($inFlexboxLayout) {
 #if (file_exists($showDoc)) echo "den er der skam<br>";
 #else echo "Kan ikke finde den<br>";
 $fileInfo = pathinfo($showDoc);
-if (strtolower(substr($showDoc,-3,3))=='pdf') {
-	print "<iframe frameborder='no' width='100%' height='100%' scrolling='auto' src='$showDoc'></iframe>";
+// Files are served through docFile.php, which checks the login and the tenant, not by their direct path
+include_once(__DIR__ . '/docFileFunc.php');
+$showDocUrl = htmlspecialchars(docFileUrl($showDoc, $docFolder, $db), ENT_QUOTES);
+if (!is_file($showDoc)) {
+	print docFileMissingBox(basename($showDoc), $sprog_id);
+} else if (strtolower(substr($showDoc,-3,3))=='pdf') {
+	print "<iframe frameborder='no' width='100%' height='100%' scrolling='auto' src='$showDocUrl'></iframe>";
 } else if (strtolower($fileInfo["extension"]) == "xml") {
 	// Need database connection to get API key
 	if (!isset($db) || !$db) {
@@ -100,7 +107,7 @@ if (strtolower(substr($showDoc,-3,3))=='pdf') {
 		}
 		
 		if ($tempFilePath && file_exists($tempFilePath)) {
-			print "<iframe frameborder='no' width='100%' height='100%' scrolling='auto' src='$tempFilePath'></iframe>";
+			print "<iframe frameborder='no' width='100%' height='100%' scrolling='auto' src='" . htmlspecialchars(docFileUrl($tempFilePath, $docFolder, $db), ENT_QUOTES) . "'></iframe>";
 		} else {
 			// Fallback: show raw XML if conversion failed
 			echo "<pre style='width:90%; margin:1rem auto; overflow:auto; max-height:100%;'>" . htmlspecialchars(file_get_contents($showDoc)) . "</pre>";
@@ -110,7 +117,7 @@ if (strtolower(substr($showDoc,-3,3))=='pdf') {
 		echo "<div style='height:auto; padding:10px; color:#856404; background-color:#fff3cd; border:1px solid #ffeeba;'>EasyUBL API-nøgle mangler. Viser rå XML.</div>";
 		echo "<pre style='width:90%; margin:1rem auto; overflow:auto; max-height:100%;'>" . htmlspecialchars(file_get_contents($showDoc)) . "</pre>";
 	}
- } else print "<img src='$showDoc' style='max-width:100%;height:auto;'>";
+ } else print "<img src='$showDocUrl' style='max-width:100%;height:auto;'>";
 
 if ($inFlexboxLayout) {
 	print "</div>";

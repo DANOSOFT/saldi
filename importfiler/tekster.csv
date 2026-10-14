@@ -5182,6 +5182,11 @@
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
+5327	Kontokort med u-bogført	General ledger with unposted entries	Kontokort med ikke-bokførte
+5328	Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu	General ledger that also shows the entries from all journals that are not posted yet	Kontokort som også viser posteringene fra alle bilagsjournaler som ikke er bokført ennå
+5329	Poster i kursiv er ikke bogført endnu. De ligger i en kladde og påvirker kontoen, når kladden bogføres.	Entries in italics are not posted yet. They are in a journal and will affect the account when the journal is posted.	Poster i kursiv er ikke bokført ennå. De ligger i en bilagsjournal og påvirker kontoen når journalen bokføres.
+5330	Ikke bogført	Not posted	Ikke bokført
+5331	Kladdelinjer, der ikke er medtaget, fordi kontoopsætningen mangler:	Journal lines left out because the account setup is missing:	Bilagslinjer som ikke er tatt med fordi kontooppsettet mangler:
 5332	Gem og næste	Save and next	Lagre og neste
 5333	Spring over	Skip	Hopp over
 5334	Obligatorisk	Required	Obligatorisk
@@ -5219,10 +5224,14 @@
 5366	Virksomheden er ophørt	The company has ceased	Virksomheten har opphørt
 5367	CVR-nummeret findes ikke i CVR-registeret	The CVR number is not in the CVR register	CVR-nummeret finnes ikke i CVR-registeret
 5368	Firmanavn skal udfyldes	Company name is required	Firmanavn må fylles ut
+5369	Kreditoren kunne ikke oprettes	The creditor could not be created	Kreditoren kunne ikke opprettes
+5370	Intet CVR-nummer på bilaget	No CVR number on the document	Intet CVR-nummer på bilaget
 5401	er lukket	is closed	er lukket
 5402	Genåbn	Reopen	Gjenåpne
 5403	Opret ny	Create new	Opprett ny
 5404	genåbnet	reopened	gjenåpnet
+5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
+5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
 5408	cvrapi.dk afviser opslag fra serveren	cvrapi.dk refuses lookups from the server	cvrapi.dk avviser oppslag fra serveren
 5409	cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.	cvrapi.dk refuses lookups from the server. Please fill in the fields manually.	cvrapi.dk avviser oppslag fra serveren. Fyll ut feltene manuelt.
 5369	Kreditoren kunne ikke oprettes	The creditor could not be created	Kreditoren kunne ikke opprettes
@@ -5251,3 +5260,13 @@
 5392	Nu	Now	Nå
 5393	Fejlen kunne ikke rapporteres. Prøv igen.	The error could not be reported. Try again.	Feilen kunne ikke rapporteres. Prøv igjen.
 5394	Ingen aflæste værdier er gemt for dette bilag	No captured values are stored for this document	Ingen avleste verdier er lagret for dette bilaget
+5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
+5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
+5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
+5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
+5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
+5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+
