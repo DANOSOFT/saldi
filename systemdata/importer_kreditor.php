@@ -117,7 +117,7 @@ if ($feltnavn) {
  		if ($tmp) $tmp=$tmp.";".$feltnavn[$y];
 		else $tmp=$feltnavn[$y];
 	}
-	update_settings_value('kreditor', 'importMapping', db_escape_string($tmp), 'Kreditor import: columns');
+	update_settings_value('kreditor', 'importMapping', $tmp, 'Kreditor import: columns');
 } elseif (($tmp = get_settings_value('kreditor', 'importMapping', '')) || ($tmp = (isset($_COOKIE['saldi_debimp']) ? $_COOKIE['saldi_debimp'] : ''))) {
 	$feltnavn=explode(";",$tmp);
 }

@@ -544,7 +544,8 @@ function settings_verify_password(string $typed): bool
 		return false;
 	}
 	$r = db_fetch_array(db_select("select kode from brugere where id = " . (int) $bruger_id, __FILE__ . " linje " . __LINE__));
-	return $r && hash_equals(strtolower(trim((string) $r['kode'])), md5($typed));
+	$stored = $r ? trim((string) $r['kode']) : '';
+	return $stored !== '' && (hash_equals(strtolower($stored), md5($typed)) || hash_equals($stored, saldikrypt((int) $bruger_id, $typed)));
 }
 
 /**

@@ -362,7 +362,7 @@ function topbar_render(array $ctx, int $sprogId): void
       <div class="topbar-pop topbar-pop-lang" id="topbar-lang-pop" role="menu">
         <form method="post" action="topbarAction.php" onsubmit="return topbarSubmitReturn(this)">
           <input type="hidden" name="action" value="language">
-          <input type="hidden" name="return_hash" value="">
+          <input type="hidden" name="return_hash" value=""><input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string) $_SESSION['csrf_token'], ENT_QUOTES) ?>">
           <?php foreach ($ctx['languages'] as $id => $l) { ?>
           <button type="submit" name="language_id" value="<?= (int) $id ?>" class="topbar-pop-item<?= $id === $ctx['langId'] ? ' active' : '' ?>" role="menuitem"><span class="topbar-lang-code"><?= topbar_h($l['code']) ?></span><?= topbar_h($l['label']) ?><?php if ($id === $ctx['langId']) { ?><i class='bx bx-check topbar-pop-trail'></i><?php } ?></button>
           <?php } ?>
@@ -418,7 +418,7 @@ function topbar_render(array $ctx, int $sprogId): void
           <div class="topbar-pop-sub" id="topbar-years">
             <form method="post" action="topbarAction.php" id="topbar-year-form" onsubmit="return topbarSubmitReturn(this)">
               <input type="hidden" name="action" value="fiscal_year">
-              <input type="hidden" name="return_hash" value="">
+              <input type="hidden" name="return_hash" value=""><input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string) $_SESSION['csrf_token'], ENT_QUOTES) ?>">
               <?php foreach ($ctx['fiscalYears'] as $y) { ?>
               <button type="submit" name="year" value="<?= topbar_h($y['kodenr']) ?>" class="topbar-year<?= $y['active'] ? ' active' : '' ?>"<?= $y['active'] ? ' disabled aria-current="true"' : '' ?>><i class='bx <?= $y['active'] ? 'bx-check-circle' : 'bx-calendar-event' ?>'></i><span><?= topbar_h($y['label']) ?></span><?php if ($y['active']) { ?><small><?= $t('5534|Aktivt') ?></small><?php } ?></button>
               <?php } ?>
@@ -469,7 +469,7 @@ function topbar_render(array $ctx, int $sprogId): void
             <div class="topbar-pop-sub" id="topbar-lang-sub">
               <form method="post" action="topbarAction.php" onsubmit="return topbarSubmitReturn(this)">
                 <input type="hidden" name="action" value="language">
-                <input type="hidden" name="return_hash" value="">
+                <input type="hidden" name="return_hash" value=""><input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string) $_SESSION['csrf_token'], ENT_QUOTES) ?>">
                 <?php foreach ($ctx['languages'] as $id => $l) { ?>
                 <button type="submit" name="language_id" value="<?= (int) $id ?>" class="topbar-year<?= $id === $ctx['langId'] ? ' active' : '' ?>"<?= $id === $ctx['langId'] ? ' disabled' : '' ?>><i class='bx <?= $id === $ctx['langId'] ? 'bx-check-circle' : 'bx-globe' ?>'></i><span><?= topbar_h($l['label']) ?></span></button>
                 <?php } ?>

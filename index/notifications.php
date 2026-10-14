@@ -51,7 +51,7 @@ $brugerId = (int) $bruger_id;
 $out = array('items' => array(), 'unread' => 0);
 
 if ($brugerId !== 0 && notif_ready()) {
-	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'], $_SESSION['csrf_token']) && hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token'])) {
 		$id = isset($_POST['id']) && $_POST['id'] !== 'all' ? (int) $_POST['id'] : null;
 		notif_mark_read($brugerId, $id);
 	} else {

@@ -75,11 +75,15 @@
 // 20261012 Sawaneh Adam: the sidebar state is per device again (settings spec §7.4 (5), topbar spec §4.6): the isSidebarOpen
 //                  cookie, read server-side so the first paint is right.
 // 20261013 Sawaneh Test pass: without Se Oversigt the chip menu shows no dashboard items and the greeting bar stays off.
+// 20261014 Sawaneh Review: the shell's POSTs (top bar forms, theme, bell) carry the session's CSRF token.
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 // 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
 // 20261009 Sawaneh css/saldi-fonts.css in the shell: Saldi Grotesk + Inter and the text-size base (front-page addendum 3 §3).
 // 20261009 Sawaneh Se Oversigt (front-page addendum 4): the Oversigt entry and the landing page follow dashboard.view once enforcement is on.
 @session_start();
+if (!isset($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 $s_id = session_id();
 
 $css = "../css/sidebar_style.css?v=23";
@@ -216,6 +220,7 @@ function brightenColor($color, $amount = 0.2) {
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <link rel="icon" href="../img/saldiLogo.png">
 <link href='../css/saldi-fonts.css?v=2' rel='stylesheet'>
+<script>window.SALDI_CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;</script>
 <link href='../css/sidebar_style.css?v=25' rel='stylesheet'>
 <link href='../css/topbar.css?v=20' rel='stylesheet'>
 <link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
@@ -524,7 +529,7 @@ function brightenColor($color, $amount = 0.2) {
     try { const doc = document.querySelector('.content-iframe').contentDocument; if (doc && doc.documentElement) { doc.documentElement.dataset.theme = theme; } } catch (e) { /* other origin */ }
     document.cookie = 'saldi_theme=' + theme + ';path=/;max-age=31536000;SameSite=Lax';
     const fd = new FormData();
-    fd.append('action', 'theme'); fd.append('theme', theme); fd.append('ajax', '1');
+    fd.append('action', 'theme'); fd.append('theme', theme); fd.append('ajax', '1'); fd.append('csrf_token', window.SALDI_CSRF || '');
     fetch('topbarAction.php', { method: 'POST', body: fd, credentials: 'same-origin' }).catch(() => {});
   }
   function topbarToggleSub(event, subId) {
@@ -1042,7 +1047,7 @@ function brightenColor($color, $amount = 0.2) {
     });
   }
   function topbarNotifRead(id, link) {
-    const body = new URLSearchParams({ action: 'read', id: String(id) });
+    const body = new URLSearchParams({ action: 'read', id: String(id), csrf_token: window.SALDI_CSRF || '' });
     fetch('notifications.php', { method: 'POST', body: body, credentials: 'same-origin' })
       .then(() => topbarNotifLoad())
       .catch(() => {});

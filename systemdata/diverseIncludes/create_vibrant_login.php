@@ -40,6 +40,13 @@ header('Content-Type: application/json');
 if (function_exists('require_permission')) {
 	require_permission('settings.integrations', 'write');
 }
+// 20261014 Sawaneh Review: the token the mini form sends (X-CSRF-Token) is checked, not only sent.
+$csrfHeader = isset($_SERVER['HTTP_X_CSRF_TOKEN']) ? (string) $_SERVER['HTTP_X_CSRF_TOKEN'] : '';
+if (!isset($_SESSION['csrf_token']) || $csrfHeader === '' || !hash_equals((string) $_SESSION['csrf_token'], $csrfHeader)) {
+	http_response_code(403);
+	print json_encode(array('ok' => false, 'message' => 'csrf'));
+	exit;
+}
 $post = json_decode(file_get_contents('php://input'));
 $name = isset($post->name) ? trim((string) $post->name) : '';
 $email = isset($post->email) ? trim((string) $post->email) : '';

@@ -41,6 +41,7 @@
 // 20261009 Sawaneh The theme field waits for round 2 (settings decision 23): shown and saved only with SALDI_THEME_CHOICE.
 // 20261009 Sawaneh Tekststørrelse Normal / Større (personal.profile.text_size, front-page addendum 3 §3.3); the shell reloads on change.
 // 20261013 Sawaneh The back link carries accesskey L, so the shell hides it like on every migrated page (breadcrumb instead).
+// 20261014 Sawaneh Review: CSRF token on every form and checked before any POST is handled.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -77,6 +78,15 @@ $tab = isset($_GET['tab']) && in_array($_GET['tab'], array('profile', 'security'
 $isRevisor = (bool) $revisor;
 $canEdit = ((int) $bruger_id !== 0);
 
+if (!isset($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit && (!isset($_POST['csrf_token']) || !hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token']))) {
+	audit_log('csrf', 'personalSettings.php');
+	ob_end_clean();
+	header('Location: ' . $selfUrl . ($contextQuery !== '' ? '&' : '?') . 'err=csrf');
+	exit;
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
 	$action = isset($_POST['action']) ? (string) $_POST['action'] : 'save';
 	$result = array();
@@ -567,7 +577,7 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 function personal_settings_view_profile(array $d, callable $h, callable $t, string $selfUrl): void
 {
 	?>
-  <form method="post" action="<?= $h($selfUrl) ?>" id="ps-form" autocomplete="off">
+  <form method="post" action="<?= $h($selfUrl) ?>" id="ps-form" autocomplete="off"><input type="hidden" name="csrf_token" value="<?= $h($_SESSION['csrf_token']) ?>">
     <input type="hidden" name="action" value="save">
     <input type="hidden" name="tab" value="profile">
     <?php if (strpos($selfUrl, 'popup=1') !== false) { ?><input type="hidden" name="popup_window" value="1"><?php } ?>
@@ -719,7 +729,7 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
 function personal_settings_view_security(array $d, callable $h, callable $t, string $selfUrl): void
 {
 	?>
-  <form method="post" action="<?= $h($selfUrl) ?>" id="ps-form" autocomplete="off">
+  <form method="post" action="<?= $h($selfUrl) ?>" id="ps-form" autocomplete="off"><input type="hidden" name="csrf_token" value="<?= $h($_SESSION['csrf_token']) ?>">
     <input type="hidden" name="action" value="save">
     <input type="hidden" name="tab" value="security">
 
@@ -771,7 +781,7 @@ function personal_settings_view_security(array $d, callable $h, callable $t, str
       </tbody>
     </table>
     <?php if (count($d['sessions']) > 1) { ?>
-    <form method="post" action="<?= $h($selfUrl) ?>" class="ps-inline-form">
+    <form method="post" action="<?= $h($selfUrl) ?>" class="ps-inline-form"><input type="hidden" name="csrf_token" value="<?= $h($_SESSION['csrf_token']) ?>">
       <input type="hidden" name="action" value="logout_others">
       <button class="ps-btn ps-btn-ghost" type="submit"><i class='bx bx-log-out-circle'></i><?= $t('5616|Log andre enheder ud') ?></button>
     </form>
@@ -821,7 +831,7 @@ function personal_settings_view_notifications(array $d, callable $h, callable $t
 {
 	$types = function_exists('notif_types') ? notif_types() : array();
 	?>
-  <form method="post" action="<?= $h($selfUrl) ?>" id="ps-form" autocomplete="off">
+  <form method="post" action="<?= $h($selfUrl) ?>" id="ps-form" autocomplete="off"><input type="hidden" name="csrf_token" value="<?= $h($_SESSION['csrf_token']) ?>">
     <input type="hidden" name="action" value="save">
     <input type="hidden" name="tab" value="notifications">
     <section class="ps-card">

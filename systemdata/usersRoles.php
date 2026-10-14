@@ -113,6 +113,8 @@ ob_end_flush();
 //                  moved to includes/userFunctions.php.
 // 20260929 Sawaneh Roles stage 2 (§8.4): invite a user instead of choosing the password, resend, status Invited.
 // 20260930 Sawaneh Roles stage 2 (§8.1, §8.2): reset password by mail, last active from live sessions.
+// 20261014 Sawaneh Review: a role above the editor's own levels cannot be saved down, copied or deleted; an invitation
+//                  is only resent for users the editor may manage.
 // 20260930 Sawaneh Roles stage 2 (§6.3): review of migrated roles - confirm, use the suggestion, bulk; a role is required.
 // 20261001 Sawaneh Review fixes: CSRF token on every posted form; users above the actor's own access cannot be
 //                  changed (msg=above).
@@ -327,6 +329,10 @@ function ur_send_invite(int $id, string $token): string
 
 function ur_resend_invite(int $id): string
 {
+	$row = $id > 0 ? db_fetch_array(db_select("select * from brugere where id = $id", __FILE__ . " linje " . __LINE__)) : null;
+	if (!$row || !user_may_manage($row)) {
+		return 'tab=users&bruger=' . $id . '&msg=escalation';
+	}
 	$token = user_invite_resend($id);
 	if ($token === '') {
 		return 'tab=users&bruger=' . $id . '&msg=notinvited';
@@ -477,7 +483,7 @@ function ur_save_role(array $post): string
 	if ($navn === '' || mb_strlen($navn) > 80) {
 		return 'tab=roles&rolle=' . $id . '&msg=name';
 	}
-	if (!perm_within_own($levels)) {
+	if (!perm_within_own($levels) || ($id > 0 && !perm_within_own(perm_levels_from_role($id)))) {
 		return 'tab=roles&rolle=' . $id . '&msg=escalation';
 	}
 	$navnSql = db_escape_string($navn);
@@ -516,7 +522,7 @@ function ur_delete_role(int $id, int $moveTo = 0, int $selfId = 0): string
 		return 'tab=roles';
 	}
 	$r = db_fetch_array(db_select("select navn, system from roles where id = $id", __FILE__ . " linje " . __LINE__));
-	if (!$r || $r['system'] === 't' || $r['system'] === true || $r['system'] === '1' || $r['system'] === 1) {
+	if (!$r || $r['system'] === 't' || $r['system'] === true || $r['system'] === '1' || $r['system'] === 1 || !perm_within_own(perm_levels_from_role($id))) {
 		return 'tab=roles';
 	}
 	if ($moveTo > 0 && $moveTo !== $id) {
@@ -573,7 +579,7 @@ function ur_copy_role(int $id): string
 			$source = $role;
 		}
 	}
-	if (!$source) {
+	if (!$source || !perm_within_own(perm_levels_from_role($id))) {
 		return 'tab=roles';
 	}
 	$navn = findtekst('5587|Kopi af', (int) $sprog_id) . ' ' . perm_role_name($source, (int) $sprog_id);

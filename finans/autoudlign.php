@@ -57,6 +57,7 @@
 ob_start();
 @session_start();
 $s_id = session_id();
+$permission_key = 'finans.kassekladde';
 
 #$css = "../css/standard.css";
 include(__DIR__ . "/../includes/connect.php");

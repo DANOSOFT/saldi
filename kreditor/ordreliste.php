@@ -47,7 +47,7 @@ ob_start();
 $s_id = session_id();
 
 $css = "../css/std.css";
-$modulnr = 5;
+$modulnr = 7;
 $title = "Leverandører • Ordreliste";
 
 include("../includes/connect.php");

@@ -119,7 +119,7 @@ if ($feltnavn) {
  		if ($tmp) $tmp=$tmp.";".$feltnavn[$y];
 		else $tmp=$feltnavn[$y];
 	}
-	update_settings_value('debitor', 'importMapping', db_escape_string($tmp), 'Debitor import: columns');
+	update_settings_value('debitor', 'importMapping', $tmp, 'Debitor import: columns');
 } elseif (($tmp = get_settings_value('debitor', 'importMapping', '')) || ($tmp = (isset($_COOKIE['saldi_debimp']) ? $_COOKIE['saldi_debimp'] : ''))) {
 	$feltnavn=explode(";",$tmp);
 }

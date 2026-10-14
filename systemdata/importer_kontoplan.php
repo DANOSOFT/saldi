@@ -83,7 +83,7 @@ if (!array_key_exists($splitter, $splitters)) $splitter = '';
 foreach ($feltnavn as $i => $navn) {
 	if (!in_array($navn, $kolonner)) $feltnavn[$i] = '';
 }
-if ($gemValg) update_settings_value('kontoplan', 'importMapping', db_escape_string($file_charset."|".$splitter."|".implode(";", $feltnavn)), 'Kontoplan import: charset|separator|columns');
+if ($gemValg) update_settings_value('kontoplan', 'importMapping', $file_charset."|".$splitter."|".implode(";", $feltnavn), 'Kontoplan import: charset|separator|columns');
 include("../includes/topline_settings.php");
 
 $title = findtekst('1356|Importér', $sprog_id)." ".findtekst('612|Kontoplan', $sprog_id);

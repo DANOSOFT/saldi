@@ -3124,6 +3124,13 @@ if (!function_exists('is_input_too_long')) {
 
 if(!function_exists('update_settings_value')){
         function update_settings_value($var_name, $var_grp, $var_value, $var_description, $user=NULL, $posid=NULL, $global = false) {
+                // 20261014 Sawaneh Escaped here, once, for every caller (review: the dashboard block order reached the UPDATE raw).
+                $var_name = db_escape_string((string) $var_name);
+                $var_grp = db_escape_string((string) $var_grp);
+                $var_value = db_escape_string((string) $var_value);
+                $var_description = db_escape_string((string) $var_description);
+                if ($user !== NULL) $user = (int) $user;
+                if ($posid !== NULL) $posid = (int) $posid;
 		/**
 		 * Updates or inserts a settings value in the database.
 		 *

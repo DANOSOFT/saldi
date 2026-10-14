@@ -51,6 +51,13 @@ include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
 
 $request = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : array();
+// 20261014 Sawaneh Review: every action needs the shell's CSRF token.
+if ($request && (!isset($request['csrf_token']) || !isset($_SESSION['csrf_token']) || !hash_equals((string) $_SESSION['csrf_token'], (string) $request['csrf_token']))) {
+	if (function_exists('audit_log')) {
+		audit_log('csrf', 'topbarAction.php');
+	}
+	$request = array();
+}
 $action = isset($request['action']) ? (string) $request['action'] : '';
 $returnHash = isset($request['return_hash']) ? (string) $request['return_hash'] : '';
 
