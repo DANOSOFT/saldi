@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/serienummer.php --- lap 5.0.0 --- 2026-01-23 ---
+// --- kreditor/serienummer.php --- ver 5.0.0 --- 2026-10-07 ---
 /// LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +21,17 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260123 PHR if (!$leveres && !$leveret) changed to if ($leveres == 0 && $leveret == 0) as it did not alert when value is 0.000
+// 20261007 MJ SST-831 The 20260123 condition above had gone missing, so "Ingen varer er
+//                  sat til levering" appeared every time the window opened, including
+//                  with 1 in Modtag. Restored. The Gem button was guarded on $gem, which
+//                  is never assigned, so it never rendered and only Luk was offered -
+//                  Luk does save, but there was no way to tell. The ids that go into the
+//                  statements below are cast where they arrive and serial numbers are
+//                  escaped at each use. The return list and what Modtag counts are
+//                  unchanged; both need the customer's credited rows established first.
 @session_start();
 $s_id=session_id();
 
@@ -34,13 +42,16 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$linje_id=$_GET['linje_id'];
+// 20261007 MJ SST-831 The ids below are interpolated into the statements further down, so
+// they are cast where they arrive rather than trusted. Serial numbers are text and are
+// escaped at each use instead.
+$linje_id=(int)ifset($_GET, 'linje_id', 0);
 
 if ($_POST['submit']) {
   $submit=trim($_POST['submit']);
   $antal=$_POST['antal'];
-  $kred_linje_id=$_POST['kred_linje_id'];
-  $vare_id=$_POST['vare_id'];
+  $kred_linje_id=(int)ifset($_POST, 'kred_linje_id', 0);
+  $vare_id=(int)ifset($_POST, 'vare_id', 0);
   $leveres=$_POST['leveres'];
   $leveret=$_POST['leveret'];
   $serienr=$_POST["serienr"];
@@ -54,12 +65,11 @@ if ($_POST['submit']) {
     for ($x=1; $x<=$antal; $x++) {
       $serienr[$x]=trim($serienr[$x]);
       if ($serienr[$x]) {
-#echo  "update serienr set serienr='$serienr[$x]' where id=$sn_id[$x]<br>";
-       if ($sn_id[$x]){db_modify("update serienr set serienr='$serienr[$x]' where id=$sn_id[$x]",__FILE__ . " linje " . __LINE__);}
+       if ($sn_id[$x]){db_modify("update serienr set serienr='" . db_escape_string($serienr[$x]) . "' where id=" . (int)$sn_id[$x],__FILE__ . " linje " . __LINE__);}
         else {
-        db_modify("insert into serienr (kobslinje_id, salgslinje_id, serienr, batch_kob_id, batch_salg_id, vare_id) values ('$linje_id', '0', '$serienr[$x]', '0', '0', $vare_id)",__FILE__ . " linje " . __LINE__);}
+        db_modify("insert into serienr (kobslinje_id, salgslinje_id, serienr, batch_kob_id, batch_salg_id, vare_id) values ('$linje_id', '0', '" . db_escape_string($serienr[$x]) . "', '0', '0', $vare_id)",__FILE__ . " linje " . __LINE__);}
       }
-      elseif($sn_id[$x]) db_modify("delete from serienr where id=$sn_id[$x]",__FILE__ . " linje " . __LINE__);
+      elseif($sn_id[$x]) db_modify("delete from serienr where id=" . (int)$sn_id[$x],__FILE__ . " linje " . __LINE__);
       $serienr[$x]="";
     }
     if ($antal<0) {
@@ -68,12 +78,12 @@ if ($_POST['submit']) {
         if (trim($valg[$x])=="on") {
         $y--;
           if ($y>=$leveres+$leveret) {
-						if ($art=='KK') db_modify("update serienr set kobslinje_id=-$kred_linje_id where id=$sn_id[$x]",__FILE__ . " linje " . __LINE__);
-						else db_modify("update serienr set salgslinje_id='$linje_id' where id=$sn_id[$x]",__FILE__ . " linje " . __LINE__);
+						if ($art=='KK') db_modify("update serienr set kobslinje_id=-$kred_linje_id where id=" . (int)$sn_id[$x],__FILE__ . " linje " . __LINE__);
+						else db_modify("update serienr set salgslinje_id='$linje_id' where id=" . (int)$sn_id[$x],__FILE__ . " linje " . __LINE__);
 					}
         } elseif ($sn_id[$x]) {
-					if ($art=='KK') db_modify("update serienr set kobslinje_id=$kred_linje_id where id=$sn_id[$x]",__FILE__ . " linje " . __LINE__);
-					else db_modify("update serienr set salgslinje_id='0' where id=$sn_id[$x]",__FILE__ . " linje " . __LINE__);
+					if ($art=='KK') db_modify("update serienr set kobslinje_id=$kred_linje_id where id=" . (int)$sn_id[$x],__FILE__ . " linje " . __LINE__);
+					else db_modify("update serienr set salgslinje_id='0' where id=" . (int)$sn_id[$x],__FILE__ . " linje " . __LINE__);
 
 				}
       }
@@ -132,7 +142,12 @@ if ($antal>0) {
     print "<tr><td colspan=2><input type=text size=40 name=serienr[$x] value=\"$serienr[$x]\"></td></tr>\n";
     print "<input type=hidden name=sn_id[$x] value='$sn_id[$x]'>";
   }
+  // 20261007 MJ SST-831 Only when nothing is actually being received. The condition the
+  // history line of 20260123 describes had gone missing, so the message appeared every
+  // time the window opened - including with 1 in Modtag, which is what the customer hit.
+  if ($leveres == 0 && $leveret == 0) {
     print "<BODY onLoad=\"javascript:alert('Ingen varer er sat til levering')\">";
+  }
 
 } else {
 	$sn_antal=0;  # Hvis kobslinje ID er negativ er serienummeret valgt til returnering.
@@ -174,7 +189,11 @@ print "<input type=hidden name=leveret value='$leveret'>";
 print "<input type=hidden name=status value='$status'>";
 print "<input type=hidden name=art value='$art'>";
 print "<tr>";
-if (($status<3)&&($gem)){print "<td align=center><input type=submit value=\"Gem\" name=\"submit\"></td>";}
+// 20261007 MJ SST-831 $gem was never assigned anywhere, so this button never appeared and
+// the only way out of the window was Luk. Luk does save - both buttons post the same form
+// and the save above runs either way - but with nothing labelled Gem the customer could
+// not tell, and reported the entry as lost. Gem saves and leaves the window open.
+if ($status<3){print "<td align=center><input type=submit value=\"" . findtekst('3|Gem', $sprog_id) . "\" name=\"submit\"></td>";}
 print "<td align=center><input type=submit value=\"Luk\" name=\"submit\"></td></tr>
 ";
 print "</form> </tr>

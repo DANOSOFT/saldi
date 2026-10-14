@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -137,6 +137,12 @@
 //                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
 //                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
 // 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
+// 20261012 CL/SZ SD-730 Regnskabsår select in the header (fiscalYearSwitch.php): switches the active year and comes back to
+//                  the same journal. A clip next to Bemærkning opens the journal's own documents (journalDocuments.php).
+//                  Coming back from the open-posts page keeps the line's Forfaldsdato and Betalings-id (they were emptied).
+//                  Close on a journal opened with returside=kladdeliste.php (Ny) went to includes/kladdeliste.php (Not Found).
+// 20261013 CL/SZ SD-730 The Bemærkning field shrinks (up to 750px) so the header row fits a 1280px screen.
+//                  The "Genveje til Kassekladden" help link was pushed out of view (already on master; the new cells made it worse).
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/accountCard.php';
@@ -223,6 +229,10 @@ if ($kk_saved_journal !== null) {
 	exit;
 }
 include("../includes/std_func.php");
+// SD-730: ?aktiver_regnaar=<year> from the header's Regnskabsår select switches the year and comes back here
+require_once __DIR__ . '/kassekladde_includes/fiscalYearSwitch.php';
+require_once __DIR__ . '/kassekladde_includes/journalDocumentsFunc.php';
+if (!$_POST) fiscalYearSwitchHandle($_GET, $regnaar, $brugernavn, $bruger_id, $revisor, $db_id, session_id());
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
@@ -750,6 +760,9 @@ if ($_GET) {
 	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
 	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
 	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	// SD-730: the open-posts links (an invoice row, Indsæt, Luk) carry these, so the line keeps them
+	if (isset($_GET['forfaldsdato'])) $forfaldsdato[$x] = db_escape_string(trim((string)$_GET['forfaldsdato']));
+	if (isset($_GET['betal_id']))     $betal_id[$x]     = db_escape_string(trim((string)$_GET['betal_id']));
 	$find            =       if_isset($_GET, 		'',		'find');
 	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
 	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
@@ -1735,6 +1748,9 @@ if (!$simuler) {
 	} else {
 		$backUrl = "../finans/kladdeliste.php";
 	}
+	// SD-730: Close goes through ../includes/luk.php, so a bare file name (returside=kladdeliste.php from Ny) has to point
+	// back into finans/; it ended on includes/kladdeliste.php (Not Found)
+	if (strpos($backUrl, '/') === false) $backUrl = "../finans/" . $backUrl;
 	if ($returside != "regnskab") {
 		$returside = "../finans/kladdeliste.php";
 	}
@@ -2670,9 +2686,12 @@ print "<tr><td width='100%' valign='top' height='1%' align='center' class='kasse
 print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
 print "<tr style='vertical-align: middle;'>"; # Added vertical-align
 print "<td width='14%' align='center'><span id='kk-balance-status'></span></td>";
-print "<td align='left' style='white-space: nowrap;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
-<input class='inputbox' type='text' style='width:750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
-onchange='javascript:docChange = true;'></td>";
+// The note field shrinks (up to 750px) so the row, help link included, fits a 1280px screen
+print "<td align='left' style='white-space: nowrap; width: 100%;'><div style='display: flex; align-items: center; gap: 4px;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
+<input class='inputbox' type='text' style='flex: 1 1 auto; min-width: 120px; max-width: 750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
+onchange='javascript:docChange = true;'></div></td>";
+print journalDocumentsClip($kladde_id, $sprog_id);
+print fiscalYearSwitchCell($regnaar, $kladde_id, $bogfort, $sprog_id);
 if ($bogfort == "-") {
 	$page_display = false;
     if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
@@ -2690,7 +2709,7 @@ $help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='$he
 print "<td width='2%' align='center' style='vertical-align: middle;'>
     <a href='javascript:void(0)' onclick='window.print(); return false;'>
     <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td>
-    <td width='12%' align='center' style='vertical-align: middle;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
+    <td width='12%' align='center' style='vertical-align: middle; white-space: nowrap;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
 print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 
