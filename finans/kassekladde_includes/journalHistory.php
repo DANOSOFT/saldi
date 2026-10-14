@@ -1,5 +1,6 @@
 <?php
 // 20260907 CDX/LH Preserve suggestion account types and match posted duplicates by currency and counterparty.
+// 20260928 CL/SZ SST-818: sidste_5_forslag() fetched every earlier line on the account and kept five; it now filters and limits in the query.
 
 /**
  * Find recent counter-accounts without losing their customer/supplier/finance identity.
@@ -34,10 +35,13 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		$k_artcond = "k_type = '$art'";
 	}
 	# NB: soger kun i kassekladde (aabne/tidligere kladdelinjer) - udvidelse til transaktioner er en senere opgave
+	# The counter-account filter is in the SQL so that limit 5 returns the same rows the loop below keeps.
 	if ($dk == "D") {
-		$txt = "select bilag,transdate,beskrivelse,debet as kontonr,d_type as kontoart from kassekladde where $k_artcond and kredit = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
+		$txt = "select bilag,transdate,beskrivelse,debet as kontonr,d_type as kontoart from kassekladde where $k_artcond and kredit = '$kontonr_sql' and kladde_id != '$kladde_id_sql' ";
+		$txt.= "and debet != 0 and (d_type is null or upper(trim(d_type)) in ('', 'D', 'K', 'F')) order by transdate desc,id desc limit 5";
 	} else {
-		$txt = "select bilag,transdate,beskrivelse,kredit as kontonr,k_type as kontoart from kassekladde where $d_artcond and debet = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
+		$txt = "select bilag,transdate,beskrivelse,kredit as kontonr,k_type as kontoart from kassekladde where $d_artcond and debet = '$kontonr_sql' and kladde_id != '$kladde_id_sql' ";
+		$txt.= "and kredit != 0 and (k_type is null or upper(trim(k_type)) in ('', 'D', 'K', 'F')) order by transdate desc,id desc limit 5";
 	}
 
 	if ($art == 'K') {

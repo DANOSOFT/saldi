@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.0.0 --- 2026-09-25 ---
+// --- includes/udskriv.php --- ver 5.0.0 --- 2026-10-08---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,7 @@
 // 20260914 CDX/LH SST-789: Render session-owned invoice batches before publishing a PDF.
 // 20260925 CL/LH SST-823 + SST-780: PostScript prints use only the .ps (it has every page; appending the _N.htm pages
 //             printed pages 2..N twice) and keep the document name instead of "udskrift". HTML pages merge in numeric order.
+// 20261006 CL/LH SST-851: Tilbage/Luk on the print page acts once; a repeated click while the order loads is ignored.
 
 @session_start();
 $s_id=session_id();
@@ -84,6 +85,7 @@ $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 // 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
+// 20261008 CDX/PHR Explain unavailable print files without incorrectly blaming PS2PDF.
 $returside = (function($s) {
     $s = trim((string)$s);
     if ($s === '' || $s === 'ordreliste.php') return $s; // 'ordreliste.php' normaliseres nedenfor linje 93
@@ -398,7 +400,9 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				} else { 
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 				} 
-				print "<td width='10%'><a href=$href>
+				// A second click while the order page is still loading must not reach the
+				// order's own Tilbage/Luk, which sits at the same spot (SST-851).
+				print "<td width='10%'><a href=$href onclick=\"if (this.dataset.navigating) { return false; } this.dataset.navigating = '1'; this.querySelector('button').disabled = true;\">
 					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 				print "<td width='80%' align='center' title='".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id)."'>
@@ -413,7 +417,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				print "<table width=100% height=100%><tbody>";
 				if ($returside) $href="\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</a></td>";
+				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href onclick=\"if (this.dataset.navigating) { return false; } this.dataset.navigating = '1';\">$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</a></td>";
 				print "<td width=\"80%\" $top_bund align=\"center\" title=\"".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id).">";
 				print "<a href=../temp/$ps_fil.pdf target=blank>".findtekst('2180|Vis PDF udskrift', $sprog_id)."</a>";
 				print "</td>";
@@ -425,7 +429,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 		} else {
 			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
-			print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
+			print "<BODY onLoad=\"javascript:alert('PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.')\">";
 			print "<p><a href=\"$fejl_retur\">" . findtekst('2172|Luk', $sprog_id) . "</a></p>";
 		}
 	}
