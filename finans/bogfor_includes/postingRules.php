@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bogfor_includes/postingRules.php --- ver 5.0.0 --- 2026-09-30 ---
+// --- finans/bogfor_includes/postingRules.php --- ver 5.0.0 --- 2026-10-14 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 //                  (debtor/creditor to control account, VAT split, currency) moved here from finans/bogfor.php so
 //                  posting and the "Kontokort med u-bogført" report use the same code.
 //                  momsberegning() takes a $preview flag so the report lists a VAT split error instead of exiting.
+// 20261014 CL/NTR postingLineEntries(): replaced the "* 1" string-to-number conversion of d_moms/k_moms with (float) casts.
 
 /**
  * Posting rules shared by the cash-journal posting and the kontokort report.
@@ -316,8 +317,8 @@ function postingLineAmounts($row, $preview=false) {
  * }>
  */
 function postingLineEntries($line) {
-	$dMoms    = $line['d_moms'] * 1;
-	$kMoms    = $line['k_moms'] * 1;
+	$dMoms    = (float) $line['d_moms'];
+	$kMoms    = (float) $line['k_moms'];
 	$dMomskto = $line['d_momskto'];
 	$kMomskto = $line['k_momskto'];
 	$entries  = array();
