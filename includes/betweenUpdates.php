@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.13
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.14
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -109,6 +109,9 @@
 // 20261007 CL/SZ SST-818: a login that finds an index lock taken skips the build instead of waiting for it.
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
 // 20261013 CL/SZ SST-808 (CodeRabbit): skip the auto-udlign index block on MySQL tenants.
+// 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
+//                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
+//                  so the one-time build no longer blocks writes to adresser during a login.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1203,26 +1206,50 @@ if (db_fetch_array(db_select("select 1 from information_schema.tables where tabl
 # may not have been permitted to create it - and that attempt is only made once, so it may never
 # be retried. Index only where the extension actually exists; everyone else keeps the unindexed
 # but still correct ILIKE path.
-# Not CONCURRENTLY, but not for the reason first committed here: review of PR #691 was right
-# that there is no enclosing transaction - all three include sites (index/login.php,
-# admin/aaben_regnskab.php, debitor/pos_ordre.php) include this file bare, so CONCURRENTLY
-# would in fact be permitted. The reason to avoid it is the interaction with IF NOT EXISTS:
-# an interrupted CREATE INDEX CONCURRENTLY leaves an *invalid* index behind, IF NOT EXISTS
-# then matches that invalid index on every later login and skips the rebuild forever, and the
-# result is an index the planner will not use while writes still maintain it. This file runs
-# at every login, where an interrupted request is ordinary (closed tab, timeout), so that
-# outcome is likely rather than theoretical. A plain CREATE INDEX either completes or leaves
-# nothing, which is what makes IF NOT EXISTS idempotent - the pattern the nine other index
-# statements in this file already use. The cost is one brief lock on adresser, once per tenant.
+# Built CONCURRENTLY, with the invalid-index recovery that makes it safe here. The first
+# version of this block used a plain CREATE INDEX IF NOT EXISTS and argued against
+# CONCURRENTLY, on the grounds that an interrupted concurrent build leaves an *invalid*
+# index behind which IF NOT EXISTS then matches on every later login, skipping the rebuild
+# forever and leaving an index the planner ignores while writes still maintain it. That trap
+# is real, but avoiding CONCURRENTLY is not how this repo answers it any more: SST-808 and
+# SST-818 both hit the same objection in review and solved it by checking pg_index.indisvalid
+# and dropping and rebuilding an invalid index, rather than by taking the write lock. SST-818
+# builds adresser_kontonr_art_idx on this very table that way. So the same shape is used here,
+# for the reason it was adopted there: a plain build locks out inserts, updates and deletes on
+# adresser for as long as it takes, and on a tenant large enough to need these indexes that is
+# a stall on order and account writes during someone else's login.
+# The advisory lock keeps two simultaneous logins from building the same index; the login that
+# would have to wait skips instead, because waiting deadlocks with CREATE INDEX CONCURRENTLY
+# (it waits in turn for the waiting login's open snapshot) - the failure SST-808 and SST-818
+# each had to fix after the fact.
 # Postgres only, and checked before the probe runs: pg_extension does not exist on MySQL, so
-# querying it there fails on every login. gin_trgm_ops is Postgres syntax regardless, so a
-# MySQL tenant keeps the unindexed but correct ILIKE path, the same as a tenant without the
-# extension. Reported by ZaynSaul on PR #691; the pg_trgm bootstrap further up this file has
-# the same gap and is left alone here because it is not this ticket's code.
+# querying it there fails on every login. gin_trgm_ops, pg_index and CONCURRENTLY are Postgres
+# syntax regardless, so a MySQL tenant keeps the unindexed but correct ILIKE path, the same as
+# a tenant without the extension. Reported by ZaynSaul on PR #691; the pg_trgm bootstrap further
+# up this file has the same gap and is left alone here because it is not this ticket's code.
 $trgmIndexMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", __FILE__ . " linje " . __LINE__))) {
-	db_modify("CREATE INDEX IF NOT EXISTS adresser_firmanavn_trgm_idx ON adresser USING gin (firmanavn gin_trgm_ops)", __FILE__ . " linje " . __LINE__);
-	db_modify("CREATE INDEX IF NOT EXISTS adresser_kontonr_trgm_idx ON adresser USING gin (kontonr gin_trgm_ops)", __FILE__ . " linje " . __LINE__);
+	$trgmIndexes = array(
+		'adresser_firmanavn_trgm_idx' => "ON adresser USING gin (firmanavn gin_trgm_ops)",
+		'adresser_kontonr_trgm_idx'   => "ON adresser USING gin (kontonr gin_trgm_ops)",
+	);
+	foreach ($trgmIndexes as $trgmIndexName => $trgmIndexDefinition) {
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$trgmLock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$trgmIndexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$trgmLock || $trgmLock['locked'] !== 't') continue;
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$trgmIndexName' AND pg_namespace.nspname = current_schema()";
+		$trgmExisting = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($trgmExisting && $trgmExisting['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $trgmIndexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$trgmExisting || $trgmExisting['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $trgmIndexName $trgmIndexDefinition", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 ?>

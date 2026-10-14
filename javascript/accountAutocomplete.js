@@ -31,7 +31,7 @@
         // debitor/kreditor search, because a trigram index cannot match below three
         // characters and adresser is large. Only those two types are gated - a finance
         // search of kontoplan is small and its account numbers are legitimately short.
-        minAccountSearchLength: 3, 
+        minAccountSearchLength: 3,
         debounceDelay: 200,
         maxResults: 50
     };

@@ -17,6 +17,9 @@ use PHPUnit\Framework\TestCase;
 //                  The endpoint is a request script, not a function, so its gate is lifted
 //                  out of the source and evaluated here rather than reimplemented: a
 //                  restatement could pass while the real condition is wrong.
+// 20261014 MJ SST-814 (CodeRabbit): pins that the two trigram indexes are built CONCURRENTLY
+//                  with the invalid-index rebuild, so neither the write lock nor the
+//                  skip-an-invalid-index-forever trap can come back unnoticed.
 final class AccountSearchShortTermGateTest extends TestCase
 {
     private const ENDPOINT = __DIR__ . '/../../../finans/kassekladde_includes/accountSearch.php';
@@ -212,6 +215,90 @@ final class AccountSearchShortTermGateTest extends TestCase
             $src,
             'the probe is no longer short-circuited by the database-type check'
         );
+    }
+
+
+    /**
+     * The two trigram indexes must be built without locking adresser against writes, and an
+     * index an interrupted build left INVALID must be rebuilt rather than skipped forever.
+     *
+     * Both halves matter and neither is visible at runtime: a plain build takes a lock that
+     * blocks every insert, update and delete on adresser until it finishes - measured on a
+     * 600,000-row table, an UPDATE arriving during a plain build is still waiting after 300 ms,
+     * while during a concurrent build it completes in 134 ms. And CREATE INDEX CONCURRENTLY
+     * IF NOT EXISTS would match the invalid leftover of an interrupted build on every later
+     * login and never rebuild it, leaving an index the planner ignores while writes still
+     * maintain it - verified: the old statement answered "already exists, skipping" against
+     * an index with indisvalid = false.
+     *
+     * This is the shape SST-808 and SST-818 settled on after the same review finding.
+     */
+    public function testTheTrigramIndexesAreBuiltWithoutBlockingWrites(): void
+    {
+        $block = $this->trigramIndexBlock();
+
+        // One statement in a loop over both index names, so count statements, not indexes.
+        self::assertSame(
+            0,
+            preg_match_all('/CREATE INDEX (?!CONCURRENTLY)/', $block),
+            'a trigram index is built without CONCURRENTLY, so the build locks adresser against writes'
+        );
+        self::assertStringContainsString('CREATE INDEX CONCURRENTLY', $block, 'nothing builds the trigram indexes');
+        foreach (['adresser_firmanavn_trgm_idx', 'adresser_kontonr_trgm_idx'] as $indexName) {
+            self::assertStringContainsString($indexName, $block, "$indexName is no longer built here");
+        }
+        self::assertStringNotContainsString(
+            'IF NOT EXISTS',
+            $block,
+            'IF NOT EXISTS matches an index left INVALID by an interrupted build and then skips the rebuild forever'
+        );
+        self::assertStringContainsString(
+            'pg_index.indisvalid',
+            $block,
+            'nothing checks index validity, so an interrupted build is never recovered from'
+        );
+        // Read is not enough: validity has to decide both the drop and the rebuild, or an
+        // invalid index is noticed and then left in place anyway.
+        self::assertSame(
+            2,
+            preg_match_all('/\$trgmExisting\[.indisvalid.\] !== .t./', $block),
+            'index validity is looked up but does not decide both the drop and the rebuild'
+        );
+        self::assertStringContainsString(
+            'DROP INDEX CONCURRENTLY',
+            $block,
+            'an index left INVALID is never dropped, so it is never rebuilt'
+        );
+        // pg_try_advisory_lock, not pg_advisory_lock: waiting for the lock deadlocks against
+        // CREATE INDEX CONCURRENTLY, which in turn waits for the waiting login's snapshot.
+        self::assertStringContainsString(
+            'pg_try_advisory_lock(hashtext(',
+            $block,
+            'two simultaneous logins can build the same index'
+        );
+        self::assertStringNotContainsString(
+            'SELECT pg_advisory_lock(',
+            $block,
+            'waiting for the advisory lock deadlocks with CREATE INDEX CONCURRENTLY'
+        );
+    }
+
+    /**
+     * The trigram index block of includes/betweenUpdates.php, read from the source.
+     *
+     * @return string From the database-type guard to the brace closing its if.
+     */
+    private function trigramIndexBlock(): string
+    {
+        $src = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
+        self::assertNotFalse($src, 'could not read includes/betweenUpdates.php');
+
+        $start = strpos($src, "\$trgmIndexMysql = in_array(");
+        self::assertNotFalse($start, 'the trigram index block is gone');
+        $end = strpos($src, "\n}", $start);
+        self::assertNotFalse($end, 'the trigram index block is unterminated');
+
+        return substr($src, $start, $end - $start);
     }
 
     /** Each client must carry the same minimum, so none sends a request the endpoint refuses. */
