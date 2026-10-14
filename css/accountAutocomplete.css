@@ -251,3 +251,24 @@
         font-size: 11px;
     }
 }
+
+/* 20260929 CL/SZ SD-698: card button next to the account number (debitorkort / kreditorkort / kontospec) */
+.account-autocomplete-card-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    padding: 1px 3px;
+    border: 1px solid #b7c9df;
+    border-radius: 3px;
+    background: #ffffff;
+    color: #1e5a96;
+    line-height: 0;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.account-autocomplete-card-btn:hover {
+    background: #1e5a96;
+    color: #ffffff;
+}

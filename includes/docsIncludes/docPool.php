@@ -103,9 +103,6 @@
 //                 a logged/alerted db_modify() failure.
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
 // 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
-// 20261003 CL/SZ SD-713 "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window (docWindow.php), which follows the selection.
-//                The viewer here collapses while that window is open.
-// 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261006 LOE SST-858 A bilag is deleted, renamed and inventoried by the name it actually has, so a
 //                 file stored as AArsoversigt.PDF is removed from the pulje folder too and does not
 //                 return from the next folder sync; its .info/.xml side files follow whatever their
@@ -114,6 +111,9 @@
 // 20261008 LOE SST-858 An xml bilag that shares its base name with a pdf is a bilag of its own, so deleting
 //                 it removes the xml itself, and deleting the pdf no longer takes the xml with it. Only
 //                 the .info written beside a pdf follows it.
+// 20261003 CL/SZ SD-713 "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window (docWindow.php), which follows the selection.
+//                The viewer here collapses while that window is open.
+// 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
