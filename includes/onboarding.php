@@ -28,7 +28,7 @@
 //                  settings_section_complete(); fiscal also needs the VAT answer); onb_steps_stored() keeps what the
 //                  guide recorded; onb_steps() answers once per request.
 // 20261014 Sawaneh Test invoice: formularprint() answers 'OK' when it printed, which was read as a refusal; refusals are logged.
-//                  The PDF converter falls back to the server's ps2pdf like udskriv.php when the master setting is empty.
+//                  The PDF converter and pdftk fall back to the server's own binaries when the master settings are empty.
 
 if (!function_exists('onb_get')):
 
@@ -266,7 +266,18 @@ function onb_test_invoice(): array
 		if (trim($ps) === '') {
 			$ps = rtrim(!empty($exec_path) ? (string) $exec_path : '/usr/bin', '/') . '/ps2pdf';
 		}
-		renderPrintBatch($dir, array(array('name' => $name, 'background' => $bg, 'pages' => $pages)), $out, $html, $ps, $pdftk, true);
+		$merge = trim((string) $pdftk);
+		foreach (array($merge, rtrim(!empty($exec_path) ? (string) $exec_path : '/usr/bin', '/') . '/pdftk', '/usr/bin/pdftk') as $candidate) {
+			if ($candidate !== '' && is_file($candidate)) {
+				$merge = $candidate;
+				break;
+			}
+		}
+		if ($merge === '' || !is_file($merge)) {
+			error_log('onboarding test invoice: pdftk not found (master setting empty, no /usr/bin/pdftk)');
+			return $fail('render');
+		}
+		renderPrintBatch($dir, array(array('name' => $name, 'background' => $bg, 'pages' => $pages)), $out, $html, $ps, $merge, true);
 	} catch (\Throwable $ex) {
 		error_log('onboarding test invoice: render failed: ' . $ex->getMessage());
 		return $fail('render');
