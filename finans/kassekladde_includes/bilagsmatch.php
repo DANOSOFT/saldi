@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/bilagsmatch.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- finans/kassekladde_includes/bilagsmatch.php --- ver 5.0.0 --- 2026-10-12 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -141,6 +141,9 @@
 //                   a dimmed screen with no way out. Now renders the existing empty-result
 //                   state on failure instead of nothing.
 // 20261003 CL/SZ SD-723 The pinned preview, its "open in tab" and its download load the document through docFile.php (login and tenant checked) instead of its direct path.
+// 20261012 CL/SZ SD-730 "Match valgte" attached nothing: since SST-777 docPool.php needs the pool row's version
+//                   (poolAttachVersion), which AttachAll() didn't send. It now sends it (hidden column from fetchbilagsmatch.php),
+//                   and a refused attach is shown in an alert instead of disappearing in the reload.
 ?>
 
 <?php
@@ -324,6 +327,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
         ["pf. id - hidden", "pf_id", "style='display:none;'", "style='display:none;'", 'pf_id'],
         ["kl. id - hidden", "kladde_id", "style='display:none;'", "style='display:none;'", 'kladde_id'],
         ["filename - hidden", "filename", "style='display:none;'", "class='bilags-filename' style='display:none;'", 'filename'],
+        ["version - hidden", "version", "style='display:none;'", "style='display:none;'", 'version'],
         ["<?= $bm_col_type ?>", (row) => {
             // Pool filenames come from uploaded documents, not app-controlled strings -
             // a name containing a quote, &, or < would otherwise break out of these
@@ -391,6 +395,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
             groups.get(row.filename).push(row);
         }
 
+        const failed = [];
         for (const [filename, rows] of groups) {
             const primary = rows[0];
             const otherIds = rows.slice(1).map(r => r.kasse_id).join(',');
@@ -400,18 +405,32 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
                 sourceId:   primary.kasse_id,
                 openPool:   '1',
                 insertFile: '1',
+                poolAttachVersion: primary.version || '',
             });
             // poolFile[] (not poolFiles) so docPool.php takes the lossless-array branch -
             // a filename containing a comma would otherwise be split apart by the legacy
             // poolFiles=<comma-joined string> branch.
             body.append('poolFile[]', filename);
             if (otherIds) body.set('targetSourceIds', otherIds);
-            await fetch(`../includes/documents.php`, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body:    body.toString(),
-            });
+            // A refused attach (409 changed document, 422 account) or a failed request used to vanish in the reload;
+            // say which and why, and go on with the other documents
+            try {
+                const res = await fetch(`../includes/documents.php`, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    body.toString(),
+                });
+                if (!res.ok) {
+                    const page = new DOMParser().parseFromString(await res.text(), 'text/html');
+                    page.querySelectorAll('style, script').forEach(e => e.remove());
+                    const txt = (page.body ? page.body.textContent : '').replace(/\s+/g, ' ').trim();
+                    failed.push(filename + ': ' + txt.slice(-160));
+                }
+            } catch (err) {
+                failed.push(filename + ': ' + (err && err.message ? err.message : err));
+            }
         }
+        if (failed.length) alert(failed.join('\n'));
         location.replace(location.pathname + location.search);
     }
 
