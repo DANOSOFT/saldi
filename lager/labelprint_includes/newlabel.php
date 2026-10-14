@@ -49,6 +49,8 @@
 // 20260914 LOE SST-790: a zero price is left blank on the label ($pris and $minpris),
 //                 the mylabel price is tested on its raw value, not the formatted "0,00".
 // 20260916 LOE SST-790: $dkkpris is blanked on a zero price too (review follow-up).
+// 20261009 CL/NTR $enhedspris/$enhed branch reads $r['salgspris'] instead of the non-existent
+//                 $r['pris'] (varer has no pris column), matching the sibling else branch.
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -195,12 +197,17 @@ for ($l=0;$l<count($labels);$l++) {
 		$konto = $r2['box4'];
 		$qtxt="select moms from kontoplan where kontonr='$r2[box4]' order by id desc limit 1";
 		$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$momskode=str_replace("S","",$r2['moms']);	
-		$qtxt="select box2 from grupper where art='SM' and kodenr = '$momskode'";
-		$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$incl_moms=$r2['box2']*1;
+		$momskode=str_replace("S","",$r2['moms']);
+		if (ctype_digit($momskode)) {
+			$qtxt="select box2 from grupper where art='SM' and kodenr = '$momskode'";
+			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		} else {
+			$r2=false;
+		}
+		$incl_moms= $r2 ? floatval($r2['box2']) : 25; // $r2 can be false if not found, default to 25% VAT
 		$salgspris*=(100+$incl_moms)/(100);
 		$special_price*=(100+$incl_moms)/(100);
+		
 	}
 	if (!$img && !$brotherTD) { #20200407
 		if ($stregkode) $img=barcode($stregkode);
@@ -255,7 +262,7 @@ for ($l=0;$l<count($labels);$l++) {
 			}
 			if (strpos($labelTxt,'$enhedspris/$enhed')) {
 				if ($r['enhed'] && $r['indhold']) {
-					$labelTxt=str_replace('$enhedspris',dkdecimal(($r['pris']/$r['indhold']),2),$labelTxt);
+					$labelTxt=str_replace('$enhedspris',dkdecimal(($r['salgspris']/$r['indhold']),2),$labelTxt);
 					$labelTxt=str_replace('$enhed',$r['enhed'],$labelTxt);
 				} else {
 					$labelTxt=str_replace('($enhedspris/$enhed)','',$labelTxt);

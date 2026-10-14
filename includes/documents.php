@@ -38,6 +38,7 @@
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
 // 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
 //                  instead of always the first regardless, so a missing first file no longer hides the others.
+// 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -53,6 +54,8 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
+include_once(__DIR__ . "/docsIncludes/FileReservation.php");
+include_once(__DIR__ . "/docsIncludes/docFileFunc.php");
 require_once __DIR__ . "/docsIncludes/poolUpload.php";
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
@@ -509,7 +512,7 @@ if ($linkBilag && $source == 'kassekladde') {
 		// Build the file path for preview
 		$filePath = $docFolder . '/' . $db . '/' . $r['filepath'] . '/' . $r['filename'];
 		$filePath = str_replace('//', '/', $filePath);
-		$filePathEncoded = htmlspecialchars($filePath, ENT_QUOTES);
+		$filePathEncoded = htmlspecialchars(docFileUrl($filePath, $docFolder, $db), ENT_QUOTES);
 		
 		$linkUrl = "documents.php?doLink=1&linkDocId=$docId&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
 		
