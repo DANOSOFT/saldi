@@ -76,6 +76,7 @@
 //                  cookie, read server-side so the first paint is right.
 // 20261013 Sawaneh Test pass: without Se Oversigt the chip menu shows no dashboard items and the greeting bar stays off.
 // 20261014 Sawaneh Review: the shell's POSTs (top bar forms, theme, bell) carry the session's CSRF token.
+// 20261014 Sawaneh Review: the landing page without Se Oversigt is a page the role's own key allows.
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 // 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
 // 20261009 Sawaneh css/saldi-fonts.css in the shell: Saldi Grotesk + Inter and the text-size base (front-page addendum 3 §3).
@@ -1196,10 +1197,11 @@ function brightenColor($color, $amount = 0.2) {
   // Without Se Oversigt the user lands on the first module in the sidebar they may use (addendum 4 §2.1).
   $landing = '/index/dashboard.php';
   if (!$dashView) {
-  	if (check_permissions(array(0, 2, 3, 4))) $landing = '/finans/kladdeliste.php';
-  	elseif (check_permissions(array(5, 6, 12))) $landing = '/debitor/ordreliste.php';
-  	elseif (check_permissions(array(7, 8, 13))) $landing = '/kreditor/ordreliste.php';
-  	elseif (check_permissions(array(9, 10, 14, 15))) $landing = '/lager/lister/vareliste.php';
+  	$may = function (array $keys, array $bits) { return function_exists('perm_can') ? (bool) array_filter($keys, 'perm_can') : check_permissions($bits); };
+  	if ($may(array('finans.kassekladde'), array(0, 2, 3, 4))) $landing = '/finans/kladdeliste.php';
+  	elseif ($may(array('debitor.ordre'), array(5, 6, 12))) $landing = '/debitor/ordreliste.php';
+  	elseif ($may(array('kreditor.ordre'), array(7, 8, 13))) $landing = '/kreditor/ordreliste.php';
+  	elseif ($may(array('lager.varer'), array(9, 10, 14, 15))) $landing = '/lager/lister/vareliste.php';
   	else $landing = '/systemdata/personalSettings.php';
   }
   ?>

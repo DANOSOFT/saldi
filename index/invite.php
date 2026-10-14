@@ -20,6 +20,7 @@
 // 20260929 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §8.4): the page an invitation link
 //                  opens. The invited user chooses a password and is then logged in the normal way.
 // 20261001 Sawaneh MySQL: select the company database after connecting (as online.php).
+// 20261014 Sawaneh Review: the auto-login after an invitation keeps the password in the session for one minute, not in the HTML.
 
 @session_start();
 if (empty($_SESSION['nonce'])) {
@@ -59,7 +60,8 @@ if ($state === 'ok' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		$brugernavn = $invite['user']['brugernavn'];
 		user_set_first_password((int) $bruger_id, $kode, 'invite');
 		unset($_SESSION['invite_csrf']);
-		$login = array('regnskab' => $invite['regnskab'], 'brugernavn' => $brugernavn, 'password' => $kode);
+		$_SESSION['invite_login'] = array('regnskab' => $invite['regnskab'], 'brugernavn' => $brugernavn, 'password' => $kode, 'at' => time());
+		$login = array('regnskab' => $invite['regnskab'], 'brugernavn' => $brugernavn);
 		$state = 'done';
 	}
 }
@@ -146,7 +148,7 @@ body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify
   <form id="iv-login" method="post" action="login.php">
     <input type="hidden" name="regnskab" value="<?= $h($login['regnskab']) ?>">
     <input type="hidden" name="brugernavn" value="<?= $h($login['brugernavn']) ?>">
-    <input type="hidden" name="password" value="<?= $h($login['password']) ?>">
+    <input type="hidden" name="invite_login" value="1">
     <button type="submit"><?= $t('5789|Fortsæt') ?></button>
   </form>
   <script nonce="<?= $h($nonce) ?>">document.getElementById('iv-login').submit();</script>

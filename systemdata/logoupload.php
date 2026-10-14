@@ -212,12 +212,26 @@ if (!file_exists($dest_dir)) {
     mkdir($dest_dir, 0777, true);
 }
 
-if (isset($_GET['slet_bilag'])) {
-    if (!logo_name_ok($_GET['slet_bilag'])) {
+// 20261014 Sawaneh Review: a background is deleted by POST with the session's CSRF token (logo_delete_form()), never by a GET link.
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+function logo_delete_form(array $check, string $confirmText, string $label): string
+{
+    $h = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES); };
+    return "<form method=\"post\" action=\"logoupload.php\" style=\"display:inline\" onsubmit=\"return confirm('" . $confirmText . "')\">"
+        . "<input type=\"hidden\" name=\"csrf_token\" value=\"" . $h($_SESSION['csrf_token']) . "\">"
+        . "<input type=\"hidden\" name=\"slet_bilag\" value=\"" . $h($check['name']) . "\">"
+        . "<input type=\"hidden\" name=\"sprog\" value=\"" . $h($check['background']) . "\">"
+        . "<input type=\"hidden\" name=\"department\" value=\"" . (int) $check['department'] . "\">"
+        . "<button type=\"submit\" style=\"background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit\">" . $label . "</button></form>";
+}
+if (isset($_POST['slet_bilag'])) {
+    if (!logo_name_ok($_POST['slet_bilag']) || !isset($_POST['csrf_token']) || !hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token'])) {
         upload();
         exit;
     }
-    $slet_bilag=$_GET['slet_bilag'].".pdf"; 
+    $slet_bilag=$_POST['slet_bilag'].".pdf"; 
     
     // For delete operation, use the selected department and current background
     $delete_department = $selected_department;
@@ -231,7 +245,8 @@ if (isset($_GET['slet_bilag'])) {
   
     
    
-    $selected_sprog = $_GET['sprog'] ?? $current_sprog;
+    $selected_sprog = $_POST['sprog'] ?? $current_sprog;
+    $delete_department = isset($_POST['department']) ? (int) $_POST['department'] : $delete_department;
   
     
     // Use db_id directory structure with optional department
@@ -450,7 +465,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $bg="<a href=\"view_logoupload.php?vis={$bg_check['name']}&sprog=$current_sprog&department={$bg_check['department']}\">".findtekst('1754|show background', $sprog_id)."$dept_info</a>";
         $txt1= findtekst('1755|Do you want to delete this background for all forms?', $sprog_id);
-        $slet_bg="<a href=\"logoupload.php?slet_bilag={$bg_check['name']}&sprog={$bg_check['background']}&department={$bg_check['department']}\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_bg=logo_delete_form($bg_check, $txt1, findtekst('1099|Delete', $sprog_id));
     } else {
         $bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
         $slet_bg=NULL;
@@ -463,7 +478,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $tilbud_bg="<a href=\"view_logoupload.php?vis={$tilbud_bg_check['name']}&sprog=$current_sprog&department={$tilbud_bg_check['department']}\">".findtekst('1756|show background for quotes', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1757|Do you want to delete this background for quotes?', $sprog_id);
-        $slet_tilbud_bg="<a href=\"logoupload.php?slet_bilag={$tilbud_bg_check['name']}&sprog={$tilbud_bg_check['background']}&department={$tilbud_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_tilbud_bg=logo_delete_form($tilbud_bg_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $tilbud_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
         $slet_tilbud_bg=NULL;
@@ -476,7 +491,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $ordrer_bg="<a href=\"view_logoupload.php?vis={$ordrer_bg_check['name']}&sprog=$current_sprog&department={$ordrer_bg_check['department']}\">".findtekst('1759|show background for orders', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1760|Do you want to delete this background for orders?', $sprog_id);
-        $slet_ordrer_bg="<a href=\"logoupload.php?slet_bilag={$ordrer_bg_check['name']}&sprog={$ordrer_bg_check['background']}&department={$ordrer_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_ordrer_bg=logo_delete_form($ordrer_bg_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $ordrer_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
         $slet_ordrer_bg=NULL;
@@ -489,7 +504,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $faktura_bg="<a href=\"view_logoupload.php?vis={$faktura_bg_check['name']}&sprog=$current_sprog&department={$faktura_bg_check['department']}\">".findtekst('1761|show background for invoices', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1762|Do you want to delete this background for invoices?', $sprog_id);
-        $slet_faktura_bg="<a href=\"logoupload.php?slet_bilag={$faktura_bg_check['name']}&sprog={$faktura_bg_check['background']}&department={$faktura_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_faktura_bg=logo_delete_form($faktura_bg_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $faktura_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
         $slet_faktura_bg=NULL; 
@@ -503,7 +518,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $tilbud_bilag="<a href=\"view_logoupload.php?vis={$tilbud_bilag_check['name']}&sprog=$current_sprog&department={$tilbud_bilag_check['department']}\">".findtekst('1763|show attachment for quotes', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1764|Do you want to delete this attachment for quotes?', $sprog_id);
-        $slet_tilbud_bilag="<a href=\"logoupload.php?slet_bilag={$tilbud_bilag_check['name']}&sprog={$tilbud_bilag_check['background']}&department={$tilbud_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_tilbud_bilag=logo_delete_form($tilbud_bilag_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $tilbud_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
         $slet_tilbud_bilag=NULL;
@@ -516,7 +531,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $ordrer_bilag="<a href=\"view_logoupload.php?vis={$ordrer_bilag_check['name']}&sprog=$current_sprog&department={$ordrer_bilag_check['department']}\">".findtekst('1766|show attachment for orders', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1767|Do you want to delete this attachment for orders?', $sprog_id);
-        $slet_ordrer_bilag="<a href=\"logoupload.php?slet_bilag={$ordrer_bilag_check['name']}&sprog={$ordrer_bilag_check['background']}&department={$ordrer_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_ordrer_bilag=logo_delete_form($ordrer_bilag_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $ordrer_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
         $slet_ordrer_bilag=NULL;
@@ -529,7 +544,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $faktura_bilag="<a href=\"view_logoupload.php?vis={$faktura_bilag_check['name']}&sprog=$current_sprog&department={$faktura_bilag_check['department']}\">".findtekst('1768|show attachment for invoices', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1769|Do you want to delete this attachment for invoices?', $sprog_id);
-        $slet_faktura_bilag="<a href=\"logoupload.php?slet_bilag={$faktura_bilag_check['name']}&sprog={$faktura_bilag_check['background']}&department={$faktura_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_faktura_bilag=logo_delete_form($faktura_bilag_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $faktura_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
         $slet_faktura_bilag=NULL;

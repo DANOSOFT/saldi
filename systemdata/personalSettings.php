@@ -286,8 +286,8 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 function personal_settings_save_security(array $post, int $brugerId, string $brugernavn, string $db, array $current, array &$out): void
 {
 	$twofactor = !empty($post['twofactor']);
-	$new1 = isset($post['nykode1']) ? (string) $post['nykode1'] : '';
-	$new2 = isset($post['nykode2']) ? (string) $post['nykode2'] : '';
+	$new1 = isset($post['nykode1']) ? trim((string) $post['nykode1']) : '';
+	$new2 = isset($post['nykode2']) ? trim((string) $post['nykode2']) : '';
 	$wantsPassword = ($new1 !== '' || $new2 !== '');
 	if ($twofactor === $current['twofactor'] && !$wantsPassword) {
 		return;

@@ -192,8 +192,8 @@ function ur_save_user(array $post, int $selfId, int $regnaar): string
 {
 	$id = (int) ifset($post, 'id', 0);
 	$navn = trim((string) ifset($post, 'brugernavn', ''));
-	$kode = (string) ifset($post, 'kode', '');
-	$kode2 = (string) ifset($post, 'kode2', '');
+	$kode = trim((string) ifset($post, 'kode', ''));
+	$kode2 = trim((string) ifset($post, 'kode2', ''));
 	$roleId = (int) ifset($post, 'role_id', 0);
 	$ansatId = (int) ifset($post, 'ansat_id', 0);
 	$ipList = array_values(array_filter(preg_split('/[\s,;]+/', trim((string) ifset($post, 'ip_address', '')))));

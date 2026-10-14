@@ -252,6 +252,14 @@ if (isset($_POST['regnskab'])) {
 	if ($regnskab = trim($_POST['regnskab'])){
 		$brugernavn = isset($_POST['brugernavn']) ? sanitize_input(htmlspecialchars(trim($_POST['brugernavn']), ENT_COMPAT, $charset)) : null;
 		$password = isset($_POST['password']) ? trim($_POST['password']) : null;
+		// 20261014 Sawaneh Review: the auto-login after an invitation reads the password from the session (set by invite.php within the last minute).
+		if ($password === null && !empty($_POST['invite_login']) && isset($_SESSION['invite_login']) && is_array($_SESSION['invite_login'])) {
+			$iv = $_SESSION['invite_login'];
+			unset($_SESSION['invite_login']);
+			if ((time() - (int) $iv['at']) < 60 && $iv['regnskab'] === $regnskab && $iv['brugernavn'] === (string) $_POST['brugernavn']) {
+				$password = (string) $iv['password'];
+			}
+		}
 		$timestamp = isset($_POST['timestamp']) ? sanitize_input(trim($_POST['timestamp'])) : null;
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
 	}
