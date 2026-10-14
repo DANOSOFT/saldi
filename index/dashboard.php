@@ -44,6 +44,8 @@
 //                  dashboard.view, so Salg/Indkøb roles get the page their keys promise.
 // 20261012 Sawaneh Test pass: the view key only refuses in deny mode (perm_refuse above), observe mode shows the page; widget
 //                  choices are per user with the fixed defaults, no fallback to old company-wide rows.
+// 20261014 Sawaneh Review: chart data only in the page JSON for blocks the role allows; fiscal-year dates zero-padded
+//                  (string compares dropped months 1-9 of the year to date).
 // 20261010 Sawaneh Ufakturerede ordrer: key figures 1 and 3 of addendum 3 §7 (delivered over 14 days ago, ready to invoice now). Texts 7072-7073.
 @session_start();
 $s_id = session_id();
@@ -97,8 +99,8 @@ while (!checkdate($slutmaaned,$slutdato,$slutaar)){
 	$slutdato=$slutdato-1;
 	if ($slutdato<28) break 1;
 }
-$regnstart = $startaar. "-" . $startmaaned . "-" . '01';
-$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
+$regnstart = sprintf('%04d-%02d-01', $startaar, $startmaaned);
+$regnslut = sprintf('%04d-%02d-%02d', $slutaar, $slutmaaned, $slutdato);
 
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -444,9 +446,9 @@ $js = array(
 	'locale' => isset($locales[(int) $sprog_id]) ? $locales[(int) $sprog_id] : 'da-DK',
 	'widgets' => $widgets, 'hidden' => $hide_dash, 'blocks' => $blockList, 'order' => $blockOrder, 'defaultOrder' => $blockDefaults,
 	'defaultOff' => array_keys(array_filter($widgetDefaults, function ($v) { return $v === 'off'; })),
-	'month' => array('labels' => array_map($u8, $data['month']['labels']), 'now' => $data['month']['now'], 'last' => $data['month']['last'], 'nowLabel' => $u8($data['month']['nowLabel']), 'lastLabel' => $u8($data['month']['lastLabel'])),
-	'weeks' => $data['weeks'], 'days' => array_map($u8, $data['days']), 'heat' => $data['heat'], 'heatDefault' => '30',
-	'donut' => array('items' => $donutItems, 'total' => $data['donut']['total']),
+	'month' => !$blockAccess['revgraph'] ? null : array('labels' => array_map($u8, $data['month']['labels']), 'now' => $data['month']['now'], 'last' => $data['month']['last'], 'nowLabel' => $u8($data['month']['nowLabel']), 'lastLabel' => $u8($data['month']['lastLabel'])),
+	'weeks' => $blockAccess['revweek'] ? $data['weeks'] : null, 'days' => array_map($u8, $data['days']), 'heat' => $blockAccess['customergraph'] ? $data['heat'] : null, 'heatDefault' => '30',
+	'donut' => $blockAccess['varegrp_doughnut'] ? array('items' => $donutItems, 'total' => $data['donut']['total']) : null,
 	'unpaid' => $unpaidJs,
 	'accounts' => array('kontomin' => $kontomin, 'kontomaks' => $kontomaks, 'canEdit' => $canEditAccounts, 'guide' => 'https://site.saldi.dk/saldi-manualer/omsaetningstal'),
 	'txt' => array(

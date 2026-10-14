@@ -73,7 +73,7 @@ function perm_level_label(string $level, int $sprogId): string
 function perm_tables_ready(): bool
 {
 	static $ready = null;
-	if ($ready === null) {
+	if ($ready !== true) {
 		$ready = function_exists('tbl_exists') && tbl_exists('roles') && tbl_exists('role_permissions');
 	}
 	return $ready;
@@ -82,7 +82,7 @@ function perm_tables_ready(): bool
 function audit_ready(): bool
 {
 	static $ready = null;
-	if ($ready === null) {
+	if ($ready !== true) {
 		$ready = function_exists('tbl_exists') && tbl_exists('audit_log');
 	}
 	return $ready;

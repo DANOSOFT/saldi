@@ -219,7 +219,7 @@
 		return fetch('dashboard.php', { method: 'POST', body: fd, credentials: 'same-origin' }).then((r) => r.ok ? r.json() : null).catch(() => null);
 	}
 	let savedT = 0;
-	function markSaved() { const m = $('#savedMsg'); if (!m) return; m.classList.add('on'); clearTimeout(savedT); savedT = setTimeout(() => m.classList.remove('on'), 1500); }
+	function markSaved(res) { const m = $('#savedMsg'); if (!m) return; if (!res || !res.ok) { m.classList.remove('on'); return; } m.classList.add('on'); clearTimeout(savedT); savedT = setTimeout(() => m.classList.remove('on'), 1500); }
 	function setWidget(k, on, animate = true) {
 		const c = cardOf(k); dash[k] = on; if (!c) return; clearTimeout(c._t);
 		if (on) { c.classList.remove('gone', 'leaving'); requestAnimationFrame(fitAxisText); if (animate && c.classList.contains('in')) { c.classList.remove('arriving'); void c.offsetWidth; c.classList.add('arriving'); } }

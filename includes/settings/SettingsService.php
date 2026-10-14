@@ -582,7 +582,7 @@ class SettingsService
 	private static function audit(array $def, string $old, string $new, string $handling): void
 	{
 		global $bruger_id, $brugernavn;
-		$secret = ($def['type'] === 'secret');
+		$secret = ($def['type'] === 'secret' || (isset($def['permission']) && $def['permission'] === 'settings.organisation.sensitive'));
 		$section = $def['group'] . '.' . $def['section'];
 		// detaljer as the roles spec defines it: {before, after}, a secret only as "ændret" (settings redesign §8.12).
 		$detaljer = json_encode($secret ? array('before' => 'ændret', 'after' => 'ændret') : array('before' => $old, 'after' => $new), JSON_UNESCAPED_UNICODE);
