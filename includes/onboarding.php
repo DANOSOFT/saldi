@@ -27,6 +27,7 @@
 // 20261011 Sawaneh Steps company/fiscal/users count as done when their data exists (settings spec §8.8,
 //                  settings_section_complete(); fiscal also needs the VAT answer); onb_steps_stored() keeps what the
 //                  guide recorded; onb_steps() answers once per request.
+// 20261014 Sawaneh Test invoice: formularprint() answers 'OK' when it printed, which was read as a refusal; refusals are logged.
 
 if (!function_exists('onb_get')):
 
@@ -236,7 +237,10 @@ function onb_test_invoice(): array
 	ob_end_clean();
 	$name = isset($GLOBALS['printfilnavn']) ? (string) $GLOBALS['printfilnavn'] : '';
 	transaktion('rollback');
-	if ((is_string($res) && trim($res) !== '') || $name === '') {
+	// formularprint() answers 'OK' or a PDF path when it printed; any other text is its refusal.
+	$answer = is_string($res) ? trim($res) : '';
+	if (($answer !== '' && $answer !== 'OK' && !preg_match('/\.pdf$/i', $answer)) || $name === '') {
+		error_log("onboarding test invoice: print refused ('$answer', file '$name')");
 		return $fail('print');
 	}
 
@@ -258,6 +262,7 @@ function onb_test_invoice(): array
 	try {
 		renderPrintBatch($dir, array(array('name' => $name, 'background' => $bg, 'pages' => $pages)), $out, $html, !empty($pv['box2']) ? $pv['box2'] : $ps2pdf, $pdftk, true);
 	} catch (\Throwable $ex) {
+		error_log('onboarding test invoice: render failed: ' . $ex->getMessage());
 		return $fail('render');
 	}
 	return array('ok' => true, 'file' => "$dir/$out", 'url' => "../temp/$db/" . abs((int) $bruger_id) . "/$out?t=" . time(), 'error' => '');
