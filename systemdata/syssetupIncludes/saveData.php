@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- systemdata/syssetupIncludes/saveData.php ---patch 5.0.0 ----2026-07-24 ---
+//--- systemdata/syssetupIncludes/saveData.php ---patch 5.0.0 ----2026-10-01 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,12 +22,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
 // 20240604 PHR PHP8
 // 20250903 PHR Definition of array $adr_konto_id
 // 20260724 MJ  Propagate VG.box5 og DG/KG.box10 til alle fiscal_year-raekker ved gem.
 // 20260729 CL/NTR - reported by CodeRabbit - whitelist box10 and box5 values when transfering between fiscal_years, and empty them if not on the list of allowed values.
+// 20261001 CDX/PHR Prevent warehouse deletion from moving stock history or renumbering other warehouses.
+require_once(__DIR__ . '/warehouseDeletion.php');
+
 if ($_POST){
 	$id=if_isset($_POST['id']);
 	$beskrivelse=if_isset($_POST['beskrivelse']);
@@ -291,36 +294,9 @@ if ($_POST){
 					if ($box4[$x]) db_modify("update varer set tier_price = $box4[$x] WHERE prisgruppe = '$kodenr[$x]'",__FILE__ . " linje " . __LINE__);
 				}
 				if ($art[$x]=='LG') { #LagerGrupper
-					$r1=db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE id=$id[$x]",__FILE__ . " linje " . __LINE__));
-					$q2=db_select("SELECT beholdning,vare_id FROM lagerstatus WHERE lager =  '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
-					while ($r2=db_fetch_array($q2)) {
-						$b2=$r2['beholdning']*1; # 20170405
-						if ($r3=db_fetch_array(db_select("SELECT * FROM lagerstatus WHERE lager = '0' and vare_id = '$r2[vare_id]'",__FILE__ . " linje " . __LINE__))) {
-							$b3=$r3['beholdning']*1; # 20170405
-							db_modify("update lagerstatus set beholdning = $b3+$b2 WHERE id = $r3[id]",__FILE__ . " linje " . __LINE__);
-						} elseif($b2) {
-						db_modify("insert into lagerstatus (beholdning,vare_id,lager) values ('$b2','$r2[vare_id]','0')",__FILE__ . " linje " . __LINE__);
-						}
-					}
-					db_modify("delete FROM lagerstatus WHERE lager = '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
-					db_modify("update batch_kob set lager = 0 WHERE lager =  '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
-					db_modify("delete FROM grupper WHERE id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
-					$qtxt = "SELECT kodenr FROM grupper WHERE art='LG' and kodenr > '$r1[kodenr]' order by kodenr";
-					$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-					while ($r1=db_fetch_array($q1)) {
-						$qtxt = "update lagerstatus set lager = $r1[kodenr]-1 WHERE lager = '$r1[kodenr]'";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt = "update batch_kob set lager = $r1[kodenr]-1 WHERE lager =  '$r1[kodenr]'";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					}
-					$qtxt = "SELECT kodenr FROM grupper WHERE art='LG'";
-					if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					} else {
-#						db_modify("delete FROM lagerstatus",__FILE__ . " linje " . __LINE__);
-						$qtxt = "update lagerstatus set lager = 0";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt = "update batch_kob set lager = 0";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					$warehouseError = deleteWarehouseDefinition((int) $id[$x]);
+					if ($warehouseError !== '') {
+						print '<script>alert(' . json_encode($warehouseError, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ');</script>';
 					}
 				} elseif ($art[$x]=='SM'||$art[$x]=='KM'||$art[$x]=='YM'||$art[$x]=='EM') {
 					$qtxt = "SELECT kodenr FROM grupper WHERE id=$id[$x]";
