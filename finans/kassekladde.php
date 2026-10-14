@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -136,10 +136,21 @@
 //                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
+// 20260929 CL/SZ SD-698: The account lookup popup gets a card button on every line: a debtor opens the debitorkort, a creditor the kreditorkort, a finance account its kontospec.
+//                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
+//                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
+// 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
+// 20261012 CL/SZ SD-730 Regnskabsår select in the header (fiscalYearSwitch.php): switches the active year and comes back to
+//                  the same journal. A clip next to Bemærkning opens the journal's own documents (journalDocuments.php).
+//                  Coming back from the open-posts page keeps the line's Forfaldsdato and Betalings-id (they were emptied).
+//                  Close on a journal opened with returside=kladdeliste.php (Ny) went to includes/kladdeliste.php (Not Found).
+// 20261013 CL/SZ SD-730 The Bemærkning field shrinks (up to 750px) so the header row fits a 1280px screen.
+//                  The "Genveje til Kassekladden" help link was pushed out of view (already on master; the new cells made it worse).
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
+require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
 require_once __DIR__ . '/kassekladde_includes/sorting.php';
 
@@ -223,6 +234,10 @@ if ($kk_saved_journal !== null) {
 	exit;
 }
 include("../includes/std_func.php");
+// SD-730: ?aktiver_regnaar=<year> from the header's Regnskabsår select switches the year and comes back here
+require_once __DIR__ . '/kassekladde_includes/fiscalYearSwitch.php';
+require_once __DIR__ . '/kassekladde_includes/journalDocumentsFunc.php';
+if (!$_POST) fiscalYearSwitchHandle($_GET, $regnaar, $brugernavn, $bruger_id, $revisor, $db_id, session_id());
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
@@ -549,8 +564,8 @@ print "<script>
 	}
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
-print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.4">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.6" defer></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.8" defer></script>';
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -775,6 +790,9 @@ $r = db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' 
 ($r['box10']) ? $vis_bet_id = 1         : $vis_bet_id = 0;
 if ($_GET) {
 	$returside = if_isset($_GET, null, 'returside');
+	// A card opened from a journal row (SD-698) appends returside=<this journal> to its Tilbage link;
+	// as the journal's own back target that would loop, so fall back to the default.
+	if ($returside && basename((string)parse_url($returside, PHP_URL_PATH)) == 'kassekladde.php') $returside = null;
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
 	$sort            =       if_isset($_GET, 		null,   'sort');
@@ -802,6 +820,9 @@ if ($_GET) {
 	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
 	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
 	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	// SD-730: the open-posts links (an invoice row, Indsæt, Luk) carry these, so the line keeps them
+	if (isset($_GET['forfaldsdato'])) $forfaldsdato[$x] = db_escape_string(trim((string)$_GET['forfaldsdato']));
+	if (isset($_GET['betal_id']))     $betal_id[$x]     = db_escape_string(trim((string)$_GET['betal_id']));
 	$find            =       if_isset($_GET, 		'',		'find');
 	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
 	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
@@ -1787,6 +1808,9 @@ if (!$simuler) {
 	} else {
 		$backUrl = "../finans/kladdeliste.php";
 	}
+	// SD-730: Close goes through ../includes/luk.php, so a bare file name (returside=kladdeliste.php from Ny) has to point
+	// back into finans/; it ended on includes/kladdeliste.php (Not Found)
+	if (strpos($backUrl, '/') === false) $backUrl = "../finans/" . $backUrl;
 	if ($returside != "regnskab") {
 		$returside = "../finans/kladdeliste.php";
 	}
@@ -1867,6 +1891,24 @@ function build_kassekladde_query($kladde_id, $kksort) {
     ";
     return $query;
 }
+
+$kk_card_titles = array(
+	'F' => findtekst('1196|Specifikation for', $sprog_id) . ' ' . findtekst('2131|konto', $sprog_id),
+	'D' => findtekst('356|Debitorkort', $sprog_id),
+	'K' => findtekst('1184|Kreditorkort', $sprog_id),
+);
+// Card button on each line of the account lookup popup (javascript/accountAutocomplete.js); other pages
+// that load the popup script leave this unset and get no button
+print "<script>window.saldiAccountCard = " . json_encode(array(
+	'url'      => 'kassekladde_includes/openAccountCard.php',
+	'kladdeId' => (int)$kladde_id,
+	'titles'   => $kk_card_titles,
+	'unsaved'  => findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id),
+)) . ";</script>";
+print "<style>
+	a.kk-card-link{color:inherit;text-decoration:underline dotted;}
+	@media print{a.kk-card-link{text-decoration:none;}}
+</style>";
 
 // Define columns for the grid
 $columns = array(
@@ -1996,7 +2038,7 @@ $columns = array(
 			return $value;
 		},
 		// Add custom render function to include title
-		'render' => function($value, $row, $column) use ($regnaar) {
+		'render' => function($value, $row, $column) use ($regnaar, $kladde_id) {
 			global $regnaar;
 			$value = strip_tags($value);
 			$debettext = '';
@@ -2015,7 +2057,10 @@ $columns = array(
 				}
 			}
 
-			return "<td align='right' title='" . htmlspecialchars($debettext) . "'>" . htmlspecialchars($value) . "</td>";
+			$cardUrl = kk_account_card_link($row['d_type'], $value, $kladde_id);
+			$shown = htmlspecialchars($value);
+			if ($cardUrl) $shown = "<a class='kk-card-link' href='" . htmlspecialchars($cardUrl) . "'>$shown</a>";
+			return "<td align='right' title='" . htmlspecialchars($debettext) . "'>$shown</td>";
 		},
 		"generateSearch" => function ($column, $term) {
 			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
@@ -2084,7 +2129,7 @@ $columns = array(
 			return $value;
 		},
 		// Add custom render function to include title
-		'render' => function($value, $row, $column) use ($regnaar) {
+		'render' => function($value, $row, $column) use ($regnaar, $kladde_id) {
 			global $regnaar;
 			$value =strip_tags($value);
 			$kredittext = '';
@@ -2103,7 +2148,10 @@ $columns = array(
 				}
 			}
 
-			return "<td align='right' title='" . htmlspecialchars($kredittext) . "'>" . htmlspecialchars($value) . "</td>";
+			$cardUrl = kk_account_card_link($row['k_type'], $value, $kladde_id);
+			$shown = htmlspecialchars($value);
+			if ($cardUrl) $shown = "<a class='kk-card-link' href='" . htmlspecialchars($cardUrl) . "'>$shown</a>";
+			return "<td align='right' title='" . htmlspecialchars($kredittext) . "'>$shown</td>";
 		},
 		"generateSearch" => function ($column, $term) {
 			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
@@ -2698,9 +2746,12 @@ print "<tr><td width='100%' valign='top' height='1%' align='center' class='kasse
 print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
 print "<tr style='vertical-align: middle;'>"; # Added vertical-align
 print "<td width='14%' align='center'><span id='kk-balance-status'></span></td>";
-print "<td align='left' style='white-space: nowrap;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
-<input class='inputbox' type='text' style='width:750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
-onchange='javascript:docChange = true;'></td>";
+// The note field shrinks (up to 750px) so the row, help link included, fits a 1280px screen
+print "<td align='left' style='white-space: nowrap; width: 100%;'><div style='display: flex; align-items: center; gap: 4px;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
+<input class='inputbox' type='text' style='flex: 1 1 auto; min-width: 120px; max-width: 750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
+onchange='javascript:docChange = true;'></div></td>";
+print journalDocumentsClip($kladde_id, $sprog_id);
+print fiscalYearSwitchCell($regnaar, $kladde_id, $bogfort, $sprog_id);
 if ($bogfort == "-") {
 	$page_display = false;
     if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
@@ -2718,7 +2769,7 @@ $help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='$he
 print "<td width='2%' align='center' style='vertical-align: middle;'>
     <a href='javascript:void(0)' onclick='window.print(); return false;'>
     <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td>
-    <td width='12%' align='center' style='vertical-align: middle;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
+    <td width='12%' align='center' style='vertical-align: middle; white-space: nowrap;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
 print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 
