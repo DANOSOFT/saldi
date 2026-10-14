@@ -1,7 +1,10 @@
 <?php
 // 20260907 CDX/LH Preserve suggestion account types and match posted duplicates by currency and counterparty.
+// 20260928 CL/SZ SST-818: sidste_5_forslag() fetched every earlier line on the account and kept five; it now filters and limits in the query.
 // 20261003 CL/SZ SD-722 sidste_5_forslag() for a kreditor searches posted entries first (openpost to transaktioner, journal and kreditor invoices), then journal lines.
 //                A posted bilag that is also a journal line is shown once. Every row says where it came from (kilde: bogfort or kladde).
+// 20261014 CL/SZ SD-722 With SST-818's counter-account filter and limit 5 in the query: the journal lines of the posted bilag already shown
+//                are left out in the query as well, so a kreditor with posted bilag still gets 5 suggestions.
 
 /**
  * Find recent counter-accounts without losing their customer/supplier/finance identity.
@@ -36,10 +39,13 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		$d_artcond = "d_type = '$art'";
 		$k_artcond = "k_type = '$art'";
 	}
+	# The counter-account filter is in the SQL (SST-818); the order and limit are added below, after the posted bilag are known.
 	if ($dk == "D") {
-		$txt = "select bilag,kladde_id,transdate,beskrivelse,debet as kontonr,d_type as kontoart from kassekladde where $k_artcond and kredit = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
+		$txt = "select bilag,kladde_id,transdate,beskrivelse,debet as kontonr,d_type as kontoart from kassekladde where $k_artcond and kredit = '$kontonr_sql' and kladde_id != '$kladde_id_sql' ";
+		$txt.= "and debet != 0 and (d_type is null or upper(trim(d_type)) in ('', 'D', 'K', 'F'))";
 	} else {
-		$txt = "select bilag,kladde_id,transdate,beskrivelse,kredit as kontonr,k_type as kontoart from kassekladde where $d_artcond and debet = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
+		$txt = "select bilag,kladde_id,transdate,beskrivelse,kredit as kontonr,k_type as kontoart from kassekladde where $d_artcond and debet = '$kontonr_sql' and kladde_id != '$kladde_id_sql' ";
+		$txt.= "and kredit != 0 and (k_type is null or upper(trim(k_type)) in ('', 'D', 'K', 'F'))";
 	}
 
 	if ($art == 'K') {
@@ -79,6 +85,12 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		}
 	}
 
+	// The journal lines of a posted bilag already shown are left out in the query too, so limit 5 returns 5 rows the loop keeps
+	foreach (array_keys($postedBilag) as $postedKey) {
+		list($postedKladde, $postedNr) = array_map('intval', explode('|', $postedKey));
+		$txt .= " and not (kladde_id = $postedKladde and coalesce(bilag, 0) = $postedNr)";
+	}
+	$txt .= " order by transdate desc,id desc limit 5";
 	$q = count($forslag['rows']) < 5 ? db_select($txt, __FILE__ . " linje " . __LINE__) : false;
 	while ($q && count($forslag['rows']) < 5 && ($r = db_fetch_array($q))) {
 		$counterType = strtoupper(trim((string)$r['kontoart'])) ?: 'F';
