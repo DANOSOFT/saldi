@@ -30,6 +30,12 @@ function opdat_4_3($majorNo, $subNo, $fixNo){
 }}
 ```
 
+**Ordering inside `betweenUpdates.php`:** append every new change at the **end** of the file, in the order the changes were made (chronological history). Never insert at the top.
+
+Only place a change earlier when it must run *before* another patch that is already there (e.g. a column or table has to exist before an existing statement uses it). In that case put it directly before the patch that depends on it and add a short comment naming that dependency.
+
+**Why ordering matters:** updates are applied top to bottom. A patch sitting above the one it depends on fails on the first run, and only succeeds on the second run (e.g. for a regnskab that hasn't been opened recently, so it is updated twice instead of once). Chronological appending also keeps the file easy to read and review.
+
 **Why:** `betweenUpdates.php` is the working/staging area for changes not yet tied to a released version. `opdat_<major>.<minor>.php` files are the permanent, per-version record of what a given release's updater applies — see [Protected update files](feedback_protected_update_files.md) for handling rules on these files.
 
 **How to apply:** For a normal DB structure/content change, edit `includes/betweenUpdates.php`. Only touch `includes/opdat_*.php` or `includes/version.php` when the user explicitly asks to cut/release a new version — do not do this transfer speculatively.
