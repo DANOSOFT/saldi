@@ -4,7 +4,6 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-07 ---
 // --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
