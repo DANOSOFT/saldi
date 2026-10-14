@@ -111,12 +111,6 @@
 // 20260907 CL/LH  The replay fingerprint is recorded only after a successful save; recording it before
 //                  kontroller() turned a double-click on a failing save into a "replay" that skipped
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
-// 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
-// 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
-// 20260928 CL/SZ SST-818: The open journal ran one full-kladde select per line to check whether the kladde had saved lines, and two documents lookups per line; both are now done once per page.
-//                Saving reloaded the whole chart of accounts (and for D/K lines all of adresser) for every line and scanned it with in_array(); kontroller() now loads them once per request and checks with isset().
-// 20260929 CL/SZ SST-818: kk_finance_account_lookup() counts an account as closed only when lukket is 'on', the same test the account search uses.
-
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
 //                  unload/pagehide beacon was added (there was none before).
@@ -124,6 +118,7 @@
 //                  too, and the unload beacon checks sendBeacon()'s return value before
 //                  treating the lock as released, falling back to the sync XHR when it fails.
 // 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
+// 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 // 20260923 SZ SST-755 (CodeRabbit): exit link and beacon now carry a per-render lockToken
 //                  instead of tidspkt, since tidspkt alone didn't distinguish two tabs open on
 //                  the same kladde before either one saved.
@@ -131,12 +126,18 @@
 //                  observed tidspkt, so a stale render can't overwrite a token a concurrent
 //                  tidspkt change has since replaced (unlockRecord.php's refresh_lock_token()
 //                  now requires it).
+// 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
+// 20260928 CL/SZ SST-818: The open journal ran one full-kladde select per line to check whether the kladde had saved lines, and two documents lookups per line; both are now done once per page.
+//                Saving reloaded the whole chart of accounts (and for D/K lines all of adresser) for every line and scanned it with in_array(); kontroller() now loads them once per request and checks with isset().
+// 20260929 CL/SZ SST-818: kk_finance_account_lookup() counts an account as closed only when lukket is 'on', the same test the account search uses.
 // 20260930 CL/SZ SD-701 Clicking an attached voucher opens it in a separate tab (reused per click), so it can sit
 //                  on a second screen while the journal, incl. unsaved values, stays open in the original tab.
 // 20261002 CL/SZ SD-701 The voucher tab is view-only; managing attachments goes back to the journal tab via openBilagManage().
 //                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
+
+
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
