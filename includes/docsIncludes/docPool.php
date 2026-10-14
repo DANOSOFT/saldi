@@ -4,6 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
 // --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-08 ---
 // --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-08 ---
 // LICENSE
@@ -137,6 +138,7 @@
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
 // 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
+// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
 // 20261006 LOE SST-858 A bilag is deleted, renamed and inventoried by the name it actually has, so a
 //                 file stored as AArsoversigt.PDF is removed from the pulje folder too and does not
 //                 return from the next folder sync; its .info/.xml side files follow whatever their
@@ -150,6 +152,7 @@ include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
+include_once(__DIR__ . "/docFileFunc.php");
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
@@ -3600,7 +3603,8 @@ print <<<JS
 			}
 			
 			// Build file path for preview
-			const filePath = docFolder + '/' + db + '/pulje/' + filename;
+			// Served through docFile.php (login and tenant checked), see docFileUrl() in docFileFunc.php
+			const filePath = '../includes/docsIncludes/docFile.php?k=doc&f=' + encodeURIComponent('pulje/' + filename);
 			
 			// Check matches
 			const isSelected         = currentPoolFile && filename === currentPoolFile;
@@ -5356,7 +5360,8 @@ JS;
 					if ($htmlResult && !$curlError) {
 						// Save the HTML to a temp file for display in iframe
 						file_put_contents($htmlTempFile, $htmlResult);
-						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
+						$htmlTempUrl = htmlspecialchars(docFileUrl($htmlTempFile, $docFolder, $db), ENT_QUOTES);
+						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";
 						print "</iframe>";
 					} else {
 						docPoolLog("XML to HTML conversion failed for $poolFile: $curlError");
@@ -5385,7 +5390,8 @@ JS;
 			if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
 			else $src=$tmp;
 			
-			print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName#pagemode=none\" frameborder=\"0\">";
+			$fullNameUrl = htmlspecialchars(docFileUrl($fullName, $docFolder, $db), ENT_QUOTES);
+			print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullNameUrl#pagemode=none\" frameborder=\"0\">";
 			print "</iframe>";
 		}
 	}
