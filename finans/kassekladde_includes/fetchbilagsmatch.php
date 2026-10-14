@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.0.0 --- 2026-10-12 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -52,6 +52,8 @@
 //                   instead of excluding the row outright.
 // 20261003 CL/SZ SD-717: archived pool documents are not offered as matches.
 //                The header named the wrong file (kassekladde.php); corrected.
+// 20261012 CL/SZ SD-730 Each match carries its pool row's version (poolMetadataVersion()): since SST-777 docPool.php refuses an
+//                   attach without it, so "Match valgte" attached nothing.
 
     // Start buffering
     ob_start();
@@ -61,6 +63,7 @@
     include("../../includes/connect.php");
     include("../../includes/online.php");
     require_once __DIR__ . "/../../includes/docsIncludes/poolArchive.php";
+    require_once __DIR__ . "/../../includes/docsIncludes/poolMetadata.php";
 
 
     ini_set('display_errors', 0);
@@ -217,6 +220,9 @@
             },
             ARRAY_FILTER_USE_KEY
         );
+        // docPool.php refuses an attach without the pool row's metadata version (SST-777), so send it along
+        $pfRow = db_fetch_array(db_select("SELECT * FROM pool_files WHERE id = " . (int)$row['pf_id'], __FILE__ . " linje " . __LINE__));
+        $row['version'] = $pfRow ? poolMetadataVersion($pfRow) : '';
 
         $score = round(
             (float) ($row['amount_score'] ?? 0)

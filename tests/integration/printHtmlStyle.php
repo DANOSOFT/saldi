@@ -1,4 +1,5 @@
 <?php
+// 20261006 CL/LH SST-837: the legacy layout now also carries font-variant-ligatures:none.
 // 20260929 CDX/PHR Cover HTML typography and configurable rules through the form renderer.
 chdir(__DIR__ . '/../../debitor');
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -49,7 +50,7 @@ checkHtmlStyle(strpos($html, 'font-size:11pt;font-weight:normal;') !== false, 'E
 checkHtmlStyle(strpos($html, 'font-size:11pt;font-weight:bold;') !== false, 'Bold text retains its weight');
 checkHtmlStyle(strpos($html, 'font-family:Times, Times New Roman, serif;font-size:12pt;font-weight:bold;font-style:italic;') !== false, 'Selected Times font and bold italic styling are retained');
 checkHtmlStyle(strpos($ps, '1 setlinewidth') !== false && strpos($ps, '5 setlinewidth') !== false && strpos($ps, '11 scalefont') !== false, 'PostScript still uses the existing line widths and text sizes');
-checkHtmlStyle(formHtmlTextStyle('Times', 11, true, true, 1) === 'font-family:Arial, Helvetica, sans-serif;font-size:13.2px;white-space:pre-wrap;', 'Legacy typography preserves the original fixed family and pixel conversion');
+checkHtmlStyle(formHtmlTextStyle('Times', 11, true, true, 1) === 'font-family:Arial, Helvetica, sans-serif;font-size:13.2px;white-space:pre-wrap;font-variant-ligatures:none;', 'Legacy typography preserves the original fixed family and pixel conversion');
 $legacyLine = '<hr style="position:absolute;top:37.37mm;left:20mm;border:0.2px solid black; width:80mm;">' . "\n";
 checkHtmlStyle(formHtmlLine($rules[0], 1) === $legacyLine, 'Legacy rules preserve the original element, width, margins and placement');
 foreach (array(1, 2) as $version) {
