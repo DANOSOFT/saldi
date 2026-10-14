@@ -5177,3 +5177,12 @@
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
+5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
+5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
+5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
+5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
+5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
+5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
