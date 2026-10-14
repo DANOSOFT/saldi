@@ -200,10 +200,17 @@ if ($_POST) {
 }
 
 if (!$returside) $returside = $popup ? "../includes/luk.php" : "kreditor.php";
-$backSep  = (strpos($returside, '?') !== false) ? '&' : '?';
+// A #fragment must stay last in the URL, so parameters are added before it and it is re-appended afterwards
+$returFragment = '';
+$returBase = $returside;
+if (($fragPos = strpos($returside, '#')) !== false) {
+	$returFragment = substr($returside, $fragPos);
+	$returBase = substr($returside, 0, $fragPos);
+}
+$backSep  = (strpos($returBase, '?') !== false) ? '&' : '?';
 $retursideParam = urlencode($returside);
-$backHref = $returside . $backSep . 'returside=' . urlencode($returside) . '&id=' . urlencode(if_isset($ordre_id, ''))
-	. '&fokus=' . urlencode(if_isset($fokus, '')) . '&konto_id=' . urlencode((string)$id);
+$backHref = $returBase . $backSep . 'returside=' . urlencode($returside) . '&id=' . urlencode(if_isset($ordre_id, ''))
+	. '&fokus=' . urlencode(if_isset($fokus, '')) . '&konto_id=' . urlencode((string)$id) . $returFragment;
 // The back link's address is data, not JavaScript: inside a javascript: href the browser decodes %27 to a quote before running it
 $confirmLinkAttr = function ($href, $text = '') {
 	return "href=\"#\" data-back=\"" . htmlspecialchars($href, ENT_QUOTES) . "\" data-text=\"" . htmlspecialchars((string)$text, ENT_QUOTES)

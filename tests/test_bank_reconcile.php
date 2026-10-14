@@ -2,6 +2,7 @@
 // 20260916 CDX/LH Reproduce decimal parsing, skipped-line alignment and unmatched ledger rendering.
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) { throw new ErrorException($message, 0, $severity, $file, $line); });
+require_once __DIR__ . '/../includes/stdFunc/bankImportEncoding.php'; // bankReconcileFileLines() decodes through it (SST-838)
 $source = file_get_contents(__DIR__ . '/../finans/bankReconcile.php');
 // Load real functions while bypassing the authenticated page controller.
 $functions = substr($source, strpos($source, 'function reconcile('));
