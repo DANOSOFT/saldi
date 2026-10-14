@@ -29,6 +29,7 @@
 //                  guide recorded; onb_steps() answers once per request.
 // 20261014 Sawaneh Test invoice: formularprint() answers 'OK' when it printed, which was read as a refusal; refusals are logged.
 //                  The PDF converter and pdftk fall back to the server's own binaries when the master settings are empty.
+// 20261015 Sawaneh The test line carries an item number, so the print shows quantity, price and sum.
 
 if (!function_exists('onb_get')):
 
@@ -231,7 +232,8 @@ function onb_test_invoice(): array
 	db_modify("insert into ordrer (konto_id, firmanavn, addr1, postnr, bynavn, land, kontonr, art, valuta, valutakurs, sprog, ordredate, levdate, fakturadate, ordrenr, sum, momssats, moms, status, ref, fakturanr, betalingsbet, betalingsdage, udskriv_til, mail_fakt) values ($kontoId, '" . $e($kunde) . "', 'Testvej 1', '1000', 'København K', 'Danmark', '0', 'DO', 'DKK', 100, 'Dansk', '$today', '$today', '$today', $ordrenr, 10000, 25, 2500, 3, '" . $e($brugernavn) . "', '$no', '" . $e($bet) . "', $dage, 'PDF', '')", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array(db_select("select max(id) as id from ordrer where art = 'DO'", __FILE__ . " linje " . __LINE__));
 	$ordreId = (int) $r['id'];
-	db_modify("insert into ordrelinjer (ordre_id, posnr, beskrivelse, antal, pris, rabat, vare_id, momsfri, momssats, samlevare) values ($ordreId, 1, '" . $e(findtekst('6794|Konsulentydelse', $sprog_id)) . "', 10, 1000, 0, 0, '', 25, '')", __FILE__ . " linje " . __LINE__);
+	// The print engine reads quantity, price and sum only from lines with an item number; a line without one is a text line.
+	db_modify("insert into ordrelinjer (ordre_id, posnr, varenr, beskrivelse, enhed, antal, pris, rabat, vare_id, momsfri, momssats, samlevare) values ($ordreId, 1, 'TEST', '" . $e(findtekst('6794|Konsulentydelse', $sprog_id)) . "', 'stk', 10, 1000, 0, 0, '', 25, '')", __FILE__ . " linje " . __LINE__);
 
 	ob_start();
 	$res = formularprint($ordreId, 4, 0, $charset, 'PDF');
