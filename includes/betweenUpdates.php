@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -82,11 +82,19 @@
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
 // 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
 // 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
+// 20261002 CL/SZ SST-808: index ordrer (konto_id, fakturanr) and the open openpost rows so the
+//                  auto-udlign open-post search stops scanning ordrer once per open post.
+// 20261002 CL/SZ SST-808 (CodeRabbit): build those indexes CONCURRENTLY so login does not block
+//                  writes while they build, and rebuild one left INVALID by an interrupted build.
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
+// 20261006 CL/LH SST-850: hash a clear-text rentalsettings.pass once (idempotent, table-guarded).
 //                  re-seeds the corrected csv text on the next call.
 // 20261007 CL/NTR Add ordrer.shop_status as varchar(20) when the column is missing entirely,
 //                  so the Stripe paid-invoice index no longer fails on those tenants.
+// 20261007 CL/SZ SST-808: a login that finds the index lock taken skips the build instead of waiting for it.
+//                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
+// 20261013 CL/SZ SST-808 (CodeRabbit): skip the auto-udlign index block on MySQL tenants.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -332,6 +340,49 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
+
+# 20261002 CL/SZ SST-808: finans/kassekladde_includes/invoiceSearch.php (auto-udlign) looks up
+#                the order payment ID with a correlated subquery on ordrer (konto_id, fakturanr)
+#                for every open post, and in the COUNT when the user types a search. ordrer had
+#                no index on either column, so each open post forced a full scan of ordrer: on a
+#                290k-row openpost / 70k-row ordrer tenant one typed search took 130-140 s.
+#                The partial openpost index covers the open-post filter every invoiceSearch.php
+#                query starts from, so they stop scanning all settled rows too.
+#                Same advisory lock as above, for the same concurrent-login race.
+# 20261002 CL/SZ SST-808 (CodeRabbit): built CONCURRENTLY so the one-time build at login does not
+#                block writes to ordrer/openpost on a live tenant (this file runs outside any
+#                transaction, which CONCURRENTLY requires). An interrupted concurrent build leaves
+#                an INVALID index behind under the same name, so validity is checked and an
+#                invalid one is dropped and rebuilt instead of being skipped forever.
+# 20261007 CL/SZ SST-808: a second login that arrives during the build no longer waits for the advisory lock.
+#                Waiting deadlocked with CREATE INDEX CONCURRENTLY (it waits for that login's open snapshot): PostgreSQL
+#                aborted the build, the login got the error page and the index was left INVALID. It now skips instead.
+# 20261013 CL/SZ SST-808 (CodeRabbit): advisory locks, pg_index and CONCURRENTLY are PostgreSQL-only, and a
+#                failed db_select() exits, so a MySQL tenant skips this block instead of failing its login.
+$sst808Mysql = in_array($db_type, ['mysql', 'mysqli'], true);
+if (!$sst808Mysql) {
+	$sst808Indexes = array(
+		'ordrer_konto_id_fakturanr_idx' => "ON ordrer (konto_id, fakturanr)",
+		'openpost_open_idx'             => "ON openpost (konto_id) WHERE udlignet != '1' OR udlignet IS NULL",
+	);
+	foreach ($sst808Indexes as $indexName => $indexDefinition) {
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$lock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$indexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$lock || $lock['locked'] !== 't') continue;
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$indexName' AND pg_namespace.nspname = current_schema()";
+		$existingIndex = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($existingIndex && $existingIndex['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $indexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$existingIndex || $existingIndex['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $indexName $indexDefinition", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
+	}
+}
 
 #####
 
@@ -1071,5 +1122,16 @@ if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables W
 // Preserve HTML users before the renderer changes; explicit choices survive later updates.
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);
+
+// 20261006 CL/LH SST-850: rentalsettings.pass used to be stored in clear text. Hash a remaining
+// clear-text value once; only tenants with the rental module have the table, and a value that is
+// already a password_hash() is left alone, so this is idempotent.
+if (db_fetch_array(db_select("select 1 from information_schema.tables where table_name = 'rentalsettings'", __FILE__ . " linje " . __LINE__))) {
+	$rentalPass = db_fetch_array(db_select("select pass from rentalsettings", __FILE__ . " linje " . __LINE__));
+	if ($rentalPass && (string)$rentalPass['pass'] !== '' && password_get_info((string)$rentalPass['pass'])['algoName'] === 'unknown') {
+		$rentalHash = db_escape_string(password_hash((string)$rentalPass['pass'], PASSWORD_DEFAULT));
+		db_modify("update rentalsettings set pass = '$rentalHash'", __FILE__ . " linje " . __LINE__);
+	}
+}
 
 ?>
