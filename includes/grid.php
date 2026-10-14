@@ -35,6 +35,8 @@ Regards:) 20260220 LOE
 // 20260925 CL/NTR DEFAULT_GENERATE_SEARCH(): escape a text-column search term's own '%'/'_' via
 //                 the new db_escape_like_pattern() before wrapping it in ILIKE '%...%', so a lone
 //                 wildcard character no longer matches (almost) every row.
+// 20261006 CL/NTR Made the grid action-menu and its Redigér submenu triggers native type="button" buttons that
+//                 open on focus as well as hover.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -1415,7 +1417,9 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     echo <<<HTML
                         <th>
                             <div class="dropdown">
-                                <svg id="turn-arrow" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
+                                <button type="button" class="dropdown-trigger" aria-haspopup="true" aria-label="Handlinger">
+                                    <svg id="turn-arrow" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
+                                </button>
                                 <div class="dropdown-content">
                                     <button type="submit" class="dropdown-btn" onclick="document.getElementsByName('offset[$id]')[0].value='0';">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
@@ -1434,12 +1438,12 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
                                         {$txt4}
                                     </button>
                                     <div id='edit-button' class="has-secondary-dropdown">
-                                        <span>
+                                        <button type="button" class="secondary-trigger" aria-haspopup="true">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
                                             {$txt5}
-                                        </span>
+                                        </button>
 
-                                        <svg id="turn-arrow2" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
+                                        <svg id="turn-arrow2" tabindex="-1" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                                         <div class="secondary-dropdown">
                                             <button type="button" onclick="handleAction{$id}('kolonner')">
                                                 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M121-280v-400q0-33 23.5-56.5T201-760h559q33 0 56.5 23.5T840-680v400q0 33-23.5 56.5T760-200H201q-33 0-56.5-23.5T121-280Zm79 0h133v-400H200v400Zm213 0h133v-400H413v400Zm213 0h133v-400H626v400Z"/></svg>
@@ -2314,15 +2318,24 @@ function render_dropdown_style() {
         .dropdown-content button svg, .dropdown-content #edit-button svg {
             height: 17px;
         }
-        .dropdown:hover .dropdown-content {
+        .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content {
             display: block;
+        }
+        /* The trigger is a native button so the menu can be reached by keyboard; keep it looking like the bare icon. */
+        .dropdown-trigger {
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            cursor: pointer;
+            display: inline-flex;
         }
         /* Ensure the dropdown stays within the viewport */
         .dropdown-content {
             right: auto; /* Ensure it's not forced to align right */
             transform: translateX(0); /* Default translation */
         }
-        .dropdown:hover .dropdown-content {
+        .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content {
             left: auto; /* Reset alignment if it's clipped */
             right: 0; /* Move to the right edge if needed */
         }
@@ -2367,8 +2380,18 @@ function render_dropdown_style() {
             z-index: 2;
             min-width: 150px;
         }
-        .has-secondary-dropdown:hover .secondary-dropdown {
+        .has-secondary-dropdown:hover .secondary-dropdown, .has-secondary-dropdown:focus-within .secondary-dropdown {
             display: block;
+        }
+        /* Native button so the submenu can be reached by keyboard; undo the generic menu-button box so it keeps the old span look. */
+        .has-secondary-dropdown > .secondary-trigger {
+            display: flex;
+            align-items: normal;
+            width: auto;
+            padding: 0;
+        }
+        .has-secondary-dropdown > .secondary-trigger:hover {
+            background: none;
         }
         .secondary-dropdown button {
             background: none;
@@ -2384,7 +2407,7 @@ function render_dropdown_style() {
         #turn-arrow, #turn-arrow2 {
             transition: transform 0.1s ease-in-out;
         }
-        .dropdown:hover #turn-arrow, .has-secondary-dropdown:hover #turn-arrow2 {
+        .dropdown:hover #turn-arrow, .dropdown:focus-within #turn-arrow, .has-secondary-dropdown:hover #turn-arrow2, .has-secondary-dropdown:focus-within #turn-arrow2 {
             transform: rotate(90deg);
         }
 
