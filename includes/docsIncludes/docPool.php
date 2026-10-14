@@ -106,6 +106,15 @@
 //                The fallback is now relative to includes/documents.php.
 // 20261003 CL/SZ SD-715 Each line warns when its kreditor already has the invoice number (open journal, posted, other pool document).
 //                A line with nothing typed yet checks the document's own kreditor and number.
+// 20261003 CL/SZ SD-716 Ctrl + arrow keys move between the fields of the entry rows, with the journal's implementation (fieldNavigation.js).
+// 20261003 CL/SZ SD-716 "Gem og næste" (button, or Enter in a field) saves the rows one after another, attaches the document and opens the next document with its data transferred (docPoolSaveNext.js).
+//                Dato, Debet, Kredit and Beløb are mandatory for it, "Spring over" opens the next document without saving, and the arrow keys outside a field switch document.
+//                A new line gets the journal's next voucher number, as a new line in the journal does.
+//                chooseMultipleBilag() takes an optional callback that runs instead of the redirect to the journal.
+// 20261004 CL/SZ SD-716 A new row "Gem og næste" has already saved is sent with that line's id, so a retry after a failed attach doesn't create a second line.
+//                transferDataFromSelectedFile({auto: true}) fills only empty fields, without the confirm popup, and takes Kredit only from a confident vendor match.
+// 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
+// 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
@@ -708,6 +717,14 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$poolFiles = array_filter($poolFiles);
 		
 		if (!empty($poolFiles)) {
+			// A document saved from another tab (or removed) is no longer in the pool: nothing is created for it
+			foreach ($poolFiles as $checkPoolFile) {
+				if (!is_file("$docFolder/$db/pulje/" . basename((string)$checkPoolFile))) {
+					http_response_code(409);
+					print htmlspecialchars(findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id), ENT_QUOTES, 'UTF-8');
+					return;
+				}
+			}
 			// If date/amount wasn't passed from JavaScript, try to read from .info file of first selected file
 			// Check database first for file information
 			$filename = reset($poolFiles);
@@ -1467,6 +1484,10 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$v9 = file_exists("../css/invoiceReuse.css") ? filemtime("../css/invoiceReuse.css") : 0;
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/invoiceReuse.css?v=$v9\">\n";
 	print "<script src=\"../javascript/invoiceReuse.js?v=$v8\"></script>";
+	$v10 = file_exists("../javascript/fieldNavigation.js") ? filemtime("../javascript/fieldNavigation.js") : 0;
+	print "<script src=\"../javascript/fieldNavigation.js?v=$v10\"></script>";
+	$v11 = file_exists("../javascript/docPoolSaveNext.js") ? filemtime("../javascript/docPoolSaveNext.js") : 0;
+	print "<script src=\"../javascript/docPoolSaveNext.js?v=$v11\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -1615,6 +1636,11 @@ if ($source == 'kassekladde') {
 			if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
 		}
 		$displayBilag       = $bilag ?? '';
+		// SD-716: a new line gets the journal's next voucher number, the same number the journal's own new line offers
+		if ($displayBilag === '' && $currentKladdeId) {
+			include_once(__DIR__ . '/../../finans/kassekladde_includes/bilagNumber.php');
+			$displayBilag = bilagNextNumberForJournal($currentKladdeId);
+		}
 		$displayDato        = $dato ?? '';
 		$displayFaktura     = $fakturanr ?? '';
 		$displayBeskrivelse = $beskrivelse ?? '';
@@ -1701,7 +1727,7 @@ if ($source == 'kassekladde') {
 		$dis            = $readOnly ? ' disabled' : '';
 		$cbVal          = is_numeric($rowId) ? (int)$rowId : '0';
 		$cbChecked      = ((string)$cbVal === (string)$sourceId) ? ' checked' : '';
-		print "<div class='kassebilag-entry' id='bilagEntry_{$rowId}' style='margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e0e0e0;'>";
+		print "<div class='kassebilag-entry' id='bilagEntry_{$rowId}' data-field-nav-row style='margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e0e0e0;'>";
 		print "<div class='topbar-fields-row'>";
 		$linkIcon = '<svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
 		print "<div class='topbar-field' style='justify-content:center;align-items:center;'>" . $lbl($linkIcon) . "<input type='checkbox' class='targetLineCheckbox' value='{$cbVal}'{$cbChecked} style='width:16px;height:16px;cursor:pointer;accent-color:{$GLOBALS['buttonColor']};' title='".findtekst('3268|Tilknyt bilag til denne linje', $sprog_id)."'></div>";
@@ -1751,6 +1777,19 @@ if ($source == 'kassekladde') {
 	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
 	print "<script>
 	window.saldiPoolAccounts = " . json_encode(array('lookupUrl' => 'docsIncludes/poolAccountLookup.php', 'kladdeId' => $escKladde)) . ";
+	window.saldiPoolSaveNext = " . json_encode(array(
+		'kladdeId'  => (int)$escKladde,
+		'bilag'     => (int)$intBilag,
+		'readOnly'  => (bool)$readOnly,
+		'journalUrl' => '../finans/kassekladde.php?kladde_id=' . (int)$escKladde,
+		'texts'     => array(
+			'mandatory' => findtekst('5334|Obligatorisk', $sprog_id),
+			'noMore'    => findtekst('5335|Ingen flere bilag i puljen', $sprog_id),
+			'toJournal' => findtekst('5336|Tilbage til kassekladden', $sprog_id),
+			'saving'    => findtekst('3|Gem', $sprog_id) . '...',
+			'stale'     => findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id),
+		),
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
 	" . ($readOnly ? '' : "window.saldiInvoiceReuse = " . json_encode(array(
 		'url'      => '../finans/kassekladde_includes/invoiceReuseCheck.php',
 		'kladdeId' => $escKladde,
@@ -1792,7 +1831,12 @@ if ($source == 'kassekladde') {
 		$txt2 = findtekst('3|Gem', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id));  #Gem alle
 		$txt3 = findtekst('3339|Overfør data', $sprog_id);
 		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus $txt1</a>";
-		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp; $txt2</a>";
+		// SD-716: "Gem og næste" is the main action (also on Enter); "Gem alle" saves without leaving the document
+		$txtSaveNext = findtekst('5332|Gem og næste', $sprog_id);
+		$txtSkip = findtekst('5333|Spring over', $sprog_id);
+		print "<a href='#' id='saveNextBtn' onclick='poolSaveAndNext(); return false;' style=\"$btnStyle\" title='Enter'>$svgSave &nbsp; $txtSaveNext &#8629;</a>";
+		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle opacity: 0.85;\">$svgSave &nbsp; $txt2</a>";
+		print "<a href='#' id='skipDocBtn' onclick='poolSkipDocument(); return false;' style=\"$btnStyle opacity: 0.85;\">$txtSkip $svgChevronRight</a>";
 		print "<a href='#' id='transferDataBtn' onclick='transferDataFromSelectedFile(); return false;' style=\"$btnStyle\">$svgPointer &nbsp;$txt3</a>";
 	} else {
 		$txt = findtekst('637|Bogført', $sprog_id);
@@ -1804,7 +1848,7 @@ if ($source == 'kassekladde') {
 	$totalRows = count($bilagLines) + (!$sourceId ? 1 : 0);
 	$collapsible = $totalRows > 1;
 
-	print "<div id='bilagRowsContainer'>";
+	print "<div id='bilagRowsContainer' data-field-nav>";
 
 	// Keep the selected new row first so transfer data remains visible when other rows are collapsed.
 	if (!$sourceId) {
@@ -3359,7 +3403,8 @@ print <<<JS
 	};
 	
 	// Function to insert/choose multiple bilag
-	window.chooseMultipleBilag = function(selectedFiles) {
+	// afterAttach (SD-716): called instead of the redirect to the journal once the document is attached
+	window.chooseMultipleBilag = function(selectedFiles, afterAttach) {
 		const form = document.forms['gennemse'];
 		if (!form) {
 			alert('Form not found');
@@ -3571,6 +3616,18 @@ print <<<JS
 						sessionStorage.removeItem('docPool_checked_' + file);
 					});
 
+					if (typeof afterAttach === 'function') {
+						// A successful attach answers with the redirect to the journal; anything else is an error page
+						if (text.indexOf('kassekladde.php?kladde_id=') !== -1) {
+							afterAttach();
+						} else {
+							console.error('Attach failed. Response:', text);
+							alert('{$txt34}. {$txt32}.');
+							afterAttach(new Error('attach failed'));
+						}
+						return;
+					}
+
 					// Leaving the pool for the kassekladde: keep the list position for the way back.
 					savePoolListView();
 
@@ -3595,14 +3652,17 @@ print <<<JS
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
 					alert(response.status === 409 ? '{$poolStaleText}' : '{$txt34} (Status: ' + response.status + '). {$txt32}.');
+					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');
+					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				});
 			}
 		})
 		.catch(error => {
 			console.error('Insert error:', error);
 			alert('{$txt34}: ' + error.message);
+			if (typeof afterAttach === 'function') afterAttach(error);
 		});
 	};
 	
@@ -5426,6 +5486,12 @@ HTML;
 
     /** Open a document preview without dropping the unsaved new voucher's fields. */
     window.openPoolFile = function(href) {
+        // SD-716: nothing typed in the new line, so the document opens with its own data (docPoolSaveNext.js)
+        var fresh = typeof window.poolFreshDocumentUrl === 'function' ? window.poolFreshDocumentUrl(href) : null;
+        if (fresh) {
+            if (typeof window.poolSwitch === 'function') window.poolSwitch(fresh); else window.location.href = fresh;
+            return;
+        }
         var url = new URL(href, window.location.href);
         if (document.getElementById('bilagEntry_new')) {
             var values = _collectRow('new');
@@ -5447,6 +5513,9 @@ HTML;
         if (includeSourceId && rowId !== 'new') fd.append("sourceId", rowId);
         if (kladdeId) fd.append("kladde_id", kladdeId);
         if (bilag)    fd.append("bilag", bilag);
+        // SD-716: a new row "Gem og næste" has already saved (its attach then failed) is that line now, not a new one
+        var savedEntry = document.getElementById('bilagEntry_' + rowId);
+        if (includeSourceId && !fd.has("sourceId") && savedEntry && savedEntry.dataset.savedLineId) fd.append("sourceId", savedEntry.dataset.savedLineId);
         fd.append("bilagsnr",    v.bilagsnr);
         fd.append("dato",        v.dato);
         fd.append("beskrivelse", v.beskrivelse);
@@ -5574,9 +5643,10 @@ HTML;
     window.duplicateEntry = duplicateRow;
 
 	//### 
-	window.transferDataFromSelectedFile = function() {
-    
-    
+	// options.auto (SD-716, "Gem og næste" opening the next document): no confirm popup, no alerts, only empty
+	// fields are filled, and Kredit only from a confident vendor match
+	window.transferDataFromSelectedFile = function(options) {
+		const auto = !!(options && options.auto);
 		let sourceRow  = null;
 		let sourceData = null;
 
@@ -5623,9 +5693,10 @@ HTML;
 		}
 
 		if (!sourceData) {
-			alert('Ingen fil valgt i listen. Klik på en fil i listen til venstre først.');
+			if (!auto) alert('Ingen fil valgt i listen. Klik på en fil i listen til venstre først.');
 			return;
 		} else if (sourceData === "multiple") {
+			if (auto) return;
 			alert('Flere filer er markeret. Vælg kun én fil for at overføre data.');
 			return;
 		}
@@ -5640,7 +5711,7 @@ HTML;
 			: Array.from(document.querySelectorAll('.kassebilag-entry'));
 
 		if (!entriesToFill.length) {
-			alert('Ingen kassebilag-linjer at overføre data til.');
+			if (!auto) alert('Ingen kassebilag-linjer at overføre data til.');
 			return;
 		}
 
@@ -5703,7 +5774,49 @@ HTML;
 		const suggestion = vendorSuggestion(sourceData.vendor);
 		const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-		// Populate each target entry
+		// Populate each target entry. onlyEmpty: leave a field that already has a value alone.
+		function applyTransfer(transferKredit, onlyEmpty) {
+				let populated = 0;
+				let kreditKept = 0;
+				entriesToFill.forEach(function(entry) {
+					const rowId = entry.id.replace('bilagEntry_', '');
+					const pfx   = 'row_' + rowId + '_';
+
+					function setField(id, value) {
+						const el = document.getElementById(id);
+						if (el && value && !(onlyEmpty && el.value.trim() !== '')) {
+							el.value = value;
+							el.dispatchEvent(new Event('change', { bubbles: true }));
+						}
+					}
+
+					if (transferAmount)      setField(pfx + 'Amount',      transferAmount);
+					if (transferDate)        setField(pfx + 'Dato',        transferDate);
+					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
+					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
+					if (transferKredit) {
+						// A Kredit the user typed is never overwritten by a suggestion.
+						const kreditEl = document.getElementById(pfx + 'Kredit');
+						if (kreditEl && kreditEl.value.trim() !== '' && kreditEl.value.trim() !== transferKredit) {
+							kreditKept++;
+						} else if (kreditEl) {
+							setField(pfx + 'Kredit', transferKredit);
+							kreditEl.title = vendorTxt.forslag + (suggestion.firmanavn ? ': ' + suggestion.firmanavn : '');
+							kreditEl.style.boxShadow = 'inset 0 0 0 2px #17a2b8';
+							kreditEl.addEventListener('input', function() { kreditEl.style.boxShadow = ''; kreditEl.title = ''; }, { once: true });
+						}
+					}
+
+					populated++;
+				});
+				if (kreditKept) console.info(vendorTxt.ikkeOverskrevet + ' (' + kreditKept + ')');
+		}
+
+		if (auto) {
+			applyTransfer(suggestion.mode === 'auto' ? suggestion.kredit : '', true);
+			return;
+		}
+
 		const existing = document.getElementById('transferConfirmPopup');
 			if (existing) existing.remove();
 
@@ -5759,41 +5872,7 @@ HTML;
 					if (sel && sel.value) transferKredit = sel.value;
 				}
 				overlay.remove();
-
-				let populated = 0;
-				let kreditKept = 0;
-				entriesToFill.forEach(function(entry) {
-					const rowId = entry.id.replace('bilagEntry_', '');
-					const pfx   = 'row_' + rowId + '_';
-
-					function setField(id, value) {
-						const el = document.getElementById(id);
-						if (el && value) {
-							el.value = value;
-							el.dispatchEvent(new Event('change', { bubbles: true }));
-						}
-					}
-
-					if (transferAmount)      setField(pfx + 'Amount',      transferAmount);
-					if (transferDate)        setField(pfx + 'Dato',        transferDate);
-					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
-					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
-					if (transferKredit) {
-						// A Kredit the user typed is never overwritten by a suggestion.
-						const kreditEl = document.getElementById(pfx + 'Kredit');
-						if (kreditEl && kreditEl.value.trim() !== '' && kreditEl.value.trim() !== transferKredit) {
-							kreditKept++;
-						} else if (kreditEl) {
-							setField(pfx + 'Kredit', transferKredit);
-							kreditEl.title = vendorTxt.forslag + (suggestion.firmanavn ? ': ' + suggestion.firmanavn : '');
-							kreditEl.style.boxShadow = 'inset 0 0 0 2px #17a2b8';
-							kreditEl.addEventListener('input', function() { kreditEl.style.boxShadow = ''; kreditEl.title = ''; }, { once: true });
-						}
-					}
-
-					populated++;
-				});
-				if (kreditKept) console.info(vendorTxt.ikkeOverskrevet + ' (' + kreditKept + ')');
+				applyTransfer(transferKredit, false);
 
 				// Visual feedback on the button
 				const btn = document.getElementById('transferDataBtn');
