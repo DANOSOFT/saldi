@@ -5235,8 +5235,6 @@
 5407	Findes allerede i puljen	Already in the pool	Finnes allerede i puljen
 5408	cvrapi.dk afviser opslag fra serveren	cvrapi.dk refuses lookups from the server	cvrapi.dk avviser oppslag fra serveren
 5409	cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.	cvrapi.dk refuses lookups from the server. Please fill in the fields manually.	cvrapi.dk avviser oppslag fra serveren. Fyll ut feltene manuelt.
-5369	Kreditoren kunne ikke oprettes	The creditor could not be created	Kreditoren kunne ikke opprettes
-5370	Intet CVR-nummer på bilaget	No CVR number on the document	Intet CVR-nummer på bilaget
 5371	Aflæst	Read	Lest
 5372	Foreslået fordi de sidste $antal bilag fra denne kreditor blev bogført på konto $konto	Suggested because the last $antal vouchers from this creditor were posted to account $konto	Foreslått fordi de siste $antal bilagene fra denne kreditoren ble bokført på konto $konto
 5373	Foreslået fordi det seneste bilag fra denne kreditor blev bogført på konto $konto	Suggested because the latest voucher from this creditor was posted to account $konto	Foreslått fordi det siste bilaget fra denne kreditoren ble bokført på konto $konto
