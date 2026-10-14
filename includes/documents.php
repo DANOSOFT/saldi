@@ -36,7 +36,6 @@
 // 20261004 CDX/LOE Share browser upload handling and redirect form uploads before rendering.
 // 20261002 CL/SZ SD-701 viewOnly=1 shows only the line's document, for the voucher tab the journal opens.
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
-// 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
 // 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
 //                  instead of always the first regardless, so a missing first file no longer hides the others.
 // 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
