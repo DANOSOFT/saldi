@@ -28,6 +28,7 @@
 //                  settings_section_complete(); fiscal also needs the VAT answer); onb_steps_stored() keeps what the
 //                  guide recorded; onb_steps() answers once per request.
 // 20261014 Sawaneh Test invoice: formularprint() answers 'OK' when it printed, which was read as a refusal; refusals are logged.
+//                  The PDF converter falls back to the server's ps2pdf like udskriv.php when the master setting is empty.
 
 if (!function_exists('onb_get')):
 
@@ -202,7 +203,7 @@ function onb_next_invoice_set(int $n): void
  */
 function onb_test_invoice(): array
 {
-	global $db, $db_id, $bruger_id, $brugernavn, $charset, $ps2pdf, $pdftk, $sprog_id;
+	global $db, $db_id, $bruger_id, $brugernavn, $charset, $ps2pdf, $pdftk, $sprog_id, $exec_path;
 	$fail = function (string $e) {
 		return array('ok' => false, 'file' => '', 'url' => '', 'error' => $e);
 	};
@@ -260,7 +261,12 @@ function onb_test_invoice(): array
 	}
 	$out = 'testfaktura.pdf';
 	try {
-		renderPrintBatch($dir, array(array('name' => $name, 'background' => $bg, 'pages' => $pages)), $out, $html, !empty($pv['box2']) ? $pv['box2'] : $ps2pdf, $pdftk, true);
+		// The converter as includes/udskriv.php picks it: the PV override, the master setting, else the server's own ps2pdf.
+		$ps = !empty($pv['box2']) ? (string) $pv['box2'] : (string) $ps2pdf;
+		if (trim($ps) === '') {
+			$ps = rtrim(!empty($exec_path) ? (string) $exec_path : '/usr/bin', '/') . '/ps2pdf';
+		}
+		renderPrintBatch($dir, array(array('name' => $name, 'background' => $bg, 'pages' => $pages)), $out, $html, $ps, $pdftk, true);
 	} catch (\Throwable $ex) {
 		error_log('onboarding test invoice: render failed: ' . $ex->getMessage());
 		return $fail('render');
