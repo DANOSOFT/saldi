@@ -814,7 +814,7 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 	$dirFiles = scandir($puljePath);
 	// A failed listing is not an empty folder: nothing is stored, so the next load reads the folder again
 	if ($dirFiles === false) {
-		docPoolLog("checkIfAllPoolFilesAreInDatabase: listing $puljePath failed, the folder is read again on the next load");
+		docPoolLog("checkIfAllPoolFilesAreInDatabase: scandir($puljePath) failed, the folder is read again on the next load");
 		return;
 	}
 	foreach ($dirFiles as $dirFile) {
