@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- patch 5.0.0 --- 2026-08-25 ---
+// --- debitor/api.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
@@ -47,6 +47,14 @@
 //                     Every failure now logs one fakture-error file, sets ordrer.digital_status
 //                     to SendFailed so the order shows it and a resend asks first, and reports
 //                     through findtekst(); an HTTP 500 with a document is no longer a success.
+// 20261007 MJ SST-860 sendInvoice() no longer sends an empty accountingCustomerParty
+//                  companyId. A customer registered with an EAN/GLN and no CVR took the
+//                  GLN branch, which leaves $cvrnr_with_prefix empty, and the payload
+//                  carried "companyId": "". Brondby Kommune rejected faktura 12034 on
+//                  Schematron rule DK-R-017 because the sent XML had the GLN in
+//                  PartyLegalEntity/CompanyID under schemeID 0088 instead of a CVR under
+//                  0184. The key is omitted when no CVR is known; routing on the GLN and
+//                  the GLN exemptions in both missing-CVR guards are unchanged.
 
     @session_start();
     $s_id=session_id();
@@ -798,6 +806,17 @@
             );
         }
         $data["invoiceLines"] = $line;
+        // 20261007 MJ SST-860 An empty string is not a legal-entity identifier. Customers
+        // registered with an EAN/GLN and no CVR take the GLN branch above, which leaves
+        // $cvrnr_with_prefix empty, and the payload then carried "companyId": "". Schematron
+        // rule DK-R-017 requires schemeID 0184 (CVR) whenever PartyLegalEntity/CompanyID is
+        // present for a Danish customer, and Brøndby Kommune rejected faktura 12034 because
+        // the sent XML carried the GLN there under schemeID 0088 instead. Omit the key when
+        // we have no CVR, so there is no empty value downstream to substitute for. A bare
+        // "DK" is the same case with only the prefix applied.
+        if ($cvrnr_with_prefix === "" || $cvrnr_with_prefix === "DK") {
+            unset($data["accountingCustomerParty"]["companyId"]);
+        }
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
 
         // 20260604 - Validate required fields before transmission to prevent E-APS24003 errors

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -84,6 +84,7 @@
 // 20261001 MJ SST-819 kontoprint(): printing a range of accounts printed only the first one.
 //             The branch test compared konto_fra with itself, so the range query was dead code and
 //             konto_til was ignored. The revived query also treats a NULL lukket as open.
+// 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -2662,16 +2663,18 @@ if (!function_exists('rykkerprint')) {
 			fclose($logofil);
 		}
 
-		$mappe = "../temp/$db/$bruger_id" . "_*";
-		system("rm -r $mappe");
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_" . date("his");
-		mkdir("$mappe", 0775);
+		// Each print request keeps its own files so another tab cannot delete them.
+		$printDirectory = abs((int) $bruger_id) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8));
+		$mappe = "../temp/$db/" . $printDirectory;
+		if (!mkdir($mappe, 0775)) {
+			throw new RuntimeException('Udskriftsmappen kunne ikke oprettes.');
+		}
 		#	if ($inkasso) $printfilnavn=abs($bruger_id)."_".date("his")."/"."$inkasso";
 		#	else
 		if ($rykkernr[0])
-			$printfilnavn = abs($bruger_id) . "_" . date("his") . "/" . "$rykkernr[0]";
+			$printfilnavn = $printDirectory . "/" . "$rykkernr[0]";
 		else
-			$printfilnavn = abs($bruger_id) . "_" . date("his") . "/" . "rykker";
+			$printfilnavn = $printDirectory . "/" . "rykker";
 		$psfp = fopen("../temp/$db/$printfilnavn.ps", "w");
 		$htmfp = fopen("../temp/$db/$printfilnavn.htm", "w");
 		$htminitxt = "<html>\n";
@@ -2920,11 +2923,12 @@ if (!function_exists('kontoprint')) {
 			include("../includes/formularimport.php");
 			formularimport("../importfiler/formular.txt", '11');
 		}
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_*";
-		system("rm -r $mappe");
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_" . date("his");
-		if (!file_exists($mappe))
-			mkdir("$mappe", 0775);
+		// Each print request keeps its own files so another tab cannot delete them.
+		$printDirectory = abs((int) $bruger_id) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8));
+		$mappe = "../temp/$db/" . $printDirectory;
+		if (!mkdir($mappe, 0775)) {
+			throw new RuntimeException('Udskriftsmappen kunne ikke oprettes.');
+		}
 		$printfilnavn = "$mappe/" . "kontoudtog";
 		$psfp = fopen("$printfilnavn.ps", "w");
 		$htmfp = fopen("$printfilnavn.htm", "w");
