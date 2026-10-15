@@ -1,0 +1,45 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "order_id": 71,
+    "ordrenr": 123,
+    "kreditor": {
+      "kontonr": "30012",
+      "name": "Hansen Leverancer ApS"
+    },
+    "order_date": "2026-10-01",
+    "levdate": "2026-10-06",
+    "status": 1,
+    "locked_by": null,
+    "etag": "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+    "lines": [
+      {
+        "line_id": 201,
+        "posnr": 1,
+        "vare_id": 1001,
+        "varenr": "1001",
+        "name": "Gipsplade 13 mm, 900x2400",
+        "unit": "stk",
+        "variant": null,
+        "lager": 1,
+        "lager_name": "Hovedlager",
+        "ordered": "60",
+        "received": "0",
+        "remaining": "60",
+        "barcodes": [
+          "5701234500011",
+          "1001"
+        ],
+        "tracking": {
+          "serial": false,
+          "batch_no": false,
+          "due_date": false
+        },
+        "receivable": true,
+        "why": null
+      }
+    ],
+    "receipts": []
+  }
+}

@@ -1,77 +1,78 @@
 <?php
 /**
- * GET /vat-codes
- * Get list of VAT codes (momskoder)
+ * GET /vat-codes/ — fiscal-year receipt VAT reference data.
+ *
+ * History:
+ * 20260904 CL/NTR Dropped private $db redeclaration that caused a PHP fatal error.
+ * 20261001 CDX/LH Rebuild on VatModel moms rows with token-bound receipt-capture authorization.
  */
-
 require_once __DIR__ . '/../../../core/BaseEndpoint.php';
-require_once __DIR__ . '/../../../core/JWT.php';
-require_once __DIR__ . '/../../../core/JWTAuth.php';
-require_once __DIR__ . '/../../../core/logging.php';
+require_once __DIR__ . '/../../../models/finans/VatModel.php';
 
-include_once __DIR__ . '/../../../../includes/db_query.php';
-include_once __DIR__ . '/../../../../includes/connect.php';
-
-class VatCodesEndpoint extends BaseEndpoint
+final class VatCodesEndpoint extends BaseEndpoint
 {
-    // 20260904 CL/NTR: dropped a `private $db` redeclaration - narrowing BaseEndpoint's protected $db
-    // was a PHP fatal error, so every request to this endpoint died as an HTML error page.
-
-    public function __construct()
+    /** @return array{module:string, action:string} */
+    protected function requiredRight(): ?array
     {
-        parent::__construct();
+        return ['module' => 'bilag', 'action' => 'own'];
     }
-    
+
+    /** Require a token-bound tenant even for legacy access tokens on these new operations. */
     protected function checkAuthorization()
     {
         $payload = JWTAuth::validateToken();
-        
-        if (!$payload) {
-            $this->sendResponse(false, null, 'Invalid or expired token', 401);
-            return false;
+        if (!$payload || filter_var(ifset($payload, 'tenant_id'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+            $this->sendError('invalid_token', 'A tenant access token is required', 401);
         }
-        
         $this->db = JWTAuth::getTenantDatabase();
         if (!$this->db) {
-            $this->sendResponse(false, null, 'Tenant database not found. Set X-Tenant-ID header.', 400);
-            return false;
+            $this->sendError('invalid_token', 'Token tenant does not exist', 401);
         }
-        
+        $this->userId = (int)$payload['user_id'];
+        $this->username = ifset($payload, 'username', '');
+        global $sqhost, $squser, $sqpass;
+        $this->conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . ' linje ' . __LINE__);
+        if (!$this->conn) {
+            throw new RuntimeException('Cannot open token tenant');
+        }
         return true;
     }
-    
+
+    public function handleRequestMethod()
+    {
+        if (ifset($_SERVER, 'REQUEST_METHOD', '') !== 'GET') {
+            header('Allow: GET');
+            $this->sendResponse(false, null, 'Method not allowed', 405);
+        }
+        parent::handleRequestMethod();
+    }
+
+    /** @return int A validated internal fiscal-year id. */
+    private function referenceYear(): int
+    {
+        $requested = ifset($_GET, 'year');
+        if (array_key_exists('year', $_GET) && (!is_string($requested)
+            || !preg_match('/^[1-9][0-9]*$/D', $requested)
+            || filter_var($requested, FILTER_VALIDATE_INT) === false)) {
+            $this->sendError('validation_failed', 'year must be a positive internal fiscal-year id', 422);
+        }
+        $year = VatModel::resolveReferenceYear($requested === null ? null : (int)$requested);
+        if ($year === null) {
+            $this->sendError('validation_failed', 'No matching fiscal year', 422);
+        }
+        return $year;
+    }
+
     protected function handleGet($id = null)
     {
-        global $sqhost, $squser, $sqpass;
-        $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
-        
-        if (!$conn) {
-            $this->sendResponse(false, null, 'Database connection failed', 500);
-            return;
+        $year = $this->referenceYear();
+        try {
+            $items = VatModel::receiptReferenceData($year);
+        } catch (LengthException $e) {
+            $this->sendError('payload_too_large', 'VAT list exceeds the 5000-row limit', 413);
         }
-        
-        // Get VAT codes from grupper table where art = 'S' (momssatser)
-        $qtxt = "SELECT kodenr, box1 as rate, box2 as description FROM grupper WHERE art = 'S' ORDER BY kodenr";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-        
-        $vatCodes = [];
-        while ($r = db_fetch_array($q)) {
-            $vatCodes[] = [
-                'code' => (int)$r['kodenr'],
-                'rate' => (float)$r['rate'],
-                'description' => $r['description']
-            ];
-        }
-        
-        $this->sendResponse(true, $vatCodes);
-    }
-    
-    protected function handlePost($data)
-    {
-        $this->sendResponse(false, null, 'POST method not supported', 405);
+        $this->sendResponse(true, $items);
     }
 }
 
-$endpoint = new VatCodesEndpoint();
-$endpoint->handleRequestMethod();
-
+(new VatCodesEndpoint())->handleRequestMethod();

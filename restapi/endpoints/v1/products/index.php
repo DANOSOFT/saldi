@@ -1,10 +1,17 @@
 <?php
+// 20261001 CDX/LH Declare precise module rights for reads and writes.
 
 require_once '../../../models/lager/VareModel.php';
 require_once '../../../core/BaseEndpoint.php';
 
 class ProductsEndpoint extends BaseEndpoint
 {
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
+    {
+        return ['module' => 'varer', 'action' => ifset($_SERVER, 'REQUEST_METHOD') === 'GET' ? 'read' : 'write'];
+    }
+
     public function __construct()
     {
         parent::__construct();

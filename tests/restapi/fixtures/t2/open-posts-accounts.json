@@ -1,0 +1,14 @@
+{
+  "accounts": [
+    {"name":"Fully paid","expected":"0.00","posts":[{"invoice":"101","amount":"1000.00","days":40,"settled":true},{"invoice":"101","amount":"-1000.00","days":10,"settled":true}]},
+    {"name":"Two partial payments","expected":"600.00","posts":[{"invoice":"102","amount":"1000.00","days":45},{"invoice":"102","amount":"-150.00","days":15},{"invoice":"102","amount":"-250.00","days":5}]},
+    {"name":"Credit note","expected":"-125.00","art":"DK","posts":[{"invoice":"103","amount":"-125.00","days":31}]},
+    {"name":"EUR placeholder","expected":"745.00","posts":[{"invoice":"104","amount":"100.00","days":61,"currency":"EUR","rate":"100"}]},
+    {"name":"Settled after report date","expected":"0.00","posts":[{"invoice":"105","amount":"500.00","days":60,"settled":true,"settled_days":5}]},
+    {"name":"Unallocated credit","expected":"800.00","posts":[{"invoice":"106","amount":"700.00","days":95},{"invoice":"107","amount":"400.00","days":30},{"invoice":"106;107","amount":"-250.00","days":5},{"invoice":"","amount":"-50.00","days":-2}]},
+    {"name":"Dunning fee","expected":"100.00","art":"R1","posts":[{"invoice":"18-1","amount":"100.00","days":1}]},
+    {"name":"Due today","expected":"200.00","posts":[{"invoice":"108","amount":"200.00","days":0}]},
+    {"name":"Not yet due","expected":"300.00","posts":[{"invoice":"109","amount":"300.00","days":-10}]},
+    {"name":"Zero outstanding group","expected":"0.00","posts":[{"invoice":"110","amount":"50.00","days":8},{"invoice":"110","amount":"-50.00","days":2}]}
+  ]
+}

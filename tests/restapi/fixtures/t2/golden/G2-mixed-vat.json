@@ -1,0 +1,44 @@
+{
+  "scenario": "Mixed VAT, VAT-free line and web amount discount",
+  "totals": {
+    "net": "330.00",
+    "vat": "57.50",
+    "gross": "387.50",
+    "currency": "DKK"
+  },
+  "status": 4,
+  "ledger": [
+    {
+      "account": 7861,
+      "debit": "0.00",
+      "credit": "180.00"
+    },
+    {
+      "account": 7862,
+      "debit": "0.00",
+      "credit": "100.00"
+    },
+    {
+      "account": 7863,
+      "debit": "0.00",
+      "credit": "50.00"
+    },
+    {
+      "account": 7900,
+      "debit": "387.50",
+      "credit": "0.00"
+    },
+    {
+      "account": 7901,
+      "debit": "0.00",
+      "credit": "57.50"
+    }
+  ],
+  "saldo_delta": {
+    "7861": "-180.00",
+    "7862": "-100.00",
+    "7863": "-50.00",
+    "7900": "387.50",
+    "7901": "-57.50"
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "S1": {
+    "before": "0",
+    "counted": "3",
+    "seed_batches": [],
+    "rests": [
+      3
+    ],
+    "sales": [],
+    "delta": "3",
+    "value": "12.00"
+  },
+  "S2": {
+    "before": "10",
+    "counted": "5",
+    "seed_batches": [
+      {
+        "qty": "7",
+        "due": "2026-12-01",
+        "date": "2026-01-01"
+      },
+      {
+        "qty": "3",
+        "due": "2026-10-01",
+        "date": "2026-02-01"
+      }
+    ],
+    "rests": [
+      5,
+      0
+    ],
+    "sales": [
+      [
+        2,
+        3,
+        4,
+        2,
+        0
+      ],
+      [
+        1,
+        2,
+        4,
+        2,
+        0
+      ]
+    ],
+    "delta": "-5",
+    "value": "-20.00"
+  },
+  "S3": {
+    "before": "10",
+    "counted": "-2",
+    "seed_batches": [
+      {
+        "qty": "7",
+        "due": "2026-12-01",
+        "date": "2026-01-01"
+      },
+      {
+        "qty": "3",
+        "due": "2026-10-01",
+        "date": "2026-02-01"
+      }
+    ],
+    "rests": [
+      0,
+      0
+    ],
+    "sales": [
+      [
+        2,
+        3,
+        4,
+        2,
+        0
+      ],
+      [
+        1,
+        7,
+        4,
+        2,
+        0
+      ],
+      [
+        0,
+        2,
+        4,
+        2,
+        0
+      ]
+    ],
+    "delta": "-12",
+    "value": "-48.00"
+  },
+  "S4": {
+    "before": "10",
+    "counted": "10",
+    "seed_batches": [
+      {
+        "qty": "10",
+        "due": "2026-12-01",
+        "date": "2026-01-01"
+      }
+    ],
+    "rests": [
+      10
+    ],
+    "sales": [],
+    "delta": "0",
+    "value": "0.00"
+  },
+  "S5": {
+    "reason": "count_stale",
+    "http": 409,
+    "resolution": "set"
+  },
+  "S6": {
+    "reason": "web_count_open",
+    "http": 409
+  },
+  "S6b": {
+    "queued": false,
+    "text": "Følgende varer har ændret antal under optællingen og skal optælles igen."
+  }
+}

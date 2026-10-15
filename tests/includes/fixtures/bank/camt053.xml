@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02"><BkToCstmrStmt><Stmt>
+<Ntry><Amt Ccy="DKK">1234.56</Amt><CdtDbtInd>CRDT</CdtDbtInd><BookgDt><Dt>2025-06-04</Dt></BookgDt><ValDt><Dt>2025-06-03</Dt></ValDt><NtryDtls><TxDtls><Refs><EndToEndId>INV-501</EndToEndId></Refs><RmtInf><Ustrd>Kunde Æble</Ustrd><Ustrd>betaling &amp; faktura 501</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>
+<Ntry><Amt Ccy="DKK">25.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><ValDt><Dt>2025-06-05</Dt></ValDt><AcctSvcrRef>BANK-25</AcctSvcrRef><NtryDtls><TxDtls><Refs><EndToEndId>NOTPROVIDED</EndToEndId></Refs></TxDtls></NtryDtls><AddtlNtryInf>Bankgebyr</AddtlNtryInf></Ntry>
+</Stmt></BkToCstmrStmt></Document>

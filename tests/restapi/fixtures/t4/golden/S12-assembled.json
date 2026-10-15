@@ -1,0 +1,7 @@
+{
+  "error": "validation_failed",
+  "reason": "not_countable",
+  "why": "assembled",
+  "http": 422,
+  "writes": 0
+}

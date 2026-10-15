@@ -1,4 +1,5 @@
 <?php
+// 20261001 CDX/LH Constant-time signatures and optional server-side token issuance enrichment.
 /**
  * Simple JWT implementation for Saldi API
  * Supports encoding and decoding of JWT tokens
@@ -11,6 +12,12 @@
 
 class JWT {
     private static $secret;
+    private static $claimEnricher;
+
+    /** Core bootstrap installs this hook; standalone JWT signing has no database side effects. */
+    public static function setClaimEnricher(?callable $enricher): void {
+        self::$claimEnricher = $enricher;
+    }
 
     public static function secretPath(): string {
         return __DIR__ . '/../.ht_jwt_secret.bin';
@@ -23,6 +30,10 @@ class JWT {
     public static function encode($payload, $expiration = 3600) {
         if (empty(self::$secret)) {
             throw new \RuntimeException('JWT signing secret is not configured; JWT::setSecret() must be called before encoding.');
+        }
+
+        if (self::$claimEnricher !== null) {
+            $payload = (self::$claimEnricher)($payload);
         }
 
         $header = [
@@ -59,7 +70,7 @@ class JWT {
         $signature = hash_hmac('sha256', "$base64Header.$base64Payload", self::$secret, true);
         $expectedSignature = self::base64UrlEncode($signature);
         
-        if ($base64Signature !== $expectedSignature) {
+        if (!hash_equals($expectedSignature, $base64Signature)) {
             return null;
         }
         

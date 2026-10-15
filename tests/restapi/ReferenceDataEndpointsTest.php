@@ -10,6 +10,7 @@
 //
 // History:
 // 20260904 CL/NTR created.
+// 20261001 CDX/LH Assert nonempty canonical moms codes and JSON numeric rates.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -135,10 +136,13 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertIsArray($res['json'], 'response is JSON, not a PHP error page');
         $this->assertTrue($res['json']['success']);
         $this->assertIsArray($res['json']['data']);
+        $this->assertNotEmpty($res['json']['data'], 'The template tenant has moms codes for the current fiscal year');
         foreach ($res['json']['data'] as $code) {
-            $this->assertIsInt($code['code']);
-            $this->assertIsFloat($code['rate']);
+            $this->assertIsString($code['code']);
+            $this->assertMatchesRegularExpression('/^[SKEY][0-9]+$/D', $code['code']);
+            $this->assertTrue(is_int($code['rate']) || is_float($code['rate']), 'VAT rate must be a JSON number');
             $this->assertArrayHasKey('description', $code);
+            $this->assertIsString($code['description']);
         }
     }
 

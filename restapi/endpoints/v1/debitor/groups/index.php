@@ -1,10 +1,17 @@
 <?php
 // 20260715 CL/PHR Added read-only current-year debtor group endpoint.
+// 20261001 CDX/LH Declare precise module rights for reads and writes.
 
 require_once __DIR__ . '/../../../../core/BaseEndpoint.php';
 
 class DebtorGroupsEndpoint extends BaseEndpoint
 {
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
+    {
+        return ['module' => 'debitorkonti', 'action' => ifset($_SERVER, 'REQUEST_METHOD') === 'GET' ? 'read' : 'write'];
+    }
+
     protected function handleGet($id = null)
     {
         $q = db_select(

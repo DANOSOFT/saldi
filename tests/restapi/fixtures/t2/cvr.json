@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "cvr": "12345678",
+    "name": "Stub Hansen ApS",
+    "addr1": "Testvej 1",
+    "postnr": "8000",
+    "city": "Aarhus",
+    "phone": "12345678",
+    "email": "test@example.invalid",
+    "industry": "Test industry",
+    "status": "active",
+    "fetched_at": "2026-10-02T12:00:00Z"
+  }
+}

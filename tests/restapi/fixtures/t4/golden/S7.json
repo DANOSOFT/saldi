@@ -1,0 +1,19 @@
+{
+  "scenario": "S7",
+  "quantities": [
+    "10"
+  ],
+  "item_stock": "14.000",
+  "warehouse_stock": "10.000",
+  "batch_quantities": [
+    "10.000"
+  ],
+  "batch_rests": [
+    "10.000"
+  ],
+  "remaining": "0",
+  "complete": true,
+  "due_date": null,
+  "batch_no": null,
+  "variant_stock": null
+}

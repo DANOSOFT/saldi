@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------------debitor/rykkerprint-----lap 3.7.4---2019.10.16-------
+// ----------------debitor/rykkerprint-----ver 5.0.0---2026.10.02-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2019 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20120815 søg 20120815 V. Logoplacering blev ikke fundet v. opslag. 
@@ -32,6 +32,8 @@
 // 20170206	Søger efter teksten inkasso i felt 5 og sender mail til inkassofirma hvis den findes
 // 20170324 PHR Tilføjet id i kald til udskriv.php
 // 20190116 PHR kke nædret noget, blot en datoopdatering da der ligger forskellige versioner fra 2017 på ssl.   
+
+// 20261001 CDX/LH Keep the page redirect and exit after the result-returning rykker print engine.
 
 @session_start();
 $s_id=session_id();
@@ -46,12 +48,14 @@ $rykker_id=explode(";", $_GET['rykker_id']);
 $konto_id = explode(";", $kontoliste);
 
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/formfunk.php");
+include __DIR__ . '/../includes/connect.php';
+include __DIR__ . '/../includes/online.php';
+include __DIR__ . '/../includes/std_func.php';
+include __DIR__ . '/../includes/formfunk.php';
 
-rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$regnaar,0);
+$result = rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$regnaar,0);
+print '<meta http-equiv="refresh" content="0;URL=' . $result['redirect'] . '">';
+exit;
 
 # 20120815 næste 8 linjer remmet, bliver vist ikke brigt til noget
 #$query = db_select("select * from formularer where formular = $formular and art = 1 and beskrivelse = 'LOGO'",__FILE__ . " linje " . __LINE__);
@@ -64,7 +68,5 @@ rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$regnaar,0);
 #}
 
 ?>
-
-
 
 

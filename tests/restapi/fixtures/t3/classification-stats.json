@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "window_days": 90,
+    "decisions": 42,
+    "accepted": 36,
+    "corrected": 6,
+    "vendors_learned": 5
+  }
+}

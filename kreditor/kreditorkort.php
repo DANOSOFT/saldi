@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2026-05-01 ------
+// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-03 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20130224 Tilføjet kontofusion
 // 20140319 addslashes erstattet med db_escape_string
@@ -32,8 +32,13 @@
 //             (int)'' compared to '' is now a string comparison ("0" != ""), true, where PHP 7
 //             compared both as 0. Skip the check when the field is blank, same fix as
 //             debitor/debkort_save.php (SD-513)
+// 20261003 CDX/LH Fix confirmed Assist review findings and preserve approval and undo semantics.
 
 
+/**
+ * Injected by ../includes/connect.php, included below:
+ * @var string $db_type
+ */
 @session_start();
 $s_id = session_id();
 
@@ -133,55 +138,75 @@ if ($_POST) {
 		$ny_kontonr = $tmp2;
 
 
-		## Tildeler aut kontonr hvis det ikke er angivet
-		if (($firmanavn) && (($ny_kontonr < 1) || (!$ny_kontonr))) {
-			if (!$id) $id = "0";
-			$x = 0;
-			$ktoliste = array();
-			$qtxt = "select kontonr from adresser where art = 'K'	and id != $id order by kontonr";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$x++;
-				$ktoliste[$x] = $r['kontonr'];
-			}
-			$ny_kontonr = 1000;
-			while (in_array($ny_kontonr, $ktoliste)) $ny_kontonr++;
-			print "<BODY onLoad=\"javascript:alert('Kontonummer $ny_kontonr tildelt automatisk')\">\n";
-		}
-		if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
-
-		############################
-		if (!$kreditmax) $kreditmax = 0;
-		if (!$betalingsdage) $betalingsdage = 0;
-		if ($id == 0) {
-			$qtxt = "select id from adresser where kontonr = '$ny_kontonr' and art = 'K'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				#			if ($r['id']) {
-				print "<BODY onLoad=\"javascript:alert('Der findes allerede en kreditor med Leverand&oslash;rnr: $ny_kontonr')\">\n";
-				$id = 0;
-			} elseif ($ny_kontonr) {
-				db_modify("insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,mobile,email,web,betalingsdage,kreditmax,betalingsbet,cvrnr,notes,art,gruppe,bank_navn,bank_reg,bank_konto,bank_fi,erh,swift,felt_1,felt_2,felt_3,felt_4,felt_5,lukket) values ('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$notes','K',$gruppe,'$bank_navn','$bank_reg','$bank_konto','$bank_fi','$erh','$swift','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$lukket')", __FILE__ . " linje " . __LINE__);
-				$query = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'K'", __FILE__ . " linje " . __LINE__);
-				$row = db_fetch_array($query);
-				$id = $row['id'];
-			}
-		} elseif ($id > 0) {
-			if ($ny_kontonr != $kontonr) {
-				$query = db_select("select kontonr from adresser where art = 'K' order by kontonr", __FILE__ . " linje " . __LINE__);
-				while ($row = db_fetch_array($query)) {
-					$x++;
-					$ktoliste[$x] = $row['kontonr'];
+		// Shared with SaldiPartyCreateKind: PG 5130514 / MySQL saldi_adresser_K.
+		$id = (int)$id;
+		$supplierAllocationLock = !$id;
+		$supplierAllocationMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+		if ($supplierAllocationLock) {
+			if ($supplierAllocationMysql) {
+				$locked = db_fetch_array(db_select("select GET_LOCK('saldi_adresser_K', 10) as acquired", __FILE__ . ' linje ' . __LINE__));
+				if ((int)$locked['acquired'] !== 1) {
+					throw new RuntimeException('Supplier allocation lock unavailable');
 				}
-				if (in_array($ny_kontonr, $ktoliste)) {
-					print "<BODY onLoad=\"javascript:alert('Kontonummer findes allerede, ikke &aelig;ndret')\">\n";
-				} else $kontonr = $ny_kontonr;
+			} else {
+				db_select('select pg_advisory_lock(5130514)', __FILE__ . ' linje ' . __LINE__);
 			}
-			db_modify("update adresser set kontonr = '$kontonr',	firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', email = '$email', web = '$web', betalingsdage= '$betalingsdage', kreditmax = '$kreditmax', betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', notes = '$notes', gruppe = '$gruppe' ,bank_navn='$bank_navn',bank_reg='$bank_reg',bank_konto='$bank_konto',bank_fi='$bank_fi',erh='$erh',swift='$swift',felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',lukket='$lukket' where id = '$id'", __FILE__ . " linje " . __LINE__);
-			for ($x = 1; $x <= $ans_ant; $x++) {
-				$y = trim($posnr[$x]);
-				if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
-				elseif (($y == "-") && ($ans_id[$x])) db_modify("delete from ansatte	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
-				else print "<BODY onLoad=\"javascript:alert('Hint!	Du skal s&aelig;tte et - (minus) som pos nr for at slette en kontaktperson')\">\n";
+		}
+		try {
+			## Tildeler aut kontonr hvis det ikke er angivet
+			if (($firmanavn) && (($ny_kontonr < 1) || (!$ny_kontonr))) {
+				if (!$id) $id = "0";
+				$x = 0;
+				$ktoliste = array();
+				$qtxt = "select kontonr from adresser where art = 'K'	and id != $id order by kontonr";
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$x++;
+					$ktoliste[$x] = $r['kontonr'];
+				}
+				$ny_kontonr = 1000;
+				while (in_array($ny_kontonr, $ktoliste)) $ny_kontonr++;
+				print "<BODY onLoad=\"javascript:alert('Kontonummer $ny_kontonr tildelt automatisk')\">\n";
+			}
+			if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
+
+			############################
+			if (!$kreditmax) $kreditmax = 0;
+			if (!$betalingsdage) $betalingsdage = 0;
+			if ($id == 0) {
+				$qtxt = "select id from adresser where kontonr = '$ny_kontonr' and art = 'K'";
+				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					#			if ($r['id']) {
+					print "<BODY onLoad=\"javascript:alert('Der findes allerede en kreditor med Leverand&oslash;rnr: $ny_kontonr')\">\n";
+					$id = 0;
+				} elseif ($ny_kontonr) {
+					db_modify("insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,mobile,email,web,betalingsdage,kreditmax,betalingsbet,cvrnr,notes,art,gruppe,bank_navn,bank_reg,bank_konto,bank_fi,erh,swift,felt_1,felt_2,felt_3,felt_4,felt_5,lukket) values ('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$notes','K',$gruppe,'$bank_navn','$bank_reg','$bank_konto','$bank_fi','$erh','$swift','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$lukket')", __FILE__ . " linje " . __LINE__);
+					$query = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'K'", __FILE__ . " linje " . __LINE__);
+					$row = db_fetch_array($query);
+					$id = $row['id'];
+				}
+			} elseif ($id > 0) {
+				if ($ny_kontonr != $kontonr) {
+					$query = db_select("select kontonr from adresser where art = 'K' order by kontonr", __FILE__ . " linje " . __LINE__);
+					while ($row = db_fetch_array($query)) {
+						$x++;
+						$ktoliste[$x] = $row['kontonr'];
+					}
+					if (in_array($ny_kontonr, $ktoliste)) {
+						print "<BODY onLoad=\"javascript:alert('Kontonummer findes allerede, ikke &aelig;ndret')\">\n";
+					} else $kontonr = $ny_kontonr;
+				}
+				db_modify("update adresser set kontonr = '$kontonr',	firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', email = '$email', web = '$web', betalingsdage= '$betalingsdage', kreditmax = '$kreditmax', betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', notes = '$notes', gruppe = '$gruppe' ,bank_navn='$bank_navn',bank_reg='$bank_reg',bank_konto='$bank_konto',bank_fi='$bank_fi',erh='$erh',swift='$swift',felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',lukket='$lukket' where id = '$id'", __FILE__ . " linje " . __LINE__);
+				for ($x = 1; $x <= $ans_ant; $x++) {
+					$y = trim($posnr[$x]);
+					if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
+					elseif (($y == "-") && ($ans_id[$x])) db_modify("delete from ansatte	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
+					else print "<BODY onLoad=\"javascript:alert('Hint!	Du skal s&aelig;tte et - (minus) som pos nr for at slette en kontaktperson')\">\n";
+				}
+			}
+		} finally {
+			if ($supplierAllocationLock) {
+				db_select($supplierAllocationMysql ? "select RELEASE_LOCK('saldi_adresser_K')" : 'select pg_advisory_unlock(5130514)', __FILE__ . ' linje ' . __LINE__);
 			}
 		}
 	} else {

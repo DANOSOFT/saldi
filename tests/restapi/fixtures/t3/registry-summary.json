@@ -1,0 +1,41 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "tenant_id": 1,
+        "name": "Hansen ApS",
+        "pending_attachments": 8,
+        "oldest_pending_days": 6,
+        "rejected_open": 1,
+        "bank_lines_missing": 3,
+        "bank_lines_missing_total": "5069.25",
+        "overdue": {
+          "count": 4,
+          "total": "24200.00",
+          "currency": "DKK"
+        },
+        "draft_lines_open": 5,
+        "last_upload_at": "2026-09-15T06:12:00+00:00",
+        "last_reminder_at": "2026-09-15T06:12:00+00:00",
+        "needs_attention": true,
+        "computed_at": "2026-09-15T06:12:00+00:00",
+        "state": "ok",
+        "stale": false
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "totals": {
+      "tenants": 1,
+      "needs_attention": 1,
+      "pending_attachments": 8,
+      "bank_lines_missing": 3
+    },
+    "pending_count": 0,
+    "truncated": false,
+    "computed_at": "2026-09-15T06:12:00+00:00"
+  }
+}

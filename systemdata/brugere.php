@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-09-24-----
+// --------------systemdata/brugere.php-----ver 5.0.0 ----2026-09-24-----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,9 @@
 // 20260219 PHR Added employeeInitials
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
 // 20260924 LOE SD-657 Losing the Indstillinger right switches the turnover setting on for that user.
+
+// 20261001 CDX/LH Revoke mobile sessions after security or account membership changes.
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 
 @session_start();
 $s_id=session_id();
@@ -91,7 +94,7 @@ $client_ip = if_isset($_SERVER['HTTP_CLIENT_IP']); #20210828
 
 $addUser=if_isset($_POST['addUser']);
 $deleteUser=if_isset($_POST['deleteUser']);
-$id=if_isset($_POST['id']);
+$id=(int)ifset($_POST, 'id', 0);
 $updateUser=if_isset($_POST['updateUser']);
 $ret_id=if_isset($_GET['ret_id']);
 $slet_id=if_isset($_GET['slet_id']);
@@ -170,12 +173,17 @@ if ($addUser || $updateUser) {
 		if ($r) $rettigheder_before = $r['rettigheder'];
 	}
 	if ($id && $kode && $brugernavn) {
+		$usernameSql = db_escape_string($brugernavn);
+		$ipSql = db_escape_string((string)$insert_ip);
+		$phoneSql = db_escape_string($tlf);
+		$emailSql = db_escape_string($email);
 		if (strstr($kode,'**********')) {
-			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$usernameSql', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$ipSql', tlf = '$phoneSql', twofactor = '$twofactor', email = '$emailSql' where id=$id",__FILE__ . " linje " . __LINE__);
 		} else {
 			$kode=saldikrypt($id,$kode);
-			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$usernameSql', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$ipSql', tlf = '$phoneSql', twofactor = '$twofactor', email = '$emailSql' where id=$id",__FILE__ . " linje " . __LINE__);
 		}
+		mobileRevokeUser((int)$id, 'user_security_changed');
 		# SD-657: taking the Indstillinger right away switches the system-wide setting on, so that user stops
 		# seeing turnover. Only on that transition and only when it is not already on, so
 		# an admin can still turn revenue back on for them afterwards.
@@ -203,7 +211,9 @@ if ($addUser || $updateUser) {
 		$qtxt="update ansatte set lukket='on', slutdate='".date("Y-m-d")."' where id = '$r[ansat_id]'";
 		db_modify($qtxt,__FiLE__ . " linje " . __LINE__);
 	}
+	$id = (int)$id;
 	db_modify("delete from brugere where id = $id",__FILE__ . " linje " . __LINE__);
+	mobileRevokeUser($id, 'user_deleted');
 }
 
 print "<tr><td valign = 'top'>";

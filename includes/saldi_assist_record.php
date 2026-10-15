@@ -2,6 +2,7 @@
 // 20260907 CDX/LH Read-only assistant record endpoint. Opt-in, scoped to the active SALDI login.
 // 20260908 CDX/LH Accept the native Apache authorization header.
 // 20260908 CDX/LH Require snapshot revisions on every bearer record read.
+// 20261008 CL/LH Accept bank-line grants and read their revision-bound context.
 require_once __DIR__ . '/assist/RecordService.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -40,7 +41,7 @@ try {
         $kind = $body['kind'] ?? '';
         $id = $body['record_id'] ?? null;
         $embed = $body['embed_session'] ?? '';
-        if (!in_array($kind, ['journal', 'invoice'], true) || !is_int($id) || $id < 1 || $id > 2147483647
+        if (!in_array($kind, ['journal', 'invoice', 'bank_line'], true) || !is_int($id) || $id < 1 || $id > 2147483647
             || !is_string($embed) || !preg_match('/^[0-9a-f]{32}$/D', $embed)) {
             throw new SaldiAssistFailure('invalid_record', 400);
         }
@@ -65,16 +66,21 @@ try {
     if (!is_array($rowIds) || count($rowIds) > 20 || array_filter($rowIds, static fn($id): bool => !is_int($id) || $id < 1)) {
         throw new SaldiAssistFailure('invalid_rows', 400);
     }
-    $result = $service->execute($operation === 'grant' ? ($kind === 'journal' ? 'get_journal_context' : 'get_invoice_status') : $operation, $kind, $id, $rowIds);
+    $readOperation = match ($kind) { 'journal' => 'get_journal_context', 'invoice' => 'get_invoice_status', 'bank_line' => 'get_bank_line_context' };
+    $result = $service->execute($operation === 'grant' ? $readOperation : $operation, $kind, $id, $rowIds);
     if (($operation !== 'grant' || isset($body['revision']))
         && (!is_string($body['revision'] ?? null) || !hash_equals($result['revision'], $body['revision']))) {
         throw new SaldiAssistFailure('record_changed', 409);
     }
     if ($operation === 'grant') {
         $claims = SaldiAssistRecordAuth::claims($online, $kind, $id, $embed, $secret, time());
+        $snapshot = $result;
         $result = ['kind' => $kind, 'recordId' => $id, 'revision' => $result['revision'],
             'grant' => SaldiAssistRecordAuth::sign($claims, $kid, $secret), 'expiresAt' => $claims['exp'],
-            'hasSavedDraft' => $result['has_saved_draft'] ?? false];
+            'hasSavedDraft' => $snapshot['has_saved_draft'] ?? false];
+        if ($kind === 'bank_line') {
+            $result += $snapshot;
+        }
     }
     // No accounting mutation is possible inside either READ ONLY transaction.
     $tenant->rollBack();

@@ -2,6 +2,9 @@
 // 20260907 CDX/LH Scoped, short-lived access to saved assistant records.
 // 20260908 CDX/LH Read authorization headers across Apache and CGI SAPIs.
 // 20260908 CDX/LH Document grant helper contracts.
+// 20261002 CDX/LH Allow legacy record reads only for module digits 1 or 2.
+// 20261008 CL/LH Bind bank-line grants to the shared journal read permission.
+require_once __DIR__ . '/../permissions/SaldiRightsTable.php';
 
 final class SaldiAssistFailure extends RuntimeException
 {
@@ -50,7 +53,7 @@ final class SaldiAssistRecordAuth
             || !is_int($c['iat'] ?? null) || !is_int($c['exp'] ?? null)
             || $c['iat'] > $now + 30 || $c['exp'] <= $now || $c['exp'] <= $c['iat']
             || $c['exp'] - $c['iat'] > self::TTL
-            || !in_array($c['kind'] ?? '', ['journal', 'invoice'], true)
+            || !in_array($c['kind'] ?? '', ['journal', 'invoice', 'bank_line'], true)
             || !is_int($c['record_id'] ?? null) || $c['record_id'] < 1) {
             throw new SaldiAssistFailure('invalid_grant');
         }
@@ -166,9 +169,9 @@ function saldi_assist_authorize(PDO $master, PDO $tenant, array $online, string 
     }
     $user = saldi_assist_one($tenant, 'SELECT rettigheder FROM brugere WHERE brugernavn = ?', [$online['brugernavn']]);
     // The same module positions used by kassekladde.php and debitor/ordre.php.
-    $position = $kind === 'journal' ? 2 : 5;
+    $position = in_array($kind, ['journal', 'bank_line'], true) ? 2 : 5;
     $rights = (string)($user['rettigheder'] ?? '');
-    if (!preg_match('/^[0-9]+$/D', $rights) || (int)substr($rights, $position, 1) < 1) {
+    if (!preg_match('/^[0-9]+$/D', $rights) || !SaldiRightsTable::digitAllows($rights, [$position], 'read', false)) {
         throw new SaldiAssistFailure('record_forbidden');
     }
 }

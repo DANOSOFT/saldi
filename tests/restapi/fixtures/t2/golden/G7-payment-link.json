@@ -1,0 +1,9 @@
+{
+  "scenario": "Captured invoice link equals one full manual MobilePay registration",
+  "amount": "1000.00",
+  "currency": "DKK",
+  "openpost_amounts": ["1000.00", "-1000.00"],
+  "ledger_amounts": [["0.00", "1000.00"], ["1000.00", "0.00"]],
+  "summary_saldo_delta": {"R": "1000.00", "Z": "1000.00"},
+  "following_year_primo_delta": {"bank": "1000.00", "debtor": "-1000.00"}
+}

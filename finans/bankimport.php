@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 5.0.0 --- 2026.03.20 ---
+// --- finans/bankimport.php --- ver 5.0.0 --- 2026.10.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20200820 PHR Added recognition of outgoing payments from Cultura Sparebank, Norway 20200820
@@ -45,6 +45,10 @@
 // 20251106 PHR Corrected date error
 // 20260311 PHR Corrected decimal error
 // 20260320 PHR	Removed 'This didn't work'
+// 20261001 CDX/LH Register durable bank identities and journal links within the CSV import transaction.
+// 20261001 CDX/LH Pass the processed CSV text encoding to bank identity normalization.
+
+require_once __DIR__ . '/../includes/finans/bankLines.php';
 
 ini_set("auto_detect_line_endings", true);
 
@@ -572,9 +576,17 @@ for ($y=0; $y<=$feltantal; $y++) {
 } # endfunc # vis_data
 
 function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$currencyCode,$afd) {
-	global $baseCurrency,	$charset;
+	global $baseCurrency, $charset, $brugernavn;
 
-	$afd*=1;
+	$kladde_id = (int)$kladde_id;
+	$kontonr = (int)$kontonr;
+	$gebyrkonto = (int)$gebyrkonto;
+	mobileTenantUpdates(bank_line_connection());
+	$occurrences = [];
+	$d_type = '';
+	$bankName = $saldo = $kundenr = $recieverAccount = $curency = null;
+
+	$afd = (int)$afd;
 	$currencyCode = (int)$currencyCode;
 
 	$valuta[0] = $baseCurrency;
@@ -588,288 +600,329 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 			$x++;
 		}
 	}
+	if (pg_transaction_status(bank_line_connection()) !== PGSQL_TRANSACTION_IDLE) {
+		throw new LogicException('CSV import requires an idle connection');
+	}
 	transaktion('begin');
-	$splitter=chr(9);
-	$fp=fopen($filnavn."2","r");
-	if ($fp) {
-		$x=0;
-		while (!feof($fp)) {
-			$kortgebyr=0;
-			$skriv_linje=0;
-			if ($linje=trim(fgets($fp))) {
-				if ($x == 0 && strpos($linje,"\tType\tFil\tFra konto\tKontonavn\tTil konto\tMottakernavn")) {
-					$bankName = 'Sparebanken Vest';
-				}  
-				$x++;
-				$skriv_linje=1;
-				$felt=array();
-				$felt = explode($splitter, $linje);
-				for ($y=0; $y<=$feltantal; $y++) {
-					$felt[$y]=trim($felt[$y]);
-					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
-					if ($feltnavn[$y]=='dato') { # 20140203 + 20220617
-						$felt[$y] = str_replace('-','',$felt[$y]);
-						$felt[$y] = str_replace('/','',$felt[$y]);
-						$felt[$y] = str_replace('.','',$felt[$y]);
-						$felt[$y] = trim($felt[$y],'"');
-						$felt[$y] = trim($felt[$y]);
-						if (is_numeric($felt[$y]) && strlen($felt[$y])=='8') { #20210916
-							$thisYear=date('Y');
-							if (substr($felt[$y],0,4) >= $thisYear-2 &&
-							substr($felt[$y],0,4) <= $thisYear+2 &&
-							substr($felt[$y],4,2) <= 12) {
-								$year=substr($felt[$y],0,4);
-								$month=substr($felt[$y],4,2);
-								$day=substr($felt[$y],6,2);
-							} else {
-								$day=substr($felt[$y],0,2);
-								$month=substr($felt[$y],2,2);
-								$year=substr($felt[$y],4,4);
+	try {
+		$importId = bank_import_begin('csv', $kontonr, $kladde_id, hash_file('sha256', $filnavn . '2'), (string)$brugernavn);
+		$splitter=chr(9);
+		$fp=fopen($filnavn."2","r");
+		if (!$fp) {
+			throw new RuntimeException('Bank import file is missing');
+		}
+		if ($fp) {
+			$x=0;
+			while (!feof($fp)) {
+				$kortgebyr=0;
+				$skriv_linje=0;
+				if (($readLine = fgets($fp)) !== false && ($linje = trim($readLine)) !== '') {
+					if ($x == 0 && strpos($linje,"\tType\tFil\tFra konto\tKontonavn\tTil konto\tMottakernavn")) {
+						$bankName = 'Sparebanken Vest';
+					}
+					$x++;
+					$skriv_linje=1;
+					$felt=array();
+					$felt = explode($splitter, $linje);
+					for ($y=0; $y<=$feltantal; $y++) {
+						$felt[$y]=trim($felt[$y]);
+						if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
+						if ($feltnavn[$y]=='dato') { # 20140203 + 20220617
+							$felt[$y] = str_replace('-','',$felt[$y]);
+							$felt[$y] = str_replace('/','',$felt[$y]);
+							$felt[$y] = str_replace('.','',$felt[$y]);
+							$felt[$y] = trim($felt[$y],'"');
+							$felt[$y] = trim($felt[$y]);
+							if (is_numeric($felt[$y]) && strlen($felt[$y])=='8') { #20210916
+								$thisYear=date('Y');
+								if (substr($felt[$y],0,4) >= $thisYear-2 &&
+									substr($felt[$y],0,4) <= $thisYear+2 &&
+									substr($felt[$y],4,2) <= 12) {
+									$year=substr($felt[$y],0,4);
+									$month=substr($felt[$y],4,2);
+									$day=substr($felt[$y],6,2);
+								} else {
+									$day=substr($felt[$y],0,2);
+									$month=substr($felt[$y],2,2);
+									$year=substr($felt[$y],4,4);
+								}
+								$felt[$y] = $day ."-". $month."-". $year;
 							}
-							$felt[$y] = $day ."-". $month."-". $year;
+							$felt[$y]=str_replace("-jan-","-01-",$felt[$y]);
+							$felt[$y]=str_replace("-feb-","-02-",$felt[$y]);
+							$felt[$y]=str_replace("-mar-","-03-",$felt[$y]);
+							$felt[$y]=str_replace("-apr-","-04-",$felt[$y]);
+							$felt[$y]=str_replace("-maj-","-05-",$felt[$y]);
+							$felt[$y]=str_replace("-jun-","-06-",$felt[$y]);
+							$felt[$y]=str_replace("-jul-","-07-",$felt[$y]);
+							$felt[$y]=str_replace("-aug-","-08-",$felt[$y]);
+							$felt[$y]=str_replace("-sep-","-09-",$felt[$y]);
+							$felt[$y]=str_replace("-okt-","-10-",$felt[$y]);
+							$felt[$y]=str_replace("-nov-","-11-",$felt[$y]);
+							$felt[$y]=str_replace("-dec-","-12-",$felt[$y]);
+							$felt[$y]=str_replace(".","-",$felt[$y]);
 						}
-						$felt[$y]=str_replace("-jan-","-01-",$felt[$y]);
-						$felt[$y]=str_replace("-feb-","-02-",$felt[$y]);
-						$felt[$y]=str_replace("-mar-","-03-",$felt[$y]);
-						$felt[$y]=str_replace("-apr-","-04-",$felt[$y]);
-						$felt[$y]=str_replace("-maj-","-05-",$felt[$y]);
-						$felt[$y]=str_replace("-jun-","-06-",$felt[$y]);
-						$felt[$y]=str_replace("-jul-","-07-",$felt[$y]);
-						$felt[$y]=str_replace("-aug-","-08-",$felt[$y]);
-						$felt[$y]=str_replace("-sep-","-09-",$felt[$y]);
-						$felt[$y]=str_replace("-okt-","-10-",$felt[$y]);
-						$felt[$y]=str_replace("-nov-","-11-",$felt[$y]);
-						$felt[$y]=str_replace("-dec-","-12-",$felt[$y]);
-						$felt[$y]=str_replace(".","-",$felt[$y]);
-					}
-					if ($feltnavn[$y]=='belob') {
-						if ($bankName == 'Sparebanken Vest' && $felt[1] == 'Betaling') $felt[$y] = '-'.$felt[$y]; 
-						$felt[$y]=str_replace(chr(194).chr(160),"",$felt[$y]); // 20220120 Weired dot?
-						$felt[$y]=str_replace(" ","",$felt[$y]);
-						if (nummertjek($felt[$y])=='US') $felt[$y]=dkdecimal($felt[$y]);
-						elseif (nummertjek($felt[$y])!='DK') $skriv_linje=0;		
-					}
-					if ($feltnavn[$y]=='beskrivelse') { // 20220120
-						$felt[$y]=str_replace("%c3%a6","æ",$felt[$y]);
-						$felt[$y]=str_replace("%c3%b8","ø",$felt[$y]);
-						$felt[$y]=str_replace("%c3%a5","å",$felt[$y]);
-						$felt[$y]=str_replace("%c3%86","Æ",$felt[$y]);
-						$felt[$y]=str_replace("%c3%98","Ø",$felt[$y]);
-						$felt[$y]=str_replace("%c3%85","Å",$felt[$y]);
-						$felt[$y]=str_replace("%C3%A6","æ",$felt[$y]);
-						$felt[$y]=str_replace("%C3%B8","ø",$felt[$y]);
-						$felt[$y]=str_replace("%C3%A5","å",$felt[$y]);
-						$felt[$y]=str_replace("%C3%86","Æ",$felt[$y]);
-						$felt[$y]=str_replace("%C3%98","Ø",$felt[$y]);
-						$felt[$y]=str_replace("%C3%85","Å",$felt[$y]);
-						$felt[$y]=str_replace("+"," ",$felt[$y]);
-					}
-					if ($feltnavn[$y]=='currency') {
-						$currencyCode = 0;
-						if (!in_array($felt[$y],$valuta)) $felt[$y] = $baseCurrency;
-						for ($i=0;$i<count($valuta);$i++) {
+						if ($feltnavn[$y]=='belob') {
+							if ($bankName == 'Sparebanken Vest' && $felt[1] == 'Betaling') $felt[$y] = '-'.$felt[$y];
+							$felt[$y]=str_replace(chr(194).chr(160),"",$felt[$y]); // 20220120 Weired dot?
+							$felt[$y]=str_replace(" ","",$felt[$y]);
+							if (nummertjek($felt[$y])=='US') $felt[$y]=dkdecimal($felt[$y]);
+							elseif (nummertjek($felt[$y])!='DK') $skriv_linje=0;
+						}
+						if ($feltnavn[$y]=='beskrivelse') { // 20220120
+							$felt[$y]=str_replace("%c3%a6","æ",$felt[$y]);
+							$felt[$y]=str_replace("%c3%b8","ø",$felt[$y]);
+							$felt[$y]=str_replace("%c3%a5","å",$felt[$y]);
+							$felt[$y]=str_replace("%c3%86","Æ",$felt[$y]);
+							$felt[$y]=str_replace("%c3%98","Ø",$felt[$y]);
+							$felt[$y]=str_replace("%c3%85","Å",$felt[$y]);
+							$felt[$y]=str_replace("%C3%A6","æ",$felt[$y]);
+							$felt[$y]=str_replace("%C3%B8","ø",$felt[$y]);
+							$felt[$y]=str_replace("%C3%A5","å",$felt[$y]);
+							$felt[$y]=str_replace("%C3%86","Æ",$felt[$y]);
+							$felt[$y]=str_replace("%C3%98","Ø",$felt[$y]);
+							$felt[$y]=str_replace("%C3%85","Å",$felt[$y]);
+							$felt[$y]=str_replace("+"," ",$felt[$y]);
+						}
+						if ($feltnavn[$y]=='currency') {
+							$currencyCode = 0;
+							if (!in_array($felt[$y],$valuta)) $felt[$y] = $baseCurrency;
+							for ($i=0;$i<count($valuta);$i++) {
 								if ($felt[$y] == $valuta[$i]) $currencyCode = $valutakode[$i];
+							}
 						}
 					}
 				}
- 			}		
- 			if ($skriv_linje==1){
-				for ($y=0; $y<=$feltantal; $y++) {
-					$bilag=(int)$bilag;
-					if ($feltnavn[$y]=='belob')               $amount          = usdecimal($felt[$y]);
-					elseif ($feltnavn[$y]=="dato")            $transdate       = usdate($felt[$y]);
-					elseif ($feltnavn[$y]=="beskrivelse")     $beskrivelse     = db_escape_string($felt[$y]);
-					elseif ($feltnavn[$y]=="recieverAccount") $recieverAccount = db_escape_string($felt[$y]);
-					elseif ($feltnavn[$y]=="kundenr")         $kundenr         = db_escape_string($felt[$y]);
-					elseif ($feltnavn[$y]=='saldo')           $saldo           = usdecimal($felt[$y]);
-					elseif ($feltnavn[$y]=='currency')        $currency        = db_escape_string($felt[$y]);
-				}
-				$qtxt=NULL;
-				$beskrivelse = trim($beskrivelse);
-				$saldo = (float)$saldo;
-				if ($amount>0) {
-					if (strlen($beskrivelse)==22 && substr($beskrivelse,0,3)=='IK ' && is_numeric(substr($beskrivelse,3,19))) { # ?
-						$kredit=(int)substr($beskrivelse,3,13);
-						$faktura=(int)substr($beskrivelse,16,5);
-						$k_type='D';
-					} elseif (strlen($beskrivelse)==20 && substr($beskrivelse,-4)=='IK71' && is_numeric(substr($beskrivelse,0,15))) {
-						$kredit=(int)substr($beskrivelse,0,9);
-						$faktura=(int)substr($beskrivelse,9,5);
-						$k_type='D';
-						if ($kredit && $faktura) $qtxt="select * from ordrer where fakturanr = '$faktura' and kontonr = '$kredit'";
-					} elseif (strlen($beskrivelse)==20 && substr($beskrivelse,-4)=='IK71' && is_numeric(substr($beskrivelse,0,14))) { # Sparekasserne
-						$kredit=(int)substr($beskrivelse,0,8);
-						$faktura=(int)substr($beskrivelse,8,6);
-						$k_type='D';
-					} elseif (strlen($beskrivelse)==24 && substr($beskrivelse,0,4)=='IK71' && is_numeric(substr($beskrivelse,5))) { # Danske Bank 20160815
-						$kredit=(int)substr($beskrivelse,5,13);
-						$faktura=(int)substr($beskrivelse,18,5);
-						$k_type='D';
-						if ($kredit && $faktura) $qtxt="select * from ordrer where fakturanr = '$faktura' and kontonr = '$kredit'"; # 20170119
-					} elseif (strlen($beskrivelse)==32 && substr($beskrivelse,7,10)=='Indbet.ID=' && is_numeric(substr($beskrivelse,17,15))) { # Danske Bank
-						$kredit=(int)substr($beskrivelse,17,9);
-						$faktura=(int)substr($beskrivelse,26,5);
-						$k_type='D';
-					} elseif (strlen($beskrivelse)==35 && substr($beskrivelse,0,21)=='Indbetalingskort, nr.' && is_numeric(substr($beskrivelse,22,14))) { # Nordea
-						$kredit=(int)substr($beskrivelse,22,7);
-						$faktura=(int)substr($beskrivelse,29,5);
-						$k_type='D';
-					} elseif (strlen($beskrivelse)==40 && substr($beskrivelse,0,6)=='DK-IND' && is_numeric(substr($beskrivelse,22,14))) { # SparNord
-						$felt_1="%".substr($beskrivelse,-10);
-						$tmp=$amount-3;
-						$qtxt= "select fakturanr,kontonr from ordrer where felt_1 LIKE '$felt_1' and sum <= '$amount' and sum >= '$tmp'";
-					} elseif (strlen($beskrivelse)==30 && substr($beskrivelse,0,2)=='DK' && is_numeric(substr($beskrivelse,4,7)) && is_numeric(substr($beskrivelse,12,9)) && is_numeric(substr($beskrivelse,25,5))) { # Dankort betaling 20140708 
-						$betalings_id="%".substr($beskrivelse,12,9);
-						$qtxt="select fakturanr,kontonr,sum,moms from ordrer where betalings_id LIKE '$betalings_id' and sum = '$amount'";
-					} elseif (strlen($beskrivelse)==30 && (substr($beskrivelse,0,5)=='DKSSL' || substr($beskrivelse,0,6)=='DK3DSF') && is_numeric(substr($beskrivelse,6,4)) && is_numeric(substr($beskrivelse,11,7)) && is_numeric(substr($beskrivelse,19,11))) { # SparNord Ny 20160909 
-						$tmp=$amount-3;
-						$betalings_id="%".substr($beskrivelse,21,11);
-						$qtxt = "select fakturanr,kontonr,sum,moms from ordrer where betalings_id LIKE '$betalings_id' ";
-						$qtxt.= "and sum+moms >= '$tmp' and sum+moms <='$amount'";
-					} elseif (substr($beskrivelse,12,3)=='ha_' && is_numeric(substr($beskrivelse,15,5))) { # BetalingsID Jyske Bank 21210328
-						$tmp=$amount-3;
-						$betalings_id=substr($beskrivelse,12,8);
-						$qtxt = "select fakturanr,kontonr,sum,moms from ordrer where betalings_id = '$betalings_id' ";
-						$qtxt.= "and sum+moms >= '$tmp' and sum+moms <='$amount'";
-					} elseif (strlen($beskrivelse)==22 && (substr($beskrivelse,0,5)=='DKSSL' || substr($beskrivelse,0,6)=='DK3DSF') && is_numeric(substr($beskrivelse,6,4)) && is_numeric(substr($beskrivelse,11,7)) && is_numeric(substr($beskrivelse,19,11))) { # DanskeBank Ny 20161101 
-						$tmp=$amount-3;
-						$ordrenr=substr($beskrivelse,-4);
-						$qtxt="select fakturanr,kontonr,sum,moms from ordrer where ordrenr = '$ordrenr' and sum >= '$tmp' and sum <='$amount' and art='DO'";
-					} elseif (substr($beskrivelse,0,6)=='DKSSL ') { #20131119
-						list($a,$b,$c)=explode(" ",$beskrivelse);
-						$ordrenr=(int)substr($c,7);
-						if ($ordrenr) $qtxt="select fakturanr,kontonr from ordrer where ordrenr = '$ordrenr' and sum = '$amount'";
+				if ($skriv_linje==1){
+					for ($y=0; $y<=$feltantal; $y++) {
+						$bilag=(int)$bilag;
+						if ($feltnavn[$y]=='belob')               $amount          = usdecimal($felt[$y]);
+						elseif ($feltnavn[$y]=="dato")            $transdate       = db_escape_string(usdate($felt[$y]));
+						elseif ($feltnavn[$y]=="beskrivelse") {
+							$bankText = $felt[$y];
+							$beskrivelse = db_escape_string($bankText);
+						}
+						elseif ($feltnavn[$y]=="recieverAccount") $recieverAccount = db_escape_string($felt[$y]);
+						elseif ($feltnavn[$y]=="kundenr")         $kundenr         = db_escape_string($felt[$y]);
+						elseif ($feltnavn[$y]=='saldo')           $saldo           = usdecimal($felt[$y]);
+						elseif ($feltnavn[$y]=='currency')        $currency        = db_escape_string($felt[$y]);
 					}
-					if ($qtxt) {
-						 $qtxt.=" and (betalt = '0' or betalt = '' or betalt is NULL) order by fakturadate limit 1"; #20180314
-						if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-							$faktura=$r['fakturanr'];
-							$fakturasum=$r['sum']+$r['moms'];
-							$kortgebyr=$amount-$fakturasum;
-							$kredit=(int)$r['kontonr'];
+					$bankLine = [
+						'account_kontonr' => $kontonr, 'transdate' => $transdate, 'amount' => $amount,
+						'text' => $bankText, 'text_encoding' => $charset, 'currency' => $baseCurrency, 'balance' => null,
+					];
+					foreach ($valutakode as $index => $code) {
+						if ((int)$code === $currencyCode) {
+							$bankLine['currency'] = $valuta[$index];
+						}
+					}
+					if (in_array('saldo', $feltnavn, true)) {
+						$bankLine['balance'] = $saldo;
+					}
+					$tuple = bank_line_key($bankLine, 'csv', 0);
+					$occurrences[$tuple] = ($occurrences[$tuple] ?? 0) + 1;
+					$bankLine['occurrence'] = $occurrences[$tuple];
+					$journalIds = [];
+					$qtxt=NULL;
+					$beskrivelse = trim($beskrivelse);
+					$saldo = (float)$saldo;
+					if ($amount>0) {
+						if (strlen($beskrivelse)==22 && substr($beskrivelse,0,3)=='IK ' && is_numeric(substr($beskrivelse,3,19))) { # ?
+							$kredit=(int)substr($beskrivelse,3,13);
+							$faktura=(int)substr($beskrivelse,16,5);
 							$k_type='D';
-						} else {
-							$faktura='';
-							$kortgebyr='0';
-							$fakturasum=$amount-$kortgebyr;
+						} elseif (strlen($beskrivelse)==20 && substr($beskrivelse,-4)=='IK71' && is_numeric(substr($beskrivelse,0,15))) {
+							$kredit=(int)substr($beskrivelse,0,9);
+							$faktura=(int)substr($beskrivelse,9,5);
+							$k_type='D';
+							if ($kredit && $faktura) $qtxt="select * from ordrer where fakturanr = '$faktura' and kontonr = '$kredit'";
+						} elseif (strlen($beskrivelse)==20 && substr($beskrivelse,-4)=='IK71' && is_numeric(substr($beskrivelse,0,14))) { # Sparekasserne
+							$kredit=(int)substr($beskrivelse,0,8);
+							$faktura=(int)substr($beskrivelse,8,6);
+							$k_type='D';
+						} elseif (strlen($beskrivelse)==24 && substr($beskrivelse,0,4)=='IK71' && is_numeric(substr($beskrivelse,5))) { # Danske Bank 20160815
+							$kredit=(int)substr($beskrivelse,5,13);
+							$faktura=(int)substr($beskrivelse,18,5);
+							$k_type='D';
+							if ($kredit && $faktura) $qtxt="select * from ordrer where fakturanr = '$faktura' and kontonr = '$kredit'"; # 20170119
+						} elseif (strlen($beskrivelse)==32 && substr($beskrivelse,7,10)=='Indbet.ID=' && is_numeric(substr($beskrivelse,17,15))) { # Danske Bank
+							$kredit=(int)substr($beskrivelse,17,9);
+							$faktura=(int)substr($beskrivelse,26,5);
+							$k_type='D';
+						} elseif (strlen($beskrivelse)==35 && substr($beskrivelse,0,21)=='Indbetalingskort, nr.' && is_numeric(substr($beskrivelse,22,14))) { # Nordea
+							$kredit=(int)substr($beskrivelse,22,7);
+							$faktura=(int)substr($beskrivelse,29,5);
+							$k_type='D';
+						} elseif (strlen($beskrivelse)==40 && substr($beskrivelse,0,6)=='DK-IND' && is_numeric(substr($beskrivelse,22,14))) { # SparNord
+							$felt_1="%".substr($beskrivelse,-10);
+							$tmp=$amount-3;
+							$qtxt= "select fakturanr,kontonr from ordrer where felt_1 LIKE '$felt_1' and sum <= '$amount' and sum >= '$tmp'";
+						} elseif (strlen($beskrivelse)==30 && substr($beskrivelse,0,2)=='DK' && is_numeric(substr($beskrivelse,4,7)) && is_numeric(substr($beskrivelse,12,9)) && is_numeric(substr($beskrivelse,25,5))) { # Dankort betaling 20140708
+							$betalings_id="%".substr($beskrivelse,12,9);
+							$qtxt="select fakturanr,kontonr,sum,moms from ordrer where betalings_id LIKE '$betalings_id' and sum = '$amount'";
+						} elseif (strlen($beskrivelse)==30 && (substr($beskrivelse,0,5)=='DKSSL' || substr($beskrivelse,0,6)=='DK3DSF') && is_numeric(substr($beskrivelse,6,4)) && is_numeric(substr($beskrivelse,11,7)) && is_numeric(substr($beskrivelse,19,11))) { # SparNord Ny 20160909
+							$tmp=$amount-3;
+							$betalings_id="%".substr($beskrivelse,21,11);
+							$qtxt = "select fakturanr,kontonr,sum,moms from ordrer where betalings_id LIKE '$betalings_id' ";
+							$qtxt.= "and sum+moms >= '$tmp' and sum+moms <='$amount'";
+						} elseif (substr($beskrivelse,12,3)=='ha_' && is_numeric(substr($beskrivelse,15,5))) { # BetalingsID Jyske Bank 21210328
+							$tmp=$amount-3;
+							$betalings_id=substr($beskrivelse,12,8);
+							$qtxt = "select fakturanr,kontonr,sum,moms from ordrer where betalings_id = '$betalings_id' ";
+							$qtxt.= "and sum+moms >= '$tmp' and sum+moms <='$amount'";
+						} elseif (strlen($beskrivelse)==22 && (substr($beskrivelse,0,5)=='DKSSL' || substr($beskrivelse,0,6)=='DK3DSF') && is_numeric(substr($beskrivelse,6,4)) && is_numeric(substr($beskrivelse,11,7)) && is_numeric(substr($beskrivelse,19,11))) { # DanskeBank Ny 20161101
+							$tmp=$amount-3;
+							$ordrenr=substr($beskrivelse,-4);
+							$qtxt="select fakturanr,kontonr,sum,moms from ordrer where ordrenr = '$ordrenr' and sum >= '$tmp' and sum <='$amount' and art='DO'";
+						} elseif (substr($beskrivelse,0,6)=='DKSSL ') { #20131119
+							list($a,$b,$c)=explode(" ",$beskrivelse);
+							$ordrenr=(int)substr($c,7);
+							if ($ordrenr) $qtxt="select fakturanr,kontonr from ordrer where ordrenr = '$ordrenr' and sum = '$amount'";
+						}
+						if ($qtxt) {
+							$qtxt.=" and (betalt = '0' or betalt = '' or betalt is NULL) order by fakturadate limit 1"; #20180314
+							if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+								$faktura=db_escape_string((string)$r['fakturanr']);
+								$fakturasum=$r['sum']+$r['moms'];
+								$kortgebyr=$amount-$fakturasum;
+								$kredit=(int)$r['kontonr'];
+								$k_type='D';
+							} else {
+								$faktura='';
+								$kortgebyr='0';
+								$fakturasum=$amount-$kortgebyr;
+								$kredit='0';
+								$k_type='';
+							}
+						} elseif ($kundenr) { #20220531
+							$k_type='D';
+							$kredit=$kundenr;
+						} elseif ($kundenr) { #20220531
+							$k_type='D';
+							$kredit=$kundenr;
+						} elseif ($recieverAccount) { #20220531
+							$qtxt = "select kontonr from adresser where bank_konto = '$recieverAccount'";
+							if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+								$k_type='D';
+								$kredit=(int)$r['kontonr'];
+								$amount*=-1;
+							}
+						} elseif ($curency) { #20251008
+							$currencyCode = 0;
+							for ($i=0;$i<count($valuta);$i++) {
+								if ($currency == $valuta[$i]) $currencyCode = $valutakode[$i];
+							}
+						} else { #20220120 Finds debitor paid by paylist.
 							$kredit='0';
+							$faktura='';
 							$k_type='';
 						}
-					} elseif ($kundenr) { #20220531
-						$k_type='D';
-						$kredit=$kundenr;
-					} elseif ($kundenr) { #20220531
-						$k_type='D';
-						$kredit=$kundenr;
-					} elseif ($recieverAccount) { #20220531
-						$qtxt = "select kontonr from adresser where bank_konto = '$recieverAccount'";
-						if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-							$k_type='D';
-							$kredit=$r['kontonr'];
-							$amount*=-1;
+						$kortgebyr = afrund($kortgebyr,2);
+						if ($kortgebyr) {
+							$qtxt = "insert into kassekladde ";
+							$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
+							$qtxt.= "  values ";
+							$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','F','0','$faktura','$amount',";
+							$qtxt.= "'$kladde_id','$currencyCode','$afd','$saldo')";
+							$inserted = db_fetch_array(db_select($qtxt . ' RETURNING id', __FILE__ . " linje " . __LINE__));
+							$journalIds[] = (int)$inserted['id'];
+							$qtxt = "insert into kassekladde ";
+							$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
+							$qtxt.= "  values ";
+							$qtxt.= "('$bilag','$transdate','$beskrivelse','F','0','$k_type','$kredit','$faktura','$fakturasum',";
+							$qtxt.= "'$kladde_id','$currencyCode','$afd','$saldo')";
+							$inserted = db_fetch_array(db_select($qtxt . ' RETURNING id', __FILE__ . " linje " . __LINE__));
+							$journalIds[] = (int)$inserted['id'];
+							$qtxt= "insert into kassekladde ";
+							$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
+							$qtxt.= "  values ";
+							$qtxt.= "('$bilag','$transdate','$beskrivelse','F','0','F','$gebyrkonto','$faktura','$kortgebyr','$kladde_id',";
+							$qtxt.= "'$currencyCode','$afd','$saldo')";
+							$inserted = db_fetch_array(db_select($qtxt . ' RETURNING id', __FILE__ . " linje " . __LINE__));
+							$journalIds[] = (int)$inserted['id'];
+						} else {
+							$qtxt = " insert into kassekladde ";
+							$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
+							$qtxt.= " values ";
+							$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','$k_type','$kredit','$faktura','$amount','$kladde_id',";
+							$qtxt.= "'$currencyCode','$afd','$saldo')";
+							$inserted = db_fetch_array(db_select($qtxt . ' RETURNING id', __FILE__ . " linje " . __LINE__));
+							$journalIds[] = (int)$inserted['id'];
+							$bilag++; #20170630 Flyttet fra over db_mod...
 						}
-					} elseif ($curency) { #20251008
-						$currencyCode = 0;
-						for ($i=0;$i<count($valuta);$i++) {
-							if ($currency == $valuta[$i]) $currencyCode = $valutakode[$i];
-						}
-					} else { #20220120 Finds debitor paid by paylist.
-						$kredit='0';
-						$faktura='';
-						$k_type='';
-					}
-					$kortgebyr = afrund($kortgebyr,2);
-					if ($kortgebyr) {
-						$qtxt = "insert into kassekladde ";
-						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
-						$qtxt.= "  values ";
-						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','F','0','$faktura','$amount',";
-						$qtxt.= "'$kladde_id','$currencyCode','$afd','$saldo')";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt = "insert into kassekladde ";
-						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
-						$qtxt.= "  values ";
-						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','0','$k_type','$kredit','$faktura','$fakturasum',";
-						$qtxt.= "'$kladde_id','$currencyCode','$afd','$saldo')";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt= "insert into kassekladde ";
-						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
-						$qtxt.= "  values ";
-						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','0','F','$gebyrkonto','$faktura','$kortgebyr','$kladde_id',";
-						$qtxt.= "'$currencyCode','$afd','$saldo')";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					} else {
-						$qtxt = " insert into kassekladde ";
-						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
-						$qtxt.= " values ";
-						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','$k_type','$kredit','$faktura','$amount','$kladde_id',";
-						$qtxt.= "'$currencyCode','$afd','$saldo')";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$bilag++; #20170630 Flyttet fra over db_mod...
-					}
-				} elseif ($amount < 0) {
+					} elseif ($amount < 0) {
 						$dtype=$ktype='F';
 						$debet=0;
 						$amount=(float)$amount;
-					if (strlen($beskrivelse)==30 && substr($beskrivelse,0,2)=='DK' && is_numeric(substr($beskrivelse,4,7)) && is_numeric(substr($beskrivelse,12,9)) && is_numeric(substr($beskrivelse,25,5))) { # Dankort betaling 20150904 
-						$betalings_id="%".substr($beskrivelse,12,9);
-						$r=db_fetch_array(db_select("select fakturanr,kontonr from ordrer where betalings_id LIKE '$betalings_id' and sum = '$amount'",__FILE__ . " linje " . __LINE__));
-						$faktura=$r['fakturanr'];
-						$debet=(int)$r['kontonr'];
-						$d_type='D';
-					} elseif (substr($beskrivelse,0,4)=='Afr:' && is_numeric(substr($beskrivelse,5,4))) { #20201107
-						$d_type='D';
-						$debet=substr($beskrivelse,5,4);
-					} elseif (substr($beskrivelse,0,4)=='Afr:' && substr($beskrivelse,-8,1)=='-' && substr($beskrivelse,-5,1)=='-') { #20170608
-						list($tmp,$debet,$tmp)=explode(" ",$beskrivelse);
-						$d_type='D';
-					} elseif (substr($beskrivelse,0,12)=='Girobetaling' && is_numeric(substr($beskrivelse,13,11))) { #20200820
-						$bank=substr($beskrivelse,13,11);
-						$d_type='D';
-						$qtxt="select kontonr from adresser where bank_konto = '$bank'";
-						if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-							$debet=$r['kontonr'];
+						if (strlen($beskrivelse)==30 && substr($beskrivelse,0,2)=='DK' && is_numeric(substr($beskrivelse,4,7)) && is_numeric(substr($beskrivelse,12,9)) && is_numeric(substr($beskrivelse,25,5))) { # Dankort betaling 20150904
+							$betalings_id="%".substr($beskrivelse,12,9);
+							$r=db_fetch_array(db_select("select fakturanr,kontonr from ordrer where betalings_id LIKE '$betalings_id' and sum = '$amount'",__FILE__ . " linje " . __LINE__));
+							$faktura=db_escape_string((string)$r['fakturanr']);
+							$debet=(int)$r['kontonr'];
+							$d_type='D';
+						} elseif (substr($beskrivelse,0,4)=='Afr:' && is_numeric(substr($beskrivelse,5,4))) { #20201107
+							$d_type='D';
+							$debet=(int)substr($beskrivelse,5,4);
+						} elseif (substr($beskrivelse,0,4)=='Afr:' && substr($beskrivelse,-8,1)=='-' && substr($beskrivelse,-5,1)=='-') { #20170608
+							list($tmp,$debet,$tmp)=explode(" ",$beskrivelse);
+							$debet=(int)$debet;
+							$d_type='D';
+						} elseif (substr($beskrivelse,0,12)=='Girobetaling' && is_numeric(substr($beskrivelse,13,11))) { #20200820
+							$bank=substr($beskrivelse,13,11);
+							$d_type='D';
+							$qtxt="select kontonr from adresser where bank_konto = '$bank'";
+							if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+								$debet=(int)$r['kontonr'];
+							}
+						} else { #20211022 | if (strpos($beskrivelse,'+')) {
+							$beskrivelse = db_escape_string(urldecode($bankText));
+	#						$beskrivelse=str_replace('%C3%A6','æ',$beskrivelse);
+	#						$beskrivelse=str_replace('%C3%B8','ø',$beskrivelse);
+	#						$beskrivelse=str_replace('%C3%A5','å',$beskrivelse);
+	#						$beskrivelse=str_replace('+',' ',$beskrivelse);
+							if (strlen($beskrivelse) < 25) $qtxt = "select kontonr from adresser where firmanavn='$beskrivelse' ";
+							else $qtxt = "select kontonr from adresser where firmanavn like '$beskrivelse%' ";
+							$qtxt.= "and art = 'D' and bank_konto != ''";
+							$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+							$c=0;
+							while ($r=db_fetch_array($q)) {
+								$debet=(int)$r['kontonr'];
+								$c++;
+							}
+							($c == 1)?$d_type='D':$debet = 0;
+						} if ($kundenr) { #20220531
+							$d_type='D';
+							$debet=$kundenr;
 						}
-					} else { #20211022 | if (strpos($beskrivelse,'+')) { 
-						$beskrivelse=urldecode($beskrivelse);
-#						$beskrivelse=str_replace('%C3%A6','æ',$beskrivelse);
-#						$beskrivelse=str_replace('%C3%B8','ø',$beskrivelse);
-#						$beskrivelse=str_replace('%C3%A5','å',$beskrivelse);
-#						$beskrivelse=str_replace('+',' ',$beskrivelse);
-						if (strlen($beskrivelse) < 25) $qtxt = "select kontonr from adresser where firmanavn='$beskrivelse' ";
-						else $qtxt = "select kontonr from adresser where firmanavn like '$beskrivelse%' ";
-						$qtxt.= "and art = 'D' and bank_konto != ''";
-						$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-						$c=0;
-						while ($r=db_fetch_array($q)) {
-							$debet=$r['kontonr'];
-							$c++;
-						}
-						($c == 1)?$d_type='D':$debet = 0;	
-					} if ($kundenr) { #20220531
-						$d_type='D';
-						$debet=$kundenr;
+						$qtxt = "insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id,valuta,afd";
+						if ($saldo) $qtxt.=',saldo';
+						$qtxt.= " ) values ";
+						$qtxt.= "('$bilag','$transdate','$beskrivelse','$d_type','$debet','$ktype',";
+						$qtxt.= "'$kontonr','".abs($amount)."','$kladde_id','$currencyCode','$afd'";
+						if ($saldo) $qtxt.=",'$saldo'";
+						$qtxt.= ")";
+						$inserted = db_fetch_array(db_select($qtxt . ' RETURNING id', __FILE__ . " linje " . __LINE__));
+						$journalIds[] = (int)$inserted['id'];
+						$bilag++; #20170630 Flyttet fra over db_mod...
 					}
-					$qtxt = "insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id,valuta,afd";
-					if ($saldo) $qtxt.=',saldo';
-					$qtxt.= " ) values ";
-					$qtxt.= "('$bilag','$transdate','$beskrivelse','$d_type','$debet','$ktype',";
-					$qtxt.= "'$kontonr','".abs($amount)."','$kladde_id','$currencyCode','$afd'";
-					if ($saldo) $qtxt.=",'$saldo'";
-					$qtxt.= ")";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					$bilag++; #20170630 Flyttet fra over db_mod...
+					if ($journalIds) {
+						bank_line_register($importId, $bankLine, $journalIds);
+					}
 				}
 			}
 		}
-	}
-#
 
-fclose($fp);
-#xit;
+		fclose($fp);
+		transaktion('commit');
+	} catch (Throwable $error) {
+		transaktion('rollback');
+		if (isset($fp) && is_resource($fp)) {
+			fclose($fp);
+		}
+		throw $error;
+	}
 	unlink($filnavn); # sletter filen.
 	unlink($filnavn."2"); # sletter filen.
-	transaktion('commit');
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
 }
 function nummertjek ($nummer){

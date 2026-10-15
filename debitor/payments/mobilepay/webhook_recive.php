@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2024.02.27 ---
+// --- payments/flatpay.php --- ver 5.0.0 --- 2026.10.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,104 +20,94 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261001 CDX/LH Stop processing when MobilePay HMAC authentication fails.
+// 20261001 CDX/LH Fail closed on absent secrets and contain tenant/event paths.
+// 20261001 CDX/LH Read provisioned tenant webhook secrets and reject stale signed requests.
 
-@session_start();
-$s_id = session_id();
+// 20261001 CDX/LH Ignore invoice-link references before writing POS callback files.
+// 20261005 CDX/LH Accept documented Authorization header with the legacy Vipps fallback.
 
-# #####################################################
-# 
-# Verify request
-#
-# #####################################################
+/**
+ * Injected by ../../../includes/connect.php, included below:
+ * @var string $sqhost
+ * @var string $squser
+ * @var string $sqpass
+ * @var string $sqdb
+ */
 
-// Get the request body
-$requestBody = file_get_contents('php://input');
-
-// Extract required headers
-$method = $_SERVER['REQUEST_METHOD'];
-$url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-$pathAndQuery = $_SERVER['REQUEST_URI'];
-$xMsDate = $_SERVER['HTTP_X_MS_DATE'];
-$xMsContentSha256 = $_SERVER['HTTP_X_MS_CONTENT_SHA256'];
-$host = $_SERVER['HTTP_HOST'];
-
-// Construct expected content hash
-$expectedContentHash = base64_encode(hash('sha256', $requestBody, true));
-
-// Construct expected signed string
-$expectedSignedString = "$method\n$pathAndQuery\n$xMsDate;$host;$xMsContentSha256";
-
-// Define the secret
-$dbFolder = '../../../temp/' . $_GET["db"];
-$secret = file_get_contents("$dbFolder/.ht_mobilepay_secret.txt");
-#$secret = ""
-
-// Generate expected signature
-$expectedSignature = base64_encode(hash_hmac('sha256', $expectedSignedString, $secret, true));
-
-// Construct expected Authorization header
-$expectedAuth = "HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature=$expectedSignature";
-
-// Verify content hash
-if ($xMsContentSha256 !== $expectedContentHash) {
-    file_put_contents("../../../temp/works", 'Content hash was not valid');
+// Validate the tenant path before reading any secret or writing payment data.
+$db = $_GET['db'] ?? '';
+if (!is_string($db) || !preg_match('/^[A-Za-z0-9_]+$/D', $db)) {
+    http_response_code(400);
+    exit;
+}
+$dbFolder = __DIR__ . '/../../../temp/' . $db;
+if (!is_dir($dbFolder)) {
+    http_response_code(401);
+    exit;
+}
+require_once __DIR__ . '/../../../includes/db_query.php';
+require_once __DIR__ . '/../../../includes/std_func.php';
+require_once __DIR__ . '/../../../includes/connect.php';
+$registry = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . ' linje ' . __LINE__);
+$registered = $registry ? pg_query_params($registry, 'SELECT 1 FROM regnskab WHERE db=$1 LIMIT 1', [$db]) : false;
+if (!$registered || !pg_fetch_assoc($registered)) {
+    http_response_code(401);
+    exit;
+}
+$tenant = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . ' linje ' . __LINE__);
+$settings = $tenant ? pg_query_params($tenant, "SELECT var_value FROM settings
+    WHERE var_grp='mobilepay' AND var_name='webhook_secret' ORDER BY id DESC LIMIT 1", []) : false;
+$setting = $settings ? pg_fetch_assoc($settings) : false;
+$secret = $setting ? $setting['var_value'] : null;
+if (!is_string($secret) || strlen($secret) < 16) {
+    http_response_code(401);
     exit;
 }
 
-// Verify signature
-if ($_SERVER['HTTP_X_VIPPS_AUTHORIZATION'] !== $expectedAuth) {
-    # file_put_contents("../../../temp/works", "Authendication was not valid\n$_SERVER[HTTP_X_VIPPS_AUTHORIZATION] \n$expectedAuth\n\n$xMsContentSha256\n$expectedContentHash\n\n$expectedSignedString\n$secret\n---");
-#    exit;
+$requestBody = file_get_contents('php://input');
+$method = $_SERVER['REQUEST_METHOD'] ?? '';
+$pathAndQuery = $_SERVER['REQUEST_URI'] ?? '';
+$xMsDate = $_SERVER['HTTP_X_MS_DATE'] ?? '';
+$signedDate = DateTimeImmutable::createFromFormat(DateTimeInterface::RFC7231, $xMsDate, new DateTimeZone('UTC'))
+    ?: DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $xMsDate);
+if (!$signedDate || abs(time() - $signedDate->getTimestamp()) > 300) {
+    http_response_code(401);
+    exit;
 }
-
-
-# #####################################################
-# 
-# Execute request
-#
-# #####################################################
-
-
-
-// Check if POST data exists
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Get raw POST data
-    $postData = file_get_contents("php://input");
-
-    // Convert JSON data to an associative array
-    $postDataArray = json_decode($postData, true);
-
-    if ($postDataArray !== null) {
-        // Determine filename based on the presence of a key in the JSON data
-        if (isset($postDataArray["merchantQrId"])) {
-            $filename = $postDataArray["merchantQrId"];
-        } else {
-            // If key doesn't exist, use a default filename
-            $filename = $postDataArray["reference"];
-        }
-
-        // Check if the folder exists
-        if (!file_exists($dbFolder)) {
-            // Create the folder if it doesn't exist
-            mkdir($dbFolder, 0777, true); // You might want to adjust the permissions
-        }
-
-	$filePath = '../../../temp/' . $_GET["db"] . '/data_' . $filename . '.json';
-
-        // Write JSON data to file
-        file_put_contents($filePath, $postData);
-	file_put_contents("../../../temp/works", $filePath);
-
-        echo "JSON data has been written to file with timestamp.";
-    } else {
-        echo "Failed to decode JSON data.";
-file_put_contents("../../../temp/works", "Failed decode");
-    }
-} else {
-
-    echo "No POST data received.";
+$xMsContentSha256 = $_SERVER['HTTP_X_MS_CONTENT_SHA256'] ?? '';
+$host = $_SERVER['HTTP_HOST'] ?? '';
+$expectedContentHash = base64_encode(hash('sha256', $requestBody, true));
+$expectedSignedString = "$method\n$pathAndQuery\n$xMsDate;$host;$xMsContentSha256";
+$expectedSignature = base64_encode(hash_hmac('sha256', $expectedSignedString, $secret, true));
+$expectedAuth = "HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature=$expectedSignature";
+$requestHeaders = array_change_key_case(function_exists('getallheaders') ? (getallheaders() ?: []) : [], CASE_LOWER);
+$authorization = ifset($requestHeaders, 'authorization',
+    ifset($_SERVER, 'HTTP_AUTHORIZATION', ifset($_SERVER, 'HTTP_X_VIPPS_AUTHORIZATION', '')));
+if (!hash_equals($expectedContentHash, $xMsContentSha256)
+    || !is_string($authorization) || !hash_equals($expectedAuth, $authorization)) {
+    http_response_code(401);
+    exit;
 }
-
-?>
+if ($method !== 'POST') {
+    http_response_code(405);
+    exit;
+}
+$postData = json_decode($requestBody, true);
+$filename = is_array($postData) ? ($postData['merchantQrId'] ?? $postData['reference'] ?? '') : '';
+if (!is_string($filename) || !preg_match('/^[A-Za-z0-9_-]+$/D', $filename)) {
+    http_response_code(400);
+    exit;
+}
+if (is_string($postData['reference'] ?? null) && str_starts_with($postData['reference'], 'saldi-')) {
+    http_response_code(200);
+    exit;
+}
+$filePath = $dbFolder . '/data_' . $filename . '.json';
+if (file_put_contents($filePath, $requestBody) === false) {
+    http_response_code(500);
+    exit;
+}
+echo "JSON data has been written to file with timestamp.";

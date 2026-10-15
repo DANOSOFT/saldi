@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "receipt_id": 141,
+    "order_id": 71,
+    "lines": [
+      {
+        "line_id": 201,
+        "received_now": "60",
+        "received_total": "60",
+        "remaining": "0"
+      }
+    ],
+    "order_complete": true,
+    "attachment": {
+      "state": "attached",
+      "attachment_id": 81,
+      "reason": null
+    },
+    "shop_sync": "done",
+    "warnings": []
+  }
+}

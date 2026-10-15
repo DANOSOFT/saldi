@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/formFuncIncludes/sendMail.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
 //                  (source=debitorOrdrer) før fallback til gammelt bilag-system
@@ -34,9 +34,60 @@
 //                  recipient escaped before output.
 // 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
 //                  and offers the ASCII suggestion via emailLookalike.php.
+// 20261001 CDX/LH Split SMTP into a result-returning core with unchanged web feedback.
+// 20261001 CDX/LH Freeze MIME before transmission, track SMTP acceptance and serialize the browser duplicate guard.
+// 20261001 CDX/LH Resolve the existing invoice payment-link mail token without minting payments.
 
+/** Preserve browser feedback; REST callers use the non-terminating core below. */
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
-print "<!--function send_mails start-->";
+    global $webservice, $sprog_id, $mailantal;
+    print "<!--function send_mails start-->";
+    $result = send_mails_result($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr);
+    if (!$result['ok']) {
+        if ($result['error'] === 'invalid_email') {
+            include_once __DIR__ . '/emailLookalike.php';
+            return emailRecipientRejected($result['recipient'], $ordre_id, $sprog_id, $mailantal);
+        }
+        if ($result['error'] === 'Missing sender mail') {
+            if (!$webservice) {
+                print "<BODY onLoad=\"javascript:alert('Firmanavn eller e-mail for afsender ikke udfyldt.\\nSe (Indstillinger -> stamdata).\\nMail ikke afsendt!')\">";
+            }
+            return 'Missing sender mail';
+        }
+        if ($result['error'] === 'duplicate_send') {
+            alert('Vent 30 sekunder inden du sender samme mail igen');
+            return;
+        }
+        echo $result['error'] . '<br>';
+        exit;
+    }
+    if (!$webservice && $mailantal > 1 && $mailnr == $mailantal) {
+        $tekst = "$mailantal mails sendt\\nBCC til " . $result['sender'];
+        if ($result['user_mail']) {
+            $tekst .= '\\nBCC til ' . $result['user_mail'] . '.';
+        } else {
+            $tekst .= '.';
+        }
+        alert($tekst);
+    }
+    $email = $result['recipient'];
+    echo findtekst('3370|Mail sendt til', $sprog_id) . ' ' . htmlspecialchars($email, ENT_QUOTES) . '<br>';
+    return "Mail sent to $email";
+}
+
+/** @return array{ok:bool,error:string|null,recipient:string,outcome:string,stage:string,recipients:array<string,bool>} */
+function send_mails_result($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
+	$prepared = send_mails_prepare_result($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr);
+	return send_mails_transmit_result($prepared);
+}
+
+/**
+ * Resolve templates and attachments and freeze MIME without opening a mail transport.
+ * Database-idempotent callers bypass the browser's 30-second guard.
+ * @return array{ok:bool,error:string|null,recipient:string,mail?:PHPMailer\PHPMailer\PHPMailer,sender?:string,user_mail?:string|null}
+ */
+function send_mails_prepare_result($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr, bool $browserGuard = true) {
+
 	global $charset;
 	global $db,$db_id,$deb_valuta,$deb_valutakurs;
 	global $mailantal;
@@ -55,13 +106,15 @@ print "<!--function send_mails start-->";
 	else $emails[0]=$email;
 	for ($x=0;$x<count($emails);$x++) {
 		if (!filter_var($emails[$x], FILTER_VALIDATE_EMAIL)) { #20200122
-			include_once(__DIR__ . "/emailLookalike.php");
-			return emailRecipientRejected($emails[$x], $ordre_id, $sprog_id, $mailantal);
+			return ['ok' => false, 'error' => 'invalid_email', 'recipient' => $emails[$x]];
 		}
 	}
 	$bilag=$brugermail=$mail_bilag=NULL;
 	
-	$ordre_id*=1; #21040423
+	$ordre_id = (int)$ordre_id;
+	$form_nr = db_escape_string((string)$form_nr);
+	$ansat_id = (int)$ansat_id;
+	$formularsprogSql = db_escape_string((string)$formularsprog);
  	$qtxt="select mail_bilag,lev_addr1,lev_postnr,lev_bynavn,sag_id from ordrer where id='$ordre_id'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$mail_bilag=$r['mail_bilag'];
@@ -87,7 +140,7 @@ print "<!--function send_mails start-->";
 		$emails=explode(";",$email);
 	} else $emails[0]=$email;
 
-	$qtxt="select * from formularer where formular='$form_nr' and art='5' and lower(sprog)='".strtolower($formularsprog)."'";
+	$qtxt="select * from formularer where formular='$form_nr' and art='5' and lower(sprog)='".strtolower($formularsprogSql)."'";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (!$subjekt && $r['xa']=='1') $subjekt=$r['beskrivelse'];
@@ -100,7 +153,7 @@ print "<!--function send_mails start-->";
 	$lang_id = 0; // Default to 0 for Danish
 	
 	if ($formularsprog && strtolower($formularsprog) != 'dansk') {
-		$qtxt = "select kodenr from grupper where art = 'VSPR' and lower(box1) = lower('$formularsprog')";
+		$qtxt = "select kodenr from grupper where art = 'VSPR' and lower(box1) = lower('$formularsprogSql')";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if ($r) {
 			$lang_id = $r['kodenr'];
@@ -113,20 +166,29 @@ print "<!--function send_mails start-->";
 	$lang_sender_email = NULL;
 	$qtxt = "select var_value from settings where var_name = 'sender_email' and var_grp = 'email_settings' and group_id = '$lang_id'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$lang_sender_email = $r['var_value'];
+	$lang_sender_email = ifset($r, 'var_value');
 	error_log("DEBUG: Found lang_sender_email='$lang_sender_email' for lang_id='$lang_id'");
 	
 	# Load sender name for this language
 	$lang_sender_name = NULL;
 	$qtxt = "select var_value from settings where var_name = 'sender_name' and var_grp = 'email_settings' and group_id = '$lang_id'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$lang_sender_name = $r['var_value'];
+	$lang_sender_name = ifset($r, 'var_value');
 	error_log("DEBUG: Found lang_sender_name='$lang_sender_name' for lang_id='$lang_id'");
 	if (strpos($mailtext,'$firmanavn')) {
 		$qtxt = "select firmanavn from ordrer where id = '$ordre_id'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$mailtext = str_replace('$firmanavn',$r['firmanavn'],$mailtext);
 		}
+	}
+	if (class_exists('PaymentLinkMailToken', false) && PaymentLinkMailToken::get((int)$ordre_id) !== null
+		&& strpos($mailtext,'$betalingslink') === false) {
+		$mailtext .= "\n\n" . '$betalingslink';
+	}
+	if (strpos($mailtext,'$betalingslink') !== false || strpos($subjekt,'$betalingslink') !== false) {
+		require_once __DIR__ . '/../payments/paymentLinkToken.php';
+		$mailtext = str_replace('$betalingslink', paymentLinkHtml(paymentLinkUrl((int)$ordre_id)), $mailtext);
+		$subjekt = str_replace('$betalingslink', '', $subjekt);
 	}
 	# 20260817 CL/LH $abonnementslink: signed Stripe subscription link derived from
 	# THIS order at send time (never stored on the order - the recurring clone in
@@ -209,10 +271,7 @@ print "<!--function send_mails start-->";
 	if (!$afsendermails[0] || !$afsendernavn) {
 		$debug_msg .= "ERROR: Missing sender information - email or company name is empty!\n";
 		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
-		if (!$webservice) {
-			print "<BODY onLoad=\"javascript:alert('Firmanavn eller e-mail for afsender ikke udfyldt.\\nSe (Indstillinger -> stamdata).\\nMail ikke afsendt!')\">";
-		}
-		return("Missing sender mail");
+		return ['ok' => false, 'error' => 'Missing sender mail', 'recipient' => $email];
 	}
 	
 	$debug_msg .= "Sender information OK - proceeding with email\n";
@@ -325,25 +384,10 @@ print "<!--function send_mails start-->";
 			$mailtext.=$ordliste[$a]." ";
 		}
 	}
-	$tidspkt=date('U');
-	if (file_exists("../temp/$db/mailchk.php")) {
-		include ("../temp/$db/mailchk.php");
-		if ($ordre_id == $chkOid && $email == $chkMail && $subjekt == $chkSubj && $filnavn == $chkFil && $tidspkt < $chkTid+30) {
-			alert("Vent 30 sekunder inden du sender samme mail igen");
-			return;
-			exit;
-		}
+	if ($browserGuard && !send_mails_reserve_browser($db, $ordre_id, $email, $subjekt, $filnavn)) {
+		return ['ok' => false, 'error' => 'duplicate_send', 'recipient' => $email];
 	}
-	$chkfil=fopen("../temp/$db/mailchk.php",'w');
-	fwrite ($chkfil, "<?php\n");
-	fwrite ($chkfil, "$"."chkOid='$ordre_id';\n");
-	fwrite ($chkfil, "$"."chkMail='$email';\n");
-	fwrite ($chkfil, "$"."chkSubj='$subjekt';\n");
-	fwrite ($chkfil, "$"."chkTid='$tidspkt';\n");
-	fwrite ($chkfil, "$"."chkFil='$filnavn';\n");
-	fwrite ($chkfil, "?>\n");
-	fclose($chkfil);	
-	
+
 	if ($charset=="UTF-8" || $webservice) {
 #		$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
 #		$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
@@ -356,8 +400,35 @@ print "<!--function send_mails start-->";
 			$chk[$x]=$line;
 		}
 	}
-	require_once "../../vendor/autoload.php"; //PHPMailer Object
+	send_mails_load_mailer();
 	$mail = new  PHPMailer\PHPMailer\PHPMailer();
+	$mail->setSMTPInstance(new class extends PHPMailer\PHPMailer\SMTP {
+		public string $deliveryStage = 'before_data';
+		/** @var array<string,bool> RCPT acceptance, including CC and BCC. */
+		public array $recipientOutcomes = [];
+
+		public function recipient($address, $dsn = '') {
+			$accepted = parent::recipient($address, $dsn);
+			$this->recipientOutcomes[$address] = $accepted;
+			return $accepted;
+		}
+
+		protected function sendCommand($command, $commandstring, $expect) {
+			if ($command === 'DATA END') {
+				$this->deliveryStage = 'data_sent';
+			}
+			$result = parent::sendCommand($command, $commandstring, $expect);
+			if ($command === 'DATA END') {
+				$code = (int)substr($this->getLastReply(), 0, 3);
+				if ($result) {
+					$this->deliveryStage = 'accepted';
+				} elseif ($code >= 400 && $code <= 599) {
+					$this->deliveryStage = 'rejected';
+				}
+			}
+			return $result;
+		}
+	});
 	$mail->SMTPOptions = array( 
 	'ssl' => array( 
 		'verify_peer' => false, 
@@ -420,54 +491,89 @@ print "<!--function send_mails start-->";
 	$mail->Subject  =  "$subjekt";
 	$mail->Body     =  "$mailtext";
 	$mail->AltBody  =  "$ren_text";
-	$svar=NULL;
-	
-	// Debug logging
-	$debug_file = "../temp/$db/pbs_email_debug.log";
-	$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: Attempting to send email\n";
-	$debug_msg .= "To: " . var_export($email, true) . "\n";
-	$debug_msg .= "From: " . var_export($from, true) . "\n";
-	$debug_msg .= "Subject: " . var_export($subjekt, true) . "\n";
-	$debug_msg .= "Attachment: " . var_export($filnavn, true) . "\n";
-	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
-	
-	print "<!--";
-	$send_start = microtime(true);
-	if(!$mail->Send()){
- 		$send_elapsed = round(microtime(true) - $send_start, 2);
-		$svar = "Mailer Error: " . $mail->ErrorInfo;
-		$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: EMAIL SEND FAILED ({$send_elapsed}s)\n";
-		$debug_msg .= "Error: " . $mail->ErrorInfo . "\n";
-		$debug_msg .= "SMTP Host: " . var_export($smtp, true) . "\n";
-		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
-	} else {
-		$send_elapsed = round(microtime(true) - $send_start, 2);
-		$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: EMAIL SENT SUCCESSFULLY ({$send_elapsed}s)\n";
-		$debug_msg .= "SMTP Host: " . var_export($smtp, true) . "\n";
-		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
-	}
-	print "-->";
-	if ($svar) {
-		echo $svar."<br>";
-		exit;
-	}
-	if (!$webservice) {
-/*
-	if ($mailantal>=100) {
-			if ($brugermail) $tekst="Mail sendt til $email\\nBCC til $afsendermail\\nBCC til $brugermail.";
-			else $tekst="Mail sendt til $email\\nBCC til $afsendermail.";
-			alert($tekst);
-		}	else 
-	*/	
-		if ($mailantal>1 && $mailnr==$mailantal) {
-			if ($brugermail) $tekst="$mailantal mails sendt\\nBCC til $afsendermail\\nBCC til $brugermail.";
-			else $tekst="$mailantal mails sendt\\nBCC til $afsendermail.";
-			alert($tekst);
-		}
-	}
-	echo findtekst('3370|Mail sendt til', $sprog_id)." ".htmlspecialchars($email, ENT_QUOTES)."<br>";
-	return("Mail sent to $email");
-	print "<!--function send_mails slut-->";
+	$ok = $mail->preSend();
+	return ['ok' => $ok, 'error' => $ok ? null : 'Mailer Error: ' . $mail->ErrorInfo,
+		'recipient' => $email, 'sender' => $afsendermail, 'user_mail' => $brugermail, 'mail' => $mail];
 }
 
-?>
+/**
+ * Transmit only prepared MIME. No order, template or attachment is read here.
+ * A false PHPMailer result can follow delivery to an accepted subset of recipients.
+ * @return array{ok:bool,error:string|null,recipient:string,sender?:string,user_mail?:string|null,outcome:string,stage:string,recipients:array<string,bool>}
+ */
+function send_mails_transmit_result(array $prepared): array {
+	if (!$prepared['ok']) {
+		unset($prepared['mail']);
+		return array_merge($prepared, ['outcome' => 'failed', 'stage' => 'preparation', 'recipients' => []]);
+	}
+	$mail = $prepared['mail'];
+	unset($prepared['mail']);
+	$ok = $mail->postSend();
+	$smtp = $mail->getSMTPInstance();
+	$stage = $mail->Mailer === 'smtp' ? $smtp->deliveryStage : 'mail';
+	$outcome = $ok ? 'sent' : (in_array($stage, ['before_data', 'rejected'], true) ? 'failed' : 'unknown');
+	return array_merge($prepared, ['ok' => $ok, 'error' => $ok ? null : 'Mailer Error: ' . $mail->ErrorInfo,
+		'outcome' => $outcome, 'stage' => $stage, 'recipients' => $smtp->recipientOutcomes]);
+}
+
+/** Load the first installation autoloader that actually provides PHPMailer. @return void */
+function send_mails_load_mailer(): void {
+	foreach ([__DIR__ . '/../../../vendor/autoload.php', __DIR__ . '/../vendor/autoload.php',
+		__DIR__ . '/../../vendor/autoload.php'] as $autoload) {
+		if (class_exists(PHPMailer\PHPMailer\PHPMailer::class) && class_exists(PHPMailer\PHPMailer\SMTP::class)) {
+			return;
+		}
+		if (is_file($autoload)) {
+			require_once $autoload;
+		}
+	}
+	if (!class_exists(PHPMailer\PHPMailer\PHPMailer::class) || !class_exists(PHPMailer\PHPMailer\SMTP::class)) {
+		throw new RuntimeException('PHPMailer is not installed');
+	}
+}
+
+/** Serialize the browser guard and atomically publish complete PHP for legacy readers. @return bool */
+function send_mails_reserve_browser(string $database, int $orderId, string $email, string $subject, string $filename): bool {
+	$directory = __DIR__ . '/../../temp/' . $database;
+	$lock = fopen($directory . '/mailchk.lock', 'c');
+	if ($lock === false) {
+		throw new RuntimeException('Cannot open mail guard lock');
+	}
+	$temporary = null;
+	try {
+		if (!flock($lock, LOCK_EX)) {
+			throw new RuntimeException('Cannot lock mail guard');
+		}
+		$path = $directory . '/mailchk.php';
+		$chkOid = $chkMail = $chkSubj = $chkFil = $chkTid = null;
+		if (is_file($path)) {
+			try {
+				include $path;
+			} catch (ParseError $error) {
+				// Replace an already corrupted legacy guard with a complete record below.
+			}
+		}
+		$now = time();
+		if ($orderId == $chkOid && $email == $chkMail && $subject == $chkSubj && $filename == $chkFil && $now < $chkTid + 30) {
+			return false;
+		}
+		$content = "<?php\n";
+		foreach (['chkOid' => $orderId, 'chkMail' => $email, 'chkSubj' => $subject, 'chkTid' => $now, 'chkFil' => $filename] as $name => $value) {
+			$content .= '$' . $name . '=' . var_export($value, true) . ";\n";
+		}
+		$temporary = tempnam($directory, 'mailchk-');
+		if ($temporary === false || file_put_contents($temporary, $content) !== strlen($content) || !rename($temporary, $path)) {
+			throw new RuntimeException('Cannot publish mail guard');
+		}
+		if (function_exists('opcache_invalidate')) {
+			opcache_invalidate($path, true);
+		}
+		return true;
+	} finally {
+		if (is_string($temporary) && is_file($temporary)) {
+			unlink($temporary);
+		}
+		flock($lock, LOCK_UN);
+		fclose($lock);
+	}
+}

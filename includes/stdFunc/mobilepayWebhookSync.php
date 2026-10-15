@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/mobilepayWebhookSync.php --- patch 5.0.0 --- 2026-09-21 ---
+// --- includes/stdFunc/mobilepayWebhookSync.php --- ver 5.0.0 --- 2026-10-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20260921 Sawaneh Those tests now exist: tests/characterization/includes/MobilepayWebhookSyncTest.test.php
 //                  against a local stub. They showed the body-less token POST stalling 1 s in libcurl;
 //                  it is sent with an empty body now.
+// 20261001 CDX/LH Allow isolated invoice receiver reconciliation and event subscriptions.
 
 if (!function_exists('mobilepay_webhook_call')) {
 	/**
@@ -121,6 +122,8 @@ if (!function_exists('mobilepay_webhook_sync')) {
 	 *                       'db'              Account database name, used to spot stale rows.
 	 *                       'clientId', 'clientSecret', 'subscriptionKey', 'msn'  Credentials.
 	 *                       'connectTimeout', 'timeout'  Optional, seconds.
+	 *                       'receiverBasename', 'events' Optional, POS defaults; invoice uses webhook.php?t=id.
+	 *                       'replaceExpected' Optional, re-register a receiver with a lost secret.
 	 * @return array{
 	 *   reconciled: bool,          True when the expected webhook is registered and no stale one remains.
 	 *   secret: string|null,       Secret of a newly registered webhook, or null when none was registered.
@@ -132,7 +135,8 @@ if (!function_exists('mobilepay_webhook_sync')) {
 	 */
 	function mobilepay_webhook_sync(array $config)
 	{
-		$config += array('apiBase' => 'https://api.vipps.no', 'connectTimeout' => 5, 'timeout' => 10);
+		$config += array('apiBase' => 'https://api.vipps.no', 'connectTimeout' => 5, 'timeout' => 10,
+			'receiverBasename' => 'webhook_recive.php', 'events' => mobilepay_webhook_events());
 		$result = array(
 			'reconciled'        => false,
 			'secret'            => null,
@@ -145,6 +149,16 @@ if (!function_exists('mobilepay_webhook_sync')) {
 		$base        = rtrim((string)$config['apiBase'], '/');
 		$expectedUrl = (string)$config['expectedUrl'];
 		$db          = (string)$config['db'];
+		$receiver = $config['receiverBasename'];
+		$expectedArgs = array();
+		parse_str((string)parse_url($expectedUrl, PHP_URL_QUERY), $expectedArgs);
+		$selector = $receiver === 'webhook_recive.php' ? 'db' : 't';
+		$identity = $selector === 'db' ? $db : ($expectedArgs['t'] ?? null);
+		if (!is_string($receiver) || !in_array($receiver, array('webhook_recive.php', 'webhook.php'), true)
+			|| !is_string($identity) || $identity === '' || !is_array($config['events']) || !$config['events']) {
+			$result['errors'][] = 'invalid receiver or events';
+			return $result;
+		}
 		if ($expectedUrl === '' || $db === '') {
 			$result['errors'][] = 'expectedUrl and db are both required';
 			return $result;
@@ -165,7 +179,7 @@ if (!function_exists('mobilepay_webhook_sync')) {
 		}
 		$tokenBody   = json_decode($token['body'], true);
 		$accessToken = is_array($tokenBody) && isset($tokenBody['access_token']) ? $tokenBody['access_token'] : null;
-		if (!$accessToken) {
+		if (!is_string($accessToken) || $accessToken === '' || preg_match('/[\r\n]/', $accessToken)) {
 			$result['errors'][] = 'accesstoken response held no access_token';
 			return $result;
 		}
@@ -194,10 +208,10 @@ if (!function_exists('mobilepay_webhook_sync')) {
 		$expectedExists = false;
 		foreach ($listBody['webhooks'] as $webhook) {
 			// Entries from a 2xx body are still untrusted input.
-			if (!is_array($webhook) || !isset($webhook['url'])) {
+			if (!is_array($webhook) || !isset($webhook['url']) || !is_string($webhook['url'])) {
 				continue;
 			}
-			if ($webhook['url'] === $expectedUrl) {
+			if ($webhook['url'] === $expectedUrl && empty($config['replaceExpected'])) {
 				$expectedExists = true;
 				continue;
 			}
@@ -209,8 +223,9 @@ if (!function_exists('mobilepay_webhook_sync')) {
 			$webhookQuery = (string)parse_url($webhook['url'], PHP_URL_QUERY);
 			$webhookArgs  = array();
 			parse_str($webhookQuery, $webhookArgs);
-			if (basename($webhookPath) !== 'webhook_recive.php'
-				|| !isset($webhookArgs['db']) || $webhookArgs['db'] !== $db) {
+			if (basename($webhookPath) !== $receiver
+				|| !isset($webhookArgs[$selector]) || $webhookArgs[$selector] !== $identity
+				|| ($selector === 't' && !str_ends_with($webhookPath, '/debitor/payments/link/webhook.php'))) {
 				continue; // another account's webhook, or not a POS callback at all
 			}
 			// The id comes from the same untrusted body: an array or object here would make
@@ -225,6 +240,11 @@ if (!function_exists('mobilepay_webhook_sync')) {
 			// Transport success is not deletion: on a 4xx/5xx the stale webhook stays
 			// active and Vipps keeps delivering payment callbacks to the old url.
 			if (!$delete['ok']) {
+				if ($webhook['url'] === $expectedUrl && !empty($config['replaceExpected'])) {
+					$result['errors'][] = 'cannot replace expected receiver';
+					$result['staleDeleteFailed'] = true;
+					return $result;
+				}
 				$result['errors'][] = 'delete failed for ' . $webhook['url'] . ' (curl: ' . $delete['error'] . ', http: ' . $delete['httpCode'] . ')';
 				$result['staleDeleteFailed'] = true;
 				continue;
@@ -235,14 +255,14 @@ if (!function_exists('mobilepay_webhook_sync')) {
 		if (!$expectedExists) {
 			$register = mobilepay_webhook_call('POST', $base . '/webhooks/v1/webhooks', $headers, json_encode(array(
 				'url'    => $expectedUrl,
-				'events' => mobilepay_webhook_events(),
+				'events' => $config['events'],
 			)), $timeouts);
 			if (!$register['ok']) {
 				$result['errors'][] = 'webhook register request failed (curl: ' . $register['error'] . ', http: ' . $register['httpCode'] . ')';
 				return $result;
 			}
 			$registerBody = json_decode($register['body'], true);
-			if (!is_array($registerBody) || empty($registerBody['secret'])) {
+			if (!is_array($registerBody) || !isset($registerBody['secret']) || !is_string($registerBody['secret']) || $registerBody['secret'] === '') {
 				$result['errors'][] = 'webhook register response held no secret';
 				return $result;
 			}

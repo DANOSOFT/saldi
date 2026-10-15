@@ -1,0 +1,20 @@
+{
+  "scenario": "non-calendar fiscal year and closed period",
+  "fiscal_year_start": "2025-07-01",
+  "fiscal_year_end": "2026-06-30",
+  "refused_date": "2026-07-01",
+  "reasons": [
+    "period_locked",
+    "outside_fiscal_year"
+  ],
+  "registration_count_delta": 0,
+  "ledger_count_delta": 0,
+  "summary_saldo_delta": {
+    "R": "0.00",
+    "Z": "0.00"
+  },
+  "following_year_primo_delta": {
+    "bank": "0.00",
+    "debtor": "0.00"
+  }
+}

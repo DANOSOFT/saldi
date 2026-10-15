@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "event": "metadata_changed",
+        "actor": {
+          "name": "Mette Krogh",
+          "kind": "app"
+        },
+        "at": "2026-09-15T06:12:00+00:00",
+        "changes": {
+          "amount": {
+            "from": "1.840,00",
+            "to": "1840.00"
+          }
+        },
+        "reason_code": null,
+        "note": null
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "chain_ok": true
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "id": 12,
+    "kontonr": "1000",
+    "name": "Hansen ApS",
+    "postnr": "",
+    "city": "",
+    "email": "",
+    "ean": "",
+    "payment_terms": {
+      "type": "Netto",
+      "days": 8
+    }
+  }
+}

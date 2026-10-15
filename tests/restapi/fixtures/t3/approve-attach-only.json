@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "id": 512,
+    "status": "attached",
+    "review_state": "approved",
+    "display_status": "bogfoert",
+    "draft": {
+      "kassekladde_id": 9012,
+      "kladde_id": 77,
+      "bilag": 1043,
+      "mode": "attach_only",
+      "balanced": null,
+      "journal_note": "Godkendte bilag fra Saldi Mobile",
+      "currency": "DKK",
+      "rate": null,
+      "rate_date": null
+    },
+    "warnings": [
+      {
+        "code": "posted_row_unchanged"
+      }
+    ],
+    "feedback": null,
+    "etag": "\"9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e\""
+  }
+}

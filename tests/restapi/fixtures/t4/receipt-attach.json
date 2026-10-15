@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "attachment": {
+      "state": "attached",
+      "attachment_id": 81,
+      "reason": null
+    }
+  }
+}

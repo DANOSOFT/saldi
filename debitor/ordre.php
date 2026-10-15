@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-09-21 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026.10.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -150,6 +150,15 @@
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
+// 20261005 CDX/LH Preserve priced service quantities and totals when displaying assistant sales/credit drafts.
+// 20261008 CL/LH Merge: priced text lines go through order_line_amounts() like catalogue lines.
+
+// 20261001 CDX/LH Share characterised header creation, totals arithmetic and line deletion with mobile sales.
+// 20261001 CDX/LH Share approval reservation and delivery-date rules without changing web save timing.
+
+require_once __DIR__ . '/../includes/orders/orderTotals.php';
+require_once __DIR__ . '/../includes/orders/orderHeader.php';
+require_once __DIR__ . '/../includes/orders/orderLines.php';
 
 @session_start();
 $s_id = session_id();
@@ -835,22 +844,51 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 }
 if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	if (!is_numeric($default_procenttillag)) $default_procenttillag = 0;
-	$ordrenr = get_next_order_number('DO');
 	if (strlen($phone) > 15) $phone = substr($phone, 0, 15);
-	$ordredate = date("Y-m-d");
+	$ordredate = date('Y-m-d');
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
-	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
-	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,performed_by,";
-	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
-	$qtxt .= "lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,procenttillag,omvbet)";
-	$qtxt .= " values ";
-	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
-	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "',";
-	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
-	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
+	$id = order_create_header((int)$konto_id, 0, ['web_fields' => [
+		'kontonr' => $kontonr,
+		'firmanavn' => $firmanavn,
+		'addr1' => $addr1,
+		'addr2' => $addr2,
+		'postnr' => $postnr,
+		'bynavn' => $bynavn,
+		'land' => $land,
+		'betalingsdage' => $betalingsdage,
+		'betalingsbet' => $betalingsbet,
+		'cvrnr' => $cvrnr,
+		'ean' => $ean,
+		'institution' => $institution,
+		'email' => $email,
+		'mail_fakt' => $mail_fakt,
+		'phone' => $phone,
+		'notes' => $notes,
+		'momssats' => $momssats,
+		'tidspkt' => $tidspkt,
+		'valuta' => $valuta,
+		'kontakt' => $kontakt,
+		'pbs' => $pbs,
+		'afd' => $afd,
+		'lev_addr1' => $lev_addr1,
+		'lev_addr2' => $lev_addr2,
+		'lev_postnr' => $lev_postnr,
+		'lev_bynavn' => $lev_bynavn,
+		'lev_land' => $lev_land,
+		'lev_email' => $lev_email,
+		'lev_kontakt' => $lev_kontakt,
+		'felt_1' => $felt_1,
+		'felt_2' => $felt_2,
+		'felt_3' => $felt_3,
+		'felt_4' => $felt_4,
+		'felt_5' => $felt_5,
+		'sprog' => $formularsprog, 'lev_navn' => $lev_firmanavn, 'vis_lev_addr' => $vis_lev_addr,
+		'procenttillag' => $default_procenttillag, 'omvbet' => $omkunde,
+		'ref' => db_escape_string((string)$ref), 'performed_by' => db_escape_string((string)$performed_by),
+	]]);
+	$header = db_fetch_array(db_select('SELECT ordrenr FROM ordrer WHERE id=' . (int)$id, __FILE__ . ' linje ' . __LINE__));
+	$ordrenr = $header['ordrenr'];
 	# Porto vare system
 	## Create a new order line on creation from the specified sku
 	$sku = get_settings_value("porto_varnr", "ordre", null);
@@ -1611,7 +1649,9 @@ if ($b_submit) {
 		if (($godkend == "on") && ($status == 0)) {
 			# if ($vis_saet) $fakturadato = date("d-m-Y");
 			$leveres[$x] = $antal[$x];
-			if (isset($linje_id[$x]) && $varenr[$x]) batch($linje_id[$x]);
+			if (isset($linje_id[$x]) && $varenr[$x]) {
+				order_approve((int)$id, null, (int)$linje_id[$x]);
+			}
 		}
 		if (!$sletslut && $posnr_ny[$x] == '->') $sletstart = $x;
 		if ($sletstart && $posnr_ny[$x] == '<-') $sletslut = $x;
@@ -1684,17 +1724,16 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	$bogfor = 1;
 	if ($godkend == "on" || $omdan_t_fakt == "on" || ($status == 0 && $hurtigfakt == "on")) $status++;
 	if ($status == 1) {
-		if ($levdato) $levdate = usdate($levdato);
-		if (!$levdate) {
-			if ($hurtigfakt != 'on') {
-				$alert = findtekst('1829|Leveringsdato sat til dags dato.', $sprog_id);
-				print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
-				$levdate = date("Y-m-d");
-			} else $levdate = $ordredate;;
-		} elseif (delivery_date_before_order_date(order_becomes_credit_note($id, $art) ? 'DK' : $art, $levdate, $ordredate)) {
+		$approval = order_approval_state((int)$status, $levdate ?: null, (string)$ordredate,
+			order_becomes_credit_note((int)$id, $art) ? 'DK' : $art, $hurtigfakt === 'on');
+		$status = $approval['status'];
+		$levdate = $approval['levdate'];
+		if ($approval['defaulted']) {
+			$alert = findtekst('1829|Leveringsdato sat til dags dato.', $sprog_id);
+			print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
+		} elseif ($approval['error']) {
 			$alert1 = findtekst('1679|Leveringsdato er før ordredato', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
-			$status = 0;
 		}
 	}
 	if (strstr($b_submit, "Kred")) {
@@ -1975,44 +2014,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 			}
 			if (!is_numeric($posnr_ny[$x]) && $posnr_ny[$x] == '-') {
-				$lagerfort = NULL;
-				if ($vare_id[$x]) {
-					$qtxt = "select gruppe from varer where id='$vare_id[$x]'";
-					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					$qtxt = "select box8 from grupper where art='VG' and kodenr = " . (int)$r['gruppe'] . " and fiscal_year = '$regnaar'";
-					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					$lagerfort = $r['box8'];
-				}
-				if ($lagerfort) {
-					$query = db_select("select 1 from batch_kob where linje_id = $linje_id[$x] and antal != 0 LIMIT 1", __FILE__ . " linje " . __LINE__); // SELECT 1 is more effective than select * for existance checks
-					if ($row = db_fetch_array($query)) {
-						$txt = findtekst('1839|Du kan ikke slette en varelinje, når der ér modtaget', $sprog_id) . $row['antal'] . ' varer fra linjen.';
-						alert("$txt");
-					} else { #20191104
-						$qtxt = "select batch_salg.vare_id,varer.gruppe from batch_salg,varer where batch_salg.linje_id = $linje_id[$x] and batch_salg.antal != 0";
-						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						$qtxt = "select box8 from grupper where art='VG' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'";
-						$tmp = NULL;
-						if ($r['vare_id'] && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $tmp = $r['box8'];
-						if ($tmp) {
-							$txt = findtekst('1840|Du kan ikke slette en varelinje, når der ér leveret varer fra linjen.', $sprog_id);
-							alert($txt);
-						} elseif ($linje_id[$x]) {
-							db_modify("delete from batch_kob where linje_id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
-							db_modify("delete from batch_salg where linje_id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
-							db_modify("delete from reservation where linje_id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
-							db_modify("delete from reservation where batch_salg_id='-$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
-							db_modify("delete from ordrelinjer where id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
-							if ($folgevare[$x]) {
-								$tmp = $linje_id[$x] * -1;
-								db_modify("delete from ordrelinjer where folgevare='$tmp' and ordre_id='$id'", __FILE__ . " linje " . __LINE__);
-							}
-							db_modify("delete from ordrelinjer where samlevare='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
-							db_modify("update serienr set salgslinje_id = 0 where salgslinje_id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
-						}
-					}
-				} elseif ($linje_id[$x]) {
-					db_modify("delete from ordrelinjer where id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
+				$deleteError = order_line_delete((int)$id, (int)$linje_id[$x]);
+				if ($deleteError !== null) {
+					alert($deleteError);
 				}
 			} elseif (!strstr($b_submit, "Kopi") && !strstr($b_submit, "Udskriv") && !strstr($b_submit, "Send")) {
 				#$alert2 = findtekst('916|Antal', $sprog_id);
@@ -6262,7 +6266,7 @@ function ordreside($id, $regnskab)
 
 			$kostpris[0] *= 1;
 			if ($sum < 100000000000 && $kostsum < 100000000000) {
-				db_modify("update ordrer set sum=$sum,kostpris=$kostsum,moms=$moms where id=$id", __FILE__ . " linje " . __LINE__);
+				order_totals_persist((int)$id, ['sum' => (float)$sum, 'kostpris' => (float)$kostsum, 'moms' => (float)$moms]);
 			} elseif ($sum >= 100000000000) print tekstboks("Beløbet (" . dkdecimal($sum) . ") er for stort, reducer pris eller vareantal");
 			else print tekstboks("Kostsummen (" . dkdecimal($kostsum) . ") er for stor, reducer kostpris eller vareantal");
 
@@ -6755,6 +6759,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	global $sprog_id;
 
 	$pris_num = is_numeric($pris) ? (float)$pris : 0;
+	$pricedText = !$vare_id && is_numeric($pris);
 	$kostpris_num = is_numeric($kostpris) ? (float)$kostpris : 0;
 	$db_new = $pris_num - $kostpris_num;
 	$db_original = afrund($db_new, 2);
@@ -6770,18 +6775,18 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	#lse cho "$beskrivelse $pris<br>";
 	#  if (!$ny_pos) $ny_pos=1;
 	if ($readonly) $readonly = "readonly=\"readonly\"";
-	if ($varenr || ($saet && $samlevare)) {
-		if ($rabatart == 'amount') $ialt = ($pris - $rabat) * $antal;
-		else $ialt = ($pris - ($pris / 100 * $rabat)) * $antal;
-		if ($procentfakt) {
-			$ialt *= $procent / 100;
-		} else $procent = 100;
-		$ialt = afrund($ialt, 3); # 20150130 rettet til 3 decimaler
+	if ($varenr || ($saet && $samlevare) || $pricedText) {
+		$amounts = order_line_amounts([
+			'pris' => $pris, 'antal' => $antal, 'rabat' => $rabat, 'rabatart' => $rabatart,
+			'procent' => $procent, 'momssats' => $varemomssats, 'momsfri' => $momsfri,
+			'saet' => $saet, 'samlevare' => $samlevare, 'm_rabat' => $m_rabat, 'rabatgruppe' => $rabatgruppe,
+		], ['procentfakt' => $procentfakt, 'momssats' => $momssats]);
+		$ialt = $amounts['amount'];
+		$sum += $amounts['net'];
+		$moms += $amounts['vat'];
+		$blandet_moms = $blandet_moms || $amounts['mixed'];
+		if (!$procentfakt) $procent = 100;
 
-
-		# Hovedvaren (samlevare='on') is display-only for sæt collections - sub-items already add to $sum
-		# Wait, the comment says sub-items already add to $sum, but for "samlevare=on", the user's issue implies the total is wrong because these items are NOT adding to the sum, and the sub-items are missing or not calculating. The debug log shows saet=0, so it's NOT a saet, but just an item with samlevare=on. In that case, we MUST add to $sum!
-		if (!$saet || $samlevare != 'on' || $saet == 0) $sum += $ialt;
 		$dkpris = formatOrderUnitPrice($pris);
 		$dkrabat = dkdecimal($rabat, 5);
 		while (substr($dkrabat, -1) == '0') $dkrabat = trim($dkrabat, '0');
@@ -6791,7 +6796,6 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 
 
 		if ($momsfri != 'on') {
-			$moms += afrund($ialt * $varemomssats / 100, 3); # 20150130 rettet til 3 decimaler
 			if ($varemomssats != $momssats) $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 			if ($incl_moms) $dkpris = formatOrderUnitPrice($pris + $pris * $varemomssats / 100);
 		} else $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
@@ -6969,7 +6973,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$dk_db = dkdecimal($dkb, 2);
 	$dk_dg = dkdecimal($dg, 2);
 	if ($art == 'DK') $ialt = (float)$ialt * -1;
-	if ($varenr || ($saet && $samlevare)) {
+	if ($varenr || ($saet && $samlevare) || $pricedText) {
 		if ($rvnr) {
 			$disabled = 'disabled';
 			if ($incl_moms && !$momsfri) $tmp = dkdecimal($antal * ($pris + $pris * $varemomssats / 100), 2);
@@ -7149,10 +7153,8 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		$title = var2str($rabattxt, $id, $posnr, $varenr, $dkantal, $enhed, $dkpris, $dkprocent, $serienr[$x], $varemomssats, $dkrabat);
 		print "<td title=\"$title\"><input class = 'inputbox' readonly=\"readonly\" size=\"58\" value=\"$rabattxt\"></td>\n";
 		if ($momsfri != 'on') {
-			$moms += afrund($m_rabat * $antal * $varemomssats / 100, 2);
 			if ($varemomssats != $momssats) $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 		}
-		$sum += afrund($m_rabat * $antal, 2); #20180725
 		if ($incl_moms) $m_rabat += $m_rabat * $varemomssats / 100;
 		print "<td><input class = 'inputbox' readonly=\"readonly\" style=\"text-align:right\" size=\"10\" value=\"" . dkdecimal($m_rabat, 2) . "\"></td>\n";
 		print "<td><input class = 'inputbox' readonly=\"readonly\" style=\"text-align:right\" size=\"4\" value=\"\" onchange=\"javascript:docChange = true;\"></td>\n";

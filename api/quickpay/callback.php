@@ -1,16 +1,30 @@
-<?PHP
-      // NOTE: You cannot display the data in a browser, since the resultpage is called in the background
-      // Collect return values and store them in a file, database, send them by email etc.
-      // EXAMPLE: Send an e-mail with data
-      // Set keys we wish to read from $_POST array
+<?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- api/quickpay/callback.php --- ver 5.0.0 --- 2026.10.01
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261001 CDX/LH Drop personal payment-data mail sink; continue accepting callbacks.
 
-      $fields = array('msgtype','ordernumber','amount','currency','time','state','qpstat','qpstatmsg','chstat','chstatmsg','merchant','merchantemail','transaction','cardtype','cardnumber','cardexpire','splitpayment','fraudprobability','fraudremarks','fraudreport','fee','md5check');
-      // Loop through $fields array, check if key exists in $_POST array, if so collect the value
-      while (list(,$k) = each($fields)) {
-        if (isset($_POST[$k])) {
-          $message .= "$k: " .$_POST[$k] . "\r\n";
-        }
-      }
-      // Send an email with the data posted to your resultpage
-      mail('just@hartoft.dk', 'callbackurl', $message);
-?>
+// Quickpay's legacy callback only mailed the payload. No operational sink is configured;
+// accept the callback without forwarding payment data to a personal mailbox.
+http_response_code(200);

@@ -1,0 +1,3 @@
+Date,Text,Amount,Balance,Currency,Reference
+2025-06-04,Kunde Æble betaling,"1,234.56","11,234.56",DKK,LUN-501
+2025-06-05,Bankgebyr,-25.00,"11,209.56",DKK,

@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "count_id": 12,
+    "lager": 1,
+    "reason": "optaelling",
+    "lines": [
+      {
+        "line_ref": "b4000000-0000-4000-8000-000000000001",
+        "vare_id": 1001,
+        "varenr": "1001",
+        "before": "184",
+        "counted": "181",
+        "after": "181",
+        "delta": "-3",
+        "outcome": "adjusted"
+      }
+    ],
+    "adjusted_count": 1,
+    "unchanged_count": 0,
+    "value_estimate": "-162.00",
+    "shop_sync": "done"
+  }
+}

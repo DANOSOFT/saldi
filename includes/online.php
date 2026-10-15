@@ -66,6 +66,9 @@
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
 
+// 20261001 CDX/LH Revoke mobile sessions after security or account membership changes.
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
+
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
 if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
@@ -189,6 +192,7 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 		if (strtotime($row['lukkes']) <= strtotime(date('Y-m-d'))) {
 			db_modify("UPDATE regnskab SET lukket='on' WHERE id=" . (int)$row['id'], __FILE__ . " linje " . __LINE__);
 			db_modify("DELETE FROM online WHERE db='" . db_escape_string($row['db']) . "'", __FILE__ . " linje " . __LINE__);
+			mobileRevokeTenant((int)$row['id']);
 			$lukket = 'on';
 		}
 	}

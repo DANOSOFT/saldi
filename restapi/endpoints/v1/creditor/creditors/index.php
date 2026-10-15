@@ -1,4 +1,5 @@
 <?php
+// 20261001 CDX/LH Declare precise module rights for reads and writes.
 
 require_once '../../../../models/customers/CustomerModel.php';
 require_once '../../../../services/CustomerService.php';
@@ -6,6 +7,12 @@ require_once '../../../../core/BaseEndpoint.php';
 
 class CreditorEndpoint extends BaseEndpoint
 {
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
+    {
+        return ['module' => 'kreditorkonti', 'action' => ifset($_SERVER, 'REQUEST_METHOD') === 'GET' ? 'read' : 'write'];
+    }
+
     public function __construct()
     {
         parent::__construct();

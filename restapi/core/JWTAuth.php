@@ -2,9 +2,15 @@
 /**
  * JWT Authentication Middleware
  * Validates JWT tokens from Authorization header
+ *
+ * History:
+ * 20261001 CDX/LH Refuse tenant header fallback for principal-bearing tokens.
+ * 20261001 CDX/LH Remove all tenant header fallback and expose session validation.
  */
+// 20261001 CDX/LH Restore bounded legacy tenant selection while retaining modern session enforcement.
 
 require_once __DIR__ . '/JWT.php';
+require_once __DIR__ . '/MobileAuth.php';
 
 class JWTAuth
 {
@@ -41,43 +47,52 @@ class JWTAuth
             return false;
         }
         
-        if (!isset($payload['type']) || $payload['type'] !== 'access') {
+        if (!isset($payload['type'], $payload['exp']) || $payload['type'] !== 'access') {
             return false;
         }
         
         return $payload;
     }
     
-    /**
-     * Get the account database using the JWT account ID.
-     * `tenant_id` and X-Tenant-ID are retained as legacy external names for regnskab.id.
-     * Priority: 1) JWT token tenant_id, 2) X-Tenant-ID header
-     * 
-     * @return string|false Database name or false if not found
-     */
-    public static function getTenantDatabase()
+    /** Validate modern sessions and all auth routes; old resource tokens retain signature-only access. */
+    public static function checkSession(array $payload): void
     {
-        $tenant_id = null;
-        
-        // First, get the account ID from the JWT's legacy tenant_id claim
-        $payload = self::validateToken();
-        if ($payload && isset($payload['tenant_id'])) {
-            $tenant_id = (int)$payload['tenant_id'];
+        if (self::isLegacyToken($payload)
+            && strpos((string)ifset($_SERVER, 'SCRIPT_NAME', ''), '/endpoints/v1/auth/') === false) {
+            return;
         }
-        
-        // If not in token, try X-Tenant-ID header
-        if (!$tenant_id) {
-            $headers = getallheaders();
-            if ($headers) {
-                $headers = array_change_key_case($headers, CASE_LOWER);
-                if (isset($headers['x-tenant-id'])) {
-                    $tenant_id = (int)$headers['x-tenant-id'];
-                }
+        MobileAuth::checkSession($payload);
+    }
+
+    /** True only for pre-identity tokens; partial modern claims never enable compatibility. */
+    public static function isLegacyToken(array $payload): bool
+    {
+        foreach (['principal', 'sub', 'sid', 'auth_version', 'device_id', 'jti'] as $claim) {
+            if (array_key_exists($claim, $payload)) {
+                return false;
             }
         }
-        
-        // If still no tenant_id, return false
-        if (!$tenant_id) {
+        return true;
+    }
+
+    /** @return int|null Signed tenant first; only old tokens missing that claim may use the header. */
+    public static function tenantId(array $payload): ?int
+    {
+        $candidate = ifset($payload, 'tenant_id');
+        if (!array_key_exists('tenant_id', $payload) && self::isLegacyToken($payload)) {
+            $headers = array_change_key_case(getallheaders() ?: [], CASE_LOWER);
+            $candidate = ifset($headers, 'x-tenant-id');
+        }
+        $id = filter_var($candidate, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        return $id === false ? null : $id;
+    }
+
+    /** @return string|false Registry database selected by the signed tenant or the legacy fallback. */
+    public static function getTenantDatabase()
+    {
+        $payload = self::validateToken();
+        $tenant_id = $payload ? self::tenantId($payload) : null;
+        if ($tenant_id === null) {
             return false;
         }
         

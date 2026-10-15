@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/vareproduktion.php --- lap 4.1.1------2025-09-25---
+// --- lager/vareproduktion.php --- ver 5.0.0------2026-10-06---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2004-2025 saldi.dk aps
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2012.10.16 Fejl i lagertræk v. varesalg efter produktionsordre med antal != 0. Søg 21121016
@@ -30,6 +30,7 @@
 // 2018.03.14 Lager blev ikke taget med fra form.
 // 2019.06.26 Fjernet kald til transtjek.
 // 2025.09-25 PHR PHP8
+// 20261001 CDX/LH Lock the assembled item and all components before reading or writing production stock.
 
 @session_start();
 $s_id=session_id();
@@ -82,6 +83,12 @@ if ($_POST['OK']) {
 			$kontonr=array();
 		}
 		transaktion('begin');
+		require_once __DIR__ . '/../includes/lager/stockLocks.php';
+		$stockIds = array_values(array_unique(array_map('intval', array_slice($id, 0, (int)$antal))));
+		sort($stockIds, SORT_NUMERIC);
+		foreach ($stockIds as $stockId) {
+			stock_lock_item($stockId);
+		}
 		$l=0;
 		$afgangsum=0;
 

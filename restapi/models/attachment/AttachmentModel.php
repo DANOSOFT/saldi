@@ -14,6 +14,7 @@
 //                 seller (metadata['vendorIdentity'] + subject) against kreditorer and store
 //                 pool_files.vendor_*, same as extractInvoiceHandler.php's save action, so app
 //                 uploads get a kreditor suggestion too. Columns added to the fallback schema.
+// 20261001 CDX/LH Default-off attachment diagnostics and reusable image conversion for durable uploads.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolContentHash.php";
@@ -61,6 +62,10 @@ class AttachmentModel
      */
     private static function debugLog($message, $data = null)
     {
+        $setting = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp='mobile' AND var_name='attachment_debug' AND user_id=0 ORDER BY id DESC LIMIT 1", __FILE__ . ' line ' . __LINE__));
+        if (ifset($setting, 'var_value', '0') !== '1') {
+            return;
+        }
         $timestamp = date('Y-m-d H:i:s');
         $logMessage = "[{$timestamp}] {$message}";
         if ($data !== null) {
@@ -704,7 +709,7 @@ class AttachmentModel
      * @param array{cvr?:string,iban?:string,bank_reg?:string,bank_konto?:string,customerCvr?:string} $identity
      * @return array See poolVendorMatch().
      */
-    private function matchVendor($vendorName, array $identity)
+    public function matchVendor($vendorName, array $identity)
     {
         $ownCvr = poolVendorLoadOwnCvr();
         $customerCvr = normalizePoolVendorCvr($identity['customerCvr'] ?? null);
@@ -854,6 +859,12 @@ class AttachmentModel
         return in_array($mimeType, $imageMimeTypes);
     }
     
+    /** @return string|false Converted PDF path; the caller owns its cleanup. */
+    public function convertUploadImage(string $path)
+    {
+        return $this->convertImageToPdf($path, 'upload.pdf');
+    }
+
     /**
      * Convert image to PDF using FPDF-like approach
      * 
@@ -863,6 +874,9 @@ class AttachmentModel
      */
     private function convertImageToPdf($imagePath, $originalFilename)
     {
+        $tempPdfPath = null;
+        $tempJpegPath = null;
+        $completed = false;
         try {
             self::debugLog('convertImageToPdf START', [
                 'imagePath' => $imagePath,
@@ -934,10 +948,14 @@ class AttachmentModel
             self::debugLog('Image resource created successfully');
             
             // Create a simple PDF using basic PDF structure
-            $tempPdfPath = tempnam(sys_get_temp_dir(), 'img2pdf_') . '.pdf';
+            $tempPdfPath = tempnam(sys_get_temp_dir(), 'img2pdf_');
             
             // Convert image to JPEG for embedding in PDF
-            $tempJpegPath = tempnam(sys_get_temp_dir(), 'img2pdf_') . '.jpg';
+            $tempJpegPath = tempnam(sys_get_temp_dir(), 'img2pdf_');
+            if ($tempPdfPath === false || $tempJpegPath === false) {
+                imagedestroy($image);
+                return false;
+            }
             if (!imagejpeg($image, $tempJpegPath, 90)) {
                 self::debugLog('convertImageToPdf FAILED: imagejpeg failed');
                 imagedestroy($image);
@@ -951,7 +969,6 @@ class AttachmentModel
             $jpegData = file_get_contents($tempJpegPath);
             if ($jpegData === false) {
                 self::debugLog('convertImageToPdf FAILED: could not read temp JPEG');
-                @unlink($tempJpegPath);
                 return false;
             }
             $jpegSize = strlen($jpegData);
@@ -984,24 +1001,29 @@ class AttachmentModel
             // Write PDF to file
             if (file_put_contents($tempPdfPath, $pdfContent) === false) {
                 self::debugLog('convertImageToPdf FAILED: could not write PDF file');
-                @unlink($tempJpegPath);
                 return false;
             }
             
-            // Clean up temporary JPEG
-            @unlink($tempJpegPath);
             
             self::debugLog('convertImageToPdf SUCCESS', [
                 'tempPdfPath' => $tempPdfPath,
                 'pdfSize' => strlen($pdfContent)
             ]);
             
+            $completed = true;
             return $tempPdfPath;
             
         } catch (Exception $e) {
             return false;
         } catch (Error $e) {
             return false;
+        } finally {
+            if (is_string($tempJpegPath) && is_file($tempJpegPath)) {
+                unlink($tempJpegPath);
+            }
+            if (!$completed && is_string($tempPdfPath) && is_file($tempPdfPath)) {
+                unlink($tempPdfPath);
+            }
         }
     }
     
@@ -1094,6 +1116,7 @@ class AttachmentModel
         $xref .= sprintf("%010d 00000 n \n", strpos($pdf, "4 0 obj"));
         $xref .= sprintf("%010d 00000 n \n", strpos($pdf, "5 0 obj"));
         
+        $xrefOffset = strlen($pdf);
         $pdf .= $xref;
         
         // Trailer
@@ -1103,7 +1126,7 @@ class AttachmentModel
         $pdf .= "/Root 1 0 R\n";
         $pdf .= ">>\n";
         $pdf .= "startxref\n";
-        $pdf .= strlen($pdf) - strlen($xref) . "\n";
+        $pdf .= $xrefOffset . "\n";
         $pdf .= "%%EOF\n";
         
         return $pdf;

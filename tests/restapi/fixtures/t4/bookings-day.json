@@ -1,0 +1,45 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "date": "2026-10-06",
+    "day_start": "07:00",
+    "day_end": "17:00",
+    "slot_minutes": 60,
+    "items": [
+      {
+        "id": 111,
+        "date": "2026-10-06",
+        "start": "08:00",
+        "end": "10:00",
+        "duration_minutes": 120,
+        "employee": {
+          "ansat_id": 21,
+          "name": "Field employee",
+          "initials": "FE",
+          "is_me": true
+        },
+        "customer": {
+          "konto_id": 12,
+          "name": "Hansen ApS",
+          "address": "Testvej 1, 8000 Aarhus",
+          "phone": "12345678"
+        },
+        "service": "Montage",
+        "case": {
+          "case_id": 41,
+          "sagsnr": "2026-41"
+        },
+        "note": null,
+        "status": "planlagt",
+        "can_edit": true,
+        "etag": "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+      }
+    ],
+    "summary": {
+      "planned": 1,
+      "done": 0,
+      "cancelled": 0
+    }
+  }
+}

@@ -1,11 +1,18 @@
 <?php
 // 20260715 CL/PHR Restored fiscal-year VAT retrieval through VatModel.
+// 20261001 CDX/LH Declare precise module rights for reads and writes.
 
 require_once __DIR__ . '/../../../models/finans/VatModel.php';
 require_once __DIR__ . '/../../../core/BaseEndpoint.php';
 
 class VatEndpoint extends BaseEndpoint
 {
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
+    {
+        return ['module' => 'admin', 'action' => ifset($_SERVER, 'REQUEST_METHOD') === 'GET' ? 'read' : 'write'];
+    }
+
     private function mapEnglishToDanish($field)
     {
         $fieldMap = [

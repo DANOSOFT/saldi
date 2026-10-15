@@ -1,289 +1,205 @@
 <?php
+// 20261001 CDX/LH Durable upload identities, scoped DB reads, multipart validation and tombstone deletion.
+// 20261001 CDX/LH Bind reminder resolution to upload success and map reminder failures.
+// 20261001 CDX/LH Return the stored legacy XML MIME and extension on downloads.
 
-require_once __DIR__ . '/../../../models/attachment/AttachmentModel.php';
+// 20261001 CDX/LH Accept udlaeg claims on JSON and multipart uploads and publish them atomically.
+
+require_once __DIR__ . '/../../../services/ClaimsService.php';
 require_once __DIR__ . '/../../../core/BaseEndpoint.php';
-require_once __DIR__ . '/../../../core/JWT.php';
-require_once __DIR__ . '/../../../core/JWTAuth.php';
+require_once __DIR__ . '/../../../models/attachment/DurableAttachmentModel.php';
+require_once __DIR__ . '/../../../../includes/mobileUpdates.php';
 
 class AttachmentEndpoint extends BaseEndpoint
 {
-    protected $userId;
-    protected $username;
-    
-    public function __construct()
+    private float $downloadStarted;
+    /** Receipt capture and own reads are available to every authenticated tenant user. @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
     {
-        parent::__construct();
+        return ['module' => 'bilag', 'action' => 'own'];
     }
-    
+
     protected function checkAuthorization()
     {
-        try {
-            if (!parent::checkAuthorization()) {
-                return false;
-            }
-            
-            AttachmentModel::setDatabase($this->db);
-            
-            return true;
-        } catch (Exception $e) {
-            // Catch any exceptions and return proper JSON error
-            $this->sendResponse(false, null, 'Authentication error: ' . $e->getMessage(), 401);
-            return false;
-        } catch (Error $e) {
-            // Catch fatal errors too
-            $this->sendResponse(false, null, 'Authentication fatal error: ' . $e->getMessage(), 401);
+        $this->downloadStarted = microtime(true);
+        if (!parent::checkAuthorization()) {
             return false;
         }
+        mobileTenantUpdates($this->conn);
+        AttachmentModel::setDatabase($this->db);
+        $type = (string)ifset($_SERVER, 'CONTENT_TYPE', '');
+        $multipart = str_starts_with(strtolower($type), 'multipart/form-data');
+        $maximum = $multipart ? AttachmentUpload::MAX_BYTES + 65536 : 4 * (int)ceil(AttachmentUpload::MAX_BYTES / 3) + 65536;
+        if ((int)ifset($_SERVER, 'CONTENT_LENGTH', 0) > $maximum) {
+            $this->sendError('payload_too_large', 'Upload body exceeds the 15 MB file limit', 413);
+        }
+        return true;
+    }
+
+    /** BaseEndpoint dispatch still owns authentication, declarations, request ids and error handling. */
+    protected function decodeJsonBody($rawInput)
+    {
+        if (str_starts_with(strtolower((string)ifset($_SERVER, 'CONTENT_TYPE', '')), 'multipart/form-data')) {
+            $data = (object)$_POST;
+            if (isset($data->extracted_data)) {
+                if (!is_string($data->extracted_data)) {
+                    $this->sendError('validation_failed', 'extracted_data must be a JSON object', 422);
+                }
+                $metadata = json_decode($data->extracted_data);
+                if (!is_object($metadata)) {
+                    $this->sendError('validation_failed', 'extracted_data must be a JSON object', 422);
+                }
+                $data->extracted_data = $metadata;
+            }
+            if (isset($data->claim) && is_string($data->claim)) {
+                $data->claim = json_decode($data->claim);
+            }
+            return $data;
+        }
+        return parent::decodeJsonBody($rawInput);
+    }
+
+    /** Load current readable flags, keeping colleagues' visibility out of bilag/own's blanket gate. */
+    private function store(): DurableAttachmentModel
+    {
+        $readAll = $this->principal === 'registry';
+        if (!$readAll) {
+            $id = (int)$this->userId;
+            $row = db_fetch_array(db_select("SELECT rettigheder FROM brugere WHERE id=$id", __FILE__ . ' line ' . __LINE__));
+            $rights = Rights::tenant((string)ifset($row, 'rettigheder', '0000000000000000'));
+            $readAll = $rights['finans'] || $rights['bilag'];
+        }
+        return new DurableAttachmentModel($this->conn, $this->db, $this->subject, $readAll);
+    }
+
+    /** @return array<string,mixed> Only identity selectors; never use a request path. */
+    private function selector(): array
+    {
+        return array_intersect_key($_GET, array_flip(['id', 'client_id', 'file']));
     }
 
     protected function handleGet($id = null)
     {
-        try {
-            // Check for file parameter first, then fall back to id
-            $filename = $_GET['file'] ?? $id ?? null;
-            
-            if ($filename) {
-                // Get single file by filename
-                $attachment = new AttachmentModel($filename);
-                if ($attachment->getFilename()) {
-                    // Check if download is requested
-                    if (isset($_GET['download']) && $_GET['download'] === 'true') {
-                        $this->downloadFile($attachment);
-                        return;
-                    }
-                    
-                    $this->sendResponse(true, $attachment->toArray());
-                } else {
-                    $this->sendResponse(false, null, 'File not found', 404);
-                }
-            } else {
-                // Get all files in bilag/{db}/pulje
-                $attachments = AttachmentModel::getAllFiles();
-                
-                $items = [];
-                foreach ($attachments as $attachment) {
-                    $items[] = $attachment->toArray();
-                }
-                
-                $this->sendResponse(true, $items);
+        $store = $this->store();
+        $selector = $this->selector();
+        if ($selector !== []) {
+            $row = $store->find($selector);
+            if ($row['status'] === 'staged') {
+                $this->sendError('validation_failed', 'Upload not completed; retry POST', 404);
             }
-        } catch (Exception $e) {
-            $this->handleError($e);
+            if (ifset($_GET, 'download') === 'true') {
+                $this->download($store->path($row), $row);
+            }
+            if ($row['status'] !== 'deleted') {
+                $store->path($row);
+            }
+            $this->sendResponse(true, $store->toArray($row));
         }
+        if (isset($_GET['download'])) {
+            $this->sendError('validation_failed', 'Download requires id, client_id or file', 422);
+        }
+        $limit = $this->integerParameter('limit', 50);
+        $offset = $this->integerParameter('offset', 0);
+        $mine = ifset($_GET, 'mine', '0');
+        if (!in_array($mine, ['0', '1'], true)) {
+            $this->sendError('validation_failed', 'mine must be 0 or 1', 422);
+        }
+        $status = ifset($_GET, 'status');
+        if ($status !== null && !is_string($status)) {
+            $this->sendError('validation_failed', 'Invalid status', 422);
+        }
+        $this->sendResponse(true, $store->listing($limit, $offset, $status, $mine === '1'));
+    }
+
+    /** @return int Validated pagination input. */
+    private function integerParameter(string $name, int $default): int
+    {
+        $value = ifset($_GET, $name, (string)$default);
+        if (!is_string($value) || !preg_match('/\A[0-9]{1,9}\z/', $value)) {
+            throw new AttachmentException('validation_failed', 'Invalid ' . $name, 422);
+        }
+        return (int)$value;
     }
 
     protected function handlePost($data)
     {
-        try {
-            // Check if data is provided
-            if (!$data) {
-                $this->sendResponse(false, null, 'No data provided', 400);
-                return;
+        $claims = null;
+        if (is_object($data) && property_exists($data,'claim')) {
+            if (!is_object($data->claim) || get_object_vars($data->claim) !== ['kind'=>'udlaeg']) {
+                throw new MobileT2Error('validation_failed',422,['reason'=>'claim_invalid']);
             }
-            
-            // Check if image_base64 is provided
-            if (!isset($data->image_base64) || empty($data->image_base64)) {
-                $this->sendResponse(false, null, 'No file provided. Expected base64 encoded file in "image_base64" field.', 400);
-                return;
-            }
-            
-            // Extract data from new structure
-            $base64Data = $data->image_base64;
-            $totalAmount = null;
-            $invoiceDate = null;
-            $invoiceNumber = null;
-            $invoiceDescription = null;
-            $currency = null;
-            // 20260922 CL/LAH Leverandørforslag fra AI-scan: the seller's name goes to subject and
-            // its CVR/IBAN/bank details are matched against kreditorer in AttachmentModel.
-            $vendorName = null;
-            $vendorIdentity = [];
-
-            // Extract total_amount, invoice_date, invoice_number, invoice_description and currency from extracted_data
-            if (isset($data->extracted_data)) {
-                if (isset($data->extracted_data->total_amount)) {
-                    $totalAmount = $data->extracted_data->total_amount;
-                }
-                if (isset($data->extracted_data->invoice_date)) {
-                    $invoiceDate = $data->extracted_data->invoice_date;
-                }
-                if (isset($data->extracted_data->invoice_number)) {
-                    $invoiceNumber = $data->extracted_data->invoice_number;
-                }
-                if (isset($data->extracted_data->invoice_description)) {
-                    $invoiceDescription = $data->extracted_data->invoice_description;
-                }
-                if (isset($data->extracted_data->currency)) {
-                    $currency = $data->extracted_data->currency;
-                }
-                if (isset($data->extracted_data->vendor) && is_scalar($data->extracted_data->vendor)) {
-                    $vendorName = trim((string) $data->extracted_data->vendor);
-                }
-                foreach (['vendor_vat_number' => 'cvr', 'vendor_iban' => 'iban', 'vendor_bank_reg' => 'bank_reg',
-                          'vendor_bank_account' => 'bank_konto', 'customer_vat_number' => 'customerCvr'] as $field => $key) {
-                    if (isset($data->extracted_data->$field) && is_scalar($data->extracted_data->$field)) {
-                        $vendorIdentity[$key] = trim((string) $data->extracted_data->$field);
-                    }
-                }
-            }
-            if (($vendorName === null || $vendorName === '') && isset($data->subject) && is_scalar($data->subject)) {
-                $vendorName = trim((string) $data->subject);
-            }
-            
-            // Validate required fields
-/*             if (!$totalAmount) {
-                $this->sendResponse(false, null, 'Missing required field: extracted_data.total_amount', 400);
-                return;
-            }
-            
-            if (!$invoiceDate) {
-                $this->sendResponse(false, null, 'Missing required field: extracted_data.invoice_date', 400);
-                return;
-            } */
-            
-            // Remove data URI prefix if present (e.g., "data:image/png;base64,")
-            if (preg_match('/^data:([^;]+);base64,/', $base64Data, $matches)) {
-                $mimeType = $matches[1];
-                $base64Data = preg_replace('/^data:[^;]+;base64,/', '', $base64Data);
-            }
-            
-            // Decode base64
-            $fileContent = base64_decode($base64Data, true);
-            if ($fileContent === false) {
-                $this->sendResponse(false, null, 'Invalid base64 file data', 400);
-                return;
-            }
-            
-            // Get custom filename if provided (from id field or filename)
-            // create random string for end of filename (before extension)
-            $randomString = bin2hex(random_bytes(8));
-            $customFilename = null;
-            if (isset($data->id)) {
-                $customFilename = $data->id;
-            } elseif (isset($data->filename)) {
-                // Insert random string before the file extension
-                $pathInfo = pathinfo($data->filename);
-                $baseName = $pathInfo['filename'];
-                $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
-                $customFilename = $baseName . '_' . $randomString . $extension;
-            }
-            
-            // Extract metadata (accountnr, invoiceNumber, and invoiceDescription are optional for now)
-            $metadata = [
-                'date' => $invoiceDate,
-                'amount' => $totalAmount,
-                'accountnr' => isset($data->accountnr) ? $data->accountnr : '',
-                'invoiceNumber' => $invoiceNumber !== null ? $invoiceNumber : '',
-                'invoiceDescription' => $invoiceDescription !== null ? $invoiceDescription : '',
-                'currency' => $currency !== null ? $currency : '',
-                'subject' => $vendorName !== null && $vendorName !== '' ? $vendorName : null,
-                'vendorIdentity' => $vendorIdentity
-            ];
-            
-            $attachment = new AttachmentModel();
-            $result = $attachment->saveBase64File($fileContent, $customFilename, $metadata);
-            
-            if ($result) {
-                $responseData = $attachment->toArray();
-                // Include metadata in response
-                $responseData['metadata'] = $metadata;
-                $this->sendResponse(true, $responseData, 'File uploaded successfully', 201);
-            } else {
-                $this->sendResponse(false, null, 'Failed to upload file', 500);
-            }
-        } catch (Exception $e) {
-            $this->handleError($e);
+            $claims = new ClaimsService($this->conn,$this->db,$this->subject,$this->principal,(int)$this->userId);
+            $claims->requireAvailable(true);
         }
+        $upload = AttachmentUpload::decode($data, $_FILES);
+        if ($claims !== null) { $upload['publication_claim'] = ['kind'=>'udlaeg','ansat_id'=>$claims->employee->ansatId]; }
+        $store = $this->store();
+        $payload = JWTAuth::validateToken();
+        $tenantId = ifset($payload, 'tenant_id');
+        if (array_key_exists('reminder_id', $upload['extracted_data']) && $tenantId === null) {
+            $this->sendError('invalid_token', 'Reminder uploads require a tenant-bound token', 401);
+        }
+        $result = $store->upload($upload, $tenantId === null ? null : (int)$tenantId,
+            $claims === null ? null : [$claims,'publishExpense']);
+        $this->sendResponse(true, $store->toArray($result['row']), 'File uploaded successfully', $result['created'] ? 201 : 200);
     }
 
     protected function handlePut($data)
     {
-        $this->sendResponse(false, null, 'Method Not Allowed', 405);
+        $this->sendError('validation_failed', 'Method Not Allowed', 405);
+    }
+
+    protected function handlePatch($data)
+    {
+        $this->sendError('validation_failed', 'Method Not Allowed', 405);
     }
 
     protected function handleDelete($data)
     {
-        try {
-            // Check for file parameter in query string
-            $filename = $_GET['file'] ?? null;
-            
-            // If not in query string, check in request data
-            if (!$filename && $data && isset($data->filename)) {
-                $filename = $data->filename;
-            }
-            
-            if (!$filename) {
-                $this->sendResponse(false, null, 'Filename is required. Use ?file=filename.ext', 400);
-                return;
-            }
-            
-            $attachment = new AttachmentModel($filename);
-            if (!$attachment->getFilename()) {
-                $this->sendResponse(false, null, 'File not found', 404);
-                return;
-            }
-            
-            $result = $attachment->delete();
-            
-            if ($result) {
-                $this->sendResponse(true, null, 'File deleted successfully');
-            } else {
-                $this->sendResponse(false, null, 'Failed to delete file', 500);
-            }
-        } catch (Exception $e) {
-            $this->handleError($e);
-        }
+        $selector = $this->selector();
+        $store = $this->store();
+        $row = $store->delete($selector);
+        $this->sendResponse(true, $store->toArray($row), 'Attachment deleted');
     }
 
-    /**
-     * Download file and send to browser
-     */
-    private function downloadFile($attachment)
+    /** Preserve the foundation error envelope for validation, ownership and lifecycle failures. */
+    protected function handleError($exception = null)
     {
-        $content = $attachment->getFileContent();
-        if ($content === false) {
-            $this->sendResponse(false, null, 'Unable to read file', 500);
-            return;
+        if ($exception instanceof MobileT2Error) {
+            $this->sendError($exception->error,'Claim upload refused',$exception->status,['details'=>$exception->details]);
         }
-        
-        // Set headers for file download
-        header('Content-Type: ' . $attachment->getMimeType());
-        header('Content-Disposition: attachment; filename="' . $attachment->getFilename() . '"');
-        header('Content-Length: ' . $attachment->getSize());
-        header('Cache-Control: no-cache, must-revalidate');
-        header('Expires: Sat, 26 Jul 1997 05:00:00 GMT');
-        
-        // Output file content
-        echo $content;
+        if ($exception instanceof AttachmentException) {
+            $this->sendError($exception->error, $exception->getMessage(), $exception->getStatusCode());
+        }
+        if ($exception instanceof MobileReminderError) {
+            $this->sendError($exception->error, $exception->getMessage(), $exception->status);
+        }
+        parent::handleError($exception);
+    }
+
+    /** Stream a contained DB-selected file; filenames in the header cannot contain control bytes. */
+    private function download(string $path, array $row): void
+    {
+        $stream = fopen($path, 'rb');
+        if ($stream === false) {
+            throw new RuntimeException('Unable to open attachment');
+        }
+        RequestId::emit();
+        write_log(['method' => 'GET', 'path' => parse_url(ifset($_SERVER, 'REQUEST_URI', ''), PHP_URL_PATH),
+            'request_id' => RequestId::current(), 'subject' => $this->subject, 'status' => 200,
+            'duration' => round((microtime(true) - $this->downloadStarted) * 1000, 3)], $this->db);
+        $mime = DurableAttachmentModel::mimeType($row);
+        $extension = $mime === 'application/xml' ? '.xml' : '.pdf';
+        header('Content-Type: ' . $mime);
+        header('Content-Disposition: attachment; filename="attachment-' . (int)$row['id'] . $extension . '"');
+        header('Content-Length: ' . fstat($stream)['size']);
+        header('Cache-Control: private, no-store');
+        header('X-Content-Type-Options: nosniff');
+        fpassthru($stream);
+        fclose($stream);
         exit;
-    }
-
-    /**
-     * Get human-readable upload error message
-     */
-    private function getUploadErrorMessage($errorCode)
-    {
-        switch ($errorCode) {
-            case UPLOAD_ERR_INI_SIZE:
-                return 'File is too large (exceeds upload_max_filesize)';
-            case UPLOAD_ERR_FORM_SIZE:
-                return 'File is too large (exceeds MAX_FILE_SIZE)';
-            case UPLOAD_ERR_PARTIAL:
-                return 'File was only partially uploaded';
-            case UPLOAD_ERR_NO_FILE:
-                return 'No file was uploaded';
-            case UPLOAD_ERR_NO_TMP_DIR:
-                return 'Missing temporary folder';
-            case UPLOAD_ERR_CANT_WRITE:
-                return 'Failed to write file to disk';
-            case UPLOAD_ERR_EXTENSION:
-                return 'File upload stopped by extension';
-            default:
-                return 'Unknown upload error';
-        }
     }
 }
 
-// Initialize and handle the request
 $endpoint = new AttachmentEndpoint();
 $endpoint->handleRequestMethod();

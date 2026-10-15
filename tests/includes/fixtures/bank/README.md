@@ -1,0 +1,1 @@
+All fixtures are synthetic. Names identify representative export layouts, not statements from real accounts. Sydbank is Windows-1252; Nordea uses tabs; Lunar uses comma-separated quoted US amounts; Spar Nord is headerless and contains an unrelated numeric reference before the movement and running balance. Every layout has the same two movements: +1234.56 and -25.00.

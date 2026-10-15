@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-01 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -21,7 +21,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260507 NTR - Added batch invoice matching
 // 20260721 CL/SZ - Replaced the raw OR-join (amount = OR date =) with a weighted scoring
@@ -50,6 +50,7 @@
 //                   date_score CASE itself (same pattern amountTolerance already used
 //                   correctly), so it now only zeroes the date signal when out of range
 //                   instead of excluding the row outright.
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
 
     // Start buffering
     ob_start();
@@ -133,7 +134,7 @@
             SELECT *,
                 (CASE WHEN file_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN file_date::date ELSE NULL END) AS safe_file_date,
                 UPPER(TRIM(COALESCE(NULLIF(currency, ''), '$base_currency_escaped'))) AS currency_code
-            FROM pool_files
+            FROM pool_files WHERE status='ubehandlet'
         )
         SELECT * FROM (
             SELECT

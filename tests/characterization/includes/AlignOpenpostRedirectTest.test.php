@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 //                  missing URL= on the fiscal-year path, and the absence of debug output. The file
 //                  is an include that runs inside udlign_openpost.php's request, so the redirect
 //                  block is lifted out and evaluated with the variables it reads.
+// 20261001 CDX/LH Require the openpost id cast independently of whitespace formatting.
 final class AlignOpenpostRedirectTest extends TestCase
 {
     private const DO_ALIGN = __DIR__ . '/../../../includes/alignOpenpostIncludes/doAlign.php';
@@ -112,7 +113,7 @@ final class AlignOpenpostRedirectTest extends TestCase
     public function testTheOpenpostIdIsIntCast(): void
     {
         $src = file_get_contents(self::DO_ALIGN);
-        self::assertStringContainsString('(int) $post_id[$x]', $src);
+        self::assertMatchesRegularExpression('/\(int\)\s*\$post_id\[\$x\]/', $src);
         self::assertStringNotContainsString('where id = $post_id[$x]', $src);
     }
 

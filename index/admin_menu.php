@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------ admin/admin_menu --------------- ver 4.0.4 --- 2021-09-16 ---
+// ------------ admin/admin_menu --------------- ver 5.0.0 --- 2021-09-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,9 @@
 //
 // 20180131 
 // 20210916 LOE translated some texts 
+
+// 20261001 CDX/LH Revoke mobile sessions after security or account membership changes.
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 
 @session_start();  # Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -50,6 +53,7 @@ if ($bruger_id=$r['id']) {
 	if (strstr($rettigheder,",")==false) {
 		$rettigheder="on,on,on,*";
 		db_modify("update brugere set rettigheder='$rettigheder' where id='$bruger_id'",__FILE__ . " linje " . __LINE__);
+		mobileRevokeUser((int)$bruger_id, 'registry_membership_changed');
 	}
 	list($admin,$oprette,$slette,$tmp)=explode(",",$rettigheder,4);
 	$adgang_til=explode(",",$tmp);

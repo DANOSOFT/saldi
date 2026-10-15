@@ -1,5 +1,47 @@
 <?php
 // 20260907 CDX/LH Preserve suggestion account types and match posted duplicates by currency and counterparty.
+// 20261001 CDX/LH Extract typed counter rows with optional posted-only, date and VAT evidence.
+// 20261001 CDX/LH Carry VAT exemption alongside the counter-account override.
+
+/**
+ * Load the web's counter rows in their original order; zero limit means unbounded.
+ * The selected tenant connection comes from online.php or LegacyEngine's context.
+ *
+ * @return list<array{bilag:mixed,transdate:string,beskrivelse:string,kontonr:mixed,kontoart:?string,vat:?string,momsfri:?string}>
+ */
+function journal_counter_rows($kontonr, string $art, string $dk, int $excludeKladdeId, bool $postedOnly, int $limit, ?string $since): array
+{
+	$art = strtoupper(trim($art)) ?: 'F';
+	if (!is_numeric($kontonr) || !in_array($art, ['D', 'K', 'F'], true)) {
+		return [];
+	}
+	$counter = $dk === 'D' ? 'debet' : 'kredit';
+	$counterType = $dk === 'D' ? 'd_type' : 'k_type';
+	$counterVat = $dk === 'D' ? 'debetvat' : 'kreditvat';
+	$party = $dk === 'D' ? 'kredit' : 'debet';
+	$partyType = $dk === 'D' ? 'k_type' : 'd_type';
+	$typeCondition = $art === 'F'
+		? "(k.$partyType = 'F' OR k.$partyType = '' OR k.$partyType IS NULL)"
+		: "k.$partyType = '$art'";
+	$sql = "SELECT k.bilag,k.transdate,k.beskrivelse,k.$counter AS kontonr,k.$counterType AS kontoart,k.$counterVat AS vat,k.momsfri FROM kassekladde k";
+	if ($postedOnly) {
+		$sql .= " JOIN kladdeliste j ON j.id=k.kladde_id AND j.bogfort='V'";
+	}
+	$sql .= " WHERE $typeCondition AND k.$party='" . db_escape_string($kontonr) . "' AND k.kladde_id != " . (int)$excludeKladdeId;
+	if ($since !== null) {
+		$sql .= " AND k.transdate >= '" . db_escape_string($since) . "'";
+	}
+	$sql .= ' ORDER BY k.transdate DESC,k.id DESC';
+	if ($limit > 0) {
+		$sql .= ' LIMIT ' . (int)$limit;
+	}
+	$result = db_select($sql, __FILE__ . ' line ' . __LINE__);
+	$rows = [];
+	while ($row = db_fetch_array($result)) {
+		$rows[] = $row;
+	}
+	return $rows;
+}
 
 /**
  * Find recent counter-accounts without losing their customer/supplier/finance identity.
@@ -24,21 +66,6 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		return $forslag;
 	}
 
-	$kontonr_sql = db_escape_string($kontonr);
-	$kladde_id_sql = (int)$kladde_id;
-	if ($art == 'F') {
-		$d_artcond = "(d_type = 'F' or d_type = '' or d_type is null)";
-		$k_artcond = "(k_type = 'F' or k_type = '' or k_type is null)";
-	} else {
-		$d_artcond = "d_type = '$art'";
-		$k_artcond = "k_type = '$art'";
-	}
-	# NB: soger kun i kassekladde (aabne/tidligere kladdelinjer) - udvidelse til transaktioner er en senere opgave
-	if ($dk == "D") {
-		$txt = "select bilag,transdate,beskrivelse,debet as kontonr,d_type as kontoart from kassekladde where $k_artcond and kredit = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
-	} else {
-		$txt = "select bilag,transdate,beskrivelse,kredit as kontonr,k_type as kontoart from kassekladde where $d_artcond and debet = '$kontonr_sql' and kladde_id != '$kladde_id_sql' order by transdate desc,id desc";
-	}
 
 	if ($art == 'K') {
 		$forslag['heading'] = "Sidste 5 posteringer for kreditor: $kontonr";
@@ -52,8 +79,10 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		$forslag['heading'] = $heading;
 	}
 
-	$q = db_select($txt, __FILE__ . " linje " . __LINE__);
-	while (count($forslag['rows']) < 5 && ($r = db_fetch_array($q))) {
+	foreach (journal_counter_rows($kontonr, $art, (string)$dk, (int)$kladde_id, false, 0, null) as $r) {
+		if (count($forslag['rows']) >= 5) {
+			break;
+		}
 		$counterType = strtoupper(trim((string)$r['kontoart'])) ?: 'F';
 		if ($r['kontonr'] && in_array($counterType, array('D', 'K', 'F'), true)) {
 			$tekst = stripslashes($r['beskrivelse']);

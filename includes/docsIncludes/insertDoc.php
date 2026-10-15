@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/insertDoc.php --- patch 4.1.0 --- 2024-03-29 ---
+// --- includes/docsIncludes/insertDoc.php --- ver 5.0.0 --- 2026-10-05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230706 LOE Some modifications relating to bilag_id and kassekladde made 
 //20230806 LOE bilag directory explicitly created, globalId initilized to 1
@@ -37,7 +37,12 @@
 //                     Removed the unbounded print_r($_REQUEST) dump to /tmp/debug_insert.log.
 //                     $_POST reads in the edited blocks go through ifset(). A posted amount of "0"
 //                     is stored instead of being skipped as empty.
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
+// 20261001 CDX/LH Hold the pool lock across checked target/sibling inserts and final attachment.
+// 20261001 CDX/LH Use the shared finance attachment target and preserve web move ordering.
+// 20261001 CDX/LH Use the shared creditor-order attachment target with unchanged web move ordering.
 
+require_once __DIR__ . '/poolFileTransitions.php';
 $sth = dirname(dirname(dirname(__FILE__)));
 
 // Bootstrap database connection when called directly via AJAX (not included from documents.php)
@@ -260,18 +265,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
 
 if ($docFolder && $source == 'creditorOrder') {
 
-	if (!file_exists("$docFolder"))                 mkdir ("$docFolder/",0777);
-#	if (!file_exists("$docFolder"))                 #cho __line__."<br>";
-	if (!file_exists("$docFolder/creditor"))        mkdir ("$docFolder//creditor",0777);
-#	if (!file_exists("$docFolder/creditor"))                 #cho __line__."<br>";
-	if (!file_exists("$docFolder/creditor/orders")) mkdir ("$docFolder//creditor/orders",0777);
-#	if (!file_exists("$docFolder/creditor/orders"))                 #cho __line__;
-	$filePath = "/creditor/orders/$sourceId";
-	if (!file_exists("$docFolder/$filePath")) mkdir ("$docFolder/$filePath",0777);
-		if (!file_exists("$docFolder/$filePath/$fileName")) {
-			$showDoc = "$docFolder/$filePath/$fileName";
-		} else alert("$docFolder/$filePath/$fileName allready exists");
-		$showDoc = "$docFolder/$filePath/$fileName";
+	require_once __DIR__ . '/poolAttachSource.php';
+	$attachTarget = pool_attach_target_source($docFolder, 'creditorOrder', (int)$sourceId, (string)$fileName);
+	$filePath = $attachTarget['filepath'];
+	if (!is_dir($attachTarget['dir'])) {
+		mkdir($attachTarget['dir'], 0777, true);
+	}
+	$showDoc = $attachTarget['path'];
+	if (file_exists($showDoc)) {
+		alert("$showDoc allready exists");
+	}
 } elseif ($docFolder && $source == 'debitorOrdrer') {
 	if (!file_exists("$docFolder"))                 mkdir ("$docFolder/",0777);
 	if (!file_exists("$docFolder/debitor"))         mkdir ("$docFolder/debitor",0777);
@@ -354,14 +357,15 @@ if ($docFolder && $source == 'creditorOrder') {
 	$fileName   = basename($fileName);   // strip any path/traversal from the filename
 	$safeKladde = (int)$kladde_id;       // path segments must be numeric IDs
 	$safeSource = (int)$sourceId;
-	$path = "$docFolder/finance/$safeKladde/$safeSource/";
-	$showDoc = $path.$fileName;
+	$attachTarget = pool_attach_target($docFolder, $safeKladde, $safeSource, $fileName);
+	$path = $attachTarget['dir'] . '/';
+	$showDoc = $attachTarget['path'];
 	$targetDir = dirname($showDoc);
 	if (!is_dir($targetDir) && !mkdir($targetDir, 0777, true) && !is_dir($targetDir)) {
 		print "creation of $targetDir failed<br>";
 		exit;
 	}
-	$filePath = "/finance/$safeKladde/$safeSource";
+	$filePath = $attachTarget['filepath'];
 }
 
 /* // Debug logging
@@ -378,90 +382,27 @@ docPoolLog("  pulje exists: " . (file_exists("$docFolder/pulje/$fileName") ? 'YE
 docPoolLog("  showDoc exists: " . (isset($showDoc) && file_exists($showDoc) ? 'YES' : 'NO')); */
 
 if (!file_exists($showDoc)) {
-	/* docPoolLog("showDoc does not exist, proceeding with move/upload"); */
-	
-	if ($insertFile && file_exists("$docFolder/pulje/$fileName")) {
-		$renameResult = rename("$docFolder/pulje/$fileName",$showDoc);
-		/* docPoolLog("rename result: " . ($renameResult ? 'SUCCESS' : 'FAILED')); */
+	$targetIds = array_filter(array_map('intval', explode(',', (string)ifset($_POST, 'targetSourceIds', ''))), function ($id) { return $id > 0; });
+	$poolSource = "$docFolder/pulje/$fileName";
+	if ($insertFile) {
+		$attached = PoolFileTransitions::insertDocument($db, $poolSource, $showDoc, (int)$globalId,
+			(string)$source, (int)$sourceId, (int)$userId, $targetIds);
 	} else {
-		/* docPoolLog("trying move_uploaded_file"); */
-		move_uploaded_file($_FILES['uploadedFile']['tmp_name'],"$showDoc");
+		$uploaded = move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $showDoc);
+		$attached = $uploaded && PoolFileTransitions::insertDocument($db, $showDoc, $showDoc, (int)$globalId,
+			(string)$source, (int)$sourceId, (int)$userId, $targetIds);
 	}
-	
-	if(file_exists($showDoc)) {
-		/* docPoolLog("showDoc now exists, inserting into documents table"); */
-		if (!$sourceId) {
-			if ($source == 'kassekladde') {
-				$qtxt = "insert into kassekladde (kladde_id) values ('$kladde_id')";
-			}
+	if (!$attached) {
+		alert("Move from pool Failed");
+	} elseif ($insertFile && $fileName) {
+		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+		$infoFile = "$docFolder/pulje/$baseName.info";
+		if (file_exists($infoFile)) {
+			unlink($infoFile);
 		}
-		$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
-		$qtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','$source','$sourceId','". date('U') ."','$userId')";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		/* docPoolLog("document inserted successfully"); */
-
-		// Also attach to sibling lines sharing the same bilag number
-		// If targetSourceIds is provided, only attach to those specific lines (user selected checkboxes)
-		// Otherwise fall back to attaching to all siblings
-		if ($source == 'kassekladde' && $sourceId) {
-			$targetIds = [];
-			if (isset($_POST['targetSourceIds']) && $_POST['targetSourceIds']) {
-				$targetIds = array_map('intval', explode(',', $_POST['targetSourceIds']));
-				$targetIds = array_filter($targetIds, function($id) { return $id > 0; });
-			}
-
-			if (!empty($targetIds)) {
-				// Only attach to the explicitly selected lines (excluding current sourceId which is already done)
-				foreach ($targetIds as $tid) {
-					if ((int)$tid === (int)$sourceId) continue;
-					$alreadyQ = db_fetch_array(db_select("SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$tid' AND filename = '" . db_escape_string($fileName) . "'", __FILE__ . " linje " . __LINE__));
-					if (!$alreadyQ) {
-						$sQtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
-						$sQtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','kassekladde','$tid','". date('U') ."','$userId')";
-						db_modify($sQtxt, __FILE__ . " linje " . __LINE__);
-					}
-				}
-			} else {
-				// No specific targets: attach to all siblings with the same bilag number
-				$qBilag = db_fetch_array(db_select("SELECT bilag, kladde_id FROM kassekladde WHERE id = '$sourceId'", __FILE__ . " linje " . __LINE__));
-				if ($qBilag && $qBilag['bilag'] && $qBilag['kladde_id']) {
-					$siblingBilag   = (int)$qBilag['bilag'];
-					$siblingKladde  = (int)$qBilag['kladde_id'];
-					$qSiblings = db_select("SELECT id FROM kassekladde WHERE kladde_id = '$siblingKladde' AND bilag = '$siblingBilag' AND id != '$sourceId'", __FILE__ . " linje " . __LINE__);
-					while ($sibling = db_fetch_array($qSiblings)) {
-						$alreadyQ = db_fetch_array(db_select("SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '{$sibling['id']}' AND filename = '" . db_escape_string($fileName) . "'", __FILE__ . " linje " . __LINE__));
-						if (!$alreadyQ) {
-							$sQtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
-							$sQtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','kassekladde','{$sibling['id']}','". date('U') ."','$userId')";
-							db_modify($sQtxt, __FILE__ . " linje " . __LINE__);
-						}
-					}
-				}
-			}
-		}
-
-		// Clean up pool_files database entry after successful move from pulje
-		if ($insertFile && $fileName) {
-			$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
-			@db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			/* docPoolLog("deleted from pool_files: $fileName"); */
-			
-			// Also delete any orphaned .info file
-			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
-			$infoFile = "$docFolder/pulje/$baseName.info";
-			if (file_exists($infoFile)) {
-				@unlink($infoFile);
-				/* docPoolLog("deleted info file: $infoFile"); */
-			}
-		}
-
-		} else {
-			/* docPoolLog("ERROR: Move from pool Failed"); */
-			alert("Move from pool Failed");
-		}
-	} else {
-		/* docPoolLog("ERROR: showDoc already exists"); */
-	 alert("$showDoc allready exists");
+	}
+} else {
+	alert("$showDoc allready exists");
 }
 if (file_exists($showDoc)) {
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$params&showDoc=$showDoc\">";

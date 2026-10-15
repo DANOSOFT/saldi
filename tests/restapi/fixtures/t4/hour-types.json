@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "code": "normal",
+        "label": "Normaltimer"
+      }
+    ]
+  }
+}

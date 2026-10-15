@@ -1,10 +1,17 @@
 <?php
+// 20261001 CDX/LH Declare precise module rights for reads and writes.
 
 require_once '../../../models/finans/AccountModel.php';
 require_once '../../../core/BaseEndpoint.php';
 
 class AccountsEndpoint extends BaseEndpoint
 {
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
+    {
+        return ['module' => 'kontoplan', 'action' => ifset($_SERVER, 'REQUEST_METHOD') === 'GET' ? 'read' : 'write'];
+    }
+
     public function __construct()
     {
         parent::__construct();

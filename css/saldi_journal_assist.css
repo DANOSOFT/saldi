@@ -1,0 +1,541 @@
+/*
+ * --- css/saldi_journal_assist.css --- ai/mcp-assistant --- 2026.10.07
+ * Copyright (c) 2026 Danosoft ApS. Licensed under the GNU General Public License, version 2 or later.
+ *
+ * Kassekladde suggestion row (sja-*, SPEC-companion C8.1, javascript/saldi-journal-assist.js)
+ * and the "Tjek kladden" panel (sjc-*, SPEC-companion-2 E3, javascript/saldi-journal-check.js).
+ * Saldi Assist's V1 "Stille" language, sized for the dense journal table: system UI type, warm
+ * moon surface, hairlines, uppercase captions, tabular numerals, pill chips. Saldi blue is the
+ * only action colour (Brug, a small rounded-rectangle button like the 9 px V1 buttons); jade only
+ * marks that Assist is working. Findings are quiet notes on a neutral tint; the section dot carries
+ * the severity (amber for things to check, a muted red for errors that stop posting). No green.
+ *
+ * 20261002 CL/LH Created.
+ * 20261004 CL/LH Tjek kladden panel (sjc-*) and the row mark outside the shell.
+ * 20261007 CL/LH V1 Stille restyle of the panel and the suggestion row; the row no longer widens the table.
+ * 20261007 CL/LH Review: Brug is a rounded rectangle (not a pill), the Spørg Assist jade dot shows only
+ *                while a request runs, finding lists use the neutral note tint with the coloured dot.
+ */
+
+.sjc-panel,
+tr.sja-row {
+	--sj-ink: #1b1f26;
+	--sj-ink-2: #4f5663;
+	--sj-ink-3: #7a8190;
+	--sj-ink-4: #a2a8b4;
+	--sj-line: #e4e6eb;
+	--sj-line-2: #d3d6dd;
+	--sj-soft: #f5f6f8;
+	--sj-moon: #faf9f6;
+	--sj-blue: #114691;
+	--sj-blue-2: #1b54a4;
+	--sj-blue-ink: #0f3d80;
+	--sj-jade: #2a9d7c;
+	--sj-warn: #8a5a00;
+	--sj-warn-tint: #fff6e3;
+	--sj-warn-dot: #e0a63a;
+	--sj-err: #9b2c20;
+	--sj-err-dot: #d0533f;
+	--sj-focus: #1a73e8;
+	--sj-sh-1: 0 1px 1px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+	--sj-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Suggestion row (sja-*) ----------------------------------------------------- */
+
+tr.sja-row > td.sja-cell {
+	padding: 4px 8px 6px 8px;
+	border: none;
+	border-bottom: 1px solid var(--sj-line);
+	background: var(--sj-moon);
+	font: 12px/1.4 var(--sj-font);
+	letter-spacing: -0.003em;
+	color: var(--sj-ink-2);
+	text-align: left;
+	-webkit-font-smoothing: antialiased;
+}
+
+/*
+ * width 0 + min-width 100%: the row fills the table's width but never adds to it, so a long
+ * suggestion cannot push the journal wider than the frame (docked Saldi Assist).
+ */
+tr.sja-row > td.sja-cell > .sja-bar,
+tr.sja-row > td.sja-cell > .sja-dup {
+	box-sizing: border-box;
+	width: 0;
+	min-width: 100%;
+}
+
+.sja-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 6px;
+}
+
+.sja-label {
+	margin-right: 2px;
+	font-size: 10.5px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--sj-ink-3);
+}
+
+.sja-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	max-width: 100%;
+	height: 26px;
+	box-sizing: border-box;
+	padding: 0 3px 0 10px;
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px var(--sj-line), var(--sj-sh-1);
+	color: var(--sj-ink);
+}
+
+.sja-chip__text {
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The source: a quiet chip inside the suggestion ("Fra regel", "Brugt 4 gange, senest …"). */
+.sja-chip__meta {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	height: 18px;
+	padding: 1px 7px 0 7px;
+	box-sizing: border-box;
+	border-radius: 999px;
+	background: var(--sj-soft);
+	color: var(--sj-ink-3);
+	font-size: 11px;
+	font-weight: 500;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.sja-tools {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: auto;
+}
+
+.sja-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 22px;
+	margin: 0;
+	padding: 0 8px;
+	border: 0;
+	border-radius: 7px;
+	background: transparent;
+	color: var(--sj-ink-2);
+	font: 500 12px/1 var(--sj-font);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.sja-btn:hover {
+	background: rgba(16, 24, 40, 0.05);
+	color: var(--sj-ink);
+}
+
+.sja-btn:focus-visible,
+.sja-dup__link:focus-visible {
+	outline: 2px solid var(--sj-focus);
+	outline-offset: 1px;
+}
+
+/*
+ * Brug: the one action colour at the end of its chip. A small rounded rectangle in the proportions
+ * of the V1 primary button (9 px radius at 34 px height), not a pill: pills are chips, not actions.
+ */
+.sja-use {
+	flex: none;
+	height: 20px;
+	padding: 1px 10px 0 10px;
+	border-radius: 6px;
+	background: var(--sj-blue);
+	color: #fff;
+	font-size: 11.5px;
+	font-weight: 600;
+	box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18), 0 1px 1px rgba(16, 24, 40, 0.08);
+}
+
+.sja-use:hover {
+	background: var(--sj-blue-2);
+	color: #fff;
+}
+
+/* Spørg Assist: quiet. Assist's jade dot appears only while a fresh suggestion is on its way
+   (jade marks live state, so a static button carries none). */
+tr.sja-row[data-sja-busy] .sja-ask::before {
+	content: "";
+	flex: none;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--sj-jade);
+	box-shadow: 0 0 0 2px rgba(42, 157, 124, 0.16);
+	animation: sj-pulse 1.1s ease-in-out infinite;
+}
+
+.sja-hide {
+	color: var(--sj-ink-3);
+}
+
+.sja-hint {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--sj-ink-2);
+}
+
+.sja-hint::before {
+	content: "i";
+	flex: none;
+	width: 13px;
+	height: 13px;
+	border: 1.25px solid var(--sj-ink-4);
+	border-radius: 50%;
+	box-sizing: border-box;
+	color: var(--sj-ink-3);
+	font: 600 9px/10.5px var(--sj-font);
+	text-align: center;
+}
+
+.sja-dup {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0 4px;
+	margin-top: 5px;
+	padding: 3px 10px 3px 9px;
+	border-radius: 8px;
+	background: var(--sj-warn-tint);
+	color: var(--sj-warn);
+	font-variant-numeric: tabular-nums;
+}
+
+.sja-dup__label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: 600;
+}
+
+.sja-dup__label::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--sj-warn-dot);
+}
+
+.sja-dup__link,
+.sja-dup__link:visited {
+	color: var(--sj-warn);
+	text-decoration: underline;
+	text-decoration-color: rgba(138, 90, 0, 0.35);
+	text-underline-offset: 2px;
+}
+
+.sja-dup__link:hover {
+	text-decoration-color: currentColor;
+}
+
+/* Tjek kladden (sjc-*) ------------------------------------------------------- */
+
+.sjc-panel {
+	box-sizing: border-box;
+	margin: 10px auto 12px auto;
+	padding: 10px 16px 14px 16px;
+	border-radius: 14px;
+	background: #fff;
+	box-shadow: var(--sj-sh-1);
+	font: 13px/1.45 var(--sj-font);
+	letter-spacing: -0.003em;
+	color: var(--sj-ink);
+	text-align: left;
+	-webkit-font-smoothing: antialiased;
+}
+
+.sjc-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 26px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--sj-line);
+}
+
+.sjc-title {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--sj-ink-3);
+}
+
+.sjc-when {
+	color: var(--sj-ink-4);
+	font-size: 11.5px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sjc-btn {
+	display: inline-flex;
+	align-items: center;
+	height: 26px;
+	margin: 0;
+	padding: 0 10px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--sj-ink-2);
+	font: 500 12px/1 var(--sj-font);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.sjc-btn:hover {
+	background: rgba(16, 24, 40, 0.05);
+	color: var(--sj-ink);
+}
+
+.sjc-rerun {
+	margin-left: auto;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px var(--sj-line-2), 0 1px 1px rgba(16, 24, 40, 0.04);
+	color: var(--sj-ink);
+}
+
+.sjc-rerun:hover {
+	background: var(--sj-soft);
+}
+
+.sjc-hide {
+	margin-left: auto;
+	color: var(--sj-ink-3);
+}
+
+.sjc-rerun + .sjc-hide {
+	margin-left: 0;
+}
+
+.sjc-note,
+.sjc-failed {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 10px 0 0 0;
+	padding: 6px 12px;
+	border-radius: 10px;
+	background: var(--sj-soft);
+	color: var(--sj-ink-2);
+	font-size: 12.5px;
+}
+
+.sjc-note::before,
+.sjc-failed::before {
+	content: "i";
+	flex: none;
+	width: 14px;
+	height: 14px;
+	border: 1.25px solid var(--sj-ink-4);
+	border-radius: 50%;
+	box-sizing: border-box;
+	color: var(--sj-ink-3);
+	font: 600 9.5px/11.5px var(--sj-font);
+	text-align: center;
+}
+
+.sjc-clean,
+.sjc-busy {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 10px 0 0 0;
+	color: var(--sj-ink-2);
+}
+
+/* Finished check: a jade tick marks the state; the result itself stays neutral. */
+.sjc-clean::before {
+	content: "";
+	flex: none;
+	width: 9px;
+	height: 5px;
+	margin: 0 3px 3px 2px;
+	border: 2px solid var(--sj-jade);
+	border-top: 0;
+	border-right: 0;
+	transform: rotate(-45deg);
+}
+
+.sjc-busy {
+	color: var(--sj-ink-3);
+}
+
+.sjc-busy::before {
+	content: "";
+	flex: none;
+	width: 7px;
+	height: 7px;
+	margin: 0 3px;
+	border-radius: 50%;
+	background: var(--sj-jade);
+	box-shadow: 0 0 0 3px rgba(42, 157, 124, 0.16);
+	animation: sj-pulse 1.1s ease-in-out infinite;
+}
+
+.sjc-section {
+	margin-top: 12px;
+}
+
+.sjc-section__title {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin: 0 0 5px 2px;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--sj-ink);
+}
+
+.sjc-section__title::before {
+	content: "";
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--sj-ink-4);
+}
+
+.sjc-section--error .sjc-section__title::before {
+	background: var(--sj-err-dot);
+}
+
+.sjc-section--warning .sjc-section__title::before {
+	background: var(--sj-warn-dot);
+}
+
+.sjc-section__count {
+	color: var(--sj-ink-4);
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+
+.sjc-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border-radius: 10px;
+	background: var(--sj-soft);
+	overflow: hidden;
+}
+
+.sjc-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 12px;
+	padding: 6px 12px;
+}
+
+.sjc-item + .sjc-item {
+	border-top: 1px solid rgba(16, 24, 40, 0.06);
+}
+
+.sjc-msg {
+	flex: 1 1 220px;
+	min-width: 0;
+	color: var(--sj-ink);
+	overflow-wrap: anywhere;
+}
+
+.sjc-meta {
+	color: var(--sj-ink-3);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sjc-show,
+.sjc-show:visited {
+	flex: none;
+	padding: 0 2px;
+	border-radius: 5px;
+	color: var(--sj-blue-ink);
+	font-size: 12px;
+	font-weight: 500;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.sjc-show::after {
+	content: " \203A";
+}
+
+.sjc-show:hover {
+	text-decoration: underline;
+}
+
+.sjc-show[data-active] {
+	background: rgba(17, 70, 145, 0.08);
+}
+
+.sjc-btn:focus-visible,
+.sjc-show:focus-visible,
+.sjc-panel:focus-visible,
+.sjc-trigger:focus-visible {
+	outline: 2px solid var(--sj-focus);
+	outline-offset: 2px;
+}
+
+.sjc-panel:focus:not(:focus-visible) {
+	outline: none;
+}
+
+/* Rows marked by a finding (or by the shell's highlightRows): a warm tint and a thin amber
+   edge instead of the shell's heavy outline, so marked rows stay readable in the dense table. */
+#kassekladde-tbody tr[data-saldi-assist-highlight] {
+	outline: none;
+}
+
+#kassekladde-tbody tr[data-saldi-assist-highlight] > td {
+	background-color: #fff3d6 !important;
+}
+
+#kassekladde-tbody tr[data-saldi-assist-highlight] > td:first-child {
+	box-shadow: inset 3px 0 0 #e0a63a;
+}
+
+@keyframes sj-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sjc-busy::before,
+	tr.sja-row[data-sja-busy] .sja-ask::before {
+		animation: none;
+	}
+}
+
+@media print {
+	tr.sja-row,
+	.sjc-panel,
+	.sjc-cell {
+		display: none;
+	}
+}

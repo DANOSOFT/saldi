@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/deleteDoc.php -----patch 4.0.8 ----2023-07-24---
+// --- includes/docsIncludes/deleteDoc.php -----ver 5.0.0 ----2026-10-01---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,12 +16,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230707 LOE Added kassekladde part
 // 20230724 LOE made some modifications to include alert also
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
 
 
+require_once __DIR__ . '/poolFileTransitions.php';
 if ($deleteDoc) {
 	// Decode the URL-encoded path
 	$deleteDoc = urldecode($deleteDoc);
@@ -94,6 +96,11 @@ if ($deleteDoc) {
 	$qtxt = "delete from documents where source = '$source' and source_id = '$sourceId' and filename = '".db_escape_string($fileName)."'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
+	$poolIdentity = PoolFileTransitions::row($db, $deleteDoc);
+	if ($poolIdentity) {
+		PoolFileTransitions::refreshDocuments((int)$poolIdentity['id']);
+	}
+
 	// If the document is linked to other lines, do NOT delete the actual file
 	if ($isLinkedToOtherLines) {
 		// Only database record was removed, file is preserved for other lines
@@ -129,7 +136,7 @@ if ($deleteDoc) {
 	
 	// Perform the file unlink operation - only if NOT linked to other lines
 	if (file_exists($deleteDoc)) {
-		if (unlink($deleteDoc)) {
+		if (PoolFileTransitions::delete($db, $deleteDoc)) {
 			// Success - check if there are any remaining documents for this sourceId
 			$qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id limit 1";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);

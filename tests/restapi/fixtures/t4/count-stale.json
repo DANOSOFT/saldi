@@ -1,0 +1,20 @@
+{
+  "success": false,
+  "message": "Beholdningen er ændret",
+  "data": {
+    "error": "conflict",
+    "details": {
+      "reason": "count_stale",
+      "lines": [
+        {
+          "line_ref": "b4000000-0000-4000-8000-000000000001",
+          "vare_id": 1001,
+          "varenr": "1001",
+          "expected_qty": "184",
+          "current_qty": "182",
+          "counted_qty": "181"
+        }
+      ]
+    }
+  }
+}

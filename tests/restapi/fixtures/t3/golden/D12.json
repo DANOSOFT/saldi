@@ -1,0 +1,89 @@
+{
+    "draft": {
+        "transdate": "2026-09-14",
+        "beskrivelse": "T3 purchase",
+        "d_type": "F",
+        "debet": "987001",
+        "k_type": "K",
+        "kredit": "987003",
+        "faktura": "INV-T3",
+        "amount": "125.000",
+        "momsfri": "",
+        "valuta": "987",
+        "valutakurs": "746.456",
+        "debetvat": "E989",
+        "kreditvat": ""
+    },
+    "posting": {
+        "transaktioner": [
+            {
+                "kontonr": "987001",
+                "debet": "933.070",
+                "kredit": null,
+                "moms": "233.270",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "987",
+                "valutakurs": "746.456"
+            },
+            {
+                "kontonr": "987013",
+                "debet": null,
+                "kredit": "933.070",
+                "moms": "-233.270",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "987",
+                "valutakurs": "746.456"
+            },
+            {
+                "kontonr": "987012",
+                "debet": "233.270",
+                "kredit": null,
+                "moms": "0.000",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "987",
+                "valutakurs": "746.456"
+            },
+            {
+                "kontonr": "987011",
+                "debet": null,
+                "kredit": "233.270",
+                "moms": "0.000",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "987",
+                "valutakurs": "746.456"
+            }
+        ],
+        "openpost": [
+            {
+                "konto_nr": "987003",
+                "faktnr": "INV-T3",
+                "amount": "-125.000",
+                "transdate": "2026-09-14",
+                "valuta": "EUR",
+                "valutakurs": "746.456"
+            }
+        ],
+        "saldo_delta": [
+            {
+                "kontonr": 987001,
+                "delta": "933.070"
+            },
+            {
+                "kontonr": 987011,
+                "delta": "-233.270"
+            },
+            {
+                "kontonr": 987012,
+                "delta": "233.270"
+            },
+            {
+                "kontonr": 987013,
+                "delta": "-933.070"
+            }
+        ]
+    }
+}

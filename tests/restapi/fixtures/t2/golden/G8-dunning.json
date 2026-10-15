@@ -1,0 +1,46 @@
+{
+  "scenario": "R1 fee and interest, then R2; preview rolls back",
+  "levels": {
+    "1": {
+      "fee": "100.00",
+      "interest": "30.15",
+      "total": "1630.15",
+      "order_net": "130.15",
+      "lines": [
+        {
+          "kind": "fee",
+          "quantity": "1.00",
+          "price": "100.00"
+        },
+        {
+          "kind": "interest",
+          "quantity": "1.00",
+          "price": "20.10"
+        },
+        {
+          "kind": "interest",
+          "quantity": "1.00",
+          "price": "10.05"
+        }
+      ]
+    },
+    "2": {
+      "fee": "100.00",
+      "interest": "16.30",
+      "total": "1616.30",
+      "order_net": "0.00",
+      "lines": [
+        {
+          "kind": "fee",
+          "quantity": "1.00",
+          "price": "100.00"
+        },
+        {
+          "kind": "interest",
+          "quantity": "1.00",
+          "price": "16.30"
+        }
+      ]
+    }
+  }
+}

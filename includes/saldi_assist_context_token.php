@@ -1,4 +1,5 @@
 <?php
+// 20261001 CDX/LH Bind context claims to runtime install and raw live online username.
 /**
  * SALDI Assist: kontekst-token (referenceimplementation).
  *
@@ -21,6 +22,8 @@
  *
  * Ingen eksterne afhaengigheder: hash, hash_hmac, json_encode, random_bytes.
  */
+
+require_once __DIR__ . '/runtime/bootstrap.php';
 
 /** Noegler pr. kid. Rotation: tilfoej en ny kid, udrul, fjern den gamle.
  *  Kid'en kommer fra SALDI_ASSIST_KID (standard k2026a) og skal matche
@@ -107,6 +110,7 @@ function saldi_assist_context_claims(
     $licences = saldi_assist_licence_map($licence_rows, $now);
 
     return [
+        'install' => saldi_runtime_install_id(),
         'iss' => 'saldi',
         'aud' => 'saldi-assist',
         // Ingen raa db-navne eller brugernavne forlader SALDI - kun hashes.
@@ -237,52 +241,63 @@ function saldi_assist_licence_rows($regnskab_id): array
  */
 function saldi_assist_token_endpoint(): void
 {
-    // $db_id er det aktive regnskabs id i SALDI (includes/online.php, license_func.php).
-    global $SALDI_ASSIST_KEYS, $SALDI_ASSIST_KID, $version, $menu, $languageID, $rettigheder, $brugernavn, $db, $db_id;
+	// $db_id er det aktive regnskabs id i SALDI (includes/online.php, license_func.php).
+	global $SALDI_ASSIST_KEYS, $SALDI_ASSIST_KID, $version, $menu, $languageID, $rettigheder, $brugernavn, $db, $db_id;
 
-    header('Content-Type: application/json');
-    header('Cache-Control: no-store');
+	header('Content-Type: application/json');
+	header('Cache-Control: no-store');
 
-    $embed_session = isset($_GET['embed_session']) ? (string)$_GET['embed_session'] : '';
-    if (!preg_match('/^[0-9a-f]{32}$/', $embed_session)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'bad_embed_session']);
-        return;
-    }
+	$embed_session = isset($_GET['embed_session']) ? (string)$_GET['embed_session'] : '';
+	if (!preg_match('/^[0-9a-f]{32}$/', $embed_session)) {
+		http_response_code(400);
+		echo json_encode(['error' => 'bad_embed_session']);
+		return;
+	}
 
-    // Selvom online.php allerede har afvist anonyme kald: udsted aldrig et
-    // token uden en identificeret bruger.
-    if (empty($brugernavn) || empty($db)) {
-        http_response_code(401);
-        echo json_encode(['error' => 'no_session']);
-        return;
-    }
+	// Selvom online.php allerede har afvist anonyme kald: udsted aldrig et
+	// token uden en identificeret bruger.
+	if (empty($brugernavn) || empty($db)) {
+		http_response_code(401);
+		echo json_encode(['error' => 'no_session']);
+		return;
+	}
 
-    $kid = (string)($SALDI_ASSIST_KID ?: 'k2026a');
-    $secret = (string)($SALDI_ASSIST_KEYS[$kid] ?? '');
-    if ($secret === '') {
-        http_response_code(503);
-        echo json_encode(['error' => 'not_configured']);
-        return;
-    }
+	$kid = (string)($SALDI_ASSIST_KID ?: 'k2026a');
+	$secret = (string)($SALDI_ASSIST_KEYS[$kid] ?? '');
+	if ($secret === '') {
+		http_response_code(503);
+		echo json_encode(['error' => 'not_configured']);
+		return;
+	}
 
-    $online_row = [
-        'db' => $db,
-        'brugernavn' => $brugernavn,
-        'rettigheder' => $rettigheder,
-        'language_id' => $languageID,
-    ];
+	// online.php SQL-escapes $brugernavn; identity hashes require the raw value.
+	$online = saldi_runtime_master()->one(
+		'SELECT brugernavn FROM online WHERE session_id = ? AND db = ? ORDER BY logtime DESC LIMIT 1',
+		[(string)($GLOBALS['s_id'] ?? session_id()), (string)$db]
+	);
+	if (!$online) {
+		http_response_code(401);
+		echo json_encode(['error' => 'no_session']);
+		return;
+	}
 
-    $token = saldi_assist_context_token(
-        $online_row,
-        saldi_assist_licence_rows($db_id ?? null),
-        $embed_session,
-        $kid,
-        $secret,
-        null,
-        (string)$version,
-        (string)$menu
-    );
+	$online_row = [
+		'db' => $db,
+		'brugernavn' => $online['brugernavn'],
+		'rettigheder' => $rettigheder,
+		'language_id' => $languageID,
+	];
 
-    echo json_encode(['token' => $token]);
+	$token = saldi_assist_context_token(
+		$online_row,
+		saldi_assist_licence_rows($db_id ?? null),
+		$embed_session,
+		$kid,
+		$secret,
+		null,
+		(string)$version,
+		(string)$menu
+	);
+
+	echo json_encode(['token' => $token]);
 }

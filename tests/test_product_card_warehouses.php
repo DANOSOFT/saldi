@@ -1,6 +1,8 @@
 <?php
 // Product-card regression checks use temporary tables only.
 // 20260923 CDX/PHR Cover fiscal-year duplicates and sparse warehouse numbers.
+// 20261001 CDX/LH Stub the shared stock engine and transaction boundary after extraction.
+// 20261001 CDX/LH Verify deferred synchronization after the product save boundary.
 if (!getenv('SALDI_CHAR_DSN')) {
     echo "SKIP: set SALDI_CHAR_DSN, SALDI_CHAR_PGUSER and SALDI_CHAR_PGPASS.\n";
     exit;
@@ -14,9 +16,17 @@ function db_fetch_array($result) { return $result->fetch(PDO::FETCH_ASSOC); }
 function db_modify($sql, $context) { return $GLOBALS['db']->exec($sql); }
 function db_escape_string($value) { return substr($GLOBALS['db']->quote($value), 1, -1); }
 function findtekst($number, $language) { return (string)$number; }
-function lagerreguler($id, $quantity, $cost, $warehouse, $date, $variant) {
-    $GLOBALS['adjustments'][$warehouse] = $quantity;
+function stock_set_quantity($id, $variant, $warehouse, $quantity, $cost, $date, $defer = false) {
+    $GLOBALS['adjustments'][$warehouse] = 0 + (string)(float)$quantity;
+    return ['sync'=>null];
 }
+function stock_shop_sync($targets) {
+    foreach ($targets as $target) {
+        $GLOBALS['syncedWarehouse'] = $target['lager'];
+    }
+    return [];
+}
+function transaktion($action) {}
 function sync_shop_vare($id, $quantity, $warehouse) { $GLOBALS['syncedWarehouse'] = $warehouse; }
 function check($condition, $message) {
     if (!$condition) { throw new RuntimeException($message); }
@@ -72,14 +82,23 @@ try {
     check((int)$db->query('SELECT count(*) FROM lagerstatus')->fetchColumn() === 3, 'No phantom stock rows are introduced');
     $stockStart = strpos($controller, 'if ($confirmStockChange &&');
     $stockSave = section(substr($controller, $stockStart), 'if ($stockItem) {', 'if (!$returside) {');
+    // The page loads the real engine; this source-slicing test supplies its explicit stub instead.
+    $stockSave = str_replace("require_once __DIR__ . '/../includes/lager/stockMovement.php';", '', $stockSave);
     $ny_lagerbeh = [1=>2,3=>5,10=>-6];
     $samlevare = false; $variant_vare_id = []; $kostpris = [0=>1]; $api_fil = true;
     $adjustments = [];
+    $stockSyncTargets = [];
     eval($stockSave);
     check($adjustments === [3=>5,10=>-6], 'Stock adjustments target only changed, configured warehouse numbers');
     $lagerbeh = $ny_lagerbeh;
     $adjustments = [];
+    $stockSyncTargets = [];
     eval($stockSave);
+    check(!isset($syncedWarehouse), 'Stock synchronization is deferred until the product save completes');
+    $commit = section($controller, 'if ($begin) {', "if (\$submit == 'supplierLookUp')");
+    $commit = str_replace("require_once __DIR__ . '/../includes/lager/stockMovement.php';", '', $commit);
+    $begin = 0;
+    eval($commit);
     check($adjustments === [] && $syncedWarehouse === 10, 'Unchanged stock synchronizes the last actual warehouse');
     $hidden = file_get_contents(__DIR__ . '/../lager/productCardIncludes/hiddenVars.php');
     ob_start();

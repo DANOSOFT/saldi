@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "delivery": {
+      "id": 31,
+      "channel": "email",
+      "state": "sent",
+      "recipient": "dunning@example.invalid",
+      "error_reason": null,
+      "provider_ref": null
+    }
+  }
+}

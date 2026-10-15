@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "id": 91,
+        "nummer": 101,
+        "case": {
+          "case_id": 41,
+          "sagsnr": "2026-41",
+          "description": "Montage hos Hansen"
+        },
+        "task": {
+          "task_id": 51,
+          "nr": "1",
+          "description": "Montage",
+          "status": "Montage"
+        },
+        "date": "2026-10-06",
+        "hours": "7.50",
+        "overtime_50": "0.00",
+        "overtime_100": "0.00",
+        "hour_type": null,
+        "text": "Montage",
+        "state": "overfoert",
+        "rejection": null,
+        "created_in_app": true,
+        "editable": false,
+        "read_only_reason": "submitted",
+        "etag": "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+      }
+    ]
+  }
+}

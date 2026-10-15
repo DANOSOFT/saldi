@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,7 +130,13 @@
 //                  had been commented out, so on an account with warehouses a location typed
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
+// 20261001 CDX/LH Use the shared variant-aware stock engine and synchronize after stock commits.
+// 20261001 CDX/LH Keep warehouse movements in the outer save transaction and defer synchronization.
 //
+/**
+ * Selected tenant link supplied by ../includes/online.php, included below.
+ * @var \PgSql\Connection $connection
+ */
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -304,32 +310,36 @@ if ($deleteItem == 'Slet') {
 }
 $acceptStockChange = if_isset($_POST, NULL, 'acceptStockChange');
 $cancelStockChange = if_isset($_POST, NULL, 'cancelStockChange');
+$stockSyncTargets = [];
 
 #$acceptStockChange=1;
 if ($acceptStockChange) {
-    $initials = if_isset($_POST, NULL, 'initials');
-    $reason = if_isset($_POST, NULL, 'reason');
-    $beholdning = if_isset($_POST, NULL, 'beholdning');
-    $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
+    require_once __DIR__ . '/../includes/lager/stockMovement.php';
+    transaktion('begin');
+    stock_lock_item((int)$id);
+    $initials = (string)ifset($_POST, 'initials', '');
+    $reason = (string)ifset($_POST, 'reason', '');
+    $beholdning = (float)ifset($_POST, 'beholdning', 0);
+    $ny_beholdning = (float)ifset($_POST, 'ny_beholdning', 0);
     $stockchange = $ny_beholdning - $beholdning;
-    $qtxt = "select kostpris from varer where id=$id";
+    $qtxt = "select kostpris from varer where id=" . (int)$id;
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-    $cost = $r['kostpris'] * 1;
-    $userName = substr($brugernavn, 0, 10);
-    $qtxt = "insert into stocklog (item_id,username,initials,reason,correction,logtime) values ";
-    $qtxt .= "('$id','" . db_escape_string($userName) . "','" . db_escape_string($initials) . "','" . db_escape_string($reason) . "',";
-    $qtxt .= "'" . $stockchange . "','" . date("U") . "')";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-    $lagerbeh = if_isset($_POST, array(), 'lagerbeh');
-    $ny_lagerbeh = if_isset($_POST, array(), 'ny_lagerbeh');
+    $cost = (float)$r['kostpris'];
+    stock_log_correction((int)$id, $brugernavn, $initials, $reason, number_format($stockchange, 3, '.', ''));
+    $lagerbeh = if_array($_POST, 'lagerbeh');
+    $ny_lagerbeh = if_array($_POST, 'ny_lagerbeh');
+    $syncTargets = [];
     foreach ($warehouseNames as $x => $warehouseName) {
         if (!isset($ny_lagerbeh[$x])) {
             continue;
         }
-        #       if ($ny_lagerbeh[$x]!=$lagerbeh[$x]) {
-        lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
-        #       }
+        $movement = stock_set_quantity((int)$id, 0, (int)$x, number_format((float)$ny_lagerbeh[$x], 3, '.', ''), number_format($cost, 3, '.', ''), date('Y-m-d'), true);
+        if ($movement['sync']) {
+            $syncTargets[] = $movement['sync'];
+        }
     }
+    transaktion('commit');
+    stock_shop_sync($syncTargets);
     print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$id'>";
     exit;
 } elseif ($cancelStockChange) {
@@ -623,10 +633,12 @@ if ($saveItem || $submit = trim($submit)) {
                 alert('Stregkode må ikke slettes');
             $qtxt = "select id,beholdning from lagerstatus where vare_id='$id' and variant_id='$variant_vare_id[$x]' and lager='$l'";
             $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-            transaktion('begin');
             $lager = $l;
-            lagerreguler($id, $variantVarerQty[$x][$l], $kostpris[0], $lager, date('Y-m-d'), $variant_vare_id[$x]);
-            transaktion('commit');
+            require_once __DIR__ . '/../includes/lager/stockMovement.php';
+            $movement = stock_set_quantity((int)$id, (int)$variant_vare_id[$x], (int)$lager, number_format($variantVarerQty[$x][$l], 3, '.', ''), number_format((float)$kostpris[0], 3, '.', ''), date('Y-m-d'), true);
+            if ($movement['sync']) {
+                $stockSyncTargets[] = $movement['sync'];
+            }
         }
     }
     // When processing the form submission:
@@ -1224,10 +1236,14 @@ if ($stockItem) {
                 print "<meta http-equiv=\"refresh\" content=\"0;URL=vareproduktion.php?id=$id&antal=1&lager=$x&ny_beholdning=$ny_lagerbeh[$x]&samlevare=$samlevare\">";
                 exit;
             } elseif (!count($variant_vare_id)) { #20210208
-                lagerreguler($id, $ny_lagerbeh[$x], $kostpris[0], $x, date("Y-m-d"), '0');
+                require_once __DIR__ . '/../includes/lager/stockMovement.php';
+                $movement = stock_set_quantity((int)$id, 0, (int)$x, number_format((float)$ny_lagerbeh[$x], 3, '.', ''), number_format((float)$kostpris[0], 3, '.', ''), date('Y-m-d'), true);
+                if ($movement['sync']) {
+                    $stockSyncTargets[] = $movement['sync'];
+                }
             }
         } elseif ($api_fil && !count($variant_vare_id) && $x == array_key_last($warehouseNames)) { #20170210 - fixed typo
-            sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above 
+            $stockSyncTargets[] = ['vare_id'=>(int)$id,'variant_id'=>0,'lager'=>(int)$x];
         }
     }
 } else {
@@ -1239,8 +1255,17 @@ if (!$returside) {
 }
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 
-if ($begin)
+if ($begin) {
+    if (ifset($GLOBALS, 'db_modify_fejl', false) || pg_transaction_status($connection) !== PGSQL_TRANSACTION_INTRANS) {
+        transaktion('rollback');
+        throw new RuntimeException('Product save database write failed');
+    }
     transaktion('commit');
+}
+if ($stockSyncTargets) {
+    require_once __DIR__ . '/../includes/lager/stockMovement.php';
+    stock_shop_sync($stockSyncTargets);
+}
 if ($submit == 'supplierLookUp')
     kontoopslag("navn", $fokus, $id);
 elseif (strstr($submit, "Vare")) {

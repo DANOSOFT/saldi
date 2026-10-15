@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- finans/kladdeliste.php --- ver 5.0.0 --- 2026-10-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20150722 PHR Vis alle/egne gemmes nu som cookie. 
 // 20181220 MSC - Rettet ny kladde knap til Ny
@@ -42,6 +42,7 @@
 //                  stale tab clobber a lock a newer tab had since acquired (no tidspkt check),
 //                  and every real caller now goes through includes/luk.php instead (confirmed
 //                  no remaining ?exitDraft= link generator anywhere in the codebase).
+// 20261004 CDX/LH Link bank statement preview and draft proposals from the journal list.
 
 @session_start();
 $s_id=session_id();
@@ -217,6 +218,7 @@ $valg = "Kladdeliste";
 // (returside=../includes/luk.php) never reached nav_back_url().
 $returside = isset($_GET['returside']) ? nav_sanitize_returside($_GET['returside']) : null;
 include("topLineFinans.php");
+print '<p style="margin: 12px 16px"><a href="assist_bankfil.php">' . htmlspecialchars(findtekst('6120|Bankfil til kassekladde', $sprog_id), ENT_QUOTES, 'UTF-8') . '</a></p>';
 include("../includes/grid.php");
 
 // Reset grid if requested

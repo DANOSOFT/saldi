@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-29------------
+// --- systemdata/diverse.php -----ver 5.0.0 ----2026-10-06------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,6 +111,8 @@
 // 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
+// 20261001 CDX/LH Wire mobile payment settings with current rights, CSRF and Post/Redirect/Get.
+// 20261001 CDX/LH Wire Marken settings with current admin rights and tenant-bound CSRF.
 
 @session_start();
 $s_id = session_id();
@@ -140,6 +142,22 @@ if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
 	$_SESSION['UserName'] = $brugernavn;
 }
 
+if (ifset($_GET, 'sektion') === 'mobil_marken_valg' && ifset($_SERVER, 'REQUEST_METHOD') === 'POST') {
+    require_once __DIR__ . '/diverseIncludes/mobilMarkenValg.php';
+    $_SESSION['mobile_marken_settings_notice'] = mobilMarkenSave($_POST);
+    $year = ifset($_POST, 'year', date('Y'));
+    $year = is_string($year) && preg_match('/\A[1-9][0-9]{3}\z/', $year) ? $year : date('Y');
+    header('Location: diverse.php?sektion=mobil_marken_valg&year=' . $year, true, 303);
+    exit;
+}
+
+if (ifset($_GET, 'sektion') === 'mobil_betaling_valg' && ifset($_SERVER, 'REQUEST_METHOD') === 'POST') {
+    require_once __DIR__ . '/diverseIncludes/mobilBetalingValg.php';
+    $_SESSION['mobile_payment_settings_notice'] = mobilBetalingSave($_POST);
+    header('Location: diverse.php?sektion=mobil_betaling_valg', true, 303);
+    exit;
+}
+
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
@@ -149,7 +167,9 @@ if ($menu == 'T') {
 #	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";
 	print "</div><!-- end of header -->";
 	print "<div id=\"leftmenuholder\">";
-	include_once 'left_div_menu.php';
+	include_once __DIR__ . '/left_div_menu.php';
+    print '<p><a href="diverse.php?sektion=mobil_betaling_valg">' . htmlspecialchars(findtekst('5470|Betalinger i Saldi Mobile', $sprog_id), ENT_QUOTES, 'UTF-8') . '</a></p>';
+    print '<p><a href="diverse.php?sektion=mobil_marken_valg">' . htmlspecialchars(findtekst('5490|Marken i Saldi Mobile', $sprog_id), ENT_QUOTES, 'UTF-8') . '</a></p>';
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"maincontentLargeHolder\">\n";
 } elseif ($menu == 'S') {
@@ -2191,6 +2211,9 @@ if ($menu != 'T') {
 		print "<tr><td align=left><a href=diverse.php?sektion=stripe_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			   Stripe abonnement</button></a></td></tr>\n";
+        print "<tr><td align=left><a href=diverse.php?sektion=mobil_betaling_valg><button style='$buttonStyle; width:100%'>" . findtekst('5470|Betalinger i Saldi Mobile', $sprog_id) . "</button></a></td></tr>\n";
+        print "<tr><td align=left><a href=diverse.php?sektion=mobil_marken_valg><button style='$buttonStyle; width:100%'>" . findtekst('5490|Marken i Saldi Mobile', $sprog_id) . "</button></a></td></tr>\n";
+
 
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
@@ -2269,6 +2292,9 @@ if ($menu != 'T') {
 		// print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=stripe_valg>Stripe abonnement</a></td></tr>\n";
+        print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=mobil_betaling_valg>" . findtekst('5470|Betalinger i Saldi Mobile', $sprog_id) . "</a></td></tr>\n";
+        print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=mobil_marken_valg>" . findtekst('5490|Marken i Saldi Mobile', $sprog_id) . "</a></td></tr>\n";
+
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
@@ -2308,6 +2334,14 @@ if ($sektion == "productOptions" || $sektion == "label") {
 if ($sektion == "variant_valg") variant_valg();
 // if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
+if ($sektion == "mobil_marken_valg") {
+    require_once __DIR__ . '/diverseIncludes/mobilMarkenValg.php';
+    mobilMarkenValg();
+}
+if ($sektion == "mobil_betaling_valg") {
+    require_once __DIR__ . '/diverseIncludes/mobilBetalingValg.php';
+    mobilBetalingValg();
+}
 if ($sektion == "stripe_valg") {
 	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 	stripeValg();

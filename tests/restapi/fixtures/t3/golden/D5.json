@@ -1,0 +1,22 @@
+{
+    "D5_closed": {
+        "details": {
+            "field": "debet",
+            "reason": "account_closed"
+        },
+        "error": "validation_failed"
+    },
+    "D5_creditor": {
+        "details": {
+            "field": "kredit",
+            "reason": "kreditor_invalid"
+        },
+        "error": "validation_failed"
+    },
+    "D5_date": {
+        "details": {
+            "reason": "outside_fiscal_year"
+        },
+        "error": "validation_failed"
+    }
+}

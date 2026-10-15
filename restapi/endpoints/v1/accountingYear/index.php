@@ -1,10 +1,17 @@
 <?php
+// 20261001 CDX/LH Declare precise module rights for reads and writes.
 
 require_once '../../../core/BaseEndpoint.php';
 require_once '../../../core/logging.php';
 
 class AccountingYearEndpoint extends BaseEndpoint
 {
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
+    {
+        return ['module' => 'admin', 'action' => ifset($_SERVER, 'REQUEST_METHOD') === 'GET' ? 'read' : 'write'];
+    }
+
     public function __construct()
     {
         parent::__construct();

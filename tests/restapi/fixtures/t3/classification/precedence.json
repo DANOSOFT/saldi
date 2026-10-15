@@ -1,0 +1,292 @@
+[
+  {
+    "name": "correction beats history and OCR",
+    "inputs": {
+      "accounts": {
+        "2210": {
+          "account_name": "Purchases",
+          "vat_code": "K1"
+        },
+        "2750": {
+          "account_name": "Representation",
+          "vat_code": "K2"
+        },
+        "2220": {
+          "account_name": "Travel",
+          "vat_code": null
+        }
+      },
+      "vat_codes": {
+        "K1": "Purchase VAT",
+        "K2": "Partial VAT"
+      },
+      "correction": {
+        "id": "10",
+        "kontonr": "2220",
+        "vat_code": null,
+        "kreditor_kontonr": null,
+        "created_at": "2026-09-02 10:00:00+00"
+      },
+      "history": [
+        {
+          "kontonr": 2750,
+          "account_name": "Representation",
+          "vat_code": "K2",
+          "count": 3,
+          "last_used": "2026-09-01"
+        }
+      ],
+      "common": [],
+      "ocr": 2210,
+      "kreditor": null
+    },
+    "expected": {
+      "basis": "last_correction",
+      "kontonr": 2220
+    }
+  },
+  {
+    "name": "history beats OCR",
+    "inputs": {
+      "accounts": {
+        "2210": {
+          "account_name": "Purchases",
+          "vat_code": "K1"
+        },
+        "2750": {
+          "account_name": "Representation",
+          "vat_code": "K2"
+        },
+        "2220": {
+          "account_name": "Travel",
+          "vat_code": null
+        }
+      },
+      "vat_codes": {
+        "K1": "Purchase VAT",
+        "K2": "Partial VAT"
+      },
+      "correction": null,
+      "history": [
+        {
+          "kontonr": 2750,
+          "account_name": "Representation",
+          "vat_code": "K2",
+          "count": 3,
+          "last_used": "2026-09-01"
+        }
+      ],
+      "common": [],
+      "ocr": 2210,
+      "kreditor": null
+    },
+    "expected": {
+      "basis": "supplier_history",
+      "kontonr": 2750
+    }
+  },
+  {
+    "name": "single historical line falls back to OCR",
+    "inputs": {
+      "accounts": {
+        "2210": {
+          "account_name": "Purchases",
+          "vat_code": "K1"
+        },
+        "2750": {
+          "account_name": "Representation",
+          "vat_code": "K2"
+        },
+        "2220": {
+          "account_name": "Travel",
+          "vat_code": null
+        }
+      },
+      "vat_codes": {
+        "K1": "Purchase VAT",
+        "K2": "Partial VAT"
+      },
+      "correction": null,
+      "history": [
+        {
+          "kontonr": 2750,
+          "account_name": "Representation",
+          "vat_code": "K2",
+          "count": 1,
+          "last_used": "2026-09-01"
+        }
+      ],
+      "common": [],
+      "ocr": 2210,
+      "kreditor": null
+    },
+    "expected": {
+      "basis": "ocr",
+      "kontonr": 2210
+    }
+  },
+  {
+    "name": "closed correction is ignored",
+    "inputs": {
+      "accounts": {
+        "2210": {
+          "account_name": "Purchases",
+          "vat_code": "K1"
+        },
+        "2750": {
+          "account_name": "Representation",
+          "vat_code": "K2"
+        },
+        "2220": {
+          "account_name": "Travel",
+          "vat_code": null
+        }
+      },
+      "vat_codes": {
+        "K1": "Purchase VAT",
+        "K2": "Partial VAT"
+      },
+      "correction": {
+        "id": "10",
+        "kontonr": "9999",
+        "vat_code": null,
+        "kreditor_kontonr": null,
+        "created_at": "2026-09-02 10:00:00+00"
+      },
+      "history": [
+        {
+          "kontonr": 2750,
+          "account_name": "Representation",
+          "vat_code": "K2",
+          "count": 3,
+          "last_used": "2026-09-01"
+        }
+      ],
+      "common": [],
+      "ocr": 2210,
+      "kreditor": null
+    },
+    "expected": {
+      "basis": "supplier_history",
+      "kontonr": 2750
+    }
+  },
+  {
+    "name": "invalid correction VAT is ignored",
+    "inputs": {
+      "accounts": {
+        "2210": {
+          "account_name": "Purchases",
+          "vat_code": "K1"
+        },
+        "2750": {
+          "account_name": "Representation",
+          "vat_code": "K2"
+        },
+        "2220": {
+          "account_name": "Travel",
+          "vat_code": null
+        }
+      },
+      "vat_codes": {
+        "K1": "Purchase VAT",
+        "K2": "Partial VAT"
+      },
+      "correction": {
+        "id": "10",
+        "kontonr": "2220",
+        "vat_code": "BAD",
+        "kreditor_kontonr": null,
+        "created_at": "2026-09-02 10:00:00+00"
+      },
+      "history": [
+        {
+          "kontonr": 2750,
+          "account_name": "Representation",
+          "vat_code": "K2",
+          "count": 3,
+          "last_used": "2026-09-01"
+        }
+      ],
+      "common": [],
+      "ocr": 2210,
+      "kreditor": null
+    },
+    "expected": {
+      "basis": "supplier_history",
+      "kontonr": 2750
+    }
+  },
+  {
+    "name": "closed OCR has common alternatives without selection",
+    "inputs": {
+      "accounts": {
+        "2210": {
+          "account_name": "Purchases",
+          "vat_code": "K1"
+        },
+        "2750": {
+          "account_name": "Representation",
+          "vat_code": "K2"
+        },
+        "2220": {
+          "account_name": "Travel",
+          "vat_code": null
+        }
+      },
+      "vat_codes": {
+        "K1": "Purchase VAT",
+        "K2": "Partial VAT"
+      },
+      "correction": null,
+      "history": [],
+      "common": [
+        {
+          "kontonr": 2750,
+          "account_name": "Representation",
+          "vat_code": "K2",
+          "count": 3,
+          "last_used": "2026-09-01"
+        }
+      ],
+      "ocr": 9999,
+      "kreditor": null
+    },
+    "expected": {
+      "basis": "common_accounts",
+      "kontonr": null
+    }
+  },
+  {
+    "name": "no evidence has no selection",
+    "inputs": {
+      "accounts": {
+        "2210": {
+          "account_name": "Purchases",
+          "vat_code": "K1"
+        },
+        "2750": {
+          "account_name": "Representation",
+          "vat_code": "K2"
+        },
+        "2220": {
+          "account_name": "Travel",
+          "vat_code": null
+        }
+      },
+      "vat_codes": {
+        "K1": "Purchase VAT",
+        "K2": "Partial VAT"
+      },
+      "correction": null,
+      "history": [],
+      "common": [],
+      "ocr": null,
+      "kreditor": null
+    },
+    "expected": {
+      "basis": "none",
+      "kontonr": null
+    }
+  }
+]

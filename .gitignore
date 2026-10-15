@@ -8,6 +8,8 @@
 # hidden files
 .ht*
 .htaccess
+# The MCP endpoint needs its .htaccess to pass the Authorization header (SPEC 5.4).
+!mcp/.htaccess
 
 # Secrets / local config
 includes/connect.php
@@ -89,3 +91,4 @@ index/ch/
 # Live Service
 /index/redirect.php
 email.php
+/restapi/.ht_ocr_keys.json

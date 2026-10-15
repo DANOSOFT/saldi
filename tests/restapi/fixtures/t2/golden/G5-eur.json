@@ -1,0 +1,7 @@
+{
+  "scenario": "EUR placeholder rate converted by dated Saldi rate; payment refused",
+  "original_amount": "100.00",
+  "rate": "745.00",
+  "rest": "745.00",
+  "reason": "currency_not_supported"
+}

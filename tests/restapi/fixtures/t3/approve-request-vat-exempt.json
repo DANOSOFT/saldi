@@ -1,0 +1,16 @@
+{
+  "client_id": "3f0c5132-0123-4567-8abc-123456789abc",
+  "id": 512,
+  "kontonr": 2750,
+  "vat_exempt": true,
+  "contra": {
+    "type": "K",
+    "kontonr": "30012"
+  },
+  "date": "2026-09-14",
+  "amount": "1840.00",
+  "currency": "DKK",
+  "description": "Frokostmøde med Hansen ApS",
+  "invoice_number": "88231",
+  "suggestion_id": 991
+}

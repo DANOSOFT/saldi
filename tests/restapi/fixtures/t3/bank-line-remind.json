@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "reminder_id": 12,
+    "notification_id": 14,
+    "recipient_count": 1,
+    "bank_line": {
+      "id": 31,
+      "date": "2026-09-14",
+      "text": "CIRCLE K 4055 AARHUS",
+      "amount": "-612.50",
+      "currency": "DKK",
+      "account": {
+        "kontonr": 6471,
+        "name": "Bank, drift"
+      },
+      "state": "requested",
+      "journal": {
+        "kladde_id": 77,
+        "kassekladde_id": 9000,
+        "bilag": 1042,
+        "posted": false
+      },
+      "reminder": {
+        "id": 12,
+        "target_name": "Lars Nordbro",
+        "all": false,
+        "sent_at": "2026-09-15T06:12:00+00:00",
+        "resolved_at": null
+      },
+      "attachment": null
+    }
+  }
+}

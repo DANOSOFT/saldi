@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "id": 512,
+    "review_state": "rejected",
+    "display_status": "afvist",
+    "rejection": {
+      "code": "unreadable",
+      "message": "Tag et nyt billede.",
+      "at": "2026-09-15T06:12:00+00:00",
+      "by_name": "Mette Krogh"
+    },
+    "etag": "\"9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e\""
+  }
+}

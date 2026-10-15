@@ -1,5 +1,6 @@
 <?php
 // 20260716 CL/LH Added Stripe paid-invoice import endpoint.
+// 20261001 CDX/LH Declare precise module rights for reads and writes.
 
 require_once __DIR__ . '/../../../../core/BaseEndpoint.php';
 require_once __DIR__ . '/../../../../services/ExternalPaidInvoiceImportService.php';
@@ -7,6 +8,12 @@ include_once __DIR__ . '/../../../../../includes/ordrefunc.php';
 
 class ExternalPaidInvoicesEndpoint extends BaseEndpoint
 {
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
+    {
+        return ['module' => 'debitorordre', 'action' => ifset($_SERVER, 'REQUEST_METHOD') === 'GET' ? 'read' : 'write'];
+    }
+
     private $service;
 
     public function __construct()

@@ -1,18 +1,17 @@
 <?php
 // 20260917 SZ MB-36: Cover the "Batchoplysninger ikke udfyldt" receipt hard-stop in
-// kreditor/modtag.php so a future edit can't silently loosen or drop it. Also covers the
-// split gating added the same day: batch_due_date is required only when item_has_due_date()
+// includes/kreditor/creditorReceive.php so a future edit can't silently loosen or drop it. Also covers the
+// split gating added the same day: batch_due_date is required only when creditor_receive_has_due_date()
 // is true, batch_no is required when that OR the item's group has box9='on'.
+// 20261001 CDX/LH Re-point the unchanged validation assertions to the extracted receipt engine.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
-// Runs in a separate process per test: other suites in the same run may already have
-// loaded the real item_has_due_date()/db_select() (includes/stdFunc/fefo.php,
-// includes/db_query.php), which would make the function_exists() guards below skip the
-// stubs and hit a real (absent) database connection.
+// Runs in a separate process per test so the stubs cannot collide with real receipt
+// helpers loaded by another suite and accidentally query its database connection.
 #[RunTestsInSeparateProcesses]
 #[PreserveGlobalState(false)]
 final class ModtagBatchValidationTest extends TestCase
@@ -21,26 +20,22 @@ final class ModtagBatchValidationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        self::$source = file_get_contents(dirname(__DIR__, 3) . '/kreditor/modtag.php');
+        self::$source = file_get_contents(dirname(__DIR__, 3) . '/includes/kreditor/creditorReceive.php');
     }
 
     protected function setUp(): void
     {
-        if (!function_exists('item_has_due_date')) {
-            // Real function lives in includes/stdFunc/fefo.php and queries varer.has_due_date;
-            // stubbed here so the extracted block can be exercised without a database.
-            function item_has_due_date($vare_id) {
+        if (!function_exists('creditor_receive_has_due_date')) {
+            // The receipt wrapper retains includes/stdFunc/fefo.php's has_due_date boolean rule;
+            // stubbed here so the extracted condition can be exercised without a database.
+            function creditor_receive_has_due_date($vare_id) {
                 return (bool) ($GLOBALS['modtagHasDueDate'] ?? false);
             }
         }
-        if (!function_exists('db_select')) {
-            // Stubs the box9 lookup the extracted block performs directly; the query text
-            // itself isn't parsed, only the fixture's box9 value is returned.
-            function db_select($qtxt, $spor) {
-                return ['box9' => $GLOBALS['modtagBox9'] ?? null];
-            }
-            function db_fetch_array($q) {
-                return $q;
+        if (!function_exists('creditor_receive_query')) {
+            // Stubs only the box9 lookup made by the extracted validation block.
+            function creditor_receive_query(string $sql, array $params = []): array {
+                return [['box9' => $GLOBALS['modtagBox9'] ?? null]];
             }
         }
     }
@@ -53,19 +48,15 @@ final class ModtagBatchValidationTest extends TestCase
     // Execute the production condition, not a second implementation of it.
     private function isBlocked(float $leveres, string $art, ?string $dueDate, ?string $batchNo): bool
     {
-        $start = strpos(self::$source, '$dueDateTracked = item_has_due_date(');
-        self::assertNotFalse($start, 'Batch-tracking checks must still exist in kreditor/modtag.php.');
-        $end = strpos(self::$source, '){', $start);
-        self::assertNotFalse($end, 'Validation if-block must still exist in kreditor/modtag.php.');
+        $start = strpos(self::$source, '$dueDateTracked = creditor_receive_has_due_date(');
+        self::assertNotFalse($start, 'Batch-tracking checks must still exist in includes/kreditor/creditorReceive.php.');
+        $end = strpos(self::$source, ') {', $start);
+        self::assertNotFalse($end, 'Validation if-block must still exist in includes/kreditor/creditorReceive.php.');
         $block = substr(self::$source, $start, $end - $start);
 
-        $x = 1;
-        $regnaar = '2026';
-        $leveres = [1 => $leveres];
-        $art = $art;
-        $vare_id = [1 => 1];
-        $batch_due_date = [1 => $dueDate];
-        $batch_batch_no = [1 => $batchNo];
+        $yearId = 2026;
+        $vare_id = 1;
+        $line = ['batch_due_date' => $dueDate, 'batch_batch_no' => $batchNo];
 
         return eval($block . ') { return true; } else { return false; }');
     }

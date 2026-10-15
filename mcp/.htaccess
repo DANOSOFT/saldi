@@ -1,0 +1,10 @@
+DirectoryIndex index.php
+Options -Indexes
+CGIPassAuth On
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+<FilesMatch "^(?!index\.php$).+">
+    Require all denied
+</FilesMatch>

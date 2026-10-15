@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------/admin/slet_regnskab.php-----patch 3.8.9------2020.02.27--------
+// -------------/admin/slet_regnskab.php-----ver 5.0.0------2020.02.27--------
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
@@ -24,6 +24,9 @@
 // Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2020.02.27 PHR Check if db exist before dropping 20200227 
+
+// 20261001 CDX/LH Revoke mobile sessions after security or account membership changes.
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 
 @session_start();
 $s_id=session_id();
@@ -114,6 +117,8 @@ if ($_POST['regnskabsantal']) {
 							$qtxt="update kundedata set slettet='on',regnskab_id='$id[$x]' where regnskab='".db_escape_string($regnskab[$x])."'";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
 						}
+						$id[$x] = (int)$id[$x];
+						mobileRevokeTenant($id[$x], 'account_deleted');
 						$qtxt="delete from regnskab where id = $id[$x]";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt="DROP DATABASE IF EXISTS $db_navn[$x]";

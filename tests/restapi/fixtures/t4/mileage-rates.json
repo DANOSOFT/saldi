@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "year": 2026,
+    "rate": "3.79",
+    "rate_low": "2.23",
+    "threshold_km": 20000,
+    "configured": true
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "id": 31,
+        "date": "2026-09-14",
+        "text": "CIRCLE K 4055 AARHUS",
+        "amount": "-612.50",
+        "currency": "DKK",
+        "account": {
+          "kontonr": 6471,
+          "name": "Bank, drift"
+        },
+        "state": "open",
+        "journal": {
+          "kladde_id": 77,
+          "kassekladde_id": 9000,
+          "bilag": 1042,
+          "posted": false
+        },
+        "reminder": null,
+        "attachment": null
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "summary": {
+      "missing_count": 1,
+      "missing_total": "612.50"
+    }
+  }
+}

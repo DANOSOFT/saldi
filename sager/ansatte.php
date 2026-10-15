@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------lap 5.0.0 ------2026-09-24-------------
+// ------ SAGER/ANSATTE.php-------ver 5.0.0 ------2026-10-02-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,10 @@ $s_id=session_id();
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) when creating or renaming a login, matching login.php
 // 20260924 Sawaneh SST-757: New logins get regnskabsaar (session year, else newest open year), so POS/ordre/tilbud no longer fail on an empty fiscal year.
 //                  Login SQL values are now cast or escaped.
+// 20261001 CDX/LH Revoke app sessions on employee password, closure and group-right changes.
+// 20261001 CDX/LH Write employee credentials and group changes before revoking mobile sessions.
+
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -307,6 +311,55 @@ function ansatliste() {
 		<div class=\"page_navigation $abortlist\"></div>
 		</div><!-- end of paging_container -->";
 }
+/** @return void Revoke every login associated with the affected employee. */
+function sagerRevokeEmployeeUsers(int $employeeId, string $reason): void
+{
+	$query = db_select("SELECT id FROM brugere WHERE ansat_id=$employeeId", __FILE__ . ' line ' . __LINE__);
+	while ($user = db_fetch_array($query)) {
+		mobileRevokeUser((int)$user['id'], $reason);
+	}
+}
+
+/** @return void Save a verified password digest and invalidate the user's session families/challenges. */
+function sagerSaveEmployeePassword(int $userId, string $digest): void
+{
+	$hash = db_escape_string($digest);
+	db_modify("UPDATE brugere SET kode='$hash' WHERE id=$userId", __FILE__ . ' line ' . __LINE__);
+	mobileRevokeUser($userId, 'password_changed');
+}
+
+/** @return void Reassign the employee group, revoking the logins whose permissions change. */
+function sagerSaveEmployeeGroup(int $employeeId, int $groupId): void
+{
+	db_modify("UPDATE ansatte SET gruppe=$groupId WHERE id=$employeeId", __FILE__ . ' line ' . __LINE__);
+	sagerRevokeEmployeeUsers($employeeId, 'rights_changed');
+}
+
+/** @return void Save group permissions and revoke every member's app sessions. */
+function sagerSaveEmployeeGroupRights(int $groupId, string $description, string $rights): void
+{
+	$name = db_escape_string($description);
+	$permissions = db_escape_string($rights);
+	db_modify("UPDATE grupper SET beskrivelse='$name',box2='$permissions' WHERE id=$groupId", __FILE__ . ' line ' . __LINE__);
+	$members = db_select("SELECT id FROM ansatte WHERE gruppe=$groupId", __FILE__ . ' line ' . __LINE__);
+	while ($member = db_fetch_array($members)) {
+		sagerRevokeEmployeeUsers((int)$member['id'], 'rights_changed');
+	}
+}
+
+/** @return void Invalidate sessions before the included employee saver can close an employee or redirect. */
+function sagerRevokeClosingEmployee(int $employeeId, array $input): void
+{
+	$endDate = (string)ifset($input, 'slutdato', '');
+	$closing = ifset($input, 'lukket') === 'on';
+	if ($endDate !== '') {
+		$closing = $closing || usdate($endDate) <= date('Y-m-d');
+	}
+	if ($employeeId > 0 && ifset($input, 'konto_id') && $closing) {
+		sagerRevokeEmployeeUsers($employeeId, 'user_disabled');
+	}
+}
+
 function ret_ansat($id) {
 
 	global $charset;
@@ -320,7 +373,8 @@ function ret_ansat($id) {
 	//echo "id: $id konto_id: $konto_id";
 	
 	print "<div class=\"content\">\n";
-	include "../systemdata/ansatte_save.php";
+	sagerRevokeClosingEmployee((int)$id, $_POST);
+	include __DIR__ . '/../systemdata/ansatte_save.php';
 	
 	if (!$id) { #20140923
 		$r=db_fetch_array(db_select("select max(nummer) as nummer from ansatte",__FILE__ . " linje " . __LINE__));
@@ -329,7 +383,7 @@ function ret_ansat($id) {
 	if(isset($_POST['brugergruppe']) && $id) {	
 		$brugergruppe = (int)$_POST['brugergruppe'];
 		if ($id && $brugergruppe) {
-			db_modify("update ansatte set gruppe = '$brugergruppe' where id = '$id'",__FILE__ . " linje " . __LINE__);
+			sagerSaveEmployeeGroup((int)$id, $brugergruppe);
 		}
 	}
 	if (isset($_POST['brugere_navn']) && $id) {	
@@ -365,13 +419,14 @@ function ret_ansat($id) {
 		
 		if ($id) {
 			if ($ret_kode && $brugere_id) {
-				db_modify("update brugere set kode = '".db_escape_string($kode1)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+				sagerSaveEmployeePassword($brugere_id, $kode1);
 			}
 			if ($brugere_navn && !$brugere_id) {
 				$r=db_fetch_array(db_select("select id,ansat_id from brugere where lower (brugernavn)='".db_escape_string(strtolower($brugere_navn))."'",__FILE__ . " linje " . __LINE__));
 				if (ifset($r, 'id') && !ifset($r, 'ansat_id')) {
 					$brugere_id = (int)$r['id'];
 					db_modify("update brugere set ansat_id = '$ansatId' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+					mobileRevokeUser($brugere_id, 'user_security_changed');
 				} else {
 					$fiscalYear = (int)$regnaar;
 					if (!$fiscalYear) $fiscalYear = newest_active_fiscal_year();
@@ -388,6 +443,7 @@ function ret_ansat($id) {
 						print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
 					} else {
 						db_modify("update brugere set brugernavn = '".db_escape_string($brugere_navn)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+						mobileRevokeUser($brugere_id, 'user_security_changed');
 					}
 				}
 			}
@@ -523,7 +579,7 @@ function brugergrupper($id) {
 			($godk_akkord[$x])?$rettigheder[$x].='1':$rettigheder[$x].='0';
 			($regnskab[$x])?$rettigheder[$x].='1':$rettigheder[$x].='0';
 			if ($beskrivelse[$x]) {
-				db_modify("update grupper set beskrivelse='".db_escape_string($beskrivelse[$x])."',box2='$rettigheder[$x]' where id='$gruppe_id[$x]'",__FILE__ . " linje " . __LINE__);
+				sagerSaveEmployeeGroupRights((int)$gruppe_id[$x], (string)$beskrivelse[$x], $rettigheder[$x]);
 			} else {
 				if ($r=db_fetch_array(db_select("select id from ansatte where gruppe = '$gruppe_id[$x]'",__FILE__ . " linje " . __LINE__))) {
 					print "<BODY onLoad=\"javascript:alert('".findtekst('3081|Der er brugere tilknyttet denne gruppe - kan ikke slettes', $sprog_id)."!')\">";

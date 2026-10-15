@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "id": 12,
+    "kontonr": "1000",
+    "name": "Hansen ApS",
+    "postnr": "",
+    "city": "",
+    "phone": "",
+    "email": "",
+    "cvr": "",
+    "saldo": "0.00",
+    "currency": "DKK",
+    "addr1": "",
+    "addr2": "",
+    "country": "",
+    "ean": "",
+    "group": 1,
+    "payment_terms": {
+      "type": "Netto",
+      "days": 8
+    },
+    "open_posts_count": 0,
+    "open_posts": [],
+    "overdue_total": "0.00",
+    "recent_documents": [],
+    "etag": "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+  }
+}

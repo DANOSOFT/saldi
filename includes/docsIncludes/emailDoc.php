@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/emailDoc.php -----patch 4.0.8 ----2023-08-01------
+// --- includes/docsIncludes/emailDoc.php -----ver 5.0.0 ----2026-10-01------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,11 +16,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230727 LOE file created from bilag.php //refer to uploadDoc.php
 //20230911 LOE Delete code modified
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
 
+require_once __DIR__ . '/poolFileTransitions.php';
 @session_start();
 $s_id=session_id();
 $css="../../css/standard.css";
@@ -137,7 +139,7 @@ $relativeP1 = "../../".$docFolder;
 		else $newExt = NULL;
 		if (strtolower($ext) != strtolower($newExt)) $newFileName.= ".$ext"; 
 		$newFileName= trim($newFileName,' ._'); 
-		rename($relativeP1."/$db/pulje/$archivefile",$relativeP1."/$db/pulje/$newFileName"); 
+		PoolFileTransitions::move($db, $relativeP1."/$db/pulje/$archivefile", $relativeP1."/$db/pulje/$newFileName");
 		$archivefile = $newFileName;
 	}
 	
@@ -145,7 +147,9 @@ $relativeP1 = "../../".$docFolder;
 		
 		if(isset($_POST['archivefile'])) {
 			$nFile = "../../".$docFolder."/$db/pulje/$archivefile";
-			if ($archivefile) system("rm $nFile\n");
+			if ($archivefile) {
+                PoolFileTransitions::delete($db, $nFile);
+            }
 			
 		}
 
@@ -272,55 +276,55 @@ $relativeP1 = "../../".$docFolder;
 	$descfil = $newName = str_replace($ext,'.desc',$fullName);
 	if (strpos($fullName,'æ')) {
 		$newName = str_replace('æ','ae',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
 	if (strpos($fullName,'ø')) {
 		$newName = str_replace('ø','oe',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
 	if (strpos($fullName,'å')) {
 		$newName = str_replace('å','aa',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
 	if (strpos($fullName,'Æ')) {
 		$newName = str_replace('Æ','AE',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
 	if (strpos($fullName,'Ø')) {
 		$newName = str_replace('Ø','OE',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
 	if (strpos($fullName,'Å')) {
 		$newName = str_replace('Å','AA',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
 	if (strpos($fullName,'(')) {
 		$newName = str_replace('(','_',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
 	if (strpos($fullName,')')) {
 		$newName = str_replace(')','_',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
 	if (strpos($fullName,'?')) {
 		$newName = str_replace('?','_',$fullName);
-		exec("mv \"$fullName\" \"$newName\"\n"); 
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
@@ -337,7 +341,7 @@ $relativeP1 = "../../".$docFolder;
 			exec("$exec_path/convert $fullName $newName");
 			if (file_exists($newName))  {
 				if (filesize($newName) > 10) {
-					unlink($fullName);
+					PoolFileTransitions::converted($db, $fullName, $newName);
 					$fullName = $newName;
 				} else unlink($newName);
 			} 

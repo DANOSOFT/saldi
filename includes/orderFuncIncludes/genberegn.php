@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------lap 3.7.7------2019.03.05---
+// ------includes/genberegn.php-------ver 5.0.0------2026.10.03---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,12 +23,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2019 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20130210 Break ændret til break 1
 // 20181126 - PHR Definition af div. variabler mm.
 // 20190321 PHR Added function equalizeMatchingRecords.
+//
+// 20261001 CDX/LH Allocate each matching-record settlement through the shared sequence.
 
 @session_start();
 $s_id=session_id();
@@ -125,6 +127,7 @@ if (isset($_GET['regnskabsaar']) && $regnskabsaar=$_GET['regnskabsaar']) {
 
 if (!function_exists('equalizeMatchingRecords')) {
 function equalizeMatchingRecords () {
+	require_once __DIR__ . '/../openpost/udlignId.php';
 // This function matches open records and equalize those that match accountId, invoicenumber and amount.
 
 	$konto_id = array();
@@ -148,9 +151,6 @@ function equalizeMatchingRecords () {
 			$y++;
 		}
 	}
-	$qtxt="select max(udlign_id) as udlign_id from openpost";
-	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$udlignId=$r['udlign_id'];
 	for ($x=0;$x<count($konto_id);$x++) {
 		for ($y=0;$y<count($faktnr[$x]);$y++) {
 			$negAmount=$amount[$x][$y]*-1;
@@ -158,7 +158,7 @@ function equalizeMatchingRecords () {
 			$qtxt.= "and  amount= '$negAmount' order by transdate limit 1";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($r = db_fetch_array($q)) {
-				$udlignId++;
+				$udlignId = udlign_next_id();
 				if ($openId[$x][$y]) {
 					$qtxt="update openpost set udlignet='1',udlign_id='$udlignId' where id = '$r[id]' or id = '" .$openId[$x][$y] ."'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);

@@ -1,13 +1,19 @@
 <?php
 
+// 20261004 CDX/LH Isolate the legacy standalone parser from std_func.php include-order collisions.
+
 declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../includes/usdecimal.php';
 
-final class usdecimal extends TestCase
+#[RunTestsInSeparateProcesses]
+#[PreserveGlobalState(false)]
+final class UsDecimal extends TestCase
 {
     public function testStrictParserHasTheRequiredSignature(): void
     {

@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "case_id": 41,
+        "sagsnr": "2026-41",
+        "description": "Montage hos Hansen",
+        "customer_name": "Hansen ApS",
+        "address": "Testvej 1, 8000 Aarhus",
+        "status": "Montage"
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0
+  }
+}

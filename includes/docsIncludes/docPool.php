@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,7 +100,15 @@
 //                 added race against a second concurrent pool request doing the same existence
 //                 check - now IF NOT EXISTS, so the loser of the race is a silent no-op instead of
 //                 a logged/alerted db_modify() failure.
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
+// 20261001 CDX/LH Link the bookkeeping reminder screen from the Bilagsmatch pool toolbar.
+// 20261001 CDX/LH Match stored pool paths during sync after attachment releases the historical filename.
+// 20261001 CDX/LH Refuse both generated-statement edit writers and restore rejected renames.
+// 20261001 CDX/LH Check generated-statement immutability before either edit writer renames any files.
 
+
+require_once __DIR__ . '/poolFileTransitions.php';
+require_once __DIR__ . '/../../restapi/core/Rights.php';
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolMetadata.php";
@@ -248,11 +256,12 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		if ($file === '.' || $file === '..') continue;
 		$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 		if ($ext === 'pdf' || $ext === 'xml') {
+			PoolFileTransitions::releaseName($db, "$puljePath/$file");
 			$pdfFiles[] = $file;
 		}
 	}
 
-	// Drop any pool_files row whose file is no longer in the pulje folder, before
+	// Tombstone an unprocessed pool row whose file is no longer in the pulje folder, before
 	// looking at what's missing. insertDoc.php only deletes a row when a pool file is
 	// attached via its own guarded move (SST-740); any other removal (manual delete, a
 	// failed move, etc.) left the row behind forever, so a later unrelated upload that
@@ -277,7 +286,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	$recentGuard = ($db_type == 'mysql' || $db_type == 'mysqli')
 		? "(updated IS NULL OR updated < (NOW() - INTERVAL 60 SECOND))"
 		: "(updated IS NULL OR updated < (NOW() - INTERVAL '60 seconds'))";
-	db_modify("DELETE FROM pool_files WHERE ($onDiskClause) AND $recentGuard", __FILE__ . " line " . __LINE__);
+	PoolFileTransitions::missing("($onDiskClause) AND $recentGuard");
 
 	if (empty($pdfFiles)) {
 		return;
@@ -286,12 +295,17 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	// Get existing filenames from database in one query
 	$escapedFiles = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
 	$inClause = implode(',', $escapedFiles);
-	$qtxt = "SELECT filename FROM pool_files WHERE filename IN ($inClause)";
+	$storageFiles = array_map(function ($file) { return "'" . db_escape_string('pulje/' . $file) . "'"; }, $pdfFiles);
+	$storageClause = implode(',', $storageFiles);
+	$qtxt = "SELECT filename,storage_path,status FROM pool_files WHERE filename IN ($inClause) OR (status='attached' AND storage_path IN ($storageClause))";
 	$result = db_select($qtxt, __FILE__ . " line " . __LINE__);
 	
 	$existingFiles = [];
 	while ($row = db_fetch_array($result)) {
 		$existingFiles[$row['filename']] = true;
+		if ($row['status'] === 'attached' && $row['storage_path'] !== null && dirname($row['storage_path']) === 'pulje') {
+			$existingFiles[basename($row['storage_path'])] = true;
+		}
 	}
 	
 	// Insert missing files
@@ -308,7 +322,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$syncContentHash = poolContentHashColumnExists() ? poolContentHashForFile($fullPath) : '';
 			if ($syncContentHash) {
 				$syncDuplicate = db_fetch_array(db_select(
-					"SELECT filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($syncContentHash) . "' AND filename != '" . db_escape_string($file) . "' ORDER BY id LIMIT 1",
+					"SELECT filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($syncContentHash) . "' AND status='ubehandlet' AND filename != '" . db_escape_string($file) . "' ORDER BY id LIMIT 1",
 					__FILE__ . " line " . __LINE__
 				));
 				if ($syncDuplicate && is_file("$puljePath/" . $syncDuplicate['filename'])) {
@@ -316,7 +330,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 					// copy is dropped. When the row's file is gone, the row is an orphan the cleanup above
 					// removes (or one too recent for it to touch) and this file is the last copy of the
 					// bilag - so it falls through and gets a row of its own instead of being removed.
-					@unlink($fullPath);
+					PoolFileTransitions::delete($db, $fullPath);
 					docPoolLog("syncPuljeFilesToDatabase: $file has the same content as " . $syncDuplicate['filename'] . ", file removed and no row inserted");
 					continue;
 				}
@@ -384,11 +398,17 @@ function checkIfAllPoolFilesAreInDatabase() {
 	if (!$files) {
 		return;
 	}
+	foreach ($files as $path) {
+		PoolFileTransitions::releaseName($db, $path);
+	}
 	// select all files from db - must loop through all rows
 	$dbFiles = [];
-	$result = db_select("SELECT filename FROM pool_files", __FILE__ . " line " . __LINE__);
+	$result = db_select("SELECT filename,storage_path,status FROM pool_files", __FILE__ . " line " . __LINE__);
 	while ($row = db_fetch_array($result)) {
 		$dbFiles[$row['filename']] = true;
+		if ($row['status'] === 'attached' && $row['storage_path'] !== null && dirname($row['storage_path']) === 'pulje') {
+			$dbFiles[basename($row['storage_path'])] = true;
+		}
 	}
 	// add missing files to db
 	foreach ($files as $file) {
@@ -404,11 +424,11 @@ function checkIfAllPoolFilesAreInDatabase() {
 		$contentHash = poolContentHashColumnExists() ? poolContentHashForFile("$puljePath/$file") : '';
 		if ($contentHash) {
 			$duplicateRow = db_fetch_array(db_select(
-				"SELECT filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($contentHash) . "' AND filename != '" . db_escape_string($file) . "' ORDER BY id LIMIT 1",
+				"SELECT filename FROM pool_files WHERE content_sha256 = '" . db_escape_string($contentHash) . "' AND status='ubehandlet' AND filename != '" . db_escape_string($file) . "' ORDER BY id LIMIT 1",
 				__FILE__ . " line " . __LINE__
 			));
 			if ($duplicateRow && is_file("$puljePath/" . $duplicateRow['filename'])) {
-				@unlink("$puljePath/$file");
+				PoolFileTransitions::delete($db, "$puljePath/$file");
 				docPoolLog("checkIfAllPoolFilesAreInDatabase: $file has the same content as " . $duplicateRow['filename'] . ", file removed and no row inserted");
 				continue;
 			}
@@ -462,8 +482,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
 							if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 								$dbFilename = $baseName . '.pdf';
-								$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($dbFilename) ."'";
-								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+								PoolFileTransitions::missing("filename='" . db_escape_string($dbFilename) . "'");
 							}
 						}
 					}
@@ -990,6 +1009,15 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			if (!$currentRow || $submittedVersion === null || !hash_equals(poolMetadataVersion($currentRow), $submittedVersion)) {
 				throw new RuntimeException('Document changed', 409);
 			}
+			$editInput = [];
+			foreach (['amount'=>$newAmount, 'file_date'=>$newDate, 'invoice_number'=>$newInvoiceNumber, 'description'=>$newInvoiceDescription] as $field=>$value) {
+				if ($value) { $editInput[$field] = $value; }
+			}
+			if (poolMetadataRefuseWebGeneratedEdit($currentRow, $editInput)) {
+				http_response_code(409);
+				print htmlspecialchars(poolMetadataGeneratedMessage((int)$sprog_id), ENT_QUOTES, 'UTF-8');
+				return;
+			}
 			$newAccount = poolMetadataAccount($newAccount, (int)$regnaar);
 			if ($newAmount !== '' && $newAmount !== null && normalizePoolAmount($newAmount) === null) {
 				throw new InvalidArgumentException('Invalid amount', 422);
@@ -1085,7 +1113,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								continue;
 							}
 
-							if (rename($oldPath, $newPath)) {
+							if (PoolFileTransitions::move($db, $oldPath, $newPath)) {
 								docPoolLog("Renamed: $oldPath -> $newPath");
 								if (strtolower($fileExt) === 'pdf') {
 									$renamedPdf = true;
@@ -1136,7 +1164,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						}
 						
 						// Check if old record exists
-						$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($oldFilename) . "'";
+						$qtxt = "SELECT * FROM pool_files WHERE filename = '" . db_escape_string($newFilename) . "'";
 						$existing = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						
 						if ($existing) {
@@ -1197,7 +1225,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		
 	if ($rename && ($newAccount || $newAmount || $newSubject || $newDate || $newInvoiceNumber || $newInvoiceDescription) && $poolFile) {
 		// Direct Database Update
-		$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'";
+		$qtxt = "SELECT * FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'";
 		$existing = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		
 		if ($existing) {
@@ -1256,7 +1284,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				foreach ($extensionsToDelete as $ext) {
 					$fileToDelete = "$puljePath/$origBase.$ext";
 					if (is_file($fileToDelete)) {
-						if (unlink($fileToDelete)) {
+						if (PoolFileTransitions::delete($db, $fileToDelete)) {
 							#error_log("Deleted: $fileToDelete");
 						} else {
 							docPoolLog("Failed to delete: $fileToDelete");
@@ -1269,22 +1297,19 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				// Remove from database
 				// Remove from database
 				$filename = $unlinkFile;
-				$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($filename) ."'";
-				// We execute directly because the table should exist (synced on load) and schema checks might be unreliable
-				@db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				PoolFileTransitions::missing("filename='" . db_escape_string($filename) . "'");
 
 
 		}elseif (isset($_POST['poolFile'])) {
 			$poolFile=if_isset($_POST['poolFile']);
 
 			if ($poolFile) {
-				unlink("../".$docFolder."/$db/pulje/$poolFile");
+				PoolFileTransitions::delete($db, "../".$docFolder."/$db/pulje/$poolFile");
 				
 				// Remove from database
 				$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
 				if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					PoolFileTransitions::missing("filename='" . db_escape_string($poolFile) . "'");
 				}
 			}
 			
@@ -1334,7 +1359,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		
 		$foundInDb = false;
 		if ($hasTable) {
-			$qtxt = "SELECT filename FROM pool_files ORDER BY file_date DESC, updated DESC LIMIT 1";
+			$qtxt = "SELECT filename FROM pool_files WHERE status='ubehandlet' ORDER BY file_date DESC, updated DESC LIMIT 1";
 			$latestRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			
 			if ($latestRow) {
@@ -1833,6 +1858,15 @@ print "<input type='text' id='poolSearchBox' placeholder='".findtekst('913|Søg'
 print "</div>";
 // View mode toggle and extract all button
 print "<div style='display: flex; gap: 8px;'>";
+$reminderSession = db_escape_string((string)ifset($GLOBALS, 's_id', ''));
+$reminderOnline = db_fetch_array(db_select("SELECT brugernavn,revisor,db FROM online WHERE session_id='$reminderSession' ORDER BY logtime DESC LIMIT 1", __FILE__ . ' line ' . __LINE__, true));
+$reminderName = db_escape_string((string)ifset($reminderOnline, 'brugernavn', ''));
+$reminderUser = db_fetch_array(db_select("SELECT rettigheder FROM brugere WHERE brugernavn='$reminderName'", __FILE__ . ' line ' . __LINE__));
+$reminderRevisor = in_array((string)ifset($reminderOnline, 'revisor', ''), ['1','t','on','true'], true);
+if (ifset($reminderOnline, 'db') === $db && Rights::allows((string)ifset($reminderUser, 'rettigheder', '0000000000000000'), 'bilag', 'read', null, $reminderRevisor)) {
+	$reminderLabel = htmlspecialchars(findtekst('5418|Bilagspåmindelser', $sprog_id), ENT_QUOTES, 'UTF-8');
+	print "<a href='../finans/bilag_paamindelse.php' style='padding:8px 12px;'>$reminderLabel</a>";
+}
 // Auto-extract toggle
 print "<label title='".findtekst('3271|Auto-udtræk fakturadata ved upload', $sprog_id)."' style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
 print "<span style='position: relative; display: inline-block; width: 36px; height: 20px;'>";
@@ -2311,7 +2345,7 @@ print <<<JS
       
 
         try {
-            const response = await fetch('_docPoolData.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}'));
+            const response = await fetch('docsIncludes/poolFileList.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}'));
             const data     = await response.json();
 
             if (data.error) {
@@ -4572,21 +4606,21 @@ JS;
 	if (strpos($fullName,'æ')) {
 		$newName = str_replace('æ','ae',$fullName);
 		$poolFile = str_replace('æ','ae',$poolFile);
-		exec("mv \"$fullName\" \"$newName\"\n");
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ;
 		$corrected = 1;
 	}
 	if (strpos($fullName,'ø')) {
 		$newName = str_replace('ø','oe',$fullName);
 		$poolFile = str_replace('ø','oe',$poolFile);
-		exec("mv \"$fullName\" \"$newName\"\n");
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ;
 		$corrected = 1;
 	}
 	if (strpos($fullName,'å')) {
 		$newName = str_replace('å','aa',$fullName);
 		$poolFile = str_replace('å','aa',$poolFile);
-		exec("mv \"$fullName\" \"$newName\"\n");
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ;
 		$corrected = 1;
 	}
@@ -4594,21 +4628,21 @@ JS;
 	if (strpos($fullName,'Æ')) {
 		$newName = str_replace('Æ','AE',$fullName);
 		$poolFile = str_replace('Æ','AE',$poolFile);
-		exec("mv \"$fullName\" \"$newName\"\n");
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ;
 		$corrected = 1;
 	}
 	if (strpos($fullName,'Ø')) {
 		$newName = str_replace('Ø','OE',$fullName);
 		$poolFile = str_replace('Ø','OE',$poolFile);
-		exec("mv \"$fullName\" \"$newName\"\n");
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ;
 		$corrected = 1;
 	}
 	if (strpos($fullName,'Å')) {
 		$newName = str_replace('Å','AA',$fullName);
 		$poolFile = str_replace('Å','AA',$poolFile);
-		exec("mv \"$fullName\" \"$newName\"\n");
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ;
 		$corrected = 1;
 	}
@@ -4631,7 +4665,7 @@ JS;
 	if (strpos($fullName,'?')) {
 		$newName = str_replace('?','_',$fullName);
 		$poolFile = str_replace('ø','oe',$poolFile);
-		exec("mv \"$fullName\" \"$newName\"\n");
+		PoolFileTransitions::move($db, $fullName, $newName);
 		$fullName = $newName ;
 		$corrected = 1;
 	}
@@ -4641,7 +4675,7 @@ JS;
 		else $newName = $fullName;
 		$newName = str_replace('ø','oe',$newName);
 		$poolFile = str_replace('ø','oe',$poolFile);
-		exec("mv \"$fullName\" \"$newName\"\n");
+		PoolFileTransitions::move($db, $fullName, $newName);
 		if (file_exists($newName) && $newName != $fullName) {
 			$fullName = $newName ;
 			if ($fileType == '%pdf') $poolFile = $poolFile.'.pdf';
@@ -4663,7 +4697,7 @@ JS;
 			exec("$exec_path/convert $fullName $newName");
 			if (file_exists($newName))  {
 				if (filesize($newName) > 10) {
-					unlink($fullName);
+					PoolFileTransitions::converted($db, $fullName, $newName);
 					$fullName = $newName;
 					$corrected = 1;
 				} else {

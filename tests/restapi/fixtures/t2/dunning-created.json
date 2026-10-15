@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "rykker_id": 902,
+    "level": 1,
+    "rykker_fakturanr": "17-1",
+    "total": "1630.15",
+    "currency": "DKK",
+    "delivery": {
+      "id": 31,
+      "channel": "email",
+      "state": "sent",
+      "recipient": "dunning@example.invalid",
+      "error_reason": null,
+      "provider_ref": null
+    }
+  }
+}

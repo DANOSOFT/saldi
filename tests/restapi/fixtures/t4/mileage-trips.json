@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "id": 131,
+        "date": "2026-10-06",
+        "from": "Aarhus",
+        "to": "Skanderborg",
+        "km": "42.0",
+        "purpose": "Montage",
+        "rate_preview": "3.79",
+        "amount_preview": "159.18",
+        "statement": null,
+        "etag": "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0
+  }
+}

@@ -37,6 +37,10 @@
 //             atomic manually_edited check, so a manual correction landing in between can't
 //             be overwritten by the still-in-flight automatic request's vendor match.
 
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
+
+require_once __DIR__ . '/poolFileTransitions.php';
+
 // Set JSON response header FIRST
 header('Content-Type: application/json');
 
@@ -377,7 +381,7 @@ if ($action === 'delete') {
 	
 	// Delete the PDF file
 	if (file_exists($pdfPath)) {
-		if (unlink($pdfPath)) {
+		if (PoolFileTransitions::delete($db, $pdfPath)) {
 			$deletedPdf = true;
 		} else {
 			echo json_encode(['success' => false, 'error' => 'Kunne ikke slette fil: ' . $poolFile]);
@@ -399,8 +403,7 @@ if ($action === 'delete') {
 	// Remove from database if pool_files table exists
 	$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		PoolFileTransitions::delete($db, $pdfPath);
 	}
 	
 	echo json_encode(['success' => true, 'deletedPdf' => $deletedPdf, 'deletedInfo' => $deletedInfo]);

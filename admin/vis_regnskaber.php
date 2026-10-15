@@ -36,6 +36,9 @@ $s_id=session_id();
 //                  sorting by it was a fatal error. It now comes from license_features (feature_key
 //                  'booking', see license_manager.php) via a left join, and the sort/sort2 params are
 //                  whitelisted before they reach ORDER BY.
+// 20261001 CDX/LH Revoke sessions on closure; escape posted settings and use ifset.
+
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -65,20 +68,20 @@ if ($db != $sqdb) {
 }
 if (isset($_POST['submit'])) {
 	$rediger="on";
-	$db_antal = if_isset($_POST, NULL, 'db_antal');
-	$id = if_isset($_POST, NULL, 'id');
-	$gl_brugerantal = if_isset($_POST, NULL, 'gl_brugerantal');
-	$gl_posteringer = if_isset($_POST, NULL, 'gl_posteringer');
-	$brugerantal = if_isset($_POST, NULL, 'brugerantal');
-	$posteringer = if_isset($_POST, NULL, 'posteringer');
-	$gl_lukket = if_isset($_POST, NULL, 'gl_lukket');
-	$lukket = if_isset($_POST, NULL, 'lukket');
-	$gl_lukkes = if_isset($_POST, NULL, 'gl_lukkes');
-	$lukkes = if_isset($_POST, NULL, 'lukkes');
-	$gl_betalt_til = if_isset($_POST, NULL, 'gl_betalt_til');
-	$betalt_til = if_isset($_POST, NULL, 'betalt_til');
-	$gl_logintekst = if_isset($_POST, NULL, 'gl_logintekst');
-	$logintekst = if_isset($_POST, NULL, 'logintekst');
+	$db_antal = ifset($_POST, 'db_antal');
+	$id = ifset($_POST, 'id');
+	$gl_brugerantal = ifset($_POST, 'gl_brugerantal');
+	$gl_posteringer = ifset($_POST, 'gl_posteringer');
+	$brugerantal = ifset($_POST, 'brugerantal');
+	$posteringer = ifset($_POST, 'posteringer');
+	$gl_lukket = ifset($_POST, 'gl_lukket');
+	$lukket = ifset($_POST, 'lukket');
+	$gl_lukkes = ifset($_POST, 'gl_lukkes');
+	$lukkes = ifset($_POST, 'lukkes');
+	$gl_betalt_til = ifset($_POST, 'gl_betalt_til');
+	$betalt_til = ifset($_POST, 'betalt_til');
+	$gl_logintekst = ifset($_POST, 'gl_logintekst');
+	$logintekst = ifset($_POST, 'logintekst');
 
 
 
@@ -95,9 +98,24 @@ if (isset($_POST['submit'])) {
 				$gl_betalt_til[$x]!=$betalt_til[$x] ||
 				$gl_logintekst[$x]!=$logintekst[$x]
 			 ){
-			if ($saldiregnskab) $qtxt="update regnskab set brugerantal='$brugerantal[$x]',posteringer='$posteringer[$x]',lukket='$lukket[$x]',lukkes='$lukkes[$x]',betalt_til='$betalt_til[$x]',logintekst='$logintekst[$x]' where id = '$id[$x]'";
-			else $qtxt="update regnskab set	brugerantal='$brugerantal[$x]',posteringer='$posteringer[$x]',lukket='$lukket[$x]'where id = '$id[$x]'";
-			if ($id[$x]) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$tenantId = (int)$id[$x];
+			$users = (int)$brugerantal[$x];
+			$postings = (int)$posteringer[$x];
+			$closedSql = db_escape_string((string)ifset($lukket, $x, ''));
+			$qtxt = "UPDATE regnskab SET brugerantal=$users,posteringer=$postings,lukket='$closedSql'";
+			if ($saldiregnskab) {
+				$closeDateSql = db_escape_string($lukkes[$x]);
+				$paidSql = db_escape_string($betalt_til[$x]);
+				$loginSql = db_escape_string((string)ifset($logintekst, $x, ''));
+				$qtxt .= ",lukkes='$closeDateSql',betalt_til='$paidSql',logintekst='$loginSql'";
+			}
+			$qtxt .= " WHERE id=$tenantId";
+			if ($id[$x]) {
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				if (ifset($lukket, $x, '') === 'on') {
+					mobileRevokeTenant((int)$id[$x]);
+				}
+			}
 		}
 	}
 } else { # 2020090 can be removed

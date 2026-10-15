@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-09-25--------------
+// --- includes/db_query.php ---ver 5.0.0 ----2026-10-07--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -57,6 +57,8 @@
 //                engines that need it after db_connect() (MySQLi; no-op on Postgres). Callers
 //                that reconnect to switch tenant/master keep their own error handling; this
 //                just gives them one place to call instead of hand-rolling the mysqli check.
+// 20261007 CDX/LH Restore the shared tenant SQL modification trail after writes.
+// 20261007 CDX/LH Validate PostgreSQL helper connections before appending tenant SQL trails.
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -226,6 +228,122 @@ if (!function_exists('db_close')) {
 	}
 }
 
+if (!function_exists('db_modify_trail')) {
+	/** Append the legacy tenant modification trail, including its unconditional failure record. */
+	function db_modify_trail(string $qtext, string $spor, bool $ok, string $errtxt = ''): void {
+		global $brugernavn, $db, $db_skriv_id, $sqdb;
+
+		if (($db_skriv_id > 1 && trim((string)$db) != $sqdb) || !$ok) {
+			$temp = get_relative() . 'temp/' . $db;
+		}
+		(isset($db)) ? $db=trim($db) : $db='';
+		if ($db_skriv_id>1 && $db != $sqdb) {
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n",
+				$qtext.";\n",
+			]);
+		}
+		if (!$ok) {
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
+				"-- Fejl!! ".$qtext." | $errtxt;\n",
+			]);
+		}
+	}
+}
+
+if (!function_exists('db_modify_is_dml')) {
+	/** Recognize writes after whitespace and SQL comments; SELECT FOR UPDATE remains a read. */
+	function db_modify_is_dml(string $sql): bool {
+		$offset = 0;
+		$length = strlen($sql);
+		while ($offset < $length) {
+			if (ctype_space($sql[$offset])) {
+				$offset++;
+			} elseif (substr($sql, $offset, 2) === '--') {
+				$end = strpos($sql, "\n", $offset + 2);
+				$offset = $end === false ? $length : $end + 1;
+			} elseif (substr($sql, $offset, 2) === '/*') {
+				$depth = 1;
+				$offset += 2;
+				while ($offset < $length && $depth > 0) {
+					$pair = substr($sql, $offset, 2);
+					if ($pair === '/*' || $pair === '*/') {
+						$depth += $pair === '/*' ? 1 : -1;
+						$offset += 2;
+					} else {
+						$offset++;
+					}
+				}
+			} else {
+				return preg_match('/^(INSERT|UPDATE|DELETE)\b/i', substr($sql, $offset)) === 1;
+			}
+		}
+		return false;
+	}
+}
+
+if (!function_exists('db_modify_sql_pattern')) {
+	/** SQL literals, comments and binds shared by trail-only classification and rendering. */
+	function db_modify_sql_pattern(): string {
+		return '~(?<dollar>\$(?:[A-Za-z_][A-Za-z_0-9]*)?\$).*?\k<dollar>|E\'(?:\\\\.|\'\'|[^\'\\\\])*\'|\'(?:\'\'|[^\'])*\'|"(?:""|[^"])*"|--[^\r\n]*|(?<comment>/\*(?:[^*/]|/(?!\*)|\*(?!/)|(?&comment))*\*/)|\$[1-9][0-9]*~is';
+	}
+}
+
+if (!function_exists('db_modify_render_sql')) {
+	/**
+	 * Render bound values for replay in the trail only; never change the executed statement.
+	 * Quoted SQL text, identifiers, dollar strings and comments retain literal $n text.
+	 * @param list<mixed> $params Values passed to pg_send_query_params().
+	 */
+	function db_modify_render_sql($connection, string $sql, array $params = []): string {
+		if (!$params) {
+			return $sql;
+		}
+		$pattern = db_modify_sql_pattern();
+		return preg_replace_callback($pattern, static function (array $match) use ($connection, $params): string {
+			if (!preg_match('/^\$([1-9][0-9]*)$/D', $match[0], $bind)) {
+				return $match[0];
+			}
+			$index = (int)$bind[1] - 1;
+			if (!array_key_exists($index, $params)) {
+				return $match[0];
+			}
+			return $params[$index] === null ? 'NULL' : pg_escape_literal($connection, (string)$params[$index]);
+		}, $sql);
+	}
+}
+
+if (!function_exists('db_modify_query_trail')) {
+	/**
+	 * Log checked helper DML after execution, using the same success/failure trail as db_modify().
+	 * PostgreSQL writes must belong to the active tenant; db_modify() retains its legacy guards.
+	 * @param list<mixed> $params Bound PostgreSQL values; empty for literal SQL and MySQL.
+	 */
+	function db_modify_query_trail($connection, string $sql, array $params, string $spor, bool $ok, string $errtxt = ''): void {
+		global $db, $sqdb;
+
+		$isDml = db_modify_is_dml($sql);
+		if (!$isDml) {
+			// Catalogue retention uses a data-modifying CTE followed by SELECT.
+			$plain = preg_replace_callback(db_modify_sql_pattern(), static function (array $match): string {
+				return $match[0][0] === '"' ? ' quoted_identifier ' : ' ';
+			}, $sql);
+			$isDml = preg_match('/^\s*WITH\b/i', $plain) === 1
+				&& preg_match('/\b(?:INSERT\s+INTO|DELETE\s+FROM|UPDATE\s+\S+(?:\s+(?:AS\s+)?\w+)?\s+SET)\b/i', $plain) === 1;
+		}
+		if ($isDml) {
+			if (!($connection instanceof mysqli)) {
+				$connectionDb = pg_dbname($connection);
+				if ($connectionDb === $sqdb || $connectionDb !== trim((string)$db)) {
+					return;
+				}
+			}
+			db_modify_trail(db_modify_render_sql($connection, $sql, $params), $spor, $ok, $errtxt);
+		}
+	}
+}
+
 if (!function_exists('db_modify')) {
 	function db_modify($qtext, $spor, $global = false) {
 		global $brugernavn;
@@ -257,21 +375,13 @@ if (!function_exists('db_modify')) {
 		}
 		#20190704 END
 		
-		(isset($db)) ? $db=trim($db) : $db='';
-		if ($db_skriv_id>1 && $db != $sqdb) {
-			db_log_append("$temp/.ht_modify.log", [
-				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n",
-				$qtext.";\n",
-			]);
+		$errtxt = '';
+		if (!$db_query) {
+			$errtxt = $db_type == "mysqli"
+				? mysqli_error($use_connection) : pg_last_error($use_connection);
 		}
+		db_modify_trail($qtext, $spor, $db_query !== false, $errtxt);
 		if (!$db_query) { #20190704
-			#if ($db_type=="mysql")       $errtxt = mysql_error($connection);
-			if ($db_type=="mysqli") $errtxt = mysqli_error($use_connection); #20190704
-			else $errtxt=pg_last_error($use_connection);
-			db_log_append("$temp/.ht_modify.log", [
-				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
-				"-- Fejl!! ".$qtext." | $errtxt;\n",
-			]);
 			$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
 			if (strstr($spor,"includes/opdat")) {
 				if (file_exists("$temp/opdatfejl.txt")) {
@@ -331,7 +441,7 @@ if (!function_exists('db_select')) {
 		global $db,$db_type;
 		global $s_id,$sqdb,$sqhost,$squser,$sqpass;
 
-		if (!function_exists('alert')) include('std_func.php'); #20230730
+		if (!function_exists('alert')) include(__DIR__ . '/std_func.php'); #20230730
 
 		$qtext=injecttjek($qtext);
 
@@ -362,6 +472,10 @@ if (!function_exists('db_select')) {
 				// partial posting instead of the previous all-or-nothing failure. The aborted transaction is
 				// the caller's to roll back (SD-595 $db_modify_fejl pattern, finans/bogfor.php).
 			}
+		}
+
+		if (db_modify_is_dml($qtext)) {
+			db_modify_trail($qtext, $spor, $query !== false, (string)$errtxt);
 		}
 
 		if ($errtxt)	{		

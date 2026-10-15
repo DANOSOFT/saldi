@@ -1,0 +1,9 @@
+{
+  "debet": 987612,
+  "kredit": 987610,
+  "amount": "612.50",
+  "debetvat": "",
+  "kreditvat": "",
+  "momsfri": "",
+  "employee": "claim_employee"
+}

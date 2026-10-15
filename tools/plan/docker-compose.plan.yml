@@ -1,0 +1,70 @@
+# Dev stack for the ai/plan integration branch (doc/ai-plan/CONVENTIONS.md §2).
+# Own Postgres and volume, separate from the main saldi stack and the decision-layer stack.
+# The integration worktree is served on port 5100; slice containers join the saldiplan_default
+# network on port 51NN (tools/plan/new-slice).
+# Usage, from the ai-plan worktree:
+#   docker compose -f tools/plan/docker-compose.plan.yml -p saldiplan up -d
+# History:
+# 20260925 CL/LH Created.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: saldi
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    command: >
+      postgres
+        -c hba_file=/etc/postgresql/pg_hba.conf
+    configs:
+      - source: pg_hba
+        target: /etc/postgresql/pg_hba.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d saldi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+
+  web:
+    image: saldi-web:latest
+    ports:
+      - "127.0.0.1:${PLAN_WEB_PORT:-5100}:80"
+    volumes:
+      - ${PLAN_WORKTREE:-../..}:/var/www/html/saldi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: &plan_env
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: noreply@example.com
+      SALDI_CHAR_PGHOST: postgres
+      SALDI_CHAR_PGUSER: user
+      SALDI_CHAR_PGPASS: password
+      SALDI_CHAR_MASTER_DB: saldi
+      SALDI_CHAR_TEMPLATE_DB: plan_tpl
+      # Three label tests hardcode saldi_chartest (CharacterizationEnv's default), so the
+      # characterisation tenant keeps that name until they read CharacterizationEnv::testDb().
+      SALDI_CHAR_TEST_DB: ${PLAN_CHAR_TEST_DB:-saldi_chartest}
+      # Disposable database for the kreditor regression tests; they create and drop their own schema.
+      SALDI_CHAR_PG_DSN: "host=postgres dbname=plan_scratch user=user password=password"
+    restart: unless-stopped
+
+configs:
+  pg_hba:
+    content: |
+      # TYPE  DATABASE  USER      ADDRESS     METHOD
+      local   all       postgres              trust
+      local   all       all                   md5
+      host    all       all       0.0.0.0/0   scram-sha-256
+      host    all       all       ::/0        scram-sha-256
+
+volumes:
+  pgdata:

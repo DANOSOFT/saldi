@@ -1,6 +1,6 @@
 <?php
 
-// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-05-18 --
+// -- lager/optalling.php ------------------- ver 5.0.0 -- 2026-10-06 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20120913 Der kan nu optaelles til 0
@@ -47,6 +47,9 @@
 // 20260518 CL/PHR Bedre fejlhåndtering ved fil-upload: viser fejlkode og returnerer. MAX_FILE_SIZE øget til 100 MB.
 // 20260707 CL/SZ Added Grid Framework sticky header and footer to Stock Count report
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
+// 20261001 CDX/LH Serialize queue inserts with app counts and refuse superseded snapshots.
+// 20261001 CDX/LH Check the posted form snapshot while retaining the queue's count-date timestamp.
+// 20261001 CDX/LH Refuse app counts committed while the web insert waits, including forms taken after header creation.
 
 @session_start();
 $s_id = session_id();
@@ -232,18 +235,49 @@ if ($importer) {
 
 #if(!db_fetch_array(db_select("select id from regulering where vare_id='$vare_id' and optalt='$optalt' and beholdning='$beholdning' and tidspkt='$tidspkt'",__FILE__ . " linje " . __LINE__))) {
 if ($vare_id && ($optalt || $optalt == '0')) {
-	#	if ($optalt) { # remmet 20120913 saa det er muligt at optaelle til 0.
-	$optalt = usdecimal($optalt, 2);
-	$beholdning *= 1;
+	require_once __DIR__ . '/../includes/lager/stockLocks.php';
+	$vare_id = (int)$vare_id;
+	$variant_id = (int)$variant_id;
+	$optalt = (float)usdecimal($optalt, 2);
+	$beholdning = (float)$beholdning;
 	$lager = (int)$lager;
-	$variant_id *= 1;
-	$qtxt = "select id from regulering where vare_id='$vare_id' and variant_id='$variant_id' and optalt='$optalt' and lager= '$lager' and beholdning='$beholdning' and tidspkt='$tidspkt' and bogfort='0'";
-	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$qtxt = "insert into regulering (vare_id,variant_id,optalt,beholdning,bogfort,tidspkt,lager)";
-		$qtxt .= " values ";
-		$qtxt .= "('$vare_id','$variant_id','$optalt','$beholdning','0','$tidspkt',$lager)";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		#		}
+	// The page sets tidspkt to the count date's end; the hidden form field holds the stock snapshot.
+	$snapshotTime = ifset($_POST, 'tidspkt', $tidspkt);
+	$counts = db_fetch_array(db_select("SELECT to_regclass('mobile_stock_counts') AS name", __FILE__ . ' ' . __LINE__));
+	$warehouse = max(1, $lager);
+	$seenCount = 0;
+	if ($counts['name'] !== null) {
+		// A header's submitted_at precedes its commit; remember what was visible before waiting.
+		$qtxt = "SELECT COALESCE(MAX(c.id),0) AS id FROM mobile_stock_count_lines l JOIN mobile_stock_counts c ON c.id=l.count_id
+			WHERE l.vare_id=$vare_id AND l.lager=$warehouse";
+		$seenCount = (int)db_fetch_array(db_select($qtxt, __FILE__ . ' ' . __LINE__))['id'];
+	}
+	$queued = stock_item_section([$vare_id], static function () use ($vare_id, $variant_id, $optalt, $beholdning, $lager, $tidspkt, $snapshotTime, $counts, $warehouse, $seenCount): bool {
+		if ($counts['name'] !== null) {
+			$snapshot = DateTimeImmutable::createFromFormat('!YmdHis', (string)$snapshotTime, new DateTimeZone('Europe/Copenhagen'));
+			if (!$snapshot || $snapshot->format('YmdHis') !== (string)$snapshotTime) {
+				return false;
+			}
+			$instant = db_escape_string($snapshot->format('Y-m-d\TH:i:sP'));
+			$qtxt = "SELECT l.id FROM mobile_stock_count_lines l JOIN mobile_stock_counts c ON c.id=l.count_id
+				WHERE l.vare_id=$vare_id AND l.lager=$warehouse
+				AND (c.id>$seenCount OR c.submitted_at>'$instant'::timestamptz) LIMIT 1";
+			if (db_fetch_array(db_select($qtxt, __FILE__ . ' ' . __LINE__))) {
+				return false;
+			}
+		}
+		$stamp = db_escape_string((string)$tidspkt);
+		$qtxt = "SELECT id FROM regulering WHERE vare_id=$vare_id AND variant_id=$variant_id AND optalt='$optalt'
+			AND lager=$lager AND beholdning='$beholdning' AND tidspkt='$stamp' AND bogfort='0'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . ' ' . __LINE__))) {
+			$qtxt = "INSERT INTO regulering(vare_id,variant_id,optalt,beholdning,bogfort,tidspkt,lager)
+				VALUES($vare_id,$variant_id,'$optalt','$beholdning','0','$stamp',$lager)";
+			db_modify($qtxt, __FILE__ . ' ' . __LINE__);
+		}
+		return true;
+	});
+	if (!$queued) {
+		print '<tr><td colspan="8" align="center"><b><big>Følgende varer har ændret antal under optællingen og skal optælles igen.</big></b></td></tr>';
 	}
 	$varenr = NULL;
 }

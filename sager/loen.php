@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- lap 5.0.0 --- 2026-07-31 ---
+// --- sager/loen.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,6 +113,7 @@
 // 20240220 PK - Added javascript that prevent user from double click.
 // 20260731 PHR - Added cache busting for warning when selecting a former employee in ret_loen.
 // 20260810 CX/PHR - Corrected quoting in print icon onclick handlers.
+// 20261001 CDX/LH Delegate trainee distribution to the shared time engine.
 
 @session_start();
 $s_id = session_id();
@@ -303,23 +304,11 @@ print "</div><!-- end of maincontent -->
 </html>";
 
 
+/** @return float Trainee distribution from the shared seddel engine. */
 function tjek_fordeling($ansat_id, $startdate, $loendate)
 {
-	list($sy, $sm, $sd) = explode("-", $startdate);
-	$r = db_fetch_array(db_select("select * from grupper where art='loen'", __FILE__ . " linje " . __LINE__));
-	list($traineemdr, $traineepct) = explode(chr(9), $r['box5']);
-	$traineepct *= 0.8333333;
-	$lt = strtotime($loendate);
-	$sm += $traineemdr;
-	if ($sm > 12) {
-		$sy++;
-		$sm -= 12;
-	}
-	$st = strtotime($sy . "-" . $sm . "-" . $sd);
-	if ($lt <= $st)
-		return ($traineepct);
-	else
-		return ('100');
+	require_once __DIR__ . '/../includes/sager/loenTimer.php';
+	return loen_fordeling((int)$ansat_id, $startdate, $loendate, true);
 }
 
 ?>

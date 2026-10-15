@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-09-30 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -74,6 +74,8 @@
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
 // 20260929 CDX/PHR Preserve legacy HTML rendering for tenants until they explicitly select the new layout.
 // 20260930 CDX/PHR Fit descriptions using actual font and neighbouring field widths; share wrapping with page preflight.
+// 20261001 CDX/LH Return rendered document arguments in fil mode and move rykker redirects to the page.
+// 20261001 CDX/LH Preserve browser dunning files in fil mode, resolve credited-invoice footers and cast missing product IDs.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -281,15 +283,20 @@ if (!function_exists('skriv')) {
 							$streng[$i] = substr($streng[$i], 1);
 							list($tabel, $variabel) = explode("_", $streng[$i], 2);
 							if ($tabel == "ordre") {
-								if ($variabel == 'creditedinvoice') {
-									$qtxt = "kred_ord_id from ordrer where id=$id";
-									exit;
+								if (strtolower($variabel) == 'creditedinvoice') {
+									$orderId = (int)$id;
+									$qtxt = "select original.fakturanr as creditedinvoice from ordrer credit
+										left join ordrer original on original.id=credit.kred_ord_id where credit.id=$orderId";
+									$variabel = 'creditedinvoice';
+								} else {
+									if ($variabel == "rykkerdate") {
+										$variabel = "fakturadate";
+									}
+									if ($variabel == "tlf") {
+										$variabel = "phone";
+									}
+									$qtxt = "select $variabel from ordrer where id=" . (int)$id;
 								}
-								if ($variabel == "rykkerdate")
-									$variabel = "fakturadate";
-								if ($variabel == "tlf")
-									$variabel = "phone";
-								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
 								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
@@ -303,7 +310,7 @@ if (!function_exists('skriv')) {
 							}
 							if ($tabel != "formular") {
 								$r2 = db_fetch_array($q2);
-								$streng[$i] = $r2[$variabel];
+								$streng[$i] = $r2[$variabel] ?? '';
 							} else {
 								if ($variabel == 'ialt')
 									$streng[$i] = $ialt;
@@ -1049,9 +1056,9 @@ if (!function_exists('formularprint')) {
 
 		($udskriv_alle_til == 'inkasso') ? $inkasso = 'on' : $inkasso = NULL;
 
-		include("../includes/std_func.php");
-		include("../includes/var2str.php");
-		include_once("../includes/stdFunc/getKontaktEmail.php");
+		include __DIR__ . '/std_func.php';
+		include __DIR__ . '/var2str.php';
+		include_once __DIR__ . '/stdFunc/getKontaktEmail.php';
 
 		global $bruger_id, $brugsamletpris;
 		global $charset;
@@ -1165,9 +1172,10 @@ if (!function_exists('formularprint')) {
 		if (!file_exists("../temp/$db"))
 			mkdir("../temp/$db", 0775);
 
-		$mappe = "../temp/$db/" . abs($bruger_id);
-		if (!$inkasso)
+		$mappe = "../temp/$db/" . ($udskriv_alle_til === 'fil' ? 'document-' . bin2hex(random_bytes(12)) : abs($bruger_id));
+		if (!$inkasso && $udskriv_alle_til !== 'fil') {
 			system("rm -r $mappe");
+		}
 		mkdir("$mappe", 0775);
 		if ($ordre_antal > 1) {
 			$printfilnavn = 'udskrift';
@@ -1624,6 +1632,9 @@ if (!function_exists('formularprint')) {
 			}
 
 			if (!$found || $var_antal == 0) {
+				if ($udskriv_alle_til === 'fil') {
+					return 'form_not_configured';
+				}
 				echo "<script>alert('Background values not set for this form');</script>";
 				echo "<button onclick='window.history.go(-3)'>Go Back</button>";
 				exit;
@@ -1636,7 +1647,7 @@ if (!function_exists('formularprint')) {
 			}  
 			if ($formular == 3 || $formular == 9)
 				$udskriv_til = 'PDF';
-			if ($mail_fakt && $formular != 3 && $udskriv_til == 'email') {
+			if ($udskriv_alle_til === 'fil' || ($mail_fakt && $formular != 3 && $udskriv_til == 'email')) {
 				$mailantal++;
 				$filnavne = [
 					1 => "tilbud$ordrenr",
@@ -1664,6 +1675,9 @@ if (!function_exists('formularprint')) {
 				}
 
 				$printfilnavn = $filnavne[$formular] ? $filnavne[$formular] : $filnavne[1]; // Default to "tilbud"
+				if ($udskriv_alle_til === 'fil') {
+					$printfilnavn = preg_replace('/[^A-Za-z0-9_.-]/', '_', $printfilnavn);
+				}
 
 				$email[$mailantal] = $email[0];
 				$mailsprog[$mailantal] = $formularsprog;
@@ -1830,7 +1844,7 @@ if (!function_exists('formularprint')) {
 							$linjesum[$x] = 0;
 							$pris[$x] = $procent[$x] = $rabat[$x] = $saet[$x] = $samlevare[$x] = $lager[$x] = $varemomssats[$x] = NULL;
 							if ($varenr[$x]) {
-								$vare_id[$x] = $row['vare_id'];
+								$vare_id[$x] = (int)$row['vare_id'];
 								$antal[$x] = (float) $row['antal'];
 								$leveres[$x] = (float) $row['leveres'];
 								$leveret[$x] = (float) $row['leveret'];
@@ -1851,7 +1865,7 @@ if (!function_exists('formularprint')) {
 								# Get trademark
 								$qtxt_varer = "select * from varer where id = '$vare_id[$x]' limit 1";
 								$r_varer = db_fetch_array(db_select($qtxt_varer, __FILE__ . " linje " . __LINE__));
-								$trademark[$x] = ($r_varer["trademark"]);
+								$trademark[$x] = ifset($r_varer, 'trademark', '');
 
 								(isset($dkantal[$x]) && strpos($dkantal[$x], ",")) ? list($a, $b) = explode(",", $dkantal[$x]) : $b = 0;
 								#						list($a,$b)=explode(",",$dkantal[$x]);
@@ -2375,6 +2389,11 @@ if (!function_exists('formularprint')) {
 					system("mv $out $mappe/$pfliste[$x].pdf");
 				}
 				$o = $x - 1;
+				if ($udskriv_alle_til === 'fil') {
+					return ['pdf' => "$mappe/$pfliste[$x].pdf", 'email' => $email[$x],
+						'mailsprog' => $mailsprog[$x], 'form_nr' => $form_nr[$x],
+						'mail_subj' => $mail_subj, 'mail_text' => $mail_text, 'mail_bilag' => $mail_bilag];
+				}
 				if ($inkasso) {
 					return ("$mappe/$pfliste[$x].pdf");
 					exit;
@@ -2514,10 +2533,11 @@ if (!function_exists('bundtekst')) {
 	}
 }
 if (!function_exists('send_mails')) {
-	if (file_exists("../../vendor/autoload.php"))
-		include("../includes/formFuncIncludes/sendMail.php");
-	else
-		include("../includes/formFuncIncludes/oldSendMail.php");
+	if (file_exists(__DIR__ . '/vendor/autoload.php') || file_exists(__DIR__ . '/../vendor/autoload.php') || file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+		include __DIR__ . '/formFuncIncludes/sendMail.php';
+	} else {
+		include __DIR__ . '/formFuncIncludes/oldSendMail.php';
+	}
 }
 if (!function_exists('find_saldo')) {
 	function find_saldo($ordre_id)
@@ -2559,6 +2579,7 @@ if (!function_exists('utf8_iso8859')) {
 if (!function_exists('rykkerprint')) {
 	function rykkerprint($konto_id, $rykker_id, $rykkernr, $maaned_fra, $maaned_til, $regnaar, $inkasso)
 	{
+		$fileOnly = $inkasso === 'fil';
 
 		global $bg_fil, $bruger_id;
 		global $db, $db_id, $deb_valuta, $deb_valutakurs;
@@ -2651,13 +2672,17 @@ if (!function_exists('rykkerprint')) {
 			fclose($logofil);
 		}
 
-		$mappe = "../temp/$db/$bruger_id" . "_*";
-		system("rm -r $mappe");
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_" . date("his");
+		if (!$fileOnly) {
+			$mappe = "../temp/$db/$bruger_id" . "_*";
+			system("rm -r $mappe");
+		}
+		$mappe = "../temp/$db/" . ($fileOnly ? 'document-' . bin2hex(random_bytes(12)) : abs($bruger_id) . "_" . date("his"));
 		mkdir("$mappe", 0775);
 		#	if ($inkasso) $printfilnavn=abs($bruger_id)."_".date("his")."/"."$inkasso";
 		#	else
-		if ($rykkernr[0])
+		if ($fileOnly) {
+			$printfilnavn = basename($mappe) . '/rykker';
+		} elseif ($rykkernr[0])
 			$printfilnavn = abs($bruger_id) . "_" . date("his") . "/" . "$rykkernr[0]";
 		else
 			$printfilnavn = abs($bruger_id) . "_" . date("his") . "/" . "rykker";
@@ -2725,13 +2750,14 @@ if (!function_exists('rykkerprint')) {
 					$mailantal++;
 					$pfnavn = "Rykker" . $rykker_id[$q];
 					$pfliste[$mailantal] = $pfnavn;
-					$pfnavn = $db . "/" . $pfnavn;
+					$pfnavn = $fileOnly ? $db . '/' . basename($mappe) . '/' . $pfnavn : $db . "/" . $pfnavn;
 					$psfp2 = fopen("../temp/$pfnavn", "w");
 					$psfp = $psfp2;
 					#				if ($r['felt_5']) $email[$mailantal]=$r['felt_5'];
 					$email[$mailantal] = $r['email'];
 					$mailsprog[$mailantal] = strtolower($r['sprog']);
 					$mailRykkerId[$mailantal] = $rykker_id[$q]; // 20260814 LH
+					$form_nr[$mailantal] = null;
 					#			$form_nr[$mailantal]=$formular;
 				} else
 					$nomailantal++;
@@ -2842,12 +2868,13 @@ if (!function_exists('rykkerprint')) {
 			if (!isset($exec_path)) $exec_path = "/usr/bin";
 			for ($x = 1; $x <= $mailantal; $x++) {
 				print "<!-- kommentar for at skjule uddata til siden \n";
-				system("$ps2pdf ../temp/$db/$pfliste[$x] ../temp/$db/$pfliste[$x].pdf");
+				$source = $fileOnly ? "$mappe/$pfliste[$x]" : "../temp/$db/$pfliste[$x]";
+				system("$ps2pdf $source $source.pdf");
 				if ($logoart == 'PDF') {
 					if (file_exists("../logolib/$db_id/bg.pdf")) { #20260312
-						$out = "../temp/$db/" . $pfliste[$x] . "x.pdf";
-						system("$pdftk ../temp/$db/$pfliste[$x].pdf background ../logolib/$db_id/bg.pdf output $out");
-					} else $out = "../temp/$db/$pfliste[$x].pdf";
+						$out = $source . 'x.pdf';
+						system("$pdftk $source.pdf background ../logolib/$db_id/bg.pdf output $out");
+					} else $out = "$source.pdf";
 					if (!$inkasso) {
 						unlink("$mappe/$pfliste[$x].pdf");
 						system("mv $out $mappe/$pfliste[$x].pdf");
@@ -2859,6 +2886,11 @@ if (!function_exists('rykkerprint')) {
 					}
 				}
 				print "--> \n";
+				if ($fileOnly) {
+					return ['pdf' => $logoart === 'PDF' ? $out : "$source.pdf", 'email' => $email[$x],
+						'mailsprog' => $mailsprog[$x], 'form_nr' => $form_nr[$x],
+						'mail_subj' => '', 'mail_text' => '', 'mail_bilag' => ''];
+				}
 				if ($inkasso) {
 					return ("../temp/$db/$pfliste[$x].pdf");
 					exit;
@@ -2867,11 +2899,9 @@ if (!function_exists('rykkerprint')) {
 			}
 		}
 		if ($nomailantal > 0) {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$db/$printfilnavn&id=$id&art=R&udskriv_til=PDF\">";
-			exit;
+			return ['redirect' => "../includes/udskriv.php?ps_fil=$db/$printfilnavn&id=$id&art=R&udskriv_til=PDF"];
 		}
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?rapportart=openpost\">";
-		exit;
+		return ['redirect' => 'rapport.php?rapportart=openpost'];
 	}
 } #endfunc rykkerprint
 #######################################################################################################

@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "vare_id": 1001,
+        "varenr": "1001",
+        "name": "Gipsplade 13 mm, 900x2400",
+        "unit": "stk",
+        "barcodes": [
+          "5701234500011",
+          "1001"
+        ],
+        "quantity": "184",
+        "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "kostpris": "54.00",
+        "countable": true,
+        "why": null
+      }
+    ]
+  }
+}

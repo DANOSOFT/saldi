@@ -1,10 +1,20 @@
 <?php
+// 20261001 CDX/LH Declare precise module rights for reads and writes.
+// 20261001 CDX/LH Require settings write permission for warehouse configuration mutations.
 
 require_once '../../../../models/lager/LagerModel.php';
 require_once '../../../../core/BaseEndpoint.php';
 
 class WarehousesEndpoint extends BaseEndpoint
 {
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
+    {
+        return ifset($_SERVER, 'REQUEST_METHOD') === 'GET'
+            ? ['module' => 'varer', 'action' => 'read']
+            : ['module' => 'admin', 'action' => 'write'];
+    }
+
     public function __construct()
     {
         parent::__construct();

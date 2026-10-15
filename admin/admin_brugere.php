@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -- systemdata/admin_brugere.php ------------- lap 4.0.8 -- 2023-02-27 --
+// -- systemdata/admin_brugere.php ------------- ver 5.0.0 -- 2023-02-27 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,9 @@
 // 20230227 CA  Add missing parameters on some calls to db_select & db_modify
 // 20230323 PBLM Fixed some minor errors
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
+
+// 20261001 CDX/LH Revoke mobile sessions after security or account membership changes.
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 
 @session_start();
 $s_id=session_id();
@@ -56,7 +59,7 @@ $slet_id=if_isset($_GET['slet_id'], 0);
 
 if ($_POST) {
 	$submit=$_POST['submit'];
-	$id=$_POST['id'];	
+	$id=(int)ifset($_POST, 'id', 0);
 	$tmp=$_POST['random'];
 	$ret_bruger=trim($_POST[$tmp]);
 	$kode=trim($_POST['kode']);
@@ -102,9 +105,18 @@ if ($_POST) {
 			db_modify("update brugere set kode='$kode' where id=$r[id]",__FILE__ . " linje " . __LINE__);
 		}
 	} elseif ((strstr($submit,'Opdat'))&&($ret_bruger)&&($ret_bruger!="-")) {
-		db_modify("update brugere set brugernavn='$ret_bruger',kode='$kode',rettigheder='$rettigheder' where id=$id",__FILE__ . " linje " . __LINE__);
+		$id = (int)$id;
+		$usernameSql = db_escape_string($ret_bruger);
+		$passwordSql = db_escape_string((string)$kode);
+		$rightsSql = db_escape_string($rettigheder);
+		db_modify("update brugere set brugernavn='$usernameSql',kode='$passwordSql',rettigheder='$rightsSql' where id=$id",__FILE__ . " linje " . __LINE__);
+		mobileRevokeUser($id, 'registry_membership_changed');
 	}
-	elseif (($id)&&($ret_bruger=="-")) {db_modify("delete from brugere where id = $id",__FILE__ . " linje " . __LINE__);}
+	elseif ($id && $ret_bruger == "-") {
+		$id = (int)$id;
+		db_modify("delete from brugere where id = $id", __FILE__ . " linje " . __LINE__);
+		mobileRevokeUser($id, 'user_deleted');
+	}
 }
 
 print "<tr><td valign = top align=center>";

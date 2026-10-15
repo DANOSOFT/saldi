@@ -1,4 +1,33 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- restapi/models/lager/LagerStatusModel.php --- ver 5.0.0 --- 2026.10.06
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261001 CDX/LH Route quantity writes through the stock engine and escape location fields.
+// 20261001 CDX/LH Preserve legacy NULL-variant row ids and resolve quantity aliases under lock.
+
+require_once __DIR__ . '/../../../includes/lager/stockMovement.php';
+require_once __DIR__ . '/../../services/legacy/LegacyEngine.php';
 
 class LagerStatusModel {
     // Private properties matching database columns
@@ -35,6 +64,7 @@ class LagerStatusModel {
      * @return bool Success status
      */
     private function loadFromId($id) {
+        $id = (int)$id;
         $qtxt = "SELECT * FROM lagerstatus WHERE id = $id";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if ($r = db_fetch_array($q)) {
@@ -61,6 +91,8 @@ class LagerStatusModel {
      * @return bool Success status
      */
     public function loadFromVareAndLager($vare_id, $lager_nr) {
+        $lager_nr = (int)$lager_nr;
+        $vare_id = (int)$vare_id;
         $qtxt = "SELECT * FROM lagerstatus WHERE lager = $lager_nr AND vare_id = $vare_id";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if ($r = db_fetch_array($q)) {
@@ -80,75 +112,72 @@ class LagerStatusModel {
     }
 
     /**
-     * Save/update the current lagerstatus record
+     * Persist locations and optional quantity through the shared engine under one item lock.
+     * Quantity writes run inside LegacyEngine; location-only writes need the authenticated tenant context.
+     * Call inside a caller-owned transaction; synchronize the returned target after commit.
+     * Relative adjustments read the current warehouse/variant row after obtaining the lock.
      *
-     * @return bool Success status
+     * @return array{saved:bool,message:?string,sync:array{vare_id:int,variant_id:int,lager:int}|null}
      */
-    public function save() {
-        // Validate required fields
-        if (!isset($this->inventory) || empty($this->productId) || !is_numeric($this->quantity)) {
-            throw new Exception("Inventory, productId, and quantity are required fields.");
-        }
-
-        // Ensure location is a string and variantId is numeric
-        $this->location = isset($this->location) ? $this->location : '';
-        $this->location2 = isset($this->location2) ? $this->location2 : '';
-        $this->location3 = isset($this->location3) ? $this->location3 : '';
-        $this->location4 = isset($this->location4) ? $this->location4 : '';
-        $this->location5 = isset($this->location5) ? $this->location5 : '';
-        $this->variantId = isset($this->variantId) ? (int)$this->variantId : 0;
-        $this->quantity = isset($this->quantity) ? (float)$this->quantity : 0.0;
-
-        // Prepare SQL query based on whether this is an update or insert
-        $this->inventory = (int)$this->inventory;
+    public function save(bool $writeQuantity = true, ?string $adjustment = null): array {
+        $this->inventory = max(1, (int)$this->inventory);
         $this->productId = (int)$this->productId;
-
-        // If ID is set, we are updating; otherwise, we are inserting
-        if ($this->id) {
-            // Update existing record
-            $qtxt = "UPDATE lagerstatus SET 
-                lager = '$this->inventory', 
-                vare_id = '$this->productId', 
-                beholdning = '$this->quantity', 
-                lok1 = '$this->location',
-                lok2 = '$this->location2',
-                lok3 = '$this->location3',
-                lok4 = '$this->location4',
-                lok5 = '$this->location5',
-                variant_id = '$this->variantId'
-                WHERE id = $this->id";
-            $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            return explode("\t", $q)[0] == "0";
-        } else {
-            // Check if productId and lager already have a record
-            if ($this->productId) {
-                $existing = LagerStatusModel::findBy('vare_id', $this->productId);
-                foreach ($existing as $item) {
-                    if ($item->getInventory() == $this->inventory && $item->getVariantId() == $this->variantId) {
-                        // give error message
-                        return "Record with productId and inventory already exists.";
-                    }
+        $this->variantId = (int)$this->variantId;
+        return stock_item_section([$this->productId], function () use ($writeQuantity,$adjustment): array {
+            $product = db_fetch_array(db_select("SELECT kostpris FROM varer WHERE id=$this->productId", __FILE__ . ' ' . __LINE__));
+            if (!$product) {
+                throw new MobileT2Error('not_found', 404);
+            }
+            if ($this->variantId && !db_fetch_array(db_select("SELECT id FROM variant_varer WHERE id=$this->variantId AND vare_id=$this->productId", __FILE__ . ' ' . __LINE__))) {
+                throw new MobileT2Error('validation_failed', 422, ['reason'=>'variant_invalid']);
+            }
+            $preferredId = null;
+            $row = null;
+            if ($this->id) {
+                $original = db_fetch_array(db_select('SELECT vare_id,lager,variant_id FROM lagerstatus WHERE id=' . (int)$this->id . ' FOR UPDATE', __FILE__ . ' ' . __LINE__));
+                if (!$original || (int)$original['vare_id'] !== $this->productId || max(1,(int)$original['lager']) !== $this->inventory
+                    || (!$writeQuantity && (int)$original['variant_id'] !== $this->variantId)) {
+                    throw new MobileT2Error('validation_failed', 422, ['reason'=>'inventory_target_changed']);
+                }
+                if ((int)$original['variant_id'] === $this->variantId) {
+                    $preferredId = (int)$this->id;
                 }
             }
-            // Insert new record
-            $qtxt = "INSERT INTO lagerstatus (
-                lager, vare_id, beholdning, lok1, lok2, lok3, lok4, lok5, variant_id
-            ) VALUES (
-                '$this->inventory', '$this->productId', '$this->quantity', 
-                '$this->location', '$this->location2', '$this->location3', '$this->location4', '$this->location5', '$this->variantId'
-            )";
-            $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            $query = db_select("SELECT id FROM lagerstatus WHERE 
-                lager = '$this->inventory' AND vare_id = '$this->productId' 
-                AND lok1 = '$this->location' AND variant_id = '$this->variantId' 
-                ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
-            if (db_num_rows($query) > 0) {
-                $r = db_fetch_array($query);
-                $this->id = (int)$r['id']; // Set the new ID
+            $sync = null;
+            if ($writeQuantity) {
+                $scope = stock_warehouse_scope($this->inventory);
+                if (!$this->id && db_fetch_array(db_select("SELECT id FROM lagerstatus WHERE vare_id=$this->productId
+                    AND $scope AND COALESCE(variant_id,0)=$this->variantId LIMIT 1", __FILE__ . ' ' . __LINE__))) {
+                    return ['saved'=>false,'message'=>'Record with productId and inventory already exists.','sync'=>null];
+                }
+                $row = stock_resolve_quantity_row($this->productId, $this->variantId, $this->inventory, $preferredId);
+                $before = stock_quantity((string)ifset($row,'beholdning','0'));
+                $after = $adjustment === null ? stock_quantity((string)$this->quantity)
+                    : stock_quantity(number_format((float)$before + (float)stock_quantity($adjustment), 3, '.', ''));
+                $delta = stock_quantity(number_format((float)$after - (float)$before, 3, '.', ''));
+                if ($delta !== '0') {
+                    stock_log_correction($this->productId, (string)ifset($GLOBALS,'brugernavn',''), '', 'REST API', $delta);
+                }
+                $movement = stock_set_quantity($this->productId,$this->variantId,$this->inventory,$after,
+                    stock_quantity(number_format((float)$product['kostpris'],3,'.','')),date('Y-m-d'),true);
+                $sync = $movement['sync'];
+                $row = db_fetch_array(db_select("SELECT id FROM lagerstatus WHERE vare_id=$this->productId
+                    AND $scope AND COALESCE(variant_id,0)=$this->variantId ORDER BY id LIMIT 1", __FILE__ . ' ' . __LINE__));
+            } else {
+                $row = ['id'=>$preferredId];
             }
-            // If insert is successful, get the new ID
-            return explode("\t", $q)[0] == "0";
-        }
+            $id = (int)ifset($row, 'id', 0);
+            if (!$id) {
+                throw new MobileT2Error('not_found', 404);
+            }
+            $locations = [];
+            foreach (['location','location2','location3','location4','location5'] as $index=>$property) {
+                $locations[] = 'lok' . ($index + 1) . "='" . db_escape_string((string)$this->$property) . "'";
+            }
+            db_modify('UPDATE lagerstatus SET ' . implode(',', $locations) . " WHERE id=$id", __FILE__ . ' ' . __LINE__);
+            $this->loadFromId($id);
+            return ['saved'=>true,'message'=>null,'sync'=>$sync];
+        });
     }
 
     /**
@@ -190,6 +219,7 @@ class LagerStatusModel {
             return [];
         }
         
+        $value = (int)$value;
         $qtxt = "SELECT id FROM lagerstatus WHERE $field = '$value'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
@@ -207,6 +237,7 @@ class LagerStatusModel {
      * @return LagerStatusModel[] Array of matching LagerStatus objects
      */
     public static function getWarehouseInventory($lager_nr) {
+        $lager_nr = (int)$lager_nr;
         $qtxt = "SELECT id FROM lagerstatus WHERE lager = '$lager_nr'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
@@ -218,26 +249,15 @@ class LagerStatusModel {
         return $items;
     }
 
-    /**
-     * Update inventory quantity
-     * 
-     * @param float $quantity New quantity to set
-     * @return bool Success status
-     */
-    public function updateQuantity($quantity) {
+    /** @return array{saved:bool,message:?string,sync:array|null} */
+    public function updateQuantity($quantity): array {
         $this->quantity = $quantity;
         return $this->save();
     }
 
-    /**
-     * Adjust inventory quantity by a specific amount
-     * 
-     * @param float $amount Amount to adjust (positive or negative)
-     * @return bool Success status
-     */
-    public function adjustQuantity($amount) {
-        $this->quantity += $amount;
-        return $this->save();
+    /** @return array{saved:bool,message:?string,sync:array|null} */
+    public function adjustQuantity($amount): array {
+        return $this->save(true, (string)$amount);
     }
 
     /**

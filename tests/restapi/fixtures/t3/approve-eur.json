@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "id": 512,
+    "status": "attached",
+    "review_state": "approved",
+    "display_status": "godkendt",
+    "draft": {
+      "kassekladde_id": 9012,
+      "kladde_id": 77,
+      "bilag": 1043,
+      "mode": "new_line",
+      "balanced": true,
+      "journal_note": "Godkendte bilag fra Saldi Mobile",
+      "currency": "EUR",
+      "rate": "746.000000",
+      "rate_date": "2026-09-14",
+      "rate_source": "saldi_valuta"
+    },
+    "warnings": [],
+    "feedback": {
+      "outcome": "corrected",
+      "kontonr": 2750,
+      "vendor_key": "K:30012"
+    },
+    "etag": "\"9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e\""
+  }
+}

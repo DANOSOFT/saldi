@@ -1,0 +1,2493 @@
+/*
+ * --- css/approval_card.css --- ai/mcp-assistant --- 2026.10.02
+ * Copyright (c) 2026 Danosoft ApS. Licensed under the GNU General Public License, version 2 or later.
+ *
+ * Saldi Assist surfaces: the ApprovalCard (sac-*), the Opgaver and Saldi Assist settings
+ * pages (sai-*), and the shell's approval modal (sac-modal*). Follows the classic Saldi
+ * look: Arial 13px, #eeeef0 page, the user's button colour (--sac-accent, set inline from
+ * $buttonColor) for primary actions and title bars. Green is used only for "applied".
+ *
+ * 20261002 CL/LH Created.
+ * 20261002 CL/LH Companion: "Dagens overblik" card, "Vigtigt" flag, shell banner, rules/report tables.
+ * 20261006 CL/LH Opgaver v2: overview strip, segmented views, grouped rows with detail pane, polished card (.sai-v2).
+ * 20261007 CL/LH Shell approval modal and "Vigtigt" banner in the v2 look (the dialog carries .sai-v2).
+ * 20261007 CL/LH Review fixes: a gutter after right-aligned figures (Pris | Rabat), the section gap above
+ *                the card's fields, and "Intet er ændret." as the quiet note it is elsewhere.
+ * 20261007 CL/LH Source chips carry the in-app chevron instead of the ↗ arrow.
+ */
+
+:root {
+	--sac-accent: #114691;
+	--sac-accent-text: #ffffff;
+	--sac-ink: #1f2328;
+	--sac-muted: #5b6270;
+	--sac-line: #d5d8de;
+	--sac-soft: #f4f5f7;
+	--sac-done: #2e7d32;
+	--sac-done-bg: #e8f3e9;
+	--sac-warn: #8a5300;
+	--sac-warn-line: #e0a63a;
+	--sac-warn-bg: #fff6e0;
+	--sac-closed: #6b717c;
+	--sac-focus: #1a73e8;
+}
+
+/* ------------------------------------------------------------ page frame */
+
+.sai-body {
+	margin: 0;
+	background: #eeeef0;
+	color: var(--sac-ink);
+	font: 13px/1.45 Arial, Helvetica, sans-serif;
+}
+
+.sai-page {
+	max-width: 1000px;
+	margin: 0 auto;
+	padding: 8px 12px 40px;
+}
+
+.sai-topbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 28px;
+	padding: 2px 6px 2px 12px;
+	border-radius: 5px;
+	background: var(--sac-accent);
+	color: var(--sac-accent-text);
+}
+
+.sai-topbar__title {
+	flex: 1;
+	margin: 0;
+	font-size: 14px;
+	font-weight: normal;
+	text-align: center;
+}
+
+.sai-topbar__link,
+.sai-topbar__link:visited {
+	padding: 3px 10px;
+	border-radius: 4px;
+	color: var(--sac-accent-text);
+	text-decoration: none;
+	background: rgba(255, 255, 255, 0.14);
+	white-space: nowrap;
+}
+
+.sai-topbar__link:hover {
+	background: rgba(255, 255, 255, 0.24);
+}
+
+/* Zero specificity, so component link styles (topbar, tabs) keep their own colours. */
+:where(.sai-body) a,
+:where(.sai-body) a:visited {
+	color: var(--sac-accent);
+}
+
+.sai-intro {
+	margin: 10px 2px 12px;
+	color: var(--sac-muted);
+}
+
+.sai-back {
+	margin: 0 2px 12px;
+}
+
+.sai-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 16px;
+	margin: 0 0 12px;
+}
+
+.sai-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.sai-tabs__tab,
+.sai-tabs__tab:visited {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 12px;
+	border: 1px solid var(--sac-line);
+	border-radius: 5px;
+	background: #fff;
+	color: var(--sac-ink);
+	text-decoration: none;
+}
+
+.sai-tabs__tab:hover {
+	border-color: var(--sac-accent);
+}
+
+.sai-tabs__tab.is-current {
+	border-color: var(--sac-accent);
+	background: var(--sac-accent);
+	color: var(--sac-accent-text);
+	font-weight: bold;
+}
+
+.sai-tabs__count {
+	min-width: 18px;
+	padding: 0 5px;
+	border-radius: 9px;
+	background: var(--sac-soft);
+	color: var(--sac-ink);
+	font-size: 11px;
+	font-weight: bold;
+	line-height: 17px;
+	text-align: center;
+}
+
+.sai-filter {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.sai-filter select {
+	padding: 3px 4px;
+	font: inherit;
+}
+
+.sai-panel {
+	margin: 0 0 12px;
+	padding: 14px 16px;
+	border: 1px solid var(--sac-line);
+	border-radius: 6px;
+	background: #fff;
+}
+
+.sai-empty {
+	padding: 28px 16px;
+	text-align: center;
+	color: var(--sac-muted);
+}
+
+.sai-empty p {
+	margin: 0 0 6px;
+}
+
+.sai-empty__title {
+	color: var(--sac-ink);
+	font-size: 14px;
+}
+
+.sai-banner {
+	margin: 0 0 12px;
+	padding: 10px 14px;
+	border: 1px solid var(--sac-line);
+	border-left: 4px solid var(--sac-closed);
+	border-radius: 6px;
+	background: #fff;
+}
+
+.sai-banner p {
+	margin: 0;
+}
+
+.sai-banner__links:empty {
+	display: none;
+}
+
+.sai-banner__links a {
+	margin-right: 14px;
+}
+
+.sai-banner__links {
+	margin-top: 4px !important;
+}
+
+.sai-banner--done {
+	border-left-color: var(--sac-done);
+	background: var(--sac-done-bg);
+}
+
+.sai-banner--warn {
+	border-color: var(--sac-warn-line);
+	border-left-color: var(--sac-warn-line);
+	background: var(--sac-warn-bg);
+}
+
+.sai-more {
+	text-align: center;
+}
+
+.sai-section {
+	margin: 0 0 16px;
+	padding: 14px 16px 16px;
+	border: 1px solid var(--sac-line);
+	border-radius: 6px;
+	background: #fff;
+}
+
+.sai-section h2 {
+	margin: 0 0 4px;
+	font-size: 15px;
+}
+
+.sai-section h3 {
+	margin: 14px 0 2px;
+	font-size: 13px;
+}
+
+.sai-section__lead,
+.sai-hint {
+	margin: 0 0 10px;
+	color: var(--sac-muted);
+}
+
+.sai-facts {
+	margin: 6px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.sai-facts li {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 6px 0;
+	border-bottom: 1px solid #eceef1;
+}
+
+.sai-facts li:last-child {
+	border-bottom: 0;
+}
+
+.sai-facts__text {
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+.sai-facts__meta {
+	display: block;
+	color: var(--sac-muted);
+	font-size: 11px;
+}
+
+.sai-facts form {
+	margin: 0;
+}
+
+.sai-form-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 10px 16px;
+	margin: 10px 0 0;
+}
+
+.sai-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.sai-field input[type="text"],
+.sai-field select {
+	box-sizing: border-box;
+	min-width: 180px;
+	height: 28px;
+	padding: 3px 5px;
+	font: inherit;
+}
+
+.sai-field--wide input[type="text"] {
+	min-width: 280px;
+}
+
+.sai-switches {
+	margin: 4px 0 0;
+	padding: 0;
+	border: 0;
+}
+
+.sai-switch {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 8px 0;
+	border-bottom: 1px solid #eceef1;
+}
+
+.sai-switch input {
+	margin: 2px 0 0;
+	width: 16px;
+	height: 16px;
+	flex: none;
+}
+
+.sai-switch label {
+	font-weight: bold;
+}
+
+.sai-switch p {
+	margin: 2px 0 0;
+	color: var(--sac-muted);
+}
+
+.sai-secret {
+	margin: 0 0 16px;
+	padding: 14px 16px;
+	border: 1px solid var(--sac-warn-line);
+	border-radius: 6px;
+	background: var(--sac-warn-bg);
+}
+
+.sai-secret h2 {
+	margin: 0 0 6px;
+	font-size: 14px;
+}
+
+.sai-secret p {
+	margin: 0 0 8px;
+}
+
+.sai-copy {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0 0 10px;
+}
+
+.sai-copy__value {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	padding: 6px 8px;
+	border: 1px solid var(--sac-line);
+	border-radius: 4px;
+	background: #fff;
+	font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.sai-copy__status {
+	min-width: 60px;
+	color: var(--sac-done);
+	align-self: center;
+}
+
+.sai-grants {
+	width: 100%;
+	margin: 6px 0 0;
+	border-collapse: collapse;
+}
+
+.sai-grants th,
+.sai-grants td {
+	padding: 5px 8px;
+	border-bottom: 1px solid #e3e5e9;
+	text-align: left;
+	vertical-align: top;
+}
+
+.sai-grants th {
+	background: #f4f4f4;
+	font-weight: bold;
+}
+
+.sai-grants form {
+	margin: 0;
+}
+
+.sai-tag {
+	display: inline-block;
+	padding: 0 7px;
+	border-radius: 9px;
+	background: var(--sac-soft);
+	font-size: 11px;
+	line-height: 18px;
+}
+
+.sai-tag--active {
+	background: var(--sac-done-bg);
+	color: var(--sac-done);
+}
+
+.sai-visually-hidden {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ ApprovalCard */
+
+.sac {
+	position: relative;
+	margin: 0 0 12px;
+	padding: 12px 16px 14px;
+	border: 1px solid var(--sac-line);
+	border-left: 4px solid var(--sac-accent);
+	border-radius: 6px;
+	background: #fff;
+	color: var(--sac-ink);
+	font: 13px/1.45 Arial, Helvetica, sans-serif;
+	text-align: left;
+}
+
+.sac--done {
+	border-left-color: var(--sac-done);
+}
+
+.sac--warn {
+	border-left-color: var(--sac-warn-line);
+}
+
+.sac--closed {
+	border-left-color: var(--sac-closed);
+}
+
+.sac p,
+.sac dl,
+.sac ul {
+	margin: 0;
+}
+
+.sac-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px 12px;
+}
+
+.sac-tags {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+}
+
+.sac-pill {
+	display: inline-block;
+	padding: 0 8px;
+	border: 1px solid var(--sac-line);
+	border-radius: 10px;
+	background: var(--sac-soft);
+	font-size: 11px;
+	font-weight: bold;
+	line-height: 18px;
+}
+
+.sac-pill--assist {
+	border-color: var(--sac-accent);
+	color: var(--sac-accent);
+	background: #fff;
+}
+
+.sac-kind {
+	font-size: 12px;
+	color: var(--sac-ink);
+}
+
+.sac-meta {
+	font-size: 11px;
+	color: var(--sac-muted);
+}
+
+.sac-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 9px 1px 6px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: bold;
+}
+
+.sac-status__icon {
+	display: inline-block;
+	width: 14px;
+	text-align: center;
+}
+
+.sac-status--done {
+	background: var(--sac-done-bg);
+	color: var(--sac-done);
+}
+
+.sac-status--warn {
+	background: var(--sac-warn-bg);
+	color: var(--sac-warn);
+}
+
+.sac-status--closed {
+	background: var(--sac-soft);
+	color: #3f4550;
+}
+
+.sac-title {
+	margin: 6px 0 8px;
+	font-size: 15px;
+	font-weight: bold;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.sac-outcome {
+	margin: 0 0 8px !important;
+	color: #3f4550;
+	font-weight: bold;
+}
+
+.sac-receipt {
+	margin: 0 0 10px !important;
+	padding: 6px 10px;
+	border-radius: 4px;
+	background: var(--sac-done-bg);
+}
+
+.sac--closed .sac-receipt {
+	background: var(--sac-soft);
+}
+
+.sac-receipt .sac-link {
+	margin-left: 6px;
+}
+
+.sac-alert {
+	margin: 0 0 10px;
+	padding: 8px 10px;
+	border: 1px solid var(--sac-warn-line);
+	border-radius: 4px;
+	background: var(--sac-warn-bg);
+}
+
+.sac-alert__strong {
+	font-weight: bold;
+}
+
+.sac-table-wrap {
+	margin: 0 0 10px;
+	overflow-x: auto;
+}
+
+.sac-table {
+	width: 100%;
+	border-collapse: collapse;
+	border: 1px solid #e3e5e9;
+}
+
+.sac-table caption {
+	padding: 0 0 4px;
+	color: var(--sac-muted);
+	font-size: 11px;
+	font-weight: bold;
+	text-align: left;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.sac-table th,
+.sac-table td {
+	padding: 5px 8px;
+	border-bottom: 1px solid #e3e5e9;
+	text-align: left;
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+
+.sac-table th {
+	background: #f4f4f4;
+	font-weight: bold;
+	white-space: nowrap;
+}
+
+.sac-table tbody tr:nth-child(even) td {
+	background: #fafbfc;
+}
+
+.sac-table .sac-nowrap {
+	white-space: nowrap;
+}
+
+.sac-table .sac-num {
+	text-align: right;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.sac-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 24px;
+	margin: 0 0 10px !important;
+}
+
+.sac-fields dt {
+	color: var(--sac-muted);
+	font-size: 11px;
+}
+
+.sac-fields dd {
+	margin: 0;
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+.sac-why {
+	margin: 0 0 10px;
+	padding: 8px 10px;
+	border: 1px dashed #c3c8d0;
+	border-radius: 4px;
+	background: var(--sac-soft);
+}
+
+.sac-why__label {
+	color: var(--sac-muted);
+	font-size: 11px;
+	font-weight: bold;
+}
+
+.sac-why__text {
+	margin: 2px 0 4px !important;
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+.sac-why__hint {
+	color: var(--sac-muted);
+	font-size: 11px;
+}
+
+.sac-evidence {
+	margin: 0 0 10px;
+}
+
+.sac-evidence__label {
+	color: var(--sac-muted);
+	font-size: 11px;
+	font-weight: bold;
+}
+
+.sac-evidence ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 16px;
+	padding: 0;
+	list-style: none;
+}
+
+.sac-link,
+.sac-link:visited {
+	color: var(--sac-accent);
+	text-decoration: underline;
+}
+
+.sac-notice {
+	display: flex;
+	gap: 8px;
+	margin: 0 0 10px !important;
+	padding: 6px 10px;
+	border: 1px solid var(--sac-warn-line);
+	border-radius: 4px;
+	background: var(--sac-warn-bg);
+}
+
+.sac-notice__icon {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: var(--sac-warn-line);
+	color: #fff;
+	font-size: 11px;
+	font-weight: bold;
+	line-height: 16px;
+	text-align: center;
+}
+
+.sac-next {
+	margin: 0 0 4px !important;
+	padding-top: 8px;
+	border-top: 1px dotted var(--sac-line);
+}
+
+.sac-expiry {
+	color: var(--sac-muted);
+	font-size: 11px;
+}
+
+.sac-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 8px 16px;
+	margin: 12px 0 0;
+}
+
+.sac-note {
+	flex: 1 1 260px;
+}
+
+.sac-note summary {
+	color: var(--sac-accent);
+	cursor: pointer;
+}
+
+.sac-note label {
+	display: block;
+	margin: 6px 0 2px;
+	color: var(--sac-muted);
+	font-size: 11px;
+}
+
+.sac-note textarea {
+	width: 100%;
+	max-width: 420px;
+	box-sizing: border-box;
+	font: inherit;
+}
+
+.sac-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-left: auto;
+}
+
+/* Buttons. online.php colours every button[type=submit] with !important; the
+   secondary/quiet variants need the same weight and a more specific selector. */
+.sac-btn,
+.sac button.sac-btn[type="submit"] {
+	min-width: 88px;
+	padding: 5px 14px;
+	border: 1px solid var(--sac-accent) !important;
+	border-radius: 5px;
+	background: var(--sac-accent) !important;
+	color: var(--sac-accent-text) !important;
+	font: bold 13px Arial, Helvetica, sans-serif;
+	cursor: pointer;
+}
+
+.sac-btn--secondary,
+.sai-body button.sac-btn--secondary[type="submit"] {
+	background: #fff !important;
+	color: var(--sac-ink) !important;
+	border-color: #aab0ba !important;
+	font-weight: normal;
+}
+
+.sac-btn--quiet,
+.sai-body button.sac-btn--quiet[type="submit"] {
+	min-width: 0;
+	background: transparent !important;
+	color: var(--sac-muted) !important;
+	border-color: transparent !important;
+	font-weight: normal;
+	text-decoration: underline;
+}
+
+.sac-btn:hover {
+	filter: brightness(1.08);
+}
+
+.sac-btn[disabled],
+.sac-btn[aria-disabled="true"] {
+	cursor: default;
+	opacity: 0.55;
+	filter: none;
+}
+
+.sac a:focus-visible,
+.sac button:focus-visible,
+.sac summary:focus-visible,
+.sac textarea:focus-visible,
+.sai-body a:focus-visible,
+.sai-body button:focus-visible,
+.sai-body input:focus-visible,
+.sai-body select:focus-visible,
+.sai-body textarea:focus-visible,
+.sac-modal :focus-visible {
+	outline: 2px solid var(--sac-focus);
+	outline-offset: 2px;
+}
+
+/* Containers focused by script after a redirect (tabindex=-1) move the reading position only. */
+.sai-banner:focus,
+.sai-secret:focus,
+.sac:focus {
+	outline: none;
+}
+
+@media (max-width: 640px) {
+	.sai-toolbar,
+	.sac-actions {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.sac-buttons {
+		margin-left: 0;
+	}
+}
+
+/* ------------------------------------------------------------ companion (C5, C8) */
+
+.sai-flag {
+	display: inline-block;
+	padding: 0 7px;
+	border: 1px solid var(--sac-warn-line);
+	border-radius: 9px;
+	background: var(--sac-warn-bg);
+	color: var(--sac-warn);
+	font-size: 11px;
+	font-weight: bold;
+	line-height: 16px;
+	white-space: nowrap;
+}
+
+.sai-item--interrupt {
+	position: relative;
+}
+
+.sai-item--interrupt .sac {
+	border-left-color: var(--sac-warn-line);
+}
+
+.sai-item__flag {
+	position: absolute;
+	top: 12px;
+	right: 14px;
+	z-index: 1;
+}
+
+.sai-tab-lead {
+	margin: 0 2px 10px;
+}
+
+.sai-overview {
+	margin: 0 0 12px;
+	padding: 10px 16px 12px;
+	border: 1px solid var(--sac-line);
+	border-radius: 6px;
+	background: #fff;
+}
+
+.sai-overview__title {
+	margin: 0 0 6px;
+	font-size: 14px;
+}
+
+.sai-overview__date {
+	margin-left: 6px;
+	color: var(--sac-muted);
+	font-size: 12px;
+	font-weight: normal;
+}
+
+.sai-overview__calm {
+	margin: 0 0 6px;
+	color: var(--sac-muted);
+}
+
+.sai-overview__rows {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.sai-ov {
+	display: grid;
+	grid-template-columns: minmax(180px, 2fr) minmax(70px, auto) 4fr;
+	gap: 2px 14px;
+	align-items: baseline;
+	padding: 4px 0;
+	border-top: 1px solid #eceef1;
+}
+
+.sai-ov:first-child {
+	border-top: 0;
+}
+
+.sai-ov__value {
+	font-weight: bold;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.sai-ov__detail {
+	color: var(--sac-muted);
+}
+
+.sai-ov__hint {
+	color: var(--sac-muted);
+	font-size: 11px;
+}
+
+.sai-ov--sub {
+	display: block;
+	padding: 2px 0 4px 12px;
+	border-top: 0;
+}
+
+.sai-ov--attention .sai-ov__value,
+.sai-ov--attention .sai-ov__detail {
+	color: var(--sac-warn);
+}
+
+@media (max-width: 640px) {
+	.sai-ov {
+		grid-template-columns: 1fr auto;
+	}
+	.sai-ov__detail {
+		grid-column: 1 / -1;
+	}
+}
+
+.sai-table {
+	width: 100%;
+	margin: 6px 0 0;
+	border-collapse: collapse;
+}
+
+.sai-table th,
+.sai-table td {
+	padding: 5px 8px;
+	border-bottom: 1px solid #e3e5e9;
+	text-align: left;
+	vertical-align: top;
+}
+
+.sai-table th {
+	background: #f4f4f4;
+	font-weight: bold;
+}
+
+.sai-table tbody th {
+	background: none;
+	font-weight: normal;
+}
+
+.sai-table .sai-num {
+	text-align: right;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-table form {
+	margin: 0;
+}
+
+.sai-table .sac-btn {
+	white-space: nowrap;
+}
+
+.sai-table tfoot td {
+	border-bottom: 0;
+	font-weight: bold;
+}
+
+.sai-field input[type="number"],
+.sai-field input[type="email"] {
+	box-sizing: border-box;
+	height: 28px;
+	padding: 3px 5px;
+	font: inherit;
+}
+
+.sai-field input[type="number"] {
+	width: 110px;
+}
+
+.sai-field input[type="email"] {
+	min-width: 280px;
+}
+
+.sai-period {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 10px 0 12px;
+}
+
+.sai-estimate {
+	margin: 0 0 6px;
+	font-size: 14px;
+}
+
+/* The shell banner (index/main.php, javascript/saldi-assist-banner.js): one slim, quiet, non-modal strip
+   above the content frame. While it shows, the frame is shorter by the strip's height. Opgaver v2 look:
+   moon surface, a hairline, the amber "Vigtigt" pill and one quiet "Åbn" button. */
+.saldi-assist-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	box-sizing: border-box;
+	height: 44px;
+	padding: 0 10px 0 24px;
+	border-bottom: 1px solid #e4e6eb;
+	background: #faf9f6;
+	color: #1b1f26;
+	font: 13.5px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+	letter-spacing: -0.003em;
+	-webkit-font-smoothing: antialiased;
+}
+
+.home-section.saldi-assist-banner-on .home-content {
+	height: calc(100% - 44px) !important;
+}
+
+.saldi-assist-banner * {
+	box-sizing: border-box;
+	font-family: inherit;
+}
+
+.saldi-assist-banner__text {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	margin: 0;
+}
+
+.saldi-assist-banner__label {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 6px;
+	height: 22px;
+	padding: 0 9px 0 8px;
+	border-radius: 999px;
+	background: #fff5df;
+	color: #8a5a00;
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.saldi-assist-banner__label::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #e0a63a;
+}
+
+.saldi-assist-banner__title {
+	min-width: 0;
+	overflow: hidden;
+	font-weight: 500;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.saldi-assist-banner__open,
+.saldi-assist-banner__close {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	height: 30px;
+	margin: 0;
+	border: 0;
+	border-radius: 8px;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.saldi-assist-banner__open {
+	padding: 0 14px;
+	background: #fff;
+	color: var(--sac-accent);
+	box-shadow: inset 0 0 0 1px #d3d6dd, 0 1px 1px rgba(16, 24, 40, 0.04);
+}
+
+.saldi-assist-banner__close {
+	width: 30px;
+	padding: 0;
+	background: transparent;
+	color: #7a8190;
+	font-size: 18px;
+	font-weight: 400;
+}
+
+.saldi-assist-banner__open:hover,
+.saldi-assist-banner__close:hover {
+	background: #f5f6f8;
+}
+
+.saldi-assist-banner__close:hover {
+	color: #1b1f26;
+}
+
+.saldi-assist-banner button:focus-visible {
+	outline: 2px solid var(--sac-focus);
+	outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------ Opgaver v2 (2026-10-06) */
+/*
+ * The redesigned Opgaver page: a quiet overview strip, three views, compact rows grouped by urgency
+ * and the ApprovalCard as a detail pane (wide) or unfolded in place (narrow). Scoped to .sai-v2 so the
+ * shell modal and the settings pages keep the classic card until they get the same pass. Type is the
+ * system UI face; numbers are tabular.
+ */
+
+.sai-v2 {
+	--v2-ink: #1b1f26;
+	--v2-ink-2: #4f5663;
+	--v2-ink-3: #7a8190;
+	--v2-ink-4: #a2a8b4;
+	--v2-line: #e4e6eb;
+	--v2-line-2: #d3d6dd;
+	--v2-soft: #f5f6f8;
+	--v2-moon: #faf9f6;
+	--v2-page: #f3f3f1;
+	--v2-tint: #e9eff9;
+	--v2-accent-ink: #0f3d80;
+	--v2-warn: #8a5a00;
+	--v2-warn-tint: #fff5df;
+	--v2-warn-dot: #e0a63a;
+	--v2-ok: #1f7a3a;
+	--v2-ok-tint: #e7f4ea;
+	--v2-r: 14px;
+	--v2-sh-1: 0 1px 1px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+	--v2-sh-2: 0 1px 2px rgba(16, 24, 40, 0.05), 0 10px 28px rgba(16, 24, 40, 0.07);
+	background: var(--v2-page);
+	color: var(--v2-ink);
+	font: 13.5px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+	letter-spacing: -0.003em;
+	-webkit-font-smoothing: antialiased;
+}
+
+.sai-v2 .sai-page--wide {
+	max-width: none;
+	padding: 20px 28px 32px;
+}
+
+.sai-v2 .sai-js-only {
+	display: none;
+}
+
+.js .sai-v2 .sai-js-only {
+	display: revert;
+}
+
+.sai-v2 .sai-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin: 0 0 18px;
+}
+
+.sai-v2 .sai-h1 {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 600;
+	letter-spacing: -0.022em;
+	line-height: 1.2;
+}
+
+.sai-v2 .sai-lead {
+	margin: 3px 0 0;
+	color: var(--v2-ink-3);
+	font-size: 13px;
+}
+
+.sai-v2 .sai-head__link,
+.sai-v2 .sai-head__link:visited {
+	margin-top: 4px;
+	color: var(--v2-accent-ink);
+	font-size: 12.5px;
+	font-weight: 500;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.sai-v2 .sai-head__link:hover {
+	text-decoration: underline;
+}
+
+/* Overview strip */
+
+.sai-v2 .sai-overview {
+	margin: 0 0 16px;
+	padding: 0;
+	border: 0;
+	background: none;
+}
+
+.sai-v2 .sai-overview__rows {
+	display: flex;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	background: #fff;
+	border-radius: var(--v2-r);
+	box-shadow: var(--v2-sh-1);
+	overflow: hidden;
+}
+
+.sai-v2 .sai-ov {
+	display: flex;
+	flex: 1 1 0;
+	flex-direction: column;
+	min-width: 0;
+	overflow: hidden;
+	padding: 12px 18px;
+	border: 0;
+	border-right: 1px solid var(--v2-line);
+	font-size: 12px;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sai-ov:last-child {
+	border-right: 0;
+}
+
+.sai-v2 .sai-ov__value {
+	order: -1;
+	display: block;
+	margin: 0;
+	font-size: 19px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	line-height: 1.25;
+	color: var(--v2-ink);
+	font-variant-numeric: tabular-nums;
+	text-align: left;
+}
+
+.sai-v2 .sai-ov__label {
+	display: block;
+	margin-top: 1px;
+	color: var(--v2-ink-3);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sai-v2 a.sai-ov__label,
+.sai-v2 a.sai-ov__label:visited {
+	color: var(--v2-accent-ink);
+	font-weight: 500;
+	text-decoration: none;
+}
+
+.sai-v2 a.sai-ov__label:hover {
+	text-decoration: underline;
+}
+
+.sai-v2 .sai-ov__detail {
+	display: block;
+	max-width: 100%;
+	margin: 0;
+	padding: 0;
+	grid-column: auto;
+	color: var(--v2-ink-4);
+	font-size: 11.5px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sai-v2 .sai-ov__detail .sai-ov__hint {
+	display: inline;
+}
+
+.sai-v2 .sai-ov--attention .sai-ov__value {
+	color: var(--v2-warn);
+}
+
+.sai-v2 .sai-overview__calm {
+	margin: 0 0 8px;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sai-overview__flags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 10px 0 0;
+}
+
+.sai-v2 .sai-vig,
+.sai-v2 .sai-vig:visited {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 26px;
+	padding: 0 11px 0 9px;
+	border-radius: 999px;
+	background: var(--v2-warn-tint);
+	color: var(--v2-warn);
+	font-size: 12.5px;
+	font-weight: 500;
+	text-decoration: none;
+}
+
+.sai-v2 .sai-vig::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--v2-warn-dot);
+}
+
+.sai-v2 .sai-vig .sai-flag {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+}
+
+/* Toolbar */
+
+.sai-v2 .sai-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin: 0 0 14px;
+	border: 0;
+	padding: 0;
+}
+
+.sai-v2 .sai-seg {
+	display: inline-flex;
+	height: 32px;
+	padding: 3px;
+	border-radius: 9px;
+	background: #e9e9e6;
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.sai-v2 .sai-seg__tab,
+.sai-v2 .sai-seg__tab:visited {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 12px;
+	border-radius: 7px;
+	color: var(--v2-ink-2);
+	text-decoration: none;
+}
+
+.sai-v2 .sai-seg__tab.is-current {
+	background: #fff;
+	color: var(--v2-ink);
+	box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+}
+
+.sai-v2 .sai-seg__count {
+	color: var(--v2-ink-3);
+	font-size: 11.5px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sai-filter {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.sai-v2 .sai-select,
+.sai-v2 .sai-search input {
+	height: 32px;
+	padding: 0 10px 0 12px;
+	border: 0;
+	border-radius: 9px;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px var(--v2-line-2);
+	color: var(--v2-ink-2);
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.sai-v2 .sai-select {
+	appearance: none;
+	-webkit-appearance: none;
+	padding-right: 28px;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23a2a8b4' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+}
+
+.sai-v2 .sai-search input {
+	width: 220px;
+	padding-left: 32px;
+	font-weight: 400;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 16 16' fill='none' stroke='%23a2a8b4' stroke-width='1.75' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5L14 14'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: 11px center;
+}
+
+.sai-v2 .sai-search input::placeholder {
+	color: var(--v2-ink-4);
+}
+
+.sai-v2 .sai-keys {
+	margin: 0 0 0 auto;
+	color: var(--v2-ink-4);
+	font-size: 11.5px;
+	white-space: nowrap;
+}
+
+.sai-v2 .sai-keys kbd {
+	display: inline-block;
+	margin: 0 3px 0 6px;
+	padding: 1px 5px;
+	border: 1px solid var(--v2-line-2);
+	border-bottom-width: 2px;
+	border-radius: 4px;
+	background: #fff;
+	color: var(--v2-ink-3);
+	font: 500 10.5px/1.2 inherit;
+	font-family: inherit;
+}
+
+.sai-v2 .sai-keys kbd:first-child {
+	margin-left: 0;
+}
+
+.sai-v2 .sai-tab-lead {
+	margin: -4px 0 12px;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sai-banner {
+	border-radius: 11px;
+	box-shadow: var(--v2-sh-1);
+}
+
+/* List, groups and rows */
+
+.sai-v2 .sai-list[data-mode="split"] {
+	display: grid;
+	grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+	gap: 16px;
+	align-items: start;
+}
+
+.sai-v2 .sai-group {
+	margin: 0 0 6px;
+}
+
+.sai-v2 .sai-group__title {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 10px 4px 6px;
+	font-size: 10.5px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sai-group__count {
+	font-weight: 500;
+	letter-spacing: 0;
+	color: var(--v2-ink-4);
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sai-group__rows {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	background: #fff;
+	border-radius: var(--v2-r);
+	box-shadow: var(--v2-sh-1);
+	overflow: hidden;
+}
+
+.sai-v2 .sai-row + .sai-row {
+	border-top: 1px solid var(--v2-line);
+}
+
+.sai-v2 .sai-row[hidden] {
+	display: none;
+}
+
+.sai-v2 .sai-row__head {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-areas: "meta when" "title when" "sub when";
+	gap: 2px 12px;
+	padding: 10px 16px 11px;
+	cursor: default;
+	outline: none;
+}
+
+.sai-v2 .sai-row__head:hover {
+	background: var(--v2-soft);
+}
+
+.sai-v2 .sai-row__head:focus-visible {
+	box-shadow: inset 0 0 0 2px var(--sac-focus);
+}
+
+.sai-v2 .sai-row.is-selected > .sai-row__head {
+	background: var(--v2-tint);
+	box-shadow: inset 3px 0 0 var(--sac-accent);
+}
+
+.sai-v2 .sai-row__meta {
+	grid-area: meta;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	font-size: 11.5px;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sai-row__who {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sai-v2 .sai-row__title {
+	grid-area: title;
+	margin-top: 2px;
+	font-size: 13.5px;
+	font-weight: 500;
+	letter-spacing: -0.008em;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+
+.sai-v2 .sai-row.is-selected .sai-row__title {
+	color: var(--v2-accent-ink);
+}
+
+.sai-v2 .sai-row__sub {
+	grid-area: sub;
+	font-size: 12px;
+	color: var(--v2-ink-3);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sai-v2 .sai-row__when {
+	grid-area: when;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 2px;
+	padding-top: 2px;
+	font-size: 11.5px;
+	line-height: 1.5;
+	color: var(--v2-ink-4);
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sai-row__when b {
+	font-weight: 500;
+	color: var(--v2-ink-3);
+}
+
+/* The card: in place (stack, when open), in the detail pane (split), or always (no script). */
+
+.sai-v2 .sai-row__card {
+	display: none;
+	padding: 0 16px 16px;
+}
+
+.js .sai-v2 .sai-row.is-open > .sai-row__card {
+	display: block;
+}
+
+html:not(.js) .sai-v2 .sai-row__card {
+	display: block;
+}
+
+.sai-v2 .sai-detail {
+	position: sticky;
+	top: 12px;
+	max-height: calc(100vh - 24px);
+	overflow: auto;
+	background: #fff;
+	border-radius: var(--v2-r);
+	box-shadow: var(--v2-sh-2);
+}
+
+.sai-v2 .sai-list:not([data-mode="split"]) .sai-detail {
+	display: none;
+}
+
+.sai-v2 .sai-detail__empty {
+	margin: 0;
+	padding: 40px 24px;
+	color: var(--v2-ink-4);
+	text-align: center;
+}
+
+.sai-v2 .sai-detail > .sai-row__card {
+	display: block;
+	padding: 0;
+}
+
+.sai-v2 .sai-rows__none {
+	padding: 24px;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sai-more {
+	margin: 12px 4px 0;
+}
+
+/* ApprovalCard, v2 look */
+
+.sai-v2 .sac {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	font: inherit;
+}
+
+.sai-v2 .sai-rows .sac {
+	padding-top: 4px;
+}
+
+.sai-v2 .sai-detail .sac,
+.sai-v2 .sai-list > .sac,
+.sai-v2 .sai-list > .sai-item > .sac {
+	padding: 20px 24px 0;
+}
+
+.sai-v2 .sai-list > .sac,
+.sai-v2 .sai-list > .sai-item {
+	max-width: 900px;
+	background: #fff;
+	border-radius: var(--v2-r);
+	box-shadow: var(--v2-sh-2);
+}
+
+.sai-v2 .sai-item--interrupt {
+	border: 0;
+	padding: 0;
+	background: transparent;
+}
+
+.sai-v2 .sai-rows .sai-item__flag,
+.sai-v2 .sai-rows .sac-head .sac-pill,
+.sai-v2 .sai-rows .sac-head .sac-kind {
+	display: none;
+}
+
+.sai-v2 .sac-head {
+	gap: 6px 10px;
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--v2-line);
+	font-size: 12px;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sac-pill {
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	font-size: 12px;
+	font-weight: 400;
+	line-height: inherit;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sac-pill--assist {
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sac-kind {
+	display: inline-flex;
+	align-items: center;
+	height: 20px;
+	padding: 0 8px;
+	border-radius: 6px;
+	background: var(--v2-tint);
+	color: var(--v2-accent-ink);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+}
+
+.sai-v2 .sac-kind--neutral {
+	background: var(--v2-soft);
+	color: var(--v2-ink-2);
+}
+
+.sai-v2 .sac-tags .sac-kind {
+	order: -1;
+}
+
+.sai-v2 .sac-meta {
+	font-size: 12px;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sac-status {
+	height: 20px;
+	padding: 0 8px;
+	border-radius: 999px;
+	font-size: 11.5px;
+	font-weight: 500;
+}
+
+.sai-v2 .sac-status__icon {
+	display: none;
+}
+
+.sai-v2 .sac-status--done {
+	background: var(--v2-ok-tint);
+	color: var(--v2-ok);
+}
+
+.sai-v2 .sac-status--warn {
+	background: var(--v2-warn-tint);
+	color: var(--v2-warn);
+}
+
+.sai-v2 .sac-status--closed {
+	background: var(--v2-soft);
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sac-title {
+	margin: -6px 0 0;
+	padding: 0 0 14px;
+	font-size: 19px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	line-height: 1.25;
+}
+
+.sai-v2 .sai-rows .sac-title {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+}
+
+.sai-v2 .sac-head + .sac-title {
+	margin-top: 12px;
+	padding-bottom: 4px;
+}
+
+.sai-v2 .sai-rows .sac-head {
+	padding-bottom: 10px;
+}
+
+.sai-v2 .sac-outcome {
+	margin: 10px 0 0 !important;
+	padding: 10px 12px;
+	border-radius: 11px;
+	background: var(--v2-soft);
+	color: var(--v2-ink-2);
+	font-size: 13px;
+	font-weight: 400;
+	line-height: 1.5;
+}
+
+.sai-v2 .sac-receipt {
+	margin: 10px 0 0 !important;
+	padding: 10px 12px;
+	border-radius: 11px;
+	background: var(--v2-ok-tint);
+	color: var(--v2-ok);
+}
+
+.sai-v2 .sac--closed .sac-receipt {
+	background: var(--v2-soft);
+	color: var(--v2-ink-2);
+}
+
+.sai-v2 .sac-alert {
+	margin: 12px 0 0;
+	border: 0;
+	border-radius: 11px;
+	background: var(--v2-warn-tint);
+	color: var(--v2-warn);
+}
+
+.sai-v2 .sac-table-wrap {
+	margin: 0;
+}
+
+.sai-v2 .sac-table {
+	margin: 0;
+	border: 0;
+	font-size: 13px;
+}
+
+.sai-v2 .sac-table caption,
+.sai-v2 .sac-why__label,
+.sai-v2 .sac-evidence__label {
+	margin: 16px 0 6px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--v2-ink-3);
+	text-align: left;
+}
+
+.sai-v2 .sac-table caption {
+	caption-side: top;
+	padding-bottom: 6px;
+}
+
+.sai-v2 .sac-table th,
+.sai-v2 .sac-table td {
+	padding: 7px 8px 7px 0;
+	border: 0;
+	background: none;
+}
+
+.sai-v2 .sac-table th {
+	padding-top: 0;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sac-table td {
+	border-top: 1px solid var(--v2-line);
+}
+
+.sai-v2 .sac-table tbody tr:nth-child(even) td {
+	background: none;
+}
+
+.sai-v2 .sac-num {
+	font-variant-numeric: tabular-nums;
+	padding-right: 0;
+}
+
+/* A right-aligned figure followed by a left-aligned column (Pris | Rabat) needs a gutter. */
+.sai-v2 .sac-table .sac-num + th:not(.sac-num),
+.sai-v2 .sac-table .sac-num + td:not(.sac-num) {
+	padding-left: 24px;
+}
+
+.sai-v2 .sac-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 32px;
+	margin: 12px 0 0;
+	font-size: 13px;
+}
+
+/* Under the change table the fields are their own section, not one more table row. */
+.sai-v2 .sac-table-wrap + .sac-fields {
+	margin-top: 22px;
+	padding-top: 14px;
+	border-top: 1px solid var(--v2-line);
+}
+
+.sai-v2 .sac-fields > div {
+	min-width: 0;
+}
+
+.sai-v2 .sac-fields dt {
+	font-size: 11.5px;
+	font-weight: 400;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sac-fields dd {
+	margin: 0;
+}
+
+.sai-v2 .sac-why {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+}
+
+.sai-v2 .sac-why__text {
+	padding: 12px 14px;
+	border-radius: 11px;
+	background: var(--v2-moon);
+	line-height: 1.55;
+}
+
+.sai-v2 .sac-why__hint {
+	margin: 0 14px !important;
+	padding-top: 6px;
+	color: var(--v2-ink-4);
+	font-size: 11.5px;
+}
+
+.sai-v2 .sac-why__text + .sac-why__hint {
+	margin-top: -6px !important;
+	padding: 0 0 10px;
+	background: var(--v2-moon);
+	border-radius: 0 0 11px 11px;
+}
+
+.sai-v2 .sac-evidence {
+	margin: 0;
+}
+
+.sai-v2 .sac-evidence ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.sai-v2 .sac-evidence li {
+	margin: 0;
+}
+
+.sai-v2 .sac-evidence .sac-link,
+.sai-v2 .sac-evidence .sac-link:visited {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 26px;
+	padding: 0 10px;
+	border: 1px solid var(--v2-line);
+	border-radius: 999px;
+	background: #fff;
+	color: var(--v2-accent-ink);
+	font-size: 12.5px;
+	font-weight: 500;
+	text-decoration: none;
+}
+
+/* Sources open a Saldi page: the in-app chevron, as in the widget. The ↗ arrow is kept for links that leave Saldi. */
+.sai-v2 .sac-evidence .sac-link::after {
+	content: "";
+	width: 5px;
+	height: 5px;
+	margin-left: 1px;
+	border-top: 1.5px solid var(--v2-ink-4);
+	border-right: 1.5px solid var(--v2-ink-4);
+	transform: rotate(45deg);
+}
+
+.sai-v2 .sac-evidence .sac-link:hover {
+	border-color: var(--v2-line-2);
+	background: var(--v2-soft);
+}
+
+.sai-v2 .sac-notice,
+.sai-v2 .sac-info,
+.sai-v2 .sac-next {
+	display: flex;
+	gap: 9px;
+	align-items: flex-start;
+	margin: 12px 0 0 !important;
+	padding: 10px 12px;
+	border: 0;
+	border-radius: 11px;
+	font-size: 12.5px;
+	line-height: 1.5;
+}
+
+.sai-v2 .sac-notice {
+	background: var(--v2-warn-tint);
+	color: var(--v2-warn);
+}
+
+.sai-v2 .sac-notice__icon {
+	width: auto;
+	height: auto;
+	margin: 0;
+	border: 0;
+	background: none;
+	color: var(--v2-warn-dot);
+	font-weight: 700;
+}
+
+.sai-v2 .sac-info,
+.sai-v2 .sac-next {
+	background: var(--v2-soft);
+	color: var(--v2-ink-2);
+}
+
+.sai-v2 .sac-next::before,
+.sai-v2 .sac-info::before {
+	content: "\24D8";
+	color: var(--v2-ink-4);
+}
+
+.sai-v2 .sac-expiry {
+	margin: 10px 0 0 !important;
+	color: var(--v2-ink-4);
+	font-size: 12px;
+}
+
+.sai-v2 .sac-actions {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 14px -24px 0;
+	padding: 12px 24px;
+	border-top: 1px solid var(--v2-line);
+	background: rgba(255, 255, 255, 0.92);
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
+}
+
+.sai-v2 .sai-rows .sac-actions {
+	position: static;
+	margin: 14px 0 0;
+	padding: 12px 0 0;
+	background: none;
+	backdrop-filter: none;
+}
+
+.sai-v2 .sac-note {
+	margin-right: auto;
+	flex: 0 1 auto;
+}
+
+.sai-v2 .sac-note summary {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 34px;
+	padding: 0 8px;
+	border-radius: 9px;
+	color: var(--v2-ink-2);
+	font-size: 13.5px;
+	font-weight: 500;
+	cursor: pointer;
+	list-style: none;
+}
+
+.sai-v2 .sac-note summary::-webkit-details-marker {
+	display: none;
+}
+
+.sai-v2 .sac-note summary::before {
+	content: "\270E";
+	color: var(--v2-ink-4);
+}
+
+.sai-v2 .sac-note[open] {
+	flex-basis: 100%;
+}
+
+.sai-v2 .sac-note label {
+	display: block;
+	margin: 6px 0 4px;
+	color: var(--v2-ink-3);
+	font-size: 12px;
+}
+
+.sai-v2 .sac-note textarea {
+	width: 100%;
+	padding: 8px 10px;
+	border: 0;
+	border-radius: 9px;
+	box-shadow: inset 0 0 0 1px var(--v2-line-2);
+	font: inherit;
+}
+
+.sai-v2 .sac-buttons {
+	display: flex;
+	flex-direction: row-reverse;
+	gap: 8px;
+	margin-left: auto;
+}
+
+.sai-v2 .sac-btn,
+.sai-v2 button.sac-btn[type="submit"] {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 34px;
+	padding: 0 14px;
+	border: 0;
+	border-radius: 9px;
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 500;
+	letter-spacing: -0.005em;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.sai-v2 button.sac-btn--primary[type="submit"] {
+	background: var(--sac-accent);
+	color: var(--sac-accent-text);
+	box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18), 0 1px 1px rgba(16, 24, 40, 0.08);
+}
+
+.sai-v2 button.sac-btn--secondary[type="submit"] {
+	background: #fff;
+	color: var(--v2-ink);
+	box-shadow: inset 0 0 0 1px var(--v2-line-2), 0 1px 1px rgba(16, 24, 40, 0.04);
+}
+
+.sai-v2 button.sac-btn--quiet[type="submit"] {
+	background: none;
+	color: var(--v2-ink-2);
+	box-shadow: none;
+}
+
+.sai-v2 button.sac-btn[type="submit"]:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.sai-v2 .sac-decision-note,
+.sai-v2 .sac-title + .sac-meta {
+	margin-top: 6px !important;
+	color: var(--v2-ink-3);
+	font-size: 12.5px;
+}
+
+@media (max-width: 720px) {
+	.sai-v2 .sai-page--wide {
+		padding: 16px 14px 24px;
+	}
+
+	.sai-v2 .sai-overview__rows {
+		flex-wrap: wrap;
+	}
+
+	.sai-v2 .sai-ov {
+		flex-basis: 50%;
+		border-bottom: 1px solid var(--v2-line);
+	}
+
+	.sai-v2 .sai-keys {
+		display: none;
+	}
+}
+
+/* ------------------------------------------------------------ shell approval modal (v2, 2026-10-07) */
+/*
+ * The shell's approval dialog (javascript/saldi-inbox.js). The dialog carries .sai-v2, so the card inside
+ * uses the Opgaver tokens and card rules above; this block adds the frame: a calm backdrop, one white
+ * sheet with a quiet head, the scrolling card, and a footer with the note, key hints and the two
+ * Saldi-owned buttons. The shell's sidebar_style.css resets every element
+ * (* { font-family: Segoe UI; margin: 0 }), hence the inherit rule.
+ */
+
+.sac-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483646;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: rgba(27, 31, 38, 0.32);
+	-webkit-backdrop-filter: blur(2px);
+	backdrop-filter: blur(2px);
+}
+
+.sac-modal.sai-v2 {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: min(720px, 100%);
+	max-height: min(880px, calc(100vh - 48px));
+	overflow: hidden;
+	border-radius: var(--v2-r);
+	background: #fff;
+	box-shadow: 0 0 0 1px rgba(16, 24, 40, 0.06), 0 2px 4px rgba(16, 24, 40, 0.06), 0 24px 64px rgba(16, 24, 40, 0.22);
+	text-align: left;
+}
+
+.sac-modal *,
+.sac-modal *::before,
+.sac-modal *::after {
+	box-sizing: border-box;
+	font-family: inherit;
+}
+
+.sac-modal.sai-v2:focus,
+.sac-modal.sai-v2:focus-visible,
+.sac-modal .sac-modal__title:focus,
+.sac-modal .sac-modal__title:focus-visible {
+	outline: none;
+}
+
+.sac-modal__head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 12px 0 24px;
+}
+
+.sac-modal .sac-modal__title {
+	flex: 1;
+	margin: 0;
+	color: var(--v2-ink-3);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.sac-modal .sac-modal__close {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: 9px;
+	background: transparent;
+	color: var(--v2-ink-3);
+	font-size: 20px;
+	font-weight: 400;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.sac-modal .sac-modal__close:hover {
+	background: var(--v2-soft);
+	color: var(--v2-ink);
+}
+
+.sac-modal__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	padding: 6px 24px 22px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.sac-modal__status {
+	margin: 0 0 14px;
+}
+
+.sac-modal__status:empty {
+	display: none;
+}
+
+.sac-modal .sac-alert {
+	margin: 0;
+	padding: 10px 12px;
+	border: 0;
+	border-radius: 11px;
+	background: var(--v2-warn-tint);
+	color: var(--v2-warn);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.sac-modal .sac-alert__strong {
+	font-weight: 600;
+}
+
+.sac-modal .sac-alert--quiet {
+	background: var(--v2-soft);
+	color: var(--v2-ink-2);
+}
+
+.sac-modal__loading {
+	padding: 64px 0 72px;
+	color: var(--v2-ink-3);
+	text-align: center;
+}
+
+/* The footer carries the receipt's "Åbn …" as a button; the inline link would say it twice. */
+.sac-modal .sac-receipt .sac-link {
+	display: none;
+}
+
+.sac-modal__foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	padding: 12px 24px;
+	border-top: 1px solid var(--v2-line);
+	background: #fff;
+}
+
+.sac-modal__foot[hidden] {
+	display: none;
+}
+
+.sac-modal__aside {
+	display: flex;
+	flex: 1 1 auto;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 14px;
+	min-width: 0;
+	margin-left: -8px;
+}
+
+.sac-modal__aside:has(.sac-note[open]) {
+	flex-basis: 100%;
+	margin-left: 0;
+}
+
+.sac-modal .sac-note {
+	margin: 0;
+}
+
+.sac-modal .sac-note label {
+	margin-top: 4px;
+}
+
+.sac-modal .sac-note textarea {
+	display: block;
+	max-width: none;
+	resize: vertical;
+}
+
+.sac-modal .sac-note[open] + .sac-modal__keys {
+	display: none;
+}
+
+.sac-modal .sac-modal__keys {
+	margin: 0;
+}
+
+.sac-modal__buttons {
+	display: flex;
+	gap: 8px;
+	margin-left: auto;
+}
+
+.sac-modal .sac-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 88px;
+	height: 36px;
+	padding: 0 16px;
+	border: 0 !important;
+	border-radius: 9px;
+	font-size: 13.5px;
+	font-weight: 500;
+	letter-spacing: -0.005em;
+	line-height: 1;
+	white-space: nowrap;
+	cursor: pointer;
+	filter: none;
+}
+
+.sac-modal .sac-btn--primary {
+	background: var(--sac-accent) !important;
+	color: var(--sac-accent-text) !important;
+	box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18), 0 1px 1px rgba(16, 24, 40, 0.08);
+}
+
+.sac-modal .sac-btn--secondary {
+	background: #fff !important;
+	color: var(--v2-ink) !important;
+	box-shadow: inset 0 0 0 1px var(--v2-line-2), 0 1px 1px rgba(16, 24, 40, 0.04);
+}
+
+.sac-modal .sac-btn--primary:hover {
+	filter: brightness(1.08);
+}
+
+.sac-modal .sac-btn--secondary:hover {
+	background: var(--v2-soft) !important;
+}
+
+.sac-modal .sac-btn[disabled],
+.sac-modal .sac-btn[aria-disabled="true"] {
+	opacity: 0.5;
+	cursor: default;
+	filter: none;
+}
+
+.sac-modal .sac-btn[aria-busy="true"] {
+	opacity: 0.85;
+	cursor: progress;
+}
+
+.sac-modal :focus-visible {
+	outline: 2px solid var(--sac-focus);
+	outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+	.sac-modal-backdrop {
+		align-items: flex-end;
+		padding: 0;
+	}
+
+	.sac-modal.sai-v2 {
+		width: 100%;
+		max-height: calc(100vh - 24px);
+		border-radius: var(--v2-r) var(--v2-r) 0 0;
+	}
+
+	.sac-modal .sac-modal__keys {
+		display: none;
+	}
+
+	.sac-modal__buttons {
+		flex: 1 1 100%;
+	}
+
+	.sac-modal__buttons .sac-btn {
+		flex: 1;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.sac-modal-backdrop {
+		animation: sac-backdrop-in 140ms ease-out;
+	}
+
+	.sac-modal.sai-v2 {
+		animation: sac-modal-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+
+	@keyframes sac-backdrop-in {
+		from {
+			opacity: 0;
+		}
+	}
+
+	@keyframes sac-modal-in {
+		from {
+			opacity: 0;
+			transform: translateY(8px) scale(0.985);
+		}
+	}
+}
+
+/* Last, so it wins over the button rules above. */
+.js .sai-v2 .sai-js-hide {
+	display: none !important;
+}

@@ -1,0 +1,54 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "id": 512,
+    "client_id": "3f0c5132-0123-4567-8abc-123456789abc",
+    "status": "ubehandlet",
+    "review_state": "pending",
+    "display_status": "sendt",
+    "uploaded_at": "2026-09-15T06:12:00+00:00",
+    "uploaded_by": {
+      "name": "Lars Nordbro",
+      "is_me": false
+    },
+    "source": "app",
+    "vendor": "Restaurant Kanalen",
+    "description": "Frokostmøde med Hansen ApS",
+    "amount": "1840.00",
+    "currency": "DKK",
+    "date": "2026-09-14",
+    "invoice_number": "88231",
+    "vat_code": null,
+    "suggestion": {
+      "id": 991,
+      "kontonr": 2750,
+      "account_name": "Repræsentation",
+      "vat_code": "K25",
+      "basis": "supplier_history"
+    },
+    "bank_line": null,
+    "has_thumbnail": true,
+    "etag": "\"9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e\"",
+    "metadata": {
+      "vendor": "Restaurant Kanalen",
+      "description": "Frokostmøde med Hansen ApS",
+      "amount": "1840.00",
+      "date": "2026-09-14",
+      "invoice_number": "88231",
+      "currency": "DKK",
+      "kontonr": 2750,
+      "vat_code": null
+    },
+    "kreditor": {
+      "kontonr": "30012",
+      "name": "Restaurant Kanalen",
+      "match": "cvr",
+      "mode": "auto",
+      "candidates": []
+    },
+    "rejection": null,
+    "draft": null,
+    "audit": []
+  }
+}

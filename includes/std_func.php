@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-09-24 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -90,6 +90,10 @@
 //                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
 //                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
 // 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
+// 20261001 CDX/LH Serialize lagerreguler stock and batches; support deferred shop synchronization.
+// 20261001 CDX/LH Correct partial decreases to subtract consumed batch rest; historic rests are unchanged.
+// 20261001 CDX/LH Preserve three decimal places in stock SQL and keep empty warehouse rows from clearing variant stock.
+// 20261001 CDX/LH Normalize stock aliases and recompute variant totals across warehouses.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1631,115 +1635,85 @@ if (!function_exists('regnstartslut')) {
 }
 
 if (!function_exists('lagerreguler')) {
-	function lagerreguler($vare_id, $ny_beholdning, $kostpris, $lager, $transdate, $variant_id) {
-		/**
-		 * Adjusts the stock levels of an item in the inventory system.
-		 *
-		 * This function updates the stock levels of a given product (identified by its `vare_id`) in the 
-		 * inventory system, considering factors like variant, stock location, and transaction date. It handles
-		 * both stock increases and decreases, and updates related tables like `lagerstatus`, `batch_kob`, and `batch_salg`.
-		 * It also ensures synchronization with an external system by calling `sync_shop_vare` and updates the overall stock level.
-		 *
-		 * @param int $vare_id - The unique identifier of the product (item) whose stock level is to be adjusted.
-		 * @param float $ny_beholdning - The new stock level to be set for the item.
-		 * @param float $kostpris - The cost price of the item, used when adjusting stock quantities in `batch_kob`.
-		 * @param int $lager - The stock location identifier.
-		 * @param string $transdate - The transaction date of the stock adjustment.
-		 * @param int $variant_id - The variant identifier of the item (if applicable).
-		 * 
-		 * @return void - This function does not return any value but modifies the stock levels in the database.
-		 */
-
-		global $db;
-
-		$qtxt = "select box4 from grupper where art='API'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$api_fil = trim($r['box4']);
-
-		if ($lager < 1)
-			$lager = 1;
-
-		$ny_beholdning = (float) $ny_beholdning;
-		$vare_id = (int) $vare_id;
-		$variant_id = (int) $variant_id;
-
-		$x = 0;
-		$qtxt = "update lagerstatus set variant_id='0' where vare_id='$vare_id' and variant_id is NULL";
-		#	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt = "update lagerstatus set lager='1' where  vare_id='$vare_id' and lager = '0' or lager is NULL";
-		#	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		# If the item already exsits in lagerstatus, update it, else change it
-		$qtxt = "select id,beholdning from lagerstatus where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' order by id limit 1";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['id']) {
-			# $qtxt = "delete from lagerstatus where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and id !='$r[id]'";
-			#		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$existingStock = $r['beholdning'];
-			$diff = $ny_beholdning - $existingStock;
-			if ($diff) {
-#				echo "Updating";
-#						echo $ny_beholdning;
-				$qtxt = "update lagerstatus set beholdning='$ny_beholdning' where id='$r[id]'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				$qtxt = "update variant_varer set variant_beholdning='$ny_beholdning' where id='$variant_id'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	/**
+	 * Adjust warehouse stock and FEFO batches, retaining the six-argument legacy interface.
+	 * The item section owns a short transaction only when the caller has none.
+	 * @param int $vare_id
+	 * @param float|string $ny_beholdning
+	 * @param float|string $kostpris
+	 * @param int $lager
+	 * @param string $transdate
+	 * @param int $variant_id
+	 * @param bool $deferShopSync Skip HTTP; the caller synchronizes after commit.
+	 * @return void
+	 */
+	function lagerreguler($vare_id, $ny_beholdning, $kostpris, $lager, $transdate, $variant_id, bool $deferShopSync = false) {
+		require_once __DIR__ . '/lager/stockMovement.php';
+		$vare_id = (int)$vare_id;
+		$variant_id = (int)$variant_id;
+		$lager = max(1, (int)$lager);
+		$ny_beholdning = number_format((float)$ny_beholdning, 3, '.', '');
+		$kostpris = number_format((float)$kostpris, 3, '.', '');
+		$transdate = db_escape_string($transdate);
+		stock_item_section([$vare_id], static function () use ($vare_id,$variant_id,$lager,$ny_beholdning,$kostpris,$transdate): void {
+			$row = stock_resolve_quantity_row($vare_id, $variant_id, $lager);
+			$existingStock = (float)ifset($row, 'beholdning', 0);
+			$diff = round((float)$ny_beholdning - $existingStock, 3);
+			if ($row) {
+				if ($diff) {
+					$id = (int)$row['id'];
+					db_modify("UPDATE lagerstatus SET beholdning='$ny_beholdning' WHERE id=$id", __FILE__ . ' linje ' . __LINE__);
+				}
+			} else {
+				db_modify("INSERT INTO lagerstatus(vare_id,variant_id,beholdning,lager) VALUES('$vare_id','$variant_id','$ny_beholdning','$lager')", __FILE__ . ' linje ' . __LINE__);
 			}
-		} else {
-			$qtxt = "insert into lagerstatus(vare_id,variant_id,beholdning,lager) values ('$vare_id','$variant_id','$ny_beholdning','$lager')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$diff = "$ny_beholdning";
-		}
-		# Når en lager ændring laves, der ikke har en lerveringsorder bhgskal den indsættes før lagerstyringen giver mening
-		if ($diff > 0) {
-			$qtxt = "insert into batch_kob(vare_id,variant_id,linje_id,kobsdate,fakturadate,ordre_id,antal,pris,rest,lager)";
-			$qtxt .= "values";
-			$qtxt .= "('$vare_id','$variant_id','0','$transdate','$transdate','0','$diff','$kostpris','$diff','$lager')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} else {
-			$diff *= -1;
-			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by " . fefo_order_clause();
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($diff && $r = db_fetch_array($q)) {
-				$pris = (float)$r['pris'];
-				if ($diff - $r['rest'] >= 0) {
-					$qtxt = "update batch_kob set rest='0' where id='$r[id]'";
-					db_modify("update batch_kob set rest='0' where id='$r[id]'", __FILE__ . " linje " . __LINE__);
-					$qtxt = "insert into batch_salg(batch_kob_id,vare_id,variant_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager)";
-					$qtxt .= "values";
-					$qtxt .= "('$r[id]','$vare_id','$variant_id','0','$transdate','$transdate','0','$r[rest]','$pris','1','$lager')";
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$diff -= $r['rest'];
-				} else {
-					if (!$diff) $diff = 0;
-					$qtxt = "update batch_kob set rest=rest+$diff where id='$r[id]'";
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$qtxt = "insert into batch_salg(batch_kob_id,vare_id,variant_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager)";
-					$qtxt .= "values";
-					$qtxt .= "('$r[id]','$vare_id','$variant_id','0','$transdate','$transdate','0','$diff','$pris','1','$lager')";
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$diff = 0;
+			if ($diff > 0) {
+				$quantity = number_format($diff, 3, '.', '');
+				$qtxt = "INSERT INTO batch_kob(vare_id,variant_id,linje_id,kobsdate,fakturadate,ordre_id,antal,pris,rest,lager) ";
+				$qtxt .= "VALUES('$vare_id','$variant_id','0','$transdate','$transdate','0','$quantity','$kostpris','$quantity','$lager')";
+				db_modify($qtxt, __FILE__ . ' linje ' . __LINE__);
+			} elseif ($diff < 0) {
+				$diff *= -1;
+				$scope = stock_warehouse_scope($lager);
+				$qtxt = "SELECT id,rest,pris FROM batch_kob WHERE vare_id='$vare_id' AND $scope AND COALESCE(variant_id,0)=$variant_id AND rest>0 ORDER BY " . fefo_order_clause() . ' FOR UPDATE';
+				$query = db_select($qtxt, __FILE__ . ' linje ' . __LINE__);
+				while ($diff && ($row = db_fetch_array($query))) {
+					$id = (int)$row['id'];
+					$rest = (float)$row['rest'];
+					$price = number_format((float)$row['pris'], 3, '.', '');
+					if ($diff >= $rest) {
+						$moved = $rest;
+						db_modify("UPDATE batch_kob SET rest=0 WHERE id=$id", __FILE__ . ' linje ' . __LINE__);
+					} else {
+						$moved = $diff;
+						$quantity = number_format($moved, 3, '.', '');
+						db_modify("UPDATE batch_kob SET rest=rest-$quantity WHERE id=$id", __FILE__ . ' linje ' . __LINE__);
+					}
+					$quantity = number_format($moved, 3, '.', '');
+					$qtxt = "INSERT INTO batch_salg(batch_kob_id,vare_id,variant_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager) ";
+					$qtxt .= "VALUES('$id','$vare_id','$variant_id','0','$transdate','$transdate','0','$quantity','$price','1','$lager')";
+					db_modify($qtxt, __FILE__ . ' linje ' . __LINE__);
+					$diff = round($diff - $moved, 3);
+				}
+				if ($diff) {
+					$quantity = number_format($diff, 3, '.', '');
+					$qtxt = "INSERT INTO batch_salg(batch_kob_id,vare_id,variant_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager) ";
+					$qtxt .= "VALUES('0','$vare_id','$variant_id','0','$transdate','$transdate','0','$quantity','$kostpris','1','$lager')";
+					db_modify($qtxt, __FILE__ . ' linje ' . __LINE__);
 				}
 			}
-			if ($diff) {
-				$qtxt = "insert into batch_salg(batch_kob_id,vare_id,variant_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager)";
-				$qtxt .= "values";
-				$qtxt .= "('0','$vare_id','$variant_id','0','$transdate','$transdate','0','$diff','$kostpris','1',$lager)";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($variant_id) {
+				$row = db_fetch_array(db_select("SELECT COALESCE(SUM(beholdning),0) AS beholdning FROM lagerstatus WHERE vare_id=$vare_id AND variant_id=$variant_id", __FILE__ . ' linje ' . __LINE__));
+				$total = number_format((float)$row['beholdning'], 3, '.', '');
+				db_modify("UPDATE variant_varer SET variant_beholdning='$total' WHERE id=$variant_id AND vare_id=$vare_id", __FILE__ . ' linje ' . __LINE__);
 			}
+			$row = db_fetch_array(db_select("SELECT COALESCE(SUM(beholdning),0) AS beholdning FROM lagerstatus WHERE vare_id='$vare_id'", __FILE__ . ' linje ' . __LINE__));
+			$total = number_format((float)$row['beholdning'], 3, '.', '');
+			db_modify("UPDATE varer SET beholdning='$total' WHERE id='$vare_id'", __FILE__ . ' linje ' . __LINE__);
+		});
+		if (!$deferShopSync) {
+			sync_shop_vare($vare_id, $variant_id, $lager);
 		}
-    $qtxt="select id from styklister where vare_id='$vare_id' limit 1";
-#		if (db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-#			$diff = $ny_beholdning - $existingStock;
-#			include_once('productCardIncludes/updateParentStock.php');
-#			updateParentStock($id, $lager, $diff);
-#	  }
-		sync_shop_vare($vare_id, $variant_id, $lager);
-		$qtxt = "select sum(beholdning) as beholdning from lagerstatus where vare_id='$vare_id'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$beholdning = $r['beholdning'] * 1;
-		$qtxt = "update varer set beholdning='$beholdning' where id='$vare_id'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		#
 	}
 } #	endfunc lagerreguler
 

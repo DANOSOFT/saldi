@@ -1,0 +1,42 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "id": 512,
+    "client_id": "3f0c5132-0123-4567-8abc-123456789abc",
+    "status": "ubehandlet",
+    "uploaded_at": "2026-09-15T06:12:00+00:00",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "filename": "3f0c5132-0123-4567-8abc-123456789abc.pdf",
+    "size": 12345,
+    "mimeType": "application/pdf",
+    "uploadDate": "2026-09-15T06:12:00+00:00",
+    "extracted_data": {
+      "total_amount": "1840.00",
+      "invoice_date": "2026-09-14",
+      "invoice_number": "88231",
+      "invoice_description": "Frokostmøde med Hansen ApS",
+      "currency": "DKK",
+      "vendor": "Restaurant Kanalen",
+      "suggested_kontonr": "2750"
+    },
+    "metadata": {
+      "date": "2026-09-14",
+      "amount": "1840.00",
+      "accountnr": "2750",
+      "invoiceNumber": "88231",
+      "invoiceDescription": "Frokostmøde med Hansen ApS",
+      "currency": "DKK",
+      "subject": "Restaurant Kanalen"
+    },
+    "attached_at": null,
+    "bilag_nr": null,
+    "deleted_at": null,
+    "review_state": "pending",
+    "display_status": "sendt",
+    "rejection": null,
+    "vat_code": null,
+    "bank_line_id": null,
+    "etag": "\"9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e9b1e\""
+  }
+}

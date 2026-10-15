@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/listDocs.php-----patch 5.0.0 ----2026-06-03--------
+// --- includes/docsIncludes/listDocs.php-----ver 5.0.0 ----2026-10-01--------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20220510 PHR Not attatchments from not invoiced orders can now be deleted. 
 // 20230705 LOE Made some modifications 20230724+20230801
@@ -25,7 +25,9 @@
 // 20240323 PHR Minor design changes
 // 20250815 LOE Further improvements
 // 20260603 CL/PHR debitorOrdrer tilføjet til $inFlexboxLayout
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
 
+require_once __DIR__ . '/poolFileTransitions.php';
 $fileName = NULL;
 isset($_GET['bilag_id'])? $bilag_id = $_GET['bilag_id']: $bilag_id = null;
 
@@ -115,10 +117,10 @@ if($q !== false){
 			$fileName = $r['filename'];
 			if ($fileName != trim($fileName)) {
 				$newName = trim($fileName);
-				rename($showDoc,$newName);
-				$qtxt = "UPDATE documents set filename = '$newName' where id = '$docId'";
+				PoolFileTransitions::move($db, $href, dirname($href) . '/' . $newName);
+				$qtxt = "UPDATE documents set filename = '" . db_escape_string($newName) . "' where id = " . (int)$docId;
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$fileName = $$newName; 
+				$fileName = $newName;
 			}
 			#else echo "Kan ikke finde den<br>";
 #			$check = $r['filepath']."/$fileName";
@@ -129,17 +131,17 @@ if($q !== false){
 			if (strtolower(substr($showDoc,-4,0)) !='.') {
 				if (strtolower(substr($showDoc,-3)) == 'pdf') {
 					$newName = str_replace('pdf ','.pdf',$showDoc);
-					rename($showDoc,$newName);
+					PoolFileTransitions::move($db, $showDoc, $newName);
 					if (file_exists($newName)) $showDoc = $newName;
 				} else {
 					$fileType = strtolower(file_get_contents($showDoc, FALSE, NULL, 0, 4));
 					if ($fileType == '%pdf') {
 						$newName = $showDoc.'.pdf';
-						rename($showDoc,$newName);
+						PoolFileTransitions::move($db, $showDoc, $newName);
 						if (file_exists($newName)) {
 							$showDoc = $newName;
 							$newName = $fileName.'.pdf';
-							$qtxt = "UPDATE documents set filename = '$newName' where id = '$docId'";
+							$qtxt = "UPDATE documents set filename = '" . db_escape_string($newName) . "' where id = " . (int)$docId;
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
 					}

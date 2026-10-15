@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -113,6 +113,7 @@
 // 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
 // 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
 // 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
+// 20261001 CDX/LH Share customer allocation lock, inserted identity and payment defaults with mobile.
 @session_start();
 $s_id = session_id();
 
@@ -128,6 +129,7 @@ $css = "../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/debitor/debtorAccount.php';
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
@@ -296,12 +298,13 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
 		list($gruppe) = explode(':', $_POST['gruppe']);
+		$gruppe = (int)$gruppe;
 		(isset($_POST['rabatgruppe'])) ? $rabatgruppe = db_escape_string(trim($_POST['rabatgruppe'])) : $rabatgruppe = 0;
 		if (!$rabatgruppe) $rabatgruppe = 0;
 		$kontoansvarlig = $_POST['kontoansvarlig'];
-		$bank_reg = $_POST['bank_reg'];
-		$bank_konto = $_POST['bank_konto'];
-		$swift = $_POST['swift'];
+		$bank_reg = db_escape_string((string)ifset($_POST, 'bank_reg', ''));
+		$bank_konto = db_escape_string((string)ifset($_POST, 'bank_konto', ''));
+		$swift = db_escape_string((string)ifset($_POST, 'swift', ''));
 		(isset($_POST['pbs_nr'])) ? $pbs_nr = db_escape_string(trim($_POST['pbs_nr'])) : $pbs_nr = '';
 		(isset($_POST['pbs'])) ? $pbs    = db_escape_string(trim($_POST['pbs'])) : $pbs    = '';
 		$ordre_id = $_POST['ordre_id'];
@@ -526,11 +529,12 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		}
 */
 		if (!$id && $ny_kontonr) {
-			$qtxt = "select id from adresser where kontonr = '$ny_kontonr' and art = 'D'";
-			if ($ny_kontonr && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			try {
+				$ny_kontonr = debtor_allocate_kontonr((string)(int)$ny_kontonr);
+			} catch (DomainException $error) {
 				$alerttekst = findtekst('350|Der findes allerede en debitor med Kontonr', $sprog_id);
-				$alerttekst = $alerttekst.': '.$ny_kontonr;
-				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">"; #<!--tekst 350-->\n";
+				$alerttekst .= ': ' . $ny_kontonr;
+				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">";
 				$ny_kontonr = '!';
 			}
 		}
@@ -558,16 +562,22 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		## Tildeler aut kontonr hvis det ikke er angivet
 		$ktoliste = array();
 		if ($firmanavn && $ny_kontonr !== '!' && ($ny_kontonr < 1 || !$ny_kontonr)) {
-			if (!$id) $id = "0";
-			$x = 0;
-			$qtxt = "select kontonr from adresser where art = 'D' and id != $id order by kontonr";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$x++;
-				$ktoliste[$x] = $r['kontonr'];
+			if (!$id) {
+				$id = 0;
+				$ny_kontonr = debtor_allocate_kontonr(null);
+			} else {
+				$x = 0;
+				$qtxt = "select kontonr from adresser where art = 'D' and id != $id order by kontonr";
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$x++;
+					$ktoliste[$x] = $r['kontonr'];
+				}
+				$ny_kontonr = 1000;
+				while (in_array($ny_kontonr, $ktoliste)) {
+					$ny_kontonr++;
+				}
 			}
-			$ny_kontonr = 1000;
-			while (in_array($ny_kontonr, $ktoliste)) $ny_kontonr++;
 			$alerttekst = findtekst('349|Kontonummer $ny_kontonr tildelt automatisk!', $sprog_id);
 			$alerttekst = str_replace('$ny_kontonr', $ny_kontonr, $alerttekst);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 349-->\n";
@@ -597,11 +607,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$qtxt .= "'$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr',";
 			$qtxt .= "'$lev_bynavn','$lev_land','$lev_kontakt','$lev_tlf','$lev_email','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5',";
 			$qtxt .= "'$vis_lev_addr','$lukket','$stripe_fravalg','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
-			$r = db_fetch_array($q);
-			$id = $r['id'];
-			if ($kontakt) db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
+			try {
+				$id = debtor_insert_row($qtxt);
+				if ($kontakt) {
+					db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
+				}
+			} finally {
+				debtor_unlock_kontonr();
+			}
 
 			// Save primary email for new customer
 			$primary_ke_id = 0;
@@ -1223,42 +1236,10 @@ if ($id > 0) {
 	$r = db_fetch_array(db_select("select count(kontotype) as erhverv from adresser where kontotype = 'erhverv'", __FILE__ . " linje " . __LINE__));
 	$erhverv = $r['erhverv'];
 	($privat > $erhverv) ? $kontotype = "privat" : $kontotype = "erhverv";
-	$x = 0;
-	$bb = array();
-	$q = db_select("select distinct(betalingsbet) as betalingsbet from adresser", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$bb[$x] = $r['betalingsbet'];
-		$x++;
-	}
-	$maxbb = 'Netto';
-	for ($x = 0; $x < count($bb); $x++) {
-		$qtxt = "select count(betalingsbet) as betalingsbet from adresser where  art='D' and betalingsbet = '$bb[$x]'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$betbet[$x] = $r['betalingsbet'];
-		if ($x == 0) $maxbb = $bb[$x];
-		elseif ($betbet[$x] > $betbet[$x - 1]) $maxbb = $bb[$x];
-	}
-	$bb = NULL;
-	$x = 0;
-	$bd = array();
-	$q = db_select("select distinct(betalingsdage) as betalingsdage from adresser WHERE betalingsdage != 0", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$bd[$x] = $r['betalingsdage'];
-		$x++;
-	}
-	if ($maxbb != 'Kontant' && $maxbb != 'Forud') {
-		$maxbd = 8;
-		for ($x = 0; $x < count($bd); $x++) {
-			$r = db_fetch_array(db_select("select count(betalingsdage) as betalingsdage from adresser where art='D' and betalingsdage = '$bd[$x]'", __FILE__ . " linje " . __LINE__));
-			$betdag[$x] = $r['betalingsdage'];
-			if ($x && $betdag[$x] > $betdag[$x - 1]) $maxbd = $bd[$x];
-		}
-	} else $maxbd = 0;
-	$bd = NULL;
-	$x = NULL;
+	$defaults = debtor_payment_defaults();
 	$id = 0;
-	$betalingsbet = $maxbb;
-	$betalingsdage = $maxbd;
+	$betalingsbet = $defaults['betalingsbet'];
+	$betalingsdage = $defaults['betalingsdage'];
 	$kontoansvarlig = '0';
 	$kontakt_email_ids = array();
 	$kontakt_email_vals = array();

@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -----------------systemdata/brugerdata.php ------ver 3.6.6-----2016.11.04----------
+// -----------------systemdata/brugerdata.php ------ver 5.0.0-----2016.11.04----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,6 +25,9 @@
 //
 // Copyright (c) 2004-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------
+
+// 20261001 CDX/LH Revoke password sessions, escape username and fix old-password variable.
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 
 @session_start();
 $s_id=session_id();
@@ -64,12 +67,14 @@ if ($_POST) {
 	if ($warn_days_post !== null && $warn_days_post !== '') {
 		update_settings_value('due_date_warning_days', 'lager', intval($warn_days_post), 'Days before expiry to warn', $bruger_id);
 	}
-	if ($glkode1!=$nykode1) {
+	if ($glkode != $nykode1) {
+		$usernameSql = db_escape_string($brugernavn);
 		if ($nykode1 && $nykode1==$nykode2 && $glkode) {
-			$r=db_fetch_array(db_select("select kode from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
+			$r=db_fetch_array(db_select("select kode from brugere where brugernavn='$usernameSql'",__FILE__ . " linje " . __LINE__));
 			if ($r['kode']==md5($glkode) || $r['kode']==saldikrypt($bruger_id,$glkode)) {
 				$nykode1=saldikrypt($bruger_id,$nykode1);
-				db_modify("update brugere set kode='$nykode1' where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__);
+				db_modify("update brugere set kode='$nykode1' where brugernavn='$usernameSql'",__FILE__ . " linje " . __LINE__);
+				mobileRevokeUser((int)$bruger_id, 'password_changed');
 				print tekstboks('Adgangskode &aelig;ndret!');
 			} elseif ($r['kode']) print tekstboks('Der er tastet forkert v&aelig;rdi i "Gl. adgangskode"');
 		} else print print tekstboks('Der er tastet forskellige v&aelig;rdier i "Ny adgangskode" & "Bekr&aelig;ft ny kode"');

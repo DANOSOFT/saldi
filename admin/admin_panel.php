@@ -17,6 +17,9 @@ ob_start();
 // ----------------------------------------------------------------------
 // Admin Panel - Comprehensive admin page for managing customer accounts,
 // feature licenses, usage stats, and account settings.
+// 20261001 CDX/LH Revoke mobile sessions after security or account membership changes.
+
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 
 @session_start();
 $s_id = session_id();
@@ -233,6 +236,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  lukkes=$lukkes_sql, lukkes_kommentar='$lukkes_kommentar' WHERE id = $regnskab_id";
         db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+        if ($lukket === 'on') {
+            mobileRevokeTenant($regnskab_id);
+        }
         $message = "Indstillinger opdateret!";
     }
 }
@@ -352,6 +358,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         if (count($sets) > 0) {
             $qtxt = "UPDATE brugere SET " . implode(', ', $sets) . " WHERE id = $user_id";
             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            mobileRevokeUser($user_id, 'user_security_changed', $client_db);
         }
         // Reconnect master
         include("../includes/connect.php");
@@ -370,6 +377,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
             db_modify("UPDATE ansatte SET lukket='on', slutdate='" . date('Y-m-d') . "' WHERE id = " . (int)$r['ansat_id'], __FILE__ . " linje " . __LINE__);
         }
         db_modify("DELETE FROM brugere WHERE id = $user_id", __FILE__ . " linje " . __LINE__);
+        mobileRevokeUser($user_id, 'user_deleted', $client_db);
         
         // Reconnect master
         include("../includes/connect.php");
@@ -1140,6 +1148,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         if (strtotime($reg['lukkes']) <= strtotime(date('Y-m-d'))) {
             db_modify("UPDATE regnskab SET lukket='on' WHERE id=" . (int)$reg['id'], __FILE__ . " linje " . __LINE__);
             db_modify("DELETE FROM online WHERE db='" . db_escape_string($reg['db']) . "'", __FILE__ . " linje " . __LINE__);
+            mobileRevokeTenant((int)$reg['id']);
             $reg['lukket'] = 'on';
         }
     }

@@ -1,0 +1,31 @@
+{
+    "success": true,
+    "message": "",
+    "data": {
+        "bookings_today": {
+            "planned": 1,
+            "done": 0
+        },
+        "hours_week": "7.50",
+        "km_week": "42.0",
+        "expenses_week": 1,
+        "open_receipt_orders": {
+            "count": 1,
+            "first": {
+                "ordrenr": 123,
+                "kreditor": {
+                    "kontonr": "1001",
+                    "name": "Hansen Leverancer ApS"
+                }
+            }
+        },
+        "sections": {
+            "stock_count": true,
+            "goods_receipt": true,
+            "time": true,
+            "bookings": true,
+            "claims": true,
+            "catalogue": true
+        }
+    }
+}

@@ -1,0 +1,75 @@
+{
+    "draft": {
+        "transdate": "2026-09-14",
+        "beskrivelse": "T3 purchase",
+        "d_type": "K",
+        "debet": "987003",
+        "k_type": "F",
+        "kredit": "987001",
+        "faktura": "INV-T3",
+        "amount": "125.000",
+        "momsfri": "",
+        "valuta": "0",
+        "valutakurs": "100.000",
+        "debetvat": "",
+        "kreditvat": "K987"
+    },
+    "posting": {
+        "transaktioner": [
+            {
+                "kontonr": "987013",
+                "debet": "125.000",
+                "kredit": null,
+                "moms": "0.000",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "0",
+                "valutakurs": "100.000"
+            },
+            {
+                "kontonr": "987001",
+                "debet": null,
+                "kredit": "100.000",
+                "moms": "-25.000",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "0",
+                "valutakurs": "100.000"
+            },
+            {
+                "kontonr": "987011",
+                "debet": null,
+                "kredit": "25.000",
+                "moms": "0.000",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "0",
+                "valutakurs": "100.000"
+            }
+        ],
+        "openpost": [
+            {
+                "konto_nr": "987003",
+                "faktnr": "INV-T3",
+                "amount": "125.000",
+                "transdate": "2026-09-14",
+                "valuta": "DKK",
+                "valutakurs": "100.000"
+            }
+        ],
+        "saldo_delta": [
+            {
+                "kontonr": 987001,
+                "delta": "-100.000"
+            },
+            {
+                "kontonr": 987011,
+                "delta": "-25.000"
+            },
+            {
+                "kontonr": 987013,
+                "delta": "125.000"
+            }
+        ]
+    }
+}

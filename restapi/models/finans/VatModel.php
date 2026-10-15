@@ -1,4 +1,7 @@
 <?php
+// History:
+// 20261001 CDX/LH Add fiscal-year resolution and bounded receipt VAT reference data.
+// 20261001 CDX/LH Fall back to the latest started fiscal year for capture reference data.
 
 class VatModel
 {
@@ -261,6 +264,80 @@ class VatModel
             'contraAccount' => $this->modkonto,
             'mapping' => $this->map
         ];
+    }
+
+    /**
+     * Resolve an internal RA kodenr, defaulting to the fiscal year covering today,
+     * or the most recently started valid year when today's year has not been created.
+     *
+     * @return int|null Internal fiscal-year id, or null if no matching RA row exists.
+     */
+    public static function resolveReferenceYear(?int $year = null): ?int
+    {
+        if ($year !== null) {
+            $year = (int)$year;
+            $q = db_select("SELECT kodenr FROM grupper WHERE art='RA' AND kodenr=$year LIMIT 1", __FILE__ . ' linje ' . __LINE__);
+            $row = db_fetch_array($q);
+            return $row ? (int)$row['kodenr'] : null;
+        }
+        $today = (new DateTimeImmutable('now', new DateTimeZone('Europe/Copenhagen')))->format('Ym');
+        $fallback = null;
+        $fallbackStart = null;
+        $q = db_select("SELECT kodenr, box1, box2, box3, box4 FROM grupper WHERE art='RA' ORDER BY kodenr DESC", __FILE__ . ' linje ' . __LINE__);
+        while ($row = db_fetch_array($q)) {
+            $startMonth = (int)$row['box1'];
+            $startYear = (int)$row['box2'];
+            $endMonth = (int)$row['box3'];
+            $endYear = (int)$row['box4'];
+            if (!checkdate($startMonth, 1, $startYear) || !checkdate($endMonth, 1, $endYear)) {
+                continue;
+            }
+            $start = sprintf('%04d%02d', $startYear, $startMonth);
+            $end = sprintf('%04d%02d', $endYear, $endMonth);
+            if ($start > $end) {
+                continue;
+            }
+            if ($start <= $today && $today <= $end) {
+                return (int)$row['kodenr'];
+            }
+            // Rows are ordered by descending id, so equal start dates keep the highest id.
+            if ($start <= $today && ($fallbackStart === null || $start > $fallbackStart)) {
+                $fallback = (int)$row['kodenr'];
+                $fallbackStart = $start;
+            }
+        }
+        return $fallback;
+    }
+
+    /**
+     * Read the fiscal year's actual moms rows, without per-row model queries.
+     * Fetch one extra row so a complete list is never silently truncated.
+     *
+     * @return list<array{code:string, description:string, rate:float, direction:string, konto:int, fiscal_year:int}>
+     */
+    public static function receiptReferenceData(int $year, int $limit = 5000): array
+    {
+        $year = (int)$year;
+        $limit = max(1, min(5000, (int)$limit));
+        $fetch = $limit + 1;
+        $q = db_select("SELECT art, kode, kodenr, beskrivelse, box1, box2, fiscal_year FROM grupper
+            WHERE art IN ('SM','KM','EM','YM') AND fiscal_year=$year ORDER BY art, kodenr, id LIMIT $fetch", __FILE__ . ' linje ' . __LINE__);
+        $directions = ['KM' => 'purchase', 'SM' => 'sale', 'EM' => 'EU', 'YM' => 'import'];
+        $items = [];
+        while ($row = db_fetch_array($q)) {
+            if (count($items) === $limit) {
+                throw new LengthException('VAT reference list exceeds limit');
+            }
+            $items[] = [
+                'code' => trim((string)$row['kode']) . (int)$row['kodenr'],
+                'description' => (string)$row['beskrivelse'],
+                'rate' => (float)$row['box2'],
+                'direction' => $directions[$row['art']],
+                'konto' => (int)$row['box1'],
+                'fiscal_year' => (int)$row['fiscal_year'],
+            ];
+        }
+        return $items;
     }
 
     // Getter methods

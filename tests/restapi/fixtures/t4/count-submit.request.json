@@ -1,0 +1,17 @@
+{
+  "client_id": "b4000000-0000-4000-8000-000000000001",
+  "session_id": "b4000000-0000-4000-8000-000000000002",
+  "lager": 1,
+  "reason": "optaelling",
+  "started_at": "2026-10-06T08:00:00+02:00",
+  "lines": [
+    {
+      "line_ref": "b4000000-0000-4000-8000-000000000001",
+      "vare_id": 1001,
+      "counted_qty": "181",
+      "expected_qty": "184",
+      "expected_token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "counted_at": "2026-10-06T08:00:00+02:00"
+    }
+  ]
+}

@@ -114,6 +114,9 @@
 // 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
 //                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
 
+// 20261001 CDX/LH Revoke mobile sessions after security or account membership changes.
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
+
 @session_start();
 $s_id=session_id();
 
@@ -230,6 +233,7 @@ if ($_POST){
 				if (substr($rettigheder,-1)==",") $rettigheder=$rettigheder.$db_id;
 				else $rettigheder=$rettigheder.",".$db_id;
 				db_modify("update brugere set rettigheder='$rettigheder' where id='$bruger_id'",__FILE__ . " linje " . __LINE__);
+				mobileRevokeUser((int)$bruger_id, 'registry_membership_changed');
 			}
 		}
 		transaktion('commit');

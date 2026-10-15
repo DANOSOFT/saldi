@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "journal": {
+      "kladde_id": 77,
+      "note": "Godkendte bilag fra Saldi Mobile",
+      "posted": false,
+      "locked_by": null
+    },
+    "items": [
+      {
+        "kassekladde_id": 9012,
+        "bilag": 1043,
+        "date": "2026-09-14",
+        "description": "Frokostmøde med Hansen ApS",
+        "kontonr": 2750,
+        "account_name": "Repræsentation",
+        "vat_code": "K25",
+        "amount": "1840.00",
+        "vat_amount": "368.00",
+        "currency": "DKK",
+        "contra": {
+          "type": "K",
+          "kontonr": "30012",
+          "name": "Restaurant Kanalen"
+        },
+        "attachment_id": 512,
+        "vendor": "Restaurant Kanalen"
+      }
+    ],
+    "totals": {
+      "amount": "1840.00",
+      "vat": "368.00"
+    },
+    "total": 1,
+    "limit": 50,
+    "offset": 0
+  }
+}

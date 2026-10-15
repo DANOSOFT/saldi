@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 4.0.7 --- 2022-11-24 ---
+// --- includes/formFuncIncludes/sendMail.php --- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20211028 PHR moved this function rom ../formfunc,php  
@@ -32,6 +32,7 @@
 //                  callers show it regardless of which mailer is loaded.
 // 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
 //                  and offers the ASCII suggestion via emailLookalike.php.
+// 20261001 CDX/LH Resolve the existing invoice payment-link mail token without minting payments.
 	
 /*if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
@@ -103,9 +104,14 @@ print "<!--function send_mails start-->";
 			$mailtext = str_replace('$firmanavn',$r['firmanavn'],$mailtext);
 		}
 	}
-	if (strpos($mailtext,'$betalingslink') !== false) {
-		# Payment-link minting disabled pending per-tenant key handling.
-		$mailtext = str_replace('$betalingslink','',$mailtext);
+	if (class_exists('PaymentLinkMailToken', false) && PaymentLinkMailToken::get((int)$ordre_id) !== null
+		&& strpos($mailtext,'$betalingslink') === false) {
+		$mailtext .= "\n\n" . '$betalingslink';
+	}
+	if (strpos($mailtext,'$betalingslink') !== false || strpos($subjekt,'$betalingslink') !== false) {
+		require_once __DIR__ . '/../payments/paymentLinkToken.php';
+		$mailtext = str_replace('$betalingslink', paymentLinkHtml(paymentLinkUrl((int)$ordre_id)), $mailtext);
+		$subjekt = str_replace('$betalingslink', '', $subjekt);
 	}
 	# 20260817 CL/LH $abonnementslink parity with sendMail.php (derived at send
 	# time, before the generic resolvers; '' when not a subscription customer).

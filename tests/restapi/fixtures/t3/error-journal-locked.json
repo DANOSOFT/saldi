@@ -1,0 +1,12 @@
+{
+  "success": false,
+  "message": "Journal locked",
+  "data": {
+    "error": "conflict",
+    "details": {
+      "reason": "journal_locked",
+      "locked_by": "Mette",
+      "self": true
+    }
+  }
+}

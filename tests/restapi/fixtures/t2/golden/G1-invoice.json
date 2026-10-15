@@ -1,0 +1,32 @@
+{
+  "scenario": "One rate invoice with percent discount",
+  "totals": {
+    "net": "180.00",
+    "vat": "45.00",
+    "gross": "225.00",
+    "currency": "DKK"
+  },
+  "status": 4,
+  "ledger": [
+    {
+      "account": 7861,
+      "debit": "0.00",
+      "credit": "180.00"
+    },
+    {
+      "account": 7900,
+      "debit": "225.00",
+      "credit": "0.00"
+    },
+    {
+      "account": 7901,
+      "debit": "0.00",
+      "credit": "45.00"
+    }
+  ],
+  "saldo_delta": {
+    "7861": "-180.00",
+    "7900": "225.00",
+    "7901": "-45.00"
+  }
+}

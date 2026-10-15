@@ -1,8 +1,12 @@
 <?php
 // 20260907 CDX/LH Bounded snapshots of saved journal and sales-invoice records.
 // 20260908 CDX/LH Document snapshot construction requirements.
+// 20261008 CL/LH Read bounded durable bank-line snapshots with revisions.
+// 20261010 CDX/LH Use the shared BankLineService snapshot reader.
+// 20261010 CDX/LH Return the saved-record envelope for bank-line reads.
 require_once __DIR__ . '/RecordAuth.php';
 require_once __DIR__ . '/RecordRules.php';
+require_once __DIR__ . '/../../restapi/services/BankLineService.php';
 
 final class SaldiAssistRecordService
 {
@@ -102,9 +106,17 @@ final class SaldiAssistRecordService
      *  @return array<string,mixed> */
     public function execute(string $operation, string $kind, int $id, array $rowIds = []): array
     {
-        $allowed = $kind === 'journal' ? ['get_journal_context', 'validate_journal'] : ['get_invoice_status'];
+        $allowed = match ($kind) {
+            'journal' => ['get_journal_context', 'validate_journal'],
+            'invoice' => ['get_invoice_status'],
+            'bank_line' => ['get_bank_line_context'],
+            default => [],
+        };
         if (!in_array($operation, $allowed, true)) {
             throw new SaldiAssistFailure('operation_forbidden');
+        }
+        if ($kind === 'bank_line') {
+            return $this->bankLine($id);
         }
         if ($kind === 'invoice') {
             return $this->invoice($id);
@@ -133,6 +145,26 @@ final class SaldiAssistRecordService
         $result['rows_truncated'] = count($selected) > 60;
         $result['note'] = mb_substr((string)$data['header']['kladdenote'], 0, 300);
         return $result;
+    }
+
+    /**
+     * Snapshot the durable identity and its newest surviving journal link, as on the mobile screen.
+     * @return array{kind:string,record_id:int,basis:string,operation:string,checked_at:string,status:string,date:string,text:string,amount:string,currency:string,matched:array{kind:string,id:int}|null,revision:string}
+     */
+    private function bankLine(int $id): array
+    {
+        $row = BankLineService::assistRecordSnapshot($this->pdo, $id);
+        if (!$row) {
+            throw new SaldiAssistFailure('record_not_found', 404);
+        }
+        $matched = $row['effective_state'] === 'matched' && $row['kladde_id'] !== null;
+        return ['kind' => 'bank_line', 'record_id' => $id, 'basis' => 'saved',
+            'operation' => 'get_bank_line_context', 'checked_at' => gmdate('c'), 'status' => $matched ? 'matched' : 'unmatched',
+            'date' => $row['transdate'], 'text' => mb_substr((string)$row['text'], 0, 4000),
+            'amount' => bank_line_money($row['amount']), 'currency' => trim($row['currency']),
+            'matched' => $matched
+                ? ['kind' => 'journal', 'id' => (int)$row['kladde_id']] : null,
+            'revision' => $this->revision($row)];
     }
 
     /** @return array<string,mixed> */

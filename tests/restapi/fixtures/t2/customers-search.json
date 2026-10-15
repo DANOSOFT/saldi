@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "id": 12,
+        "kontonr": "1000",
+        "name": "Hansen ApS",
+        "postnr": "",
+        "city": "",
+        "phone": "",
+        "email": "",
+        "cvr": "",
+        "saldo": "0.00"
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0
+  }
+}

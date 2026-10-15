@@ -1,0 +1,22 @@
+{
+  "scenario": "partial, partial, final payment",
+  "currency": "DKK",
+  "openpost_amounts": [
+    "1000.00",
+    "-400.00",
+    "-300.00",
+    "-300.00"
+  ],
+  "rest": "0.00",
+  "settlement_date": "2026-03-15",
+  "bank_saldo_delta": "1000.00",
+  "debtor_saldo_delta": "-1000.00",
+  "summary_saldo_delta": {
+    "R": "1000.00",
+    "Z": "1000.00"
+  },
+  "following_year_primo_delta": {
+    "bank": "1000.00",
+    "debtor": "-1000.00"
+  }
+}

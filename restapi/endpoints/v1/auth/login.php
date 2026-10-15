@@ -1,202 +1,137 @@
 <?php
-/**
- * POST /auth/login.php
- * OAuth2/JWT Login endpoint
- * 
- * Request body:
- * {
- *   "username": "brugernavn", REQUIRED
- *   "password": "password", REQUIRED
- *   "account_name": "account_name" (REQUIRED - account name matching regnskab column)
- * }
- * 
- * IMPORTANT: Users are stored in each account database, not the registry database.
- * The "account_name" parameter is REQUIRED to resolve the account database through the registry database's regnskab table.
- * 
- * Response:
- * {
- *   "success": true,
- *   "data": {
- *     "access_token": "jwt_token",
- *     "refresh_token": "refresh_jwt_token",
- *     "token_type": "Bearer",
- *     "expires_in": 3600,
- *     "user": {
- *       "id": 1,
- *       "username": "brugernavn"
- *     },
- *     "tenant": {
- *       "id": 1,
- *       "name": "Regnskab Navn",
- *       "db": "database_name"
- *     }
- *   }
- * }
- */
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- restapi/endpoints/v1/auth/login.php --- ver 5.0.0 --- 2026.10.02
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261001 CDX/LH Created.
+// 20261001 CDX/LH Session families, password-bound 2FA, token buckets and web IP parity.
+// 20261001 CDX/LH Preserve the legacy unknown-account 404 response.
+// 20261001 CDX/LH Add the tenant company name while retaining the registry login name.
+// 20261001 CDX/LH Reject off-network credentials uniformly and refund verified account-bucket debits.
+require_once __DIR__ . '/../../../core/MobileAuthEndpoint.php';
+require_once __DIR__ . '/../../../core/MobileTenantMetadata.php';
+require_once __DIR__ . '/../../../core/MobileAuthChallenges.php';
 
-require_once __DIR__ . '/../../../core/BaseEndpoint.php';
-require_once __DIR__ . '/../../../core/JWT.php';
-require_once __DIR__ . '/../../../core/logging.php';
-
-include_once __DIR__ . '/../../../../includes/db_query.php';
-include_once __DIR__ . '/../../../../includes/connect.php';
-include_once __DIR__ . '/../../../../includes/std_func.php';
-
-class AuthLoginEndpoint extends BaseEndpoint
+class AuthLoginEndpoint extends MobileAuthEndpoint
 {
-    public function __construct()
+    /** @return array{module:string,action:string} */
+    protected function requiredRight(): ?array
     {
-        parent::__construct();
+        return ['module' => 'auth', 'action' => 'public'];
     }
-    
+
     protected function checkAuthorization()
     {
-        // Login endpoint doesn't require authentication
         return true;
     }
-    
+
     protected function handlePost($data)
     {
-        if (!isset($data->username) || !isset($data->password)) {
-            $this->sendResponse(false, null, 'Username and password are required', 400);
-            return;
-        }
-        
-        if (!isset($data->account_name) || empty($data->account_name)) {
-            $this->sendResponse(false, null, 'Account name parameter is required.', 400);
-            return;
-        }
-        
-        $username = db_escape_string($data->username);
-        $password = $data->password;
-        $account_name = trim($data->account_name);
-        
-        // First, connect to the registry database to look up account information
-        global $sqhost, $squser, $sqpass, $sqdb;
-        $master_connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
-        
-        if (!$master_connection) {
-            $this->sendResponse(false, null, 'Registry database connection failed', 500);
-            return;
-        }
-        
-        // Find the account by account_name (regnskab column)
-        $account_name_escaped = db_escape_string($account_name);
-        $tenant_query = "select * from regnskab where regnskab='$account_name_escaped' limit 1";
-        $tenant_result = db_fetch_array(db_select($tenant_query, __FILE__ . " linje " . __LINE__));
-        
-        if (!$tenant_result) {
-            $this->sendResponse(false, null, 'Account not found', 404);
-            return;
-        }
-        
-        // Check if the account is closed
-        if ($tenant_result['lukket'] == 'on') {
-            $this->sendResponse(false, null, 'Account is closed', 403);
-            return;
-        }
-        
-        $tenant = [
-            'id' => (int)$tenant_result['id'],
-            'name' => $tenant_result['regnskab'],
-            'db' => $tenant_result['db']
-        ];
-        
-        $tenant_db = $tenant_result['db'];
-        
-        // Now connect to the account database to check the user
-        $tenant_connection = db_connect($sqhost, $squser, $sqpass, $tenant_db, __FILE__ . " linje " . __LINE__);
-        
-        if (!$tenant_connection) {
-            $this->sendResponse(false, null, 'Account database connection failed', 500);
-            return;
-        }
-        
-        // Find the user in the account database (case-insensitive)
-        $asIs = db_escape_string($username);
-        $low = strtolower($username);
-        $low = str_replace(['Æ', 'Ø', 'Å', 'É'], ['æ', 'ø', 'å', 'é'], $low);
-        $low = db_escape_string($low);
-        $up = strtoupper($username);
-        $up = str_replace(['æ', 'ø', 'å', 'é'], ['Æ', 'Ø', 'Å', 'É'], $up);
-        $up = db_escape_string($up);
-        
-        $qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
-        $user = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-        
-        if (!$user) {
-            write_log("Login failed: User not found: $username in database: $tenant_db", $tenant_db, 'WARNING');
-            $this->sendResponse(false, null, 'Invalid username or password', 401);
-            return;
-        }
-        
-        // Verify password
-        $pw1 = md5($password);
-        $pw2 = saldikrypt($user['id'], $password);
-        
-        if ($user['kode'] != $pw1 && $user['kode'] != $pw2) {
-            // Check for temporary password
-            if (isset($user['tmp_kode'])) {
-                list($tidspkt, $tmp_kode) = explode("|", $user['tmp_kode']);
-                if (date("U") <= $tidspkt && $tmp_kode == $password) {
-                    // Temporary password is valid
-                } else {
-                    write_log("Login failed: Invalid password for user: $username in database: $tenant_db", $tenant_db, 'WARNING');
-                    $this->sendResponse(false, null, 'Invalid username or password', 401);
-                    return;
+        $this->authOperation(function () use ($data): void {
+            $auth = new MobileAuth();
+            $device = MobileAuth::device($data);
+            $challenge = ifset($data, 'challenge_id');
+            if ($challenge !== null) {
+                if (!is_string($challenge) || !is_string(ifset($data, 'code'))) {
+                    throw new MobileAuthError('validation_failed', 400);
                 }
-            } else {
-                write_log("Login failed: Invalid password for user: $username in database: $tenant_db", $tenant_db, 'WARNING');
-                $this->sendResponse(false, null, 'Invalid username or password', 401);
+                // The IP bucket also covers challenge guesses; each row has its own five-attempt bound.
+                $key = $auth->store()->literal($challenge);
+                $rows = $auth->store()->rows("SELECT subject,tenant_id FROM auth_challenges WHERE id=$key");
+                $pending = ifset($rows, 0);
+                if ($pending) {
+                    $identity = Subject::parse($pending['subject']);
+                    $context = $auth->context('account', $identity['user_id'], (int)$pending['tenant_id']);
+                    $auth->rateLimit((string)ifset($_SERVER, 'REMOTE_ADDR', ''), $context['tenant']['regnskab'], $context['user']['brugernavn']);
+                } else {
+                    $auth->rateLimit((string)ifset($_SERVER, 'REMOTE_ADDR', ''), '', 'unknown-challenge');
+                }
+                $verified = (new MobileAuthChallenges($auth))->complete($challenge, $data->code, $device);
+                $auth->verifiedLogin($context['tenant']['regnskab'], $context['user']['brugernavn']);
+                $context = $auth->context('account', (int)$verified['user']['id'], $verified['tenant_id']);
+                $this->success($auth->create($verified['user'], 'account', $verified['tenant_id'], $device, $verified['version']), $context);
                 return;
             }
-        }
-        
-        // If user is admin, they have access to all regnskaber
-        $is_admin = (strpos($user['rettigheder'], 'admin') !== false || $user['rettigheder'] == '*');
-        
-        // Create JWT tokens. tenant_id is the legacy claim name for regnskab.id.
-        $accessTokenPayload = [
-            'user_id' => $user['id'],
-            'username' => $user['brugernavn'],
-            'type' => 'access',
-            'tenant_id' => $tenant['id']
-        ];
-        
-        $refreshTokenPayload = [
-            'user_id' => $user['id'],
-            'username' => $user['brugernavn'],
-            'type' => 'refresh',
-            'tenant_id' => $tenant['id']
-        ];
-        
-        $accessToken = JWT::encode($accessTokenPayload, 3600); // 1 hour
-        $refreshToken = JWT::encode($refreshTokenPayload, 86400 * 30); // 30 days
-        
-        $logMsg = "Login successful for user: $username (ID: {$user['id']}) with tenant: {$tenant['name']} (ID: {$tenant['id']}, DB: {$tenant['db']})";
-        write_log($logMsg, $tenant_db, 'INFO');
-        
-        $response = [
-            'access_token' => $accessToken,
-            'refresh_token' => $refreshToken,
-            'token_type' => 'Bearer',
-            'expires_in' => 3600,
-            'user' => [
-                'id' => (int)$user['id'],
-                'username' => $user['brugernavn'],
-                'is_admin' => $is_admin
-            ],
-            'tenant' => $tenant
-        ];
-        
-        $this->sendResponse(true, $response, 'Login successful', 200);
+            foreach (['username', 'password', 'account_name'] as $field) {
+                if (!is_string(ifset($data, $field)) || trim($data->$field) === '' || strlen($data->$field) > ($field === 'password' ? 4096 : ($field === 'username' ? 80 : 255))) {
+                    throw new MobileAuthError('validation_failed', 400);
+                }
+            }
+            $username = MobileAuth::normalize($data->username);
+            $auth->rateLimit((string)ifset($_SERVER, 'REMOTE_ADDR', ''), $data->account_name, $username);
+            $registry = $auth->store();
+            $name = $registry->literal(trim($data->account_name));
+            $tenants = $registry->rows("SELECT * FROM regnskab WHERE regnskab=$name LIMIT 1");
+            $tenant = ifset($tenants, 0);
+            if (!$tenant) {
+                throw new MobileAuthError('invalid_credentials', 404);
+            }
+            global $sqhost, $squser, $sqpass, $connection;
+            $connection = db_connect($sqhost, $squser, $sqpass, $tenant['db'], __FILE__ . ' linje ' . __LINE__);
+            mobileTenantUpdates($connection);
+            $tenantStore = new MobileSchema($connection);
+            $u = $tenantStore->literal($username);
+            $users = $tenantStore->rows("SELECT * FROM brugere WHERE lower(brugernavn)=$u LIMIT 1");
+            $user = ifset($users, 0);
+            if (!$user) {
+                throw new MobileAuthError('invalid_credentials');
+            }
+            $subject = Subject::build('account', (int)$user['id']);
+            // Capture epoch before password verification; a concurrent reset cannot issue an old login.
+            $version = $auth->version($subject, (int)$tenant['id']);
+            $user = ifset($tenantStore->rows('SELECT * FROM brugere WHERE id=' . (int)$user['id']), 0);
+            if ($user) {
+                MobileAuth::enforceIp($user, (string)ifset($_SERVER, 'REMOTE_ADDR', ''));
+            }
+            if (!$user || (!hash_equals((string)$user['kode'], md5($data->password)) && !hash_equals((string)$user['kode'], saldikrypt((int)$user['id'], $data->password)))) {
+                throw new MobileAuthError('invalid_credentials');
+            }
+            $auth->verifiedLogin($data->account_name, $username);
+            $context = $auth->context('account', (int)$user['id'], (int)$tenant['id']);
+            MobileAuth::enforceIp($context['user'], (string)ifset($_SERVER, 'REMOTE_ADDR', ''));
+            if (MobileAuth::enabled(ifset($context['user'], 'twofactor', false))) {
+                $this->sendResponse(true, (new MobileAuthChallenges($auth))->create($context['user'], (int)$tenant['id'], $device, $version), 'Two-factor authentication required');
+                return;
+            }
+            $this->success($auth->create($context['user'], 'account', (int)$tenant['id'], $device, $version), $context);
+        });
     }
-    
+
+    /** Preserve the legacy login data fields, deriving admin from the shared rights decoder. */
+    private function success(array $tokens, array $context): void
+    {
+        $user = $context['user'];
+        $tenant = $context['tenant'];
+        $rights = Rights::tenant((string)$user['rettigheder']);
+        $tokens['user'] = ['id' => (int)$user['id'], 'username' => $user['brugernavn'], 'is_admin' => $rights['admin']];
+        $tokens['tenant'] = MobileTenantMetadata::tenant($tenant, $context['connection']);
+        $this->sendResponse(true, $tokens, 'Login successful');
+    }
+
     protected function handleGet($id = null)
     {
-        $this->sendResponse(false, null, 'GET method not supported. Use POST /auth/login.php to login.', 405);
+        $this->sendError('validation_failed', 'Use POST /auth/login.php', 405);
     }
 }
 
-$endpoint = new AuthLoginEndpoint();
-$endpoint->handleRequestMethod();
+(new AuthLoginEndpoint())->handleRequestMethod();

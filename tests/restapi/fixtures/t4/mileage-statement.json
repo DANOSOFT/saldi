@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "statement_id": 151,
+    "km_total": "42.0",
+    "amount": "159.18",
+    "attachment_id": 82,
+    "display_status": "sendt",
+    "lines": [
+      {
+        "trip_id": 131,
+        "date": "2026-10-06",
+        "km": "42.0",
+        "rate": "3.79",
+        "amount": "159.18"
+      }
+    ]
+  }
+}

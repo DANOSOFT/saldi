@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "expense_id": 121,
+    "attachment_id": 81,
+    "vendor": "Testbutik",
+    "date": "2026-10-06",
+    "amount": "250.00",
+    "currency": "DKK",
+    "display_status": "sendt",
+    "employee_name": "Field employee"
+  }
+}

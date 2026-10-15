@@ -1,5 +1,7 @@
 <?php
 // 20260907 CDX/LH Cover typed historical suggestions and posted duplicate identity/currency.
+// 20261001 CDX/LH Pin creditor history across posted and open journals before query extraction.
+// 20261001 CDX/LH Cover VAT override and exemption evidence on both counter-account sides.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -25,6 +27,9 @@ final class JournalHistoryRegressionTest extends TestCase
         $this->db->exec('CREATE TABLE kassekladde (id INTEGER, bilag INTEGER, kladde_id INTEGER,
             transdate TEXT, d_type TEXT, debet TEXT, k_type TEXT, kredit TEXT, amount NUMERIC,
             faktura TEXT, beskrivelse TEXT)');
+        $this->db->exec('ALTER TABLE kassekladde ADD COLUMN debetvat TEXT');
+        $this->db->exec('ALTER TABLE kassekladde ADD COLUMN kreditvat TEXT');
+        $this->db->exec('ALTER TABLE kassekladde ADD COLUMN momsfri TEXT');
         $this->db->exec('CREATE TABLE transaktioner (id INTEGER, bilag INTEGER, kladde_id INTEGER,
             transdate TEXT, kontonr INTEGER, debet NUMERIC, kredit NUMERIC, faktura TEXT)');
         $this->db->exec('CREATE TABLE adresser (id INTEGER, kontonr TEXT, art TEXT)');
@@ -41,7 +46,7 @@ final class JournalHistoryRegressionTest extends TestCase
     #[DataProvider('accountTypes')]
     public function testSuggestionsPreserveCounterAccountType(?string $storedType, string $expectedType): void
     {
-        $insert = $this->db->prepare("INSERT INTO kassekladde VALUES
+        $insert = $this->db->prepare("INSERT INTO kassekladde (id,bilag,kladde_id,transdate,d_type,debet,k_type,kredit,amount,faktura,beskrivelse) VALUES
             (1,10,80,'2025-09-07','F','5800',?,'3000',125,'INV','Supplier payment'),
             (2,11,80,'2025-09-08',?,'3000','F','5800',125,'INV','Customer receipt')");
         $insert->execute([$storedType, $storedType]);
@@ -56,10 +61,10 @@ final class JournalHistoryRegressionTest extends TestCase
     public function testSuggestionsExcludeCurrentJournalAndRetainOnlyFiveRecentRows(): void
     {
         for ($id = 1; $id <= 8; $id++) {
-            $this->db->exec("INSERT INTO kassekladde VALUES
+            $this->db->exec("INSERT INTO kassekladde (id,bilag,kladde_id,transdate,d_type,debet,k_type,kredit,amount,faktura,beskrivelse) VALUES
                 ($id,$id,80,'2025-09-07','F','5800','F','4000',125,'INV','Historical line')");
         }
-        $this->db->exec("INSERT INTO kassekladde VALUES
+        $this->db->exec("INSERT INTO kassekladde (id,bilag,kladde_id,transdate,d_type,debet,k_type,kredit,amount,faktura,beskrivelse) VALUES
             (9,9,90,'2025-09-09','F','5800','K','3000',125,'INV','Current line')");
         $suggestions = sidste_5_forslag('5800', 'F', 'K', 90, 'UTF-8', 1);
         self::assertSame([8, 7, 6, 5, 4], array_column($suggestions['rows'], 'bilag'));
@@ -67,9 +72,57 @@ final class JournalHistoryRegressionTest extends TestCase
 
     public function testDraftDuplicateStillUsesTheEnteredAmount(): void
     {
-        $this->db->exec("INSERT INTO kassekladde VALUES
+        $this->db->exec("INSERT INTO kassekladde (id,bilag,kladde_id,transdate,d_type,debet,k_type,kredit,amount,faktura,beskrivelse) VALUES
             (1,10,80,'2025-09-07','F','5800','K','3000',100,'INV','EUR payment')");
         self::assertSame('10,80,kladde', $this->duplicate('F', '5800', 'K', '3000', 100, 750));
+    }
+
+    public function testCreditorHistoryKeepsVoucherDateTextAccountAndOrderAcrossJournalStates(): void
+    {
+        $this->db->exec('CREATE TABLE kladdeliste (id INTEGER, bogfort TEXT)');
+        $this->db->exec("INSERT INTO kladdeliste VALUES (80,'V'),(81,'-'),(90,'-')");
+        $this->db->exec("INSERT INTO kassekladde (id,bilag,kladde_id,transdate,d_type,debet,k_type,kredit,amount,faktura,beskrivelse) VALUES
+            (1,101,80,'2026-09-01','F','2210','K','3000',125,'A','Posted purchase'),
+            (2,102,81,'2026-09-02','F','2750','K','3000',250,'B','Open purchase'),
+            (3,103,80,'2026-09-02','F','2220','K','3000',375,'C','Latest posted purchase'),
+            (4,104,90,'2026-09-03','F','2230','K','3000',500,'D','Excluded current journal'),
+            (5,105,81,'2026-09-04','F','0','K','3000',625,'E','Empty counter account')");
+        $this->db->exec("UPDATE kassekladde SET debetvat='K1' WHERE id=3");
+        $result = sidste_5_forslag('3000', 'K', 'D', 90, 'UTF-8', 1);
+        self::assertSame('Sidste 5 posteringer for kreditor: 3000', $result['heading']);
+        self::assertSame([
+            ['bilag' => 103, 'dato' => '02-09-2026', 'tekst' => 'Latest posted purchase', 'kontonr' => '2220', 'art' => 'F'],
+            ['bilag' => 102, 'dato' => '02-09-2026', 'tekst' => 'Open purchase', 'kontonr' => '2750', 'art' => 'F'],
+            ['bilag' => 101, 'dato' => '01-09-2026', 'tekst' => 'Posted purchase', 'kontonr' => '2210', 'art' => 'F'],
+        ], $result['rows']);
+        $posted = journal_counter_rows('3000', 'K', 'D', 90, true, 0, '2026-09-01');
+        self::assertSame([103, 101], array_column($posted, 'bilag'));
+        self::assertSame('K1', $posted[0]['vat']);
+        self::assertSame('Latest posted purchase', $posted[0]['beskrivelse']);
+        self::assertCount(1, journal_counter_rows('3000', 'K', 'D', 90, true, 1, '2026-09-02'));
+    }
+
+    public function testCounterRowsCarryMissingOverridesAndExemptionsOnBothSides(): void
+    {
+        $this->db->exec("CREATE TABLE kladdeliste (id INTEGER, bogfort TEXT)");
+        $this->db->exec("INSERT INTO kladdeliste VALUES (80,'V')");
+        foreach (['D', 'K'] as $side) {
+            $debit = $side === 'D' ? '2210' : '3000';
+            $credit = $side === 'D' ? '3000' : '2210';
+            $debitType = $side === 'D' ? 'F' : 'K';
+            $creditType = $side === 'D' ? 'K' : 'F';
+            $vatField = $side === 'D' ? 'debetvat' : 'kreditvat';
+            $insert = $this->db->prepare("INSERT INTO kassekladde
+                (id,bilag,kladde_id,transdate,d_type,debet,k_type,kredit,beskrivelse,$vatField,momsfri)
+                VALUES (?,101,80,'2026-09-01',?,?,?,?, 'VAT evidence',?,?)");
+            foreach ([[null, null], ['', ''], ['K1', 'on']] as $id => [$override, $exemption]) {
+                $insert->execute([$id + 1, $debitType, $debit, $creditType, $credit, $override, $exemption]);
+            }
+            $rows = journal_counter_rows('3000', 'K', $side, 0, true, 0, null);
+            self::assertSame(['K1', '', null], array_column($rows, 'vat'));
+            self::assertSame(['on', '', null], array_column($rows, 'momsfri'));
+            $this->db->exec('DELETE FROM kassekladde');
+        }
     }
 
     public static function ledgerCurrencies(): array

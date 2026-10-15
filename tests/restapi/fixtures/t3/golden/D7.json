@@ -1,0 +1,12 @@
+{
+    "t3_reviewer": {
+        "reason": "journal_locked",
+        "locked_by": "t3_reviewer",
+        "self": true
+    },
+    "t3_other": {
+        "reason": "journal_locked",
+        "locked_by": "t3_other",
+        "self": false
+    }
+}

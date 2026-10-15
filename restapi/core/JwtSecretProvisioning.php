@@ -22,6 +22,8 @@
 //                umask, letting any local user read the secret and forge
 //                tokens for every tenant).
 
+// 20261001 CDX/LH Keep provisioning exclusively for the owner-only JWT secret.
+
 if (!function_exists('_jwtProvisionSecret')) {
     /**
      * Best-effort, race-safe creation of the JWT secret file if it does not

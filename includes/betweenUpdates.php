@@ -79,6 +79,9 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20260925 CL/LH ai/plan: include includes/planUpdates.php (plan schema steps) right after the header.
+// 20261001 CDX/LH Run the Tier 1 tenant schema steps.
+include_once(__DIR__ . '/mobileUpdates.php'); mobileTenantUpdatesAtLogin();
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -90,6 +93,9 @@
 // ===== call these helpers, and this file keeps needing them for the next release. =====
 include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
 // ===== END PROTECTED =====
+
+// ai/plan schema steps, isolated behind this one line (doc/ai-plan/CONVENTIONS.md §6).
+include_once(__DIR__ . '/planUpdates.php');
 
 $performedByMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";

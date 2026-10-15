@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 5.0.1 --- 2026-09-24 ---
+// ---------------finans/bogfor.php---------- ver 5.0.0 --- 2026-10-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,7 +64,10 @@
 // 20260907 CDX/PHR Update following fiscal years' opening balances within the journal posting transaction.
 // 20260907 CDX/LH Share the difference predicate with the read-only assistant checks.
 // 20260924 CDX/PHR Correct currency-rounding signs and reject unbalanced stored postings before commit.
+// 20261001 CDX/LH Use the shared journal posting engine and atomic settlement allocator.
 
+
+require_once __DIR__ . '/../includes/finans/kladdePosting.php';
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
@@ -86,13 +89,7 @@ include("../includes/topline_settings.php");
 
 genberegn($regnaar);
 
-function get_saved_vat_override($row, $field) {
-	if (!is_array($row) || !array_key_exists($field, $row) || $row[$field] === NULL) {
-		return NULL;
-	}
-	return trim((string)$row[$field]);
-}
-
+try {
 $funktion=if_isset($_GET['funktion']);
 $kladde_id=if_isset($_GET['kladde_id']);
 if (($_POST) && ($_POST['kladde_id'])) $kladde_id = $_POST['kladde_id'];
@@ -206,7 +203,7 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 	$bestil = if_isset($_POST['bestil']);
 	$stop = if_isset($_POST['stop']);
 	$kladde_id = $_POST['kladde_id'];
-	$kladdenote = db_escape_string(trim($_POST['kladdenote']));
+	$kladdenote = trim((string)ifset($_POST, 'kladdenote', ''));
 	if ($opdater=='1000') {
 		include("../includes/connect.php");
 		db_modify("update regnskab set posteringer = posteringer+1000 where db='$db'",__FILE__ . " linje " . __LINE__);
@@ -241,7 +238,7 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 			print "<BODY onLoad=\"javascript:alert('" . addslashes($periode_fejl) . "')\">";
 		} else {
 			transaktion('begin');
-			$postingError = bogfor($kladde_id, $kladdenote,'');
+			$postingError = kladde_bogfor($kladde_id, $kladdenote,'',true);
 			if (!$postingError && !$db_modify_fejl) {
 				db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
 			}
@@ -263,7 +260,7 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 		}
 	} elseif ($simuler) {
 		transaktion('begin');
-		$postingError = bogfor($kladde_id, $kladdenote,'on');
+		$postingError = kladde_bogfor($kladde_id, $kladdenote,'on',true);
 		if ($postingError || $db_modify_fejl) {
 			transaktion('rollback');
 			$simuler = false;
@@ -308,14 +305,14 @@ if ($kladde_id) {
 			$faktura[$posteringer]=trim($row['faktura']);
 			$amount[$posteringer]=$row['amount']*1;
 			$momsfri[$posteringer]=trim($row['momsfri']);
-			$debetvat[$posteringer]=get_saved_vat_override($row, 'debetvat');
-			$kreditvat[$posteringer]=get_saved_vat_override($row, 'kreditvat');
+			$debetvat[$posteringer]=kladde_saved_vat_override($row, 'debetvat');
+			$kreditvat[$posteringer]=kladde_saved_vat_override($row, 'kreditvat');
 			$valuta[$posteringer]=trim($row['valuta']);
 			if (!$debet[$posteringer]) $d_type[$posteringer]='F';
 			if (!$kredit[$posteringer]) $k_type[$posteringer]='F';
 			if ($row['valuta'] && $row['amount'] && ($row['debet']||$row['kredit']))  {
 				$valutaposter++;
-				list($dkkamount[$posteringer],$diffkonto,$valutakurs)=valutaopslag($amount[$posteringer],$row['valuta'],$row['transdate']);
+				list($dkkamount[$posteringer],$diffkonto,$valutakurs)=kladde_valutaopslag($amount[$posteringer],$row['valuta'],$row['transdate']);
 #				if ($row['debet']) $valutadiff=$valutadiff+$dkkamount[$posteringer];
 #				if ($row['kredit']) $valutadiff=$valutadiff-$dkkamount[$posteringer];
 #				$valutadiff=round($valutadiff+0.0001,3);
@@ -381,10 +378,10 @@ $kreditorantal=$x;
 # Konti fra kontoplanen bliver forbig&aring;et i funktionen
 for ($y=1; $y<=$posteringer; $y++) {
 	if (strlen($debet[$y])>0){
-		list ($debet[$y], $d_momsart[$y]) =gruppeopslag($d_type[$y], $debet[$y]);
+		list ($debet[$y], $d_momsart[$y]) =kladde_gruppeopslag($d_type[$y], $debet[$y]);
 	}
 	if (strlen($kredit[$y])>0){
-		list ($kredit[$y], $k_momsart[$y])=gruppeopslag($k_type[$y], $kredit[$y]);
+		list ($kredit[$y], $k_momsart[$y])=kladde_gruppeopslag($k_type[$y], $kredit[$y]);
 	}
 }
 
@@ -396,10 +393,10 @@ for ($y=1; $y<=$posteringer; $y++) {
 	if ($debet[$y]>0)  $d_amount[$y]=$dkkamount[$y];
 	if ($kredit[$y]>0) $k_amount[$y]=$dkkamount[$y];
 	if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)) {
-	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], $debetvat[$y], trim((string)$kreditvat[$y]) !== '');
+	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=kladde_momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], $debetvat[$y], trim((string)$kreditvat[$y]) !== '');
 	}
 	if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)){
-		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], $kreditvat[$y], trim((string)$debetvat[$y]) !== '');
+		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=kladde_momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], $kreditvat[$y], trim((string)$debetvat[$y]) !== '');
 	}
 }
 /*
@@ -723,620 +720,16 @@ if (!$fejl) { #20140228
 }
 print "</td></tr></tbody></table>";
 ######################################################################################################################################
-function bogfor($kladde_id,$kladdenote,$simuler) {
-	global $connection;
-	global $regnaar;
-	global $brugernavn;
-
-	$CurencyCheckSum=$tjeksum=$posteringer=$transantal=$transtjek=$d_sum=$k_sum=0;
-
-	if (!isset ($valutakurs)) $valutakurs = NULL;
-	if (!isset ($b_antal)) $b_antal = NULL;
-	if (!isset ($y)) $y = NULL;
-	if (!isset ($momsart)) $momsart = NULL;
-
-	($simuler)?$tabel='simulering':$tabel='transaktioner';
-	
-	$r=db_fetch_array(db_select("select max(id) as id from transaktioner where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__));
-	if ($r['id']) {
-		print "<BODY onLoad=\"javascript:alert('Kladden er allerede bogført!')\">";
-		return("Kladden er allerede bogført");
-		exit;
-	}
-
-	$d_momsart=array(); $k_momsart=array();
-	if ($kladdenote) db_modify("update kladdeliste set kladdenote = '$kladdenote' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
-	$y=0;
-	$v_antal=0;
-	$b_diff=$bv_diff=0;
-	$query = db_select("select * from kassekladde where kladde_id = $kladde_id order by bilag",__FILE__ . " linje " . __LINE__);
-	while ($row =	db_fetch_array($query)) {
-		if ($row['debet'] || $row['kredit']) {
-			$y++;
-			$postid[$y]=$row['id'];
-			if ($row['debet']>0) $transantal++;
-			if ($row['kredit']>0) $transantal++;
-			$eufaktnr[$y]="!@&/(=bh#jH%Tf)D"; # maa ikke vaere en vaerdi som kan risikere at vaere et relt fakturanr.
-			$bilag[$y]=$row['bilag'];
-			$beskrivelse[$y]=db_escape_string($row['beskrivelse']);
-			$d_type[$y]=$row['d_type'];
-			$debet[$y]=$row['debet'];
-			$k_type[$y]=$row['k_type'];
-			$kredit[$y]=$row['kredit'];
-			if (!$debet[$y]) $d_type[$y]='F';
-			if (!$kredit[$y]) $k_type[$y]='F';
-			$faktura[$y]=db_escape_string($row['faktura']);
-			$amount[$y]=$row['amount'];
-			if ($row['valuta'] && $row['amount'] && ($row['debet']||$row['kredit'])) {
-				list($dkkamount[$y],$diffkonto[$y],$valutakurs[$y])=valutaopslag($amount[$y],$row['valuta'],$row['transdate']);
-			} else $dkkamount[$y]=$amount[$y];
-			$momsfri[$y]=$row['momsfri'];
-			$debetvat[$y]=get_saved_vat_override($row, 'debetvat');
-			$kreditvat[$y]=get_saved_vat_override($row, 'kreditvat');
-			$afd[$y]=$row['afd'];
-			$ansat[$y]=$row['ansat']*1;
-			$projekt[$y]=$row['projekt'];
-			$valuta[$y]=$row['valuta']*1;
-			$ordre_id[$y]=$row['ordre_id']*1;
-			if (!isset ($valutakurs[$y])) $valutakurs[$y] = NULL;
-			if (!$valutakurs[$y]) $valutakurs[$y]=100;
-			$transdate[$y]=$row['transdate'];
-			$forfaldsdate[$y]=$row['forfaldsdate'];
-			$betal_id[$y]=$row['betal_id'];
-			if (!isset ($bilag[$y-1])) $bilag[$y-1] = NULL;
-			if ($bilag[$y]==$bilag[$y-1]) {
-				if ($valuta[$y]!='DKK') {
-					$b_afd[$b_antal]=$afd[$y];
-					$b_ansat[$b_antal]=$ansat[$y];
-					$b_projekt[$b_antal]=$projekt[$y];
-					$b_valuta[$b_antal]=$valuta[$y];
-					$b_ordre_id[$b_antal]=$ordre_id[$y];
-					$b_kurs[$b_antal]=$valutakurs[$y];
-					$b_diffkonto[$b_antal]=$diffkonto[$y];
-				}
-				if ($row['debet']) {
-					$b_sum[$b_antal]+=$dkkamount[$y];
-					$b_diff+=$dkkamount[$y];
-					$bv_sum[$b_antal]+=$amount[$y];
-					$bv_diff+=$amount[$y];
-				}
-				if ($row['kredit']) {
-					$b_sum[$b_antal]-=$dkkamount[$y];
-					$b_diff-=$dkkamount[$y];
-					$bv_sum[$b_antal]-=$amount[$y];
-					$bv_diff-=$amount[$y];
-				}
-			} else {
-				$b_antal++;
-				$b_bilag[$b_antal]=$bilag[$y];
-				$b_sum[$b_antal]=0;
-				$bv_sum[$b_antal]=0;
-				$b_faktura[$b_antal]=$faktura[$y];
-				$b_transdate[$b_antal]=$transdate[$y];
-				if ($valuta[$y]!='DKK') {
-					$b_afd[$b_antal]=$afd[$y];
-					$b_ansat[$b_antal]=$ansat[$y];
-					$b_projekt[$b_antal]=$projekt[$y];
-					$b_valuta[$b_antal]=$valuta[$y];
-					$b_ordre_id[$b_antal]=$ordre_id[$y];
-					$b_kurs[$b_antal]=$valutakurs[$y];
-					$b_diffkonto[$b_antal]=$diffkonto[$y];
-				}
-				if ($row['debet']) {
-					$b_sum[$b_antal]+=$dkkamount[$y];
-					$b_diff+=$dkkamount[$y];
-					$bv_sum[$b_antal]+=$amount[$y];
-					$bv_diff+=$amount[$y];
-				}
-				if ($row['kredit']) {
-					$b_sum[$b_antal]-=$dkkamount[$y];
-					$b_diff-=$dkkamount[$y];
-					$bv_sum[$b_antal]-=$amount[$y];
-					$bv_diff-=$amount[$y];
-				}
-#				if ($row['debet'])  $b_sum[$b_antal]+=$dkkamount[$y];
-#				if ($row['kredit']) $b_sum[$b_antal]-=$dkkamount[$y];
-			}
-			if (((strstr($d_type[$y],'D'))||(strstr($d_type[$y],'K'))) && $debet[$y]>0) {
-				if (!$simuler) openpost($d_type[$y], $debet[$y], $bilag[$y], $faktura[$y], $amount[$y], $beskrivelse[$y], $transdate[$y], $postid[$y], $valuta[$y], $valutakurs[$y], $forfaldsdate[$y], $betal_id[$y],$projekt[$y]);
-				list ($debet[$y], $d_momsart[$y]) =gruppeopslag($d_type[$y], $debet[$y]);
-				if (($d_momsart[$y]=='E')||($d_momsart[$y]=='Y')) $eufaktnr[$y]=$faktura[$y]; # Bruges laengere nede til at undgaa at transantal oeges v. eu momsposteringer.
-			}
-			if ((($k_type[$y]=='D')||($k_type[$y]=='K')) && $kredit[$y]>0) {
-				if (!$simuler) openpost($k_type[$y], $kredit[$y], $bilag[$y], $faktura[$y], $amount[$y]*-1, $beskrivelse[$y], $transdate[$y], $postid[$y], $valuta[$y], $valutakurs[$y], $forfaldsdate[$y], $betal_id[$y],$projekt[$y]);
-				list ($kredit[$y], $k_momsart[$y])=gruppeopslag($k_type[$y], $kredit[$y]);
-				if (($k_momsart[$y]=='E')||($k_momsart[$y]=='Y')) $eufaktnr[$y]=$faktura[$y];  # Bruges laengere nede til at undgaa at transantal oeges v. eu momsposteringer.
-			}
-			$momsfri[$y]=str_replace(" ","",$momsfri[$y]);
-			$debet[$y]=str_replace(" ","",$debet[$y]);
-			$kredit[$y]=str_replace(" ","",$kredit[$y]);
-			$d_amount[$y]=$d_moms[$y]=$d_momskto[$y]=$d_modkto[$y]=0;
-			$k_amount[$y]=$k_moms[$y]=$k_momskto[$y]=$k_modkto[$y]=0;
-			if ($debet[$y]>0)  $d_amount[$y]=$dkkamount[$y];
-			if ($kredit[$y]>0) $k_amount[$y]=$dkkamount[$y];
-			$logdate=date("Y-m-d");
-			$logtime=date("H:i");
-			list ($x, $month, $x)=explode('-', $transdate[$y]);
-			if (!$afd[$y]){$afd[$y]=0;}
-			if (!isset ($d_momsart[$y])) $d_momsart[$y] = NULL;
-			if (!isset ($k_momsart[$y])) $k_momsart[$y] = NULL;
-			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], $debetvat[$y], trim((string)$kreditvat[$y]) !== '');
-			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], $kreditvat[$y], trim((string)$debetvat[$y]) !== '');
-		} elseif (!$row['debet'] && !$row['kredit'] && $row['id']) { #20170516
-			db_modify("delete from kassekladde where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
-		}
-	}
-	# end while
-	$posteringer=$y;
-	for ($y=1; $y<=$posteringer; $y++) {
-		$d_moms[$y]*=1;
-		$k_moms[$y]*=1;
-		if (($d_modkto[$y]>0)&&($eufaktnr[$y]!=$faktura[$y])){
-			if ($k_moms[$y]) {
-				$posteringer++;
-				$k_momskto[$posteringer]=$k_momskto[$y];
-				$k_moms[$posteringer]=$k_moms[$y];
-				$bilag[$posteringer]=$bilag[$y];
-				$beskrivelse[$posteringer]=$beskrivelse[$y];
-				$faktura[$posteringer]=$faktura[$y];
-				$afd[$posteringer]=$afd[$y];
-				$transdate[$posteringer]=$transdate[$y];
-				$ansat[$posteringer]=$ansat[$y];
-				$projekt[$posteringer]=$projekt[$y];
-				$ordre_id[$posteringer]=$ordre_id[$y];
-				$valutakurs[$posteringer]=$valutakurs[$y];
-				$valuta[$posteringer]=$valuta[$y];
-			}
-			$k_moms[$y]=$d_moms[$y];
-			$k_momskto[$y]=$d_modkto[$y];
-			$transantal++;
-		}
-			
-		if (($k_modkto[$y]>0)&&($eufaktnr[$y]!=$faktura[$y])){
-			if ($d_moms[$y]) { 
-				$posteringer++;
-				$d_momskto[$posteringer]=$d_momskto[$y];
-				$d_moms[$posteringer]=$d_moms[$y];
-				$bilag[$posteringer]=$bilag[$y];
-				$beskrivelse[$posteringer]=$beskrivelse[$y];
-				$faktura[$posteringer]=$faktura[$y];
-				$afd[$posteringer]=$afd[$y];
-				$transdate[$posteringer]=$transdate[$y];
-				$transdate[$posteringer]=$transdate[$y];
-				$ansat[$posteringer]=$ansat[$y];
-				$projekt[$posteringer]=$projekt[$y];
-				$ordre_id[$posteringer]=$ordre_id[$y];
-				$valutakurs[$posteringer]=$valutakurs[$y];
-				$valuta[$posteringer]=$valuta[$y];
-			}
-			$d_moms[$y]=$k_moms[$y];
-			$d_momskto[$y]=$k_modkto[$y];
-			$transantal++;
-		}
-		if ($d_momskto[$y]>0) $transantal++;
-		
-		if ($k_momskto[$y]>0) $transantal++; 
-		if ($eufaktnr[$y]!=$faktura[$y]&&$d_momskto[$y]>0&&$k_momskto[$y]>0&&$d_momskto[$y]!=$k_momskto[$y]) $transantal--; # indsat 280807 grundet fejl ved konti (i kontoplan) m. eumoms 
-		if ($debet[$y]>0) {
-			#$tjeksum=$tjeksum+$d_amount[$y];
-			($d_momskto[$y])?$tmp=$d_moms[$y]*1:$tmp=0;
-			$qtxt = "insert into $tabel ";
-			$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,faktura,";
-			$qtxt.= "kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id,moms)";
-			$qtxt.= "values ";
-			$qtxt.= "($debet[$y],$bilag[$y],'$transdate[$y]','$logdate','$logtime','$beskrivelse[$y]','$d_amount[$y]','$faktura[$y]',";
-			$qtxt.= "'$kladde_id','$afd[$y]', '$ansat[$y]','$projekt[$y]','$valuta[$y]','$valutakurs[$y]','$ordre_id[$y]','$tmp')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$qtxt = "select * from $tabel where kontonr='$debet[$y]' and bilag='$bilag[$y]' and transdate='$transdate[$y]' ";
-			$qtxt.= "and logdate='$logdate' and logtime='$logtime' and beskrivelse='$beskrivelse[$y]' and debet='$d_amount[$y]' ";
-			$qtxt.= "and faktura='$faktura[$y]' and kladde_id='$kladde_id' and afd='$afd[$y]'";
-			if (db_fetch_array(db_select($qtxt ,__FILE__ . " linje " . __LINE__))) {
-				$transtjek++;
-				$qtxt = "select id, saldo from kontoplan where kontonr='$debet[$y]' and regnskabsaar=$regnaar";
-				$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-				$row= db_fetch_array($query);
-				$kasklid[$transtjek]=$row['id'];
-				$kasklmonth[$transtjek]=$row['saldo'];
-				$transamount[$transtjek]=$d_amount[$y];
-			} else print "<tr><td>Der er sket en fejl ved bogføring af bilag: $bilag[$y], debetkonto: $debet[$y]!</td></tr>";
-		}
-		if ($kredit[$y]>0) {
-			#$tjeksum=$tjeksum-$k_amount[$y];
-			($k_momskto[$y])?$tmp=$k_moms[$y]*-1:$tmp=0;
-			$qtxt = "insert into $tabel "; 
-			$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,kredit,faktura,";
-			$qtxt.= "kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id,moms)";
-			$qtxt.= " values ";
-			$qtxt.= "($kredit[$y],$bilag[$y],'$transdate[$y]','$logdate','$logtime','$beskrivelse[$y]','$k_amount[$y]','$faktura[$y]',";
-			$qtxt.= "'$kladde_id','$afd[$y]','$ansat[$y]','$projekt[$y]','$valuta[$y]','$valutakurs[$y]','$ordre_id[$y]','$tmp')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$qtxt = "select * from $tabel where kontonr='$kredit[$y]' and bilag=$bilag[$y] and transdate='$transdate[$y]' ";
-			$qtxt.= "and logdate='$logdate' and logtime='$logtime' and beskrivelse='$beskrivelse[$y]' and kredit='$k_amount[$y]' ";
-			$qtxt.= "and faktura='$faktura[$y]' and kladde_id=$kladde_id and afd=$afd[$y]";
-			if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$transtjek++;
-				$qtxt = "select id, saldo from kontoplan where kontonr='$kredit[$y]' and regnskabsaar=$regnaar";
-				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-				$r = db_fetch_array($q);
-				$kasklid[$transtjek]=$r['id'];
-				$kasklmonth[$transtjek]=$r['saldo'];
-				$transamount[$transtjek]=$k_amount[$y]*-1;
-			} else print "<tr><td>Der er sket en fejl ved bogføring af bilag: $bilag[$y], kreditkonto: $kredit[$y]!</td></tr>";
-		}
-		
-		if ($d_momskto[$y]>0) { #moms af debetpostering 
-			$qtxt = "insert into $tabel ";
-			$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,faktura,";
-			$qtxt.= "kladde_id,afd,ansat, projekt,valuta,valutakurs,ordre_id,moms)";
-			$qtxt.= " values ";
-			$qtxt.= "($d_momskto[$y],$bilag[$y],'$transdate[$y]','$logdate','$logtime','$beskrivelse[$y]','$d_moms[$y]','$faktura[$y]',";
-			$qtxt.= "'$kladde_id','$afd[$y]','$ansat[$y]','$projekt[$y]','$valuta[$y]','$valutakurs[$y]','$ordre_id[$y]','0')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$qtxt = "select * from $tabel where kontonr=$d_momskto[$y] and bilag=$bilag[$y] and transdate='$transdate[$y]' ";
-			$qtxt.= "and logdate='$logdate' and logtime='$logtime' and beskrivelse='$beskrivelse[$y]' and debet='$d_moms[$y]' ";
-			$qtxt.= "and faktura='$faktura[$y]' and kladde_id=$kladde_id and afd=$afd[$y]";
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if ( db_fetch_array($q)) {
-				$transtjek++;
-				$qtxt = "select id, saldo from kontoplan where kontonr='$d_momskto[$y]' and regnskabsaar=$regnaar";
-				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-				$r= db_fetch_array($q);
-				$kasklid[$transtjek]=$r['id'];
-				$kasklmonth[$transtjek]=$r['saldo'];
-				$transamount[$transtjek]=$d_moms[$y];
-			} else print "<tr><td>Der er sket en fejl ved bogføring af bilag: $bilag[$y], debetkonto: $d_momskto[$y]!</td></tr>";
-		}
-		if ($k_momskto[$y]>0) { #moms af kreditpostering
-						$qtxt = "insert into $tabel ";
-			$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,kredit,faktura,";
-			$qtxt.= "kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id,moms)";
-			$qtxt.= " values ";
-			$qtxt.= "($k_momskto[$y],$bilag[$y],'$transdate[$y]','$logdate','$logtime','$beskrivelse[$y]','$k_moms[$y]','$faktura[$y]',";
-			$qtxt.= "'$kladde_id','$afd[$y]','$ansat[$y]','$projekt[$y]','$valuta[$y]','$valutakurs[$y]','$ordre_id[$y]','0')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$qtxt = "select * from $tabel where kontonr=$k_momskto[$y] and bilag=$bilag[$y] and transdate='$transdate[$y]' ";
-			$qtxt.= "and logdate='$logdate' and logtime='$logtime' and beskrivelse='$beskrivelse[$y]' and kredit='$k_moms[$y]' ";
-			$qtxt.= "and faktura='$faktura[$y]' and kladde_id=$kladde_id and afd=$afd[$y]";
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if (db_fetch_array($q)){
-				$transtjek++;
-				$query = db_select("select id, saldo from kontoplan where kontonr='$k_momskto[$y]' and regnskabsaar=$regnaar",__FILE__ . " linje " . __LINE__);
-				$row= db_fetch_array($query);
-				$kasklid[$transtjek]=$row['id'];
-				$kasklmonth[$transtjek]=$row['saldo'];
-				$transamount[$transtjek]=$k_moms[$y]*-1;
-			} else print "<tr><td>Der er sket en fejl ved bogføring af bilag: $bilag[$y], kreditkonto: $k_momskto[$y]!</td></tr>";
-		}
-	}
-	if ($b_diff) {
-		$kontoliste=array();
-		# 20131115 ->
-		$kontokredit[$y]=array(); 
-		$kontodebet[$y]=array();  
-		for ($i=1;$i<=$b_antal;$i++) {
-			if ($bilag[$i]!=$bilag[$i-1] && $bilag[$i]!=$bilag[$i+1] && (!$debet[$i]||!$kredit[$i]) && $valuta[$i] != $valuta[$i-1]) { # 20131117 -- 20140228 tilføjet: && $valuta[$i] != $valuta[$i-1] 
-				transaktion('rollback');
-				print "<BODY onLoad=\"javascript:alert('Manglende modpostering i bilag $bilag[$i]!')\">";
-				exit;
-			}
-		# <- 20131115
-			if (!isset($valutasum[$i])) $valutasum[$i] = 0;
-			$valutasum[$i]=afrund($valutasum[$i],3);
-			$CurencyCheckSum+=$valutasum[$i];
-			$b_sum[$i]=afrund($b_sum[$i],2);
-			if (!in_array($b_diffkonto[$i],$kontoliste)) { 
-				$y++;
-				$kontoliste[$y]=$b_diffkonto[$i];
-				$kontokredit[$y]=0;
-				$kontodebet[$y]=0;
-			}
-			if ($b_sum[$i] > 0) {
-				$k_sum=$k_sum+$b_sum[$i];
-				$kontokredit[$y]=$kontokredit[$y]+$b_sum[$i];
-				$tjeksum=$tjeksum+$b_sum[$i]; #20141128
-			} else {
-				$d_sum=$d_sum-$b_sum[$i];
-				$kontodebet[$y]=$kontodebet[$y]-$b_sum[$i];
-				$tjeksum=$tjeksum+$b_sum[$i]; #20150527
-			}
-
-			if ($b_sum[$i] && abs($b_sum[$i]) < 0.1 && afrund($bv_sum[$i], 2) == 0 && $b_diffkonto[$i]) {
-					$roundingDebit = max(0, -$b_sum[$i]);
-					$roundingCredit = max(0, $b_sum[$i]);
-					$beskrivelse ='valutadiff';
-					$qtxt = "insert into $tabel "; 
-					$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,";
-					$qtxt.= "valuta,valutakurs,ordre_id,moms)";
-					$qtxt.= " values ";
-					$qtxt.= "('$b_diffkonto[$i]','$b_bilag[$i]','$b_transdate[$i]','$logdate','$logtime','$beskrivelse','$roundingDebit',";
-					$qtxt.= "'$roundingCredit','$b_faktura[$i]','$kladde_id','$b_afd[$i]','$b_ansat[$i]','$b_projekt[$i]','DKK',";
-					$qtxt.= "'100','$b_ordre_id[$i]','0')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					$tjeksum -= $b_sum[$i];
-/*
-				} elseif (($kontokredit[$y] || $kontodebet[$y]) && $b_diffkonto[$i]) {
-					$qtxt="select * from kontoplan where kontonr='$b_diffkonto[$i]' and regnskabsaar='$regnaar'";
-					$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-					if ($row = db_fetch_array($query)) {
-						$saldo=$row['saldo'];
-						$a=dkdecimal($saldo);
-						$b=dkdecimal($kontodebet[$y]);
-						$c=dkdecimal($kontokredit[$y]);
-						$d=dkdecimal($saldo+$kontodebet[$y]-$kontokredit[$y]);
-						$beskrivelse=db_escape_string($row['beskrivelse']);
-						$qtxt = "insert into $tabel "; 
-						$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,";
-						$qtxt.= "valuta,valutakurs,ordre_id,moms)";
-						$qtxt.= " values ";
-						$qtxt.= "('$b_diffkonto[$i]','$b_bilag[$i]','$b_transdate[$i]','$logdate','$logtime','$beskrivelse','$kontodebet[$y]',";
-						$qtxt.= "'$kontokredit[$y]','$b_faktura[$i]','$kladde_id','$b_afd[$i]','$b_ansat[$i]','$b_projekt[$i]','$b_valuta[$i]',";
-						$qtxt.= "'$b_kurs[$i]','$b_ordre_id[$i]','0')";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-
-					} else {
-						print "<BODY onLoad=\"javascript:alert('Konto $b_diffkonto[$i] til valutadifferncer eksisterer ikke!')\">";
-						exit;
-					} 
-*/					
-				} elseif (($kontokredit[$y] || $kontodebet[$y]) && !$b_diffkonto[$i] && $valuta[$i])  { #20131028 -- 20140228 tilføjet: && $valuta[$i
-				transaktion('rollback');
-				print "<BODY onLoad=\"javascript:alert('Manglende konto til valutadiffencer! (bilag: $b_bilag[$i])')\">";
-				exit;
-			}
-		}
-	}
-	// Check the actual stored entries, including VAT and currency corrections, not only working sums.
-	$qtxt = "SELECT COALESCE(SUM(COALESCE(debet,0)-COALESCE(kredit,0)),0) AS difference ";
-	$qtxt .= "FROM $tabel WHERE kladde_id=" . (int)$kladde_id;
-	$postedBalance = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if (!$postedBalance || (float)$postedBalance['difference'] != 0.0) {
-		$differenceText = $postedBalance ? dkdecimal($postedBalance['difference'], 3) : 'ukendt';
-		return "Kladde $kladde_id balancerer ikke efter bogføring (debet minus kredit: $differenceText). Ingen posteringer er gemt.";
-	}
-	if (abs($tjeksum)<=0.01) { # && $transtjek==$transantal){
-		$dato=date("Y-m-d");
-		if ($simuler) {
-			$qtxt="update kladdeliste set bogfort = 'S', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		} else {
-			$qtxt="delete from kassekladde where debet='0' and kredit='0' and kladde_id='$kladde_id'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$qtxt="update kladdeliste set bogfort = 'V', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			for ($x=1; $x<=$transtjek; $x++) {
-				$query = db_select("select saldo from kontoplan where id='$kasklid[$x]'",__FILE__ . " linje " . __LINE__);
-				$row= db_fetch_array($query);
-				$temp=$row['saldo'];
-				if (!$temp) {$temp=0;}
-				$transamount[$x]=($temp+$transamount[$x]);
-				db_modify("update kontoplan set saldo = $transamount[$x] where id = '$kasklid[$x]'",__FILE__ . " linje " . __LINE__);
-			}
-			include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
-			updateFollowingOpeningBalances($regnaar);
-		}
-#xit;
-	} else {
-		transaktion('rollback');
-		print "<tr><td align=center>$font Der er konstateret en afvigelse!\nKladde ikke bogført\nKontakt venligst Saldi's udviklerteam!</td></tr>";
-		exit;
-	}
-#xit;	
-} #endfunc bogfor
-######################################################################################################################################
-function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$bilag_id,$valutakode,$valutakurs,$forfaldsdate,$betal_id,$projekt){
-	global $connection;
-	global $regnaar;
-	global $kladde_id;
-
-	// 20260902 CL/LH  L4 finding dunning-run DEVY-5: a zero-amount posting line (e.g. a reminder
-	// finalised without a fee) must not create an open item. A 0,00 row can never settle
-	// anything (the +/-0.005 match window below only matches other zero rows) and it shows
-	// up as a duplicate unsettled post under the same faktnr as the original invoice.
-	if (abs((float)$amount) < 0.005) return;
-
-## Finder kreditorens valuta;
-	if ($valutakode) {
-		$r = db_fetch_array(db_select("select box1 from grupper where art = 'VK' and kodenr = '$valutakode'",__FILE__ . " linje " . __LINE__));
-		$valuta=$r['box1'];
-	} else $valuta='DKK';
-	$udlignet=0;
-	$udlign_date=$transdate;
-	$dato=date("Y-m-d");
-	$belob=$amount*-1;
-	$debet=str_replace(" ","",$debet);
-	$qtxt = "select id from adresser where kontonr = '$debet' and art ='$art'";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while($row = db_fetch_array($q)){
-		$konto_id=$row['id'];
-		$query = db_select("select MAX(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) $udlign_id=$row['udlign_id']+1;
-# -> 2009.05.04		
-		$min=$belob-0.005; 
-		$max=$belob+0.005;
-		if (strpos($faktura,";")) {
-			$invoices = explode(';',$faktura);
-		} else $invoices[0] = $faktura; 
-		
-# 20121122 >>and projekt='$projekt'<< indsat herunder.
-		if ($udlign_date<$transdate) $udlign_date=$transdate;
-		for ($x=0;$x<count($invoices);$x++) {
-			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and projekt='$projekt' and udlignet!='1' and ";
-			$qtxt.= " faktnr='$invoices[$x]'";
-			if (count($invoices) == 1) $qtxt.= " and amount >= '$min' and amount < '$max'";  
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($r = db_fetch_array($q)) {
-# $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
-				$udlign_date=$r['transdate'];
-				$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
-				$qtxt.= "where id = '$r[id]'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				// 20230626 -->
-				$qtxt = "insert into openpost
-				(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
-				if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
-				$qtxt.= "transdate,udlign_id,bilag_id,valuta,valutakurs,projekt) "; 
-				$qtxt.= "values ";
-				$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id',";
-				if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-				$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projekt')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$udlignet=1;
-				// <-- 20230626
-			}
-		}
-	}
-	if ($udlignet<1) {
-		if ($faktura=="-") $faktura="";
-		$qtxt = "insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,";
-		if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
-		$qtxt.= "bilag_id,valuta,valutakurs,projekt)";
-		$qtxt.= " values ('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','0','$transdate','$kladde_id',";
-		if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projekt')";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	}
-}
-######################################################################################################################################
-function momsberegning($konto,$amount,$momsart,$kontrol,$lineVat=NULL,$allowBlank=false) {
-	global $connection;
-	global $regnaar;
-	global $db;
-	global $brugernavn;
-
-	$nettoamount=$amount;
-	$errorTxt=$moms=$momskto=$modkto=NULL;
-
-	$a=substr($momsart,0,1); #Foerste tegn i strengen
-	$b=substr($momsart,1,1); #Andet tegn i strengen
-
-	// This function is only called for lines that are not marked VAT exempt.
-	// A missing line VAT code therefore falls back to the account setup.
-	if (($lineVat === NULL || trim((string)$lineVat) === '') && !$allowBlank) {
-		$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
-		$effectiveVat=trim(if_isset($r['moms'], ''));
-	} else {
-		$effectiveVat=trim($lineVat);
-	}
-	if ($effectiveVat) {
-		if ((($a=='E')||($a=='Y')) && $b) {
-			$c=$a.'M';
-			$qtxt = "select box1,box2,box3 from grupper where ";
-			$qtxt.= "kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
-			$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if($row =	db_fetch_array($query)) { # Så er der moms på kontoen
-				$qtxt="select box1,box2,box3 from grupper where ";
-				$qtxt.= "kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
-				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-				$x=$row['box2'];
-				$moms=$amount/100*$x;
-				$momskto=trim($row['box1']);
-				$modkto=trim($row['box3']);
-			}
-		} else {
-			$a=substr($effectiveVat,0,1);
-			$b=substr($effectiveVat,1);
-#Hvis en momspligtig vare koebes i EU beregnes der EU moms. $kontrol er kun sat hvis der er tale om en kreditor
-# og nedenst&aring;ende tr&aelig;der s&aring;ledes ikke i kraft naar der er tale om en finanskonto med EU moms.
-			if ($a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
-				$a=substr($kontrol,0,1);
-				$b=substr($kontrol,1.1);
-			}
-			$c=$a.'M';
-			$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if($r =	db_fetch_array($q)) { # Saa er der moms paa kontoen
-				if (($a=='E' || $a=='Y') && (!$r['box1'] || !$r['box2'] || !$r['box3'])) alert("Fejl i kontoopsætning for EU moms");
-				$qtxt="select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
-				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-				$x=$r['box2'];
-				if ($a=='E' || $a=='Y'){
-					$moms=$amount/100*$x;
-					$momskto=trim($r['box3']);
-					$modkto=trim($r['box1']);
-				} elseif (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y'){
-					$momskto=trim($r['box1']);
-					$modkto=trim($r['box1']);
-					$moms=$amount/100*$x;
-				} else {
-					$momskto=trim($r['box1']);
-					$moms=$amount-($amount/((100+$x)/100));
-					$nettoamount=$amount-$moms;
-				}
-			}
-		}
-	} 
-# 2009.05.06 afrundingsdecimal rettet fra 3 til 2 grundet problem med Zen 
-	$amount=afrund($amount,2); 
-	$nettoamount=afrund($nettoamount,2); 
-	$moms=afrund($moms,2);
-	if ($a!='E' && $a!='Y') { #20140428
-		$tmp=afrund($amount-($nettoamount+$moms),2);
-		# Nedenstaaende tilfojet 20090902 jvf saldi_2_20090902-1446.sdat
-		if ($tmp>0) $moms=$moms+0.01; 
-		elseif ($tmp<0) $moms=$moms-0.01;
-		$tmp=afrund($amount-($nettoamount+$moms),2);
-		if (abs($tmp)>=0.01) { # 20140428 "fjernet $a!='E' && $a!='Y' &&" 
-			$message=$db." | Afvigelse ved momsberegning | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
-			$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
-			mail('fejl@saldi.dk', 'SALDI Bogforingsfejl', $message, $headers);
-			print "<BODY onLoad=\"javascript:alert('Afvigelse ved momsberegning! Kontakt venligst Saldi teamet p&aring; telefon 4690 2208')\">";
-			exit;
-		}	
-	}
-// #	$svar=array($amount,0,$momskto,$modkto);
-	$svar=array($nettoamount,$moms,$momskto,$modkto);
-	return $svar;
-}
-######################################################################################################################################
-function gruppeopslag($type, $konto) {
-
-	global $connection, $regnaar;
-	$art=NULL;$momsart=NULL;
-	
-	if ($type=='D') $art='DG';
-	elseif ($type=='K') $art='KG';
-	if ($art){
-	$tmp=substr($art,0,1);
-		$qtxt = "select gruppe from adresser where kontonr = '$konto' and art='$tmp'";
-		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		if ($r['gruppe'])	{
-			$qtxt = "select box1, box2 from grupper where art='$art' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'";
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($r =db_fetch_array($q)) {	
-				$konto=$r['box2'];
-				$momsart=$r['box1'];
-			} else alert("Fejl i kontoopsætning for konto $konto"); 
-		} else alert("Konto $konto ikke tilknyttet en gruppe");
-	}
-	$svar=array($konto, $momsart);
-	return $svar;
-}
-######################################################################################################################################
-function valutaopslag($amount, $valuta, $transdate)
-{
-	global $connection;
-	global $fejltext;
-	
-	$r = db_fetch_array(db_select("select * from valuta where gruppe = '$valuta' and valdate <= '$transdate' order by valdate desc",__FILE__ . " linje " . __LINE__));
-	if ($r['kurs']) {
-		$kurs=$r['kurs'];
-		$amount=afrund($amount*$kurs/100,2); # decimal rettet fra 3 til 2 20090617 grundet fejl i saldi_58_20090617-2224
-	} else {
-		$r = db_fetch_array(db_select("select box1 from grupper where art = 'VK' and kodenr = '$valuta'",__FILE__ . " linje " . __LINE__));
-		$tmp=dkdato($transdate);
-// 		$fejltext="---";
-		print "<BODY onLoad=\"javascript:alert('Ups - ingen valutakurs for $r[box1] den $tmp')\">";	
-	}
-	$r = db_fetch_array(db_select("select box3 from grupper where art = 'VK' and kodenr = '$valuta'",__FILE__ . " linje " . __LINE__));
-	$diffkonto=$r['box3'];
-	
-	return array($amount,$diffkonto,$kurs); # 3'die parameter tilfojet 2009.02.10
-}
-######################################################################################################################################
-
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';
 } else {
 	include_once '../includes/oldDesign/footer.php';
+}
+} catch (KladdePostingError $error) {
+    if ((int)ifset($GLOBALS, 'db_transaktion_depth', 0) > 0) {
+        transaktion('rollback');
+    }
+	print "<script>alert(" . json_encode($error->getMessage()) . " );</script>";
+	exit;
 }
 ?>

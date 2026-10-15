@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docIncludes/poolReview.php --- patch 4.1.1 --- 2025-06-10 ---
+// --- includes/docIncludes/poolReview.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,9 +23,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250610 Created mobile-friendly document pool review interface with live preview
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
 
 @session_start();
 $s_id = session_id();
@@ -35,6 +36,7 @@ $css = "../css/pulje_review.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/docsIncludes/poolFileTransitions.php';
 
 print ' <meta name="viewport" content="width=device-width, initial-scale=1.0"> ';
 
@@ -81,7 +83,7 @@ if (isset($_POST['action'])) {
                 throw new Exception('Filen blev ikke fundet');
             }
             
-            if (!unlink($filePath)) {
+            if (!PoolFileTransitions::delete($db, $filePath)) {
                 throw new Exception('Kunne ikke slette filen');
             }
             
@@ -114,7 +116,7 @@ if (isset($_POST['action'])) {
                 throw new Exception('En fil med det navn eksisterer allerede');
             }
             
-            if (!rename($oldPath, $newPath)) {
+            if (!PoolFileTransitions::move($db, $oldPath, $newPath)) {
                 throw new Exception('Kunne ikke omdøbe filen');
             }
             
@@ -152,6 +154,10 @@ function getPoolDocuments($search = '', $sortBy = 'name', $sortOrder = 'asc') {
     foreach ($files as $file) {
         if (is_file($file)) {
             $filename = basename($file);
+            $identity = PoolFileTransitions::row($db, $file);
+            if ($identity && $identity['status'] !== 'ubehandlet') {
+                continue;
+            }
             $fileExt = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
             
             // Only include allowed file types

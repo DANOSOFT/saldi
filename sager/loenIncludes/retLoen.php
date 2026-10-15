@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- lap 5.0.0 --- 2026-03-19 ---  
+// --- sager/loenIncludes/retLoen.php --- ver 5.0.0 --- 2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230703 PHR New up/down height add on's was omitted in new note (seddel) whe denied (afvist)
 // 20231005 PHR mentor and km now omittet on hoursalary (timeløn)
@@ -28,6 +28,10 @@
 // 20250903 PHR changed dkdecimal($sum) to $sum
 // 20260126 PHR *1 replaced by (float) in $medarb_loen
 // 20260319 LOE Added $t_sum_total  
+// 20261001 CDX/LH Share seddel allocation, insertion and timer wage calculation.
+// 20261001 CDX/LH Retain actor and source metadata in the creation and rejection-copy modification trail.
+
+require_once __DIR__ . '/../../includes/sager/loenTimer.php';
 
 function ret_loen() {
 	global $brugernavn;
@@ -422,19 +426,28 @@ function ret_loen() {
 		if (!$id) {
 			if (!$afvist) {
 #cho __line__." $timer<br>";
-				$oprettet_af = $brugernavn;
+				// online.php supplies an SQL-escaped username; bind its decoded value in the insert.
+				$oprettet_af = loen_timer_query("SELECT '$brugernavn' AS username")[0]['username'];
 				$oprettet    = date('U');
-				$r = db_fetch_array(db_select("select max(nummer) as nummer from loen",__FILE__ . " linje " . __LINE__));
-				$loen_nr     = $r['nummer']+1;
+				$loen_nr = loen_next_number();
 			} else { #20131004-2
 				$qtxt = "select skur from loen where id='$afvis_id'";
 				$r    = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$skur = $r['skur'];
 			} // Har indsat 'afvist_pga' i insert, så man kan se årsagen til afvisningen på den nye seddel #20161031
-			$qtxt = "insert into loen (art,kategori,nummer,hvem,sag_nr,sag_id,oprettet,afsluttet,godkendt,afregnet,oprettet_af,ansatte,datoer,fordeling,loen,timer,t50pct,t100pct,mentor,skur,sum,loendate,tekst,korsel,opg_id,opg_nr,sag_ref,afvist,afvist_af,afvist_pga,feriefra,ferietil) values ('$loen_art','$listevalg','$loen_nr','','$sag_nr','$sag_id','$oprettet','','','','$oprettet_af','$ansatte','$datoer','$fordeling','$loen','$timer','$t50pct','$t100pct','$mentor','$skur','$sum','$loendate','$loen_tekst','$korsel','$opg_id','$opg_nr','$sag_ref','','','$afvist_pga','$feriefra','$ferietil')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$r  = db_fetch_array(db_select("select max(id) as id from loen where nummer='$loen_nr'",__FILE__ . " linje " . __LINE__));
-			$id = $r['id'];
+			$id = loen_seddel_insert([
+				'art' => $loen_art, 'kategori' => (int)$listevalg, 'nummer' => (int)$loen_nr,
+				'hvem' => '', 'sag_nr' => (int)$sag_nr, 'sag_id' => (int)$sag_id,
+				'oprettet' => (string)$oprettet, 'afsluttet' => '', 'godkendt' => '', 'afregnet' => '',
+				'oprettet_af' => (string)if_isset($oprettet_af, ''), 'ansatte' => (string)$ansatte,
+				'datoer' => (string)$datoer, 'fordeling' => (string)$fordeling, 'loen' => (string)$loen,
+				'timer' => (string)$timer, 't50pct' => (string)$t50pct, 't100pct' => (string)$t100pct,
+				'mentor' => (string)$mentor, 'skur' => (string)$skur, 'sum' => (float)$sum,
+				'loendate' => $loendate, 'tekst' => (string)ifset($_POST, 'loen_tekst', ''), 'korsel' => (string)$korsel,
+				'opg_id' => (int)$opg_id, 'opg_nr' => (int)$opg_nr, 'sag_ref' => (string)$sag_ref,
+				'afvist' => '', 'afvist_af' => '', 'afvist_pga' => (string)ifset($_POST, 'afvist_pga', ''),
+				'feriefra' => (string)$feriefra, 'ferietil' => (string)$ferietil,
+			], __FILE__ . " linje " . __LINE__);
 			if ($afvis && $afvist_pga) db_modify("update loen set afsluttet='',afsluttet_af='',master_id='0' where master_id='$afvis_id'",__FILE__ . " linje " . __LINE__); #20130531
 		}
 #cho "loen_art $loen_art<br>";
@@ -1272,11 +1285,11 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						elseif ($loen_art=='skole') $loen_loen[$x]=$skole_sats;
 						elseif ($loen_art=='plads') $loen_loen[$x]=$plads_sats;
 						elseif ($loen_art=='timer') {
-							if ( $loen_timeArt[$x] ) {
-								for ( $h=0; $h < count($hourTypes); $h++) {
-									if ( $loen_timeArt[$x] == $hourTypes[$h]) $loen_loen[$x]=$hourValue[$h];
-								}
-							} else $loen_loen[$x]=$medarb_loen[$x];#+$medarb_extraloen[$x];
+							$timerWage = loen_timer_amount([
+								'loen' => ifset($medarb_loen, $x, 0),
+								'current_rate' => $loen_loen[$x],
+							], '0', '0', '0', ifset($loen_timeArt, $x), loen_rates());
+							$loen_loen[$x] = (float)$timerWage['rate'];
 						} else $loen_loen[$x]=$medarb_extraloen[$x];
 					}
 					if (!is_numeric($loen_loen[$x]))   $loen_loen[$x]   = 0;
@@ -1288,10 +1301,15 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					if (!isset($skur1[$x])) $skur1[$x] = 0;
 					if (!isset($skur2[$x])) $skur2[$x] = 0;
 
-					$t_belob[$x] =
-					$loen_loen[$x]  * $loen_timer[$x] +
-					$overtid_50pct  * $loen_50pct[$x] +
-					$overtid_100pct * $loen_100pct[$x];
+					if ($loen_art == 'timer') {
+						$timerWage = loen_timer_amount(['loen' => $loen_loen[$x]],
+							(string)$loen_timer[$x], (string)$loen_50pct[$x], (string)$loen_100pct[$x], null,
+							['overtime_50' => (string)$overtid_50pct, 'overtime_100' => (string)$overtid_100pct, 'hour_types' => []]);
+						$t_belob[$x] = (float)$timerWage['amount'];
+					} else {
+						$t_belob[$x] = $loen_loen[$x] * $loen_timer[$x]
+							+ $overtid_50pct * $loen_50pct[$x] + $overtid_100pct * $loen_100pct[$x];
+					}
 					if ($loen_mentor[$x]) {
 						$t_belob[$x] += $mentorRate * $loen_mentor[$x];
 					}

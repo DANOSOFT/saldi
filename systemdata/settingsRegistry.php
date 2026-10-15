@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-09-30 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-10-02 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,9 @@
 // 20260721 Sawaneh Added Opgaveliste/Brug jobkort (task list) search terms to div_valg entry
 // 20260930 CL/NTR Added HTML/CSS layout version search terms to div_valg entry.
 //                 Hid the admin_settings entry outside the master database ('masterDb' rule).
+// 20261002 CL/LH Added the Saldi Assist settings page (systemdata/assistent.php).
+// 20261002 CL/LH Saldi Assist: search terms for posting rules, the daily overview mail and the companion
+//                settings; added the Assist report page (systemdata/assistent_rapport.php).
 //
 // Hand-maintained index of Settings pages, used by settingsSearch.php.
 // Each entry:
@@ -149,6 +152,12 @@ if (!function_exists('getSettingsRegistry')) {
 			// -- Scattered elsewhere in the app --
 			array('key' => 'admin_settings',    'url' => '../admin/admin_settings.php',      'category' => 'system',  'textId' => 613, 'requiresReseller' => true, 'visibilityRule' => 'masterDb',
 				'keywords' => array('pdf conversion tools','weasyprint','pdftk','ps2pdf','ftp tool path','database dump tool','backup tool path','zip unzip tar path','system alert text','dashboard news snippet','system tools')),
+			array('key' => 'saldi_assist',      'url' => 'assistent.php',                     'category' => 'integrations', 'textId' => 5881,
+				'keywords' => array('saldi assist','ai','artificial intelligence','assistant','assistent','chatbot','memory','hukommelse','remembered facts','mcp','mcp server','ai access','ai-adgang','ai-tilgang','access key','adgangsnøgle','external ai tools','eksterne ai-værktøjer','daily routines','daglige rutiner','overdue debtors','low stock','unposted journals','kunstig intelligens',
+					'posting rules','bogføringsregler','stop regel','journal suggestions','forslag i kassekladden','daily overview email','dagligt overblik på mail','digest',
+					'vat period','momsperiode','important messages','vigtige beskeder','till difference','kassedifference','supplier bank details changed','expiring batches','posteringsregler')),
+			array('key' => 'saldi_assist_report', 'url' => 'assistent_rapport.php',           'category' => 'integrations', 'textId' => 5990,
+				'keywords' => array('saldi assist','assist report','assist-rapport','ai report','accept rate','godkendt andel','tool calls','værktøjskald','time saved','anslået sparet tid','suggestions used','forslag brugt','routines','rutiner')),
 			array('key' => 'email_settings',    'url' => 'email_settings.php',                'category' => 'documents', 'labelDa' => 'Email Indstillinger', 'labelEn' => 'Email settings', 'labelNo' => 'E-postinnstillinger',
 				'keywords' => array('sender email','sender name','email from address','invoice email sender','background specific email settings','afsender email','afsender navn')),
 			array('key' => 'betalinger_settings', 'url' => '../debitor/betalinger_settings.php', 'category' => 'finance', 'labelDa' => 'Betalingsindstillinger', 'labelEn' => 'Payment settings', 'labelNo' => 'Betalingsinnstillinger',

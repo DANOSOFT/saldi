@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-09-24 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,6 +21,7 @@
 // See GNU General Public License for more details.
 //
 // Copyright (c) 2003-2026 Danosoft ApS
+
 // ----------------------------------------------------------------------
 // 20240329 PHR - Alert when clicking clip, if not saved
 // 20240331 PHR - Prevent deletion of line if document attached
@@ -128,6 +129,17 @@
 //                  observed tidspkt, so a stale render can't overwrite a token a concurrent
 //                  tidspkt change has since replaced (unlockRecord.php's refresh_lock_token()
 //                  now requires it).
+// 20261001 CDX/LH Move VAT helpers unchanged into the shared definition-only library.
+// 20261001 CDX/LH Share resolved journal validation, exchange rates, insertion and web lease checks.
+// 20261002 CL/LH Saldi Assist journal suggestions (SPEC-companion C8.1): editable kladder include
+//                  javascript/saldi-journal-assist.js + its JSON config when assistant/journal_suggestions is on.
+// 20261004 CL/LH Saldi Assist "Tjek kladden" (SPEC-companion-2 E3): the same switch also includes
+//                  javascript/saldi-journal-check.js (button next to Gem, read-only check panel above the table).
+// 20261004 CDX/LH Refine journal check labels and the one-sentence notice about saved lines.
+// 20261007 CL/LH Narrow frames (Saldi Assist docked, ~1600 px window): the note field and the description column
+//                  give way instead of making the page scroll sideways and cut Bilag; Tjek kladden texts 6366/6367.
+// 20261007 CL/LH The width fix is javascript/saldi-journal-fit.js: only while Saldi Assist is docked and the page
+//                  overflows, measured on the real table (no fixed 100vw rule for every user and window).
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
@@ -139,6 +151,7 @@ require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
 # that did the insert (see the caller), never inferred with MAX(id), which another session's insert
 # could win.
 $kk_new_line_ids = array();
+
 
 /**
  * Remember a line this request created, so the render can place it last and the focus can follow it.
@@ -221,152 +234,9 @@ include("./kassekladde_includes/bilagsmatch.php");
 
 include("../includes/grid.php");
 
-// Build VAT codes list from grupper table (art 2nd char = 'M')
-$vat_codes = array();
-$allowed_vat_prefixes = array('S', 'K', 'Y', 'E');
-$vat_q = db_select("select kode, kodenr, beskrivelse, art from grupper where substring(art,2,1)='M' order by kode, kodenr", __FILE__ . " linje " . __LINE__);
-while ($vat_r = db_fetch_array($vat_q)) {
-    $vat_prefix = strtoupper(trim($vat_r['kode']));
-    if (!in_array($vat_prefix, $allowed_vat_prefixes, true)) {
-        continue;
-    }
-    $vat_code = $vat_prefix . trim($vat_r['kodenr']);
-    if ($vat_code) {
-        $vat_codes[$vat_code] = trim($vat_r['beskrivelse']);
-    }
-}
-
-/**
- * Request values arrive as arrays when a field name is posted with [] appended,
- * and PHP 8 raises a TypeError when such a value reaches trim(). Anything that is
- * not a string or a number is therefore treated as no input at all.
- */
-function scalar_input_text($value) {
-    if (!is_string($value) && !is_int($value) && !is_float($value)) {
-        return '';
-    }
-    return trim((string)$value);
-}
-
-function normalize_vat_code($value, $vat_codes) {
-    $value = scalar_input_text($value);
-    if ($value === '') {
-        return '';
-    }
-    return array_key_exists($value, $vat_codes) ? $value : '';
-}
-
-function get_saved_vat_code($row, $field) {
-    if (!is_array($row) || !array_key_exists($field, $row) || $row[$field] === null) {
-        return null;
-    }
-    return trim((string)$row[$field]);
-}
-
-/**
- * Tells whether a cash journal debit/credit value is an actual account number.
- *
- * The debit/credit fields also accept shortcuts such as '=' (copy from the line
- * above), 'D'/'K' (debtor/creditor lookup) and the single letter shortcuts held
- * in kontoplan.genvej. Those are translated later in the request, so any value
- * reaching an account number query before that point may still be a shortcut.
- * kontoplan.kontonr is numeric, so a shortcut would abort the query.
- *
- * @return bool  True when the value can be used as kontoplan.kontonr.
- */
-function is_account_number($value) {
-    if (!is_string($value) && !is_int($value)) {
-        return false;
-    }
-    return ctype_digit(trim((string)$value));
-}
-
-function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_codes) {
-    $account_no = scalar_input_text($account_no);
-    $account_type = strtoupper(scalar_input_text($account_type));
-
-    if ($account_no === '' || ($account_type !== '' && $account_type !== 'F')) {
-        return '';
-    }
-    if (!is_account_number($account_no)) {
-        if (strlen($account_no) != 1) {
-            return '';
-        }
-        $qtxt = "select kontonr from kontoplan where genvej='" . db_escape_string(strtoupper($account_no)) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
-        if (!$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-            return '';
-        }
-        $account_no = trim($row['kontonr']);
-    }
-    $qtxt = "select moms from kontoplan where kontonr='" . db_escape_string($account_no) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
-    $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-    if ($row = db_fetch_array($query)) {
-        return normalize_vat_code(if_isset($row['moms'], ''), $vat_codes);
-    }
-
-    return '';
-}
-
-function resolve_lookup_vat_code($explicit_vat, $current_account, $current_type, $existing_account, $existing_type, $existing_vat, $momsfri, $regnaar, $vat_codes) {
-    $current_account = scalar_input_text($current_account);
-    $current_type = strtoupper(scalar_input_text($current_type));
-    $existing_account = scalar_input_text($existing_account);
-    $existing_type = strtoupper(scalar_input_text($existing_type));
-
-    if ($current_account !== $existing_account || $current_type !== $existing_type) {
-        return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
-    }
-
-    if ($explicit_vat !== null) {
-        $explicit_vat = normalize_vat_code($explicit_vat, $vat_codes);
-        if (!scalar_input_text($momsfri) && $explicit_vat === '') {
-            return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
-        }
-        return $explicit_vat;
-    }
-
-    if ($existing_account !== '') {
-        $existing_vat = normalize_vat_code($existing_vat, $vat_codes);
-        if (!scalar_input_text($momsfri) && $existing_vat === '') {
-            return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
-        }
-        return $existing_vat;
-    }
-
-    return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
-}
-
-function resolve_post_vat_code($row_id, $field, $current_account, $current_type, $submitted_vat, $momsfri, $allow_blank, $regnaar, $vat_codes) {
-    $row_id = (int)$row_id;
-    $account_field = ($field === 'kreditvat') ? 'kredit' : 'debet';
-    $type_field = ($field === 'kreditvat') ? 'k_type' : 'd_type';
-    $existing_account = '';
-    $existing_type = '';
-
-    if ($row_id) {
-        $qtxt = "select $account_field,$type_field from kassekladde where id='$row_id'";
-        if ($row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-            $existing_account = trim((string)$row[$account_field]);
-            $existing_type = trim(strtoupper((string)$row[$type_field]));
-        }
-    }
-
-    $current_account = scalar_input_text($current_account);
-    $current_type = strtoupper(scalar_input_text($current_type));
-    $submitted_vat = normalize_vat_code($submitted_vat, $vat_codes);
-
-    // A blank VAT code is only an explicit choice when the line is marked VAT exempt.
-    // Otherwise use the financial account's configured VAT code.
-    if (!scalar_input_text($momsfri) && !$allow_blank && $submitted_vat === '') {
-        return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
-    }
-
-    if ($current_account !== $existing_account || $current_type !== $existing_type) {
-        return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
-    }
-
-    return $submitted_vat;
-}
+require_once __DIR__ . '/kassekladde_includes/vatCodes.php';
+require_once __DIR__ . '/kassekladde_includes/journalLine.php';
+$vat_codes = kassekladde_vat_codes();
 
 function ensure_cash_vat_columns() {
     $required_columns = array(
@@ -595,21 +465,24 @@ $returside = null;
 
 $visipop = if_isset($_GET, null, 'visipop');
 $udskriv = if_isset($_GET, null, 'udskriv');
-if ($tjek = if_isset($_GET, null, 'tjek')) {
+if ($tjek = (int)ifset($_GET, 'tjek', 0)) {
 	$tidspkt = microtime();
 	list($a, $b) = explode(" ", $tidspkt);
 	$qtxt = "select bogfort,tidspkt,hvem from kladdeliste where (bogfort = '-' or bogfort = 'S') and id = $tjek";
 	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	if (isset($row['tidspkt'])) {
-		list($a, $c) = explode(" ", $row['tidspkt']);
-		if (($b - $c < 3600) && ($row['hvem'] != $brugernavn)) {
+		list($a, $c) = array_pad(explode(" ", $row['tidspkt']), 2, null);
+		$lockedBy = kladde_lock_holder($tjek, (string)$brugernavn);
+		if ($lockedBy !== null) {
 			$alert1 = findtekst('1577|Kladden er i brug af', $sprog_id); //Kladden er i brug af
 			print "<body onLoad=\"javascript:alert('$alert1 $row[hvem]')\">"; #20210720
-			if ($popup || $visipop)
+			if ($popup || $visipop) {
 				print "<meta http-equiv='refresh' content='0;URL=../includes/luk.php'>";
-			else
+			}
+			else {
 				print "<meta http-equiv='refresh' content='0;URL=../finans/kladdeliste.php'>";
+			}
 		} else {
 			$page_display = false;
 			$a--;
@@ -2669,6 +2542,31 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$ac_forslag_on = in_array('ac_forslag', $kk_panel_hidden, true) ? 'false' : 'true';
 		$ac_opslag_on  = in_array('ac_opslag',  $kk_panel_hidden, true) ? 'false' : 'true';
 		print "<script>window.saldiAutocompleteOptions={showLastPostings:$ac_forslag_on,showAccountLookup:$ac_opslag_on};</script>";
+		// Saldi Assist docked in the shell narrows this frame. While it is docked and the page really overflows,
+		// saldi-journal-fit.js takes the overflow back from the Bilagstekst inputs and the note field (measured);
+		// without a docked panel the page keeps its own widths.
+		print "<script src='../javascript/saldi-journal-fit.js?v=20261007' defer></script>";
+		// Saldi Assist journal suggestions (SPEC-companion C8.1): tenant users, tenant switch on, saved kladde.
+		if ((int)($bruger_id ?? 0) > 0 && (int)($kladde_id ?? 0) > 0) {
+			try {
+				require_once __DIR__ . '/../includes/runtime/bootstrap.php';
+				require_once __DIR__ . '/../includes/automation/inboxCsrf.php';
+				$sjaOpen = saldi_runtime_context_for_session();
+				if (SaldiSettings::get($sjaOpen['db'], 'assistant', 'journal_suggestions') === 'on') {
+					$sjaTexts = array();
+					foreach (array('5960|Forslag', '5961|Brug', '5962|Skjul', '5963|Fra regel', '5964|Brugt %d gange, senest %s', '5965|Mulig dublet:', '5966|Spørg Assist', '5967|Linjen er udfyldt, men ikke gemt. Tryk Gem, når den er rigtig.', '5969|dage', '6014|Spørg Assist om denne linje', '671|Bilag', '1000|Debet', '1001|Kredit', '5716|Kladde', '637|Bogført', '6140|Tjek kladden', '6141|Ingen fund. Kladden ser klar ud.', '6142|Fejl, der stopper bogføringen', '6143|Bør tjekkes', '1133|Vis', '6291|Tjekket gælder kun de gemte linjer.', '6292|Markér linjerne i kladden', '6293|Tjekker kladden …', '6294|Kladden kunne ikke tjekkes lige nu.', '6295|Tjek de gemte linjer for fejl, før du bogfører. Intet ændres.', '6366|Tjek igen', '6367|Tjekket kl. %s') as $sjaText) {
+						$sjaTexts[strtok($sjaText, '|')] = findtekst($sjaText, $sprog_id);
+					}
+					$sjaConfig = array('kladdeId' => (int)$kladde_id, 'csrf' => saldi_inbox_csrf_token(), 'endpoint' => 'kassekladde_includes/assistSuggest.php', 'lang' => (int)$sprog_id, 'texts' => $sjaTexts);
+					print "<link rel='stylesheet' type='text/css' href='../css/saldi_journal_assist.css?v=20261007b'>";
+					print "<script type='application/json' id='saldi-journal-assist-config'>" . json_encode($sjaConfig, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) . "</script>";
+					print "<script src='../javascript/saldi-journal-assist.js?v=20261007b' defer></script>";
+					print "<script src='../javascript/saldi-journal-check.js?v=20261007b' defer></script>";
+				}
+			} catch (Throwable $sjaError) {
+				error_log('kassekladde.php journal suggestions: ' . get_class($sjaError));
+			}
+		}
 		// Column visibility — hide rules + gear settings panel (same look as the product card fieldVisibility panel)
 		print "<style>";
 		foreach ($kk_hidden_cols as $hc) {
@@ -3819,11 +3717,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $aarslut;
 
 		$lukket = NULL;
+		$id = (int)$id;
+		$kladde_id = (int)$kladde_id;
+		$regnaar = (int)$regnaar;
 
 		if ($kladde_id) {
-			$qtxt = "select bogfort from kladdeliste where id = $kladde_id";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r['bogfort'] != '-') {
+			$journal_errors = array_column(kladde_line_check(['kladde_id'=>$kladde_id], $regnaar), 'reason', 'field');
+			if (ifset($journal_errors, 'kladde_id') === 'journal_posted') {
 				$alerttxt = findtekst('1584|Kladden er allerede bogført - kladden lukkes', $sprog_id); //Kladden er allerede bogført - kladden lukkes
 				print "<BODY onLoad=\"javascript:alert('$alerttxt')\">";
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
@@ -3839,10 +3739,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$md2 = trim($row['box3']);
 				$year2 = trim($row['box4']);
 				if (strlen($md1) < 2 || strlen($md2) < 2) {
-					if (strlen($md1) < 2)
+					if (strlen($md1) < 2) {
 						$md1 = '0' . $md1;
-					if (strlen($md2) < 2)
+					}
+					if (strlen($md2) < 2) {
 						$md2 = '0' . $md2;
+					}
 					db_modify("update grupper set box1='$md1',box3='$md2' where art='RA' and kodenr='$regnaar'", __FILE__ . " linje " . __LINE__);
 				}
 				$aarstart = $year1 . $md1;
@@ -3914,9 +3816,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 			if ($d_type == "F" && strlen($debet) == 1 && !is_numeric($debet) && $debet != '0') {
 				$debet = strtoupper($debet);
-				$query = db_select("select kontonr from kontoplan where genvej='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query))
+				$shortcut = db_escape_string($debet);
+				$query = db_select("select kontonr from kontoplan where genvej='$shortcut' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+				if ($row = db_fetch_array($query)) {
 					$debet = $row["kontonr"];
+				}
 				else {
 					$txt1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$txt2 = findtekst('1586| Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
@@ -3946,7 +3850,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($i == 1) {
 					$debet = $findarray[0];
 				} elseif ($i > 1) {
-					include('kassekladde_includes/financeLookup.php');
+					include(__DIR__ . '/kassekladde_includes/financeLookup.php');
 					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			} elseif (($k_type == "F") && (strlen($kredit) > 1) && (!is_numeric($kredit))) {
@@ -3968,15 +3872,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				}
 				if ($i == 1) $kredit = $findarray[0]; //20240523
 				elseif ($i > 1) {
-					include('kassekladde_includes/financeLookup.php');
+					include(__DIR__ . '/kassekladde_includes/financeLookup.php');
 					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			}
 			if (!$fejl && $k_type == "F" && strlen($kredit) == 1 && !is_numeric($kredit) && $kredit != '0') {
-				$qtxt = "select kontonr from kontoplan where genvej='" . strtoupper($kredit) . "' and regnskabsaar='$regnaar'";
+				$qtxt = "select kontonr from kontoplan where genvej='" . db_escape_string(strtoupper($kredit)) . "' and regnskabsaar='$regnaar'";
 				$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query))
+				if ($row = db_fetch_array($query)) {
 					$kredit = $row['kontonr'];
+				}
 				else {
 					$alert1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$alert2 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
@@ -3986,9 +3891,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
+			$line_errors = array_column(kladde_line_check([
+				'transdate'=>usdate($dato), 'd_type'=>$d_type, 'debet'=>$debet,
+				'k_type'=>$k_type, 'kredit'=>$kredit, 'afd'=>$afd, 'projekt'=>$projekt,
+				'valuta'=>$valuta, 'base_currency'=>$baseCurrency,
+			], $regnaar), 'reason', 'field');
 			if ((!$fejl) && ($d_type == "F") && ($debet > 0)) {
 				$alerttekst = '';
-				if (!in_array($debet, $accountNumbers)) {
+				if (ifset($line_errors, 'debet') === 'account_invalid') {
 					$alerttxt1 = findtekst('1589|Der er ingen finanskonti hvor', $sprog_id); // Der er ingen finanskonti hvor
 					$alerttxt2 = findtekst('1590|indgår (Bilag nr', $sprog_id); // indgår (Bilag nr
 					$alerttxt3 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
@@ -4000,8 +3910,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (isset($debitornr) && in_array($debet, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
 					elseif (isset($kreditornr) && in_array($debet, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alerttxt1 . " '" . $debet . "' " . $alerttxt2 . " " . $bilag . $alerttxt3 . $hint); # 20230306 added ' and spaces
-				} elseif (in_array($debet, $lukket))
+				} elseif (ifset($line_errors, 'debet') === 'account_closed') {
 					$alerttekst = addslashes($alerttxt4 . " " . $debet . " " . $alerttxt5 . " " . $bilag . $alerttxt3); # 20230306 added spaces
+				}
 				if ($alerttekst) {
 					alert("$alerttekst");
 					$fejl = 1;
@@ -4015,19 +3926,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
 
-				if (!in_array($kredit, $accountNumbers)) {
+				if (ifset($line_errors, 'kredit') === 'account_invalid') {
 					$hint = '';
 					if (isset($debitornr) && in_array($kredit, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
 					elseif (isset($kreditornr) && in_array($kredit, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " '" . $kredit . "' " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} elseif (in_array($kredit, $lukket))
+				} elseif (ifset($line_errors, 'kredit') === 'account_closed') {
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alerttxt4 . " " . $bilag . $alert4);
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($d_type == "D") && ($debet) && (!in_array($debet, $debitornr))) {
+			if ((!$fejl) && ($d_type == "D") && ($debet) && (ifset($line_errors, 'debet') === 'debitor_invalid')) {
 				$alerttekst = '';
 				$alert1 = findtekst('604|Debitor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4040,14 +3952,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (in_array($debet, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($kreditornr) && in_array($debet, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} else
+				} else {
 					$debet = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($k_type == "D") && ($kredit) && (!in_array($kredit, $debitornr))) {
+			if ((!$fejl) && ($k_type == "D") && ($kredit) && (ifset($line_errors, 'kredit') === 'debitor_invalid')) {
 				$alerttekst = '';
 				$alert1 = findtekst('604|Debitor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4060,14 +3973,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (in_array($kredit, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($kreditornr) && in_array($kredit, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} else
+				} else {
 					$kredit = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($d_type == "K") && ($debet) && (!in_array($debet, $kreditornr))) {
+			if ((!$fejl) && ($d_type == "K") && ($debet) && (ifset($line_errors, 'debet') === 'kreditor_invalid')) {
 				$alerttekst = '';
 				$alert1 = findtekst('1169|Kreditor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4079,14 +3993,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (in_array($debet, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($debitornr) && in_array($debet, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} else
+				} else {
 					$debet = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($k_type == "K") && ($kredit) && (!in_array($kredit, $kreditornr))) {
+			if ((!$fejl) && ($k_type == "K") && ($kredit) && (ifset($line_errors, 'kredit') === 'kreditor_invalid')) {
 				$alerttekst = '';
 				$alert1 = findtekst('1169|Kreditor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4098,28 +4013,32 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (in_array($kredit, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($debitornr) && in_array($kredit, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} else
+				} else {
 					$kredit = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ($d_type == "K" && strtoupper($debet) == "K")
+			if ($d_type == "K" && strtoupper($debet) == "K") {
 				$debet = 0;
-			if ($d_type == "D" && strtoupper($debet) == "D")
+			}
+			if ($d_type == "D" && strtoupper($debet) == "D") {
 				$debet = 0;
-			if ($k_type == "K" && strtoupper($kredit) == "K")
+			}
+			if ($k_type == "K" && strtoupper($kredit) == "K") {
 				$kredit = 0;
-			if ($k_type == "D" && strtoupper($kredit) == "D")
+			}
+			if ($k_type == "D" && strtoupper($kredit) == "D") {
 				$kredit = 0;
+			}
 			$transdate = usdate($dato);
 			#cho __line__." $transdate<br>";
 			list($year, $month, $day) = explode('-', $transdate);
 			$ym = $year . $month;
 
-			if (!function_exists('checkOpenFiscalYear')) include_once('../includes/stdFunc/checkOpenFiscalYear.php');
-			if (!checkOpenFiscalYear($transdate)) {
+			if (ifset($line_errors, 'transdate') === 'outside_fiscal_year') {
 			#if (!$fejl && $dato && ($ym < $aarstart || $ym > $aarslut)) {
 				$alert1 = findtekst('635|Dato', $sprog_id);
 				$alert2 = findtekst('1595|udenfor regnskabsår', $sprog_id);
@@ -4131,11 +4050,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$fejl = 1;
 				#			$transdate=date("Y-m-d");
 			}
-			if (!isset($afd) || !$afd)
+			if (!isset($afd) || !$afd) {
 				$afd = 0;
+			}
 			if (!$fejl && $afd) {
-				$qtxt = "select id from grupper where art='AFD' and kodenr='$afd'";
-				if (!$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				if (ifset($line_errors, 'afd') === 'department_invalid') {
 					$alert1 = findtekst('274|Afdeling', $sprog_id);
 					$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
 					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
@@ -4147,7 +4066,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			#		$projekt=$projekt*1;
 			if (!$fejl && $projekt) {
-				if (!$row = db_fetch_array(db_select("select id from grupper where art='PRJ' and kodenr='$projekt'", __FILE__ . " linje " . __LINE__))) {
+				if (ifset($line_errors, 'projekt') === 'project_invalid') {
 					$alert1 = findtekst('553|Projekt', $sprog_id);
 					$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
 					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
@@ -4158,10 +4077,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
-			if (!$valuta)
+			if (!$valuta) {
 				$valuta = $baseCurrency;
+			}
 			if ($id && !$fejl && $valuta != $baseCurrency) {
-				if (!$row = db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1='$valuta'", __FILE__ . " linje " . __LINE__))) {
+				if (ifset($line_errors, 'valuta') === 'currency_unknown') {
 					$alert1 = findtekst('1069|Valuta', $sprog_id); #20210720
 					$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
 					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
@@ -4170,12 +4090,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$alerttekst = addslashes($alert1 . " " . $valuta . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
 					alert($alerttekst);
 					$fejl = 1;
-				} else
-					$valutakode = $row['kodenr'];
-				$valdate = usdate($dato);
-				$qtxt = "select kurs from valuta where gruppe='$valutakode' and valdate <= '$valdate' order by valdate desc limit 1";
-				if ($id && !$fejl && $row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					db_modify("update kassekladde set valutakurs = '$row[kurs]' where id = '$id'", __FILE__ . " linje " . __LINE__);
+				}
+				if (!$fejl && ($rate = kladde_line_rate($valuta, $transdate)) !== null) {
+					$kurs = db_escape_string($rate['rate']);
+					db_modify("update kassekladde set valutakurs = '$kurs' where id = '$id'", __FILE__ . " linje " . __LINE__);
 				}
 			}
 			if ($lobenr) {
@@ -4215,67 +4133,80 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	{
 		global $baseCurrency,$egen_kto_id;
 
+		$kladde_id = (int)$kladde_id;
+		$egen_kto_id = (int)$egen_kto_id;
+
 		$forfaldsdate = NULL;
 		$valutakode = '0';
 		$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (($r['bilag'] != "-") && ($r['transdate'] || $r['debet'] || $r['kredit'])) {
-				if ($r['transdate'])
+				if ($r['transdate']) {
 					$transdate = usdate($r['transdate']);
+				}
 				#else $transdate=NULL; # <- 2009.05.12
 				#else $transdate=date("Y-m-d"); # <- 2009.05.14
-				if ($r['forfaldsdate'])
+				if ($r['forfaldsdate']) {
 					$forfaldsdate = usdate($r['forfaldsdate']);
-				else
+				}
+				else {
 					$forfaldsdate = NULL; # <- 2009.05.12
+				}
 				$amount = usdecimal($r['amount'], 2)*1;
-				$momsfri = trim($r['momsfri']);
+				$momsfri = db_escape_string(trim((string)$r['momsfri']));
+				$r['id'] = (int)$r['id'];
 				$debet = (int) $r['debet'];
 				$kredit = (int) $r['kredit'];
 				(!$kredit) ? $kredit = 0 : $kredit = (int)$kredit;
-				$d_type = trim($r['d_type']);
-				$k_type = trim($r['k_type']);
+				$d_type = db_escape_string(trim((string)$r['d_type']));
+				$k_type = db_escape_string(trim((string)$r['k_type']));
 				$afd = trim($r['afd']);
 				(!$afd) ? $afd = 0 : $afd = (int)$afd;
-				$ansat = strtolower($r['ansat']);
+				$ansat = db_escape_string(strtolower((string)$r['ansat']));
 				$faktura = db_escape_string(if_isset($r['faktura'], ''));
 				if ($egen_kto_id && $ansat) {
 					$r2 = db_fetch_array(db_select("select id from ansatte where lower(initialer) = '$ansat' and konto_id = '$egen_kto_id'", __FILE__ . " linje " . __LINE__));
 					$ansat_id = $r2['id'] * 1;
-				} else
+				} else {
 					$ansat_id = 0;
-				$projekt = $r['projekt'];
+				}
+				$projekt = db_escape_string((string)$r['projekt']);
 				$valuta = $r['valuta'];
 				if ($valuta != $baseCurrency) {
-					$valuta = strtoupper($valuta);
+					$valuta = db_escape_string(strtoupper((string)$valuta));
 					# 20120806 Indsat "art = 'VK' and " herunder.
 					$qtxt = "select kodenr from grupper where art = 'VK' and box1 = '$valuta'";
-					($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $valutakode = $r2['kodenr'] : $valutakode = 0;
-				} else
+					($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $valutakode = (int)$r2['kodenr'] : $valutakode = 0;
+				} else {
 					$valutakode = 0; #Valutakode 0 er altid $baseCurrency
-				$betal_id = $r['betal_id'];
+				}
+				$betal_id = db_escape_string((string)$r['betal_id']);
 				$beskrivelse = db_escape_string(if_isset($r['beskrivelse'], ''));
 				$debetvat = db_escape_string(if_isset($r['debetvat'], ''));
 				$kreditvat = db_escape_string(if_isset($r['kreditvat'], ''));
-				if ($amount < 0) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
-					$tmp = $kredit;
-					$kredit = $debet;
-					$debet = $tmp;
-					$tmp = $k_type;
-					$k_type = $d_type;
-					$d_type = $tmp;
-					$tmp = $kreditvat;
-					$kreditvat = $debetvat;
-					$debetvat = $tmp;
-					$amount = $amount * -1;
-				}
 
 				if ($r['id'] && ($r['bilag'] || $r['bilag'] == '0')) {
-					if (!$transdate && isset($_GET['dato']))
+					if ($amount < 0) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
+						$tmp = $kredit;
+						$kredit = $debet;
+						$debet = $tmp;
+						$tmp = $k_type;
+						$k_type = $d_type;
+						$d_type = $tmp;
+						$tmp = $kreditvat;
+						$kreditvat = $debetvat;
+						$debetvat = $tmp;
+						$amount = $amount * -1;
+					}
+					if (!$transdate && isset($_GET['dato'])) {
 						$transdate = usdate($_GET['dato']);
-					if (!$transdate)
+					}
+					if (!$transdate) {
 						$transdate = date("Y-m-d");
+					}
+					$transdate = db_escape_string((string)$transdate);
+					$forfaldsdate = $forfaldsdate ? db_escape_string($forfaldsdate) : null;
 					$bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 					if ($bilag > 2147483647) {
 						$r_max = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
@@ -4295,83 +4226,32 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					if ($forfaldsdate) {
 						$qtxt = "update kassekladde set forfaldsdate='$forfaldsdate', betal_id='$betal_id' where id = '$r[id]'";
-					} else
+					} else {
 						$qtxt = "update kassekladde set forfaldsdate=NULL, betal_id='' where id = '$r[id]'";
+					}
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				} elseif (
 					($r['transdate'] || $transdate)
 					&& (($transdate && $transdate != date("Y-m-d")) || $r['beskrivelse'] || $debet | $kredit || $r['faktura'])
 				) {
 					#				$beskrivelse=db_escape_string(if_isset($r['beskrivelse'], ''));
-					$qtxt = NULL;
-					if ($forfaldsdate) {
-						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
-						if ($insert_bilag > 2147483647) {
-							$r_max2 = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
+					if ($forfaldsdate || (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount))) {
+						$insert_bilag = (int)$r['bilag'];
+						if ($forfaldsdate && $insert_bilag > 2147483647) {
+							$r_max2 = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag),0)+1 AS next_bilag FROM kassekladde WHERE kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__));
 							$new_bilag2 = (int)$r_max2['next_bilag'];
 							alert("Bilagsnummer $insert_bilag er for stort (maks 2147483647) og er erstattet med $new_bilag2.");
 							$insert_bilag = $new_bilag2;
 						}
-						# 20260928 LOE SST-817 A line saved without a voucher number is given the journal's
-						# next one instead of 0, so a balanced line advances the series and no number is
-						# reused while the journal is open.
-						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberForJournal($kladde_id);
-						}
-						// Insert at the correct bilag/transdate position instead of always at the end.
-						// Find the highest pos of entries that should come before the new entry.
-						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
-						$ins_pos_r = db_fetch_array($ins_pos_q);
-						$next_pos = $ins_pos_r['max_pos'] + 1;
-						// Shift all entries at or after the insertion point to make room.
-						db_modify("UPDATE kassekladde SET pos = pos + 1 WHERE kladde_id = '$kladde_id' AND pos >= '$next_pos'", __FILE__ . " linje " . __LINE__);
-						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, debetvat, kreditvat, ";
-						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id, pos)";
-						$qtxt .= "values ";
-						$qtxt .= "('$insert_bilag', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', '$debetvat', '$kreditvat', ";
-						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', ";
-						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
-					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
-						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
-						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
-						# number gets the journal's next one instead of 0.
-						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberForJournal($kladde_id);
-						}
-						// Insert at the correct bilag/transdate position instead of always at the end.
-						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
-						$ins_pos_r = db_fetch_array($ins_pos_q);
-						$next_pos = $ins_pos_r['max_pos'] + 1;
-						// Shift all entries at or after the insertion point to make room.
-						db_modify("UPDATE kassekladde SET pos = pos + 1 WHERE kladde_id = '$kladde_id' AND pos >= '$next_pos'", __FILE__ . " linje " . __LINE__);
-						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, debetvat, kreditvat, ";
-						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id, pos)";
-						$qtxt .= " values ";
-						$qtxt .= "('$insert_bilag', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', '$debetvat', '$kreditvat', ";
-						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', '$kladde_id', '$next_pos')";
-					}
-					if ($qtxt) {
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-						# Only an insert creates a row to pin and to move the focus to; an update must leave
-						# the caret where the user was. The generated id comes from this connection, so a
-						# concurrent insert in another session cannot be picked up instead.
-						if (stripos(trim($qtxt), 'insert') === 0) {
-							# The id has to be read from this connection, so that a concurrent insert in
-							# another session cannot be picked up instead. db_modify() picks its query
-							# function from $db_type, so the same test is repeated here: mysqli_insert_id()
-							# for a MySQL/MySQLi install, currval() for Postgres, which needs a sequence.
-							$kk_insert_id = 0;
-							if (isset($GLOBALS['db_type']) && ($GLOBALS['db_type'] == 'mysql' || $GLOBALS['db_type'] == 'mysqli')) {
-								$kk_insert_id = mysqli_insert_id(db_query_connection(false));
-							} else {
-								$kkIdRow = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kassekladde', 'id')) AS id", __FILE__ . " linje " . __LINE__));
-								if (isset($kkIdRow['id'])) $kk_insert_id = $kkIdRow['id'];
-								unset($kkIdRow);
-							}
-							# A failed insert, or an install whose id is not auto generated, only means the
-							# pin and the focus do not fire - never a broken save.
-							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id);
-							unset($kk_insert_id);
+						$insert_fields = array_replace($r, [
+							'bilag'=>$insert_bilag, 'transdate'=>$transdate, 'amount'=>$amount,
+							'forfaldsdate'=>$forfaldsdate, 'ansat'=>$ansat_id, 'valuta'=>$valutakode,
+						]);
+						// New web lines keep the database's rate default; only existing rows copy a rate.
+						unset($insert_fields['valutakurs']);
+						$kk_insert_id = kassekladde_insert_line((int)$kladde_id, $insert_fields);
+						if ($kk_insert_id > 0) {
+							kk_note_new_line($kk_insert_id);
 						}
 					}
 				}

@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/moveDoc.php -----patch 4.1.0 ----2024-03-05---
+// --- includes/docsIncludes/moveDoc.php -----ver 5.0.0 ----2026-10-01---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,14 +16,16 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2024-2024 Saldi.dk ApS
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260925 LOE MB-42 The pool row this writes carries content_sha256, like every other pool writer.
 // 20230707 LOE Added kassekladde part
 // 20230724 LOE made some modifications to include alert also
 // 20240305 PHR Varioous corrections
+// 20261001 CDX/LH Preserve pool identity through legacy file transitions.
 
 
+require_once __DIR__ . '/poolFileTransitions.php';
 include_once(__DIR__ . "/poolContentHash.php");
 
 if ($moveDoc) {
@@ -81,7 +83,7 @@ if ($moveDoc) {
 	
 	// Move the actual file to pulje
 	if (file_exists($moveDoc) && !file_exists($new)) {
-		$moveResult = rename($moveDoc, $new);
+		$moveResult = PoolFileTransitions::restore($db, $moveDoc, $new);
 		if (!$moveResult) {
 			echo '<script type="text/javascript">';
 			echo "alert('Kunne ikke flytte filen til pulje.');";
@@ -215,6 +217,11 @@ if ($moveDoc) {
 	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
+	$poolIdentity = PoolFileTransitions::row($db, $new);
+	if ($poolIdentity) {
+		PoolFileTransitions::refreshDocuments((int)$poolIdentity['id']);
+	}
+
 	// Check if there are any remaining documents for this sourceId
 	$qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id limit 1";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);

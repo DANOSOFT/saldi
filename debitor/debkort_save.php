@@ -1,5 +1,5 @@
 <?php
-// ---------------------debitor/debkort_save.php----lap 3.4.1---2014-05-05---
+// ---------------------debitor/debkort_save.php----ver 5.0.0---2026-10-03---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,19 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 2014.05.05 indsat  >>|| $_POST['firmanavn']<< da man ikke kunne oprette nye kunder. (PHR - Danosoft) Søg20140505
+// 20261001 CDX/LH Share the locked customer creation engine with mobile.
+// 20261003 CDX/LH Fix confirmed Assist review findings and preserve approval and undo semantics.
+// 20261008 CL/LH Merge: the MySQL allocation lock moved into includes/debitor/debtorAccount.php.
+
+/**
+ * Injected by includes/online.php via sager/kunder.php or sager/sager.php:
+ * @var int $sprog_id
+ */
+require_once __DIR__ . '/../includes/debitor/debtorAccount.php';
 
 if ($delete_category=if_isset($_GET['delete_category'])) {
 	$r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
@@ -42,6 +51,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 	$submit=db_escape_string(trim($_POST['submit']));
  	$id=(int)$_POST['id'];	# Kommer fra formularen og bruges direkte i SQL nedenfor
  	if ($submit!="Slet") {
+		$importedCardFields = [];
 		$notes=$_POST['notes'];
 		$firmanavn=db_escape_string(trim($_POST['firmanavn']));
 		$addr1=db_escape_string(trim($_POST['addr1']));
@@ -154,8 +164,13 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 			if (findtekst(255,$sprog_id)=='Regnskab' && $felt_1>1 && is_numeric($felt_1)) {
 				include("../includes/connect.php");
 				if ($r=db_fetch_array($q=db_select("select * from regnskab where id='$felt_1'",__FILE__ . " linje " . __LINE__))) {
+					$importedAccountName = (string)$r['regnskab'];
 					$regnskab=db_escape_string($r['regnskab']);
 					if ($r=db_fetch_array($q=db_select("select * from kundedata where regnskab='$regnskab' or regnskab_id='$felt_1'",__FILE__ . " linje " . __LINE__))) {
+                        foreach (['firmanavn','addr1','addr2','postnr','land','kontakt','tlf','email','cvrnr','notes'] as $field) {
+                            $importedCardFields[$field] = (string)ifset($r, $field, '');
+                        }
+                        $importedCardFields['mailfakt'] = 'on';
 						$ny_kontonr=db_escape_string($r['tlf']);
 						$firmanavn=db_escape_string($r['firmanavn']);
 						$felt=db_escape_string($r['regnskab']);
@@ -173,7 +188,8 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 						$mailfakt='on';
 						$gruppe=4;
 					}
-					$felt_1.=" : $regnskab"; 
+					$felt_1.=" : $regnskab";
+                    $importedCardFields['felt_1'] = trim((string)ifset($_POST, 'felt_1', '')) . ' : ' . $importedAccountName;
 				}
 			 include("../includes/online.php");
 			}
@@ -315,47 +331,33 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
  		if(!$betalingsdage){$betalingsdage=0;}
  	 	if(!$kreditmax){$kreditmax=0;}
  	 	if ($id==0) {
-			# Two users creating a customer at the same time could pick the same number: the
-			# free number is found by one query and used by the next. The allocation is
-			# serialised with a Postgres advisory lock so only one save at a time runs from
-			# "find the free number" to "insert". The lock is held on the connection and is
-			# released by the database when the request ends, also if the script stops early.
-			# Skipped on MySQL, where the function does not exist - behaviour is then as before.
-			$kto_laas = 0;
-			$akt_db_type = if_isset($GLOBALS,'postgres','db_type');
-			if ($akt_db_type != 'mysql' && $akt_db_type != 'mysqli') {
-				db_select("select pg_advisory_lock(5130513)",__FILE__ . " linje " . __LINE__);
-				$kto_laas = 1;
+			$cardFields = [];
+			foreach (['addr1', 'addr2', 'postnr', 'land', 'kontakt', 'tlf', 'mobile', 'email', 'mailfakt', 'web', 'betalingsbet', 'cvrnr', 'ean', 'institution', 'notes', 'bank_reg', 'bank_konto', 'pbs_nr', 'pbs', 'kontotype', 'fornavn', 'efternavn', 'lev_fornavn', 'lev_efternavn', 'lev_addr1', 'lev_addr2', 'lev_postnr', 'lev_land', 'lev_kontakt', 'lev_tlf', 'lev_email', 'felt_1', 'felt_2', 'felt_3', 'felt_4', 'felt_5', 'vis_lev_addr', 'lukket', 'stripe_fravalg'] as $field) {
+				$rawField = (string)ifset($_POST, $field, '');
+				$cardFields[$field] = in_array($field, ['bank_reg','bank_konto','pbs_nr','pbs'], true) ? $rawField : trim($rawField);
 			}
-			# Only numbers the system chose are moved on - a number typed by the user is left
-			# alone, so the existing "already in use" warning still appears for it.
-			if ($auto_tildelt || ($auto_kontonr && $ny_kontonr==$auto_kontonr)) {
-				$ktoliste=array();
-				$q = db_select("select kontonr from adresser where art = 'D'",__FILE__ . " linje " . __LINE__);
-				while ($r = db_fetch_array($q)) {
-					$ktoliste[]=$r['kontonr'];
-				}
-				while (in_array($ny_kontonr,$ktoliste)) {
-					$ny_kontonr++;
-				}
+			$cardFields += [
+				'kontonr' => (string)$ny_kontonr,
+				'auto_kontonr' => $auto_tildelt ? (int)$ny_kontonr : $auto_kontonr,
+				'firmanavn' => $gl_kontotype === 'privat' ? trim(ifset($_POST, 'fornavn', '') . ' ' . ifset($_POST, 'efternavn', '')) : trim(ifset($_POST, 'firmanavn', '')),
+				'lev_firmanavn' => $gl_kontotype === 'privat' ? trim(ifset($_POST, 'lev_fornavn', '') . ' ' . ifset($_POST, 'lev_efternavn', '')) : trim(ifset($_POST, 'lev_firmanavn', '')),
+				'bynavn' => trim(ifset($_POST, 'bynavn', '')) ?: ($postnr ? bynavn(ifset($_POST, 'postnr', '')) : ''),
+				'lev_bynavn' => trim(ifset($_POST, 'lev_bynavn', '')) ?: ($lev_postnr ? bynavn(ifset($_POST, 'lev_postnr', '')) : ''),
+				'gruppe' => (int)$gruppe, 'kreditmax' => (float)$kreditmax,
+				'betalingsdage' => (int)$betalingsdage, 'kontoansvarlig' => (int)$kontoansvarlig,
+				'kategori' => (string)$kategori, 'status' => (int)$status, 'rabatgruppe' => (int)$rabatgruppe,
+			];
+			$cardFields = array_replace($cardFields, $importedCardFields);
+			try {
+				$id = debtor_create($cardFields);
+				$createdCard = db_fetch_array(db_select('SELECT kontonr,oprettet FROM adresser WHERE id=' . (int)$id, __FILE__ . ' linje ' . __LINE__));
+				$ny_kontonr = (int)$createdCard['kontonr'];
+				$oprettet = $createdCard['oprettet'];
+			} catch (DomainException $error) {
+				$alerttekst = str_replace('$ny_kontonr', $ny_kontonr, findtekst(350, $sprog_id));
+				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">";
+				$id = 0;
 			}
- 	 	 	$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__);
- 	 	 	$r = db_fetch_array($q);
- 	 	 	if ($r['id']) {
-				$alerttekst=findtekst(350,$sprog_id);
-				$alerttekst=str_replace('$ny_kontonr',$ny_kontonr,$alerttekst);
-				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">";#<!--tekst 350-->\n";
- 	 	 	 	$id=0;
- 	 	 	} elseif($ny_kontonr) {
-				$oprettet=date("Y-m-d");
- 	 	 	 	db_modify("insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,mobile,email,mailfakt,web,betalingsdage,kreditmax,betalingsbet,cvrnr,ean,institution,notes,art,gruppe,kontoansvarlig,oprettet,bank_reg,bank_konto,pbs_nr,pbs,kontotype,fornavn,efternavn,lev_firmanavn,lev_fornavn,lev_efternavn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_kontakt,lev_tlf,lev_email,felt_1,felt_2,felt_3,felt_4,felt_5,vis_lev_addr,lukket,stripe_fravalg,kategori,rabatgruppe,status) values ('$ny_kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$kontakt', '$tlf', '$mobile', '$email','$mailfakt', '$web', '$betalingsdage', '$kreditmax', '$betalingsbet', '$cvrnr', '$ean', '$institution', '$notes', 'D', '$gruppe', '$kontoansvarlig', '$oprettet','$bank_reg','$bank_konto','$pbs_nr','$pbs','$kontotype','$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_kontakt','$lev_tlf','$lev_email','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$vis_lev_addr','$lukket','$stripe_fravalg','$kategori','$rabatgruppe','$status')",__FILE__ . " linje " . __LINE__);
- 	 	 	 	$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__);
- 	 	 	 	$r = db_fetch_array($q);
- 	 	 	 	$id = $r['id'];
-				$qtxt = "insert into ansatte(konto_id, navn) values ('$id', '$kontakt')";
-				if ($kontakt && $id) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			}
-			if ($kto_laas) db_select("select pg_advisory_unlock(5130513)",__FILE__ . " linje " . __LINE__);
  	 	} elseif ($id > 0) {
  	 	 	if ($ny_kontonr!=$kontonr) {
  	 	 	 	$x=0;

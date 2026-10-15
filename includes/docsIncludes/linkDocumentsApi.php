@@ -2,6 +2,9 @@
 // --- includes/docsIncludes/linkDocumentsApi.php --- 2025-12-11 ---
 // API endpoint for linking documents between kassekladde lines
 // Used by drag-and-drop functionality in kassekladde.php
+// 20261001 CDX/LH Preserve attachment identity when linking sibling lines.
+
+require_once __DIR__ . '/poolFileTransitions.php';
 
 @session_start();
 $s_id = session_id();
@@ -57,6 +60,7 @@ $sourceEsc = db_escape_string($source);
 $qtxt = "SELECT * FROM documents WHERE source = '$sourceEsc' AND source_id = '$fromSourceId'";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
+PoolFileTransitions::ready();
 $linkedCount = 0;
 $errors = [];
 
@@ -84,6 +88,7 @@ while ($doc = db_fetch_array($q)) {
         // Document already linked, count it as success
         $linkedCount++;
     }
+    PoolFileTransitions::attach($db, dirname(poolPuljePath($db)) . '/' . ltrim($doc['filepath'], '/') . '/' . $doc['filename'], $userId);
 }
 
 if ($linkedCount > 0) {

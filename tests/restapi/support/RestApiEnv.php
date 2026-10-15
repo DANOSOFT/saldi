@@ -46,6 +46,7 @@
 //                 regnskab rows by name, so concurrent runs, stale leftovers
 //                 and unrelated accounts are never touched.
 //                 The master db name is validated like the test/template names.
+// 20261001 CDX/LH Seed canonical full module digits for the authorization-enforced resource tests.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
@@ -262,7 +263,7 @@ final class RestApiEnv
         pg_query_params(
             $tenant,
             "INSERT INTO brugere (brugernavn, kode, email, rettigheder, status) VALUES ($1, $2, $3, $4, true)",
-            [self::user(), md5(self::password()), 'apitest@example.invalid', 'admin']
+            [self::user(), md5(self::password()), 'apitest@example.invalid', str_repeat('1', 16)]
         );
         pg_close($tenant);
     }

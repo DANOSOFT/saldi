@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/duplicate_line.php --- patch 5.0.0 --- 2026-07-016 ---
+// --- finans/kassekladde_includes/duplicate_line.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260716 PHR Missing ) at: (int$row['afd'];
+// 20261001 CDX/LH Refresh attachment identity links when duplicating a journal line.
+
+require_once __DIR__ . '/../../includes/docsIncludes/poolFileTransitions.php';
 
 ob_start(); // Start output buffering
 
@@ -147,7 +150,7 @@ if (isset($_POST['kladde_id'], $_POST['source_id'])) {
             // Only include columns that exist in the table
             if (in_array($key, $available_columns)) {
                 $insert_columns[] = $key;
-                $insert_values[] = "'" . db_escape_string($value) . "'";
+                $insert_values[] = $value === null ? 'NULL' : "'" . db_escape_string($value) . "'";
             }
         }
         
@@ -165,6 +168,9 @@ if (isset($_POST['kladde_id'], $_POST['source_id'])) {
             
             if (db_modify($insert_doc, __FILE__ . " line " . __LINE__)) {
                 $doc_count++;
+                if (!empty($doc['pool_file_id'])) {
+                    PoolFileTransitions::refreshDocuments((int)$doc['pool_file_id']);
+                }
             } else {
                 error_log("Failed to insert document for new_id: $new_id");
             }

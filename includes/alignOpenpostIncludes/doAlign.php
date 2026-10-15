@@ -3,8 +3,8 @@
 //                        / __| / \ | | |   \| |
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
-
-// --- includes/alignOpenpostIncludes/doAlign.php --- ver 4.0.8 --- 2026-09-23--------
+//
+// --- includes/alignOpenpostIncludes/doAlign.php --- ver 5.0.0 --- 2026-10-03--------
 // LICENS>
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -32,6 +32,8 @@
 //                  Also: the fiscal-year refresh was missing URL= and went nowhere, the openpost id
 //                  is int-cast, and nine debug echos are gone - one printed the server's absolute
 //                  path and four printed raw SQL to the browser.
+//
+// 20261001 CDX/LH Share zero-difference settlement and sequence-backed difference ids.
 
 // This file is include()d by includes/udlign_openpost.php and shares its variable scope; it takes
 // no parameters and returns nothing. $faktnr[0] arrives here already merged by the caller (see its
@@ -61,10 +63,11 @@
  * @var string             $layout
  */
 
+require_once __DIR__ . '/alignGroup.php';
 	$alignDate=usdate($diffdato);
 	transaktion('begin');
-	$query = db_select("select MAX(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)) $udlign_id=$row['udlign_id']+1;
+	$hasDifference = abs($dkkdiff) > 0.005 && $diffkto;
+	$udlign_id = $hasDifference ? udlign_next_id() : 0;
 	
 	if (abs($dkkdiff) > 0.005 && $diffkto) {
 // 20121106 ->
@@ -194,14 +197,27 @@
 			exit;
 		}
 	}
-	for ($x=0; $x<=$postantal; $x++) {
-		if (isset($udlign[$x]) && $udlign[$x]=='on') {
-			$referenceUpdate = $x === 0 && !empty($insertInvoiceNumbers) ? ", faktnr='" . db_escape_string($faktnr[0]) . "'" : '';
-			$qtxt = "UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='$alignDate'";
-			$qtxt .= $referenceUpdate . " where id = " . (int)$post_id[$x];
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-	}
+    $selectedIds = [];
+    for ($x=0; $x<=$postantal; $x++) {
+        if (isset($udlign[$x]) && $udlign[$x]=='on') {
+            $selectedIds[] = (int)$post_id[$x];
+        }
+    }
+    if (!$hasDifference) {
+        $udlign_id = openpost_align_group($selectedIds, $alignDate);
+    }
+    for ($x=0; $x<=$postantal; $x++) {
+        if (isset($udlign[$x]) && $udlign[$x]=='on') {
+            $referenceUpdate = $x === 0 && !empty($insertInvoiceNumbers) ? ", faktnr='" . db_escape_string($faktnr[0]) . "'" : '';
+            if ($hasDifference) {
+                $qtxt = "UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='" . db_escape_string($alignDate) . "'";
+                $qtxt .= $referenceUpdate . " where id = " . (int)$post_id[$x];
+                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            } elseif ($referenceUpdate) {
+                db_modify("UPDATE openpost SET faktnr='" . db_escape_string($faktnr[0]) . "' WHERE id=" . (int)$post_id[$x], __FILE__ . ' line ' . __LINE__);
+            }
+        }
+    }
 	transaktion('commit');
 	// 20260921 CDX/MJ MB-57 When the udligning was opened from the debtor card, $retur is
 	//             ../debitor/debitorkort.php and carries no id, so redirecting to it rendered an

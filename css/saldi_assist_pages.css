@@ -1,0 +1,1624 @@
+/*
+ * --- css/saldi_assist_pages.css --- ai/mcp-assistant --- 2026.10.07
+ * Copyright (c) 2026 Danosoft ApS. Licensed under the GNU General Public License, version 2 or later.
+ *
+ * The Saldi Assist pages in the V1 Stille look: settings (systemdata/assistent.php), the Assist report
+ * (systemdata/assistent_rapport.php), the bank file page (finans/assist_bankfil.php) and the Revisorpakke
+ * (systemdata/revisorpakke.php). Loaded after css/approval_card.css and scoped to .sai-v2, so it reuses the
+ * Opgaver tokens (--v2-*) and components (head, overview strip, segment) and only adds what these pages need:
+ * captioned sections, hairline tables, switches, choice pills, fields, the bank line picker and print rules.
+ * Saldi blue (--sac-accent) is the only action colour; green is not used on these pages.
+ *
+ * 20261007 CL/LH Created.
+ * 20261007 CL/LH Review: the Opgaver frame (full width, same padding); one caption level (section captions
+ *                uppercase, card sub-heads 13.5 px sentence case); form choices as bordered pills, distinct
+ *                from the navigation segment; one empty state; group toggle, done steps, field errors and the
+ *                "Læs en anden fil" affordance on the bank page.
+ */
+
+/* ------------------------------------------------------------ frame */
+
+/* The same frame as Opgaver (.sai-page--wide): full width, head links at the window edge. */
+.sai-v2 .sap-page {
+	max-width: none;
+	margin: 0;
+	padding: 20px 28px 32px;
+}
+
+.sai-v2 .sap-head__links {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 6px 18px;
+	margin-top: 4px;
+}
+
+.sai-v2 .sap-head__links .sai-head__link {
+	margin-top: 0;
+}
+
+.sai-v2 .sai-overview__rows a.sai-ov__label {
+	white-space: nowrap;
+}
+
+.sai-v2 .sai-ov__value small {
+	margin-left: 3px;
+	color: var(--v2-ink-3);
+	font-size: 13px;
+	font-weight: 500;
+	letter-spacing: 0;
+}
+
+.sai-v2 .sai-ov--off .sai-ov__value {
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sap-toolbar {
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 14px;
+	margin: 0 -28px 14px;
+	padding: 8px 28px;
+	background: rgba(243, 243, 241, 0.9);
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
+}
+
+.sai-v2 .sap-toolbar__end {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.sai-v2 .sap-toolbar__meta {
+	color: var(--v2-ink-3);
+	font-size: 12.5px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------ sections and cards */
+
+.sai-v2 .sap-section {
+	margin: 0 0 22px;
+	scroll-margin-top: 56px;
+}
+
+.sai-v2 .sap-cap[id],
+.sai-v2 .sap-card__body[id] {
+	scroll-margin-top: 60px;
+}
+
+.sai-v2 .sap-section__head {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 4px 4px 8px;
+}
+
+.sai-v2 .sap-cap {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	line-height: 1.4;
+	text-transform: uppercase;
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sap-cap__count {
+	font-weight: 500;
+	letter-spacing: 0;
+	color: var(--v2-ink-4);
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-card {
+	background: #fff;
+	border-radius: var(--v2-r);
+	box-shadow: var(--v2-sh-1);
+}
+
+.sai-v2 .sap-card__body {
+	padding: 16px 20px 18px;
+}
+
+.sai-v2 .sap-card__body + .sap-card__body {
+	border-top: 1px solid var(--v2-line);
+}
+
+.sai-v2 .sap-lead {
+	max-width: 72ch;
+	margin: 0 0 12px;
+	color: var(--v2-ink-3);
+	font-size: 12.5px;
+}
+
+.sai-v2 .sap-lead:last-child {
+	margin-bottom: 0;
+}
+
+.sai-v2 .sap-lead a,
+.sai-v2 .sap-link,
+.sai-v2 .sap-link:visited {
+	color: var(--v2-accent-ink);
+	font-weight: 500;
+	text-decoration: none;
+}
+
+.sai-v2 .sap-lead a:hover,
+.sai-v2 .sap-link:hover {
+	text-decoration: underline;
+}
+
+/* A card sub-head (the card head of o1-inner.html): 13.5 px, 600, sentence case, a hairline under it.
+ * Only section captions above the cards use the 11 px uppercase style, so there is one caption level. */
+.sai-v2 .sap-sub {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 20px 0 0;
+	padding: 0 0 8px;
+	border-bottom: 1px solid var(--v2-line);
+	font-size: 13.5px;
+	font-weight: 600;
+	letter-spacing: -0.006em;
+	color: var(--v2-ink);
+}
+
+.sai-v2 .sap-sub:first-child {
+	margin-top: 0;
+}
+
+.sai-v2 .sap-sub__meta {
+	font-weight: 500;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--v2-ink-4);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-hint,
+.sai-v2 .sai-hint {
+	margin: 10px 0 0;
+	color: var(--v2-ink-3);
+	font-size: 12.5px;
+}
+
+/* One empty state everywhere: 13.5 px ink-3, centred in its card or list area. */
+.sai-v2 .sap-empty {
+	margin: 0;
+	padding: 18px 12px 8px;
+	color: var(--v2-ink-3);
+	font-size: 13.5px;
+	text-align: center;
+}
+
+.sai-v2 .sap-card > .sap-empty {
+	padding: 26px 20px;
+}
+
+/* Quiet notes (r 11): neutral, or amber when something needs attention. Never green. */
+.sai-v2 .sap-note {
+	display: flex;
+	gap: 8px;
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: 11px;
+	background: var(--v2-soft);
+	color: var(--v2-ink-2);
+	font-size: 12.5px;
+	line-height: 1.5;
+}
+
+.sai-v2 .sap-note--warn {
+	background: var(--v2-warn-tint);
+	color: var(--v2-warn);
+}
+
+.sai-v2 .sap-note--warn::before {
+	content: "!";
+	color: var(--v2-warn-dot);
+	font-weight: 700;
+}
+
+/* Page messages after a redirect. */
+.sai-v2 .sai-banner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 14px;
+	margin: 0 0 16px;
+	padding: 11px 16px;
+	border: 0;
+	border-radius: 11px;
+	background: #fff;
+	box-shadow: var(--v2-sh-1);
+	color: var(--v2-ink);
+	font-size: 13px;
+}
+
+.sai-v2 .sai-banner p {
+	margin: 0;
+}
+
+.sai-v2 .sai-banner--warn {
+	background: var(--v2-warn-tint);
+	box-shadow: none;
+	color: var(--v2-warn);
+}
+
+.sai-v2 .sai-banner strong {
+	font-weight: 600;
+}
+
+.sai-v2 .sai-banner .sap-link {
+	margin-left: auto;
+}
+
+/* ------------------------------------------------------------ buttons */
+/* The classic card rules colour .sac-btn with !important; these win by scope and order. */
+
+.sai-v2 .sac-btn,
+.sai-v2 button.sac-btn[type="submit"],
+.sai-v2 a.sap-btn,
+.sai-v2 button.sap-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	box-sizing: border-box;
+	min-width: 0;
+	height: 34px;
+	padding: 0 14px;
+	border: 0 !important;
+	border-radius: 9px;
+	background: var(--sac-accent) !important;
+	color: var(--sac-accent-text) !important;
+	box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18), 0 1px 1px rgba(16, 24, 40, 0.08);
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 500;
+	letter-spacing: -0.005em;
+	line-height: 1;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+	filter: none;
+}
+
+.sai-v2 .sac-btn--secondary,
+.sai-v2 button.sac-btn--secondary[type="submit"],
+.sai-v2 .sap-btn--secondary,
+.sai-v2 a.sap-btn--secondary,
+.sai-v2 button.sap-btn--secondary {
+	background: #fff !important;
+	color: var(--v2-ink) !important;
+	box-shadow: inset 0 0 0 1px var(--v2-line-2), 0 1px 1px rgba(16, 24, 40, 0.04);
+}
+
+.sai-v2 .sac-btn--quiet,
+.sai-v2 button.sac-btn--quiet[type="submit"],
+.sai-v2 button.sap-btn--quiet {
+	background: none !important;
+	color: var(--v2-ink-2) !important;
+	box-shadow: none;
+	text-decoration: none;
+}
+
+.sai-v2 .sap-btn--sm,
+.sai-v2 a.sap-btn.sap-btn--sm,
+.sai-v2 button.sap-btn.sap-btn--sm,
+.sai-v2 button.sap-btn--sm[type="submit"],
+.sai-v2 button.sac-btn.sap-btn--sm[type="submit"] {
+	height: 30px;
+	padding: 0 11px;
+	font-size: 12.5px;
+}
+
+.sai-v2 .sac-btn:hover,
+.sai-v2 .sap-btn:hover {
+	filter: brightness(1.06);
+}
+
+.sai-v2 .sac-btn--secondary:hover,
+.sai-v2 .sap-btn--secondary:hover {
+	filter: none;
+	background: var(--v2-soft) !important;
+}
+
+.sai-v2 .sac-btn[disabled],
+.sai-v2 .sap-btn[disabled] {
+	opacity: 0.45;
+	cursor: default;
+	filter: none;
+}
+
+.sai-v2 .sap-btn svg {
+	width: 13px;
+	height: 13px;
+	stroke: currentColor;
+	fill: none;
+	stroke-width: 1.75;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.sai-v2 a:focus-visible,
+.sai-v2 button:focus-visible,
+.sai-v2 input:focus-visible,
+.sai-v2 select:focus-visible,
+.sai-v2 textarea:focus-visible,
+.sai-v2 summary:focus-visible {
+	outline: 2px solid var(--sac-focus);
+	outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------ fields */
+
+.sai-v2 .sap-form {
+	margin: 0;
+}
+
+.sai-v2 .sap-fields {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px 16px;
+}
+
+.sai-v2 .sap-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	max-width: 640px;
+}
+
+.sai-v2 .sap-stack select {
+	width: 320px;
+	max-width: 100%;
+}
+
+.sai-v2 .sap-field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.sai-v2 .sap-field > label,
+.sai-v2 .sap-field > legend,
+.sai-v2 .sap-label {
+	padding: 0;
+	color: var(--v2-ink-2);
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.sai-v2 .sap-field--grow {
+	flex: 1 1 240px;
+}
+
+.sai-v2 .sap-input,
+.sai-v2 .sap-field input[type="text"],
+.sai-v2 .sap-field input[type="email"],
+.sai-v2 .sap-field input[type="number"],
+.sai-v2 .sap-field select {
+	box-sizing: border-box;
+	height: 34px;
+	min-width: 0;
+	padding: 0 11px;
+	border: 0;
+	border-radius: 9px;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px var(--v2-line-2);
+	color: var(--v2-ink);
+	font: inherit;
+	font-size: 13.5px;
+}
+
+.sai-v2 .sap-field input[type="number"] {
+	width: 110px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-field input[type="email"] {
+	width: 300px;
+	max-width: 100%;
+}
+
+.sai-v2 .sap-field select {
+	appearance: none;
+	-webkit-appearance: none;
+	padding-right: 30px;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23a2a8b4' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+}
+
+.sai-v2 .sap-field input::placeholder {
+	color: var(--v2-ink-4);
+}
+
+/* Form choices (Kun læse | Læse og lave forslag): separate bordered pills (polish.css .chip/.pop), so a
+ * choice in a form never looks like the grey page-navigation segment. */
+.sai-v2 .sap-choice {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-self: flex-start;
+	gap: 6px;
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.sai-v2 .sap-choice label {
+	position: relative;
+	display: inline-flex;
+	cursor: pointer;
+}
+
+.sai-v2 .sap-choice input {
+	position: absolute;
+	opacity: 0;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+}
+
+.sai-v2 .sap-choice span {
+	display: inline-flex;
+	align-items: center;
+	box-sizing: border-box;
+	height: 32px;
+	padding: 0 13px;
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px var(--v2-line-2);
+	color: var(--v2-ink-2);
+	white-space: nowrap;
+}
+
+.sai-v2 .sap-choice label:hover span {
+	color: var(--v2-ink);
+}
+
+.sai-v2 .sap-choice input:checked + span {
+	background: var(--v2-tint);
+	box-shadow: inset 0 0 0 1.5px var(--sac-accent);
+	color: var(--v2-accent-ink);
+}
+
+.sai-v2 .sap-choice input:focus-visible + span {
+	outline: 2px solid var(--sac-focus);
+	outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------ switch rows */
+
+.sai-v2 .sap-switches {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	list-style: none;
+}
+
+.sai-v2 .sap-switch {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 2px 16px;
+	padding: 11px 0;
+	border-top: 1px solid var(--v2-line);
+}
+
+.sai-v2 .sap-sub + .sap-switches > .sap-switch:first-child,
+.sai-v2 .sap-switches > .sap-switch:first-child {
+	border-top: 0;
+}
+
+.sai-v2 .sap-switch__text label {
+	display: block;
+	font-size: 13.5px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.sai-v2 .sap-switch__text p {
+	max-width: 90ch;
+	margin: 1px 0 0;
+	color: var(--v2-ink-3);
+	font-size: 12px;
+}
+
+/* The switch itself is a native checkbox, so it posts, focuses and reads as before. */
+.sai-v2 .sap-toggle {
+	appearance: none;
+	-webkit-appearance: none;
+	position: relative;
+	width: 36px;
+	height: 22px;
+	margin: 0;
+	border-radius: 999px;
+	background: #d6d8de;
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+	flex: none;
+}
+
+.sai-v2 .sap-toggle::before {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(16, 24, 40, 0.22), 0 1px 1px rgba(16, 24, 40, 0.06);
+	transition: transform 0.15s ease;
+}
+
+.sai-v2 .sap-toggle:checked {
+	background: var(--sac-accent);
+}
+
+.sai-v2 .sap-toggle:checked::before {
+	transform: translateX(14px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sai-v2 .sap-toggle,
+	.sai-v2 .sap-toggle::before {
+		transition: none;
+	}
+}
+
+/* Sticky save bar at the foot of a settings card. */
+.sai-v2 .sap-bar {
+	position: sticky;
+	bottom: 0;
+	z-index: 2;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 14px;
+	padding: 12px 20px;
+	border-top: 1px solid var(--v2-line);
+	border-radius: 0 0 var(--v2-r) var(--v2-r);
+	background: rgba(255, 255, 255, 0.94);
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
+}
+
+.sai-v2 .sap-bar__hint {
+	color: var(--v2-ink-3);
+	font-size: 12.5px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-bar__hint--warn {
+	color: var(--v2-warn);
+}
+
+.sai-v2 .sap-bar .sap-bar__end {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-left: auto;
+}
+
+/* Dagens overblik: the address is dimmed (still posted and kept) while the mail is off. */
+.sai-v2 .sap-digest:has(.sap-toggle:not(:checked)) .sap-digest__email {
+	opacity: 0.55;
+}
+
+/* ------------------------------------------------------------ facts list and meter */
+
+.sai-v2 .sai-facts {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.sai-v2 .sai-facts li {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 10px 0;
+	border-bottom: 0;
+	border-top: 1px solid var(--v2-line);
+}
+
+.sai-v2 .sap-sub + .sai-facts li:first-child,
+.sai-v2 .sap-hint + .sai-facts li:first-child {
+	border-top: 0;
+}
+
+.sai-v2 .sai-facts__text {
+	font-size: 13.5px;
+}
+
+.sai-v2 .sai-facts__meta {
+	display: block;
+	margin-top: 1px;
+	color: var(--v2-ink-4);
+	font-size: 11.5px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-meter {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.sai-v2 .sap-meter__bar {
+	position: relative;
+	width: 72px;
+	height: 4px;
+	border-radius: 999px;
+	background: var(--v2-line);
+	overflow: hidden;
+}
+
+.sai-v2 .sap-meter__bar i {
+	position: absolute;
+	inset: 0 auto 0 0;
+	border-radius: 999px;
+	background: var(--v2-ink-4);
+}
+
+.sai-v2 .sap-meter--full .sap-meter__bar i {
+	background: var(--v2-warn-dot);
+}
+
+/* ------------------------------------------------------------ tables */
+
+.sai-v2 .sap-card .sac-table-wrap {
+	margin: 0;
+	overflow-x: auto;
+	border: 0;
+	border-radius: 0;
+}
+
+.sai-v2 .sai-table,
+.sai-v2 .sai-grants {
+	width: 100%;
+	margin: 0;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.sai-v2 .sai-table th,
+.sai-v2 .sai-table td,
+.sai-v2 .sai-grants th,
+.sai-v2 .sai-grants td {
+	padding: 9px 12px;
+	border-bottom: 1px solid var(--v2-line);
+	background: none;
+	text-align: left;
+	vertical-align: middle;
+}
+
+.sai-v2 .sai-table thead th,
+.sai-v2 .sai-grants thead th {
+	padding-top: 11px;
+	padding-bottom: 7px;
+	border-bottom-color: var(--v2-line-2);
+	color: var(--v2-ink-3);
+	font-size: 10.5px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.sai-v2 .sai-table tbody th {
+	font-weight: 500;
+	color: var(--v2-ink);
+}
+
+.sai-v2 .sai-table tr > :first-child,
+.sai-v2 .sai-grants tr > :first-child {
+	padding-left: 20px;
+}
+
+.sai-v2 .sai-table tr > :last-child,
+.sai-v2 .sai-grants tr > :last-child {
+	padding-right: 20px;
+}
+
+.sai-v2 .sai-table tbody tr:last-child > *,
+.sai-v2 .sai-grants tbody tr:last-child > * {
+	border-bottom: 0;
+}
+
+.sai-v2 .sai-table tbody tr:hover > *,
+.sai-v2 .sai-grants tbody tr:hover > * {
+	background: #fafbfc;
+}
+
+.sai-v2 .sai-table .sai-num,
+.sai-v2 .sai-grants .sai-num {
+	text-align: right;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-tabnum,
+.sai-v2 .sai-grants td {
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sai-table tfoot td,
+.sai-v2 .sai-table tfoot th {
+	border-top: 1px solid var(--v2-line-2);
+	border-bottom: 0;
+	font-weight: 600;
+}
+
+.sai-v2 .sai-table td.sap-actions,
+.sai-v2 .sai-grants td.sap-actions {
+	width: 1%;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.sai-v2 .sai-table form,
+.sai-v2 .sai-grants form,
+.sai-v2 .sai-facts form {
+	margin: 0;
+}
+
+.sai-v2 .sai-table .sai-facts__meta {
+	white-space: normal;
+}
+
+/* Status pills: blue tint while active, grey when not. */
+.sai-v2 .sai-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 20px;
+	padding: 0 8px;
+	border-radius: 999px;
+	background: var(--v2-soft);
+	color: var(--v2-ink-3);
+	font-size: 11.5px;
+	font-weight: 500;
+	line-height: 20px;
+	white-space: nowrap;
+}
+
+.sai-v2 .sai-tag--active {
+	background: var(--v2-tint);
+	color: var(--v2-accent-ink);
+}
+
+.sai-v2 .sai-tag--active::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--sac-accent);
+}
+
+.sai-v2 .sai-tag--warn {
+	background: var(--v2-warn-tint);
+	color: var(--v2-warn);
+}
+
+/* ------------------------------------------------------------ the one-time key */
+
+.sai-v2 .sai-secret {
+	margin: 0 0 22px;
+	padding: 18px 20px;
+	border: 0;
+	border-radius: var(--v2-r);
+	background: #fff;
+	box-shadow: var(--v2-sh-2);
+}
+
+.sai-v2 .sai-secret h2 {
+	margin: 0 0 4px;
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+.sai-v2 .sai-secret .sap-note {
+	margin: 8px 0 14px;
+}
+
+.sai-v2 .sai-secret .sap-label {
+	display: block;
+	margin: 12px 0 5px;
+}
+
+.sai-v2 .sai-copy {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0;
+}
+
+.sai-v2 .sai-copy__value {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	padding: 8px 11px;
+	border: 0;
+	border-radius: 9px;
+	background: var(--v2-soft);
+	box-shadow: inset 0 0 0 1px var(--v2-line);
+	color: var(--v2-ink);
+	font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.sai-v2 .sai-copy__status {
+	min-width: 0;
+	margin: 10px 0 0;
+	color: var(--v2-ink-3);
+	font-size: 12.5px;
+}
+
+/* ------------------------------------------------------------ bank file page */
+
+.sai-v2 .sap-steps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 22px;
+	margin: 0 0 16px;
+	padding: 0;
+	list-style: none;
+	color: var(--v2-ink-3);
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.sai-v2 .sap-steps li {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.sai-v2 .sap-steps b {
+	display: inline-grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: #e9e9e6;
+	color: var(--v2-ink-3);
+	font-size: 11px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-steps .is-current {
+	color: var(--v2-ink);
+}
+
+.sai-v2 .sap-steps .is-current b {
+	background: var(--sac-accent);
+	color: var(--sac-accent-text);
+}
+
+.sai-v2 .sap-steps .is-done {
+	color: var(--v2-ink-2);
+}
+
+/* A finished step: jade dot with a check (jade marks state, never an action). */
+.sai-v2 .sap-steps .is-done b {
+	position: relative;
+	background: #2a9d7c; /* jade, polish.css --jade */
+	color: transparent;
+}
+
+.sai-v2 .sap-steps .is-done b::after {
+	content: "";
+	position: absolute;
+	top: 6px;
+	left: 6px;
+	width: 7px;
+	height: 4px;
+	border: 1.75px solid #fff;
+	border-top: 0;
+	border-right: 0;
+	transform: rotate(-45deg);
+}
+
+.sai-v2 .sap-drop {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	min-height: 64px;
+	padding: 12px 16px;
+	border: 1px dashed var(--v2-line-2);
+	border-radius: 11px;
+	background: var(--v2-moon);
+	color: var(--v2-ink-2);
+	transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.sai-v2 .sap-drop:hover,
+.sai-v2 .sap-drop.is-over {
+	border-color: var(--sac-accent);
+	background: var(--v2-tint);
+}
+
+.sai-v2 .sap-drop:focus-within {
+	outline: 2px solid var(--sac-focus);
+	outline-offset: 2px;
+}
+
+.sai-v2 .sap-drop input[type="file"] {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.sai-v2 .sap-drop__icon {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 36px;
+	height: 36px;
+	border-radius: 9px;
+	background: #fff;
+	box-shadow: var(--v2-sh-1);
+	color: var(--v2-accent-ink);
+}
+
+.sai-v2 .sap-drop__icon svg {
+	width: 16px;
+	height: 16px;
+	stroke: currentColor;
+	fill: none;
+	stroke-width: 1.75;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.sai-v2 .sap-drop__text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.sai-v2 .sap-drop__text b {
+	font-weight: 500;
+	color: var(--v2-ink);
+}
+
+.sai-v2 .sap-drop__text span {
+	color: var(--v2-ink-3);
+	font-size: 12px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sai-v2 .sap-drop.has-file .sap-drop__text span {
+	color: var(--v2-accent-ink);
+	font-weight: 500;
+}
+
+.sai-v2 .sap-disclose {
+	margin: 12px 0 0;
+}
+
+.sai-v2 .sap-disclose > summary {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--v2-ink-2);
+	font-size: 12.5px;
+	font-weight: 500;
+	cursor: pointer;
+	list-style: none;
+}
+
+.sai-v2 .sap-disclose > summary::-webkit-details-marker {
+	display: none;
+}
+
+.sai-v2 .sap-disclose > summary::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	margin: 0 2px 0 1px;
+	border-right: 1.5px solid var(--v2-ink-4);
+	border-bottom: 1.5px solid var(--v2-ink-4);
+	transform: rotate(-45deg);
+	transition: transform 0.12s ease;
+}
+
+.sai-v2 .sap-disclose[open] > summary::before {
+	transform: rotate(45deg);
+}
+
+.sai-v2 .sap-disclose textarea {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 110px;
+	margin: 10px 0 0;
+	padding: 9px 11px;
+	border: 0;
+	border-radius: 9px;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px var(--v2-line-2);
+	color: var(--v2-ink);
+	font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	resize: vertical;
+}
+
+.sai-v2 .sap-again {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 14px;
+}
+
+.sai-v2 .sap-again__summary {
+	color: var(--v2-ink-2);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-again__summary b {
+	color: var(--v2-ink);
+	font-weight: 500;
+}
+
+/* "Læs en anden fil" reads as the action of the summary line, not part of the sentence. */
+.sai-v2 .sap-again__action {
+	margin-left: 6px;
+	color: var(--v2-accent-ink);
+	font-weight: 500;
+}
+
+.sai-v2 .sap-disclose > summary:hover .sap-again__action {
+	text-decoration: underline;
+}
+
+.sai-v2 .sap-disclose[open] .sap-again__action {
+	display: none;
+}
+
+/* A field that failed: the message sits under the field it belongs to. */
+.sai-v2 .sap-field__error {
+	margin: 6px 0 0;
+	color: var(--v2-warn);
+	font-size: 12.5px;
+}
+
+.sai-v2 .sap-field [aria-invalid="true"],
+.sai-v2 .sap-drop.is-invalid {
+	box-shadow: inset 0 0 0 1.5px var(--v2-warn-dot);
+}
+
+/* Import warnings: one amber note, scrolling when a file has many. */
+.sai-v2 .sap-warnings {
+	margin: 0 0 10px;
+}
+
+.sai-v2 .sap-warnings ul {
+	max-height: 7.5em;
+	margin: 0;
+	padding: 0;
+	overflow: auto;
+	list-style: none;
+}
+
+/* Containers focused by script or a fragment after a redirect move the reading position only. */
+.sai-v2 [tabindex="-1"]:focus {
+	outline: none;
+}
+
+/* The line picker: one table, a tbody per confidence group. */
+.sai-v2 .sap-lines {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: 13px;
+}
+
+.sai-v2 .sap-lines thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	padding: 11px 12px 7px;
+	border-bottom: 1px solid var(--v2-line-2);
+	background: #fff;
+	color: var(--v2-ink-3);
+	font-size: 10.5px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-align: left;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.sai-v2 .sap-lines thead th:first-child {
+	border-top-left-radius: var(--v2-r);
+}
+
+.sai-v2 .sap-lines thead th:last-child {
+	border-top-right-radius: var(--v2-r);
+}
+
+.sai-v2 .sap-lines td,
+.sai-v2 .sap-lines tbody th {
+	padding: 9px 12px;
+	border-bottom: 1px solid var(--v2-line);
+	text-align: left;
+	vertical-align: middle;
+	font-weight: 400;
+}
+
+.sai-v2 .sap-lines tr > :first-child {
+	width: 22px;
+	padding-left: 20px;
+	padding-right: 4px;
+}
+
+.sai-v2 .sap-lines tr > :last-child {
+	padding-right: 20px;
+}
+
+.sai-v2 .sap-lines .sai-num {
+	text-align: right;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-lines__date {
+	color: var(--v2-ink-3);
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-lines__text {
+	overflow-wrap: anywhere;
+}
+
+.sai-v2 .sap-lines__group th {
+	padding: 14px 20px 6px;
+	border-bottom: 1px solid var(--v2-line);
+	background: var(--v2-moon);
+	text-align: left;
+}
+
+.sai-v2 .sap-lines tbody:first-of-type .sap-lines__group th {
+	padding-top: 12px;
+}
+
+.sai-v2 .sap-lines__grouphead {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 4px 10px;
+}
+
+.sai-v2 .sap-lines__grouphead .sap-cap {
+	color: var(--v2-ink-2);
+}
+
+.sai-v2 .sap-lines__grouphead p {
+	grid-column: 2;
+	margin: 0;
+	color: var(--v2-ink-3);
+	font-size: 12px;
+	font-weight: 400;
+	text-align: left;
+}
+
+/* The group toggle: a quiet small button pinned to the right edge, in line with the amount column. */
+.sai-v2 .sap-lines__grouphead .sap-lines__toggle {
+	grid-column: 3;
+	justify-self: end;
+	margin-right: -8px;
+	color: var(--v2-accent-ink) !important;
+}
+
+.sai-v2 .sap-lines__grouphead .sap-lines__toggle:hover {
+	background: var(--v2-tint) !important;
+}
+
+.sai-v2 .sap-lines tr.is-row:hover > * {
+	background: #fafbfc;
+}
+
+.sai-v2 .sap-lines tr.is-row.is-picked > * {
+	background: #f4f7fc;
+}
+
+.sai-v2 .sap-lines tr.is-row.is-picked > :first-child {
+	box-shadow: inset 3px 0 0 var(--sac-accent);
+}
+
+.sai-v2 .sap-lines tr.is-muted td {
+	color: var(--v2-ink-3);
+}
+
+.sai-v2 .sap-lines tbody:last-of-type tr:last-child > * {
+	border-bottom: 0;
+}
+
+.sai-v2 .sap-lines__nopick {
+	color: var(--v2-ink-4);
+}
+
+/* Checkbox: native, drawn in the Opgaver style. */
+.sai-v2 .sap-cb {
+	appearance: none;
+	-webkit-appearance: none;
+	display: inline-grid;
+	place-items: center;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	border: 1.5px solid var(--v2-line-2);
+	border-radius: 4px;
+	background: #fff;
+	cursor: pointer;
+	vertical-align: middle;
+}
+
+.sai-v2 .sap-cb:checked {
+	border-color: var(--sac-accent);
+	background: var(--sac-accent);
+}
+
+.sai-v2 .sap-cb:checked::after {
+	content: "";
+	width: 8px;
+	height: 4px;
+	border: 2px solid #fff;
+	border-top: 0;
+	border-right: 0;
+	transform: translateY(-1px) rotate(-45deg);
+}
+
+.sai-v2 .sap-conf {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--v2-ink-2);
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.sai-v2 .sap-conf::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--sac-accent);
+}
+
+.sai-v2 .sap-conf--medium::before {
+	background: var(--v2-warn-dot);
+}
+
+.sai-v2 .sap-lines .sai-tag {
+	font-size: 11px;
+}
+
+.sai-v2 .sap-counter {
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-keys {
+	margin: 0;
+	color: var(--v2-ink-4);
+	font-size: 11.5px;
+	white-space: nowrap;
+}
+
+.sai-v2 .sap-keys kbd {
+	display: inline-block;
+	margin: 0 3px 0 6px;
+	padding: 1px 5px;
+	border: 1px solid var(--v2-line-2);
+	border-bottom-width: 2px;
+	border-radius: 4px;
+	background: #fff;
+	color: var(--v2-ink-3);
+	font: 500 10.5px/1.2 inherit;
+	font-family: inherit;
+}
+
+.sai-v2 .sap-keys kbd:first-child {
+	margin-left: 0;
+}
+
+/* ------------------------------------------------------------ Revisorpakke */
+
+.sai-v2 .sap-pack-period {
+	display: none;
+	margin: -4px 4px 12px;
+	color: var(--v2-ink-3);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+
+.sai-v2 .sap-notes p {
+	margin: 0;
+	padding: 9px 0;
+	border-top: 1px solid var(--v2-line);
+	color: var(--v2-ink-2);
+}
+
+.sai-v2 .sap-notes p:first-child {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.sai-v2 .sap-notes p:last-child {
+	padding-bottom: 0;
+}
+
+.sai-v2 .sap-inline-form {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+
+.sai-v2 .sap-inline-form label {
+	color: var(--v2-ink-3);
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.sai-v2 .sap-inline-form select {
+	height: 32px;
+	padding: 0 28px 0 12px;
+	border: 0;
+	border-radius: 9px;
+	background-color: #fff;
+	box-shadow: inset 0 0 0 1px var(--v2-line-2);
+	color: var(--v2-ink-2);
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	appearance: none;
+	-webkit-appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23a2a8b4' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+}
+
+.sai-v2 .sap-inline-form .sap-btn {
+	height: 32px;
+}
+
+.js .sai-v2 .sap-btn.sai-js-only {
+	display: inline-flex;
+}
+
+.sai-v2 .sap-estimate {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+}
+
+.js .sai-v2 .sai-js-hide {
+	display: none !important;
+}
+
+/* Report: tools past the ten busiest fold behind "Vis alle værktøjer" (script only; all rows without it). */
+.js .sai-v2 .sap-more:not(.is-open) {
+	display: none;
+}
+
+.sai-v2 .sap-more__bar {
+	padding-top: 8px;
+	padding-bottom: 10px;
+	text-align: center;
+}
+
+.sai-v2 .sap-more__bar .sap-btn {
+	color: var(--v2-accent-ink) !important;
+}
+
+/* ------------------------------------------------------------ narrow (docked chat, small screens) */
+
+@media (max-width: 1100px) {
+	.sai-v2 .sai-table th,
+	.sai-v2 .sai-table td,
+	.sai-v2 .sai-grants th,
+	.sai-v2 .sai-grants td {
+		padding-left: 8px;
+		padding-right: 8px;
+	}
+
+	.sai-v2 .sai-table thead th,
+	.sai-v2 .sai-table thead th.sai-num,
+	.sai-v2 .sai-grants thead th {
+		white-space: normal;
+		vertical-align: bottom;
+	}
+}
+
+@media (max-width: 720px) {
+	.sai-v2 .sap-page {
+		padding: 16px 14px 24px;
+	}
+
+	.sai-v2 .sap-toolbar {
+		margin: 0 -14px 12px;
+		padding: 8px 14px;
+	}
+}
+
+@media (max-width: 900px) {
+
+	.sai-v2 .sai-overview__rows {
+		flex-wrap: wrap;
+	}
+
+	.sai-v2 .sai-ov {
+		flex: 1 1 33%;
+		border-bottom: 1px solid var(--v2-line);
+	}
+
+	.sai-v2 .sap-keys {
+		display: none;
+	}
+}
+
+@media (max-width: 620px) {
+	.sai-v2 .sai-ov {
+		flex-basis: 50%;
+	}
+
+	.sai-v2 .sap-switch {
+		gap: 2px 10px;
+	}
+
+	.sai-v2 .sap-lines thead th {
+		top: 0;
+	}
+}
+
+/* ------------------------------------------------------------ print (Revisorpakke and report) */
+
+@media print {
+	@page {
+		margin: 14mm 12mm;
+	}
+
+	.sai-v2,
+	.sai-v2.sai-body {
+		background: #fff !important;
+		color: #000;
+		font-size: 10pt;
+	}
+
+	.sai-v2 .sap-page {
+		max-width: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.js .sai-v2 .sap-more:not(.is-open) {
+		display: table-row-group;
+	}
+
+	.sai-v2 .sap-noprint,
+	.sai-v2 .sap-more__bar,
+	.sai-v2 .sap-toolbar,
+	.sai-v2 .sap-head__links,
+	.sai-v2 .sai-overview {
+		display: none !important;
+	}
+
+	.sai-v2 .sai-head {
+		margin-bottom: 4pt;
+	}
+
+	.sai-v2 .sap-pack-period {
+		display: block;
+		margin: 0 0 10pt;
+		color: #000;
+	}
+
+	.sai-v2 .sap-section {
+		margin: 0 0 14pt;
+		break-inside: auto;
+	}
+
+	.sai-v2 .sap-section__head {
+		padding: 0 0 4pt;
+		break-after: avoid;
+	}
+
+	.sai-v2 .sap-cap {
+		color: #000;
+		font-size: 9pt;
+	}
+
+	.sai-v2 .sap-card {
+		box-shadow: none;
+		border-radius: 0;
+		border-top: 1px solid #000;
+	}
+
+	.sai-v2 .sap-card__body {
+		padding: 6pt 0;
+	}
+
+	.sai-v2 .sap-card .sac-table-wrap {
+		overflow: visible;
+	}
+
+	.sai-v2 .sai-table {
+		font-size: 9pt;
+	}
+
+	.sai-v2 .sai-table th,
+	.sai-v2 .sai-table td {
+		padding: 3pt 5pt;
+		border-bottom-color: #ccc;
+	}
+
+	.sai-v2 .sai-table tr > :first-child {
+		padding-left: 0;
+	}
+
+	.sai-v2 .sai-table tr > :last-child {
+		padding-right: 0;
+	}
+
+	.sai-v2 .sai-table thead {
+		display: table-header-group;
+	}
+
+	.sai-v2 .sai-table tr {
+		break-inside: avoid;
+	}
+
+	.sai-v2 .sai-table tbody tr:hover > * {
+		background: none;
+	}
+
+	.sai-v2 a {
+		color: inherit !important;
+		text-decoration: none;
+	}
+
+	.sai-v2 .sai-banner,
+	.sai-v2 .sap-note {
+		box-shadow: none;
+		border: 1px solid #999;
+		background: none;
+		color: #000;
+	}
+}

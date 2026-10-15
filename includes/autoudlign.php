@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------------includes/autoudlign.php-------lap 3.7.1------2018.02.07 ---
+// ----------------includes/autoudlign.php-------ver 5.0.0------2026.10.03 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,10 +23,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2018 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+//
+// 20261001 CDX/LH Allocate every automatic settlement through the shared sequence.
 
 function autoudlign($udlign) {
+	require_once __DIR__ . '/openpost/udlignId.php';
 	$y=0;
 	$v=0;
 #	global $regnaar;
@@ -44,8 +47,6 @@ transaktion('begin');
 		if ($udlign>0) { #sker kun når kontoens saldo er 0
 			db_modify("update openpost set udlignet='0' where udlignet is NULL and konto_id='$udlign'",__FILE__ . " linje " . __LINE__);
 			db_modify("update openpost set udlign_id='0' where udlign_id is NULL and konto_id='$udlign'",__FILE__ . " linje " . __LINE__);
-			$q1=db_select("SELECT MAX(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__);
-			if ($r1=db_fetch_array($q1)) $y=$r1['udlign_id'];
 			$tilfoj="konto_id=$udlign and udlignet!='1' and";
 		}
 		else $tilfoj="udlignet='1' and";
@@ -74,7 +75,7 @@ transaktion('begin');
 			}
 			$faktantal=$x;
 			if ($sum==0) {
-				$y++;
+				$y = udlign_next_id();
 				for ($x=1; $x<=$faktantal; $x++) {
 					db_modify("update openpost set udlignet='1', udlign_id='$y', udlign_date='$udligndate' where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
 				}
@@ -93,7 +94,7 @@ transaktion('begin');
 					$transdate=$r1['transdate'];	
 				}
 				if (($z==1)&&(!in_array($id[$x], $kontrol))&&(!in_array($id2, $kontrol))){
-					$y++;
+					$y = udlign_next_id();
 					$v++;
 					$kontrol[$v]=$id[$x];
 					$v++;
@@ -103,7 +104,7 @@ transaktion('begin');
 				}
 			}	
 		}
-		$y++;
+		$y = udlign_next_id();
 		if ($udlign>0) { #Hvis der er nogen tilbage som ikke er blevet udlignet
 			$q1=db_select("SELECT id, transdate from openpost where konto_id='$udlign' and udlignet = '0' and transdate <= '$periodeslut'",__FILE__ . " linje " . __LINE__);
 			while ($r1=db_fetch_array($q1)) {

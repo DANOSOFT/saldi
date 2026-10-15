@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/aiia_import.php --- patch 0.0.1 --- 2026-06-01 ---
+// --- bank_integration/aiia_import.php --- ver 5.0.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,11 +21,19 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260601 NTR - Initial version. Fetches and displays transactions for a
 //                selected bank account via Aiia /v2/accounts/{id}/transactions.
+// 20261001 CDX/LH Register durable bank identities atomically with each journal and mirror row.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var string $brugernavn
+ * @var int $bruger_id
+ * @var string $baseCurrency
+ */
 
 @session_start();
 $s_id = session_id();
@@ -57,10 +65,11 @@ if (empty($_SESSION['aiia_account'])) {
 }
 
 $account = $_SESSION['aiia_account'];
+require_once __DIR__ . '/../includes/finans/bankLines.php';
 
 // --- Handle import POST ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['import'])) {
-    $defaultAccount = isset($_POST['debet']) ? db_escape_string(trim($_POST['debet'])) : '0';
+    $defaultAccount = db_escape_string(trim((string)ifset($_POST, 'debet', '0')));
     if($defaultAccount === '') {
         $defaultAccount = '0';
     }
@@ -69,7 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['import'])) {
         $row       = db_fetch_array(db_select("SELECT MAX(id) AS id FROM kladdeliste", __FILE__ . " linje " . __LINE__));
         $kladde_id = (int) $row['id'] + 1;
         $kladdedate = date("Y-m-d");
-        db_modify("INSERT INTO kladdeliste (id, kladdenote, kladdedate, bogfort, hvem, oprettet_af, tidspkt) VALUES ('$kladde_id', '', '$kladdedate', '-', '$brugernavn', '$brugernavn', '$tidspkt')", __FILE__ . " linje " . __LINE__);
+        $journalActor = db_escape_string((string)$brugernavn);
+        db_modify("INSERT INTO kladdeliste (id, kladdenote, kladdedate, bogfort, hvem, oprettet_af, tidspkt) VALUES ('$kladde_id', '', '$kladdedate', '-', '$journalActor', '$journalActor', '$tidspkt')", __FILE__ . " linje " . __LINE__);
     }
 
     [$next_bilag] = db_fetch_row(
@@ -84,37 +94,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['import'])) {
     );
     $next_lobenr = (int) $next_lobenr;
 
+    mobileTenantUpdates(bank_line_connection());
+    if (pg_transaction_status(bank_line_connection()) !== PGSQL_TRANSACTION_IDLE) {
+        throw new LogicException('Aiia import requires an idle connection');
+    }
+    $importId = bank_import_begin('aiia', (int)$defaultAccount, $kladde_id, null, (string)$brugernavn);
     $imported = 0;
     foreach ($_POST['import'] as $encoded) {
         $tx = json_decode($encoded, true);
         if (!is_array($tx)) continue;
 
-        $transdate   = db_escape_string($tx['date']   ?? date('Y-m-d'));
-        $beskrivelse = db_escape_string($tx['text']   ?? '');
-        $faktura     = db_escape_string($tx['id']     ?? '');
-        $amount      = abs((float) ($tx['amount'] ?? 0));
-        $isDebit     = ($tx['amount'] ?? 0) <= 0;
-        $bilag       = $next_bilag++;
-        $lobenr      = $next_lobenr++;
+        transaktion('begin');
+        try {
+            $transdate   = db_escape_string(ifset($tx, 'date', date('Y-m-d')));
+            $beskrivelse = db_escape_string(ifset($tx, 'text', ''));
+            $faktura     = db_escape_string(ifset($tx, 'id', ''));
+            $amount      = abs((float)ifset($tx, 'amount', 0));
+            $isDebit     = ifset($tx, 'amount', 0) <= 0;
+            $bilag       = $next_bilag++;
+            $lobenr      = $next_lobenr++;
 
-        $debet  = !$isDebit ? $defaultAccount : '0';
-        $kredit = $isDebit  ? $defaultAccount : '0';
+            $debet  = !$isDebit ? $defaultAccount : '0';
+            $kredit = $isDebit  ? $defaultAccount : '0';
 
-        $sql = "INSERT INTO kassekladde (bilag, transdate, beskrivelse, faktura, amount, kladde_id, debet, kredit)
-                VALUES ('$bilag', '$transdate', '$beskrivelse', '$faktura', '$amount', '$kladde_id', '$debet', '$kredit')
-                RETURNING id";
-        $res = db_select($sql, __FILE__ . " linje " . __LINE__);
-        $row = db_fetch_row($res);
-        $new_id = (int) ($row[0] ?? 0);
+            $sql = "INSERT INTO kassekladde (bilag, transdate, beskrivelse, faktura, amount, kladde_id, debet, kredit)
+                    VALUES ('$bilag', '$transdate', '$beskrivelse', '$faktura', '$amount', '$kladde_id', '$debet', '$kredit')
+                    RETURNING id";
+            $res = db_select($sql, __FILE__ . " linje " . __LINE__);
+            $row = db_fetch_row($res);
+            $new_id = (int) ($row[0] ?? 0);
 
-        if ($new_id) {
-            // Also insert into tmpkassekl so the row appears immediately in the kassekladde display
-            $sql2 = "INSERT INTO tmpkassekl (lobenr, id, bilag, transdate, beskrivelse, faktura, amount, kladde_id, debet, kredit)
-                     VALUES ('$lobenr', '$new_id', '$bilag', '$transdate', '$beskrivelse', '$faktura', '$amount', '$kladde_id', '$debet', '$kredit')";
-            db_modify($sql2, __FILE__ . " linje " . __LINE__);
-            $imported++;
-        } else {
-            error_log("[aiia_import] INSERT failed — bilag=$bilag transdate=$transdate kladde_id=$kladde_id");
+            if ($new_id) {
+                // Also insert into tmpkassekl so the row appears immediately in the kassekladde display
+                $sql2 = "INSERT INTO tmpkassekl (lobenr, id, bilag, transdate, beskrivelse, faktura, amount, kladde_id, debet, kredit)
+                         VALUES ('$lobenr', '$new_id', '$bilag', '$transdate', '$beskrivelse', '$faktura', '$amount', '$kladde_id', '$debet', '$kredit')";
+                db_modify($sql2, __FILE__ . " linje " . __LINE__);
+                bank_line_register($importId, [
+                    'account_id' => (string)ifset($account, 'id', ''),
+                    'provider_ref' => (string)ifset($tx, 'id', ''),
+                    'transdate' => (string)ifset($tx, 'date', date('Y-m-d')),
+                    'text' => (string)ifset($tx, 'text', ''),
+                    'amount' => (float)ifset($tx, 'amount', 0),
+                    'currency' => (string)ifset($tx, 'currency', ifset($account, ['bookedBalance','currency'], $baseCurrency)),
+                    'balance' => ifset($tx, 'balance'),
+                ], [$new_id]);
+                if (ifset($GLOBALS, 'db_modify_fejl', false)) {
+                    throw new RuntimeException('Aiia display mirror write failed');
+                }
+                $imported++;
+            } else {
+                throw new RuntimeException('Aiia journal insertion failed');
+            }
+            transaktion('commit');
+        } catch (Throwable $error) {
+            transaktion('rollback');
+            throw $error;
         }
     }
 
@@ -366,6 +400,8 @@ if ($hasFetch) {
                 'date'      => $tx['date'] ?? date('Y-m-d'),
                 'text'      => $tx['text'] ?? $tx['remittanceInformation'] ?? '',
                 'amount'    => $amount,
+                'currency'  => $currency,
+                'balance'   => $tx['balance']['value'] ?? null,
                 'id'        => $tx['id'] ?? '',
             ]);
         ?>

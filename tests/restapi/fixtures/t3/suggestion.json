@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "suggestion_id": 991,
+    "kontonr": 2750,
+    "account_name": "Repræsentation",
+    "vat_code": "K25",
+    "vat_name": "Købsmoms",
+    "kreditor": {
+      "kontonr": "30012",
+      "name": "Restaurant Kanalen",
+      "match": "cvr"
+    },
+    "basis": "supplier_history",
+    "basis_detail": {
+      "count": 7,
+      "total": 8,
+      "last_used": "2026-09-01",
+      "corrected_on": null
+    },
+    "alternatives": [],
+    "engine_version": "det-1"
+  }
+}

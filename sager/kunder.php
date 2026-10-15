@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/kunder.php --- lap 4.0.8 --- 2023-09-27---
+// --- sager/kunder.php --- ver 5.0.0 --- 2026-10-02---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2012-2023 saldi.dk aps
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Har rettet KONTOANSVARLIG i 'depkort_2_stillads.php'
 // Diverse html rettelser i 'debkort_1_stillads.php' + 'debkort_2_stillads.php' + 'debkort_4_stillads.php'
@@ -32,6 +32,10 @@
 // 20230927 PHR Page title now set in online.php
 // 20260731 Sawaneh Loads cvrapiopslag.js so CVR lookup also works on the customer card under sager
 
+// 20261001 CDX/LH Revoke customer-contact sessions on password and group changes.
+// 20261001 CDX/LH Write customer-contact credentials and groups before revoking mobile sessions.
+
+require_once __DIR__ . '/../restapi/core/MobileAuthRevocation.php';
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id = session_id();
 
@@ -527,6 +531,44 @@ function ret_kunde($id) {
 		</div><!-- end of paging_container_sager -->";
 	}
 }
+/**
+ * Resolve the contact's login in the selected customer; never take the acting user's id as the target.
+ * @return bool Whether a matching contact login was changed.
+ */
+function sagerSaveCustomerLogin(int $employeeId, int $customerId, string $username, ?string $password): bool
+{
+	$query = db_select("SELECT b.id FROM brugere b JOIN ansatte a ON a.id=b.ansat_id
+		WHERE a.id=$employeeId AND a.konto_id=$customerId", __FILE__ . ' line ' . __LINE__);
+	$changed = false;
+	while ($user = db_fetch_array($query)) {
+		$userId = (int)$user['id'];
+		$assignments = [];
+		if ($password !== null) {
+			$assignments[] = "kode='" . db_escape_string(md5($password)) . "'";
+		}
+		if ($username !== '') {
+			$assignments[] = "brugernavn='" . db_escape_string($username) . "'";
+		}
+		if ($assignments !== []) {
+			db_modify('UPDATE brugere SET ' . implode(',', $assignments) . " WHERE id=$userId", __FILE__ . ' line ' . __LINE__);
+			mobileRevokeUser($userId, 'user_security_changed');
+			$changed = true;
+		}
+	}
+	return $changed;
+}
+
+/** @return void Save contact group membership and revoke its associated logins. */
+function sagerSaveCustomerGroup(int $employeeId, int $customerId, int $groupId): void
+{
+	db_modify("UPDATE ansatte SET gruppe=$groupId WHERE id=$employeeId AND konto_id=$customerId", __FILE__ . ' line ' . __LINE__);
+	$query = db_select("SELECT b.id FROM brugere b JOIN ansatte a ON a.id=b.ansat_id
+		WHERE a.id=$employeeId AND a.konto_id=$customerId", __FILE__ . ' line ' . __LINE__);
+	while ($user = db_fetch_array($query)) {
+		mobileRevokeUser((int)$user['id'], 'rights_changed');
+	}
+}
+
 function ret_kunde_ansat($konto_id) {
 
 #	$ansat_id=if_isset($_GET['ansat_id'])*1;
@@ -535,37 +577,26 @@ function ret_kunde_ansat($konto_id) {
 	
 	$sagid=if_isset($_GET['sag_id']);
 
-	if(isset($_POST['brugergruppe']) && isset($_POST['id'])) {	
-		$id  = $_POST['id']*1;
-		$brugergruppe = $_POST['brugergruppe']*1;
-		if ($id && $brugergruppe) {
-			db_modify("update ansatte set gruppe = '$brugergruppe' where id = '$id'",__FILE__ . " linje " . __LINE__);
+	$id = (int)ifset($_POST, 'id', 0);
+	$group = (int)ifset($_POST, 'brugergruppe', 0);
+	if ($id && $group) {
+		sagerSaveCustomerGroup($id, (int)$konto_id, $group);
+	}
+	if ($id && isset($_POST['brugernavn'])) {
+		$username = (string)ifset($_POST, 'brugernavn', '');
+		$password = (string)ifset($_POST, 'kode1', '');
+		$confirmation = (string)ifset($_POST, 'kode2', '');
+		if ($password !== '' && $password !== '********' && $password === $confirmation) {
+			sagerSaveCustomerLogin($id, (int)$konto_id, $username, $password);
+		} elseif ($password === '' || $password === '********') {
+			if ($username !== '') {
+				sagerSaveCustomerLogin($id, (int)$konto_id, $username, null);
+			}
+		} else {
+			print "<BODY onLoad=\"javascript:alert('" . findtekst('3078|Kodeord ikke ens', $sprog_id) . "!')\">";
 		}
 	}
-	if(isset($_POST['brugernavn']) && isset($_POST['id'])) {	
-		$id  = $_POST['id']*1;
-		$brugernavn = $_POST['brugernavn']*1;
-		$kode1=if_isset($_POST['kode1']);
-		$kode2=if_isset($_POST['kode2']);
-		if ($id && $bruger_id) {
-			$ret_kode=1;
-			if (!$kode1) {
-				$ret_kode=0;
-				print "<BODY onLoad=\"javascript:alert('".findtekst('3077|Kodeord skal angives', $sprog_id)."!')\">";
-			} elseif ($kode1 == '********') $ret_kode=0;
-			elseif ($kode1 != $kode2) {
-				$ret_kode=0;
-				print "<BODY onLoad=\"javascript:alert('".findtekst('3078|Kodeord ikke ens', $sprog_id)."!')\">";
-			}
-			if ($ret_kode && $bruger_id) {
-				$kode1=md5($kode1);
-				db_modify("update brugere set kode = '$kode1' where id = '$bruger_id'",__FILE__ . " linje " . __LINE__);
-			}
-			if ($brugernavn && $bruger_id) {
-				db_modify("update brugere set brugernavn = '$brugernavn' where id = '$bruger_id'",__FILE__ . " linje " . __LINE__);
-			}
-		}
-	}
+
 	$x=0;
 	$q=db_select("select * from grupper where art='brgrp' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {

@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  * History:
  * 20260921 Sawaneh Created (PR #423 review): happy path, 4xx/5xx from each of the four calls,
  *                  2xx replies with an unexpected payload, and a stale webhook that cannot be deleted.
+ * 20261001 CDX/LH Characterise POS isolation and invoice reconciliation; use random stub credentials.
  */
 final class MobilepayWebhookSyncTest extends TestCase
 {
@@ -99,19 +100,19 @@ final class MobilepayWebhookSyncTest extends TestCase
     /**
      * @return array{0: array, 1: string[]}  The sync result and the "METHOD PATH" lines the stub saw.
      */
-    private function sync(array $scenario): array
+    private function sync(array $scenario, array $config = []): array
     {
         $scenario += array(
-            'token'    => self::ok(array('access_token' => 'tok')),
+            'token'    => self::ok(array('access_token' => bin2hex(random_bytes(32)))),
             'list'     => self::ok(array('webhooks' => array())),
             'delete'   => array('code' => 204, 'body' => ''),
-            'register' => array('code' => 201, 'body' => json_encode(array('id' => 'new', 'secret' => 's3cr3t'))),
+            'register' => array('code' => 201, 'body' => json_encode(array('id' => 'new', 'secret' => bin2hex(random_bytes(32))))),
         );
         file_put_contents(self::$scenarioFile, json_encode($scenario));
         file_put_contents(self::$logFile, '');
-        $result = mobilepay_webhook_sync(array(
+        $result = mobilepay_webhook_sync($config + array(
             'apiBase' => self::$base, 'expectedUrl' => self::EXPECTED, 'db' => 'acme',
-            'clientId' => 'id', 'clientSecret' => 'sec', 'subscriptionKey' => 'sub', 'msn' => '123456',
+            'clientId' => 'id', 'clientSecret' => bin2hex(random_bytes(32)), 'subscriptionKey' => bin2hex(random_bytes(32)), 'msn' => '123456',
             'connectTimeout' => 2, 'timeout' => 5,
         ));
         $calls = array();
@@ -127,7 +128,7 @@ final class MobilepayWebhookSyncTest extends TestCase
         [$r, $calls] = $this->sync(array());
         self::assertTrue($r['reconciled']);
         self::assertTrue($r['registered']);
-        self::assertSame('s3cr3t', $r['secret']);
+        self::assertSame(64, strlen($r['secret']));
         self::assertSame(array(), $r['errors']);
         self::assertSame(array('POST /accesstoken/get', 'GET /webhooks/v1/webhooks', 'POST /webhooks/v1/webhooks'), $calls);
     }
@@ -163,6 +164,47 @@ final class MobilepayWebhookSyncTest extends TestCase
         self::assertContains('DELETE /webhooks/v1/webhooks/stale-1', $calls);
         self::assertNotContains('DELETE /webhooks/v1/webhooks/other-1', $calls);
         self::assertNotContains('DELETE /webhooks/v1/webhooks/foreign', $calls);
+    }
+
+    public function testPosSyncLeavesInvoiceReceiverUntouched(): void
+    {
+        $invoice = 'https://old.example.dk/saldi/debitor/payments/link/webhook.php?t=12';
+        [$r, $calls] = $this->sync(['list'=>self::ok(['webhooks'=>[
+            self::hook('invoice', $invoice), self::hook('pos', self::EXPECTED),
+        ]])]);
+        self::assertTrue($r['reconciled']);
+        self::assertSame(['POST /accesstoken/get','GET /webhooks/v1/webhooks'], $calls);
+    }
+
+    public function testInvoiceSyncDeletesOnlyInvoiceReceiverOfExactTenant(): void
+    {
+        $expected = 'https://new.example.dk/saldi/debitor/payments/link/webhook.php?t=12';
+        [$r, $calls] = $this->sync(['list'=>self::ok(['webhooks'=>[
+            self::hook('invoice', 'https://old.example.dk/saldi/debitor/payments/link/webhook.php?t=12'),
+            self::hook('other', 'https://old.example.dk/saldi/debitor/payments/link/webhook.php?t=123'),
+            self::hook('pos', self::STALE),
+            self::hook('foreign', 'https://other.example.dk/unrelated/webhook.php?t=12'),
+        ]])], ['expectedUrl'=>$expected, 'receiverBasename'=>'webhook.php', 'events'=>['epayments.payment.captured.v1']]);
+        self::assertTrue($r['reconciled']);
+        self::assertSame(1, $r['staleDeleted']);
+        self::assertContains('DELETE /webhooks/v1/webhooks/invoice', $calls);
+        self::assertNotContains('DELETE /webhooks/v1/webhooks/other', $calls);
+        self::assertNotContains('DELETE /webhooks/v1/webhooks/pos', $calls);
+        self::assertNotContains('DELETE /webhooks/v1/webhooks/foreign', $calls);
+        $lines = array_values(array_filter(explode("\n", file_get_contents(self::$logFile))));
+        $body = json_decode(explode(' ', end($lines), 3)[2], true);
+        self::assertSame($expected, $body['url']);
+        self::assertSame(['epayments.payment.captured.v1'], $body['events']);
+    }
+
+    public function testLostInvoiceSecretReplacesOnlyExactReceiver(): void
+    {
+        $expected = 'https://new.example.dk/saldi/debitor/payments/link/webhook.php?t=12';
+        [$r, $calls] = $this->sync(['list'=>self::ok(['webhooks'=>[self::hook('invoice', $expected)]])],
+            ['expectedUrl'=>$expected, 'receiverBasename'=>'webhook.php', 'events'=>['epayments.payment.captured.v1'], 'replaceExpected'=>true]);
+        self::assertTrue($r['reconciled']);
+        self::assertTrue($r['registered']);
+        self::assertContains('DELETE /webhooks/v1/webhooks/invoice', $calls);
     }
 
     public static function failingCalls(): array
@@ -205,7 +247,7 @@ final class MobilepayWebhookSyncTest extends TestCase
         self::assertSame(0, $r['staleDeleted']);
         // the new webhook is still registered and its secret handed back, so payments keep working
         self::assertTrue($r['registered']);
-        self::assertSame('s3cr3t', $r['secret']);
+        self::assertSame(64, strlen($r['secret']));
         self::assertContains('DELETE /webhooks/v1/webhooks/stale-1', $calls);
     }
 
@@ -259,7 +301,7 @@ final class MobilepayWebhookSyncTest extends TestCase
     {
         $r = mobilepay_webhook_sync(array(
             'apiBase' => 'http://127.0.0.1:1', 'expectedUrl' => self::EXPECTED, 'db' => 'acme',
-            'clientId' => 'id', 'clientSecret' => 'sec', 'subscriptionKey' => 'sub', 'msn' => '123456',
+            'clientId' => 'id', 'clientSecret' => bin2hex(random_bytes(32)), 'subscriptionKey' => bin2hex(random_bytes(32)), 'msn' => '123456',
             'connectTimeout' => 1, 'timeout' => 2,
         ));
         self::assertFalse($r['reconciled']);
@@ -270,7 +312,7 @@ final class MobilepayWebhookSyncTest extends TestCase
     {
         file_put_contents(self::$logFile, '');
         $r = mobilepay_webhook_sync(array('apiBase' => self::$base, 'expectedUrl' => '', 'db' => 'acme',
-            'clientId' => 'id', 'clientSecret' => 'sec', 'subscriptionKey' => 'sub', 'msn' => '1'));
+            'clientId' => 'id', 'clientSecret' => bin2hex(random_bytes(32)), 'subscriptionKey' => bin2hex(random_bytes(32)), 'msn' => '1'));
         self::assertFalse($r['reconciled']);
         self::assertSame('', (string)file_get_contents(self::$logFile));
     }

@@ -1,0 +1,75 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "id": 4711,
+    "type": "invoice",
+    "konto_id": 12,
+    "kontonr": "8101",
+    "customer_name": "Two partial payments",
+    "faktnr": "102",
+    "ordre_id": 812,
+    "invoice_date": "2026-05-05",
+    "due_date": "2026-08-18",
+    "currency": "DKK",
+    "original_currency": "DKK",
+    "amount": "1000.00",
+    "rest": "600.00",
+    "days_overdue": 45,
+    "bucket": "d31_60",
+    "contact": {
+      "phone": "12345678",
+      "email": "test@example.invalid"
+    },
+    "dunning": {
+      "level": 3,
+      "rykker_id": 901,
+      "created_on": "2026-10-01",
+      "sent": true
+    },
+    "payable": {
+      "link": false,
+      "register": false,
+      "reason": "no_account"
+    },
+    "payment_link": null,
+    "customer": {
+      "id": 12,
+      "kontonr": "8101",
+      "name": "Two partial payments",
+      "saldo": "600.00",
+      "phone": "12345678",
+      "email": "test@example.invalid"
+    },
+    "settled": false,
+    "history": [
+      {
+        "kind": "payment",
+        "date": "2026-05-05",
+        "amount": "-150.00"
+      },
+      {
+        "kind": "payment",
+        "date": "2026-05-05",
+        "amount": "-250.00"
+      },
+      {
+        "kind": "dunning",
+        "date": "2026-09-29",
+        "level": 1
+      },
+      {
+        "kind": "dunning",
+        "date": "2026-09-30",
+        "level": 2
+      },
+      {
+        "kind": "dunning",
+        "date": "2026-10-01",
+        "level": 3
+      }
+    ],
+    "other_open_posts": [],
+    "unallocated_credit": "0.00"
+  }
+}

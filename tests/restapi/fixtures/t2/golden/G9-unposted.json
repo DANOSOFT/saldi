@@ -1,0 +1,12 @@
+{
+  "scenario": "Straksbogf\u00f8r off; numbered invoice is not payable",
+  "status": 3,
+  "totals": {
+    "net": "180.00",
+    "vat": "45.00",
+    "gross": "225.00",
+    "currency": "DKK"
+  },
+  "ledger": [],
+  "openpost": []
+}

@@ -1,0 +1,8 @@
+{
+    "error": {
+        "details": {
+            "reason": "missing_exchange_rate"
+        },
+        "error": "validation_failed"
+    }
+}

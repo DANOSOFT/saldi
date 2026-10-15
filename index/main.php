@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.0.0 --- 2026.09.30 ---
+// ---- index/main.php --- ver 5.0.0 --- 2026.10.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,13 @@
 //                 ignore the inframe flag when deciding whether the iframe already shows the target.
 // 20260914 CDX/LH Removed the Guides sidebar entry and its popup.
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
+// 20261002 CL/LH Added the "Opgaver" inbox entry with its open-count badge, the Saldi Assist settings link,
+//                the approval modal wiring (saldi-inbox.js + CSRF/tenant config) and data-assistant="v2"
+//                behind SALDI_ASSIST_V2. All of it only for tenant users (bruger_id > 0).
+// 20261002 CL/LH Load the quiet "Vigtigt" banner for unseen interrupt items (javascript/saldi-assist-banner.js).
+// 20261007 CL/LH Approval modal v2: texts for Afvis, the note and the key hints; cache-busting for the modal assets.
+// 20261008 CL/LH Add the mobile Assist identity and delegation contract.
+// 20261008 CL/LH Add the same-origin Assist upload hook.
 @session_start();
 $s_id = session_id();
 
@@ -82,6 +89,71 @@ function brightenColor($color, $amount = 0.2) {
     // Convert back to hex
     return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
 }
+
+/**
+ * Inbox wiring for the shell, only for tenant users (revisor/admin sessions keep the shell unchanged).
+ * Best effort: the badge is computed only when the inbox tables exist and any failure leaves it out.
+ * Injected by ../includes/online.php, included above:
+ * @var int|string $bruger_id
+ */
+$saldiInboxUser = (int)($bruger_id ?? 0) > 0;
+$saldiInbox = null;
+if ($saldiInboxUser) {
+  try {
+    require_once __DIR__ . '/../includes/automation/SaldiInboxService.php';
+    require_once __DIR__ . '/../includes/automation/inboxCsrf.php';
+    require_once __DIR__ . '/../includes/automation/approvalCard.php';
+    $saldiInboxOpen = saldi_runtime_context_for_session();
+    $saldiInboxDb = $saldiInboxOpen['db'];
+    $saldiInboxCount = null;
+    if ($saldiInboxDb->hasTable('inbox_items') && $saldiInboxDb->hasTable('decision_log')) {
+      $saldiInboxCount = (new SaldiInboxService($saldiInboxDb, SaldiKindRegistry::default()))->countOpen($saldiInboxOpen['ctx']);
+    }
+    $saldiInboxLang = $saldiInboxOpen['ctx']->languageId;
+    $saldiInboxText = static fn(int $id, string $fallback): string => saldi_ui_text($saldiInboxDb, $saldiInboxLang, $id, $fallback);
+    $saldiInbox = [
+      'count' => $saldiInboxCount,
+      'config' => [
+        'csrf' => saldi_inbox_csrf_token(),
+        'tenantHash' => $saldiInboxOpen['ctx']->tenantHash(),
+        'accent' => preg_match('/^#[0-9a-fA-F]{3,8}$/D', (string)$buttonColor) ? $buttonColor : '#114691',
+        'accentText' => preg_match('/^#[0-9a-fA-F]{3,8}$/D', (string)$buttonTxtColor) ? $buttonTxtColor : '#ffffff',
+        'texts' => [
+          'approveTitle' => $saldiInboxText(5829, 'Godkend forslag'),
+          'approve' => $saldiInboxText(5726, 'Godkend'),
+          'approved' => $saldiInboxText(5823, 'Godkendt'),
+          'cancel' => $saldiInboxText(5874, 'Annuller'),
+          'close' => $saldiInboxText(2172, 'Luk'),
+          'loading' => $saldiInboxText(5875, 'Henter forslaget …'),
+          'busy' => $saldiInboxText(5876, 'Der er allerede en godkendelse åben.'),
+          'cancelled' => $saldiInboxText(5877, 'Godkendelsen blev annulleret.'),
+          'nothing' => $saldiInboxText(5822, 'Intet er ændret.'),
+          'unavailable' => $saldiInboxText(5878, 'Opgaver er midlertidigt utilgængelige. Prøv igen om lidt.'),
+          'companyChanged' => $saldiInboxText(5883, 'Du har skiftet regnskab i et andet vindue. Genindlæs siden.'),
+          'alreadyHandled' => $saldiInboxText(5884, 'Forslaget er allerede behandlet eller ændret, siden du åbnede det.'),
+          'openInInbox' => $saldiInboxText(5873, 'Vis opgaven'),
+          'openCount' => $saldiInboxText(5872, '{n} åbne'),
+          'invalid' => $saldiInboxText(5732, 'Kontrollér de indtastede oplysninger.'),
+          'reject' => $saldiInboxText(5727, 'Afvis'),
+          'rejected' => $saldiInboxText(5803, 'Afvist'),
+          'note' => $saldiInboxText(5820, 'Tilføj en note'),
+          'noteLabel' => $saldiInboxText(5895, 'Note til beslutningen (valgfri)'),
+          'keyApprove' => $saldiInboxText(6315, 'godkend'),
+          'keyReject' => $saldiInboxText(6316, 'afvis'),
+          'keyCancel' => $saldiInboxText(6326, 'annuller'),
+          'decidedTitle' => $saldiInboxText(6329, 'Afgjort forslag'),
+          'approving' => $saldiInboxText(6327, 'Godkender …'),
+          'rejecting' => $saldiInboxText(6328, 'Afviser …'),
+        ],
+      ],
+    ];
+  } catch (Throwable $e) {
+    error_log('index/main.php inbox wiring: ' . get_class($e) . ' ' . $e->getMessage());
+    $saldiInbox = null;
+  }
+}
+$saldiInboxBadge = (int)($saldiInbox['count'] ?? 0);
+$saldiInboxBadgeLabel = $saldiInboxBadge > 0 ? str_replace('{n}', (string)$saldiInboxBadge, findtekst('5872|{n} åbne', $sprog_id)) : '';
 
 ?>
 
@@ -157,6 +229,44 @@ function brightenColor($color, $amount = 0.2) {
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <link rel="icon" href="../img/saldiLogo.png">
 <link href='../css/sidebar_style.css?v=22' rel='stylesheet'>
+<?php if ($saldiInboxUser) { ?>
+<link href='../css/approval_card.css?v=20261007' rel='stylesheet'>
+<style>
+  .sidebar .nav-links li a .saldi-inbox-badge {
+    margin: 0 10px 0 auto;
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: <?php echo $buttonTxtColor; ?>;
+    color: <?php echo $buttonColor; ?>;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 20px;
+    text-align: center;
+  }
+  .sidebar .nav-links li a .saldi-inbox-badge[hidden] {
+    display: none;
+  }
+  .sidebar.closed .nav-links li a .saldi-inbox-badge {
+    position: absolute;
+    top: 2px;
+    left: 28px;
+    min-width: 16px;
+    margin: 0;
+    padding: 0 4px;
+    font-size: 10px;
+    line-height: 16px;
+  }
+  .saldi-inbox-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>
+<?php } ?>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">
 
 <div class="modalbg" onclick="
@@ -189,6 +299,20 @@ function brightenColor($color, $amount = 0.2) {
         <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst('2224|Oversigt', $sprog_id); ?></a></li>
       </ul>
     </li>
+
+    <?php if ($saldiInboxUser) { ?>
+    <!-- Opgaver (automation inbox) -->
+    <li id="saldi-inbox-entry">
+      <a href="#" style="background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/inbox/index.php")'>
+        <i class='bx bx-task'></i>
+        <span class="link_name"><?php print findtekst('5870|Opgaver', $sprog_id); ?><span class="saldi-inbox-sr" data-saldi-inbox-badge-label><?php echo $saldiInboxBadgeLabel !== '' ? htmlspecialchars(' (' . $saldiInboxBadgeLabel . ')', ENT_QUOTES, 'UTF-8') : ''; ?></span></span>
+        <span class="saldi-inbox-badge" data-saldi-inbox-badge aria-hidden="true" title="<?php echo htmlspecialchars($saldiInboxBadgeLabel, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $saldiInboxBadge > 0 ? '' : ' hidden'; ?>><?php echo $saldiInboxBadge > 99 ? '99+' : $saldiInboxBadge; ?></span>
+      </a>
+      <ul class="sub-menu blank">
+        <li><a class="" href="#" onclick='clear_sidebar(); document.getElementById("saldi-inbox-entry").classList.add("active"); update_iframe("/inbox/index.php")'><?php print findtekst('5870|Opgaver', $sprog_id); ?></a></li>
+      </ul>
+    </li>
+    <?php } ?>
 
     <li style="display: <?php if (check_permissions(array(2, 3, 4))) {
                           echo 'block';
@@ -388,6 +512,17 @@ function brightenColor($color, $amount = 0.2) {
   </ul>
 
   <ul class="nav-links">
+    <?php if ($saldiInboxUser) { ?>
+    <li>
+      <a href="#" onclick='clear_sidebar(); update_iframe("/systemdata/assistent.php")'>
+        <i class='bx bx-slider-alt'></i>
+        <span class="link_name"><?php print findtekst('5871|Assist-indstillinger', $sprog_id); ?></span>
+      </a>
+      <ul class="sub-menu blank">
+        <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/systemdata/assistent.php")'><?php print findtekst('5871|Assist-indstillinger', $sprog_id); ?></a></li>
+      </ul>
+    </li>
+    <?php } ?>
     <li>
       <a href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">
         <i class='bx bx-envelope'></i>
@@ -658,6 +793,8 @@ function brightenColor($color, $amount = 0.2) {
    kan saettes i webserverens miljoe til en test-instans; standard er produktion. */
 $assistWidgetUrl = getenv('SALDI_ASSIST_WIDGET_URL') ?: 'https://wuweiworkai.com/chaty-v2/widget.js';
 $assistVersion = isset($version) ? (string)$version : '';
+require_once __DIR__ . '/../includes/automation/inboxCsrf.php';
+$assistConsentCsrf = saldi_inbox_csrf_token();
 ?>
 <script src="../javascript/saldi-assist-navigate.js"></script>
 <script>
@@ -666,8 +803,52 @@ $assistVersion = isset($version) ? (string)$version : '';
   // (inkl. advarslen om ugemte aendringer).
   if (typeof update_iframe === 'function') { window.update_iframe = update_iframe; }
 </script>
-<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>"<?= getenv('SALDI_ASSIST_V2') === '1' ? ' data-assistant="v2"' : '' ?> defer></script>
 <script>window.SaldiAssist = { appVersion: <?= json_encode($assistVersion) ?>, correlationId: <?= json_encode($assist_correlation_id ?? null) ?>, errorCategory: <?= json_encode($assist_error_category ?? null) ?>, getContextToken: function (sessionHash) { return fetch('../includes/saldi_assist_token.php?embed_session=' + encodeURIComponent(sessionHash), {credentials:'same-origin'}).then(function (r) { return r.ok ? r.json() : null }).then(function (j) { return j && j.token ? j.token : null }) }, navigate: window.SaldiAssistNavigate };</script>
+<script>
+  (function () {
+    const csrf = <?= json_encode($assistConsentCsrf, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    function consentRequest(method, value) {
+      const options = {method: method, credentials: 'same-origin', headers: {'X-Saldi-Csrf': csrf}};
+      if (method === 'POST') {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify({consent: value});
+      }
+      return fetch('../includes/saldi_assist_consent.php', options).then(function (response) {
+        if (!response.ok) { throw new Error('consent_unavailable'); }
+        return response.json();
+      });
+    }
+    window.SaldiAssist.upload = function (files) {
+      const body = new FormData();
+      files.forEach(function (file) { body.append('file[]', file); });
+      body.append('purpose', 'chat');
+      return fetch('../includes/saldi_assist_upload.php', {method: 'POST', credentials: 'same-origin', headers: {'X-Saldi-Csrf': csrf}, body: body}).then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok) {
+            const error = new Error(data.error || 'upload_unavailable');
+            error.code = data.error;
+            error.details = data.details;
+            throw error;
+          }
+          return data.attachments;
+        });
+      });
+    };
+    window.SaldiAssist.getConsent = function () {
+      return consentRequest('GET').then(function (data) { return data.consent; });
+    };
+    window.SaldiAssist.setConsent = function (value) {
+      if (value !== 'yes' && value !== 'no') { return Promise.reject(new Error('invalid_consent')); }
+      return consentRequest('POST', value).then(function () {});
+    };
+  })();
+</script>
+<?php if ($saldiInbox !== null) { ?>
+<script type="application/json" id="saldi-inbox-config"><?= json_encode($saldiInbox['config'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?></script>
+<script src="../javascript/saldi-inbox.js?v=20261007"></script>
+<script src="../javascript/saldi-assist-banner.js?v=20261007" defer></script>
+<?php } ?>
 <?php if (getenv('SALDI_ASSIST_RECORDS_ENABLED') === '1') { ?>
 <script src="../javascript/saldi-assist-records.js"></script>
 <script>

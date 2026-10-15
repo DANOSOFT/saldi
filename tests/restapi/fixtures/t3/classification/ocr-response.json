@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "suggestion_id": null,
+    "kontonr": 2210,
+    "account_name": "Purchases",
+    "vat_code": "K1",
+    "vat_name": "Purchase VAT",
+    "kreditor": null,
+    "basis": "ocr",
+    "basis_detail": {
+      "count": 0,
+      "total": 0,
+      "last_used": null,
+      "corrected_on": null
+    },
+    "alternatives": [],
+    "engine_version": "det-1"
+  }
+}

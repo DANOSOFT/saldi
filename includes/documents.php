@@ -1,6 +1,5 @@
-<!doctype html>
 <?php
-// --- includes/documents.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/documents.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230622 - LOE Updated file path and some related modifications.
 //20240412 - PHR Various modifications
@@ -34,16 +33,13 @@
 //                  via FileReservation instead of file_exists() polling, closing the window in
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20261001 CDX/LH Route reference unlink and journal copy through durable pool transitions.
+ob_start();
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
 
 $title="Documents";
-print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
-print '<link rel="stylesheet" type="text/css" href="../css/dragAndDrop.css">';
-$jsFile = '../javascript/dragAndDrop.js';
-$version = file_exists($jsFile) ? filemtime($jsFile) : time();
-print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"{$jsFile}?v={$version}\"></script>";
 
 $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=$unlinkDoc=null;
 
@@ -55,6 +51,7 @@ include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
 include_once(__DIR__ . "/docsIncludes/FileReservation.php");
+require_once __DIR__ . "/docsIncludes/poolFileTransitions.php";
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 if (!isset($menu)) $menu = null;
@@ -97,6 +94,34 @@ if (file_exists('../owncloud')) $docFolder = '../owncloud';
 elseif (file_exists('../bilag')) $docFolder = '../bilag';
 elseif (file_exists('../documents')) $docFolder = '../documents';
 else $docFolder = '../bilag'; // Default fallback
+
+$referenceParams = ['source'=>(string)$source, 'sourceId'=>(int)$sourceId,
+	'kladde_id'=>(int)$kladde_id, 'fokus'=>$fokus];
+if (ifset($_GET, 'doLink') === '1' && (int)ifset($_GET, 'linkDocId') > 0 && $sourceId && $source === 'kassekladde') {
+	PoolFileTransitions::copyDocument($db, (int)ifset($_GET, 'linkDocId'), (int)$sourceId, (int)$userId);
+	ob_end_clean();
+	header('Location: documents.php?' . http_build_query($referenceParams), true, 303);
+	exit;
+}
+if ((int)$unlinkDoc > 0) {
+	PoolFileTransitions::unlinkDocument((int)$unlinkDoc, (string)$source, (int)$sourceId);
+	$sourceSql = db_escape_string((string)$source);
+	$sourceIdSql = (int)$sourceId;
+	$remaining = db_fetch_array(db_select("SELECT id FROM documents WHERE source='$sourceSql' AND source_id='$sourceIdSql' LIMIT 1", __FILE__ . ' line ' . __LINE__));
+	if (!$remaining) {
+		$referenceParams += ['openPool'=>1, 'bilag'=>$bilag];
+	}
+	ob_end_clean();
+	header('Location: documents.php?' . http_build_query($referenceParams), true, 303);
+	exit;
+}
+print '<!doctype html>';
+print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/dragAndDrop.css">';
+$jsFile = '../javascript/dragAndDrop.js';
+$version = file_exists($jsFile) ? filemtime($jsFile) : time();
+print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"{$jsFile}?v={$version}\"></script>";
+
 
 $qtxt = "select var_value from settings where var_name = 'globalId'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -747,32 +772,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 
 // Handle linking bilag from another line
 $linkBilag = isset($_GET['linkBilag']) && $_GET['linkBilag'] == '1';
-$doLink = isset($_GET['doLink']) && $_GET['doLink'] == '1';
-$linkDocId = isset($_GET['linkDocId']) ? intval($_GET['linkDocId']) : 0;
 
-if ($doLink && $linkDocId && $sourceId && $source == 'kassekladde') {
-	// Get the original document info
-	$qtxt = "SELECT * FROM documents WHERE id = '$linkDocId'";
-	$origDoc = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	
-	if ($origDoc) {
-		// Check if this exact document is already linked to this source_id
-		$checkQtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$sourceId' AND filename = '" . db_escape_string($origDoc['filename']) . "' AND filepath = '" . db_escape_string($origDoc['filepath']) . "'";
-		$existing = db_fetch_array(db_select($checkQtxt, __FILE__ . " linje " . __LINE__));
-		
-		if (!$existing) {
-			// Create a new document entry pointing to the same file
-			$qtxt = "INSERT INTO documents (global_id, filename, filepath, source, source_id, timestamp, user_id) VALUES ";
-			$qtxt .= "('" . db_escape_string($origDoc['global_id']) . "', '" . db_escape_string($origDoc['filename']) . "', '" . db_escape_string($origDoc['filepath']) . "', 'kassekladde', '$sourceId', '" . date('U') . "', '$userId')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		
-		// Redirect back to the document viewer
-		$redirectUrl = "documents.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&fokus=$fokus";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=$redirectUrl\">";
-		exit;
-	}
-}
 
 if ($linkBilag && $source == 'kassekladde') {
 	// Show page to select bilag from other lines
@@ -1258,27 +1258,6 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 	// Show list of documents for this line
 	if ($moveDoc) include("docsIncludes/moveDoc.php");
 	elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
-	elseif ($unlinkDoc) {
-		// Only delete the database reference, not the actual file
-		$unlinkDocId = intval($unlinkDoc);
-		if ($unlinkDocId) {
-			$qtxt = "DELETE FROM documents WHERE id = '$unlinkDocId' AND source = '$source' AND source_id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		// Check if there are any remaining documents
-		$qtxt = "SELECT id FROM documents WHERE source = '$source' AND source_id = '$sourceId' LIMIT 1";
-		$remainingDoc = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		
-		if ($remainingDoc) {
-			// Still have documents, go back to document viewer
-			$redirectUrl = "documents.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&fokus=$fokus";
-		} else {
-			// No more documents, go to document pool
-			$redirectUrl = "documents.php?openPool=1&source=$source&sourceId=$sourceId&kladde_id=$kladde_id&bilag=$bilag&fokus=$fokus";
-		}
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=$redirectUrl\">";
-		exit;
-	}
 	include("docsIncludes/listDocs.php");
 	
 	// Add link to docpool to add more bilag
@@ -1351,27 +1330,6 @@ print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cell
 #xit;
 if ($moveDoc) include("docsIncludes/moveDoc.php");
 elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
-elseif ($unlinkDoc) {
-	// Only delete the database reference, not the actual file
-	$unlinkDocId = intval($unlinkDoc);
-	if ($unlinkDocId) {
-		$qtxt = "DELETE FROM documents WHERE id = '$unlinkDocId' AND source = '$source' AND source_id = '$sourceId'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	}
-	// Check if there are any remaining documents
-	$qtxt = "SELECT id FROM documents WHERE source = '$source' AND source_id = '$sourceId' LIMIT 1";
-	$remainingDoc = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	
-	if ($remainingDoc) {
-		// Still have documents, go back to document viewer
-		$redirectUrl = "documents.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&fokus=$fokus";
-	} else {
-		// No more documents, go to document pool
-		$redirectUrl = "documents.php?openPool=1&source=$source&sourceId=$sourceId&kladde_id=$kladde_id&bilag=$bilag&fokus=$fokus";
-	}
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$redirectUrl\">";
-	exit;
-}
 include("docsIncludes/listDocs.php");
 include("docsIncludes/uploadDoc.php"); 
 

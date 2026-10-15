@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "konto_id": 12,
+    "customer_name": "Dunning customer",
+    "level": 1,
+    "previous_rykker_id": null,
+    "currency": "DKK",
+    "items": [
+      {
+        "openpost_id": 4711,
+        "faktnr": "B2-0",
+        "due_date": "2026-08-29",
+        "amount": "1000.00"
+      },
+      {
+        "openpost_id": 4712,
+        "faktnr": "B2-1",
+        "due_date": "2026-08-29",
+        "amount": "500.00"
+      }
+    ],
+    "fee": "100.00",
+    "interest": "30.15",
+    "total": "1630.15",
+    "recipient_email": "dunning@example.invalid"
+  }
+}

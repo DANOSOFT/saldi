@@ -1,0 +1,66 @@
+{
+    "draft": {
+        "transdate": "2026-09-14",
+        "beskrivelse": "T3 purchase",
+        "d_type": "F",
+        "debet": "987001",
+        "k_type": "F",
+        "kredit": "987010",
+        "faktura": "INV-T3",
+        "amount": "125.000",
+        "momsfri": "",
+        "valuta": "0",
+        "valutakurs": "100.000",
+        "debetvat": "K987",
+        "kreditvat": ""
+    },
+    "posting": {
+        "transaktioner": [
+            {
+                "kontonr": "987001",
+                "debet": "100.000",
+                "kredit": null,
+                "moms": "25.000",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "0",
+                "valutakurs": "100.000"
+            },
+            {
+                "kontonr": "987010",
+                "debet": null,
+                "kredit": "125.000",
+                "moms": "0.000",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "0",
+                "valutakurs": "100.000"
+            },
+            {
+                "kontonr": "987011",
+                "debet": "25.000",
+                "kredit": null,
+                "moms": "0.000",
+                "beskrivelse": "T3 purchase",
+                "faktura": "INV-T3",
+                "valuta": "0",
+                "valutakurs": "100.000"
+            }
+        ],
+        "openpost": [],
+        "saldo_delta": [
+            {
+                "kontonr": 987001,
+                "delta": "100.000"
+            },
+            {
+                "kontonr": 987010,
+                "delta": "-125.000"
+            },
+            {
+                "kontonr": 987011,
+                "delta": "25.000"
+            }
+        ]
+    }
+}

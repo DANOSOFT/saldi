@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "items": [
+      {
+        "type": "invoice_paid",
+        "enabled": true
+      }
+    ]
+  }
+}
