@@ -79,12 +79,12 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
-// 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
-// 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261002 CL/SZ SST-808: index ordrer (konto_id, fakturanr) and the open openpost rows so the
 //                  auto-udlign open-post search stops scanning ordrer once per open post.
 // 20261002 CL/SZ SST-808 (CodeRabbit): build those indexes CONCURRENTLY so login does not block
 //                  writes while they build, and rebuild one left INVALID by an interrupted build.
+// 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
+// 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
 // 20261006 CL/LH SST-850: hash a clear-text rentalsettings.pass once (idempotent, table-guarded).
