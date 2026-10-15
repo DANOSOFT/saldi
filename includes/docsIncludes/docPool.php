@@ -192,6 +192,7 @@
 //                and a switch on the same line gets the reload still running, so it shows its document after that reload.
 // 20261015 CL/SZ SD-719 (CodeRabbit) A cached XML preview (SD-718) is served through docFileUrl() like a fresh one, so it gets docFile.php's check and the "Åbn i nyt vindue" button.
 // 20261015 CL/SZ SD-720 (CodeRabbit) "Gem alle" on a split bilag ticks only the rows it created; a line that was already there keeps the box as the user left it.
+// 20261015 CL/SZ SD-720 (CodeRabbit) The document total for "Fordeling" is read from the newest pool_files row of that name, so an old duplicate can't give it.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2231,7 +2232,7 @@ if ($source == 'kassekladde') {
 	// SD-720: the captured amount of the document is the total "Fordeling" splits; without one, the first row's amount
 	$splitDocAmount = '';
 	if ($poolFile !== '' && $poolFile !== null) {
-		$splitRow = db_fetch_array(db_select("SELECT amount FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'", __FILE__ . " linje " . __LINE__));
+		$splitRow = db_fetch_array(db_select("SELECT amount FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "' ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__));
 		$splitDocAmount = $splitRow ? (string)$splitRow['amount'] : '';
 	}
 	print "<script>window.saldiPoolSplit = " . json_encode(array(
