@@ -5193,6 +5193,15 @@
 5334	Obligatorisk	Required	Obligatorisk
 5335	Ingen flere bilag i puljen	No more documents in the pool	Ingen flere bilag i puljen
 5336	Tilbage til kassekladden	Back to the cash journal	Tilbake til kassakladden
+5337	Arkivér	Archive	Arkiver
+5338	Vis arkiverede	Show archived	Vis arkiverte
+5339	Gendan	Restore	Gjenopprett
+5340	Arkivet er ikke klar. Log ud og ind igen.	The archive is not ready. Log out and in again.	Arkivet er ikke klart. Logg ut og inn igjen.
+5341	Arkivér valgte	Archive selected	Arkiver valgte
+5342	Gendan valgte	Restore selected	Gjenopprett valgte
+5343	Arkiveret	Archived	Arkivert
+5344	Ingen arkiverede bilag	No archived documents	Ingen arkiverte bilag
+5345	Ingen bilag valgt.	No documents selected.	Ingen bilag valgt.
 5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
 5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
 5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden

@@ -28,6 +28,7 @@
 //                Lines of the same voucher (journal + bilag) don't count either, since one invoice is often split over several lines.
 // 20261006 CL/SZ SD-715 (CodeRabbit) Dropped the single-check "limit 20": the exclusions (same voucher, the line itself) run in PHP after
 //                the query, so a real earlier use could be past the first 20 rows and never checked (e.g. an invoice split over 20+ lines of the same voucher).
+// 20261003 CL/SZ SD-717 Archived pool documents don't count as an earlier use.
 // 20261006 CL/SZ SD-715 (CodeRabbit) Open-journal lines match a kreditor number with leading zeros (kredit is numeric there),
 //                and the number is always lowered with mb_strtolower(), which the database's lower() agrees with.
 
@@ -146,11 +147,12 @@ if (!function_exists('invoice_reuse_find')) {
 			}
 		}
 
-		// 3. Other documents in the pool, by the kreditor they were matched to
+		// 3. Other documents in the pool, by the kreditor they were matched to; not archived ones (SD-717)
 		if (invoice_reuse_pool_ready()) {
+			require_once __DIR__ . '/../../includes/docsIncludes/poolArchive.php';
 			$qtxt = "select a.kontonr, lower(trim(p.invoice_number)) as fnr, p.filename from pool_files p, adresser a ";
 			$qtxt.= "where a.id = p.vendor_konto_id and a.art = 'K' and a.kontonr in ($kontonrList) ";
-			$qtxt.= "and lower(trim(p.invoice_number)) in ($numberList) order by p.id$limit";
+			$qtxt.= "and lower(trim(p.invoice_number)) in ($numberList) and " . poolArchiveActiveSql('p.') . " order by p.id$limit";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				foreach ($wanted as $key => $want) {

@@ -80,6 +80,9 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
+// 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
+// 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261002 CL/SZ SST-808: index ordrer (konto_id, fakturanr) and the open openpost rows so the
 //                  auto-udlign open-post search stops scanning ordrer once per open post.
 // 20261002 CL/SZ SST-808 (CodeRabbit): build those indexes CONCURRENTLY so login does not block
@@ -1119,6 +1122,49 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		db_modify("CREATE INDEX IF NOT EXISTS audit_log_tidspunkt_idx ON audit_log (tidspunkt)", __FILE__ . " linje " . __LINE__);
 		db_modify("CREATE INDEX IF NOT EXISTS audit_log_bruger_idx ON audit_log (bruger_id)", __FILE__ . " linje " . __LINE__);
 		db_modify("CREATE INDEX IF NOT EXISTS audit_log_objekt_idx ON audit_log (objekt_type, objekt_id)", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+// 20261003 CL/SZ SD-717: archive in the document pool.
+// pool_files.archived (when) and archived_by (brugere.id, -1 for a revisor session); NULL means the document is in the normal list.
+// The file stays in the pool folder, so the folder sync neither deletes nor re-inserts the row.
+// archived_by last: includes/docsIncludes/poolArchive.php probes for it, so once it exists both do.
+$poolArchiveMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$poolArchiveSchema = $poolArchiveMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$poolArchiveColumns = array(
+	'archived' => $poolArchiveMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+	'archived_by' => 'INTEGER NULL',
+);
+if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'$poolArchiveSchema", __FILE__ . " linje " . __LINE__))) {
+	$poolArchiveMissing = array();
+	foreach ($poolArchiveColumns as $poolArchiveColumn => $poolArchiveType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolArchiveColumn'$poolArchiveSchema";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$poolArchiveMissing[$poolArchiveColumn] = $qtxt;
+		}
+	}
+	if ($poolArchiveMissing) {
+		if ($poolArchiveMysql) {
+			// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the vendor columns)
+			$poolArchiveLock = "CONCAT('saldi:pool_files_archive:', MD5(DATABASE()))";
+			$poolArchiveLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolArchiveLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int) ($poolArchiveLockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the pool_files archive migration lock.');
+			}
+			try {
+				foreach ($poolArchiveMissing as $poolArchiveColumn => $poolArchiveProbe) {
+					if (!db_fetch_array(db_select($poolArchiveProbe, __FILE__ . " linje " . __LINE__))) {
+						db_modify("ALTER TABLE pool_files ADD COLUMN $poolArchiveColumn " . $poolArchiveColumns[$poolArchiveColumn], __FILE__ . " linje " . __LINE__);
+					}
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($poolArchiveLock)", __FILE__ . " linje " . __LINE__);
+			}
+		} else {
+			foreach ($poolArchiveMissing as $poolArchiveColumn => $poolArchiveProbe) {
+				db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolArchiveColumn " . $poolArchiveColumns[$poolArchiveColumn], __FILE__ . " linje " . __LINE__);
+			}
+		}
 	}
 }
 
