@@ -4,6 +4,7 @@
 //                Journal and pool: the first Enter on a line with a warning moves the focus to the warning instead of saving, so it can't be missed.
 //                Enter on the warning then saves the way Enter in the field would.
 //                Pool (window.saldiInvoiceReuse set): checks each line on load and when Kredit or Faktura changes.
+// 20261003 CL/SZ SD-719 The pool's lines are checked again after an in-place document switch ("poolswitch"); the change listener is added once.
 // 20261006 CL/SZ SD-715 Journal (window.saldiInvoiceReuseJournal set): a line is checked when its Kredit, Kredit type or Fakturanr. changes, so the warning shows
 //                while the line is typed, not only after "Gem" (the page's own check only sees saved lines).
 (function () {
@@ -183,10 +184,17 @@
         field.classList.add('invoice-reuse-field');
     }
 
-    function initPool() {
+    function checkAllPoolLines() {
         if (!window.saldiInvoiceReuse) return;
         document.querySelectorAll('.kassebilag-entry').forEach(checkPoolLine);
+    }
+
+    function initPool() {
+        checkAllPoolLines();
+        // The new document's lines (and its saldiInvoiceReuse.poolFile) arrive without a page load
+        document.addEventListener('poolswitch', checkAllPoolLines);
         document.addEventListener('change', function (e) {
+            if (!window.saldiInvoiceReuse) return;
             const el = e.target;
             if (!(el instanceof Element) || !/^row_.+_(Faktura|Kredit|KreditType)$/.test(el.id || '')) return;
             const entry = el.closest('.kassebilag-entry');

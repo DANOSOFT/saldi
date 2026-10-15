@@ -10,8 +10,20 @@
 //                When the attach then fails (e.g. a dropped connection) and Enter is pressed again, that line is updated instead of saved a second time.
 //                Needs window.saldiPoolSaveNext (docPool.php) and docPool.php's _saveRowFetch(), chooseMultipleBilag() and transferDataFromSelectedFile().
 // 20261003 CL/SZ SD-717 "Gem og næste" and "Spring over" never open an archived document; the arrow keys still browse the archive.
+// 20261003 CL/SZ SD-719 The next document opens in place (docPoolSwitch.js); the attached document is taken out of the list.
+//                When the open document is the last loaded row, the next page of the list is fetched first.
+//                The right arrow on the last loaded row fetches the next page too, so it doesn't stop at row 50.
+//                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
 // 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
 // 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
+// 20261006 CL/SZ SD-716 Full-pass re-run: "Gem og næste" and the arrow keys go on from the first document after the last one, instead of
+//                stopping ("Ingen flere bilag i puljen") while more are only out of view; hosted here because it needs nextDocument() (SD-719).
+// 20261006 CL/SZ SD-716 The arrow keys open the other document with a new line and its own data when nothing was typed in the bilag, and leave the focus
+//                outside the fields so the next arrow key browses on. Before, the line kept the first document's transferred amount, which
+//                the other document would have been saved with, and the list re-sorted by that amount, so ← didn't go back.
+//                Also hosted here: needs the arrow keys' open() helper (SD-719).
+// 20261006 CL/SZ SD-719 Before saving, the document must still be in the pool (window.poolStillListed()): a document attached in another tab,
+//                or one not in the loaded list, left a journal line without its document when the attach was then refused.
 // 20261006 CL/SZ SD-716 A new document puts the cursor in Debet without opening the lookup panel over the list (window.focusAccountQuietly()),
 //                or on "Brug forslag" when Debet has a suggestion; window.poolFocusNewLine() does the same after "Overfør data".
 // 20261009 CL/SZ SD-716 transfer=1 leaves the address while the script loads, before the page's load event, so the main menu (index/main.php) never
@@ -22,6 +34,8 @@
     var busy = false;
     // Whether the user typed in the bilag's fields since the document opened; without that, the line holds only the document's transferred data
     var lineTyped = false;
+    // Set when the arrow keys open a document: the focus stays outside the fields, so the next arrow key browses on
+    var keepFocusOutside = false;
     // The typed values of an unsaved line, which openPoolFile() carries in the URL
     var LINE_PARAMS = ['sourceId', 'bilag', 'dato', 'beskrivelse', 'debet', 'kredit', 'fakturanr', 'sum', 'afd', 'projekt', 'valuta', 'momsfri', 'forfald'];
 
@@ -87,9 +101,38 @@
         return url.href;
     }
 
-    function leaveFor(href) {
+    /** Opens href in place when the pool can (SD-719), else loads it. remove: files that left the list. */
+    function leaveFor(href, remove) {
         if (typeof window.savePoolListView === 'function') window.savePoolListView();
+        if (typeof window.poolSwitch === 'function') {
+            window.poolSwitch(href, { remove: remove || [] });
+            return;
+        }
         window.location.href = href;
+    }
+
+    /** Whether the open document is the last loaded row while the list has more pages. withArchived: as in listedFiles(). */
+    function atLoadedEnd(withArchived) {
+        var files = listedFiles(withArchived);
+        var at = files.indexOf(currentPoolFile());
+        return at >= 0 && at === files.length - 1 && typeof window.poolHasMore === 'function' && window.poolHasMore();
+    }
+
+    /** The next document; when the open one is the last loaded row, the list's next page is fetched first. */
+    function nextDocument(withArchived) {
+        if (atLoadedEnd(withArchived)) {
+            return window.poolLoadMore().then(function () { return neighbour(1, withArchived); });
+        }
+        return Promise.resolve(neighbour(1, withArchived));
+    }
+
+    /** The next document, else the first in the list: after the last row the pool goes on from the top, not to "Ingen flere bilag". */
+    function followingDocument() {
+        return nextDocument().then(function (next) {
+            if (next) return next;
+            var current = currentPoolFile();
+            return listedFiles().filter(function (file) { return file !== current; })[0] || null;
+        });
     }
 
     /** After the last document: the pool without a document, showing "Ingen flere bilag i puljen". */
@@ -190,6 +233,14 @@
         }, Promise.resolve()).then(function () { return newId; });
     }
 
+    /** Resolves false when the document has left the pool (attached in another tab) or isn't in the loaded list (the attach needs its row). */
+    function stillInPool(file) {
+        if (!file) return Promise.resolve(true);
+        var listed = typeof window.poolAllRows !== 'function' || window.poolAllRows().some(function (row) { return row.filename === file; });
+        if (!listed) return Promise.resolve(false);
+        return typeof window.poolStillListed === 'function' ? window.poolStillListed(file) : Promise.resolve(true);
+    }
+
     function saveAndNext() {
         var c = cfg();
         if (busy || !c || c.readOnly) return;
@@ -199,13 +250,22 @@
         if (missing) {
             missing.focus();
             if (typeof missing.select === 'function') missing.select();
+            // A refused save carries nothing forward: the arrow keys treat this document as if nothing had been typed
+            lineTyped = false;
             return;
         }
         // Chosen before the save: the current document leaves the list when it is attached
         var file = currentPoolFile();
-        var next = neighbour(1);
+        var next = null;
         setBusy(true);
-        saveRowsInOrder(entries).then(function (newId) {
+        stillInPool(file).then(function (inPool) {
+            // Attached from another tab meanwhile, or not in the list loaded: no line is written, so none is left without its document
+            if (!inPool) throw new Error(c.texts.stale);
+            return followingDocument();
+        }).then(function (found) {
+            next = found;
+            return saveRowsInOrder(entries);
+        }).then(function (newId) {
             if (newId) {
                 // The new row's "attach here" box carried 0 until the row existed
                 var box = document.querySelector('#bilagEntry_new .targetLineCheckbox');
@@ -217,19 +277,24 @@
             }
             window.chooseMultipleBilag([file], function (error) {
                 if (error) { setBusy(false); return; }
-                leaveFor(next ? documentUrl(next, true) : doneUrl());
+                leaveFor(next ? documentUrl(next, true) : doneUrl(), [file]);
             });
         }).catch(function (error) {
             console.error(error);
             alert(error.message);
             setBusy(false);
+            // A refused save carries nothing forward: the arrow keys treat this document as if nothing had been typed
+            lineTyped = false;
         });
     }
 
     function skipDocument() {
         if (busy) return;
-        var next = neighbour(1);
-        leaveFor(next ? documentUrl(next, true) : doneUrl());
+        busy = true;
+        followingDocument().then(function (next) {
+            busy = false;
+            leaveFor(next ? documentUrl(next, true) : doneUrl());
+        });
     }
 
     window.poolSaveAndNext = saveAndNext;
@@ -282,18 +347,34 @@
 
         if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.shiftKey) {
             if (inField(target) || modalOpen() || busy) return;
+            var open = function (other) {
+                if (!other) return;
+                // Nothing typed: the other document gets a new line with its own data, as "Spring over" gives it.
+                // Carrying this document's transferred amount would put it on the other document and re-sort the list by it.
+                if (!lineTyped) {
+                    keepFocusOutside = true;
+                    leaveFor(documentUrl(other, true));
+                    return;
+                }
+                var href = documentUrl(other, false);
+                if (typeof window.openPoolFile === 'function') window.openPoolFile(href); else leaveFor(href);
+            };
+            if (e.key === 'ArrowRight' && atLoadedEnd(true)) {
+                e.preventDefault();
+                nextDocument(true).then(open);
+                return;
+            }
             var other = neighbour(e.key === 'ArrowRight' ? 1 : -1, true);
             if (!other) return;
             e.preventDefault();
-            var href = documentUrl(other, false);
-            if (typeof window.openPoolFile === 'function') window.openPoolFile(href); else leaveFor(href);
+            open(other);
         }
     });
 
     function showDone() {
         var c = cfg();
         var panel = document.getElementById('leftPanel');
-        if (!c || !panel) return;
+        if (!c || !panel || panel.querySelector('.pool-done-note')) return;
         var box = document.createElement('div');
         box.className = 'pool-done-note';
         var text = document.createElement('span');
@@ -329,6 +410,12 @@
 
     function init() {
         var params = new URLSearchParams(window.location.search);
+        busy = false;
+        lineTyped = false;
+        var keepFocus = keepFocusOutside;
+        keepFocusOutside = false;
+        var note = document.querySelector('#leftPanel .pool-done-note');
+        if (note && params.get('poolDone') !== '1') note.remove();
         if (params.get('poolDone') === '1') showDone();
         var transfer = transferAtLoad || dropTransferFromAddress();
         transferAtLoad = false;
@@ -337,7 +424,7 @@
                 if (document.getElementById('bilagEntry_new') && typeof window.transferDataFromSelectedFile === 'function') {
                     window.transferDataFromSelectedFile({ auto: true });
                 }
-                focusNewLine();
+                if (!keepFocus) focusNewLine();
             });
         }
     }
@@ -370,6 +457,9 @@
     document.addEventListener('input', function (e) {
         if (e.isTrusted && e.target instanceof Element && e.target.closest('.kassebilag-entry')) lineTyped = true;
     }, true);
+
+    // A document opened in place (SD-719) is a new start for the transfer, the focus and the note
+    document.addEventListener('poolswitch', init);
 
     // Now, before the load event: the main menu takes the page's address at load
     var transferAtLoad = dropTransferFromAddress();
