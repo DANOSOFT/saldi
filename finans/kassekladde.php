@@ -155,20 +155,20 @@
 // 20261003 CL/SZ SD-716 The paper-clip on a line without a document saves the journal first and then opens the pool, instead of "Obs - Du har ikke gemt".
 //                The pool opens for the clicked line, or for the line the save just created from the new line, so the document can't land on a duplicate line.
 //                If the save fails validation, the journal stays with its normal error.
+// 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
+// 20261003 CL/SZ SD-721 "Opret kreditor automatisk" in the gear box, per user, off by default; stored in box3 as kred_auto when on (save_kk_cols).
+//                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
+// 20261003 CL/SZ SD-722 "Udfyld modkonto automatisk" in the gear box, per user, off by default; stored in box3 as modk_auto when on.
+//                On, the document pool writes the suggested contra account into Debet instead of showing it under the field.
 // 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
 //                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
 //                and the journal then refused every save.
+// 20261006 CL/SZ SD-720 accountAutocomplete.js?v= bumped again: the invoice-number and amount searches got the same late-answer rule.
 // 20261006 CL/SZ SD-716 With SD-701 from master: the paper icon of a line with a document opens it in its own tab (openBilagTab()); without one it
 //                still saves first and opens the pool (clipSaveThenPool()).
 // 20261006 CL/SZ SD-716 (CodeRabbit) After the paper-clip save, the pool opens on the line this save inserted (kk_new_line_ids) instead of the
 //                journal's highest id, which could be a line another session added at the same time.
 // 20261007 CL/SZ SD-716 The first save of a new journal keeps its lines again: the journal is created in that request, so its lines count as staged by it.
-// 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
-// 20261006 CL/SZ SD-720 accountAutocomplete.js?v= bumped again: the invoice-number and amount searches got the same late-answer rule.
-// 20261003 CL/SZ SD-721 "Opret kreditor automatisk" in the gear box, per user, off by default; stored in box3 as kred_auto when on (save_kk_cols).
-//                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
-// 20261003 CL/SZ SD-722 "Udfyld modkonto automatisk" in the gear box, per user, off by default; stored in box3 as modk_auto when on.
-//                On, the document pool writes the suggested contra account into Debet instead of showing it under the field.
 // 20261012 CL/SZ SD-716 A pick on a lookup page (an invoice row, an account) is saved again; only a save had moved staged lines, so the
 //                lookup's GET back lost it. The lookup marks the journal in the session and only the GET coming back from it may
 //                move the lines. A later POST or a completed request clears the mark, so a refused save still never gets through.
