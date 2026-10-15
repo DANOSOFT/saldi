@@ -1,0 +1,76 @@
+/* SD-715: "Fakturanr. ... er allerede brugt på denne kreditor" (journal and document pool) */
+
+.invoice-reuse-field {
+  padding-right: 16px !important;
+  background-color: #fff3cd !important;
+  border-color: #e0a800 !important;
+}
+
+/* Journal: a warning sign inside the Faktura field; the text shows on hover and when it has focus */
+.invoice-reuse-cell {
+  position: relative;
+}
+
+.invoice-reuse-flag {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  color: #b8860b;
+  font-size: 13px;
+  line-height: 1;
+  cursor: help;
+}
+
+.invoice-reuse-flag:focus {
+  outline: 2px solid #e0a800;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.invoice-reuse-pop {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  min-width: 260px;
+  max-width: 360px;
+  padding: 6px 8px;
+  border: 1px solid #e0a800;
+  border-radius: 4px;
+  background-color: #fff3cd;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  color: #333;
+  font-size: 12px;
+  text-align: left;
+  white-space: normal;
+}
+
+.invoice-reuse-flag:hover .invoice-reuse-pop,
+.invoice-reuse-flag:focus .invoice-reuse-pop,
+.invoice-reuse-flag:focus-within .invoice-reuse-pop {
+  display: block;
+}
+
+/* Document pool: the text under the line */
+.invoice-reuse-note {
+  margin-top: 4px;
+  text-align: left;
+  padding: 4px 8px;
+  border: 1px solid #e0a800;
+  border-radius: 4px;
+  background-color: #fff3cd;
+  color: #333;
+  font-size: 12px;
+}
+
+.invoice-reuse-note:focus {
+  outline: 2px solid #e0a800;
+  outline-offset: 1px;
+}
+
+.invoice-reuse-pop a,
+.invoice-reuse-note a {
+  color: #0b4f9c;
+}

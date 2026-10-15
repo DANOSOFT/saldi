@@ -5152,6 +5152,10 @@
 5283	Der er ikke længere et bilag på denne linje.	This line no longer has a voucher.	Det er ikke lenger et bilag på denne linjen.
 5284	Åbn i nyt vindue	Open in new window	Åpne i nytt vindu
 5285	F = finanskonto, D = debitor, K = kreditor	F = finance account, D = debtor, K = creditor	F = finanskonto, D = debitor, K = kreditor
+5286	Fakturanr. {nr} er allerede brugt på denne kreditor	Invoice no. {nr} has already been used for this creditor	Fakturanr. {nr} er allerede brukt på denne kreditoren
+5287	Kladde {kladde}, bilag {bilag}	Journal {kladde}, voucher {bilag}	Kladd {kladde}, bilag {bilag}
+5288	Bogført som bilag {bilag} den {dato}	Posted as voucher {bilag} on {dato}	Bokført som bilag {bilag} den {dato}
+5289	Andet bilag i puljen: {fil}	Other document in the pool: {fil}	Annet bilag i puljen: {fil}
 5300	Kladde	Journal	Kladd
 5301	Fremdrift	Progress	Fremdrift
 5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…
@@ -5184,6 +5188,11 @@
 5329	Poster i kursiv er ikke bogført endnu. De ligger i en kladde og påvirker kontoen, når kladden bogføres.	Entries in italics are not posted yet. They are in a journal and will affect the account when the journal is posted.	Poster i kursiv er ikke bokført ennå. De ligger i en bilagsjournal og påvirker kontoen når journalen bokføres.
 5330	Ikke bogført	Not posted	Ikke bokført
 5331	Kladdelinjer, der ikke er medtaget, fordi kontoopsætningen mangler:	Journal lines left out because the account setup is missing:	Bilagslinjer som ikke er tatt med fordi kontooppsettet mangler:
+5332	Gem og næste	Save and next	Lagre og neste
+5333	Spring over	Skip	Hopp over
+5334	Obligatorisk	Required	Obligatorisk
+5335	Ingen flere bilag i puljen	No more documents in the pool	Ingen flere bilag i puljen
+5336	Tilbage til kassekladden	Back to the cash journal	Tilbake til kassakladden
 5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
 5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
 5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
