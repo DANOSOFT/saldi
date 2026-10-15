@@ -42,6 +42,7 @@
 //                  instead of always the first regardless, so a missing first file no longer hides the others.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh Auto-extract on upload follows the personal setting (was the autoExtract cookie, settings redesign 4e).
+// 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -58,6 +59,8 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
+include_once(__DIR__ . "/docsIncludes/FileReservation.php");
+include_once(__DIR__ . "/docsIncludes/docFileFunc.php");
 require_once __DIR__ . "/docsIncludes/poolUpload.php";
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
@@ -492,7 +495,7 @@ if ($linkBilag && $source == 'kassekladde') {
 		// Build the file path for preview
 		$filePath = $docFolder . '/' . $db . '/' . $r['filepath'] . '/' . $r['filename'];
 		$filePath = str_replace('//', '/', $filePath);
-		$filePathEncoded = htmlspecialchars($filePath, ENT_QUOTES);
+		$filePathEncoded = htmlspecialchars(docFileUrl($filePath, $docFolder, $db), ENT_QUOTES);
 		
 		$linkUrl = "documents.php?doLink=1&linkDocId=$docId&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
 		

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontospec.php --- rev 4.1.1 --- 2025.12.03 ---
+// --- finans/kontospec.php --- ver 5.0.0 --- 2026.09.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20150218 Tilføjet funktion lagerbev.
 // 20210211 PHR some cleanup
@@ -33,6 +33,7 @@
 // 20261005 Sawaneh WP-4.6: order and journal drill-downs return to the same account and month (raw month).
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20260929 CL/SZ SD-698: Optional returside; when set, Tilbage goes back there instead of regnskab.php (used by the kassekladde account lookup).
 
 
 $fakturanr = array();
@@ -63,6 +64,8 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.j
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
 $kontonr = if_isset($_GET, NULL, 'kontonr');
+$returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
+$backHref = htmlspecialchars($returside ? $returside : 'regnskab.php', ENT_QUOTES);
 $month = if_isset($_GET,NULL,'month');
 $bilag = if_isset($_GET,NULL,'bilag');
 // WP-4.6: the drill-downs return to this account and month; the raw month is taken before it is shifted to a
@@ -152,7 +155,7 @@ if ($menu == 'S') {
 } else {
     print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td height = \"25\" align=\"center\" valign=\"top\">";
     print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-    print "<td width=\"10%\" $top_bund><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'>" . findtekst(30, $sprog_id) . "</a></td>";
+    print "<td width=\"10%\" $top_bund><a href='$backHref' accesskey=L title='Klik for at komme tilbage til regnskab'>" . findtekst(30, $sprog_id) . "</a></td>";
     print "<td width=\"80%\" $top_bund>" . findtekst(1196, $sprog_id) . " ";
     if ($kontonr) print "$txt2131: $kontonr";
     if ($bilag) print "$txt2132: $bilag";

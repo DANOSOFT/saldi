@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/payments/lane3000.php --- lap 4.1.0 --- 2026.09.17 ---
+// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.10.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,8 @@
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token) and the login itself in the
+//                 browser console; the log endpoint now takes the tenant from the session.
 
 @session_start();
 $s_id = session_id();
@@ -144,8 +146,7 @@ function logToServer(message, level = 'INFO') {
             message: message,
             level: level,
             timestamp: new Date().toISOString(),
-            ordre_id: '<?php print $ordre_id; ?>',
-            db: '<?php print $db; ?>'
+            ordre_id: '<?php print (int)$ordre_id; ?>'
         })
     }).catch(err => console.error('Logging failed:', err));
 }
@@ -231,7 +232,8 @@ async function get_api_key(baseurl) {
         const jsondata = await res.json();
         
          // Log the response (don't wait for it to complete)
-        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
+        // Only the status is logged: the body carries the Connect@Cloud bearer token.
+        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}`, 'INFO');
         /*
         // write a put command to the settings for the terminal
         const putPromise = fetch(
@@ -257,7 +259,7 @@ async function get_api_key(baseurl) {
         }).catch((putError) => {
             logToServer(`Terminal settings update exception: ${putError.message}`, 'ERROR');
             console.error('Terminal settings PUT failed:', putError);
-        });
+        }); */
 
         if (res.status != 200) {
             // Wait for both error logging and fail function
@@ -266,7 +268,7 @@ async function get_api_key(baseurl) {
                 Promise.resolve(fail(jsondata.error))
             ]);
             return null;
-        } */
+        }
 
         // Wait for both success logging and response logging to complete
         await Promise.allSettled([

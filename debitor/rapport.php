@@ -342,11 +342,9 @@ if (isset($_POST['submit']) || $rapportart) {
 		$y = 0;
 		$tmp = NULL;
 		for ($x = 1; $x <= count($konto_id); $x++) {
-			if (isset($kontoudtog[$x])) {
-				if ($kontoudtog[$x] == 'on' && ($submit == "mail kontoudtog") || ($rykkerbelob[$x] > 0)) {
-					$tmp .= $konto_id[$x] . ";";
-					$y++;
-				}
+			if (isset($kontoudtog[$x]) && $kontoudtog[$x] == 'on' && ($submit == "mail kontoudtog") || ($rykkerbelob[$x] > 0)) {
+				$tmp .= $konto_id[$x] . ";";
+				$y++;
 			}
 		}
 		$kontoantal = $y;

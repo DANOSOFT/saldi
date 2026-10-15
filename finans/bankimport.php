@@ -47,6 +47,8 @@
 // 20260320 PHR	Removed 'This didn't work'
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
+//                instead of guessing one charset for the whole file, which turned æøå into '?'.
 
 ini_set("auto_detect_line_endings", true);
 
@@ -61,6 +63,7 @@ $permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/../includes/stdFunc/bankImportEncoding.php');
 
 global $menu;
 
@@ -213,7 +216,6 @@ while ($r = db_fetch_array($q)) {
 }
 
 $fp=fopen("$filnavn","r");
-$tegnsaet="iso";
 if ($fp) {
 	$z=0;
 	while ($linje=fgets($fp)){
@@ -230,9 +232,6 @@ if ($fp) {
 			$tmp='';
 		}
 		$z++;
-		if ($tegnsaet=='iso') { #20170914
-			if (strpos($linje,'ø') || strpos($linje,'Ø')) $tegnsaet='UTF-8';
-		}	
 	}
 	fclose($fp);
 	if (($komma>$semikolon)&& ($komma>$tabulator)) {$tmp='Komma'; $feltantal=$komma;}
@@ -246,20 +245,13 @@ if ($fp) {
 }
 
 
-$i = 0;
-$fp=fopen("$filnavn","r");
-if ($fp) {
+$line = bank_import_read_lines($filnavn, $charset);
+if ($line !== false) {
 	if ($splitter=='Komma') $splittegn=",";
 	elseif ($splitter=='Semikolon') $splittegn=";";
 	elseif ($splitter=='Tabulator') $splittegn=chr(9);
 	
 	// -> 20250829
-	while ($linje=fgets($fp)) {
-		if ($linje) {
-			$line[$i] = $linje;
-			$i++;
-		}
-	}
 /* This didn't work
 	$y = 0;
 	$newLine = array();
@@ -290,10 +282,7 @@ if ($fp) {
 		if ($linje) {
 			$y++;
 			$ny_linje[$y]='';
-			if ($tegnsaet=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			$linje=trim($linje);
-			$linje=trim($linje,"?");
-			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$anftegn=0;
 				$felt=array();
 				$z=0;
@@ -329,7 +318,6 @@ if ($fp) {
 }
 $linjeantal=$y;
 #$cols=$feltantal;
-fclose ($fp);
 #cho "$filnavn<br>";
 $fp=fopen($filnavn."2","w");
 if ($vend) {

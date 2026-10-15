@@ -61,6 +61,8 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
+//                instead of guessing one charset for the whole file, which turned æøå into '?'.
 
 ini_set("auto_detect_line_endings", true);
 
@@ -75,6 +77,7 @@ $permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/../../includes/stdFunc/bankImportEncoding.php');
 
 print "<div align=\"center\">";
 
@@ -213,7 +216,6 @@ while ($r = db_fetch_array($q)) {
 }
 
 $fp=fopen("$filnavn","r");
-$tegnsaet="iso";
 if ($fp) {
 	$z=0;
 	while ($linje=fgets($fp)){
@@ -231,9 +233,6 @@ if ($fp) {
 			$tmp='';
 		}
 		$z++;
-		if ($tegnsaet=='iso') { #20170914
-			if (strpos($linje,'ø') || strpos($linje,'Ø')) $tegnsaet='UTF-8';
-		}
 	}
 	fclose($fp);
 	if (($komma>$semikolon)&& ($komma>$tabulator)) {$tmp='Komma'; $feltantal=$komma;}
@@ -247,8 +246,8 @@ if ($fp) {
 }
 
 
-$fp=fopen("$filnavn","r");
-if ($fp) {
+$lines = bank_import_read_lines($filnavn, $charset);
+if ($lines !== false) {
 	if ($splitter=='Komma') $splittegn=",";
 	elseif ($splitter=='Semikolon') $splittegn=";";
 	elseif ($splitter=='Tabulator') $splittegn=chr(9);
@@ -256,13 +255,10 @@ if ($fp) {
 	$y=0;
 	$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
-	while ($linje=fgets($fp)) {
+	foreach ($lines as $linje) {
 		if ($linje) {
 			$y++;
-			if ($tegnsaet=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			$linje=trim($linje);
-			$linje=trim($linje,"?");
-			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$anftegn=0;
 				$felt=array();
 				$z=0;
@@ -295,7 +291,6 @@ if ($fp) {
 }
 $linjeantal=$y;
 #$cols=$feltantal;
-fclose ($fp);
 $fp=fopen($filnavn."2","w");
 if ($vend) {
  for ($y=$linjeantal;$y>=1;$y--) fwrite($fp,$ny_linje[$y]);

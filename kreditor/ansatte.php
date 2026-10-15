@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- kreditor/ansatte.php --------lap 4.1.1--- 2022.03.13 -------
+// -------- kreditor/ansatte.php --------ver 5.0.0--- 2026.10.03 -------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20220313 PHR Added ",__FILE__ . " linje " . __LINE__" to queries
 // 20260708 Sawaneh Grid Framework header + fixed "Uforudset hændelse" on save (posnr set on insert, redirect back to account)
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261001 CL/SZ SD-698: returside is URL-encoded in every link back to kreditorkort.php and to a new contact person,
+//                so a returside with its own query string (e.g. kassekladde.php?tjek=..&kladde_id=..) survives the round trip.
+// 20261003 CL/SZ SD-698: returside is sanitized like kreditorkort.php (nav_sanitize_returside), so an array no longer
+//                breaks urlencode() and a quote can't escape the hidden returside field.
 
 @session_start();
 $s_id = session_id();
@@ -44,7 +48,8 @@ include("../includes/topline_settings.php");
 
 if ($_GET) {
 	$id       = isset($_GET['id']) ? $_GET['id'] : 0;
-	$returside = isset($_GET['returside']) ? $_GET['returside'] : '';
+	$returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
+	$retursideParam = urlencode($returside);
 	$ordre_id = isset($_GET['ordre_id']) ? $_GET['ordre_id'] : '';
 	$fokus    = isset($_GET['fokus']) ? $_GET['fokus'] : '';
 	$konto_id = isset($_GET['konto_id']) ? $_GET['konto_id'] : '';
@@ -67,12 +72,13 @@ if ($_POST) {
 	$cprnr    = addslashes(trim($_POST['cprnr']));
 	$notes    = addslashes(trim($_POST['notes']));
 	$ordre_id = $_POST['ordre_id'];
-	$returside = $_POST['returside'];
+	$returside = nav_sanitize_returside(ifset($_POST, 'returside', ''));
+	$retursideParam = urlencode($returside);
 	$fokus    = $_POST['fokus'];
 
 	if ($submit == "Slet" || $delete) {
 		if ($id) db_modify("delete from ansatte where id = '$id'", __FILE__ . " linje " . __LINE__);
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
 		exit;
 	} else {
 		if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
@@ -92,7 +98,7 @@ if ($_POST) {
 			db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', {$mobile_set}mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '' where id = '$id'", __FILE__ . " linje " . __LINE__);
 		}
 		// return to the account so the new contact person is visible in the list
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
 		exit;
 	}
 }
@@ -119,9 +125,9 @@ if ($menu == 'S') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+	print "<td width=\"10%\" $top_bund><a href=kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 	print "<td width=\"80%\" $top_bund>$firmanavn - " . findtekst('1262|Ansatte', $sprog_id) . "</td>";
-	print "<td width=\"10%\" $top_bund><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id accesskey=N>" . findtekst('39|Ny', $sprog_id) . "</a><br></td>";
+	print "<td width=\"10%\" $top_bund><a href=ansatte.php?returside=$retursideParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id accesskey=N>" . findtekst('39|Ny', $sprog_id) . "</a><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
 	print "<td align = center valign = center>";

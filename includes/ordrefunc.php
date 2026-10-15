@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-07-29 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -151,6 +151,7 @@
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh sidehoved(): the order heading is also the page's last breadcrumb level (page_title, addendum §5).
 // 20261008 Sawaneh The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
+// 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -4937,9 +4938,9 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"6\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 		if (!strstr($returside, "ordre.php"))
-			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 		else
-			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
 		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=" . urlencode($returside) . "&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a></td>";
 		print "</tbody></table>";

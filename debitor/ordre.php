@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-09-21 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,6 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
 // 20240201 PBLM - Made some adjustments to EasyUBL
 // 20240303 PHR - Changed $rabat decimal precision from 3 to 5 
 // 20240416 LOE - $std_txt initialized to null
@@ -156,6 +155,12 @@
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
 // 20261008 Sawaneh The order heading has no dangling dash when there is nothing after the number (breadcrumb and page head).
+// 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
+// 20261011 MJ SST-828 The plukliste buttons now follow the order's own status instead of
+//                  $opValue ($_GET['valg']), which made them disappear entirely whenever
+//                  hurtigfakturering was on. They are shown on anything but a tilbud, so
+//                  nothing loses them, and the Send plukliste field in the button row
+//                  follows the same rule as the button beside it.
 
 @session_start();
 $s_id = session_id();
@@ -192,6 +197,7 @@ include("../includes/std_func.php");
 
 include("../includes/connect.php");
 include("../includes/online.php");
+include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -1156,7 +1162,7 @@ if ($b_submit) {
 	$levdato = trim(if_isset($_POST, NULL, 'levdato'));
 	#  $genfakt = trim(if_isset($_POST['genfakt']));
 	$fakturadato    = trim(if_isset($_POST, NULL, 'fakturadato'));
-	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = date("d-m-Y");
+	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = dkdato(default_invoice_date($id, $ordredate));
 	$cvrnr          = db_escape_string(trim(if_isset($_POST, NULL, 'cvrnr')));
 	$procenttillag  = usdecimal($procenttillag, 2);
 	$institution    = db_escape_string(trim(if_isset($_POST, NULL, 'institution')));
@@ -3231,7 +3237,7 @@ if ($b_submit == 'del_ordre') {
 ########################## FAKTURER   - SKAL VAERE PLACERET EFTER "del_ordre" ################################
 if ($b_submit == 'doInvoice' && $status < 3) {
 	if (!$fakturadate) {
-		$fakturadate = date("Y-m-d");
+		$fakturadate = default_invoice_date($id);
 		db_modify("update ordrer set fakturadate='$fakturadate' where id = '$id'", __FILE__ . " linje " . __LINE__);
 	}
 	if ($udskriv_til == "oioubl") {
@@ -3807,6 +3813,14 @@ function ordreside($id, $regnskab)
 	if ($status == 0) $tmp = "tilbud";
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
+	// 20261011 MJ SST-828 Decided from the order's own status, not from $opValue, which is
+	// $_GET['valg'] - the tab the user arrived from. With hurtigfakturering it could never be
+	// 'faktura' for an open order, so the buttons were hidden on every one of them.
+	// A plukliste belongs to anything that is not a tilbud. With hurtigfakturering there are
+	// no tilbud: ordreliste.php lists status 0 under 'ordrer' (line 531) and gives those rows
+	// the plukliste icon, so the only case left out is status 0 without hurtigfakturering.
+	// $tmp cannot serve here - the next line overwrites it with the navigation value.
+	$visPlukliste = $id && ($hurtigfakt == "on" || $status > 0);
 	$value_type = if_isset($_GET, 'ordrer', 'valg');
 	if($tmp != $value_type) $tmp = $value_type;
 	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
@@ -4222,7 +4236,7 @@ function ordreside($id, $regnskab)
 			if (!$sag_id) {
 				include("../includes/topline_settings.php");
 				// Merged conditions to avoid duplicate code for pluklisteEmail check
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud")) {
+				if ($visPlukliste) {
 					$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 					$printPopupQuery = nav_popup_query($_GET, $_POST);
 					$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=" . urlencode($returside));
@@ -4231,7 +4245,7 @@ function ordreside($id, $regnskab)
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					if ($pluklisteEmail && (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud"))) {
+					if ($pluklisteEmail) {
 						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
 						print "<input type='text' id='plukkommentar1' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
 						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar1').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
@@ -5079,7 +5093,7 @@ function ordreside($id, $regnskab)
 			print "<td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:130px\" name=\"levdato\" value=\"$levdato\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		}
 		if ($fakturadato || $status > 0) {
-			$dd = date("d-m-Y");
+			$dd = dkdato(default_invoice_date($id));
 			print "<tr><td ";
 			if ($art != 'DK') print "title=\"" . findtekst('1094|Fakturadato', $sprog_id) . "\">" . findtekst('883|Fakt. dato', $sprog_id) . "";
 			else print "title=\"" . findtekst('1470|Dato for kreditnota', $sprog_id) . "\">" . findtekst('1471|KN. dato', $sprog_id) . "";
@@ -6386,7 +6400,7 @@ function ordreside($id, $regnskab)
 				$disabled = NULL;
 				$titletext = '';
 				$tmp = "";
-				$dd = date("d-m-Y");
+				$dd = dkdato(default_invoice_date($id));
 
 				if ($art != 'DK' && !$dan_kn) {
 					if ($udskriv_til == 'email') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
@@ -6483,11 +6497,12 @@ function ordreside($id, $regnskab)
 				$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 				$printPopupQuery = nav_popup_query($_GET, $_POST);
 				$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=" . urlencode($returside));
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != 'tilbud')) {
+				if ($visPlukliste) {
 					print "<td align=\"center\"><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;'>Print plukliste</button></td>\n";
 				}
-				// Writing field: only when this is a real order (sag_id null/0) and a plukliste email is configured.
-				if ($pluklisteEmail) {
+				// Writing field: same rule as the button beside it. Until SST-828 this was gated on
+				// the mail setting alone, so it showed on invoices and tilbud where the button did not.
+				if ($visPlukliste && $pluklisteEmail) {
 					print "<td align=\"center\" style=\"white-space:nowrap;\">";
 					print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:120px;margin-right:4px;padding:0.2rem;box-sizing:border-box;vertical-align:middle;' class='inputbox'>";
 					print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;vertical-align:middle;'>Send plukliste</button>";

@@ -35,6 +35,8 @@
 // 20261005 Sawaneh WP-4.10: Tilbage (all menu designs) returns to rapport.php with the received period and accounts.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261006 CL/LH SST-838: vis_data() and bankReconcileFileLines() decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
+//                instead of guessing one charset for the whole file, which turned æøå into '?'.
 
 ini_set("auto_detect_line_endings", true);
 
@@ -49,6 +51,7 @@ $permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/../includes/stdFunc/bankImportEncoding.php');
 include("../includes/topline_settings.php");
 
 global $menu;
@@ -254,7 +257,6 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	// }
 
 	$fp = fopen("$filnavn", "r");
-	$tegnsaet = "iso";
 	if ($fp) {
 		$z = 0;
 		while ($linje = fgets($fp)) {
@@ -275,10 +277,6 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 				$tmp = '';
 			}
 			$z++;
-			if ($tegnsaet == 'iso') { #20170914
-				if (strpos($linje, 'ø') || strpos($linje, 'Ø'))
-					$tegnsaet = 'UTF-8';
-			}
 		}
 		fclose($fp);
 		if (($komma > $semikolon) && ($komma > $tabulator)) {
@@ -304,8 +302,8 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	}
 
 
-	$fp = fopen("$filnavn", "r");
-	if ($fp) {
+	$lines = bank_import_read_lines($filnavn, $charset);
+	if ($lines !== false) {
 		if ($splitter == 'Komma')
 			$splittegn = ",";
 		elseif ($splitter == 'Semikolon')
@@ -316,14 +314,11 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 		$y = 0;
 		$feltantal = 0;
 		#	for ($y=1; $y<20; $y++) {
-		while ($linje = fgets($fp)) {
+		foreach ($lines as $linje) {
 			if ($linje) {
 				$y++;
 				$ny_linje[$y] = '';
-				if ($tegnsaet == 'UTF-8') $linje = mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 				$linje = trim($linje);
-				$linje = trim($linje, "?");
-				if ($charset == 'UTF-8') $linje = mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				$anftegn = 0;
 				$felt = array();
 				$z = 0;
@@ -366,7 +361,6 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 				$ny_linje[$y] = $ny_linje[$y] . $felt[$x] . "\n";
 			}
 		}
-		fclose($fp);
 	}
 	$linjeantal = $y;
 	#$cols=$feltantal;
@@ -948,14 +942,11 @@ function bankReconcileFileLines($filnavn, $vend)
 	global $charset;
 
 	$filnavn = bankReconcilePath($filnavn);
-	$fileLines = file($filnavn, FILE_IGNORE_NEW_LINES);
+	// Same decoder as the preview (vis_data), so Afstem sees the lines the user approved.
+	$fileLines = bank_import_read_lines($filnavn, $charset);
 	if (!is_array($fileLines)) return array();
 	for ($i = 0; $i < count($fileLines); $i++) {
-		if ($charset == 'UTF-8' && !mb_check_encoding($fileLines[$i], 'UTF-8')) {
-			$fileLines[$i] = mb_convert_encoding($fileLines[$i], 'UTF-8', 'ISO-8859-1');
-		} elseif ($charset != 'UTF-8' && mb_check_encoding($fileLines[$i], 'UTF-8')) {
-			$fileLines[$i] = mb_convert_encoding($fileLines[$i], 'ISO-8859-1', 'UTF-8');
-		}
+		$fileLines[$i] = rtrim($fileLines[$i], "\r\n");
 	}
 	if ($vend) $fileLines = array_reverse($fileLines);
 	return $fileLines;

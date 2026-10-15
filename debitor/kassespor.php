@@ -56,6 +56,7 @@
 // 20260709 SZ Added Grid Framework sticky header to Kassespor report
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261006 CL/LH SST-835: Round net sales to 2 decimals before the BA division so a sub-øre remainder on an exchange order shows 0 % instead of 23 million %.
 
 ob_start();
 @session_start();
@@ -740,8 +741,10 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						} else {
 							print "<td align=right><br></td>\n";
 						}
-						$net_sales = $q_dg['total_sales'] - $q_dg['discount'];
-						if ($net_sales != 0 && $net_sales > 0) {
+						// Round to whole øre first: an exchange order can leave a sub-øre remainder
+						// (e.g. 0.00084) that is not a real net sale and would explode the percentage.
+						$net_sales = afrund($q_dg['total_sales'] - $q_dg['discount'], 2);
+						if ($net_sales > 0) {
 							$dg_percent = ($q_dg['dg'] / $net_sales) * 100;
 						} else {
 							$dg_percent = 0;
