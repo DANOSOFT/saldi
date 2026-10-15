@@ -5150,6 +5150,12 @@
 5281	Hvis du klikker OK mistes de sidste ændringer	If you click OK the latest changes will be lost	Hvis du klikker OK går de siste endringene tapt
 5282	Administrér bilag	Manage vouchers	Administrer bilag
 5283	Der er ikke længere et bilag på denne linje.	This line no longer has a voucher.	Det er ikke lenger et bilag på denne linjen.
+5284	Åbn i nyt vindue	Open in new window	Åpne i nytt vindu
+5285	F = finanskonto, D = debitor, K = kreditor	F = finance account, D = debtor, K = creditor	F = finanskonto, D = debitor, K = kreditor
+5286	Fakturanr. {nr} er allerede brugt på denne kreditor	Invoice no. {nr} has already been used for this creditor	Fakturanr. {nr} er allerede brukt på denne kreditoren
+5287	Kladde {kladde}, bilag {bilag}	Journal {kladde}, voucher {bilag}	Kladd {kladde}, bilag {bilag}
+5288	Bogført som bilag {bilag} den {dato}	Posted as voucher {bilag} on {dato}	Bokført som bilag {bilag} den {dato}
+5289	Andet bilag i puljen: {fil}	Other document in the pool: {fil}	Annet bilag i puljen: {fil}
 5300	Kladde	Journal	Kladd
 5301	Fremdrift	Progress	Fremdrift
 5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…
@@ -5177,3 +5183,25 @@
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
+5327	Kontokort med u-bogført	General ledger with unposted entries	Kontokort med ikke-bokførte
+5328	Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu	General ledger that also shows the entries from all journals that are not posted yet	Kontokort som også viser posteringene fra alle bilagsjournaler som ikke er bokført ennå
+5329	Poster i kursiv er ikke bogført endnu. De ligger i en kladde og påvirker kontoen, når kladden bogføres.	Entries in italics are not posted yet. They are in a journal and will affect the account when the journal is posted.	Poster i kursiv er ikke bokført ennå. De ligger i en bilagsjournal og påvirker kontoen når journalen bokføres.
+5330	Ikke bogført	Not posted	Ikke bokført
+5331	Kladdelinjer, der ikke er medtaget, fordi kontoopsætningen mangler:	Journal lines left out because the account setup is missing:	Bilagslinjer som ikke er tatt med fordi kontooppsettet mangler:
+5332	Gem og næste	Save and next	Lagre og neste
+5333	Spring over	Skip	Hopp over
+5334	Obligatorisk	Required	Obligatorisk
+5335	Ingen flere bilag i puljen	No more documents in the pool	Ingen flere bilag i puljen
+5336	Tilbage til kassekladden	Back to the cash journal	Tilbake til kassakladden
+5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
+5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
+5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
+5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
+5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
+5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
+5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
+5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+

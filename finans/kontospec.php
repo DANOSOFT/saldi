@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontospec.php --- rev 4.1.1 --- 2025.12.03 ---
+// --- finans/kontospec.php --- ver 5.0.0 --- 2026.09.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20150218 Tilføjet funktion lagerbev.
 // 20210211 PHR some cleanup
@@ -29,6 +29,7 @@
 // 20251203 LOE Updated the file to use grid framework
 // 20260821 CL/SZ Faktura column now links to ordre.php/pos_ordre.php via ordre_id
 // 20260826 LOE Linked to debitor/ordre.php instead of finans/ordre.php
+// 20260929 CL/SZ SD-698: Optional returside; when set, Tilbage goes back there instead of regnskab.php (used by the kassekladde account lookup).
 
 
 $fakturanr = array();
@@ -58,6 +59,8 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.j
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
 $kontonr = if_isset($_GET, NULL, 'kontonr');
+$returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
+$backHref = htmlspecialchars($returside ? $returside : 'regnskab.php', ENT_QUOTES);
 $month = if_isset($_GET,NULL,'month');
 $bilag = if_isset($_GET,NULL,'bilag');
 
@@ -115,7 +118,7 @@ if ($menu == 'T') {
     include_once '../includes/top_header.php';
     include_once '../includes/top_menu.php';
     print "<div id=\"header\">"; 
-    print "<div class=\"headerbtnLft headLink\"><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";     
+    print "<div class=\"headerbtnLft headLink\"><a href='$backHref' accesskey=L title='Klik for at komme tilbage til regnskab'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
     print "<div class=\"headerTxt\">" . findtekst(1196, $sprog_id) . " ";
     if ($kontonr) print "$txt2131: $kontonr";
     if ($bilag) print "$txt2132: $bilag";
@@ -134,7 +137,7 @@ if ($menu == 'T') {
 	print "<tr><td align='center' valign='top' height='1%'>\n";
 	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
 
-    print "<td width='10%'><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'>
+    print "<td width='10%'><a href='$backHref' accesskey=L title='Klik for at komme tilbage til regnskab'>
            <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" .$icon_back  . findtekst(30, $sprog_id) . "</button></a></td>";
 
     print "<td width='80%' align='center' style='$topStyle'>" . findtekst(1196, $sprog_id) . " ";
@@ -164,7 +167,7 @@ if ($menu == 'T') {
 } else {
     print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td height = \"25\" align=\"center\" valign=\"top\">";
     print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-    print "<td width=\"10%\" $top_bund><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'>" . findtekst(30, $sprog_id) . "</a></td>";
+    print "<td width=\"10%\" $top_bund><a href='$backHref' accesskey=L title='Klik for at komme tilbage til regnskab'>" . findtekst(30, $sprog_id) . "</a></td>";
     print "<td width=\"80%\" $top_bund>" . findtekst(1196, $sprog_id) . " ";
     if ($kontonr) print "$txt2131: $kontonr";
     if ($bilag) print "$txt2132: $bilag";
