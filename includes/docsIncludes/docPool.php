@@ -113,6 +113,8 @@
 // 20261003 CL/SZ SD-713 "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window (docWindow.php), which follows the selection.
 //                The viewer here collapses while that window is open.
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
+// 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
+//                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -5115,11 +5117,12 @@ JS;
 			if (typeof updateFixedDiv === 'function') updateFixedDiv();
 		}
 
+		// Opens the document window with 'popup=yes' only: the browser sizes and places it itself. Giving width/height/left/top
+		// misplaced it in Firefox, Chrome and Brave (mixed-scale screens, no usable screen positions in Firefox/Brave)
 		window.openDocWindow = function () {
 			if (!current) return;
-			var width = Math.round(screen.availWidth / 2);
 			var url = '../includes/docsIncludes/docWindow.php?k=' + encodeURIComponent(current.k) + '&f=' + encodeURIComponent(current.f);
-			var features = 'popup=yes,width=' + width + ',height=' + screen.availHeight + ',left=' + (screen.availWidth - width) + ',top=0';
+			var features = 'popup=yes';
 			var docWindow = window.open(url, 'saldiBilag', features);
 			if (docWindow) docWindow.focus();
 		};
