@@ -17,6 +17,7 @@
 // 20261006 CL/SZ SD-714 window.focusAccountQuietly(input) puts the cursor in a field without opening the panel (the pool's new document), and a
 //                  click into a field that already has the cursor opens the panel, as the first click would.
 // 20261005 CL/SZ SD-714 A click in a document viewer (the pool's PDF) closes the panel; the click never reached the page, so the panel stayed open.
+// 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
 (function () {
     'use strict'; 
 
@@ -643,6 +644,7 @@
                 }
             })
             .catch(function (error) {
+                if (document.activeElement !== input) return;
                 console.error('Account search error:', error);
                 closeDropdown();
             });
@@ -828,6 +830,7 @@
                 }
             })
             .catch(function (error) {
+                if (document.activeElement !== input) return;
                 console.error('Invoice search error:', error);
                 closeDropdown();
             });
@@ -1010,6 +1013,7 @@
                 renderAmountDropdown(input, results, searchValue);
             })
             .catch(function (error) {
+                if (document.activeElement !== input) return;
                 console.error('Amount search error:', error);
                 closeDropdown();
             });

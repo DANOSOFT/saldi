@@ -1,4 +1,4 @@
-// --- javascript/docPoolSplit.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/docPoolSplit.js --- ver 5.0.0 --- 2026-10-15 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-720 Created: "Fordeling" in the document pool, one invoice spread over several lines of the same bilag.
 //                "Fordeling" adds a row with the first row's bilag, date, invoice number, text and Kredit side, an empty Debet and the remaining amount.
@@ -8,6 +8,9 @@
 //                A balance other than 0,00 warns on the first Enter (focus on the last row's amount) and saves on the second, as SD-715's warning does.
 //                docPoolSaveNext.js saves the rows in the order shown and attaches the document to every row.
 //                Needs window.saldiPoolSplit (docPool.php) and the row template #poolSplitTemplate.
+// 20261015 CL/SZ SD-720 (CodeRabbit) A captured amount of 0 is the total too; only a document without a captured amount uses the first row's.
+// 20261015 CL/SZ SD-720 (CodeRabbit) A split row that is saved has no × any more: removing it from the page left its journal line behind.
+//                Such a line is deleted in the journal.
 (function () {
     'use strict';
 
@@ -52,8 +55,8 @@
     /** The amount the rows must add up to; null when there is nothing to compare with. */
     function total() {
         var c = cfg();
-        var captured = c ? parse(c.docAmount) : 0;
-        if (captured) return captured;
+        var captured = c && c.docAmount != null ? String(c.docAmount).trim() : '';
+        if (/\d/.test(captured)) return parse(captured);
         return snapshot;
     }
 
@@ -139,6 +142,8 @@
         button.textContent = '×';
         button.addEventListener('click', function (e) {
             e.preventDefault();
+            // A saved row is a journal line now: removing it here would leave that line behind (docpool.css hides the × then)
+            if (entry.dataset.savedLineId) return;
             wrapper.remove();
             refresh();
         });

@@ -191,6 +191,7 @@
 // 20261015 CL/SZ SD-719 (CodeRabbit) A reload overtaken by a newer one stops paging and leaves the scroll position to the newer one,
 //                and a switch on the same line gets the reload still running, so it shows its document after that reload.
 // 20261015 CL/SZ SD-719 (CodeRabbit) A cached XML preview (SD-718) is served through docFileUrl() like a fresh one, so it gets docFile.php's check and the "Åbn i nyt vindue" button.
+// 20261015 CL/SZ SD-720 (CodeRabbit) "Gem alle" on a split bilag ticks only the rows it created; a line that was already there keeps the box as the user left it.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -6321,11 +6322,12 @@ HTML;
                 window.location.href = url.href;
             } else {
                 // A split bilag stays on the page: reloaded as its first line, the other rows were folded away and only
-                // that line got the document. The rows are their lines now (savedLineId) and every one stays ticked for it.
+                // that line got the document. The new rows are their lines now (savedLineId) and are ticked for it; a line that was
+                // already there keeps its box as the user left it.
                 if (newSourceId) {
                     entries.forEach(function(entry, i) {
                         var box = entry.querySelector('.targetLineCheckbox');
-                        if (box && results[i] && results[i].success && results[i].sourceId) {
+                        if (box && /^new/.test(rowIds[i]) && results[i] && results[i].success && results[i].sourceId) {
                             box.value = results[i].sourceId;
                             box.checked = true;
                         }
