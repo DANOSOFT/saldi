@@ -1681,7 +1681,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$foundInDb = false;
 		require_once __DIR__ . '/poolArchive.php';
 		if ($hasTable) {
-			$qtxt = "SELECT filename FROM pool_files WHERE " . poolArchiveActiveSql() . " ORDER BY file_date DESC, updated DESC LIMIT 1";
+			$qtxt = sprintf("SELECT filename FROM pool_files WHERE %s ORDER BY file_date DESC, updated DESC LIMIT 1", poolArchiveActiveSql());
 			$latestRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			
 			if ($latestRow) {
