@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-09 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-15 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -30,6 +30,7 @@
 //                or on "Brug forslag" when Debet has a suggestion; window.poolFocusNewLine() does the same after "Overfør data".
 // 20261009 CL/SZ SD-716 transfer=1 leaves the address while the script loads, before the page's load event, so the main menu (index/main.php) never
 //                takes an address with it (F5 would transfer again, and two quick address writes made the menu reload the page over and over).
+// 20261015 CL/SZ SD-720 (CodeRabbit) A split bilag ticks only the rows this save created; a line that was already there keeps the box as the user left it.
 (function () {
     'use strict';
 
@@ -238,7 +239,7 @@
         }, Promise.resolve()).then(function () { return newIds; });
     }
 
-    /** The "attach here" boxes after saving: new rows get their line id; a split bilag ticks every row (SD-720). */
+    /** The "attach here" boxes after saving: new rows get their line id; a split bilag ticks those new rows (SD-720). */
     function markTargets(entries, newIds) {
         var split = window.poolSplit && typeof window.poolSplit.active === 'function' && window.poolSplit.active();
         entries.forEach(function (entry) {
@@ -246,7 +247,7 @@
             if (!box) return;
             var id = newIds[rowIdOf(entry)];
             if (id) box.value = id;
-            if (split && /^\d+$/.test(box.value) && box.value !== '0') box.checked = true;
+            if (split && id) box.checked = true;
         });
     }
 

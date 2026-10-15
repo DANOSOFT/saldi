@@ -953,6 +953,11 @@ body {
   font-size: 16px;
   text-decoration: none;
 }
+
+/* SD-720: a saved split row is a journal line, deleted in the journal, not here */
+.kassebilag-entry[data-saved-line-id] .pool-split-remove {
+  display: none;
+}
 /* ============================================
    DETACHED VIEWER (Åbn i nyt vindue)
    ============================================ */
