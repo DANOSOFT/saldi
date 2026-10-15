@@ -126,7 +126,6 @@
 //                Any row id starting with "new" is saved as a new line, and "Gem alle" saves the rows one after another so pos follows the order shown.
 //                chooseMultipleBilag()'s pre-save skips every new* row, not only "new": they are saved by then and would be saved twice as lines without a bilag.
 //                A new row remembers the line it was saved as in _saveRowFetch(), so "Gem" or "Gem alle" again after a refused row updates that line instead of adding a second.
-// 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -142,26 +141,28 @@
 //                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
 //                With no pool_files table yet, the full sync runs at once.
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
+// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+//                That takes it from 7.5 s to under 0.1 s with 500 documents.
+//                Inside the sync window the pool folder is only read when its mtime changed.
+//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
+//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
+// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
+//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
+//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
+// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
+//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
+//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
+//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
-// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
-// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
-//                That takes it from 7.5 s to under 0.1 s with 500 documents.
-//                Inside the sync window the pool folder is only read when its mtime changed.
-//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
-// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
-//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
-// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
-//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
-//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
-//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
-// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
-//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
-//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
-//                With no pool_files table yet, the full sync runs at once.
-//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
+// 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
 // 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
 // 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
@@ -170,7 +171,6 @@
 //                the browser would have asked for exactly that page (no stored search, more loaded rows, ticked documents or archive view) and not for a page from history.
 // 20261009 CL/SZ SD-719 On a low screen the upload box (#fixedCell) gives way to the list instead of squeezing it to nothing (docpool.css);
 //                #fixedBottom fills the cell (not the left panel's width in px), so the cell's scrollbar doesn't cut off its right edge.
-// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
 // 20261006 LOE SST-858 A bilag is deleted, renamed and inventoried by the name it actually has, so a
 //                 file stored as AArsoversigt.PDF is removed from the pulje folder too and does not
 //                 return from the next folder sync; its .info/.xml side files follow whatever their
