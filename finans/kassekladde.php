@@ -3943,7 +3943,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 ?>
 	<?php
 	// SD-716: Ctrl + arrow keys between fields; works on the table with class formnavi, also for lines added later
-	$fieldNavVersion = file_exists('../javascript/fieldNavigation.js') ? filemtime('../javascript/fieldNavigation.js') : 0;
+	$fieldNavVersion = @filemtime('../javascript/fieldNavigation.js') ?: 0;
 	?>
 	<script src="../javascript/fieldNavigation.js?v=<?php echo $fieldNavVersion; ?>"></script>
 	<?php
