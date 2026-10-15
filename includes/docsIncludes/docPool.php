@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-09 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -126,7 +126,7 @@
 //                Any row id starting with "new" is saved as a new line, and "Gem alle" saves the rows one after another so pos follows the order shown.
 //                chooseMultipleBilag()'s pre-save skips every new* row, not only "new": they are saved by then and would be saved twice as lines without a bilag.
 //                A new row remembers the line it was saved as in _saveRowFetch(), so "Gem" or "Gem alle" again after a refused row updates that line instead of adding a second.
-// 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
+// 20261003 CL/SZ SD-721 Loads kreditorFromCvr.js: a supplier that is not a kreditor is created from the CVR register, offered with "Opret kreditor", or entered in the dialog.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -142,27 +142,28 @@
 //                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
 //                With no pool_files table yet, the full sync runs at once.
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
-// 20261003 CL/SZ SD-721 Loads kreditorFromCvr.js: a supplier that is not a kreditor is created from the CVR register, offered with "Opret kreditor", or entered in the dialog.
+// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+//                That takes it from 7.5 s to under 0.1 s with 500 documents.
+//                Inside the sync window the pool folder is only read when its mtime changed.
+//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
+//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
+// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
+//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
+//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
+// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
+//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
+//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
+//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
-// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
-// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
-//                That takes it from 7.5 s to under 0.1 s with 500 documents.
-//                Inside the sync window the pool folder is only read when its mtime changed.
-//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
-// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
-//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
-// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
-//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
-//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
-//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
-// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
-//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
-//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
-//                With no pool_files table yet, the full sync runs at once.
-//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
+// 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
 // 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
 // 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
@@ -171,7 +172,6 @@
 //                the browser would have asked for exactly that page (no stored search, more loaded rows, ticked documents or archive view) and not for a page from history.
 // 20261009 CL/SZ SD-719 On a low screen the upload box (#fixedCell) gives way to the list instead of squeezing it to nothing (docpool.css);
 //                #fixedBottom fills the cell (not the left panel's width in px), so the cell's scrollbar doesn't cut off its right edge.
-// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
 // 20261006 LOE SST-858 A bilag is deleted, renamed and inventoried by the name it actually has, so a
 //                 file stored as AArsoversigt.PDF is removed from the pulje folder too and does not
 //                 return from the next folder sync; its .info/.xml side files follow whatever their
@@ -185,6 +185,14 @@
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
+// 20261015 CL/SZ SD-719 (CodeRabbit) poolParams goes into the list script as a JSON string, so a poolFile with ' or </script> can't break out of it.
+// 20261015 CL/SZ SD-719 (CodeRabbit) poolSetLineContext() reloads as many rows as were loaded (200 per request) and keeps the scroll position, and returns its promise
+//                so the in-place switch shows the open document after the reload, not before it. It holds poolLoading meanwhile, so a scroll to the end
+//                of the shorter list doesn't fetch a page that makes the reload's own pages stale.
+// 20261015 CL/SZ SD-719 (CodeRabbit) A reload overtaken by a newer one stops paging and leaves the scroll position to the newer one,
+//                and a switch on the same line gets the reload still running, so it shows its document after that reload.
+// 20261015 CL/SZ SD-719 (CodeRabbit) A cached XML preview (SD-718) is served through docFileUrl() like a fresh one, so it gets docFile.php's check and the "Åbn i nyt vindue" button.
+// 20261015 CL/SZ SD-720 (CodeRabbit) "Gem alle" on a split bilag ticks only the rows it created; a line that was already there keeps the box as the user left it.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2506,6 +2514,7 @@ $JsDato     = json_encode($dato); // kassekladde date for matching
 // needn't wait for a second round trip. The browser compares the parameters and fetches as before when they differ.
 // Not for the in-place switch (docPoolSwitch.js), which keeps its list.
 $poolListSeedJs = 'null';
+$poolParamsJs = json_encode((string)$poolParams, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 if (empty($_SERVER['HTTP_X_POOL_SWITCH'])) {
 	$seedCurrent = '';
 	foreach ((array)($_GET['poolFile'] ?? array()) as $seedFile) {
@@ -3025,7 +3034,7 @@ print <<<JS
     function poolListUrl(offset, limit, toCurrent) {
         const q = new URLSearchParams();
         q.set('dir', '{$encodedDir}');
-        q.set('poolParams', '{$poolParams}');
+        q.set('poolParams', {$poolParamsJs});
         q.set('limit', limit);
         q.set('offset', offset);
         if (currentSort && currentSort.field) {
@@ -3100,7 +3109,8 @@ print <<<JS
     function poolLoadMore(limit, toCurrent) {
         if (docData.length >= poolTotal) return Promise.resolve(false);
         if (!poolLoading) {
-            poolLoading = poolFetch({ append: true, limit: limit, toCurrent: toCurrent }).then(function(result) { poolLoading = null; return result; });
+            const loading = poolFetch({ append: true, limit: limit, toCurrent: toCurrent }).then(function(result) { if (poolLoading === loading) poolLoading = null; return result; });
+            poolLoading = loading;
         }
         return poolLoading;
     }
@@ -3157,12 +3167,36 @@ print <<<JS
     };
 
     // The journal line's amount and date changed (another line after an in-place switch): the match groups change with them
+    // As many rows as were loaded (the server gives at most 200 per request), at the same scroll position.
+    // It holds poolLoading meanwhile, so scrolling to the end of a shorter list waits for it instead of fetching a page of its own.
+    let poolContextGeneration = 0;
+    let poolContextReload = null; // the reload still running, for a switch on the same line
     window.poolSetLineContext = function(sum, dato) {
-        if (sum === totalSum && dato === targetDate) return;
+        if (sum === totalSum && dato === targetDate) return poolContextReload || Promise.resolve(false);
+        const generation = ++poolContextGeneration;
         totalSum = sum;
         targetDate = dato;
-        poolFetch({ limit: docData.length });
+        const container = document.getElementById(containerId);
+        const savedScroll = container ? container.scrollTop : 0;
+        const want = docData.length;
+        const reload = (async function() {
+            const loaded = await poolFetch({ limit: want });
+            while (loaded && generation === poolContextGeneration && docData.length < want && docData.length < poolTotal) {
+                if (!await poolFetch({ append: true, limit: Math.min(200, want - docData.length) })) break;
+            }
+            if (generation !== poolContextGeneration) return false;
+            if (container) container.scrollTop = savedScroll;
+            return loaded;
+        })().then(function(result) {
+            if (poolLoading === reload) poolLoading = null;
+            if (poolContextReload === reload) poolContextReload = null;
+            return result;
+        });
+        poolLoading = reload;
+        poolContextReload = reload;
+        return reload;
     };
+    window.poolContextPending = function() { return poolContextReload; };
 
     // After an in-place switch: the open document is marked, and loaded when it is further down than the loaded rows.
     // SD-719: renderCurrentView() rebuilds the list's innerHTML, which resets its scrollTop to 0; the scroll
@@ -5483,7 +5517,9 @@ JS;
 				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
 				$xmlCached = is_file($htmlTempFile) && filesize($htmlTempFile) > 0 && filemtime($htmlTempFile) >= filemtime($fullName);
 				if ($xmlCached) {
-					print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
+					$docWindowUrl = docFileUrl($htmlTempFile, $docFolder, $db);
+					$htmlTempUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
+					print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";
 					print "</iframe>";
 				} elseif ($easyUblApiKey) {
 					$postData = json_encode([
@@ -6291,11 +6327,12 @@ HTML;
                 window.location.href = url.href;
             } else {
                 // A split bilag stays on the page: reloaded as its first line, the other rows were folded away and only
-                // that line got the document. The rows are their lines now (savedLineId) and every one stays ticked for it.
+                // that line got the document. The new rows are their lines now (savedLineId) and are ticked for it; a line that was
+                // already there keeps its box as the user left it.
                 if (newSourceId) {
                     entries.forEach(function(entry, i) {
                         var box = entry.querySelector('.targetLineCheckbox');
-                        if (box && results[i] && results[i].success && results[i].sourceId) {
+                        if (box && /^new/.test(rowIds[i]) && results[i] && results[i].success && results[i].sourceId) {
                             box.value = results[i].sourceId;
                             box.checked = true;
                         }
