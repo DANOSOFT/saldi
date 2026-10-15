@@ -40,6 +40,11 @@
 // 20261004 CL/SZ SD-725 The line's VAT codes (debetvat, kreditvat) are saved when posted, by the journal's rules (poolVatChoose()).
 //                "u/m" (momsfri) is stored as 'on' or '', as the journal stores it, instead of 1 or 0.
 // 20261003 CL/SZ SD-722 Before the pool row is deleted, a document attached from the pool writes its correction records and keeps its snapshot (poolCaptureRecordAttach()).
+// 20261004 CL/SZ Pool account check: a posted Debet or Kredit that doesn't exist, is closed, or isn't an account number is refused before anything is saved or attached.
+//                Save answers success false with the message and the fields; attach answers 422 with the message in <pool-account-problem>, since documents.php has printed its page head by then.
+//                Such a line used to be saved (text as account 0), and the journal then refused every save until it was fixed.
+// 20261006 CL/SZ Pool account check: a posted Dato outside an open fiscal year is refused the same way (the journal's checkOpenFiscalYear()), marked on Dato.
+//                Saved anyway, the journal refused every save with "Dato (...) udenfor regnskabsår" until the line was found and fixed.
 // 20261007 CL/SZ SD-716 A company without a globalId setting (e.g. one just created) no longer gets alert('Missing global ID') printed in front
 //                of the pool's JSON answer: the save went through, but the pool showed "not valid JSON" and left the document unattached in the pool.
 //                globalId stays 1 as before; the missing setting is written to the error log.
@@ -94,7 +99,34 @@ if (preg_match('#[/\\\\]|\.\.#', (string)$db) || !isset($db) || empty(trim($db))
 $docFolder.= "/$db";
 if ($poolFile && !isset($fileName)) $fileName = $poolFile;
 
-include_once(__DIR__ . '/poolAccountInfo.php'); // SD-725: the VAT code rules
+include_once(__DIR__ . '/poolAccountInfo.php'); // SD-725: the VAT code rules; the account check
+
+if (!function_exists('insertDocAccountProblems')) {
+	/**
+	 * The posted Debet, Kredit and Dato that can't be saved on kassekladde line $sourceId (or a new line), by the journal's rules.
+	 *
+	 * @param int|string|null $sourceId kassekladde.id, empty for a new line.
+	 * @return array<int, array{field: string, text: string, message: string}>
+	 */
+	function insertDocAccountProblems($sourceId) {
+		global $regnaar, $sprog_id;
+		if (!array_key_exists('debet', $_POST) && !array_key_exists('kredit', $_POST) && !array_key_exists('dato', $_POST)) return array();
+		$line = null;
+		if ((int)$sourceId > 0) {
+			$line = db_fetch_array(db_select("select d_type, k_type from kassekladde where id = '" . (int)$sourceId . "'", __FILE__ . " linje " . __LINE__)) ?: null;
+		}
+		$problems = poolAccountProblems($_POST, $line, $regnaar, $sprog_id);
+		$dato = trim((string)ifset($_POST, 'dato'));
+		if ($dato !== '') {
+			if (!function_exists('checkOpenFiscalYear')) include_once(__DIR__ . '/../stdFunc/checkOpenFiscalYear.php');
+			if (!checkOpenFiscalYear(usdate($dato))) {
+				$text = trim(findtekst('1595|udenfor regnskabsår', $sprog_id));
+				$problems[] = array('field' => 'Dato', 'text' => $text, 'message' => trim(findtekst('635|Dato', $sprog_id)) . " $dato $text");
+			}
+		}
+		return $problems;
+	}
+}
 
 if (!function_exists('insertDocUpdateKassekladdeLine')) {
 	/**
@@ -229,6 +261,17 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 
 // Handle updateOnly action (Save button) — early return, no file handling needed
 if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
+    // An account the journal would refuse is not saved, and no new line is created for it
+    if ($source == 'kassekladde' && ($accountProblems = insertDocAccountProblems($sourceId))) {
+        $accountMessage = implode("\n", array_column($accountProblems, 'message'));
+        if (isset($_POST['ajax']) && $_POST['ajax']) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $accountMessage, 'fields' => array_map(function ($p) { return array('field' => $p['field'], 'text' => $p['text']); }, $accountProblems)]);
+            exit;
+        }
+        alert($accountMessage);
+        exit;
+    }
     // If source is kassekladde and no sourceId, create a new entry first
     if ($source == 'kassekladde' && !$sourceId) {
         if (!$kladde_id) {
@@ -316,6 +359,13 @@ if ($docFolder && $source == 'creditorOrder') {
 } elseif ($docFolder && $source == 'kassekladde') {
 	if (!$kladde_id) {
 		alert("Ingen aktiv kassekladde");
+		exit;
+	}
+	// Nothing is attached to a line with an account the journal would refuse; the pool shows the message
+	if ($accountProblems = insertDocAccountProblems($sourceId)) {
+		if (!headers_sent()) http_response_code(422);
+		// The page head documents.php printed may already be on its way, so the message is marked for the pool to find
+		echo '<pool-account-problem>' . json_encode(implode("\n", array_column($accountProblems, 'message')), JSON_HEX_TAG) . '</pool-account-problem>';
 		exit;
 	}
 	if (!$sourceId) {

@@ -5264,6 +5264,8 @@
 5396	Hop mellem linjer	Move between lines	Hopp mellom linjer
 5397	Gem og gå til næste/forrige	Save and go to next/previous	Lagre og gå til neste/forrige
 5398	Slettes	To be deleted	Slettes
+5399	er ikke et kontonummer	is not an account number	er ikke et kontonummer
+5400	er lukket og kan ikke bruges	is closed and cannot be used	er lukket og kan ikke brukes
 5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
 5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
 5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den

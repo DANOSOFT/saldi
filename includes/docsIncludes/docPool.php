@@ -195,6 +195,8 @@
 //                The archive shows the date each document will be deleted.
 // 20261004 CL/SZ SD-727 A copy of an archived document arriving in the pool folder restores the archived one (the copy is still dropped, MB-42).
 //                poolFolderSync() reports that as a change, so the open pool fetches its list again.
+// 20261004 CL/SZ Pool account check: a save refused for an account that doesn't exist marks Debet / Kredit with what is wrong (poolMarkFields(), docPoolSaveNext.js).
+//                A refused attach shows the server's message (<pool-account-problem>) instead of the general error, and nothing is attached.
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
@@ -4313,6 +4315,13 @@ print <<<JS
 
 			if (response.ok || (response.status >= 200 && response.status < 300)) {
 				return response.text().then(text => {
+					// Refused for an account the journal would refuse, also when the status couldn't be set: the message, and the user stays
+					const accountProblem = poolAccountProblemText(text);
+					if (accountProblem) {
+						alert(accountProblem);
+						if (typeof afterAttach === 'function') afterAttach(new Error(accountProblem));
+						return;
+					}
 					// Clear sessionStorage for inserted files
 					selectedFiles.forEach(file => {
 						sessionStorage.removeItem('docPool_checked_' + file);
@@ -4353,7 +4362,8 @@ print <<<JS
 			} else {
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
-					alert(response.status === 409 ? '{$poolStaleText}' : '{$txt34} (Status: ' + response.status + '). {$txt32}.');
+					// 422: an account the journal would refuse; the server's message says which
+					alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text) || '{$txt34} (Status: ' + response.status + '). {$txt32}.'));
 					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');
@@ -4368,6 +4378,13 @@ print <<<JS
 		});
 	};
 	
+	// The message insertDoc.php marks when it refuses an account (<pool-account-problem>"…"</pool-account-problem>), or ''
+	function poolAccountProblemText(text) {
+		const match = /<pool-account-problem>([\s\S]*?)<\/pool-account-problem>/.exec(text || '');
+		if (!match) return '';
+		try { return JSON.parse(match[1]); } catch (e) { return ''; }
+	}
+
 	// Save checkbox state to sessionStorage
 	window.saveCheckboxState = function() {
 		const checkboxes = document.querySelectorAll('.file-checkbox');
@@ -6343,6 +6360,8 @@ HTML;
                 // A new row is that line once saved, so saving it again ("Gem", "Gem alle" after another row failed) updates it (SD-720)
                 var savedEntry = document.getElementById('bilagEntry_' + rowId);
                 if (data && data.success && /^new/.test(String(rowId)) && data.sourceId && savedEntry) savedEntry.dataset.savedLineId = data.sourceId;
+                // An account the journal would refuse: the field is marked, as a missing one is
+                if (data && !data.success && Array.isArray(data.fields) && typeof window.poolMarkFields === 'function') window.poolMarkFields(rowId, data.fields);
                 return data;
             });
     }
