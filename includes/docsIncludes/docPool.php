@@ -2004,8 +2004,9 @@ if ($source == 'kassekladde') {
 		};
 		// "sidste 5 posteringer": the Debet panel offers the counter-accounts used with the Kredit account, and vice versa
 		$escKladdeId = (int)$escKladde;
-		$dLast = (!$readOnly && $kNo !== '') ? sidste_5_forslag_attr($kNo, $kType, 'D', 'UTF-8', $escKladdeId, $sprog_id) : '';
-		$kLast = (!$readOnly && $dNo !== '') ? sidste_5_forslag_attr($dNo, $dType, 'K', 'UTF-8', $escKladdeId, $sprog_id) : '';
+		$lastCharset = (isset($GLOBALS['db_encode']) && $GLOBALS['db_encode'] == 'UTF8') ? 'UTF-8' : 'ISO-8859-1';
+		$dLast = (!$readOnly && $kNo !== '') ? sidste_5_forslag_attr($kNo, $kType, 'D', $lastCharset, $escKladdeId, $sprog_id) : '';
+		$kLast = (!$readOnly && $dNo !== '') ? sidste_5_forslag_attr($dNo, $dType, 'K', $lastCharset, $escKladdeId, $sprog_id) : '';
 		$accountCell('Debet', '1000|Debet', $dType, $dNo, array('d_ty', 'debe'), $dLast);
 		$accountCell('Kredit', '1001|Kredit', $kType, $kNo, array('k_ty', 'kred'), $kLast);
 		print "<div class='topbar-field'>" . $lbl(findtekst('934|Beløb', $sprog_id).':') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
