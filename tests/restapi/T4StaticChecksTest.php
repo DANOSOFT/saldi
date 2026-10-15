@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261001 CDX/LH Created.
+// 20261015 CL/LH The app's inventory/status check moved to the app repo (Saldi-Mobile __tests__/config/inventoryMutation.test.ts).
 
 use PHPUnit\Framework\TestCase;
 
@@ -111,17 +112,6 @@ final class T4StaticChecksTest extends TestCase
                 elseif ($inside && is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING) {
                     $this->assertDoesNotMatchRegularExpression('~(?:lager/optalling|sager/loen|kreditor/modtag)\.php$~',trim($token[1],"'\""),$file->getPathname());
                 }
-            }
-        }
-    }
-
-    public function testAppCannotUseDeprecatedDirectInventoryMutation(): void
-    {
-        foreach (['mobile/src','mobile/app'] as $directory) {
-            $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(self::ROOT.'/'.$directory,FilesystemIterator::SKIP_DOTS));
-            foreach ($iterator as $file) {
-                if (!in_array($file->getExtension(),['ts','tsx','js','jsx'],true)) { continue; }
-                $this->assertStringNotContainsString('inventory/status',file_get_contents($file->getPathname()),$file->getPathname());
             }
         }
     }
