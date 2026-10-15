@@ -12,12 +12,14 @@
 // 20261007 CL/SZ SD-719 The page is asked for with X-Pool-Switch, so it doesn't build the first list page this switch doesn't use.
 // 20261009 CL/SZ SD-719 Inside the main menu (index/main.php) the menu's address (#...) follows the switch too, so F5 opens the document that is shown, not the first one.
 // 20261015 CL/SZ SD-719 (CodeRabbit) The open document is shown once the list for the new line has reloaded, so the reload can't drop rows or reset the scroll after it.
+// 20261015 CL/SZ SD-719 (CodeRabbit) Only for the latest switch: a reload that finishes after a newer switch leaves that switch's list alone.
 (function () {
     'use strict';
 
     var REGIONS = ['kassebilagTopBar', 'rightPanel'];
     var inFlight = null;
     var heightHold = null;
+    var switchGeneration = 0; // inFlight is cleared when a switch ends; this tells a later reload that a newer switch came
 
     /**
      * Keeps the bilag area at its height while the new document's notes arrive (suggestion, "Fundet via", invoice warning,
@@ -88,6 +90,7 @@
         if (inFlight) inFlight.abort();
         var controller = new AbortController();
         inFlight = controller;
+        var switchId = ++switchGeneration;
         document.body.classList.add('pool-switching');
 
         // X-Pool-Switch: the page leaves out the first list page it sends with a normal load (SD-719), the list stays
@@ -137,9 +140,12 @@
                     window.poolRemoveFiles(options.remove);
                 }
                 var context = lineContext(html);
+                // A switch that keeps the line context still waits for a reload an earlier switch started
                 var contextReload = (context && !options.keepLineContext && typeof window.poolSetLineContext === 'function')
-                    ? window.poolSetLineContext(context.sum, context.dato) : null;
+                    ? window.poolSetLineContext(context.sum, context.dato)
+                    : (typeof window.poolContextPending === 'function' ? window.poolContextPending() : null);
                 Promise.resolve(contextReload).then(function () {
+                    if (switchId !== switchGeneration) return;
                     if (typeof window.poolShowCurrent === 'function') window.poolShowCurrent();
                 });
                 document.dispatchEvent(new CustomEvent('poolswitch', { detail: { href: href } }));

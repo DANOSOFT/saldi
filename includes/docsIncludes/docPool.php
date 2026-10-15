@@ -182,6 +182,8 @@
 // 20261015 CL/SZ SD-719 (CodeRabbit) poolSetLineContext() reloads as many rows as were loaded (200 per request) and keeps the scroll position, and returns its promise
 //                so the in-place switch shows the open document after the reload, not before it. It holds poolLoading meanwhile, so a scroll to the end
 //                of the shorter list doesn't fetch a page that makes the reload's own pages stale.
+// 20261015 CL/SZ SD-719 (CodeRabbit) A reload overtaken by a newer one stops paging and leaves the scroll position to the newer one,
+//                and a switch on the same line gets the reload still running, so it shows its document after that reload.
 // 20261015 CL/SZ SD-719 (CodeRabbit) A cached XML preview (SD-718) is served through docFileUrl() like a fresh one, so it gets docFile.php's check and the "Åbn i nyt vindue" button.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
@@ -3124,8 +3126,11 @@ print <<<JS
     // The journal line's amount and date changed (another line after an in-place switch): the match groups change with them
     // As many rows as were loaded (the server gives at most 200 per request), at the same scroll position.
     // It holds poolLoading meanwhile, so scrolling to the end of a shorter list waits for it instead of fetching a page of its own.
+    let poolContextGeneration = 0;
+    let poolContextReload = null; // the reload still running, for a switch on the same line
     window.poolSetLineContext = function(sum, dato) {
-        if (sum === totalSum && dato === targetDate) return Promise.resolve(false);
+        if (sum === totalSum && dato === targetDate) return poolContextReload || Promise.resolve(false);
+        const generation = ++poolContextGeneration;
         totalSum = sum;
         targetDate = dato;
         const container = document.getElementById(containerId);
@@ -3133,15 +3138,22 @@ print <<<JS
         const want = docData.length;
         const reload = (async function() {
             const loaded = await poolFetch({ limit: want });
-            while (loaded && docData.length < want && docData.length < poolTotal) {
+            while (loaded && generation === poolContextGeneration && docData.length < want && docData.length < poolTotal) {
                 if (!await poolFetch({ append: true, limit: Math.min(200, want - docData.length) })) break;
             }
+            if (generation !== poolContextGeneration) return false;
             if (container) container.scrollTop = savedScroll;
             return loaded;
-        })().then(function(result) { if (poolLoading === reload) poolLoading = null; return result; });
+        })().then(function(result) {
+            if (poolLoading === reload) poolLoading = null;
+            if (poolContextReload === reload) poolContextReload = null;
+            return result;
+        });
         poolLoading = reload;
+        poolContextReload = reload;
         return reload;
     };
+    window.poolContextPending = function() { return poolContextReload; };
 
     // After an in-place switch: the open document is marked, and loaded when it is further down than the loaded rows.
     // SD-719: renderCurrentView() rebuilds the list's innerHTML, which resets its scrollTop to 0; the scroll
