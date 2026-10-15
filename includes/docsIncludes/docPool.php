@@ -170,6 +170,7 @@
 // 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
 // 20261007 CL/SZ SD-719 The first page of the list comes with the page (poolListData()), so the list shows without a second request; it is used only when
 //                the browser would have asked for exactly that page (no stored search, more loaded rows, ticked documents or archive view) and not for a page from history.
+// 20261006 CL/SZ SD-722 After "Overfør data" (OK or Annuller) the cursor is back in the line (window.poolFocusNewLine()), so Enter takes the suggestion or saves.
 // 20261009 CL/SZ SD-719 On a low screen the upload box (#fixedCell) gives way to the list instead of squeezing it to nothing (docpool.css);
 //                #fixedBottom fills the cell (not the left panel's width in px), so the cell's scrollbar doesn't cut off its right edge.
 // 20261006 LOE SST-858 A bilag is deleted, renamed and inventoried by the name it actually has, so a
@@ -182,6 +183,8 @@
 //                 the .info written beside a pdf follows it.
 // 20261003 CL/SZ SD-713 "Åbn i nyt vindue" opens the document alone in the shared 'saldiBilag' window (docWindow.php), which follows the selection.
 //                The viewer here collapses while that window is open.
+// 20261003 CL/SZ SD-722 Loads poolCapture.js: "Aflæst" on the fields "Overfør data" fills with what the extraction read, the contra account suggested under Debet, "×" to reject, and "Rapportér fejl i aflæsning".
+//                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
@@ -201,6 +204,7 @@ require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/docFileFunc.php");
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 include_once(__DIR__ . "/../kreditorFromCvr.php");
+include_once(__DIR__ . "/poolCapture.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
 /**
@@ -551,6 +555,9 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 			content_sha256 char(64),
 			archived timestamp,
 			archived_by integer,
+			capture_raw text,
+			capture_values text,
+			captured timestamp,
 			PRIMARY KEY (id),
 			UNIQUE(filename)
 		)";
@@ -1640,6 +1647,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								content_sha256 char(64),
 								archived timestamp,
 								archived_by integer,
+								capture_raw text,
+								capture_values text,
+								captured timestamp,
 								PRIMARY KEY (id),
 								UNIQUE(filename)
 							)";
@@ -1943,6 +1953,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	// SD-721: kreditor from the CVR register when the supplier is not a kreditor
 	$v15 = file_exists("../javascript/kreditorFromCvr.js") ? filemtime("../javascript/kreditorFromCvr.js") : 0;
 	print kreditorCvrClientScript($sprog_id, (string)$v15);
+	// SD-722: "Aflæst", the contra account suggestion and "Rapportér fejl i aflæsning"
+	$v16 = file_exists("../javascript/poolCapture.js") ? filemtime("../javascript/poolCapture.js") : 0;
+	print "<script src=\"../javascript/poolCapture.js?v=$v16\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -2245,6 +2258,21 @@ if ($source == 'kassekladde') {
 			'remove'    => findtekst('5351|Fjern linjen', $sprog_id),
 			'notBalanced' => findtekst('5350|Bilaget går ikke op: rest', $sprog_id),
 		),
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
+
+	// SD-722: what the extraction read for this document, the suggestion endpoint and "Rapportér fejl i aflæsning" (poolCapture.js)
+	$captureState = poolCaptureClientState((string)$poolFile);
+	$captureReport = poolCaptureReady() ? poolCaptureReportSettings() : array('enabled' => false);
+	print "<script>window.saldiPoolCapture = " . json_encode(array(
+		'poolFile'      => (string)$poolFile,
+		'kladdeId'      => (int)$escKladde,
+		'readOnly'      => (bool)$readOnly,
+		'fields'        => $captureState['fields'],
+		'vendorMatch'   => $captureState['vendorMatch'],
+		'reportEnabled' => (bool)$captureReport['enabled'] && (string)$poolFile !== '',
+		'endpoint'      => 'docsIncludes/poolCaptureReport.php',
+		'suggestUrl'    => '../finans/kassekladde_includes/contraSuggestionLookup.php',
+		'texts'         => poolCaptureClientTexts($sprog_id),
 	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
 
 	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
@@ -6523,17 +6551,19 @@ HTML;
 					const rowId = entry.id.replace('bilagEntry_', '');
 					const pfx   = 'row_' + rowId + '_';
 
-					function setField(id, value) {
+					// SD-722: a field filled from the document is marked "Aflæst" (poolCapture.js) when its value is what the extraction read
+					function setField(id, value, captureField) {
 						const el = document.getElementById(id);
 						if (el && value && !(onlyEmpty && el.value.trim() !== '')) {
 							el.value = value;
 							el.dispatchEvent(new Event('change', { bubbles: true }));
+							if (captureField && window.poolCapture) window.poolCapture.mark(el, captureField, sourceData.filename);
 						}
 					}
 
-					if (transferAmount)      setField(pfx + 'Amount',      transferAmount);
-					if (transferDate)        setField(pfx + 'Dato',        transferDate);
-					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
+					if (transferAmount)      setField(pfx + 'Amount',      transferAmount, 'amount');
+					if (transferDate)        setField(pfx + 'Dato',        transferDate, 'date');
+					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice, 'invoiceNumber');
 					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
 					if (transferKredit) {
 						// A Kredit the user typed is never overwritten by a suggestion.
@@ -6541,7 +6571,7 @@ HTML;
 						if (kreditEl && kreditEl.value.trim() !== '' && kreditEl.value.trim() !== transferKredit) {
 							kreditKept++;
 						} else if (kreditEl) {
-							setField(pfx + 'Kredit', transferKredit);
+							setField(pfx + 'Kredit', transferKredit, 'kreditor');
 							kreditEl.title = vendorTxt.forslag + (suggestion.firmanavn ? ': ' + suggestion.firmanavn : '');
 							kreditEl.style.boxShadow = 'inset 0 0 0 2px #17a2b8';
 							kreditEl.addEventListener('input', function() { kreditEl.style.boxShadow = ''; kreditEl.title = ''; }, { once: true });
@@ -6598,6 +6628,7 @@ HTML;
 			// Cancel
 			document.getElementById('transferCancelBtn').addEventListener('click', function() {
 				overlay.remove();
+				if (typeof window.poolFocusNewLine === 'function') window.poolFocusNewLine();
 			});
 
 			// OK — populate fields
@@ -6614,6 +6645,8 @@ HTML;
 				}
 				overlay.remove();
 				applyTransfer(transferKredit, false);
+				// The cursor back in the line, where Enter takes the suggestion or saves (SD-722); the popup took it with it
+				if (typeof window.poolFocusNewLine === 'function') setTimeout(window.poolFocusNewLine, 0);
 
 				// Visual feedback on the button
 				const btn = document.getElementById('transferDataBtn');
