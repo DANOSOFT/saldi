@@ -89,6 +89,8 @@
 //                  writes while they build, and rebuild one left INVALID by an interrupted build.
 // 20261003 CL/SZ SST-818: the kassekladde/documents/adresser indexes are built CONCURRENTLY (PostgreSQL) or with
 //                  LOCK=NONE (MySQL), so the one-time build at login does not block writes; an INVALID one is rebuilt.
+// 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
+// 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
 // 20261006 CL/LH SST-850: hash a clear-text rentalsettings.pass once (idempotent, table-guarded).
