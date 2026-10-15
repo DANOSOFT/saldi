@@ -1727,7 +1727,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$v4 = @filemtime("../css/datepickerDa.css") ?: 0;
 	$v5 = @filemtime("../javascript/accountAutocomplete.js") ?: 0;
 	$v6 = @filemtime("../javascript/datepickerDa.js") ?: 0;
-	$v7 = file_exists("../javascript/docPoolAccounts.js") ? filemtime("../javascript/docPoolAccounts.js") : 0;
+	$v7 = @filemtime("../javascript/docPoolAccounts.js") ?: 0;
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css?v=$v1\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css?v=$v2\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css?v=$v3\">\n";
