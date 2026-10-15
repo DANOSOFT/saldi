@@ -146,6 +146,7 @@
 //                  Close on a journal opened with returside=kladdeliste.php (Ny) went to includes/kladdeliste.php (Not Found).
 // 20261013 CL/SZ SD-730 The Bemærkning field shrinks (up to 750px) so the header row fits a 1280px screen.
 //                  The "Genveje til Kassekladden" help link was pushed out of view (already on master; the new cells made it worse).
+// 20261006 CL/SZ SD-714 accountAutocomplete.js?v= bumped: a click into a field that already has the cursor opens the lookup panel.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -565,7 +566,7 @@ print "<script>
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.8" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.13" defer></script>';
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
