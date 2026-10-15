@@ -158,3 +158,7 @@ html.onb-page, html.onb-page body { margin: 0; height: 100%; background: transpa
 	.onb-rail { display: none; }
 	.onb .g2, .onb .cards, .onb-card, .onb-grid, .onb .userrow { grid-template-columns: 1fr; }
 }
+/* 20261015 Sawaneh Busy state while the test invoice is made (spec §6.4): spinner in the button, the footer locked. */
+.onb-modal button.busy { opacity: .75; cursor: progress; display: inline-flex; align-items: center; gap: 8px; }
+.onb-spin { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: onb-spin .8s linear infinite; flex: none; }
+@keyframes onb-spin { to { transform: rotate(360deg); } }

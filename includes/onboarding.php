@@ -519,7 +519,7 @@ function onb_render_card(int $userId, int $sprogId): void
 		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 	}
 
-	print "<link rel='stylesheet' href='../css/onboarding.css?v=1'>";
+	print "<link rel='stylesheet' href='../css/onboarding.css?v=2'>";
 	print "<div class='onb-card' style='--brand:#" . $h(onb_colour_get($userId)) . "'>";
 	print "<div class='onb-card-hero'><div><h3>" . $h($state === 'completed' ? $tx('6775|Opsætning færdig') : $tx('6748|Kom godt i gang')) . "</h3>";
 	if (!$canRun) {

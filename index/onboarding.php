@@ -26,6 +26,7 @@
 //                  test invoice printed from a rolled-back order.
 // 20261008 Sawaneh Step 3 VAT period values month|quarter|halfyear, as vat.period in G2.2 (settings decision 19).
 // 20261008 Sawaneh Spec 2026-10-07 step 6 / §7a: Sally takes over - the import note is replaced by her message, the first
+// 20261015 Sawaneh Send en testfaktura shows a spinner and locks the footer while the PDF is made. Text 7098.
 //                  Gå til Saldi (once per company, onboarding handover_done) opens SALDI Assist with the hand-over context.
 
 @session_start();
@@ -384,7 +385,8 @@ ob_end_clean();
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?php print $h($tx('6748|Kom godt i gang')); ?></title>
-<link rel="stylesheet" href="../css/onboarding.css?v=1">
+<link rel="stylesheet" href="../css/onboarding.css?v=2">
+<script>function onbBusy(b){ var f = b.form; setTimeout(function(){ f.querySelectorAll('button').forEach(function(x){ x.disabled = true; }); b.classList.add('busy'); b.innerHTML = "<span class='onb-spin'></span>" + b.dataset.busy; }, 0); }</script>
 <script src="../javascript/jquery-1.8.0.min.js"></script>
 </head>
 <body>
@@ -670,7 +672,7 @@ if ($step === 'welcome') {
 		. "<button type='submit' class='pri'>" . $h($tx('6703|Kom i gang')) . " &rarr;</button>";
 } elseif ($step === 'done') {
 	print "<button type='button' class='ghost' onclick=\"location.href='onboarding.php?step=" . $h($nb[0]) . "'\">&larr; " . $h($tx('6704|Tilbage')) . "</button><span class='sp'></span>"
-		. "<button type='submit' formnovalidate onclick=\"document.getElementById('onbAction').value='testinvoice'\">" . $h($tx('6819|Send en testfaktura til mig')) . "</button>"
+		. "<button type='submit' formnovalidate id='onbTestInvoice' data-busy=\"" . $h($tx('7098|Laver testfaktura …')) . "\" onclick=\"document.getElementById('onbAction').value='testinvoice'; onbBusy(this);\">" . $h($tx('6819|Send en testfaktura til mig')) . "</button>"
 		. "<button type='submit' class='pri' onclick=\"document.getElementById('onbAction').value='next'\">" . $h($tx('6820|Gå til Saldi')) . " &rarr;</button>";
 } else {
 	$back = $nb[0] !== '' && $nb[0] !== 'welcome' ? "onclick=\"location.href='onboarding.php?step=" . $h($nb[0]) . "'\"" : 'disabled';
