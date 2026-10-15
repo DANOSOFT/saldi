@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-09 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -184,6 +184,13 @@
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
+// 20261015 CL/SZ SD-719 (CodeRabbit) poolParams goes into the list script as a JSON string, so a poolFile with ' or </script> can't break out of it.
+// 20261015 CL/SZ SD-719 (CodeRabbit) poolSetLineContext() reloads as many rows as were loaded (200 per request) and keeps the scroll position, and returns its promise
+//                so the in-place switch shows the open document after the reload, not before it. It holds poolLoading meanwhile, so a scroll to the end
+//                of the shorter list doesn't fetch a page that makes the reload's own pages stale.
+// 20261015 CL/SZ SD-719 (CodeRabbit) A reload overtaken by a newer one stops paging and leaves the scroll position to the newer one,
+//                and a switch on the same line gets the reload still running, so it shows its document after that reload.
+// 20261015 CL/SZ SD-719 (CodeRabbit) A cached XML preview (SD-718) is served through docFileUrl() like a fresh one, so it gets docFile.php's check and the "Åbn i nyt vindue" button.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2501,6 +2508,7 @@ $JsDato     = json_encode($dato); // kassekladde date for matching
 // needn't wait for a second round trip. The browser compares the parameters and fetches as before when they differ.
 // Not for the in-place switch (docPoolSwitch.js), which keeps its list.
 $poolListSeedJs = 'null';
+$poolParamsJs = json_encode((string)$poolParams, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 if (empty($_SERVER['HTTP_X_POOL_SWITCH'])) {
 	$seedCurrent = '';
 	foreach ((array)($_GET['poolFile'] ?? array()) as $seedFile) {
@@ -3020,7 +3028,7 @@ print <<<JS
     function poolListUrl(offset, limit, toCurrent) {
         const q = new URLSearchParams();
         q.set('dir', '{$encodedDir}');
-        q.set('poolParams', '{$poolParams}');
+        q.set('poolParams', {$poolParamsJs});
         q.set('limit', limit);
         q.set('offset', offset);
         if (currentSort && currentSort.field) {
@@ -3095,7 +3103,8 @@ print <<<JS
     function poolLoadMore(limit, toCurrent) {
         if (docData.length >= poolTotal) return Promise.resolve(false);
         if (!poolLoading) {
-            poolLoading = poolFetch({ append: true, limit: limit, toCurrent: toCurrent }).then(function(result) { poolLoading = null; return result; });
+            const loading = poolFetch({ append: true, limit: limit, toCurrent: toCurrent }).then(function(result) { if (poolLoading === loading) poolLoading = null; return result; });
+            poolLoading = loading;
         }
         return poolLoading;
     }
@@ -3152,12 +3161,36 @@ print <<<JS
     };
 
     // The journal line's amount and date changed (another line after an in-place switch): the match groups change with them
+    // As many rows as were loaded (the server gives at most 200 per request), at the same scroll position.
+    // It holds poolLoading meanwhile, so scrolling to the end of a shorter list waits for it instead of fetching a page of its own.
+    let poolContextGeneration = 0;
+    let poolContextReload = null; // the reload still running, for a switch on the same line
     window.poolSetLineContext = function(sum, dato) {
-        if (sum === totalSum && dato === targetDate) return;
+        if (sum === totalSum && dato === targetDate) return poolContextReload || Promise.resolve(false);
+        const generation = ++poolContextGeneration;
         totalSum = sum;
         targetDate = dato;
-        poolFetch({ limit: docData.length });
+        const container = document.getElementById(containerId);
+        const savedScroll = container ? container.scrollTop : 0;
+        const want = docData.length;
+        const reload = (async function() {
+            const loaded = await poolFetch({ limit: want });
+            while (loaded && generation === poolContextGeneration && docData.length < want && docData.length < poolTotal) {
+                if (!await poolFetch({ append: true, limit: Math.min(200, want - docData.length) })) break;
+            }
+            if (generation !== poolContextGeneration) return false;
+            if (container) container.scrollTop = savedScroll;
+            return loaded;
+        })().then(function(result) {
+            if (poolLoading === reload) poolLoading = null;
+            if (poolContextReload === reload) poolContextReload = null;
+            return result;
+        });
+        poolLoading = reload;
+        poolContextReload = reload;
+        return reload;
     };
+    window.poolContextPending = function() { return poolContextReload; };
 
     // After an in-place switch: the open document is marked, and loaded when it is further down than the loaded rows.
     // SD-719: renderCurrentView() rebuilds the list's innerHTML, which resets its scrollTop to 0; the scroll
@@ -5478,7 +5511,9 @@ JS;
 				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
 				$xmlCached = is_file($htmlTempFile) && filesize($htmlTempFile) > 0 && filemtime($htmlTempFile) >= filemtime($fullName);
 				if ($xmlCached) {
-					print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
+					$docWindowUrl = docFileUrl($htmlTempFile, $docFolder, $db);
+					$htmlTempUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
+					print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";
 					print "</iframe>";
 				} elseif ($easyUblApiKey) {
 					$postData = json_encode([
