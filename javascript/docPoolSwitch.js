@@ -1,4 +1,4 @@
-// --- javascript/docPoolSwitch.js --- ver 5.0.0 --- 2026-10-09 ---
+// --- javascript/docPoolSwitch.js --- ver 5.0.0 --- 2026-10-15 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-719 Created: switch document in the pool without reloading the page.
 //                The page for the new document is fetched and only the entry fields (#kassebilagTopBar) and the viewer (#rightPanel) are replaced.
@@ -11,6 +11,7 @@
 // 20261006 CL/SZ SD-719 The bilag area keeps its height for 1.5 s after the switch while the new document's notes arrive, so the list moves at most once.
 // 20261007 CL/SZ SD-719 The page is asked for with X-Pool-Switch, so it doesn't build the first list page this switch doesn't use.
 // 20261009 CL/SZ SD-719 Inside the main menu (index/main.php) the menu's address (#...) follows the switch too, so F5 opens the document that is shown, not the first one.
+// 20261015 CL/SZ SD-719 (CodeRabbit) The open document is shown once the list for the new line has reloaded, so the reload can't drop rows or reset the scroll after it.
 (function () {
     'use strict';
 
@@ -136,8 +137,11 @@
                     window.poolRemoveFiles(options.remove);
                 }
                 var context = lineContext(html);
-                if (context && !options.keepLineContext && typeof window.poolSetLineContext === 'function') window.poolSetLineContext(context.sum, context.dato);
-                if (typeof window.poolShowCurrent === 'function') window.poolShowCurrent();
+                var contextReload = (context && !options.keepLineContext && typeof window.poolSetLineContext === 'function')
+                    ? window.poolSetLineContext(context.sum, context.dato) : null;
+                Promise.resolve(contextReload).then(function () {
+                    if (typeof window.poolShowCurrent === 'function') window.poolShowCurrent();
+                });
                 document.dispatchEvent(new CustomEvent('poolswitch', { detail: { href: href } }));
                 // The menu frame (index/main.php) only updates its address on a page load, and this switch doesn't load one.
                 // Once, after the poolswitch handlers: they may change the address again (transfer=1 is removed), and two quick writes would make the menu reload the frame.
