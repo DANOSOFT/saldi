@@ -119,6 +119,23 @@
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+//                That takes it from 7.5 s to under 0.1 s with 500 documents.
+//                Inside the sync window the pool folder is only read when its mtime changed.
+//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
+//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
+//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
+//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
+//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
+// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
+//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
+//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
+// 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
+// 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
 // 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
 // 20261006 LOE SST-858 A bilag is deleted, renamed and inventoried by the name it actually has, so a
 //                 file stored as AArsoversigt.PDF is removed from the pulje folder too and does not
@@ -526,11 +543,15 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 		}
 	}
 	
+	// Get all PDF and XML files from the pulje directory. The mtime is taken first: a file added while
+	// the folder is read then changes the mtime again, so the next load reads the folder once more.
+	$observedMtime = poolFolderMtime($puljePath);
+	$scanStart = time();
+
 	if (poolContentHashEnsureSchema()) {
 		poolUploadBackfillHashes($puljePath);
 	}
 
-	// Get all PDF and XML files from the pulje directory
 	$pdfFiles = [];
 	$files = scandir($puljePath);
 	// scandir() returns false on a read failure (permission issue, a disconnected
@@ -577,6 +598,9 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 	db_modify("DELETE FROM pool_files WHERE ($onDiskClause) AND $recentGuard", __FILE__ . " line " . __LINE__);
 
 	if (empty($pdfFiles)) {
+		// A successful scan of an empty folder: recorded, so the next full sync waits its 10 minutes (CodeRabbit on #719)
+		update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
+		poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 		return;
 	}
 
@@ -666,6 +690,48 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 		}
 	}
 	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
+	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
+}
+
+/**
+ * The pool folder's modification time, read fresh from disk (SD-718).
+ *
+ * @param string $puljePath The tenant's pool folder.
+ * @return int Unix time, or 0 when the folder doesn't exist or can't be read.
+ */
+function poolFolderMtime($puljePath) {
+	clearstatcache(true, $puljePath);
+	if (!is_dir($puljePath)) {
+		return 0;
+	}
+	$mtime = filemtime($puljePath);
+	return $mtime === false ? 0 : (int)$mtime;
+}
+
+/**
+ * The pool folder's modification time, as stored after the last look at its contents (SD-718).
+ * Adding or removing a file changes a folder's mtime, so comparing it is one stat() instead of listing the folder.
+ * A time in the current second is never stored: a file added later in that same second would not change it.
+ *
+ * @param string   $puljePath The tenant's pool folder.
+ * @param bool     $store     Store $mtime as seen, once the folder was read.
+ * @param int|null $mtime     The mtime taken before the folder was read; null reads it now.
+ * @param int|null $scanStart When the folder listing started; null is now. A file added after the listing in the
+ *                            same second as $mtime leaves the mtime unchanged, so $mtime is only stored when it is
+ *                            older than the start of the listing, however long the listing took.
+ * @return bool True when the folder changed since the stored time (or nothing is stored yet).
+ */
+function poolFolderChanged($puljePath, $store = false, $mtime = null, $scanStart = null) {
+	if ($mtime === null) {
+		$mtime = poolFolderMtime($puljePath);
+	}
+	if ($store) {
+		$scanStart = $scanStart === null ? time() : (int)$scanStart;
+		$seen = ($mtime && $mtime < $scanStart - 1) ? $mtime : 0;
+		update_settings_value("pool_dir_mtime", "docs", $seen, "Pool folder mtime when its files were last read");
+		return false;
+	}
+	return !$mtime || (int)get_settings_value("pool_dir_mtime", "docs", 0) !== (int)$mtime;
 }
 
 function checkIfAllPoolFilesAreInDatabase() {
@@ -692,13 +758,20 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 	}
 	global $db, $docFolder;
 	$puljePath = "$docFolder/$db/pulje";
+	// SD-718: inside the sync window, only read the folder when something was added or removed
+	$observedMtime = poolFolderMtime($puljePath);
+	if (!poolFolderChanged($puljePath, false, $observedMtime)) {
+		return;
+	}
+	$scanStart = time();
 	# 20261006 SST-858 glob("*.pdf") matches on a case sensitive file system, so a bilag stored as
 	# AArsoversigt.PDF was never seen here - the one function whose job is to notice a file with no
 	# row. The folder is listed and the extension classified the way syncPuljeFilesToDatabase() does.
 	$files = array();
 	$dirFiles = scandir($puljePath);
+	// A failed listing is not an empty folder: nothing is stored, so the next load reads the folder again
 	if ($dirFiles === false) {
-		docPoolLog("checkIfAllPoolFilesAreInDatabase: scandir($puljePath) failed, skipping the check");
+		docPoolLog("checkIfAllPoolFilesAreInDatabase: scandir($puljePath) failed, the folder is read again on the next load");
 		return;
 	}
 	foreach ($dirFiles as $dirFile) {
@@ -707,6 +780,7 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 		if ($ext === 'pdf' || $ext === 'xml') $files[] = $dirFile;
 	}
 	if (!$files) {
+		poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 		return;
 	}
 	// select all files from db - must loop through all rows
@@ -743,9 +817,41 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 		$query = "INSERT INTO pool_files (filename, file_date" . $contentHashColumn . ") VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "'" . $contentHashSql . ")";
 		db_modify($query, __FILE__ . " line " . __LINE__);
 	}
+	// Only now is the folder as seen: every file listed has its row
+	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 }
 
-checkIfAllPoolFilesAreInDatabase();
+/**
+ * Brings pool_files in line with the pool folder, as page loads used to (SD-718: now called by includes/poolFolderSync.php after the page is shown).
+ * The full sync runs at most every 10 minutes; in between, the folder is only read when its mtime changed.
+ *
+ * @param string $docFolder The documents root (owncloud, bilag or documents).
+ * @param string $db        The tenant's database name.
+ * @return bool True when rows were added or removed, so the list should be fetched again.
+ */
+function poolFolderSync($docFolder, $db) {
+	$before = poolFilesSignature();
+	// No table yet: the full sync creates it, so it runs now instead of waiting for the 10-minute window to end
+	if ($before === '') update_settings_value("skip_sync", "docs", 0, "Skip pool sync after initial run");
+	checkIfAllPoolFilesAreInDatabase();
+	syncPuljeFilesToDatabase($docFolder, $db);
+	return poolFilesSignature() !== $before;
+}
+
+/**
+ * Number of pool_files rows and the highest id: changes when a row is added or removed.
+ *
+ * @return string '' when the table doesn't exist (yet).
+ */
+function poolFilesSignature() {
+	global $db_type;
+	$schema = ($db_type == 'mysql' || $db_type == 'mysqli') ? "DATABASE()" : "current_schema()";
+	if (!db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_schema = $schema AND table_name = 'pool_files'", __FILE__ . " line " . __LINE__))) {
+		return '';
+	}
+	$r = db_fetch_array(db_select("SELECT COUNT(*) AS n, MAX(id) AS m FROM pool_files", __FILE__ . " line " . __LINE__));
+	return (int)$r['n'] . '|' . (int)$r['m'];
+}
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 
@@ -754,8 +860,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	
 	$afd = $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 
-	// Sync missing files from pulje directory to database once on page load
-	syncPuljeFilesToDatabase($docFolder, $db);
+	// SD-718: the folder sync no longer runs here; poolFolderSync() is called in the background once the page is shown
 
 	((isset($_POST['unlink']) && $_POST['unlink']) || (isset($_GET['unlink']) && $_GET['unlink']))?$unlink=1:$unlink=0;
 	$cleanupOrphans = if_isset($_GET, NULL, 'cleanupOrphans');
@@ -1675,7 +1780,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	if (!$poolFile && $source != 'kassekladde') {
 		// Optimization: Try DB first to find latest file
 		// Check table existence first to avoid errors during migration
-		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+		// SD-718: the schema is the company's database on MySQL but 'public' on Postgres, where '$db' never matched and every load read the folder
+		global $db_type;
+		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = " . (($db_type == 'mysql' || $db_type == 'mysqli') ? "DATABASE()" : "current_schema()") . " AND table_name = 'pool_files'";
 		$hasTable = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		
 		$foundInDb = false;
@@ -2541,8 +2648,27 @@ print <<<JS
 		}
 	}
 	
+	// SD-718: true while the background folder sync's list refresh runs (poolFolderSync.php)
+	let poolBackgroundRefresh = false;
+	let poolRenderDeferred = false;
+
 	// Render based on current view mode
 	function renderCurrentView() {
+		// SD-718: the background refresh never wipes a row being edited; the list is drawn once the edit is saved or cancelled
+		if (poolBackgroundRefresh && document.querySelector("tr[data-editing='true']")) {
+			if (!poolRenderDeferred) {
+				poolRenderDeferred = true;
+				(function waitForEdit() {
+					if (document.querySelector("tr[data-editing='true']")) {
+						setTimeout(waitForEdit, 500);
+						return;
+					}
+					poolRenderDeferred = false;
+					renderCurrentView();
+				})();
+			}
+			return;
+		}
 		if (viewMode === 'card') {
 			renderFilesCard();
 		} else {
@@ -2769,8 +2895,10 @@ print <<<JS
             const data     = await response.json();
 
             if (data.error) {
-                document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
 				console.error(dir + ': ' + data.error);
+                // SD-718: a failed background refresh keeps the list shown, and with it a row being edited
+                if (poolBackgroundRefresh) return;
+                document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
                 return;
             }
 
@@ -2780,8 +2908,9 @@ print <<<JS
             renderCurrentView();
             restorePoolScroll();
         } catch (error) {
-            document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
             console.error(error);
+            if (poolBackgroundRefresh) return;
+            document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
         }
     }
 
@@ -2938,68 +3067,70 @@ print <<<JS
 				}
 			}
 			
-			// Only look for combinations if no exact matches found
+			// Only look for combinations if no exact matches found. SD-718: amounts are compared in øre through
+			// lookup tables instead of nested loops; the old four nested loops took 7.5 s with 500 documents
+			// (about 2.6 billion sums) on every page load. Same combinations, same order, same pair/triplet/quad rule.
 			if (matchingCount === 0 && docsWithAmounts.length >= 2) {
-				// Find pairs that sum to target
-				for (let i = 0; i < docsWithAmounts.length; i++) {
-					for (let j = i + 1; j < docsWithAmounts.length; j++) {
-						const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount;
-						if (Math.abs(sum - normalizedTotal) < 0.01) {
-							combinationMatches.add(docsWithAmounts[i].filename);
-							combinationMatches.add(docsWithAmounts[j].filename);
-							combinationGroups.push({
-								files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename],
-								amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount],
-								sum: sum
+				const totalCents = Math.round(normalizedTotal * 100);
+				// All amounts are positive, so a document above the total can't be part of a combination
+				const docs = docsWithAmounts.filter(function(d) { return Math.round(d.amount * 100) <= totalCents; });
+				const cents = docs.map(function(d) { return Math.round(d.amount * 100); });
+				const byCents = new Map();
+				cents.forEach(function(c, idx) {
+					if (!byCents.has(c)) byCents.set(c, []);
+					byCents.get(c).push(idx);
+				});
+				// Indexes holding the amount c, after position 'after' (lists are in ascending order)
+				const indexesAfter = function(c, after) {
+					const list = byCents.get(c);
+					return list ? list.filter(function(idx) { return idx > after; }) : [];
+				};
+				const addGroup = function(idxs) {
+					let sum = 0;
+					idxs.forEach(function(idx) {
+						combinationMatches.add(docs[idx].filename);
+						sum += docs[idx].amount;
+					});
+					combinationGroups.push({
+						files: idxs.map(function(idx) { return docs[idx].filename; }),
+						amounts: idxs.map(function(idx) { return docs[idx].amount; }),
+						sum: sum
+					});
+				};
+
+				// Pairs that sum to target
+				for (let i = 0; i < docs.length; i++) {
+					indexesAfter(totalCents - cents[i], i).forEach(function(j) { addGroup([i, j]); });
+				}
+
+				// Triplets that sum to target (only if no pairs found)
+				if (combinationGroups.length === 0 && docs.length >= 3) {
+					for (let i = 0; i < docs.length; i++) {
+						for (let j = i + 1; j < docs.length; j++) {
+							indexesAfter(totalCents - cents[i] - cents[j], j).forEach(function(k) { addGroup([i, j, k]); });
+						}
+					}
+				}
+
+				// Quads that sum to target (only if no pairs or triplets found): every pair (i, j) meets the pairs
+				// (k, l) after it whose sum is what is still missing
+				if (combinationGroups.length === 0 && docs.length >= 4) {
+					const pairsBySum = new Map();
+					for (let k = 0; k < docs.length; k++) {
+						for (let l = k + 1; l < docs.length; l++) {
+							const s = cents[k] + cents[l];
+							if (s > totalCents) continue;
+							if (!pairsBySum.has(s)) pairsBySum.set(s, []);
+							pairsBySum.get(s).push([k, l]);
+						}
+					}
+					for (let i = 0; i < docs.length; i++) {
+						for (let j = i + 1; j < docs.length; j++) {
+							const rest = pairsBySum.get(totalCents - cents[i] - cents[j]);
+							if (!rest) continue;
+							rest.forEach(function(kl) {
+								if (kl[0] > j) addGroup([i, j, kl[0], kl[1]]);
 							});
-						}
-					}
-				}
-				
-				// Find triplets that sum to target (only if no pairs found)
-				if (combinationGroups.length === 0 && docsWithAmounts.length >= 3) {
-					for (let i = 0; i < docsWithAmounts.length; i++) {
-						for (let j = i + 1; j < docsWithAmounts.length; j++) {
-							for (let k = j + 1; k < docsWithAmounts.length; k++) {
-								const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount + docsWithAmounts[k].amount;
-								if (Math.abs(sum - normalizedTotal) < 0.01) {
-									combinationMatches.add(docsWithAmounts[i].filename);
-									combinationMatches.add(docsWithAmounts[j].filename);
-									combinationMatches.add(docsWithAmounts[k].filename);
-									combinationGroups.push({
-										files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename, docsWithAmounts[k].filename],
-										amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount, docsWithAmounts[k].amount],
-										sum: sum
-									});
-								}
-							}
-						}
-					}
-				}
-				
-				// Find quads that sum to target (only if no pairs or triplets found)
-				if (combinationGroups.length === 0 && docsWithAmounts.length >= 4) {
-					for (let i = 0; i < docsWithAmounts.length; i++) {
-						for (let j = i + 1; j < docsWithAmounts.length; j++) {
-							for (let k = j + 1; k < docsWithAmounts.length; k++) {
-								for (let l = k + 1; l < docsWithAmounts.length; l++) {
-									const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount + 
-										docsWithAmounts[k].amount + docsWithAmounts[l].amount;
-									if (Math.abs(sum - normalizedTotal) < 0.01) {
-										combinationMatches.add(docsWithAmounts[i].filename);
-										combinationMatches.add(docsWithAmounts[j].filename);
-										combinationMatches.add(docsWithAmounts[k].filename);
-										combinationMatches.add(docsWithAmounts[l].filename);
-										combinationGroups.push({
-											files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename, 
-												docsWithAmounts[k].filename, docsWithAmounts[l].filename],
-											amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount,
-												docsWithAmounts[k].amount, docsWithAmounts[l].amount],
-											sum: sum
-										});
-									}
-								}
-							}
 						}
 					}
 				}
@@ -3218,7 +3349,8 @@ print <<<JS
 		
 		// Add section header for combination matches
 		let combinationHeader = '';
-		if (hasCombinationMatches && combinationRows) {
+		// Also when every document of the combination is listed under "Dato match" (the line's date): the row is what selects them (SD-718)
+		if (hasCombinationMatches && combinationGroups.length > 0) {
 			// Build description of the combinations found
 			let comboDesc = '';
 			let comboFilesJson = '[]';
@@ -3232,7 +3364,7 @@ print <<<JS
 		combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson + ")' title='{$txt29}'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #ffc107;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.plus + "</span>" +
-				"{$txt62} (" + combinationMatches.size + " {$txt55}: " + escapeHTML(totalSum) + ")" +
+				"{$txt62} (" + combinationGroups[0].files.length + " {$txt55}: " + escapeHTML(totalSum) + ")" +
 				(comboDesc ? " <span style='font-weight: normal; font-size: 11px;'>(" + comboDesc + ")</span>" : "") +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " {$txt27}</span>" +
 				"</td></tr>";
@@ -3451,7 +3583,7 @@ print <<<JS
 			const comboFilesJson = JSON.stringify(combinationGroups[0].files).replace(/'/g, "&#39;");
 			html += '<div onclick="selectCombinationFiles(' + comboFilesJson + ')" style="cursor: pointer; padding: 10px; background: #ffc107; color: #212529; border-radius: 6px; margin-bottom: 8px;">';
 			html += '<span style="margin-right: 6px;">' + svgIcons.plus + '</span>';
-			html += '<strong>{$txt62}</strong> - ' + combinationMatches.size + ' {$txt59} ' + escapeHTML(totalSum);
+			html += '<strong>{$txt62}</strong> - ' + combinationGroups[0].files.length + ' {$txt59} ' + escapeHTML(totalSum);
 			html += '<span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' {$txt27}</span>';
 			html += '</div>';
 		}
@@ -4674,7 +4806,20 @@ window.saveRowData = function(input) {
 
 
 
-    fetchFiles();
+    // SD-718: the list is shown from pool_files at once; the folder is checked afterwards, and the list is fetched again only when that added or removed documents
+    fetchFiles().then(function () {
+        return fetch('poolFolderSync.php', { method: 'POST', credentials: 'same-origin' });
+    }).then(function (response) {
+        return response.json();
+    }).then(function (result) {
+        if (!result || !result.changed) return;
+        // A row being edited would lose its fields in the re-render: renderCurrentView() holds the drawing back until the edit is closed,
+        // also when the edit is opened while the refreshed list is still being fetched
+        poolBackgroundRefresh = true;
+        return fetchFiles();
+    }).catch(function () { /* the next page load checks the folder again */ }).then(function () {
+        poolBackgroundRefresh = false;
+    });
     window.sortFiles = sortFiles;
 
 
@@ -5192,8 +5337,14 @@ JS;
 				session_start();
 				$s_id=session_id();
 				include "online.php";
-				
-				if ($easyUblApiKey) {
+
+				// SD-718: rendered once and reused, as showDoc.php already does; a newer XML file is rendered again
+				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
+				$xmlCached = is_file($htmlTempFile) && filesize($htmlTempFile) > 0 && filemtime($htmlTempFile) >= filemtime($fullName);
+				if ($xmlCached) {
+					print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
+					print "</iframe>";
+				} elseif ($easyUblApiKey) {
 					$postData = json_encode([
 						"language" => "",
 						"base64EncodedDocumentXml" => $base64Xml
@@ -5213,7 +5364,6 @@ JS;
 					
 					if ($htmlResult && !$curlError) {
 						// Save the HTML to a temp file for display in iframe
-						$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
 						file_put_contents($htmlTempFile, $htmlResult);
 						$docWindowUrl = docFileUrl($htmlTempFile, $docFolder, $db);
 						$htmlTempUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
