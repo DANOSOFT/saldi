@@ -49,10 +49,6 @@
 //                CSV headers with nothing else sent yet.
 // 20260923 CL/NTR Guard count($konto_id) against the field being absent from $_POST when the openpost
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
-// 20261013 CL/NTR SST-867 Opret rykker gated on rykkerbelob > 0, so debtors whose overdue posts are
-//                booked with a negative sign had every checked line skipped and only saw the
-//                "intet forfaldent" alert. Dun on the overdue magnitude instead, and fix the && / ||
-//                precedence so the checkbox requirement is explicit.
 
 @session_start();
 $s_id = session_id();
@@ -346,14 +342,9 @@ if (isset($_POST['submit']) || $rapportart) {
 		$y = 0;
 		$tmp = NULL;
 		for ($x = 1; $x <= count($konto_id); $x++) {
-			if (isset($kontoudtog[$x]) && $kontoudtog[$x] == 'on') {
-				// Mail kontoudtog has no amount condition; Opret rykker/Ryk alle dun on the overdue
-				// magnitude, so a negatively-signed overdue balance is still dunnable (SST-867). The
-				// strict > 0 test used before skipped those lines entirely. 20261013 CL/NTR
-				if ($submit == "mail kontoudtog" || abs($rykkerbelob[$x]) >= 0.01) {
-					$tmp .= $konto_id[$x] . ";";
-					$y++;
-				}
+			if (isset($kontoudtog[$x]) && $kontoudtog[$x] == 'on' && ($submit == "mail kontoudtog") || ($rykkerbelob[$x] > 0)) {
+				$tmp .= $konto_id[$x] . ";";
+				$y++;
 			}
 		}
 		$kontoantal = $y;
