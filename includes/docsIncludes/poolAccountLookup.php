@@ -69,7 +69,7 @@ $charset = (isset($db_encode) && $db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1';
 $result = array('name' => '', 'moms' => '', 'lastPostings' => array('heading' => '', 'rows' => array()));
 if (in_array($art, array('F', 'D', 'K'), true) && ctype_digit($kontonr)) {
 	$info = poolAccountInfo($art, $kontonr, $regnaar);
-	$result['name'] = $info['name'];
+	$result['name'] = ($charset != 'UTF-8') ? mb_convert_encoding($info['name'], 'UTF-8', $charset) : $info['name'];
 	$result['moms'] = $info['moms'];
 	if ($dk == 'D' || $dk == 'K') {
 		$result['lastPostings'] = sidste_5_forslag($kontonr, $art, $dk, $kladdeId, $charset, $sprog_id);

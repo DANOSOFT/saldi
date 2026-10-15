@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-10-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,12 @@
 // 20260923 CL/NTR Mail kontoudtog/Opret rykker/Ryk alle only print when at least one account row
 //                is on the page (formIndex > 0) - with none, posting back had no konto_id[] fields
 //                and crashed count(null) in rapport.php.
+// 20261014 MJ SST-863 A historical-date report dates a settlement group by its last posting
+//                  rather than by each row's own udlign_date. udlign_date is not reliably the
+//                  date the group closed: includes/autoudlign.php stamps rows with their own
+//                  transdate, so an invoice settled by a later payment looked closed on a date
+//                  it was still open and dropped out of the report. Only the historical path
+//                  joins the group dates; the everyday report issues no extra SQL.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -266,7 +272,13 @@ function openpost_account_aging($posts, $todate, $currentdate, $kontoart, &$agin
 	);
 	foreach ($posts as $r) {
 		$aligned = $r['udlignet'];
-		if ($todate != $currentdate && $r['udlignet'] == '1' && (!$r['udlign_date'] || $r['udlign_date'] > $todate)) {
+		// A settled row counts as open at a past $todate when its settlement group had not closed
+		// yet. The group's close date is its last posting, which openpost_account_query_parts()
+		// joins in as udlign_group_date - the row's own udlign_date is not it. The column is only
+		// selected on the historical path, and a row with no group (udlign_id null or 0) still
+		// falls back to udlign_date.
+		$settleDate = ifset($r, 'udlign_group_date') ?: $r['udlign_date'];
+		if ($todate != $currentdate && $r['udlignet'] == '1' && (!$settleDate || $settleDate > $todate)) {
 			$aligned = 0;
 		}
 		if (!$aligned) $aging['accountAligned'] = 0;
@@ -396,6 +408,8 @@ if (!function_exists('openpost_account_query_parts')) {
  *   postWhere: string,      Predicate on openpost rows, safe to interpolate into a query.
  *   accountGroup: string,   Subquery selecting the konto_id superset that passes accountHaving.
  *   accountSource: string,  accountGroup wrapped and aliased, ready to join against adresser.
+ *   settleJoin: string,     Join supplying each row's settlement-group close date, or ''.
+ *   settleSelect: string,   Leading-comma select item for that date, or ''.
  * }
  */
 function openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPBS, $todate, $currentdate, $vis_alle, $kun_debet, $kun_kredit, $db_type) {
@@ -411,6 +425,20 @@ function openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPB
 		$postWhere = "(openpost.udlignet is NULL or openpost.udlignet != '1')";
 	}
 	if ($todate != $currentdate) $postWhere = "openpost.transdate<='$todate' and $postWhere";
+	// SST-863: on a past date a settled row is judged by when its group closed, which is the
+	// group's last posting. $postWhere cuts the row set off at $todate, so the postings that
+	// closed the group are not in it and the date has to come from the table. One grouped scan,
+	// hash-joined, rather than a subquery per row; scoped by (konto_id, udlign_id) because the
+	// small udlign_ids an upgrade's autoudlign('0') wrote are shared across accounts, so the id
+	// alone does not identify a group. Empty on the everyday report, which never reads the
+	// column: there $postWhere already excludes settled rows and the date decides nothing.
+	$settleJoin = $settleSelect = "";
+	if ($todate != $currentdate) {
+		$settleJoin = "left join (select konto_id, udlign_id, max(transdate) as udlign_group_date from openpost"
+			. " where udlign_id is not null and udlign_id != 0 group by konto_id, udlign_id) udlign_group"
+			. " on udlign_group.konto_id = openpost.konto_id and udlign_group.udlign_id = openpost.udlign_id";
+		$settleSelect = ", udlign_group.udlign_group_date";
+	}
 	// The display loop only shows an account when its selected posts net to something
 	// (abs($y) >= 0.01), contain an unaligned post, or (kun_debet/kun_kredit) fall on the wanted
 	// side of zero. When showing all posts or a past date that hides most accounts, the count,
@@ -442,7 +470,9 @@ function openpost_account_query_parts($konto_fra, $konto_til, $kontoart, $showPB
 		'accountOrder' => $accountFilter['order'],
 		'postWhere' => $postWhere,
 		'accountGroup' => $accountGroup,
-		'accountSource' => "($accountGroup) account_posts"
+		'accountSource' => "($accountGroup) account_posts",
+		'settleJoin' => $settleJoin,
+		'settleSelect' => $settleSelect
 	);
 }
 }
@@ -519,6 +549,8 @@ function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kont
 	$accountOrder = $parts['accountOrder'];
 	$postWhere = $parts['postWhere'];
 	$accountGroup = $parts['accountGroup'];
+	$settleJoin = $parts['settleJoin'];
+	$settleSelect = $parts['settleSelect'];
 
 	header('Content-Type: text/csv; charset=utf-8');
 	header('Content-Disposition: attachment; filename="aabne_poster_'.date('Y-m-d').'.csv"');
@@ -549,7 +581,7 @@ function openpost_export_csv($dato_fra, $dato_til, $konto_fra, $konto_til, $kont
 		}
 		if (!$batchIds) break;
 
-		$postQtxt = "select openpost.* from openpost where openpost.konto_id in (".implode(',', $batchIds).") and $postWhere ";
+		$postQtxt = "select openpost.*$settleSelect from openpost $settleJoin where openpost.konto_id in (".implode(',', $batchIds).") and $postWhere ";
 		$postQtxt.= "order by openpost.konto_id, openpost.faktnr, openpost.amount";
 		$accountRows = array();
 		$qPosts = db_select($postQtxt,__FILE__ . " linje " . __LINE__);
@@ -776,6 +808,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$postWhere = $parts['postWhere'];
 	$accountGroup = $parts['accountGroup'];
 	$accountSource = $parts['accountSource'];
+	$settleJoin = $parts['settleJoin'];
+	$settleSelect = $parts['settleSelect'];
 	$totalKontoantal=0;
 	$agingDateCache=array();
 	$pageAccountIds=NULL;
@@ -794,7 +828,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$sortedAccounts[]=array((int)$accountId, $amount, count($sortedAccounts));
 		};
 		$qtxt = "select openpost.konto_id, openpost.amount, openpost.valuta, openpost.valutakurs, openpost.transdate, ";
-		$qtxt.= "openpost.forfaldsdate, openpost.udlignet, openpost.udlign_date, $accountOrder as account_sort from openpost ";
+		$qtxt.= "openpost.forfaldsdate, openpost.udlignet, openpost.udlign_date$settleSelect, $accountOrder as account_sort from openpost ";
+		if ($settleJoin) $qtxt.= "$settleJoin ";
 		if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select id, kontonr, firmanavn from adresser where id=openpost.konto_id and $accountWhere offset 0) adresser ";
 		else $qtxt.= ", adresser ";
 		$qtxt.= "where $postWhere";
@@ -842,7 +877,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$qtxt = "select account_page.account_id, account_page.account_kontonr, account_page.account_firmanavn, ";
 	$qtxt.= "account_page.account_addr1, account_page.account_addr2, account_page.account_postnr, account_page.account_bynavn, ";
 	$qtxt.= "account_page.account_email, account_page.account_betalingsbet, account_page.account_betalingsdage, ";
-	$qtxt.= "account_page.account_pbs, account_page.account_pbs_nr, openpost.* from (";
+	$qtxt.= "account_page.account_pbs, account_page.account_pbs_nr, openpost.*$settleSelect from (";
 	$qtxt.= "select adresser.id as account_id, adresser.kontonr as account_kontonr, adresser.firmanavn as account_firmanavn, ";
 	$qtxt.= "adresser.addr1 as account_addr1, adresser.addr2 as account_addr2, adresser.postnr as account_postnr, ";
 	$qtxt.= "adresser.bynavn as account_bynavn, adresser.email as account_email, adresser.betalingsbet as account_betalingsbet, ";
@@ -858,7 +893,9 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$qtxt.= " adresser.id in (".implode(',', $pageAccountIds).")) account_page ";
 	}
 	else $qtxt.= " order by account_sort limit $openpostPageSize offset $openpostOffset) account_page ";
-	$qtxt.= "join openpost on openpost.konto_id=account_page.account_id where $postWhere ";
+	$qtxt.= "join openpost on openpost.konto_id=account_page.account_id ";
+	if ($settleJoin) $qtxt.= "$settleJoin ";
+	$qtxt.= "where $postWhere ";
 	$qtxt.= "order by account_page.account_sort, openpost.konto_id, openpost.faktnr, openpost.amount $tmp";
 	$konto_id = $kontonr = array();
 	$x=0;
