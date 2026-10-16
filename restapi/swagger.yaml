@@ -29,6 +29,14 @@ info:
     an older token without that claim. Its value is the numeric account ID, not a
     registry or account database name.
 
+    ## Fetching a single record
+    Paths written as `/resource/{id}` below are served by the collection URL
+    with the id as a query parameter: `GET /products/?id=301`,
+    `GET /products/groups/?id=12`. A path segment such as `/products/groups/12`
+    returns 404. For product groups, `id` is the record id; the value a product
+    carries in `group` is the group's `codeNo` - look it up with
+    `GET /products/groups/?field=codeNo&value=1`.
+
   version: 1.1.0
   contact:
     name: API Support
@@ -1385,7 +1393,10 @@ paths:
         - `description` - Product description
         - `salesPrice` - Sales price
         - `costPrice` - Cost price
-        - `group` - Product group ID
+        - `group` - Product group code (matches `codeNo` in `/products/groups/`)
+
+        `limit`, `offset`, `page`, `orderBy` and `orderDirection` apply to the full list and to a
+        `field`/`value` filtered list alike.
       parameters:
         
         
@@ -1422,11 +1433,29 @@ paths:
           in: query
           schema:
             type: integer
-            default: 50
+            default: 20
             maximum: 200
             minimum: 1
-          description: Maximum number of products to return
-          example: 20
+          description: Maximum number of products to return (values above 200 are capped at 200)
+          example: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Number of products to skip. Takes precedence over `page`.
+          example: 200
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: |
+            1-based page number, used when `offset` is not given (offset = (page - 1) * limit).
+            Page through the catalogue until a page returns fewer than `limit` products.
+          example: 2
       responses:
         '200':
           description: List of products
