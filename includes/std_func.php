@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,6 +100,14 @@
 // 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
 //                  13-digit string is treated as an EAN-13 candidate (is_numeric also
 //                  accepted decimals, signs and scientific notation).
+// 20261016 MJ SST-876 sync_shop_vare(): a variant now publishes this warehouse's figure as
+//                  stock and the sum of every warehouse as totalStock, like the non-variant
+//                  branch and lager/shopStockIncludes/sync.php already did. It used to send
+//                  whichever single lagerstatus row came back first and no total at all.
+//                  The fiscal_year in the stock-keeping lookup is cast, the dead
+//                  is_integer() shop_id branch is gone, and shopSyncFailed() lets callers
+//                  tell a real failure from an account with no webshop. shopSyncAlert()
+//                  carries the one sentence the three user-facing call sites share.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1657,7 +1665,8 @@ if (!function_exists('lagerreguler')) {
 		 * @param string $transdate - The transaction date of the stock adjustment.
 		 * @param int $variant_id - The variant identifier of the item (if applicable).
 		 * 
-		 * @return void - This function does not return any value but modifies the stock levels in the database.
+		 * @return string - What sync_shop_vare() answered, so the caller can report a shop that
+		 *                  refused the update (SST-876). 'OK' when there was nothing to sync.
 		 */
 
 		global $db;
@@ -1743,13 +1752,14 @@ if (!function_exists('lagerreguler')) {
 #			include_once('productCardIncludes/updateParentStock.php');
 #			updateParentStock($id, $lager, $diff);
 #	  }
-		sync_shop_vare($vare_id, $variant_id, $lager);
+		$syncResult = sync_shop_vare($vare_id, $variant_id, $lager);
 		$qtxt = "select sum(beholdning) as beholdning from lagerstatus where vare_id='$vare_id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$beholdning = $r['beholdning'] * 1;
 		$qtxt = "update varer set beholdning='$beholdning' where id='$vare_id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#
+		return (isset($syncResult) ? $syncResult : 'OK');
 	}
 } #	endfunc lagerreguler
 
@@ -2031,7 +2041,7 @@ if (!function_exists('sync_shop_vare')) {
 		$itemGroup = (int) $r['gruppe'];
 		$partOfItem = $r['delvare'];
 		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";  	
-		$qtxt = "select box8 from grupper where kodenr='$itemGroup' and art = 'VG' AND fiscal_year = $regnaar";
+		$qtxt = "select box8 from grupper where kodenr='$itemGroup' and art = 'VG' AND fiscal_year = '" . (int)$regnaar . "'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
 		// echo $qtxt;  // Debug line removed
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2046,9 +2056,20 @@ if (!function_exists('sync_shop_vare')) {
 			$qtxt = "select shop_variant from shop_varer where saldi_variant='$variant_id'";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			$shop_id = $r['shop_variant'];
-			$qtxt = "select beholdning from lagerstatus where variant_id='$variant_id'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$variant_beholdning = $r['beholdning']; #-$antal;
+			# SST-876: this warehouse's figure for 'stock' and every warehouse's sum for
+			# 'totalStock', which is what the non-variant branch below and the bulk run in
+			# lager/shopStockIncludes/sync.php both send. The single query here had no warehouse
+			# filter and no sum, so a variant held in more than one warehouse published whichever
+			# row the database happened to return and the shop never received a total at all.
+			$variant_beholdning = $variantTotalStock = 0;
+			$qtxt = "select beholdning from lagerstatus where variant_id='$variant_id' and lager='$lager'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$variant_beholdning = $r['beholdning'];
+			}
+			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where variant_id='$variant_id'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$variantTotalStock = (isset($r['total_stock']) && $r['total_stock'] !== null) ? $r['total_stock'] : 0;
+			}
 			if (!$shop_id) {
 				$qtxt = "select variant_stregkode from variant_varer where id='$variant_id'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2059,9 +2080,12 @@ if (!function_exists('sync_shop_vare')) {
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$costPrice = $r['kostpris'];
 			}
+			# No itemNo here on purpose: a variant must not fall back to the parent sku, or one
+			# variant's quantity overwrites the whole product's stock. sync.php pins the same rule.
 			$params = array(
 				'update_stock' => $shop_id,
 				'stock'        => $variant_beholdning,
+				'totalStock'   => $variantTotalStock,
 				'stockno'      => $lager,
 				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
 			);
@@ -2093,13 +2117,15 @@ if (!function_exists('sync_shop_vare')) {
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$totalStock = (isset($r['total_stock']) && $r['total_stock'] !== null) ? $r['total_stock'] : 0;
 			}
+			# SST-876: the elseif here read $r['itemNo'] out of the query that had just failed,
+			# and is_integer() on a varenr string is never true, so it could only ever produce a
+			# warning and 0. The binding row is the only source of a shop id; adapters without
+			# one identify the item by the itemNo sent alongside.
+			$shop_id = 0;
 			$qtxt = "select shop_id from shop_varer where saldi_id='$vare_id'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$shop_id = $r['shop_id'];
-			elseif (is_integer($itemNo))
-				$shop_id = $r['itemNo'];
-			else
-				$shop_id = 0;
+			}
 
 			$qtxt = "SELECT varenr, varenr_alias, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -2251,6 +2277,48 @@ if (!function_exists('sync_shop_vare')) {
 		return ($failed ? "sync errors: $failed" : 'OK');
 	}
 } #endfunc sync_shop_vare()
+
+if (!function_exists('shopSyncFailed')) {
+	/**
+	 * Tells a failed webshop synchronisation apart from one that had nothing to do.
+	 *
+	 * sync_shop_vare() answers 'no api' when the account has no webshop configured, 'no stock'
+	 * when the item's group is not stock-managed, 'OK', or "sync errors: n". Only the last is a
+	 * failure anyone should hear about, and before SST-876 every caller discarded the answer
+	 * entirely - which is why Havemoebelland's stock silently stopped reaching DirekteImport.dk.
+	 *
+	 * @param string $result  Whatever sync_shop_vare() or lagerreguler() returned.
+	 * @return bool  True when at least one shop refused the update.
+	 */
+	function shopSyncFailed($result) {
+		return strncmp((string)$result, 'sync errors', 11) === 0;
+	}
+}
+
+if (!function_exists('shopSyncAlert')) {
+	/**
+	 * Says on screen that a webshop would not take the new stock figure.
+	 *
+	 * Lives here rather than in the pages because three places need the same sentence: the
+	 * goods receipt and two save paths on the product card. The text goes through jsString()
+	 * and htmlspecialchars() because it carries item numbers, which are free text and would
+	 * otherwise be able to close the attribute and the script string around them.
+	 *
+	 * @param string $items    Item numbers to name, already joined for reading.
+	 * @param int    $sprogId  Language id for findtekst().
+	 * @param string $handler  JavaScript function to call - pages that define fejltekst()
+	 *                         pass it, everything else gets alert().
+	 * @return void
+	 */
+	function shopSyncAlert($items, $sprogId, $handler = 'alert') {
+		$text = jsString(array(
+			findtekst('5442|Lagertallet blev ikke opdateret i webshoppen for', $sprogId),
+			': ',
+			(string)$items,
+		));
+		print "<BODY onLoad=\"" . $handler . "(" . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . ")\">\n";
+	}
+}
 
 if (!function_exists('getAvailable')) {
 	function getAvailable($itemId, $stockNo)
