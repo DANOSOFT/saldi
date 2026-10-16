@@ -31,6 +31,8 @@
 // 20231213 MSC - Copy pasted new design into code
 // 20260704 SZ Added Grid Framework sticky header and footer to Sales Statistics report
 // 20260704 SZ Fixed misaligned columns in Sales Statistics report list
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id=session_id();
@@ -98,41 +100,23 @@ if ($popup) $luk="../includes/luk.php";
 elseif ($art=='D') $luk="../debitor/rapport.php";
 else $luk="../kreditor/rapport.php";
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=$luk accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	// Grid Framework header — mirrors Debtors -> Reports -> Open items / Account balance / General ledger
 	// (openpost()/kontosaldo()/kontokort() in includes/rapportfunc.php). The whole page is one flex
 	// column: header bar (auto height) + column-title row (auto height, printed just below, before the
 	// account loop) + scrollable grid (flex:1) + fixed footer (printed after the account loop). No
 	// external stylesheet is loaded here (same as the three reference reports) — every style needed is
 	// inline/embedded below.
-	$ssTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-	$ssLukTekst = findtekst('2704|Klik her for at lukke \"Top100\"', $sprog_id);
-
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	print "<div id='ssPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-	// The Back button is taller than a plain text button because its 20x20 SVG icon forces a larger
-	// minimum content height; height:100% on a <td> child doesn't reliably work (percentage heights
-	// only resolve against an explicit, not row-stretched/auto, parent height). Instead, give the
-	// Search button the same 20px minimum content height directly via min-height — sidesteps the
-	// parent-height quirk entirely and matches the Back button's actual rendered size.
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-	print "<td width='10%' align='left' title='$ssLukTekst'><a href='$luk' accesskey=L>
-		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$ssTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>" . findtekst('922|Salgstatsstik', $sprog_id) . "</td>";
-	print "<td width='10%' align='center' title='$rtekst'><a href='salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on' accesskey=B>
-		   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('913|Søg', $sprog_id) . "</button></a></td>";
-	print "</tr></tbody></table>";
-	print "</div>\n"; // <- close flex:0 wrapper around the blue header bar
+	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('922|Salgstatsstik', $sprog_id),
+		'actions' => array(array(findtekst('913|Søg', $sprog_id), "salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on", 'bx-search', '', 'accesskey' => 'B')),
+		'back' => $luk,
+	));
+	print "</div>\n"; // <- close flex:0 wrapper around the page head
 
 	// Same colgroup widths drive both the column-title row and every data row below it (they live in
 	// the same #ssGridTable), so the header can never drift out of alignment with the data — this is
@@ -260,15 +244,7 @@ if ($menu=='S') {
 	$ssGlobalRowIndex=0;
 }
 
-if ($menu=='T') {
-	print "<center style='padding-bottom:5px;'>	<input onclick=\"location.href='#nav'\" style='width:450px;' type=\"button\" title='Klik her for at søge' value=\"".findtekst('913|Søg', $sprog_id)."\">";
-	print "<div class='expandableSearch' id='nav' style='padding-top:5px;'>";
-	begraens($dato_fra,$dato_til,$konto_fra,$konto_til,$kontonr,$firmanavn,$adresse,$postnr,$bynavn,$varenr,$varetekst,$detaljer,$art);
-	print "</div>";
-	print "</center>";
-} else {
-	print "";
-}
+print "";
 
 for ($x=0;$x<count($q_konto_id);$x++) {
 	if ($menu=='S') {
@@ -331,22 +307,14 @@ for ($x=0;$x<count($q_konto_id);$x++) {
 	}
 	print"<div class='dataTablediv'><table width=\"100%\" class='dataTable'><tbody>";
 #	print "<tr><td>$konto_id[$x]</td></tr>";
-	if ($menu=='T') {
-		if ($x) print "<br>";
-	} else {
-		if ($x) print "<tr><td colspan=\"$cols\"><hr></td></tr>";
-	}
+	if ($x) print "<tr><td colspan=\"$cols\"><hr></td></tr>";
 	print "<tr><td width=10%><b>".findtekst('284|Kontonr', $sprog_id).":</b></td><td>$q_kontonr[$x]</td></tr>";
 	print "<tr><td width=10%><b>".findtekst('360|Firmanavn', $sprog_id).":</b></td><td>$q_firmanavn[$x]</td></tr>";
 	if (isset($periode)) print "<tr><td><b>".findtekst('899|Periode.', $sprog_id)."</b></td><td>$periode</td></tr>";
 	print "<tr>";
 	if (!$summeret) print "</td><td align=\"left\"><b>".findtekst('635|Dato', $sprog_id)."</b></td>";
 
-	if ($menu=='T') {
-		print "<tr><td colspan=10 class='border-hr-bottom'></td></tr>\n";
-	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-	}
+	print "<tr><td colspan=10><hr></td></tr>\n";
 
 	print"<table width=\"100%\" class='dataTableNTH'><thead>";
 	print "<th>".findtekst('917|Varenr.', $sprog_id)."</th><th>".findtekst('914|Beskrivelse', $sprog_id)."</th><th class='text-right'>".findtekst('916|Antal', $sprog_id)."</th><th class='text-right'>".findtekst('915|Pris', $sprog_id)."</th>";
@@ -482,11 +450,7 @@ for ($x=0;$x<count($q_konto_id);$x++) {
 		print "</div>\n"; // close #ssPageFlex
 	}
 
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 
 function begraens($dato_fra,$dato_til,$konto_fra,$konto_til,$kontonr,$firmanavn,$adresse,$postnr,$bynavn,$varenr,$varetekst,$detaljer,$art) {
 	global $db;
@@ -505,15 +469,9 @@ function begraens($dato_fra,$dato_til,$konto_fra,$konto_til,$kontonr,$firmanavn,
 	print "<tr><td width=50%><b>".findtekst('920|Vis detaljer', $sprog_id).":</b></td><td align=\"right\"><label class='checkContainerVisning' style='padding-left: 20px;'><input type=\"checkbox\" name=\"detaljer\" $detaljer><span class='checkmarkVisning'></span></label></td></tr>";
 	print "<tr><td>&nbsp;</td></tr>";
 	print "<tr><td colspan=\"2\" align=\"center\">";
-	if ($menu=='T') {
-		print "<input type=\"submit\" name=\"find\" value=\"".findtekst('913|Søg', $sprog_id)."\">";
-		print "&nbsp;•&nbsp;";
-		print "<input onclick=\"location.href='#luk'\" type=\"button\" value=\"".findtekst('159|Fortryd', $sprog_id)."\">";
-	} else {
-		print "<input style=\"width:80px\" type=\"submit\" name=\"find\" value=\"".findtekst('913|Søg', $sprog_id)."\">";
-		print "&nbsp;";
-		print "<input style=\"width:80px\" type=\"submit\" name=\"fortryd\" value=\"".findtekst('159|Fortryd', $sprog_id)."\">";
-	}
+	print "<input style=\"width:80px\" type=\"submit\" name=\"find\" value=\"".findtekst('913|Søg', $sprog_id)."\">";
+	print "&nbsp;";
+	print "<input style=\"width:80px\" type=\"submit\" name=\"fortryd\" value=\"".findtekst('159|Fortryd', $sprog_id)."\">";
 	print "</td></tr>";
 
 	print "</tbody></table>";

@@ -51,7 +51,7 @@ function stripeValgSave() {
 	# mode
 	$mode = if_isset($_POST['stripe_mode']);
 	if ($mode == 'test' || $mode == 'live') {
-		update_settings_value('mode', 'stripe', db_escape_string($mode), 'Stripe mode: test eller live');
+		update_settings_value('mode', 'stripe', $mode, 'Stripe mode: test eller live');
 	} elseif ($mode) {
 		$fejl[] = 'Mode skal være test eller live';
 	}
@@ -60,7 +60,7 @@ function stripeValgSave() {
 	$secret_key = trim((string)if_isset($_POST['stripe_secret_key'], ''));
 	if ($secret_key !== '') {
 		if (preg_match('/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/', $secret_key)) {
-			update_settings_value('secret_key', 'stripe', db_escape_string($secret_key), 'Stripe API secret key');
+			update_settings_value('secret_key', 'stripe', $secret_key, 'Stripe API secret key');
 		} else {
 			$fejl[] = 'Secret key afvist: forventet sk_test_... / sk_live_... (feltet er IKKE gemt)';
 		}
@@ -72,7 +72,7 @@ function stripeValgSave() {
 	$webhook_secret = trim((string)if_isset($_POST['stripe_webhook_secret'], ''));
 	if ($webhook_secret !== '') {
 		if (preg_match('/^whsec_[\x21-\x7E]+$/', $webhook_secret)) {
-			update_settings_value('webhook_secret', 'stripe', db_escape_string($webhook_secret), 'Stripe webhook signing secret');
+			update_settings_value('webhook_secret', 'stripe', $webhook_secret, 'Stripe webhook signing secret');
 		} else {
 			$fejl[] = 'Webhook secret afvist: forventet whsec_ efterfulgt af selve nøglen - kopieret mens den var skjult (prikker)? (feltet er IKKE gemt)';
 		}
@@ -85,12 +85,12 @@ function stripeValgSave() {
 	}
 
 	# target_db - mirrored from the resolver, never from POST (contract 4.0.2)
-	update_settings_value('target_db', 'stripe', db_escape_string(stripeConfigDb()), 'Spejl af stripeConfigDb() - informativ, laeses aldrig som sandhed');
+	update_settings_value('target_db', 'stripe', stripeConfigDb(), 'Spejl af stripeConfigDb() - informativ, laeses aldrig som sandhed');
 
 	# vat_rate_id
 	$vat_rate_id = trim((string)if_isset($_POST['stripe_vat_rate_id'], ''));
 	if ($vat_rate_id === '' || preg_match('/^txr_[A-Za-z0-9]+$/', $vat_rate_id)) {
-		update_settings_value('vat_rate_id', 'stripe', db_escape_string($vat_rate_id), 'Stripe tax rate id (txr_...) for 25% dansk moms');
+		update_settings_value('vat_rate_id', 'stripe', $vat_rate_id, 'Stripe tax rate id (txr_...) for 25% dansk moms');
 	} else {
 		$fejl[] = 'Tax rate id afvist: forventet txr_... (feltet er IKKE gemt)';
 	}
@@ -98,7 +98,7 @@ function stripeValgSave() {
 	# public_base_url - https origin, optional path (e.g. https://ssl12.saldi.dk/lui), no trailing slash
 	$base_url = rtrim(trim((string)if_isset($_POST['stripe_public_base_url'], '')), '/');
 	if ($base_url === '' || (strpos($base_url, 'https://') === 0 && parse_url($base_url, PHP_URL_HOST) && !parse_url($base_url, PHP_URL_QUERY))) {
-		update_settings_value('public_base_url', 'stripe', db_escape_string($base_url), 'Offentlig base-URL for abonnementslinks og webhook');
+		update_settings_value('public_base_url', 'stripe', $base_url, 'Offentlig base-URL for abonnementslinks og webhook');
 	} else {
 		$fejl[] = 'Base-URL afvist: skal starte med https:// og må ikke have query-parametre (feltet er IKKE gemt)';
 	}
@@ -106,7 +106,7 @@ function stripeValgSave() {
 	# bookkeeper_email
 	$bookkeeper = trim((string)if_isset($_POST['stripe_bookkeeper_email'], ''));
 	if ($bookkeeper === '' || filter_var($bookkeeper, FILTER_VALIDATE_EMAIL)) {
-		update_settings_value('bookkeeper_email', 'stripe', db_escape_string($bookkeeper), 'Alarm-modtager for Stripe-abonnementer');
+		update_settings_value('bookkeeper_email', 'stripe', $bookkeeper, 'Alarm-modtager for Stripe-abonnementer');
 	} else {
 		$fejl[] = 'Bogholder-email afvist: ugyldig adresse (feltet er IKKE gemt)';
 	}

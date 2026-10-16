@@ -22,6 +22,7 @@
 //
 // Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20260930 Sawaneh When run from the login, the login's own permission key stays in force (Deny mode refused users without Varer at login).
 
 @session_start();
 $s_id=session_id();
@@ -33,6 +34,7 @@ $kostvalue=0;$lagervalue=0;$salgsvalue=0;
 $dateType = 'levdate';
 
 include("../includes/connect.php");
+if (!isset($permission_key)) $permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

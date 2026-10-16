@@ -25,6 +25,7 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 # $modulnr=9;
 
 include("../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/stdFunc/dkDecimal.php");
 # include("../includes/db_query.php");

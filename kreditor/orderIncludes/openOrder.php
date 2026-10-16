@@ -29,15 +29,12 @@
 // 20260217 PHR Added 'kundeordrnr'
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
 // 20060401 PHR Minor correction so it finds correct stock when creating order
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 global $menu;
 
 print "<!-- BEGIN orderIncludes/openOrder.php -->";
-if ($menu=='T') {
-	print "<table cellpadding='1' cellspacing='0' bordercolor='#ffffff' border='1' valign = 'top' width=100%' class='dataTableForm'><tbody>";
-} else {
-	print "<table cellpadding='1' cellspacing='0' bordercolor='#ffffff' border='1' valign = 'top' width=80%'><tbody>";
-}
+print "<table cellpadding='1' cellspacing='0' bordercolor='#ffffff' border='1' valign = 'top' width=80%'><tbody>";
 (isset($_POST['oldRef'])) ? $oldRef = $_POST['oldRef'] : $oldRef = NULL;
 (isset($_POST['oldDep'])) ? $oldDep = $_POST['oldDep'] : $oldDep = NULL;
 if ($ref && $oldRef && $ref != $oldRef) {

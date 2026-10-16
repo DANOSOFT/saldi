@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id=session_id();
@@ -47,25 +48,14 @@ else $returside="rapport.php?varenr=$vnr&afd=$afd&varegruppe=$vrgp&varenavn=$vna
 
 $lokMinMax=if_isset($_POST['lokMinMax']);
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\"> 
-			<div class=\"headerbtnLft\"></div>
-			<span class=\"headerTxt\"></span>";     
-	print "<div class=\"headerbtnRght\"></div>";       
-	print "</div><!-- end of header -->
-		<div class=\"maincontentLargeHolder\">\n";
-} else {
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
-	print "<tr><td width=100%>";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-	print "<td width=\"10%\" $top_bund><a href=$returside accesskey=L>Luk</a></td>";
-	print "<td width=\"80%\" $top_bund>Varerapport - forside</td>";
-	print "<td width=\"10%\" $top_bund><a href='../temp/$db/minmax$bruger_id.csv'>csv</a></td></tr>";
-	print "</tbody></table></td></tr>"; #B slut
-	print "</tr><tr><td height=\"99%\" \"width=100%\" align=\"center\" valign=\"middle\">";
-}
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
+print "<tr><td width=100%>";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+print "<td width=\"10%\" $top_bund><a href=$returside accesskey=L>Luk</a></td>";
+print "<td width=\"80%\" $top_bund>Varerapport - forside</td>";
+print "<td width=\"10%\" $top_bund><a href='../temp/$db/minmax$bruger_id.csv'>csv</a></td></tr>";
+print "</tbody></table></td></tr>"; #B slut
+print "</tr><tr><td height=\"99%\" \"width=100%\" align=\"center\" valign=\"middle\">";
 $x=0;
 $qtxt = "select kodenr,beskrivelse from grupper where art = 'VG' and box8 = 'on' ";
 if ($vgrp) $qtxt.= " and kodenr='$vgrp' ";

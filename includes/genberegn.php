@@ -31,6 +31,7 @@
 // 20190321 PHR Added function equalizeMatchingRecords.
 // 20260210 PHR PHP8
 // 20260907 CDX/PHR Allow recalculation within the caller's tenant transaction and scope primo resets to one year.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -123,6 +124,7 @@ if (!function_exists('genberegn')) {
 
 if (isset($_GET['regnskabsaar']) && $regnskabsaar=$_GET['regnskabsaar']) {		
 	include("../includes/connect.php");
+	$permission_key = 'any';
 	include("../includes/online.php");
 	print "Genberegner regnskabsaar $regnskabsaar<br>";
 	genberegn($regnskabsaar);

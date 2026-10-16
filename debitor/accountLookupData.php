@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20260501 PHR removed K (creditors) from address lookup
 // 20260827 CDX/PHR Restored supplier lookup when o_art is KO.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 CDX/PHR Include NULL closed flags in AJAX account lookup, matching the initial grid.
 
 
@@ -35,6 +36,7 @@ try {
     $s_id = session_id();
 
     include_once('../includes/connect.php');
+    $permission_key = 'debitor.konti';
     include_once('../includes/online.php');
     global $bruger_id;
     // Verify includes loaded properly

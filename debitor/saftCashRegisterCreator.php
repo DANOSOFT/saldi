@@ -28,6 +28,7 @@
 $s_id = session_id();
 $auditSender = false;
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("saftCashRegister.php");

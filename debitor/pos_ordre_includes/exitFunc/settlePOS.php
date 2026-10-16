@@ -328,7 +328,7 @@ if ($status < 3) {
 	$qtxt .= "status='2',felt_1='$betaling',felt_2='$modtaget',felt_3='$betaling2',felt_4='$modtaget2',felt_5='$kasse',";
 	$qtxt .= "tidspkt='$tidspkt',projekt='$projekt',ref='$brugernavn' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	setcookie("saldi_bet", '', time() - 3600);
+	saldi_setcookie("saldi_bet", '', time() - 3600);
 	$ms = afrund($sum + $moms, 3);
 	$receipt_id = (int) $receipt_id;
 	$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$id'";

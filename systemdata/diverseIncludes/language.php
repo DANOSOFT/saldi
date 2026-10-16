@@ -18,9 +18,10 @@ function language () {
         include("../includes/connect.php");
         $qtxt = "UPDATE online SET logtime='$unixtime', language_id='$cookieLanguageId' WHERE session_id='$s_id'";
         db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+        $permission_key = 'system.indstillinger';
         include("../includes/online.php");
         if ($cookieLanguageId) {
-            setcookie('languageId', $cookieLanguageId, time() + (10 * 365 * 24 * 60 * 60), '/');
+            saldi_setcookie('languageId', $cookieLanguageId, time() + (10 * 365 * 24 * 60 * 60), '/');
         }
         print "<meta http-equiv=\"refresh\" content=\"0;URL=diverse.php?sektion=sprog\">";
         exit;
@@ -60,6 +61,7 @@ function language () {
     print "</form>";
 
     // 20260828 CL/SZ Restored the link to tekster.php that lived on the removed dead "Sprog"
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
     // form (SirRolin, MB-27 review) - its own visible text now states what it does, instead
     // of an underlined language name with only a hover title explaining it.
     print "<tr><td colspan='2'><a href='tekster.php?sprog_id=$cookieLanguageId'>".findtekst('2717|Klik her for at rette tekster', $sprog_id)."</a></td></tr>";

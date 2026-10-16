@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 /*print "<!-- debitor/rental.php -->\n"*/;
 // 20220926 MSC - Implementing new design
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 ob_start();
 @session_start();
@@ -44,18 +45,7 @@ global $menu;
 
 echo $db;
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=../lager/varer.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-} else {
-	print "";
-}
+print "";
 
 $rtItemId = if_isset($_GET['rtItemId']);
 $addItem  = if_isset($_GET['addItem']);

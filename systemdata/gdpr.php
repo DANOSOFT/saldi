@@ -27,11 +27,13 @@
 $s_id=session_id();
 
 include("../includes/connect.php");
+$modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
+$permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$deleteAccounts = if_isset($_POST['deleteAccounts'],NULL);
-include("gdprInc/gdprLogic.php");
-if (!$deleteAccounts) include("gdprInc/gdprOutput.php");
+// 20261005 Sawaneh The clean-up lives in Indstillinger » Virksomhed » Persondata (settings redesign G1.5); this page only redirects.
+header("Location: settingsSection.php?s=company.gdpr&moved=gdpr");
+exit;
 
 ?>

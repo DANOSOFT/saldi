@@ -38,6 +38,7 @@
 // 2016.11.01 Genkendelse af kortgebyr for Danske Bank. 20161101
 // 2019.10.22 PHR Added 'DK3DSF' where 'DKSSL' is present as format has changed 20191022
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 ini_set("auto_detect_line_endings", true);
 
@@ -86,14 +87,10 @@ if ($_POST) {
 			($tmp)?$tmp.=chr(9).$feltnavn[$i]:$tmp=$feltnavn[$i];
 		}
 		$saldi_bnkfd.=$tmp.='|';
-		setcookie("saldi_bnkfd", $tmp);
+		saldi_setcookie("saldi_bnkfd", $tmp);
 	}	
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	if ($menu=='T') {
-		$leftbutton="<a href='../index/admin_menu.php accesskey='L'>Luk</a>";
-		$rightbutton="";
-		include("../includes/topmenu.php");
-	} elseif ($menu=='S') {
+	if ($menu=='S') {
 		include("../includes/sidemenu.php");
 	} else {
 		print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";

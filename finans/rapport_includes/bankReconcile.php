@@ -59,6 +59,8 @@
 // 20220617 PHR Better recognition of date formats
 // 20220531	PHR Added 'Modtager konto'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
 
@@ -71,6 +73,7 @@ $bankName = NULL;
 
 $title="SALDI - Bankimport";
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
@@ -104,11 +107,7 @@ if(($_GET)||($_POST)) {
 
 	}
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	if ($menu=='T') {
-		$leftbutton="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>".findtekst(30, $sprog_id)."</a>"; #20210714
-		$rightbutton="";
-		include("../includes/topmenu.php");
-	} elseif ($menu=='S') {
+	if ($menu=='S') {
 		include("../includes/sidemenu.php");
 	} else {
 		print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";

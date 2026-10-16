@@ -26,6 +26,7 @@
 // 2013-05-16 Afmelding af leverandørservice#20130516
 // 2015.09.04 Viser kundenavn og viser også detaljer selvom der hverken er til eller framelding.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -33,6 +34,7 @@ $css="../css/standard.css";
 
 $title="Import fra PBS";
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

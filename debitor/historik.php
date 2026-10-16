@@ -41,7 +41,7 @@ if ($ny_sort && $ny_sort == $sort) $sort=$sort." desc";
 elseif ($ny_sort) $sort=$ny_sort;
 #print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Kunde & emne histotik</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 if (!$sort) $sort = $_COOKIE['saldi_hist_sort'];
-setcookie("saldi_hist_sort",$sort,time()+60*60*24*30);
+saldi_setcookie("saldi_hist_sort",$sort,time()+60*60*24*30);
 
 print "
 

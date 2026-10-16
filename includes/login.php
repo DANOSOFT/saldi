@@ -27,6 +27,7 @@ ob_start(); //Starter output buffering
 // 2015.01.04 Initerer variablen $nextver så den bypasser versionskontrol i online.php
 // 2015.01.14 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
 // 2015.01.27 PHR	- Tilføjet rettigheder da man ellers bliver smidt af ved forsøg på login med tmp kode.  
+// 20261001 Sawaneh The temporary password is read with tmp_code_check() (type|expire|code, as in index/login.php).
 
 @session_start();
 $s_id=session_id();
@@ -153,6 +154,7 @@ if (($regnskab)&&($regnskab!=$sqdb)) {
 		mkdir("../temp/$db");
 	}
 #	if (!$dbver) {
+	$permission_key = 'any';
 	include("../includes/online.php");
 	if(!strpos($_SERVER['PHP_SELF'],"stillads")&& !strpos($_SERVER['PHP_SELF'],"udvikling")&& !strpos($_SERVER['PHP_SELF'],"beta")) db_modify("update grupper set box3 = 'on' where art='USET'",__FILE__ . " linje " . __LINE__); #fjernes når topmenu fungerer.
 	$query = db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__);
@@ -191,14 +193,13 @@ if (isset ($brug_timestamp)) {
 	if (!$bruger_id) {
 		$row=db_fetch_array(db_select("select * from brugere where brugernavn='".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
 		if ($row['tmp_kode']) {
-			list($tidspkt,$tmp_kode)=explode("|",$row['tmp_kode']);
-			if (date("U")<=$tidspkt) {
-				if ($tmp_kode==$password) {
-					$bruger_id=$row['id'];
-					$rettigheder=trim($row['rettigheder']); #20150127
-					$regnskabsaar=$row['regnskabsaar'];
-				} 
-			} elseif ($tmp_kode==$password) print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
+			include_once(__DIR__ . "/tmpCode.php");
+			$tmpState = tmp_code_check($row['tmp_kode'], 'reset', (string) $password);
+			if ($tmpState === 'ok') {
+				$bruger_id=$row['id'];
+				$rettigheder=trim($row['rettigheder']); #20150127
+				$regnskabsaar=$row['regnskabsaar'];
+			} elseif ($tmpState === 'expired') print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
 		}
 	}
 }
@@ -214,7 +215,7 @@ if ($bruger_id) {
 	else {db_modify("update online set rettigheder='$rettigheder' where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);}
 	$connection = db_connect ("'$sqhost'", "'$dbuser'", "'$sqpass'", "'$db'");
 	if (!isset($connection)) die( "Unable to connect to SQL");
-	if ($login=="cookie") {setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
+	if ($login=="cookie") {saldi_setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
 	if ($post_max && $db!=$sqdb) {
 		$r=db_fetch_array(db_select("select box6 from grupper where art = 'RA' and kodenr = '$regnskabsaar'",__FILE__ . " linje " . __LINE__));
 		$post_antal=$r['box6']*1;

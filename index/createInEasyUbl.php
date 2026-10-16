@@ -2,6 +2,7 @@
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
+    $permission_key = 'any';
     include("../includes/online.php");
     $apiKey = json_decode(file_get_contents('php://input'), true);
 

@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20240227 PHR Added include print_receipt
 // 20260720 NTR Recreate temp/$db if missing (cleared daily) before saving receipt
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 //
 
 @session_start();
@@ -32,6 +33,7 @@ $s_id = session_id();
 global $db;
 
 include ("../../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

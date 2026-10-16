@@ -9,6 +9,7 @@
 $s_id=session_id();
 // Include the database connection
 require_once '../includes/connect.php';
+$permission_key = 'any';
 require_once '../includes/online.php';
 require_once '../includes/std_func.php';
 

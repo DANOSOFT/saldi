@@ -136,6 +136,8 @@
 //                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
+// 20261008 Sawaneh "Kassekladde <id>" is the page's last breadcrumb level (page_title, topbar addendum §5).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20260929 CL/SZ SD-698: The account lookup popup gets a card button on every line: a debtor opens the debitorkort, a creditor the kreditorkort, a finance account its kontospec.
 //                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
 //                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
@@ -1772,9 +1774,6 @@ if ($_POST) {
 			if ($submit == 'offset') {
 				print "<meta http-equiv='refresh' content='0;URL=../finans/autoudlign.php?kladde_id=$kladde_id'>";
 			}
-			if (strstr($submit, "DocuB")) {
-				print "<meta http-equiv='refresh' content='0;URL=../finans/docubizzimport.php?kladde_id=$kladde_id'>";
-			}
 		}
 	}
 } else { # endif ($_POST)
@@ -1908,24 +1907,10 @@ if (!$simuler) {
 	if ($udskriv) {
 		print "<div class='print-view'>";
 	}
-	if ($menu != 'T') {
-		#print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
-	}
+	#print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
 	if (!$udskriv) {
-		if ($menu == 'T') {
-			include_once '../includes/top_header.php';
-			include_once '../includes/top_menu.php';
-
-			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-			print "<div id='header'>";
-			$backTarget = $kladdeLukBase . "&returside=" . urlencode($backUrl);
-			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('" . htmlspecialchars($backTarget, ENT_QUOTES, $charset) . "','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
-			print "<div class='headerTxt'>$title &nbsp;•&nbsp; $kladde_id</div>";
-			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase . "&returside=" . urlencode('../finans/kassekladde.php'), ENT_QUOTES, $charset) . "','$tekst')\" title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
-			print "</div>";
-			print "<div class='content-noside'>";
-
-		} elseif ($menu=='S') {
+		if (function_exists('page_title')) print page_title(findtekst('1072|Kassekladde', $sprog_id) . ' ' . $kladde_id);
+		if ($menu=='S') {
 			include_once 'kassekladde_includes/topLineKassekladde.php';
 		} else {
 			print "<tr><td height='1%' align='center' valign='top' class='top-header'>";
@@ -3398,11 +3383,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		while ($row = db_fetch_array($q)) $kk_doc_source_ids[(int)$row['source_id']] = true;
 	}
 
-	if ($menu == 'T') {
-		$de_fok = "";
-	} else {
-		$de_fok="onfocus=\"fokuser(this,'#000000','#EFEFEF');\" onblur=\"defokuser(this,'#000000','#FFFFFF');\"";
-	}
+	$de_fok="onfocus=\"fokuser(this,'#000000','#EFEFEF');\" onblur=\"defokuser(this,'#000000','#FFFFFF');\"";
 	if ($kontrolkonto) {
 		$control_next_date = '9999-12-31';
 		$kontrolkonto = $kontrolkonto * 1;
@@ -3951,13 +3932,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	print "</tbody></table></center></div>";   # Tabel 1.3 <- Kladdelinjer
 	print "</td></tr>\n";
 	print "<div class='kassekladde-footer'>";
-	if ($menu == 'T') {
-		print "<table width='900px' border='0' cellspacing='0' cellpadding='1'><tbody><tr>"; # Tabel 1.4 -> Knapper
-	} else {
 	print "<table id='buttonTable' style='margin: 0 auto; width:800px;' border='0' cellspacing='0' cellpadding='1'><tbody>
        <tr>";
  	# Tabel 1.4 -> Knapper
-	}
 	if (!$udskriv) {
 		if ($bogfort == 'V') {
 			#		print "<input type=hidden name=ny_kladdenote value='$kladdenote'>";
@@ -4016,11 +3993,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 						print "<td align='center'><span title='" . findtekst('1548|Henter afsluttede ordrer fra ordreliste', $sprog_id) . "'><input type='submit' style='width:120px;float:left' accesskey='h' value='" . findtekst('1078|Hent', $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span></td>";
 					}
-				}
-				$qtxt = "select * from grupper where art = 'DIV' and kodenr = '2' and box6='on'";
-				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$confirm1 = findtekst('1576|Importer data fra DocuBizz?', $sprog_id);
-					print "<td align='center'><input type='submit' style='width:120px;float:left' accesskey='d' value='DocuBizz' name='submit' onclick='javascript:docChange = false;' onclick=\"return confirm('$confirm1')\"></td>"; #20210720
 				}
 				print "<td align='center'><span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
@@ -4904,7 +4876,6 @@ document.addEventListener('DOMContentLoaded', function() {
         { rowId: '', buttonId: 'simulate-button', name: 'simulate' },
         { rowId: '', buttonId: 'doPost-button', name: 'doPost' },
         { rowId: '', buttonId: 'upload-button', name: 'upload' },
-        { rowId: '', buttonId: 'submitDocuBizz-button', name: 'submit' },
         { rowId: '', buttonId: 'import-button', name: 'import' },
         { rowId: '', buttonId: 'offset-button', name: 'offset' }
     ];

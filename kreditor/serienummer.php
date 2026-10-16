@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260123 PHR if (!$leveres && !$leveret) changed to if ($leveres == 0 && $leveret == 0) as it did not alert when value is 0.000
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261007 MJ SST-831 The 20260123 condition above had gone missing, so "Ingen varer er
 //                  sat til levering" appeared every time the window opened, including
 //                  with 1 in Modtag. Restored. The Gem button was guarded on $gem, which
@@ -39,6 +40,7 @@ $title="serienummer";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

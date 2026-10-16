@@ -585,7 +585,7 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
             if (!is_numeric($debitorrabatgruppe)) $debitorrabatgruppe=0;
             if ( !is_numeric($varerabatgruppe)  ) $varerabatgruppe=0;
             if (!isset($rabat)) $rabat = 0;
-            $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+            $qtxt = "select rabat,rabatart from rabat where debitorart='NR' and vareart='NR' and vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
             if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
                 $rabat=$r2['rabat'];
                 $rabatart=$r2['rabatart'];

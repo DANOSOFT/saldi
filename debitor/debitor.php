@@ -57,6 +57,8 @@
 // 20231128 MSC - Copy pasted new design into code
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250415 LOE Updated some variables using if_isset and some clean up.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The list sits under the new page head (debLstIncludes/topLine.php, page_bar): grid height adjusted.
 
 #ob_start();
 @session_start();
@@ -190,35 +192,9 @@ if (!$sort) $sort = "firmanavn";
 $sort=str_replace("adresser.","",$sort);
 $sortering=$sort;
 
-if ($menu=='T') {
-	if ($valg=='debitor') {
-		$title = "".findtekst(117,$sprog_id)."";
-	} elseif ($valg=='rental') {
-		$title= "".findtekst(1116,$sprog_id)."";
-	} else {
-		$title = "".findtekst(117,$sprog_id)."";
-	}
-} else {
-	$title="Debitorliste";
-}
+$title="Debitorliste";
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";   
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">";
-	if ($valg=='rental') {
-		print "";
-	} else {
-		print "<a accesskey=V href='debitorvisning.php?valg=$valg' title='Ændre visning'><i class='fa fa-gear fa-lg'></i></a> &nbsp; ";
-	}
-
-	print "<a accesskey=N href='ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id' title='Opret nyt kundekort'><i class='fa fa-plus-square fa-lg'></i></a></div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
+if ($menu=='S') include_once 'debLstIncludes/topLine.php';
 else include_once 'debLstIncludes/oldTopLine.php';
 
 // Skip grid conversion for rental view - use old system
@@ -318,11 +294,7 @@ $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
     $antal=$r['antal'];
 
     // Continue with old table rendering for rental view
-if ($menu=='T'){
-	print "<table class='dataTableBooking' style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><thead>\n<tr>";
-} else {
-	print "<table cellpadding='1'  style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' cellspacing='1' border='0' valign='top' width='100%'><tbody>\n<tr>";
-}
+print "<table cellpadding='1'  style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' cellspacing='1' border='0' valign='top' width='100%'><tbody>\n<tr>";
     // ... rest of old table code for rental view ...
     include ("../debitor/debLstIncludes/debRentalLst.php");
 #print "<table border=0 width=100%><tbody>";
@@ -330,16 +302,7 @@ if ($menu=='T'){
 #print "</tbody></table></td>";
 #print "<tr><td colspan=$colspan><hr></td></tr>\n";
 
-if ($menu=='T') {
-	print "
-</tfoot>
-</table>
-</td></tr>
-</tbody></table>
-";
-include_once '../includes/topmenu/footer.php';
-} else {
-	print "
+print "
 </tbody>
 </table>
 </td></tr>
@@ -347,7 +310,6 @@ include_once '../includes/topmenu/footer.php';
 ";
 
 include_once '../includes/oldDesign/footer.php';
-    }
 } else {
     // GRID SYSTEM IMPLEMENTATION
     // Build columns array for grid
@@ -721,15 +683,11 @@ ORDER BY {{SORT}}";
     $table_id = 'debitor_list';
     
     // Render grid - match vareliste.php structure exactly
-    print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+    print "<div style='width: 100%; height: calc(100vh - 112px);'>";
     create_datagrid($table_id, $data);
     print "</div>";
     
-    if ($menu=='T') {
-        include_once '../includes/topmenu/footer.php';
-    } else {
-        include_once '../includes/oldDesign/footer.php';
-    }
+    include_once '../includes/oldDesign/footer.php';
 }
 
 

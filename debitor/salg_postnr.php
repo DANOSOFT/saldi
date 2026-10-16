@@ -25,6 +25,8 @@
 //20260526 LOE Created new report using new datagrid based on postnr.php where department column and date range filter have been added.
 //20260709 SZ Replaced old top menu with Grid Framework header on Sales by Zip Code report
 //20260709 SZ Fixed header/footer styling to match Finance -> Reports -> Balance
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 
@@ -107,21 +109,14 @@ $query = "
  * 4. PAGE HEADER
  * ============================================================ */
 print "<center><table width='100%' cellpadding='0' cellspacing='0' border='0'><tbody>";
-if ($menu == 'T') {
-    $leftbutton = "<a class='button red small' href='../debitor/rapport.php' accesskey='L'>Luk</a>";
-    include("../includes/top_header.php");
-    include("../includes/top_menu.php");
-    print "<div id='header'><div class='headerbtnLft'>$leftbutton</div><span class='headerTxt'>$title</span><div class='headerbtnRght'></div></div><div class='maincontentLargeHolder'>";
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
     // Grid Framework header — same back-button/title-bar styling as Finance -> Reports -> Balance
     // (kontosaldo() in includes/rapportfunc.php). Sticky behaviour + footer/pagination for this
     // report are already handled by create_datagrid() below, so only the header visuals change here.
-    $tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-    print "<tr><td colspan='5' height='8'><table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>
-        <td width='10%' align='left'><a href='../debitor/rapport.php' accesskey='L'><button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>
-        <td width='80%' align='center' style='$topStyle'>".findtekst('3360|Salg pr. postnummer', $sprog_id)."</td>
-        <td width='10%' style='$topStyle'><br></td>
-        </tr></tbody></table></td></tr></tbody></table>";
+    print "<tr><td colspan='5'>";
+    include_once("../includes/stdFunc/pageBar.php");
+    page_bar(array('title' => findtekst('3360|Salg pr. postnummer', $sprog_id), 'back' => '../debitor/rapport.php'));
+    print "</td></tr></tbody></table>";
 } else {
     print "<tr><td colspan='4' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
         <td width='10%' $top_bund><a href='../debitor/rapport.php' accesskey='L'>Luk</a></td>
@@ -567,6 +562,5 @@ create_datagrid('salg_postnr', $grid_data);
 </script>
 
 <?php
-if ($menu == 'T') print "</div>";
 print "</tbody></table></center>";
 ?>

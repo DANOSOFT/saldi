@@ -35,6 +35,10 @@
 // 20260102 LOE - Added uploading to folders by department
 // 20260220 LOE Background terms now used instead of language terms for clarity, as this is more accurate for what the settings do. The term 'language(sprog)' is still used in the database and code for backwards compatibility, but the user interface now refers to 'backgrounds' instead of 'languages'.
 // 20260320 PHR cleanup (pdftk)
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260928 Sawaneh Security 4.0 (A3/A8): file-name whitelist for upload and delete, $modulnr gate.
+// 20261005 Sawaneh Settings redesign G6.2: real admin check for departments (L1), PDF recognised by content (L4), the page
+//                  is shown again after an upload and pdf2ps runs with escaped arguments (L6). Reached from Baggrunde.
 session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -42,6 +46,8 @@ $title="SALDI - Logo Upload";
 
 include("../includes/connect.php");
 include("../includes/settings.php");
+$modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
+$permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/db_query.php");
 include("../includes/std_func.php"); #20210803
@@ -67,7 +73,21 @@ function bg_display_name($sprog_value) {
 // Get current user info
 global $bruger_id;
 
-$is_admin = 1;
+// G6.1 (audit FE5): Back returns to the page that opened the upload (the form editor), else to formularkort.php.
+$uploadBack = function_exists('nav_sanitize_returside') ? nav_sanitize_returside(isset($_GET['returside']) ? $_GET['returside'] : '') : '';
+if ($uploadBack === '') {
+	$uploadBack = 'formularkort.php';
+}
+// G6.2 (audit L1): administrators (and accountant sessions) choose any department; other users only their own.
+$is_admin = !empty($revisor) || (function_exists('perm_can') ? perm_can('settings.users.manage', 'write') : substr((string) $rettigheder, 1, 1) === '1');
+
+// 20260928 Sawaneh Security 4.0 (A3, R22): only the known background/attachment names, with an optional
+//                  language prefix, may be written or deleted under logolib/<db_id>/[<department>/].
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+function logo_name_ok($name) {
+	return (bool) preg_match('/^(?:\p{L}+_)?(bg|tilbud_bg|ordrer_bg|faktura_bg|tilbud_bilag|ordrer_bilag|faktura_bilag)$/u', (string) $name);
+}
 
 // Get user's assigned department from settings (for permission checking)
 $afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
@@ -168,38 +188,17 @@ if ($selected_department > 0 && !isset($departments[$selected_department]) && !$
 
 
 print "<div align=\"center\">";
-if ($menu=='T') {
-#	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\"></div>\n";
-#	print "<span class=\"headerTxt\">Systemsetup</span>\n";     
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green medium right\">Ny debitor</a>--></div>";       
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<table border=\"1\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable2\"><tbody>";
-} elseif ($menu=='S') {
+if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => findtekst('1745|Load File', $sprog_id), 'back' => $uploadBack));
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\"><a href=\"formularkort.php\" accesskey=\"L\">";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Back', $sprog_id)."</button></a></td>"; #20210803
-
-	print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('1745|Load File', $sprog_id)."</td>";
-	print "<td width=\"10%\" align='center' style='$topStyle'><br></td>";
-
-	print "</tbody></table>";
 	print "</td></tr>";
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"formularkort.php\" accesskey=\"L\">".findtekst('30|Back', $sprog_id)."</a></td>"; #20210803
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"" . htmlspecialchars($uploadBack, ENT_QUOTES) . "\" accesskey=\"L\">".findtekst('30|Back', $sprog_id)."</a></td>"; #20210803
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('1745|Load File', $sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>";
 	print "</tbody></table>";
@@ -213,8 +212,26 @@ if (!file_exists($dest_dir)) {
     mkdir($dest_dir, 0777, true);
 }
 
-if (isset($_GET['slet_bilag'])) {
-    $slet_bilag=$_GET['slet_bilag'].".pdf"; 
+// 20261014 Sawaneh Review: a background is deleted by POST with the session's CSRF token (logo_delete_form()), never by a GET link.
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+function logo_delete_form(array $check, string $confirmText, string $label): string
+{
+    $h = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES); };
+    return "<form method=\"post\" action=\"logoupload.php\" style=\"display:inline\" onsubmit=\"return confirm('" . $confirmText . "')\">"
+        . "<input type=\"hidden\" name=\"csrf_token\" value=\"" . $h($_SESSION['csrf_token']) . "\">"
+        . "<input type=\"hidden\" name=\"slet_bilag\" value=\"" . $h($check['name']) . "\">"
+        . "<input type=\"hidden\" name=\"sprog\" value=\"" . $h($check['background']) . "\">"
+        . "<input type=\"hidden\" name=\"department\" value=\"" . (int) $check['department'] . "\">"
+        . "<button type=\"submit\" style=\"background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit\">" . $label . "</button></form>";
+}
+if (isset($_POST['slet_bilag'])) {
+    if (!logo_name_ok($_POST['slet_bilag']) || !isset($_POST['csrf_token']) || !hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token'])) {
+        upload();
+        exit;
+    }
+    $slet_bilag=$_POST['slet_bilag'].".pdf"; 
     
     // For delete operation, use the selected department and current background
     $delete_department = $selected_department;
@@ -228,7 +245,8 @@ if (isset($_GET['slet_bilag'])) {
   
     
    
-    $selected_sprog = $_GET['sprog'] ?? $current_sprog;
+    $selected_sprog = $_POST['sprog'] ?? $current_sprog;
+    $delete_department = isset($_POST['department']) ? (int) $_POST['department'] : $delete_department;
   
     
     // Use db_id directory structure with optional department
@@ -289,6 +307,10 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 	} else {
 		$valg = $bilag_valg;
 	}
+	if (!logo_name_ok($valg) || !preg_match('/^\p{L}+$/u', (string) $sprog_valg)) {
+		upload();
+		exit;
+	}
 	
 	// Handle background: if "All", no prefix; otherwise add language prefix for non-Danish
 	if ($sprog_valg !== 'All') {
@@ -300,10 +322,12 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
         }
     }
 
-	if ((strpos($filetype,'pdf'))||(strpos($fileName,'.PDF'))||(strpos($fileName,'pdf'))) {
+	// G6.2 (audit L4): a PDF is recognised by its content ("%PDF" at the start), not by a name or type containing "pdf".
+	$pdfHead = @file_get_contents($fra, false, null, 0, 5);
+	if ($pdfHead !== false && strncmp($pdfHead, '%PDF', 4) === 0) {
 		if($fil_stoerrelse > 10485760) {
 			$tmp=ceil($fil_stoerrelse);
-			system ("rm $filename");
+			@unlink($fra);
 			$tmp/=1024;
 			$alert = findtekst('1747|Unfortunately - your PDF is too big. Only up to 10 MB is accepted, and it takes up', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert $tmp MB')\">";
@@ -348,21 +372,17 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
                 }
 			}
 		}
-		// $pdftk = shell_exec("which pdftk");
-		if ($pdftk) {
-			$alert= findtekst('1751|The page has been loaded.', $sprog_id);
-			print "<BODY onLoad=\"javascript:alert('$alert')\">";
-			upload();
-			exit;
-		} elseif (file_exists($pdf2ps)) {
-			$pdffil=$til;
-			$pdffil = str_replace($dest_dir,"",$pdffil);
-			$psfil=str_replace(".pdf",".ps",$pdffil);
-			system ("cd $dest_dir\nrm $psfil\n$pdf2ps $pdffil");
-			$alert1= findtekst('1751|The page has been loaded.', $sprog_id);
-			print "<BODY onLoad=\"javascript:alert('$alert1')\">";
+		// G6.2 (audit L6): the PDF is in place, so the upload succeeded; the PostScript copy is only made where pdf2ps
+		// is configured (old PostScript forms), with escaped arguments. The page is shown again instead of a blank one.
+		if (!empty($pdf2ps) && file_exists($pdf2ps)) {
+			$pdffil = basename($til);
+			$psfil = str_replace(".pdf", ".ps", $pdffil);
+			system("cd " . escapeshellarg($dest_dir) . " && rm -f " . escapeshellarg($psfil) . " && " . escapeshellarg($pdf2ps) . " " . escapeshellarg($pdffil));
 		}
-		else print "<BODY onLoad=\"javascript:alert('".findtekst('1752|Neither PDFTK (recommended) or PDF2PS is installed - logo cannot be loaded', $sprog_id)."')\">";
+		$alert = findtekst('1751|The page has been loaded.', $sprog_id);
+		print "<BODY onLoad=\"javascript:alert('$alert')\">";
+		upload();
+		exit;
 	} else { 
 		$txt1= findtekst('1753|An error occurred during loading. Please try again', $sprog_id);
 		print "<BODY onLoad=\"javascript:alert('$txt1')\">";
@@ -445,7 +465,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $bg="<a href=\"view_logoupload.php?vis={$bg_check['name']}&sprog=$current_sprog&department={$bg_check['department']}\">".findtekst('1754|show background', $sprog_id)."$dept_info</a>";
         $txt1= findtekst('1755|Do you want to delete this background for all forms?', $sprog_id);
-        $slet_bg="<a href=\"logoupload.php?slet_bilag={$bg_check['name']}&sprog={$bg_check['background']}&department={$bg_check['department']}\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_bg=logo_delete_form($bg_check, $txt1, findtekst('1099|Delete', $sprog_id));
     } else {
         $bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
         $slet_bg=NULL;
@@ -458,7 +478,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $tilbud_bg="<a href=\"view_logoupload.php?vis={$tilbud_bg_check['name']}&sprog=$current_sprog&department={$tilbud_bg_check['department']}\">".findtekst('1756|show background for quotes', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1757|Do you want to delete this background for quotes?', $sprog_id);
-        $slet_tilbud_bg="<a href=\"logoupload.php?slet_bilag={$tilbud_bg_check['name']}&sprog={$tilbud_bg_check['background']}&department={$tilbud_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_tilbud_bg=logo_delete_form($tilbud_bg_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $tilbud_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
         $slet_tilbud_bg=NULL;
@@ -471,7 +491,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $ordrer_bg="<a href=\"view_logoupload.php?vis={$ordrer_bg_check['name']}&sprog=$current_sprog&department={$ordrer_bg_check['department']}\">".findtekst('1759|show background for orders', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1760|Do you want to delete this background for orders?', $sprog_id);
-        $slet_ordrer_bg="<a href=\"logoupload.php?slet_bilag={$ordrer_bg_check['name']}&sprog={$ordrer_bg_check['background']}&department={$ordrer_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_ordrer_bg=logo_delete_form($ordrer_bg_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $ordrer_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
         $slet_ordrer_bg=NULL;
@@ -484,7 +504,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $faktura_bg="<a href=\"view_logoupload.php?vis={$faktura_bg_check['name']}&sprog=$current_sprog&department={$faktura_bg_check['department']}\">".findtekst('1761|show background for invoices', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1762|Do you want to delete this background for invoices?', $sprog_id);
-        $slet_faktura_bg="<a href=\"logoupload.php?slet_bilag={$faktura_bg_check['name']}&sprog={$faktura_bg_check['background']}&department={$faktura_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_faktura_bg=logo_delete_form($faktura_bg_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $faktura_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
         $slet_faktura_bg=NULL; 
@@ -498,7 +518,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $tilbud_bilag="<a href=\"view_logoupload.php?vis={$tilbud_bilag_check['name']}&sprog=$current_sprog&department={$tilbud_bilag_check['department']}\">".findtekst('1763|show attachment for quotes', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1764|Do you want to delete this attachment for quotes?', $sprog_id);
-        $slet_tilbud_bilag="<a href=\"logoupload.php?slet_bilag={$tilbud_bilag_check['name']}&sprog={$tilbud_bilag_check['background']}&department={$tilbud_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_tilbud_bilag=logo_delete_form($tilbud_bilag_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $tilbud_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
         $slet_tilbud_bilag=NULL;
@@ -511,7 +531,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $ordrer_bilag="<a href=\"view_logoupload.php?vis={$ordrer_bilag_check['name']}&sprog=$current_sprog&department={$ordrer_bilag_check['department']}\">".findtekst('1766|show attachment for orders', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1767|Do you want to delete this attachment for orders?', $sprog_id);
-        $slet_ordrer_bilag="<a href=\"logoupload.php?slet_bilag={$ordrer_bilag_check['name']}&sprog={$ordrer_bilag_check['background']}&department={$ordrer_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_ordrer_bilag=logo_delete_form($ordrer_bilag_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $ordrer_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
         $slet_ordrer_bilag=NULL;
@@ -524,7 +544,7 @@ function upload(){
         $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $faktura_bilag="<a href=\"view_logoupload.php?vis={$faktura_bilag_check['name']}&sprog=$current_sprog&department={$faktura_bilag_check['department']}\">".findtekst('1768|show attachment for invoices', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1769|Do you want to delete this attachment for invoices?', $sprog_id);
-        $slet_faktura_bilag="<a href=\"logoupload.php?slet_bilag={$faktura_bilag_check['name']}&sprog={$faktura_bilag_check['background']}&department={$faktura_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+        $slet_faktura_bilag=logo_delete_form($faktura_bilag_check, $txt, findtekst('1099|Delete', $sprog_id));
     } else {
         $faktura_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
         $slet_faktura_bilag=NULL;

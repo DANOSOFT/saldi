@@ -1,4 +1,5 @@
 <?php
+include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -63,6 +64,13 @@
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 // 20260904 Sawaneh WP-1.3: nav_push popup arg now uses the popup=1 request flag, not the user preference
 // 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
+// 20260916 Sawaneh Denied module access is now written to audit_log (the message always said so).
+//                  Phase 3 gate: perm_enforce_request() after the legacy check ($permission_key /
+//                  $permission_level / $permission_post_read declared by the page, $modulnr as
+//                  fallback); auditor sessions get the Revisor role once enforcement is 'deny'.
+// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261002 Sawaneh Same for the USET row in grupper (unique index on the settings arts of grupper).
+// 20261004 Sawaneh $brugernavn_raw holds the user name unescaped; $brugernavn stays escaped as before.
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
 // 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
@@ -70,6 +78,11 @@
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
 if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
+if (!isset($uiTheme))        $uiTheme = 'light';
+// Settings spec decision 23 (2026-10-09): no dark mode in round 1 - the theme choice is hidden and every page renders
+// light. Set to true in round 2 (the dark tokens and the chip/personal-settings controls are kept behind it).
+if (!defined('SALDI_THEME_CHOICE')) define('SALDI_THEME_CHOICE', false);
+if (!isset($uiSize))         $uiSize = 'normal'; // text size: normal | large (front-page addendum 3 §3.3), printed as data-size
 if (!isset($nextver))        $nextver = 0;
 if (!isset($useSettings))    $useSettings = '';
 
@@ -83,14 +96,23 @@ if ($questionMarkPos !== false) {
 $slashCount = substr_count($path, '/');
 $relativePath = str_repeat('../', max(0, $slashCount - 2));
 
-if (isset($_COOKIE['timezone'])) { #20190110
-	$timezone = $_COOKIE['timezone'];
-	date_default_timezone_set($timezone);
-} else date_default_timezone_set('Europe/Copenhagen');
+// 20261005 Sawaneh The timezone cookie is gone (settings redesign G1.3): the setting below decides.
+// 20261006 Sawaneh Every page prints its breadcrumb for the shell (page_auto_breadcrumb(), stdFunc/pageChrome.php).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh $uiTheme (settings ui/theme per user: light, dark or system) read with the colours and printed on <html data-theme>.
+// 20261009 Sawaneh $uiTheme falls back to the saldi_theme cookie (auditor/master-admin sessions have no settings row).
+// 20261009 Sawaneh SALDI_THEME_CHOICE (false in round 1, decision 23): the theme choice is hidden and $uiTheme stays light.
+// 20261009 Sawaneh $uiSize (settings ui/text_size per user) printed as <html data-size>, css/saldi-fonts.css linked on every page.
+// 20261013 Sawaneh data-size is also set by a one-line script: pages print a <title> before this html tag, and not every
+//                  parser merges the attributes of a second html tag onto the element it already created.
+date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
 $r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
 if ($r['var_value']) {
 	$timezone = $r['var_value'];
+	if (in_array($timezone, timezone_identifiers_list(), true)) {
+		date_default_timezone_set($timezone);
+	}
 } else {
 	$timezone = 'Europe/Copenhagen';
 	if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
@@ -98,6 +120,7 @@ if ($r['var_value']) {
 		$qtxt = "insert into settings (var_name,var_value,var_description)";
 		$qtxt .= " values ";
 		$qtxt .= "('timezone','$timezone','Generel tidszone. Anvendes hvis der ikke er sat tidszone i det enkelte regnskab')";
+		$qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
 	}
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
@@ -138,6 +161,7 @@ if ($r = db_fetch_array($q)) {
 	$db = trim(if_isset($r['db'], ''));
 	$regnaar = trim(if_isset($r['regnskabsaar'], ''));
 	$brugernavn = db_escape_string($r['brugernavn']);
+	$brugernavn_raw = (string) $r['brugernavn']; // unescaped, for values that are escaped again later (audit_log)
 	$rettigheder = $r['rettigheder'];
 	$superUserPermission = $rettigheder;
 	$revisor = $r['revisor'];
@@ -284,8 +308,15 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$ansat_navn = $brugernavn;
 			$sag_rettigheder = NULL;
 		}
-	} else
+	} else {
 		$bruger_id = -1;
+		// Phase 3 (spec decision 2): once enforcement is 'deny', an auditor/master-admin
+		// session holds the read-only Revisor role instead of every right.
+		include_once(__DIR__ . "/permissions.php");
+		if (perm_tables_ready() && perm_enforcement_mode() === 'deny') {
+			$rettigheder = perm_legacy_string(perm_levels_from_role(perm_role_id_by_key('revisor')));
+		}
+	}
 	if (!$sprog_id)
 		$sprog_id = 1;
 	if (!strpos($css, 'mysale') && $bruger_id) {
@@ -294,7 +325,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			#			$r = db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__)); 20140117 
 #			$g_id=$r['id']+1;
-			db_modify("insert into grupper(beskrivelse,art,kodenr,box1,box2,box3,box4,box5) values ('Usersettings','USET','$bruger_id','$jsvars','','S','#eeeef0','')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into grupper(beskrivelse,art,kodenr,box1,box2,box3,box4,box5) values ('Usersettings','USET','$bruger_id','$jsvars','','S','#eeeef0','')" . (in_array($db_type, array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING'), __FILE__ . " linje " . __LINE__);
 		} else {
 			$jsvars = $r['box1'];
 			$popup = $r['box2'];
@@ -324,6 +355,20 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			} else {
 				$buttonTxtColor = '#ffffff'; // Default button text color
 			}
+			// The user's theme (Lys / Mørk / System, prototype_dashboard_tema v5): every page gets it on <html data-theme>;
+			// pages built on the Saldi tokens (css/saldi-theme.css) follow it, older pages ignore it.
+			$qtxt = "select var_value from settings where var_name = 'text_size' and var_grp = 'ui' and user_id = '$bruger_id'";
+			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				if (trim((string) $r['var_value']) === 'large') $uiSize = 'large';
+			}
+			if (SALDI_THEME_CHOICE) {
+				$qtxt = "select var_value from settings where var_name = 'theme' and var_grp = 'ui' and user_id = '$bruger_id'";
+				if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					if (in_array(trim((string) $r['var_value']), array('light', 'dark', 'system'), true)) $uiTheme = trim((string) $r['var_value']);
+				} elseif (isset($_COOKIE['saldi_theme']) && in_array($_COOKIE['saldi_theme'], array('light', 'dark', 'system'), true)) {
+					$uiTheme = $_COOKIE['saldi_theme']; // auditor/master-admin sessions have no user row: the chip's choice lives in the cookie
+				}
+			}
 		}
 		$textcolor = "#000077";
 		$textcolor2 = "#009900";
@@ -346,16 +391,27 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		}
 		if (!isset($bgnuance1)) $bgnuance1 = "+01+01-55"; # Aendring af nuancen til gult ved skiftende linjer
 	}
-	if ($menu == 'T') {
-		$header = 'nix';
-		$bg = 'nix';
-		$css = NULL;
-	}
 	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
 		include($relativePath . "includes/std_func.php");
+		if (function_exists('audit_log')) {
+			audit_log('denied', 'modulnr ' . (int) $modulnr . ' ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
+		}
 		$txt = "Du har ikke nogen rettigheder her - din aktivitet er blevet logget";
 		print tekstboks($txt);
 		exit;
+	}
+	// 20260916 Phase 3 gate (spec R4). Pages declare $permission_key ('any' = every logged-in
+	// user), optionally $permission_level = 'write' and $permission_post_read = true (POST is a
+	// filter, not a write). Undeclared pages fall back to $modulnr. Until the company switches
+	// enforcement to 'deny', this only records what would have been refused in audit_log.
+	if (!$webservice && !$nextver) {
+		include_once(__DIR__ . "/permissions.php");
+		perm_enforce_request(
+			isset($permission_key) ? (string) $permission_key : null,
+			isset($permission_level) ? (string) $permission_level : 'read',
+			!empty($permission_post_read),
+			($modulnr !== NULL && $modulnr !== '') ? (int) $modulnr : null
+		);
 	}
 }
 
@@ -375,8 +431,8 @@ if ($header != 'nix') {
 	else $charset = "ISO-8859-1";
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	
-	<html>\n
-	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
+	<html data-theme=\"$uiTheme\"" . ($uiSize === 'large' ? " data-size=\"large\"" : '') . ">\n
+	<head><title>$title</title>" . ($uiSize === 'large' ? "<script>document.documentElement.setAttribute('data-size','large')</script>" : '') . "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
 	// print '<!DOCTYPE html>';
@@ -390,6 +446,7 @@ if ($header != 'nix') {
 		print "$meta_returside"; #20140502
 	// Before the stylesheets and other scripts, so scanner keystrokes that arrive while the page loads are kept (SST-812).
 	if ($title == 'POS Ordre') print "<script type=\"text/javascript\">" . file_get_contents(__DIR__ . '/../javascript/posScanBuffer.js') . "</script>\n";
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldi-fonts.css?v=2\">\n"; // 20261009 Sawaneh fonts + text size on every page
 	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
 	else      print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldimenu.css\"/>\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saft.css\"/>\n";
@@ -447,6 +504,10 @@ if ($header != 'nix') {
 	</script>
 	<?php
 	# <-- 20140502
+	// 20261006 Sawaneh Breadcrumb on every page (topbar addendum 2026-10-05 §3-4, Adam 2026-10-06): from the central page map.
+	include_once(__DIR__ . "/stdFunc/findTxt.php");
+	include_once(__DIR__ . "/stdFunc/pageChrome.php");
+	print page_auto_breadcrumb(isset($title) ? (string) $title : '', isset($sprog_id) ? (int) $sprog_id : 1, $charset) . "\n";
 	print "</head>\n";
 }
 /*

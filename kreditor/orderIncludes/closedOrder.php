@@ -29,6 +29,7 @@
 // 20251113 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
 // 20260611 MJ - Changed closed creditor order print button to use translated text.
 // 20260706 MJ - Translate 'Udskriv' print button to 'Print'.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 print "<input type=\"hidden\" name=\"konto_id\" value=$konto_id>";
 print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">";
@@ -56,11 +57,7 @@ print "<input type=\"hidden\" name=\"modtagelse\" value=\"$modtagelse\">";
 print "<input type=\"hidden\" name=\"lev_adr\" value=\"$lev_adr\">";
 print "<input type=\"hidden\" name=\"valuta\" value=\"$valuta\">";
 
-if ($menu == 'T') {
-	$border = "border='0'";
-} else {
-	$border = "border='1' bordercolor='#FFF'";
-}
+$border = "border='1' bordercolor='#FFF'";
 
 print "<table cellpadding='0' cellspacing='0' $border valign = 'top' class='dataTableForm' width='100%'><tbody>";
 #	$ordre_id=$id;

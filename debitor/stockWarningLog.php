@@ -5,6 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --- debitor/stockWarningLog.php --- 2026-05-22 ---
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar.
 // Standalone viewer page for the out-of-stock approval log of a single order.
 // Wrapped in saldi's standard chrome (top_header + top_menu + back button +
 // footer) so it looks and behaves like every other saldi page.
@@ -46,19 +47,9 @@ $backOnclick = $backTarget
 $classtable2 = "class=dataTableForm";
 include_once '../includes/top_header.php';
 
-$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => $title, 'back' => $backLink, 'back_onclick' => $backOnclick));
 print "<div style='padding:8px 8px 0 8px;'>";
-
-print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-print "<tr>";
-print "<td width='5%' style='$buttonStyle'>";
-print "<a href=\"$backLink\" onclick=\"$backOnclick\" accesskey='L' style='text-decoration:none;color:#FFFFFF;'>";
-print "<button class='headerbtn' style='$buttonStyle; width:100%;display:flex;align-items:center;gap:5px;text-decoration:none;justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">";
-print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-print "<td width='95%' style='$topStyle' align='center'>" . htmlspecialchars($title) . "</td>";
-print "</tr>";
-print "</tbody></table>";
 
 if (!$id) {
 	print "<p>Order ID missing.</p>";

@@ -22,6 +22,8 @@
 //
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id=session_id();
@@ -116,20 +118,10 @@ if ($rexists=db_fetch_array(db_select($qexists,__FILE__ . " linje " . __LINE__))
 }
 
 // Top layout
-if ($menu=='T') {
-$title="Ordrevisning • Leverandører";
-$classtable2 ="class=dataTableForm";
-include_once '../includes/top_header.php';
-include_once '../includes/top_menu.php';
-print "<div id=\"header\">";
-print "<div class=\"headerbtnLft headLink\"><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
-print "<div class=\"headerTxt\">$title</div>";
-print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-print "</div>";
-print "<div class='content-noside'>";
-} elseif ($menu=='S') {
+if ($menu=='S') {
 $classtable2 ="";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n   <td width=\"10%\" align=center><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>\n   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>\n   <td width='80%' align=center style='$topStyle'>$title</td>\n   <td width='10%' align=center style='$topStyle'><br></td></tr>\n   </tr>\n   </tbody></table>\n   </td></tr>";
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => $title, 'back' => "ordreliste.php?valg=$valg&sort=$sort"));
 print "<center>";
 } else {
 $classtable2 ="";
@@ -157,11 +149,7 @@ sort($felter);
 
 print "<tr><td colspan='7' align='center'>".findtekst(537, $sprog_id)."</td></tr>";
 print "<tr><td colspan='7' align='center'>".findtekst(538, $sprog_id)."</td></tr>";
-if ($menu=='T') {
-print "<tr><td colspan=7 class='border-hr-top'></td></tr>\n";
-} else {
 print "<tr><td colspan=7><hr></td></tr>\n";
-}
 
 // Ensure a default KOLV row exists with sensible defaults
 $r = db_fetch_array(db_select("select id from grupper where art = 'KOLV' and kode ='$valg' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__));
@@ -220,17 +208,9 @@ $vis_linjeantal=100;
 print "<table width=100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\" valign = \"top\" class='table-Ordrevisning-no-title'><tbody>";
 print "<tr><td colspan=\"3\" ><b>".findtekst(535, $sprog_id)."</b></td><td><input class=\"inputbox\" type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
 print "<tr><td colspan=\"3\"><b>".findtekst(536, $sprog_id)."</b></td><td><input class=\"inputbox\" type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td></tr>";
-if ($menu=='T') {
-print "<tr><td colspan=7 class='border-hr-top'></td></tr>\n";
-} else {
 print "<tr><td colspan=7><hr></td></tr>\n";
-}
 print "<tr><td ><b>Pos</b></td><td colspan=\"2\"><b>".findtekst('543|Felt', $sprog_id)."</b></td><td><b>".findtekst('539|Valgfri overskrift', $sprog_id)."</b></td><td align=\"right\"><b>".findtekst('540|Feltbredde', $sprog_id)."</b></td><td><b>".findtekst('541|Justering', $sprog_id)."</b></td><td><b>".findtekst('542|DropDown', $sprog_id)."</b></td></tr>";
-if ($menu=='T') {
-print "<tr><td colspan=7 class='border-hr-bottom'></td></tr>\n";
-} else {
 print "<tr><td colspan=7><hr></td></tr>\n";
-}
 if (!$feltnavn[0]) $feltnavn[0]="Ordrenr";
 if (!$feltbredde[0]) $feltbredde[0]=50;
 if ($feltbredde[0]<=10) $feltbredde[0]*=10;
@@ -267,11 +247,7 @@ if ($justering[$x] != "R") print "<option value=\"right\" style=\"text-align:rig
 print "</SELECT></td>";
 print "<td align='center'><label class='checkContainerVisning'><input class='inputbox' type='checkbox' name='dropDown[$x]' $dropDown[$x]><span class='checkmarkVisning'></span></label></td></tr>";
 }
-if ($menu=='T') {
-print "<tr><td colspan=7 class='border-hr-bottom'></tr>\n";
-} else {
 print "<tr><td colspan=7><hr></td></tr>\n";
-}
 print "<tr><td colspan='10' align = 'center'><input type='submit' accesskey='a' value='OK' name='submit'> &nbsp;•&nbsp; <input type='button' onclick=\"location.href='ordreliste.php?valg=$valg&sort=$sort'\" accesskey='L' value='".findtekst('30|Tilbage',$sprog_id)."'></td></tr>\n";
 print "</form>";
 
@@ -298,11 +274,7 @@ return($var);
 
 print "</tbody></table>";
 
-if ($menu=='T') {
-include_once '../includes/topmenu/footer.php';
-} else {
 include_once '../includes/oldDesign/footer.php';
-}
 
 ?>
 

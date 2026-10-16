@@ -55,7 +55,7 @@ if (isset($_COOKIE['mylabel'])) {
 	list($account,$db)=explode("|",$_COOKIE['mylabel']);
 	$qtxt = "select * from online where session_id = '$s_id'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		setcookie("mylabel","$account|$db",time()-60,"/");
+		saldi_setcookie("mylabel","$account|$db",time()-60,"/");
 		$account=NULL;
 	} else {
 		$qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor)";

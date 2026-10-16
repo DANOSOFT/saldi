@@ -26,9 +26,11 @@
 // 17-10-2024 PBLM - Added link to booking
 // 20260909 CDX/LH SST-783: Return orders opened from Indkøb to the purchase tab.
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20261008 Sawaneh The list sits under the new page head (topLineVarer.php, page_bar): grid height adjusted.
 
 @session_start();
 $s_id = session_id();
+$modulnr = 9;
 
 $css = "../../css/standard.css?v=20";
 
@@ -158,7 +160,7 @@ $columns[] = array(
     "field" => "varenr",
     "headerName" => findtekst('917|Varenr.', $sprog_id),
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
 
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
@@ -170,7 +172,7 @@ $columns[] = array(
     "headerName" => findtekst('138|Navn', $sprog_id),
     "width" => "3",
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
 
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
@@ -768,7 +770,7 @@ ORDER BY {{SORT}}
 );
 
 
-print "<div style='width: 100%; height: calc(100vh - 30px - 34px - 16px);'>";
+print "<div style='width: 100%; height: calc(100vh - 142px);'>";
 create_datagrid("indkøb", $data);
 print "</div>";
 

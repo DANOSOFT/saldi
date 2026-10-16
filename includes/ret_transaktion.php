@@ -20,6 +20,8 @@
 //
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20261005 Sawaneh WP-4.15: Luk and the redirect after saving go to the received returside (the filtered
+//                  kontrolspor), with bare kontrolspor.php as fallback.
 
 ob_start();
 @session_start();
@@ -35,14 +37,15 @@ include("../includes/std_func.php");
 
 $id = if_isset($_GET['id'])*1;
 $felt= if_isset($_GET['felt']);
-$returside=if_isset($_GET['returside']);
+$returside = nav_sanitize_returside(if_isset($_GET, '', 'returside'));
+$lukHref = $returside !== '' ? $returside : '../finans/kontrolspor.php';
 $ny_feltvaerdi=if_isset($_POST['ny_feltvaerdi']);
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #Tabel1 ->
 	print "<tr><td height = 25 align=center valign=top>";
 	print "<table width=\"100%\" align=center border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # Tabel 1.1 ->
 		print "<tr><td width=\"10%\" $top_bund>";
-		print "<a href=\"../finans/kontrolspor.php\" accesskey=\"L\">Luk</a></td>";
+		print "<a href=\"" . htmlspecialchars($lukHref, ENT_QUOTES) . "\" accesskey=\"L\">Luk</a></td>";
 		print "<td width=80% $top_bund>Kontrolspor</td>";
 		print "<td width=10% $top_bund><br></td></tr>";
 	print "</tbody></table></tr>\n"; # <- Tabel 1.1
@@ -56,14 +59,16 @@ $r=db_fetch_array(db_select("select $felt from transaktioner where id = '$id'",_
 $feltvaerdi=$r[$felt];
 
 if ($id && $ny_feltvaerdi && $ny_feltvaerdi!=$feltvaerdi) {
-	db_modify("update transaktioner set $felt = '".addslashes($ny_feltvaerdi)."' where id = '$id'");
-	$feltvaerdi=$ny_feltvaerdi;
+	db_modify("update transaktioner set $felt = '".addslashes($ny_feltvaerdi)."' where id = '$id'", __FILE__ . " linje " . __LINE__);
+	ob_end_clean();
+	header("Location: $lukHref");
+	exit;
 }
 $r=db_fetch_array(db_select("select beskrivelse from grupper where art = 'PRJ' and kodenr = '".addslashes($feltvaerdi)."'",__FILE__ . " linje " . __LINE__));
 $beskrivelse=$r['beskrivelse'];
 
 
-print "<form name=\"ret_transaktion\" action=\"ret_transaktion.php?id=$id&felt=$felt&returside=$returside\" method=\"post\">";
+print "<form name=\"ret_transaktion\" action=\"ret_transaktion.php?id=$id&felt=$felt&returside=" . urlencode($returside) . "\" method=\"post\">";
  print "<td align=\"center\"><table border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # Tabel 1.2 ->
 print "<tr><td align=\"center\" colspan=\"2\"><b>Vælg nyt projektnr og tryk OK</br><hr></br></b></td></tr>";
 print "<tr><td><select name=ny_feltvaerdi>";

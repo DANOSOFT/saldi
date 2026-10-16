@@ -243,7 +243,7 @@
 	$tidspkt=date("H:i");
 	$qtxt="update ordrer set levdate = '$dd',fakturadate = '$dd',sum='$sum', moms='$moms', betalt='$betalt',status='2',felt_1='$betaling',felt_2='$modtaget',felt_3='$betaling2',felt_4='$modtaget2',felt_5='$kasse',tidspkt='$tidspkt',projekt='$projekt',ref='$brugernavn' where id='$id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	setcookie("saldi_bet",'',time()-3600);
+	saldi_setcookie("saldi_bet",'',time()-3600);
 	$ms=afrund($sum+$moms,3);
 	if (is_numeric($modtaget) && ($modtaget || ($modtaget == 0 && $ms == 0))) {
 		if ($betaling == 'Cash' || $betaling == 'Cash on amount') $betaling='Kontant';

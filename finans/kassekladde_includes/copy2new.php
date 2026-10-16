@@ -1,4 +1,6 @@
 <?php
+// 20261005 Sawaneh WP-4.7: Fortryd returns to the open journal instead of the journal list.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 	global $regnaar;
 	global $connection;
@@ -81,18 +83,7 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 		$dato=date("d-m-y");
 		global $menu;
 
-		if ($menu=='T') {
-			include_once '../includes/top_header.php';
-			include_once '../includes/top_menu.php';
-			print "<div id='header'>";
-			print "<div class='headerbtnLft headLink'>&nbsp;&nbsp;&nbsp;</div>";
-			print "<div class='headerTxt'>Kopier til ny</div>";
-			print "<div class='headerbtnRght headLink'>&nbsp;&nbsp;&nbsp;</div>";
-			print "</div>";
-			print "<div class='content-noside'>";
-		} else {
-			print  "<center><table border='0' cellspacing='1' width='60%' align='center'><tbody>";
-		}
+		print  "<center><table border='0' cellspacing='1' width='60%' align='center'><tbody>";
 		print "<form name='Form1' action=kassekladde.php?sort=bilag,transdate method=post>";
 		print "<tr><td style='text-align:center'><span class='textinputBefore' title='".findtekst(1552, $sprog_id)."'>".findtekst(1553, $sprog_id).": <input class='textinput' type='text' style='text-align:right;width:100px;' name=bilagsnr value=$bilagsnr><br><br><br></span></td></tr>";
 		print "<tr><td style='text-align:center;'><span class='textinputBefore' style=center title='".findtekst(1554, $sprog_id)."'>".findtekst(1555, $sprog_id)."<input class='textinput' style='text-align:left;width:60px;' type='text' size='8' name='ny_dato' value='$dato'><br><br><br></span></td></tr>";
@@ -103,17 +94,13 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 		print "<input style = 'height:50px;width:150px;' class='button green medium' type='submit' accesskey='k' 
 		value='".findtekst(1598, $sprog_id)."' name='copy2new' onclick='javascript:docChange = false'>";
 		print "&nbsp;";
-		print "<input style = 'height:50px;width:150px;' class='button rosy medium' type='button' value='Fortryd' onClick=\"location.href='../finans/kladdeliste.php'\">
+		print "<input style = 'height:50px;width:150px;' class='button rosy medium' type='button' value='Fortryd' onClick=\"location.href='../finans/kassekladde.php?kladde_id=" . (int) $kladde_id . "'\">
 		</span></td></tr>\n";
 		print "</form>";
 
 		print "</tbody></table>";
 
-		if ($menu=='T') {
-			include_once '../includes/topmenu/footer.php';
-		} else {
-			include_once '../includes/oldDesign/footer.php';
-		}
+		include_once '../includes/oldDesign/footer.php';
 
 		exit;
 	}

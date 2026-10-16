@@ -139,6 +139,7 @@
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
 // 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261009 Sawaneh The auto-extract toggle reads and stores the personal setting through topbarAction (was the autoExtract cookie, 4e).
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -2416,12 +2417,14 @@ print "<input type='text' id='poolSearchBox' placeholder='".findtekst('913|Søg'
 print "</div>";
 // View mode toggle and extract all button
 print "<div style='display: flex; gap: 8px;'>";
-// Auto-extract toggle
+// Auto-extract toggle: the personal setting (settings redesign 4e), no longer the autoExtract cookie.
+include_once(__DIR__ . "/../settings/SettingsService.php");
+$dpAutoExtract = (bool) SettingsService::get('personal.documents.auto_extract', (int) $bruger_id);
 print "<label title='".findtekst('3271|Auto-udtræk fakturadata ved upload', $sprog_id)."' style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
 print "<span style='position: relative; display: inline-block; width: 36px; height: 20px;'>";
-print "<input type='checkbox' id='autoExtractToggle' " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "" : "checked") . " onchange='toggleAutoExtract(this)' style='opacity: 0; width: 0; height: 0;'>";
-print "<span id='autoExtractSlider' style='position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "#ccc" : "#17a2b8") . "; transition: .3s; border-radius: 20px;'></span>";
-print "<span id='autoExtractKnob' style='position: absolute; height: 16px; width: 16px; left: " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "2px" : "18px") . "; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%;'></span>";
+print "<input type='checkbox' id='autoExtractToggle' " . (!$dpAutoExtract ? "" : "checked") . " onchange='toggleAutoExtract(this)' style='opacity: 0; width: 0; height: 0;'>";
+print "<span id='autoExtractSlider' style='position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: " . (!$dpAutoExtract ? "#ccc" : "#17a2b8") . "; transition: .3s; border-radius: 20px;'></span>";
+print "<span id='autoExtractKnob' style='position: absolute; height: 16px; width: 16px; left: " . (!$dpAutoExtract ? "2px" : "18px") . "; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%;'></span>";
 print "</span>";
 print "AI scan</label>";
 // Extract all button
@@ -4440,7 +4443,9 @@ window.toggleAutoExtract = function(checkbox) {
 		slider.style.backgroundColor = '#ccc';
 		knob.style.left = '2px';
 	}
-	document.cookie = 'autoExtract=' + (checkbox.checked ? '1' : '0') + '; path=/; max-age=31536000';
+	var fd = new FormData();
+	fd.append('action', 'auto_extract'); fd.append('value', checkbox.checked ? '1' : '0'); fd.append('ajax', '1');
+	fetch('../index/topbarAction.php', { method: 'POST', body: fd, credentials: 'same-origin' }).catch(function () {});
 };
 
 window.isAutoExtractEnabled = function() {

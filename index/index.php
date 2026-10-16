@@ -108,7 +108,7 @@ if(isset($_POST['languageId'])){
 	$languageId = $_COOKIE['languageId'];
 }
 if ($languageId) {
-    setcookie('languageId', $languageId, time() + (10 * 365 * 24 * 60 * 60), '/');
+    saldi_setcookie('languageId', $languageId, time() + (10 * 365 * 24 * 60 * 60), '/');
 }
 
  if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007

@@ -24,11 +24,14 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh The calendar sits under the new page head (crmIncludes/topLine.php, page_bar): height adjusted.
 
 @session_start();
 $s_id = session_id();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/stdFunc/dkDecimal.php");
@@ -92,7 +95,7 @@ function render_page_header()
     <style>
         .calendar-wrapper {
             width: calc(100vw - 20px);
-            height: calc(100vh - 100px);
+            height: calc(100vh - 176px);
             overflow-x: scroll;
         }
 

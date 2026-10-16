@@ -34,6 +34,10 @@
 // 20210709 LOE - Bug fixed findtekst function wasn't working here
 // 20210721 LOE - Did translations on title tags
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261005 Sawaneh WP-4.9: CSV links quoted and without the space, so the filters reach the export; the project
+//                  correction link (WP-4.15) passes this view as returside.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 
 ob_start();
@@ -88,7 +92,7 @@ $csv =  if_isset($_GET['csv']);
 
 if (!isset ($_POST['submit'])) $_POST['submit'] = 0;
 if (!isset ($valg)) $valg = 0;
-if (!isset ($hreftext)) $hreftext = 0;
+if (!isset ($hreftext)) $hreftext = '';
 if (!isset ($kontoid)) $kontoid = 0;
 if (!isset ($_POST['projektnumre'])) $_POST['projektnumre'] = 0;
 if (!isset ($_POST['beskrivelse'])) $_POST['beskrivelse'] = 0;
@@ -115,7 +119,7 @@ if ($submit=$_POST['submit']){
 	$nysort = $_POST['nysort'];
 
 	$cookievalue="$idnumre;$kontonumre;$fakturanumre;$bilagsnumre;$debetbelob;$kreditbelob;$transdatoer;$logdatoer;$logtid;$kladdenumre;$projeknumre;$beskrivelse;$linjeantal";
-	setcookie("saldi_kontrolspor", $cookievalue);
+	saldi_setcookie("saldi_kontrolspor", $cookievalue);
 } else {
 	list ($idnumre, $kontonumre, $fakturanumre, $bilagsnumre, $debetbelob, $kreditbelob, $transdatoer, $logdatoer, $logtid, $kladdenumre, $projeknumre, $beskrivelse, $linjeantal) = array_pad(explode(";", $_COOKIE['saldi_kontrolspor']), 13, null);
 	$beskrivelse=str_replace("semikolon",";",$beskrivelse);
@@ -164,38 +168,16 @@ if (!isset ($ansat_til)) $ansat_til = 0;
 if (!isset ($projekt_fra)) $projekt_fra = 0;
 if (!isset ($projekt_til)) $projekt_til = 0;
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=rapport.php accesskey=L title='Klik for at komme tilbage til rapporter'><i class='fa fa-close'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') {
+if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst(905, $sprog_id),
+		'actions' => array(array('CSV', "kontrolspor.php?csv=1&valg=$valg$hreftext", 'bx-download')),
+		'back' => $popup ? '../includes/luk.php' : 'rapport.php',
+	));
 	print "<table width=100% height=100% cellpadding=\"0\" cellspacing=\"0px\" border=\"0\" valign = \"top\" align='center'> ";
 	print "<tr><td height = 25 align=center valign=top>";
-	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-	print "<tr>";
-
-	print "<td width=10%>";
-
-	if ($popup) print "<a href=../includes/luk.php accesskey=L>
-					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-					   .findtekst(30,$sprog_id)."</button></a></td>";
-	else print "<a href=rapport.php accesskey=L>
-			    <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				.findtekst(30,$sprog_id)."</button></a></td>";
-
-	print "<td width=80% align='center' style='$topStyle'>".findtekst(905,$sprog_id)."</td>";
-
-	print "<td width=10%><a href=kontrolspor.php?csv=1&valg=$valg $hreftext' title=\"".findtekst(505,$sprog_id)."\">
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			CSV</button></a></td>";
-
-	print "</tr>\n";
-	print "</tbody></table></td></tr>";
+	print "</td></tr>";
 	print "<tr style='height: 10px;'><td>";
 } else {
 	print "<table width=100% height=100% cellpadding=\"0\" cellspacing=\"0px\" border=\"0\" valign = \"top\" align='center'> ";
@@ -206,7 +188,7 @@ if ($menu=='T') {
 	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
 	else print "<a href=rapport.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
 	print "<td width=80% $top_bund>".findtekst(905,$sprog_id)."</td>";
-	print "<td width=10% $top_bund><a href=kontrolspor.php?csv=1&valg=$valg $hreftext' title=\"".findtekst(505,$sprog_id)."\">CSV</a></td>";
+	print "<td width=10% $top_bund><a href='kontrolspor.php?csv=1&valg=$valg$hreftext' title=\"".findtekst(505,$sprog_id)."\">CSV</a></td>";
 	print "</tr>\n";
 	print "</tbody></table></td></tr>";
 	print "<tr style='height: 10px;'><td>";
@@ -468,7 +450,7 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 							else print "<td>&nbsp;</td>";
 							if ($vis_projekt) {
 								($row['projekt'] && $ret_projekt)?$title="".findtekst(1621, $sprog_id)."":$title=NULL;
-								($ret_projekt)?$tmp="<a href=\"../includes/ret_transaktion.php?id=$row[id]&felt=projekt\">$row[projekt]</a>":$tmp=$row['projekt'];
+								($ret_projekt)?$tmp="<a href=\"../includes/ret_transaktion.php?id=$row[id]&felt=projekt&returside=" . urlencode("../finans/kontrolspor.php?sort=$sort&valg=$valg$hreftext") . "\">$row[projekt]</a>":$tmp=$row['projekt'];
 								print "<td align=\"right\" title=\"$title\">$tmp<br></td>";
 							}
 							print "<td align=\"right\">$valuta[$z]<br></td>";
@@ -508,11 +490,7 @@ print "
 </tbody></table>
 ";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ?>
 

@@ -1,4 +1,5 @@
 <?php
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 function year1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager) {
 	include("../includes/topline_settings.php");
 	global $sprog_id, $bgcolor5;
@@ -52,11 +53,7 @@ function year1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 		print "<td align='center'><input type='checkbox' name='aaben' onchange=\"javascript:docChange = true;\"></td>\n";
 	}
 
-	if ($menu=='T') {
-		$styleborder="bordercolor='$bgcolor5'";
-	} else {
-		print "";
-	}
+	print "";
 	print "</tr>\n</tbody></table></td></tr>\n"; ###################################################table 4c slut
 	print "<tr><td colspan=4 width=100% align='center'><table heigth=100% border=0><tbody>"; ###########################table 5c start
 	print "<td align='center' valign=\"top\"><table heigth=100% border=1 $styleborder><tbody>\n";  #################################table 6d start	print "<tr><td align='center'>1. faktnr</td><td align='center'>1. modt. nr.</td><tr>";
@@ -123,11 +120,7 @@ function year1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 	print "</form></tbody></table>";
 
 	print "</div></div>";
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 	exit;
 }
 ?>

@@ -28,6 +28,7 @@
 // 20260901 CL/LH Escape grid cell values before rendering (XSS) and pass
 //                 o_art=KO along on row select so supplier choice survives
 // 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 CDX/PHR Include open accounts with a NULL closed flag in order lookups.
 
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
@@ -76,9 +77,6 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     if (isset($_GET['fokus'])) $fokus = $_GET['fokus'];
     if (isset($_GET['find'])) $find = $_GET['find'];
 
-    if ($menu == 'T') {
-        include_once '../includes/top_menu.php';
-    }
 
     if ($fokus == 'kontonr')
         $find = $kontonr;
@@ -558,10 +556,6 @@ CREATEFORM;
     else
         print "<BODY onLoad=\"javascript:document.getElementById('fokus').focus()\">";
 
-    if ($menu == 'T') {
-        include_once '../includes/topmenu/footer.php';
-    } else {
-        include_once '../includes/oldDesign/footer.php'; 
-    }
+    include_once '../includes/oldDesign/footer.php'; 
     exit;
 }

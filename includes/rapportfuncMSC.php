@@ -70,6 +70,7 @@
 // 20220905 MSC - Implementing new design
 // 20230111 MSC - Implementing new design
 // 20260723 sawaneh Fixed $rbox8->$box8 so the guard against a stock-tracked item used as a fee works in bogfor_rykker.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
 ?>
@@ -181,23 +182,11 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		$title = "Skjul åbne poster";
 	}
 
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">"; 
-		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-		print "<div class=\"headerTxt\">$title</div>";     
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-		print "</div>";
-		print "<div class='content-noside'>";
-		print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" ><tbody><!--Tabel 1 start-->\n";
-	} else {
-		print "<tr><td width=100% height=\"8\">\n";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
-		print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">".findtekst(30,$sprog_id)."</a></td>\n";
-		print "<td width=\"80%\" $top_bund>".findtekst(1142,$sprog_id)." - $rapportart</td>\n";
-		print "<td width=\"10%\" $top_bund>\n";
-	}
+	print "<tr><td width=100% height=\"8\">\n";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
+	print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">".findtekst(30,$sprog_id)."</a></td>\n";
+	print "<td width=\"80%\" $top_bund>".findtekst(1142,$sprog_id)." - $rapportart</td>\n";
+	print "<td width=\"10%\" $top_bund>\n";
 		print "<div style='padding:5px;'><center><select class=\"inputbox\" name=\"aabenpostmode\" onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\"></div>\n";
 		if ($kun_debet=='on') print "<option>".findtekst(925,$sprog_id)."</option>\n";
 		elseif ($kun_kredit=='on') print "<option>".findtekst(926,$sprog_id)."</option>\n";
@@ -210,7 +199,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "</select></center>\n";
 		if ($menu) print "<td></tr>\n";
 		else print "</div>\n";
-	if ($menu!='T') print "</tbody></table></td></tr><!--Tabel 1.2 slut-->\n\n"; // <- Tabel 1.2
+	print "</tbody></table></td></tr><!--Tabel 1.2 slut-->\n\n"; // <- Tabel 1.2
 	if ($skjul_aabenpost!='on') vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit);
 
  	//-------------------------------------- Rykkeroversigt ----------------------------------------------
@@ -224,9 +213,6 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		$qtxt = "select * from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' order by firmanavn";
 	}	else $qtxt = "select * from ordrer where art LIKE 'R%' order by firmanavn";
 
-	if ($menu=='T') {
-		$top_bund = "style='color:white;'";
-	}
 
 	if ($kontoart=='D' && db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__))) {
  		$x=0;
@@ -255,11 +241,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 			}
 			if (($taeller==1 && $vis_aaben_rykker=='on')||($taeller==2 && $vis_inkasso=='on')||($taeller==3 && $vis_bogfort_rykker=='on')||($taeller==4 && $vis_afsluttet_rykker=='on')) {
 			print "<tr><th>".findtekst(1134,$sprog_id)."</th><th>".findtekst(360,$sprog_id)."</th><th colspan=2>".findtekst(635,$sprog_id)."</th><th align=center>".findtekst(1131,$sprog_id)."</th><th colspan=3 align=left>".findtekst(934,$sprog_id)."</th><th colspan=1 align=left></th></tr>\n";	
-			if ($menu=='T'){
-				print "</thead><tbody>";
-			} else {
-				print "<tr><td colspan=9><hr></td></tr>\n";
-			}
+			print "<tr><td colspan=9><hr></td></tr>\n";
 			if ($taeller==1) {$formnavn='rykker1'; $status= "< 3";}
 			else  {$formnavn='rykker2'; $status= ">= 3";}
 			if ($taeller==2) $inkasso="and felt_5 = 'inkasso'";
@@ -323,11 +305,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
  
 				print "</tr>\n";
 			}
-			if ($menu=='T') {
-				print "</tbody><tfoot>";
-			} else {
-				print "";
-			}
+			print "";
 			print "<input type=hidden name=rapportart value=\"openpost\">";
 			print "<input type=hidden name=dato_fra value=$dato_fra>";
 			print "<input type=hidden name=dato_til value=$dato_til>";
@@ -336,11 +314,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 			print "<input type=hidden name=rykkerantal value=$x>";
 			print "<input type=hidden name=kontoantal value=$x>";
 			if ($x) {
-				if ($menu=='T'){
-					print "";
-				} else {
-					print "<tr><td colspan=10><hr></td></tr>\n";
-				}
+				print "<tr><td colspan=10><hr></td></tr>\n";
 				if ($taeller==1) print "<tr><td colspan=10 align=center><input type=submit value=\"  ".findtekst(1099,$sprog_id)." \" name=\"submit\" onClick=\"return confirmSubmit('Slet valgte ?')\">&nbsp;&nbsp;";
 				else print "<tr><td colspan=10 align=center>";
 				if ($taeller==2) {
@@ -357,21 +331,12 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 			
 
 			print "</form>\n";
-				if ($menu=='T') {
-					print "</tfoot></table></div><br></td></tr>";
-				} else {
-					print "</tbody></table></td></tr>";
-				}
+				print "</tbody></table></td></tr>";
 			}
 		}
 		print "</tbody></table>";
 
-		if ($menu=='T') {
-			print "<center><input type='button' onclick=\"location.href='rapport.php'\" accesskey='L' value='".findtekst(30,$sprog_id)."'></center>";
-			include_once '../includes/topmenu/footer.php';
-		} else {
-			include_once '../includes/oldDesign/footer.php';
-		}
+		include_once '../includes/oldDesign/footer.php';
 		
 	}
 	
@@ -387,25 +352,14 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	global $sprog_id;
 	global $menu;
 
-	if ($menu=='T') {
-		$top_bund = "";
-		$padding = "style='padding: 25px 20px 10px 20px;'";
-	} else {
-		$top_bund = $top_bund;
-		$padding = "";
-	}
+	$top_bund = $top_bund;
+	$padding = "";
 	
 	$forfaldsum=$forfaldsum_plus8=$forfaldsum_plus30=$forfaldsum_plus60=$forfaldsum_plus90=$fromdate=$linjebg=$popup=$todate=NULL;
 	
 	
-	if ($menu=='T') {
-		print "<tr><td><div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
-		print "<tr><th>Kontonr.</th><th>PBS</th><th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right></th>";
-		print "</thead><tbody>";
-	} else {
-		print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
-		print "<tr><td>Kontonr.</th><th>PBS</td><td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
-	}
+	print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
+	print "<tr><td>Kontonr.</th><th>PBS</td><td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
 
 	$currentdate=date("Y-m-d");
 	if ($dato_fra && $dato_til) {
@@ -417,11 +371,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 
 	print "<form name=aabenpost action=rapport.php method=post>";
 
-	if ($menu=='T') {
-		print "";
-	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-	}
+	print "<tr><td colspan=10><hr></td></tr>\n";
 		
 	$x=0;
 	$x=0;
@@ -642,13 +592,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$forfaldsum_plus30=afrund($forfaldsum_plus30,2);
 	$forfaldsum_plus8=afrund($forfaldsum_plus8,2);
 
-	if ($menu=='T') {
-		print "</tbody><tfoot>";
-		print "<tr><td colspan='2'><br></td><td><b>I alt</b></td>";
-	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "<tr><td colspan='2'><br></td><td><b>I alt</b></td>";
-	}
+	print "<tr><td colspan=10><hr></td></tr>\n";
+	print "<tr><td colspan='2'><br></td><td><b>I alt</b></td>";
 
 	if ($forfaldsum_plus90 != 0) $color="rgb(255, 0, 0)";
 	else $color="rgb(0, 0, 0)";
@@ -698,19 +643,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	}
 	print "</form>\n";
 
-	if ($menu=='T') {
-		print "</tfoot></table></div>";
-	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "</tbody></table>";
-	}
+	print "<tr><td colspan=10><hr></td></tr>\n";
+	print "</tbody></table>";
 
-	if ($menu=='T') {
-		print "</tfoot></table>";
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 
 	
 } //endfunc vis_aabne_poster
@@ -951,171 +887,85 @@ if (!isset ($sprog_id)) $sprog_id = NULL;
 	($kontoart=='D')?$title=findtekst(449,$sprog_id):$title=findtekst(450,$sprog_id);
 	($popup)?$returside="../includes/luk.php":$returside="../index/menu.php";
 
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">"; 
-		print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-		print "<div class=\"headerTxt\">$title</div>";     
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-		print "</div>";
-		print "<div class='content-noside'>";
-		print "<div class='dataTablediv' style='width:700px; margin: auto;'><table width='100%' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" class='dataTableSmall'><tbody>\n";
-	} else {
-		print "<table cellpadding=\"1\" cellspacing=\"3\" border=\"0\" width=100% height=100% valign=\"top\"><tbody>";
-		include("../includes/oldDesign/header.php");
-		print "<tr><td height=\"8\" width=\"10%\" $top_bund><a href=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-		print "<td width=\"80%\" $top_bund>$title</td>";
-		print "<td width=\"10%\" $top_bund><br></td>";
-		print "</tr><tr><td height=99%><br></td></td>";
-		print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
-		print "<tr><td align=center colspan=\"5\"><big><b>$title</b></big><br><br></td></tr>";
-	}
+	print "<table cellpadding=\"1\" cellspacing=\"3\" border=\"0\" width=100% height=100% valign=\"top\"><tbody>";
+	include("../includes/oldDesign/header.php");
+	print "<tr><td height=\"8\" width=\"10%\" $top_bund><a href=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund>$title</td>";
+	print "<td width=\"10%\" $top_bund><br></td>";
+	print "</tr><tr><td height=99%><br></td></td>";
+	print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
+	print "<tr><td align=center colspan=\"5\"><big><b>$title</b></big><br><br></td></tr>";
 
-	if ($menu=='T') {
-			$dato=$dato_fra;
-			if ($dato_til) $dato.=":$dato_til";
-			$konto=$konto_fra;
-			if ($konto_til) $konto.=":$konto_til";
-		
-			$tekst1=findtekst(437,$sprog_id);
-			$tekst2=findtekst(438,$sprog_id);
-			$tekst3=findtekst(439,$sprog_id);
-#			if (strpos($tekst3,'kundenr')) db_modify("update tekster set tekst = '' where tekst_id = 439",__FILE__ . " linje " . __LINE__);
-			$tekst4=findtekst(440,$sprog_id);
-			$tekst5=findtekst(451,$sprog_id);
-			$tekst6=findtekst(452,$sprog_id);
-			$overlib1="<span class='CellComment'>$tekst1</span>";
-			$overlib2="<span class='CellComment'>$tekst3</span>";
-			$overlib3="<span class='CellComment'>$tekst5</span>";
-		print "<form name=\"regnskabsaar\" action=\"rapport.php\" method=\"post\">";
+	$dato=$dato_fra;
+		if ($dato_til) $dato.=":$dato_til";
+		$konto=$konto_fra;
+		if ($konto_til) $konto.=":$konto_til";
+	
+		$tekst1=findtekst(437,$sprog_id);
+		$tekst2=findtekst(438,$sprog_id);
+		$tekst3=findtekst(439,$sprog_id);
+		$tekst4=findtekst(440,$sprog_id);
+		$tekst5=findtekst(451,$sprog_id);
+		$tekst6=findtekst(452,$sprog_id);
+		$overlib1="<span class='CellComment'>$tekst1</span>";
+		$overlib2="<span class='CellComment'>$tekst3</span>";
+		$overlib3="<span class='CellComment'>$tekst5</span>";
+	print "<tr><td align=\"center\" class='CellWithComment'><b>$tekst2</b> $overlib1</td><td align=\"center\" colspan=3 class='CellWithComment'><b>$tekst4</b> $overlib2</td><td align=\"center\" class='CellWithComment'><b>$tekst6</b> $overlib3</td></tr>";
+	print "<form name=\"regnskabsaar\" action=\"rapport.php\" method=\"post\">";
+	print "<tr><td align=\"center\" class='CellWithComment'><input class=\"inputbox\" style=\"width:129px\" type=\"text\" name=\"dato\" value=\"$dato\"> $overlib1</td>";
+	print "<td align=\"center\" class='CellWithComment' colspan=3><input class=\"inputbox\" style=\"width:129px\" type=\"text\" name=\"konto\" value=\"$konto\"> $overlib2</td>";
+	print "<td align=\"center\" class='CellWithComment'><label class='checkContainerVisning'><input class=\"inputbox\" type=\"checkbox\" name=\"husk\" $husk><span class='checkmarkVisning'></span></label> $overlib3</td></tr>";
+	$tekst1=findtekst(441,$sprog_id);
+	$tekst2=findtekst(444,$sprog_id);
+	print "<tr><td align=center><input style=\"width:120px\" type=\"submit\" value=\"$tekst1\" name=\"openpost\" title=\"$tekst2\"></td>";
+	$tekst1=findtekst(442,$sprog_id);
+	$tekst2=findtekst(445,$sprog_id);
+	print "<td align=center colspan=3><input style=\"width:115px\" type=\"submit\" value=\"$tekst1\" name=\"kontosaldo\" title=\"$tekst2\"></td>";
+	$tekst1=findtekst(443,$sprog_id);
+	$tekst2=findtekst(446,$sprog_id);
+	print "<td align=center><input style=\"width:115px\" type=\"submit\" value=\"$tekst1\" name=\"kontokort\" title=\"$tekst2\"></td></tr>";
+	if ($kontoart=='D') print "<tr><td colspan=\"6\"><hr></td></tr>";
+	if ($kontoart=='D') {
+		$tekst1=findtekst(447,$sprog_id);
+		$tekst2=findtekst(448,$sprog_id);
+		$tekst3=findtekst(455,$sprog_id);
 		print "<tr>";
-		print "<td align=\"center\" colspan='2' class='CellWithComment'><b>$tekst2:</b> &nbsp; &nbsp; <input class=\"inputbox\" style=\"width:129px\" type=\"text\" name=\"dato\" value=\"$dato\"> $overlib1</td>";
-		print "<td align=\"center\" colspan='2' class='CellWithComment'><b>$tekst4:</b> &nbsp; &nbsp; <input class=\"inputbox\" style=\"width:129px\" type=\"text\" name=\"konto\" value=\"$konto\"> $overlib2</td>";
-		print "</tr>";
-		print "<tr>";
-			$tekst1=findtekst(441,$sprog_id);
-			$tekst2=findtekst(444,$sprog_id);
-		print "<td align=\"center\"><input style=\"width:130px\" type=\"submit\" value=\"$tekst1\" name=\"openpost\" title=\"$tekst2\"></td>";
-			$tekst1=findtekst(442,$sprog_id);
-			$tekst2=findtekst(445,$sprog_id);
-		print "<td align=\"center\"><input style=\"width:115px\" type=\"submit\" value=\"$tekst1\" name=\"kontosaldo\" title=\"$tekst2\"></td>";
-			$tekst1=findtekst(443,$sprog_id);
-			$tekst2=findtekst(446,$sprog_id);
-		print "<td align=\"center\"><input style=\"width:115px\" type=\"submit\" value=\"$tekst1\" name=\"kontokort\" title=\"$tekst2\"></td>";
-		print "<td align=\"center\" class='CellWithComment'><b>$tekst6:</b>  &nbsp; &nbsp; <label class='checkContainerVisning'><input class=\"inputbox\" type=\"checkbox\" name=\"husk\" $husk><span class='checkmarkVisning'></span></label> $overlib3</td>";
-		print "</tr>";
-		print "<tr><td></td></tr>";
-		print "<tr><td colspan=5 class='border-hr-top'></td></tr>\n";
-		print "<tr>";
-		if ($kontoart=='D') {
-				$tekst1=findtekst(447,$sprog_id);
-				$tekst2=findtekst(448,$sprog_id);
-				$tekst3=findtekst(455,$sprog_id);
-			print "<td align=\"center\"><span title=\"$tekst1\" onClick=\"window.location.href='top100.php'\"><input style=\"width:115px\" type=button value=\"$tekst2\" name=\"submit\"></span></td>";
+		if ($popup) {
+			print "<td align=center><span onClick=\"javascript:top100=window.open('top100.php','top100','$jsvars');top100.focus();\" title=\"a $tekst1\"><input style=\"width:115px\" type=submit value=\"$tekst2\" name=\"submit\"></span></td>";
 			if (db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 >= '1'",__FILE__ . " linje " . __LINE__))) {
-				print "<td align=\"center\"><input title=\"".findtekst(918,$sprog_id)."\" style=\"width:115px\" type=\"submit\" value=\"".findtekst(918,$sprog_id)."\" name=\"salgsstat\"></td>";
-				print	"<td align=center><a href=\"kassespor.php\"><input title=\"Oversigt over POS transaktioner\" style=\"width:115px\" type=\"button\" value=\"$tekst3\"></a></td>";
-			} else {
-				print "<td align=\"center\" colspan='2'><input title=\"".findtekst(918,$sprog_id)."\" style=\"width:115px\" type=\"submit\" value=\"".findtekst(918,$sprog_id)."\" name=\"salgsstat\"></td>";
+				print "<td colspan=3 align=center><span onClick=\"javascript:kassespor=window.open('kassespor.php','kassespor','$jsvars');kassespor.focus();\" title=\"$tekst1\"><input style=\"width:115px\" type=submit value=\"$tekst3\" name=\"submit\"></span></td>";
 			}
-			if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'",__FILE__ . " linje " . __LINE__))) {
-				$tekst1=findtekst(531,$sprog_id);
-				$tekst2=findtekst(532,$sprog_id);
-				print	"<td align=center><span onClick=\"javascript:location.href='../debitor/betalingsliste.php'\"><input title=\"$tekst1\" style=\"width:145px\" type=\"button\" value=\"$tekst2\"></span></td>\n";
-			} elseif (file_exists("../debitor/multiroute.php")) {
-				print "<td align=center><span onclick=\"javascript:location.href='../debitor/multiroute.php'\"><input title=\"Multiroute\" style=\"width:135px\" type=\"button\" value=\"".findtekst(923,$sprog_id)."\"></span></td>\n";
-			} 
-			print	"</tr>\n";
 		} else {
+			print "<td align=center><span title=\"$tekst1\" onClick=\"window.location.href='top100.php'\"><input style=\"width:115px\" type=button value=\"$tekst2\" name=\"submit\"></span></td>";
+			print "<td align=center><input title=\"".findtekst(918,$sprog_id)."\" style=\"width:115px\" type=\"submit\" value=\"".findtekst(918,$sprog_id)."\" name=\"salgsstat\"></td>";
+			if (db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 >= '1'",__FILE__ . " linje " . __LINE__))) {
+				print	"<td colspan=2 align=center><a href=\"kassespor.php\"><input title=\"Oversigt over POS transaktioner\" style=\"width:115px\" type=\"button\" value=\"$tekst3\"></a></td>";
+			}
+		}
+		if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'",__FILE__ . " linje " . __LINE__))) {
 			$tekst1=findtekst(531,$sprog_id);
 			$tekst2=findtekst(532,$sprog_id);
-			print "<td align=\"center\" colspan='2'>";
-			if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'",__FILE__ . " linje " . __LINE__))) {
-				print	"<span onClick=\"javascript:location.href='../kreditor/betalingsliste.php'\">\n";
-				print "<input title=\"$tekst1\" style=\"width:150px\" type=\"button\" value=\"$tekst2\">\n";
-				print "</span></td>\n";
-			}
-			print "<td align='center' colspan='2'><input title=\"Salgsstat\" style=\"width:115px\" type=\"submit\" value=\"".ucfirst(findtekst(918,$sprog_id))."\" name=\"salgsstat\"></td>\n";
-		}
-		print	"</td></tr>\n</form>\n";
-		print "</tbody></table></div>";
+			print	"<td><span onClick=\"javascript:location.href='../debitor/betalingsliste.php'\"><input title=\"$tekst1\" style=\"width:135px\" type=\"button\" value=\"$tekst2\"></span></td>\n";
+		} elseif (file_exists("../debitor/multiroute.php")) {
+			print "<td><span onclick=\"javascript:location.href='../debitor/multiroute.php'\"><input title=\"Multiroute\" style=\"width:135px\" type=\"button\" value=\"".findtekst(923,$sprog_id)."\"></span></td>\n";
+		} 
+		print	"</tr>\n";
 	} else {
-			$dato=$dato_fra;
-			if ($dato_til) $dato.=":$dato_til";
-			$konto=$konto_fra;
-			if ($konto_til) $konto.=":$konto_til";
-		
-			$tekst1=findtekst(437,$sprog_id);
-			$tekst2=findtekst(438,$sprog_id);
-			$tekst3=findtekst(439,$sprog_id);
-			$tekst4=findtekst(440,$sprog_id);
-			$tekst5=findtekst(451,$sprog_id);
-			$tekst6=findtekst(452,$sprog_id);
-			$overlib1="<span class='CellComment'>$tekst1</span>";
-			$overlib2="<span class='CellComment'>$tekst3</span>";
-			$overlib3="<span class='CellComment'>$tekst5</span>";
-		print "<tr><td align=\"center\" class='CellWithComment'><b>$tekst2</b> $overlib1</td><td align=\"center\" colspan=3 class='CellWithComment'><b>$tekst4</b> $overlib2</td><td align=\"center\" class='CellWithComment'><b>$tekst6</b> $overlib3</td></tr>";
-		print "<form name=\"regnskabsaar\" action=\"rapport.php\" method=\"post\">";
-		print "<tr><td align=\"center\" class='CellWithComment'><input class=\"inputbox\" style=\"width:129px\" type=\"text\" name=\"dato\" value=\"$dato\"> $overlib1</td>";
-		print "<td align=\"center\" class='CellWithComment' colspan=3><input class=\"inputbox\" style=\"width:129px\" type=\"text\" name=\"konto\" value=\"$konto\"> $overlib2</td>";
-		print "<td align=\"center\" class='CellWithComment'><label class='checkContainerVisning'><input class=\"inputbox\" type=\"checkbox\" name=\"husk\" $husk><span class='checkmarkVisning'></span></label> $overlib3</td></tr>";
-		$tekst1=findtekst(441,$sprog_id);
-		$tekst2=findtekst(444,$sprog_id);
-		print "<tr><td align=center><input style=\"width:120px\" type=\"submit\" value=\"$tekst1\" name=\"openpost\" title=\"$tekst2\"></td>";
-		$tekst1=findtekst(442,$sprog_id);
-		$tekst2=findtekst(445,$sprog_id);
-		print "<td align=center colspan=3><input style=\"width:115px\" type=\"submit\" value=\"$tekst1\" name=\"kontosaldo\" title=\"$tekst2\"></td>";
-		$tekst1=findtekst(443,$sprog_id);
-		$tekst2=findtekst(446,$sprog_id);
-		print "<td align=center><input style=\"width:115px\" type=\"submit\" value=\"$tekst1\" name=\"kontokort\" title=\"$tekst2\"></td></tr>";
-		if ($kontoart=='D') print "<tr><td colspan=\"6\"><hr></td></tr>";
-		if ($kontoart=='D') {
-			$tekst1=findtekst(447,$sprog_id);
-			$tekst2=findtekst(448,$sprog_id);
-			$tekst3=findtekst(455,$sprog_id);
-			print "<tr>";
-			if ($popup) {
-				print "<td align=center><span onClick=\"javascript:top100=window.open('top100.php','top100','$jsvars');top100.focus();\" title=\"a $tekst1\"><input style=\"width:115px\" type=submit value=\"$tekst2\" name=\"submit\"></span></td>";
-				if (db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 >= '1'",__FILE__ . " linje " . __LINE__))) {
-					print "<td colspan=3 align=center><span onClick=\"javascript:kassespor=window.open('kassespor.php','kassespor','$jsvars');kassespor.focus();\" title=\"$tekst1\"><input style=\"width:115px\" type=submit value=\"$tekst3\" name=\"submit\"></span></td>";
-				}
-			} else {
-				print "<td align=center><span title=\"$tekst1\" onClick=\"window.location.href='top100.php'\"><input style=\"width:115px\" type=button value=\"$tekst2\" name=\"submit\"></span></td>";
-				print "<td align=center><input title=\"".findtekst(918,$sprog_id)."\" style=\"width:115px\" type=\"submit\" value=\"".findtekst(918,$sprog_id)."\" name=\"salgsstat\"></td>";
-				if (db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 >= '1'",__FILE__ . " linje " . __LINE__))) {
-					print	"<td colspan=2 align=center><a href=\"kassespor.php\"><input title=\"Oversigt over POS transaktioner\" style=\"width:115px\" type=\"button\" value=\"$tekst3\"></a></td>";
-				}
-			}
+		$tekst1=findtekst(531,$sprog_id);
+		$tekst2=findtekst(532,$sprog_id);
+		print "<tr><td colspan=\"3\" align=center>\n";
 			if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'",__FILE__ . " linje " . __LINE__))) {
-				$tekst1=findtekst(531,$sprog_id);
-				$tekst2=findtekst(532,$sprog_id);
-				print	"<td><span onClick=\"javascript:location.href='../debitor/betalingsliste.php'\"><input title=\"$tekst1\" style=\"width:135px\" type=\"button\" value=\"$tekst2\"></span></td>\n";
-			} elseif (file_exists("../debitor/multiroute.php")) {
-				print "<td><span onclick=\"javascript:location.href='../debitor/multiroute.php'\"><input title=\"Multiroute\" style=\"width:135px\" type=\"button\" value=\"".findtekst(923,$sprog_id)."\"></span></td>\n";
-			} 
-			print	"</tr>\n";
-		} else {
-			$tekst1=findtekst(531,$sprog_id);
-			$tekst2=findtekst(532,$sprog_id);
-			print "<tr><td colspan=\"3\" align=center>\n";
-				if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'",__FILE__ . " linje " . __LINE__))) {
-				print	"<span onClick=\"javascript:location.href='../kreditor/betalingsliste.php'\">\n";
-				print "<input title=\"$tekst1\" style=\"width:115px\" type=\"button\" value=\"$tekst2\">\n";
-				print "</span>\n";
-			}
-			print "<input title=\"Salgsstat\" style=\"width:115px\" type=\"submit\" value=\"".ucfirst(findtekst(918,$sprog_id))."\" name=\"salgsstat\">\n";
+			print	"<span onClick=\"javascript:location.href='../kreditor/betalingsliste.php'\">\n";
+			print "<input title=\"$tekst1\" style=\"width:115px\" type=\"button\" value=\"$tekst2\">\n";
+			print "</span>\n";
 		}
-		print	"</td></tr>\n</form>\n";
-		print "</tbody></table>";
-		print "</tbody></table>";
+		print "<input title=\"Salgsstat\" style=\"width:115px\" type=\"submit\" value=\"".ucfirst(findtekst(918,$sprog_id))."\" name=\"salgsstat\">\n";
 	}
+	print	"</td></tr>\n</form>\n";
+	print "</tbody></table>";
+	print "</tbody></table>";
 
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 	
 	
 }
@@ -1357,21 +1207,8 @@ function kontokort($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoa
 
 		$luk= "<a accesskey=L href=\"$returside\">";
 
-	if ($menu=='T') {
-		print "";
-	} else {
-		print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-	}
-	if ($menu=='T' && $x==1) {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">"; 
-		print "<div class=\"headerbtnLft headLink\"><a href=$returside accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-		print "<div class=\"headerTxt\">$title</div>";     
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-		print "</div>";
-		print "<div class='content-noside'>";
-	} elseif ($x==1) {
+	print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	if ($x==1) {
 		include("../includes/oldDesign/header.php");
 		print "<tr><td colspan=\"9\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; //B
@@ -1393,44 +1230,19 @@ function kontokort($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoa
 		print "</td></tr>\n";
 	}
 
-	if ($menu=='T') {
+	print "<tr><td colspan=9><hr></td></tr>\n";
+		print "<tr><td><br></td></tr>\n";
+		print "<tr><td><br></td></tr>\n";
+		print "<tr><td colspan=3>".stripslashes($r['firmanavn'])."</td></tr>\n";
+		print "<tr><td colspan=3>".stripslashes($r['addr1'])."</td></tr>\n";
+		print "<tr><td colspan=3>".stripslashes($r['addr2'])."</td><td colspan=5 align=right>Konto nr.</td><td align=right>$r[kontonr]</td></tr>\n";
+		print "<tr><td colspan=3>".stripslashes($r['postnr'])."&nbsp;".stripslashes($r['bynavn'])."</td><td colspan=5 align=right>Dato</td><td align=right>".date('d-m-Y')."</td></tr>\n";
+		print "<tr><td colspan=8 align=right>Valuta</td><td align=right>$valuta</td></tr>\n";
+		print "<tr><td><br></td></tr>\n";
+		print "<tr><td><br></td></tr>\n";
+		print "<tr><td>".findtekst(635,$sprog_id)."</td><td>".findtekst(671,$sprog_id)."</td><td>".findtekst(643,$sprog_id)."</td><td>".findtekst(1163,$sprog_id)."</td><td>$prj</td><td>".findtekst(1164,$sprog_id)."</td><td align=right>".findtekst(1000,$sprog_id)."</td><td align=right>".findtekst(1001,$sprog_id)."</td><td align=right>".findtekst(1073,$sprog_id)."</td></tr>\n";
+		print "<tr><td colspan=9><hr></td></tr>\n";
 
-		print "<div class='sub-title-kund-radius'>".stripslashes($r['firmanavn'])." • $r[kontonr]</div>";
-		print "<div class='dataTablediv'><table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\" class='dataTable'><tbody>"; //B
-		print "<tr>";
-		print "<td width='10%' align=right><b>Firmanavn:</b></td> <td width='70%'>".stripslashes($r['firmanavn'])."</td>";
-		print "<td align=right><b>Konto nr.:</b></td>";
-		print "<td align=left>$r[kontonr]</td>";
-		print "</tr>";
-		print "<tr>";
-		print "<td width='10%' align=right><b>Adresse:</b></td> <td width='70%'> ".stripslashes($r['addr1'])."</td>";
-		print "<td align=right><b>Dato:</b></td>";
-		print "<td align=left>".date('d-m-Y')."</td>";
-		print "</tr>";
-		print "<tr>";
-		print "<td width='10%' align=right><b>Adresse 2:</b></td> <td width='70%'> ".stripslashes($r['addr2'])."</td>";
-		print "<td align=right><b>Valuta:</b></td>";
-		print "<td align=left>$valuta</td>";
-		print "</tr>";
-		print "<tr>";
-		print "<td width='10%' align=right><b>Postnr - By:</b></td> <td width='70%'>".stripslashes($r['postnr'])."&nbsp;".stripslashes($r['bynavn'])."</td>";
-		print "<td colspan=2></td>";
-		print "</tr>";
-		print "<tr>";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class='dataTableNTH'><thead>";
-		print "<tr><td colspan='20' class='border-hr-bottom'></td></tr>";
-		print "<tr>";
-		print "<th>".findtekst(635,$sprog_id)."</th>";
-		print "<th>".findtekst(671,$sprog_id)."</th>";
-		print "<th>".findtekst(643,$sprog_id)."</th>";
-		print "<th>".findtekst(1163,$sprog_id)."</th>";
-		print "<th>$prj</th>";
-		print "<th>".findtekst(1164,$sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst(1000,$sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst(1001,$sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst(1073,$sprog_id)."</th>";
-		print "</tr></thead><tbody>";
-	
 		$kontosum=0;
 		$primo=0;
 		$pre_openpost=0;
@@ -1449,13 +1261,13 @@ function kontokort($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoa
 					$primoprint[$x]=1;
 				}
 				if ($kladde_id[$y]) {
-					$js="<a style='cursor: pointer;' onclick=\"window.open('../finans/kassekladde.php?kladde_id=$kladde_id[$y]&visipop=on')\">";
+					$js="onclick=\"window.open('../finans/kassekladde.php?kladde_id=$kladde_id[$y]&visipop=on')\"";
 					$rt="title='Kladde ID: $kladde_id[$y]'";
 				} else {
 					$js=NULL;
 					$rt=NULL;
 				}
-				print "<tr><td valign=\"top\">".dkdato($transdate[$y])."<br></td><td valign=\"top\" $rt> $js $refnr[$y] </a><br></td><td valign=\"top\">$faktnr[$y]<br></td><td valign=\"top\">".stripslashes($beskrivelse[$y])."<br></td><td valign=\"top\">$projekt[$y]</td>";
+				print "<tr bgcolor=\"$baggrund\"><td valign=\"top\">".dkdato($transdate[$y])."<br></td><td valign=\"top\" $rt $js>$refnr[$y]<br></td><td valign=\"top\">$faktnr[$y]<br></td><td valign=\"top\">".stripslashes($beskrivelse[$y])."<br></td><td valign=\"top\">$projekt[$y]</td>";
 				if ($amount[$y] < 0) $tmp=0-$amount[$y];
 				else $tmp=$amount[$y];
 				$tmp=dkdecimal($tmp,2);
@@ -1464,24 +1276,24 @@ function kontokort($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoa
 				($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 				if ($udlignet[$y]!='1') {
 						$pre_openpost=1;
-						print "<td valign=\"top\">$ffdag<br></td><td valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppid[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"text-align:right\">0</td>";
+						print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppid[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
 					} else {
 						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
 						$alink="rapport.php?rapportart=kontokort&kilde=openpost&kto_fra=$kto_fra&kilde_kto_til=$kto_til=&dato_fra$dato_fra=&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&uudlign=$udlign_id[$y]";
 						$onclick="return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id $udlign_id[$y]')";
-						print "<td valign=\"top\">$ffdag<br></td><td title=\"$titletag\" valign=\"top\" align=\"right\"><a onclick=\"$onclick\" href=\"$alink\" >$tmp<br></a></td><td style=\";text-align:right\">0</td>";
+						print "<td valign=\"top\"><span style='color: rgb(0, 0, 0);'>$ffdag<br></td><td title=\"$titletag\" valign=\"top\" align=\"right\"><span style=\"color: rgb(0, 0, 0);\"><a onclick=\"$onclick\" href=\"$alink\"style=\"text-decoration:none;\" >$tmp<br></a></span></td><td style=\"color:$baggrund;text-align:right\">0</td>";
 					}
 					$forfaldsum=$forfaldsum+$amount[$y];
 				} else {
 					($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 					if ($udlignet[$y]!='1') {
-						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppid[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
+						print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppid[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
 						$pre_openpost=1;
 					} else {
 						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
 						$alink="rapport.php?rapportart=kontokort&kilde=openpost&kto_fra=$kto_fra&kilde_kto_til=$kto_til=&dato_fra$dato_fra=&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&uudlign=$udlign_id[$y]";
 						$onclick="return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id $udlign_id[$y]')";
-						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td title=\"$titletag\" valign=\"top\" align=\"right\"><a onclick=\"$onclick\" href=\"$alink\">$tmp<br></a></td>";
+						print "<td>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td title=\"$titletag\" valign=\"top\" align=\"right\"><span style=\"color: rgb(0, 0, 0);\"><a onclick=\"$onclick\" href=\"$alink\"style=\"text-decoration:none;\" >$tmp<br></a></span></td>";
 					}
 				}
 				$kontosum+=afrund($amount[$y],2);
@@ -1532,139 +1344,11 @@ function kontokort($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoa
 			$tmp=dkdecimal($kontosum,2);
 			print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK sum $dkktmp\">$tmp<br></td></tr>\n";
 		}
-
-		print "</tbody><tfoot>";
-		print "<tr><td colspan=10>";
-		print "<center><input type='button' onclick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\" accesskey='L' value='".findtekst(880,$sprog_id)."'></center>";
-		print "</td></tr>";
-		print "</tfoot></table></div><br>";
-
-	} else {
-			print "<tr><td colspan=9><hr></td></tr>\n";
-			print "<tr><td><br></td></tr>\n";
-			print "<tr><td><br></td></tr>\n";
-			print "<tr><td colspan=3>".stripslashes($r['firmanavn'])."</td></tr>\n";
-			print "<tr><td colspan=3>".stripslashes($r['addr1'])."</td></tr>\n";
-			print "<tr><td colspan=3>".stripslashes($r['addr2'])."</td><td colspan=5 align=right>Konto nr.</td><td align=right>$r[kontonr]</td></tr>\n";
-			print "<tr><td colspan=3>".stripslashes($r['postnr'])."&nbsp;".stripslashes($r['bynavn'])."</td><td colspan=5 align=right>Dato</td><td align=right>".date('d-m-Y')."</td></tr>\n";
-			print "<tr><td colspan=8 align=right>Valuta</td><td align=right>$valuta</td></tr>\n";
-			print "<tr><td><br></td></tr>\n";
-			print "<tr><td><br></td></tr>\n";
-			print "<tr><td>".findtekst(635,$sprog_id)."</td><td>".findtekst(671,$sprog_id)."</td><td>".findtekst(643,$sprog_id)."</td><td>".findtekst(1163,$sprog_id)."</td><td>$prj</td><td>".findtekst(1164,$sprog_id)."</td><td align=right>".findtekst(1000,$sprog_id)."</td><td align=right>".findtekst(1001,$sprog_id)."</td><td align=right>".findtekst(1073,$sprog_id)."</td></tr>\n";
-			print "<tr><td colspan=9><hr></td></tr>\n";
-
-			$kontosum=0;
-			$primo=0;
-			$pre_openpost=0;
-			for ($y=1;$y<=count($oppid);$y++) {
-				$diff=0;
-				if ($transdate[$y]<$fromdate) {
-					 $primoprint[$x]=0;
-					 $kontosum+=$amount[$y];
-					$dkksum+=$dkkamount[$y];
-					} else {
-					if ($primoprint[$x]==0) {
-						$tmp=dkdecimal($kontosum,2);
-						$tmp2="";
-						if ($valuta!='DKK') $tmp2="&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra DKK";
-						print "<tr><td><br></td><td><br></td><td><br></td><td>".findtekst(1165,$sprog_id)." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
-						$primoprint[$x]=1;
-					}
-					if ($kladde_id[$y]) {
-						$js="onclick=\"window.open('../finans/kassekladde.php?kladde_id=$kladde_id[$y]&visipop=on')\"";
-						$rt="title='Kladde ID: $kladde_id[$y]'";
-					} else {
-						$js=NULL;
-						$rt=NULL;
-					}
-					print "<tr bgcolor=\"$baggrund\"><td valign=\"top\">".dkdato($transdate[$y])."<br></td><td valign=\"top\" $rt $js>$refnr[$y]<br></td><td valign=\"top\">$faktnr[$y]<br></td><td valign=\"top\">".stripslashes($beskrivelse[$y])."<br></td><td valign=\"top\">$projekt[$y]</td>";
-					if ($amount[$y] < 0) $tmp=0-$amount[$y];
-					else $tmp=$amount[$y];
-					$tmp=dkdecimal($tmp,2);
-					if (!$forfaldsdag[$y]) $forfaldsdag[$y]=usdate(forfaldsdag($transdate[$y], $betalingsbet, $betalingsdage));
-					if ($amount[$y]>0) {// (($kontoart=='D' && $amount>0) || ($kontoart=='K' && $amount<0)) {
-					($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
-					if ($udlignet[$y]!='1') {
-							$pre_openpost=1;
-							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppid[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
-						} else {
-							$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
-							$alink="rapport.php?rapportart=kontokort&kilde=openpost&kto_fra=$kto_fra&kilde_kto_til=$kto_til=&dato_fra$dato_fra=&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&uudlign=$udlign_id[$y]";
-							$onclick="return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id $udlign_id[$y]')";
-							print "<td valign=\"top\"><span style='color: rgb(0, 0, 0);'>$ffdag<br></td><td title=\"$titletag\" valign=\"top\" align=\"right\"><span style=\"color: rgb(0, 0, 0);\"><a onclick=\"$onclick\" href=\"$alink\"style=\"text-decoration:none;\" >$tmp<br></a></span></td><td style=\"color:$baggrund;text-align:right\">0</td>";
-						}
-						$forfaldsum=$forfaldsum+$amount[$y];
-					} else {
-						($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
-						if ($udlignet[$y]!='1') {
-							print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppid[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
-							$pre_openpost=1;
-						} else {
-							$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
-							$alink="rapport.php?rapportart=kontokort&kilde=openpost&kto_fra=$kto_fra&kilde_kto_til=$kto_til=&dato_fra$dato_fra=&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&uudlign=$udlign_id[$y]";
-							$onclick="return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id $udlign_id[$y]')";
-							print "<td>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td title=\"$titletag\" valign=\"top\" align=\"right\"><span style=\"color: rgb(0, 0, 0);\"><a onclick=\"$onclick\" href=\"$alink\"style=\"text-decoration:none;\" >$tmp<br></a></span></td>";
-						}
-					}
-					$kontosum+=afrund($amount[$y],2);
-					$dkksum+=$dkkamount[$y];
-					$dkksum=afrund($dkksum,2);
-					$tmp=dkdecimal($kontosum,2);
-					$dkktmp=dkdecimal($dkksum,2);
-					if ($valuta!='DKK' && $kontosum!=$dkksum) $title="DKK: $dkktmp";
-					else $title="";
-					if ($valuta!='DKK' && !$difflink) {
-						if ($r=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode' and valdate <= '$transdate[$y]' order by valdate desc",__FILE__ . " linje " . __LINE__))) {
-							$dagskurs=$r['kurs'];
-							$chkamount=$kontosum*$dagskurs/100;
-							$diff=afrund($chkamount-$dkksum,2);
-						}
-					}
-					$regulering=afrund($diff,2);
-					if($regulering && !$difflink && $valuta!='DKK' && ($oppvaluta[$y]!='-' || $y==count($oppid)) && $transdate[$y]>=usdate($regnstart) && $transdate[$y]<=usdate($regnslut)) { // && $transdate>=$regnstart && $transdate<=$regnslut
-						$vis_difflink=1;
-						for ($i=1;$i<=count($oppid);$i++){
-							if ($transdate[$i]==$transdate[$y] && $oppvaluta[$i]=='-') $vis_difflink=0;
-						}
-						if ($y==count($oppid) && !$kontosum) $vis_difflink=1;
-							if ($oppid[$y]>=$max_valdif_id && ($vis_difflink && (abs($regulering)>0.01 || $y==count($oppid)))) {
-							$difflink=1;
-							if ($regnstart<=date("Y-m-d") && $regnslut>=date("Y-m-d")) {
-								$title.="Klik for at regulere værdien i DKK fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".dkdato($transdate[$y]);
-								$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=$transdate[$y]&";
-								$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppid[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
-								$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
-								$tmp2.="onclick=\"confirmSubmit($confirm)\">$tmp</a>";
-								$tmp=$tmp2;
-							} else $title=NULL;
-						}
-					} elseif ($y==count($oppid) && abs($tmp)<0.01 && abs($dkksum) > 0.01 && $regnslut>=date("Y-m-d")) {
-						$title.="Klik for at regulere værdien i DKK fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".date("d-m-Y");
-						$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=".date("Y-m-d")."&";
-						$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppid[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
-						$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
-						$tmp2.="onclick=\"confirmSubmit($confirm)\">$tmp</a>";
-						$tmp=$tmp2;
-					}
-					print "<td valign=\"top\" align=right title=\"$title\">$tmp<br></td>";
-					print "</tr>\n";
-				}
-			}
-			if ($primoprint[$x]==0) {
-				$tmp=dkdecimal($kontosum,2);
-				print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK sum $dkktmp\">$tmp<br></td></tr>\n";
-			}
-			print "<tr><td colspan=9><hr></td></tr>\n";
-		}
+		print "<tr><td colspan=9><hr></td></tr>\n";
 	}
 	print "</tbody></table>";
 
-	if ($menu=='T') {
-
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 }
 
 function kontosaldo($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -1692,36 +1376,17 @@ function kontosaldo($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$konto
 	}	elseif ($dato_fra && !$dato_til) {
 		$todate=usdate($dato_fra);
 	}
-	if ($menu=='T') {
-		print "";
-	} else {
-		print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-	}
-	if ($menu=='T') {
-		$title = "Konto Saldo";
-		if ($kontoart=='K') $returnpath="../kreditor/";
-		else $returnpath="../debitor/";
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">"; 
-		print "<div class=\"headerbtnLft headLink\"><a href=$returside accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-		print "<div class=\"headerTxt\">$title</div>";     
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-		print "</div>";
-		print "<div class='content-noside'>";
-		print "<div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTableNTH'>\n";
-	} else {
-		include("../includes/oldDesign/header.php");
-		print "<tr><td colspan=\"8\" height=\"8\">";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; //B
-		print "<td width=\"10%\" $top_bund>$luk ".findtekst(30,$sprog_id)."</a></td>";
-		if ($kontoart=='K') $tekst="Kreditorrapport - kontosaldo";
-		else $tekst="Debitorapport - kontosaldo";
-		print "<td width=\"80%\" $top_bund>$tekst</td>";
-		print "<td width=\"10%\" $top_bund><br></td>";
-		print "</tbody></table>"; //B slut
-		print "</td></tr>\n";
-	}
+	print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	include("../includes/oldDesign/header.php");
+	print "<tr><td colspan=\"8\" height=\"8\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; //B
+	print "<td width=\"10%\" $top_bund>$luk ".findtekst(30,$sprog_id)."</a></td>";
+	if ($kontoart=='K') $tekst="Kreditorrapport - kontosaldo";
+	else $tekst="Debitorapport - kontosaldo";
+	print "<td width=\"80%\" $top_bund>$tekst</td>";
+	print "<td width=\"10%\" $top_bund><br></td>";
+	print "</tbody></table>"; //B slut
+	print "</td></tr>\n";
 	if (is_numeric($konto_fra) && is_numeric($konto_fra)) {
 		$qtxt = "select id from adresser where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art = '$kontoart' order by ".nr_cast('kontonr')."";
 	} elseif ($konto_fra && $konto_fra!='*') {
@@ -1764,11 +1429,7 @@ function kontosaldo($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$konto
 		print "<thead><tr><th>Konto nr.</th><th>Leverandører</th><th align=\"right\" class='text-right'>Saldo</th></thead>";
 	}
 
-	if ($menu=='T') {
-		print "<tbody>";
-	} else {
-		print "<tr><td colspan=3><hr></td></tr>\n";
-	}
+	print "<tr><td colspan=3><hr></td></tr>\n";
 
 
 	for ($x=1; $x<=$kontoantal; $x++) {
@@ -1812,23 +1473,11 @@ function kontosaldo($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$konto
 	if (!isset ($totalsum)) $totalsum = NULL;
 
 	$tmp=dkdecimal($totalsum,2);
-	if ($menu=='T') {
-		print "</tbody>";
-	} else {
-		print "<tr><td colspan=3><hr></td></tr>\n";
-	}
+	print "<tr><td colspan=3><hr></td></tr>\n";
 	print "<tfoot><tr><td><b>I alt</b></td><td  colspan=\"2\" align=\"right\"><b>$tmp</b></td></tr></tfoot>\n";
-	if ($menu=='T') {
-		print "</table></div>";
-	} else {
-		print "";
-	}
+	print "";
 
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 
 }
 

@@ -31,6 +31,7 @@ function invoice($string) {
 	if (!$s_id) return('1'.chr(9)."Missing session ID");
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
+	$permission_key = 'any';
 	include ("../includes/online.php");
 	include ("../includes/std_func.php");
 	include ("../includes/ordrefunc.php");

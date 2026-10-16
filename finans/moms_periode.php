@@ -33,6 +33,7 @@
 // 20260815 CL/SZ SD-646: guard against the betweenUpdates.php migration not
 //                having run yet - friendly message instead of querying/writing
 //                a possibly-absent moms_periode_luk table.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id = session_id();
@@ -159,17 +160,7 @@ $qt = db_select(
 while ($r = db_fetch_array($qt)) $trans_map[(int)$r['m']] = (int)$r['cnt'];
 
 // --- page output ---
-if ($menu == 'T') {
-    include_once '../includes/top_header.php';
-    include_once '../includes/top_menu.php';
-    print "<div id='header'>";
-    print "<div class='headerbtnLft headLink'><a href='kladdeliste.php'><i class='fa fa-close fa-lg'></i> Luk</a></div>";
-    print "<div class='headerTxt'>Momsperioder – &Aring;ben/Luk</div>";
-    print "<div class='headerbtnRght headLink'>&nbsp;</div>";
-    print "</div>";
-    print "<div class='content-noside' style='padding:16px;'>";
-} else {
-    print "<body>";
+print "<body>";
     print "<table width='100%' cellpadding='0' cellspacing='1px' border='0'><tr><td height='8'>";
     print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
     print "<td width='10%'><a href='kladdeliste.php'>Luk</a></td>";
@@ -177,7 +168,6 @@ if ($menu == 'T') {
     print "<td width='10%'>&nbsp;</td>";
     print "</tbody></table></td></tr></table>";
     print "<div style='padding:16px;'>";
-}
 
 if ($msg) print "<div style='padding:8px 12px; margin-bottom:12px; background:#d4edda; color:#155724; border-radius:4px;'>$msg</div>";
 
@@ -306,9 +296,5 @@ print "<p style='margin-top:16px; color:#666; font-size:0.9em;'>"
 
 print "</div>";
 
-if ($menu == 'T') {
-    include_once '../includes/topmenu/footer.php';
-} else {
-    include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 ?>

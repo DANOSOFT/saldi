@@ -2,6 +2,7 @@
 @session_start();
 $s_id=session_id();
 include "../includes/connect.php";
+$permission_key = 'any';
 include "../includes/online.php";
 
 $dry_run = true; // Set to false to actually modify the database

@@ -31,6 +31,9 @@
 // 20220813 MSC - Implementing new design
 // 20231128 MSC - Copy pasted new design into code
 // 20240216 PHR - Added fiscal_year to sellect where art = 'DG'
+// 20261002 Sawaneh Saving the list columns updates only the chosen view (kode); it rewrote every DLV row of the user.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 	
 @session_start();
 $s_id=session_id();
@@ -77,8 +80,8 @@ if (isset($_POST) && $_POST) {
 				$box2.=$cat_id[$x];
 			}
 		}
-		$qtxt = "update grupper set box1='$box1',box2='$box2',box11='$box11',kode = '$valg' ";
-		$qtxt.= "where art = 'DLV' and kodenr = '$bruger_id'";
+		$qtxt = "update grupper set box1='$box1',box2='$box2',box11='$box11' ";
+		$qtxt.= "where art = 'DLV' and kode = '$valg' and kodenr = '$bruger_id'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	} elseif ($sektion=='4') {
 		$vis_feltantal=if_isset($_POST['vis_feltantal']);
@@ -126,30 +129,22 @@ if (isset($_POST) && $_POST) {
 	}
 }
 
-if ($menu=='T') {
-
-} else {
-	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>"; #Tabel 1 ->
-	print "<tr><td colspan = '2' height = '25' align='center' valign='top'>";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>"; #Tabel 1.1 ->
+if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'back' => "debitor.php?valg=$valg&sort=$sort"));
 }
+print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>"; #Tabel 1 ->
+print "<tr><td colspan = '2' height = '25' align='center' valign='top'>";
+print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>"; #Tabel 1.1 ->
 sektion_1();
-if ($menu=='T') {
-	print "<table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top' class='tablePadding'><tbody>";
-} else {
 #	print "</tbody></table>"; #  <- Tabel 1.1
 #	print "	</td></tr><tr><td valign='top' colspan = '2'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'><tbody>"; # Tabel 1.2 ->
 #	print "</tbody></table></td></tr><tr></tr>"; # <- tabel 1.2
 #	print "<tr><td width='100%' colspan><table border='0''><tbody><tr><td>"; #tabel 1.3 ->
-}
 # sektion_2();
-if ($menu=='T') {
-
-} else {
-	print "</td></tr></tbody></table></td></tr>"; # <- tabel 1.2
-	print "<tr><td width='100%' valign='top'><table border='0' width='100%'><tbody>"; #tabel 1.3 ->
-	print "<tr><td width='50%' valign='top'><table border='0' width='100%' height='100%'><tbody>"; #tabel 1.3.1 ->
-}
+print "</td></tr></tbody></table></td></tr>"; # <- tabel 1.2
+print "<tr><td width='100%' valign='top'><table border='0' width='100%'><tbody>"; #tabel 1.3 ->
+print "<tr><td width='50%' valign='top'><table border='0' width='100%' height='100%'><tbody>"; #tabel 1.3.1 ->
 sektion_3();
 print "</td></tr></tbody></table></td>"; # <- tabel 1.3.1
 print "<td width=50% valign='top'><table border='0' width='100%' height='100%' class='tablePadding'><tbody>"; #tabel 1.3.2 ->
@@ -172,20 +167,8 @@ global $title;
 global $valg;
 global $menu;
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id='header'>";
-	print "<div class='headerbtnLft headLink'><a href=debitor.php?valg=$valg&sort=$sort accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
-	print "<div class='headerTxt'>$title</div>";
-	print "<div class='headerbtnRght headLink'>&nbsp;&nbsp;&nbsp;</div>";
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') {
-	print "<td width='10%' align=center><a href=debitor.php?valg=$valg&sort=$sort accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>
-		   <td width='80%' align=center style=$topStyle>$title</td>
-		   <td width='10%' align=center style=$topStyle><br></td></tr>";
+if ($menu=='S') {
+	print "<tr></tr>";
 } else {
 	print "<td width='10%' align=center><div class='top_bund'><a href=debitor.php?valg=$valg&sort=$sort accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div></td>
 		   <td width='80%' align=center><div class='top_bund'>$title</a></div></td>
@@ -410,9 +393,5 @@ function sektion_4() {
 	print "<tr><td colspan=6 align = center><input type=submit accesskey='a' value='OK' name='submit'></td></tr>\n";
 	print "</form>";
 }
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 ?>

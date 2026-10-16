@@ -57,6 +57,7 @@ include(__DIR__ . "/std_func.php");
 include(__DIR__ . "/connect.php");
 require_once __DIR__ . '/stdFunc/unlockRecord.php';
 $kilde = $_GET['kilde'] ?? null;
+$permission_key = 'any';
 if ($kilde!='online.php') {
 	include(__DIR__ . "/online.php");
 }

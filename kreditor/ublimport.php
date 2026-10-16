@@ -25,6 +25,9 @@
 //
 // Copyright (c) 2004-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 2013.02.10 Break ændret til break 1
 // 2013.09.16 Tilføjet import fra pulje
 // 2016-12-07 Rettet puljesti - søg nfs_mount
@@ -35,9 +38,10 @@ $css="../css/standard.css";
 
 global $menu;
 
-$title="OIOUBL import";
+$title = findtekst('7011|OIOUBL import', $sprog_id);
 	
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
@@ -45,35 +49,12 @@ include("../includes/topline_settings.php");
 if (file_exists("../owncloud")) $nfs_mappe='owncloud';
 elseif (file_exists("../bilag")) $nfs_mappe='bilag';
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	if (isset($_POST['descfil']) || isset($_GET['funktion'])) print "<div class=\"headerbtnLft headLink\"><a href=ordreliste.php accesskey=L title='Klik her for at komme tilbage til forrige side'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
-	else print "<div class=\"headerbtnLft headLink\"><a href=ordre.php accesskey=L title='Klik her for at komme tilbage til forrige side'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>"; 
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<table width=\"100%\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class='dataTableSmall'><tbody>";
-
-} elseif ($menu=='S') {
+if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'back' => (isset($_POST['descfil']) || isset($_GET['funktion'])) ? 'ordreliste.php' : 'ordre.php'));
 	print "<div align=\"center\">";
 	print "<table width=\"100%\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"3\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	if (isset($_POST['descfil']) || isset($_GET['funktion'])) {
-		print "<td width=\"10%\"><a href=ordreliste.php accesskey=L>
-			   <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
-	} else {
-		print "<td width=\"10%\"><a href=ordre.php accesskey=L>
-			   <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
-	}
-	print "<td width=\"80%\" align='center' style='$topStyle'>$title</td>";
-	print "<td width=\"10%\" align='center' style='$topStyle'><br></td>";
-
-	print "</tbody></table>";
 	print "</td></tr>";
 
 } else {

@@ -1333,15 +1333,13 @@ if (!function_exists('formularprint')) {
 				// Per-form print-language lock (set in the visual form editor):
 				// force the whole print into one language regardless of the
 				// customer's language. No lock file => behaviour unchanged.
-				$fe_lock = "../logolib/$db_id/fe_printlang_$formular.json";
-				if (@file_exists($fe_lock)) {
-					$fe_pl = @json_decode(@file_get_contents($fe_lock), true);
-					if (is_array($fe_pl) && !empty($fe_pl['sprog'])) {
-						// value is interpolated into SQL below; restrict to a safe
-						// charset in case the lock file was tampered with on disk.
-						$fe_lang = preg_replace('/[^\p{L}\p{N} ._\-]/u', '', (string) $fe_pl['sprog']);
-						if ($fe_lang !== '') $formularsprog = strtolower($fe_lang);
-					}
+				// 20261005 Sawaneh G6.1 (FE3): the lock lives in the settings table (a lock file from before is moved there).
+				include_once(__DIR__ . '/formEditorState.php');
+				$fe_pl_sprog = fe_printlang_get($db_id, (int) $formular);
+				if ($fe_pl_sprog !== '') {
+					// value is interpolated into SQL below; restrict to a safe charset.
+					$fe_lang = preg_replace('/[^\p{L}\p{N} ._\-]/u', '', $fe_pl_sprog);
+					if ($fe_lang !== '') $formularsprog = strtolower($fe_lang);
 				}
 				if (($formular == 4) || ($formular == 5)) {
 					if (!$fakturanr) { #20130508

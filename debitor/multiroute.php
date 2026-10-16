@@ -31,11 +31,14 @@
 // 2019.02.18 MSC - Rettet topmenu design
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260709 SZ Added Grid Framework sticky header to Multiroute report
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 @session_start();
 $s_id=session_id();
 $modulnr=12;
-$title="Eksport til mulitroute";
+$title = findtekst('7010|Eksport til Multiroute', $sprog_id);
 
 $css="../css/standard.css";
 
@@ -152,32 +155,13 @@ if ($menu == 'S') {
 	// 2 columns, kept 3 per explicit follow-up direction). The previous "include
 	// ../includes/sidemenu.php" was a dead include (the file doesn't exist in this codebase) — it
 	// silently failed and printed nothing, which is why this report had no header at all in S-mode.
-	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-	print "<td width='10%' align='left'><a href='$luk' accesskey=L style=\"text-decoration: none;\">";
-	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px; justify-content: flex-start; padding-left: 3px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
-	print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
-	print "<td width='10%' align='center' style='$topStyle'>&nbsp;</td>";
-	print "</tr></tbody></table>";
+	include_once("../includes/stdFunc/pageBar.php");
+	print "<div class='pg-sticky' style=\"position: sticky; top: 0; z-index: 100; background-color: $bgcolor;\">";
+	page_bar(array('title' => $title, 'back' => $luk));
 	print "</div>";
 }
 print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
-if ($menu=='T') {
-	$leftbutton="<a class='button red small' title=\"Klik her for at komme til startsiden\" href=\"../debitor/rapport.php\" accesskey=\"L\">Luk</a>";
-	$rightbutton=NULL;
-	$vejledning=NULL;
-	include("../includes/top_header.php");
-	include("../includes/top_menu.php");
-	print "<div id=\"header\">
-	<div class=\"headerbtnLft\">$leftbutton</div>
-	<span class=\"headerTxt\">Salgsstat</span>";
-	print "<div class=\"headerbtnRght\"></div>";
-	print "</div><!-- end of header -->";
-	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	// Header already printed above, before this table opened — see comment there.
 } else {
 	print "<tr><td colspan=\"4\" height=\"8\">";

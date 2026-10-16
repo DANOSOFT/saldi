@@ -29,6 +29,7 @@
 // 20140924 PK - Validering af $navn, så der skrives en meddelelse hvis der ikke er udfyldt navn
 // 20150213	PHR - header("location:ansatte.php?id=$id&funktion=ret_ansat"); smadrer alting, så jeg har sat "if ($menu=='T')" foran.
 // 20260127 PHR update settings value
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 if ($konto_id=$_POST['konto_id']) {
 	$id=$_POST['id']*1;
@@ -86,7 +87,6 @@ if ($konto_id=$_POST['konto_id']) {
 				('$navn','$nummer','$initialer','$konto_id','$addr1','$addr2','$postnr','$bynavn','$tlf','$mobile','$privattlf','$mobil','$email','$cprnr','$notes','$afd','$lukket','$bank','$startdate','$slutdate','$loen','$extraloen','$trainee')",__FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn'",__FILE__ . " linje " . __LINE__));
 			$id = $r['id']; 
-			if ($menu=='T') header("location:ansatte.php?id=$id&funktion=ret_ansat");
 		} elseif ($id > 0) {
 			if (!$startdate) $startdate="1900-01-01";
 			if (!$slutdate) $slutdate="9999-12-31";
@@ -94,7 +94,6 @@ if ($konto_id=$_POST['konto_id']) {
 	#echo "update ansatte set navn='$navn',nummer='$nummer',initialer='$initialer',konto_id='$konto_id',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',email='$email',tlf='$tlf',mobile='$mobile',privattlf='$privattlf',mobil='$mobil',cprnr='$cprnr',notes='$notes',afd='$afd',lukket='$lukket',bank='$bank',startdate='$startdate',slutdate='$slutdate',loen='$loen',extraloen='$extraloen',trainee='$trainee' where id='$id'<br>";		
 			$qtxt="update ansatte set navn='$navn',nummer='$nummer',initialer='$initialer',konto_id='$konto_id',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',email='$email',tlf='$tlf',mobile='$mobile',privattlf='$privattlf',mobil='$mobil',cprnr='$cprnr',notes='$notes',afd='$afd',lukket='$lukket',bank='$bank',startdate='$startdate',slutdate='$slutdate',loen='$loen',extraloen='$extraloen',trainee='$trainee' where id='$id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($menu=='T') header("location:ansatte.php?id=$id&funktion=ret_ansat");
 		}
 		if ($id) {
 			$qtxt = "select id from brugere where ansat_id = '$id'";

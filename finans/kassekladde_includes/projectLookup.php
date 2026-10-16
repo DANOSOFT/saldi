@@ -1,4 +1,5 @@
 <?php
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 function projectLookup($fokus,$x) {
 
 	include("../includes/topline_settings.php");
@@ -29,17 +30,7 @@ function projectLookup($fokus,$x) {
 	$kredit[$x]=trim($kredit[$x]);
 	$faktura[$x]=htmlentities($faktura[$x],ENT_QUOTES,$charset);
 	$belob[$x]=trim($belob[$x]);
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id='header'>";
-		print "<div class='headerbtnLft headLink'><a href='kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id[$x]&bilag=$bilag[$x]&dato=$dato[$x]&beskrivelse=$beskrivelse[$x]&d_type=$d_type[$x]&debet=$debet[$x]&k_type=$k_type[$x]&debet=$debet[$x]&kredit=$kredit[$x]&faktura=$faktura[$x]&belob=$belob[$x]&momsfri=$momsfri[$x]&afd=$afd[$x]&projekt=$projekt[$x]&ansat=$ansat[$x]&valuta=$valuta[$x]&lobenr=$lobenr[$x]' accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
-		print "<div class='headerTxt'>$title</div>";
-		print "<div class='headerbtnRght headLink'>&nbsp;&nbsp;&nbsp;</div>";
-		print "</div>";
-		print "<div class='content-noside'>";
-		print  "<center><table class='dataTable' border='0' cellspacing='1' align='center';>";
-	} else if ($menu=='S') {
+	if ($menu=='S') {
 		print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 		print "<td width='10%'><a href='kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id[$x]&bilag=$bilag[$x]&dato=$dato[$x]&beskrivelse=$beskrivelse[$x]&d_type=$d_type[$x]&debet=$debet[$x]&k_type=$k_type[$x]&debet=$debet[$x]&kredit=$kredit[$x]&faktura=$faktura[$x]&belob=$belob[$x]&momsfri=$momsfri[$x]&afd=$afd[$x]&projekt=$projekt[$x]&ansat=$ansat[$x]&valuta=$valuta[$x]&lobenr=$lobenr[$x]' accesskey=L>";
 		print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";

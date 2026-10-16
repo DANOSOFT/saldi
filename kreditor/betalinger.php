@@ -28,6 +28,7 @@
 // 20230501 Created kladdeliste option
 // 20260713 CL/NTR Fixed SQL injection: cast $_GET[kladde_id] with intval()
 //                  before interpolating into the query
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 $dan_liste=$gem=$listenote=$slet_ugyldige=$udskriv=NULL;
 
@@ -120,13 +121,7 @@ else {
 $linjebg=$bgcolor;
 $erh_title= "ERH355 = Bankoverf. med normal advisering";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/header.php';
-	print "<div class='$kund'>$title</div>
-	<div class='content-noside'>";
-	print "<div class='dataTablediv'><table cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top' class='dataTable'><thead>";
-} else {
-	include_once '../includes/oldDesign/header.php';
+include_once '../includes/oldDesign/header.php';
 	//print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	//print "<tr><td height = '25' align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
@@ -150,7 +145,6 @@ if ($menu=='T') {
 	print "</td></tr>";
 	print "<tr><td valign='top'>";
 	print "<table cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top'><tbody>";
-}
 
 if (!$liste_id) {
 	$tidspkt=microtime();
@@ -384,11 +378,7 @@ if ($udskriv) {
 	print "<tr>";
 	if ($bogfort!='-'){
 		print "<td colspan=11 align='center'><b>$listenote</b></td></tr>";
-		if ($menu=='T') {
-		print "<tr><td colspan=11 class='border-hr-bottom'></td></tr>\n";
-	} else {
 		print "<tr><td colspan=11><hr></td></tr>\n";
-	}
 	}	else {
 		print "<td><b> <span title= 'Her kan skrives en bem&aelig;rkning til kladden'>Bem&aelig;rkning:</b></td>";
 		print "<td colspan=10><input type=\"text\" style='width:100%;' name=listenote value=\"$listenote\"></td></tr>";
@@ -422,11 +412,7 @@ if ($udskriv) {
 		<th><span title='Se i nyt vindue'><b>Se</b></span></td>";
 		if ($bogfort!='V') print "<th align='center'><span title='Slet linjen fra listen'><b>Slet</b></span></th>";
 		print "</tr>";
-		if ($menu=='T') {
-			print "</thead><tbody>";
-		} else {
-			print "";
-		}
+		print "";
 		
 #print"<tr><td colspan=11><hr></td></tr>";
 	$x=0;
@@ -566,11 +552,7 @@ $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	} 
 
-	if ($menu=='T') {
-		print "</tbody><tfoot>";
-	} else {
-		print "";
-	}
+	print "";
 
 	$modtagerantal=$x;
 	#($kn_kontrol)?$modtagerantal=0:$modtagerantal=$x;
