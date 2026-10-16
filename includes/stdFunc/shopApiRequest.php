@@ -1,5 +1,5 @@
 <?php
-// --- includes/stdFunc/shopApiRequest.php --- ver 5.0.0 --- 2026-07-27 ---
+// --- includes/stdFunc/shopApiRequest.php --- ver 5.0.0 --- 2026-10-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Sends webshop API requests without a shell, captures the outcome and logs failures.
 // Replaces the old "nohup curl '$url' > ../temp/$db/curl.txt &" pattern, which threw
@@ -26,6 +26,10 @@
 //                  transport-class failures degrade an endpoint (a 4xx is about one item,
 //                  not the host), and the shared php error log gets scheme/host/path
 //                  instead of the query string and the response body.
+// 20261016 MJ SST-876 A 2xx answer whose body is a rejection now counts as a failure.
+//                  Havemoebelland's stock stopped reaching DirekteImport.dk and Saldi
+//                  reported nothing for days, because the shop adapter answers 200 to
+//                  everything and only the status was looked at.
 
 if (!function_exists('shopApiUrl')) {
 	/**
@@ -81,6 +85,51 @@ if (!function_exists('shopApiUrl')) {
 	}
 }
 
+if (!function_exists('shopApiResponseRejected')) {
+	/**
+	 * Decides whether a response the transport accepted is really a rejection.
+	 *
+	 * A webshop adapter is a customer-owned script, and several answer 200 to everything -
+	 * Havemoebelland's prints the stock figure and nothing else, whether it updated the shop
+	 * or not (SST-876). Judging only the http status therefore reports a successful sync for
+	 * an update that never happened, which is why those stock figures stood still for days
+	 * without a single error anywhere in Saldi.
+	 *
+	 * Only shapes that say so explicitly count: a json payload denying success, or a body
+	 * that begins as a php error page. A bare figure or an empty body stays a success,
+	 * because that is what the working adapters answer and this must not turn every
+	 * existing installation's sync into an error.
+	 *
+	 * Nothing here may depend on std_func.php: api/updateShopCostPrice.php requires this
+	 * file on its own, so ifset() and its siblings are not available.
+	 *
+	 * @param string $body  Response body as received.
+	 * @return string  Empty when the answer looks accepted, otherwise a short reason for the log.
+	 */
+	function shopApiResponseRejected($body) {
+		$body = (string)$body;
+		if (trim($body) === '') {
+			return '';
+		}
+		$data = json_decode($body, true);
+		if (is_array($data)) {
+			$denied = (array_key_exists('success', $data) && $data['success'] === false)
+				|| (array_key_exists('ok', $data) && $data['ok'] === false)
+				|| !empty($data['error'])
+				|| !empty($data['errors'])
+				|| (isset($data['data']['status']) && (int)$data['data']['status'] >= 400)
+				|| (isset($data['status']) && in_array($data['status'], array('error', 'failed', 'failure'), true));
+			if ($denied) {
+				return 'shop answered http 2xx with a rejection payload';
+			}
+		}
+		if (preg_match('/^\s*(?:error\b|fatal error\b|<br\s*\/?>\s*<b>(?:warning|fatal error))/i', $body)) {
+			return 'shop answered http 2xx with an error page';
+		}
+		return '';
+	}
+}
+
 if (!function_exists('shopApiRequest')) {
 	/**
 	 * Performs a webshop API request and reports whether the shop actually accepted it.
@@ -104,7 +153,8 @@ if (!function_exists('shopApiRequest')) {
 	 *   maxBodyLog: int,         Characters of the response body kept in the log, default 500.
 	 * } $options  All keys optional.
 	 * @return array{
-	 *   ok: bool,          True when the shop answered with http status < 400.
+	 *   ok: bool,          True when the shop answered with http status < 400 and its body
+	 *                      was not itself a rejection (see shopApiResponseRejected()).
 	 *   url: string,       The url that was called, empty if the endpoint was rejected.
 	 *   httpCode: int,     Http status code, 0 when no response was received.
 	 *   error: string,     Empty on success, otherwise a short failure description.
@@ -195,12 +245,21 @@ if (!function_exists('shopApiRequest')) {
 			$result['body']     = $call['body'];
 
 			if ($call['error'] === '' && $call['httpCode'] > 0 && $call['httpCode'] < 400) {
-				$result['ok']    = true;
-				$result['error'] = '';
-				$failCount[$endpointKey] = 0;
-				if (is_resource($log)) {
-					fwrite($log, date('Y-m-d H:i:s') . ' shop sync ok ' . $options['context'] . ' http ' . $call['httpCode'] . ' ' . $url . "\n");
+				$rejected = shopApiResponseRejected($call['body']);
+				if ($rejected === '') {
+					$result['ok']    = true;
+					$result['error'] = '';
+					$failCount[$endpointKey] = 0;
+					if (is_resource($log)) {
+						fwrite($log, date('Y-m-d H:i:s') . ' shop sync ok ' . $options['context'] . ' http ' . $call['httpCode'] . ' ' . $url . "\n");
+					}
+					return $result;
 				}
+				// The shop is answering perfectly well and refusing this one item, so this says
+				// nothing about the host: no retry, and the endpoint is not degraded for the items
+				// that follow. It is logged like any other failure and the caller is told.
+				$result['error'] = $rejected;
+				shopApiLogFailure($log, $options['context'], $url, $result, $options['maxBodyLog']);
 				return $result;
 			}
 

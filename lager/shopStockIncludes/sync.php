@@ -6,6 +6,11 @@
 // 20261005 CDX/PHR Allow retrying an individual failed item/shop without advancing the queue.
 // 20261006 CL/NTR Documented why webshop requests deliberately follow customer-controlled redirects.
 // 20261006 CL/NTR Documented that a batch may exceed its 8 s budget by one cURL timeout.
+// 20261016 MJ SST-876 The body inspection moved to shopApiResponseRejected() in
+//                  stdFunc/shopApiRequest.php, so this page and sync_shop_vare() judge a
+//                  shop's answer by the same rule. Behaviour here is unchanged.
+
+require_once(__DIR__ . '/../../includes/stdFunc/shopApiRequest.php');
 
 class ShopStockException extends RuntimeException {}
 
@@ -159,11 +164,8 @@ function shopStockResponseError($code, $curlError, $body)
 	if ($code < 200 || $code >= 300) {
 		return 'HTTP ' . (int) $code . '.';
 	}
-	$data = json_decode($body, true);
-	if (is_array($data) && (ifset($data, 'success', true) === false || ifset($data, 'ok', true) === false || !empty($data['error']) || !empty($data['errors']) || (int) ifset($data, array('data', 'status'), 0) >= 400 || in_array(ifset($data, 'status', ''), array('error', 'failed', 'failure'), true))) {
-		return 'Webshoppen returnerede en fejl.';
-	}
-	if (preg_match('/^\s*(?:error\b|fatal error\b|<br\s*\/?>\s*<b>(?:warning|fatal error))/i', $body)) {
+	// SST-876: one rule for what counts as a rejection, shared with sync_shop_vare().
+	if (shopApiResponseRejected($body) !== '') {
 		return 'Webshoppen returnerede en fejl.';
 	}
 	return '';

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
+//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -146,6 +146,7 @@
 //             returned error now names the offending account and order instead of a bare generic string.
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
+// 20261016 MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
@@ -727,7 +728,12 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			}
 		}
 	}
-	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
+	# SST-876: this path has no user interface - invoicing and the rest api run it - so a shop
+	# that refuses the update goes to the php error log rather than on screen.
+	$shopSync = sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
+	if (shopSyncFailed($shopSync)) {
+		error_log("saldi: shop stock sync failed for vare_id $vare_id on order $id - $shopSync");
+	}
 	$qtxt = "update ordrelinjer set leveret = leveret+$antal,leveres=0 where id='$linje_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } # endfunc linjeopdat
