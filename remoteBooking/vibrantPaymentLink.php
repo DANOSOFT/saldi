@@ -1,10 +1,12 @@
 <?php
+// 20261006 CL/LH SST-842: Use the tenant's own Vibrant key against the production API; the hardcoded sandbox key is gone; booking id int-cast.
 require_once "../includes/connect.php";
 $customerData = json_decode(file_get_contents("php://input"), true);
 
 $connection = db_connect($sqhost, $squser, $sqpass, $customerData["db"]);
 
-$query = db_select("SELECT * FROM rentalperiod WHERE id = $customerData[id]", __FILE__ . " linje " . __LINE__);
+$bookingId = (int)($customerData["id"] ?? 0);
+$query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
 $res = db_fetch_array($query);
 $orderId = $res["order_id"];
 
@@ -19,12 +21,15 @@ $amount = $res["sum"] * 1.25 * 100;
 
 $query = db_select("SELECT apikey FROM rentalpayment WHERE id = 1", __FILE__ . " linje " . __LINE__);
 $res = db_fetch_array($query);
-$apiKey = $res["apikey"];
+$apiKey = trim((string)($res["apikey"] ?? ''));
+if ($apiKey === '') {
+    echo json_encode(["error" => "No Vibrant API key configured", "id" => $customerData["id"]]);
+    exit;
+}
 
-$apiKey = "vibrant_pos.1065f26b-baf7-4ff1-9d36-f6ba85590311.8K49ho/SBjVWXS8b9_U/2XgA~UuSG-11";
 $ch = curl_init();
 
-curl_setopt($ch, CURLOPT_URL, 'https://pos-api.sandbox.vibrant.app/pos/v1/payment_link');
+curl_setopt($ch, CURLOPT_URL, 'https://pos.api.vibrant.app/pos/v1/payment_link');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_POST, 1);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array("amount" => $amount)));
