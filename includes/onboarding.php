@@ -27,6 +27,7 @@
 // 20261011 Sawaneh Steps company/fiscal/users count as done when their data exists (settings spec §8.8,
 //                  settings_section_complete(); fiscal also needs the VAT answer); onb_steps_stored() keeps what the
 //                  guide recorded; onb_steps() answers once per request.
+// 20261016 Sawaneh The welcome step counts as done once any later step is, so the card never says 'Fortsæt: Velkommen' at 6 of 7.
 // 20261014 Sawaneh Test invoice: formularprint() answers 'OK' when it printed, which was read as a refusal; refusals are logged.
 //                  The PDF converter and pdftk fall back to the server's own binaries when the master settings are empty.
 // 20261015 Sawaneh The test line carries an item number, so the print shows quantity, price and sum.
@@ -94,6 +95,10 @@ function onb_steps(bool $fresh = false): array
 		if ((!isset($steps[$step]) || $steps[$step] !== 'done') && settings_section_complete($section) && ($step !== 'fiscal' || $vatAnswered)) {
 			$steps[$step] = 'done';
 		}
+	}
+	// The intro has nothing to fill in: once any later step is done, it counts as read.
+	if (!isset($steps['welcome']) && array_diff_key($steps, array('welcome' => 1))) {
+		$steps['welcome'] = 'done';
 	}
 	return $cache = $steps;
 }
