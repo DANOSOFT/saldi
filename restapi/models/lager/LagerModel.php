@@ -29,7 +29,11 @@ class LagerModel
         $this->id = -1;
         $this->description = "";
         $this->number = $nr;
-        $this->fiscal_year = $regnaar;
+        // 20261011 MJ SST-829 Warehouses are not tied to an accounting year - stock is keyed on
+        // grupper.kodenr, and Indstillinger now saves them with fiscal_year 0. Defaulting to
+        // the current year here would write a per-year row the rest of the system no longer
+        // expects, and hide it from reads that no longer filter by year.
+        $this->fiscal_year = 0;
         
         // Load existing data if provided
         if ($id !== null) {
@@ -57,7 +61,10 @@ class LagerModel
         }
         
         $id = (int)$id; // Ensure integer type
-        $qtxt = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = $id AND art = '" . self::ART_TYPE . "' AND fiscal_year = " . $this->fiscal_year;
+        // 20261011 MJ SST-829 No fiscal_year filter: a warehouse saved from Indstillinger carries
+        // 0, and existing tenants still have per-year copies, so filtering on the current year
+        // finds neither reliably. The id identifies the row on its own.
+        $qtxt = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = $id AND art = '" . self::ART_TYPE . "'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         return $this->populateFromResult($q);
@@ -78,8 +85,14 @@ class LagerModel
         }
         
         $kodenr = (int)$kodenr; // Ensure integer type
-        $qtxt = "SELECT * FROM " . self::TABLE_NAME . " WHERE fiscal_year = $regnaar AND art = '" . 
-                self::ART_TYPE . "' AND kodenr = '$kodenr'";
+        // 20261011 MJ SST-829 A warehouse number identifies it on its own. Existing tenants may
+        // still have one row per accounting year, so this orders the way Indstillinger and the
+        // leverandørordre dropdown do - the current year first, then the newest row - and
+        // populateFromResult() takes the first.
+        $qtxt = "SELECT * FROM " . self::TABLE_NAME . " WHERE art = '" .
+                self::ART_TYPE . "' AND kodenr = '$kodenr' " .
+                "ORDER BY CASE WHEN fiscal_year = " . (int)$regnaar . " THEN 0 ELSE 1 END, " .
+                "COALESCE(fiscal_year,0) DESC, id DESC";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         return $this->populateFromResult($q);
@@ -157,7 +170,9 @@ class LagerModel
 
         // Prepare integer fields: NULL if not numeric
         $number       = is_numeric($this->number)       ? intval($this->number)       : 'NULL';
-        $fiscal_year  = is_numeric($this->fiscal_year) ? intval($this->fiscal_year) : $regnaar;
+        // 20261011 MJ SST-829 Warehouses are stored year-agnostically; falling back to the
+        // current year would recreate the per-year rows this ticket stops producing.
+        $fiscal_year  = is_numeric($this->fiscal_year) ? intval($this->fiscal_year) : 0;
 
         if ($this->id > 0) {
             // UPDATE
@@ -212,7 +227,9 @@ class LagerModel
             return false;
         }
 
-        $qtxt = "DELETE FROM " . self::TABLE_NAME . " WHERE id = $this->id AND art = '" . self::ART_TYPE . "' AND fiscal_year = " . $this->fiscal_year;
+        // 20261011 MJ SST-829 The id identifies the row; filtering on the current year would
+        // silently delete nothing for a warehouse stored with fiscal_year 0.
+        $qtxt = "DELETE FROM " . self::TABLE_NAME . " WHERE id = $this->id AND art = '" . self::ART_TYPE . "'";
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";
@@ -237,12 +254,25 @@ class LagerModel
         // Validate order direction
         $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
 
-        $qtxt = "SELECT id FROM " . self::TABLE_NAME . " WHERE art = '" . self::ART_TYPE . 
-                "' AND fiscal_year = $regnaar ORDER BY $orderBy $orderDirection";
+        // 20261011 MJ SST-829 No fiscal_year filter, because a warehouse saved from Indstillinger
+        // carries 0 and would otherwise never be listed. Existing tenants still have one row per
+        // accounting year, so dropping the filter alone would return each warehouse once per
+        // year; kodenr is selected as well and only the first row for each is kept. Within a
+        // warehouse the rows are ordered the way Indstillinger picks the definition to edit -
+        // current year first, then the newest - so the caller's own ordering still decides the
+        // order of the warehouses themselves. Done in PHP rather than with DISTINCT ON, which
+        // Postgres has and MySQL does not.
+        $qtxt = "SELECT id, kodenr FROM " . self::TABLE_NAME . " WHERE art = '" . self::ART_TYPE .
+                "' ORDER BY $orderBy $orderDirection, " .
+                "CASE WHEN fiscal_year = " . (int)$regnaar . " THEN 0 ELSE 1 END, " .
+                "COALESCE(fiscal_year,0) DESC, id DESC";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
+        $seen = [];
         while ($r = db_fetch_array($q)) {
+            if (isset($seen[$r['kodenr']])) continue;
+            $seen[$r['kodenr']] = true;
             $items[] = new LagerModel($r['id'], null, $vare_id, $nr);
         }
 
@@ -274,12 +304,21 @@ class LagerModel
         // Sanitize value to prevent SQL injection
         $value = addslashes($value);
 
-        $qtxt = "SELECT id FROM " . self::TABLE_NAME . " WHERE art = '" . self::ART_TYPE . 
-                "' AND fiscal_year = $regnaar AND $field = '$value'";
+        // 20261011 MJ SST-829 Same as getAllItems(): no fiscal_year filter, so a warehouse saved
+        // with 0 is findable, and one entry per kodenr so a tenant that still has per-year rows
+        // does not get the same warehouse back several times. Searching on fiscal_year itself
+        // stays possible - it is in the whitelist above - and then the filter is the caller's.
+        $qtxt = "SELECT id, kodenr FROM " . self::TABLE_NAME . " WHERE art = '" . self::ART_TYPE .
+                "' AND $field = '$value' " .
+                "ORDER BY CASE WHEN fiscal_year = " . (int)$regnaar . " THEN 0 ELSE 1 END, " .
+                "COALESCE(fiscal_year,0) DESC, id DESC";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
+        $seen = [];
         while ($r = db_fetch_array($q)) {
+            if (isset($seen[$r['kodenr']])) continue;
+            $seen[$r['kodenr']] = true;
             $items[] = new LagerModel($r['id']);
         }
         return $items;
