@@ -33,8 +33,10 @@ importCheck($trimAt !== false, 'the importer strips the line break from the line
 importCheck($explodeAt !== false, 'and still splits the line into item number and location');
 importCheck($trimAt !== false && $explodeAt !== false && $trimAt < $explodeAt,
 	'the strip happens before the split, so the break cannot reach the location');
-importCheck(strpos($source, '$linje=mb_convert_encoding(') < $trimAt,
-	'and after the charset conversion, where the line is still exactly what the file held');
+$convertAt = strpos($source, '$linje=mb_convert_encoding(');
+importCheck($convertAt !== false, 'the charset conversion is still in the page');
+importCheck($convertAt !== false && $trimAt !== false && $convertAt < $trimAt,
+	'and the strip comes after it, where the line is still exactly what the file held');
 importCheck(strpos($source, 'trim($linje)') === false,
 	'the line is not trimmed with trim(), which would also eat spaces inside a location');
 
