@@ -21,13 +21,14 @@
 //                  new label from a shipped template, delete with a dialog, Standard kept. CSRF + PRG + audit log.
 //                  Address labels (LABEL box2) have no reader and are not offered (spec G5.8); their data is kept.
 //                  The old diverse.php?sektion=labels redirects here.
+// 20261016 Sawaneh The left menu is the group's sections like every settings page; the label list is a column in the content.
 
 @session_start();
 $s_id = session_id();
 ob_start();
 
 $title = "Mærkater";
-$css = "../css/unified-components.css?v=20261008a";
+$css = "../css/unified-components.css?v=20261016";
 $permission_key = 'settings.items';
 $permission_level = 'read';
 
@@ -155,7 +156,15 @@ $typeSelect = '<select class="st-input st-select" name="labelType"' . $dis . '><
 .lb-raw textarea { width: 100%; min-height: 420px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .lb-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--st-grid); }
 .lb-foot > div { display: flex; gap: 8px; align-items: center; }
-.lb-new { margin: 12px 12px 0; }
+.lb-new { margin: 12px 0 0; }
+.lb-sect { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
+.lb-list h2, .lb-editor h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+.lb-names { margin: 0; padding: 0; border-left: 0; }
+.lb-names a { display: flex; justify-content: space-between; gap: 8px; min-height: 36px; padding: 6px 10px; border-radius: 8px; color: var(--st-text); text-decoration: none; }
+.lb-names a:hover { background: var(--st-surface-2); }
+.lb-names a.on { background: var(--st-surface); box-shadow: 0 0 0 1px var(--st-border); font-weight: 500; }
+.lb-editor { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 900px) { .lb-sect { grid-template-columns: 1fr; } }
 .st-dialog .st-field-col { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; font-size: 13px; }
 .st-dialog .st-field-col .st-input { width: 100%; }
 </style>
@@ -181,18 +190,27 @@ $typeSelect = '<select class="st-input st-select" name="labelType"' . $dis . '><
 <?php } ?>
 
   <div class="st-layout st-layout-list">
-    <nav class="st-tabs" aria-label="<?= st_t(791) ?>">
+    <nav class="st-tabs" aria-label="<?= st_t(5650) ?>">
       <ul>
-	<?php foreach ($names as $n => $t) { ?>
-        <li><a class="<?= (string) $n === $current ? 'on' : '' ?>" href="labels.php?l=<?= st_h(rawurlencode((string) $n)) ?>"<?= (string) $n === $current ? ' aria-current="page"' : '' ?>><span><?= st_h((string) $n) ?></span><span class="st-muted"><?= $t === 'label' ? st_t(1315) : st_t(2547) ?></span></a></li>
+	<?php foreach (settings_section_tabs('items', (int) $sprog_id) as $tab) { $on = $tab['id'] === 'labels'; ?>
+        <li><a href="<?= st_h($tab['url']) ?>"<?= $on ? ' class="on" aria-current="page"' : '' ?>><span><?= st_h($tab['label']) ?></span><?= $on ? '<i class="bx bx-chevron-right" aria-hidden="true"></i>' : '' ?></a></li>
 	<?php } ?>
       </ul>
-	<?php if ($canWrite) { ?>
-      <button type="button" class="st-btn lb-new" data-open="lb-new"><i class='bx bx-plus' aria-hidden="true"></i><?= st_t(7076) ?></button>
-	<?php } ?>
     </nav>
 
-    <div class="st-sect">
+    <div class="st-sect lb-sect">
+      <div class="lb-list">
+        <h2><?= st_t(791) ?></h2>
+        <ul class="st-tabs-sub lb-names">
+	<?php foreach ($names as $n => $t) { ?>
+          <li><a class="<?= (string) $n === $current ? 'on' : '' ?>" href="labels.php?l=<?= st_h(rawurlencode((string) $n)) ?>"<?= (string) $n === $current ? ' aria-current="page"' : '' ?>><span><?= st_h((string) $n) ?></span><span class="st-muted"><?= $t === 'label' ? st_t(1315) : st_t(2547) ?></span></a></li>
+	<?php } ?>
+        </ul>
+	<?php if ($canWrite) { ?>
+        <button type="button" class="st-btn lb-new" data-open="lb-new"><i class='bx bx-plus' aria-hidden="true"></i><?= st_t(7076) ?></button>
+	<?php } ?>
+      </div>
+      <div class="lb-editor">
       <h2><?= st_h($current) ?></h2>
 	<?php if ($current === 'Standard') { ?>
       <p><?= st_t(7093) ?></p>
@@ -248,6 +266,7 @@ $typeSelect = '<select class="st-input st-select" name="labelType"' . $dis . '><
 	<?php } ?>
         </div>
       </form>
+      </div>
     </div>
   </div>
 

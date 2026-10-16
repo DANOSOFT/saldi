@@ -25,7 +25,7 @@
 $s_id = session_id();
 
 $title = "Importér varianter";
-$css = "../css/unified-components.css?v=20261008a";
+$css = "../css/unified-components.css?v=20261016";
 $permission_key = 'settings.import_export';
 $permission_level = 'write';
 

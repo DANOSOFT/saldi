@@ -991,6 +991,9 @@ body:has(.st-page) { margin: 0; background: #eef3fb !important; }
 .st-layout-list { grid-template-columns: 200px minmax(0, 1fr); }
 .st-list { display: flex; flex-direction: column; gap: 36px; min-width: 0; }
 .st-tabs-sep { height: 1px; margin: 8px 12px; background: var(--st-border); }
+.st-tabs-sub { list-style: none; margin: 2px 0 6px 14px; padding: 0 0 0 10px; border-left: 2px solid var(--st-border); display: flex; flex-direction: column; gap: 1px; position: static; }
+.st-tabs-sub a { min-height: 32px; font-size: 13px; color: var(--st-text-2); }
+.st-tabs-sub a.on { box-shadow: none; background: var(--st-surface-2); }
 .st-irow { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto; align-items: center; column-gap: 16px; padding: 16px 20px; }
 .st-irow + .st-irow { border-top: 1px solid var(--st-grid); }
 .st-ibadge { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--st-surface-2); border: 1px solid var(--st-border); font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--st-text-2); }

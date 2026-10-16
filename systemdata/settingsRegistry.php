@@ -75,6 +75,7 @@
 // 20261004 Sawaneh Projekter opens projekter.php (syssetup.php?valg=projekter shows no projects, spec C7).
 // 20261009 Sawaneh The tjekliste entry removed: checklists live in the Sager module now (settings redesign §4, 4e).
 // 20261010 Sawaneh The labels entry opens the new Mærkater page (labels.php, G5.8).
+// 20261016 Sawaneh settings_section_tabs() moved here from settingsSection.php, so labels.php shows the same left menu.
 // 20261011 Sawaneh settings_section_complete() (spec §8.8): 'done' from data for the onboarding checklist and the landing
 //                  cards, which show 'Grundopsætning mangler' for Salg/Køb/Varer until their base rows exist.
 
@@ -292,6 +293,27 @@ if (!function_exists('settings_feature_enabled')) {
 			return function_exists('bankIntegrationEnabled') && bankIntegrationEnabled();
 		}
 		return false;
+	}
+}
+
+if (!function_exists('settings_section_tabs')) {
+	/**
+	 * The group's sections for the left menu of a settings page: id, label, url.
+	 */
+	function settings_section_tabs(string $group, int $sprogId): array
+	{
+		$tabs = array();
+		foreach (getSettingsRegistry() as $entry) {
+			if (!isset($entry['group']) || $entry['group'] !== $group || !settings_entry_available($entry)) {
+				continue;
+			}
+			$tabs[] = array(
+				'id'    => isset($entry['section']) ? (string) $entry['section'] : (string) $entry['key'],
+				'label' => settings_entry_label($entry, $sprogId),
+				'url'   => (string) $entry['url'],
+			);
+		}
+		return $tabs;
 	}
 }
 

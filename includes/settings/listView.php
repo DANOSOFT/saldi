@@ -23,6 +23,8 @@
 //                  systemdata/settingsSection.php; behaviour in javascript/settingsList.js.
 // 20261004 Sawaneh G10.1: group headings inside a drawer, a status without a dot ('plain').
 // 20261004 Sawaneh G4.3: rows from the database (names shown as typed), an empty state and a page-level add button.
+// 20261016 Sawaneh The left menu is the group's sections like every other section kind; the list's own blocks sit as a
+//                  second level under the current one (Adam's test feedback: Employees, price lists, tills and cards looked moved).
 
 include_once(__DIR__ . '/integrations.php');
 
@@ -63,12 +65,7 @@ function settings_list_render(array $c): void
 		$status[$id] = settings_integration_status($id, $it, $setAt);
 	}
 	$history = SettingsService::history($sectionId, 60);
-	$otherTabs = array();
-	foreach ($c['tabs'] as $tab) {
-		if ($tab['id'] !== $sectionId) {
-			$otherTabs[] = $tab;
-		}
-	}
+	$otherTabs = $c['tabs'];
 	$config = $c['config'] + array(
 		'openItem' => $openItem, 'fieldItem' => $fieldItem,
 		'discardTitle' => st_txt(6144), 'discardBody' => st_txt(6145), 'discardVerb' => st_txt(6146), 'wait' => st_txt(6160), 'close' => st_txt(6128),
@@ -116,21 +113,22 @@ function settings_list_render(array $c): void
   <div class="st-layout st-layout-list">
     <nav class="st-tabs" aria-label="<?= st_t($section['label']) ?>">
       <select class="st-tabs-select" aria-label="<?= st_t($section['label']) ?>" onchange="if (this.value) { window.location = this.value; }">
-			<?php foreach ($subs as $sub => $label) { ?>
-        <option value="#sub-<?= st_h($sub) ?>"><?= st_t($label) ?></option>
-			<?php } ?>
 			<?php foreach ($otherTabs as $tab) { ?>
-        <option value="<?= st_h($tab['url']) ?>"><?= st_h($tab['label']) ?></option>
+        <option value="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' selected' : '' ?>><?= st_h($tab['label']) ?></option>
+				<?php if ($tab['id'] === $sectionId) { foreach ($subs as $sub => $label) { ?>
+        <option value="#sub-<?= st_h($sub) ?>">&nbsp;&nbsp;<?= st_t($label) ?></option>
+				<?php } } ?>
 			<?php } ?>
       </select>
       <ul>
-			<?php $first = true; foreach ($subs as $sub => $label) { ?>
-        <li><a href="#sub-<?= st_h($sub) ?>" data-sub="<?= st_h($sub) ?>"<?= $first ? ' class="on"' : '' ?>><span><?= st_t($label) ?></span></a></li>
-			<?php $first = false; } ?>
-			<?php if ($otherTabs) { ?>
-        <li class="st-tabs-sep" aria-hidden="true"></li>
-				<?php foreach ($otherTabs as $tab) { ?>
-        <li><a href="<?= st_h($tab['url']) ?>"><span><?= st_h($tab['label']) ?></span></a></li>
+			<?php foreach ($otherTabs as $tab) { ?>
+        <li><a href="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' class="on" aria-current="page"' : '' ?>><span><?= st_h($tab['label']) ?></span><?= $tab['id'] === $sectionId ? '<i class="bx bx-chevron-right" aria-hidden="true"></i>' : '' ?></a></li>
+				<?php if ($tab['id'] === $sectionId && count($subs) > 1) { ?>
+        <li><ul class="st-tabs-sub">
+					<?php $first = true; foreach ($subs as $sub => $label) { ?>
+          <li><a href="#sub-<?= st_h($sub) ?>" data-sub="<?= st_h($sub) ?>"<?= $first ? ' class="on"' : '' ?>><span><?= st_t($label) ?></span></a></li>
+					<?php $first = false; } ?>
+        </ul></li>
 				<?php } ?>
 			<?php } ?>
       </ul>

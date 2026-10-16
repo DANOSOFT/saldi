@@ -66,7 +66,7 @@ if (!isset($_SESSION['csrf_token'])) {
 $csrfToken = $_SESSION['csrf_token'];
 
 $title = "Indstillinger";
-$css = "../css/unified-components.css?v=20261008a";
+$css = "../css/unified-components.css?v=20261016";
 $modulnr = 0; // the section's own permission key is required below
 $permission_key = 'any';
 $permission_post_read = false;
@@ -728,18 +728,3 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
  *
  * @return array<int, array{id: string, label: string, url: string}>
  */
-function settings_section_tabs(string $group, int $sprogId): array
-{
-	$tabs = array();
-	foreach (getSettingsRegistry() as $entry) {
-		if (!isset($entry['group']) || $entry['group'] !== $group || !settings_entry_available($entry)) {
-			continue;
-		}
-		$tabs[] = array(
-			'id'    => isset($entry['section']) ? (string) $entry['section'] : (string) $entry['key'],
-			'label' => settings_entry_label($entry, $sprogId),
-			'url'   => (string) $entry['url'],
-		);
-	}
-	return $tabs;
-}
