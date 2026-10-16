@@ -28,6 +28,8 @@
 // 20261002 Sawaneh The page tells the shell its breadcrumb trail (settings redesign §8.0); the tab is kept after a save
 //                  (the old forms post without ?valg).
 // 20260928 Sawaneh Unsaved-changes guard uses the native beforeunload dialog (settings redesign spec §8.1).
+// 20261016 Sawaneh The frame draws the new settings layout (title, lead, the group's sections as the left menu, content beside)
+//                  so the seven old pages inside it look like the generated sections; their own markup is untouched.
 
 $small=NULL;
 if (!isset($css)) $css=NULL;
@@ -46,16 +48,27 @@ if (findtekst(778,$sprog_id) == 'Regnskabså') {
 
 include("../includes/topline_settings.php");
 
-include_once("../includes/stdFunc/pageBar.php");
-page_bar(array('title' => findtekst(613, $sprog_id), 'back' => $returside));
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
-print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
-
-print "</tr></tbody></table></td></tr>
-  <tr><td id='sidebar-base'  width=\"125px\" align=\"left\" valign=\"top\">";
-print "<table align=\"left\" border=\"0\" cellspacing=\"2\" cellpadding=\"2\"width=\"170px\"><tbody>"; #tabel 1.1.2
-
+include_once("../includes/settings/components.php");
+include_once(__DIR__ . "/settingsRegistry.php");
+$settingsGroups = settings_accessible_groups();
+$currentRequest = $_GET;
+if (!isset($currentRequest['valg']) && isset($_POST['valg']) && is_string($_POST['valg'])) {
+	$currentRequest['valg'] = $_POST['valg'];
+}
+$currentEntries = settings_entries_for_request(basename($_SERVER['PHP_SELF']), $currentRequest);
+$currentGroup = '';
+$currentLabel = findtekst(613, $sprog_id);
+foreach ($currentEntries as $currentEntry) {
+	if (isset($settingsGroups[$currentEntry['group']])) {
+		$currentGroup = $currentEntry['group'];
+		$currentLabel = settings_entry_label($currentEntry, (int) $sprog_id);
+		break;
+	}
+}
+$currentKeys = array_map(function ($e) { return $e['key']; }, $currentEntries);
+if ($currentGroup !== '') {
+	print settings_breadcrumb_script(settings_breadcrumb($currentGroup, $currentLabel, (int) $sprog_id), (isset($db_encode) && $db_encode !== 'UTF8') ? 'ISO-8859-1' : 'UTF-8');
+}
 $searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
 $noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
 $matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
@@ -67,52 +80,24 @@ if (typeof window.saldiTranslations === 'undefined') {
 </script>";
 print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
 print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
-print "<tr><td width=\"170px\"><div class=\"settings-search-wrapper\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>";
-
-print "<tr><td width=\"170px\"><br></td></tr>";
-
-// 20260928 Phase 4: the column lists the pages of the group the current page belongs to
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-// (settingsRegistry.php), filtered by the user's access; without a match, the groups.
-include_once(__DIR__ . "/settingsRegistry.php");
-$settingsGroups = settings_accessible_groups();
-// The old pages post without their ?valg (syssetup.php); the posted value says which tab is shown.
-$currentRequest = $_GET;
-if (!isset($currentRequest['valg']) && isset($_POST['valg']) && is_string($_POST['valg'])) {
-	$currentRequest['valg'] = $_POST['valg'];
-}
-$currentEntries = settings_entries_for_request(basename($_SERVER['PHP_SELF']), $currentRequest);
-$currentGroup = '';
-foreach ($currentEntries as $currentEntry) {
-	if (isset($settingsGroups[$currentEntry['group']])) {
-		$currentGroup = $currentEntry['group'];
-		break;
-	}
-}
-$currentKeys = array_map(function ($e) { return $e['key']; }, $currentEntries);
+print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261016\">";
+print "<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>";
+print "<style>.st-legacy { min-width: 0; } .st-legacy table { max-width: 100%; } .st-legacy input[type=submit], .st-legacy input[type=button], .st-legacy button { border-radius: 8px; }</style>";
+print "<div class=\"st-page\" style=\"" . st_h(st_accent_style((string) $buttonColor, (string) $buttonTxtColor)) . "\">";
+print "<section class=\"st-phead\"><div><h1>" . st_h(html_entity_decode($currentLabel, ENT_QUOTES, st_charset())) . "</h1><p class=\"st-lead\">" . st_t(5706) . " " . st_h(st_company()) . ".</p></div></section>";
+print "<div class=\"st-layout st-layout-list\">";
+print "<nav class=\"st-tabs\"><div class=\"settings-search-wrapper\" style=\"margin:0 0 10px\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div><ul>";
 if ($currentGroup !== '') {
-	foreach ($currentEntries as $currentEntry) {
-		if ($currentEntry['group'] === $currentGroup) {
-			print settings_breadcrumb_script(settings_breadcrumb($currentGroup, settings_entry_label($currentEntry, (int) $sprog_id), (int) $sprog_id), (isset($db_encode) && $db_encode !== 'UTF8') ? 'ISO-8859-1' : 'UTF-8');
-			break;
-		}
-	}
-}
-$activeStyle = "$buttonStyle; filter:brightness(1.25); font-weight:bold";
-if ($currentGroup !== '') {
-	print "<tr><td style='padding:6px 2px 2px;font-weight:bold;font-size:12px;text-transform:uppercase;letter-spacing:.4px'>".findtekst($settingsGroups[$currentGroup]['def']['label'], $sprog_id)."</td></tr>";
 	foreach ($settingsGroups[$currentGroup]['entries'] as $menuEntry) {
-		$style = in_array($menuEntry['key'], $currentKeys, true) ? $activeStyle : $buttonStyle;
-		print "<tr><td><a href=\"".htmlspecialchars($menuEntry['url'], ENT_QUOTES)."\"><button style='$style; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".settings_entry_label($menuEntry, $sprog_id)."</button></a></td></tr>\n";
+		$on = in_array($menuEntry['key'], $currentKeys, true);
+		print "<li><a href=\"" . htmlspecialchars($menuEntry['url'], ENT_QUOTES) . "\"" . ($on ? ' class="on" aria-current="page"' : '') . "><span>" . settings_entry_label($menuEntry, $sprog_id) . "</span>" . ($on ? '<i class="bx bx-chevron-right" aria-hidden="true"></i>' : '') . "</a></li>";
 	}
 } else {
 	foreach ($settingsGroups as $menuGroup) {
-		print "<tr><td><a href=\"".htmlspecialchars($menuGroup['entries'][0]['url'], ENT_QUOTES)."\"><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst($menuGroup['def']['label'], $sprog_id)."</button></a></td></tr>\n";
+		print "<li><a href=\"" . htmlspecialchars($menuGroup['entries'][0]['url'], ENT_QUOTES) . "\"><span>" . findtekst($menuGroup['def']['label'], $sprog_id) . "</span></a></li>";
 	}
 }
-print "<tr><td><br></td></tr>";
-print "<tr><td><a href=\"settings.php\"><button style='$buttonStyle; width:100%; opacity:.85' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('5666|Alle indstillinger', $sprog_id)."</button></a></td></tr>";
-
+print "<li class=\"st-tabs-sep\" aria-hidden=\"true\"></li><li><a href=\"settings.php\"><span>" . findtekst('5666|Alle indstillinger', $sprog_id) . "</span></a></li></ul></nav>";
 // Unsaved changes (settings redesign spec §8.1): the browser's native beforeunload dialog when
 // leaving a settings page with edited, unsubmitted forms. window.docChange is the shared flag the
 // shell (index/main.php) also checks and clears after its own confirm.
@@ -131,7 +116,6 @@ print "<script>
 	});
 })();
 </script>";
-print "</tbody></table>";# <-tabel 1.1.2
-print "</td><td align=\"center\" valign=\"top\" height=\"99%\"><br>";
+print "<div class=\"st-legacy\">";
 
 ?>
