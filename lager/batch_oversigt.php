@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Batch overview for a given item. Shows all batches with expiry info.
+// 20261011 CL/ASR Link to batch_udfyld.php and count of batches missing batch number/expiry date.
 
 @session_start();
 $s_id = session_id();
@@ -79,6 +80,14 @@ if ($menu == 'T') {
 
 print "<tr><td><br></td></tr>";
 print "<tr><td colspan='8'><b>" . htmlentities($varenr) . " : " . htmlentities($beskrivelse) . "</b></td></tr>";
+$self = "batch_oversigt.php?vare_id=$vare_id";
+if (isset($_GET['returside']) && $_GET['returside']) $self .= "&returside=" . urlencode($_GET['returside']);
+$udfyld = "batch_udfyld.php?vare_id=$vare_id&returside=" . urlencode($self);
+$mangler = batch_missing_info_count($vare_id);
+print "<tr><td colspan='8'>";
+if ($mangler) print "<span style='color:#b45309'>$mangler " . batch_txt('missing') . "</span> &nbsp; ";
+print "<a href='$udfyld'><button type='button' class='LightButton'>" . batch_txt('edit') . "</button></a>";
+print "</td></tr>";
 print "<tr><td><br></td></tr>";
 
 // Column headers
