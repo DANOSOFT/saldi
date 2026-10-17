@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/payments/lane3000_proxy.php --- ver 5.0.0 --- 2026.10.07 ---
+// --- debitor/payments/lane3000_proxy.php --- ver 5.0.0 --- 2026.10.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261007 CL/SZ SST-843 Server-side proxy for Nets Connect@Cloud (Lane3000/Move3500), so the register's
 //                login and the bearer token stay on the server.
 //                lane3000.php and lane3000_afstemning.php call this page instead of connectcloud.aws.nets.eu.
+// 20261017 CL/SZ SST-843 PHP time limit raised from 200 to 240 s, above the 30 s login plus 180 s transaction.
 
 /**
  * Injected by ../../includes/online.php, included below:
@@ -107,9 +108,11 @@ if ($csrf_token === '' || !hash_equals($csrf_token, (string) ifset($_SERVER, 'HT
 }
 
 # The terminal call waits until the card is done; release the session lock so the page's log calls
-# are not held up, and do not let PHP's time limit end the wait before curl's own timeout
+# are not held up. The login (up to 30 s) and the transaction (up to 180 s) run one after the other,
+# so allow 240 s: PHP builds that count waiting time (ZTS since 8.3, Windows) must not stop the
+# script before curl's own timeouts do
 session_write_close();
-set_time_limit(200);
+set_time_limit(240);
 
 $post   = json_decode(file_get_contents('php://input'), true);
 $action = (string) ifset($post, 'action', '');
