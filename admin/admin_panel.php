@@ -29,6 +29,13 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
+// 20261012 CL/ASR Saldi staff (admin flag 'on') use the new operator panel (operator_panel.php); everyone else gets this
+//                  page unchanged. Ajax calls are left alone.
+if ($db == $sqdb && $_SERVER['REQUEST_METHOD'] == 'GET' && !isset($_GET['klassisk']) && !preg_grep('/^ajax/', array_keys($_GET))) {
+	$_op = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'", __FILE__ . " linje " . __LINE__));
+	if ($_op && explode(',', (string)$_op['rettigheder'])[0] == 'on') { print "<meta http-equiv=\"refresh\" content=\"0;URL=operator_panel.php".(isset($_GET['regnskab_id']) ? '?regnskab_id='.(int)$_GET['regnskab_id'] : '')."\">\n"; exit; }
+}
+
 // ---- Ensure lukkes_kommentar column exists on regnskab ----
 $_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema='public'", __FILE__ . " linje " . __LINE__));
 if (!$_col_check) {
