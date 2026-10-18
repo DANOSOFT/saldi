@@ -175,6 +175,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 					}
 					$felt_1.=" : $regnskab"; 
 				}
+			 $permission_key = 'debitor.konti';
 			 include("../includes/online.php");
 			}
 		}

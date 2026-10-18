@@ -32,6 +32,7 @@
 // 20250613 PHR	Corrected error in chages made 20250130
 // 20260831 Sawaneh Corrected misplaced parenthesis in commented mb_convert_encoding line from 20250130
 // 20260916 CDX/PHR Import active BS0603 mandates (0230), reject ambiguous customers and retain section dates.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -39,6 +40,7 @@ $css="../css/standard.css";
 
 $title="Import til kassekladde";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");

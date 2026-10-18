@@ -62,7 +62,10 @@
 //                  Column widths are now declared, and the date column is
 //                  nowrap, so a posting cannot break over two lines.
 //                  Texts 5325-5326 added to importfiler/tekster.csv.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
 // 20260930 CL/SZ SD-699: rapportart kontokort_ubogfort ("Kontokort med u-bogført") also shows what every
+// 20261015 Sawaneh Master merge: the page-bar back link returns to $closeArt (SD-699 Kontokort med u-bogført) through back_onclick.
 //                  journal that is not posted yet will post, in italics and marked "Ikke bogført".
 //                  Simulated rows are left out in that mode, since simulated journals are among them.
 //                  Lines with an account setup error are listed once above the report instead of one alert each.
@@ -272,39 +275,19 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 			: findtekst('133|Kontokort', $sprog_id)), ENT_QUOTES, 'UTF-8');
 	$titUdskriv = htmlspecialchars(findtekst('5325|Udskriv alle linjer', $sprog_id), ENT_QUOTES, 'UTF-8');
 
-	if ($menu == 'T') {
-		$leftbutton = "<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> &nbsp;Luk</a>";
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
-		print "<div class=\"headerTxt\">$title</div>";
-		$rightbutton = $udskriv ? "&nbsp;&nbsp;&nbsp;"
-			: "<a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\"><i class='fa fa-print fa-lg'></i> $txtUdskriv</a>";
-		print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
-		print "</div>";
-		print "<div class='content-noside'>";
-	} elseif ($menu == 'S') {
+	if ($menu == 'S') {
 		
-		#########
-		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-		#########
-		print "<table bgcolor='#eeeef0' width = 100% cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
-		print "<tr><td colspan=8 align=center>";
-		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
-
-		print "<td width=\"5%\">$color
-			<a href=\"javascript:confirmClose('rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')\" accesskey=L>
-			   <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-		print "<td width='70%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
-		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
+		$kkActions = array(array('CSV', $csvfile, 'bx-download'));
 		if (!$udskriv)
-			print "<td width='5%' align='center' style='$buttonStyle'><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\" style='color:#ffffff'>$txtUdskriv</a></td>\n";
-
-		print "</tbody></table>";
-		print "</td></tr>";
+			$kkActions[] = array($txtUdskriv, '#', 'bx-printer', '', 'onclick' => html_entity_decode($udskrivJs, ENT_QUOTES, 'UTF-8'));
+		include_once("../includes/stdFunc/pageBar.php");
+		page_bar(array(
+			'title' => findtekst('2173|Rapport - kontokort', $sprog_id),
+			'actions' => $kkActions,
+			'back' => "rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev",
+			'back_onclick' => 'confirmClose(' . json_encode("rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev") . ', ' . json_encode("") . '); return false;',
+		));
+		print "<table width = 100% cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
 		$tmp = $rapportTitel;
 		print "<tr><td colspan='4'><big><big><big>  $tmp</big></big></big></td>";
 		print "<td colspan=6 align=right>";
@@ -516,7 +499,7 @@ if ($projekt_fra) {
         print "$projekt_fra, $prj_navn_fra";
     print "</td></tr>";
 }
-if ($menu != 'T') print "</tbody></table>";
+print "</tbody></table>";
 print "<tr><td colspan=5><big><b>cvr: $vatNo | $firmanavn</b></big></td></tr>";
 print "</tbody></table>";   // close the info table
 if ($ubogfort) {
@@ -1311,11 +1294,7 @@ print "<tbody>";
 
 	fclose($csv);
 
-	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 }# endfunc kontokort
 #################################################################################################
 ?>

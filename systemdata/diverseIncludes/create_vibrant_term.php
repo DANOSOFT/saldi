@@ -22,10 +22,12 @@
 //
 // Copyright (c) 2012-2023 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20261001 Sawaneh Older archived rows with the terminal's name are removed before archiving (unique index on settings).
 @session_start();
 $s_id = session_id();
 
 include ("../../includes/connect.php");
+$permission_key = 'system.indstillinger';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 
@@ -103,6 +105,9 @@ try {
       // For example, if the response contains a "message" field:
       $name = $response['name'];
       $id = $response['id'];
+      // Archived terminals (pos_id -1) are not read; keep one per name so the archive fits the unique index.
+      $qtxt = "DELETE FROM settings WHERE pos_id = -1 AND var_grp = 'vibrant_terms' AND var_name IN (SELECT var_name FROM settings WHERE pos_id = $pos_id AND var_grp = 'vibrant_terms')";
+      db_modify($qtxt, __FILE__ . " linje " . __LINE__);
       $qtxt = "UPDATE settings SET pos_id = -1 WHERE pos_id = $pos_id AND var_grp = 'vibrant_terms'";
       db_modify($qtxt, __FILE__ . " linje " . __LINE__);
       $qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description, pos_id) VALUES ('$name', 'vibrant_terms', '$id', 'A terminal on the vibrant system', $pos_id)";

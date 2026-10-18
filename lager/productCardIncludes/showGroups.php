@@ -14,9 +14,9 @@
     <SELECT class=\"inputbox\" NAME=\"ny_gruppe\" style=\"width: 18em\">";
     print "<option value=\"$gruppe\">$gruppe $r[beskrivelse]</option>";
     if (!$beholdning || !$batchItem) { # batchItem added 20090210 to make groupchange possible if stockItem is set.
-        if ($samlevare=='on') $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and box8!='on' and fiscal_year = '$regnaar' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
-        elseif ($beholdning) $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and box8='on' and fiscal_year = '$regnaar'  order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);# tilfoejet 20090210
-        else $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and fiscal_year = '$regnaar' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
+        if ($samlevare=='on') $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and box8!='on' and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
+        elseif ($beholdning) $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and box8='on' and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false  order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);# tilfoejet 20090210
+        else $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
         while ($row = db_fetch_array($query)) {
             print "<option value=\"$row[kodenr]\">$row[kodenr] $row[beskrivelse]</option>";
         }

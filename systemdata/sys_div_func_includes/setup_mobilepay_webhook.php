@@ -1,4 +1,3 @@
-
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
@@ -25,220 +24,59 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
-
-#print '<head>';
-#print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
-#print '</head>';
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261001 Sawaneh The old webhook secret is removed before the new one is stored (one row per setting).
+// 20261002 Sawaneh Started from Indstillinger » Integrationer » MobilePay (phase 4b): needs settings.integrations write,
+//                  prints nothing, goes back to the drawer with webhook=ok or webhook=fail (the reason in the session).
+//                  The commented-out list/delete experiments and the stray blank line before <?php are gone.
 
 @session_start();
 $s_id = session_id();
 
 include ("../../includes/connect.php");
+$permission_key = 'system.indstillinger';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
-include ("../../includes/stdFunc/dkDecimal.php");
-include ("../../includes/stdFunc/usDecimal.php");
+include_once(__DIR__ . "/../settingsRegistry.php");
+include_once(__DIR__ . "/../../includes/settings/components.php");
+include_once(__DIR__ . "/../../includes/settings/integrations.php");
 
-$css = "../../../css/flatpay.css";
+if (function_exists('require_permission')) {
+	require_permission('settings.integrations', 'write');
+}
+$back = "../settingsSection.php?s=integrations.connections&item=mobilepay";
 
-$q=db_select("select var_value from settings where var_name = 'client_id' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
-$client_id = db_fetch_array($q)[0];
-$q=db_select("select var_value from settings where var_name = 'client_secret' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
-$client_secret = db_fetch_array($q)[0];
-$q=db_select("select var_value from settings where var_name = 'subscriptionKey' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
-$subscription = db_fetch_array($q)[0];
-$q=db_select("select var_value from settings where var_name = 'MSN' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
-$MSN = db_fetch_array($q)[0];
-
-
-# #########################################################
-# 
-# Get auth token
-# 
-# #########################################################
-$url = 'https://api.vipps.no/accesstoken/get';
-
-$headers = array(
-    'Content-Type: application/json',
-    "Client_id: $client_id",
-    "Client_secret: $client_secret",
-    "Ocp-Apim-Subscription-Key: $subscription",
-    "Merchant-Serial-Number: $MSN",
-    'Vipps-System-Name: Saldi',
-    "Vipps-System-Version: $version",
-    "Vipps-System-Plugin-Name: Saldi $db",
-    "Vipps-System-Plugin-Version: $version",
-    'Content-Length: 0'
-);
-
-$ch = curl_init($url);
-
-curl_setopt($ch, CURLOPT_POST, 1);
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-$response = curl_exec($ch);
-
-if ($response === false) {
-    // Handle curl error
-    $error = curl_error($ch);
-    echo "Curl error: " . $error;
-} else {
-    // Process response
-    $response = json_decode($response, true);
-    $accessToken = $response["access_token"];
+function mobilepay_webhook_fail(string $reason, string $back): void
+{
+	$_SESSION['settings_error'] = $reason;
+	header("Location: $back&webhook=fail");
+	exit;
 }
 
-curl_close($ch);
-
-
-
-# Get webhooks
-
-/*
-$url = 'https://api.vipps.no/webhooks/v1/webhooks';
-
-$headers = array(
-    'Content-Type: application/json',
-    "Authorization: Bearer $accessToken",
-    "Client_id: $client_id",
-    "Client_secret: $client_secret",
-    "Ocp-Apim-Subscription-Key: $subscription",
-    "Merchant-Serial-Number: $MSN",
-    'Vipps-System-Name: Saldi',
-    "Vipps-System-Version: $version",
-    "Vipps-System-Plugin-Name: Saldi $db",
-    "Vipps-System-Plugin-Version: $version",
-);
-
-$ch = curl_init($url);
-
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-$response = curl_exec($ch);
-$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-if ($response === false) {
-	// Handle curl error
-	$error = curl_error($ch);
-	echo "Curl error: " . $error;
-} else {
-	// Process response
-	echo "Response: " . $response . "\n";
-	echo "Status Code: " . $status_code . "\n";
-	if ($status_code === 201) {
-		$data = json_decode($response, true);
-print_r($data);
-		exit;
-	}
+$cfg = settings_mobilepay_config();
+if ($cfg['client_id'] === '') {
+	mobilepay_webhook_fail('client_id', $back);
 }
-
-curl_close($ch);
-
-exit;
-
-*/
-
-
-# Delete webhooks
-/*
-$url = 'https://api.vipps.no/webhooks/v1/webhooks/6b55ee2d-d58f-496c-8dbf-2ccb34955bb4';
-
-$headers = array(
-    'Content-Type: application/json',
-    "Authorization: Bearer $accessToken",
-    "Client_id: $client_id",
-    "Client_secret: $client_secret",
-    "Ocp-Apim-Subscription-Key: $subscription",
-    "Merchant-Serial-Number: $MSN",
-    'Vipps-System-Name: Saldi',
-    "Vipps-System-Version: $version",
-    "Vipps-System-Plugin-Name: Saldi $db",
-    "Vipps-System-Plugin-Version: $version",
-);
-
-$ch = curl_init($url);
-
-curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-$response = curl_exec($ch);
-$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-if ($response === false) {
-	// Handle curl error
-	$error = curl_error($ch);
-	echo "Curl error: " . $error;
-} else {
-	// Process response
-	echo "Response: " . $response . "\n";
-	echo "Status Code: " . $status_code . "\n";
-	if ($status_code === 201) {
-		$data = json_decode($response, true);
-print_r($data);
-		exit;
-	}
+$accessToken = settings_mobilepay_token($cfg);
+if ($accessToken === '') {
+	mobilepay_webhook_fail('accesstoken', $back);
 }
-
-curl_close($ch);
-
-exit;
-*/
-
-
-
-
-$url = 'https://api.vipps.no/webhooks/v1/webhooks';
-
-$headers = array(
-    'Content-Type: application/json',
-    "Authorization: Bearer $accessToken",
-    "Client_id: $client_id",
-    "Client_secret: $client_secret",
-    "Ocp-Apim-Subscription-Key: $subscription",
-    "Merchant-Serial-Number: $MSN",
-    'Vipps-System-Name: Saldi',
-    "Vipps-System-Version: $version",
-    "Vipps-System-Plugin-Name: Saldi $db",
-    "Vipps-System-Plugin-Version: $version",
-);
 
 $data = json_encode(array(
     'url' => "https://$_SERVER[SERVER_NAME]/pos/debitor/payments/mobilepay/webhook_recive.php?db=" . $db,
     'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
 ));
-
-$ch = curl_init($url);
-
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-$response = curl_exec($ch);
-$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-if ($response === false) {
-	// Handle curl error
-	$error = curl_error($ch);
-	echo "Curl error: " . $error;
-} else {
-	// Process response
-	echo "Response: " . $response . "\n";
-	echo "Status Code: " . $status_code . "\n";
-	if ($status_code === 201) {
-		$data = json_decode($response, true);
-		$qtxt="insert into settings (var_name, var_grp, var_value, var_description) values ('webhook_secret', 'mobilepay', '$data[secret]', 'The secret that is genertated for the webhook')";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-print_r($data);
-		exit;
-		header("Location: ../diverse.php?sektion=div_valg");
-		exit;
-	}
+$res = settings_curl('https://api.vipps.no/webhooks/v1/webhooks', settings_mobilepay_headers($cfg, $accessToken), $data);
+$webhook = json_decode($res['body'], true);
+if ($res['status'] !== 201 || !is_array($webhook) || empty($webhook['secret'])) {
+	mobilepay_webhook_fail('webhook: HTTP ' . $res['status'] . ($res['error'] !== '' ? ' ' . $res['error'] : ''), $back);
 }
-
-curl_close($ch);
-
-?>
+// A new webhook replaces the old secret (one row per setting).
+db_modify("delete from settings where var_name = 'webhook_secret' and var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
+$qtxt = "insert into settings (var_name, var_grp, var_value, var_description) values ('webhook_secret', 'mobilepay', '" . db_escape_string($webhook['secret']) . "', 'The secret for the mobilepay webhook')";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+if (function_exists('audit_log')) {
+	audit_log('setting.action', 'integrations.mobilepay.connect_webhook');
+}
+header("Location: $back&webhook=ok");
+exit;

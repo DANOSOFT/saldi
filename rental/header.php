@@ -4,6 +4,7 @@
     $header = "nix";
     $bg = "nix";
     include "../includes/connect.php";
+    $permission_key = 'debitor.konti';
     include "../includes/online.php";
     $query = db_select("SELECT box3 FROM grupper where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);

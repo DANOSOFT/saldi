@@ -1,0 +1,131 @@
+/* ---- css/saldi-theme.css --- lap 5.0.0 --- 2026.10.08 ---
+   20261009 Sawaneh Premium light neutrals and 12 px corners (front-page addendum 3 §1/§8), --due-* for the unpaid card (§5.9.3).
+   20261008 Sawaneh The Saldi theme tokens from Adam's prototype_dashboard_tema.html v5 (light, dark, system), and the
+                    shell's colours mapped onto them so the top bar, menus and page follow the user's theme. The user's
+                    own colour still rules the sidebar, buttons and avatar. Pages opt in by using the tokens. */
+:root {
+	color-scheme: light;
+	--saldi-blue: #4FA0EE; --saldi-purple-mid: #7A3AD8; --saldi-purple: #8B33D4; --saldi-purple-deep: #6A2AB8; --saldi-amber: #D9822B;
+	--grad-primary: linear-gradient(135deg, var(--saldi-purple-deep), var(--saldi-purple-mid));
+	--text-on-brand: rgba(255,255,255,.88); --text-on-brand-muted: rgba(255,255,255,.78); --border-on-brand: rgba(255,255,255,.32);
+	--border-rule-on-brand: rgba(255,255,255,.28); --tint-ghost-hover: rgba(255,255,255,.08);
+	--page: #f4f6fa; --surface: #ffffff; --surface-2: #f7f9fc; --border: #e4e8ef; --grid: #eef1f6; --band: rgba(79,160,238,.06);
+	--text: #0b1a3a; --text-2: #5b6b85; --text-3: #8a97ad; --link: #1b68bd;
+	--good: #15803d; --bad: #c2410c; --good-bg: #e8f6ee; --bad-bg: #fdecec;
+	--s1: var(--saldi-blue); --s2: var(--saldi-purple-mid); --s3: var(--saldi-amber); --s4: #12a5b8; --s5: #d4a017; --s6: #c22c78; --s7: #22a04e;
+	--context: #c3ccdb; --accent: var(--saldi-purple);
+	--due-ok: #4FA0EE; --due-warn: #e0a100; --due-late: #d03b3b;
+	--q0: #f1f5fb; --q1: #dbe8fb; --q2: #b3cff6; --q3: #86b0ee; --q4: #5a91e3; --q5: #3372d3; --q6: #1e56b0; --q7: #123f88;
+	--glow-a: rgba(79,160,238,.16); --glow-b: rgba(139,51,212,.10);
+	--shadow: 0 1px 2px rgba(11,26,58,.05), 0 4px 14px rgba(11,26,58,.06);
+	--shadow-up: 0 2px 4px rgba(11,26,58,.06), 0 12px 28px rgba(11,26,58,.11);
+	--tip-bg: #0b1a3a; --tip-text: #ffffff; --tip-muted: rgba(255,255,255,.7);
+	--r: 12px; --e: cubic-bezier(.2,.8,.2,1); --e-io: cubic-bezier(.4,0,.2,1);
+}
+[data-theme="dark"] {
+	color-scheme: dark;
+	--page: #0c1529; --surface: #16223d; --surface-2: #1c2a49; --border: #26365a; --grid: #22304f; --band: rgba(79,160,238,.10);
+	--text: #e8eefc; --text-2: #9aa8c2; --text-3: #6f7f9d; --link: #4FA0EE;
+	--good: #4ade80; --bad: #f87171; --good-bg: rgba(74,222,128,.12); --bad-bg: rgba(248,113,113,.12);
+	--s1: #4596ea; --s2: var(--saldi-purple); --s3: #d47c24; --s4: #1aa3b8; --s5: #b58e00; --s6: #cc3f8f; --s7: #33a85b;
+	--context: #4b5b7a; --accent: #a875ec; --due-ok: #4596ea; --due-warn: #b58e00; --due-late: #e66767;
+	--q0: #1a2748; --q1: #1f3358; --q2: #294a80; --q3: #3563a8; --q4: #4a7fd0; --q5: #6d9df0; --q6: #96bcf8; --q7: #c0d8fc;
+	--glow-a: rgba(79,160,238,.12); --glow-b: rgba(139,51,212,.14);
+	--shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.28);
+	--shadow-up: 0 2px 4px rgba(0,0,0,.35), 0 16px 34px rgba(0,0,0,.42);
+	--tip-bg: #e8eefc; --tip-text: #0b1a3a; --tip-muted: rgba(11,26,58,.65);
+}
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] {
+		color-scheme: dark;
+		--page: #0c1529; --surface: #16223d; --surface-2: #1c2a49; --border: #26365a; --grid: #22304f; --band: rgba(79,160,238,.10);
+		--text: #e8eefc; --text-2: #9aa8c2; --text-3: #6f7f9d; --link: #4FA0EE;
+		--good: #4ade80; --bad: #f87171; --good-bg: rgba(74,222,128,.12); --bad-bg: rgba(248,113,113,.12);
+		--s1: #4596ea; --s2: var(--saldi-purple); --s3: #d47c24; --s4: #1aa3b8; --s5: #b58e00; --s6: #cc3f8f; --s7: #33a85b;
+		--context: #4b5b7a; --accent: #a875ec; --due-ok: #4596ea; --due-warn: #b58e00; --due-late: #e66767;
+		--q0: #1a2748; --q1: #1f3358; --q2: #294a80; --q3: #3563a8; --q4: #4a7fd0; --q5: #6d9df0; --q6: #96bcf8; --q7: #c0d8fc;
+		--glow-a: rgba(79,160,238,.12); --glow-b: rgba(139,51,212,.14);
+		--shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.28);
+		--shadow-up: 0 2px 4px rgba(0,0,0,.35), 0 16px 34px rgba(0,0,0,.42);
+		--tip-bg: #e8eefc; --tip-text: #0b1a3a; --tip-muted: rgba(11,26,58,.65);
+	}
+}
+
+/* The shell (index/main.php): its own variables follow the tokens in dark. */
+[data-theme="dark"], [data-theme="system"] {
+	--topbar-bg: var(--surface); --topbar-line: var(--border); --topbar-txt: var(--text); --topbar-txt-2: var(--text-2); --topbar-mut: var(--text-3);
+	--topbar-hover: var(--surface-2); --topbar-accent: var(--link); --topbar-accent-soft: rgba(79,160,238,.16); --topbar-shadow: var(--shadow-up);
+}
+[data-theme="light"], [data-theme="system"] {
+	--topbar-bg: #ffffff; --topbar-line: #e2e6ee; --topbar-txt: #1c2431; --topbar-txt-2: #49546b; --topbar-mut: #68738a; --topbar-hover: #edf0f6;
+	--topbar-accent: #114691; --topbar-accent-soft: #e8f0fe; --topbar-shadow: 0 10px 34px rgba(16, 30, 60, 0.16);
+}
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] {
+		--topbar-bg: var(--surface); --topbar-line: var(--border); --topbar-txt: var(--text); --topbar-txt-2: var(--text-2); --topbar-mut: var(--text-3);
+		--topbar-hover: var(--surface-2); --topbar-accent: var(--link); --topbar-accent-soft: rgba(79,160,238,.16); --topbar-shadow: var(--shadow-up);
+	}
+}
+/* Notification tints and search highlight in the dark theme. */
+[data-theme="dark"] .topbar-notif-warning { background: rgba(232,160,19,.18); }
+[data-theme="dark"] .topbar-notif-system { background: rgba(224,68,44,.18); }
+[data-theme="dark"] .topbar-notif-news { background: rgba(29,158,87,.18); }
+[data-theme="dark"] .topbar-search-it mark { background: rgba(79,160,238,.35); }
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] .topbar-notif-warning { background: rgba(232,160,19,.18); }
+	[data-theme="system"] .topbar-notif-system { background: rgba(224,68,44,.18); }
+	[data-theme="system"] .topbar-notif-news { background: rgba(29,158,87,.18); }
+	[data-theme="system"] .topbar-search-it mark { background: rgba(79,160,238,.35); }
+}
+html.saldi-shell[data-theme="dark"] body, html.saldi-shell[data-theme="dark"] .home-section { background: var(--page); color: var(--text); }
+@media (prefers-color-scheme: dark) {
+	html.saldi-shell[data-theme="system"] body, html.saldi-shell[data-theme="system"] .home-section { background: var(--page); color: var(--text); }
+}
+
+/* ---- Migrated pages (page_bar sets html.saldi-dark when the theme is dark): the old page styles follow the tokens. ---- */
+html.saldi-dark body, html.saldi-dark body[bgcolor] { background: var(--page) !important; color: var(--text); }
+html.saldi-dark table, html.saldi-dark td, html.saldi-dark th { color: var(--text); border-color: var(--border); }
+html.saldi-dark table[bgcolor], html.saldi-dark tr[bgcolor], html.saldi-dark td[bgcolor], html.saldi-dark div[bgcolor] { background-color: var(--surface) !important; }
+html.saldi-dark tr[bgcolor]:nth-child(2n) { background-color: var(--surface-2) !important; }
+html.saldi-dark font[color] { color: var(--text) !important; }
+html.saldi-dark a { color: var(--link); }
+html.saldi-dark hr { border-color: var(--border); }
+html.saldi-dark .inputbox, html.saldi-dark input[type="text"], html.saldi-dark input[type="password"], html.saldi-dark input[type="number"],
+html.saldi-dark input[type="date"], html.saldi-dark input[type="email"], html.saldi-dark input[type="search"], html.saldi-dark textarea, html.saldi-dark select {
+	background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+html.saldi-dark input:disabled, html.saldi-dark select:disabled, html.saldi-dark textarea:disabled { opacity: .6; }
+html.saldi-dark .datatable-wrapper, html.saldi-dark .datatable, html.saldi-dark .outer-datatable-wrapper, html.saldi-dark .form-wrapper { background: var(--surface); color: var(--text); }
+html.saldi-dark .datatable thead th { background-color: var(--surface-2) !important; color: var(--text); border-bottom-color: var(--border) !important; }
+html.saldi-dark .datatable thead { border-bottom-color: var(--border) !important; }
+html.saldi-dark .datatable tbody tr { background-color: var(--surface); }
+html.saldi-dark .datatable tbody tr:nth-child(2n) { background-color: var(--surface-2) !important; }
+html.saldi-dark .datatable tbody tr:hover { background-color: var(--band) !important; }
+html.saldi-dark .datatable tr td { border-color: var(--border) !important; }
+html.saldi-dark .datatable tfoot, html.saldi-dark .datatable tfoot td { background-color: var(--surface) !important; border-top-color: var(--border) !important; }
+html.saldi-dark .datatable .sortable-td:hover .sortable { color: var(--link); }
+html.saldi-dark .dropdown-content, html.saldi-dark .secondary-dropdown { background-color: var(--surface) !important; color: var(--text); box-shadow: var(--shadow-up); }
+html.saldi-dark .dropdown-content button, html.saldi-dark .dropdown-content #edit-button, html.saldi-dark .secondary-dropdown button { color: var(--text); }
+html.saldi-dark .dropdown-content button:hover, html.saldi-dark .dropdown-content #edit-button:hover, html.saldi-dark .secondary-dropdown button:hover { background-color: var(--surface-2) !important; }
+html.saldi-dark tfoot tr td #footer-box button { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+html.saldi-dark .ordreform, html.saldi-dark .dataTableForm, html.saldi-dark .dataTable2, html.saldi-dark .dataTableSmall { background: var(--surface); }
+html.saldi-dark ::placeholder { color: var(--text-3); }
+
+html.saldi-dark .pg-sticky { background-color: var(--page) !important; }
+/* The grid engines' fixed pagination footer (#footer-box) and the search row paint their own light colours. */
+html.saldi-dark tfoot tr td #footer-box, html.saldi-dark .datatable tfoot #footer-box { background-color: var(--surface) !important; border-top-color: var(--border) !important; color: var(--text); }
+html.saldi-dark tfoot tr td #footer-box #navbuttons button, html.saldi-dark .datatable tfoot #footer-box button.navbutton { background: var(--surface-2) !important; color: var(--text) !important; border-color: var(--border) !important; }
+html.saldi-dark tfoot tr td #footer-box svg, html.saldi-dark .datatable tfoot #footer-box svg { fill: var(--text) !important; }
+html.saldi-dark tfoot tr td #footer-box #navbuttons button:disabled { opacity: .45; }
+html.saldi-dark .datatable thead tr[style*="background-color"] { background-color: var(--surface-2) !important; }
+html.saldi-dark .datatable thead { border-bottom-color: var(--border) !important; }
+html.saldi-dark .datatable tbody tr:hover { outline-color: var(--border) !important; }
+html.saldi-dark #top-control-bar, html.saldi-dark .turnover-summary { color: var(--text); }
+html.saldi-dark #toggleButton { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+/* Order/card labels carry an inline grey (#444444) when the address matches the card; the red "differs" colour stays. */
+html.saldi-dark td[style*="color:#444444"], html.saldi-dark span[style*="color:#444444"], html.saldi-dark td[style*="color: #444444"], html.saldi-dark span[style*="color: #444444"] { color: var(--text) !important; }
+html.saldi-dark td[style*="color:#444"] b, html.saldi-dark td[style*="color:#444444"] b { color: var(--text); }
+html.saldi-dark .customer-info .info-label { color: var(--text-2); }
+/* Report pages with their own sticky thead/tfoot styles (Regnskab, Budget and alike): the light grey rows follow the tokens. */
+html.saldi-dark thead, html.saldi-dark thead td, html.saldi-dark thead th, html.saldi-dark tfoot, html.saldi-dark tfoot td { background-color: var(--surface-2) !important; color: var(--text) !important; border-color: var(--border) !important; }
+html.saldi-dark .regnskab-wrapper table.dataTable tbody tr:hover, html.saldi-dark .budget-wrapper table tbody tr:hover, html.saldi-dark table.dataTable tbody tr:hover { background-color: var(--band) !important; outline-color: var(--border) !important; }
+html.saldi-dark .regnskab-wrapper table.dataTable tbody tr:nth-child(2n), html.saldi-dark .budget-wrapper table tbody tr:nth-child(2n) { background-color: var(--surface-2) !important; }

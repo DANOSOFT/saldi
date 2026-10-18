@@ -28,6 +28,7 @@
 // 20250523 printserver lookup
 // 20250531 PHR added $flatpayPrint
 // 20250912 PHR added print if canceled
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-848: Write disableTerminalPrints as a JavaScript boolean; PHP false printed as an empty token and broke the whole payment script when flatpay_terminal_print was set.
 
 @session_start();
@@ -36,6 +37,7 @@ $s_id = session_id();
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

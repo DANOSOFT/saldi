@@ -19,6 +19,7 @@
 // Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //20230725 LOE Minor modification for kassekladde
+// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
 
 include("../includes/topline_settings.php");
 global $menu;
@@ -29,9 +30,10 @@ elseif ($source=="creditorOrder") $tmp="../kreditor/ordre.php?id=$sourceId&fokus
 else $tmp="../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
 
 if ($menu=='S') {
-	print "<td width='10%'><a href=$tmp accesskey=L><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-	print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
-	print "<td width='10%' style='$topStyle' align='center'><br></td>";
+	include_once(get_relative() . "includes/stdFunc/pageBar.php");
+	print "<td colspan='3'>";
+	page_bar(array('title' => findtekst('1408|Kassebilag', $sprog_id), 'back' => $tmp));
+	print "</td>";
 } else {
 	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href=$tmp accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 	print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";

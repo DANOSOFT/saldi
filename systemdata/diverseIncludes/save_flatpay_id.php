@@ -22,7 +22,11 @@
 //
 // Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20260928 Sawaneh Security 4.0 (A10): the Flatpay login is exchanged for the GUID here on the server,
+//                  so username/password never leave the browser for a third-party host and are never logged.
 // 20261002 LOE SST-844 Flatpay ID saves need the Indstillinger right, a CSRF token and a GUID value.
+// 20261008 Sawaneh Merge of master: SST-844's JSON answers, CSRF token and GUID check around the server-side login
+//                  exchange; the right is settings.integrations (write), the legacy Indstillinger bit without roles.
 
 ob_start();
 
@@ -37,6 +41,7 @@ $bg     = "nix";
 $s_id = session_id();
 
 include ("../../includes/connect.php");
+$permission_key = 'any';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 
@@ -44,13 +49,7 @@ ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
 
 /**
- * Answer the popup with JSON and stop the request.
- *
- * @param int         $http_code HTTP status to send.
- * @param bool        $success   Whether the ID was saved.
- * @param string|null $fejl      Short reason when $success is false.
- *
- * @return void
+ * Answer the settings page with JSON and stop the request.
  */
 function flatpay_id_svar($http_code, $success, $fejl = NULL) {
 	http_response_code($http_code);
@@ -62,51 +61,49 @@ function flatpay_id_svar($http_code, $success, $fejl = NULL) {
 	exit;
 }
 
-# Indstillinger is module 1. The script used to leave the module unset, so every logged-in user could
-# write the setting. An empty rights string counts as no right here: this writes a payment credential.
-if (!isset($rettigheder) || $rettigheder === '' || substr($rettigheder, 1, 1) < '1') {
+# This writes a payment credential: settings.integrations (write), or the Indstillinger right without roles.
+$allowed = function_exists('perm_can') ? perm_can('settings.integrations', 'write') : (isset($rettigheder) && substr((string) $rettigheder, 1, 1) === '1');
+if (!$allowed) {
 	flatpay_id_svar(403, false, 'Missing the Indstillinger right');
 }
-
 if (ifset($_SERVER, 'REQUEST_METHOD', '') !== 'POST') {
 	flatpay_id_svar(405, false, 'POST required');
 }
-
-# Session-bound token from the settings page, so a forged cross-site POST cannot change the ID
 $csrf_token = ifset($_SESSION, 'csrf_token', '');
 if ($csrf_token === '' || !hash_equals($csrf_token, (string) ifset($_SERVER, 'HTTP_X_CSRF_TOKEN', ''))) {
 	flatpay_id_svar(403, false, 'Invalid or expired form token');
 }
 
-# Expect a posted ID
 $post = json_decode(file_get_contents('php://input'), true);
-$id   = ifset($post, 'id', '');
-if (!is_string($id)) {
-	flatpay_id_svar(400, false, 'Expected an id');
+$username = is_array($post) && isset($post['username']) ? (string) $post['username'] : '';
+$password = is_array($post) && isset($post['password']) ? (string) $post['password'] : '';
+if ($username === '' || $password === '') {
+	flatpay_id_svar(400, false, 'Missing login');
 }
-$id = trim($id);
+$ch = curl_init('https://socket.flatpay.dk/socket/guid');
+curl_setopt_array($ch, array(
+	CURLOPT_POST           => true,
+	CURLOPT_HTTPHEADER     => array('Content-Type: application/json'),
+	CURLOPT_POSTFIELDS     => json_encode(array('username' => $username, 'password' => $password)),
+	CURLOPT_RETURNTRANSFER => true,
+	CURLOPT_TIMEOUT        => 15,
+));
+$body = curl_exec($ch);
+$status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+$id = trim((string) $body, " \t\n\r\"");
 
 # Flatpay returns the GUID, e.g. 00000000-0000-4000-8000-000000000000 (example, not a real ID).
-# An empty or malformed ID is refused, so a call without a usable ID can no longer blank or
-# overwrite the setting.
-if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
-	flatpay_id_svar(400, false, 'Expected a GUID');
+if ($status !== 200 || !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+	flatpay_id_svar(401, false, 'Login failed');
 }
 $id = db_escape_string($id);
 
-$qtxt = "SELECT var_value FROM settings WHERE var_name='flatpay_auth'";
-$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
-# If the row alreayd exsists
+$r = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name='flatpay_auth'", __FILE__ . " linje " . __LINE__));
 if ($r) {
-  $qtxt = "UPDATE settings SET var_value='$id' WHERE var_name='flatpay_auth'";
-  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-# If the row needs to be created in the database
+	db_modify("UPDATE settings SET var_value='$id' WHERE var_name='flatpay_auth'", __FILE__ . " linje " . __LINE__);
 } else {
-  $qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ('flatpay_auth', 'globals', '$id', 'The flatpay auth GUID')";
-  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ('flatpay_auth', 'globals', '$id', 'The flatpay auth GUID')", __FILE__ . " linje " . __LINE__);
 }
-
 flatpay_id_svar(200, true);
 ?>
-

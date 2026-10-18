@@ -85,9 +85,9 @@ function access_check($db, $saldiuser, $user_apikey)
         }
 
         # Check for apikey validity
-        if ($api_key != $user_apikey) {
-            $log = fopen("../temp/$db/rest_api.log", "a");
-            write_log("Access denied (key) $api_key != $user_apikey", $db, "ERROR");
+        // 20260928 Sawaneh Security 4.0 (A6): constant-time comparison; keys are never written to the log.
+        if (!hash_equals((string) $api_key, (string) $user_apikey)) {
+            write_log("Access denied (key)", $db, "ERROR");
             return "Access denied (key)";
         } elseif (!in_array($ip, $ip_list) && !in_array('*', $ip_list)) {
             write_log("Access denied (ip) ($ip) != ($r[box2])", $db, "ERROR");

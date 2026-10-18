@@ -35,6 +35,11 @@
 // 20220605 PHR - php8
 // 20250619 PHR - Somebody broke the code by omitting || in several if statements
 // 20260206	PHR	- discal_year
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The record (kontonr + name, or Ny konto) as the last breadcrumb level (decision 22).
 
 @session_start();
 $s_id = session_id();
@@ -56,6 +61,7 @@ $css = "../css/standard.css";
 	</script>
 <?php
 include("../includes/connect.php");
+$permission_key = 'system.kontoplan';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/genberegn.php");
@@ -365,28 +371,17 @@ elseif ($kontotype == 'X')
 	$kontotype = 'Sideskift';
 */
 
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">";
-  print "<div class=\"headerbtnLft headLink\"><a href=kontoplan.php accesskey=L title='".findtekst('2551|Klik her for at komme tilbage', $sprog_id)."'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
-	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<center><table class='dataTableSmall' border='0' cellspacing='1' align='center' style='width:700px;'>";
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	if (function_exists('page_record')) print page_record($id ? trim((string) $kontonr . ' ' . (string) $beskrivelse) : findtekst('7006|Ny konto', $sprog_id));
+	page_bar(array(
+		'title' => findtekst('443|Kontokort', $sprog_id),
+		'primary' => array(findtekst('7006|Ny konto', $sprog_id), 'kontokort.php', 'accesskey' => 'N'),
+		'back' => 'kontoplan.php',
+	));
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\"  height=1% valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	print "<tr><td width=\"10%\"><a href=kontoplan.php accesskey=L>
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-  print "<td width=\"80%\" align='center' style='$topStyle'> ". findtekst('443|Kontokort', $sprog_id)."</td>";
-
-	print "<td width=\"10%\"><a href=kontokort.php accesskey=N>
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><br></td></tr>";
 
 	if ($previousPage)
 		print "<tr><td colspan=2><a href='kontokort.php?id=$previousPage'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
@@ -517,7 +512,7 @@ if ($kontotype == 'D' || $kontotype == 'S') {
 	print "<td colspan=2><SELECT NAME = 'moms' style = 'width:70px'>";
 	print "<OPTION>$moms</OPTION>\n";
 	$qtxt = "select kode, kodenr from grupper ";
-	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar'";
+	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($moms)
 		print "<OPTION></OPTION>\n";
@@ -605,7 +600,7 @@ print "</tbody>";
 print "</table>";
 print "</td></tr>";
 print "<tr><td align = 'center' valign = 'bottom'>";
-if ($menu == 'T' || $menu == 'S') {
+if ($menu == 'S') {
 
 } else {
 	print "<table width='100%' align='center' border='1' cellspacing='0' cellpadding='0'><tbody>";
@@ -615,10 +610,6 @@ if ($menu == 'T' || $menu == 'S') {
 print "</td></tr>";
 print "</tbody></table>";
 
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ?>

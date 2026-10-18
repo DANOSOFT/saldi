@@ -30,12 +30,14 @@
 // 20260710 MJ ABS(sn.kobslinje_id) i JOIN så negative kobslinje_id (retur til leverandør) også viser indkøbsordren.
 // 20260710 MJ Ekstra COALESCE-fallbacks via ordrelinjer.vare_id→varer og batch_kob/batch_salg.vare_id→varer så serienr med tom/manglende ordrelinjer.varenr stadig søges.
 // 20260813 Sawaneh - "Not sold" filter: sn.salgslinje_id = 0 instead of <= 0, so negative history rows (credited sales) are no longer shown as available. Credited return serials still appear via the fresh row with salgslinje_id = 0 from krediter().
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260917 M - Column headers, filters and the rename/delete dialogs pulled from findtekst().
 // 20260917 M - Translated values interpolated into JavaScript string literals are addslashes()'d, and the page title follows the language via document.title.
 // 20260929 CL/NTR Cancelling the rename prompt no longer opens the rename confirmation.
 // 20260929 CL/NTR Replaced addslashes() with json_encode() (+ htmlspecialchars() in onclick attributes) for JS string literals, so translated text cannot break out of the script or attribute context.
 // 20260930 CL/NTR JS string literals are built with jsString() from std_func: legacy (non-UTF8) text is converted to UTF-8 part by part and the output stays ASCII.
+// 20261008 Sawaneh The list sits under the new page head (topLineVarer.php, page_bar): grid height adjusted.
 
 @session_start();
 $s_id = session_id();
@@ -48,6 +50,7 @@ $title = "Serienr.";
 
 include ("../../includes/std_func.php");
 include ("../../includes/connect.php");
+$permission_key = 'lager.varer';
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
 
@@ -208,7 +211,7 @@ $columns[] = array(
     "render" => function ($value, $row, $column) {
         $html = "<td align='$column[align]'>";
         if ($value) {
-            $url = "../../kreditor/kreditorkort.php?id=$row[salgs_konto]&returside=../lager/lister/serialnumber.php";
+            $url = "../../debitor/debitorkort.php?id=$row[salgs_konto]&returside=../lager/lister/serialnumber.php"; // WP-5.2: the buyer is a customer
             $html .= "<span><a href='$url'>$row[salgs_kontonr]</a> : $row[salgs_firmanavn]</span><br>";
         }
         $html .= "</td>";
@@ -395,7 +398,7 @@ HTML;
 );
 
 
-print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+print "<div style='width: 100%; height: calc(100vh - 112px);'>";
 create_datagrid("serienr", $data);
 print "</div>";
 

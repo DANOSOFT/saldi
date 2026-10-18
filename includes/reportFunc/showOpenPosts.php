@@ -86,6 +86,7 @@
 // 20260923 CL/NTR Mail kontoudtog/Opret rykker/Ryk alle only print when at least one account row
 //                is on the page (formIndex > 0) - with none, posting back had no konto_id[] fields
 //                and crashed count(null) in rapport.php.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261014 MJ SST-863 A historical-date report dates a settlement group by its last posting
 //                  rather than by each row's own udlign_date. udlign_date is not reliably the
 //                  date the group closed: includes/autoudlign.php stamps rows with their own
@@ -663,13 +664,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$showPBS = 0;
 		$usePBS  = 0;
 	}
-	if ($menu=='T') {
-		$top_bund = "";
-		$padding = "style='padding: 25px 20px 10px 20px;'";
-	} else {
-		$top_bund = (isset($top_bund) ? $top_bund : "");
-		$padding = "";
-	}
+	$top_bund = (isset($top_bund) ? $top_bund : "");
+	$padding = "";
 	$forfaldsum=$forfaldsum_plus8=$forfaldsum_plus30=$forfaldsum_plus60=$forfaldsum_plus90=$fromdate=$linjebg=$popup=$todate=NULL;
 	// SST-786: $currentdate must be real, not NULL - openpost_export_csv() sets it to today's date
 	// too, and the two must agree whenever $dato_til is today, or openpost_account_query_parts()
@@ -762,26 +758,17 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	}
 	$headerColspan = $usePBS ? 10 : 9;
 
-	if ($menu=='T') {
-		print "<tr><td><div class='dataTablediv'><table id='visAabnePosterTableT' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
-		print "<tr><th>Kontonr.</th>";
-		if ($usePBS) print "<th>PBS</th>";
-		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>$headerCell[over90]</th><th align=right  class='text-right'>{$headerCell['60-90']}</th><th align=right class='text-right'>{$headerCell['30-60']}</th><th align=right class='text-right'>{$headerCell['8-30']}</th><th align=right class='text-right'>{$headerCell['0-8']}</th><th align=right class='text-right'>$headerCell[total]</th><th align=right</th>";
-		print "<tr><th colspan='$headerColspan' style='font-weight:normal;'>$searchRow</th></tr>";
-		print "</thead><tbody>";
-	} else {
-		print "<tr><td><table id='visAabnePosterTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
-		print "<tr><td>Kontonr.</th>";
-		if ($usePBS) {
-			if ($showPBS) {
-				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=0$stateUrl'>skjul BS</a></td>";
-			} else {
-				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=1$stateUrl'>vis BS</a></td>";
-			}
+	print "<tr><td><table id='visAabnePosterTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
+	print "<tr><td>Kontonr.</th>";
+	if ($usePBS) {
+		if ($showPBS) {
+			print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=0$stateUrl'>skjul BS</a></td>";
+		} else {
+			print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=1$stateUrl'>vis BS</a></td>";
 		}
-		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>$headerCell[over90]</td><td align=right>{$headerCell['60-90']}</td><td align=right>{$headerCell['30-60']}</td><td align=right>{$headerCell['8-30']}</td><td align=right>{$headerCell['0-8']}</td><td align=right>$headerCell[total]</td><td></td>";
-		print "<tr><td colspan='$headerColspan'>$searchRow</td></tr>";
 	}
+	print "<td>".findtekst(360,$sprog_id)."</td><td align=right>$headerCell[over90]</td><td align=right>{$headerCell['60-90']}</td><td align=right>{$headerCell['30-60']}</td><td align=right>{$headerCell['8-30']}</td><td align=right>{$headerCell['0-8']}</td><td align=right>$headerCell[total]</td><td></td>";
+	print "<tr><td colspan='$headerColspan'>$searchRow</td></tr>";
 
 	// Push the grid header out before the heavy count/page queries below, so the user sees
 	// the empty table immediately while the SQL runs (ob_flush drains php.ini's output_buffering).
@@ -791,11 +778,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 
 	print "<form name=aabenpost action=rapport.php method=post>";
 
-	if ($menu=='T') {
-		print "";
-	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-	}
+	print "<tr><td colspan=10><hr></td></tr>\n";
 
 	$accountPosts=$accountIndex=array();
 	if ($kontoart=='D') $tmp="";
@@ -1054,13 +1037,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$forfaldsum_plus8=afrund($forfaldsum_plus8,2);
 
 	($usePBS) ? $colspan = 2 : $colspan = 1 ;
-	if ($menu=='T') {
-		print "</tbody><tfoot>";
-		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
-	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
-	}
+	print "<tr><td colspan=10><hr></td></tr>\n";
+	print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
 
 	if ($forfaldsum_plus90 != 0) $color="rgb(255, 0, 0)";
 	else $color="rgb(0, 0, 0)";
@@ -1136,18 +1114,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	}
 	print "</form>\n";
 
-	if ($menu=='T') {
-		print "</tfoot></table></div></tfoot></table>";
-	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "</tbody></table>";
-	}
+	print "<tr><td colspan=10><hr></td></tr>\n";
+	print "</tbody></table>";
 
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 
 	
 }} //endfunc vis_aabne_poster

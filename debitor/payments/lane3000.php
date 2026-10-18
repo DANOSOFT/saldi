@@ -25,6 +25,7 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token) and the login itself in the
 //                 browser console; the log endpoint now takes the tenant from the session.
 
@@ -43,6 +44,7 @@ header("Expires: 0");
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

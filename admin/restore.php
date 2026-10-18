@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/restore.php --- lap 5.0.0 --- 2026-07-02 ---
+// --- admin/restore.php --- lap 5.0.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,11 +38,55 @@
 // 20260127 LOE Updated migrateMySQLToPostgreSQL for some isolated fixes.
 // 20260129 PHR Added some str_replace  and a call to connect.php before lookup in 'regnskab'
 // 20260702 CX/PHR Close target PostgreSQL connection and terminate active sessions before DROP DATABASE in restore
+// 20261006 Sawaneh WP-6.3: Luk returns to the admin account page after a ?db= restore, otherwise to the calling page/backup.php.
+// 20261008 Sawaneh Restore (settings decision 18): online.php always runs; ?db= needs a Saldi-admin session with access to that ledger and an existing database (none is created), else 403.
+//                  Only the file uploaded in the same request is restored, after a required confirmation and a CSRF check; no file path is taken from POST and the work folder is removed when the request ends.
+//                  Shell arguments are escaped and database passwords passed through the environment.
+//                  The MySQL migration is shown and accepted only for a Saldi-admin with the admin right on an empty ledger, with password and audit log. Texts 6930-6943.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
+ob_start();
 
+include("../includes/connect.php");
+include("../includes/std_func.php");
+
+$title=findtekst('1247|Indlæs sikkerhedskopi', $sprog_id);
+$adminRestore = isset($_GET['db']) && $_GET['db'] !== '';
+// An admin-panel session lives in the master database, where online.php closes the window when $modulnr is set.
+$modulnr = $adminRestore ? NULL : 11;
+$permission_key = $adminRestore ? 'any' : 'system.backup.restore'; // 20260916 Sawaneh phase 3: restore has its own (dangerous) key; the admin panel is checked below
+$permission_level = 'write';
+$css="../css/standard.css";
+$backupdate=$backupdb=$backupver=$backupnavn=$filnavn=$menu=$regnskab=$timezone=$popup=NULL;
+$tmpDb = NULL;
+$adminRegnskabId = 0;
+$restoreAdmin = NULL;
+
+include("../includes/online.php");
+
+if ($adminRestore) {
+	$tmpDb = (string) $_GET['db'];
+	$r = NULL;
+	if ($db === $sqdb && $tmpDb !== $sqdb && preg_match('/^[A-Za-z0-9_]+$/', $tmpDb)) {
+		$r = db_fetch_array(db_select("select id, regnskab from regnskab where db = '" . db_escape_string($tmpDb) . "'", __FILE__ . " linje " . __LINE__));
+	}
+	$restoreAdmin = $r ? restore_admin_rights((int) $r['id']) : NULL;
+	if (!$restoreAdmin) {
+		restore_deny(findtekst('6932|Adgang nægtet', $sprog_id));
+	}
+	if (!db_exists($tmpDb)) {
+		restore_deny(findtekst('6933|Regnskabets database findes ikke. Opret regnskabet, før en sikkerhedskopi indlæses.', $sprog_id));
+	}
+	$adminRegnskabId = (int) $r['id'];
+	$regnskab = $r['regnskab'];
+	$db = $tmpDb;
+	$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+}
+ob_end_flush();
+if (!isset($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
 ?>
 <script LANGUAGE="JavaScript">
@@ -57,42 +101,23 @@ function confirmSubmit(messageProvider) {
 // -->
 </script>
 <?php
-
-include("../includes/connect.php");
-include("../includes/std_func.php");
-
-$title=findtekst('1247|Indlæs sikkerhedskopi', $sprog_id);
-$modulnr=11;
-$css="../css/standard.css";
-$backupdate=$backupdb=$backupver=$backupnavn=$filnavn=$menu=$regnskab=$timezone=$popup=NULL;
-
-if (isset($_GET['db']) && $_GET['db']) {
-	$db=$sqdb;
-	$tmpDb=$_GET['db'];
-	if (!db_exists($tmpDb)) {
-		db_create($tmpDb);		
-	}
-	if (!$regnskab) {
-		include("../includes/connect.php");
-		$r=db_fetch_array(db_select("select * from regnskab where db='$tmpDb'",__FILE__ . " linje " . __LINE__));
-		$regnskab=$r['regnskab'];
-	}
-	$db=$tmpDb;
-	db_connect($sqhost, $squser, $sqpass, $db, "");
-	print "<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n";
-	print "<meta http-equiv=\"content-language\" content=\"da\">\n";
-	print "<meta name=\"google\" content=\"notranslate\"></head>\n";
-	
-} else include("../includes/online.php");	
-include("../includes/std_func.php");
 if(isset($_COOKIE['languageId'])){
 	$sprog_id = $_COOKIE['languageId'];
 }
  
  
 
-if ($popup) $returside="../includes/luk.php";
-else $returside="../index/menu.php";
+// WP-6.3: from the admin panel (?db=) Luk returns to that account's admin page (it reads db_id), else the account list;
+// otherwise to the page the user came from, luk.php in a popup, else backup.php (was the main menu in both cases).
+$returnGet = nav_sanitize_returside(if_isset($_GET, NULL, 'returside'));
+if ($adminRestore) {
+	$returside = !empty($adminRegnskabId) ? "aaben_regnskab.php?db_id=" . (int) $adminRegnskabId : "vis_regnskaber.php";
+	$formAction = "restore.php?db=" . rawurlencode($tmpDb);
+} else {
+	$returside = $returnGet;
+	if (!$returside) $returside = $popup ? "../includes/luk.php" : "backup.php";
+	$formAction = $returnGet ? "restore.php?returside=" . rawurlencode($returnGet) : "restore.php";
+}
 
 if (!file_exists("../temp/$db")) mkdir("../temp/$db", 0775);
 
@@ -147,22 +172,7 @@ $translations = [
 include("../includes/topline_settings.php");
 
 print "<div align=\"center\">";
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=backup.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<div class='divSys'>";
-	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\"><tbody>"; # -> 1
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	print "<table width='100%' height='30%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	print "<tr><td height = '25' align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
@@ -185,220 +195,29 @@ if ($menu=='T') {
 	print "</tbody></table>";
 	print "</td></tr>";
 }
-    $upFn = if_isset($_FILES, NULL, 'uploadedfile') ? if_isset($_FILES['uploadedfile'], NULL, 'name') : NULL;
-
-	if($upFn || if_isset($_POST,NULL,'filnavn')) { # 20160609
-		
-		############################# check for the file types first.
-		include("../includes/connect.php");
-		if($upFn)$filename = basename($_FILES['uploadedfile']['name']);
-		else $filename = NULL; 
-		if(!$filename && $filename = if_isset($_POST, NULL, 'filnavn') ); 
-
-		$extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-		
-		
-		if ($extension !== 'sdat' && $extension !== 'sql') {
-			echo "<script>alert('Only .sdat or .sql files are allowed.');</script>";
-			header("Refresh: 1; URL=" . $_SERVER['REQUEST_URI']);
-			exit;
-		}
-		
-		###########################
-		
-	if ($restore=if_isset($_POST, NULL,'restore')) {
-		
-		if ($restore=='OK') {
-			$backup_encode=if_isset($_POST, NULL, 'backup_encode');
-			$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
-			$filnavn=if_isset($_POST, NULL,'filnavn');
-			restore($filnavn,$backup_encode,$backup_dbtype);
-		} else {
-		
-			if (!if_isset($_POST,NULL,'mysql_db') ) {
-				if(isset($filnavn)){
-					unlink($filnavn);
-				}elseif(isset($filename))unlink($filename);
-			}
-			
-		} 
+$restoreMsg = '';
+$restoreRan = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	if (!$_POST && !$_FILES && (int) ifset($_SERVER, 'CONTENT_LENGTH', 0) > 0) {
+		$restoreMsg = 'Filen er for stor - Kontroller upload_max_filesize i php.ini';
+	} elseif (!hash_equals((string) $_SESSION['csrf_token'], (string) ifset($_POST, 'csrf_token', ''))) {
+		$restoreMsg = findtekst('6940|Formularen er udløbet. Hent siden igen, og prøv igen.', $sprog_id);
+	} elseif (isset($_POST['migrate'])) {
+		list($restoreRan, $restoreMsg) = restore_handle_migration();
+	} elseif (isset($_POST['restore_upload'])) {
+		list($restoreRan, $restoreMsg) = restore_handle_upload();
 	}
-	$upFe = if_isset($_FILES, NULL, 'uploadedfile') ? if_isset($_FILES['uploadedfile'], NULL, 'error') : NULL;
-	if ($upFe) {
-		$fejl = $upFe ;
-	} else {
-			$fejl = false;
-	}
-	if ($fejl) {
-		switch ($fejl) {
-			case 1: print "<BODY onLoad=\"javascript:alert('Filen er for stor - Kontroller upload_max_filesize i php.ini')\">";
-			case 2: print "<BODY onLoad=\"javascript:alert('Filen er for stor - er det en SALDI-sikkerhedskopi?')\">";
-		}
-	}
-	
-	if ($filnavn=if_isset($_POST,NULL,'filnavn') && if_isset($_POST,NULL,'mysql_db')) {
-		if($extension=='sql'){
-		
-			// Full path of file and its name
-			$backupfil = $_POST['filnavn'];
-			
-			// Move the uploaded file from temporary storage to the desired location
-			if (isset($_POST['mysql_db']) && isset($_POST['mysql_pass']) && $db_type == "postgresql") {					
-				// Retrieve MySQL connection details from form
-				
-				$mysqlDb = $_POST['mysql_db'];
-				$mysqlPass = $_POST['mysql_pass'];
-	
-				$mysqlHost = $sqhost;
-				$mysqlUser = $_POST['mysql_user'];
-	
-				// Call the migration function
-				migrateMySQLToPostgreSQL($sqhost, $squser, $sqpass, $db, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDb, $backupfil);
-			
-			}
-		}
-	}
-	$formSz = true;	
-	$upFn1 = if_isset($_FILES, NULL, 'uploadedfile') ? if_isset($_FILES['uploadedfile'], NULL, 'name') : NULL;
-	if ($upFn1 && basename($upFn1)) {
-		
-		$filnavn="../temp/".$db."/restore.gz";
-		$tmp=$_FILES['uploadedfile']['tmp_name'];
-		if($extension=='sql'){
-			$tmp = $_FILES['uploadedfile']['tmp_name'];
-			error_log("temp file;".$tmp);
-			$target_file = "../temp/".$db."/";
-			// Define the full path where the file will be stored
-			$backupfil = $target_file . basename($_FILES['uploadedfile']['name']);
-			// Move the uploaded file from temporary storage to the desired location
-			if (move_uploaded_file($tmp, $backupfil)) {
-				
-				// Check if "MySQL Dump" is in the first line
-				$handle = fopen($backupfil, 'r');
-				if ($handle) {
-					
-					$result = findDumpInFirstThreeLines($handle);
-					if(stripos(trim($result), 'MySQL dump') !== false) {
-						//call mysql input function
-						$formSz=false;
-					 renderRestoreForm($db, $backupfil, $restoreV = 'Submit');
-						
-							###########
-					}elseif(stripos(trim($result), 'PostgreSQL') !== false){
-						$backup_encode=if_isset($_POST, NULL, 'backup_encode');
-						$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
-						restore($backupfil,$backup_encode,$backup_dbtype);
-					}
-					fclose($handle);
-				} else {
-					echo "Failed to open the file.";
-					exit;
-				}	
-			}else{
-				echo "Unable to move";
-			}
-		}else{
-			system ("rm -rf ../temp/".$db."/*");
-			if(move_uploaded_file($tmp, $filnavn)) {
-				##########
-				
-				error_log('Filename: '.$filnavn);
-				#system ("gunzip $filnavn");
-				// Validate file existence
-				if (!is_file($filnavn)) {
-					exit("❌ File not found: $filnavn\n");
-				}
-
-				// Detect MIME type
-				$finfo = finfo_open(FILEINFO_MIME_TYPE);
-				$mimeType = finfo_file($finfo, $filnavn);
-				finfo_close($finfo);
-
-				// Build command based on file type
-				$commands = [
-					'application/gzip'   => "gunzip " . escapeshellarg($filnavn),
-					'application/x-gzip' => "gunzip " . escapeshellarg($filnavn),
-					'application/x-tar'  => "tar -xf " . escapeshellarg($filnavn),
-				];
-
-				if (isset($commands[$mimeType])) {
-					
-					system($commands[$mimeType], $exitCode);
-					if ($exitCode === 0) {
-						error_log("✅ Extraction successful.\n");
-					} else {
-						error_log("❌ Extraction failed with exit code $exitCode.\n");
-					}
-				} else {
-					echo "⚠️Unsupported or unknown file type: $mimeType\n";
-				}
-
-				#################
-				$filnavn=str_replace(".gz","",$filnavn);
-				
-				if (file_exists($filnavn)) system ("cd ../temp/$db\n/bin/tar -xf restore");
-				else system ("cd ../temp/$db\n/bin/tar -xf restore.gz");
-				$infofil="../temp/".$db."/temp/backup.info";
-				$fp=fopen($infofil,"r");
-				if ($fp) {
-					$linje=trim(fgets($fp));
-					list($backupdate,$backupdb,$backupver,$backupnavn,$backup_encode,$backup_dbtype)=explode(chr(9),$linje);
-					$backupfil="../temp/".$db."/temp/".$backupdb.".sql";
-					$backupdato=substr($backupdate,6,2)."-".substr($backupdate,4,2)."-".substr($backupdate,0,4);
-					$backuptid=substr($backupdate,-4,2).":".substr($backupdate,-2,2);
-				}
-				fclose($fp);
-				unlink($infofil);
-			
-				########################ConvertingMysqlDB
-				$handle = fopen($backupfil, 'r');
-				if ($handle) {
-					
-					$result = findDumpInFirstThreeLines($handle);
-					if(stripos(trim($result), 'MySQL dump') !== false) {
-						//call mysql input function
-						$formSz=false;
-						error_log('Back2 Up file ;'.$backupfil);
-					 renderRestoreForm($db, $backupfil, $restoreV = 'Submit');
-					}
-					($handlfclosee);
-				}
-			    #######################
-			
-			if($formSz==true){
-				print "<form name=restore action=restore.php?db=$db&backup_dbtype=$backup_dbtype method=post>";
-				print "<tr><td valign=middle align=center><table><tbody>";
-				$backupnavn=trim($backupnavn);
-				$regnskab=trim($regnskab);
-				if ($backupnavn && $backupnavn!=$regnskab) {
-					print "<tr><td colspan=2>".findtekst('2422|Du er ved at overskrive dit regnskab', $sprog_id).": $regnskab<br>".findtekst('2423|med en sikkerhedskopi af regnskabet', $sprog_id).": $backupnavn "."fra den"."$backupdato kl. $backuptid.</td></tr>";	
-					print "<input type=\"hidden\" name=\"backup_encode\" value=\"$backup_encode\">";
-					print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
-				} elseif ($backupdate) {
-					print "<tr><td colspan=2>".findtekst('2422|Du er ved at overskrive dit regnskab', $sprog_id).": $regnskab<br>".findtekst('2426|med en sikkerhedskopi fra den', $sprog_id)."$backupdato kl. $backuptid.</td></tr>";	
-					print "<input type=\"hidden\" name=\"backup_encode\" value=\"$backup_encode\">";
-					print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
-				} else {
-					print "<tr><td colspan=2>".findtekst('2422|Du er ved at overskrive dit regnskab', $sprog_id).": $regnskab.</td></tr>";	
-					print "<input type=\"hidden\" name=\"filnavn\" value=\"$filnavn\">";
-				}
-				print "<tr><td colspan=2><hr></td></tr>";	
-				print "<tr><td align=center><input type=submit value=\"OK\" name=\"restore\"></td><td align=center><input type=submit value=\"Afbryd\" name=\"restore\"></td><tr>";
-				print "</tbody></table></td></tr>";
-				print "</form>";
-			}
-
-			} else {
-				echo findtekst(2427, $sprog_id); //an error occured
-			}
-		}
-
-
-	}	else upload($db);
-} else upload($db);
+}
+if ($restoreMsg !== '') {
+	print "<tr><td align='center' style='color:red; padding:8px'>$restoreMsg</td></tr>";
+}
+if (!$restoreRan) {
+	upload($formAction);
+	if (restore_migration_allowed()) renderRestoreForm($formAction);
+}
 print "</tbody></table></div>";
 ################################################################################################################
-function upload($db){
+function upload($formAction){
 	global $sprog_id;
 	global $connection;
 	global $translations;
@@ -422,19 +241,205 @@ function upload($db){
 	
 
 	print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<form enctype=\"multipart/form-data\" action=\"restore.php?db=$db\" method=\"POST\">";
+	print "<form enctype=\"multipart/form-data\" action=\"" . htmlspecialchars($formAction, ENT_QUOTES) . "\" method=\"POST\">";
+	print "<input type=\"hidden\" name=\"csrf_token\" value=\"" . htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES) . "\">";
 #	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"99999999\">";
 	print "<tr><td width=100% align=center><br></td></tr>";
 	print "<tr><td width=100% align=center>".$textc."</td></tr>";
 	print "<tr><td width=100% align=center><br></td></tr>";
 	print "<tr><td width=100% align=center><hr width=50%></td></tr>";
 	print "<tr><td width=100% align=center></td></tr>";
-	print "<tr><td width=100% align=center>\"".$selectdfil."\": <input class=\"inputbox\" NAME=\"uploadedfile\" type=\"file\"></td></tr>";
+	print "<tr><td width=100% align=center>\"".$selectdfil."\": <input class=\"inputbox\" NAME=\"uploadedfile\" type=\"file\" accept=\".sdat,.sql\" required></td></tr>";
+	print "<tr><td width=100% align=center><label><input type=\"checkbox\" name=\"confirm_restore\" value=\"1\" required> ".findtekst('6930|Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.', $sprog_id)."</label></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td align=center><input type=\"submit\" style=\"$buttonStyle\" value=\"".$load."\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
+	print "<tr><td align=center><input type=\"submit\" name=\"restore_upload\" style=\"$buttonStyle\" value=\"".$load."\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
 	print "<tr><td></form></td></tr>";
 	print "</tbody></table>";
 	print "</td></tr>";
+}
+
+/**
+ * Stops the request with 403 before anything of the page is sent.
+ */
+function restore_deny($txt) {
+	while (ob_get_level()) ob_end_clean();
+	http_response_code(403);
+	print "<p>$txt</p>";
+	exit;
+}
+
+/**
+ * The admin-panel user's access to a ledger, from the master database ('admin,oprette,slette,ids' as vis_regnskaber.php reads it).
+ *
+ * @return array{backup: bool, id: int, kode: string}|null null when the user may not open the ledger
+ */
+function restore_admin_rights($regnskabId) {
+	global $brugernavn;
+	$r = db_fetch_array(db_select("select id, kode, rettigheder from brugere where brugernavn = '" . db_escape_string((string) $brugernavn) . "'", __FILE__ . " linje " . __LINE__));
+	if (!$r) return NULL;
+	list($admin, , , $tmp) = array_pad(explode(",", (string) $r['rettigheder'], 4), 4, '');
+	if (!$admin && !in_array($regnskabId, array_map('trim', explode(",", $tmp)))) return NULL;
+	return array('backup' => (bool) $admin, 'id' => (int) $r['id'], 'kode' => (string) $r['kode']);
+}
+
+/**
+ * The admin-panel user's own password (master database, md5 legacy or saldikrypt).
+ */
+function restore_password_ok($typed) {
+	global $restoreAdmin;
+	$typed = (string) $typed;
+	if ($typed === '' || !$restoreAdmin || $restoreAdmin['id'] <= 0 || $restoreAdmin['kode'] === '') return false;
+	$stored = strtolower(trim($restoreAdmin['kode']));
+	return hash_equals($stored, md5($typed)) || hash_equals($stored, saldikrypt($restoreAdmin['id'], $typed));
+}
+
+function restore_ledger_empty() {
+	foreach (array('transaktioner', 'ordrer', 'kassekladde') as $table) {
+		if (tbl_exists($table) && db_fetch_array(db_select("select 1 as found from $table limit 1", __FILE__ . " linje " . __LINE__))) return false;
+	}
+	return true;
+}
+
+/**
+ * MySQL -> PostgreSQL migration: Saldi-admin session with the admin right (settings.backup there) on an empty ledger.
+ */
+function restore_migration_allowed() {
+	global $adminRestore, $restoreAdmin, $db_type;
+	return $adminRestore && !empty($restoreAdmin['backup']) && $db_type == 'postgresql' && restore_ledger_empty();
+}
+
+function restore_remove_dir($dir) {
+	if ($dir && is_dir($dir)) system("rm -rf " . escapeshellarg($dir));
+}
+
+function restore_inside($path, $dir) {
+	$real = realpath($path);
+	$base = realpath($dir);
+	return $real && $base && strpos($real, $base . '/') === 0 && is_file($real);
+}
+
+/**
+ * Takes the file uploaded in this request into a work folder of its own (removed when the request ends) and finds the dump in it.
+ *
+ * @return array{error: string, file: string, encode: ?string, dbtype: ?string, kind: string}
+ */
+function restore_prepare_upload($db) {
+	global $sprog_id;
+	$res = array('error' => '', 'file' => '', 'encode' => NULL, 'dbtype' => NULL, 'kind' => '');
+	$up = if_array($_FILES, 'uploadedfile');
+	$err = (int) ifset($up, 'error', UPLOAD_ERR_NO_FILE);
+	if ($err === UPLOAD_ERR_INI_SIZE) $res['error'] = 'Filen er for stor - Kontroller upload_max_filesize i php.ini';
+	elseif ($err === UPLOAD_ERR_FORM_SIZE) $res['error'] = 'Filen er for stor - er det en SALDI-sikkerhedskopi?';
+	elseif ($err === UPLOAD_ERR_NO_FILE) $res['error'] = findtekst('1364|Vælg datafil', $sprog_id);
+	elseif ($err !== UPLOAD_ERR_OK || !is_uploaded_file((string) ifset($up, 'tmp_name', ''))) $res['error'] = findtekst(2427, $sprog_id);
+	if ($res['error'] !== '') return $res;
+
+	$extension = strtolower(pathinfo(basename((string) ifset($up, 'name', '')), PATHINFO_EXTENSION));
+	if ($extension !== 'sdat' && $extension !== 'sql') {
+		$res['error'] = 'Only .sdat or .sql files are allowed.';
+		return $res;
+	}
+	$workDir = "../temp/$db/restore_" . bin2hex(random_bytes(8));
+	if (!mkdir($workDir, 0700)) {
+		$res['error'] = findtekst(2427, $sprog_id);
+		return $res;
+	}
+	register_shutdown_function('restore_remove_dir', realpath($workDir));
+
+	if ($extension == 'sql') {
+		$file = "$workDir/upload.sql";
+		if (!move_uploaded_file($up['tmp_name'], $file)) {
+			$res['error'] = findtekst(2427, $sprog_id);
+			return $res;
+		}
+	} else {
+		$gzFile = "$workDir/restore.gz";
+		if (!move_uploaded_file($up['tmp_name'], $gzFile)) {
+			$res['error'] = findtekst(2427, $sprog_id);
+			return $res;
+		}
+		$finfo = finfo_open(FILEINFO_MIME_TYPE);
+		$mimeType = finfo_file($finfo, $gzFile);
+		finfo_close($finfo);
+		if ($mimeType == 'application/gzip' || $mimeType == 'application/x-gzip') {
+			system("gunzip " . escapeshellarg($gzFile), $exitCode);
+			if ($exitCode !== 0) error_log("Extraction failed with exit code $exitCode.");
+		} elseif ($mimeType != 'application/x-tar') {
+			echo "⚠️Unsupported or unknown file type: " . htmlspecialchars((string) $mimeType) . "\n";
+		}
+		$file = file_exists("$workDir/restore") ? "$workDir/restore" : $gzFile;
+		system("/bin/tar -C " . escapeshellarg($workDir) . " -xf " . escapeshellarg($file));
+		$infofil = "$workDir/temp/backup.info";
+		if (restore_inside($infofil, $workDir) && $fp = fopen($infofil, "r")) {
+			$linje = trim((string) fgets($fp));
+			fclose($fp);
+			list($backupdate, $backupdb, $backupver, $backupnavn, $backup_encode, $backup_dbtype) = array_pad(explode(chr(9), $linje), 6, '');
+			$backupdb = basename(trim($backupdb));
+			$sqlFile = "$workDir/temp/$backupdb.sql";
+			if ($backupdb === '' || $backupdb[0] === '.' || !restore_inside($sqlFile, $workDir)) {
+				$res['error'] = findtekst(2427, $sprog_id);
+				return $res;
+			}
+			$file = $sqlFile;
+			$res['encode'] = trim($backup_encode);
+			$res['dbtype'] = trim($backup_dbtype);
+		}
+	}
+	$res['file'] = $file;
+	$handle = fopen($file, 'r');
+	$result = $handle ? trim((string) findDumpInFirstThreeLines($handle)) : '';
+	if (stripos($result, 'MySQL dump') !== false) $res['kind'] = 'mysql';
+	elseif (stripos($result, 'PostgreSQL') !== false) $res['kind'] = 'postgresql';
+	return $res;
+}
+
+/**
+ * @return array{0: bool, 1: string} whether a restore was run, and a message
+ */
+function restore_handle_upload() {
+	global $db, $sprog_id;
+	if (empty($_POST['confirm_restore'])) {
+		return array(false, findtekst('6931|Sæt flueben for at bekræfte, at regnskabet må overskrives.', $sprog_id));
+	}
+	$up = restore_prepare_upload($db);
+	if ($up['error'] !== '') return array(false, $up['error']);
+	if ($up['kind'] == 'mysql') {
+		return array(false, findtekst('6934|Filen er en MySQL-sikkerhedskopi. Den kan kun indlæses som flytning fra MySQL i adminpanelet på et tomt regnskab.', $sprog_id));
+	}
+	restore($up['file'], $up['encode'], $up['dbtype']);
+	return array(true, '');
+}
+
+/**
+ * @return array{0: bool, 1: string} whether the migration was run, and a message
+ */
+function restore_handle_migration() {
+	global $db, $sprog_id, $sqhost, $squser, $sqpass;
+	$audit = 'import_export.backup.migrate_mysql';
+	if (!restore_migration_allowed()) {
+		return array(false, findtekst('6939|Flytning fra MySQL kan kun ske fra adminpanelet på et tomt regnskab (uden posteringer, ordrer og kassekladdelinjer).', $sprog_id));
+	}
+	if (empty($_POST['confirm_restore'])) {
+		return array(false, findtekst('6931|Sæt flueben for at bekræfte, at regnskabet må overskrives.', $sprog_id));
+	}
+	if (!restore_password_ok(ifset($_POST, 'password', ''))) {
+		audit_log('setting.action_refused', 'password', 'indstilling', $audit);
+		return array(false, findtekst('6938|Forkert adgangskode - intet er ændret.', $sprog_id));
+	}
+	$mysqlDb = trim((string) ifset($_POST, 'mysql_db', ''));
+	$mysqlUser = trim((string) ifset($_POST, 'mysql_user', ''));
+	$mysqlPass = (string) ifset($_POST, 'mysql_pass', '');
+	if (!preg_match('/^[A-Za-z0-9_]+$/', $mysqlDb) || $mysqlUser === '') {
+		return array(false, findtekst('6941|Udfyld MySQL-database (kun bogstaver, tal og _) og MySQL-bruger.', $sprog_id));
+	}
+	$up = restore_prepare_upload($db);
+	if ($up['error'] !== '') return array(false, $up['error']);
+	if ($up['kind'] != 'mysql') return array(false, findtekst('6942|Filen er ikke en MySQL-sikkerhedskopi.', $sprog_id));
+	$detail = json_encode(array('mysql_db' => $mysqlDb, 'mysql_user' => $mysqlUser, 'file' => basename((string) $_FILES['uploadedfile']['name'])), JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+	audit_log('setting.action', $detail, 'indstilling', $audit);
+	error_log("restore.php $audit $db $detail");
+	migrateMySQLToPostgreSQL($sqhost, $squser, $sqpass, $db, $sqhost, $mysqlUser, $mysqlPass, $mysqlDb, $up['file']);
+	return array(true, '');
 }
 
 function restore($filnavn,$backup_encode,$backup_dbtype){
@@ -457,7 +462,7 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 	if (!$db_type) $db_type="postgresql";
 	if (!$backup_dbtype) $backup_dbtype="postgresql";
 	
-	$filnavn2="../temp/$db/restore.sql";
+	$filnavn2=$filnavn.".restore.sql";
 
 	$restore="";
 	$fp=fopen("$filnavn","r");
@@ -528,12 +533,20 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 			if (file_exists("/usr/bin/mysql")) $mysql = "/usr/bin/mysql";
 			elseif (file_exists("/bin/mysql")) $mysql = "/usr/mysql";
 			else echo "mysql not found<br>";
-			if ($mysql) system("$mysql -u $squser --password=$sqpass -h $sqhost $db < $filnavn2");
+			if ($mysql) {
+				putenv("MYSQL_PWD=$sqpass");
+				system(escapeshellarg($mysql) . " -u " . escapeshellarg($squser) . " -h " . escapeshellarg($sqhost) . " " . escapeshellarg($db) . " < " . escapeshellarg($filnavn2));
+				putenv("MYSQL_PWD");
+			}
 		} else {
 			if (file_exists("/usr/bin/psql")) $psql = "/usr/bin/psql";
 			elseif (file_exists("/bin/psql")) $psql = "/usr/psql";
 			else echo "psql not found<br>";
-			if ($psql) system("export PGPASSWORD=$sqpass\n$psql -h $sqhost -U $squser $db < $filnavn2");
+			if ($psql) {
+				putenv("PGPASSWORD=$sqpass");
+				system(escapeshellarg($psql) . " -h " . escapeshellarg($sqhost) . " -U " . escapeshellarg($squser) . " " . escapeshellarg($db) . " < " . escapeshellarg($filnavn2));
+				putenv("PGPASSWORD");
+			}
 		}
 		db_close($connection);
 		print "<BODY ONLOAD=\"javascript:alert('Regnskabet er genskabt. Du skal logge ind igen!')\">";
@@ -559,38 +572,47 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 
 print "</div></div></div>";
 ##########################
-function renderRestoreForm($db, $backupfil, $restoreV = 'Submit') {
+function renderRestoreForm($formAction) {
+	global $sprog_id, $buttonStyle;
+	print "<tr><td align='center'>";
+	print "<div style='border:2px solid #c00; border-radius:6px; padding:12px 16px; margin:24px auto; max-width:560px; text-align:left'>";
+	print "<b style='color:#c00'>".findtekst('6935|Flyt fra MySQL', $sprog_id)."</b>";
+	print "<p>".findtekst('6936|Til kunder, der flytter fra deres egen installation: MySQL-sikkerhedskopien indlæses, og dette tomme regnskab erstattes. Tag først en sikkerhedskopi af regnskabet.', $sprog_id)."</p>";
 	echo '<p style="color: red; font-weight: bold;">Please note: This operation may take up to 12 minutes to complete.</p>';
 
-    echo "<form name='restore' action='restore.php?db=$db' method='post'>";
-    echo "<input type='hidden' name='filnavn' value='$backupfil'>";
-    echo "<table cellpadding='5' cellspacing='0' border='0' align='center'>";
-    echo "<tr><td colspan='2'><hr></td></tr>";
+	print "<form enctype='multipart/form-data' action='" . htmlspecialchars($formAction, ENT_QUOTES) . "' method='post' autocomplete='off'>";
+	print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES) . "'>";
+	echo "<table cellpadding='5' cellspacing='0' border='0' align='center'>";
+	print "<tr><td colspan='2'><input class='inputbox' name='uploadedfile' type='file' accept='.sdat,.sql' required></td></tr>";
 
-    echo "<tr>";
-    echo "<td><label for='mysql_db'>MySQL Database Name:</label></td>";
-    echo "<td><input type='text' name='mysql_db' required></td>";
-    echo "</tr>";
+	echo "<tr>";
+	echo "<td><label for='mysql_db'>MySQL Database Name:</label></td>";
+	echo "<td><input type='text' id='mysql_db' name='mysql_db' pattern='[A-Za-z0-9_]+' required></td>";
+	echo "</tr>";
 
-    echo "<tr>";
-    echo "<td><label for='mysql_user'>MySQL Database User:</label></td>";
-    echo "<td><input type='text' name='mysql_user' required></td>";
-    echo "</tr>";
+	echo "<tr>";
+	echo "<td><label for='mysql_user'>MySQL Database User:</label></td>";
+	echo "<td><input type='text' id='mysql_user' name='mysql_user' required></td>";
+	echo "</tr>";
 
-    echo "<tr>";
-    echo "<td><label for='mysql_pass'>MySQL Password:</label></td>";
-    echo "<td><input type='password' name='mysql_pass' required></td>";
-    echo "</tr>";
+	echo "<tr>";
+	echo "<td><label for='mysql_pass'>MySQL Password:</label></td>";
+	echo "<td><input type='password' id='mysql_pass' name='mysql_pass' autocomplete='off' required></td>";
+	echo "</tr>";
 
-    echo "<tr><td colspan='2'><hr></td></tr>";
+	echo "<tr><td colspan='2'><hr></td></tr>";
 
-    echo "<tr>";
-    echo "<td align='center'><input type='submit' value='$restoreV' name='restore'></td>";
-    echo "<td align='center'><input type='submit' value='Afbryd' name='restore'></td>";
-    echo "</tr>";
+	print "<tr><td><label for='restore_password'>".findtekst('6937|Din adgangskode', $sprog_id).":</label></td>";
+	print "<td><input type='password' id='restore_password' name='password' autocomplete='current-password' required></td></tr>";
+	print "<tr><td colspan='2'><label><input type='checkbox' name='confirm_restore' value='1' required> ".findtekst('6930|Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.', $sprog_id)."</label></td></tr>";
 
-    echo "</table>";
-    echo "</form>";
+	echo "<tr>";
+	print "<td colspan='2' align='center'><input type='submit' name='migrate' style='$buttonStyle' value='".findtekst('6943|Start flytning', $sprog_id)."'></td>";
+	echo "</tr>";
+
+	echo "</table>";
+	echo "</form>";
+	print "</div></td></tr>";
 }
 function findDumpInFirstThreeLines($handle) {
     // Read the first three lines
@@ -644,11 +666,13 @@ function migrateMySQLToPostgreSQL(
     mysqli_close($conn);
 
     /* Import MySQL backup */
+    putenv("MYSQL_PWD=$mysqlPass");
     exec(
-        "mysql -u$mysqlUser -p$mysqlPass $mysqlDb < " . escapeshellarg($backupfil),
+        "mysql -u " . escapeshellarg($mysqlUser) . " " . escapeshellarg($mysqlDb) . " < " . escapeshellarg($backupfil),
         $out,
         $ret
     );
+    putenv("MYSQL_PWD");
     if ($ret !== 0) die("DEBUG: MySQL import failed");
 
     /* Recreate PostgreSQL database */
@@ -820,7 +844,7 @@ function migrateMySQLToPostgreSQL(
     /* Cleanup */
     $mysqlConn->close();
     pg_close($pgConn);
-    system("rm -rf ../temp/$pgDb/*");
+    system("rm -rf " . escapeshellarg("../temp/$pgDb") . "/*");
 		print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/logud.php\">";
 }
 
@@ -831,10 +855,6 @@ function migrateMySQLToPostgreSQL(
 #####################
 
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 ?>
 

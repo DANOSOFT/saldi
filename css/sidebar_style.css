@@ -2,7 +2,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-ui, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif); /* 20261009 Sawaneh Inter when loaded */
 }
 
 .sidebar {
@@ -166,8 +166,9 @@
 }
 
 .sidebar .nav-links li a .link_name {
-    font-size: 16px;
-    font-weight: 400;
+    font-family: var(--font-display, inherit); /* 20261009 Sawaneh Saldi Grotesk for the menu (addendum 3 §3) */
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .sidebar.closed .nav-links li a .link_name {
@@ -346,11 +347,7 @@
     display: none;
 }*/
 
-.topbar {
-    width: 100%;
-    height: 50px;
-    background-color: #114691;
-}
+/* .topbar lives in css/topbar.css (always visible; height = --topbar-h) */
 
 .modalbg {
     width: 100%;
@@ -375,14 +372,14 @@ body {
         left: 210px;
         /* width: calc(100% - 210px); */
     }
-    .topbar {
-        display: none;
-    }
     .small {
         display: none !important;
     }
-    .home-section, .home-section .home-content {
+    .home-section {
         height: 100%;
+    }
+    .home-section .home-content {
+        height: calc(100% - var(--topbar-h, 58px));
     }
     iframe {
 	    height: 100%;
@@ -403,12 +400,17 @@ body {
 	    height: 100%;
     }
     .home-section {
-        height: calc(100% - 50px);
+        height: 100%;
     }
     .home-section .home-content {
-	    height: 100%;
+        height: calc(100% - var(--topbar-h, 58px));
     }
     /* .home-section {
         width: calc(100% - 72px);
     }  */
   }
+
+/* 20260927 Sawaneh cluster in sidebar mode: no global bar, the page starts at the top */
+html.cluster-sidebar .home-section .home-content {
+    height: 100% !important;
+}

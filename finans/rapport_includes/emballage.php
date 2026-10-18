@@ -10,6 +10,7 @@
 // Copyright (c) 2003-2026 saldi.dk ApS
 // 20260814 Sawaneh Include booked orders (status 4) so the report is not
 //                  empty once invoices are booked.
+// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
 
 function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -17,7 +18,6 @@ function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $simulering, $lagerbev) {
 	global $db, $menu, $sprog_id;
 	include_once("../includes/emballage_schema.php");
-	ensure_emballage_schema();
 
 	$view = if_isset($_GET['view'], if_isset($_POST['view'], 'detailed'));
 	$land = if_isset($_GET['land'], if_isset($_POST['land'], 'Denmark'));
@@ -50,17 +50,11 @@ function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	$lbl_back  = $EN ? 'Back'  : findtekst('30|Tilbage', $sprog_id);
 
 	// Grid-framework sticky toolbar (matches kontokort_moms / Credit-card report)
-	print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: #eeeef0;\">";
-	$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-	print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+	print "<div class='pg-sticky' style=\"position: sticky; top: 0; z-index: 100; background-color: $bgcolor;\">";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'actions' => array(array('CSV', $csvfile, 'bx-download')), 'back' => 'rapport.php?rapportart=emballage'));
+	print "<table width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
 	print "<tr><td colspan=8 align=center>";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
-	print "<td width='5%'>
-		<a href=\"rapport.php?rapportart=emballage\" accesskey='L'>
-		<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">$tilbage_icon$lbl_back</button></a></td>";
-	print "<td width='75%' align='center' style='$topStyle'>$title</td>";
-	print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
-	print "</tbody></table>";
 	print "</td></tr>";
 	?>
 		<style>

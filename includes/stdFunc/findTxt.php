@@ -8,6 +8,8 @@
  // 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
  // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
  // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
+ // 20260916 Sawaneh Misses ("Tekst nr: X") are no longer cached in the session, so a text
+ //                  added to tekster.csv shows up without a new login.
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
@@ -23,7 +25,8 @@ if (!function_exists('findtekst')) {
 		
 		$sessionVar = 'text_'. $textId .'_'. $languageID;
 		$sessionVar = preg_replace('/[^a-zA-Z0-9_]/','_','text_'. $textId .'_'. $languageID); 
-		if (isset($_SESSION[$sessionVar])) {
+		// A miss cached by an older release ("Tekst nr: X") is looked up again.
+		if (isset($_SESSION[$sessionVar]) && strpos((string) $_SESSION[$sessionVar], 'Tekst nr: ') !== 0) {
 			return ($_SESSION[$sessionVar]);
 		}
 		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster'";
@@ -140,9 +143,11 @@ if (!function_exists('findtekst')) {
 			$tekst = $newTxt;
 		}
 		if (!$tekst) {
-			$tekst = "Tekst nr: $textId";
+			// Not cached: a text added to tekster.csv later would otherwise stay
+			// "Tekst nr" for the rest of the session.
+			return "Tekst nr: $textId";
 		}
-		elseif ($tekst == "-") {
+		if ($tekst == "-") {
 			$tekst = '';
 		}
 		$_SESSION[$sessionVar] = $tekst;

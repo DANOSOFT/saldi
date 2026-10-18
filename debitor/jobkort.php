@@ -20,6 +20,8 @@
 //
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The card sits under the new page head (topLineJobkort.php, page_bar): wrapper height adjusted.
 
 @session_start();
 $s_id=session_id();
@@ -46,7 +48,7 @@ $id=if_isset($_GET['id']);
 $select_id=if_isset($_GET['select_id']); 
 $konto_id=if_isset($_GET['konto_id'])*1; 
 $ordre_id=if_isset($_GET['ordre_id'])*1; 
-$returside=if_isset($_GET['returside']); 
+$returside=nav_sanitize_returside(if_isset($_GET['returside'])); 
 $opdat17=if_isset($_GET['opdat17']); 
 
 #if ($ordre_id) $returside="ordre.php?id=$ordre_id";
@@ -56,10 +58,12 @@ $opdat17=if_isset($_GET['opdat17']);
 if($luk) {
 	if ($r=db_fetch_array(db_select("select * from navigator where bruger_id='$bruger_id' and session_id='$s_id' and side='jobkort.php'",__FILE__ . " linje " . __LINE__))) {
 		db_modify("delete from navigator where bruger_id='$bruger_id' and session_id='$s_id' and side='jobkort.php'",__FILE__ . " linje " . __LINE__);
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=$r[returside]?konto_id=$r[konto_id]&ordre_id=$r[ordre_id]\">";
+		// WP-2.1: the stored page may already carry a query (ansatte.php?konto_id=..., debitorkort.php?id=...).
+		$sep = (strpos((string) $r['returside'], '?') !== false) ? '&' : '?';
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=" . htmlspecialchars($r['returside'] . $sep . 'konto_id=' . (int) $r['konto_id'] . '&ordre_id=' . (int) $r['ordre_id'], ENT_QUOTES) . "\">";
 	} else print "<meta http-equiv=\"refresh\" content=\"0;URL=debitor.php\">";
 	exit;
-} elseif ($returside) db_modify("insert into navigator(bruger_id,session_id,side,returside,ordre_id,konto_id) values ('$bruger_id','$s_id','jobkort.php','$returside','$ordre_id','$konto_id')",__FILE__ . " linje " . __LINE__);
+} elseif ($returside) db_modify("insert into navigator(bruger_id,session_id,side,returside,ordre_id,konto_id) values ('$bruger_id','$s_id','jobkort.php','".db_escape_string($returside)."','$ordre_id','$konto_id')",__FILE__ . " linje " . __LINE__);
 
 if (!$id && $ordre_id) {
 	$r=db_fetch_array(db_select("select id from jobkort where ordre_id = '$ordre_id'",__FILE__ . " linje " . __LINE__));
@@ -194,16 +198,7 @@ $mobile=trim($r['mobile']);
 $email=trim($r['email']);
 */
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=\"jobkort.php?luk=luk\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
-	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	include_once 'debLstIncludes/topLineJobkort.php';
 } else {
 	include_once 'debLstIncludes/oldTopLine.php';
@@ -211,7 +206,7 @@ if ($menu=='T') {
 
 // Add scrollable wrapper for side menu
 if ($menu=='S') {
-	print "<tr><td style='width: 100%; height: calc(100vh - 110px); overflow-y: auto; display: block;'>\n";
+	print "<tr><td style='width: 100%; height: calc(100vh - 176px); overflow-y: auto; display: block;'>\n";
 }
 
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" widht=\"800\"><tbody>";
@@ -392,9 +387,7 @@ function kontoopslag($id) {
 }
 
 ?>
-<?php if ($menu == 'T') { ?>
-</div> <!-- content-noside -->
-<?php } elseif ($menu == 'S') { ?>
+<?php if ($menu == 'S') { ?>
 </td></tr>
 </tbody></table>
 <?php } else { ?>

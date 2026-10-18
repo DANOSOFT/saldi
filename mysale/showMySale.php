@@ -42,7 +42,7 @@ if (!$from) $from = $f;
 if (!$to)   $to   = $t;
 if (!$sort) $sort = $s;
 $_SESSION['mySale'] = "$from|$to|$sort";
-#setcookie("mysale","$from|$to|$sort");
+#saldi_setcookie("mysale","$from|$to|$sort");
 if (!$sort) $sort = 'id desc';
 
 ?>

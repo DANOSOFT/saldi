@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 #print '<head>';
 #print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
@@ -34,6 +35,7 @@
 $s_id = session_id();
 
 include ("../../includes/connect.php");
+$permission_key = 'system.indstillinger';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

@@ -38,6 +38,7 @@
 // 20260925 CDX/PHR Default to open posts and preserve the report filter when opening settlement.
 // 20261006 CL/LH PR #677 review: skip settled entries in the top-menu (menu T) row loop too when showing open posts,
 //                and compute the Primosaldo title when every entry was skipped.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -311,17 +312,9 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 
 	include("../includes/topline_settings.php");
 
-	if ($menu=='T') {
-		print "";
-	} else {
-		print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-	}
+	print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	
-	if ($menu=='T' && $x==1) { 
-		include_once ("../includes/topmenu/header.php");
-		print "<div class='$kund'>$title</div>
-		<div class='content-noside'><br>";
-	} elseif ($menu=='S' && $x==1) {
+	if ($menu=='S' && $x==1) {
 		print "<tr><td colspan='9' height='8'>";
 		print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>\n";
 
@@ -391,165 +384,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	}
 	
 
-	if ($menu=='T') {
-
-		print "<div class='sub-title-kund-radius'>".stripslashes($r['firmanavn'])." • $r[kontonr]</div>";
-		print "<div class='dataTablediv'><table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\" class='dataTable'><tbody>"; //B
-		print "<tr>";
-		print "<td width='10%' align=right><b>Firmanavn:</b></td> <td width='70%'>".stripslashes($r['firmanavn'])."</td>";
-		print "<td align=right><b>Konto nr.:</b></td>";
-		print "<td align=left>$r[kontonr]</td>";
-		print "</tr>";
-		print "<tr>";
-		print "<td width='10%' align=right><b>Adresse:</b></td> <td width='70%'> ".stripslashes($r['addr1'])."</td>";
-		print "<td align=right><b>Dato:</b></td>";
-		print "<td align=left>".date('d-m-Y')."</td>";
-		print "</tr>";
-		print "<tr>";
-		print "<td width='10%' align=right><b>Adresse 2:</b></td> <td width='70%'> ".stripslashes($r['addr2'])."</td>";
-		print "<td align=right><b>Valuta:</b></td>";
-		print "<td align=left>$valuta</td>";
-		print "</tr>";
-		print "<tr>";
-		print "<td width='10%' align=right><b>Postnr - By:</b></td> <td width='70%'>".stripslashes($r['postnr'])."&nbsp;".stripslashes($r['bynavn'])."</td>";
-		print "<td colspan=2></td>";
-		print "</tr>";
-		print "<tr>";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class='dataTableNTH'><thead>";
-		print "<tr><td colspan='20' class='border-hr-bottom'></td></tr>";
-		print "<tr>";
-		print "<th>".findtekst('635|Dato', $sprog_id)."</th>";
-		print "<th>".findtekst('671|Bilag', $sprog_id)."</th>";
-		print "<th>".findtekst('643|Faktura', $sprog_id)."</th>";
-		print "<th>".findtekst('1163|Tekst', $sprog_id)."</th>";
-		print "<th>$prj</th>";
-		print "<th>".findtekst('1164|Forfaldsdato', $sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst('1000|Debet', $sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst('1001|Kredit', $sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst('1073|Saldo', $sprog_id)."</th>";
-		print "</tr></thead><tbody>";
-	
-		$kontosum=0;
-		$primo=0;
-		$pre_openpost=0;
-		for ($y=1;$y<=count($oppId);$y++) {
-			$diff=0;
-			# Filter Open Post: same rule as the classic layout below, otherwise
-			# "Vis åbne poster" still lists settled entries in the top-menu layout.
-			if ($OpenPost == 'on' && $udlignet[$y] == '1') {
-				continue;
-			}
-			if ($transdate[$y]<$fromdate) {
-				 $primoprint[$x]=0;
-				 $kontosum+=$amount[$y];
-				$dkksum+=$dkkamount[$y];
-				} else {
-				if ($primoprint[$x]==0) {
-					$tmp=dkdecimal($kontosum,2);
-					$tmp2="";
-					if ($valuta!='$baseCurrency') $tmp2="&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra $baseCurrency";
-					print "<tr><td><br></td><td><br></td><td><br></td><td>".findtekst('1165|Primosaldo', $sprog_id)." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
-					$primoprint[$x]=1;
-				}
-				if ($kladde_id[$y]) {
-					$js="<a style='cursor: pointer;' onclick=\"window.open('../finans/kassekladde.php?kladde_id=$kladde_id[$y]&visipop=on')\">";
-					$rt="title='Kladde ID: $kladde_id[$y]'";
-				} else {
-					$js=NULL;
-					$rt=NULL;
-				}
-				print "<tr><td valign=\"top\">".dkdato($transdate[$y])."<br></td><td valign=\"top\" $rt> $js $refnr[$y] </a><br></td><td valign=\"top\">$faktnr[$y]<br></td><td valign=\"top\">".stripslashes($beskrivelse[$y])."<br></td><td valign=\"top\">$projekt[$y]</td>";
-				if ($amount[$y] < 0) $tmp=0-$amount[$y];
-				else $tmp=$amount[$y];
-				$tmp=dkdecimal($tmp,2);
-				if (!$forfaldsdag[$y]) $forfaldsdag[$y]=usdate(forfaldsdag($transdate[$y], $betalingsbet, $betalingsdage));
-				if ($amount[$y]>0) {// (($kontoart=='D' && $amount>0) || ($kontoart=='K' && $amount<0)) {
-				($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
-				if ($udlignet[$y]!='1') {
-						$pre_openpost=1;
-						print "<td valign=\"top\">$ffdag<br></td><td valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"text-align:right\">0</td>";
-					} else {
-						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
-						$alink="rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
-						&kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
-						&submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]";
-						$onclick="return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id $udlign_id[$y]')";
-						print "<td valign=\"top\">$ffdag<br></td><td title=\"$titletag\" valign=\"top\" align=\"right\"><a onclick=\"$onclick\" href=\"$alink\" >$tmp<br></a></td><td style=\";text-align:right\">0</td>";
-					}
-					$forfaldsum=$forfaldsum+$amount[$y];
-				} else {
-					($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
-					if ($udlignet[$y]!='1') {
-						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
-						$pre_openpost=1;
-					} else {
-						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
-						$alink="rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
-						&kto_til=$kto_til&dato_fra=$dato_fra=&dato_til=$dato_til&konto_fra=$konto_fra
-						&konto_til=$konto_til&submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]";
-						$onclick="return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id $udlign_id[$y]')";
-						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td title=\"$titletag\" valign=\"top\" align=\"right\"><a onclick=\"$onclick\" href=\"$alink\">$tmp<br></a></td>";
-					}
-				}
-				$kontosum+=afrund($amount[$y],2);
-				$dkksum+=$dkkamount[$y];
-				$dkksum=afrund($dkksum,2);
-				$tmp=dkdecimal($kontosum,2);
-				$dkktmp=dkdecimal($dkksum,2);
-				if ($valuta!='$baseCurrency' && $kontosum!=$dkksum) $title="$baseCurrency: $dkktmp";
-				else $title="";
-				if ($valuta!='$baseCurrency' && !$difflink) {
-					if ($r=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode' and valdate <= '$transdate[$y]' order by valdate desc",__FILE__ . " linje " . __LINE__))) {
-						$dagskurs=$r['kurs'];
-						$chkamount=$kontosum*$dagskurs/100;
-						$diff=afrund($chkamount-$dkksum,2);
-					}
-				}
-				$regulering=afrund($diff,2);
-				if($regulering && !$difflink && $valuta!='$baseCurrency' && ($oppvaluta[$y]!='-' || $y==count($oppId)) && $transdate[$y]>=usdate($regnstart) && $transdate[$y]<=usdate($regnslut)) { // && $transdate>=$regnstart && $transdate<=$regnslut
-					$vis_difflink=1;
-					for ($i=1;$i<=count($oppId);$i++){
-						if ($transdate[$i]==$transdate[$y] && $oppvaluta[$i]=='-') $vis_difflink=0;
-					}
-					if ($y==count($oppId) && !$kontosum) $vis_difflink=1;
-						if ($oppId[$y]>=$max_valdif_id && ($vis_difflink && (abs($regulering)>0.01 || $y==count($oppId)))) {
-						$difflink=1;
-						if ($regnstart<=date("Y-m-d") && $regnslut>=date("Y-m-d")) {
-							$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".dkdato($transdate[$y]);
-							$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=$transdate[$y]&";
-							$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
-							$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
-							$tmp2.="onclick=\"confirmSubmit($confirm)\">$tmp</a>";
-							$tmp=$tmp2;
-						} else $title=NULL;
-					}
-				} elseif ($y==count($oppId) && abs($tmp)<0.01 && abs($dkksum) > 0.01 && $regnslut>=date("Y-m-d")) {
-					$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".date("d-m-Y");
-					$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=".date("Y-m-d")."&";
-					$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
-					$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
-					$tmp2.="onclick=\"confirmSubmit($confirm)\">$tmp</a>";
-					$tmp=$tmp2;
-				}
-				print "<td valign=\"top\" align=right title=\"$title\">$tmp<br></td>";
-				print "</tr>\n";
-			}
-		}
-		if ($primoprint[$x]==0) {
-			$tmp=dkdecimal($kontosum,2);
-			// Every entry may have been skipped by the open-post filter, so the loop never set $dkktmp.
-			$dkktmp=dkdecimal($dkksum ?? 0,2);
-			print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency sum $dkktmp\">$tmp<br></td></tr>\n";
-		}
-
-		print "</tbody><tfoot>";
-		print "<tr><td colspan=10>";
-		print "<center><input type='button' onclick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."\" accesskey='L' value='".findtekst('880|Udskriv', $sprog_id)."'></center>";
-		print "</td></tr>";
-		print "</tfoot></table></div><br>";
-
-	} else {
-			print "<tr><td colspan=9><hr></td></tr>\n";
+	print "<tr><td colspan=9><hr></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td colspan=3>".stripslashes($r['firmanavn'])."</td></tr>\n";
@@ -696,15 +531,9 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 				print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency sum ".(isset($dkktmp) ? $dkktmp : "")."\">$tmp<br></td></tr>\n";
 			}
 			print "<tr><td colspan=9><hr></td></tr>\n";
-		}
 	}
 	print "</tbody></table>";
 	
-	if ($menu=='T') {
-		print "<center><input type='button' onclick=\"location.href='$returside'\" accesskey='L' value='".findtekst('30|Tilbage', $sprog_id)."'></center>";
-		include_once '../includes/topmenu/footerDebRapporter.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 }}
 ?> 

@@ -31,6 +31,7 @@ $css = "../../css/standard.css?v=20";
 
 include("../../includes/std_func.php");
 include("../../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 

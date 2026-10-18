@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-29------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2026-10-10------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -109,18 +109,31 @@
 // 20260916 CDX/PHR Set users and active sessions to financial year 1 after reset.
 // 20260917 CDX/PHR Keep settings usable when the optional bank integration helper is absent.
 // 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
+// 20260916 Sawaneh Personal settings moved to systemdata/personalSettings.php; sektion=userSettings
+//                  now redirects there and the Diverse menu entry links to the new page.
+// 20260916 Sawaneh Phase 3: SQL tool, API, SMTP/e-mail, integrations and import/export sections
+//                  gated by their own permission keys via require_permission().
+// 20261006 Sawaneh Varianter (G5.3) moved to settingsSection.php?s=items.variants: variant_valg redirects (its GET deletes and
+//                  unescaped POST saves are no longer reachable); the CSV imports return there with the result.
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 
 @session_start();
 $s_id = session_id();
-ob_start();
 
 // Generate CSRF token if not already created
 if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $csrf_token = $_SESSION['csrf_token'];
+// 20260928 Sawaneh Security 4.0 (A12): every posted form in the output gets the token, also on early exits.
+// 20261009 Sawaneh sektion=tjekliste redirects to sager/tjeklister.php: checklists left Indstillinger (settings redesign §4, 4e).
+$diverseToken = "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token, ENT_QUOTES) . "'>";
+ob_start(function ($buffer) use ($diverseToken) {
+	return preg_replace_callback('/<form\b[^>]*>/i', function ($m) use ($diverseToken) {
+		return (stripos($m[0], 'method') !== false && stripos($m[0], 'post') !== false) ? $m[0] . $diverseToken : $m[0];
+	}, $buffer);
+});
 $title      = "Diverse Indstillinger";
 $modulnr    = 1;
 $css        = "../css/standard.css";
@@ -140,502 +153,145 @@ if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
 	$_SESSION['UserName'] = $brugernavn;
 }
 
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\"></div>\n";
-#	print "<span class=\"headerTxt\">Systemsetup</span>\n";
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_div_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-} elseif ($menu == 'S') {
-	/*print "<script>
-	if(window.self == window.top) {
-	//run this code if in an iframe
-	// alert('in frame');
-	parent.location.href = \"../index/main.php\";
-	} 
-	</script>";*/
-#	print "<script>try {parent.location.href = '../index/main.php'} catch {window.location.href =	 '../index/main.php'}</script>";
-#	die();
-	include("top.php");
-} else {
-	print "<script>
-	if(window.self !== window.top) {
-	//run this code if in an iframe
-	// alert('in frame');
-	parent.location.href = \"../index/menu.php\";
-	} 
-	</script>";
-	include("oldTop.php");
-}
+include("top.php");
 
 if (!isset($exec_path)) $exec_path = "/usr/bin";
 $sektion    = if_isset($_GET, null, 'sektion');
 $pricelists = if_isset($_POST, null, 'pricelists');
 if ($sektion == 'personlige_valg') $sektion = 'userSettings';
+if ($sektion == 'userSettings' && $_SERVER['REQUEST_METHOD'] != 'POST') {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=personalSettings.php\">";
+	exit;
+}
+// 20260929 Sawaneh Phase 4a (R6): sections that have landed in the generated settings redirect there;
+// the toast on the new page says where the old page went (spec §8.10).
+$landedSections = array(
+	'ordre_valg'     => 'settingsSection.php?s=sales.orders&moved=ordre_valg',
+	'massefakt'      => 'settingsSection.php?s=sales.orders&moved=massefakt#sub-mass',
+	'provision'      => 'settingsSection.php?s=organisation.commission&moved=provision',
+	'productOptions' => 'settingsSection.php?s=items.stock&moved=productOptions',
+	'orediff'        => 'settingsSection.php?s=finance.cash_journal&moved=orediff#sub-rounding',
+	'api_valg'       => 'settingsSection.php?s=integrations.connections&moved=api_valg',
+	'smtp'           => 'settingsSection.php?s=documents.email&moved=smtp#sub-server',
+	'rykker_valg'    => 'settingsSection.php?s=sales.reminders&moved=rykker_valg',
+	'bilag'          => 'settingsSection.php?s=finance.document_storage&moved=bilag',
+	'pricelists'     => 'settingsSection.php?s=purchase.pricelists&moved=pricelists',
+	'barcodescan'    => 'settingsSection.php?s=integrations.connections&item=app',
+	'posOptions'     => 'settingsSection.php?s=pos.tills&moved=posOptions',
+	'div_io'         => 'settingsSection.php?s=import_export.data&moved=div_io',
+	'kontoplan_io'   => 'settingsSection.php?s=import_export.data&moved=div_io#sub-accounts',
+	'adresser_io'    => 'settingsSection.php?s=import_export.data&moved=div_io#sub-addresses',
+	'varer_io'       => 'settingsSection.php?s=import_export.data&moved=div_io#sub-items',
+	'variantvarer_io'=> 'settingsSection.php?s=import_export.data&moved=div_io#sub-items',
+	'formular_io'    => 'settingsSection.php?s=import_export.data&moved=div_io#sub-forms',
+	'solar_io'       => 'settingsSection.php?s=import_export.data&moved=div_io',
+	'variant_valg'   => 'settingsSection.php?s=items.variants&moved=variant_valg',
+	'labels'         => 'labels.php?moved=labels',
+);
+if (isset($landedSections[$sektion]) && !($sektion == 'api_valg' && !empty($_GET['varesync']))) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . $landedSections[$sektion] . "\">";
+	exit;
+}
+// The old "Diverse" landing list is replaced by the settings front page (phase 4).
+if (!$sektion && $_SERVER['REQUEST_METHOD'] != 'POST') {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=settings.php\">";
+	exit;
+}
+// 20260916 Phase 3 (spec R6): dangerous sections are gated by their own permission key.
+// 20260928 Sawaneh Phase 4: frame switch reduced to top.php, the Diverse sub-menu column and landing list
+//                  replaced by the registry-driven frame/front page, dead userSettings/personlige_valg code removed.
+// 20260928 Sawaneh Key names follow the settings redesign spec (settings.integrations.keys, settings.import_export).
+// 20261002 Sawaneh Keys per settings redesign §11.1: settings.integrations and settings.email; reset/delete need settings.company.danger.
+// 20260928 Sawaneh Security 4.0: CSRF check on POST (token injected into every posted form), pickup debug log removed,
+//                  SQL tool (Dataudtræk), DocuBizz and Paperflow removed, MobilePay/QuickPay secrets write-only.
+// 20261001 Sawaneh One row per setting (unique index on settings): KDS colours saved as color_1, color_2...;
+//                  item options look their row up when the form has no id.
+// 20261002 Sawaneh Phase 4b batch 1: provision, productOptions and orediff moved to the generated sections (their
+//                  save code is gone); div_valg no longer saves mySale, print, payment lists, payment days or voucher dates.
+// 20261002 Sawaneh Phase 4b batch 2: api_valg landed in Integrationer (only the shop sync still runs here); div_valg no longer
+//                  saves GLS, Danske Fragtmænd, QuickPay, MobilePay, Flatpay, Vibrant or Copayone.
+// 20261003 Sawaneh G6.3: the SMTP save and the dead 'email' (MAIL/1) save are gone; smtp redirects to Dokumenter & e-mail » E-mail.
+// 20261005 Sawaneh G11: div_io and the *_io sections redirect to Indstillinger » Import & eksport (the B-IO1 handlers removed).
+// 20261004 Sawaneh G5.8: labels - valg limited to box1/box2, new labels only from the six shipped templates and with an allowed name
+//                  (a forged template name could copy any readable file into a label).
+// 20261004 Sawaneh G4.3: pricelists landed in Køb » Leverandørprislister (diverseIncludes/pricelists.php is no longer reached).
+// 20261010 Sawaneh G5.8: labels redirects to the new Mærkater page (systemdata/labels.php); its save code below is no longer reached.
+// 20261004 Sawaneh Pick-up addresses landed in Integrationer » Afhentningsadresser; their save code is gone (it deleted every
+//                  address missing from the form, B-D17). Stripe only opens in the operator ledger (G9.6).
+// 20261004 Sawaneh G10: PoS-valg landed in Kasse » Kasser, Betalingskort, Kasseoptælling, Kvittering, Køkken, Skærm og Borde; its save code is gone.
+// 20261004 Sawaneh The old App Barcode link opens the App row in Integrationer instead of barcodescan.php.
+// 20261004 Sawaneh div_valg save keeps DIV/2 box6 (old DocuBizz data, removed in 4f) and escapes the values kept from the stored row.
+// 20261004 Sawaneh G2.6: bilag landed in Finans » Bilagsopbevaring; its save code is gone.
+// 20261003 Sawaneh G3.4: rykker_valg landed in Salg » Betalingsbetingelser & rykkere; its save code is gone.
+// Users without a role inherit these from the Indstillinger bit, so nothing changes for
+// them; a role only gets them when an administrator grants them explicitly.
+$dangerousSections = array(
+	'api_valg' => 'settings.integrations',
+	'email' => 'settings.email',
+	'smtp' => 'settings.email',
+	'stripe_valg' => 'settings.integrations',
+	'shop_valg' => 'settings.integrations',
+	'adresser_io' => 'settings.import_export',
+	'formular_io' => 'settings.import_export',
+	'kontoplan_io' => 'settings.import_export',
+	'solar_io' => 'settings.import_export',
+	'varer_io' => 'settings.import_export',
+	'variant_valg_import_types' => 'settings.import_export',
+	'variant_valg_import_values' => 'settings.import_export',
+);
+if (isset($dangerousSections[$sektion]) && function_exists('require_permission')) {
+	require_permission($dangerousSections[$sektion], ($_SERVER['REQUEST_METHOD'] === 'POST') ? 'write' : 'read');
+}
+// Resetting or deleting the company is the danger zone of G1.4 (settings redesign §11.1): Administrator only.
+if ($sektion == 'kontoindstillinger' && $_SERVER['REQUEST_METHOD'] === 'POST' && (!empty($_POST['nulstil']) || isset($_POST['slet'])) && function_exists('require_permission')) {
+	require_permission('settings.company.danger', 'write');
+}
 $skiftnavn  = if_isset($_GET['skiftnavn']);
+// 20260928 Sawaneh Security 4.0 (A12): every POST to this shared entry must carry the session's
+// CSRF token; the token is injected into every posted form by the output filter at the end of the file.
+if ($_SERVER['REQUEST_METHOD'] == "POST" && (!isset($_POST['csrf_token']) || !hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token']))) {
+	audit_log('csrf', 'diverse.php?sektion=' . $sektion);
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=diverse.php?sektion=" . urlencode((string) $sektion) . "\">";
+	exit;
+}
 if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
-	if ($sektion == 'provision') {
-		$id   = $_POST['id'];
-		$box1 = $_POST['box1'];
-		$box2 = $_POST['box2'];
-		$box3 = $_POST['box3'];
-		$box4 = $_POST['box4'];
-		if (($id == 0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='1'", __FILE__ . " linje " . __LINE__)))) $id = $r['id'];
-		elseif ($id == 0) {
-			db_modify("insert into grupper (beskrivelse, kodenr, art, box1, box2, box3, box4) values ('Provisionsrapport', '1', 'DIV', '$box1', '$box2', '$box3', '$box4')", __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) db_modify("update grupper set  box1 = '$box1', box2 = '$box2', box3 = '$box3' , box4 = '$box4' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-		#######################################################################################
-	} elseif ($sektion == 'userSettings') {
-		$refresh_opener = NULL;
-		$id             = $_POST['id'];
-		$jsvars         = $_POST['jsvars'];
-		$popup          = if_isset($_POST['popup']);
-		if ($popup && $_POST['popup'] == '') $refresh_opener = "on";
-		$menu           = $_POST['menu'];
-		$bgcolor        = $_POST['bgcolor'];
-		$nuance         = $_POST['fgcolor'];
-		$buttonColor    = $_POST["buttonColor"];
-		$buttonTxtColor = $_POST["buttonTxtColor"];
-		// make sure $buttonColor and $buttonTxtColor are valid hex colors and are 6 characters long
-		if (strlen($buttonColor) != 6 || !ctype_xdigit($buttonColor)) {
-			$buttonColor = '114691'; // default color
-		}
-		if (strlen($buttonTxtColor) != 6 || !ctype_xdigit($buttonTxtColor)) {
-			$buttonTxtColor = 'ffffff'; // default text color
-		}
-
-		$qtxt = "select id from grupper WHERE art = 'USET' and kodenr='$bruger_id'";
-		if (($id == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
-			$id = $r['id'];
-		} elseif ($id == 0) {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ";
-			$qtxt.= "('Personlige valg','$bruger_id','USET','$jsvars','$popup','$menu','$bgcolor','$nuance')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) {
-			$qtxt = "update grupper set box1='$jsvars',box2='$popup',box3='$menu',box4='$bgcolor',box5='$nuance' WHERE id = '$id'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$qtxt  = "select id from settings where var_name = 'bgcolor' and var_grp = 'colors' and user_id = '$bruger_id'";
-		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		if (db_num_rows($query) > 0){
-			$r = db_fetch_array($query);
-			if ($r['id']) { // Add this check to ensure ID exists
-				$qtxt = "UPDATE settings SET var_value='$bgcolor' WHERE id='$r[id]'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-		} else {
-			$qtxt = "INSERT INTO settings (var_grp,var_name,var_value,var_description,user_id) VALUES ";
-			$qtxt.= "('colors','bgcolor','$bgcolor','Background color for user settings','$bruger_id')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$qtxt  = "select id from settings where var_name = 'fgcolor' and var_grp = 'colors' and user_id = '$bruger_id'";
-		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		if (db_num_rows($query) > 0){
-			$r = db_fetch_array($query);
-			if ($r['id']) { // Add this check
-				$qtxt = "UPDATE settings SET var_value='$nuance' WHERE id='$r[id]'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-		} else {
-			$qtxt = "INSERT INTO settings (var_grp,var_name,var_value,var_description,user_id) VALUES ";
-			$qtxt.= "('colors','fgcolor','$nuance','Nuance color for user settings','$bruger_id')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$qtxt = "select id from settings where var_grp='colors' and user_id='$bruger_id' and var_name='buttonColor'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$buttonColor' where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('colors','buttonColor','$buttonColor','Background color for user settings','$bruger_id')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "select id from settings where var_grp='colors' and user_id='$bruger_id' and var_name='buttonTxtColor'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$buttonTxtColor' where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('colors','buttonTxtColor','$buttonTxtColor','Button color for user settings','$bruger_id')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$cookie_name  = "refresh_opener";
-		$cookie_value = "true";
-		setcookie($cookie_name, $cookie_value, time() + 30, "/"); // 30 seconds expiry
-
-
-	#######################################################################################
-	} elseif ($sektion == 'div_valg') {
-		// DEBUG: Log POST data for pickup addresses
-		$debug_log = "/tmp/saldi_debug_pickup.log";
-		file_put_contents($debug_log, date('Y-m-d H:i:s')       . " POST data:\n", FILE_APPEND);
-		file_put_contents($debug_log, "dfm_pickup_group_id: "   . print_r(isset($_POST['dfm_pickup_group_id'])   ? $_POST['dfm_pickup_group_id']   : 'NOT SET', true) . "\n", FILE_APPEND);
-		file_put_contents($debug_log, "dfm_pickup_name1: "      . print_r(isset($_POST['dfm_pickup_name1'])      ? $_POST['dfm_pickup_name1']      : 'NOT SET', true) . "\n", FILE_APPEND);
-		file_put_contents($debug_log, "dfm_pickup_buttonname: " . print_r(isset($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : 'NOT SET', true) . "\n", FILE_APPEND);
-		file_put_contents($debug_log, "---\n", FILE_APPEND);
+	if ($sektion == 'div_valg') {
 		$id          = (int) $_POST['id'];
-		$box1        = $_POST['box1'];    #gruppevalg
-		$box2        = $_POST['box2'];    #kuansvalg
+		$box1        = '';                #kept from the stored row below (Salg → Debitorkort)
+		$box2        = '';                #kept from the stored row below
 		$box3        = $_POST['box3'];    #extra_ansat
-		$box4        = $_POST['box4'];    #forskellige_datoer
-		$box5        = $_POST['box5'];    #debtor2orderphone
-		$box6        = $_POST['box6'];    #docubizz
-		$box7        = $_POST['box7'];    #jobkort
+		$box4        = '';                #kept from the stored row below (Finans → Kassekladde & betalinger)
+		$box5        = '';                #kept from the stored row below
+		$box6        = '';                #was DocuBizz - kept from the stored row below until the 4f cleanup
+		$box7        = '';                #kept from the stored row below
 //		$box8        = $_POST['box8'];    #ebconnect
-		$box8        = $_POST['box8'];    #paymentdays
+		$box8        = '';                #kept from the stored row below
 		$box9        = $_POST['box9'];    #ledig
-		$box10       = $_POST['box10'];   #betalingsliste
+		$box10       = '';                #kept from the stored row below
 		$box12       = $_POST['box12'];
-		$pv_box1     = $_POST['pv_box1']; #Direkte print til lokal printer
-		$pv_box3     = ifset($_POST, 'pv_box3') === 'on' ? 'on' : ''; #formulargenerator html/ps
-		$htmlLayoutVersion = ifset($_POST, 'html_layout_version');
-		$gls_id      = $_POST['gls_id'];
-		$gls_user    = if_isset($_POST['gls_user']);
-		$gls_pass    = if_isset($_POST['gls_pass']);
-		$gls_ctId    = if_isset($_POST['gls_ctId']);
-		$dfm_id      = $_POST['dfm_id'];
-		$dfm_user    = if_isset($_POST['dfm_user']);
-		$dfm_pass    = if_isset($_POST['dfm_pass']);
-		$dfm_agree   = if_isset($_POST['dfm_agree']);
-		$dfm_hub     = if_isset($_POST['dfm_hub']);
-		$dfm_ship    = if_isset($_POST['dfm_ship']);
-		$dfm_good    = if_isset($_POST['dfm_good']);
-		$dfm_pay     = if_isset($_POST['dfm_pay']);
-		$dfm_url     = if_isset($_POST['dfm_url']);
-		$dfm_gooddes = if_isset($_POST['dfm_gooddes']);
-		$dfm_sercode = if_isset($_POST['dfm_sercode']);
-		// Multiple pickup addresses - now handled as arrays
-		$dfm_pickup_group_ids   = isset($_POST['dfm_pickup_group_id'])   && is_array($_POST['dfm_pickup_group_id'])   ? $_POST['dfm_pickup_group_id']   : array();
-		$dfm_pickup_addrs       = isset($_POST['dfm_pickup_addr'])       && is_array($_POST['dfm_pickup_addr'])       ? $_POST['dfm_pickup_addr']       : array();
-		$dfm_pickup_name1s      = isset($_POST['dfm_pickup_name1'])      && is_array($_POST['dfm_pickup_name1'])      ? $_POST['dfm_pickup_name1']      : array();
-		$dfm_pickup_name2s      = isset($_POST['dfm_pickup_name2'])      && is_array($_POST['dfm_pickup_name2'])      ? $_POST['dfm_pickup_name2']      : array();
-		$dfm_pickup_street1s    = isset($_POST['dfm_pickup_street1'])    && is_array($_POST['dfm_pickup_street1'])    ? $_POST['dfm_pickup_street1']    : array();
-		$dfm_pickup_street2s    = isset($_POST['dfm_pickup_street2'])    && is_array($_POST['dfm_pickup_street2'])    ? $_POST['dfm_pickup_street2']    : array();
-		$dfm_pickup_towns       = isset($_POST['dfm_pickup_town'])       && is_array($_POST['dfm_pickup_town'])       ? $_POST['dfm_pickup_town']       : array();
-		$dfm_pickup_zipcodes    = isset($_POST['dfm_pickup_zipcode'])    && is_array($_POST['dfm_pickup_zipcode'])    ? $_POST['dfm_pickup_zipcode']    : array();
-		$dfm_pickup_buttonnames = isset($_POST['dfm_pickup_buttonname']) && is_array($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : array();
-		
-		$dfm_pickup_ids         = isset($_POST['dfm_pickup_id'])         && is_array($_POST['dfm_pickup_id'])         ? $_POST['dfm_pickup_id']         : array();
-		$dfm_pickup_users       = isset($_POST['dfm_pickup_user'])       && is_array($_POST['dfm_pickup_user'])       ? $_POST['dfm_pickup_user']       : array();
-		$dfm_pickup_passes      = isset($_POST['dfm_pickup_pass'])       && is_array($_POST['dfm_pickup_pass'])       ? $_POST['dfm_pickup_pass']       : array();
-		$dfm_pickup_agrees      = isset($_POST['dfm_pickup_agree'])      && is_array($_POST['dfm_pickup_agree'])      ? $_POST['dfm_pickup_agree']      : array();
-		$dfm_pickup_urls        = isset($_POST['dfm_pickup_url'])        && is_array($_POST['dfm_pickup_url'])        ? $_POST['dfm_pickup_url']        : array();
-		$dfm_pickup_hubs        = isset($_POST['dfm_pickup_hub'])        && is_array($_POST['dfm_pickup_hub'])        ? $_POST['dfm_pickup_hub']        : array();
-		$dfm_pickup_ships       = isset($_POST['dfm_pickup_ship'])       && is_array($_POST['dfm_pickup_ship'])       ? $_POST['dfm_pickup_ship']       : array();
-		$dfm_pickup_goods       = isset($_POST['dfm_pickup_good'])       && is_array($_POST['dfm_pickup_good'])       ? $_POST['dfm_pickup_good']       : array();
-		$dfm_pickup_gooddess    = isset($_POST['dfm_pickup_gooddes'])    && is_array($_POST['dfm_pickup_gooddes'])    ? $_POST['dfm_pickup_gooddes']    : array();
-		$dfm_pickup_pays        = isset($_POST['dfm_pickup_pay'])        && is_array($_POST['dfm_pickup_pay'])        ? $_POST['dfm_pickup_pay']        : array();
-		$dfm_pickup_sercodes    = isset($_POST['dfm_pickup_sercode'])    && is_array($_POST['dfm_pickup_sercode'])    ? $_POST['dfm_pickup_sercode']    : array();
-		
-		$mySale             = if_isset($_POST['mySale']);
-		$mySaleLabel        = if_isset($_POST['mySaleLabel']);
-		$paperflow          = if_isset($_POST['paperflow']);
-		$paperflowId        = if_isset($_POST['paperflowId']);
-		$paperflowBearer    = if_isset($_POST['paperflowBearer']);
-		$qp_agreement_id    = if_isset($_POST['qp_agreement_id']);
-		$qp_merchant        = if_isset($_POST['qp_merchant']);
-		$qp_md5secret       = if_isset($_POST['qp_md5secret']);
-		$qp_itemGrp         = if_isset($_POST['qp_itemGrp']);
-		$vibrant_api        = if_isset($_POST['vibrant_id']);
-//		$paymentDays        = if_isset($_POST['paymentDays']) ?? 1;
-		$paymentDays        = if_isset($_POST['paymentDays']);
-		$paymentDays        = ($paymentDays === null || $paymentDays === '') ? 1 : $paymentDays;
-
-		$mobilepay_client_id      = if_isset($_POST['mobilepay_client_id'], "");
-		$mobilepay_client_secret  = if_isset($_POST['mobilepay_client_secret'], "");
-		$mobilepay_subscription   = if_isset($_POST['mobilepay_subscription'], "");
-		$mobilepay_msn            = if_isset($_POST['mobilepay_msn'], "");
-
-		$copay_api = if_isset($_POST['copay_id']);
-		$nemhandel = if_isset($_POST['nemhandel']);
-		$labelsize = if_isset($_POST['labelsize']);
-
-		# Vibrant API save
-		if ($vibrant_api) {
-			update_settings_value("vibrant_auth", "globals", $vibrant_api, "The vibrant API key");
-		}
-
-		update_settings_value("labelsize", "mysale", $labelsize, "The maxlength of the labels in mysale");
-
-		#mobilePay
-		if ($mobilepay_client_id) {
-			update_settings_value("client_id",       "mobilepay", $mobilepay_client_id,     "The client id provided for the mobile pay integration");
-			update_settings_value("client_secret",   "mobilepay", $mobilepay_client_secret, "The client secret provided for the mobile pay integration");
-			update_settings_value("subscriptionKey", "mobilepay", $mobilepay_subscription,  "The Ocp-Apim-Subscription-Key provided for the mobile pay integration");
-			update_settings_value("MSN",             "mobilepay", $mobilepay_msn,           "The Merchant-Serial-Number provided for the mobilepay intergreation");
-		}
-
-
-		# Copayone API save
-		if ($copay_api) {
-			# Expect a posted ID
-			$qtxt = "SELECT var_value FROM settings WHERE var_name='copayone_auth'";
-			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
-			# If the row already exsists
-			if ($r) {
-				$qtxt = "UPDATE settings SET var_value='$copay_api' WHERE var_name='copayone_auth'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				# If the row needs to be created in the database
-			} else {
-				$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ('copayone_auth', 'globals', '$copay_api', 'The copayone API key')";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-		}
-
+		// GLS, Danske Fragtmænd, QuickPay, MobilePay, Flatpay, Vibrant and the pick-up addresses are saved by Indstillinger » Integrationer (phase 4b).
 		// if ($box8) {
 		// 	ftptest($_POST['oiourl'], $_POST['oiobruger'], $_POST['oiokode']);
 		// 	$box8 = $_POST['oiourl'] . chr(9) . $_POST['oiobruger'] . chr(9) . $_POST['oiokode'];
 		// }
 		if (($id == 0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='2'", __FILE__ . " linje " . __LINE__))))
 			$id = $r['id'];
+		if ($keep = db_fetch_array(db_select("select box1, box2, box4, box5, box6, box7, box8, box10 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__))) {
+			foreach (array('box1', 'box2', 'box4', 'box5', 'box6', 'box7', 'box8', 'box10') as $kept) {
+				$$kept = db_escape_string((string) $keep[$kept]);
+			}
+		}
 		if ($id == 0) {
 			// db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12) values ('Div_valg','2','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12')", __FILE__ . " linje " . __LINE__);
 			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12) values ('Div_valg','2','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12')", __FILE__ . " linje " . __LINE__);
-			if ($box8 == 'on') {
-				update_settings_value("paymentDays", "payment", $paymentDays, "Number of days for payment");
-			}
 		} elseif ($id > 0) {
 			// db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 			$qtxt = "update grupper set  ";
 			$qtxt.= "box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' ";
 			$qtxt.= "WHERE id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($box8 == 'on') {
-				update_settings_value("paymentDays", "payment", $paymentDays, "Number of days for payment");
-			} else {
-				// If disabled, clear the value
-				update_settings_value("paymentDays", "payment", "", "Number of days for payment");
-			}
-		}
-		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'PV' and kodenr='1'", __FILE__ . " linje " . __LINE__))) {
-			$id   = $r['id'];
-			$qtxt = "update grupper set  box1='$pv_box1', box3='$pv_box3' WHERE id = '$id'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} else {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3) values ('Udskrift','1','PV','$pv_box1','','$pv_box3')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		require_once __DIR__ . '/../includes/formFuncIncludes/htmlLayoutVersion.php';
-		saveFormHtmlLayoutVersion($htmlLayoutVersion);
-		$var_name        = array('gls_id', 'gls_user', 'gls_pass', 'gls_ctId');
-		$var_value       = array("$gls_id", "$gls_user", "$gls_pass", "$gls_ctId");
-		$var_description = array('GLS id', 'GLS brugernavn', 'GLS password', 'GLS kontakt ID');
-		for ($x = 0; $x < count($var_name); $x++) {
-			$var_description[$x] .= ', used at GLS integration';
-			$qtxt = "select id from settings where var_grp='GLS' and var_name='$var_name[$x]'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "update settings set var_value='$var_value[$x]' where id='$r[id]'";
-			} elseif ($var_value[$x]) {
-/* 				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-				$qtxt.= "('GLS','$var_name[$x]','$var_value[$x]','$var_description[$x]','0')"; */
-			} else
-				$qtxt = NULL;
-			if ($qtxt)
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		// DFM settings (without pickup addresses - they are now stored separately)
-		$var_name = array(
-			'dfm_id',
-			'dfm_user',
-			'dfm_pass',
-			'dfm_agree',
-			'dfm_hub',
-			'dfm_ship',
-			'dfm_good',
-			'dfm_pay',
-			'dfm_url',
-			'dfm_gooddes',
-			'dfm_sercode'
-		);
-		$var_value = array(
-			"$dfm_id",
-			"$dfm_user",
-			"$dfm_pass",
-			"$dfm_agree",
-			"$dfm_hub",
-			"$dfm_ship",
-			"$dfm_good",
-			"$dfm_pay",
-			"$dfm_url",
-			"$dfm_gooddes",
-			"$dfm_sercode"
-		);
-		$var_description = array(
-			'DFM id',
-			'DFM brugernavn',
-			'DFM password',
-			'DFM aftalenummer',
-			'DFM hub',
-			'DFM standardshippingmetode',
-			'DFM standardgodstype',
-			'DFM standardbetalingsmetode',
-			"DFM API URL",
-			"DFM standardgodsbeskrivelse",
-			"DFM standardleveringsmetode"
-		);
-		for ($x = 0; $x < count($var_name); $x++) {
-			$var_description[$x] .= ', used at DFM integration';
-			$qtxt = "select id from settings where var_grp='GLS' and var_name='$var_name[$x]'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "update settings set var_value='" . db_escape_string($var_value[$x]) . "' where id='$r[id]'";
-			} elseif ($var_value[$x]) {
-/* 				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-				$qtxt.= "('GLS','$var_name[$x]','" . db_escape_string($var_value[$x]) . "','$var_description[$x]','0')"; */
-			} else
-				$qtxt = NULL;
-			if ($qtxt)
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		
-		// Handle multiple DFM pickup addresses
-		// First, get all existing group_ids from DFM_Pickup to know which to delete
-		$existing_group_ids = array();
-		$qtxt = "select distinct group_id from settings where var_grp='DFM_Pickup'";
-		$q    = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$existing_group_ids[] = $r['group_id'];
-		}
-		
-		// Track which group_ids we're keeping/updating
-		$updated_group_ids = array();
-		
-		// Process each submitted pickup address
-		if (is_array($dfm_pickup_group_ids)) {
-			foreach ($dfm_pickup_group_ids as $idx => $group_id) {
-				// Skip if no name1 provided (empty entry)
-				if (empty($dfm_pickup_name1s[$idx])) continue;
-				
-				// Determine the actual group_id to use
-				if (strpos((string)$group_id, 'new_') === 0) {
-					// New address - find the next available group_id
-					$qtxt = "select coalesce(max(group_id), 0) + 1 as next_id from settings where var_grp='DFM_Pickup'";
-					$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					$actual_group_id = $r['next_id'];
-				} else {
-					$actual_group_id = intval($group_id);
-				}
-				
-				$updated_group_ids[] = $actual_group_id;
-				
-				// Pickup address fields to save
-				$pickup_fields = array(
-					'dfm_pickup_addr'       => isset($dfm_pickup_addrs[$idx])       ? $dfm_pickup_addrs[$idx]       : '1',
-					'dfm_pickup_name1'      => isset($dfm_pickup_name1s[$idx])      ? $dfm_pickup_name1s[$idx]      : '',
-					'dfm_pickup_name2'      => isset($dfm_pickup_name2s[$idx])      ? $dfm_pickup_name2s[$idx]      : '',
-					'dfm_pickup_street1'    => isset($dfm_pickup_street1s[$idx])    ? $dfm_pickup_street1s[$idx]    : '',
-					'dfm_pickup_street2'    => isset($dfm_pickup_street2s[$idx])    ? $dfm_pickup_street2s[$idx]    : '',
-					'dfm_pickup_town'       => isset($dfm_pickup_towns[$idx])       ? $dfm_pickup_towns[$idx]       : '',
-					'dfm_pickup_zipcode'    => isset($dfm_pickup_zipcodes[$idx])    ? $dfm_pickup_zipcodes[$idx]    : '',
-					'dfm_pickup_buttonname' => isset($dfm_pickup_buttonnames[$idx]) ? $dfm_pickup_buttonnames[$idx] : '',
-					'dfm_id'                => isset($dfm_pickup_ids[$idx])         ? $dfm_pickup_ids[$idx]         : '',
-					'dfm_user'              => isset($dfm_pickup_users[$idx])       ? $dfm_pickup_users[$idx]       : '',
-					'dfm_pass'              => isset($dfm_pickup_passes[$idx])      ? $dfm_pickup_passes[$idx]      : '',
-					'dfm_agree'             => isset($dfm_pickup_agrees[$idx])      ? $dfm_pickup_agrees[$idx]      : '',
-					'dfm_url'               => isset($dfm_pickup_urls[$idx])        ? $dfm_pickup_urls[$idx]        : '',
-					'dfm_hub'               => isset($dfm_pickup_hubs[$idx])        ? $dfm_pickup_hubs[$idx]        : '',
-					'dfm_ship'              => isset($dfm_pickup_ships[$idx])       ? $dfm_pickup_ships[$idx]       : '',
-					'dfm_good'              => isset($dfm_pickup_goods[$idx])       ? $dfm_pickup_goods[$idx]       : '',
-					'dfm_gooddes'           => isset($dfm_pickup_gooddess[$idx])    ? $dfm_pickup_gooddess[$idx]    : '',
-					'dfm_pay'               => isset($dfm_pickup_pays[$idx])        ? $dfm_pickup_pays[$idx]        : '',
-					'dfm_sercode'           => isset($dfm_pickup_sercodes[$idx])    ? $dfm_pickup_sercodes[$idx]    : ''
-				);
-				
-				foreach ($pickup_fields as $field_name => $field_value) {
-					$escaped_value = db_escape_string($field_value);
-					$qtxt = "select id from settings where var_grp='DFM_Pickup' and var_name='$field_name' and group_id='$actual_group_id'";
-					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-						$qtxt = "update settings set var_value='$escaped_value' where id='$r[id]'";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					} else {
-						$qtxt = "insert into settings (var_grp, var_name, var_value, var_description, group_id) values ";
-						$qtxt .= "('DFM_Pickup', '$field_name', '$escaped_value', 'DFM pickup address field', '$actual_group_id')";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					}
-				}
-			}
-		}
-		
-		// Delete pickup addresses that were removed (not in updated list)
-		foreach ($existing_group_ids as $old_group_id) {
-			if (!in_array($old_group_id, $updated_group_ids)) {
-				$qtxt = "delete from settings where var_grp='DFM_Pickup' and group_id='$old_group_id'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-		}
-		$var_name = array('qp_agreement_id', 'qp_merchant', 'qp_md5secret', 'qp_itemGrp');
-		$var_value = array($qp_agreement_id, $qp_merchant, $qp_md5secret, $qp_itemGrp);
-		$var_description = array('Agreement id from', 'Merchant no from', 'md5secret from', 'Item Group in Saldi for items paid using');
-		for ($x = 0; $x < count($var_name); $x++) {
-			$var_description[$x] .= ', Quickpay';
-			$qtxt = "select id from settings where var_grp='quickpay' and var_name='$var_name[$x]'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "update settings set var_value='$var_value[$x]' where id='$r[id]'";
-			} elseif ($var_value[$x]) {
-				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-				$qtxt.= "('quickpay','$var_name[$x]','$var_value[$x]','$var_description[$x]','0')";
-			} else
-				$qtxt = NULL;
-			if ($qtxt)
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$qtxt = "select id from settings where var_grp='debitor' and var_name='mySale'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$mySale' where id='$r[id]'";
-		} elseif ($mySale) {
-			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('debitor','mySale','$mySale','Use mySale to allow customers acces to own salesdata (provision)','0')";
-		} else
-			$qtxt = NULL;
-		if ($qtxt)
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-		$qtxt = "select id from settings where var_grp='debitor' and var_name='mySaleLabel'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$mySaleLabel' where id='$r[id]'";
-		} elseif ($mySaleLabel) {
-			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('debitor','mySaleLabel','$mySaleLabel','Disable labels from Mysale, so that only the owner can create labels','0')";
-		} else
-			$qtxt = NULL;
-		if ($qtxt)
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-		$qtxt = "select id from settings where var_grp='creditor' and var_name='paperflow'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$paperflow' where id='$r[id]'";
-		} elseif ($paperflow) {
-			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('creditor','paperflow','$paperflow','Use Paperflow to read text from scanned invoices','0')";
-		} else
-			$qtxt = NULL;
-		if ($qtxt)
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-		$qtxt = "select id from settings where var_grp='creditor' and var_name='paperflowId'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$paperflowId' where id='$r[id]'";
-		} elseif ($paperflowId) {
-			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('creditor','paperflowId','$paperflowId','Id given by Paperflow','0')";
-		} else
-			$qtxt = NULL;
-		if ($qtxt)
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "select id from settings where var_grp='creditor' and var_name='paperflowBearer'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$paperflowBearer' where id='$r[id]'";
-		} elseif ($paperflowBearer) {
-			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('creditor','paperflowBearer','$paperflowBearer','Bearer given by Paperflow','0')";
-		} else
-			$qtxt = NULL;
-		if ($qtxt)
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'ordre_valg') {
 		$vatPrivateCustomers  = if_isset($_POST['vatPrivateCustomers']);
@@ -753,315 +409,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 
 		#######################################################################################
-	} elseif ($sektion == 'productOptions') {
-
-		$id                              = $_POST['id'];
-		$box1                            = if_isset($_POST['box1']); #incl_moms (legacy - not used for VAT anymore)
-		$DisItemIfNeg_id                 = if_isset($_POST['DisItemIfNeg_id']);
-		$DisItemIfNeg                    = if_isset($_POST['DisItemIfNeg']);
-		$vatOnItemCard_id                = if_isset($_POST['vatOnItemCard_id']);
-		$vatOnItemCard                   = if_isset($_POST['vatOnItemCard']);
-		$useCommission                   = if_isset($_POST['useCommission']);
-		$useCommissionId                 = if_isset($_POST['useCommissionId']);
-		$commissionAccountNew            = if_isset($_POST['commissionAccountNew']);
-		$commissionAccountNewId          = if_isset($_POST['commissionAccountNewId']);
-		$commissionAccountUsed           = if_isset($_POST['commissionAccountUsed']);
-		$commissionAccountUsedId         = if_isset($_POST['commissionAccountUsedId']);
-		$customerCommissionAccountNew    = if_isset($_POST['customerCommissionAccountNew']);
-		$customerCommissionAccountNewId  = if_isset($_POST['customerCommissionAccountNewId']);
-		$customerCommissionAccountUsed   = if_isset($_POST['customerCommissionAccountUsed']);
-		$customerCommissionAccountUsedId = if_isset($_POST['customerCommissionAccountUsedId']);
-		$defaultCommission               = if_isset($_POST['defaultCommission']);
-		$defaultCommissionId             = if_isset($_POST['defaultCommissionId']);
-		$commissionInclVat               = if_isset($_POST['commissionInclVat']);
-		$commissionInclVatId             = if_isset($_POST['commissionInclVatId']);
-		$ownCommissionAccountNew         = if_isset($_POST['ownCommissionAccountNew']);
-		$ownCommissionAccountNewId       = if_isset($_POST['ownCommissionAccountNewId']);
-		$ownCommissionAccountUsed        = if_isset($_POST['ownCommissionAccountUsed']);
-		$ownCommissionAccountUsedId      = if_isset($_POST['ownCommissionAccountUsedId']);
-		$commissionFromDate              = if_isset($_POST['commissionFromDate']);
-		$convertExisting                 = if_isset($_POST['convertExisting']);
-		$confirmDescriptionChange_id     = if_isset($_POST['confirmDescriptionChange_id']);
-		$confirmDescriptionChange        = if_isset($_POST['confirmDescriptionChange']);
-		$confirmStockChange_id           = if_isset($_POST['confirmStockChange_id']);
-		$confirmStockChange              = if_isset($_POST['confirmStockChange']);
-		$statusmail                      = if_isset($_POST['statusmail']);
-		$lagertrigger                    = if_isset($_POST['lagertrigger']);
-		$lagertime                       = if_isset($_POST['lagertime']);
-		$minBeholdning                   = if_isset($_POST["minBeholdning"]);
-		$packagingModuleEnabled          = if_isset($_POST, null, 'packagingModuleEnabled');
-		update_settings_value("packagingModuleEnabled", "items", $packagingModuleEnabled, "Enable the packaging tax reporting module");
-		if ($packagingModuleEnabled === "on") {
-			include_once("../includes/emballage_schema.php");
-			ensure_emballage_schema();
-		}
-		# Normalised to a fixed literal - never interpolate the posted value into the settings query.
-		$batchExpiryEnabled = (if_isset($_POST, null, 'batchExpiryEnabled') === 'on') ? 'on' : 'off';
-		update_settings_value("batchExpiryEnabled", "items", $batchExpiryEnabled, "Enable batch and expiry date handling on the item card");
-
-		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
-		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
-		update_settings_value("time", "lagerstatus", $lagertime, "The amount of time between each statusmail in hours");
-
-		if ($vatOnItemCard_id)
-			$qtxt = "update settings set var_value='$vatOnItemCard' where id='$vatOnItemCard_id'";
-		else {
-			$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('items','vatOnItemCard','$vatOnItemCard','If set, salesprice will be shown including VAT on ItemCard','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		if ($DisItemIfNeg_id)
-			$qtxt = "update settings set var_value='$DisItemIfNeg' where id='$DisItemIfNeg_id'";
-		else {
-			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('items','DisItemIfNeg','$DisItemIfNeg',";
-			$qtxt.= "'If set, item will be set as discontinued when stock turns negative','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		if ($confirmDescriptionChange_id) {
-			$qtxt = "update settings set var_value='$confirmDescriptionChange' ";
-			$qtxt.= "where id='$confirmDescriptionChange_id'";
-		} else {
-			$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('items','confirmDescriptionChange','$confirmDescriptionChange',";
-			$qtxt.= "'If set, confirm and reason will be required when stock is changed on ItemCard','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		if ($confirmStockChange_id) {
-			$qtxt = "update settings set var_value='$confirmStockChange' ";
-			$qtxt.= "where id='$confirmStockChange_id'";
-		} else {
-			$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('items','confirmStockChange','$confirmStockChange',";
-			$qtxt.= "'If set, confirm will be required when description is changed on ItemCard','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		if ($useCommissionId) {
-			$qtxt = "update settings set var_value='$useCommission' ";
-			$qtxt.= "where id='$useCommissionId'";
-		} else {
-			$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('items','useCommission','$useCommission',";
-			$qtxt.= "'Commisionsale. If set, checkbox will be shown at cashCount and at itemCard','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-		if ($commissionAccountNew) {
-			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'D' and kontonr='$commissionAccountNew'";
-			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r['id']) {
-				if ($commissionAccountNewId) {
-					$qtxt = "update settings set var_value='$commissionAccountNew' ";
-					$qtxt.= "where id='$commissionAccountNewId'";
-				} else {
-					$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-					$qtxt.= "('items','commissionAccountNew','$commissionAccountNew',";
-					$qtxt.= "'Account for commisionsale, new items. If set, commmision sale income of new items, is accounted in this account','0')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			} else
-				alert("" . findtekst('1709|Driftkonto', $sprog_id) . " $commissionAccountNew " . findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id) . " ($regnaar)");
-		} elseif ($commissionAccountNewId) {
-			$qtxt = "update settings set var_value='' ";
-			$qtxt.= "where id='$commissionAccountNewId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		if ($commissionAccountUsed) {
-			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'D' and kontonr='$commissionAccountUsed'";
-			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r['id']) {
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($commissionAccountUsedId) {
-					$qtxt = "update settings set var_value='$commissionAccountUsed' ";
-					$qtxt.= "where id='$commissionAccountUsedId'";
-				} else {
-					$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-					$qtxt.= "('items','commissionAccountUsed','$commissionAccountUsed','Account for commisionsale, used items. If set, ";
-					$qtxt.= "commmision sale income of used items, is accounted in this account','0')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			} else
-				alert("" . findtekst('1709|Driftkonto', $sprog_id) . " $commissionAccountUsed " . findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id) . " ($regnaar)"); #20210802
-		} elseif ($commissionAccountUsedId) {
-			$qtxt = "update settings set var_value='' ";
-			$qtxt.= "where id='$commissionAccountUsedId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		if ($customerCommissionAccountNew) {
-			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'S' and kontonr='$customerCommissionAccountNew'";
-			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r['id']) {
-				if ($customerCommissionAccountNewId) {
-					$qtxt = "update settings set var_value='$customerCommissionAccountNew' ";
-					$qtxt.= "where id='$customerCommissionAccountNewId'";
-				} else {
-					$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-					$qtxt.= "('items','customerCommissionAccountNew','$customerCommissionAccountNew',";
-					$qtxt.= "'Account for customers share of commisionsale, new items. ";
-					$qtxt.= "If set, customers part of commmision sale of new items, is taken from this account','0')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			} else
-				alert("" . findtekst('1736|Statuskonto', $sprog_id) . " $customerCommissionAccountNew " . findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id) . " ($regnaar)");
-		} elseif ($customerCommissionAccountNewId) {
-			$qtxt = "update settings set var_value='' ";
-			$qtxt.= "where id='$customerCommissionAccountNewId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		if ($customerCommissionAccountUsed) {
-			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'S' and kontonr='$customerCommissionAccountUsed'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r['id']) {
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($customerCommissionAccountUsedId) {
-					$qtxt = "update settings set var_value='$customerCommissionAccountUsed' ";
-					$qtxt.= "where id='$customerCommissionAccountUsedId'";
-				} else {
-					$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-					$qtxt.= "('items','customerCommissionAccountUsed','$customerCommissionAccountUsed',";
-					$qtxt.= "'Account for customers share of commisionsale, used items. ";
-					$qtxt.= "If set, customers part of commmision sale of used items, is taken from this account','0')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			} else
-				alert("" . findtekst('1736|Statuskonto', $sprog_id) . " $customerCommissionAccountUsed " . findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id) . " ($regnaar)");
-		} elseif ($customerCommissionAccountUsedId) {
-			$qtxt = "update settings set var_value='' ";
-			$qtxt.= "where id='$customerCommissionAccountUsedId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		if ($defaultCommission) {
-			if ($defaultCommissionId) {
-				$qtxt = "update settings set var_value='$defaultCommission' ";
-				$qtxt.= "where id='$defaultCommissionId'";
-			} else {
-				$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-				$qtxt.= "('items','defaultCommission','$defaultCommission',";
-				$qtxt.= "'Account for customers share of commisionsale, used items. ";
-				$qtxt.= "If set, customers part of commmision sale of used items, is taken from this account','0')";
-			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$qtxt = NULL;
-		if ($commissionInclVatId) {
-			$qtxt = "update settings set var_value='$commissionInclVat' ";
-			$qtxt.= "where id='$commissionInclVatId'";
-		} elseif ($commissionInclVat) {
-			$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('items','commissionInclVat','$commissionInclVat',";
-			$qtxt.= "'Include VAT in commission for used items. ";
-			$qtxt.= "If set, VAT vat is put in top of the shop's commision and withdrawn from customers share','0')";
-		}
-		if ($qtxt)
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-		if ($ownCommissionAccountNew) {
-			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'S' and kontonr='$ownCommissionAccountNew'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r['id']) {
-				if ($ownCommissionAccountNewId) {
-					$qtxt = "update settings set var_value='$ownCommissionAccountNew' ";
-					$qtxt.= "where id='$ownCommissionAccountNewId'";
-				} else {
-					$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-					$qtxt.= "('items','ownCommissionAccountNew','$ownCommissionAccountNew',";
-					$qtxt.= "'Account for customers share of commisionsale, new items. ";
-					$qtxt.= "If set, customers part of commmision sale of new items, is taken from this account','0')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			} else
-				alert("" . findtekst('1736|Statuskonto', $sprog_id) . " $ownCommissionAccountNew " . findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id) . " ($regnaar)");
-		} elseif ($ownCommissionAccountNewId) {
-			$qtxt = "update settings set var_value='' ";
-			$qtxt.= "where id='$ownCommissionAccountNewId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		if ($ownCommissionAccountUsed) {
-			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'S' and kontonr='$ownCommissionAccountUsed'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r['id']) {
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($ownCommissionAccountUsedId) {
-					$qtxt = "update settings set var_value='$ownCommissionAccountUsed' ";
-					$qtxt.= "where id='$ownCommissionAccountUsedId'";
-				} else {
-					$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-					$qtxt.= "('items','ownCommissionAccountUsed','$ownCommissionAccountUsed',";
-					$qtxt.= "'Account for customers share of commisionsale, used items. ";
-					$qtxt.= "If set, customers part of commmision sale of used items, is taken from this account','0')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			} else
-				alert("" . findtekst('1736|Statuskonto', $sprog_id) . " $ownCommissionAccountUsed " . findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id) . " ($regnaar)");
-		} elseif ($ownCommissionAccountUsedId) {
-			$qtxt = "update settings set var_value='' ";
-			$qtxt.= "where id='$ownCommissionAccountUsedId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-
-		if ($commissionFromDate)
-			$commissionFromDate = usdate($commissionFromDate);
-		else
-			$commissionFromDate = '2021-01-01';
-		$qtxt = "select id from settings where var_name = 'commissionFromDate'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$commissionFromDate'";
-			$qtxt.= "where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings(var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('items','commissionFromDate','$commissionFromDate','First date for settling customer share of commissionsale','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "select id from grupper WHERE art = 'DIV' and kodenr='5'";
-		if (($id == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		elseif ($id == 0) {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1) values ('Div_valg (Varer)','5','DIV','$box1')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) {
-			db_modify("update grupper set  box1='$box1' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-		}
-		if ($convertExisting) {
-			$x    = 0;
-			$qtxt = "select id, varenr, kostpris, retail_price, provision from varer where (varenr like 'kb%' or varenr like 'kn%') ";
-			$qtxt.= "and ((retail_price > 0 and retail_price < 100) or (kostpris > 0 and kostpris < 1)) order by varenr";
-			$q    = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				if (!$r['provision']) {
-					$id = $r['id'];
-					if ($r['retail_price'] && $r['retail_price'] < 100) {
-						$provision = afrund($r['retail_price'], 0) * 1;
-						$kostpris = 1 - $provision / 100;
-						$qtxt = "update varer set provision = '$provision', kostpris = '$kostpris' where id ='$id'";
-					} elseif ($r['kostpris'] >= 0.5 && $r['kostpris'] < 1) {
-						$provision = 100 - ($r['kostpris'] * 100);
-						$qtxt = "update varer set provision = '$provision' where id ='$id'";
-					} else {
-						$provision = $r['kostpris'] * 100;
-						$kostpris = 1 - $r['kostpris'];
-						$qtxt = "update varer set provision = '$provision', kostpris = '$kostpris' where id ='$id'";
-					}
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$x++;
-				}
-			}
-			sleep(10);
-			alert("$x " . findtekst('1737|varer konvereteret', $sprog_id) . "");
-		}
-		if ($minBeholdning) {
-			$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'",  __FILE__ . " linje " . __LINE__);
-			if (db_num_rows($query) > 0) {
-				if (is_numeric($minBeholdning) && $minBeholdning == (int)$minBeholdning) {
-					db_modify("UPDATE settings SET var_value = '$minBeholdning' WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'",  __FILE__ . " linje " . __LINE__);
-				}
-			} else {
-				if (is_numeric($minBeholdning) && $minBeholdning == (int)$minBeholdning) {
-					db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('min_beholdning', 'productOptions', '$minBeholdning')",  __FILE__ . " linje " . __LINE__);
-				}
-			}
-		}
-		# varevalg slut
-		#######################################################################################
 	} elseif ($sektion == 'variant_valg') {
 		$id                   = if_isset($_POST['id']);
 		$variant_beskrivelse  = if_isset($_POST['variant_beskrivelse']);
@@ -1114,8 +461,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				fclose($handle);
 			}
 		}
-		$_SESSION['variant_import_message'] = "Importeret: $imported varianttyper. Sprunget over (eksisterer allerede): $skipped";
-		header("Location: diverse.php?sektion=variant_valg");
+		$_SESSION['settings_flash'] = array('ok', sprintf(findtekst('6843|Importeret: %s varianttyper. Sprunget over, da de findes allerede: %s.', $sprog_id), $imported, $skipped));
+		header("Location: settingsSection.php?s=items.variants");
 		exit;
 	#######################################################################################
 	} elseif ($sektion == 'variant_valg_import_values') {
@@ -1170,8 +517,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				fclose($handle);
 			}
 		}
-		$_SESSION['variant_import_message'] = "Importeret: $imported værdier. Sprunget over (eksisterer allerede): $skipped. Variant ikke fundet: $not_found";
-		header("Location: diverse.php?sektion=variant_valg");
+		$_SESSION['settings_flash'] = array('ok', sprintf(findtekst('6844|Importeret: %s værdier. Sprunget over, da de findes allerede: %s. Variant ikke fundet: %s.', $sprog_id), $imported, $skipped, $not_found));
+		header("Location: settingsSection.php?s=items.variants#sub-values");
 		exit;
 	#######################################################################################
 	} 
@@ -1203,33 +550,14 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 // 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 // 		#######################################################################################
 // 	} 
-	elseif ($sektion == 'api_valg') {
-		$id   = if_isset($_POST['id']);
-		$box1 = db_escape_string(if_isset($_POST['api_key']));
-		$box2 = db_escape_string(if_isset($_POST['ip_list']));
-		$box3 = db_escape_string(if_isset($_POST['api_bruger']));
-		$box4 = db_escape_string(if_isset($_POST['api_fil']));
-		$box5 = db_escape_string(if_isset($_POST["api_fil2"]));
-		$box6 = db_escape_string(if_isset($_POST["api_fil3"]));
-		
-		$qtxt = NULL;
-		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'API' and kodenr='1'", __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		if (!$id) {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6) values ('API valg','1','API','$box1','$box2','$box3','$box4', '$box5', '$box6')";
-		} elseif ($id > 0) {
-			$qtxt = "update grupper set box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6' WHERE id = '$id'";
-		}
-		if ($qtxt)
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		#######################################################################################
-	} elseif ($sektion == 'stripe_valg') {
+	elseif ($sektion == 'stripe_valg' && $db == $sqdb) {
 		include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 		stripeValgSave();
 		#######################################################################################
 	} elseif ($sektion == 'labels') {
 		// Generate template from form data
 		$valg           = if_isset($_GET['valg']);
+		if ($valg !== 'box1' && $valg !== 'box2') $valg = '';
     	$labelName      = if_isset($_POST['labelName']);
     	$newLabelName   = if_isset($_POST['newLabelName']);
     	$labelTemplate  = if_isset($_POST['labelTemplate']);
@@ -1243,6 +571,11 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
         $labelName = if_isset($_GET['labelName'], 'Standard');
     }
 	
+    // Only the shipped templates, and only names the create form allows (the form's pattern is not a guard).
+    $labelTemplates = array('A4Label38x21_ens.txt', 'A4Label38x21.txt', 'BrotherLabel22606.txt', 'BrotherLabel22606MS.txt', 'DymoLabelArt11354.txt', 'DymoLabelArt11354MS.txt');
+    if ($createNewLabel && (!in_array($labelTemplate, $labelTemplates, true) || !preg_match('/^[a-zA-Z0-9+.-]+$/', (string) $newLabelName))) {
+        $createNewLabel = null;
+    }
     if ($createNewLabel && $newLabelName && $labelTemplate) {
         // Create new label from template
         $templateFile = "../importfiler/$labelTemplate";
@@ -1321,574 +654,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 	#######################################################################################
-	} elseif ($sektion == 'rykker_valg') {
-		$id   = if_isset($_POST['id']);
-		$box1 = if_isset($_POST['box1']);
-		$box2 = if_isset($_POST['box2']);
-		$box3 = if_isset($_POST['box3']);
-		$box4 = if_isset($_POST['box4']);
-		$box5 = if_isset($_POST['box5']);
-		$box6 = if_isset($_POST['box6']);
-		$box7 = if_isset($_POST['box7']);
-		# $box8 er reserveret til dato for sidst afsendte mail.
-		$box9 = if_isset($_POST['box9']); #Inkasso
-		if ($box1) {
-			$r    = db_fetch_array(db_select("select id from brugere WHERE brugernavn = '$box1'", __FILE__ . " linje " . __LINE__));
-			$box1 = $r['id'];
-		}
-		if ($box9) {
-			$qtxt = "select id from adresser WHERE kontonr='$box9'";
-			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$box9 = $r['id'];
-		}
-		if (($id == 0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='4'", __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		elseif ($id == 0) {
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10) values ('Div_valg (Rykker)','4','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','','$box9','')", __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) {
-			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box9='$box9' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-		}
-	#######################################################################################
-	} elseif ($sektion == 'posOptions') {
-		$id1            = (int) if_isset($_POST, 0, ['id1']);
-		$box1           = if_isset($_POST['kasseantal']) * 1;
-		$afd_nr         = if_isset($_POST['afd_nr']);
-		$kassekonti     = if_isset($_POST['kassekonti']);
-		$box4           = if_isset($_POST['kortantal']) * 1;
-		$korttyper      = if_isset($_POST['korttyper']);
-		$kortkonti      = if_isset($_POST['kortkonti']);
-		$moms_nr        = if_isset($_POST['moms_nr']);
-		$rabatvarenr    = if_isset($_POST['rabatvarenr']);
-		$box9           = if_isset($_POST['straksbogfor']);
-		$box10          = if_isset($_POST['udskriv_bon']);
-		$box11          = if_isset($_POST['vis_kontoopslag']);
-		$box12          = if_isset($_POST['vis_hurtigknap']);
-		$box13          = if_isset($_POST['timeout']);
-		$box14          = if_isset($_POST['vis_indbetaling']);
-
-		$ValutaKode     = if_isset($_POST['ValutaKode']);
-		$ValutaKonti    = if_isset($_POST['ValutaKonti']);
-		$ValutaMlKonti  = if_isset($_POST['ValutaMlKonti']);
-		$ValutaDifKonti = if_isset($_POST['ValutaDifKonti']);
-
-		if (!$ValutaKode)
-			$ValutaKode = array();
-
-
-		$id2                = (int) if_isset($_POST['id2']);
-		$enabled            = if_isset($_POST['enabled']);
-		$change_cardvalue   = if_isset($_POST['change_cardvalue']);
-		$deactivateBonprint = if_isset($_POST['deactivateBonprint']);
-		$betalingskort      = if_isset($_POST['betalingskort']); #20131210
-
-		$planamount         = if_isset($_POST['planamount']);
-		$plan               = if_isset($_POST['plan'], array());
-		$bord               = if_isset($_POST['bord']); #20140508
-		$bordantal          = if_isset($_POST['bordantal']); #20140508
-		$bordvalg           = if_isset($_POST['bordvalg']);
-
-		$diffkonti          = if_isset($_POST['diffkonti']);
-		$div_kort_kto       = if_isset($_POST['div_kort_kto']); #20140129
-		$jump2price         = if_isset($_POST['jump2price']);
-		$kasseprimo         = if_isset($_POST['kasseprimo']);
-		$kasseprimo         = (int) usdecimal($kasseprimo);
-		$koekkenprinter     = if_isset($_POST['koekkenprinter']);
-		$kortno             = if_isset($_POST['kortno'], array());
-		$mellemkonti        = if_isset($_POST['mellemkonti']);
-		$optalassist        = if_isset($_POST['optalassist']);
-		$printer_ip         = if_isset($_POST['printer_ip']);
-		$terminal_type      = if_isset($_POST['terminal_type']);
-		$terminal_ip        = if_isset($_POST['terminal_ip']);
-		$varenr             = if_isset($_POST['varenr']);
-		$vis_saet           = if_isset($_POST['vis_saet']);
-		$voucher            = if_isset($_POST['voucher']); #20181029
-		$voucherText        = if_isset($_POST['voucherText']); #20181029
-		$voucherItemNo      = if_isset($_POST['voucherItemNo']); #20210116
-
-		$box14_2            = if_isset($_POST['udtag0']);
-
-		$kdscolorindex      = if_isset($_POST['kdscolorindex']);
-		$kdscolor           = if_isset($_POST['kdscolor']);
-
-		update_settings_value("show_big_sum", "POS", if_isset($_POST['show_big_sum'], "off"), "Shows a big sum ");
-		update_settings_value("show_stock", "POS", if_isset($_POST['lagerbeh'], "0"), "Weather or not to show the stock level on sale in the POS system");
-
-		update_settings_value("activated", "KDS", if_isset($_POST['kdsactive'], "off"), "The KDS system is activated");
-		update_settings_value("activated", "kitchen-print", if_isset($_POST['printactive'], "off"), "The physical kitchen print is acitaved");
-
-		update_settings_value("columns", "KDS", if_isset($_POST['kdscolumns'], "5"), "The amount of columns in the KDS system");
-		update_settings_value("height", "KDS", if_isset($_POST['kdsheight'], "20"), "The lineheight of each element in the KDS system");
-
-		# KDS Color setup
-		db_modify("DELETE FROM settings WHERE var_name='color' AND var_grp='KDS'", __FILE__ . " linje " . __LINE__);
-		for ($i = 0; $i < count($kdscolorindex); $i++) {
-			if ($kdscolorindex[$i] != "") {
-				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('color', 'KDS', '$kdscolorindex[$i]-$kdscolor[$i]', 'The color of KDS header at set minute interval')", __FILE__ . " linje " . __LINE__);
-			}
-		}
-
-
-
-		# Table plan logic
-		# Get the amount of tables currently in the system
-		$plans = 1;
-		$q = db_select("select id, name from table_pages ORDER BY id", __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$plans++;
-		}
-		# If the system has more plans than the inp
-		if ($planamount > $plans - 1) {
-			# For every difference in plans we add an empty one
-			for ($i = 0; $i <= $planamount - $plans; $i++) {
-				$id   = $plans + $i;
-				$qtxt = "INSERT INTO table_pages(id, name) VALUES ($id, '')";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-			# If it has less plans
-		} else if ($planamount < $plans - 1) {
-			db_modify("DELETE FROM table_pages WHERE id > $planamount", __FILE__ . " linje " . __LINE__);
-		}
-		# Save the created fields
-		for ($i = 1; $i <= count($plan) + 1; $i++) {
-			if (isset($plan[$i])) {
-				$id   = $i;
-				$name = $plan[$i];
-				$qtxt = "UPDATE table_pages SET name='$name' WHERE id=$id";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-		}
-		for ($x = 0; $x < count($kortno); $x++) { // Removes noise in log
-			if (!isset($betalingskort[$x]))
-				$betalingskort[$x] = '';
-			if (!isset($enabled[$x]))
-				$enabled[$x] = '';
-			if (!isset($voucher[$x]))
-				$voucher[$x] = '';
-			if (!isset($voucherText[$x]))
-				$voucherText[$x] = '';
-		}
-		$kort = array();
-		for ($x = 0; $x < count($kortno); $x++) { // hjemmelavet sortering da array_multisort flytter '$betalingskort'
-			if ($kortno[$x] <= 9)
-				$kortno[$x] = '0' . $kortno[$x];
-			$kort[$x] = "$kortno[$x]"  . chr(9) . "$korttyper[$x]"   . chr(9) . "$kortkonti[$x]" . chr(9) . "$betalingskort[$x]" . chr(9);
-			$kort[$x].= "$voucher[$x]" . chr(9) . "$voucherText[$x]" . chr(9) . "$enabled[$x]";
-		}
-//		array_multisort($kortno, $korttyper, $kortkonti, $betalingskort, $voucher, $voucherText, $enabled);
-		sort($kort);
-		for ($x = 0; $x < count($kortno); $x++) {
-			list($kortno[$x], $korttyper[$x], $kortkonti[$x], $betalingskort[$x], $voucher[$x], $voucherText[$x], $enabled[$x]) = explode(chr(9), $kort[$x]);
-		}
-
-		$id3          = if_isset($_POST['id3']) * 1;
-		$box1_3       = if_isset($_POST['brugervalg']);
-		$pfs          = if_isset($_POST['pfs']);
-		$box3_3       = if_isset($_POST['kundedisplay']);
-		$postEachSale = if_isset($_POST['postEachSale']);
-		$mobilpos     = if_isset($_POST['mobilpos']);
-		$mobilwidth   = if_isset($_POST['mobilwidth']);
-		$mobilzoom    = if_isset($_POST['mobilzoom']);
-		$omv_menu     = if_isset($_POST['omv_menu']);
-		$box2         = NULL;
-		$box3         = NULL;
-		$box7         = NULL;
-		$box8         = NULL;
-		$box3_2       = NULL;
-		$box4_2       = NULL;
-		$box11_2      = NULL;
-		for ($x = 0; $x < $box1; $x++) {
-			if (!isset($bordvalg[$x]))
-				$bordvalg[$x] = NULL;
-			if (!isset($postEachSale[$x]))
-				$postEachSale[$x] = NULL;
-			if (!isset($mobilpos[$x]))
-				$mobilpos[$x] = NULL;
-			if (!isset($mobilwidth[$x]))
-				$mobilwidth[$x] = NULL;
-			if (!isset($mobilzoom[$x]))
-				$mobilzoom[$x] = NULL;
-
-			$qtxt = "select id from kontoplan WHERE kontonr = '$kassekonti[$x]'";
-			if (($kassekonti[$x] && is_numeric($kassekonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))));
-			else {
-				if ($kassekonti[$x])
-					$txt = str_replace("<variable>", $kassekonti[$x], findtekst('277|Kontonr. <variable> eksisterer ikke', $sprog_id));
-				else
-					$txt = findtekst('278|Kontonr. skal udfyldes for alle kasser', $sprog_id);
-				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-			}
-			$txt  = '';
-			$qtxt = "select id from kontoplan WHERE kontonr = '$mellemkonti[$x]'";
-			if (($mellemkonti[$x] && is_numeric($mellemkonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))));
-			else {
-				if ($mellemkonti[$x])
-					$txt = str_replace("<variable>", $mellemkonti[$x], findtekst('717|Mellemkonto <variable> eksisterer ikke', $sprog_id));
-				else
-					$txt = findtekst('718|Mellemkonto skal udfyldes for alle kasser', $sprog_id);
-				if ($txt)
-					print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-			}
-			$qtxt = "select id from kontoplan WHERE kontonr = '$diffkonti[$x]'";
-			if (($diffkonti[$x] && is_numeric($diffkonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))));
-			else {
-				if ($mellemkonti[$x])
-					$txt = str_replace("<variable>", $diffkonti[$x], findtekst('723|Difference konto <variable> eksisterer ikke', $sprog_id));
-				else
-					$txt = findtekst('718|Mellemkonto skal udfyldes for alle kasser', $sprog_id);
-				if ($txt)
-					print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-			}
-
-
-			# Set terminal type
-			$kasse_id = $x + 1;
-			$qtxt     = "SELECT var_value FROM settings WHERE pos_id=$kasse_id and var_name='terminal_type'";
-			$r        = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$termtype = $terminal_type[$x];
-
-			# Check if a payment type has been setup on this term
-			if ($r) {
-				# It does exist, edit the row
-				$qtxt = "UPDATE settings SET var_value='$termtype' WHERE pos_id=$kasse_id and var_name='terminal_type'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			} else {
-				# It has not been setup yet, create the row
-				$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description, pos_id) 
-                 VALUES ('terminal_type', 'POS', '$termtype', 'What the main payment system should be.', $kasse_id)";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-
-
-			# ################
-			# Mobilpos gem
-			# ################
-			update_settings_value("mobilepos", "POS", $mobilpos[$x], "Use the mobile pos system?", null, $x + 1);
-			if ($mobilpos[$x] == "on") {
-				update_settings_value("mobilwidth", "POS", $mobilwidth[$x], "The width of the mobile device", null, $x + 1);
-				update_settings_value("mobilzoom", "POS", $mobilzoom[$x], "The zoom of the mobile device", null, $x + 1);
-			}
-			update_settings_value("omv_menu", "POS", $omv_menu[$x], "If the system should swap main and sub main menus", null, $x + 1);
-
-
-
-			if ($box2) {
-				$box2    .= chr(9) . $kassekonti[$x];
-				$box3    .= chr(9) . $afd_nr[$x];
-				$box7    .= chr(9) . $moms_nr[$x];
-				$box3_2  .= chr(9) . $printer_ip[$x];
-				$box4_2  .= chr(9) . $terminal_ip[$x];
-				$box8_2  .= chr(9) . $mellemkonti[$x];
-				$box9_2  .= chr(9) . $diffkonti[$x];
-				$box10_2 .= chr(9) . $koekkenprinter[$x];
-				$box13_2 .= chr(9) . $bordvalg[$x];	 #20161116
-				$box2_3  .= chr(9) . $pfs[$x];	 #20161116
-				$poEaSa  .= chr(9) . $postEachSale[$x];
-				for ($y = 0; $y < count($ValutaKode); $y++) {
-					$VKbox4[$y] .= chr(9) . $ValutaKonti[$x][$y];
-					$VKbox5[$y] .= chr(9) . $ValutaMlKonti[$x][$y];
-					$VKbox6[$y] .= chr(9) . $ValutaDifKonti[$x][$y];
-				}
-			} else {
-				$box2    = $kassekonti[$x];
-				$box3    = $afd_nr[$x];
-				$box7    = $moms_nr[$x];
-				$box3_2  = $printer_ip[$x];
-				$box4_2  = $terminal_ip[$x];
-				$box8_2  = $mellemkonti[$x];
-				$box9_2  = $diffkonti[$x];
-				$box10_2 = $koekkenprinter[$x];
-				$box13_2 = $bordvalg[$x];	 #20161116
-				$box2_3  = $pfs[$x];
-				$poEaSa  = $postEachSale[$x];
-				for ($y = 0; $y < count($ValutaKode); $y++) {
-					$VKbox4[$y] = $ValutaKonti[$x][$y];
-					$VKbox5[$y] = $ValutaMlKonti[$x][$y];
-					$VKbox6[$y] = $ValutaDifKonti[$x][$y];
-				}
-			}
-		}
-		$box5 = NULL;
-		$box6 = NULL;
-
-		setcookie('saldi_pfs', '', time() - 60, '/');
-		if ($box3_2) {
-			if (isset($_COOKIE['saldi_printserver']))
-				setcookie("saldi_printserver", '', time() - 60, '/');
-			if (isset($_COOKIE['salditerm']))
-				setcookie("salditerm", '', time() - 60, '/'); #setcookie("salditerm","0",time()-1);
-		}
-
-		for ($x = 0; $x < count($ValutaKode); $x++) {
-			$qtxt = "update grupper set box4='$VKbox4[$x]',box5='$VKbox5[$x]',box6='$VKbox6[$x]' WHERE art='VK' and box1='$ValutaKode[$x]'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-
-		for ($x = 0; $x < $box4; $x++) {
-			if ($korttyper[$x]) {
-				$kortkonti[$x] *= 1;
-				if (!db_fetch_array(db_select("select id from kontoplan WHERE kontonr = '$kortkonti[$x]'", __FILE__ . " linje " . __LINE__))) {
-					if ($kortkonti[$x])
-						$txt = str_replace("<variable>", $kortkonti[$x], findtekst('277|Kontonr. <variable> eksisterer ikke', $sprog_id));
-					else
-						$txt = findtekst('278|Kontonr. skal udfyldes for alle kasser', $sprog_id);
-					print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-				}
-				if (isset($voucherItemNo[$x])) {
-					$qtxt = "select id from varer where lower(varenr) = '" . db_escape_string(strtolower($voucherItemNo[$x])) . "'";
-					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					if ($r['id'])
-						$voucherItemId[$x] = $r['id'];
-					else {
-						$voucherItemId[$x] = '0';
-						$alerttxt = "" . findtekst('320|Varenummer', $sprog_id) . " $voucherItemNo[$x] " . findtekst('1740|ikke fundet', $sprog_id) . "";
-						alert($alerttxt);
-					}
-				} else
-					$voucherItemId[$x] = '0';
-				if ($box5) {
-					$box5         .= chr(9) . trim($korttyper[$x]);
-					$box6         .= chr(9) . trim($kortkonti[$x]);
-					$box5_2       .= chr(9) . trim($betalingskort[$x]); #20121210
-					$box4_3       .= chr(9) . trim($voucher[$x]);	    #20181029
-					$box5_3       .= chr(9) . trim($voucherText[$x]);   #20181029
-					$voucherItems .= chr(9) . trim($voucherItemId[$x]); #20200116
-					$card_enabled .= chr(9) . trim($enabled[$x]);	    #20181215
-				} else {
-					$box5         = trim($korttyper[$x]);
-					$box6         = trim($kortkonti[$x]);
-					$box5_2       = trim($betalingskort[$x]); #20121210
-					$box4_3       = trim($voucher[$x]);       #20181029
-					$box5_3       = trim($voucherText[$x]);	  #20181029
-					$voucherItems = trim($voucherItemId[$x]); #20200116
-					$card_enabled = trim($enabled[$x]);       #20181215
-				}
-			}
-		}
-		$box7_2 = NULL;
-		for ($x = 0; $x < $bordantal; $x++) { #20140508
-			$tmp = $x + 1;
-			if (!isset($bord[$x]) || !$bord[$x])
-				$bord[$x] = "Bord " . $tmp;
-			($box7_2) ? $box7_2 .= chr(9) . $bord[$x] : $box7_2 = trim($bord[$x]);
-		}
-		if ($varenr && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$varenr'", __FILE__ . " linje " . __LINE__))) {
-			$box11_2 = $r['id'];
-		} elseif ($varenr) {
-			$txt = str_replace('XXXXX', $varenr, findtekst('289|Varenr. XXXXX eksisterer ikke.', $sprog_id));
-			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-		}
-		if ($rabatvarenr && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$rabatvarenr'", __FILE__ . " linje " . __LINE__))) {
-			$box8 = $r['id'];
-		} elseif ($rabatvarenr) {
-			$txt = str_replace('XXXXX', $rabatvarenr, findtekst('289|Varenr. XXXXX eksisterer ikke.', $sprog_id));
-			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-		}
-		$qtxt = "select id from grupper WHERE art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'";
-		if (($id1 == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
-			$id1 = $r['id'];
-		elseif ($id1 == 0) {
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13,box14,fiscal_year) values ('POS_valg','1','POS','$box1','$box2','$box3','$box4','$box5','$box6','$box7','','$box9','$box10','$box11','$box12','$box13','$box14','$regnaar')", __FILE__ . " linje " . __LINE__);
-		} elseif ($id1 > 0) {
-			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',box14='$box14' WHERE id = '$id1'", __FILE__ . " linje " . __LINE__);
-		}
-		if ($id2) {
-			$qtxt = "update grupper set box1 = '$kasseprimo',box2='$optalassist',box3='$box3_2',box4='$box4_2',";
-			$qtxt.= "box5='$box5_2',box6='$div_kort_kto',box7='$box7_2',box8='$box8_2',box9='$box9_2',box10='$box10_2',";
-			$qtxt.= "box11='$box11_2',box12='$vis_saet',box13='$box13_2',box14='$box14_2' WHERE id = '$id2'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		if ($id3) {
-			$qtxt = "update grupper set box1='$box1_3',box2='$box2_3',box3='$box3_3',box4='$box4_3',box5='$box5_3',box6='',box7='',";	#20181029
-			$qtxt.= "box8='',box9='',box10='',box11='',box12='',box13='',box14='' WHERE id = '$id3'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$qtxt = "select id from settings where var_name='card_enabled'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['id']) {
-			$qtxt = "update settings set var_value='$card_enabled' where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id)";
-			$qtxt.= " values ";
-			$qtxt.= "('card_enabled','Paycards','$card_enabled','Tab separated list showing enabled paymentcards ";
-			$qtxt.= "(Disabled cards are used to specify account# in API orders and returns from payment terminal)','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "select id from settings where var_name='change_cardvalue'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['id']) {
-			$qtxt = "update settings set var_value='$change_cardvalue' where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id)";
-			$qtxt.= " values ";
-			$qtxt.= "('change_cardvalue','Paycards','$change_cardvalue','Allow changes in cardsums when doing cash summary";
-			$qtxt.= "(Disabled cards are used to specify account# in API orders and returns from payment terminal)','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		# voucherItems
-		$qtxt = "select id from settings where var_name='voucherItems'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['id']) {
-			$qtxt = "update settings set var_value='$voucherItems' where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id)";
-			$qtxt.= " values ";
-			$qtxt.= "('voucherItems','Paycards','$voucherItems','Tab separated list showing which item representing the voucher','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "select id from settings where var_name='deactivateBonprint'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['id']) {
-			$qtxt = "update settings set var_value='$deactivateBonprint' where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id)";
-			$qtxt.= " values ";
-			$qtxt.= "('deactivateBonprint','globals','$deactivateBonprint','Deactivates the receipt printer','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "select id from settings where var_name='postEachSale'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['id']) {
-			$qtxt = "update settings set var_value='$poEaSa' where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id)";
-			$qtxt.= " values ";
-			$qtxt.= "('postEachSale','POS','$poEaSa','Post to transactions immediately when finishing sale','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "select id from settings where var_name='jump2price'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['id']) {
-			$qtxt = "update settings set var_value='$jump2price' where id='$r[id]'";
-		} else {
-			$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id)";
-			$qtxt.= " values ";
-			$qtxt.= "('jump2price','globals','$jump2price','Cursor jumps direct to price and sets quantity to 1 if price is 0','0')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-		#######################################################################################
-	} elseif ($sektion == 'docubizz') {
-		$id   = $_POST['id'];
-		$box1 = $_POST['box1'];
-		$box2 = $_POST['box2'];
-		$box3 = $_POST['box3'];
-		$box4 = $_POST['box4'];
-		$box5 = $_POST['box5'];
-
-		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DocBiz'", __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		elseif (!$id) {
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ('DocuBizz','1','DocBiz','$box1','$box2','$box3','$box4','$box5')", __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) {
-			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-		}
-	} elseif ($sektion == 'upload_dbz') {
-		include("docubizzexport.php");
-		$r = db_fetch_array(db_select("select * from grupper WHERE art = 'DocBiz'", __FILE__ . " linje " . __LINE__));
-		$kommando = "cd ../temp/$db\n$exec_path/ncftp ftp://" . $r['box2'] . ":" . $r['box3'] . "@" . $r['box1'] . "/" . $r['box5'] . " < ftpscript > NULL ";
-		system($kommando);
-		$alert = findtekst('1741|Data sendt til DocuBizz', $sprog_id);
-		print "<BODY onLoad=\"JavaScript:alert('$alert')\">";
-		#######################################################################################
-	} elseif ($sektion == 'bilag') {
-		$id   = if_isset($_POST['id']);
-		$box1 = if_isset($_POST['box1']);
-		$box2 = if_isset($_POST['box2']);
-		$box3 = if_isset($_POST['box3']);
-		if ($box3 && $box3 != '********')
-			$box3 = urlencode($box3);
-		$box4 = if_isset($_POST['box4']);
-		$box5 = if_isset($_POST['box5']);
-		$storageType = if_isset($_POST['storageType']);
-		($storageType == 'internFTP') ? $box6 = 'on' : $box6 = NULL;
-		$box7 = if_isset($_POST['box7']);
-		#		if ($box6) {
-		#			include("../includes/connect.php");
-		#			$r=db_fetch_array(db_select("select * from diverse WHERE beskrivelse='FTP' and nr='1'"));
-		#			$box1=$r['box1'];
-		#			$box2=$r['box2'];
-		#			$box3=$r['box3'];
-		#			$box4=$r['box4'];
-		#			$box5=$r['box5'];
-		#			include("../includes/online.php");
-		#		}
-		if ($box1 && substr($box1, -1) != "/")
-			$box1 .= "/";
-		if ($box6 && $box1 && !strpos($_SERVER['SERVER_NAME'], $box1))
-			$box1 .= $_SERVER['SERVER_NAME'] . "/";
-		if ($box6 && $box1 && !strpos($db, $box1))
-			$box1 .= $db . "/";
-		if ($box3 == '********') {
-			$r = db_fetch_array(db_select("select box3 from grupper WHERE art = 'bilag'", __FILE__ . " linje " . __LINE__));
-			$box3 = $r['box3'];
-		}
-		if (!$box6 && $box1 && $box2 && $box4 && $box5)
-			testftp($box1, $box2, $box3, $box4, $box5, $box6);
-		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'bilag'", __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		elseif (!$id) {
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7) values ('Bilag og dokumenter','1','bilag','$box1','$box2','$box3','$box4','$box5','$box6','$box7')", __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) {
-			if ($box6) {
-				db_modify("update grupper set box6='$box6',box7='$box7' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-			} else {
-				db_modify("update grupper set box1='$box1',box2='$box2',box4='$box4',box5='$box5',box6='$box6' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-				include("../includes/connect.php");
-				db_modify("update regnskab set bilag='0' WHERE id = '$db_id'", __FILE__ . " linje " . __LINE__);
-				include("../includes/online.php");
-				if ($box3 != '********')
-					db_modify("update grupper set  box3='$box3' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-			}
-		}
-		if ($box6) {
-			include("../includes/connect.php");
-			db_modify("update regnskab set bilag='1' WHERE id = '$db_id'", __FILE__ . " linje " . __LINE__);
-			include("../includes/online.php");
-		}
-		#######################################################################################
-	} elseif ($sektion == 'email') {
-		$id    = $_POST['id'];
-		$box1  = db_escape_string($_POST['box1']);
-		$box2  = db_escape_string($_POST['box2']);
-		$box3  = db_escape_string($_POST['box3']);
-		$box4  = db_escape_string($_POST['box4']);
-		$box5  = db_escape_string($_POST['box5']);
-		$box6  = db_escape_string($_POST['box6']);
-		$box7  = db_escape_string($_POST['box7']);
-		$box8  = db_escape_string($_POST['box8']);
-		$box9  = db_escape_string($_POST['box9']);
-		$box10 = db_escape_string($_POST['box10']);
-
-		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'MAIL' and kodenr = '1'", __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		elseif (!$id) {
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10) values ('e-mail tekster','1','MAIL','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10')", __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) {
-			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-		}
-		#######################################################################################
-	} elseif ($sektion == 'orediff') {
-		$id   = $_POST['id'];
-		$box1 = $_POST['box1'];
-		$box2 = $_POST['box2'] * 1;
-		if ($box1)
-			$box1 = usdecimal($box1);
-		if ($box2 && !db_fetch_array(db_select("select id from kontoplan WHERE kontonr = '$box2' and kontotype = 'D' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__))) {
-			$tekst = findtekst('175|Kontonummer for øredifferencer findes ikke i kontoplanen', $sprog_id);
-			print "<BODY onLoad=\"JavaScript:alert('$tekst')\">";
-			$diffkto = $box2;
-			$box2 = '';
-		}
-		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'OreDif' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		elseif (!$id) {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,fiscal_year) ";
-			$qtxt.= "values ('Oredifferencer','1','OreDif','$box1','$box2','$regnaar')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) {
-			db_modify("update grupper set  box1='$box1',box2='$box2' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-		}
-		######################################################################################
 	} elseif ($sektion == 'massefakt') {
 		$id         = if_isset($_POST['id']);
 		$brug_mfakt = if_isset($_POST['brug_mfakt']);
@@ -1912,37 +677,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 
 ######################################################################################
-	} elseif ($sektion == 'kontoplan_io') {
-		if (strstr($_POST['submit']) == "Eksport") {
-			list($tmp) = explode(":", $_POST['regnskabsaar']);
-			print "<BODY onLoad=\"javascript:exporter_kontoplan=window.open('exporter_kontoplan.php?aar=$tmp','lager','scrollbars=yes,resizable=yes,dependent=yes');exporter_kontoplan.focus();\">";
-		} elseif (strstr($_POST['submit']) == "Import") {
-			print "<BODY onLoad=\"javascript:importer_kontoplan=window.open('importer_kontoplan.php','kontoplan','scrollbars=yes,resizable=yes,dependent=yes');importer_kontoplan.focus();\">";
-		}
-	} elseif ($sektion == 'adresser_io') {
-		if (strstr($_POST['submit']) == "Eksport") {
-			print "<BODY onLoad=\"javascript:exporter_adresser=window.open('exporter_adresser.php?aar=$tmp','debitor','scrollbars=yes,resizable=yes,dependent=yes');exporter_adresser.focus();\">";
-		} elseif (strstr($_POST['submit']) == "Import") {
-			print "<BODY onLoad=\"javascript:importer_debitor=window.open('importer_debitor.php','debitor','scrollbars=yes,resizable=yes,dependent=yes');importer_debitor.focus();\">";
-		}
-	} elseif ($sektion == 'varer_io') {
-		if (strstr($_POST['submit']) == "Eksport") {
-			print "<BODY onLoad=\"javascript:exporter_varer=window.open('exporter_varer.php?aar=$tmp','debitor','scrollbars=yes,resizable=yes,dependent=yes');exporter_varer.focus();\">";
-		} elseif (strstr($_POST['submit']) == "Import") {
-			print "<BODY onLoad=\"javascript:importer_varer=window.open('importer_varer.php','importer_varer','scrollbars=yes,resizable=yes,dependent=yes');importer_varer.focus();\">";
-		}
-	} elseif ($sektion == 'solar_io') {
-		if (strstr($_POST['submit']) == "Import") {
-			print "<BODY onLoad=\"javascript:solarvvs=window.open('solarvvs.php','solarvvs','scrollbars=yes,resizable=yes,dependent=yes');solarvvs.focus();\">";
-		}
-	} elseif ($sektion == 'formular_io') {
-		if (strstr($_POST['submit']) == "Eksport") {
-			print "<BODY onLoad=\"javascript:exporter_formular=window.open('exporter_formular.php','exporter_formular','scrollbars=yes,resizable=yes,dependent=yes');exporter_formular.focus();\">";
-		} elseif (strstr($_POST['submit']) == "Import") {
-			print "<BODY onLoad=\"javascript:importer_formular=window.open('importer_formular.php','importer_formular','scrollbars=yes,resizable=yes,dependent=yes');importer_formular.focus();\">";
-		}
-	} elseif ($sektion == 'sqlquery_io') {
-		$sqlstreng = if_isset($_POST['sqlstreng']);
+	// 20261005 Sawaneh G11: the *_io handlers (fatal strstr() with one argument, audit B-IO1) are gone; the sections redirect.
 	} elseif ($sektion == 'kontoindstillinger') {
 
 		if (isset($_POST['update_max_users'])) {
@@ -2007,121 +742,11 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		
 		
-		if (isset($_POST['newName']) && $_POST['newName']) {
-			$newName = trim(db_escape_string($_POST['newName']));
-			include("../includes/connect.php");
-			if (db_fetch_array(db_select("select id from regnskab WHERE regnskab = '$newName'", __FILE__ . " linje " . __LINE__))) {
-				$alert1 = findtekst('1742|Der findes allerede et regnskab med navnet', $sprog_id);
-				$alert2 = findtekst('1743|Navn ikke ændret', $sprog_id);
-				print "<BODY onLoad=\"JavaScript:alert('$alert1 $newName! $alert2')\">";
-			} else {
-				$r = db_fetch_array(db_select("select id from kundedata WHERE regnskab_id = '$db_id'", __FILE__ . " linje " . __LINE__));
-				if (!$r['id']) {
-					$tmp = db_escape_string($regnskab);
-					db_modify("update kundedata set regnskab_id = '$db_id' WHERE regnskab='$tmp'", __FILE__ . " linje " . __LINE__);
-				}
-				db_modify("update regnskab set regnskab = '$newName' WHERE db='$db'", __FILE__ . " linje " . __LINE__);
-			}
-			include("../includes/online.php");
-		} elseif (isset($_POST['updateCurrency'])) {
-			$baseCurrency = $_POST['baseCurrency'];
-			if ($baseCurrency) {
-				$qtxt = "select id from settings where var_name='baseCurrency'";
-				$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r['id'])
-					$qtxt = "update settings set var_value='$baseCurrency', user_id='0' where id='$r[id]'";
-				else {
-					$qtxt = "insert into settings (var_name,var_value,var_description,user_id)";
-					$qtxt.= " values ";
-					$qtxt.= "('baseCurrency','$baseCurrency','System Base currency','0')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-		} elseif (isset($_POST['opdat_tidszone'])) {
-			$timezone = $_POST['timezone'];
-			if ($timezone) {
-				$r = db_fetch_array(db_select("select id from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
-				if ($r['id'])
-					$qtxt = "update settings set var_value='$timezone', user_id='0' where id='$r[id]'";
-				else {
-					$qtxt = "insert into settings (var_name,var_value,var_description,user_id)";
-					$qtxt.= " values ";
-					$qtxt.= "('timezone','$timezone','Tidszone. Anvendes hvis regnskabet anvender anden tidszone end serveren','0')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				setcookie("timezone", $timezone, time() + 60 * 60 * 24 * 30, '/');
-			}
-		} elseif (isset($_POST['nulstil']) && $_POST['nulstil']) { #20170731
-			require_once(__DIR__ . '/resetAccount.php');
-			try {
-				resetAccount(!empty($_POST['behold_debkred']), !empty($_POST['behold_varer']), $db_type, $db);
-				$regnaar = 1;
-				print tekstboks('regnskab nulstillet');
-			} catch (Throwable $error) { # 20260917 en fejl må ikke ende som en hvid fejlside
-				print tekstboks('Regnskabet blev ikke nulstillet: ' . $error->getMessage());
-			}
-		} elseif (isset($_POST['slet'])) {
-			if ($_POST['slet_regnskab'] == 'on') { #20185024
-				include("../includes/connect.php");
-				db_modify("update regnskab set lukket='on',logintekst='slettet af $brugernavn den " . date("Ymd H.i") . "' where id = '$db_id'", __FILE__ . " linje " . __LINE__);
-				db_modify("delete from online where db='$db'", __FILE__ . " linje " . __LINE__);
-				include("../includes/online.php");
-				print "Sletter";
-			} else {
-				$tekst1 = findtekst('852|Slet regnskab', $sprog_id);
-				$alert  = findtekst('1744|For at slette dit regnskab skal du afmærke feltet ved', $sprog_id);
-				alert("$alert $tekst1: $regnskab");
-			}
-		}
-	} elseif ($sektion == 'smtp') {
-		$smtp      = trim(db_escape_string($_POST['smtp']));
-		$smtpuser  = trim(db_escape_string($_POST['smtpuser']));
-		$smtppass  = trim(db_escape_string($_POST['smtppass']));
-		$smtpcrypt = trim(db_escape_string($_POST['smtpcrypt']));
-		db_modify("update adresser set felt_1 = '$smtp',felt_2 = '$smtpuser',felt_3 = '$smtppass',felt_4 = '$smtpcrypt' WHERE art='S'", __FILE__ . " linje " . __LINE__);
-		$sektion = 'kontoindstillinger';
+		// 20261005 Sawaneh G1.3/G1.4: rename, base currency, time zone, reset and delete are saved by the new sections.
 	} elseif ($sektion == 'tjekliste') {
-		$id            = if_isset($_POST['id']);
-		$tjekantal     = if_isset($_POST['tjekantal']);
-		$fase          = if_isset($_POST['fase']);
-		$ny_fase       = if_isset($_POST['ny_fase']);
-		$ny_tjekgruppe = if_isset($_POST['ny_tjekgruppe']);
-		$tjekpunkt     = if_isset($_POST['tjekpunkt']);
-		$nyt_tjekpunkt = if_isset($_POST['nyt_tjekpunkt']);
-		$liste_id      = if_isset($_POST['liste_id']);
-		$gruppe_id     = if_isset($_POST['gruppe_id']);
-		$ret           = if_isset($_POST['ret']);
-
-		if ($ny_tjekliste = $_POST['ny_tjekliste']) {
-			$r = db_fetch_array($q = db_select("select max(fase) as fase from tjekliste WHERE assign_to = 'sager'", __FILE__ . " linje " . __LINE__));
-			$nf = $r['fase'] + 1;
-			db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekliste','0','sager','$nf')", __FILE__ . " linje " . __LINE__);
-		}
-		for ($x = 1; $x <= $tjekantal; $x++) {
-			if (isset($ny_fase[$x]) && $ny_fase[$x])
-				$nf = $ny_fase[$x] + .1;
-			if ($fase[$x] != $nf)
-				db_modify("update tjekliste set fase='$nf' WHERE id = '$id[$x]'", __FILE__ . " linje " . __LINE__);
-			if ($ret && $ret == $id[$x] && $tjekpunkt[$x])
-				db_modify("update tjekliste set tjekpunkt='$tjekpunkt[$x]' WHERE id = '$id[$x]'", __FILE__ . " linje " . __LINE__);
-			if (isset($ny_tjekgruppe[$x]) && $ny_tjekgruppe[$x]) {
-				db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe[$x]','$liste_id[$x]','sager','$fase[$x]')", __FILE__ . " linje " . __LINE__);
-			}
-			if (isset($nyt_tjekpunkt[$x]) && $nyt_tjekpunkt[$x]) {
-				db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$nyt_tjekpunkt[$x]','$gruppe_id[$x]','sager','$fase[$x]')", __FILE__ . " linje " . __LINE__);
-			}
-		}
-
-		if ($ny_tjekgruppe = $_POST['ny_tjekgruppe']) {
-
-			$qtxt = "select max(fase) from tjekliste WHERE assign_to = 'sager'";
-			($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && isset($r['fase'])) ? $ny_fase = $r['fase'] : $ny_fase = NULL;
-			if ($ny_fase || $ny_fase == '0')
-				$ny_fase++;
-			else
-				$ny_fase = 0;
-			#			db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe','0','sager','$ny_fase')",__FILE__ . " linje " . __LINE__);
-		}
+		// 20261009 Sawaneh Checklists moved to the Sager module (settings redesign §4, phase 4e).
+		header('Location: ../sager/tjeklister.php');
+		exit;
 	}
 } else {
 	$valg    = if_isset($_GET['valg']);
@@ -2131,184 +756,26 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 
 }
-$docubizz = NULL;
-if (db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr = '2' and box6='on'", __FILE__ . " linje " . __LINE__)))
-	$docubizz = 'on';
 
 print "<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" height=\"100%\"><tbody>";
 
-if ($menu != 'T') {
-	print "<td width=\"170px\" valign=\"top\">";
-	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
-	if ($menu == 'S') {
-		$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
-		$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
-		$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
-		print "<script>
-		if (typeof window.saldiTranslations === 'undefined') {
-			window.saldiLanguage = " . (int)$sprog_id . ";
-			window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
-		}
-		</script>";
-		print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
-		print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
-		print "<tr><td valign='top' align=left><div class=\"settings-search-wrapper\" style=\"padding-top:0;\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
-
-		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; ".findtekst('30|Tilbage', $sprog_id)."</b></button></a></td></tr>\n"; // 200240428
-
-		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('783|Kontoindstillinger', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=provision>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('784|Provisionsberegning', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=userSettings>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('785|Personlige valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=ordre_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('786|Ordrerelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=productOptions>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('787|Varerelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=variant_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('788|Variantrelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		// print "<tr><td align=left><a href=diverse.php?sektion=shop_valg>
-		// 	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-		// 	   .findtekst('789|Shoprelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=api_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			   API</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=stripe_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			   Stripe abonnement</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=labels>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('791|Mærkater', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=pricelists>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('792|Prislister', $sprog_id)."</button></a><!--tekst 427--></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=rykker_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('793|Rykkerrelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=div_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('794|Diverse valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=tjekliste>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('796|Tjeklister', $sprog_id)."</button></a></td></tr>\n";
-
-		if ($docubizz) {
-			print "<tr><td align=left><a href=diverse.php?sektion=docubizz>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				   .findtekst('796|Tjeklister', $sprog_id)."</button></a></td></tr>\n";
-		}
-
-		print "<tr><td align=left><a href=diverse.php?sektion=bilag>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
-
-		if (function_exists('bankIntegrationEnabled') && bankIntegrationEnabled()) {
-			// TODO: findtekst. // TODO: Translation Tekst til bank integration
-			print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				   ."Bank Integration" ."</button></a></td></tr>\n";
-		}
-
-		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('170|Øredifferencer', $sprog_id)."</button></a><!--tekst 170--></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=massefakt>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('200|Massefakturering', $sprog_id)."</button></a><!--tekst 200--></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=barcodescan>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .'App Barcode'."</button></a><!--tekst 200--></td></tr>\n";
-
-		if (file_exists("../debitor/pos_ordre.php")) {
-			print "<tr><td align=left><a href=diverse.php?sektion=posOptions>
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			.findtekst('271|PoS-valg', $sprog_id)."</button></a></td></tr>\n";
-		}
-
-		print "<tr><td align=left><a href=diverse.php?sektion=sprog>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('801|Sprog', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=div_io>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('802|Import & eksport', $sprog_id)."</button></a></td></tr>\n";
-
-		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
-		print "<script>document.getElementById('sidebar-base').style.display = 'none';</script>";
-
-	} else { //Gammel menu
-		print "<tr><td align=\"center\" valign=\"top\"><br></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoindstillinger>".findtekst('783|Kontoindstillinger', $sprog_id)."</a></td></tr>\n"; // 20210513
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=provision>".findtekst('784|Provisionsberegning', $sprog_id)."</a>&nbsp;</td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=personlige_valg>".findtekst('785|Personlige valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=ordre_valg>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=productOptions>".findtekst('787|Varerelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst('788|Variantrelaterede valg', $sprog_id)."</a></td></tr>\n";
-		// print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=stripe_valg>Stripe abonnement</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>".findtekst('794|Diverse valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=../systemdata\barcodescan.php>App Barcode</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>".findtekst('796|Tjeklister', $sprog_id)."</a></td></tr>\n";
-		if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>".findtekst('796|Tjeklister', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>".findtekst('797|Bilagshåndtering', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>".findtekst('170|Øredifferencer', $sprog_id)."</a><!--tekst 170--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>".findtekst('200|Massefakturering', $sprog_id)."</a><!--tekst 200--></td></tr>\n";
-		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=posOptions>".findtekst('271|PoS-valg', $sprog_id)."</a><!--tekst 271--></td></tr>\n";
-		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=email>Mail indstillinger</a></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=sprog>".findtekst('801|Sprog', $sprog_id)."</a></td></tr>\n";
-		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoplan_io>Indl&aelig;s  / udl&aelig;s kontoplan</a></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_io>".findtekst('802|Import & eksport', $sprog_id)."</a></td></tr>\n";
-		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
-	}
-}
+// 20260928 Phase 4: no separate "Diverse" column; the frame (top.php) lists the group's pages.
+print "<td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
 if (!$sektion)
 	print "<td><br></td>";
 if ($sektion == "kontoindstillinger")
 	kontoindstillinger($regnskab, $skiftnavn);
-if ($sektion == "provision")
-	provision();
-if ($sektion == "personlige_valg")
-	personlige_valg();
-if ($sektion == 'userSettings') {
-	include_once('syssetupIncludes/userSettings.php');
-	userSettings();
-}
 if ($sektion == "ordre_valg")
 	ordre_valg();
-if ($sektion == "productOptions" || $sektion == "label") {
-	include("diverseIncludes/productOptions.php");
-	productOptions($defaultProvision);
-}
 if ($sektion == "variant_valg") variant_valg();
 // if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
 if ($sektion == "stripe_valg") {
+	// Subscriptions (Stripe) belong to the operator ledger only (settings redesign G9.6).
+	if ($db != $sqdb) {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=settings.php\">";
+		exit;
+	}
 	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 	stripeValg();
 }
@@ -2317,41 +784,21 @@ if ($sektion == "pricelists") {
 	include("diverseIncludes/pricelists.php");
 	pricelists();
 }
-if ($sektion == "rykker_valg") rykker_valg();
 if ($sektion == "div_valg") div_valg(); # Kalder sys_div_valg.php
-if ($sektion == "docubizz") docubizz();
-if ($sektion == "bilag") bilag();
 if ($sektion == "bank_integration") include('diverseIncludes/bank_integration.php');
 //if ($sektion=="barcodescan") barcodescan();
-if ($sektion == "orediff") orediff($diffkto);
 if ($sektion == "massefakt") massefakt();
-if ($sektion == "posOptions") {
-	include("diverseIncludes/posOptions.php");
-	posOptions();
-}
-if ($sektion == "barcodescan") {
-	header("Location: ../systemdata/barcodescan.php");
-	exit;
-}
 
 if ($sektion == "sprog") {
 	include("diverseIncludes/language.php");
 	language();
 }
-if ($sektion == "tjekliste")
-	tjekliste();
-if (strpos($sektion, "_io")) {
-	kontoplan_io();
-	formular_io();
-	adresser_io();
-	varer_io();
-	variantvarer_io();
-	sqlquery_io($sqlstreng);
+if ($sektion == "tjekliste") {
+	header('Location: ../sager/tjeklister.php'); // 20261009 Sawaneh moved to the Sager module (4e)
+	exit;
 }
 
 print "</tbody></table></td></tr>";
-if ($menu == 'T')
-	print "</div>";
 #print "</form>";
 #print "</tbody></table></td></tr>";
 

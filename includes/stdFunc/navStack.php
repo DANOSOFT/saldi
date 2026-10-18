@@ -21,6 +21,7 @@
 //                  compares the path only, and nav files are cleaned up on logout.
 // 20260907 CDX/LH Reject raw whitespace and control characters in request return targets.
 // 20260907 CDX/LH Accept malformed request values at the navigation boundary without TypeError.
+// 20261005 Sawaneh Background fetch/XHR requests are not recorded (they filled the stack the came-from chip and search read).
 // 20260921 CL/SZ MB-50: exclude dashboard chart data endpoints (weekly_graph_data.php,
 //                customer_graph_data.php) from the nav stack so Luk on POS-Menuer
 //                never lands on raw JSON.
@@ -94,6 +95,9 @@ function _nav_write(array $stack): void {
  */
 function _nav_should_record(string $url): bool {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') return false;
+    // Background fetch/XHR calls (settings search, lookups, the global search) are not pages the user visited.
+    if (isset($_SERVER['HTTP_SEC_FETCH_DEST']) && !in_array($_SERVER['HTTP_SEC_FETCH_DEST'], array('document', 'iframe', 'frame'), true)) return false;
+    if (isset($_SERVER['HTTP_X_REQUESTED_WITH'])) return false;
     return _nav_is_recordable($url);
 }
 

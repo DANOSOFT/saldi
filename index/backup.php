@@ -21,6 +21,7 @@
   @session_start();
   $s_id=session_id();
   include("../includes/connect.php");
+  $permission_key = 'settings.backup'; // 20261002 Sawaneh key renamed per settings redesign §11.1
   include("../includes/online.php");
   include("../includes/db_query.php");
 
@@ -37,7 +38,7 @@
   print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
   print "<tr><td align=\"center\" valign=\"top\">";
   print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-  print "<td width=\"25%\" bgcolor=\"$bgcolor2\">$font<small><a href=../includes/luk.php accesskey=T>Tilbage</a></small></td>";
+  print "<td width=\"25%\" bgcolor=\"$bgcolor2\">$font<small><a href=\"$returside\" accesskey=L>Tilbage</a></small></td>";
   print "<td width=\"50%\" bgcolor=\"$bgcolor2\" align=\"center\">$font<small>Sikkerhedskopi</small></td>";
   print "<td width=\"25%\" bgcolor=\"$bgcolor2\" align = \"right\"></td>";
   print "</tbody></table>";

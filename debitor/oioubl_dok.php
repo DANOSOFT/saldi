@@ -3,6 +3,7 @@
 $s_id=session_id();
 
 // ---------debitor/oioubl_dok.php----patch 3.6.1---2015-12-23---------
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -35,6 +36,7 @@ $css="../css/standard.css";
 #$form=array();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/oioublfunk.php");
@@ -71,11 +73,10 @@ print "<div align=\"center\">
 	<tr><td height = \"25\" align=\"center\" valign=\"top\">
 		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>";
 		if ($menu=='S') {
-			print "
-			<td width=\"10%\" align=center><a href=\"$returside\" accesskey=L>
-			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></div></td>
-			<td width=\"80%\" style='$topStyle' align=center>$title</a></div></td>
-			<td width=\"10%\" style='$topStyle' align=center><br></div></td>";
+			include_once("../includes/stdFunc/pageBar.php");
+			print "<td colspan=\"3\">";
+			page_bar(array('title' => $title, 'back' => $returside));
+			print "</td>";
 		} else {
 			print "
 			<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"$returside\" accesskey=L>Luk</a></div></td>

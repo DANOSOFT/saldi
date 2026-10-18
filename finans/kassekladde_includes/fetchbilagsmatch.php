@@ -50,6 +50,7 @@
 //                   date_score CASE itself (same pattern amountTolerance already used
 //                   correctly), so it now only zeroes the date signal when out of range
 //                   instead of excluding the row outright.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261003 CL/SZ SD-717: archived pool documents are not offered as matches.
 //                The header named the wrong file (kassekladde.php); corrected.
 // 20261012 CL/SZ SD-730 Each match carries its pool row's version (poolMetadataVersion()): since SST-777 docPool.php refuses an
@@ -61,6 +62,7 @@
     @session_start();
     $s_id=session_id();
     include("../../includes/connect.php");
+    $permission_key = 'finans.kassekladde';
     include("../../includes/online.php");
     require_once __DIR__ . "/../../includes/docsIncludes/poolArchive.php";
     require_once __DIR__ . "/../../includes/docsIncludes/poolMetadata.php";

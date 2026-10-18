@@ -47,6 +47,7 @@ $konto_id = explode(";", $kontoliste);
 
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");
@@ -54,6 +55,7 @@ include("../includes/formfunk.php");
 rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$regnaar,0);
 
 # 20120815 næste 8 linjer remmet, bliver vist ikke brigt til noget
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 #$query = db_select("select * from formularer where formular = $formular and art = 1 and beskrivelse = 'LOGO'",__FILE__ . " linje " . __LINE__);
 #if ($row = db_fetch_array($query)) {
 #	$logo_X=$row['xa']*2.86;

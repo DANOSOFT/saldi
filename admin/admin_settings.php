@@ -31,6 +31,7 @@
 // 20260212 PHR pdfmerge replaced by pdftk and some errors
 // 20260320 PHR cleanup (pdftk)
 // 20260326 PHR Fixed error in weasyprint
+// 20261001 Sawaneh Saves look the row up when the form has no id (stale or resubmitted form made duplicates).
 
 @session_start();
 $s_id=session_id();
@@ -72,30 +73,15 @@ if (isset($_POST['gem'])) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 */
-	if ($ps2pdfId) $qtxt="update settings set var_value='$ps2pdf' where id='$ps2pdfId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('ps2pdf','$ps2pdf','Program til konvertering af PostScript til PDF')";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($weasyprintId) $qtxt="update settings set var_value='$weasyprint' where id='$weasyprintId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('weasyprint','$weasyprint','Program til konvertering af HTML til PDF')";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($pdftkId) $qtxt="update settings set var_value='$pdftk' where id='$pdftkId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('pdftk','$pdftk','Program til sammenlægning af PDF filer')";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($ftpId) $qtxt="update settings set var_value='$ftp' where id='$ftpId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('ftp','$ftp','Program til FTP')";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($dbdumpId) $qtxt="update settings set var_value='$dbdump' where id='$dbdumpId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('dbdump','$dbdump','Program til databasedump')";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($zipId) $qtxt="update settings set var_value='$zip' where id='$zipId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('zip','$zip','Program til komprimering af filer')";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($unzipId) $qtxt="update settings set var_value='$unzip' where id='$unzipId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('unzip','$unzip','Program til dekomprimering af filer')";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($tarId) $qtxt="update settings set var_value='$tar' where id='$tarId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('tar','$tar','Program til pakning af filer')";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	admin_setting_save($ps2pdfId, 'ps2pdf', $ps2pdf, 'Program til konvertering af PostScript til PDF');
+	admin_setting_save($weasyprintId, 'weasyprint', $weasyprint, 'Program til konvertering af HTML til PDF');
+	admin_setting_save($pdftkId, 'pdftk', $pdftk, 'Program til sammenlægning af PDF filer');
+	admin_setting_save($ftpId, 'ftp', $ftp, 'Program til FTP');
+	admin_setting_save($dbdumpId, 'dbdump', $dbdump, 'Program til databasedump');
+	admin_setting_save($zipId, 'zip', $zip, 'Program til komprimering af filer');
+	admin_setting_save($unzipId, 'unzip', $unzip, 'Program til dekomprimering af filer');
+	admin_setting_save($tarId, 'tar', $tar, 'Program til pakning af filer');
+	if (!$alertTextId) $alertTextId = admin_setting_id('alertText');
 	if ($alertTextId) {
 		$qtxt="delete from settings where var_name='alertText' and id!='$alertTextId'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -254,5 +240,20 @@ print "</td></tr>";
 print "</tbody></table>";
 print "</body></html>";
 
-?>
+/**
+ * The form posts the row id it saw; a stale or resubmitted form has none, so look the row up first
+ * (one row per setting, unique index on settings).
+ */
+function admin_setting_id($name) {
+	$r = db_fetch_array(db_select("select id from settings where var_name = '$name' and coalesce(var_grp, '') = '' order by id", __FILE__ . " linje " . __LINE__));
+	return $r ? $r['id'] : NULL;
+}
 
+function admin_setting_save($id, $name, $value, $description) {
+	if (!$id) $id = admin_setting_id($name);
+	if ($id) $qtxt = "update settings set var_value='$value' where id='$id'";
+	else $qtxt = "insert into settings (var_name,var_value,var_description) values ('$name','$value','$description')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+?>

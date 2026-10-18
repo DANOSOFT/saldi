@@ -22,6 +22,7 @@ $s_id=session_id();
 $title="Vareimport";
 
 include("../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/dkdato.php");
 include("../includes/dkdecimal.php");

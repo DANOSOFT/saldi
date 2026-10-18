@@ -36,6 +36,7 @@ function logon($string) {
 			$connection = db_connect ($sqhost,$squser,$sqpass,$sqdb);
 			if ($connection) {
 				db_modify("insert into online (session_id, brugernavn, db, dbuser) values ('$s_id', '$brugernavn', '$db', '$squser')",__FILE__ . " linje " . __LINE__);
+				$permission_key = 'any';
 				include ("../includes/online.php");
 				if ($r = db_fetch_array(db_select("select * from brugere where brugernavn = '$brugernavn' and kode='$password'",__FILE__ . " linje " . __LINE__))) {
 					$rettigheder=trim($r['rettigheder']);

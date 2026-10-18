@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
         barcode \
         msmtp \
         msmtp-mta \
-    && docker-php-ext-install pgsql pdo_pgsql \
+    && docker-php-ext-install pgsql pdo_pgsql ftp \
     && rm -rf /var/lib/apt/lists/*
 
 # msmtp config is generated at container startup from env vars (see docker-entrypoint.sh)

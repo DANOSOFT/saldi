@@ -22,6 +22,7 @@
 //
 // Copyright (c) 2003-2023 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 function creditorLookup($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr) {
 	
 	global $bgcolor,$bgcolor2,$bgcolor5;
@@ -46,17 +47,7 @@ function creditorLookup($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dat
 #	$faktura=htmlentities($faktura,ENT_QUOTES,$charset);
 	$faktura=urlencode($faktura);
 	$belob=trim($belob);
-	if ($menu=='T') {
-		include_once '../includes/top_menu.php';
-		include_once '../includes/top_header.php';
-		print "<div id=\"header\"> 
-		<div class=\"headerbtnLft\"><a href='../finans/kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$valuta&lobenr=$lobenr&find=$find' class=\"button red small left\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div> 
-		<span class=\"headerTxt\">".findtekst('2695|Kreditorliste', $sprog_id)."</span>";     
-		print "<div class=\"headerbtnRght\"></div>";       
-		print "</div><!-- end of header -->
-			<div class=\"maincontentLargeHolder\">\n";
-			print  "<table class='dataTable2' border='0' cellspacing='1' align='center';>";
-	} elseif ($menu=='S') {
+	if ($menu=='S') {
 		print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
 		print "<td width='10%'><a href='../finans/kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$valuta&lobenr=$lobenr&find=$find' accesskey='L'>";

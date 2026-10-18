@@ -20,6 +20,7 @@
 // ----------------------------------------------------------------------
 //20230727 LOE file created from bilag.php //refer to uploadDoc.php
 //20230911 LOE Delete code modified
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -29,6 +30,7 @@ $title="emailDoc";
 
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

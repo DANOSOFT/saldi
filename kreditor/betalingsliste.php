@@ -19,6 +19,8 @@
 // -----------------------------------------------------------------------------------
 //
 // 20211102 MSC - Implementing new design
+// 20261008 Sawaneh WP-3.5: stray apostrophe removed from the betalinger.php returside.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id=session_id();
@@ -67,71 +69,39 @@ if (!$sort) {
 	$rf = "desc";
 }
 
-if ($menu=='T') {
-
-	include_once '../includes/topmenu/header.php';
-	print "<div class='$kund'>$title</div>
-	<div class='content-noside'>";
-	if ($vis=='alle') {
-		print "<center><div style='padding:10px'><input type='button' onclick=\"location.href='betalingsliste.php?sort=$sort&rf=$rf'\" value='Vis egne'>";
-	} else {
-		print "<center><div style='padding:10px'><input type='button' onclick=\"location.href='betalingsliste.php?sort=$sort&rf=$rf&vis=alle'\" value='Vis alle'>";
-	}
-	print "&nbsp;•&nbsp;<input type='button' onclick=\"location.href='betalinger.php?id=0'\" accesskey=N value='Ny'>";
-	print "&nbsp;•&nbsp;<input type='button' onclick=\"location.href='betalinger_settings.php'\" value='Indstillinger'></center>";
-	print "<div class='dataTablediv'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top' class='dataTable'><thead>";
+print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
+print "<tr><td height = '25' align='center' valign='top'>";
+print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='rapport.php' accesskey=L>Luk</a></td>";
+print "<td width='70%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>Betalingsliste</td>";
+print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='betalinger_settings.php'>Indstillinger</a></td>";
+print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href=betalinger.php?id=0 accesskey=N>Ny</a></td>";
+print "</tbody></table>";
+print "</td></tr>";
+print "<tr><td valign='top'>";
+print "<table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
+if ($vis=='alle') {
+	print "<tr><td colspan=6 align=center><a href=betalingsliste.php?sort=$sort&rf=$rf>Vis egne</a></td></tr>";
 } else {
-	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
-	print "<tr><td height = '25' align='center' valign='top'>";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='rapport.php' accesskey=L>Luk</a></td>";
-	print "<td width='70%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>Betalingsliste</td>";
-	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='betalinger_settings.php'>Indstillinger</a></td>";
-	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href=betalinger.php?id=0 accesskey=N>Ny</a></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
-	print "<tr><td valign='top'>";
-	print "<table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
-	if ($vis=='alle') {
-		print "<tr><td colspan=6 align=center><a href=betalingsliste.php?sort=$sort&rf=$rf>Vis egne</a></td></tr>";
-	} else {
-		print "<tr><td colspan=6 align=center><a href=betalingsliste.php?sort=$sort&rf=$rf&vis=alle>Vis alle</a></td></tr>";
-	}
+	print "<tr><td colspan=6 align=center><a href=betalingsliste.php?sort=$sort&rf=$rf&vis=alle>Vis alle</a></td></tr>";
 }
 
 if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';}
 else {$linjebg=$bgcolor5; $color='#000000';}
-if ($menu=='T') {
-	print "<tr>";
-	if (($sort == 'id')&&(!$rf)) print "<th width = 5%><b><a href=betalingsliste.php?sort=id&rf=desc>Id</a></b></th>\n";
-	else print "<th width = 5%><b><a href=betalingsliste.php?sort=id>Id</a></b></th>\n";
-	if (($sort == 'listedate')&&(!$rf)) print "<th width = 10%><b><a href=betalingsliste.php?sort=listedate&rf=desc>Dato</a></b></th>\n";
-	else print "<th width = 10%><b><a href=betalingsliste.php?sort=listedate>Dato</a></b></th>\n";
-	if (($sort == 'oprettet_af')&&(!$rf)) print "<th><b><a href=betalingsliste.php?sort=oprettet_af&rf=desc>Ejer</a></b></th>\n";
-	else print "<th><b><a href=betalingsliste.php?sort=oprettet_af>Ejer</a></b></th>\n";
-	if (($sort == 'listenote')&&(!$rf)) print "<th width = 70%><b><a href=betalingsliste.php?sort=listenote&rf=desc>Bem&aelig;rkning</a></b></th>\n";
-	else print "<th width = 70%><b><a href=betalingsliste.php?sort=listenote>Bem&aelig;rkning</a></b></th>\n";
-	if (($sort == 'bogforingsdate')&&(!$rf)) print "<th align=center><b><a href=betalingsliste.php?sort=bogforingsdate&rf=desc>Lukket</a></b></th>\n";
-	else print "<th class='text-center'><b>Lukket</b></th>\n";
-	if (($sort == 'bogfort_af')&&(!$rf)) print "<th><b><a href=betalingsliste.php?sort=bogfort_af&rf=desc>Af</a></b></th>\n";
-	else print "<th><b><a href=betalingsliste.php?sort=bogfort_af>af</a></b></th>\n";
-	print "</tr></thead><tbody>\n";
-} else {
-	print "<tr>";
-	if (($sort == 'id')&&(!$rf)) print "<td width = 5%><b><a href=betalingsliste.php?sort=id&rf=desc>Id</a></b></td>\n";
-	else print "<td width = 5%><b><a href=betalingsliste.php?sort=id>Id</a></b></td>\n";
-	if (($sort == 'listedate')&&(!$rf)) print "<td width = 10%><b><a href=betalingsliste.php?sort=listedate&rf=desc>Dato</a></b></td>\n";
-	else print "<td width = 10%><b><a href=betalingsliste.php?sort=listedate>Dato</a></b></td>\n";
-	if (($sort == 'oprettet_af')&&(!$rf)) print "<td><b><a href=betalingsliste.php?sort=oprettet_af&rf=desc>Ejer</a></b></td>\n";
-	else print "<td><b><a href=betalingsliste.php?sort=oprettet_af>Ejer</a></b></td>\n";
-	if (($sort == 'listenote')&&(!$rf)) print "<td width = 70%><b><a href=betalingsliste.php?sort=listenote&rf=desc>Bem&aelig;rkning</a></b></td>\n";
-	else print "<td width = 70%><b><a href=betalingsliste.php?sort=listenote>Bem&aelig;rkning</a></b></td>\n";
-	if (($sort == 'bogforingsdate')&&(!$rf)) print "<td align=center><b><a href=betalingsliste.php?sort=bogforingsdate&rf=desc>Lukket</a></b></td>\n";
-	else print "<td align=center><b>Lukket</b></td>\n";
-	if (($sort == 'bogfort_af')&&(!$rf)) print "<td><b><a href=betalingsliste.php?sort=bogfort_af&rf=desc>Af</a></b></td>\n";
-	else print "<td><b><a href=betalingsliste.php?sort=bogfort_af>af</a></b></td>\n";
-	print "</tr>\n";
-}
+print "<tr>";
+if (($sort == 'id')&&(!$rf)) print "<td width = 5%><b><a href=betalingsliste.php?sort=id&rf=desc>Id</a></b></td>\n";
+else print "<td width = 5%><b><a href=betalingsliste.php?sort=id>Id</a></b></td>\n";
+if (($sort == 'listedate')&&(!$rf)) print "<td width = 10%><b><a href=betalingsliste.php?sort=listedate&rf=desc>Dato</a></b></td>\n";
+else print "<td width = 10%><b><a href=betalingsliste.php?sort=listedate>Dato</a></b></td>\n";
+if (($sort == 'oprettet_af')&&(!$rf)) print "<td><b><a href=betalingsliste.php?sort=oprettet_af&rf=desc>Ejer</a></b></td>\n";
+else print "<td><b><a href=betalingsliste.php?sort=oprettet_af>Ejer</a></b></td>\n";
+if (($sort == 'listenote')&&(!$rf)) print "<td width = 70%><b><a href=betalingsliste.php?sort=listenote&rf=desc>Bem&aelig;rkning</a></b></td>\n";
+else print "<td width = 70%><b><a href=betalingsliste.php?sort=listenote>Bem&aelig;rkning</a></b></td>\n";
+if (($sort == 'bogforingsdate')&&(!$rf)) print "<td align=center><b><a href=betalingsliste.php?sort=bogforingsdate&rf=desc>Lukket</a></b></td>\n";
+else print "<td align=center><b>Lukket</b></td>\n";
+if (($sort == 'bogfort_af')&&(!$rf)) print "<td><b><a href=betalingsliste.php?sort=bogfort_af&rf=desc>Af</a></b></td>\n";
+else print "<td><b><a href=betalingsliste.php?sort=bogfort_af>af</a></b></td>\n";
+print "</tr>\n";
 $tidspkt=date("U");
 $qtxt = "select * from betalingsliste where bogfort = '-' ";
 if ($vis != 'alle') $qtxt.="and oprettet_af = '".$brugernavn."' ";
@@ -158,11 +128,7 @@ while ($r = db_fetch_array($q)){
 	print "<img src=\"../ikoner/delete.png\" style=\"border: 0px solid; width: 13px; height: 13px;\"></span><br></td>";
 	print "</tr>\n";
 }
-if ($menu=='T') {
-	print "<tr><td colspan=10 class='border-hr-top'></td></tr>\n";
-} else {
-	print "<tr><td colspan=6><hr></td></tr>";
-}
+print "<tr><td colspan=6><hr></td></tr>";
 /*
  *	$qtxt = "select * from betalingsliste where bogfort = '!' ";
  *	if ($vis != 'alle') $qtxt.="and oprettet_af = '".$brugernavn."' ";
@@ -204,7 +170,7 @@ while ($r = db_fetch_array($q)){
 	if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 	else {$linjebg=$bgcolor5; $color='#000000';}
 	print "<tr bgcolor=\"$linjebg\">";
-	print "<td><a href=\"betalinger.php?liste_id=$r[id]&returside=betalingsliste.php'\">$r[id]</a></td>";
+	print "<td><a href=\"betalinger.php?liste_id=$r[id]&returside=betalingsliste.php\">$r[id]</a></td>";
 	#		print "<td><a href=kasseliste.php?liste_id=$r[id]&returside=betalingsliste.php>$r[id]</a><br></td>";
 	$listedato=dkdato($r['listedate']);
 	print "<td>$listedato<br></td>";
@@ -231,24 +197,13 @@ while ($r = db_fetch_array($q)){
 	print "</tr>\n";
 }
 
-if ($menu=='T') {
-	print "
-	</tbody>
-	<tfoot><tr><td></td></tr></tfoot>
-	</table>
-	</div>
-	<center><input type='button' onclick=\"location.href='rapport.php'\" accesskey='L' value='".findtekst(30,$sprog_id)."'></center>
-	";
-	include_once '../includes/topmenu/footerDebRapporter.php';
-} else {
-	print "
-	</tbody>
-	</table>
-	</td></tr>
-	</tbody></table>
-	</body></html>
-	";
-}
+print "
+</tbody>
+</table>
+</td></tr>
+</tbody></table>
+</body></html>
+";
 
 
 ?>

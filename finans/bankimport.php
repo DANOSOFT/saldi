@@ -45,6 +45,8 @@
 // 20251106 PHR Corrected date error
 // 20260311 PHR Corrected decimal error
 // 20260320 PHR	Removed 'This didn't work'
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
 
@@ -57,6 +59,7 @@ $bankName = NULL;
 
 $title="Bankimport";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
@@ -88,16 +91,7 @@ if(($_GET)||($_POST)) {
 		if ($vend) $vend='checked';
 	}
 
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">"; 
-		print "<div class=\"headerbtnLft headLink\"><a href=importer.php?kladde_id=$kladde_id accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-		print "<div class=\"headerTxt\">$title</div>";     
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-		print "</div>";
-		print "<div class='content-noside'><center>";
-	} elseif ($menu=='S') {
+	if ($menu=='S') {
 		if (file_exists("../includes/sidemenu.php")) include("../includes/sidemenu.php");
 	} else {
 		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
@@ -173,11 +167,7 @@ if(($_GET)||($_POST)) {
 }
 print "</tbody></table>";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ################################################################################################################
 function upload($kladde_id, $bilag){

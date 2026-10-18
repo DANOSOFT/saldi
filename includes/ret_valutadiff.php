@@ -29,6 +29,7 @@
 // 20160226 - Rutiner omskrevet og opdateret
 // 20160413 - at bogføringsdato hentes med $_GET søg $bfdate
 // 20160414 - Viste netativt fortegn på skærm
+// 20261005 Sawaneh WP-4.13: error redirects use rapportart=kontokort with the date and account filters; retur sanitised.
 
 @session_start();
 $s_id=session_id();
@@ -59,6 +60,12 @@ $valuta=if_isset($_GET['valuta']);
 $bfdate=if_isset($_GET['bfdate']);
 $godkend=if_isset($_POST['godkend']);
 $afbryd=if_isset($_POST['afbryd']);
+// WP-4.13: error redirects go back to the account card with its filters (rapport.php reads rapportart, not rapport).
+$retur = nav_sanitize_returside((string) $retur);
+if ($retur === '') {
+	$retur = '../debitor/rapport.php';
+}
+$reportBack = "rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&layout=$layout";
 
 if ($afbryd) {
 	print "<meta http-equiv=\"refresh\" content=\"0;";
@@ -82,11 +89,11 @@ if ($row = db_fetch_array($query)) {
 	if (!$valutakurs) $valutakurs=100;
 	$udlign='on';
 	print "<input type = hidden name=konto_id value=$konto_id>";
-} else print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php&layout=$layout\">";
+} else print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?$reportBack\">";
 	$r=db_fetch_array(db_select("select box3 from grupper where art='VK' and box1='$valuta'",__FILE__ . " linje " . __LINE__));
  if (!$diffkto=$r['box3']) {
 	print "<BODY onLoad=\"javascript:alert('Kontonummer for valutadifferencer ikke fundet')\">";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php&layout=$layout\">";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?$reportBack\">";
 	exit;
  }
 #}
@@ -97,7 +104,7 @@ if ($row = db_fetch_array(db_select("select box1, box2, box3, box4 from grupper 
 } else {
 	$alerttekst='Regnskabs&aring;r ikke oprettet!';
 	print "<BODY onLoad=\"javascript:alert('$alerttekst')\">";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php&layout=$layout\">";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?$reportBack\">";
 }
 if (!$bfdate) {
 	if ($transdate<$regnstart) $bfdate=$regnstart;

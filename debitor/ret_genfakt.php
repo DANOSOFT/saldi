@@ -40,6 +40,7 @@
 // 2017.05.30 Betalingsdage sættes til 0 hvis ikke sat. Søg 20170530
 // 20241216 PHR PHP8
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -58,6 +59,7 @@ $title="Ret abonnementsordrer";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");

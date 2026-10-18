@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
+// 20261016 Sawaneh Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
 
 
 $header = "nix";
@@ -585,7 +586,7 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
             if (!is_numeric($debitorrabatgruppe)) $debitorrabatgruppe=0;
             if ( !is_numeric($varerabatgruppe)  ) $varerabatgruppe=0;
             if (!isset($rabat)) $rabat = 0;
-            $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+            $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
             if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
                 $rabat=$r2['rabat'];
                 $rabatart=$r2['rabatart'];

@@ -27,6 +27,11 @@
 //           refresh_lock_token()) - reuse it instead of independently re-querying tidspkt and
 //           building a separate, token-less query string, which let this menu's own Luk links
 //           bypass the whole per-render-token protection sidehoved() otherwise provides.
+// 20261008 Sawaneh WP-3.1: valg is added to the returside only when missing (? or &), no empty konto_id, and the returside
+//                  is urlencoded in both luk.php links. WP-3.4: Visning opens with popup=1.
+// 20261008 Sawaneh The supplier order on the new page head (topbar addendum §5, prototype_dashboard_tema v5): the order
+//                  heading as the title, Visning as a page action, Ny as the primary button (Alt+N), Hjælp kept as the hidden
+//                  tour trigger, the lock-releasing Luk only outside the shell. Same links as the old bar.
 
 
 
@@ -45,101 +50,49 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 
 	print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
 	print "<div align=\"center\">";
-
-
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	include_once(__DIR__ . "/../stdFunc/pageBar.php");
 
 	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
-	// includes/luk.php can confirm this tab still holds the lock before releasing it. Also
-	// fixed the $valg branch below, which had no tabel/id at all (release was a pure no-op)
-	// and built its query string with '?' instead of '&' (returside=$returside?valg=... -
-	// the '?valg=' part was silently dropped by anything parsing returside as a URL).
+	// includes/luk.php can confirm this tab still holds the lock before releasing it.
 	// 20260924 SZ SST-755 (CodeRabbit): reuse sidehoved()'s own $sidehovedTidspktQs (despite
-	// its name, a &lockToken=... string - see the comment there) instead of independently
-	// re-deriving one from a bare tidspkt lookup, which never carried a lock_token at all and
-	// so let this menu's Luk links bypass the per-render-token protection entirely.
+	// its name, a &lockToken=... string - see the comment there).
 	$topLineSTidspktQs = $sidehovedTidspktQs ?? '';
 
-	if ($kort) print "<td width=\"5%\">$color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
-					  <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
-		  elseif($valg){
-
-			 print "<td width=\"5%\">$color
-					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=" . urlencode($returside . "?valg=$valg&konto_id=") . "&tabel=ordrer&id=$id$topLineSTidspktQs','$alerttekst')\" accesskey=L>
-					  <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-					print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-		  }else{
-			 print "<td width=\"5%\">$color
-					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$topLineSTidspktQs','$alerttekst')\" accesskey=L>
-					  <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-					 print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-		  }
-
-	print "<td width=\"75%\" align='center' style='$topStyle'>$color$tekst</td>";
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
-	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-	print "$help_icon".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
-	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
-		
-		  print "<td width=\"5%\">$color
-           <a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>
-           <button type=\"button\" class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-     print "$add_icon" .findtekst(39, $sprog_id)."</button></a></td>";
-
-	} else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {
-		
-		print "<td width=\"5%\"> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>
-			   <button class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			   print "$add_icon" .findtekst(39, $sprog_id)."</button></a></td>";
-
-	} elseif ($kort=="../kreditor/kreditorkort.php") {
-		
-		print "<td width=\"5%\" onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\">
-			   <span title='".findtekst(1521, $sprog_id)."'><u>
-			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			   .findtekst(813, $sprog_id)."</button></u></span></td>"; #20210716
-		print "<td width=\"5%\">$color
-			   <a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>
-			  <button class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			  print "$add_icon" .findtekst(39, $sprog_id)."</button></a></td>";
-
-	} elseif (($id)||($kort!="../lager/varekort.php")) {
-		print "<td width=\"5%\">$color
-			   <a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>
-			   <button class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			  print "$add_icon" .findtekst(39, $sprog_id)."</button></a></td>";
-	}
-	else {
-		print "<td width=\"5%\" align='center' style='$topStyle'><br></td>";
+	if ($kort) {
+		$backHref = "../kreditor/ordre.php?id=$id&fokus=$fokus";
+	} elseif ($valg) {
+		// WP-3.1: valg is added only when the returside lacks it, with ? or & as needed; no empty konto_id.
+		$valgReturside = (strpos((string) $returside, 'valg=') === false) ? $returside . (strpos((string) $returside, '?') === false ? '?' : '&') . 'valg=' . urlencode($valg) : $returside;
+		$backHref = "javascript:confirmClose('../includes/luk.php?returside=" . urlencode($valgReturside) . "&tabel=ordrer&id=$id$topLineSTidspktQs','$alerttekst')";
+	} else {
+		$backHref = "javascript:confirmClose('../includes/luk.php?returside=" . urlencode((string) $returside) . "&tabel=ordrer&id=$id$topLineSTidspktQs','$alerttekst')";
 	}
 
-	print "</tbody></table>";
-	print "</td></tr>\n";
-	print "<tr><td valign=\"top\" align=center>";
-	
-    print "<div class=\"ordreform\">\n";
+	$actions = array();
+	$primary = null;
+	$nyLabel = findtekst('39|Ny', $sprog_id);
+	if (($kort != "../lager/varekort.php" && $returside != "ordre.php") && ($id)) {
+		$primary = array($nyLabel, '#', 'accesskey' => 'N', 'onclick' => "confirmClose('ordre.php?returside=ordreliste.php','$alerttekst');");
+	} elseif (($kort == "../lager/varekort.php" && $returside == "ordre.php") && ($id)) {
+		$primary = array($nyLabel, "$kort?returside=$returside&ordre_id=$id", 'accesskey' => 'N');
+	} elseif ($kort == "../kreditor/kreditorkort.php") {
+		$actions[] = array(findtekst(813, $sprog_id), '#', 'bx-show', 'onclick' => "kreditor_vis=window.open('kreditorvisning.php?popup=1','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();"); #20210716
+		$primary = array($nyLabel, '#', 'accesskey' => 'N', 'onclick' => "confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst');");
+	} elseif (($id) || ($kort != "../lager/varekort.php")) {
+		$primary = array($nyLabel, '#', 'accesskey' => 'N', 'onclick' => "confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst');");
+	}
+
+	page_bar(array(
+		'title' => $tekst,
+		'back' => $backHref,
+		'help' => true,
+		'actions' => $actions,
+		'primary' => $primary,
+	));
+	print "<div class=\"ordreform\">\n";
 ?>
-
 <style>
-	/* Existing styles for buttons */
-	.headerbtn, .center-btn {
-		display: flex;
-		align-items: center;
-		text-decoration: none;
-		gap: 5px;
-	}
-
-	
-tfoot tr td #footer-box {
-    margin-bottom: 17px; 
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-content: flex-end;
-}
-a:link{
+	a:link{
 		text-decoration: none;
 	}
-
 </style>

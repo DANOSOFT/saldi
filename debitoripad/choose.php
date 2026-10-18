@@ -29,6 +29,7 @@ $css="../css/debitoripad.css";
 $title="batch";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/db_query.php");

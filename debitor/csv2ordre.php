@@ -27,14 +27,18 @@
 // 20220713 phr '$pris' is now trimmed.  
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251219 LOE Added new top header design
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
 
-$title = "Importer ordrer fra CSV";
+$title = findtekst('7009|Importér ordrer fra CSV', $sprog_id);
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
@@ -46,7 +50,6 @@ $returside = if_isset($_GET, '../debitor/ordreliste.php', 'returside');
 print "<div align=\"center\">";
 
  ############################
-     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 
     ##########################
 	$center = "";
@@ -56,13 +59,10 @@ print "<div align=\"center\">";
 	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
 
 	$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-	print "<td width='10%' id='headerbtn' align=center><a href=\"javascript:confirmClose('$returside')\" accesskey=L>
-		  <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".$icon_back  . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-
-	print "<td width='80%' align=center style='$topStyle'>" . $title . "</td>\n";
-
-	print "<td width='10%' align=center style='$buttonStyle;'>
-		   <br></td>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	print "<td colspan='3'>";
+	page_bar(array('title' => $title, 'back' => "javascript:confirmClose('$returside')"));
+	print "</td>\n";
 
 	print "</tbody></table>\n"; #tabel2a slut
 	print "</td></tr>\n";

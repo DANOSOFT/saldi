@@ -23,12 +23,14 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20250107 LOE created
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 @session_start();
 $s_id=session_id();
 
 include("../includes/std_func.php");
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 
 $id = if_isset($id, NULL);

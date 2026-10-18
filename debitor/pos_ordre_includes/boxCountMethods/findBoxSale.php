@@ -32,6 +32,7 @@
 // 20260523 CL/PHR Fixed negative tilgang: skip retur calculation when pos_betalinger has no rows (NULL amount)
 // 20260907 CDX/PHR Expose included orders for cash report assignment.
 // 20260908 CDX/LH Limit immediate-posting report assignments to counted accounts; keep calculation read-only.
+// 20261009 Sawaneh The till account per currency comes from settings VK/till_account_<currency> per till (decision 22); box4 list only as fallback.
 function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	$reportOrderIds = array();
 	echo "<!-- function findBoxSale begin -->"; 
@@ -89,8 +90,12 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	}
 	if ($valuta!=$baseCurrency) {
 		$r = db_fetch_array(db_select("select * from grupper where art = 'VK' and box1='$valuta'",__FILE__ . " linje " . __LINE__));
-		$kassekonti=explode(chr(9),$r['box4']);
-		if (!$kassekonti[$kasse-1]) {
+		// Decision 22 (2026-10-09): the till account per currency lives in settings VK/till_account_<currency> per till;
+		// the old tab list in box4 is read only while no key is stored (box4 '1' is the "used in till" flag).
+		$kassekonti = (trim((string) $r['box4']) === '1') ? array() : explode(chr(9), (string) $r['box4']);
+		$tillAccount = trim((string) get_settings_value('till_account_' . $valuta, 'VK', '', NULL, (int) $kasse));
+		if ($tillAccount !== '') $kassekonti[$kasse-1] = $tillAccount;
+		if (empty($kassekonti[$kasse-1])) {
 			return("Kontonr mangler for $valuta"); #20160824 
 			exit;
 		}

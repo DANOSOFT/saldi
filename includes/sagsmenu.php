@@ -1,5 +1,6 @@
 <?php
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/topline_settings.php");
 

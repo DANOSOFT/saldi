@@ -26,16 +26,19 @@
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260821 CL/SZ Removed debug print_r($_GET)/echo $returside leftover that
 //                leaked "Array ( [date] => ... )" text onto the page (SST-736)
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261006 Sawaneh WP-2.15: returside sanitised and urlencoded where it is embedded in the employee-row link.
 
 @session_start();
 $s_id = session_id();
 
 include ("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include ("../includes/online.php");
 include ("../includes/std_func.php");
 include ("../includes/stdFunc/dkDecimal.php");
 include ("../includes/stdFunc/usDecimal.php");
-$returside = if_isset($_GET["returside"], "../crmkalender.php");
+$returside = nav_sanitize_returside(if_isset($_GET["returside"], "../crmkalender.php"));
 $valg = "";
 $date = $_GET["date"];
 
@@ -93,7 +96,7 @@ $search = db_escape_string($search);
             }
 
             if ($r['emp_id']) {
-                echo "<tr class='employee-row' onclick='window.location.href=\"historikkort.php?id={$r['id']}&employee={$r['emp_id']}&kontaktigen=$date&returside=$returside\"'>
+                echo "<tr class='employee-row' onclick='window.location.href=\"historikkort.php?id={$r['id']}&employee={$r['emp_id']}&kontaktigen=$date&returside=" . urlencode($returside) . "\"'>
                         <td colspan='1'></td>
                         <td colspan='10' style='padding-left: 10px;'>➡ {$r['emp_name']} / {$r['emp_email']} / {$r['emp_phone']}</td>
                       </tr>";

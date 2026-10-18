@@ -23,6 +23,8 @@
 // 20220831 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
 // 20231002 MSC - Copy pasted new design into code
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id=session_id();
@@ -31,6 +33,7 @@ $css="../css/standard.css";
 $title="Sætpris";
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
@@ -82,19 +85,7 @@ if ($id && $forfra && $saet) {
 
 }
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	($art=='PO')?$href="pos_ordre.php?id=$id":$href="ordre.php?id=$id";
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=$href accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'><center>";
-} else {
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";
-}
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";
 
 if ($saet=$_POST['saetvalg']) {
 	if ($saet=='nyt_saet') {
@@ -320,11 +311,7 @@ function tastatur($id,$fokus,$saet) {
 
 print "</tbody></table>";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ?>
 <script language="javascript">

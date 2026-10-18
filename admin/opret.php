@@ -109,6 +109,8 @@
 //             instead of relying only on $db != $sqdb (SD-615)
 // 20260818 CL/LH Corrected Stripe table boolean default definitions
 // 20260908 CL/NTR Reject account names over 60 and usernames over 80 characters (is_input_too_long)
+// 20261002 Sawaneh The unused notifications table (msg, read_status) is no longer created; see includes/betweenUpdates.php.
+// 20261006 Sawaneh A new ledger starts the welcome guide: settings onboarding_state = new (onboarding spec §4).
 //                  before creating the account, matching login.php and varchar(60) on regnskab.regnskab
 // 20260918 CDX/PHR Add ordrer.performed_by when creating a new account.
 // 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
@@ -619,11 +621,6 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "vat $decimal_type(15,3), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	
-	$qtxt = "CREATE TABLE paperflow ($id_column,scan_id int,upload_user_id int, upload_date varchar(10), ";
-	$qtxt.= "insertion_user_id int, insertion_date varchar(10), linecount int, ";
-	$qtxt.= "PRIMARY KEY (id))";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	
 	$qtxt = "CREATE TABLE documents ($id_column,global_id int,filename text, filepath text, source varchar(20), ";
 	$qtxt.= "source_id int, timestamp varchar(10), user_id int, PRIMARY KEY (id) )";
 	
@@ -679,7 +676,8 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "created_at timestamp DEFAULT CURRENT_TIMESTAMP, resolved_at timestamp, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-	db_modify("CREATE TABLE notifications ($id_column, msg varchar(255), read_status integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
+	// 20261002 Sawaneh notifications is created at the first login by includes/betweenUpdates.php (notification
+	// center); the old table (msg, read_status) had no reader left.
 
 	db_modify("CREATE TABLE rentalclosed ($id_column, day integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 
@@ -826,6 +824,9 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 		}
 	}
 	fclose($fp);
+	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) ";
+	$qtxt.= "values ('onboarding_state','onboarding','new','Onboarding guide','0')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($std_kto_plan) {
 #	 include("../includes/kontoplan.php"); 
 		if (file_exists("../importfiler/egen_kontoplan.txt")) $fp=fopen("../importfiler/egen_kontoplan.txt","r");

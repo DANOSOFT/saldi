@@ -1,0 +1,447 @@
+/* Shell global bar (index/main.php via index/mainIncludes/topbar.php).
+   2026-09-17 topbar spec: slim white bar, cluster right-aligned (language · Assist · PoS ·
+   bell · user chip). 2026-10-05 addendum: always in the top bar (no sidebar placement),
+   44 px except on Oversigt, breadcrumb from any page that posts saldi:breadcrumb.
+   Panels overlay the content iframe. */
+
+:root {
+    --topbar-h: 44px;
+    --topbar-bg: #ffffff;
+    --topbar-line: #e2e6ee;
+    --topbar-txt: #1c2431;
+    --topbar-txt-2: var(--topbar-txt-2);
+    --topbar-mut: #68738a;
+    --topbar-hover: #edf0f6;
+    --topbar-red: #e0442c;
+    --topbar-green: #1d9e57;
+    --topbar-accent: #114691;
+    --topbar-accent-soft: #e8f0fe;
+    --topbar-shadow: 0 10px 34px rgba(16, 30, 60, 0.16);
+}
+
+.topbar { font-family: var(--font-ui, "Segoe UI", system-ui, sans-serif);
+    height: var(--topbar-h);
+    background: var(--topbar-bg);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 16px 0 9px;
+    border-bottom: 1px solid var(--topbar-line);
+    box-sizing: border-box;
+    position: relative;
+    z-index: 50;
+    color: var(--topbar-txt);
+}
+
+.topbar-spacer { flex: 1; }
+
+/* Breadcrumb on every page that posts saldi:breadcrumb (topbar addendum 2026-10-05 §3). Truncates from the left:
+   the company goes first, then the module; the current page is never hidden. */
+.topbar-crumb { display: flex; align-items: center; justify-content: flex-end; gap: 2px; flex: 0 1 auto; min-width: 0; overflow: hidden; margin-left: 0; font-size: 0.8438rem; white-space: nowrap; color: var(--topbar-mut); }
+.topbar-crumb[hidden] { display: none; }
+.topbar-crumb > * { flex: none; }
+.topbar-crumb a, .topbar-crumb span { padding: 5px 7px; border-radius: 7px; color: var(--topbar-mut); text-decoration: none; }
+.topbar-crumb a:hover { background: var(--topbar-hover); color: var(--topbar-txt); }
+.topbar-crumb a:focus-visible { outline: 2px solid var(--topbar-accent); outline-offset: 1px; }
+.topbar-crumb i { font-style: normal; font-size: 13px; color: var(--topbar-mut); padding: 0 1px; }
+.topbar-crumb b { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 5px 7px; color: var(--topbar-txt); font-weight: 600; }
+.topbar-crumb .topbar-from { margin-right: 6px; padding: 4px 9px; border: 1px solid var(--topbar-line); border-radius: 999px; font-size: 0.7812rem; color: var(--topbar-txt); }
+.topbar-crumb .topbar-crumb-tag { margin-left: 2px; padding: 2px 8px; border-radius: 999px; background: var(--topbar-accent-soft); color: var(--topbar-accent); font-size: 0.7188rem; font-weight: 600; }
+.topbar-item { position: relative; }
+.topbar-mobile { display: none; }
+
+/* Hamburger: phones only (spec 2.3 - none on desktop). */
+.topbar-menu-btn {
+    display: none;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    border-radius: 9px;
+    align-items: center;
+    justify-content: center;
+    color: var(--topbar-txt-2);
+    cursor: pointer;
+}
+.topbar-menu-btn i { font-size: 24px; }
+.topbar-menu-btn:hover { background: var(--topbar-hover); color: var(--topbar-txt); }
+
+.topbar-icbtn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border: none;
+    background: transparent;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--topbar-txt-2);
+    padding: 0;
+    text-decoration: none;
+}
+.topbar-icbtn i { font-size: 18px; }
+.topbar-icbtn:hover,
+.topbar-icbtn[aria-expanded="true"] { background: var(--topbar-hover); color: var(--topbar-txt); }
+.topbar-icbtn:focus-visible,
+.topbar-chip:focus-visible,
+.topbar-lang:focus-visible { outline: 2px solid var(--topbar-accent); outline-offset: 2px; }
+.topbar-assist { color: var(--topbar-accent); }
+
+.topbar-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--topbar-red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+/* ---- language selector ---- */
+.topbar-lang {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 34px;
+    padding: 0 6px 0 8px;
+    border: none;
+    background: transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--topbar-txt-2);
+    font-size: 0.7812rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+.topbar-lang i.bx-globe { font-size: 18px; }
+.topbar-lang:hover,
+.topbar-lang[aria-expanded="true"] { background: var(--topbar-hover); color: var(--topbar-txt); }
+.topbar-pop-lang { width: 200px; padding: 6px 0; }
+.topbar-lang-code {
+    display: inline-block;
+    min-width: 26px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--topbar-mut);
+    letter-spacing: 0.3px;
+}
+.topbar-pop-item.active { color: var(--topbar-accent); font-weight: 650; }
+
+/* ---- user chip ---- */
+.topbar-chip {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    height: 36px;
+    padding: 4px 6px 4px 4px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    color: var(--topbar-txt);
+    max-width: 320px;
+    margin-left: 4px;
+}
+.topbar-chip:hover,
+.topbar-chip[aria-expanded="true"] { background: var(--topbar-hover); }
+
+.topbar-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 11.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.3px;
+}
+.topbar-avatar-lg { width: 42px; height: 42px; font-size: 15px; }
+
+.topbar-who {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+    min-width: 0;
+    text-align: left;
+}
+.topbar-name { font-family: var(--font-display); font-size: 0.8125rem; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.topbar-company { font-size: 0.6875rem; color: var(--topbar-mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.topbar-chev { font-size: 18px; color: var(--topbar-mut); transition: transform 0.2s ease; }
+.topbar-lang .topbar-chev { font-size: 16px; }
+.topbar-chip[aria-expanded="true"] .topbar-chev,
+.topbar-lang[aria-expanded="true"] .topbar-chev { transform: rotate(180deg); }
+
+/* ---- dropdown panels ---- */
+.topbar-pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--topbar-bg);
+    border: 1px solid var(--topbar-line);
+    border-radius: 12px;
+    box-shadow: var(--topbar-shadow);
+    display: none;
+    z-index: 60;
+    overflow: hidden;
+    color: var(--topbar-txt);
+    text-align: left;
+}
+.topbar-pop.open { display: block; animation: topbar-pop-in 0.14s ease-out; }
+@keyframes topbar-pop-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.topbar-pop-user { width: 300px; }
+.topbar-pop-assist { width: 260px; }
+.topbar-pop-assist .topbar-pop-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.topbar-pop-assist .topbar-pop-item small { margin-left: auto; padding: 0 6px; border: 1px solid var(--topbar-line); border-radius: 5px; font-size: 0.6875rem; color: var(--topbar-mut); }
+.topbar-pop-bell { width: 360px; }
+
+.topbar-pop-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--topbar-line);
+    font-size: 0.9062rem;
+    font-weight: 650;
+}
+.topbar-pop-title small { font-size: 0.75rem; font-weight: 400; color: var(--topbar-mut); }
+
+.topbar-pop-head { display: flex; gap: 12px; align-items: center; padding: 16px; border-bottom: 1px solid var(--topbar-line); }
+.topbar-pop-headtxt { min-width: 0; }
+.topbar-pop-name { font-family: var(--font-display); font-weight: 650; font-size: 0.9062rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-pop-mail { font-size: 0.7812rem; color: var(--topbar-mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-role {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--topbar-accent);
+    background: var(--topbar-accent-soft);
+    border-radius: 20px;
+    padding: 2px 9px;
+}
+
+.topbar-pop-body { padding: 6px 0; max-height: calc(100vh - 140px); overflow-y: auto; }
+
+.topbar-pop-section {
+    padding: 8px 16px 2px;
+    font-size: 0.6562rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--topbar-mut);
+}
+
+.topbar-pop-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 0.8625rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--topbar-txt);
+    text-decoration: none;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.topbar-pop-item i { font-size: 18px; color: var(--topbar-txt-2); flex-shrink: 0; }
+.topbar-pop-item:hover:not([disabled]) { background: var(--topbar-hover); }
+.topbar-pop-item[disabled] { opacity: 0.45; cursor: default; }
+.topbar-pop-item small { margin-left: auto; color: var(--topbar-mut); font-size: 0.75rem; display: flex; align-items: center; gap: 2px; white-space: nowrap; }
+.topbar-pop-item small i { font-size: 15px; transition: transform 0.2s ease; }
+.topbar-pop-item[aria-expanded="true"] small i { transform: rotate(180deg); }
+.topbar-pop-item .topbar-pop-trail { margin-left: auto; font-size: 1.0625rem; color: var(--topbar-accent); }
+.topbar-pop-out { color: var(--topbar-red); }
+.topbar-pop-out i { color: var(--topbar-red); }
+
+.topbar-pop-sep { height: 1px; background: var(--topbar-line); margin: 6px 0; }
+
+.topbar-pop-sub {
+    display: none;
+    padding: 2px 12px 10px 43px;
+    font-size: 0.8rem;
+    color: var(--topbar-mut);
+    max-height: 220px;
+    overflow-y: auto;
+}
+.topbar-pop-sub.open { display: block; }
+
+.topbar-online-user { padding: 4px 0; display: flex; align-items: center; }
+.topbar-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--topbar-green); display: inline-block; margin-right: 8px; flex-shrink: 0; }
+
+/* Plain list rows inside a form (years, languages): the shell also carries global
+   submit-button styling, so these are pinned explicitly. */
+.topbar-pop form .topbar-year {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100% !important;
+    margin: 0;
+    padding: 6px 8px !important;
+    border: none !important;
+    border-radius: 6px;
+    background: transparent !important;
+    color: var(--topbar-txt) !important;
+    font-size: 0.8rem !important;
+    font-weight: 400;
+    font-family: inherit;
+    line-height: 1.3;
+    box-shadow: none !important;
+    cursor: pointer;
+    text-align: left;
+}
+.topbar-pop form .topbar-year i { font-size: 15px; color: var(--topbar-mut); }
+.topbar-pop .topbar-year-new { display: flex; align-items: center; gap: 8px; width: 100%; margin: 0; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--topbar-accent); font: inherit; font-size: 0.8rem; font-weight: 600; text-align: left; cursor: pointer; }
+.topbar-pop .topbar-year-new i { font-size: 15px; }
+.topbar-pop .topbar-year-new:hover { background: var(--topbar-hover); }
+.topbar-pop form .topbar-year:hover:not([disabled]) { background: var(--topbar-hover) !important; }
+.topbar-pop form .topbar-year.active { font-weight: 650; color: var(--topbar-accent) !important; background: var(--topbar-accent-soft) !important; cursor: default; opacity: 1; }
+.topbar-pop form .topbar-year.active i { color: var(--topbar-accent); }
+.topbar-pop form .topbar-year small { margin-left: auto; font-size: 0.6562rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--topbar-accent); }
+.topbar-pop form .topbar-pop-item {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    font-size: 0.8625rem !important;
+    color: var(--topbar-txt) !important;
+}
+.topbar-pop form .topbar-pop-item.active { color: var(--topbar-accent) !important; }
+.topbar-pop form .topbar-pop-item:hover { background: var(--topbar-hover) !important; }
+
+.topbar-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 16px; color: var(--topbar-mut); font-size: 0.8125rem; }
+.topbar-empty i { font-size: 28px; color: var(--topbar-mut); }
+
+/* ---- Guides modal (sidebar entry) ---- */
+.guide-overlay { position: fixed; inset: 0; background: rgba(16, 30, 60, 0.35); z-index: 200; display: none; align-items: center; justify-content: center; }
+.guide-overlay.active { display: flex; }
+.guide-modal { background: var(--topbar-bg); border-radius: 12px; width: min(420px, calc(100vw - 32px)); box-shadow: var(--topbar-shadow); overflow: hidden; }
+.guide-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--topbar-line); font-weight: 650; font-size: 0.9375rem; }
+.guide-modal-head button { border: none; background: none; font-size: 1.375rem; cursor: pointer; color: var(--topbar-mut); }
+.guide-modal .topbar-pop-item i.topbar-pop-trail { color: var(--topbar-mut); }
+
+/* ---- narrow screens ---- */
+@media screen and (max-width: 780px) {
+    .topbar-menu-btn { display: flex; }
+    .topbar-desktop { display: none !important; }
+    .topbar-mobile { display: block; }
+    .topbar-who, .topbar-chip .topbar-chev { display: none; }
+    .topbar-chip { padding: 3px; }
+    .topbar-pop-bell, .topbar-pop-user { width: min(360px, calc(100vw - 24px)); }
+}
+
+.topbar-cluster { display: flex; align-items: center; gap: 4px; }
+
+@media screen and (max-width: 1100px) {
+    .topbar-crumb .c0 { display: none; }
+    .topbar-crumb .c0 + i { display: none; }
+}
+@media screen and (max-width: 900px) {
+    .topbar-crumb .c1, .topbar-crumb .c1 + i { display: none; }
+}
+
+/* 20261005 Sawaneh Slim bar (topbar addendum 2026-10-05 §2a): 44 px everywhere, Oversigt keeps 48 px for its greeting;
+   separator before the user chip; the chip shows only the avatar when the bar is narrower than about 1240 px. */
+html.topbar-tall { --topbar-h: 48px; }
+.topbar-sep { flex: none; width: 1px; height: 24px; margin: 0 6px; background: var(--topbar-line); }
+.topbar.topbar-narrow .topbar-who,
+.topbar.topbar-narrow .topbar-chip .topbar-chev { display: none; }
+.topbar.topbar-narrow .topbar-chip { padding: 4px; }
+
+.sidebar.closed #desc-line { display: none; }
+
+
+/* ---- notification panel (spec §3.1) ---- */
+.topbar-notif-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--topbar-line); }
+.topbar-notif-head b { font-size: 0.9062rem; }
+.topbar-notif-head button { border: none; background: none; color: var(--topbar-accent) !important; font-size: 0.7812rem; cursor: pointer; font-weight: 600; font-family: inherit; padding: 0; }
+.topbar-notif-list { max-height: min(60vh, 460px); overflow-y: auto; }
+.topbar-notif { display: flex; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--topbar-line); cursor: pointer; }
+.topbar-notif:last-child { border-bottom: none; }
+.topbar-notif:hover { background: var(--topbar-hover); }
+.topbar-notif.unread { background: var(--topbar-accent-soft); }
+.topbar-notif.unread:hover { background: var(--topbar-hover); }
+.topbar-notif-ic { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.topbar-notif-ic i { font-size: 18px; }
+.topbar-notif-suggestion { background: var(--topbar-accent-soft); color: var(--topbar-accent); }
+.topbar-notif-warning { background: #fdf1d8; color: #e8a013; }
+.topbar-notif-system { background: #fde5e0; color: var(--topbar-red); }
+.topbar-notif-news { background: #e2f5ea; color: var(--topbar-green); }
+.topbar-notif-t { font-size: 0.8438rem; font-weight: 600; line-height: 1.35; color: var(--topbar-txt); }
+.topbar-notif-b { font-size: 0.7812rem; color: var(--topbar-mut); line-height: 1.4; margin-top: 2px; }
+.topbar-notif-time { font-size: 0.6875rem; color: var(--topbar-mut); margin-top: 4px; }
+
+/* The Assist widget's own sidebar entry is replaced by the cluster button (spec 6). */
+.sidebar li.topbar-assist-hidden { height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; visibility: hidden; }
+
+/* 20260930 Sawaneh Dashboard items hidden away from the dashboard. */
+.topbar-dash[hidden] { display: none !important; }
+
+/* 20261005 Sawaneh Global search (topbar addendum 2026-10-05 §6): the magnifier expands leftwards into a 440 px field
+   (34 px high inside the 44 px bar); grouped results below; full width over the bar on phones. */
+.topbar-search { position: relative; display: flex; align-items: center; flex: none; height: 34px; border-radius: 10px; transition: width .18s ease; width: 34px; }
+.topbar-search-in { width: 0; min-width: 0; height: 34px; padding: 0; border: 0; background: transparent; color: var(--topbar-txt); font: inherit; font-size: 0.8438rem; opacity: 0; pointer-events: none; }
+.topbar-search-in::-webkit-search-cancel-button { display: none; }
+.topbar-search.open { width: min(440px, 46vw); background: var(--topbar-hover); }
+.topbar-search.open .topbar-icbtn { background: transparent; }
+.topbar-search.open .topbar-search-in { flex: 1; width: auto; padding-right: 10px; opacity: 1; pointer-events: auto; outline: none; }
+.topbar-search.open:focus-within { box-shadow: 0 0 0 2px var(--topbar-accent); }
+.topbar-search-res { top: calc(100% + 6px); right: 0; left: 0; width: auto; max-height: min(70vh, 520px); overflow-y: auto; padding: 6px 0; }
+.topbar-search-grp { padding: 8px 14px 3px; font-size: 0.6875rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--topbar-mut); }
+.topbar-search-it { display: flex; flex-direction: column; gap: 1px; padding: 7px 14px; color: var(--topbar-txt); text-decoration: none; }
+.topbar-search-it b { font-size: 0.8438rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-search-it span { font-size: 0.75rem; color: var(--topbar-mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-search-it mark { background: #fdf0c4; color: inherit; border-radius: 2px; }
+.topbar-search-it:hover, .topbar-search-it.sel { background: var(--topbar-hover); }
+.topbar-search-none { padding: 14px; font-size: 0.8125rem; color: var(--topbar-mut); }
+@media screen and (max-width: 780px) {
+    .topbar-search.open { position: fixed; top: 0; left: 0; right: 0; width: auto; height: var(--topbar-h); padding: 5px 10px; border-radius: 0; background: var(--topbar-bg); z-index: 70; box-shadow: none; }
+    .topbar-search.open:focus-within { box-shadow: none; }
+    .topbar-search.open .topbar-search-in { background: var(--topbar-hover); border-radius: 10px; padding: 0 10px; }
+    .topbar-search-res { position: fixed; top: var(--topbar-h); left: 8px; right: 8px; }
+}
+
+/* 20261005 Sawaneh Greeting on Oversigt (topbar addendum 2026-09-30 §3, prototype_dashboard_tema): name, then the date and
+   "opdateret"; line 2 is hidden first when space is short, then the whole greeting - the cluster never moves. */
+.topbar-hello { display: flex; flex-direction: column; justify-content: center; min-width: 0; margin-left: 7px; line-height: 1.25; white-space: nowrap; overflow: hidden; }
+.topbar-hello[hidden] { display: none; }
+.topbar-hello b { font-family: var(--font-display); font-size: 1.125rem; font-weight: 700; letter-spacing: -.02em; color: var(--topbar-txt); overflow: hidden; text-overflow: ellipsis; }
+.topbar-hello-line { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--topbar-mut); }
+.topbar-hello-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--topbar-green); flex: none; }
+.topbar.topbar-tight .topbar-hello-line { display: none; }
+.topbar.topbar-xtight .topbar-hello { display: none; }
+
+/* 20261008 Sawaneh Tema segment in the chip menu (prototype_dashboard_tema v5 .seg). */
+.topbar-pop-row { display: flex; flex-direction: column; gap: 7px; padding: 6px 12px 8px; font-size: 0.8125rem; color: var(--topbar-txt); }
+.topbar-pop-lab { display: flex; align-items: center; gap: 10px; }
+.topbar-pop-lab .bx { font-size: 16px; color: var(--topbar-mut); }
+.topbar-seg { display: flex; background: var(--topbar-hover); border: 1px solid var(--topbar-line); border-radius: 10px; padding: 3px; }
+.topbar-seg button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; background: transparent; color: var(--topbar-mut); font: inherit; font-size: 0.7812rem; padding: 5px 8px; border-radius: 7px; cursor: pointer; transition: color .2s, background .2s; }
+.topbar-seg button .bx { font-size: 14px; }
+.topbar-seg button:hover { color: var(--topbar-txt); }
+.topbar-seg button[aria-pressed="true"] { background: var(--user-primary, var(--topbar-accent)); color: var(--user-primary-text, #fff); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+
+/* 20261008 Sawaneh Popups follow the shell's text colour, so the dark theme stays readable (fixed greys replaced by variables above). */
+.topbar-pop, .guide-modal, .topbar-search-res { color: var(--topbar-txt); }
+.topbar-pop-item, .topbar-pop form .topbar-year, .topbar-online-user { color: var(--topbar-txt); }
+

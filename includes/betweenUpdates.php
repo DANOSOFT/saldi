@@ -1073,14 +1073,49 @@ foreach ($tekster_reworded_20260930 as $reworded) {
 	deleteStaleTekst($reworded[0], $reworded[2], $reworded[1]);
 }
 
-// 20260924 Sawaneh SST-757: Users created via Sager -> Ansatte were inserted without regnskabsaar. Checked with a
-// select first so logins with nothing to repair do not write, and skipped on tenants with no open fiscal year.
-if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null limit 1", __FILE__ . " linje " . __LINE__))) {
-	$newestFiscalYear = newest_active_fiscal_year();
-	if ($newestFiscalYear) {
-		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
-	}
+// 20261002 Sawaneh Text 5646 (no active fiscal year) named the old "System » Indstillinger" menu. Rows still holding the
+// old wording are removed so findtekst() re-seeds them from tekster.csv; edited texts are left alone.
+foreach (array('Aktivér et regnskabsår under System » Indstillinger » Regnskabsår', 'Activate a fiscal year under System » Settings » Fiscal year', 'Aktiver et regnskapsår under System » Innstillinger » Regnskapsår') as $gammel5646) {
+	db_modify("delete from tekster where tekst_id = '5646' and tekst = '" . db_escape_string($gammel5646) . "'", __FILE__ . " linje " . __LINE__);
 }
+
+// 20261016 Sawaneh Review (PR #803): every information_schema check of ours filters on the schema, as master's newer
+//                  blocks do: on MySQL the view spans every database the user can see, so the first tenant's tables
+//                  would hide the others' missing ones.
+$sawanehSchema = in_array($db_type, array('mysql', 'mysqli'), true) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+
+// 20260916 Sawaneh Roles & permissions (user/settings system spec, part 2): roles,
+// role_permissions, brugere.role_id and the audit log. Built-in roles are seeded and users
+// holding every legacy right get the Administrator role; see includes/permissions.php.
+$sawanehMysql = in_array($db_type, array('mysql', 'mysqli'), true);
+$sawanehId = $sawanehMysql ? 'id INT NOT NULL AUTO_INCREMENT PRIMARY KEY' : 'id SERIAL PRIMARY KEY NOT NULL';
+$sawanehNow = $sawanehMysql ? 'DATETIME DEFAULT CURRENT_TIMESTAMP' : 'timestamp DEFAULT now()';
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='roles'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE roles (
+		$sawanehId,
+		role_key varchar(30),
+		navn varchar(80) NOT NULL,
+		beskrivelse text,
+		system boolean DEFAULT false,
+		oprettet $sawanehNow)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='role_permissions'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE role_permissions (
+		role_id integer NOT NULL,
+		permission_key varchar(60) NOT NULL,
+		level varchar(5) NOT NULL,
+		PRIMARY KEY (role_id, permission_key))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='brugere' AND column_name='role_id'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE brugere ADD COLUMN role_id integer", __FILE__ . " linje " . __LINE__);
+}
+// 20261016 Sawaneh Review (PR #803): the table is created by master's SD-724 block just above (both engines, DATETIME on
+//                  MySQL); our create, Postgres-only, is gone. The column additions below still run on older tables.
 // 20261003 CL/SZ SD-724: the shared audit_log table with exactly the roles stage 2 schema (Requirements_roles_stage2_EN.md §3).
 // IF NOT EXISTS, so whichever of the document pool and roles stage 2 lands first creates it and the other's migration is a no-op.
 // Written through audit_log_write() in includes/auditLog.php; entries are never deleted.
@@ -1125,6 +1160,186 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	}
 }
 
+include_once(__DIR__ . "/permissions.php");
+perm_ensure_default_roles();
+
+// 20260927 Sawaneh Notification center (topbar spec §3.2): notifications + per-user read state.
+// 20261002 Sawaneh Most companies already hold an older, unused table of the same name (id, msg, read_status; from
+// admin/opret.php and opdat_4.0.php, all its readers are commented out). The new table is recognised by its 'type'
+// column; the old one is kept under another name, so nothing is deleted.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='notifications' and column_name='type'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='notifications'" . $sawanehSchema;
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$legacyName = 'notifications_legacy';
+		if (db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='$legacyName'" . $sawanehSchema, __FILE__ . " linje " . __LINE__))) {
+			$legacyName .= '_' . date('YmdHis');
+		}
+		db_modify("ALTER TABLE notifications RENAME TO $legacyName", __FILE__ . " linje " . __LINE__);
+		if ($db_type != 'mysql' && $db_type != 'mysqli') {
+			// The old key and sequence keep the names the new table wants.
+			if (!$sawanehMysql) {
+				db_modify("ALTER INDEX IF EXISTS notifications_pkey RENAME TO {$legacyName}_pkey", __FILE__ . " linje " . __LINE__);
+				db_modify("ALTER SEQUENCE IF EXISTS notifications_id_seq RENAME TO {$legacyName}_id_seq", __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+	$qtxt = "CREATE TABLE notifications (
+		$sawanehId,
+		user_id integer,
+		type varchar(30) NOT NULL,
+		title text,
+		body text,
+		link text,
+		created $sawanehNow,
+		expires date,
+		source_key varchar(80))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	if ($db_type != 'mysql' && $db_type != 'mysqli') {
+		db_modify("DROP INDEX IF EXISTS notifications_user_idx", __FILE__ . " linje " . __LINE__);
+	}
+	db_modify("CREATE INDEX notifications_user_idx ON notifications (user_id, created)", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='notification_read'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE notification_read (
+		notification_id integer NOT NULL,
+		user_id integer NOT NULL,
+		read_at $sawanehNow,
+		PRIMARY KEY (notification_id, user_id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+// 20260928 Sawaneh Settings redesign spec, phase 4.0 (decisions 1 and 15): the saved SQL queries of the removed
+// data-extract tool are exported once to temp/<db>/saved_queries.csv (the table stays), and the three Paperflow
+// settings rows (incl. the bearer token) are deleted. Runs once per company, tracked in settings.
+$qtxt = "select id from settings where var_grp = 'system' and var_name = 'security_40'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='queries'" . $sawanehSchema;
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		// Outside the served tree (review, PR #803): temp/ is reachable without a login on some installs.
+		$dir = rtrim(sys_get_temp_dir(), '/') . "/saldi_saved_queries";
+		if (!is_dir($dir)) @mkdir($dir, 0700, true);
+		$fp = @fopen("$dir/" . preg_replace('/[^A-Za-z0-9_]/', '_', (string) $db) . ".csv", "w");
+		if ($fp) {
+			fputcsv($fp, array('id', 'query', 'description', 'user_id'), ';');
+			$q = db_select("select id, query, query_descrpition, user_id from queries order by id", __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				fputcsv($fp, array($r['id'], $r['query'], $r['query_descrpition'], $r['user_id']), ';');
+			}
+			fclose($fp);
+		}
+	}
+	db_modify("delete from settings where var_grp = 'creditor' and var_name in ('paperflow', 'paperflowId', 'paperflowBearer')", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description) values ('system', 'security_40', '" . date('Ymd') . "', 'Settings security phase 4.0 migration done')", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260929 Sawaneh Settings redesign phase 4a: the change history of a settings section (spec §8.12)
+// reads setting_key / section / old_value / new_value from audit_log, and the PoS licence becomes a
+// real flag (decision 9): set to 'on' where the installation has the PoS module today.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='setting_key'" . $sawanehSchema;
+// Each column guarded on its own (review, PR #803): a login that died after the first ALTER must not leave the rest out.
+foreach (array('setting_key' => 'varchar(120)', 'section' => 'varchar(80)', 'old_value' => 'text', 'new_value' => 'text') as $auditCol => $auditType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='$auditCol'" . $sawanehSchema;
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE audit_log ADD COLUMN $auditCol $auditType", __FILE__ . " linje " . __LINE__);
+		if ($auditCol === 'section') {
+			db_modify("CREATE INDEX audit_log_section_idx ON audit_log (section, id)", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+$qtxt = "select id from settings where var_grp = 'system' and var_name = 'pos_licence'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && file_exists(__DIR__ . "/../debitor/pos_ordre.php")) {
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('system', 'pos_licence', 'on', 'PoS licence flag, set by the operator', 0)", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260929 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §3): the audit log records what was
+// changed (objekt_type, objekt_id) and from where (kilde); brugere.status is taken into use (closed users).
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='objekt_type'" . $sawanehSchema;
+foreach (array('objekt_type' => 'varchar(30)', 'objekt_id' => 'varchar(60)', 'kilde' => 'varchar(30)') as $auditCol => $auditType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='$auditCol'" . $sawanehSchema;
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE audit_log ADD COLUMN $auditCol $auditType", __FILE__ . " linje " . __LINE__);
+		if ($auditCol === 'objekt_type') {
+			db_modify("CREATE INDEX audit_log_bruger_idx ON audit_log (bruger_id)", __FILE__ . " linje " . __LINE__);
+			db_modify("CREATE INDEX audit_log_objekt_idx ON audit_log (objekt_type, objekt_id)", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+// 20261003 Sawaneh Aligned with the roles spec §3 so the document-pool work (SD-724) shares the table: handling 60 wide,
+// tidspunkt not null. Runs once; a table made by SD-724 already looks like this.
+$qtxt = "SELECT character_maximum_length FROM information_schema.columns WHERE table_name='audit_log' and column_name='handling'" . $sawanehSchema;
+if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && (int) $r['character_maximum_length'] > 0 && (int) $r['character_maximum_length'] < 60) {
+	db_modify("ALTER TABLE audit_log ALTER COLUMN handling TYPE varchar(60)", __FILE__ . " linje " . __LINE__);
+	db_modify("UPDATE audit_log SET tidspunkt = now() WHERE tidspunkt IS NULL", __FILE__ . " linje " . __LINE__);
+	db_modify("ALTER TABLE audit_log ALTER COLUMN tidspunkt SET NOT NULL", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='brugere' and column_name='status'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE brugere ADD COLUMN status boolean", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260930 Sawaneh Roles stage 2 (§6.2): every user without a role gets one; other rights patterns become
+// custom roles, kept for review on the dashboard. Last in the file, after the audit_log columns exist.
+perm_migrate_users();
+
+// 20260930 Sawaneh Audit log for administrators only (Adam 2026-09-30): the read level the built-in Bogholder and
+// Revisor roles got on 2026-09-30 is taken back once. Custom roles are left as their administrator set them.
+$qtxt = "select id from settings where var_grp = 'permissions' and var_name = 'audit_admin_only'";
+if (perm_tables_ready() && !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("delete from role_permissions where permission_key = 'settings.audit.read' and role_id in (select id from roles where role_key in ('bogholder', 'revisor'))", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('permissions', 'audit_admin_only', '" . date('Ymd') . "', 'Audit log read removed from Bogholder and Revisor', 0)", __FILE__ . " linje " . __LINE__);
+}
+
+// 20261001 Sawaneh Settings redesign §7.2: one row per setting. Duplicates are merged (removed rows kept in
+// settings_removed) and the unique index is added once; after that only the index lookup runs.
+include_once(__DIR__ . "/settings/uniqueIndex.php");
+settings_unique_migrate();
+
+// 20261002 Sawaneh Risk review R9: the same for the settings arts of grupper (removed rows kept in grupper_removed).
+include_once(__DIR__ . "/settings/grupperIndex.php");
+grupper_unique_migrate();
+
+// 20261003 Sawaneh G6.3 (05b bug 45): the payment-list mail text used its own spelling of the key; one spelling for all mail texts.
+// Read first, then update by id: MySQL refuses an UPDATE that selects from its own table (error 1093).
+if (!db_fetch_array(db_select("select id from settings where var_grp = 'paylist' and var_name = 'mailText'", __FILE__ . " linje " . __LINE__))) {
+	$q = db_select("select id from settings where var_grp = 'paylist' and var_name = 'mailtext'", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		db_modify("update settings set var_name = 'mailText' where id = " . (int) $r['id'], __FILE__ . " linje " . __LINE__);
+	}
+}
+
+// 20261002 Sawaneh Settings 4b (G5.7): the packaging tables are created here when the module is on, not when a page
+// renders (spec P5). G2.5: paymentDays was written under 'payment' but only read under 'payment_list'; copied once.
+// 20261005 Sawaneh Settings 4c (§8.2): grupper.inaktiv - rows that are in use are hidden from choice lists instead of deleted.
+if (!db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . $sawanehSchema, __FILE__ . " linje " . __LINE__))) {
+	db_modify("alter table grupper add column inaktiv boolean default false", __FILE__ . " linje " . __LINE__);
+}
+// 20261004 Sawaneh When the new settings first ran here (settings_ui/landed_at): the transition banner is shown to users
+//                  with activity from before that moment only (settings redesign §8.10).
+if (!db_fetch_array(db_select("select id from settings where var_grp = 'settings_ui' and var_name = 'landed_at'", __FILE__ . " linje " . __LINE__))) {
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('settings_ui', 'landed_at', '" . date('Y-m-d H:i:s') . "', 'First login after the settings redesign', 0)", __FILE__ . " linje " . __LINE__);
+}
+// 20261004 Sawaneh G9.2 (B-D5): the Danske Fragtmænd settings get their own group; debitor/ordre.php reads both until 4f.
+db_modify("update settings set var_grp = 'DFM' where var_grp = 'GLS' and var_name like 'dfm\\_%'", __FILE__ . " linje " . __LINE__);
+// 20261004 Sawaneh The packaging tables are created for every company (idempotent), so switching the module on in
+// settings only sets the flag (spec §7.5: no DDL in save handlers) and works before the next login.
+include_once(__DIR__ . "/emballage_schema.php");
+ensure_emballage_schema();
+if (!db_fetch_array(db_select("select id from settings where var_grp = 'payment_list' and var_name = 'paymentDays'", __FILE__ . " linje " . __LINE__))) {
+	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'payment' and var_name = 'paymentDays' and coalesce(var_value, '') <> ''", __FILE__ . " linje " . __LINE__));
+	if ($r) {
+		db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('payment_list', 'paymentDays', '" . db_escape_string((string) $r['var_value']) . "', 'Default payment days', 0)", __FILE__ . " linje " . __LINE__);
+	}
+}
+// 20260924 Sawaneh SST-757: Users created via Sager -> Ansatte were inserted without regnskabsaar. Checked with a
+// select first so logins with nothing to repair do not write, and skipped on tenants with no open fiscal year.
+if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null limit 1", __FILE__ . " linje " . __LINE__))) {
+	$newestFiscalYear = newest_active_fiscal_year();
+	if ($newestFiscalYear) {
+		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
+	}
+}
 // 20261003 CL/SZ SD-717: archive in the document pool.
 // pool_files.archived (when) and archived_by (brugere.id, -1 for a revisor session); NULL means the document is in the normal list.
 // The file stays in the pool folder, so the folder sync neither deletes nor re-inserts the row.

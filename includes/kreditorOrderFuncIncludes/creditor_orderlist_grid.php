@@ -9,6 +9,7 @@
 // 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
 // 20261006 CL/NTR Made the grid action-menu and its Redigér submenu triggers native type="button" buttons that
 //                 open on focus as well as hover (same change as includes/grid.php).
+// 20261008 Sawaneh WP-3.6: the grid's row click carries the list's valg and creditor filter as returside.
 
 function is_ajax_request() {
     return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
@@ -2711,6 +2712,8 @@ SCRIPT;
  * @return void Outputs the embedded JavaScript for dynamic search.
  */
 function render_dynamic_search_script($id) {
+    // WP-3.6: the list's own tab and creditor filter (set by kreditor/ordreliste.php, already encoded).
+    $rowRetursideJs = isset($GLOBALS['rowReturside']) ? (string) $GLOBALS['rowReturside'] : 'ordreliste.php';
     echo <<<SCRIPT
 <script>
 class DynamicSearch {
@@ -2920,7 +2923,7 @@ function handleRowClick(e) {
     // Get the order ID from the data
     const orderId = this.dataset.orderId;
     if (orderId) {
-        window.location.href = 'ordre.php?id=' + orderId + '&returside=ordreliste.php';
+        window.location.href = 'ordre.php?id=' + orderId + '&returside={$rowRetursideJs}';
     }
 }
 

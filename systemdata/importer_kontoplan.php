@@ -27,6 +27,8 @@
 // 20210713 LOE - Translated some texts
 // 20220404	PHR function vis_data & overfoer_data: Inserted trim($felt[$y],'"');	
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261005 Sawaneh Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a cookie.
 // 20260825 Sawaneh JOB-086: import ended in a blank page - now returns to import/export with a
 //                  message; file charset detected on upload and lines with an invalid charset are
 //                  rejected instead of aborting the transaction; validation shared between preview
@@ -40,6 +42,9 @@
 // 20260921 Sawaneh JOB-086 review 3: text ids renumbered 5080-5087 -> 5222-5229 (id range clash).
 // 20260921 Sawaneh JOB-086 review 3: find_splitter() stops at EOF, so a file with fewer than three
 //                  rows still gets its separator detected and its columns can be mapped.
+// 20261008 Sawaneh Merge of master (JOB-086 rewrite): the column mapping is read and saved after the includes, in settings
+//                  importMapping (the old cookie is only read as a fallback).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
 
 @session_start();
 $s_id=session_id();
@@ -54,6 +59,11 @@ $charsets = array('UTF-8' => 'UTF-8', 'ISO-8859-15' => 'ISO-8859-15 (Windows)', 
 $splitters = array('Semikolon' => ';', 'Komma' => ',', 'Tabulator' => chr(9));
 $kolonner = array('Kontonr', 'Beskrivelse', 'Kontotype', 'Moms', 'Fra_kto', 'map_to', 'primo');
 
+
+include("../includes/connect.php");
+$permission_key = 'settings.import_export';
+include("../includes/online.php");
+include("../includes/std_func.php");
 $file_charset = $_POST['file_charset'] ?? '';
 $splitter = $_POST['splitter'] ?? '';
 $feltantal = intval($_POST['feltantal'] ?? 0);
@@ -61,8 +71,10 @@ $feltnavn = $_POST['feltnavn'] ?? '';
 $gemValg = is_array($feltnavn);
 if (!$gemValg) {
 	$feltnavn = array();
-	if (isset($_COOKIE['saldi_kto_imp']) && substr_count($_COOKIE['saldi_kto_imp'], '|') == 2) {
-		list($file_charset, $splitter, $fn) = explode("|", $_COOKIE['saldi_kto_imp']);
+	$savedMapping = get_settings_value('kontoplan', 'importMapping', '');
+	if ($savedMapping === '' && isset($_COOKIE['saldi_kto_imp'])) $savedMapping = (string) $_COOKIE['saldi_kto_imp'];
+	if (substr_count($savedMapping, '|') == 2) {
+		list($file_charset, $splitter, $fn) = explode("|", $savedMapping);
 		$feltnavn = explode(";", $fn);
 	}
 }
@@ -71,11 +83,7 @@ if (!array_key_exists($splitter, $splitters)) $splitter = '';
 foreach ($feltnavn as $i => $navn) {
 	if (!in_array($navn, $kolonner)) $feltnavn[$i] = '';
 }
-if ($gemValg) setcookie('saldi_kto_imp', $file_charset."|".$splitter."|".implode(";", $feltnavn));
-
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
+if ($gemValg) update_settings_value('kontoplan', 'importMapping', $file_charset."|".$splitter."|".implode(";", $feltnavn), 'Kontoplan import: charset|separator|columns');
 include("../includes/topline_settings.php");
 
 $title = findtekst('1356|Importér', $sprog_id)." ".findtekst('612|Kontoplan', $sprog_id);
@@ -83,18 +91,13 @@ $filnavn = "../temp/".$db."_".str_replace(" ", "_", $brugernavn).".csv";
 
 print "<div align=\"center\">";
 
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => $title, 'back' => $returside));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
-print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
-
-       <td align='center' style='$topStyle'>".$title."<br></td>
-
-       <td width=\"170px\" style='$topStyle'><br></td></tr>
-       </tbody></table></td></tr>"; # <- tabel 1.1.1
 
 print "</tr></tbody></table></td></tr>";
 

@@ -22,6 +22,8 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // Batch overview for a given item. Shows all batches with expiry info.
 
 @session_start();
@@ -49,24 +51,11 @@ $varenr = $row['varenr'];
 $beskrivelse = $row['beskrivelse'];
 $warning_days = get_due_date_warning_days($bruger_id);
 
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href='$returside' accesskey='L' title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
-	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<table width='100%' cellspacing='2'><tbody>";
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'back' => $returside));
 	print "<table width='100%' cellspacing='2'><tbody>";
 	print "<tr><td colspan='8'>";
-	print "<table width='100%' cellspacing='2'><tbody>";
-	print "<td width='10%'><a href='$returside' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
-	print "<td width='10%' align='center' style='$topStyle'><br></td>";
-	print "</tbody></table>";
 } else {
 	print "<table width='100%' cellspacing='2'><tbody>";
 	print "<tr><td colspan='8'>";
@@ -147,8 +136,5 @@ print "<tr><td colspan='4'><b>" . findtekst('5013|Total restlager', $sprog_id) .
 
 print "</tbody></table>";
 
-if ($menu == 'T') {
-	print "</div>";
-}
 ?>
 </body></html>

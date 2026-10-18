@@ -29,6 +29,7 @@
 // 20130210 Break ændret til break 1
 // 20181126 - PHR Definition af div. variabler mm.
 // 20190321 PHR Added function equalizeMatchingRecords.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -112,6 +113,7 @@ if (!function_exists('genberegn')) {
 		db_modify("update grupper set box7='$logdate',box8='$logtime' where art='RA' and kodenr='$regnskabsaar'",__FILE__ . " linje " . __LINE__);
 		include("../includes/connect.php");
 		db_modify("update regnskab set  posteret='$transantal' where id='$db_id'",__FILE__ . " linje " . __LINE__);
+		$permission_key = 'any';
 		include("../includes/online.php");
 	}
 } 

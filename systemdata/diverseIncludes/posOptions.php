@@ -25,6 +25,7 @@
 // Kaldes fra systemdata/diverse.php
 // 20131230 PHR addad fiscal year to groups.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20261001 Sawaneh KDS colours are named color_1, color_2... (one row per setting name).
 // 20261008 CDX/NTR pre-fetch terminal_type for all POS terminals before the render loop, as $terminal_type was never populated, throwing errors.
 
 function posOptions () {
@@ -657,7 +658,7 @@ function type_change(idx) {
 	print "<tr><td><table border='0'><tbody>";
 	print "<tr><td>Antal minutter</td><td>Farve</td></tr>\n";
 	$x = 0;
-	$q = db_select("select var_value from settings where var_name='color' and var_grp='KDS' order by var_value", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select var_value from settings where var_name like 'color%' and var_grp='KDS' order by var_value", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$row = explode("-", $r["var_value"]);
 		print "<tr><td><input class='inputbox' type='text' size='5' name='kdscolorindex[$x]' value='$row[0]'></td><td><input class='inputbox' type='color' name='kdscolor[$x]' value='$row[1]'></td></tr>\n";

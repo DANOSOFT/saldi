@@ -19,6 +19,8 @@
 // ----------------------------------------------------------------------
 // 20260709 SZ Created: JSON lookup endpoint backing the Settings search box
 // 20260710 SZ Added 3-tier label/keyword/word-fallback matching + Norwegian label support
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260928 Sawaneh Results limited to settings groups the user may open (phase 4).
 // 20260930 CL/NTR Added 'masterDb' visibility rule so master-only pages are not offered in other accounts.
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
@@ -30,6 +32,7 @@ $title = "settingsSearch";
 $webservice = true;
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("settingsRegistry.php");
@@ -68,11 +71,11 @@ function settingsEntryIsVisible($entry) {
 				if ($db != $sqdb) return false;
 				break;
 			case 'posModule':
-				if (!file_exists("../debitor/pos_ordre.php")) return false;
+				if (!settings_has_module('pos')) return false;
 				break;
-			case 'docubizz':
-				$q = db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box6='on'", __FILE__ . " linje " . __LINE__);
-				if (!db_fetch_array($q)) return false;
+			case 'masterDb':
+				global $db, $sqdb;
+				if (!isset($db) || !isset($sqdb) || $db !== $sqdb) return false;
 				break;
 		}
 	}
@@ -158,22 +161,54 @@ function settingsEntryMatch($entry, $label, $search) {
 $label_matches = array();
 $keyword_matches = array();
 
+$accessibleGroups = function_exists('settings_accessible_groups') ? settings_accessible_groups() : null;
 foreach (getSettingsRegistry() as $entry) {
+	// Phase 4 (spec S3): only pages of groups the user may open; personal settings always.
+	$entryGroup = isset($entry['group']) ? $entry['group'] : '';
+	if ($accessibleGroups !== null && $entryGroup !== 'personal' && !isset($accessibleGroups[$entryGroup])) {
+		continue;
+	}
 	if (!settingsEntryIsVisible($entry)) {
 		continue;
 	}
 
 	$label = settingsEntryLabel($entry, $sprog_id);
+	if (isset($entry['textId'])) {
+		$entry['keywords'][] = settings_text_all_languages($entry['textId']);
+	}
+	foreach (array('labelDa', 'labelEn', 'labelNo') as $other) {
+		if (!empty($entry[$other])) {
+			$entry['keywords'][] = $entry[$other];
+		}
+	}
+	if (isset($entry['section'])) {
+		$allSections = getSettingsSections();
+		foreach ($allSections[$entry['section']]['legacy'] as $path) {
+			$entry['keywords'][] = trim(settings_legacy_all_languages($path));
+		}
+	}
 	$match = settingsEntryMatch($entry, $label, $search);
 	if ($match === null) {
 		continue;
 	}
 
+	// A hit through an old menu name carries the "Tidligere: ..." tag, as single settings do (spec §8.10).
+	$legacyTag = '';
+	if ($match['type'] !== 'label' && isset($entry['section']) && $search !== '') {
+		foreach (getSettingsSections()[$entry['section']]['legacy'] as $path) {
+			if (mb_strpos(settings_legacy_all_languages($path), mb_strtolower($search)) !== false) {
+				$legacyTag = settings_legacy_text($path, $sprog_id);
+				break;
+			}
+		}
+	}
 	$result = array(
 		'key' => $entry['key'],
 		'url' => $entry['url'],
 		'label' => $label,
+		'legacy' => $legacyTag,
 		'category' => $entry['category'],
+		'group' => ($entryGroup === 'personal') ? findtekst('5500|Personlige indstillinger', $sprog_id) : (isset($accessibleGroups[$entryGroup]) ? findtekst($accessibleGroups[$entryGroup]['def']['label'], $sprog_id) : ''),
 		'matchType' => $match['type'],
 		'matchedTerm' => $match['matchedTerm'],
 	);
@@ -187,6 +222,88 @@ foreach (getSettingsRegistry() as $entry) {
 
 $results = array_slice(array_merge($label_matches, $keyword_matches), 0, 20);
 
-echo json_encode(array('results' => $results, 'query' => $search));
+// 20260929 Sawaneh Phase 4a (spec §8.5, §8.10): single settings from registry v2, ranked
+// exact label > label prefix > label > keyword > old menu name > help text, filtered by the
+// user's permission keys. A hit on an old menu name carries the "Tidligere: ..." tag.
+$fields = array();
+if ($search !== '' && function_exists('getSettingDefinitions')) {
+	$needle = mb_strtolower($search);
+	$sections = getSettingsSections();
+	$groups = getSettingsGroups();
+	foreach (getSettingDefinitions() as $key => $def) {
+		$personal = ($def['group'] === 'personal');
+		if (!$personal && function_exists('perm_can') && !perm_can($def['permission'], 'read')) {
+			continue;
+		}
+		if ($def['visible_if'] && $def['visible_if'][0] === 'module' && !settings_has_module((string) $def['visible_if'][1])) {
+			continue;
+		}
+		$sectionId = $def['group'] . '.' . $def['section'];
+		$label = findtekst((string) $def['label'], $sprog_id);
+		if (isset($def['label_suffix'])) {
+			$label .= ' · ' . $def['label_suffix']; // 20261003 Sawaneh G6.3: a sender field carries its form language
+		}
+		$labelLc = mb_strtolower($label);
+		// Every part matches in every language Saldi ships: people search for the name they remember.
+		$legacy = !empty($def['legacy']) ? settings_legacy_text($def['legacy'], $sprog_id) : '';
+		$legacyAll = !empty($def['legacy']) ? settings_legacy_all_languages($def['legacy']) : '';
+		$labelAll = settings_text_all_languages($def['label']);
+		$helpAll = isset($def['help']) ? settings_text_all_languages($def['help']) : '';
+		$sectionAll = isset($sections[$sectionId]) ? settings_text_all_languages($sections[$sectionId]['label']) : '';
+		$rank = null;
+		$tag = '';
+		if ($labelLc === $needle) {
+			$rank = 0;
+		} elseif (mb_strpos($labelLc, $needle) === 0) {
+			$rank = 1;
+		} elseif (mb_strpos($labelLc, $needle) !== false) {
+			$rank = 2;
+		} else {
+			foreach ($def['keywords'] as $keyword) {
+				if (mb_strpos(mb_strtolower($keyword), $needle) !== false) {
+					$rank = 3;
+					break;
+				}
+			}
+			if ($rank === null && mb_strpos($labelAll, $needle) !== false) {
+				$rank = 2;
+			}
+			if ($rank === null && mb_strpos($sectionAll, $needle) !== false) {
+				$rank = 3;
+			}
+			if ($rank === null && $legacyAll !== '' && mb_strpos($legacyAll, $needle) !== false) {
+				$rank = 4;
+				$tag = $legacy;
+			}
+			if ($rank === null && $helpAll !== '' && mb_strpos($helpAll, $needle) !== false) {
+				$rank = 5;
+			}
+		}
+		if ($rank === null) {
+			continue;
+		}
+		$fields[] = array(
+			'key'      => $key,
+			'label'    => $label,
+			'url'      => $personal ? 'personalSettings.php' : settings_section_url($sectionId, $key),
+			'group'    => $personal ? findtekst('5500|Personlige indstillinger', $sprog_id) : findtekst($groups[$def['group']]['label'], $sprog_id),
+			'section'  => isset($sections[$sectionId]) ? findtekst((string) $sections[$sectionId]['label'], $sprog_id) : '',
+			'legacy'   => $tag,
+			'personal' => $personal,
+			'rank'     => $rank,
+		);
+	}
+	usort($fields, function ($a, $b) {
+		return ($a['rank'] - $b['rank']) ?: strcmp($a['group'] . $a['label'], $b['group'] . $b['label']);
+	});
+}
+
+echo json_encode(array(
+	'results'     => $results,
+	'fields'      => $fields,
+	'query'       => $search,
+	'legacyLabel' => findtekst('5723|Tidligere:', $sprog_id),
+	'personalLabel' => findtekst('5742|Personlig', $sprog_id),
+));
 exit;
 ?>
