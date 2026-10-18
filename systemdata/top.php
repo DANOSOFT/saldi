@@ -80,7 +80,7 @@ if (typeof window.saldiTranslations === 'undefined') {
 </script>";
 print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
 print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
-print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261016\">";
+print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261016b\">";
 print "<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>";
 print "<style>.st-legacy { min-width: 0; } .st-legacy table { max-width: 100%; } .st-legacy input[type=submit], .st-legacy input[type=button], .st-legacy button { border-radius: 8px; }</style>";
 print "<div class=\"st-page\" style=\"" . st_h(st_accent_style((string) $buttonColor, (string) $buttonTxtColor)) . "\">";

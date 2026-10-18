@@ -576,6 +576,26 @@ if (!function_exists('db_exists')) {
 	}
 }
 
+if (!function_exists('db_cast')) {
+	// 20261016 Sawaneh Review (PR #803): a cast MySQL and Postgres both accept: text -> CHAR, integer -> SIGNED on MySQL.
+	function db_cast($expr, $type) {
+		global $db_type;
+		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			return "cast($expr as " . ($type === 'text' ? 'char' : 'signed') . ")";
+		}
+		return "cast($expr as $type)";
+	}
+}
+
+if (!function_exists('saldi_schema_filter')) {
+	// 20261016 Sawaneh Review (PR #803): information_schema spans every database the user can see on MySQL, so a
+	// column/table check must name this one; appended to a WHERE on information_schema.columns/tables.
+	function saldi_schema_filter() {
+		global $db_type;
+		return in_array($db_type, array('mysql', 'mysqli'), true) ? " and table_schema = DATABASE()" : " and table_schema = current_schema()";
+	}
+}
+
 if (!function_exists('tbl_exists')) {
 	function tbl_exists($table) {
  		global $connection,$db,$db_type;

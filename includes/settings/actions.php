@@ -474,8 +474,8 @@ function settings_employee_usage(int $eid): string
 	$parts = array();
 	foreach (array(
 		array("select count(*) as n from brugere where ansat_id = $eid", 6625),
-		array("select count(*) as n from transaktioner where cast(ansat as text) = '$eid'", 6423),
-		array("select count(*) as n from kassekladde where cast(ansat as text) = '$eid'", 6566),
+		array("select count(*) as n from transaktioner where " . db_cast('ansat', 'text') . " = '$eid'", 6423),
+		array("select count(*) as n from kassekladde where " . db_cast('ansat', 'text') . " = '$eid'", 6566),
 		array("select count(*) as n from provision where ansat_id = $eid", 6626),
 	) as $c) {
 		$r = db_fetch_array(db_select($c[0], __FILE__ . " linje " . __LINE__));

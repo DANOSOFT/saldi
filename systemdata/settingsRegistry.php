@@ -76,6 +76,7 @@
 // 20261009 Sawaneh The tjekliste entry removed: checklists live in the Sager module now (settings redesign §4, 4e).
 // 20261010 Sawaneh The labels entry opens the new Mærkater page (labels.php, G5.8).
 // 20261016 Sawaneh settings_section_tabs() moved here from settingsSection.php, so labels.php shows the same left menu.
+// 20261016 Sawaneh The left menu takes a section's id from its s= parameter when the entry names none (Discounts, Variants).
 // 20261011 Sawaneh settings_section_complete() (spec §8.8): 'done' from data for the onboarding checklist and the landing
 //                  cards, which show 'Grundopsætning mangler' for Salg/Køb/Varer until their base rows exist.
 
@@ -307,8 +308,12 @@ if (!function_exists('settings_section_tabs')) {
 			if (!isset($entry['group']) || $entry['group'] !== $group || !settings_entry_available($entry)) {
 				continue;
 			}
+			$id = isset($entry['section']) ? (string) $entry['section'] : '';
+			if ($id === '' && preg_match('/[?&]s=([A-Za-z0-9_.]+)/', (string) $entry['url'], $m)) {
+				$id = $m[1];
+			}
 			$tabs[] = array(
-				'id'    => isset($entry['section']) ? (string) $entry['section'] : (string) $entry['key'],
+				'id'    => $id !== '' ? $id : (string) $entry['key'],
 				'label' => settings_entry_label($entry, $sprogId),
 				'url'   => (string) $entry['url'],
 			);

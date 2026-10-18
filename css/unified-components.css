@@ -838,7 +838,9 @@ body:has(.st-page) { margin: 0; background: #eef3fb !important; }
 .st-type-matrix { flex-wrap: wrap; }
 .st-type-matrix .st-tx, .st-type-matrix .st-ctl { flex-basis: 100%; }
 .st-type-matrix .st-ctl { justify-content: flex-start; }
-.st-matrix-wrap { width: 100%; overflow-x: auto; }
+/* 20261016 Sawaneh The discount matrix scrolls inside its card instead of widening the page. */
+.st-type-matrix, .st-type-matrix .st-ctl { min-width: 0; max-width: 100%; }
+.st-matrix-wrap { width: 100%; max-width: 100%; overflow-x: auto; }
 .st-matrix { border-collapse: collapse; font-size: 13px; }
 .st-matrix th, .st-matrix td { padding: 4px 6px; border-bottom: 1px solid var(--st-border, #e2e6ee); text-align: left; white-space: nowrap; }
 .st-matrix thead th { font-weight: 600; color: var(--st-text-2); }

@@ -365,6 +365,14 @@ class SettingsService
 	/**
 	 * Save a typed value. Returns true when the stored value changed.
 	 */
+	/**
+	 * information_schema spans every database the user can see on MySQL: filter on this one (review, PR #803).
+	 */
+	public static function schemaFilter(): string
+	{
+		return function_exists('saldi_schema_filter') ? saldi_schema_filter() : '';
+	}
+
 	public static function save(string $key, $value, $scopeId = null): bool
 	{
 		$def = self::definition($key);
@@ -421,6 +429,10 @@ class SettingsService
 				$stored = db_escape_string(implode($st['join'], $parts));
 			}
 			$where = "art = '" . db_escape_string($st['art']) . "' and kodenr = '" . db_escape_string($st['kodenr']) . "'" . ($st['kode'] !== null ? " and kode = '" . db_escape_string($st['kode']) . "'" : '');
+			if ($st['fiscal'] && $row && (int) $row['fiscal_year'] > 0) {
+				// An art with a row per year (POS, OreDif) writes this year's row only (review, PR #803).
+				$where .= " and fiscal_year = " . (int) $row['fiscal_year'];
+			}
 			if ($row) {
 				// Every row of the art/kodenr pair: a ledger may hold duplicates (risk review R9).
 				db_modify("update grupper set " . $st['box'] . " = '$stored' where $where", __FILE__ . " linje " . __LINE__);
@@ -570,8 +582,8 @@ class SettingsService
 	private static function auditColumns(): bool
 	{
 		if (self::$auditColumns === null) {
-			self::$auditColumns = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'audit_log' and column_name = 'setting_key'", __FILE__ . " linje " . __LINE__));
-			self::$auditObjekt = self::$auditColumns && (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'audit_log' and column_name = 'objekt_type'", __FILE__ . " linje " . __LINE__));
+			self::$auditColumns = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'audit_log' and column_name = 'setting_key'" . self::schemaFilter(), __FILE__ . " linje " . __LINE__));
+			self::$auditObjekt = self::$auditColumns && (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'audit_log' and column_name = 'objekt_type'" . self::schemaFilter(), __FILE__ . " linje " . __LINE__));
 		}
 		return self::$auditColumns;
 	}

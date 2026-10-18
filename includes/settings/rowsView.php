@@ -27,6 +27,8 @@
 //                  tables. Behaviour in javascript/settingsRows.js.
 // 20261008 Sawaneh A table with 'hide_empty' and no rows is not shown (old discounts in G3.5).
 // 20261008 Sawaneh A table's 'confirm_skip' adds a second confirm button (master's SST-769 Gem kurs uden bogføring).
+// 20261016 Sawaneh The "copy from year" button points at its own form printed after the main one; a form inside the main form
+//                  closed it early, so later blocks fell out of the layout and Save posted the copy action.
 
 include_once(__DIR__ . '/rows.php');
 
@@ -210,6 +212,14 @@ function settings_rows_render(array $c): void
 		<?php } ?>
     </form>
 <?php if (function_exists('settings_rows_create_forms')) { settings_rows_create_forms($c); } ?>
+<?php foreach (isset($GLOBALS['stCopyYearForms']) ? $GLOBALS['stCopyYearForms'] : array() as $copyTable => $copyFrom) { ?>
+    <form method="post" action="<?= st_h($c['selfUrl']) ?>" id="st-copy-<?= st_h($copyTable) ?>" hidden>
+      <input type="hidden" name="csrf_token" value="<?= st_h($c['csrfToken']) ?>">
+      <input type="hidden" name="action" value="row_copy_year">
+      <input type="hidden" name="table" value="<?= st_h($copyTable) ?>">
+      <input type="hidden" name="from_year" value="<?= (int) $copyFrom ?>">
+    </form>
+<?php } ?>
 
     <aside class="st-hist" aria-labelledby="st-hist-title">
       <h2 id="st-hist-title"><?= st_t(5710) ?></h2>
@@ -427,13 +437,8 @@ function settings_rows_table(array $c, string $tableId, array $t, array $posted,
 								}
 							}
 							if ($prev !== null) { ?>
-            <form method="post" action="<?= st_h($c['selfUrl']) ?>" class="st-inline">
-              <input type="hidden" name="csrf_token" value="<?= st_h($c['csrfToken']) ?>">
-              <input type="hidden" name="action" value="row_copy_year">
-              <input type="hidden" name="table" value="<?= st_h($tableId) ?>">
-              <input type="hidden" name="from_year" value="<?= $prev ?>">
-              <button type="submit" class="st-btn st-btn-quiet"><?= st_h(sprintf(st_txt(6440), $prev)) ?></button>
-            </form>
+            <button type="submit" class="st-btn st-btn-quiet" form="st-copy-<?= st_h($tableId) ?>"><?= st_h(sprintf(st_txt(6440), $prev)) ?></button>
+							<?php $GLOBALS['stCopyYearForms'][$tableId] = $prev; ?>
 						<?php } } ?>
           </div>
 					<?php } ?>

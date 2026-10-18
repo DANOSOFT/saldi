@@ -20,6 +20,7 @@
 // ----------------------------------------------------------------------
 // 20251201 - LOE Created modern header for documents page
 // 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261016 Sawaneh The page-head row is kept clear of the old bar colour that #topBarHeader paints (tester feedback, PR #803).
 
 // Note: oldDesign/header.php and topline_settings.php are included by documents.php
 
@@ -43,7 +44,9 @@ if ($source=="kassekladde") {
 
 // The page head (page_bar): title, Tilbage, the hidden tour trigger for the Assist menu.
 include_once(get_relative() . "includes/stdFunc/pageBar.php");
-print "<tr><td colspan='3'>";
+// The page head sits in #topBarHeader, whose cells documents.php and docPool.php paint in the button colour for the old
+// bar: this row stays clear so the head looks as on every other page (tester feedback, PR #803).
+print "<tr style='background:transparent !important'><td colspan='3' style='background:transparent !important'>";
 page_bar(array('title' => findtekst('1408|Kassebilag', $sprog_id), 'back' => $backUrl, 'help' => true));
 print "</td></tr>";
 

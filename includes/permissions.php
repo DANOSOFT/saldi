@@ -36,6 +36,8 @@
 //                  rights string; booleans written as true/false (MySQL); custom roles get no audit log;
 //                  notification check per database; one review flag per user (unique index on settings).
 // 20261009 Sawaneh Oversigt keys (addendum 4): 'derive_keys' resolution for users without a role and at seeding (built-in roles too), read-only clamp.
+// 20261016 Sawaneh Review (PR #803): GET write verbs on legacy pages (slet, udlign, aktiver, bogfor, ...) need write, like
+//                  a POST does; audit_log column check filtered on the schema.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 
@@ -295,7 +297,15 @@ function perm_enforce_request(?string $declaredKey, string $declaredLevel, bool 
 	$registry = permission_registry();
 	$dangerous = isset($registry[$key]) && $registry[$key]['dangerous'];
 	$isPost = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST');
-	$need = ($declaredLevel === 'write' || ($isPost && !$postIsRead)) ? 'write' : 'read';
+	// Legacy pages change data through GET links too (review, PR #803): those verbs count as writes.
+	$getWrite = false;
+	foreach (array('slet', 'delete', 'udlign', 'aktiver', 'bogfor', 'kopier', 'nulstil', 'unAlign', 'slet_bilag', 'opdater') as $verb) {
+		if (isset($_GET[$verb]) && (string) $_GET[$verb] !== '') {
+			$getWrite = true;
+			break;
+		}
+	}
+	$need = ($declaredLevel === 'write' || ($isPost && !$postIsRead) || $getWrite) ? 'write' : 'read';
 	if (perm_can($key, $need)) {
 		return;
 	}
@@ -914,7 +924,7 @@ function audit_log(string $handling, string $detaljer = '', string $objektType =
 		return;
 	}
 	if ($extended === null) {
-		$extended = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'audit_log' and column_name = 'objekt_type'", __FILE__ . " linje " . __LINE__));
+		$extended = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'audit_log' and column_name = 'objekt_type'" . (function_exists('saldi_schema_filter') ? saldi_schema_filter() : ''), __FILE__ . " linje " . __LINE__));
 	}
 	$id = isset($bruger_id) ? (int) $bruger_id : 0;
 	$navn = db_escape_string(audit_user_name());

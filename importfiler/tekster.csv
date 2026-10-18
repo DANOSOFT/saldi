@@ -6560,8 +6560,8 @@
 6897	Bruges som standardperiode i momsangivelsen og på oversigten.	Used as the default period of the VAT return and on the dashboard.	Brukes som standardperiode i mva-meldingen og på oversikten.
 6898	Momsregistrering	VAT registration	Mva-registrering
 6899	Momsangivelse %s	VAT return %s	Mva-melding %s
-6900	Tidligere rabatter (ikke aktive)	Previous discounts (not active)	Tidligere rabatter (ikke aktive)
-6901	Disse rabatter var sat op, men har ikke virket på grund af en fejl. Overfør dem, du stadig vil bruge.	These discounts were set up but have not worked because of an error. Transfer the ones you still want to use.	Disse rabattene var satt opp, men har ikke virket på grunn av en feil. Overfør dem du fortsatt vil bruke.
+6900	Rabatter fra den gamle side	Discounts from the old page	Rabatter fra den gamle siden
+6901	Disse rabatter er sat op på den gamle side og gælder stadig, når matrixen ikke har en rabat for samme par. Overfør dem for at redigere dem her.	These discounts were set up on the old page and still apply when the matrix has no discount for the same pair. Transfer them to edit them here.	Disse rabattene ble satt opp på den gamle siden og gjelder fortsatt når matrisen ikke har en rabatt for samme par. Overfør dem for å redigere dem her.
 6902	Overfør	Transfer	Overfør
 6903	Rabatten er overført til rabatmatrixen.	The discount has been transferred to the discount matrix.	Rabatten er overført til rabattmatrisen.
 6904	Kan ikke overføres: de to grupper har allerede en rabat, eller kundegruppens rabatter er af en anden type.	Cannot be transferred: the two groups already have a discount, or the customer group's discounts are of another type.	Kan ikke overføres: de to gruppene har allerede en rabatt, eller kundegruppens rabatter er av en annen type.
@@ -6739,6 +6739,7 @@
 7096	Grundopsætning mangler	Basic setup missing	Grunnoppsett mangler
 7097	Leverede ordrer, der ikke er faktureret	Delivered orders not yet invoiced	Leverte ordrer som ikke er fakturert
 7098	Laver testfaktura …	Making the test invoice …	Lager testfaktura …
+7099	Læseadgang håndhæves kun i "Afvis": i "Log kun" kan en bruger med læseadgang stadig ændre på de sider, der endnu bruger den gamle rettighedskontrol.	Read access is enforced only in "Deny": in "Log only" a user with read access can still change data on pages that still use the old rights check.	Lesetilgang håndheves bare i "Avvis": i "Bare logg" kan en bruker med lesetilgang fortsatt endre på sider som ennå bruker den gamle rettighetskontrollen.
 6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
 6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
 6932	Adgang nægtet	Access denied	Ingen tilgang

@@ -153,7 +153,7 @@ function settings_rows_where(array $t, ?int $year): string
 function settings_rows_load(array $t, ?int $year): array
 {
 	$rows = array();
-	$order = $t['order'] !== null ? (string) $t['order'] : (($t['code_col'] === 'kodenr') ? "length(cast(kodenr as text)), cast(kodenr as text), id" : 'id');
+	$order = $t['order'] !== null ? (string) $t['order'] : (($t['code_col'] === 'kodenr') ? "length(" . db_cast('kodenr', 'text') . "), " . db_cast('kodenr', 'text') . ", id" : 'id');
 	$q = db_select("select * from " . $t['dbtable'] . " where " . settings_rows_where($t, $year) . " order by " . $order, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$row = array('id' => (int) $r['id'], 'cells' => array(), 'raw' => $r, 'inactive' => isset($r['inaktiv']) && ($r['inaktiv'] === 't' || $r['inaktiv'] === true || $r['inaktiv'] === '1'));
@@ -246,13 +246,13 @@ function settings_rows_usage(array $t, array $row): array
 				$add("select count(*) as n from grupper where art in ('DG', 'KG') and (box1 = '$ref' or (art = 'KG' and box6 = '$ref'))" . ($y ? " and fiscal_year = $y" : ''), 6464);
 				break;
 			case 'debtor_group':
-				$add("select count(*) as n from adresser where art = 'D' and cast(gruppe as text) = '$esc'", 6465);
+				$add("select count(*) as n from adresser where art = 'D' and " . db_cast('gruppe', 'text') . " = '$esc'", 6465);
 				break;
 			case 'creditor_group':
-				$add("select count(*) as n from adresser where art = 'K' and cast(gruppe as text) = '$esc'", 6466);
+				$add("select count(*) as n from adresser where art = 'K' and " . db_cast('gruppe', 'text') . " = '$esc'", 6466);
 				break;
 			case 'item_group':
-				$add("select count(*) as n from varer where cast(gruppe as text) = '$esc'", 6427);
+				$add("select count(*) as n from varer where " . db_cast('gruppe', 'text') . " = '$esc'", 6427);
 				break;
 			case 'background':
 				// G6.2: customers, suppliers and orders name their background (form language) by its name.
@@ -262,7 +262,7 @@ function settings_rows_usage(array $t, array $row): array
 			case 'currency':
 				$k = isset($row['raw']['kodenr']) ? (int) $row['raw']['kodenr'] : 0;
 				$add("select count(*) as n from kontoplan where valuta = $k", 6601);
-				$add("select count(*) as n from transaktioner where cast(valuta as text) = '$k'", 6423);
+				$add("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$k'", 6423);
 				$add("select count(*) as n from kassekladde where valuta = $k", 6566);
 				$add("select count(*) as n from ordrer where valuta = '$esc'", 6422);
 				$add("select count(*) as n from openpost where valuta = '$esc'", 6568);
@@ -270,18 +270,18 @@ function settings_rows_usage(array $t, array $row): array
 				break;
 			case 'currency_rate':
 				$g = isset($row['raw']['gruppe']) ? (int) $row['raw']['gruppe'] : 0;
-				$add("select count(*) as n from transaktioner where cast(valuta as text) = '$g' and transdate >= '$esc'", 6423);
+				$add("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$g' and transdate >= '$esc'", 6423);
 				break;
 			case 'discount_debtor_group':
 				if ($isInt) {
 					$add("select count(*) as n from adresser where art = 'D' and rabatgruppe = $code", 6465);
-					$add("select count(*) as n from rabat where debitorart = 'NR' and vareart = 'NR' and cast(debitor as text) = '$code'", 6877);
+					$add("select count(*) as n from rabat where debitorart = 'NR' and vareart = 'NR' and " . db_cast('debitor', 'text') . " = '$code'", 6877);
 				}
 				break;
 			case 'discount_item_group':
 				if ($isInt) {
 					$add("select count(*) as n from varer where dvrg = $code", 6427);
-					$add("select count(*) as n from rabat where debitorart = 'NR' and vareart = 'NR' and cast(vare as text) = '$code'", 6877);
+					$add("select count(*) as n from rabat where debitorart = 'NR' and vareart = 'NR' and " . db_cast('vare', 'text') . " = '$code'", 6877);
 				}
 				break;
 			case 'price_group':
@@ -322,7 +322,7 @@ function settings_rows_derived(string $name, array $row): string
 			return '';
 		}
 		$out = array();
-		$q = db_select("select kodenr, beskrivelse from grupper where art = 'LG' and box1 = '$code' order by length(cast(kodenr as text)), cast(kodenr as text)", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select kodenr, beskrivelse from grupper where art = 'LG' and box1 = '$code' order by length(" . db_cast('kodenr', 'text') . "), " . db_cast('kodenr', 'text') . "", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$out[] = trim((string) $r['kodenr']) . ' ' . trim((string) $r['beskrivelse']);
 		}
@@ -595,7 +595,7 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 		if ($step[0] === 'insert') {
 			if ($t['auto_code'] && $t['kind'] === 'grupper') {
 				// The next number counted as a number, not as text ("10" after "9"; currencies, audit V8).
-				$r = db_fetch_array(db_select("select max(cast(kodenr as integer)) as m from grupper where art = '" . db_escape_string($t['art']) . "' and cast(kodenr as text) ~ '^[0-9]+$'", __FILE__ . " linje " . __LINE__));
+				$r = db_fetch_array(db_select("select max(" . db_cast('kodenr', 'integer') . ") as m from grupper where art = '" . db_escape_string($t['art']) . "' and " . db_cast('kodenr', 'text') . " ~ '^[0-9]+$'", __FILE__ . " linje " . __LINE__));
 				$step[2] = array('kodenr' => (string) ((int) ($r ? $r['m'] : 0) + 1)) + $step[2];
 			}
 			if (is_array($t['filter'])) {
@@ -661,12 +661,12 @@ function settings_rows_after_save(string $hook): void
 	if ($hook === 'warehouses_to_departments') {
 		// A department's default warehouse (AFD box1, read by the order pages) follows the warehouses flagged with
 		// it here; a department without a flagged warehouse keeps whatever it had.
-		$q = db_select("select box1 as afd, min(cast(kodenr as text)) as lager from grupper where art = 'LG' and coalesce(box1, '') <> '' group by box1", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select box1 as afd, min(" . db_cast('kodenr', 'text') . ") as lager from grupper where art = 'LG' and coalesce(box1, '') <> '' group by box1", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			db_modify("update grupper set box1 = '" . db_escape_string((string) $r['lager']) . "' where art = 'AFD' and cast(kodenr as text) = '" . db_escape_string((string) $r['afd']) . "'", __FILE__ . " linje " . __LINE__);
+			db_modify("update grupper set box1 = '" . db_escape_string((string) $r['lager']) . "' where art = 'AFD' and " . db_cast('kodenr', 'text') . " = '" . db_escape_string((string) $r['afd']) . "'", __FILE__ . " linje " . __LINE__);
 		}
 		// A default warehouse that no longer exists is cleared.
-		db_modify("update grupper set box1 = '' where art = 'AFD' and coalesce(box1, '') <> '' and box1 not in (select cast(kodenr as text) from grupper where art = 'LG')", __FILE__ . " linje " . __LINE__);
+		db_modify("update grupper set box1 = '' where art = 'AFD' and coalesce(box1, '') <> '' and box1 not in (select " . db_cast('kodenr', 'text') . " from grupper where art = 'LG')", __FILE__ . " linje " . __LINE__);
 	}
 }
 

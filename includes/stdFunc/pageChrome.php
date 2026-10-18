@@ -99,7 +99,7 @@ function page_breadcrumb(array $levels, ?string $tag = null, $back = null, strin
 	// The handlers live in javascript/pageChrome.js so the head only carries the message (a page that redirects
 	// after online.php must stay under PHP's output buffer).
 	$depth = substr_count(page_route_key(), '/');
-	$src = str_repeat('../', $depth) . 'javascript/pageChrome.js?v=20261008';
+	$src = str_repeat('../', $depth) . 'javascript/pageChrome.js?v=20261016';
 	return ($hide !== '' ? '<script>' . "\n" . $hide . '</script>' . "\n" : '')
 		. '<script>window.saldiPageChrome = ' . $json . ';</script>' . "\n"
 		. '<script src="' . htmlspecialchars($src, ENT_QUOTES) . '"></script>';

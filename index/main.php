@@ -77,6 +77,7 @@
 // 20261013 Sawaneh Test pass: without Se Oversigt the chip menu shows no dashboard items and the greeting bar stays off.
 // 20261014 Sawaneh Review: the shell's POSTs (top bar forms, theme, bell) carry the session's CSRF token.
 // 20261014 Sawaneh Review: the landing page without Se Oversigt is a page the role's own key allows.
+// 20261016 Sawaneh Tester feedback (PR #803): the sidebar mark follows the page in the frame, not only sidebar clicks.
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 // 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
 // 20261009 Sawaneh css/saldi-fonts.css in the shell: Saldi Grotesk + Inter and the text-size base (front-page addendum 3 §3).
@@ -579,6 +580,7 @@ function brightenColor($color, $amount = 0.2) {
       if (/\/systemdata\//.test(path)) { clear_sidebar(); entry.parentElement.classList.add('active'); }
       else { entry.parentElement.classList.remove('active'); }
     }
+    sidebarFollow(path);
     try { win.postMessage({ type: 'saldi:breadcrumb-request' }, location.origin); } catch (e) { /* page from another origin */ }
   }
   // A level's href as a path from the Saldi root ('/finans/kladdeliste.php?...'): absolute ones as given, relative
@@ -1245,6 +1247,26 @@ function brightenColor($color, $amount = 0.2) {
       });
     }
   });
+
+  // The sidebar follows the page in the frame, however it was reached (breadcrumb, search, links): the entry whose
+  // page is open is marked; a page without its own entry keeps the mark when it lives in the same module folder.
+  function sidebarFollow(path) {
+    if (!path || /\/systemdata\//.test(path)) { return; }
+    const links = document.querySelectorAll('.sidebar ul.sub-menu li a[onclick*="update_iframe"]');
+    let hit = null;
+    links.forEach((a) => {
+      const m = /update_iframe\(["']([^"'?]+)/.exec(a.getAttribute('onclick') || '');
+      if (m && path.endsWith(m[1]) && !hit) { hit = a; }
+    });
+    if (hit) {
+      if (!hit.classList.contains('active')) { clear_sidebar(); hit.classList.add('active'); }
+      return;
+    }
+    const folder = (p) => { const m = /\/(finans|debitor|kreditor|lager|produktion|sager|booking|rental|index)\//.exec(p || ''); return m ? m[1] : ''; };
+    const current = document.querySelector('.sidebar ul.sub-menu li a.active');
+    const cm = current ? /update_iframe\(["']([^"'?]+)/.exec(current.getAttribute('onclick') || '') : null;
+    if (current && cm && folder(cm[1]) !== folder(path)) { clear_sidebar(); }
+  }
 
   function clear_sidebar() {
     const refs = document.querySelectorAll(".sidebar ul.nav-links li ul.sub-menu li a, ul.nav-links li");

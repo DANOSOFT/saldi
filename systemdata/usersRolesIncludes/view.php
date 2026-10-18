@@ -40,6 +40,7 @@
 // 20261002 Sawaneh The page tells the shell its breadcrumb trail (settings redesign §8.0).
 // 20261009 Sawaneh Oversigt group (front-page addendum 4 §3): block rows under Se Oversigt, disabled while it is off, read-only radios, module note.
 // 20261011 Sawaneh Block rows under Se Oversigt = Ingen are greyed but still submitted, so their levels survive a save.
+// 20261016 Sawaneh Review (PR #803): the enforcement card says that read is enforced only in deny mode. Text 7099.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -655,6 +656,7 @@ function ur_view_log(array $vm, callable $h, callable $t, callable $link): void
   <details class="ur-card ur-enforce"<?= $mode === 'deny' ? ' open' : '' ?>>
     <summary><i class='bx bx-lock-alt'></i><?= $t('5595|Håndhævelse') ?> <span class="ur-count"><?= count($vm['unguarded']) + count($vm['wouldDeny']) ?></span></summary>
     <p class="ur-hint"><?= $t('5601|Skift til "Afvis" først, når listen over sider uden nøgle er tom, og alle "ville være afvist"-hændelser er forventede.') ?></p>
+    <p class="ur-hint"><?= $t('7099|Læseadgang håndhæves kun i "Afvis": i "Log kun" kan en bruger med læseadgang stadig ændre på de sider, der endnu bruger den gamle rettighedskontrol.') ?></p>
     <form method="post" action="<?= $h($vm['selfUrl']) ?>" class="ur-enforce-form">
       <input type="hidden" name="action" value="set_enforce">
       <label class="ur-check"><input type="radio" name="mode" value="log"<?= $mode === 'log' ? ' checked' : '' ?><?= $vm['canRolesWrite'] ? '' : ' disabled' ?>><span><b><?= $t('5596|Log kun (intet blokeres)') ?></b></span></label>

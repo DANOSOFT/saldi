@@ -53,7 +53,7 @@ function notif_ready(): bool
 	if (!isset($ready[$key])) {
 		// The 'type' column tells the notification center's table from the older unused one of the same name.
 		$ready[$key] = function_exists('tbl_exists') && tbl_exists('notification_read')
-			&& (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'notifications' and column_name = 'type'", __FILE__ . " linje " . __LINE__));
+			&& (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'notifications' and column_name = 'type'" . saldi_schema_filter() . "", __FILE__ . " linje " . __LINE__));
 	}
 	return $ready[$key];
 }

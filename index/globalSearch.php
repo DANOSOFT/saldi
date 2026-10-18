@@ -96,7 +96,7 @@ if (mb_strlen($q) >= 2 && mb_strlen($q) <= 60) {
 			continue;
 		}
 		$sql = "select id, kontonr, firmanavn from adresser where art = '$art' and (lukket is null or lukket != 'on') ";
-		$sql .= "and (cast(kontonr as text) like '$like%' or lower(firmanavn) like '%$like%' or cast(cvrnr as text) like '$like%') order by firmanavn limit 4";
+		$sql .= "and (" . db_cast('kontonr', 'text') . " like '$like%' or lower(firmanavn) like '%$like%' or " . db_cast('cvrnr', 'text') . " like '$like%') order by firmanavn limit 4";
 		$items = array();
 		foreach ($rows($sql) as $r) {
 			$items[] = array('label' => $utf($r['firmanavn']), 'sub' => $utf($r['kontonr']), 'href' => $g[2] . (int) $r['id']);
@@ -147,7 +147,7 @@ if (mb_strlen($q) >= 2 && mb_strlen($q) <= 60) {
 
 	if ($can('system.kontoplan')) {
 		$sql = "select id, kontonr, beskrivelse from kontoplan where regnskabsaar = " . (int) $regnaar . " ";
-		$sql .= "and (cast(kontonr as text) like '$like%' or lower(beskrivelse) like '%$like%') order by kontonr limit 4";
+		$sql .= "and (" . db_cast('kontonr', 'text') . " like '$like%' or lower(beskrivelse) like '%$like%') order by kontonr limit 4";
 		$items = array();
 		foreach ($rows($sql) as $r) {
 			$items[] = array('label' => $utf($r['beskrivelse']), 'sub' => $utf($r['kontonr']), 'href' => '/systemdata/kontokort.php?id=' . (int) $r['id']);

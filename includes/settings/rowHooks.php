@@ -32,6 +32,9 @@
 // 20261008 Sawaneh SST-769 from master: with Gem kurs uden bogføring the rate is saved and no adjustment is posted.
 // 20261009 Sawaneh Slet med data is refused while the year has stock movements (decision 22: no re-basing rule yet).
 
+// 20261016 Sawaneh The discount transfer and the old-discount columns live in virtualStorage.php.
+include_once(__DIR__ . '/virtualStorage.php');
+
 // ---------------------------------------------------------------- fiscal years (grupper art RA)
 
 /**
@@ -83,12 +86,12 @@ function settings_fiscal_year_usage(array $row): array
 	$out[] = array($n, sprintf(st_txt(6422), $n));
 	$n = settings_fy_count("select count(*) as n from openpost where transdate >= '$s' and transdate <= '$e'");
 	$out[] = array($n, sprintf(st_txt(6568), $n));
-	$n = settings_fy_count("select count(*) as n from brugere where cast(regnskabsaar as text) = '$k'");
+	$n = settings_fy_count("select count(*) as n from brugere where " . db_cast('regnskabsaar', 'text') . " = '$k'");
 	$out[] = array($n, sprintf(st_txt(6567), $n));
 	if ($k === (int) $regnaar) {
 		$out[] = array(1, st_txt(6569));
 	}
-	if (settings_fy_count("select count(*) as n from grupper where art = 'RA' and cast(kodenr as integer) > $k")) {
+	if (settings_fy_count("select count(*) as n from grupper where art = 'RA' and " . db_cast('kodenr', 'integer') . " > $k")) {
 		$out[] = array(1, st_txt(6570));
 	}
 	return $out;
@@ -109,7 +112,7 @@ function settings_fy_archive_refusal(array $raw): string
 	if (strtotime($e . ' +5 years') >= time()) {
 		return st_txt(6577);
 	}
-	if (settings_fy_count("select count(*) as n from grupper where art = 'RA' and cast(kodenr as integer) < $k and coalesce(box10, '') = ''")) {
+	if (settings_fy_count("select count(*) as n from grupper where art = 'RA' and " . db_cast('kodenr', 'integer') . " < $k and coalesce(box10, '') = ''")) {
 		return st_txt(6578);
 	}
 	if (trim((string) $raw['box5']) === 'on') {
@@ -118,7 +121,7 @@ function settings_fy_archive_refusal(array $raw): string
 	if ($k === (int) $regnaar) {
 		return st_txt(6569);
 	}
-	$n = settings_fy_count("select count(*) as n from brugere where cast(regnskabsaar as text) = '$k'");
+	$n = settings_fy_count("select count(*) as n from brugere where " . db_cast('regnskabsaar', 'text') . " = '$k'");
 	if ($n) {
 		return sprintf(st_txt(6567), $n);
 	}
@@ -163,7 +166,7 @@ function settings_fy_switch_year(int $year, bool $everybody): void
  */
 function settings_fiscal_year_suggestion(): array
 {
-	$r = db_fetch_array(db_select("select * from grupper where art = 'RA' order by cast(kodenr as integer) desc limit 1", __FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select * from grupper where art = 'RA' order by " . db_cast('kodenr', 'integer') . " desc limit 1", __FILE__ . " linje " . __LINE__));
 	if (!$r) {
 		$y = (int) date('Y');
 		return array('kodenr' => 1, 'start_month' => 1, 'start_year' => $y, 'end_month' => 12, 'end_year' => $y, 'first' => true);
@@ -208,7 +211,7 @@ function settings_fiscal_year_set_first(int $startMonth, int $startYear, int $en
 	if ($err) {
 		return array('error' => $err[0], 'error_args' => $err[1], 'kodenr' => 0, 'id' => 0);
 	}
-	$q = db_select("select * from grupper where art = 'RA' order by cast(kodenr as integer)", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select * from grupper where art = 'RA' order by " . db_cast('kodenr', 'integer') . "", __FILE__ . " linje " . __LINE__);
 	$years = array();
 	while ($r = db_fetch_array($q)) {
 		$years[] = $r;
@@ -267,7 +270,7 @@ function settings_fiscal_year_create(int $startMonth, int $startYear, int $endMo
 	transaktion('begin');
 	db_modify("insert into grupper (beskrivelse, kodenr, kode, art, box1, box2, box3, box4, box5) values ('" . db_escape_string($description) . "', '$kodenr', '', 'RA', '"
 		. sprintf('%02d', $startMonth) . "', '$startYear', '" . sprintf('%02d', $endMonth) . "', '$endYear', '" . ($postingAllowed ? 'on' : '') . "')", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array(db_select("select id from grupper where art = 'RA' and cast(kodenr as integer) = $kodenr order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select id from grupper where art = 'RA' and " . db_cast('kodenr', 'integer') . " = $kodenr order by id desc limit 1", __FILE__ . " linje " . __LINE__));
 	$id = $r ? (int) $r['id'] : 0;
 	if ($prev > 0) {
 		// Portable copies (no temporary table, audit F6), every column the table has so newer ones are not lost.
@@ -418,7 +421,7 @@ function settings_currency_rate_effect(int $gruppe, string $date, float $new, fl
 	if ($old <= 0 || $new <= 0 || abs($new - $old) < 0.0000001) {
 		return $out;
 	}
-	$vk = db_fetch_array(db_select("select box1, box3 from grupper where art = 'VK' and cast(kodenr as integer) = $gruppe", __FILE__ . " linje " . __LINE__));
+	$vk = db_fetch_array(db_select("select box1, box3 from grupper where art = 'VK' and " . db_cast('kodenr', 'integer') . " = $gruppe", __FILE__ . " linje " . __LINE__));
 	if (!$vk) {
 		return $out;
 	}
@@ -441,7 +444,7 @@ function settings_currency_rate_effect(int $gruppe, string $date, float $new, fl
 		while ($g = db_fetch_array($q)) {
 			// A debtor group's customers and a creditor group's suppliers (the old page looked at suppliers only).
 			$art = $g['art'] === 'DG' ? 'D' : 'K';
-			$q2 = db_select("select id, kontonr from adresser where art = '$art' and cast(gruppe as text) = '" . db_escape_string((string) $g['kodenr']) . "'", __FILE__ . " linje " . __LINE__);
+			$q2 = db_select("select id, kontonr from adresser where art = '$art' and " . db_cast('gruppe', 'text') . " = '" . db_escape_string((string) $g['kodenr']) . "'", __FILE__ . " linje " . __LINE__);
 			while ($adr = db_fetch_array($q2)) {
 				$sum = 0.0;
 				$q3 = db_select("select amount, valutakurs from openpost where udlignet = '0' and konto_id = " . (int) $adr['id'], __FILE__ . " linje " . __LINE__);
@@ -472,7 +475,7 @@ function settings_currency_book(array $effect, string $date): void
 	$today = date('Y-m-d');
 	$now = date('H:i');
 	$cur = isset($effect['gruppe']) ? (int) $effect['gruppe'] : 0;
-	$vk = db_fetch_array(db_select("select box3 from grupper where art = 'VK' and cast(kodenr as integer) = $cur", __FILE__ . " linje " . __LINE__));
+	$vk = db_fetch_array(db_select("select box3 from grupper where art = 'VK' and " . db_cast('kodenr', 'integer') . " = $cur", __FILE__ . " linje " . __LINE__));
 	$diffAccount = $vk ? db_escape_string(trim((string) $vk['box3'])) : '';
 	foreach ($effect['postings'] as $p) {
 		$amount = abs((float) $p['diff']);
@@ -582,13 +585,13 @@ function settings_rows_row_check(string $hook, array $t, array $clean, ?array $c
 	}
 	$date = db_escape_string((string) $clean['valdate']);
 	// No rate change dated before bookings in the currency or on its accounts (old valutakort.php).
-	if (settings_fy_count("select count(*) as n from transaktioner where cast(valuta as text) = '$gruppe' and transdate >= '$date'")
-		|| settings_fy_count("select count(*) as n from transaktioner where transdate >= '$date' and cast(kontonr as text) in (select cast(kontonr as text) from kontoplan where valuta = $gruppe and regnskabsaar = " . (int) $regnaar . ")")) {
+	if (settings_fy_count("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$gruppe' and transdate >= '$date'")
+		|| settings_fy_count("select count(*) as n from transaktioner where transdate >= '$date' and " . db_cast('kontonr', 'text') . " in (select " . db_cast('kontonr', 'text') . " from kontoplan where valuta = $gruppe and regnskabsaar = " . (int) $regnaar . ")")) {
 		return array('valdate' => 6595);
 	}
 	$effect = settings_currency_step_effect($t, $current === null ? array('insert', '', $clean) : array('update', '', $current, $clean));
 	if ($effect['postings'] && !settings_currency_skip_posting()) {
-		$vk = db_fetch_array(db_select("select box3 from grupper where art = 'VK' and cast(kodenr as integer) = $gruppe", __FILE__ . " linje " . __LINE__));
+		$vk = db_fetch_array(db_select("select box3 from grupper where art = 'VK' and " . db_cast('kodenr', 'integer') . " = $gruppe", __FILE__ . " linje " . __LINE__));
 		if (!$vk || trim((string) $vk['box3']) === '') {
 			return array('kurs' => 6596);
 		}
@@ -676,7 +679,7 @@ function settings_rows_after_save_extra(string $hook): bool
 	while ($r = db_fetch_array($q)) {
 		$k = (int) $r['kodenr'];
 		$rate = db_fetch_array(db_select("select kurs from valuta where gruppe = $k order by valdate desc, id desc limit 1", __FILE__ . " linje " . __LINE__));
-		db_modify("update grupper set box2 = '" . ($rate ? settings_money((float) $rate['kurs']) : '') . "' where art = 'VK' and cast(kodenr as integer) = $k", __FILE__ . " linje " . __LINE__);
+		db_modify("update grupper set box2 = '" . ($rate ? settings_money((float) $rate['kurs']) : '') . "' where art = 'VK' and " . db_cast('kodenr', 'integer') . " = $k", __FILE__ . " linje " . __LINE__);
 	}
 	if (!empty($GLOBALS['settings_currency_booked'])) {
 		include_once(__DIR__ . '/../genberegn.php');
@@ -697,7 +700,7 @@ function settings_rows_action_visible(string $name, array $row): bool
 		case 'fy_activate':
 			return !settings_fy_deleted($raw) && $k !== (int) $regnaar && trim((string) $raw['box5']) === 'on';
 		case 'fy_activate_all':
-			return $k === (int) $regnaar && settings_fy_count("select count(*) as n from brugere where coalesce(cast(regnskabsaar as text), '') != '$k'") > 0;
+			return $k === (int) $regnaar && settings_fy_count("select count(*) as n from brugere where coalesce(" . db_cast('regnskabsaar', 'text') . ", '') != '$k'") > 0;
 		case 'fy_opening':
 			return !settings_fy_deleted($raw);
 		case 'fy_archive':
@@ -707,7 +710,7 @@ function settings_rows_action_visible(string $name, array $row): bool
 		case 'discount_transfer':
 			return settings_discount_transfer_target($raw) !== null;
 		case 'move_control':
-			return trim((string) $raw['box2']) !== '' && settings_fy_count("select count(*) as n from adresser where art = '" . (substr((string) $raw['art'], 0, 1) === 'K' ? 'K' : 'D') . "' and cast(gruppe as text) = '" . (int) $raw['kodenr'] . "'") > 0;
+			return trim((string) $raw['box2']) !== '' && settings_fy_count("select count(*) as n from adresser where art = '" . (substr((string) $raw['art'], 0, 1) === 'K' ? 'K' : 'D') . "' and " . db_cast('gruppe', 'text') . " = '" . (int) $raw['kodenr'] . "'") > 0;
 	}
 	return false;
 }
@@ -861,7 +864,7 @@ function settings_variant_item_count(array $valueIds): int
 	}
 	$like = array();
 	foreach ($valueIds as $id) {
-		$like[] = "cast(variant_type as text) like '%$id%'";
+		$like[] = "" . db_cast('variant_type', 'text') . " like '%$id%'";
 	}
 	$n = 0;
 	$q = db_select("select variant_type from variant_varer where " . implode(' or ', $like), __FILE__ . " linje " . __LINE__);
@@ -968,7 +971,7 @@ function settings_control_move_amount(array $raw): float
 {
 	$a = substr((string) $raw['art'], 0, 1) === 'K' ? 'K' : 'D';
 	$k = (int) $raw['kodenr'];
-	$r = db_fetch_array(db_select("select sum(o.amount * 100 / (case when coalesce(o.valutakurs, 0) = 0 then 100 else o.valutakurs end)) as s from openpost o, adresser a where a.id = o.konto_id and a.art = '$a' and cast(a.gruppe as text) = '$k' and o.udlignet = '0'", __FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select sum(o.amount * 100 / (case when coalesce(o.valutakurs, 0) = 0 then 100 else o.valutakurs end)) as s from openpost o, adresser a where a.id = o.konto_id and a.art = '$a' and " . db_cast('a.gruppe', 'text') . " = '$k' and o.udlignet = '0'", __FILE__ . " linje " . __LINE__));
 	return $r ? round((float) $r['s'], 2) : 0.0;
 }
 

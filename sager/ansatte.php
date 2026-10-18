@@ -365,7 +365,14 @@ function ret_ansat($id) {
 		
 		if ($id) {
 			if ($ret_kode && $brugere_id) {
-				db_modify("update brugere set kode = '".db_escape_string($kode1)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+				// 20261016 Sawaneh Review (PR #803): only for a user the editor may manage (never an administrator from here).
+				include_once(__DIR__ . "/../includes/userFunctions.php");
+				$linkedUser = db_fetch_array(db_select("select * from brugere where id = '" . (int) $brugere_id . "'", __FILE__ . " linje " . __LINE__));
+				if ($linkedUser && (!function_exists('user_may_manage') || user_may_manage($linkedUser))) {
+					db_modify("update brugere set kode = '".db_escape_string($kode1)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+				} else {
+					print "<BODY onLoad=\"javascript:alert('".findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', $sprog_id)."');\">";
+				}
 			}
 			if ($brugere_navn && !$brugere_id) {
 				$r=db_fetch_array(db_select("select id,ansat_id from brugere where lower (brugernavn)='".db_escape_string(strtolower($brugere_navn))."'",__FILE__ . " linje " . __LINE__));

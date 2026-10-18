@@ -174,7 +174,7 @@ function settings_unique_migrate(): string
 	if (settings_unique_index_exists()) {
 		return 'exists';
 	}
-	$qtxt = "select count(*) as antal from information_schema.columns where table_name = 'settings' and column_name in ('var_grp', 'user_id', 'pos_id', 'group_id')";
+	$qtxt = "select count(*) as antal from information_schema.columns where table_name = 'settings' and column_name in ('var_grp', 'user_id', 'pos_id', 'group_id')" . saldi_schema_filter() . "";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$r || (int) $r['antal'] < 4) {
 		return 'skipped';
@@ -204,7 +204,7 @@ function settings_unique_migrate(): string
 		}
 	}
 	if ($plan['remove']) {
-		$qtxt = "select table_name from information_schema.tables where table_name = 'settings_removed'";
+		$qtxt = "select table_name from information_schema.tables where table_name = 'settings_removed'" . saldi_schema_filter() . "";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && !settings_mig_exec("create table settings_removed (id integer, var_name text, var_grp text, var_value text, var_description text, user_id integer, pos_id integer, group_id integer, kept_id integer, removed timestamp)")) {
 			return settings_mig_fail();
 		}

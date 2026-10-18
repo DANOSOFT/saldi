@@ -115,6 +115,7 @@ ob_end_flush();
 // 20260930 Sawaneh Roles stage 2 (§8.1, §8.2): reset password by mail, last active from live sessions.
 // 20261014 Sawaneh Review: a role above the editor's own levels cannot be saved down, copied or deleted; an invitation
 //                  is only resent for users the editor may manage.
+// 20261016 Sawaneh Review (PR #803): bulk resend checks user_may_manage() like the single resend.
 // 20260930 Sawaneh Roles stage 2 (§6.3): review of migrated roles - confirm, use the suggestion, bulk; a role is required.
 // 20261001 Sawaneh Review fixes: CSRF token on every posted form; users above the actor's own access cannot be
 //                  changed (msg=above).
@@ -403,8 +404,9 @@ function ur_bulk(array $post, int $selfId): string
 		} elseif ($what === 'suggest') {
 			$error = user_confirm_role($id, true, $selfId);
 		} elseif ($what === 'resend') {
-			$token = user_invite_resend($id);
-			$error = ($token === '') ? 'notinvited' : (user_invite_mail($id, $token, (int) $GLOBALS['sprog_id']) ? '' : 'mailfailed');
+			$row = db_fetch_array(db_select("select * from brugere where id = $id", __FILE__ . " linje " . __LINE__));
+			$token = ($row && user_may_manage($row)) ? user_invite_resend($id) : '';
+			$error = ($token === '') ? ($row && !user_may_manage($row) ? 'escalation' : 'notinvited') : (user_invite_mail($id, $token, (int) $GLOBALS['sprog_id']) ? '' : 'mailfailed');
 		} else {
 			$error = user_set_role($id, $roleId, $selfId);
 		}

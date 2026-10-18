@@ -159,15 +159,15 @@ function settings_discount_axes(): array
 		}
 		return $out;
 	};
-	$rows = $read("select kodenr, box1 from grupper where art = 'DRG' order by case when fiscal_year = $y then 0 else 1 end, cast(kodenr as integer)", 'box1');
+	$rows = $read("select kodenr, box1 from grupper where art = 'DRG' order by case when fiscal_year = $y then 0 else 1 end, " . db_cast('kodenr', 'integer') . "", 'box1');
 	$ownRows = (bool) $rows;
 	if (!$rows) {
-		$rows = $read("select kodenr, beskrivelse from grupper where art = 'DG' and fiscal_year = $y order by cast(kodenr as integer)", 'beskrivelse');
+		$rows = $read("select kodenr, beskrivelse from grupper where art = 'DG' and fiscal_year = $y order by " . db_cast('kodenr', 'integer') . "", 'beskrivelse');
 	}
-	$cols = $read("select kodenr, box1 from grupper where art = 'DVRG' order by cast(kodenr as integer), id", 'box1');
+	$cols = $read("select kodenr, box1 from grupper where art = 'DVRG' order by " . db_cast('kodenr', 'integer') . ", id", 'box1');
 	$ownCols = (bool) $cols;
 	if (!$cols) {
-		$cols = $read("select kodenr, beskrivelse from grupper where art = 'VG' and fiscal_year = $y order by cast(kodenr as integer)", 'beskrivelse');
+		$cols = $read("select kodenr, beskrivelse from grupper where art = 'VG' and fiscal_year = $y order by " . db_cast('kodenr', 'integer') . "", 'beskrivelse');
 	}
 	uksort($rows, function ($a, $b) { return (int) $a - (int) $b; });
 	uksort($cols, function ($a, $b) { return (int) $a - (int) $b; });
@@ -247,7 +247,8 @@ function settings_discount_matrix_normalise(string $posted): array
 			if (!isset($axes['cols'][$v]) || $val === '') {
 				continue;
 			}
-			if (!is_numeric($val) || (float) $val < 0 || ($type === '%' && (float) $val > 100)) {
+			// rabat is numeric(6,2): 9999.99 is the largest amount the column holds.
+			if (!is_numeric($val) || (float) $val < 0 || ($type === '%' && (float) $val > 100) || (float) $val > 9999.99) {
 				return array('raw' => '', 'error' => 6876);
 			}
 			if ((float) $val != 0) {
@@ -328,7 +329,7 @@ function settings_discount_legacy_axes(): array
 	$y = (int) $regnaar;
 	$read = function (string $art, string $name) use ($y) {
 		$out = array();
-		$q = db_select("select kodenr, $name as navn from grupper where art = '$art' and fiscal_year = $y order by cast(kodenr as integer)", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select kodenr, $name as navn from grupper where art = '$art' and fiscal_year = $y order by " . db_cast('kodenr', 'integer') . "", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$out[count($out) + 1] = array((string) (int) $r['kodenr'], trim((string) $r['navn']));
 		}

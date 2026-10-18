@@ -46,10 +46,13 @@
 // 20261004 Sawaneh G10.6: 'color' type, a #rrggbb text with a colour swatch beside it (empty allowed).
 // 20261002 Sawaneh Phase 4b batch 2 (G9): write-only 'secret' control (masked, Skift), 'info', 'link' and 'mini' rows,
 //                  computed select options, rule 'setting_set', lock 'ht_keys:<var>' for keys the installation manages.
+// 20261016 Sawaneh virtualStorage.php loaded with the components: a matrix save and Transfer failed when it was not yet read.
 // 20261008 Sawaneh Settings decision 21: the "?" opens the section's guide (guides/settings/<group>-<section>.html|.pdf)
 //                  when installed, otherwise the section description with a link to Guides.
 
 include_once(__DIR__ . '/SettingsService.php');
+// The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
+include_once(__DIR__ . '/virtualStorage.php');
 
 /**
  * Contrast ratio of two #rrggbb colours (WCAG 2.1).
@@ -518,7 +521,7 @@ function st_options(array $def): array
 		} elseif ($from === 'debtor_groups') {
 			global $regnaar;
 			$cache[$from] = array('' => '');
-			$q = db_select("select kodenr, beskrivelse from grupper where art = 'DG' and fiscal_year = " . (int) $regnaar . " order by length(cast(kodenr as text)), cast(kodenr as text)", __FILE__ . " linje " . __LINE__);
+			$q = db_select("select kodenr, beskrivelse from grupper where art = 'DG' and fiscal_year = " . (int) $regnaar . " order by length(" . db_cast('kodenr', 'text') . "), " . db_cast('kodenr', 'text') . "", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$cache[$from][(string) (int) $r['kodenr']] = (int) $r['kodenr'] . ' ' . trim((string) $r['beskrivelse']);
 			}

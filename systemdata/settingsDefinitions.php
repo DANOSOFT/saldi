@@ -94,6 +94,18 @@
 // 'join' + 'index' address one part of a composite box (R7).
 // 'legacy' is the old menu path as text ids; it feeds the "Tidligere: ..." search tag (§8.10).
 
+// The registry is also read without a database connection (tools/check_settings_registry.php): the same cast
+// as includes/db_query.php's db_cast(), so the definitions load either way.
+if (!function_exists('db_cast')) {
+	function db_cast($expr, $type) {
+		global $db_type;
+		if (in_array($db_type ?? 'postgres', array('mysql', 'mysqli'), true)) {
+			return "cast($expr as " . ($type === 'text' ? 'char' : 'signed') . ")";
+		}
+		return "cast($expr as $type)";
+	}
+}
+
 if (!function_exists('getSettingsSections')) {
 	/**
 	 * Sections that are generated from the registry, in display order within their group.
@@ -185,7 +197,7 @@ if (!function_exists('getSettingsSections')) {
 				'tables' => array(
 					'years' => array('sub' => 'years', 'label' => 894, 'add' => 508, 'empty' => 6565, 'storage' => array('grupper', 'RA'), 'no_add' => true,
 						'usage' => 'fiscal_year', 'on_delete' => 'fiscal_year_empty', 'row_locked' => 'fiscal_year_deleted', 'create' => 'fiscal_year',
-						'order' => 'cast(kodenr as integer)',
+						'order' => db_cast('kodenr', 'integer'),
 						'columns' => array(
 							'kodenr' => array('label' => 6548, 'type' => 'code', 'readonly' => true),
 							'beskrivelse' => array('label' => 914, 'type' => 'text', 'required' => true),
@@ -259,7 +271,7 @@ if (!function_exists('getSettingsSections')) {
 				'subsections' => array('setup' => 1249, 'projects' => 773),
 				'tables' => array(
 					'projects' => array('sub' => 'projects', 'label' => 773, 'help' => 6403, 'add' => 6404, 'empty' => 6405,
-						'storage' => array('grupper', 'PRJ'), 'usage' => 'project', 'exclude' => "cast(kodenr as text) <> '0'", 'row_name' => 'projekt',
+						'storage' => array('grupper', 'PRJ'), 'usage' => 'project', 'exclude' => db_cast('kodenr', 'text') . " <> '0'", 'row_name' => 'projekt',
 						'columns' => array(
 							'kodenr' => array('label' => 2248, 'type' => 'code', 'numeric' => false),
 							'beskrivelse' => array('label' => 914, 'type' => 'text', 'required' => true),
@@ -1606,7 +1618,7 @@ if (!function_exists('getSettingsSections')) {
 		// G10.1: interim and difference account per till for each currency the till accepts (VK box5/box6; box4 is the
 		// "used in the till" flag of valuta.php, so the till account column of the old page is not offered).
 		// G11.1: the chart of accounts is exported per fiscal year (deleted years have none); item locations only with warehouses.
-		$q = db_select("select kodenr, beskrivelse from grupper where art = 'RA' and coalesce(box10, '') = '' order by cast(kodenr as integer) desc", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select kodenr, beskrivelse from grupper where art = 'RA' and coalesce(box10, '') = '' order by " . db_cast('kodenr', 'integer') . " desc", __FILE__ . " linje " . __LINE__);
 		$ioDefs = array();
 		while ($r = db_fetch_array($q)) {
 			$ioDefs['import_export.data.accounts_export_' . (int) $r['kodenr']] = array('sub' => 'accounts', 'type' => 'link', 'label' => 6649, 'label_suffix' => trim((string) $r['beskrivelse']),

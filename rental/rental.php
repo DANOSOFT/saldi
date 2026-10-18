@@ -29,6 +29,7 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
 // 20261006 CL/LH SST-850: Settings password is verified server-side (checkPassword/settingsUnlocked) and never sent to the browser.
+// 20261016 Sawaneh Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
 //                Stored with password_hash(); legacy clear-text values are upgraded on first correct entry. The unlock is bound
 //                to the stored hash, and the endpoints behind the protected pages require it too.
 
@@ -1690,7 +1691,7 @@
                 if (!is_numeric($debitorrabatgruppe)) $debitorrabatgruppe=0;
                 if ( !is_numeric($varerabatgruppe)  ) $varerabatgruppe=0;
                 if (!isset($rabat)) $rabat = 0;
-                $qtxt = "select rabat,rabatart from rabat where debitorart='NR' and vareart='NR' and vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+                $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
                 if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
                     $rabat=$r2['rabat'];
                     $rabatart=$r2['rabatart'];

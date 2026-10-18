@@ -72,6 +72,7 @@ foreach ($companies as $company) {
 		continue;
 	}
 	$sprog = max(1, (int) ifset($u, 'language_id', 1));
+	onb_steps(true); // one process visits every tenant: refresh the per-request cache (review, PR #803)
 	$url = onb_get('onboarding_url');
 	$body = '<p>' . user_mail_h(sprintf(findtekst('6822|Du er nået %s af %s trin i opsætningen af %s. Fortsæt, hvor du slap – det tager kun et par minutter.', $sprog), onb_done_count(), count(onb_steps_def()), user_company_name())) . '</p>'
 		. '<p>' . user_mail_h(findtekst('6823|Log ind og vælg Fortsæt på kortet "Kom godt i gang" på din oversigt.', $sprog)) . '</p>'

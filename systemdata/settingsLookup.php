@@ -47,7 +47,7 @@ if ($q !== '' && mb_strlen($q) <= 60 && settings_accessible_groups()) {
 	$like = db_escape_string(str_replace(array('\\', '%', '_'), array('\\\\', '\\%', '\\_'), mb_strtolower($q)));
 	if ($type === 'account') {
 		$qtxt = "select kontonr, beskrivelse from kontoplan where regnskabsaar = '" . (int) $regnaar . "' and kontotype in ('D', 'S') ";
-		$qtxt .= "and (cast(kontonr as text) like '$like%' or lower(beskrivelse) like '%$like%') order by kontonr limit 12";
+		$qtxt .= "and (" . db_cast('kontonr', 'text') . " like '$like%' or lower(beskrivelse) like '%$like%') order by kontonr limit 12";
 		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($query)) {
 			$results[] = array('value' => (string) $r['kontonr'], 'name' => mb_convert_encoding((string) $r['beskrivelse'], 'UTF-8', $charset));
@@ -55,7 +55,7 @@ if ($q !== '' && mb_strlen($q) <= 60 && settings_accessible_groups()) {
 	} elseif ($type === 'creditor') {
 		// 20261003 Sawaneh G3.4: the debt collection lawyer is a creditor
 		$qtxt = "select kontonr, firmanavn from adresser where art = 'K' and (lukket is null or lukket != 'on') ";
-		$qtxt .= "and (cast(kontonr as text) like '$like%' or lower(firmanavn) like '%$like%') order by kontonr limit 12";
+		$qtxt .= "and (" . db_cast('kontonr', 'text') . " like '$like%' or lower(firmanavn) like '%$like%') order by kontonr limit 12";
 		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($query)) {
 			$results[] = array('value' => (string) $r['kontonr'], 'name' => mb_convert_encoding((string) $r['firmanavn'], 'UTF-8', $charset));

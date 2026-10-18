@@ -4,6 +4,7 @@
 //                  drawer, write-only secrets (Skift reveals an empty field), confirmation dialog for actions, the two
 //                  small provider forms sent through our own server, deep links ?item= and ?field=, Esc and Ctrl+S.
 // 20261008 Sawaneh Mini forms send the page's CSRF token (X-CSRF-Token), as master's Flatpay ID save (SST-844) requires.
+// 20261018 Sawaneh Account lookups in the drawers: the list of matching accounts while typing, as on the other settings pages.
 (function () {
 	'use strict';
 	var cfg = window.SALDI_SETTINGS || {};
@@ -378,4 +379,70 @@
 	if (params.get('done') === 'vibrant') { say(cfg.doneVibrant || ''); }
 	cleanUrl();
 	if (startItem) { open(startItem, field); }
+
+	// Account and creditor lookups in a drawer (§8.1), as on the other settings pages (settingsSection.js).
+	Array.prototype.forEach.call(page.querySelectorAll('.st-lookup'), function (box) {
+		var input = box.querySelector('input');
+		var list = box.querySelector('.st-lookup-list');
+		var resolved = box.querySelector('.st-resolved');
+		var timer = null, active = -1, items = [], picking = false;
+		if (!input || !list || input.readOnly) { return; }
+		function close() { list.hidden = true; input.setAttribute('aria-expanded', 'false'); active = -1; }
+		function pick(i) {
+			if (!items[i]) { return; }
+			input.value = items[i].value;
+			if (resolved) { resolved.textContent = '\u00b7 ' + items[i].name; }
+			close();
+			picking = true;
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+		}
+		function show(rows) {
+			items = rows;
+			list.innerHTML = '';
+			if (!rows.length) {
+				var none = document.createElement('li');
+				none.className = 'st-lookup-none';
+				none.textContent = cfg.notFound || '';
+				list.appendChild(none);
+			}
+			rows.forEach(function (row, i) {
+				var li = document.createElement('li');
+				li.setAttribute('role', 'option');
+				li.textContent = row.value + ' \u00b7 ' + row.name;
+				li.addEventListener('mousedown', function (ev) { ev.preventDefault(); pick(i); });
+				list.appendChild(li);
+			});
+			list.hidden = false;
+			input.setAttribute('aria-expanded', 'true');
+		}
+		input.addEventListener('input', function () {
+			if (picking) { picking = false; return; }
+			if (resolved) { resolved.textContent = ''; }
+			window.clearTimeout(timer);
+			var q = input.value.trim();
+			if (q === '' || !cfg.lookupUrl) { close(); return; }
+			timer = window.setTimeout(function () {
+				fetch(cfg.lookupUrl + '?type=' + encodeURIComponent(box.dataset.lookup) + '&q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+					.then(function (r) { return r.json(); })
+					.then(function (data) { if (input.value.trim() === q) { show(data.results || []); } })
+					.catch(close);
+			}, 180);
+		});
+		input.addEventListener('keydown', function (e) {
+			if (list.hidden) { return; }
+			var lis = list.querySelectorAll('[role="option"]');
+			if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+				e.preventDefault();
+				active = (active + (e.key === 'ArrowDown' ? 1 : -1) + lis.length) % Math.max(lis.length, 1);
+				Array.prototype.forEach.call(lis, function (li, i) { li.classList.toggle('on', i === active); });
+			} else if (e.key === 'Enter' && active >= 0) {
+				e.preventDefault();
+				pick(active);
+			} else if (e.key === 'Escape') {
+				e.stopPropagation();
+				close();
+			}
+		});
+		input.addEventListener('blur', function () { window.setTimeout(close, 120); });
+	});
 })();

@@ -10,7 +10,14 @@
 		var viaLuk = function (href) {
 			var c = document.querySelector('a[accesskey="l"]:not([data-keep-in-shell]), a[accesskey="L"]:not([data-keep-in-shell])');
 			if (!c || !/(^|\/)luk\.php/.test(c.getAttribute('href') || '')) { return href; }
-			try { var u = new URL(c.href), t = new URL(href); u.searchParams.delete('popup'); u.searchParams.set('returside', t.pathname + t.search); return u.href; } catch (x) { return href; }
+			// A javascript:confirmClose('../includes/luk.php?...') link holds the luk address inside the script, so it is
+			// read out of it instead of c.href (review, PR #803); the result is navigated to directly, not run as script.
+			var raw = c.getAttribute('href') || '', m = /^javascript:confirmClose\(\s*'([^']*)'/i.exec(raw);
+			try {
+				var u = new URL(m ? m[1] : c.href, window.location.href), t = new URL(href, window.location.href);
+				u.searchParams.delete('popup'); u.searchParams.set('returside', t.pathname + t.search);
+				return u.href;
+			} catch (x) { return href; }
 		};
 		window.addEventListener('message', function (e) {
 			if (e.origin !== window.location.origin || !e.data || e.source !== window.parent) { return; }

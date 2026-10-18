@@ -116,7 +116,7 @@ function grupper_unique_migrate(): string
 		return 'exists';
 	}
 	$types = array();
-	$q = db_select("select column_name, data_type from information_schema.columns where table_name = 'grupper' and column_name in ('kodenr', 'kode', 'fiscal_year')", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select column_name, data_type from information_schema.columns where table_name = 'grupper' and column_name in ('kodenr', 'kode', 'fiscal_year')" . saldi_schema_filter() . "", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$types[$r['column_name']] = $r['data_type'];
 	}
@@ -147,7 +147,7 @@ function grupper_unique_migrate(): string
 	}
 	$plan = grupper_duplicate_plan($rows);
 	if ($plan['remove']) {
-		if (!db_fetch_array(db_select("select table_name from information_schema.tables where table_name = 'grupper_removed'", __FILE__ . " linje " . __LINE__)) && !settings_mig_exec("create table grupper_removed as select *, 0 as kept_id, now() as removed from grupper where false")) {
+		if (!db_fetch_array(db_select("select table_name from information_schema.tables where table_name = 'grupper_removed'" . saldi_schema_filter() . "", __FILE__ . " linje " . __LINE__)) && !settings_mig_exec("create table grupper_removed as select *, 0 as kept_id, now() as removed from grupper where false")) {
 			return settings_mig_fail();
 		}
 		foreach ($plan['remove'] as $removeId => $keepId) {
