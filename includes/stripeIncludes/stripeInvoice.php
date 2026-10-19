@@ -270,7 +270,7 @@ if (!function_exists('stripe_invoice_load')) {
 		$inv['fornavn'] = trim((string)(explode(' ', trim((string)$o['kontakt']) ?: trim((string)($inv['debtor']['kontakt'] ?? '')))[0]));
 		$inv['no_card'] = stripe_bool($inv['debtor']['stripe_fravalg'] ?? '') || (($inv['debtor']['stripe_fravalg'] ?? '') === 'on');
 		$inv['enrolled'] = (($inv['debtor']['stripe'] ?? '') === 'on') && !empty($inv['debtor']['stripe_pm_id']);
-		$inv['recurring'] = trim((string)$o['nextfakt']) !== '' && $o['art'] === 'DO';
+		$inv['recurring'] = trim((string)$o['nextfakt']) !== '' && $o['art'] === 'DO' && !$inv['enrolled'];
 		// payments
 		$inv['paid'] = null; $inv['pending'] = null; $inv['failed'] = null; $inv['payments'] = array();
 		$q = db_select("select * from stripe_payments where ordre_id = " . (int)$ordreId . " order by id desc", __FILE__ . " linje " . __LINE__);
@@ -298,7 +298,7 @@ if (!function_exists('stripe_invoice_load')) {
 		if ($inv['pending']) return 'pending';
 		if ($inv['no_card']) return 'nocard';
 		if ($inv['failed']) return 'failed';
-		if ($inv['enrolled']) return 'enrolled';
+		if ($inv['enrolled'] && trim((string)$inv['o']['udskriv_til']) === 'Stripe') return 'enrolled'; // only Stripe invoices are charged by the job
 		if ($inv['due'] && $inv['due'] < date('Y-m-d')) return 'overdue';
 		return $inv['recurring'] ? 'open_recurring' : 'open';
 	}
@@ -463,6 +463,8 @@ if (!function_exists('stripe_payment_create')) {
 		$err = '';
 		if (!empty($pi['last_payment_error'])) $err = (string)(($pi['last_payment_error']['decline_code'] ?? '') ?: ($pi['last_payment_error']['code'] ?? '') ?: ($pi['last_payment_error']['message'] ?? ''));
 		list($pm, $brand, $last4) = stripe_pi_card($pi);
+		$lpe = isset($pi['last_payment_error']['payment_method']) && is_array($pi['last_payment_error']['payment_method']) ? $pi['last_payment_error']['payment_method'] : null;
+		if ($lpe) { if ($pm === '') $pm = (string)$lpe['id']; if ($brand === '' && !empty($lpe['card'])) { $brand = (string)$lpe['card']['brand']; $last4 = (string)$lpe['card']['last4']; } }
 		db_modify("update stripe_payments set status = 'failed', last_error = '" . db_escape_string(substr($err, 0, 200)) . "', pm_id = '" . db_escape_string($pm) . "', pm_brand = '" . db_escape_string($brand) . "', pm_last4 = '" . db_escape_string($last4) . "', last_event_id = '" . db_escape_string($eventId) . "' where id = " . (int)$row['id'], __FILE__ . " linje " . __LINE__);
 		$mailIt = ($row['source'] === 'backup');
 		if ($row['source'] === 'auto') {
