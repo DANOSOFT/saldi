@@ -61,6 +61,7 @@
 //                  PartyLegalEntity/CompanyID under schemeID 0088 instead of a CVR under
 //                  0184. The key is omitted when no CVR is known; routing on the GLN and
 //                  the GLN exemptions in both missing-CVR guards are unchanged.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
     @session_start();
     $s_id=session_id();
@@ -70,7 +71,7 @@
     // Getting the api key and tenant id from the database
     $query = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
-    $apiKey = $res["var_value"];
+    $apiKey = $res ? $res['var_value'] : null;
     //echo $apiKey . "<br>";
 
     include("../includes/online.php");

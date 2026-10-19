@@ -34,6 +34,7 @@
 // 20261006 CL/LH SST-839: Reach LAN print servers (private/reserved IPs, localhost, .local, single-label names) over HTTP
 //                 again (the mini-PCs do not serve HTTPS); other hosts still default to HTTPS and may not use HTTP.
 // 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 /**
  * True for a print server on the shop's own network: a private or reserved IP (10/8,
@@ -200,7 +201,7 @@ print "\n<!-- Function afslut (start)-->\n";
 					}
 				}
 			}
-			if ($amount) {
+			if ($amount ?? null) {
 				if (substr($amount,0,1)=="/" && $betaling) {
 					delbetal($id,$amount);
 				}
@@ -233,7 +234,7 @@ print "\n<!-- Function afslut (start)-->\n";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$pos_bet_id=$r['pos_bet_id'];
 				// MobilePay
-				if ($payment == "mobilepay") {
+				if (($payment ?? null) == "mobilepay") {
 					$tmp="payments/mobilepay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
 					setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";

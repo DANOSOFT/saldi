@@ -29,6 +29,7 @@
 // 20250531 PHR added $flatpayPrint
 // 20250912 PHR added print if canceled
 // 20261006 CL/LH SST-848: Write disableTerminalPrints as a JavaScript boolean; PHP false printed as an empty token and broke the whole payment script when flatpay_terminal_print was set.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 @session_start();
 $s_id = session_id();
@@ -65,7 +66,7 @@ $q = db_select("select var_value from settings where var_name = 'flatpay_print'"
 $flatpayPrint = db_fetch_array($q)[0];
 
 $q = db_select("select var_value from settings where var_name = 'flatpay_terminal_print'", __FILE__ . " linje " . __LINE__);
-$terminal_print = db_fetch_array($q)[0];
+$terminal_print = db_fetch_array($q)[0] ?? null;
 
 // Same rule as before: 0, NULL or a missing row means the terminal must not print.
 // The value is written into JavaScript, so it must be a literal true/false (PHP prints false as '').

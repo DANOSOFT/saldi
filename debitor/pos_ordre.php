@@ -122,6 +122,7 @@
 // 20261002 CL/SZ SST-813: Load stockWarningPopup.js with a filemtime version, as ordre.php does, so POS terminals pick up the keyboard/focus fix instead of a cached copy.
 // 20261002 CL/SZ SST-813: function kundedisplayBoxLookup: CodeRabbit review - make the 2 s a total limit for the whole lookup (cURL CURLOPT_TIMEOUT_MS), since the stream wrapper's timeout is per read.
 //                The stream fallback without cURL now gives the read only the time left after opening.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -711,7 +712,7 @@ if (!isset($_COOKIE['saldi_pfs']) || !$_COOKIE['saldi_pfs'] || !$id) {
 		$pfs = $tmparray[$kasse - 1];
 	setcookie('saldi_pfs', $pfs, time() - 60);
 	setcookie('saldi_pfs', $pfs, time() + 60 * 60 * 24 * 365, '/');
-	if ($pfs && $pfs != $old_pfs) {
+	if ($pfs && $pfs != ($old_pfs ?? null)) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n"; # 20140424b
 	}
 }
@@ -1755,7 +1756,7 @@ if ($id && $betaling) {
 #		exit(0);
 	}
 } elseif (!$indbetaling) {
-	list($varenr_ny, $pris_ny, $status) = explode(chr(9), varescan($id, $momssats, $varenr_ny, $antal_ny, $pris_ny, $beskrivelse_ny, $rabat_ny, $lager_ny));#20210811
+	list($varenr_ny, $pris_ny, $status) = explode(chr(9), varescan($id, $momssats, $varenr_ny ?? null, $antal_ny, $pris_ny, $beskrivelse_ny, $rabat_ny, $lager_ny));#20210811
 	#cho __line__." $beskrivelse_ny<br>";
 } else {
 	$indbetaling = (float) $indbetaling;
@@ -2642,30 +2643,30 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 
 	$qtxt = "select id,var_value from settings where var_name = 'commissionAccountUsed' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$commissionAccountUsed = $r['var_value'];
+	$commissionAccountUsed = $r ? $r['var_value'] : null;
 	$qtxt = "select id,var_value from settings where var_name = 'commissionAccountNew' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$commissionAccountNew = $r['var_value'];
+	$commissionAccountNew = $r ? $r['var_value'] : null;
 
 	$qtxt = "select id,var_value from settings where var_name = 'customerCommissionAccountNew' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$customerCommissionAccountNewId = $r['id'];
-	$customerCommissionAccountNew = $r['var_value'];
+	$customerCommissionAccountNewId = $r ? $r['id'] : null;
+	$customerCommissionAccountNew = $r ? $r['var_value'] : null;
 
 	$qtxt = "select id,var_value from settings where var_name = 'customerCommissionAccountUsed' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$customerCommissionAccountUsedId = $r['id'];
-	$customerCommissionAccountUsed = $r['var_value'];
+	$customerCommissionAccountUsedId = $r ? $r['id'] : null;
+	$customerCommissionAccountUsed = $r ? $r['var_value'] : null;
 
 	$qtxt = "select id,var_value from settings where var_name = 'ownCommissionAccountNew' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$ownCommissionAccountNewId = $r['id'];
-	$ownCommissionAccountNew = $r['var_value'];
+	$ownCommissionAccountNewId = $r ? $r['id'] : null;
+	$ownCommissionAccountNew = $r ? $r['var_value'] : null;
 
 	$qtxt = "select id,var_value from settings where var_name = 'ownCommissionAccountUsed' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$ownCommissionAccountUsedId = $r['id'];
-	$ownCommissionAccountUsed = $r['var_value'];
+	$ownCommissionAccountUsedId = $r ? $r['id'] : null;
+	$ownCommissionAccountUsed = $r ? $r['var_value'] : null;
 
 	$r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
 	$ansat_id = (int) $r['ansat_id'];
@@ -3282,7 +3283,7 @@ function kasseoptalling( // Called from cashBalance.php
 	$forventet = $byttepenge + $tilgang + $kortdiff;
 	(isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'])) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
 	specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet); #, $fiveRappen, $tenRappen, $twentyRappen
-	if ($valuta[0]) {
+	if ($valuta[0] ?? null) {
 		for ($x = 0; $x < count($valuta); $x++) {
 			print "<tr><td align=\"right\">$valuta[$x]</td><td></td><td align=\"right\">";
 			print "<input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"optval[$x]\" value=\"" . dkdecimal($optval[$x], 2) . "\"></td></tr>\n";
