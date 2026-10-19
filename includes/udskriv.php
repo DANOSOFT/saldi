@@ -50,6 +50,7 @@
 // 20260925 CL/LH SST-823 + SST-780: PostScript prints use only the .ps (it has every page; appending the _N.htm pages
 //             printed pages 2..N twice) and keep the document name instead of "udskrift". HTML pages merge in numeric order.
 // 20261006 CL/LH SST-851: Tilbage/Luk on the print page acts once; a repeated click while the order loads is ignored.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 @session_start();
 $s_id=session_id();
@@ -292,7 +293,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			# $pdftk = trim(shell_exec("which pdftk") ?? '');
 			# error_log("DIAG: pdftk_bin=$pdftk");
 
-			if ($printBatch === null && $pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+			if ($printBatch === null && $pdftk && file_exists($bg_fil ?? '') && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
 				// Self-heal non-A4 letterheads. A background that isn't A4 makes pdftk
 				if (function_exists('shell_exec')) {
 					$pinf = @shell_exec("pdfinfo " . escapeshellarg($bg_fil) . " 2>/dev/null");

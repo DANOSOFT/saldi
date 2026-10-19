@@ -34,6 +34,7 @@
 //             still saves and posts the adjustment; the new one writes rate history only, with no
 //             transaktioner rows and no kontoplan change. Cast $_GET kodenr/id, which reached SQL raw.
 // 20260914 CDX/LH Recalculate account balances only after posting a currency adjustment.
+// 20261019 CDX/LH MB-78: fix PHP warnings
  
 @session_start();
 $s_id=session_id();
@@ -323,6 +324,7 @@ if ($kodenr) {
 		print "<td align=\"right\"> $kurs &nbsp;</td>";
 		if ($r['valdate']>=$transdate) {
 			print "<td align=\"center\">";
+			$disabled = $disabled ?? null;
 			print "<a $disabled href=\"valutakort.php?id=$r[id]&kodenr=$kodenr&ret=1\">".findtekst('1206|Ret', $sprog_id)." </a>";
 			print "<br></td>";
 			print "</tr>";

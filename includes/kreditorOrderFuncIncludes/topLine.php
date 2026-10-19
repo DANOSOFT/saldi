@@ -1,4 +1,5 @@
 <?php
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 
 ###############
@@ -6,7 +7,7 @@ $konto_id = if_isset($_GET, NULL,'konto_id');
 $returside = nav_back_url(if_isset($_GET, NULL,'returside'));
 $valg = if_isset($_GET, 'ordrer','valg');
 $sort = if_isset($_GET, NULL,'sort');
-$hreftext = if_isset($hreftext, NULL);
+$hreftext = $hreftext ?? null;
 
 if (is_array($sort)) {
     $sort = implode(',', $sort);

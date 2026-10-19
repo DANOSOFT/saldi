@@ -86,6 +86,7 @@
 // 20260824 CL/NTR Flush the openpost topline to the client (ob_flush + flush, draining php.ini's output_buffering) before vis_aabne_poster's heavy queries run, so it renders while the SQL is still working.
 // 20260826 Sawaneh SD-140: openpost() no longer overwrites dato/konto with the stored DRV row when the request
 //                  itself carries konto_fra or kontonr (pagination, filter links and the in-report account search).
+// 20261019 CDX/LH MB-78: fix PHP warnings
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -582,7 +583,7 @@ function bogfor_nu($id)
 		$ordreantal = $x;
 		if ($r = db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'", __FILE__ . " linje " . __LINE__)))
 			$afd = $r['afd'];
-		$afd = $afd * 1; //sikkerhed for at 'afd' har en vaerdi 
+		$afd = ($afd ?? null) * 1; //sikkerhed for at 'afd' har en vaerdi
 
 		$bilag = 0;
 		if (!$valutakurs && $valuta != 'DKK') { //20140628

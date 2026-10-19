@@ -54,6 +54,7 @@
 // 20260923 CDX/PHR Place the invoice insertion option directly after the reference field.
 // 20260923 CDX/PHR Save explicit manual reference edits on Update, separately from automatic insertion.
 // 20260925 CDX/PHR Preserve the account-chart filter through settlement forms, period changes and return links.
+// 20261019 CDX/LH MB-78: fix PHP warnings
  
 @session_start();
 $s_id=session_id();
@@ -195,7 +196,7 @@ $art=substr($r['art'],0,1)."G";
 $r2 = db_fetch_array(db_select("select box3 from grupper where art='$art' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__)); # Finder valuta for konto.
 $basisvaluta=trim($r2['box3']);
 $r2=db_fetch_array(db_select("select box2 from grupper where art ='VK' and box1='$basisvaluta'",__FILE__ . " linje " . __LINE__)); # Finder valutakurs for konto.
-$basiskurs=str_replace(",",".",$r2['box2']); #Valutaen kan være i dansk talformat (BUG).
+$basiskurs=str_replace(",",".",$r2 ? $r2['box2'] : null); #Valutaen kan være i dansk talformat (BUG).
 #	cho "$valuta[0] basisvaluta $basisvaluta basiskurs $basiskurs<br>";
 if ($basisvaluta=='DKK') $basiskurs=100; 
 if ($basisvaluta != $valuta[0]) {
@@ -353,6 +354,8 @@ if ($insertInvoiceNumbers) {
 }
 
 if ($menu=='S') {
+	$color = $color ?? null;
+	$alerttekst = $alerttekst ?? null;
 	#########
     $tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
@@ -504,9 +507,9 @@ if ($diff!=0) {
 		}
 	}
 }
-if (!$diffDate) $diffDate=$udligndate;
+if (!($diffDate ?? null)) $diffDate=$udligndate;
 $diffdato=dkdato($diffDate);
-$diffbilag*=1;
+$diffbilag=($diffbilag ?? null)*1;
 print "<tr><td colspan=6><hr></td></tr>";
 if (abs($dkkdiff)<$maxdiff || abs($diff)<0.009) {
 	print "<tr><td colspan=\"1\"><input class=\"inputbox\" style=\"width:90px;\" type=\"text\" name=\"diffdato\" value=\"$diffdato\"</td>";
@@ -517,7 +520,7 @@ if (abs($dkkdiff)<$maxdiff || abs($diff)<0.009) {
 }
 print "<td align=right>".dkdecimal($diff)."</td></tr>";
 print "<tr><td colspan=6><hr></td></tr>";
-print "<input type = hidden name=omregningskurs[0] value=$omregningskurs[0]>";
+print "<input type = hidden name=omregningskurs[0] value=" . ($omregningskurs[0] ?? null) . ">";
 print "<input type = hidden name=konto_id[0] value=$konto_id[0]>";
 print "<input type = hidden name=post_id[0] value=$post_id[0]>";
 print "<input type = hidden name=amount[0] value=$amount[0]>";
@@ -542,7 +545,7 @@ print "<input type = hidden name=diffkto value=$diffkto>";
 print "<input type = hidden name=valuta[0] value=$valuta[0]>";
 print "<input type = hidden name=basisvaluta value=$basisvaluta>";
 print "<input type = hidden name=post_id[0] value=$post_id[0]>";
-print "<input type = hidden name=id[0] value=$id[0]>";
+print "<input type = hidden name=id[0] value=" . ($id[0] ?? null) . ">";
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
     ? "https://"
     : "http://";

@@ -127,6 +127,7 @@
 // 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
 // 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
 // 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -880,15 +881,15 @@ function div_valg() {
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	($r['var_value']) ? $mySale = "checked='checked'" : $mySale = NULL;
+	($r ? $r['var_value'] : null) ? $mySale = "checked='checked'" : $mySale = NULL;
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySaleLabel'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	($r['var_value']) ? $mySaleLabel = "checked='checked'" : $mySaleLabel = NULL;
+	($r ? $r['var_value'] : null) ? $mySaleLabel = "checked='checked'" : $mySaleLabel = NULL;
 
 	$qtxt = "select var_value from settings where var_grp='creditor' and var_name='paperflow'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	($r['var_value']) ? $paperflow = "checked='checked'" : $paperflow = NULL;
+	($r ? $r['var_value'] : null) ? $paperflow = "checked='checked'" : $paperflow = NULL;
 	if ($paperflow) {
 		$qtxt            = "select var_value from settings where var_grp='creditor' and var_name='paperflowId'";
 		$r               = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -990,7 +991,7 @@ function div_valg() {
 	print "</td></tr>\n";
 	$externalContent = file_get_contents('http://checkip.dyndns.com/');
 	preg_match('/Current IP Address: \[?([:.0-9a-fA-F]+)\]?/', $externalContent, $m);
-	$externalIp = $m[1];
+	$externalIp = $m[1] ?? null;
 	$txt = str_replace('$myip',$externalIp,findtekst('764|Hvis du vil kunne udskrive direkte til en lokal printer skal din router redirrigere data på port 9100 fra $myip direkte til din lokale printer. Herudover skal din printer være oprettet på saldi serveren. Kontakt Saldi for uddybning.', $sprog_id));
 	print "<tr>\n<td title='$txt'>".findtekst('763|Direkte print til lokal printer.', $sprog_id)."</td>\n";
 	print "<td title='$txt'>\n";
@@ -1482,13 +1483,13 @@ function removeDfmPickup(idx) {
 	print "</td></tr>\n";
 
 	$q             = db_select("select var_value from settings where var_name = 'client_id' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$client_id     = db_fetch_array($q)[0];
+	$client_id     = (db_fetch_array($q)[0] ?? null);
 	$q             = db_select("select var_value from settings where var_name = 'client_secret' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$client_secret = db_fetch_array($q)[0];
+	$client_secret = (db_fetch_array($q)[0] ?? null);
 	$q             = db_select("select var_value from settings where var_name = 'subscriptionKey' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$subscription  = db_fetch_array($q)[0];
+	$subscription  = (db_fetch_array($q)[0] ?? null);
 	$q             = db_select("select var_value from settings where var_name = 'MSN' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$MSN           = db_fetch_array($q)[0];
+	$MSN           = (db_fetch_array($q)[0] ?? null);
 
 	print "<tr>\n<td title='MobilePay'>Mobilepay Client ID</td>\n";
 	print "<td title='MobilePay'>\n";
