@@ -457,6 +457,55 @@ namespace {
                 'the client reads a different field than insertDoc.php writes');
         }
 
+        /**
+         * The status insertDocAttachFailed() sends has to still be sendable.
+         *
+         * Found in review. "Indsæt valgte" fetches the gennemse form's action, which is
+         * documents.php, not insertDoc.php: documents.php prints the online.php page frame as
+         * it includes it and then ~700 lines of its own markup, and only reaches docPool.php -
+         * which includes insertDoc.php - long after that. php.ini sets output_buffering to
+         * 4096, so the response was committed by then, headers_sent() was true, and the helper
+         * fell back to an alert() that the fetch()/response.text() path never evaluates. A
+         * failed attach answered http 200 and looked exactly like a success again.
+         *
+         * Reordering alone cannot fix it, because the printing starts inside the include that
+         * authenticates the request. What fixes it is documents.php owning a buffer of its own
+         * from before the first include, so nothing reaches the client until the page is done.
+         * Measured through this app's own Apache with output_buffering=4096: without the buffer
+         * a failed attach answers 200 with the page as its body, with it 500 and the json.
+         */
+        public function testTheAttachResponseIsStillOpenWhenTheFailureIsDecided(): void
+        {
+            $documents = self::read(self::ROOT . '/includes/documents.php');
+
+            $buffer = strpos($documents, 'ob_start();');
+            self::assertNotFalse($buffer,
+                'documents.php opens no output buffer, so a failed attach cannot answer with a status');
+
+            // Every include is a candidate: online.php prints while being included.
+            self::assertNotFalse(preg_match_all('/^[ \t]*(?:include|require)(?:_once)?\b/m', $documents, $m, PREG_OFFSET_CAPTURE));
+            $firstInclude = $m[0][0][1];
+            self::assertLessThan($firstInclude, $buffer,
+                'the buffer is opened after an include that may print, which is too late');
+
+            self::assertNotFalse(preg_match('/^[ \t]*print\b/m', $documents, $p, PREG_OFFSET_CAPTURE));
+            self::assertLessThan($p[0][1], $buffer,
+                'the buffer is opened after this page starts printing, which is too late');
+
+            // The helper only works if it drains every level first - php's own 4096-byte buffer
+            // sits below ours - and then decides on headers_sent(), not on nothing at all.
+            $insert = self::read(self::INSERT);
+            $at = strpos($insert, 'function insertDocAttachFailed(');
+            self::assertNotFalse($at);
+            $body = substr($insert, $at, strpos($insert, "\n\t}\n}", $at) - $at);
+            self::assertStringContainsString('while (ob_get_level())', $body,
+                'the helper no longer drains the buffers, so its status cannot get out');
+            self::assertStringContainsString('headers_sent()', $body,
+                'the helper no longer checks whether the response is still open');
+            self::assertLessThan(strpos($body, 'headers_sent()'), strpos($body, 'while (ob_get_level())'),
+                'the helper asks headers_sent() before draining, so it answers on a stale reading');
+        }
+
         /** The insert call's non-2xx handler, sliced out of docPool.php. */
         private function clientErrorHandler(): string
         {
