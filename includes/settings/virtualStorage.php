@@ -24,6 +24,7 @@
 //                  'virtual'). Read and written here, audited like any other setting by SettingsService.
 // 20261008 Sawaneh Settings decision 20: the matrix reads and writes only rows marked 'NR' (debitorart/vareart, by group
 //                  number); settings_discount_transfer() moves one old row (stored by position) into it. No automatic migration.
+// 20261019 Sawaneh Review 2 (PR #803): floor_plan_count selects the ids to drop first, then deletes them (MySQL refuses a same-table LIMIT subquery).
 
 /**
  * The value of a virtual setting.
@@ -113,10 +114,19 @@ function settings_virtual_set(string $name, string $raw): void
 		$plans = function_exists('settings_floor_plans') ? settings_floor_plans() : array();
 		$have = count($plans);
 		for ($i = $have; $i < $n; $i++) {
-			db_modify("insert into table_pages (id, name) values ((select coalesce(max(id), 0) + 1 from table_pages), '')", __FILE__ . " linje " . __LINE__);
+			// The next id is read first: MySQL refuses an INSERT that selects from its own table (review 2, PR #803).
+			$next = db_fetch_array(db_select("select coalesce(max(id), 0) + 1 as nid from table_pages", __FILE__ . " linje " . __LINE__));
+			db_modify("insert into table_pages (id, name) values (" . (int) ($next ? $next['nid'] : 1) . ", '')", __FILE__ . " linje " . __LINE__);
 		}
 		if ($n < $have) {
-			db_modify("delete from table_pages where id in (select id from table_pages order by id desc limit " . ($have - $n) . ")", __FILE__ . " linje " . __LINE__);
+			$dropIds = array();
+			$q = db_select("select id from table_pages order by id desc limit " . ($have - $n), __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$dropIds[] = (int) $r['id'];
+			}
+			if ($dropIds) {
+				db_modify("delete from table_pages where id in (" . implode(',', $dropIds) . ")", __FILE__ . " linje " . __LINE__);
+			}
 		}
 		return;
 	}

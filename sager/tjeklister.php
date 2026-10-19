@@ -22,6 +22,7 @@ $s_id = session_id();
 // 20261009 Sawaneh Checklists for cases moved out of Indstillinger into the Sager module (settings redesign §4
 //                  "(Checklists)", phase 4e): the editor that lived in systemdata/diverse.php?sektion=tjekliste and
 //                  sys_div_func.php tjekliste(). Phases are renumbered on save, not at render time (B-T1).
+// 20261019 Sawaneh Review 2 (PR #803): the renumbering selects the list's group ids first (MySQL refuses a same-table subquery in an UPDATE).
 
 $bg = "nix";
 $header = 'nix';
@@ -102,7 +103,12 @@ function sager_tjeklister_renumber(): void
 		if ((float) $r['fase'] != $fasenr) {
 			db_modify("update tjekliste set fase = '$fasenr' where id = '$listId'", __FILE__ . " linje " . __LINE__);
 		}
-		db_modify("update tjekliste set fase = '$fasenr' where assign_to = 'sager' and (assign_id = '$listId' or assign_id in (select id from tjekliste where assign_to = 'sager' and assign_id = '$listId')) and fase != '$fasenr'", __FILE__ . " linje " . __LINE__);
+		$parentIds = array($listId);
+		$q2 = db_select("select id from tjekliste where assign_to = 'sager' and assign_id = '$listId'", __FILE__ . " linje " . __LINE__);
+		while ($r2 = db_fetch_array($q2)) {
+			$parentIds[] = (int) $r2['id'];
+		}
+		db_modify("update tjekliste set fase = '$fasenr' where assign_to = 'sager' and assign_id in ('" . implode("', '", $parentIds) . "') and fase != '$fasenr'", __FILE__ . " linje " . __LINE__);
 	}
 }
 

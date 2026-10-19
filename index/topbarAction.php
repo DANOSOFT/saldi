@@ -30,6 +30,7 @@
 // 20261008 Sawaneh action=theme stores the user's light/dark/system choice (settings ui/theme).
 // 20261009 Sawaneh action=theme also sets the saldi_theme cookie so auditor/master-admin sessions keep the choice.
 // 20261009 Sawaneh action=auto_extract / action=sidebar store the personal settings that replace two cookies (4e).
+// 20261019 Sawaneh Review 2 (PR #803): action=theme saves through SettingsService (personal.profile.theme), so the change is audited.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -87,10 +88,11 @@ if ($action === 'fiscal_year') {
 if ($action === 'theme') {
 	// Lys / Mørk / System in the user chip (prototype_dashboard_tema v5): a personal setting, answered as JSON when asked by fetch.
 	include_once(__DIR__ . "/../includes/std_func.php");
+	include_once(__DIR__ . "/../includes/settings/SettingsService.php");
 	$theme = isset($request['theme']) ? (string) $request['theme'] : '';
 	if (in_array($theme, array('light', 'dark', 'system'), true)) {
 		if ((int) $bruger_id > 0) {
-			update_settings_value('theme', 'ui', $theme, 'UI theme: light, dark or system', (int) $bruger_id);
+			SettingsService::save('personal.profile.theme', $theme, (int) $bruger_id);
 		}
 		// Auditor/master-admin sessions have no user row: the cookie carries the choice (online.php reads it as the fallback).
 		saldi_setcookie('saldi_theme', $theme, time() + 31536000, '/', '', null, false);

@@ -34,6 +34,7 @@
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // 20260929 CL/SZ SD-698: Optional returside; when set, Tilbage goes back there instead of regnskab.php (used by the kassekladde account lookup).
+// 20261019 Sawaneh Review 2 (PR #803): page_bar back link honours the optional returside again.
 
 
 $fakturanr = array();
@@ -131,7 +132,7 @@ if ($menu == 'S') {
 	if ($kontonr) $ksTitle .= "$txt2131: $kontonr";
 	if ($bilag) $ksTitle .= "$txt2132: $bilag";
 	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => $ksTitle, 'back' => 'regnskab.php'));
+	page_bar(array('title' => $ksTitle, 'back' => ($returside !== '' ? $returside : 'regnskab.php')));
 	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
 	print "<tr><td align='center' valign='top' height='1%'>\n";
     print "</td></tr>";

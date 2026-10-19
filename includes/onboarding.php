@@ -31,6 +31,7 @@
 // 20261014 Sawaneh Test invoice: formularprint() answers 'OK' when it printed, which was read as a refusal; refusals are logged.
 //                  The PDF converter and pdftk fall back to the server's own binaries when the master settings are empty.
 // 20261015 Sawaneh The test line carries an item number, so the print shows quantity, price and sum.
+// 20261019 Sawaneh Review 2 (PR #803): inserted ids read from this connection (onb_insert_id) instead of select max(id).
 
 if (!function_exists('onb_get')):
 
@@ -202,6 +203,19 @@ function onb_next_invoice_set(int $n): void
 }
 
 /**
+ * The id of the row this connection just inserted into $table, so a concurrent insert elsewhere is never picked.
+ */
+function onb_insert_id(string $table): int
+{
+	global $db_type;
+	$qtxt = in_array($db_type, array('mysql', 'mysqli'), true)
+		? "select LAST_INSERT_ID() as id"
+		: "select currval(pg_get_serial_sequence('" . db_escape_string($table) . "', 'id')) as id";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	return $r ? (int) $r['id'] : 0;
+}
+
+/**
  * A test invoice with the real form (spec §6.4): a customer, an order and a line are made in a transaction, the PDF is
  * printed from them through the print engine, and everything is rolled back, so nothing is posted, saved or numbered.
  *
@@ -230,13 +244,11 @@ function onb_test_invoice(): array
 
 	transaktion('begin');
 	db_modify("insert into adresser (firmanavn, addr1, postnr, bynavn, land, kontonr, art, betalingsbet, betalingsdage) values ('" . $e($kunde) . "', 'Testvej 1', '1000', 'København K', 'Danmark', '0', 'D', '" . $e($bet) . "', $dage)", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array(db_select("select max(id) as id from adresser where art = 'D'", __FILE__ . " linje " . __LINE__));
-	$kontoId = (int) $r['id'];
+	$kontoId = onb_insert_id('adresser');
 	$r = db_fetch_array(db_select("select coalesce(max(ordrenr), 0) + 1 as n from ordrer where art = 'DO'", __FILE__ . " linje " . __LINE__));
 	$ordrenr = (int) $r['n'];
 	db_modify("insert into ordrer (konto_id, firmanavn, addr1, postnr, bynavn, land, kontonr, art, valuta, valutakurs, sprog, ordredate, levdate, fakturadate, ordrenr, sum, momssats, moms, status, ref, fakturanr, betalingsbet, betalingsdage, udskriv_til, mail_fakt) values ($kontoId, '" . $e($kunde) . "', 'Testvej 1', '1000', 'København K', 'Danmark', '0', 'DO', 'DKK', 100, 'Dansk', '$today', '$today', '$today', $ordrenr, 10000, 25, 2500, 3, '" . $e($brugernavn) . "', '$no', '" . $e($bet) . "', $dage, 'PDF', '')", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array(db_select("select max(id) as id from ordrer where art = 'DO'", __FILE__ . " linje " . __LINE__));
-	$ordreId = (int) $r['id'];
+	$ordreId = onb_insert_id('ordrer');
 	// The print engine reads quantity, price and sum only from lines with an item number; a line without one is a text line.
 	db_modify("insert into ordrelinjer (ordre_id, posnr, varenr, beskrivelse, enhed, antal, pris, rabat, vare_id, momsfri, momssats, samlevare) values ($ordreId, 1, 'TEST', '" . $e(findtekst('6794|Konsulentydelse', $sprog_id)) . "', 'stk', 10, 1000, 0, 0, '', 25, '')", __FILE__ . " linje " . __LINE__);
 
@@ -491,8 +503,8 @@ function onb_footer_set(string $text): void
 		return;
 	}
 	db_modify("insert into formularer (formular, art, beskrivelse, justering, xa, ya, xb, yb, str, color, font, fed, kursiv, side, sprog) values (4, 2, '$v', 'C', 105, 10, 0, 0, 9, 0, 'Helvetica', '', '', 'A', 'Dansk')", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array(db_select("select max(id) as id from formularer where formular = 4 and art = 2 and beskrivelse = '$v'", __FILE__ . " linje " . __LINE__));
-	onb_set('invoice_footer_id', $r ? (string) $r['id'] : '');
+	$newId = onb_insert_id('formularer');
+	onb_set('invoice_footer_id', $newId > 0 ? (string) $newId : '');
 }
 
 /**

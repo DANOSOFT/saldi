@@ -27,6 +27,7 @@
 //                  the customer (konto_id, kontonr), nested retursides are urlencoded; id/konto_id cast, returside sanitised.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar): title, Ny ansat as the primary button.
+// 20261019 Sawaneh Review 2 (PR #803): fokus limited to a field name, ordre_id and the posted id cast to int, so they can't break the confirmClose links.
 
 @session_start();
 $s_id=session_id();
@@ -42,15 +43,15 @@ include("../includes/topline_settings.php");
  if ($_GET){
  	 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
  	 $returside= isset($_GET['returside']) ? nav_sanitize_returside($_GET['returside']) : '';
- 	 $ordre_id = isset($_GET['ordre_id']) ? $_GET['ordre_id'] : '';
- 	 $fokus = isset($_GET['fokus']) ? $_GET['fokus'] : '';
+ 	 $ordre_id = (isset($_GET['ordre_id']) && is_numeric($_GET['ordre_id'])) ? (int) $_GET['ordre_id'] : '';
+ 	 $fokus = (isset($_GET['fokus']) && is_string($_GET['fokus'])) ? preg_replace('/[^A-Za-z0-9_]/', '', $_GET['fokus']) : '';
  	$konto_id= isset($_GET['konto_id']) ? (int) $_GET['konto_id'] : 0;
 	$_private = if_isset($_GET,NULL,'privat');
 	$_business = if_isset($_GET, NULL, 'erhverv');
  }
 
 if ($_POST){
- 	$id=$_POST['id'];
+ 	$id=(int) ifset($_POST,'id',0);
  	$submit=addslashes(trim(if_isset($_POST,'','submit')));
 	$delete= if_isset($_POST,NULL,'delete');
 	$deleteAll= if_isset($_POST,NULL,'deleteAll');
@@ -66,9 +67,9 @@ if ($_POST){
  	$email=addslashes(trim($_POST['email']));
  	$cprnr=addslashes(trim(if_isset($_POST,'','cprnr')));
  	$notes=addslashes(trim($_POST['notes']));
- 	$ordre_id = if_isset($_POST,'','ordre_id');
+ 	$ordre_id = is_numeric(ifset($_POST,'ordre_id','')) ? (int) $_POST['ordre_id'] : '';
  	$returside=nav_sanitize_returside(isset($_POST['returside']) ? $_POST['returside'] : '');
- 	$fokus=$_POST['fokus'];
+ 	$fokus=is_string(ifset($_POST,'fokus','')) ? preg_replace('/[^A-Za-z0-9_]/', '', $_POST['fokus']) : '';
 	$_private = if_isset($_POST,NULL,'privat');
 	$_business = if_isset($_POST,NULL,'erhverv');
 	$posnr = if_isset($_POST,NULL,'posnr');

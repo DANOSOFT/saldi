@@ -49,6 +49,7 @@
 // 20261016 Sawaneh virtualStorage.php loaded with the components: a matrix save and Transfer failed when it was not yet read.
 // 20261008 Sawaneh Settings decision 21: the "?" opens the section's guide (guides/settings/<group>-<section>.html|.pdf)
 //                  when installed, otherwise the section description with a link to Guides.
+// 20261019 Sawaneh Review 2 (PR #803): the grupper.inaktiv column check reads information_schema for this database/schema only.
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -484,7 +485,7 @@ function st_options(array $def): array
 			global $regnaar;
 			$y = isset($GLOBALS['settings_rows_year']) ? (int) $GLOBALS['settings_rows_year'] : (int) $regnaar;
 			$arts = $from === 'vat_codes_sales' ? "'SM'" : "'KM', 'EM', 'YM'";
-			$hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'", __FILE__ . " linje " . __LINE__));
+			$hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
 			$cache[$from] = array('' => '');
 			$q = db_select("select kode, kodenr, beskrivelse from grupper where art in ($arts) and fiscal_year = $y" . ($hasInactive ? " and coalesce(inaktiv, false) = false" : '') . " order by art desc, kodenr", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {

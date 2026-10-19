@@ -30,11 +30,17 @@ include ("../../includes/connect.php");
 $permission_key = 'system.indstillinger';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
+// 20261018 Sawaneh Review 2 (PR #803): creating a terminal is an integrations write, by POST with the session's token
+// (as create_vibrant_login.php); the archive delete no longer selects from its own table (MySQL); response values escaped.
+if (function_exists('require_permission')) {
+	require_permission('settings.integrations', 'write');
+}
+perm_require_post_csrf(false);
 
 use ErrorException;
 
 $post = json_decode(file_get_contents('php://input'));
-$pos_id = $post->{'id'} + 1;
+$pos_id = (int) $post->{'id'} + 1;
 
 $qtxt = "SELECT var_value FROM settings WHERE var_name='vibrant_auth'";
 $apikey = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
@@ -103,11 +109,13 @@ try {
   } else {
       // Successful response, access the parsed response data
       // For example, if the response contains a "message" field:
-      $name = $response['name'];
-      $id = $response['id'];
+      $name = db_escape_string((string) $response['name']);
+      $id = db_escape_string((string) $response['id']);
       // Archived terminals (pos_id -1) are not read; keep one per name so the archive fits the unique index.
-      $qtxt = "DELETE FROM settings WHERE pos_id = -1 AND var_grp = 'vibrant_terms' AND var_name IN (SELECT var_name FROM settings WHERE pos_id = $pos_id AND var_grp = 'vibrant_terms')";
-      db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+      $qa = db_select("SELECT var_name FROM settings WHERE pos_id = $pos_id AND var_grp = 'vibrant_terms'", __FILE__ . " linje " . __LINE__);
+      while ($ra = db_fetch_array($qa)) {
+          db_modify("DELETE FROM settings WHERE pos_id = -1 AND var_grp = 'vibrant_terms' AND var_name = '" . db_escape_string((string) $ra['var_name']) . "'", __FILE__ . " linje " . __LINE__);
+      }
       $qtxt = "UPDATE settings SET pos_id = -1 WHERE pos_id = $pos_id AND var_grp = 'vibrant_terms'";
       db_modify($qtxt, __FILE__ . " linje " . __LINE__);
       $qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description, pos_id) VALUES ('$name', 'vibrant_terms', '$id', 'A terminal on the vibrant system', $pos_id)";

@@ -79,6 +79,8 @@
 // 20261016 Sawaneh The left menu takes a section's id from its s= parameter when the entry names none (Discounts, Variants).
 // 20261011 Sawaneh settings_section_complete() (spec §8.8): 'done' from data for the onboarding checklist and the landing
 //                  cards, which show 'Grundopsætning mangler' for Salg/Køb/Varer until their base rows exist.
+// 20261019 Sawaneh Review 2 (PR #803): left menu hides entries the user cannot read (the shown page stays); G8 check without Postgres-only "is distinct from".
+// 20261019 Sawaneh Review 2 (PR #803): the e-mail entry carries the section's own key (settings.email), so menu, landing and page agree.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -210,7 +212,7 @@ if (!function_exists('getSettingsRegistry')) {
 			// -- Scattered elsewhere in the app --
 			array('key' => 'admin_settings',    'group' => 'company', 'url' => '../admin/admin_settings.php',      'category' => 'system',  'textId' => 5668, 'requiresReseller' => true, 'visibilityRule' => 'masterDb',
 				'keywords' => array('pdf conversion tools','weasyprint','pdftk','ps2pdf','ftp tool path','database dump tool','backup tool path','zip unzip tar path','system alert text','dashboard news snippet','system tools')),
-			array('key' => 'email_settings',    'group' => 'documents', 'url' => 'settingsSection.php?s=documents.email', 'section' => 'documents.email', 'category' => 'documents', 'textId' => 6166,
+			array('key' => 'email_settings',    'group' => 'documents', 'url' => 'settingsSection.php?s=documents.email', 'section' => 'documents.email', 'permission' => 'settings.email', 'category' => 'documents', 'textId' => 6166,
 				'keywords' => array('sender email','sender name','email from address','invoice email sender','background specific email settings','afsender email','afsender navn')),
 			array('key' => 'rental_settings',   'group' => 'sales', 'url' => '../rental/settings.php',            'category' => 'rental', 'labelDa' => 'Udlejningsindstillinger', 'labelEn' => 'Rental settings', 'labelNo' => 'Utleieinnstillinger',
 				'keywords' => array('rental booking settings','booking format','date or timeslot booking','customer search fields','move in day','move out day','delete confirmation popup','combine consecutive bookings','automatic order creation','rental invoice date','password protect settings','week helper date picker')),
@@ -301,8 +303,14 @@ if (!function_exists('settings_section_tabs')) {
 	/**
 	 * The group's sections for the left menu of a settings page: id, label, url.
 	 */
-	function settings_section_tabs(string $group, int $sprogId): array
+	function settings_section_tabs(string $group, int $sprogId, string $current = ''): array
 	{
+		if ($current === '' && isset($_GET['s'])) {
+			$current = (string) $_GET['s'];
+		}
+		$script = isset($_SERVER['SCRIPT_NAME']) ? basename((string) $_SERVER['SCRIPT_NAME']) : '';
+		$groups = getSettingsGroups();
+		$groupPermission = isset($groups[$group]['permission']) ? $groups[$group]['permission'] : 'system.indstillinger';
 		$tabs = array();
 		foreach (getSettingsRegistry() as $entry) {
 			if (!isset($entry['group']) || $entry['group'] !== $group || !settings_entry_available($entry)) {
@@ -311,6 +319,13 @@ if (!function_exists('settings_section_tabs')) {
 			$id = isset($entry['section']) ? (string) $entry['section'] : '';
 			if ($id === '' && preg_match('/[?&]s=([A-Za-z0-9_.]+)/', (string) $entry['url'], $m)) {
 				$id = $m[1];
+			}
+			$entryPath = (string) parse_url((string) $entry['url'], PHP_URL_PATH);
+			$shown = ($id !== '' && $id === $current)
+				|| ($script !== '' && $script !== 'settingsSection.php' && basename($entryPath) === $script);
+			$permission = isset($entry['permission']) ? (string) $entry['permission'] : $groupPermission;
+			if (!$shown && function_exists('perm_can') && !perm_can($permission, 'read')) {
+				continue;
 			}
 			$tabs[] = array(
 				'id'    => $id !== '' ? $id : (string) $entry['key'],
@@ -443,7 +458,7 @@ if (!function_exists('settings_optional_modules')) {
 				return $any("select id from settings where var_grp = 'email_settings' and var_name = 'sender_email' and coalesce(var_value, '') <> ''")
 					|| $any("select id from adresser where art = 'S' and coalesce(email, '') <> ''");
 			case 'G8':
-				return $any("select id from brugere where status is distinct from false and id <> (select min(id) from brugere)");
+				return $any("select id from brugere where (status is null or status = true) and id <> (select min(id) from brugere)");
 		}
 		return true;
 	}

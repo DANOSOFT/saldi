@@ -33,6 +33,7 @@ $s_id=session_id();
 $title="Kontoplan";
 $css="../css/standard.css";
 $modulnr="0";
+$permission_key = 'system.kontoplan'; // 20261019 Sawaneh Review 2 (PR #803): modulnr 0 is no key; the chart of accounts keeps its own
 $linjebg='';
 	
 include("../includes/connect.php");

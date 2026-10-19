@@ -45,6 +45,14 @@ if (function_exists('require_permission')) {
 	require_permission('settings.integrations', 'write');
 }
 $back = "../settingsSection.php?s=integrations.connections&item=mobilepay";
+// 20261018 Sawaneh Review 2 (PR #803): registers a webhook at Vipps - only from the settings action, which leaves a one-time code.
+$nonce = isset($_SESSION['mobilepay_webhook_nonce']) ? (string) $_SESSION['mobilepay_webhook_nonce'] : '';
+unset($_SESSION['mobilepay_webhook_nonce']);
+if ($nonce === '' || !isset($_GET['n']) || !hash_equals($nonce, (string) $_GET['n'])) {
+	if (function_exists('audit_log')) audit_log('csrf', 'setup_mobilepay_webhook.php');
+	header("Location: $back");
+	exit;
+}
 
 function mobilepay_webhook_fail(string $reason, string $back): void
 {

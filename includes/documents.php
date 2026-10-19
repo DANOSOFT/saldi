@@ -34,6 +34,7 @@
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261018 Sawaneh Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
 
 // 20261004 CDX/LOE Share browser upload handling and redirect form uploads before rendering.
 // 20261002 CL/SZ SD-701 viewOnly=1 shows only the line's document, for the voucher tab the journal opens.
@@ -54,7 +55,8 @@ $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$
 $globalId = 0;
 
 include("../includes/connect.php");
-$permission_key = 'any';
+$docSource = isset($_POST['source']) ? (string) $_POST['source'] : (isset($_GET['source']) ? (string) $_GET['source'] : '');
+$permission_key = ($docSource === 'kassekladde') ? 'finans.kassekladde' : (($docSource === 'debitorOrdrer') ? 'debitor.ordre' : (($docSource === 'creditorOrder') ? 'kreditor.ordre' : 'debitor.konti|kreditor.konti'));
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");

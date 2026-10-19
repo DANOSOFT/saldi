@@ -9,8 +9,16 @@
 $s_id=session_id();
 // Include the database connection
 require_once '../includes/connect.php';
-$permission_key = 'any';
+// 20261018 Sawaneh Review 2 (PR #803): creating tables is an administrator's write, with a token, not every logged-in user.
+$permission_key = 'system.indstillinger';
+$permission_level = 'write';
 require_once '../includes/online.php';
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    perm_require_post_csrf(false);
+}
 require_once '../includes/std_func.php';
 
 // Set content type
@@ -350,6 +358,7 @@ if ($install === 'run') {
     </div>
 
     <form method="post" action="">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES); ?>">
         <h2>Installation Options</h2>
         
         <div class="form-group">

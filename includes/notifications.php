@@ -31,6 +31,7 @@
 // 20261002 Sawaneh notif_ready() checks the table's shape: an older unused table has the same name in most companies.
 // 20261010 Sawaneh The Oversigt role keys dashboard.block.news / dashboard.block.expiry (front-page addendum 4) hide the
 //                  news and batch-expiry items in the bell, as those banners now live there (topbar spec §3).
+// 20261019 Sawaneh Review 2 (PR #803): the batch-expiry limit date is computed in PHP (no Postgres interval literal).
 
 /**
  * @return array<string, string> type -> label text id
@@ -199,7 +200,8 @@ function notif_source_batches(int $brugerId, string $rettigheder, int $sprogId):
 		return;
 	}
 	$days = function_exists('get_due_date_warning_days') ? get_due_date_warning_days($brugerId) : 30;
-	$r = db_fetch_array(db_select("select count(*) as antal, sum(case when due_date < current_date then 1 else 0 end) as udloebet from batch_kob where due_date is not null and rest > 0 and due_date <= current_date + interval '$days days'", __FILE__ . " linje " . __LINE__));
+	$limitDate = date('Y-m-d', strtotime('+' . (int) $days . ' days'));
+	$r = db_fetch_array(db_select("select count(*) as antal, sum(case when due_date < current_date then 1 else 0 end) as udloebet from batch_kob where due_date is not null and rest > 0 and due_date <= '$limitDate'", __FILE__ . " linje " . __LINE__));
 	$antal = $r ? (int) $r['antal'] : 0;
 	if ($antal <= 0) {
 		db_modify("delete from notifications where source_key = 'batch:expiry' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);

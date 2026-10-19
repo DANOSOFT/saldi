@@ -2585,6 +2585,11 @@ $poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
 $txtPoolOf   = findtekst('5346|af', $sprog_id);        // SD-719: "50 af 497"
 $txtPoolMore = findtekst('5347|Vis flere', $sprog_id);
 $poolStaleText = findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
+// 20261018 Sawaneh Review 2 (PR #803): the auto-extract toggle posts to topbarAction.php, which needs the session's token.
+if (empty($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$poolCsrfJs = json_encode((string) $_SESSION['csrf_token']);
 
 print <<<JS
 <script>
@@ -4444,7 +4449,7 @@ window.toggleAutoExtract = function(checkbox) {
 		knob.style.left = '2px';
 	}
 	var fd = new FormData();
-	fd.append('action', 'auto_extract'); fd.append('value', checkbox.checked ? '1' : '0'); fd.append('ajax', '1');
+	fd.append('action', 'auto_extract'); fd.append('value', checkbox.checked ? '1' : '0'); fd.append('ajax', '1'); fd.append('csrf_token', {$poolCsrfJs});
 	fetch('../index/topbarAction.php', { method: 'POST', body: fd, credentials: 'same-origin' }).catch(function () {});
 };
 

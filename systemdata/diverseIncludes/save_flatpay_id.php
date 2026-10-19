@@ -41,7 +41,9 @@ $bg     = "nix";
 $s_id = session_id();
 
 include ("../../includes/connect.php");
-$permission_key = 'any';
+// 20261018 Sawaneh Review 2 (PR #803): the company's Flatpay ID is an integrations setting, not every logged-in user's.
+$permission_key = 'settings.integrations';
+$permission_level = 'write';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 

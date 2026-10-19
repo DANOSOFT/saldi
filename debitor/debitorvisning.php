@@ -34,11 +34,12 @@
 // 20261002 Sawaneh Saving the list columns updates only the chosen view (kode); it rewrote every DLV row of the user.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261019 Sawaneh Review 2 (PR #803): valg limited to a plain word, sort URL-encoded, posted list settings escaped in SQL and HTML.
 	
 @session_start();
 $s_id=session_id();
 
-if (isset($_GET['valg'])) $valg=($_GET['valg']);
+if (isset($_GET['valg'])) $valg = preg_replace('/[^A-Za-z0-9_]/', '', is_string($_GET['valg']) ? $_GET['valg'] : '');
 else $valg="debitor";
 
 global $menu;
@@ -52,6 +53,7 @@ include("../includes/std_func.php");
 if ($valg=="debitor") $title=findtekst('911|Debitorlistevisning', $sprog_id);
 else $title=findtekst('1129|Historikvisning', $sprog_id);
 $sort=trim(if_isset($_GET['sort']));
+$sortParam = urlencode((string) $sort);
 
 if ($popup) $returside="../includes/luk.php"; 
 else $returside="debitor.php?valg=$valg";
@@ -60,7 +62,7 @@ $sektion=if_isset($_GET['sektion']);
 
 if (isset($_POST) && $_POST) {
 	if ($sektion=='3') {
-		$dg_antal  = if_isset($_POST['dg_antal']);
+		$dg_antal  = (int) if_isset($_POST['dg_antal']);
 		$dg_id     = if_isset($_POST['dg_id']);
 		$dg_liste  = if_isset($_POST['dg_liste']);
 		$cat_id    = if_isset($_POST['cat_id'],array());
@@ -70,21 +72,22 @@ if (isset($_POST) && $_POST) {
 		$box1="";
 		for ($x=0; $x<=$dg_antal; $x++) {
 			if (isset($dg_liste[$x]) && $dg_liste[$x]) {
-				($box1)?$box1.=chr(9).$dg_id[$x]:$box1=$dg_id[$x];
+				($box1)?$box1.=chr(9).(int)$dg_id[$x]:$box1=(int)$dg_id[$x];
 			}
 		}
 		$box2="";
 		for ($x=0; $x<count($cat_id); $x++) {
 			if (isset($cat_liste[$x]) && $cat_liste[$x]) {
 				if ($box2 || $box2 == '0') $box2.=chr(9); 
-				$box2.=$cat_id[$x];
+				$box2.=db_escape_string($cat_id[$x]);
 			}
 		}
+		$box11 = db_escape_string((string) $box11);
 		$qtxt = "update grupper set box1='$box1',box2='$box2',box11='$box11' ";
 		$qtxt.= "where art = 'DLV' and kode = '$valg' and kodenr = '$bruger_id'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	} elseif ($sektion=='4') {
-		$vis_feltantal=if_isset($_POST['vis_feltantal']);
+		$vis_feltantal=(int)if_isset($_POST['vis_feltantal']);
 		$vis_linjeantal=if_isset($_POST['vis_linjeantal']);
 		$vis_felt=if_isset($_POST['vis_felt']);
 		$feltbredde=if_isset($_POST['feltbredde']);
@@ -94,20 +97,20 @@ if (isset($_POST) && $_POST) {
 #	if (!isset($vis_felt[0])) $vis_felt[0]="";
 		$box3='kontonr';
 		$box4=(int)$feltbredde[0];
-		$box5=if_isset($justering[0],'');
+		$box5=db_escape_string(if_isset($justering[0],''));
 		$box6=db_escape_string($feltnavn[0]);
 		if (!$vis_linjeantal) $vis_linjeantal=50; 
 		$box7=$vis_linjeantal*1;
-		$box8 = if_isset($select[0],NULL);
+		$box8 = db_escape_string((string) if_isset($select[0],NULL));
 		for ($x=1;$x<=$vis_feltantal;$x++) {
 			$select[$x]   = if_isset($select[$x],'');
 			$vis_felt[$x] = if_isset($vis_felt[$x],'');
-			$box3=$box3.chr(9).$vis_felt[$x];
+			$box3=$box3.chr(9).db_escape_string($vis_felt[$x]);
 			$feltbredde[$x]=if_isset($feltbredde[$x],'10');
-			$box4=$box4.chr(9).$feltbredde[$x];
-			$box5=$box5.chr(9).if_isset($justering[$x],'left');
+			$box4=$box4.chr(9).db_escape_string($feltbredde[$x]);
+			$box5=$box5.chr(9).db_escape_string(if_isset($justering[$x],'left'));
 			$box6=$box6.chr(9).db_escape_string(if_isset($feltnavn[$x],''));
-			$box8=$box8.chr(9).$select[$x];
+			$box8=$box8.chr(9).db_escape_string($select[$x]);
 	}
 /*   
 		$qtxt = "select id from settings where var_name='medlemSetting'";
@@ -131,7 +134,7 @@ if (isset($_POST) && $_POST) {
 
 if ($menu=='S') {
 	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => $title, 'back' => "debitor.php?valg=$valg&sort=$sort"));
+	page_bar(array('title' => $title, 'back' => "debitor.php?valg=$valg&sort=$sortParam"));
 }
 print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>"; #Tabel 1 ->
 print "<tr><td colspan = '2' height = '25' align='center' valign='top'>";
@@ -165,12 +168,12 @@ global $felter;
 global $sort,$sprog_id;
 global $title;
 global $valg;
-global $menu;
+global $menu,$sortParam;
 
 if ($menu=='S') {
 	print "<tr></tr>";
 } else {
-	print "<td width='10%' align=center><div class='top_bund'><a href=debitor.php?valg=$valg&sort=$sort accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div></td>
+	print "<td width='10%' align=center><div class='top_bund'><a href=debitor.php?valg=$valg&sort=$sortParam accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div></td>
 		   <td width='80%' align=center><div class='top_bund'>$title</a></div></td>
 		   <td width='10%' align=center><div class='top_bund'><br></div></td></tr>";
 }
@@ -213,7 +216,7 @@ function sektion_3() {
 	global $feltbredde,$feltnavn;
 	global $justering;
 	global $select,$side,$sort,$sprog_id;
-	global $regnaar,$title;
+	global $regnaar,$title,$sortParam;
 	global $valg,$vis_felt,$vis_feltantal,$vis_linjeantal;
 
 	$cat_liste = $dg_liste = array();	
@@ -231,7 +234,7 @@ function sektion_3() {
 		($r['box2'])?$cat_liste=explode(chr(9),$r['box2']):$cat_liste=array(); #list of cat Ids to be shown
 		($r['box11'])?$skjul_lukkede='checked':$skjul_lukkede=NULL;
 	}	
-	print "<form name=sektion_3 action=debitorvisning.php?sort=$sort&valg=$valg&sektion=3 method=post>";
+	print "<form name=sektion_3 action=debitorvisning.php?sort=$sortParam&valg=$valg&sektion=3 method=post>";
 	print "<tr><td colspan=3><table border='0' width=100%><tbody>";
 	print "<tr><td>".findtekst(1124,$sprog_id)."</td><td><input name='skjul_lukkede' type='checkbox' $skjul_lukkede></td></tr>";
 	print "<tr><td width=50%><table border=0 width=100%><tbody>";
@@ -279,14 +282,14 @@ function sektion_4() {
 	global $feltbredde,$felter,$feltnavn;
 	global $justering;
  	global $select,$sort,$sprog_id;
-	global $valg,$vis_felt,$vis_feltantal;
+	global $valg,$vis_felt,$vis_feltantal,$sortParam,$charset;
 	
 	$r=db_fetch_array(db_select("select box1,box2,box9 from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
 	$cat_id=explode(chr(9),$r['box1']);
 	$cat_name=explode(chr(9),$r['box2']);
 	
 	if (isset($_POST['memberShip'])) {
-		$memberShip = $_POST['memberShip'];
+		$memberShip = db_escape_string((string) $_POST['memberShip']);
 		$qtxt = "select id from settings where var_name='medlemSetting' or var_name='memberShip'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $memberShipId = $r['id'];
 		else $memberShipId='0';
@@ -314,7 +317,7 @@ function sektion_4() {
 		$vis_feltantal=count($vis_felt)-1;
 		$select=explode(chr(9),$r['box8']);
 	} 
-	print "<form name=sektion_4 action=debitorvisning.php?sort=$sort&valg=$valg&sektion=4 method=post>";
+	print "<form name=sektion_4 action=debitorvisning.php?sort=$sortParam&valg=$valg&sektion=4 method=post>";
 
 	($memberShip)?$memberShip='checked':$memberShip='';
 	$title = 'Afmærk dette felt for at aktivere medlemsfunktioner';
@@ -348,11 +351,14 @@ function sektion_4() {
 	print "<tr><td colspan='5'><hr></td></tr>";
 	print "<tr><td colspan='1'><b>".findtekst('543|Felt', $sprog_id)."</b></td><td align='center'><b>".findtekst(539,$sprog_id)."</b></td><td align='center'><b>".findtekst(540,$sprog_id)."</b></td><td align='center'><b>".findtekst(541,$sprog_id)."</b></td><td align='center' title='Angiver om feltets v&aelig;rdi skal kunne v&aelig;lges fra en liste'><b>".findtekst(1119,$sprog_id)."</b></td></tr>";
 	if (!$feltnavn[0]) $feltnavn[0]="Kontonr";
+	$h = function ($v) use ($charset) {
+		return htmlspecialchars((string) $v, ENT_QUOTES, $charset === 'UTF-8' ? 'UTF-8' : 'ISO-8859-1');
+	};
 	print "<tr><td colspan='1'>".findtekst(804,$sprog_id)."</td>";
-	print "<td align='center'><input name=feltnavn[0] size=20 value=$feltnavn[0]></td>";
-	print "<td align='center'><input name=feltbredde[0] style='text-align:right' size=2 value=$feltbredde[0]></td>";
+	print "<td align='center'><input name=feltnavn[0] size=20 value='" . $h($feltnavn[0]) . "'></td>";
+	print "<td align='center'><input name=feltbredde[0] style='text-align:right' size=2 value='" . $h($feltbredde[0]) . "'></td>";
 	print "<td align='center'><SELECT NAME=justering[0]>";
-	if ($justering[0]) print "<option value='".$justering[0]."'>$justering[0]</option>";
+	if ($justering[0]) print "<option value='" . $h($justering[0]) . "'>" . $h($justering[0]) . "</option>";
 	if ($justering[0] != "left") print "<option value='left'>left</option>";
 	if ($justering[0] != "center") print "<option value='center'>center</option>";
 	if ($justering[0] != "right") print "<option value='right'>right</option>";
@@ -377,10 +383,10 @@ function sektion_4() {
 			if ("cat_$cat_id[$c]" != $vis_felt[$x]) print "<option value='cat_$cat_id[$c]'>$cat_name[$c]</option>";
 		}
 		print "</SELECT></td>";
-		print "<td align='center'><input name=feltnavn[$x] size=20 value='$feltnavn[$x]'></td>";
-		print "<td align='center'><input name=feltbredde[$x] size=2 style='text-align:right' value=$feltbredde[$x]></td>";
+		print "<td align='center'><input name=feltnavn[$x] size=20 value='" . $h($feltnavn[$x]) . "'></td>";
+		print "<td align='center'><input name=feltbredde[$x] size=2 style='text-align:right' value='" . $h($feltbredde[$x]) . "'></td>";
 		print "<td align='center'><SELECT NAME=justering[$x]>";
-		if ($justering[$x]) print "<option value='$justering[$x]'>$justering[$x]</option>";
+		if ($justering[$x]) print "<option value='" . $h($justering[$x]) . "'>" . $h($justering[$x]) . "</option>";
 		if ($justering[$x] != "left") print "<option value='left'>left</option>";
 		if ($justering[$x] != "center") print "<option value='center'>center</option>";
 		if ($justering[$x] != "right") print "<option value='right'>right</option>";

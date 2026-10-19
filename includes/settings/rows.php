@@ -33,7 +33,11 @@
 //                  by rowsView.php and behaves through javascript/settingsRows.js.
 // 20261008 Sawaneh Table option 'hide_empty'; discount group usage counts only the matrix's 'NR' rows (settings decision 20).
 // 20261008 Sawaneh Table option 'confirm_skip' (button text, explanation) for the confirm box. Warehouse usage follows
+// 20261018 Sawaneh Review 2 (PR #803): an empty cell in a number column is written as NULL (SettingsService::sqlValue).
 //                  master's warehouseDeletion.php (history, order lines, departments; duplicates may go).
+// 20261019 Sawaneh Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's
+//                  own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto
+//                  code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
 
 /**
  * The tables of a rows section with their defaults filled in.
@@ -475,9 +479,18 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 		}
 		$existing = settings_rows_load($t, $year);
 		$codeCol = $t['code_col'];
+		$numericCode = SettingsService::columnIsNumeric((string) $t['dbtable'], (string) $codeCol);
+		$codeKey = function ($v) use ($numericCode) {
+			$v = mb_strtolower(trim((string) $v));
+			if ($numericCode && $v !== '' && ctype_digit($v)) {
+				$v = ltrim($v, '0');
+				return $v === '' ? '0' : $v;
+			}
+			return $v;
+		};
 		$codes = array();
 		foreach ($existing as $id => $row) {
-			$codes[mb_strtolower(trim((string) $row['cells'][$codeCol]))] = $id;
+			$codes[$codeKey($row['cells'][$codeCol])][] = $id;
 		}
 		$seen = array();
 		foreach ($posted[$tableId] as $rowId => $cells) {
@@ -529,10 +542,18 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 				continue;
 			}
 			// The code must be unique in the table (and in this year), and cannot change once the row is referenced.
-			$code = mb_strtolower(trim((string) $clean[$codeCol]));
+			$code = $codeKey($clean[$codeCol]);
 			if ($code !== '') {
-				$owner = isset($codes[$code]) ? $codes[$code] : null;
-				if ((($owner !== null && (string) $owner !== $rowId) || isset($seen[$code])) && !isset($rowErrors[$codeCol])) {
+				$taken = false;
+				if ($isNew || $codeKey($current['cells'][$codeCol]) !== $code) {
+					foreach (isset($codes[$code]) ? $codes[$code] : array() as $owner) {
+						if ((string) $owner !== $rowId) {
+							$taken = true;
+						}
+					}
+					$taken = $taken || isset($seen[$code]);
+				}
+				if ($taken && !isset($rowErrors[$codeCol])) {
 					$rowErrors[$codeCol] = isset($t['columns'][$codeCol]['unique_text']) ? (int) $t['columns'][$codeCol]['unique_text'] : 6418;
 				}
 				$seen[$code] = true;
@@ -595,8 +616,15 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 		if ($step[0] === 'insert') {
 			if ($t['auto_code'] && $t['kind'] === 'grupper') {
 				// The next number counted as a number, not as text ("10" after "9"; currencies, audit V8).
-				$r = db_fetch_array(db_select("select max(" . db_cast('kodenr', 'integer') . ") as m from grupper where art = '" . db_escape_string($t['art']) . "' and " . db_cast('kodenr', 'text') . " ~ '^[0-9]+$'", __FILE__ . " linje " . __LINE__));
-				$step[2] = array('kodenr' => (string) ((int) ($r ? $r['m'] : 0) + 1)) + $step[2];
+				$max = 0;
+				$q = db_select("select kodenr from grupper where art = '" . db_escape_string($t['art']) . "'", __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$k = trim((string) $r['kodenr']);
+					if ($k !== '' && ctype_digit($k) && (int) $k > $max) {
+						$max = (int) $k;
+					}
+				}
+				$step[2] = array('kodenr' => (string) ($max + 1)) + $step[2];
 			}
 			if (is_array($t['filter'])) {
 				$step[2] = array($t['filter']['column'] => (string) (int) $t['filter']['value']) + $step[2];
@@ -608,7 +636,7 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 						continue;
 					}
 				$cols[] = $col;
-				$vals[] = "'" . db_escape_string((string) (isset($step[2][$col]) && $step[2][$col] !== '' ? $step[2][$col] : $raw)) . "'";
+				$vals[] = SettingsService::sqlValue((string) $t['dbtable'], (string) $col, (string) (isset($step[2][$col]) && $step[2][$col] !== '' ? $step[2][$col] : $raw));
 			}
 			if ($t['kind'] === 'grupper') {
 				$cols[] = 'art';
@@ -629,7 +657,7 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 			$current = $step[2];
 			$sets = array();
 			foreach ($step[3] as $col => $raw) {
-				$sets[] = $col . " = '" . db_escape_string($raw) . "'";
+				$sets[] = $col . " = " . SettingsService::sqlValue((string) $t['dbtable'], (string) $col, (string) $raw);
 			}
 			$where = "id = " . (int) $current['id'] . ($t['kind'] === 'grupper' ? " and art = '" . db_escape_string($t['art']) . "'" : '');
 			db_modify("update " . $t['dbtable'] . " set " . implode(', ', $sets) . " where $where", __FILE__ . " linje " . __LINE__);
@@ -637,7 +665,7 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 			foreach ($step[3] as $col => $raw) {
 				if (in_array($col, $t['propagate'], true) && $t['kind'] === 'grupper') {
 					// Year-agnostic classifications live on every year's copy of the row (risk review R8).
-					db_modify("update grupper set $col = '" . db_escape_string($raw) . "' where art = '" . db_escape_string($t['art']) . "' and kodenr = '" . db_escape_string($code) . "'", __FILE__ . " linje " . __LINE__);
+					db_modify("update grupper set $col = " . SettingsService::sqlValue('grupper', (string) $col, (string) $raw) . " where art = '" . db_escape_string($t['art']) . "' and kodenr = '" . db_escape_string($code) . "'", __FILE__ . " linje " . __LINE__);
 				}
 				SettingsService::auditRow($sectionId, $step[1] . '.' . $col, $objekt . '#' . $code, (string) $current['cells'][$col], $raw, 'setting.row_updated');
 			}
@@ -666,7 +694,12 @@ function settings_rows_after_save(string $hook): void
 			db_modify("update grupper set box1 = '" . db_escape_string((string) $r['lager']) . "' where art = 'AFD' and " . db_cast('kodenr', 'text') . " = '" . db_escape_string((string) $r['afd']) . "'", __FILE__ . " linje " . __LINE__);
 		}
 		// A default warehouse that no longer exists is cleared.
-		db_modify("update grupper set box1 = '' where art = 'AFD' and coalesce(box1, '') <> '' and box1 not in (select " . db_cast('kodenr', 'text') . " from grupper where art = 'LG')", __FILE__ . " linje " . __LINE__);
+		$lg = array();
+		$q = db_select("select kodenr from grupper where art = 'LG'", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$lg[] = "'" . db_escape_string(trim((string) $r['kodenr'])) . "'";
+		}
+		db_modify("update grupper set box1 = '' where art = 'AFD' and coalesce(box1, '') <> ''" . ($lg ? " and box1 not in (" . implode(', ', $lg) . ")" : ''), __FILE__ . " linje " . __LINE__);
 	}
 }
 
@@ -728,6 +761,9 @@ function settings_rows_copy_year(string $sectionId, string $tableId, array $t, i
 	$cols = array_keys(array_filter($t['columns'], function ($def) {
 		return $def['type'] !== 'derived' && !$def['transient'];
 	}));
+	if (!in_array('inaktiv', $cols, true) && db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__))) {
+		$cols[] = 'inaktiv';
+	}
 	$list = implode(', ', $cols);
 	db_modify("insert into grupper ($list, art, kode, fiscal_year) select $list, art, kode, $year from grupper where " . settings_rows_where($t, $fromYear), __FILE__ . " linje " . __LINE__);
 	SettingsService::auditRow($sectionId, $tableId, $sectionId . '.' . $tableId, (string) $fromYear, (string) $year, 'setting.row_created');

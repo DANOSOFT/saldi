@@ -38,6 +38,11 @@ include ("../../includes/connect.php");
 $permission_key = 'system.indstillinger';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
+// 20261018 Sawaneh Review 2 (PR #803): deletes the webhooks at Vipps - integrations write, by POST with the session's token.
+if (function_exists('require_permission')) {
+	require_permission('settings.integrations', 'write');
+}
+perm_require_post_csrf(false);
 include ("../../includes/stdFunc/dkDecimal.php");
 include ("../../includes/stdFunc/usDecimal.php");
 

@@ -86,6 +86,20 @@ if (!isset($uiSize))         $uiSize = 'normal'; // text size: normal | large (f
 if (!isset($nextver))        $nextver = 0;
 if (!isset($useSettings))    $useSettings = '';
 
+// 20261018 Sawaneh Review 2 (PR #803): the session cookie carries SameSite=Lax. Pages start the session before any
+// include, so the cookie is re-sent here with the same path and flags plus SameSite; nothing else about it changes.
+if (session_status() === PHP_SESSION_ACTIVE && !headers_sent() && session_id() !== '') {
+	$sessCookie = session_get_cookie_params();
+	setcookie(session_name(), session_id(), array(
+		'expires'  => !empty($sessCookie['lifetime']) ? time() + (int) $sessCookie['lifetime'] : 0,
+		'path'     => $sessCookie['path'] !== '' ? $sessCookie['path'] : '/',
+		'domain'   => (string) $sessCookie['domain'],
+		'secure'   => !empty($sessCookie['secure']) || (function_exists('saldi_request_is_https') && saldi_request_is_https()),
+		'httponly' => true,
+		'samesite' => (isset($sessCookie['samesite']) && $sessCookie['samesite'] !== '') ? $sessCookie['samesite'] : 'Lax',
+	));
+}
+
 $url = $_SERVER['REQUEST_URI'];
 $questionMarkPos = strpos($url, '?');
 if ($questionMarkPos !== false) {
@@ -404,6 +418,8 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	// user), optionally $permission_level = 'write' and $permission_post_read = true (POST is a
 	// filter, not a write). Undeclared pages fall back to $modulnr. Until the company switches
 	// enforcement to 'deny', this only records what would have been refused in audit_log.
+	// The helpers (perm_require_post_csrf, audit_log) are available on every page; the gate itself runs as before.
+	include_once(__DIR__ . "/permissions.php");
 	if (!$webservice && !$nextver) {
 		include_once(__DIR__ . "/permissions.php");
 		perm_enforce_request(

@@ -116,6 +116,7 @@ ob_end_flush();
 // 20261014 Sawaneh Review: a role above the editor's own levels cannot be saved down, copied or deleted; an invitation
 //                  is only resent for users the editor may manage.
 // 20261016 Sawaneh Review (PR #803): bulk resend checks user_may_manage() like the single resend.
+// 20261019 Sawaneh Review 2 (PR #803): audit-log search escapes backslash, % and _ so it is literal; the audit_log column check is schema-filtered.
 // 20260930 Sawaneh Roles stage 2 (§6.3): review of migrated roles - confirm, use the suggestion, bulk; a role is required.
 // 20261001 Sawaneh Review fixes: CSRF token on every posted form; users above the actor's own access cannot be
 //                  changed (msg=above).
@@ -902,7 +903,7 @@ function ur_audit_columns(): array
 	static $cols = null;
 	if ($cols === null) {
 		$cols = array();
-		$q = db_select("select column_name from information_schema.columns where table_name = 'audit_log'", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select column_name as column_name from information_schema.columns where table_name = 'audit_log'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$cols[strtolower((string) $r['column_name'])] = true;
 		}
@@ -935,7 +936,7 @@ function ur_log_where(array $f, array $cols): string
 		$w[] = "objekt_type = '" . db_escape_string($f['objekt']) . "'";
 	}
 	if ($f['q'] !== '') {
-		$like = "'%" . db_escape_string(mb_strtolower($f['q'])) . "%'";
+		$like = "'%" . db_escape_string(db_escape_like_pattern(mb_strtolower($f['q']))) . "%'";
 		$or = array("lower(brugernavn) like $like", "lower(detaljer) like $like");
 		if (isset($cols['objekt_id'])) {
 			$or[] = "lower(objekt_id) like $like";

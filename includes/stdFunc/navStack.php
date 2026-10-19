@@ -21,6 +21,8 @@
 //                  compares the path only, and nav files are cleaned up on logout.
 // 20260907 CDX/LH Reject raw whitespace and control characters in request return targets.
 // 20260907 CDX/LH Accept malformed request values at the navigation boundary without TypeError.
+// 20261018 Sawaneh Review 2 (PR #803): stack entries are sanitised like a request returside, and encoded quote characters are
+//                  refused (javascript: links are percent-decoded by the browser).
 // 20261005 Sawaneh Background fetch/XHR requests are not recorded (they filled the stack the came-from chip and search read).
 // 20260921 CL/SZ MB-50: exclude dashboard chart data endpoints (weekly_graph_data.php,
 //                customer_graph_data.php) from the nav stack so Luk on POS-Menuer
@@ -195,6 +197,9 @@ function nav_sanitize_returside($url): string {
     // An HTML character reference must not turn into a scheme or control character
     // when a legacy view renders the URL. URL components use percent encoding.
     if (preg_match('/&(?:#|[a-z][a-z0-9]*;)/i', $url)) return '';
+    // Several pages print the target inside javascript:confirmClose('...'), and a browser percent-decodes a
+    // javascript: URL before running it: an encoded quote, bracket, backslash or backtick would become live there.
+    if (preg_match('/%(?:22|27|3c|3e|5c|60)/i', $url)) return '';
     if (!_nav_is_safe_target($url)) return '';
     return $url;
 }
@@ -234,8 +239,8 @@ function nav_back_url($returside = null): string {
         // same script *with* a query (typically the record id) — then the stack
         // entry is the more precise target.
         if (strpos($returside, '?') === false && count($stack) >= 2) {
-            $prev = $stack[count($stack) - 2];
-            if (strpos($prev, '?') !== false
+            $prev = nav_sanitize_returside($stack[count($stack) - 2]);
+            if ($prev !== '' && strpos($prev, '?') !== false
                 && basename((string)parse_url($prev, PHP_URL_PATH)) === basename($returside)) {
                 return $prev;
             }
@@ -243,8 +248,12 @@ function nav_back_url($returside = null): string {
         return $returside;
     }
 
+    // Stack entries are recorded request URIs: they get the same check as a request-supplied target.
     if (count($stack) >= 2) {
-        return $stack[count($stack) - 2];
+        $prev = nav_sanitize_returside($stack[count($stack) - 2]);
+        if ($prev !== '') {
+            return $prev;
+        }
     }
     return NAV_DEFAULT_URL;
 }

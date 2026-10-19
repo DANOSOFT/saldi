@@ -162,7 +162,9 @@ function settings_run_action(array $def, string $selfUrl): string
 		case 'shop_sync_update':
 			return 'diverse.php?sektion=api_valg&varesync=2';
 		case 'mobilepay_webhook':
-			return 'sys_div_func_includes/setup_mobilepay_webhook.php';
+			// The action passed the section's token check; the setup page runs only with this one-time code (review 2, PR #803).
+			$_SESSION['mobilepay_webhook_nonce'] = bin2hex(random_bytes(16));
+			return 'sys_div_func_includes/setup_mobilepay_webhook.php?n=' . $_SESSION['mobilepay_webhook_nonce'];
 		case 'ftp_test':
 			return $selfUrl . '&ftp=' . (settings_ftp_test() ? 'ok' : 'fail');
 		case 'till_add':

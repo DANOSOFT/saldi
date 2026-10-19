@@ -6,6 +6,8 @@ ob_start();
 $s_id = session_id();
 $title = "projectSearch"; 
 $modulnr = 0;  
+$permission_key = 'debitor.ordre|kreditor.ordre'; // 20261018 Sawaneh Review 2 (PR #803): modulnr 0 is no key
+$permission_post_read = true; // a lookup: its POST only reads
 $bg = "nix";   
 $header = "nix";
 $webservice = true; 

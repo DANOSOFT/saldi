@@ -47,6 +47,7 @@
 // 20261002 Sawaneh Phase 4b batch 2 (G9): a section of 'kind' list renders includes/settings/listView.php - rows with a drawer
 //                  per integration, each drawer its own form; an empty secret leaves the stored value (P8); item kept over redirects.
 // 20261008 Sawaneh The Assist menu's guide is the section's installed guide (settings decision 21).
+// 20261019 Sawaneh Review 2 (PR #803): row_copy_year takes from_year only when it is a fiscal year (RA) of this ledger other than the target year.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -271,7 +272,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					$flash[] = array('table' => $tableId, 'id' => (int) $_POST['id'], 'value' => $to ? '0' : '1');
 				}
 			} else {
-				$flash = settings_rows_copy_year($sectionId, $tableId, $tables[$tableId], (int) $_POST['from_year'], (int) $year);
+				$fromYear = isset($_POST['from_year']) ? (int) $_POST['from_year'] : 0;
+				$fyExists = $fromYear > 0 && db_fetch_array(db_select("select id from grupper where art = 'RA' and " . db_cast('kodenr', 'text') . " = '$fromYear'", __FILE__ . " linje " . __LINE__));
+				if (!$fyExists || $fromYear === (int) $year) {
+					$flash = array('err', st_txt(5719));
+				} else {
+					$flash = settings_rows_copy_year($sectionId, $tableId, $tables[$tableId], $fromYear, (int) $year);
+				}
 			}
 			$_SESSION['settings_flash'] = $flash;
 		}

@@ -36,6 +36,8 @@
 //                  rights string; booleans written as true/false (MySQL); custom roles get no audit log;
 //                  notification check per database; one review flag per user (unique index on settings).
 // 20261009 Sawaneh Oversigt keys (addendum 4): 'derive_keys' resolution for users without a role and at seeding (built-in roles too), read-only clamp.
+// 20261018 Sawaneh Review 2 (PR #803): perm_require_post_csrf() for pages that write; modulnr 0 is no key (spec: position 0 is never
+//                  enforced), Sager pages keep their own rights string (spec B2).
 // 20261016 Sawaneh Review (PR #803): GET write verbs on legacy pages (slet, udlign, aktiver, bogfor, ...) need write, like
 //                  a POST does; audit_log column check filtered on the schema.
 
@@ -275,10 +277,46 @@ function perm_enforce_request(?string $declaredKey, string $declaredLevel, bool 
 {
 	$mode = perm_enforcement_mode();
 	$uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
-	$page = (string) parse_url($uri, PHP_URL_PATH);
+	// The script that runs, not the request path: a request path can carry extra segments (PATH_INFO, "/sager/../")
+	// that would let a page pass as another (review 2, PR #803).
+	$page = !empty($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : (string) parse_url($uri, PHP_URL_PATH);
 
+	$isPost = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST');
+	// Legacy pages change data through GET links too (review, PR #803): those verbs count as writes.
+	$getWrite = false;
+	foreach (array('slet', 'delete', 'udlign', 'aktiver', 'bogfor', 'kopier', 'nulstil', 'unAlign', 'slet_bilag', 'opdater', 'varesync', 'unlink_notat', 'slet_mappe', 'slet_ansatmappe', 'slet_ansatbilag') as $verb) {
+		if (isset($_GET[$verb]) && (string) $_GET[$verb] !== '') {
+			$getWrite = true;
+			break;
+		}
+	}
+	$need = ($declaredLevel === 'write' || ($isPost && !$postIsRead) || $getWrite) ? 'write' : 'read';
+	// Sager keeps its own rights string (grupper.box2, $sag_rettigheder; roles spec B2), but its pages only use it to hide
+	// menu links. So here: the settings right opens Sager; otherwise a Sager user (at least one right in the string) may
+	// read and write, an auditor session may only read, and everyone else is refused. On the employee page, the Sager
+	// rights groups need the users right and other saves the organisation (or users) right, so nobody raises their own group.
+	if (($declaredKey === null || $declaredKey === '') && strpos($page, '/sager/') !== false) {
+		$sagUser = strpos((string) (isset($GLOBALS['sag_rettigheder']) ? $GLOBALS['sag_rettigheder'] : ''), '1') !== false;
+		$auditor = !empty($GLOBALS['revisor']);
+		$admin = perm_can('system.indstillinger', $need);
+		$ok = $admin || ($need === 'read' ? ($sagUser || $auditor) : ($sagUser && !$auditor));
+		if ($ok && $need === 'write' && !$admin && basename($page) === 'ansatte.php') {
+			$funktion = isset($_GET['funktion']) ? (string) $_GET['funktion'] : '';
+			$ok = ($funktion === 'brugergrupper')
+				? perm_can('settings.users.manage', 'write')
+				: (perm_can('settings.organisation', 'write') || perm_can('settings.users.manage', 'write'));
+		}
+		if (!$ok) {
+			if ($mode === 'deny') {
+				perm_refuse('sager (' . $need . ')', $page);
+			}
+			perm_log_once('permission.would_deny', 'sager (' . $need . ') ' . $page);
+		}
+		return;
+	}
 	$key = $declaredKey;
-	if ($key === null && $modulnr !== null && $modulnr >= 0 && $modulnr < 16) {
+	// $modulnr = 0 means "no module check" in the old gate (roles spec: position 0 is never enforced), so it maps to no key.
+	if ($key === null && $modulnr !== null && $modulnr >= 1 && $modulnr < 16) {
 		$key = perm_key_for_modulnr($modulnr);
 	}
 	if ($key === 'system.indstillinger') {
@@ -295,19 +333,16 @@ function perm_enforce_request(?string $declaredKey, string $declaredLevel, bool 
 		return;
 	}
 	$registry = permission_registry();
-	$dangerous = isset($registry[$key]) && $registry[$key]['dangerous'];
-	$isPost = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST');
-	// Legacy pages change data through GET links too (review, PR #803): those verbs count as writes.
-	$getWrite = false;
-	foreach (array('slet', 'delete', 'udlign', 'aktiver', 'bogfor', 'kopier', 'nulstil', 'unAlign', 'slet_bilag', 'opdater') as $verb) {
-		if (isset($_GET[$verb]) && (string) $_GET[$verb] !== '') {
-			$getWrite = true;
-			break;
-		}
+	// A page shared by several modules may name more keys, "a|b": either is enough (a lookup used by sales and purchase orders).
+	$keys = explode('|', $key);
+	$dangerous = false;
+	foreach ($keys as $k) {
+		$dangerous = $dangerous || (isset($registry[$k]) && $registry[$k]['dangerous']);
 	}
-	$need = ($declaredLevel === 'write' || ($isPost && !$postIsRead) || $getWrite) ? 'write' : 'read';
-	if (perm_can($key, $need)) {
-		return;
+	foreach ($keys as $k) {
+		if (perm_can($k, $need)) {
+			return;
+		}
 	}
 	if ($mode === 'deny' || $dangerous) {
 		perm_refuse($key . ' (' . $need . ')', $page);
@@ -352,6 +387,31 @@ function perm_log_once(string $handling, string $detaljer): void
 	}
 	$_SESSION[$slot] = 1;
 	audit_log($handling, $detaljer);
+}
+
+/**
+ * A page that changes data accepts only a POST carrying the session's CSRF token (header X-CSRF-Token or field
+ * csrf_token). Anything else is logged and answered 403; JSON callers get {"ok":false}. Review 2, PR #803.
+ */
+function perm_require_post_csrf(bool $json = true): void
+{
+	$isPost = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST');
+	$sent = isset($_SERVER['HTTP_X_CSRF_TOKEN']) ? (string) $_SERVER['HTTP_X_CSRF_TOKEN'] : (isset($_POST['csrf_token']) ? (string) $_POST['csrf_token'] : '');
+	if ($isPost && $sent !== '' && isset($_SESSION['csrf_token']) && hash_equals((string) $_SESSION['csrf_token'], $sent)) {
+		return;
+	}
+	$uri = isset($_SERVER['REQUEST_URI']) ? (string) parse_url((string) $_SERVER['REQUEST_URI'], PHP_URL_PATH) : '';
+	if (function_exists('audit_log')) {
+		audit_log('csrf', ($isPost ? 'token' : 'method') . ' ' . $uri);
+	}
+	if (!headers_sent()) {
+		http_response_code(403);
+		if ($json) {
+			header('Content-Type: application/json; charset=utf-8');
+		}
+	}
+	print $json ? json_encode(array('ok' => false, 'succes' => false, 'message' => 'csrf')) : '<p>403</p>';
+	exit;
 }
 
 function perm_refuse(string $what, string $page): void

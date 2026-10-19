@@ -33,6 +33,8 @@
 // 20230304 PHR	Attachments can now be renamed
 // 20260212 LOE Refactored to handle multiple files for orders.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261018 Sawaneh Review 2 (PR #803): key by the attachment's module instead of 'any'; kilde limited to kassekladde/ordrer/historik
+//                  (a table name in the queries), ids cast to numbers, file name basename.
 // 20261005 LOE SST-857 Kassebilag is spelled with one l in the page title.
 // 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
@@ -42,7 +44,9 @@ $css="../css/standard.css";
 
 $title="Kassebilag";
 include("../includes/connect.php");
-$permission_key = 'any';
+// The key follows the kilde the page acts on: the posted one only together with a posted kilde_id (as below).
+$bilagKilde = !empty($_POST['kilde_id']) ? (isset($_POST['kilde']) ? (string) $_POST['kilde'] : '') : (isset($_GET['kilde']) ? (string) $_GET['kilde'] : '');
+$permission_key = ($bilagKilde === 'kassekladde') ? 'finans.kassekladde' : (($bilagKilde === 'ordrer') ? 'debitor.ordre|kreditor.ordre' : 'debitor.konti|kreditor.konti');
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
@@ -53,22 +57,26 @@ if(($_GET)||($_POST)) {
 
 	$funktion=if_isset($_GET['funktion']);
 	if (isset($_GET['kilde_id'])) {
-		$kilde_id = $_GET['kilde_id'];
+		$kilde_id = (int) $_GET['kilde_id'];
 		$kilde    = if_isset($_GET['kilde']);
-		$bilag_id = if_isset($_GET['bilag_id']);
+		$bilag_id = (int) if_isset($_GET['bilag_id']);
 		$bilag    = if_isset($_GET['bilag']);
 		$fokus    = if_isset($_GET['fokus']);
 		$ny       = if_isset($_GET['ny']);
 		$vis      = if_isset($_GET['vis']);
-		$filnavn  = if_isset($_GET['filnavn']);
+		$filnavn  = basename((string) if_isset($_GET['filnavn']));
 	} 
 	if (isset($_POST['kilde_id']) && $_POST['kilde_id']) {
 		$submit      = if_isset($_POST['submit']);
-		$kilde_id    = $_POST['kilde_id'];
+		$kilde_id    = (int) $_POST['kilde_id'];
 		$kilde       = $_POST['kilde'];
-		$bilag_id    = $_POST['bilag_id'];
+		$bilag_id    = (int) $_POST['bilag_id'];
 		$bilag       = $_POST['bilag'];
 		$fokus       = $_POST['fokus'];
+	}
+	// kilde is a table name in the queries below: only the three attachment sources are accepted.
+	if (isset($kilde) && $kilde !== '' && !in_array($kilde, array('kassekladde', 'ordrer', 'historik'), true)) {
+		exit;
 	}
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td colspan= \"3\" height = \"25\" align=\"center\" valign=\"top\">";

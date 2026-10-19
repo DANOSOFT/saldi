@@ -43,6 +43,8 @@
 //                  (settings.group_id, the form language of a sender address).
 // 20261002 Sawaneh Phase 4b batch 2: lastChanged() for the 'sat <date>' note next to a write-only secret.
 // 20261002 Sawaneh Settings changes in audit_log carry objekt_type 'indstilling' and the key as objekt_id (settings redesign §11.2).
+// 20261018 Sawaneh Review 2 (PR #803): sqlValue()/columnIsNumeric(): an empty value goes into a number column as NULL.
+// 20261019 Sawaneh Review 2 (PR #803): a lone value in a tab-joined box is its first part only (DIV/3 box13); kode '0' also matches NULL/empty kode rows.
 
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
 
@@ -116,6 +118,20 @@ class SettingsService
 	}
 
 	/**
+	 * Row filter on the kode a grupper storage names; an older row with a NULL or empty kode counts as kode '0'.
+	 */
+	private static function kodeWhere(array $st): string
+	{
+		if ($st['kode'] === null) {
+			return '';
+		}
+		if ($st['kode'] === '0') {
+			return " and (kode = '0' or kode is null or kode = '')";
+		}
+		return " and kode = '" . db_escape_string($st['kode']) . "'";
+	}
+
+	/**
 	 * Cache key of a dbrow storage: the table, plus its row filter when it has one.
 	 */
 	private static function dbKey(array $st): string
@@ -141,7 +157,7 @@ class SettingsService
 			}
 			$st = self::storage($def);
 			if ($st['table'] === 'grupper') {
-				$gr[self::grKey($st)] = "(art = '" . db_escape_string($st['art']) . "' and kodenr = '" . db_escape_string($st['kodenr']) . "'" . ($st['kode'] !== null ? " and kode = '" . db_escape_string($st['kode']) . "'" : '') . ")";
+				$gr[self::grKey($st)] = "(art = '" . db_escape_string($st['art']) . "' and kodenr = '" . db_escape_string($st['kodenr']) . "'" . self::kodeWhere($st) . ")";
 			} elseif ($st['table'] === 'adresser') {
 				if (self::$company === null) {
 					$r = db_fetch_array(db_select("select * from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
@@ -189,7 +205,7 @@ class SettingsService
 				if (isset(self::$grupper[$k]) && self::$grupper[$k] === false) {
 					self::$grupper[$k] = $r;
 				}
-				$kk = $k . '|k' . $r['kode'];
+				$kk = $k . '|k' . ((string) $r['kode'] === '' ? '0' : $r['kode']);
 				if (isset(self::$grupper[$kk]) && self::$grupper[$kk] === false) {
 					self::$grupper[$kk] = $r;
 				}
@@ -366,6 +382,34 @@ class SettingsService
 	 * Save a typed value. Returns true when the stored value changed.
 	 */
 	/**
+	 * A value for SQL: quoted text, or NULL when it is empty and the column is a number column (review 2, PR #803).
+	 * PostgreSQL refuses '' in an integer or numeric column; text columns keep '' because old readers compare with ''.
+	 */
+	public static function sqlValue(string $table, string $column, string $raw): string
+	{
+		if ($raw === '' && self::columnIsNumeric($table, $column)) {
+			return 'NULL';
+		}
+		return "'" . db_escape_string($raw) . "'";
+	}
+
+	/**
+	 * Whether a column is a number column in this ledger's database. Looked up once per column and request; the type
+	 * can differ between older and newer ledgers (grupper.kodenr).
+	 */
+	public static function columnIsNumeric(string $table, string $column): bool
+	{
+		static $cache = array();
+		$k = $table . '.' . $column;
+		if (!isset($cache[$k])) {
+			$r = db_fetch_array(db_select("select data_type as data_type from information_schema.columns where table_name = '" . db_escape_string($table) . "' and column_name = '" . db_escape_string($column) . "'" . self::schemaFilter(), __FILE__ . " linje " . __LINE__));
+			$type = $r ? strtolower((string) $r['data_type']) : '';
+			$cache[$k] = in_array($type, array('integer', 'smallint', 'bigint', 'numeric', 'decimal', 'real', 'double precision', 'int', 'tinyint', 'mediumint', 'float', 'double'), true);
+		}
+		return $cache[$k];
+	}
+
+	/**
 	 * information_schema spans every database the user can see on MySQL: filter on this one (review, PR #803).
 	 */
 	public static function schemaFilter(): string
@@ -428,7 +472,7 @@ class SettingsService
 				ksort($parts);
 				$stored = db_escape_string(implode($st['join'], $parts));
 			}
-			$where = "art = '" . db_escape_string($st['art']) . "' and kodenr = '" . db_escape_string($st['kodenr']) . "'" . ($st['kode'] !== null ? " and kode = '" . db_escape_string($st['kode']) . "'" : '');
+			$where = "art = '" . db_escape_string($st['art']) . "' and kodenr = '" . db_escape_string($st['kodenr']) . "'" . self::kodeWhere($st);
 			if ($st['fiscal'] && $row && (int) $row['fiscal_year'] > 0) {
 				// An art with a row per year (POS, OreDif) writes this year's row only (review, PR #803).
 				$where .= " and fiscal_year = " . (int) $row['fiscal_year'];
@@ -449,18 +493,18 @@ class SettingsService
 		} elseif ($st['table'] === 'adresser') {
 			if (!self::$company) {
 				// A new ledger has no company row yet (G1.1): the first saved field creates it.
-				db_modify("insert into adresser (art, kontonr, " . $st['column'] . ") values ('S', '0', '$esc')", __FILE__ . " linje " . __LINE__);
+				db_modify("insert into adresser (art, kontonr, " . $st['column'] . ") values ('S', '0', " . self::sqlValue('adresser', $st['column'], $raw) . ")", __FILE__ . " linje " . __LINE__);
 			} else {
-				db_modify("update adresser set " . $st['column'] . " = '$esc' where id = " . (int) self::$company['id'], __FILE__ . " linje " . __LINE__);
+				db_modify("update adresser set " . $st['column'] . " = " . self::sqlValue('adresser', $st['column'], $raw) . " where id = " . (int) self::$company['id'], __FILE__ . " linje " . __LINE__);
 			}
 			self::$company = null;
 		} elseif ($st['table'] === 'formularer') {
 			$row = self::feeRow($key, $st, $scopeId);
 			if ($row) {
-				db_modify("update formularer set " . $st['column'] . " = '$esc' where id = " . (int) $row['id'], __FILE__ . " linje " . __LINE__);
+				db_modify("update formularer set " . $st['column'] . " = " . self::sqlValue('formularer', $st['column'], $raw) . " where id = " . (int) $row['id'], __FILE__ . " linje " . __LINE__);
 			} else {
 				$lang = db_escape_string(self::formLanguageName($scopeId));
-				db_modify("insert into formularer (beskrivelse, formular, art, " . $st['column'] . ", sprog) values ('GEBYR', " . (int) $st['formular'] . ", 2, '$esc', '$lang')", __FILE__ . " linje " . __LINE__);
+				db_modify("insert into formularer (beskrivelse, formular, art, " . $st['column'] . ", sprog) values ('GEBYR', " . (int) $st['formular'] . ", 2, " . self::sqlValue('formularer', $st['column'], $raw) . ", '$lang')", __FILE__ . " linje " . __LINE__);
 			}
 			self::$fees = null;
 		} elseif ($st['table'] === 'virtual') {
@@ -471,13 +515,13 @@ class SettingsService
 			if ((int) $scopeId <= 0 || !isset(self::$rows[$st['art']][(int) $scopeId])) {
 				return false;
 			}
-			db_modify("update grupper set " . $st['column'] . " = '$esc' where id = " . (int) $scopeId . " and art = '" . db_escape_string($st['art']) . "'", __FILE__ . " linje " . __LINE__);
+			db_modify("update grupper set " . $st['column'] . " = " . self::sqlValue('grupper', $st['column'], $raw) . " where id = " . (int) $scopeId . " and art = '" . db_escape_string($st['art']) . "'", __FILE__ . " linje " . __LINE__);
 			unset(self::$rows[$st['art']]);
 		} elseif ($st['table'] === 'dbrow') {
 			if ((int) $scopeId <= 0 || !isset(self::$dbrows[self::dbKey($st)][(int) $scopeId])) {
 				return false;
 			}
-			db_modify("update " . $st['dbtable'] . " set " . $st['column'] . " = '$esc' where id = " . (int) $scopeId, __FILE__ . " linje " . __LINE__);
+			db_modify("update " . $st['dbtable'] . " set " . $st['column'] . " = " . self::sqlValue((string) $st['dbtable'], $st['column'], $raw) . " where id = " . (int) $scopeId, __FILE__ . " linje " . __LINE__);
 			unset(self::$dbrows[self::dbKey($st)]);
 		} else {
 			$where = "var_name = '" . db_escape_string($st['var_name']) . "'";
@@ -718,8 +762,8 @@ class SettingsService
 			return array(0 => $value);
 		}
 		if (strpos($value, $sep) === false) {
-			// A box written before it became composite holds one value meant for every part.
-			return array(0 => $value, 1 => $value);
+			// A lone value is the first part (legacy explode), except the straksbogfør box (';') that sales and purchase both read whole.
+			return $sep === ';' ? array(0 => $value, 1 => $value) : array(0 => $value);
 		}
 		return explode($sep, $value);
 	}

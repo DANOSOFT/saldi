@@ -30,6 +30,7 @@
 //                  the text '$baseCurrency'; the report rows are deleted once; no stray HTML after the include. The
 //                  stock re-basing never ran (F11: its loops never started and would have died on db_modify(qtxt));
 //                  its variables are fixed but it stays switched off until the valuation rule is decided.
+// 20261019 Sawaneh Review 2 (PR #803): the active-year check casts with db_cast() (MySQL has no cast as text).
 
 function deleteFinancialYear($year, $rebaseStock = false) {
 	global $regnaar;
@@ -56,7 +57,7 @@ function deleteFinancialYear($year, $rebaseStock = false) {
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		return findtekst('6578|Det ældste regnskabsår skal slettes først', $GLOBALS['sprog_id']);
 	}
-	if ($year == (int) $regnaar || db_fetch_array(db_select("select id from brugere where cast(regnskabsaar as text) = '$year' limit 1",__FILE__ . " linje " . __LINE__))) {
+	if ($year == (int) $regnaar || db_fetch_array(db_select("select id from brugere where " . db_cast('regnskabsaar', 'text') . " = '$year' limit 1",__FILE__ . " linje " . __LINE__))) {
 		return findtekst('6569|det er dit aktive år', $GLOBALS['sprog_id']);
 	}
 

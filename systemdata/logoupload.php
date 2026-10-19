@@ -262,7 +262,14 @@ if (isset($_POST['slet_bilag'])) {
     exit;
 }
 	
-if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
+if(isset($_POST['bgfil'])||(isset($_POST['bilagfil']) && $_POST['bilagfil'])) {
+    // 20261018 Sawaneh Review 2 (PR #803): the upload carries the session's token, as the delete form does.
+    if (!isset($_POST['csrf_token']) || !hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token'])) {
+        if (function_exists('audit_log')) audit_log('csrf', 'logoupload.php upload');
+        print "<BODY onLoad=\"javascript:alert('" . findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', $sprog_id) . "')\">";
+        upload();
+        exit;
+    }
     
     // Check permission before uploading
     $department = (int)$_POST['department'];
@@ -643,6 +650,7 @@ function upload(){
     
     if ($can_upload) {
         print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
+        print "<input type=\"hidden\" name=\"csrf_token\" value=\"" . htmlspecialchars((string) $_SESSION['csrf_token'], ENT_QUOTES) . "\">";
         print "<tbody>";
         print "<tr><td>&nbsp;";
         print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
@@ -668,6 +676,7 @@ function upload(){
         print "</form>";
         
         print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
+        print "<input type=\"hidden\" name=\"csrf_token\" value=\"" . htmlspecialchars((string) $_SESSION['csrf_token'], ENT_QUOTES) . "\">";
         print "<tbody>";
         print "<tr><td>&nbsp;";
         print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";

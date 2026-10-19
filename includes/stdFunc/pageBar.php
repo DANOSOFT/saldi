@@ -25,6 +25,66 @@
 // 20261009 Sawaneh Asset links via get_relative(): pages two levels down (lager/lister) got no CSS.
 // 20261009 Sawaneh 'extra' html among the actions for the open-post mode select (rapportfunc).
 // 20261009 Sawaneh The gear (settings section for the page) is the last element of the page toolbar (decision 22, addendum 2 §5).
+// 20261018 Sawaneh Review 2 (PR #803): page_bar_back_ok() - a back link from the request may not run a script.
+
+if (!function_exists('page_bar_back_ok')) {
+	/**
+	 * Whether a back link may be printed (review 2, PR #803). Several pages pass a returside taken from the request.
+	 * Raw control characters are refused (browsers drop tabs/newlines and strip leading control characters, which
+	 * would hide a scheme). A plain link may not use a script scheme. A javascript: link is percent-decoded by the
+	 * browser before it runs, so it may hold no encoded quote, bracket, backslash, backtick or control character,
+	 * and it must be one of the legacy forms: history back, or confirmClose(target[, text]) with single- or
+	 * double-quoted (json_encode) arguments, optionally after the product card's opener reload.
+	 */
+	function page_bar_back_ok(string $back): bool
+	{
+		// Browsers strip leading/trailing spaces and control characters from a URL; inside it they are refused here.
+		$b = preg_replace('/^[\x00-\x20]+|[\x00-\x20]+$/', '', $back);
+		if (preg_match('/[\x00-\x1f\x7f]/', $b)) {
+			return false;
+		}
+		$scheme = '/^[a-z][a-z0-9+.\-]*:/i';
+		if (!preg_match('/^javascript:/i', $b)) {
+			return !preg_match($scheme, $b) || (bool) preg_match('#^https?://#i', $b);
+		}
+		if (preg_match('/%(?:22|27|3c|3e|5c|60|[01][0-9a-f]|7f)/i', $b)) {
+			return false;
+		}
+		// What runs is the percent-decoded body (an encoded colon would otherwise hide a script target).
+		$js = rawurldecode(substr($b, 11));
+		if (preg_match('/[\x00-\x1f\x7f]/', $js)) {
+			return false;
+		}
+		if (preg_match('/^(?:window\.)?history\.(?:back\(\)|go\(-1\));?$/', $js)) {
+			return true;
+		}
+		$prefix = 'if (window.opener) { window.opener.location.reload(); }';
+		if (strpos($js, $prefix) === 0) {
+			$js = substr($js, strlen($prefix));
+		}
+		$str = "'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"";
+		if (!preg_match('/^confirmClose\((' . $str . ')(?:\s*,\s*(' . $str . '))?\);?$/', $js, $m)) {
+			return false;
+		}
+		if ($m[1][0] === '"') {
+			$target = json_decode($m[1]);
+			if (!is_string($target)) {
+				return false;
+			}
+		} else {
+			// A single-quoted target from the codebase never holds a backslash; one would be a JS escape (\x3a ...).
+			$target = substr($m[1], 1, -1);
+		}
+		if (isset($m[2]) && $m[2] !== '' && $m[2][0] === '"' && !is_string(json_decode($m[2]))) {
+			return false;
+		}
+		if (preg_match('/[\x00-\x1f\x7f"\'<>`\\\\]/', $target)) {
+			return false;
+		}
+		$t = ltrim($target, ' ');
+		return !preg_match($scheme, $t) || (bool) preg_match('#^https?://#i', $t);
+	}
+}
 
 if (!function_exists('page_bar')):
 
@@ -84,6 +144,9 @@ function page_bar(array $o): void
 	print "<div class='pg' style='$style'>";
 	$title = html_entity_decode(strip_tags(isset($o['title']) ? (string) $o['title'] : ''), ENT_QUOTES, $enc);
 	print "<div class='pg-head'><h1>" . $h(trim(preg_replace('/\s+/', ' ', $title))) . "</h1>";
+	if (!empty($o['back']) && !page_bar_back_ok((string) $o['back'])) {
+		$o['back'] = '';
+	}
 	if (!empty($o['back'])) {
 		print "<a class='pg-back' accesskey='L' href='" . $h($o['back']) . "'" . (!empty($o['back_onclick']) ? " onclick=\"" . $h($o['back_onclick']) . "\"" : '') . ">&larr; " . $h(findtekst('30|Tilbage', $GLOBALS['sprog_id'])) . "</a>";
 	}

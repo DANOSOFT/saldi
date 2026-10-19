@@ -1268,8 +1268,9 @@ foreach (array('objekt_type' => 'varchar(30)', 'objekt_id' => 'varchar(60)', 'ki
 }
 // 20261003 Sawaneh Aligned with the roles spec §3 so the document-pool work (SD-724) shares the table: handling 60 wide,
 // tidspunkt not null. Runs once; a table made by SD-724 already looks like this.
-$qtxt = "SELECT character_maximum_length FROM information_schema.columns WHERE table_name='audit_log' and column_name='handling'" . $sawanehSchema;
-if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && (int) $r['character_maximum_length'] > 0 && (int) $r['character_maximum_length'] < 60) {
+$qtxt = "SELECT character_maximum_length AS character_maximum_length FROM information_schema.columns WHERE table_name='audit_log' and column_name='handling'" . $sawanehSchema;
+// PostgreSQL syntax: only a table from before SD-724 can be narrower, and such a table only exists on PostgreSQL.
+if (!$sawanehMysql && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && (int) $r['character_maximum_length'] > 0 && (int) $r['character_maximum_length'] < 60) {
 	db_modify("ALTER TABLE audit_log ALTER COLUMN handling TYPE varchar(60)", __FILE__ . " linje " . __LINE__);
 	db_modify("UPDATE audit_log SET tidspunkt = now() WHERE tidspunkt IS NULL", __FILE__ . " linje " . __LINE__);
 	db_modify("ALTER TABLE audit_log ALTER COLUMN tidspunkt SET NOT NULL", __FILE__ . " linje " . __LINE__);

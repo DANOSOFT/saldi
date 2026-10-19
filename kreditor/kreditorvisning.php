@@ -33,6 +33,7 @@
 //                  list; the forms keep the popup flag.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261019 Sawaneh Review 2 (PR #803): sort URL-encoded, posted list settings escaped in SQL and HTML; the section functions see $backAttr and $popupQs.
 	
 @session_start();
 $s_id=session_id();
@@ -47,6 +48,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 
 $sort=trim(if_isset($_GET['sort']));
+$sortParam = urlencode((string) $sort);
 
 // WP-3.4: opened as a popup (popup=1) Tilbage closes it through luk.php; otherwise the returside, else the creditor list.
 $popupQs = nav_popup_query($_GET, $_POST);
@@ -58,10 +60,10 @@ $sektion=if_isset($_GET['sektion']);
 
 if (isset($_POST) && $_POST && isset($_POST["cat_antal"])) {
 	if ($sektion=='3') {
-		$kg_antal=if_isset($_POST['kg_antal']);
+		$kg_antal=(int)if_isset($_POST['kg_antal']);
 		$kg_id=if_isset($_POST['kg_id']);
 		$kg_liste=if_isset($_POST['kg_liste']);
-		$cat_antal=$_POST['cat_antal'];
+		$cat_antal=(int)$_POST['cat_antal'];
 		$cat_id=$_POST['cat_id'];
 		$cat_liste=$_POST['cat_liste'];
 		$box11=if_isset($_POST['skjul_lukkede']);
@@ -69,18 +71,19 @@ if (isset($_POST) && $_POST && isset($_POST["cat_antal"])) {
 		$box1="";
 		for ($x=0; $x<=$kg_antal; $x++) {
 			if ($kg_liste[$x]) {
-				($box1)?$box1.=chr(9).$kg_id[$x]:$box1=$kg_id[$x];
+				($box1)?$box1.=chr(9).(int)$kg_id[$x]:$box1=(int)$kg_id[$x];
 			}
 		}
 		$box2="";
 		for ($x=0; $x<=$cat_antal; $x++) {
 			if ($cat_liste[$x]) {
-				($box2)?$box2.=chr(9).$cat_id[$x]:$box2=$cat_id[$x];
+				($box2)?$box2.=chr(9).db_escape_string($cat_id[$x]):$box2=db_escape_string($cat_id[$x]);
 			}
 		}
+		$box11=db_escape_string((string) $box11);
 		db_modify("update grupper set box1='$box1',box2='$box2',box11='$box11' where art = 'KLV' and kode = 'kreditor' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
 	} elseif ($sektion=='4') {
-		$vis_feltantal=if_isset($_POST['vis_feltantal']);
+		$vis_feltantal=(int)if_isset($_POST['vis_feltantal']);
 		$vis_linjeantal=if_isset($_POST['vis_linjeantal']);
 		$vis_felt=if_isset($_POST['vis_felt']);
 		$feltbredde=if_isset($_POST['feltbredde']);
@@ -90,19 +93,19 @@ if (isset($_POST) && $_POST && isset($_POST["cat_antal"])) {
 #	if (!isset($vis_felt[0])) $vis_felt[0]="";
 		$box3='kontonr';
 		$box4=$feltbredde[0]*1;
-		$box5=$justering[0];
+		$box5=db_escape_string((string) $justering[0]);
 		$box6=db_escape_string($feltnavn[0]);
 		if (!$vis_linjeantal) $vis_linjeantal=50; 
 		$box7=$vis_linjeantal*1;
-		if(isset($select[0])) $box8=$select[0];
+		if(isset($select[0])) $box8=db_escape_string($select[0]);
 		for ($x=1;$x<=$vis_feltantal;$x++) {
 			if (!isset($vis_felt[$x])) $vis_felt[$x]="";
-			$box3=$box3.chr(9).$vis_felt[$x];
+			$box3=$box3.chr(9).db_escape_string($vis_felt[$x]);
 			$feltbredde[$x]=$feltbredde[$x]*1;
 			$box4=$box4.chr(9).$feltbredde[$x];
-			$box5=$box5.chr(9).$justering[$x];
+			$box5=$box5.chr(9).db_escape_string((string) $justering[$x]);
 			$box6=$box6.chr(9).db_escape_string($feltnavn[$x]);
-			if(isset($select[$x]) && isset($box8)) $box8=$box8.chr(9).$select[$x];
+			if(isset($select[$x]) && isset($box8)) $box8=$box8.chr(9).db_escape_string($select[$x]);
 	}
 		if(!isset($box8)) $box8 = "";
 		db_modify("update grupper set box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8' where art = 'KLV' and kode='kreditor' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
@@ -146,6 +149,7 @@ global $felter;
 global $feltantal;	
 global $menu;
 global $sprog_id;
+global $backAttr;
 
 include("../includes/topline_settings.php");
 
@@ -205,6 +209,7 @@ function sektion_3() {
 	global $select, $side, $sort, $sprog_id;
 	global $title;	
 	global $vis_felt, $vis_feltantal, $vis_linjeantal;
+	global $popupQs, $sortParam;
 
 
 	print "<tr><td colspan=3>".findtekst('548|Vælg om lukkede kreditorer skal være synlige på oversigten.', $sprog_id)."</td></tr>";
@@ -218,7 +223,7 @@ function sektion_3() {
 	$cat_liste=explode(chr(9),$r['box2']);
 	($r['box11'])?$skjul_lukkede='checked':$skjul_lukkede=NULL;
 	
-	print "<form name=sektion_3 action=kreditorvisning.php?{$popupQs}sort=$sort&sektion=3 method=post>";
+	print "<form name=sektion_3 action=kreditorvisning.php?{$popupQs}sort=$sortParam&sektion=3 method=post>";
 	print "<tr><td colspan=3><table border=1 width=100%><tbody>";
 	print "<tr><td style='padding:5px;'>".findtekst('1185|Skjul lukkede kreditorer', $sprog_id)."<input name=\"skjul_lukkede\" type=\"checkbox\" $skjul_lukkede></td></tr>";
 	print "<tr><td width=50%><table border=0 width=100%><tbody>";
@@ -274,6 +279,7 @@ function sektion_4() {
 	global $felter;
 	global $sort;
 	global $sprog_id;
+	global $popupQs, $sortParam, $charset;
 	
 	$r = db_fetch_array(db_select("select box3,box4,box5,box6,box7,box8 from grupper where art = 'KLV' and kode ='kreditor' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__));
 	$vis_felt=explode(chr(9),$r['box3']);
@@ -284,7 +290,7 @@ function sektion_4() {
 	$vis_feltantal=count($vis_felt)-1;
 	$select=explode(chr(9),$r['box8']);
 	
-	print "<form name=sektion_4 action=kreditorvisning.php?{$popupQs}sort=$sort&sektion=4 method=post>";
+	print "<form name=sektion_4 action=kreditorvisning.php?{$popupQs}sort=$sortParam&sektion=4 method=post>";
 	
 	print "<tr width=\"500px\"><td>".findtekst('1188|Antal felter på Kreditoroversigten', $sprog_id)."</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
 	print "<tr width=\"500px\"><td>".findtekst('1187|Antal linjer på Kreditoroversigten', $sprog_id)."</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td><tr>";
@@ -300,11 +306,14 @@ function sektion_4() {
 	print "<tr><td colspan=\"5\"><hr></td></tr>";
 	print "<tr><td colspan=\"1\"><b>".findtekst('543|Felt', $sprog_id)."</b></td><td align=\"center\"><b>".findtekst('539|Valgfri overskrift', $sprog_id)."</b></td><td align=\"center\"><b>".findtekst('540|Feltbredde', $sprog_id)."</b></td><td align=\"center\"><b>".findtekst('541|Justering',$sprog_id)."</b></td><td align=\"center\" title=\"Angiver om feltets v&aelig;rdi skal kunne v&aelig;lges fra en liste\"><b>".findtekst('1119|Valgbar', $sprog_id)."</b></td></tr>";
 	if (!$feltnavn[0]) $feltnavn[0]="Kontonr";
+	$h = function ($v) use ($charset) {
+		return htmlspecialchars((string) $v, ENT_QUOTES, $charset === 'UTF-8' ? 'UTF-8' : 'ISO-8859-1');
+	};
 	print "<tr><td colspan=\"1\">".findtekst('804|Kontonr.', $sprog_id)."</td>";
-	print "<td align=\"center\"><input name=feltnavn[0] size=20 value=$feltnavn[0]></td>";
-	print "<td align=\"center\"><input name=feltbredde[0] style=\"text-align:right\" size=2 value=$feltbredde[0]></td>";
+	print "<td align=\"center\"><input name=feltnavn[0] size=20 value=\"" . $h($feltnavn[0]) . "\"></td>";
+	print "<td align=\"center\"><input name=feltbredde[0] style=\"text-align:right\" size=2 value=\"" . $h($feltbredde[0]) . "\"></td>";
 	print "<td align=\"center\"><SELECT NAME=justering[0]>";
-	if ($justering[0]) print "<option value=\"".$justering[0]."\">$justering[0]</option>";
+	if ($justering[0]) print "<option value=\"" . $h($justering[0]) . "\">" . $h($justering[0]) . "</option>";
 	if ($justering[0] != "left") print "<option value=\"left\">left</option>"; 
 	if ($justering[0] != "center") print "<option value=\"center\">center</option>"; 
 	if ($justering[0] != "right") print "<option value=\"right\">right</option>"; 
@@ -315,15 +324,15 @@ function sektion_4() {
 	for ($x=1;$x<=$vis_feltantal;$x++) {
 	if (!$feltnavn[$x]) $feltnavn[$x]=$vis_felt[$x];
 		print "<tr><td colspan=\"1\"><SELECT NAME=vis_felt[$x]>";
-		print "<option>$vis_felt[$x]</option>";
+		print "<option>" . $h($vis_felt[$x]) . "</option>";
 		for ($y=0;$y<$feltantal;$y++) {
 			if ($felter[$y]!=$vis_felt[$x]) print "<option>$felter[$y]</option>";
 		}
 		print "</SELECT></td>";
-		print "<td align=\"center\"><input name=feltnavn[$x] size=20 value=$feltnavn[$x]></td>";
-		print "<td align=\"center\"><input name=feltbredde[$x] size=2 style=\"text-align:right\" value=$feltbredde[$x]></td>";
+		print "<td align=\"center\"><input name=feltnavn[$x] size=20 value=\"" . $h($feltnavn[$x]) . "\"></td>";
+		print "<td align=\"center\"><input name=feltbredde[$x] size=2 style=\"text-align:right\" value=\"" . $h($feltbredde[$x]) . "\"></td>";
 		print "<td align=\"center\"><SELECT NAME=justering[$x]>";
-		if ($justering[$x]) print "<option value=\"$justering[$x]\">$justering[$x]</option>";
+		if ($justering[$x]) print "<option value=\"" . $h($justering[$x]) . "\">" . $h($justering[$x]) . "</option>";
 		if ($justering[$x] != "left") print "<option value=\"left\">left</option>"; 
 		if ($justering[$x] != "center") print "<option value=\"center\">center</option>"; 
 		if ($justering[$x] != "right") print "<option value=\"right\">right</option>"; 

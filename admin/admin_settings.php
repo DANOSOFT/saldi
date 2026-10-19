@@ -43,7 +43,21 @@ include("../includes/std_func.php");
 
 $languages = array();
 
+// 20261018 Sawaneh Review 2 (PR #803): the master-database check runs before any write, the form carries the session's
+// token, and the posted ids and values are escaped (the program paths are later run as commands).
+if ($db != $sqdb) {
+	$txt1 = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id);
+	print "<BODY onLoad=\"javascript:alert('$txt1')\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">\n";
+	exit;
+}
+if (empty($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 if (isset($_POST['gem'])) {
+	// The master database's pages do not get permissions.php from online.php.
+	include_once(__DIR__ . "/../includes/permissions.php");
+	perm_require_post_csrf(false);
 	$ps2pdfId = if_isset($_POST, NULL, 'ps2pdfId');
 	$ps2pdf = if_isset($_POST, NULL, 'ps2pdf');
 	$weasyprintId = if_isset($_POST, NULL, 'weasyprintId');
@@ -83,9 +97,10 @@ if (isset($_POST['gem'])) {
 	admin_setting_save($tarId, 'tar', $tar, 'Program til pakning af filer');
 	if (!$alertTextId) $alertTextId = admin_setting_id('alertText');
 	if ($alertTextId) {
+		$alertTextId = (int) $alertTextId;
 		$qtxt="delete from settings where var_name='alertText' and id!='$alertTextId'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt="update settings set var_value='$alertText' where id='$alertTextId'";
+		$qtxt="update settings set var_value='" . db_escape_string((string) $alertText) . "' where id='$alertTextId'";
 	} else {
 		$qtxt="insert into settings (var_name,var_value,var_description) values ";
 		$qtxt.="('alertText','".db_escape_string($alertText)."','".db_escape_string('Alert text if: unpredicted event')."')";
@@ -102,12 +117,6 @@ if (isset($_POST['gem'])) {
 	$ps2pdfId=$weasyprintId=$pdftkId=$ftpId=$dbdumpId=$zipId=$unzipId=$tarId=$alertTextId=NULL;
 }
 
-if ($db != $sqdb) {
-	$txt1 = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id);
-	print "<BODY onLoad=\"javascript:alert('$txt1')\">\n";
-	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">\n";
-	exit;
-}
 
 $q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
@@ -188,6 +197,7 @@ $newssnippet = get_settings_value("nyhed", "dashboard", "");
 
 #include("../includes/languages.php"); #20210920
 print "<form name='admin_settings' action='admin_settings.php' method='post'>";
+print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars((string) $_SESSION['csrf_token'], ENT_QUOTES) . "'>";
 print "<input type='hidden' name='ps2pdfId' value='$ps2pdfId'>";
 print "<input type='hidden' name='weasyprintId' value='$weasyprintId'>";
 print "<input type='hidden' name='pdftkId' value='$pdftkId'>";
@@ -250,9 +260,11 @@ function admin_setting_id($name) {
 }
 
 function admin_setting_save($id, $name, $value, $description) {
-	if (!$id) $id = admin_setting_id($name);
-	if ($id) $qtxt = "update settings set var_value='$value' where id='$id'";
-	else $qtxt = "insert into settings (var_name,var_value,var_description) values ('$name','$value','$description')";
+	$id = (int) $id;
+	if (!$id) $id = (int) admin_setting_id($name);
+	$v = db_escape_string((string) $value);
+	if ($id) $qtxt = "update settings set var_value='$v' where id='$id'";
+	else $qtxt = "insert into settings (var_name,var_value,var_description) values ('" . db_escape_string($name) . "','$v','" . db_escape_string($description) . "')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 

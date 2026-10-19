@@ -30,6 +30,7 @@
 //                so a returside with its own query string (e.g. kassekladde.php?tjek=..&kladde_id=..) survives the round trip.
 // 20261003 CL/SZ SD-698: returside is sanitized like kreditorkort.php (nav_sanitize_returside), so an array no longer
 //                breaks urlencode() and a quote can't escape the hidden returside field.
+// 20261019 Sawaneh Review 2 (PR #803): page_bar back/new links use the URL-encoded returside again.
 
 @session_start();
 $s_id = session_id();
@@ -115,8 +116,8 @@ if ($menu == 'S') {
 	include_once("../includes/stdFunc/pageBar.php");
 	page_bar(array(
 		'title' => "$firmanavn - " . findtekst('1262|Ansatte', $sprog_id),
-		'back' => "kreditorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus",
-		'primary' => array(findtekst('7007|Ny ansat', $sprog_id), "ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id", 'accesskey' => 'N'),
+		'back' => "kreditorkort.php?returside=$retursideParam&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus",
+		'primary' => array(findtekst('7007|Ny ansat', $sprog_id), "ansatte.php?returside=$retursideParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$konto_id", 'accesskey' => 'N'),
 	));
 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 	print "<tr><td align='center' valign='top'>\n";

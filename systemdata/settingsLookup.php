@@ -20,6 +20,8 @@
 // 20260929 Sawaneh Settings redesign phase 4a (spec §8.1): type-ahead for the account and item
 //                  lookup fields of a generated settings section. Read-only, JSON.
 // 20261004 Sawaneh Open to users with read on any settings group (no longer the Indstillinger bit); nothing for others.
+// 20261019 Sawaneh Review 2 (PR #803): a type answers only users who can read a section with a field of that type
+//                  (the search term stays UTF-8: db_escape_string() hands every query to the database as UTF-8).
 
 ob_start();
 @session_start();
@@ -43,8 +45,58 @@ $q = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
 $results = array();
 $charset = (isset($db_encode) && $db_encode !== 'UTF8') ? 'ISO-8859-1' : 'UTF-8';
 
-if ($q !== '' && mb_strlen($q) <= 60 && settings_accessible_groups()) {
-	$like = db_escape_string(str_replace(array('\\', '%', '_'), array('\\\\', '\\%', '\\_'), mb_strtolower($q)));
+/**
+ * Whether the user can read at least one settings section that has a field of this lookup type.
+ */
+function settings_lookup_allowed(string $type): bool
+{
+	if (!in_array($type, array('account', 'creditor', 'item'), true)) {
+		return false;
+	}
+	$groups = getSettingsGroups();
+	$sections = getSettingsSections();
+	$canRead = function (string $group, string $sectionId) use ($groups, $sections): bool {
+		if (isset($sections[$sectionId]['permission'])) {
+			$perm = (string) $sections[$sectionId]['permission'];
+		} elseif (isset($groups[$group])) {
+			$perm = (string) $groups[$group]['permission'];
+		} else {
+			return false;
+		}
+		return !function_exists('perm_can') || perm_can($perm, 'read');
+	};
+	$hasType = function ($node) use (&$hasType, $type): bool {
+		if (!is_array($node)) {
+			return false;
+		}
+		if (isset($node['type']) && $node['type'] === $type) {
+			return true;
+		}
+		foreach ($node as $child) {
+			if (is_array($child) && $hasType($child)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	foreach (getSettingDefinitions() as $def) {
+		if (isset($def['type'], $def['group'], $def['section']) && $def['type'] === $type && $canRead((string) $def['group'], $def['group'] . '.' . $def['section'])) {
+			if (empty($def['permission']) || !function_exists('perm_can') || perm_can((string) $def['permission'], 'read')) {
+				return true;
+			}
+		}
+	}
+	foreach ($sections as $sectionId => $section) {
+		if (isset($section['group'], $section['tables']) && $hasType($section['tables']) && $canRead((string) $section['group'], (string) $sectionId)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+if ($q !== '' && mb_strlen($q) <= 60 && settings_lookup_allowed($type)) {
+	$term = mb_strtolower($q, 'UTF-8');
+	$like = db_escape_string(str_replace(array('\\', '%', '_'), array('\\\\', '\\%', '\\_'), $term));
 	if ($type === 'account') {
 		$qtxt = "select kontonr, beskrivelse from kontoplan where regnskabsaar = '" . (int) $regnaar . "' and kontotype in ('D', 'S') ";
 		$qtxt .= "and (" . db_cast('kontonr', 'text') . " like '$like%' or lower(beskrivelse) like '%$like%') order by kontonr limit 12";

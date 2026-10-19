@@ -88,6 +88,7 @@
 // 20261009 Sawaneh pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
 // 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
 // 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
+// 20261019 Sawaneh Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -103,6 +104,12 @@ if (!function_exists('db_cast')) {
 			return "cast($expr as " . ($type === 'text' ? 'char' : 'signed') . ")";
 		}
 		return "cast($expr as $type)";
+	}
+}
+if (!function_exists('saldi_schema_filter')) {
+	function saldi_schema_filter() {
+		global $db_type;
+		return in_array($db_type ?? 'postgres', array('mysql', 'mysqli'), true) ? " and table_schema = DATABASE()" : " and table_schema = current_schema()";
 	}
 }
 
@@ -2000,7 +2007,7 @@ if (!function_exists('getSettingsSections')) {
 	function settings_floor_plans(): array
 	{
 		$out = array();
-		if (!db_fetch_array(db_select("select table_name from information_schema.tables where table_name = 'table_pages'", __FILE__ . " linje " . __LINE__))) {
+		if (!db_fetch_array(db_select("select table_name from information_schema.tables where table_name = 'table_pages'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__))) {
 			return $out;
 		}
 		$q = db_select("select id, name from table_pages order by id", __FILE__ . " linje " . __LINE__);

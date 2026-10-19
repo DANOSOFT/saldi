@@ -116,7 +116,7 @@ function grupper_unique_migrate(): string
 		return 'exists';
 	}
 	$types = array();
-	$q = db_select("select column_name, data_type from information_schema.columns where table_name = 'grupper' and column_name in ('kodenr', 'kode', 'fiscal_year')" . saldi_schema_filter() . "", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select column_name as column_name, data_type as data_type from information_schema.columns where table_name = 'grupper' and column_name in ('kodenr', 'kode', 'fiscal_year')" . saldi_schema_filter() . "", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$types[$r['column_name']] = $r['data_type'];
 	}

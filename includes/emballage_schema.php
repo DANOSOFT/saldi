@@ -1,6 +1,7 @@
 <?php
+// 20261019 Sawaneh Review 2 (PR #803): the information_schema checks are limited to this database/schema.
 function ensure_emballage_schema() {
-	$q = db_select("SELECT table_name FROM information_schema.tables WHERE table_name='emballage'", __FILE__ . " linje " . __LINE__);
+	$q = db_select("SELECT table_name FROM information_schema.tables WHERE table_name='emballage'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
 	if (!db_fetch_array($q)) {
 		$qtxt = "CREATE TABLE emballage (
 			id serial NOT NULL PRIMARY KEY,
@@ -17,7 +18,7 @@ function ensure_emballage_schema() {
 		db_modify("CREATE INDEX emballage_varer_id_idx ON emballage(varer_id)", __FILE__ . " linje " . __LINE__);
 	}
 
-	$q = db_select("SELECT table_name FROM information_schema.tables WHERE table_name='emballage_cat'", __FILE__ . " linje " . __LINE__);
+	$q = db_select("SELECT table_name FROM information_schema.tables WHERE table_name='emballage_cat'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
 	if (!db_fetch_array($q)) {
 		$qtxt = "CREATE TABLE emballage_cat (
 			id serial NOT NULL PRIMARY KEY,
@@ -41,7 +42,7 @@ function ensure_emballage_schema() {
 		}
 	}
 
-	$q = db_select("SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='enduser_type'", __FILE__ . " linje " . __LINE__);
+	$q = db_select("SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='enduser_type'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
 	if (!db_fetch_array($q)) {
 		db_modify("ALTER TABLE adresser ADD COLUMN enduser_type varchar(20)", __FILE__ . " linje " . __LINE__);
 	}

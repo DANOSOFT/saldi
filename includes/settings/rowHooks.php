@@ -31,6 +31,7 @@
 //                  and the per-row Overfør; row_locked 'always'.
 // 20261008 Sawaneh SST-769 from master: with Gem kurs uden bogføring the rate is saved and no adjustment is posted.
 // 20261009 Sawaneh Slet med data is refused while the year has stock movements (decision 22: no re-basing rule yet).
+// 20261019 Sawaneh Review 2 (PR #803): settings_fy_columns() reads information_schema for this database/schema only.
 
 // 20261016 Sawaneh The discount transfer and the old-discount columns live in virtualStorage.php.
 include_once(__DIR__ . '/virtualStorage.php');
@@ -298,7 +299,7 @@ function settings_fiscal_year_create(int $startMonth, int $startYear, int $endMo
 function settings_fy_columns(string $table, array $except): array
 {
 	$cols = array();
-	$q = db_select("select column_name from information_schema.columns where table_name = '" . db_escape_string($table) . "' order by ordinal_position", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select column_name as column_name from information_schema.columns where table_name = '" . db_escape_string($table) . "'" . saldi_schema_filter() . " order by ordinal_position", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (!in_array($r['column_name'], $except, true)) {
 			$cols[] = $r['column_name'];

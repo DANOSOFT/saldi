@@ -68,6 +68,7 @@
 //                  created only when missing.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
+// 20261018 Sawaneh Review 2 (PR #803): the invitation's auto-login data is taken from the session before the reset at the top, which lost it.
 
 if (isset($_GET['invite'])) {
 	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
@@ -76,6 +77,8 @@ if (isset($_GET['invite'])) {
 }
 ob_start(); //Starter output buffering 
 @session_start();
+// The auto-login after an invitation (invite.php) is read before the session is reset below, else it is lost.
+$inviteLogin = (!empty($_POST['invite_login']) && isset($_SESSION['invite_login']) && is_array($_SESSION['invite_login'])) ? $_SESSION['invite_login'] : null;
 session_unset();
 session_destroy();
 
@@ -253,9 +256,9 @@ if (isset($_POST['regnskab'])) {
 		$brugernavn = isset($_POST['brugernavn']) ? sanitize_input(htmlspecialchars(trim($_POST['brugernavn']), ENT_COMPAT, $charset)) : null;
 		$password = isset($_POST['password']) ? trim($_POST['password']) : null;
 		// 20261014 Sawaneh Review: the auto-login after an invitation reads the password from the session (set by invite.php within the last minute).
-		if ($password === null && !empty($_POST['invite_login']) && isset($_SESSION['invite_login']) && is_array($_SESSION['invite_login'])) {
-			$iv = $_SESSION['invite_login'];
-			unset($_SESSION['invite_login']);
+		if ($password === null && $inviteLogin !== null) {
+			$iv = $inviteLogin;
+			$inviteLogin = null;
 			if ((time() - (int) $iv['at']) < 60 && $iv['regnskab'] === $regnskab && $iv['brugernavn'] === (string) $_POST['brugernavn']) {
 				$password = (string) $iv['password'];
 			}
