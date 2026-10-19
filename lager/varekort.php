@@ -130,10 +130,13 @@
 //                  had been commented out, so on an account with warehouses a location typed
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
-// 20261016 MJ SST-876 Saving the card reports a webshop that refuses the stock update
+// 20261016 CL/MJ SST-876 Saving the card reports a webshop that refuses the stock update
 //                  instead of discarding the answer. This is the path Havemoebelland found
 //                  did push a figure through, so it is also the path where a refusal has to
 //                  become visible rather than look like success.
+// 20261019 CL/MJ SST-876 (review) The warning on the stock-change confirmation path names the
+//                  item. It read $varenr, which is only filled from the post further down the
+//                  file, so on that one path the message stopped after "for:".
 //
 ob_start(); //Starts output buffering
 
@@ -317,9 +320,13 @@ if ($acceptStockChange) {
     $beholdning = if_isset($_POST, NULL, 'beholdning');
     $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $stockchange = $ny_beholdning - $beholdning;
-    $qtxt = "select kostpris from varer where id=$id";
+    $qtxt = "select kostpris, varenr from varer where id=$id";
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
     $cost = $r['kostpris'] * 1;
+    // 20261019 CL/MJ SST-876 Read here because $varenr still holds the NULL from the top of the
+    // file on this path - it is only taken from the post further down - so the warning below
+    // named no item at all. This row is already being fetched, so it costs nothing.
+    $stockChangeItemNo = $r ? (string)$r['varenr'] : '';
     $userName = substr($brugernavn, 0, 10);
     $qtxt = "insert into stocklog (item_id,username,initials,reason,correction,logtime) values ";
     $qtxt .= "('$id','" . db_escape_string($userName) . "','" . db_escape_string($initials) . "','" . db_escape_string($reason) . "',";
@@ -341,7 +348,7 @@ if ($acceptStockChange) {
     # SST-876: said before the redirect, or the page reloads and the refusal is never seen.
     if (!empty($shopSyncFailed)) {
         error_log("saldi: shop stock sync failed when adjusting stock for vare_id $id");
-        shopSyncAlert((string)$varenr, $sprog_id);
+        shopSyncAlert($stockChangeItemNo, $sprog_id);
     }
     print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$id'>";
     exit;

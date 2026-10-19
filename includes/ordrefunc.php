@@ -146,8 +146,8 @@
 //             returned error now names the offending account and order instead of a bare generic string.
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
-// 20261016 MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261016 CL/MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 

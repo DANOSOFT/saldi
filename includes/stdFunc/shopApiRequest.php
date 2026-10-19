@@ -26,7 +26,7 @@
 //                  transport-class failures degrade an endpoint (a 4xx is about one item,
 //                  not the host), and the shared php error log gets scheme/host/path
 //                  instead of the query string and the response body.
-// 20261016 MJ SST-876 A 2xx answer whose body is a rejection now counts as a failure.
+// 20261016 CL/MJ SST-876 A 2xx answer whose body is a rejection now counts as a failure.
 //                  Havemoebelland's stock stopped reaching DirekteImport.dk and Saldi
 //                  reported nothing for days, because the shop adapter answers 200 to
 //                  everything and only the status was looked at.

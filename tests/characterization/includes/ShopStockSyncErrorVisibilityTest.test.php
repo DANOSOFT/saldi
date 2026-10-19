@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../../includes/stdFunc/shopApiRequest.php';
 
-// 20261016 MJ SST-876 Pins that a refused webshop stock update is detected and reported.
+// 20261016 CL/MJ SST-876 Pins that a refused webshop stock update is detected and reported.
 //
 //                  Havemoebelland's stock stopped reaching DirekteImport.dk, and later
 //                  havemoebelland.dk too, after receiving supplier orders. Saldi showed
@@ -259,6 +259,62 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
             self::assertSame($expected, substr_count(self::source($path), 'shopSyncAlert('),
                 "$label should tell the user at $expected place(s) and does not");
         }
+    }
+
+    /**
+     * Every warning has to name an item.
+     *
+     * Found in review. The product card leaves by two routes and both carry the message, but
+     * the stock-change confirmation route passed $varenr, which still holds the NULL from the
+     * top of the file there - it is only read from the post further down - so that one screen
+     * said "...i webshoppen for:" and stopped. The Gem route was fine because by then it has
+     * been read.
+     *
+     * Rather than pin the two call sites as they are, this checks the property that was
+     * violated: whatever each call passes must have been given a value before that point, and
+     * the NULL initialisation at the top of the file does not count as one.
+     */
+    public function testEveryWarningNamesAnItem(): void
+    {
+        $src = self::source(self::VAREKORT);
+        self::assertNotFalse(preg_match_all(
+            '/shopSyncAlert\(\s*(?:\(string\)\s*)?(\$[A-Za-z_][A-Za-z0-9_]*)/',
+            $src, $hits, PREG_OFFSET_CAPTURE | PREG_SET_ORDER));
+        self::assertCount(2, $hits,
+            'the product card should warn at both of its exits');
+
+        foreach ($hits as $hit) {
+            [$var, ] = $hit[1];
+            $callAt = $hit[0][1];
+            self::assertTrue(self::assignedBefore($src, $var, $callAt),
+                "the warning is passed $var, which has no value yet at that point, so it names no item");
+        }
+
+        // The confirmation route takes the number off a row that is fetched there anyway, so
+        // that query has to actually select it - otherwise the variable exists and is empty,
+        // which the check above cannot see.
+        $at = strpos($src, '$stockChangeItemNo = ');
+        self::assertNotFalse($at, 'the confirmation route no longer reads the item number');
+        self::assertMatchesRegularExpression(
+            '/select\s+[^"]*\bvarenr\b[^"]*from varer where id=\$id/',
+            substr($src, max(0, $at - 500), 500),
+            'the row fetched on that route no longer selects varenr, so the warning names nothing');
+    }
+
+    /** Does $var get a real value - not just the file's NULL initialiser - before $before? */
+    private static function assignedBefore(string $src, string $var, int $before): bool
+    {
+        $offset = 0;
+        while (($at = strpos($src, $var . ' =', $offset)) !== false && $at < $before) {
+            $semi = strpos($src, ';', $at);
+            $statement = $semi === false ? '' : substr($src, $at, $semi - $at);
+            // "$varenr = $variant = $vis_kost = NULL;" assigns nothing usable.
+            if ($statement !== '' && !preg_match('/=\s*NULL\s*$/i', $statement)) {
+                return true;
+            }
+            $offset = $at + 1;
+        }
+        return false;
     }
 
     /**

@@ -100,7 +100,7 @@
 // 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
 //                  13-digit string is treated as an EAN-13 candidate (is_numeric also
 //                  accepted decimals, signs and scientific notation).
-// 20261016 MJ SST-876 sync_shop_vare(): a variant now publishes this warehouse's figure as
+// 20261016 CL/MJ SST-876 sync_shop_vare(): a variant now publishes this warehouse's figure as
 //                  stock and the sum of every warehouse as totalStock, like the non-variant
 //                  branch and lager/shopStockIncludes/sync.php already did. It used to send
 //                  whichever single lagerstatus row came back first and no total at all.
