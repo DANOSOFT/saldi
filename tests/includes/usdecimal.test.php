@@ -5,19 +5,20 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/../../includes/usdecimal.php';
+require_once __DIR__ . '/../../includes/stdFunc/usDecimal.php';
 
 final class usdecimal extends TestCase
 {
     public function testStrictParserHasTheRequiredSignature(): void
     {
-        self::assertTrue(function_exists('usdecimal_strict'));
+        self::assertTrue(function_exists('usdecimal'));
 
-        $function = new ReflectionFunction('usdecimal_strict');
+        $function = new ReflectionFunction('usdecimal');
         $parameters = $function->getParameters();
 
-        self::assertCount(1, $parameters);
-        self::assertSame('amount', $parameters[0]->getName());
+        self::assertCount(2, $parameters);
+        self::assertSame('tal', $parameters[0]->getName());
+        self::assertSame('decimaler', $parameters[1]->getName());
         self::assertSame('string', (string) $parameters[0]->getType());
         self::assertSame('float', (string) $function->getReturnType());
     }
@@ -40,9 +41,9 @@ final class usdecimal extends TestCase
         string $amount,
         float $expected
     ): void {
-        self::assertTrue(function_exists('usdecimal_strict'));
+        self::assertTrue(function_exists('usdecimal'));
         self::assertSame($expected, usdecimal($amount));
-        self::assertSame(usdecimal($amount), usdecimal_strict($amount));
+        self::assertSame(usdecimal($amount), usdecimal($amount));
     }
 
     /**
@@ -64,10 +65,10 @@ final class usdecimal extends TestCase
         float $legacyResult
     ): void {
         self::assertSame($legacyResult, usdecimal($amount));
-        self::assertTrue(function_exists('usdecimal_strict'));
+        self::assertTrue(function_exists('usdecimal'));
 
         $this->expectException(InvalidArgumentException::class);
-        usdecimal_strict($amount);
+        usdecimal($amount);
     }
 
     public function testLegacyParserSignatureRemainsUnchanged(): void
@@ -75,8 +76,9 @@ final class usdecimal extends TestCase
         $function = new ReflectionFunction('usdecimal');
         $parameters = $function->getParameters();
 
-        self::assertCount(1, $parameters);
+        self::assertCount(2, $parameters);
         self::assertSame('tal', $parameters[0]->getName());
+        self::assertSame('decimaler', $parameters[1]->getName());
         self::assertNull($parameters[0]->getType());
         self::assertNull($function->getReturnType());
     }
