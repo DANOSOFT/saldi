@@ -244,7 +244,14 @@ function deleteFinancialYear($year) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "update grupper set box10 = '".date('U')."' where art = 'RA' and kodenr ='$year'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "delete from grupper where fiscal_year = '$year'";
+	// 20261011 MJ SST-829 Warehouses are not per-year data - stock is keyed on grupper.kodenr,
+	// and lagerstatus.lager and batch_kob.lager point at that number, not at the row. Until
+	// SST-829 a new accounting year copied the art='LG' rows forward, so the newest year always
+	// held one and deleting an old year was harmless. It no longer copies them, so deleting the
+	// year that holds a warehouse's last row would remove it from every list while its stock
+	// stayed behind under the same kodenr. Keep them; a spare row is harmless because every
+	// list now shows one entry per kodenr.
+	$qtxt = "delete from grupper where fiscal_year = '$year' and art != 'LG'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	transaktion('commit');
 #	return "Not deleted";
