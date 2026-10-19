@@ -76,6 +76,16 @@ if (!$r || $r['bogfort'] != '-') {
 	exit;
 }
 
+// Keep only the ids that belong to this journal, so the audit entry lists what was actually changed.
+$idList = implode(',', $ids);
+$ids = array();
+$q = db_select("select id from kassekladde where kladde_id = '$kladde_id' and id in ($idList)", __FILE__ . " linje " . __LINE__);
+while ($row = db_fetch_array($q)) $ids[] = (int)$row['id'];
+if (!$ids) {
+	$tot = db_fetch_array(db_select("select count(*) as total, sum(case when godkendt = TRUE then 1 else 0 end) as approved from kassekladde where kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
+	echo json_encode(array('ok' => true, 'approved' => (int)($tot['approved'] ?? 0), 'total' => (int)($tot['total'] ?? 0)));
+	exit;
+}
 $idList = implode(',', $ids);
 $brugernavn_sql = db_escape_string((string)$brugernavn);
 if ($godkendt) {
