@@ -1,5 +1,5 @@
 <?php
-// ------------- kreditor/modtagelse.php ----- (modul nr 6)------ lap 2.0.4----2008-12-11-------
+// ------------- kreditor/modtagelse.php ----- (modul nr 6)------ ver 5.0.0----2026-10-19-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,9 +14,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2008 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
+// 20261019 CL/LH MB-75: antal_ny accepts Danish decimals (1,00) as well as dot decimals and is validated, so non-numeric input shows a message instead of a SQL error.
+//                All request values in the SQL are now cast or escaped (db_escape_string instead of addslashes).
+//                varenr in the alerts is escaped with jsString().
+//                liste_id/id read with ifset() and cast to int; braces added in the POST block.
 
 @session_start();
 $s_id = session_id();
@@ -47,8 +51,8 @@ if (!$returside) {
 $returside = nav_back_url($returside);
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
-$liste_id = if_isset($_GET['liste_id']) * 1;
-$id = if_isset($_GET['id']) * 1;
+$liste_id = (int)ifset($_GET, 'liste_id', 0);
+$id = (int)ifset($_GET, 'id', 0);
 $fokus = "varenr";
 
 if ($_POST) {
@@ -56,32 +60,46 @@ if ($_POST) {
 	# 	$id=if_isset($_POST['id'])*1;
 	$antal = (float)if_isset($_POST['antal']);
 	$pluk = if_isset($_POST['pluk']);
-	$antal_ny = trim(if_isset($_POST['antal_ny']));
-	$varenr = addslashes(trim(if_isset($_POST['varenr'])));
+	$antal_ny = trim($_POST['antal_ny'] ?? '');
+	$varenr = trim($_POST['varenr'] ?? '');
+	$antalFejl = false;
 
 	if (strlen($antal_ny) > 10) {
 		if (strstr($antal_ny, " ")) {
 			list($tmp1, $tmp2) = explode(" ", $antal_ny);
-			if (strlen($tmp1) > 10)
+			if (strlen($tmp1) > 10) {
 				$varenr = $tmp1;
-			else
+			} else {
 				$varenr = $tmp2;
+			}
 		} else {
 			$tmp = strlen($antal);
 			$varenr = substr($antal_ny, $tmp);
 		}
 		$id = 0;
 	} else {
-		$antal = $antal_ny;
+		$nyAntal = modtagelseAntal($antal_ny);
+		if ($nyAntal === null) {
+			$antalFejl = true;
+		} else {
+			$antal = $nyAntal;
+		}
 	}
+	$qVarenr = db_escape_string($varenr);
+	$jsVarenr = htmlspecialchars(jsString(array($varenr)), ENT_QUOTES, 'UTF-8');
 
-	if ($pluk) {
+	if ($antalFejl) {
+		$alert = jsString(array(findtekst('5460|Antal skal være et tal, f.eks. 2 eller 1,5', $sprog_id)));
+		print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($alert, ENT_QUOTES, 'UTF-8') . ")\">";
+		$fokus = "antal_ny";
+	} elseif ($pluk) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/massefakt.php\">";
 	} elseif ($varenr) {
-		$q = db_select("select modtagelser.antal as antal from modtagelser, modtageliste where modtagelser.varenr = '$varenr' and modtagelser.liste_id = modtageliste.id and modtageliste.modtaget!='V' and modtagelser.id != $id", __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q))
+		$q = db_select("select modtagelser.antal as antal from modtagelser, modtageliste where modtagelser.varenr = '$qVarenr' and modtagelser.liste_id = modtageliste.id and modtageliste.modtaget!='V' and modtagelser.id != $id", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
 			$modtaget_antal += $r['antal'];
-		$q = db_select("select ordrelinjer.id as id, ordrelinjer.antal as antal from ordrelinjer, ordrer where ordrelinjer.varenr = '$varenr' and ordrelinjer.ordre_id = ordrer.id and (ordrer.status='1' or ordrer.status='2') and ordrer.art='KO'", __FILE__ . " linje " . __LINE__);
+		}
+		$q = db_select("select ordrelinjer.id as id, ordrelinjer.antal as antal from ordrelinjer, ordrer where ordrelinjer.varenr = '$qVarenr' and ordrelinjer.ordre_id = ordrer.id and (ordrer.status='1' or ordrer.status='2') and ordrer.art='KO'", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$bestilt_antal += $r['antal'];
 			$q2 = db_select("select antal from batch_kob where linje_id=$r[id]", __FILE__ . " linje " . __LINE__);
@@ -92,19 +110,20 @@ if ($_POST) {
 
 		$diff = $bestilt_antal - $modtaget_antal;
 
-		if ($diff < 0)
+		if ($diff < 0) {
 			$diff = 0;
-		if (!$diff && $bestilt_antal)
-			print "<BODY onLoad=\"javascript:alert('alle bestilte varer med varenr: $varenr er modtaget')\">";
-		elseif (!$diff) {
-			print "<BODY onLoad=\"javascript:alert('Der er ikke nogle &aring;bne indk&oslash;bsordrer p&aring; varenr $varenr')\">";
+		}
+		if (!$diff && $bestilt_antal) {
+			print "<BODY onLoad=\"javascript:alert('alle bestilte varer med varenr: ' + $jsVarenr + ' er modtaget')\">";
+		} elseif (!$diff) {
+			print "<BODY onLoad=\"javascript:alert('Der er ikke nogle &aring;bne indk&oslash;bsordrer p&aring; varenr ' + $jsVarenr)\">";
 			$varenr = '';
 		} elseif ($id && $antal > $diff) {
-			print "<BODY onLoad=\"javascript:alert('Der kan maksimalt modtages $diff af varenr: $varenr')\">";
+			print "<BODY onLoad=\"javascript:alert('Der kan maksimalt modtages $diff af varenr: ' + $jsVarenr)\">";
 			$antal = $diff;
 		} elseif ($id) {
 			if ($antal > 0) {
-				$q2 = db_select("select ordrelinjer.id as id, ordrelinjer.antal as antal from ordrelinjer, ordrer where ordrelinjer.varenr = '$varenr' and ordrelinjer.ordre_id = ordrer.id and (ordrer.status='1' or ordrer.status='2') and ordrer.art='DO'", __FILE__ . " linje " . __LINE__);
+				$q2 = db_select("select ordrelinjer.id as id, ordrelinjer.antal as antal from ordrelinjer, ordrer where ordrelinjer.varenr = '$qVarenr' and ordrelinjer.ordre_id = ordrer.id and (ordrer.status='1' or ordrer.status='2') and ordrer.art='DO'", __FILE__ . " linje " . __LINE__);
 				while ($r2 = db_fetch_array($q2)) {
 					$i_ordre = $i_ordre + $r2['antal'];
 					$q3 = db_select("select antal from batch_salg where linje_id=$r2[id]", __FILE__ . " linje " . __LINE__);
@@ -119,9 +138,10 @@ if ($_POST) {
 					$leveres = $i_ordre * 1;
 					$lager = $antal - $leveres;
 				}
-				db_modify("update modtagelser set antal=$antal, leveres=$leveres, lager=$lager where id='$id'", __FILE__ . " linje " . __LINE__);
-			} else
+				db_modify("update modtagelser set antal='" . floatval($antal) . "', leveres='" . floatval($leveres) . "', lager='" . floatval($lager) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
+			} else {
 				db_modify("delete from modtagelser where id='$id'", __FILE__ . " linje " . __LINE__);
+			}
 			$id = 0;
 		} else {
 			$antal = $diff;
@@ -131,8 +151,8 @@ if ($_POST) {
 				$initdate = date("Y-m-d");
 				db_modify("insert into modtageliste (initdate,init_af,modtaget) values ('$initdate','$brugernavn','-')",__FILE__ . " linje " . __LINE__);
 			}
-			if ($r = db_fetch_array(db_select("select * from varer where varenr='$varenr'", __FILE__ . " linje " . __LINE__))) {
-				$q2 = db_select("select ordrelinjer.id as id, ordrelinjer.antal as antal from ordrelinjer, ordrer where ordrelinjer.varenr = '$varenr' and ordrelinjer.ordre_id = ordrer.id and (ordrer.status='1' or ordrer.status='2') and ordrer.art='DO'", __FILE__ . " linje " . __LINE__);
+			if ($r = db_fetch_array(db_select("select * from varer where varenr='$qVarenr'", __FILE__ . " linje " . __LINE__))) {
+				$q2 = db_select("select ordrelinjer.id as id, ordrelinjer.antal as antal from ordrelinjer, ordrer where ordrelinjer.varenr = '$qVarenr' and ordrelinjer.ordre_id = ordrer.id and (ordrer.status='1' or ordrer.status='2') and ordrer.art='DO'", __FILE__ . " linje " . __LINE__);
 				while ($r2 = db_fetch_array($q2)) {
 					$i_ordre = $i_ordre + $r2['antal'];
 					$q3 = db_select("select antal from batch_salg where linje_id=$r2[id]", __FILE__ . " linje " . __LINE__);
@@ -147,17 +167,19 @@ if ($_POST) {
 					$leveres = $i_ordre * 1;
 					$lager = $antal - $leveres;
 				}
-				db_modify("insert into modtagelser (vare_id, varenr, beskrivelse, antal,liste_id,leveres,lager) values ('$r[id]', '$varenr', '" . addslashes($r['beskrivelse']) . "', '$antal','$liste_id','$leveres','$lager')", __FILE__ . " linje " . __LINE__);
-				$r = db_fetch_array(db_select("select max(id) as id from modtagelser where varenr='$varenr' and antal='$antal'", __FILE__ . " linje " . __LINE__));
+				db_modify("insert into modtagelser (vare_id, varenr, beskrivelse, antal,liste_id,leveres,lager) values ('$r[id]', '$qVarenr', '" . db_escape_string($r['beskrivelse']) . "', '" . floatval($antal) . "','$liste_id','" . floatval($leveres) . "','" . floatval($lager) . "')", __FILE__ . " linje " . __LINE__);
+				$r = db_fetch_array(db_select("select max(id) as id from modtagelser where varenr='$qVarenr' and antal='" . floatval($antal) . "'", __FILE__ . " linje " . __LINE__));
 				$id = $r['id'];
 				$fokus = "antal_ny";
-			} else
-				print "<BODY onLoad=\"javascript:alert('Varenummer $varenr eksisterer ikke')\">";
+			} else {
+				print "<BODY onLoad=\"javascript:alert('Varenummer ' + $jsVarenr + ' eksisterer ikke')\">";
+			}
 		}
 
 	}
-	if ($modtag)
+	if ($modtag && !$antalFejl) {
 		modtag($liste_id);
+	}
 }
 ############################
 $tekst = findtekst(154, $sprog_id);
@@ -289,6 +311,30 @@ function modtag($liste_id)
 		db_modify("update modtageliste set modtaget='V', modtaget_af='$brugernavn', modtagdate='$mdate', tidspkt='$mtid' where id='$liste_id'", __FILE__ . " linje " . __LINE__);
 	}
 	transaktion('commit');
+}
+
+/**
+ * Parses the quantity typed in the antal_ny field of a goods receipt line.
+ *
+ * Input containing a comma is Danish (1,5 or 1.000,5) and goes through usdecimal(). Input without a
+ * comma is read with a dot as the decimal separator, because the edit field is prefilled with the
+ * database value (e.g. 2.000 for numeric(15,3)), which usdecimal() would turn into 2000.
+ *
+ * @param string $input The trimmed antal_ny value.
+ * @return float|null The quantity (0 for empty input, which deletes the line), or null when the input is not a number.
+ */
+function modtagelseAntal($input) {
+	if ($input === '') {
+		return 0.0;
+	}
+	if (strpos($input, ',') === false) {
+		return (is_numeric($input) && is_finite((float)$input)) ? (float)$input : null;
+	}
+	$normalized = str_replace(',', '.', str_replace('.', '', $input));
+	if (!is_numeric($normalized) || !is_finite((float)$normalized)) {
+		return null;
+	}
+	return (float)usdecimal($input, 3);
 }
 
 ?>
