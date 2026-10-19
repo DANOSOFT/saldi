@@ -432,8 +432,8 @@ if (!function_exists('stripe_payment_create')) {
 		if ($row['status'] === 'succeeded') return 'duplicate';
 		$ordreId = (int)$row['ordre_id'];
 		list($pm, $brand, $last4) = stripe_pi_card($pi);
-		$ok = db_modify("update stripe_payments set status = 'succeeded', succeeded_at = CURRENT_TIMESTAMP, pm_id = '" . db_escape_string($pm) . "', pm_brand = '" . db_escape_string($brand) . "', pm_last4 = '" . db_escape_string($last4) . "', last_event_id = '" . db_escape_string($eventId) . "' where id = " . (int)$row['id'] . " and status <> 'succeeded'", __FILE__ . " linje " . __LINE__, true);
-		if (!$ok) return 'duplicate';                                      // partial unique index: another intent already succeeded
+		$ok = db_modify("update stripe_payments set status = 'succeeded', succeeded_at = CURRENT_TIMESTAMP, pm_id = '" . db_escape_string($pm) . "', pm_brand = '" . db_escape_string($brand) . "', pm_last4 = '" . db_escape_string($last4) . "', last_event_id = '" . db_escape_string($eventId) . "' where id = " . (int)$row['id'] . " and status <> 'succeeded'", __FILE__ . " linje " . __LINE__);
+		if (!is_string($ok) || strncmp($ok, '0' . chr(9), 2) !== 0) return 'duplicate'; // db_modify: "0\t..." = ok; the partial unique index rejects a second succeeded intent
 		$chk = db_fetch_array(db_select("select status from stripe_payments where id = " . (int)$row['id'], __FILE__ . " linje " . __LINE__));
 		if (!$chk || $chk['status'] !== 'succeeded') return 'duplicate';
 		db_modify("update ordrer set betalt = 'on' where id = $ordreId", __FILE__ . " linje " . __LINE__);
