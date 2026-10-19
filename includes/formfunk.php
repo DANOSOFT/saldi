@@ -1251,6 +1251,9 @@ if (!function_exists('formularprint')) {
 					$udskriv_til = $row['udskriv_til'];
 				else
 					$udskriv_til = $udskriv_alle_til;
+				// 20261019 CL/ASR tools/stripe_invoice_pdf.php (no session) runs the engine in inkasso mode
+				// to get a PDF back; force the mail path regardless of the order's print channel.
+				if (!empty($GLOBALS['saldi_pdf_only'])) $udskriv_til = 'email';
 
 				// Check if PBS is set and setting is enabled to automatically send email
 				$pbs = trim($row['pbs']);

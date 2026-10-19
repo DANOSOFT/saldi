@@ -125,9 +125,6 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	$ordrenr=$row['ordrenr'];
 	$fakturanr=$row['fakturanr'];
 	$mail_fakt=$row['mail_fakt'];
-	// 20261019 CL/ASR tools/stripe_invoice_pdf.php renders a PDF for the invoice & payment
-	// page without a session: force the print path so no mail is ever sent from there.
-	if (!empty($GLOBALS['saldi_pdf_only'])) $mail_fakt='';
 	$email[0]=$row['email'];
 	$pbs=$row['pbs'];
 	$formularsprog=strtolower($row['sprog']);

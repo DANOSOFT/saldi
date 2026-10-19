@@ -26,9 +26,10 @@
 // 20261019 CL/ASR Created: renders ONE invoice (or credit note) to PDF without a
 //                 browser session, for the public invoice & payment page
 //                 (Requirements_invoice_email_payment_page_EN.md par. 5.2) and the
-//                 billing-ledger REST API. Runs the normal form engine
-//                 (debitor/formprintfunc.php -> PostScript -> ps2pdf) with
-//                 $saldi_pdf_only set, so the mail branch is never taken.
+//                 billing-ledger REST API. Runs the real form engine
+//                 (includes/formfunk.php formularprint(), PostScript or HTML ->
+//                 PDF, background via pdftk) in its "inkasso" mode, which builds
+//                 the PDF and returns its path instead of mailing it.
 //
 //   php tools/stripe_invoice_pdf.php --db=<ledger db> --id=<ordrer.id> [--out=<file>]
 //
@@ -46,11 +47,11 @@ if ($targetDb === '' || !preg_match('/^[a-z0-9_]{1,40}$/', $targetDb) || $ordreI
 	exit(1);
 }
 
-// The form engine uses paths relative to debitor/ (../includes, ../temp, ../logo).
+// The form engine uses paths relative to debitor/ (../includes, ../temp, ../logolib).
 chdir(__DIR__ . '/../debitor');
 if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/tools/stripe_invoice_pdf.php';
 if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
-$_GET = array(); $_POST = array();
+$_GET = array(); $_POST = array(); $_SESSION = array();
 
 include('../includes/db_query.php');
 include('../includes/connect.php');          // master connection + $sqhost/$squser/$sqpass
@@ -67,42 +68,61 @@ $db_id = (int)$r['id'];
 // Globals the engine normally inherits from online.php.
 if (!isset($charset) || !$charset) $charset = 'UTF-8';
 $sprog_id = 1;
-$bruger_id = 0;
+$bruger_id = 99999;                          // engine writes to ../temp/<db>/<abs(bruger_id)>; keep it off real users' folders
 $brugernavn = 'stripe_pdf';
 $s_id = 'cli';
 $exec_path = '';
 $returside = '';
-$saldi_pdf_only = true;                      // debitor/formprintfunc.php: never take the mail branch
+$locat = '';
+$popup = 0;
+foreach (array('ps2pdf' => '/usr/bin/ps2pdf', 'pdftk' => '', 'weasyprint' => '') as $tool => $fallback) {
+	$q = db_fetch_array(db_select("select var_value from settings where var_name = '$tool'" . ($tool === 'weasyprint' ? " or var_name = 'html2pdf'" : ''), __FILE__ . " linje " . __LINE__));
+	$$tool = ($q && trim((string)$q['var_value']) !== '') ? trim((string)$q['var_value']) : $fallback;
+}
+$saldi_pdf_only = true;                      // includes/formfunk.php: treat the order as "mail to email" so the PDF is built
 
-$o = db_fetch_array(db_select("select id, art, fakturanr, ordrenr, status from ordrer where id = $ordreId", __FILE__ . " linje " . __LINE__));
+$o = db_fetch_array(db_select("select id, art, fakturanr, ordrenr, status, sprog, afd from ordrer where id = $ordreId", __FILE__ . " linje " . __LINE__));
 if (!$o) { fwrite(STDERR, "order $ordreId not found in $db\n"); exit(2); }
-if ((int)$o['status'] < 3 && !(int)$o['fakturanr']) { fwrite(STDERR, "order $ordreId is not invoiced\n"); exit(2); }
+if (!(int)$o['fakturanr']) { fwrite(STDERR, "order $ordreId is not invoiced\n"); exit(2); }
 $formular = ($o['art'] === 'DK') ? 5 : 4;    // 4 = faktura, 5 = kreditnota
 
 include('../includes/formfunk.php');
 include('../includes/var2str.php');
-include('formprintfunc.php');                // defines formularprint()
+
+// Same lookup as debitor/formularprint.php find_background_file() (not includable: it starts a session).
+function stripe_pdf_background($background, $file_type, $department) {
+	global $db_id;
+	$base_dir = "../logolib/$db_id/";
+	$dept_dir = ($department > 0) ? "../logolib/$db_id/$department/" : $base_dir;
+	$is_default = in_array(strtolower((string)$background), array('dansk', 'danish', 'all', ''));
+	$lang_suffix = $is_default ? '' : '_' . strtolower((string)$background);
+	$candidates = array();
+	if ($department > 0 && !$is_default) $candidates[] = $dept_dir . $file_type . $lang_suffix . ".pdf";
+	if ($department > 0) $candidates[] = $dept_dir . $file_type . ".pdf";
+	if (!$is_default) $candidates[] = $base_dir . $file_type . $lang_suffix . ".pdf";
+	$candidates[] = $base_dir . $file_type . ".pdf";
+	if ($file_type !== 'bg') $candidates[] = $base_dir . "bg.pdf";
+	foreach ($candidates as $c) if (file_exists($c)) return $c;
+	return null;
+}
+$background_file = stripe_pdf_background(isset($o['sprog']) ? $o['sprog'] : 'Dansk', 'faktura_bg', (int)$o['afd']);
 
 if (!is_dir("../temp/$db")) @mkdir("../temp/$db", 0775, true);
 $cacheDir = "../temp/$db/stripe_pdf";
 if (!is_dir($cacheDir)) @mkdir($cacheDir, 0775, true);
 
 ob_start();                                  // the engine prints HTML fragments; keep stdout clean
-$svar = formularprint($ordreId, $formular, 0, $charset);
+$svar = formularprint($ordreId, $formular, 0, $charset, 'inkasso', $background_file);
 $noise = ob_get_clean();
-if ($svar && $svar !== 'OK') { fwrite(STDERR, "formularprint: $svar\n"); exit(2); }
-
-// Single, non-mail run -> ../temp/<db>/fakt<nr> or kn<nr> (formprintfunc.php, $filnavne).
-$nr = (string)$o['fakturanr'];
-$ps = "../temp/$db/" . ($formular == 5 ? "kn$nr" : "fakt$nr");
-if (!is_file($ps) || filesize($ps) < 100) { fwrite(STDERR, "PostScript not produced ($ps)\n" . substr(strip_tags($noise), 0, 300) . "\n"); exit(2); }
+// In inkasso mode the engine returns the PDF path ("<mappe>/<file>.pdf") instead of mailing it.
+if (!is_string($svar) || substr($svar, -4) !== '.pdf' || !is_file($svar)) {
+	fwrite(STDERR, "formularprint did not produce a PDF: " . var_export($svar, true) . "\n" . substr(strip_tags($noise), 0, 400) . "\n");
+	exit(2);
+}
+if (strncmp((string)file_get_contents($svar, false, null, 0, 4), '%PDF', 4) !== 0) { fwrite(STDERR, "not a PDF: $svar\n"); exit(2); }
 
 $pdf = $outFile !== '' ? $outFile : "$cacheDir/$ordreId.pdf";
-$cmd = '/usr/bin/ps2pdf ' . escapeshellarg($ps) . ' ' . escapeshellarg($pdf) . ' 2>&1';
-exec($cmd, $out, $rc);
-if ($rc !== 0 || !is_file($pdf) || strncmp((string)file_get_contents($pdf, false, null, 0, 4), '%PDF', 4) !== 0) {
-	fwrite(STDERR, "ps2pdf failed (rc $rc): " . implode(' ', $out) . "\n"); exit(2);
-}
-@unlink($ps);
+if (!copy($svar, $pdf)) { fwrite(STDERR, "could not write $pdf\n"); exit(2); }
+@chmod($pdf, 0664);
 print realpath($pdf) . "\n";
 exit(0);
