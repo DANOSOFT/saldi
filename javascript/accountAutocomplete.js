@@ -27,6 +27,7 @@
 //                  click into a field that already has the cursor opens the panel, as the first click would.
 // 20261005 CL/SZ SD-714 A click in a document viewer (the pool's PDF) closes the panel; the click never reached the page, so the panel stayed open.
 // 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
+// 20261019 CL/SZ SD-721 A kreditor made with "Opret kreditor" advances the search token like any other selection (SST-814).
 (function () {
     'use strict'; 
 
@@ -244,6 +245,8 @@
                     returnFocus: input,
                     onCreated: function (kreditor) {
                         selectionMade = true;
+                        // Supersede any request already in flight, as a selection does (SST-814)
+                        searchSeq++;
                         input.value = kreditor.kontonr;
                         input.dispatchEvent(new Event('change', { bubbles: true }));
                         input.focus();
