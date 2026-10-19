@@ -27,6 +27,7 @@
 // 20240605 PHR Replaced text 2046 (Følgevare) by 980 (Beholdning)
 // 20260810 LOE Removed right alignment from commission field
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 /**
  * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
  * @var array<int, string> $warehouseNames
@@ -59,7 +60,7 @@
 			$b_antal[$x]-=$r2['antal'];
 			$qtxt = "select lok1 from lagerstatus where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$lagerlok[$x]=$r2['lok1'];
+			$lagerlok[$x]=$r2 ? $r2['lok1'] : null;
 			$qtxt="select sum(beholdning) as beholdning from lagerstatus where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$lagerbeh[$x]=$r2['beholdning']*1;

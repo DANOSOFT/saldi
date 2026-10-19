@@ -43,6 +43,7 @@
 // 20260917 SZ HTML-escape batch_batch_no before printing it into the value attribute
 //             (CodeRabbit, PR #608); guard against a missing grupper row for box9 lookups
 //             so a fiscal-year mismatch degrades to "not tracked" instead of a PHP warning.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 
@@ -279,7 +280,7 @@ for ($x=1; $x<=$linjeantal; $x++)  {
     $txt = "<input type=button value='Serienr.' name='vis_snr$x' onchange='javascript:docChange = true;'>";
     print "<td onClick='serienummer($linje_id[$x])'>$txt</td>";
   }
-  $box9[$x] = if_isset($box9[$x],NULL);
+  $box9[$x] = $box9[$x] ?? null;
   if ($antal[$x]<0 && $art!='KK' && $box9[$x]=='on') {
     $txt = "<span title= '".findtekst(1496, $sprog_id)."'><img alt='".findtekst(1515, $sprog_id)."' src=../ikoner/serienr.png>";
     print "<td align=center onClick='batch($linje_id[$x])'>$txt</td>";

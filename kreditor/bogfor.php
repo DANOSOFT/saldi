@@ -44,6 +44,7 @@ $s_id=session_id();
 // 20260304 PHR Costprice is from now only updated on positive qty og price.
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 // 20260908 CDX/LH Lock creditor orders before posting and update split purchase batches once (SST-765).
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -95,7 +96,7 @@ $valuta=$row['valuta'];
 $projekt[0]=$row['projekt'];
 $cvrnr=$row['cvrnr'];
 $r_bc = db_fetch_array(db_select("select var_value from settings where var_name='baseCountry' limit 1",__FILE__ . " linje " . __LINE__));
-$baseCountry = $r_bc['var_value'] ?: 'dk';
+$baseCountry = ($r_bc ? $r_bc['var_value'] : null) ?: 'dk';
 if ($valuta && $valuta!='DKK') {
 	if ($r= db_fetch_array(db_select("select valuta.kurs as kurs, grupper.box3 as difkto from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=".nr_cast("grupper.kodenr",__FILE__ . " linje " . __LINE__)." and valuta.valdate <= '$levdate' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
 		$valutakurs=$r['kurs']*1;

@@ -131,6 +131,7 @@
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
 //
+// 20261019 CDX/LH MB-78: fix PHP warnings
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -493,7 +494,7 @@ if ($saveItem || $submit = trim($submit)) {
         } else
             $kostpris[0] = 0;
     } else
-        $kostpris[0] = usdecimal($kostpris[0], 3);
+        $kostpris[0] = usdecimal($kostpris[0] ?? null, 3);
 
     if ($commissionItem && $kostpris[0] > '0' && $salgspris == 0) {
         $qtxt = "select var_value from settings where var_grp = 'items' and var_name = 'commissionInclVat'";
@@ -521,8 +522,8 @@ if ($saveItem || $submit = trim($submit)) {
 
     $qtxt = "select * from grupper where art='VG' and kodenr = '$gruppe' and fiscal_year = '$regnaar'";
     if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-        $stockItem = if_isset($r['box8'], 0);
-        $batchItem = if_isset($r['box9'], 0);
+        $stockItem = ($r['box8'] ?? 0);
+        $batchItem = ($r['box9'] ?? 0);
     }
     $qtxt = "select box4 from grupper where art='API'";
     $api_fil = NULL;
@@ -887,7 +888,7 @@ if ($saveItem || $submit = trim($submit)) {
             }
             $query = db_select("select id from varer where lower(varenr) = '" . strtolower($varenr) . "' or  upper(varenr) = '" . strtoupper($varenr) . "'", __FILE__ . " linje " . __LINE__);
             $row = db_fetch_array($query);
-            if ($row['id']) {
+            if ($row && $row['id']) {
                 print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$row[id]'>";
                 exit;
             } elseif ($varenr) {
@@ -1583,8 +1584,8 @@ if ($id > 0) {
     #   $kpris=dkdecimal($row['kostpris']);
     $q = db_select("select * from grupper where art='VG' and kodenr = '$gruppe' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__);
     $r = db_fetch_array($q);
-    $stockItem = if_isset($r['box8'], 0);
-    $batchItem = if_isset($r['box9'], 0);
+    $stockItem = ($r['box8'] ?? 0);
+    $batchItem = ($r['box9'] ?? 0);
 } else {
     $gruppe = 1;
     $leverandor = 0;

@@ -47,6 +47,7 @@
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
 //                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 
 @session_start();
@@ -482,6 +483,7 @@ print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst(311
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('2229|ERH kode', $sprog_id) . "</td>";
 print "<td><SELECT class=\"inputbox\" NAME=erh onchange=\"javascript:docChange = true;\">\n";
+$erh = $erh ?? null;
 if ($erh == 'ERH351') print "<option>ERH351 = FI " . findtekst(1178, $sprog_id) . " 71</option>\n";
 if ($erh == 'ERH352') print "<option>ERH352 = FI " . findtekst(1178, $sprog_id) . " 04 & 15</option>\n";
 if ($erh == 'ERH354') print "<option>ERH354 = FI " . findtekst(1178, $sprog_id) . " 01 & 41</option>\n";

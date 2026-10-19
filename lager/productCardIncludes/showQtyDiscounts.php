@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20240211 PHR Remover decimal limit from $m_rabat_array and $m_antal_array
+// 20261019 CDX/LH MB-78: fix PHP warnings
 print "<tr><td><b>".findtekst(2041,$sprog_id)."</b></td>";
 if ($special_price && $specialType=='percent') {
 	print "<tr><td>".findtekst(2043,$sprog_id)."</td></tr>";
@@ -40,9 +41,9 @@ if ($special_price && $specialType=='percent') {
 	for ($x=0;$x<count($m_antal_array);$x++) {
 		if ($m_antal_array[$x]) {
 			if ($incl_moms && $m_type!="percent") $m_rabat_array[$x]*=(100+$incl_moms)/100;
-			list($a,$b) = explode('.',$m_rabat_array[$x]*1);
+			list($a,$b) = array_pad(explode('.',$m_rabat_array[$x]*1), 2, null);
 			$c = strlen ($b);
-			list($a,$b) = explode('.',$m_antal_array[$x]*1);
+			list($a,$b) = array_pad(explode('.',$m_antal_array[$x]*1), 2, null);
 			$d = strlen ($b);
 			($rabatgruppe)? $inputtype="readonly=\"readonly\"":$inputtype="type=\"text\"";
 			if ($m_rabat_array[$x] > 0 || $m_antal_array[$x] > 0) {
@@ -54,9 +55,9 @@ if ($special_price && $specialType=='percent') {
 	if (!$rabatgruppe) {
 	if (!isset($m_rabat_array[$x])) $m_rabat_array[$x]='0';
 	if (!isset($m_antal_array[$x])) $m_antal_array[$x]='0';
-		list($a,$b) = explode('.',$m_rabat_array[$x]*1);
+		list($a,$b) = array_pad(explode('.',$m_rabat_array[$x]*1), 2, null);
 		$c = strlen ($b);
-		list($a,$b) = explode('.',$m_antal_array[$x]*1);
+		list($a,$b) = array_pad(explode('.',$m_antal_array[$x]*1), 2, null);
 		$d = strlen ($b);
 		print "<tr><td>".findtekst(2044,$sprog_id)."</td>";
 		print "<td><input class='inputbox' type='text' size='5' style='text-align:right' name='m_rabat_array[$x]'";
