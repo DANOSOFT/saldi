@@ -676,7 +676,7 @@ if (!function_exists('getSettingsSections')) {
 			),
 			'documents.email' => array(
 				'group' => 'documents', 'section' => 'email', 'number' => 'G6.3', 'label' => 6166, 'icon' => 'bx-envelope', 'permission' => 'settings.email',
-				'subsections' => array('server' => 6167, 'sender' => 6168, 'texts' => 6169),
+				'subsections' => array('server' => 6167, 'sender' => 6168, 'format' => '7100|Fakturaformat', 'texts' => 6169),
 				'legacy' => array(array(782, 783)),
 				'old' => array('smtp' => array(782, 783), 'email_settings' => array(573, 6166), 'mailTxt' => array(606, 6169)),
 				'context' => array('includes/formFuncIncludes/sendMail.php', 'debitor/mail_modtagere.php'),
@@ -1450,6 +1450,14 @@ if (!function_exists('getSettingsSections')) {
 			'documents.email.sender_name' => array('sub' => 'sender', 'type' => 'text', 'label' => 6174, 'help' => 6175, 'per' => 'language', 'per_default_label' => 6183,
 				'storage' => array('settings', 'email_settings', 'sender_name', 'raw'), 'legacy' => array(573, 6166),
 				'keywords' => array('afsender', 'sender', 'afsendernavn', 'sender name')),
+			// 20261019 CL/ASR invoice format: classic PDF mail or link to the invoice & payment page
+			'documents.email.invoice_format' => array('sub' => 'format', 'type' => 'select', 'label' => '7101|Sådan sendes fakturaer', 'help' => '7102|Gælder for kunder, hvor Udskriv til er e-mail. PBS, NemHandel og print berøres ikke. Formatet Link kræver, at Stripe er sat op.', 'default' => 'pdf',
+				'options' => array('pdf' => '7103|Klassisk – fakturaen vedhæftes som PDF', 'link' => '7104|Link til faktura- og betalingsside – kunden ser fakturaen, henter PDF og betaler med kort'), 'options_mixed' => true,
+				'storage' => array('settings', 'email_settings', 'invoice_format', 'raw'),
+				'keywords' => array('fakturaformat', 'invoice format', 'betalingslink', 'payment link', 'stripe', 'kortbetaling', 'card payment')),
+			'documents.email.invoice_link_text' => array('sub' => 'format', 'type' => 'textarea', 'label' => '7105|Tekst i link-mailen', 'help' => '7106|Resten af mailen er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.',
+				'storage' => array('settings', 'email_settings', 'invoice_link_text', 'raw'),
+				'keywords' => array('fakturamail', 'invoice mail', 'link', 'tekst', 'text')),
 			'documents.email.customer_subject' => array('sub' => 'texts', 'type' => 'text', 'label' => 6176, 'help' => 1150,
 				'storage' => array('settings', 'debitor', 'mailSubject', 'raw'), 'legacy' => array(606, 6169),
 				'keywords' => array('mailtekst', 'mail text', 'emne', 'subject', 'kunder', 'customers')),
