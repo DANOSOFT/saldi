@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-09-30 ---
+// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,6 +67,8 @@
 // 20260930 CL/SZ SD-699: Moved get_saved_vat_override(), momsberegning() and gruppeopslag() to
 //                  bogfor_includes/postingRules.php, shared with the "Kontokort med u-bogført" report.
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
+// 20261019 CL/LH MB-72: openpost() treats an empty, '0' and NULL project as the same, so a journal payment settles an invoice without a project.
+//                The settlement date is the later of invoice and payment date, not the invoice date.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -1138,6 +1140,13 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	$udlignet=0;
 	$udlign_date=$transdate;
 	$dato=date("Y-m-d");
+	// No project is stored as '' on journal lines but as '0' (or NULL) on invoices; all three mean no project.
+	$projektSql = db_escape_string((string)$projekt);
+	if (in_array(trim((string)$projekt), array('', '0'), true)) {
+		$projektMatch = "(projekt is null or projekt = '' or projekt = '0')";
+	} else {
+		$projektMatch = "projekt = '$projektSql'";
+	}
 	$belob=$amount*-1;
 	$debet=str_replace(" ","",$debet);
 	$qtxt = "select id from adresser where kontonr = '$debet' and art ='$art'";
@@ -1156,13 +1165,13 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 # 20121122 >>and projekt='$projekt'<< indsat herunder.
 		if ($udlign_date<$transdate) $udlign_date=$transdate;
 		for ($x=0;$x<count($invoices);$x++) {
-			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and projekt='$projekt' and udlignet!='1' and ";
+			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and $projektMatch and udlignet!='1' and ";
 			$qtxt.= " faktnr='$invoices[$x]'";
 			if (count($invoices) == 1) $qtxt.= " and amount >= '$min' and amount < '$max'";  
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($r = db_fetch_array($q)) {
 # $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
-				$udlign_date=$r['transdate'];
+				$udlign_date = max($transdate, (string)$r['transdate']); # The later of invoice and payment date
 				$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
 				$qtxt.= "where id = '$r[id]'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -1174,7 +1183,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 				$qtxt.= "values ";
 				$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id',";
 				if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-				$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projekt')";
+				$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projektSql')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$udlignet=1;
 				// <-- 20230626
@@ -1188,7 +1197,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		$qtxt.= "bilag_id,valuta,valutakurs,projekt)";
 		$qtxt.= " values ('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','0','$transdate','$kladde_id',";
 		if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projekt')";
+		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projektSql')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 }
