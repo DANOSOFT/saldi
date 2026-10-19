@@ -5219,4 +5219,6 @@
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+5440	Kladden kan ikke bogføres. Følgende bilag har tekst eller beløb, men hverken debet- eller kreditkonto	The journal cannot be posted. The following vouchers have a text or an amount but neither a debit nor a credit account	Kladden kan ikke bokføres. Følgende bilag har tekst eller beløp, men verken debet- eller kreditkonto
+5441	Udfyld kontoen, eller slet linjen ved at skrive - i bilagsfeltet.	Fill in the account, or delete the line by entering - in the voucher field.	Fyll ut kontoen, eller slett linjen ved å skrive - i bilagsfeltet.
 
