@@ -27,17 +27,28 @@ class ProductsEndpoint extends BaseEndpoint
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
-                $limit = $_GET['limit'] ?? 20;
-                if($limit > 100 || $limit < 1) {
-                    $limit = 20; // Enforce a maximum limit
+                // 20261008 CL/LH: limit is capped at 200 as documented (was reset to 20 above 100),
+                // and offset / page (1-based) page through the list - before, every call returned id 1-20.
+                $limit = (int)($_GET['limit'] ?? 20);
+                if ($limit < 1) {
+                    $limit = 20;
+                } elseif ($limit > 200) {
+                    $limit = 200;
+                }
+                if (isset($_GET['offset'])) {
+                    $offset = max(0, (int)$_GET['offset']);
+                } else {
+                    $offset = (max(1, (int)($_GET['page'] ?? 1)) - 1) * $limit;
                 }
                 
-                if ($field && $value) {
+                // 20261008 CL/LH: presence, not truthiness - value=0 (e.g. group 0) was ignored and
+                // returned the unfiltered list. The filtered list is paged like the full one.
+                if (is_string($field) && $field !== '' && is_string($value) && $value !== '') {
                     // Search by specific field
-                    $products = VareModel::findBy($field, $value);
+                    $products = VareModel::findBy($field, $value, $orderBy, $orderDirection, $limit, $offset);
                 } else {
                     // Get all products
-                    $products = VareModel::getAllItems($orderBy, $orderDirection, $limit);
+                    $products = VareModel::getAllItems($orderBy, $orderDirection, $limit, $offset);
                 }
                 
                 $items = [];
