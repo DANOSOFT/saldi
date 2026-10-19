@@ -1649,7 +1649,9 @@ if (!function_exists('formularprint')) {
 			}  
 			if ($formular == 3 || $formular == 9)
 				$udskriv_til = 'PDF';
-			if ($mail_fakt && $formular != 3 && $udskriv_til == 'email') {
+			// 20261019 CL/ASR Udskriv til = Stripe (enrolled debtor): same path as e-mail so the delivery hook
+			// below caches the PDF and sends nothing (charged on the due date by tools/stripe_charge_due.php).
+			if (($mail_fakt && $formular != 3 && $udskriv_til == 'email') || ($formular == 4 && $udskriv_til == 'Stripe' && !$inkasso)) {
 				$mailantal++;
 				$filnavne = [
 					1 => "tilbud$ordrenr",

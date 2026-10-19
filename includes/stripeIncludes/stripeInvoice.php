@@ -283,7 +283,7 @@ if (!function_exists('stripe_invoice_load')) {
 		// paid outside Stripe: open item settled or betalt flag
 		$inv['paid_bank'] = false;
 		if (!$inv['paid'] && !$inv['is_credit']) {
-			$op = db_fetch_array(db_select("select sum(amount) as rest from openpost where faktnr = '" . db_escape_string($inv['nr']) . "' and konto_id = " . (int)$o['konto_id'] . " and udlignet = 0", __FILE__ . " linje " . __LINE__));
+			$op = db_fetch_array(db_select("select sum(amount) as rest from openpost where faktnr = '" . db_escape_string($inv['nr']) . "' and konto_id = " . (int)$o['konto_id'] . " and coalesce(udlignet,'0') <> '1'", __FILE__ . " linje " . __LINE__));
 			$anyOp = db_fetch_array(db_select("select count(*) as n from openpost where faktnr = '" . db_escape_string($inv['nr']) . "' and konto_id = " . (int)$o['konto_id'], __FILE__ . " linje " . __LINE__));
 			if ($anyOp && (int)$anyOp['n'] > 0 && $op && abs((float)$op['rest']) < 0.01) $inv['paid_bank'] = true;
 			if (trim((string)$o['betalt']) === 'on') $inv['paid_bank'] = true;
@@ -459,11 +459,23 @@ if (!function_exists('stripe_payment_create')) {
 		$piId = db_escape_string((string)$pi['id']);
 		$row = db_fetch_array(db_select("select * from stripe_payments where payment_intent_id = '$piId'", __FILE__ . " linje " . __LINE__));
 		if (!$row || $row['status'] === 'succeeded') return 'ignored';
+		if ($row['status'] === 'failed') return 'duplicate';               // webhook after the synchronous decline: no second mail
 		$err = '';
 		if (!empty($pi['last_payment_error'])) $err = (string)(($pi['last_payment_error']['decline_code'] ?? '') ?: ($pi['last_payment_error']['code'] ?? '') ?: ($pi['last_payment_error']['message'] ?? ''));
 		list($pm, $brand, $last4) = stripe_pi_card($pi);
 		db_modify("update stripe_payments set status = 'failed', last_error = '" . db_escape_string(substr($err, 0, 200)) . "', pm_id = '" . db_escape_string($pm) . "', pm_brand = '" . db_escape_string($brand) . "', pm_last4 = '" . db_escape_string($last4) . "', last_event_id = '" . db_escape_string($eventId) . "' where id = " . (int)$row['id'], __FILE__ . " linje " . __LINE__);
+		$mailIt = ($row['source'] === 'backup');
 		if ($row['source'] === 'auto') {
+			// a backup card (PM metadata saldi_role=backup) is tried by the charge job before the customer is told
+			$mailIt = true;
+			$cusId = (string)($pi['customer'] ?? $row['stripe_customer_id']);
+			$usedBackup = db_fetch_array(db_select("select count(*) as n from stripe_payments where ordre_id = " . (int)$row['ordre_id'] . " and source = 'backup'", __FILE__ . " linje " . __LINE__));
+			if ($cusId !== '' && (!$usedBackup || (int)$usedBackup['n'] === 0)) {
+				$l = stripeHttpRequest('GET', '/v1/customers/' . rawurlencode($cusId) . '/payment_methods', array('type' => 'card', 'limit' => 10));
+				if ($l['ok']) foreach ($l['body']['data'] as $b) if (($b['metadata']['saldi_role'] ?? '') === 'backup' && $b['id'] !== $pm) { $mailIt = false; break; }
+			}
+		}
+		if ($mailIt) {
 			$inv = stripe_invoice_load((int)$row['ordre_id']);
 			$payment = db_fetch_array(db_select("select * from stripe_payments where id = " . (int)$row['id'], __FILE__ . " linje " . __LINE__));
 			if ($inv) stripe_mail_failed($inv, $payment);

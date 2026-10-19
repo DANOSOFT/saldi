@@ -4102,6 +4102,11 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
+		// 20261019 CL/ASR Stripe: debtor with card on file (automatic charge on the due date, no invoice mail)
+		if ($udskriv_til != "Stripe" && !empty($konto_id)) {
+			$stripeChk = db_fetch_array(db_select("select column_name from information_schema.columns where table_name='adresser' and column_name='stripe'", __FILE__ . " linje " . __LINE__));
+			if ($stripeChk && ($stripeR = db_fetch_array(db_select("select stripe from adresser where id = '" . (int)$konto_id . "'", __FILE__ . " linje " . __LINE__))) && $stripeR['stripe'] === 'on') print "<option value='Stripe' title='Trækkes automatisk på kundens kort på forfaldsdatoen. Ingen fakturamail.'>Stripe</option>\n";
+		}
 		#		if ($udskriv_til!="ingen") print "<option>ingen</option>\n"; #PHR 20170501
 		if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803
 		if ($udskriv_til != "Digitalt") print "<option value='Digitalt' title='" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "'>" . findtekst('2532|Digitalt', $sprog_id) . "</option>\n"; #PBLM 12/06-2023
