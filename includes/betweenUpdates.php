@@ -1293,4 +1293,45 @@ if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHE
 	}
 }
 
+// 20261019 ASR Delvis bogføring (kravspec "Bogfør godkendte"): per-line approval on the journal.
+// godkendt = the line may be posted on its own; godkendt_af/godkendt_tid = who and when (audit trail).
+// Added with the same race-safe pattern as the FEFO columns above (two logins must not both ALTER).
+$kkGodkMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$kkGodkColumns = array(
+	'godkendt'     => 'BOOLEAN DEFAULT FALSE',
+	'godkendt_af'  => 'VARCHAR(80) NULL',
+	'godkendt_tid' => 'TIMESTAMP NULL',
+);
+$kkGodkMissing = array();
+foreach ($kkGodkColumns as $kkGodkColumn => $kkGodkType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'kassekladde' AND column_name = '$kkGodkColumn'";
+	$qtxt .= $kkGodkMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$kkGodkMissing[$kkGodkColumn] = $kkGodkType;
+	}
+}
+if ($kkGodkMissing) {
+	if ($kkGodkMysql) {
+		$kkGodkLock = "CONCAT('saldi:kassekladde_godkendt:', MD5(DATABASE()))";
+		$kkGodkLockResult = db_fetch_array(db_select("SELECT GET_LOCK($kkGodkLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($kkGodkLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the kassekladde godkendt migration lock.');
+		}
+		try {
+			foreach ($kkGodkMissing as $kkGodkColumn => $kkGodkType) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'kassekladde' AND column_name = '$kkGodkColumn' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE kassekladde ADD COLUMN $kkGodkColumn $kkGodkType", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($kkGodkLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($kkGodkMissing as $kkGodkColumn => $kkGodkType) {
+			db_modify("ALTER TABLE kassekladde ADD COLUMN IF NOT EXISTS $kkGodkColumn $kkGodkType", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+
 ?>
