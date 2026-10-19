@@ -27,8 +27,9 @@ class WarehousesEndpoint extends BaseEndpoint
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
-                $vare_id = $_GET['productId'] ?? null;
-                $nr = $_GET["inventory"] ?? 1;
+                // 20261008 CL/LH: cast - both end up unquoted in lagerstatus SQL.
+                $vare_id = isset($_GET['productId']) ? (int)$_GET['productId'] : null;
+                $nr = (int)($_GET["inventory"] ?? 1);
                 if ($field && $value) {
                     // Search by specific field
                     $warehouses = LagerModel::findBy($field, $value);
