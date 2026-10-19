@@ -12,6 +12,8 @@
 // 20261015 CL/SZ SD-720 (CodeRabbit) A captured amount of 0 is the total too; only a document without a captured amount uses the first row's.
 // 20261015 CL/SZ SD-720 (CodeRabbit) A split row that is saved has no × any more: removing it from the page left its journal line behind.
 //                Such a line is deleted in the journal.
+// 20261015 CL/SZ SD-720 (CodeRabbit) The rows' amounts are read as the save reads them (usdecimal(): dot = thousands, comma = decimals), so "12.50"
+//                counts as 1.250,00 in the balance too and the bilag doesn't seem to add up when the saved lines wouldn't.
 (function () {
     'use strict';
 
@@ -22,8 +24,15 @@
         return window.saldiPoolSplit || null;
     }
 
+    /** The captured document amount (pool_files.amount, often in API format such as "880.00"). */
     function parse(text) {
         var value = typeof window.parseAmountToFloat === 'function' ? window.parseAmountToFloat(text) : parseFloat(String(text).replace(/\./g, '').replace(',', '.'));
+        return isNaN(value) ? 0 : value;
+    }
+
+    /** An amount typed in a row, read as the save reads it (usdecimal(): the dot is a thousands separator, the comma the decimals). */
+    function parseTyped(text) {
+        var value = parseFloat(String(text || '').trim().replace(/\./g, '').replace(',', '.'));
         return isNaN(value) ? 0 : value;
     }
 
@@ -50,7 +59,7 @@
 
     function amountOf(entry) {
         var field = amountField(entry);
-        return field ? parse(field.value) : 0;
+        return field ? parseTyped(field.value) : 0;
     }
 
     /** The amount the rows must add up to; null when there is nothing to compare with. */
