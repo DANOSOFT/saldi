@@ -6,7 +6,7 @@
 // 20261005 CDX/PHR Allow retrying an individual failed item/shop without advancing the queue.
 // 20261006 CL/NTR Documented why webshop requests deliberately follow customer-controlled redirects.
 // 20261006 CL/NTR Documented that a batch may exceed its 8 s budget by one cURL timeout.
-// 20261016 MJ SST-876 The body inspection moved to shopApiResponseRejected() in
+// 20261016 CL/MJ SST-876 The body inspection moved to shopApiResponseRejected() in
 //                  stdFunc/shopApiRequest.php, so this page and sync_shop_vare() judge a
 //                  shop's answer by the same rule. Behaviour here is unchanged.
 

@@ -49,7 +49,7 @@
 //             so box9-only items already relied on this validation (MB-36).
 // 20260917 SZ Guard the box9 lookup above against a missing grupper row (CodeRabbit,
 //             PR #608) - degrades to "not tracked" instead of a PHP warning.
-// 20261016 MJ SST-876 A webshop that will not take the stock update is now named on screen
+// 20261016 CL/MJ SST-876 A webshop that will not take the stock update is now named on screen
 //                  and in the log instead of passing unnoticed. Havemoebelland received
 //                  supplier orders for days while DirekteImport.dk and havemoebelland.dk
 //                  kept the old figures and Saldi reported nothing. The receipt itself is
