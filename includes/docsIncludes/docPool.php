@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-15 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -200,6 +200,9 @@
 //                and a switch on the same line gets the reload still running, so it shows its document after that reload.
 // 20261015 CL/SZ SD-719 (CodeRabbit) A cached XML preview (SD-718) is served through docFileUrl() like a fresh one, so it gets docFile.php's check and the "Åbn i nyt vindue" button.
 // 20261015 CL/SZ SD-720 (CodeRabbit) "Gem alle" on a split bilag ticks only the rows it created; a line that was already there keeps the box as the user left it.
+// 20261015 CL/SZ SD-720 (CodeRabbit) The document total for "Fordeling" is read from the newest pool_files row of that name, so an old duplicate can't give it.
+// 20261016 CL/SZ SD-720 (CodeRabbit) "Gem" and "Gem alle" refuse an amount the save can't read (5090), as "Gem og næste" does; empty and 0 are still saved.
+//                A split row that is saved already is saved again before the attach too, so edits made to it since are not lost.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2270,7 +2273,7 @@ if ($source == 'kassekladde') {
 	// SD-720: the captured amount of the document is the total "Fordeling" splits; without one, the first row's amount
 	$splitDocAmount = '';
 	if ($poolFile !== '' && $poolFile !== null) {
-		$splitRow = db_fetch_array(db_select("SELECT amount FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'", __FILE__ . " linje " . __LINE__));
+		$splitRow = db_fetch_array(db_select("SELECT amount FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "' ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__));
 		$splitDocAmount = $splitRow ? (string)$splitRow['amount'] : '';
 	}
 	print "<script>window.saldiPoolSplit = " . json_encode(array(
@@ -4267,9 +4270,13 @@ print <<<JS
 		const otherCheckedRowIds = Array.from(targetCheckboxes)
 			.map(cb => cb.closest('.kassebilag-entry'))
 			.filter(Boolean)
-			.map(entry => entry.id.replace('bilagEntry_', ''))
-			// Unsaved rows (new, and "Fordeling"'s new2, new3 ...) are not saved lines; "Gem og næste" has saved them just before (SD-720)
-			.filter(rowId => !/^new/.test(rowId) && rowId !== typedRowId);
+			// Unsaved rows (new, and "Fordeling"'s new2, new3 ...) are not saved lines; "Gem og næste" has saved them just before (SD-720).
+			// A new row that is saved already (savedLineId) is its line, so edits made to it since are saved too.
+			.filter(entry => {
+				const rowId = entry.id.replace('bilagEntry_', '');
+				return rowId !== typedRowId && (!/^new/.test(rowId) || !!entry.dataset.savedLineId);
+			})
+			.map(entry => entry.id.replace('bilagEntry_', ''));
 		const preSave = (otherCheckedRowIds.length > 0 && typeof _saveRowFetch === 'function')
 			? Promise.all(otherCheckedRowIds.map(rowId => _saveRowFetch(rowId, url.searchParams.get('kladde_id') || 0, url.searchParams.get('bilag') || 0)))
 				.then(results => {
@@ -6324,7 +6331,31 @@ HTML;
             });
     }
 
+    // "Gem" and "Gem alle" check the amounts as "Gem og næste" does (isAmount() in docPoolSaveNext.js), except that an empty amount or 0
+    // may be saved there. A value the save can't read ("oops") stopped insertDoc.php half way, and "12,50oops" was stored as 12,50 (SD-720).
+    function _badAmountField(rowIds) {
+        for (var i = 0; i < rowIds.length; i++) {
+            var field = document.getElementById('row_' + rowIds[i] + '_Amount');
+            var value = field ? field.value.trim() : '';
+            if (value === '') continue;
+            var number = value.replace(/\s/g, '').replace(/\.(?=\d{3}(?!\d))/g, '').replace(',', '.');
+            if (!/^-?\d+(\.\d+)?$/.test(number)) return field;
+        }
+        return null;
+    }
+
+    /** Refuses the save when a row's amount can't be read: the message, the cursor in that field, and nothing is sent. */
+    function _refuseBadAmount(rowIds, bilag) {
+        var field = _badAmountField(rowIds);
+        if (!field) return false;
+        alert('"' + field.value.trim() + '" ' + <?php echo json_encode(findtekst('5090|er ikke et gyldigt beløb - brug komma som decimaltegn, fx 1.234,56 (Bilag nr', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> + ' ' + bilag + ')');
+        field.focus();
+        if (typeof field.select === 'function') field.select();
+        return true;
+    }
+
     function saveRow(rowId, kladdeId, bilag) {
+        if (_refuseBadAmount([rowId], bilag)) return;
         var entryDiv = document.getElementById('bilagEntry_' + rowId);
         var gemBtn = entryDiv ? entryDiv.querySelector('a[title="<?php echo $txt1.' '.lcfirst($txt14)?>"]') : null;
         if (gemBtn) { gemBtn.innerHTML = '<?php echo $txt49 ?>...'; gemBtn.style.opacity = '0.7'; gemBtn.style.pointerEvents = 'none'; }
@@ -6365,10 +6396,11 @@ HTML;
         var kladdeId = <?php echo !empty($currentKladdeId) ? (int)$currentKladdeId : '0' ?>;
         var bilag    = <?php echo isset($intBilag) ? (int)$intBilag : '0' ?>;
         var entries  = document.querySelectorAll('.kassebilag-entry');
+        var rowIds = Array.from(entries).map(el => el.id.replace('bilagEntry_', ''));
+        if (_refuseBadAmount(rowIds, bilag)) return;
         var gemAlleBtn = document.getElementById('gemAlleBtn');
         if (gemAlleBtn) { gemAlleBtn.innerHTML = '<?php echo $txt49 ?>...'; gemAlleBtn.style.opacity = '0.7'; gemAlleBtn.style.pointerEvents = 'none'; }
 
-        var rowIds = Array.from(entries).map(el => el.id.replace('bilagEntry_', ''));
         // One after another in the order shown, so new lines get their pos in that order (SD-720)
         var results = [];
         rowIds.reduce((chain, id) => chain.then(() => _saveRowFetch(id, kladdeId, bilag).then(d => { results.push(d); })), Promise.resolve())
