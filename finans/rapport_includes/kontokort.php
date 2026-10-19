@@ -67,6 +67,7 @@
 //                  Simulated rows are left out in that mode, since simulated journals are among them.
 //                  Lines with an account setup error are listed once above the report instead of one alert each.
 //                  Unposted rows on a foreign-currency account use the account currency's rate, like posted rows.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -293,6 +294,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<tr><td colspan=8 align=center>";
 		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
 
+		$color = $color ?? null;
 		print "<td width=\"5%\">$color
 			<a href=\"javascript:confirmClose('rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')\" accesskey=L>
 			   <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";

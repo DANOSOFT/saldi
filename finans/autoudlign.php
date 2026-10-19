@@ -53,6 +53,7 @@
 //                  value on this page - normalized and escaped them the same way.
 // 20261002 CL/NTR  Moved the page's local UTF-8 findtekst() wrapper to includes/stdFunc/findTxtUtf8.php
 //                  as findtekst_utf8() and use it for the $uiText array as well (keyed ids, one call).
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 ob_start();
 @session_start();
@@ -668,6 +669,7 @@ print "<tr class='backBtn'><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
+$tekst = $tekst ?? null;
 print "<td width=5% style='$buttonStyle'>
 	<a href=\"javascript:confirmClose('" . htmlspecialchars($returside, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">

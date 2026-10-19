@@ -173,6 +173,7 @@
 // 20261012 CL/SZ SD-730 The paper-clip on a journal that was never saved saves it first even with nothing typed; it opened the pool
 //                with kladde_id=0, where "Indsæt valgte" inserted nothing and came back to an empty journal.
 //                (Reported under SD-730; the fix is here because the save-first clip is SD-716's.)
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -778,7 +779,7 @@ if ($tjek = if_isset($_GET, null, 'tjek')) {
 	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	if (isset($row['tidspkt'])) {
-		list($a, $c) = explode(" ", $row['tidspkt']);
+		list($a, $c) = array_pad(explode(" ", $row['tidspkt']), 2, null);
 		if (($b - $c < 3600) && ($row['hvem'] != $brugernavn)) {
 			$alert1 = findtekst('1577|Kladden er i brug af', $sprog_id); //Kladden er i brug af
 			print "<body onLoad=\"javascript:alert('$alert1 $row[hvem]')\">"; #20210720
@@ -1134,14 +1135,14 @@ if ($_POST) {
 		$betal_id[$x] = trim(if_isset($_POST[$y], ''));
 		if (is_numeric($bilag[$x])) { #20230302 - you can't subtract 1 from a string
 			if (
-				$submit != 'lookup' && (!$bilag[$x] || $bilag[$x] == $bilag[$x - 1] || $bilag[$x] - 1 == $bilag[$x - 1])
+				$submit != 'lookup' && (!$bilag[$x] || $bilag[$x] == ($bilag[$x - 1] ?? null) || $bilag[$x] - 1 == ($bilag[$x - 1] ?? null))
 				&& (!$dato[$x] || $dato[$x] == $dato[$x - 1]) && (!$beskrivelse[$x] || $beskrivelse[$x] == $beskrivelse[$x - 1])
 				&& !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x] && !$faktura[$x] && !$belob[$x]
 			) {
 				$bilag[$x] = '-'; #20170418
 				$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 			} elseif (
-				$submit != 'lookup' && (!$bilag[$x] || $bilag[$x] == $bilag[$x - 1]) && (!$dato[$x] || $dato[$x] == $dato[$x - 1])
+				$submit != 'lookup' && (!$bilag[$x] || $bilag[$x] == ($bilag[$x - 1] ?? null)) && (!$dato[$x] || $dato[$x] == $dato[$x - 1])
 				&& (!$beskrivelse[$x] || $beskrivelse[$x] == $beskrivelse[$x - 1]) && !$d_type[$x] && !$k_type[$x] && !$debet[$x]
 				&& !$kredit[$x] && !$faktura[$x] && !$belob[$x]
 			) {
@@ -1178,7 +1179,7 @@ if ($_POST) {
 		if ($forfaldsdato[$x] == "=")        $forfaldsdato[$x] = $forfaldsdato[$x - 1];
 		if ($betal_id[$x] == "=")            $betal_id[$x]     = $betal_id[$x - 1];
 		if ((!$dato[$x]) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) $dato[$x] = date("d-m-Y");
-		if ($bilag[$x] != $bilag[$x - 1])    $kontrolsum       = 0;
+		if ($bilag[$x] != ($bilag[$x - 1] ?? null))    $kontrolsum       = 0;
 		if ($debet[$x])                      $kontrolsum       = $kontrolsum + $dkkamount[$x];
 		if ($kredit[$x])                     $kontrolsum       = $kontrolsum - $dkkamount[$x];
 		$bilagssum[$x] = $kontrolsum;
@@ -1433,7 +1434,7 @@ if ($_POST) {
 		) { #20210920
 			$bilag[$x] = '-';
 		}
-		if (!$forskellige_datoer && $bilag[$x] && $bilag[$x] != '-' && $bilag[$x] == $bilag[$x - 1] && $dato[$x] != $dato[$x - 1] && $bilagssum[$x - 1]) {
+		if (!$forskellige_datoer && $bilag[$x] && $bilag[$x] != '-' && $bilag[$x] == ($bilag[$x - 1] ?? null) && $dato[$x] != $dato[$x - 1] && $bilagssum[$x - 1]) {
 			$alert3 = findtekst('1581|Forskellige datoer i bilag', $sprog_id); //Forskellige datoer i bilag
 			print "<BODY onLoad=\"javascript:alert('$alert3 $bilag[$x]')\">";
 		}
@@ -1530,8 +1531,8 @@ if ($_POST) {
 			$debet[$x] = db_escape_string(if_isset($debet[$x], ''));
 			$k_type[$x] = db_escape_string(if_isset($k_type[$x], ''));
 			$kredit[$x] = db_escape_string(if_isset($kredit[$x], ''));
-			$debetvat[$x] = db_escape_string(if_isset($debetvat[$x], ''));
-			$kreditvat[$x] = db_escape_string(if_isset($kreditvat[$x], ''));
+			$debetvat[$x] = db_escape_string(($debetvat[$x] ?? ''));
+			$kreditvat[$x] = db_escape_string(($kreditvat[$x] ?? ''));
 			$faktura[$x] = db_escape_string(if_isset($faktura[$x], ''));
 			$belob[$x] = db_escape_string(if_isset($belob[$x], ''));
 			$momsfri[$x] = db_escape_string(if_isset($momsfri[$x], ''));
@@ -3816,12 +3817,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		name='d_ty$x' $de_fok value =\"$d_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' autocomplete='off' style='text-align:right;width:75px;'
 		name='debe$x' $de_fok value =\"$debet[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$x", if_isset($debetvat[$x], ''), $vat_codes, $charset, lookup_account_vat_code($debet[$x], $d_type[$x], $regnaar, $vat_codes)) . "</td>\n";
+		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$x", ($debetvat[$x] ?? ''), $vat_codes, $charset, lookup_account_vat_code($debet[$x], $d_type[$x], $regnaar, $vat_codes)) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;'
 		name='k_ty$x' $de_fok value =\"$k_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' autocomplete='off' style='text-align:right;width:75px;'
 		name='kred$x' $de_fok value=\"$kredit[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$x", if_isset($kreditvat[$x], ''), $vat_codes, $charset, lookup_account_vat_code($kredit[$x], $k_type[$x], $regnaar, $vat_codes)) . "</td>\n";
+		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$x", ($kreditvat[$x] ?? ''), $vat_codes, $charset, lookup_account_vat_code($kredit[$x], $k_type[$x], $regnaar, $vat_codes)) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='fakt$x' $de_fok value=\"$faktura[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;'
