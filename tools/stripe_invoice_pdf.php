@@ -80,6 +80,8 @@ foreach (array('ps2pdf' => '/usr/bin/ps2pdf', 'pdftk' => '', 'weasyprint' => '')
 	$$tool = ($q && trim((string)$q['var_value']) !== '') ? trim((string)$q['var_value']) : $fallback;
 }
 $saldi_pdf_only = true;                      // includes/formfunk.php: treat the order as "mail to email" so the PDF is built
+$regnaar = function_exists('newest_active_fiscal_year') ? (string)newest_active_fiscal_year() : '';
+if ($regnaar === '') { $ra = db_fetch_array(db_select("select max(fiscal_year) as y from grupper where art = 'RA'", __FILE__ . " linje " . __LINE__)); $regnaar = $ra ? (string)$ra['y'] : date('Y'); }
 
 $o = db_fetch_array(db_select("select id, art, fakturanr, ordrenr, status, sprog, afd from ordrer where id = $ordreId", __FILE__ . " linje " . __LINE__));
 if (!$o) { fwrite(STDERR, "order $ordreId not found in $db\n"); exit(2); }
