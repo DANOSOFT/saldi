@@ -108,6 +108,9 @@
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
 // 20261007 CL/SZ SST-818: a login that finds an index lock taken skips the build instead of waiting for it.
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
+// 20261012 CL/LH Add the stripe_events lease columns (claim_token, claimed_at, attempts, event_created)
+//                  ahead of the invoice-payment webhook, which needs them from its first request.
+// 20261013 CL/LH stripe_events columns: schema-scoped check, concurrent-login safe (CodeRabbit on #795).
 // 20261013 CL/SZ SST-808 (CodeRabbit): skip the auto-udlign index block on MySQL tenants.
 // 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
 //                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
@@ -663,6 +666,44 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		received_at timestamp DEFAULT CURRENT_TIMESTAMP,
 		processed_at timestamp)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// 20261012 CL/LH Event leases for the Stripe webhook: who holds an event (claim_token/claimed_at),
+//                  how often it was retried (attempts) and Stripe's own event time (event_created).
+//                  Shipped before the webhook change, because a merge to master deploys /master at once.
+// 20261013 CL/LH (CodeRabbit) Scoped to the current schema/database and safe for concurrent logins, like
+//                  the lock_token migration: ADD COLUMN IF NOT EXISTS on PostgreSQL, GET_LOCK + recheck on MySQL.
+$stripeEventMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$stripeEventColumns = array('claim_token' => 'varchar(64)', 'claimed_at' => 'timestamp', 'attempts' => 'integer NOT NULL DEFAULT 0', 'event_created' => 'bigint');
+$stripeEventMissing = array();
+foreach ($stripeEventColumns as $stripeEventColumn => $stripeEventType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn'";
+	$qtxt .= $stripeEventMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$stripeEventMissing[] = $stripeEventColumn;
+	}
+}
+if ($stripeEventMissing) {
+	if ($stripeEventMysql) {
+		$stripeEventLock = "CONCAT('saldi:stripe_events:', MD5(DATABASE()))";
+		$stripeEventLockResult = db_fetch_array(db_select("SELECT GET_LOCK($stripeEventLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($stripeEventLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the stripe_events migration lock.');
+		}
+		try {
+			foreach ($stripeEventMissing as $stripeEventColumn) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE stripe_events ADD COLUMN $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($stripeEventLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($stripeEventMissing as $stripeEventColumn) {
+			db_modify("ALTER TABLE stripe_events ADD COLUMN IF NOT EXISTS $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+		}
+	}
 }
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
