@@ -179,6 +179,10 @@ if (!function_exists('stripe_payments_ensure')) {
 }
 
 // ---------------------------------------------------------------- formatting
+if (!function_exists('stripe_bool')) {
+	// PostgreSQL returns 't'/'f' for boolean columns; MySQL 1/0.
+	function stripe_bool($v) { return $v === true || $v === 't' || $v === 1 || $v === '1' || $v === 'true' || $v === 'on'; }
+}
 if (!function_exists('stripe_fmt_kr')) {
 	function stripe_fmt_kr($ore) { return number_format(((int)$ore) / 100, 2, ',', '.'); }
 	function stripe_fmt_date($ymd) { return preg_match('/^(\d{4})-(\d{2})-(\d{2})/', (string)$ymd, $m) ? "$m[3].$m[2].$m[1]" : (string)$ymd; }
@@ -264,7 +268,7 @@ if (!function_exists('stripe_invoice_load')) {
 		$inv['debtor'] = (int)$o['konto_id'] ? (db_fetch_array(db_select("select id, kontonr, firmanavn, kontakt, email, stripe_fravalg, stripe, stripe_customer_id, stripe_pm_id, stripe_date, udskriv_til from adresser where id = " . (int)$o['konto_id'], __FILE__ . " linje " . __LINE__)) ?: array()) : array();
 		$inv['email'] = trim((string)$o['email']) ?: trim((string)($inv['debtor']['email'] ?? ''));
 		$inv['fornavn'] = trim((string)(explode(' ', trim((string)$o['kontakt']) ?: trim((string)($inv['debtor']['kontakt'] ?? '')))[0]));
-		$inv['no_card'] = !empty($inv['debtor']['stripe_fravalg']);
+		$inv['no_card'] = stripe_bool($inv['debtor']['stripe_fravalg'] ?? '') || (($inv['debtor']['stripe_fravalg'] ?? '') === 'on');
 		$inv['enrolled'] = (($inv['debtor']['stripe'] ?? '') === 'on') && !empty($inv['debtor']['stripe_pm_id']);
 		$inv['recurring'] = trim((string)$o['nextfakt']) !== '' && $o['art'] === 'DO';
 		// payments
@@ -445,7 +449,7 @@ if (!function_exists('stripe_payment_create')) {
 			if (!$payment['confirmation_sent_at']) {
 				if (stripe_mail_confirmation($inv, $payment)) db_modify("update stripe_payments set confirmation_sent_at = CURRENT_TIMESTAMP where id = " . (int)$row['id'], __FILE__ . " linje " . __LINE__);
 			}
-			if (!empty($payment['save_card']) && $pm !== '' && function_exists('stripe_enrol_debtor')) stripe_enrol_debtor($inv, $pm, $brand, $last4);
+			if (stripe_bool($payment['save_card']) && $pm !== '' && function_exists('stripe_enrol_debtor')) stripe_enrol_debtor($inv, $pm, $brand, $last4);
 		}
 		if (function_exists('audit_log_write') && function_exists('tbl_exists')) audit_log_write('stripe.payment_succeeded', 'ordre', (string)$ordreId, json_encode(array('pi' => (string)$pi['id'], 'amount_ore' => (int)$row['amount_ore'], 'card' => stripe_card_label($brand, $last4))), 'stripe');
 		return 'applied';
@@ -521,9 +525,14 @@ if (!function_exists('stripe_mail_send')) {
 	function stripe_mail_send($to, $subject, $html, $text) {
 		if (!filter_var($to, FILTER_VALIDATE_EMAIL)) { stripe_log("mail: invalid recipient '$to'"); return false; }
 		$snd = stripe_mail_sender();
-		$autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
-		if (!is_file($autoload)) { stripe_log('mail: vendor/autoload.php missing'); return false; }
-		require_once $autoload;
+		// PHPMailer via composer: the map's own vendor/ or the shared one one level up (sendMail.php uses ../../vendor from debitor/)
+		$autoload = '';
+		foreach (array(dirname(__DIR__, 2) . '/vendor/autoload.php', dirname(__DIR__, 3) . '/vendor/autoload.php') as $cand) {
+			if (!is_file($cand)) continue;
+			require_once $cand;
+			if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) { $autoload = $cand; break; }
+		}
+		if ($autoload === '') { stripe_log('mail: PHPMailer not found via vendor/autoload.php'); return false; }
 		$mail = new PHPMailer\PHPMailer\PHPMailer();
 		$mail->CharSet = 'UTF-8';
 		$mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));

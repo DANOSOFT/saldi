@@ -40,7 +40,7 @@ $out = array('ok' => true, 'state' => $inv['state']);
 if ($inv['paid']) {
 	$out['paid_at'] = substr((string)$inv['paid']['succeeded_at'], 0, 10);
 	$out['card'] = stripe_card_label($inv['paid']['pm_brand'], $inv['paid']['pm_last4']);
-	$out['saved'] = !empty($inv['paid']['save_card']);
+	$out['saved'] = stripe_bool($inv['paid']['save_card']);
 }
 if ($inv['failed']) $out['error'] = (string)$inv['failed']['last_error'];
 print json_encode($out);

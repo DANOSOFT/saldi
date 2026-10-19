@@ -114,7 +114,7 @@ switch ($state) {
 		$p = $inv['paid']; $card = stripe_card_label($p['pm_brand'], $p['pm_last4']);
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_paid')) . '</h2><p class="lead">' . $h(stripe_txt('lead_paid', array('email' => $inv['email']))) . '</p>';
 		$panel .= fak_status('good', 'ok', stripe_txt('paid_box', array('date' => stripe_fmt_date_long(substr((string)$p['succeeded_at'], 0, 10)))), $totalKr . ' · ' . $card);
-		if (!empty($p['save_card'])) $panel .= '<div class="card-row"><span class="brand">' . $h(strtoupper(substr((string)$p['pm_brand'], 0, 4))) . '</span><span>' . $h(stripe_txt('card_saved_row')) . '</span></div>';
+		if (stripe_bool($p['save_card'])) $panel .= '<div class="card-row"><span class="brand">' . $h(strtoupper(substr((string)$p['pm_brand'], 0, 4))) . '</span><span>' . $h(stripe_txt('card_saved_row')) . '</span></div>';
 		$panel .= '<p style="color:var(--ink-2);font-size:14px">' . $h(stripe_txt('find_in_saldi')) . '</p>' . $foot;
 		break;
 	case 'paidbank':
