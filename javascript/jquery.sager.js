@@ -1,4 +1,6 @@
 /*
+ * 20260805 CX/PHR Use tab-separated case autocomplete data so company names may contain "|".
+ *
 // her er function til sortering i liste
 $(document).ready(function(){
 	$("#sort a").click(function(e) {
@@ -37,6 +39,7 @@ $(document).ready(function(){
 	
 	$(".sagsagsnr").autocomplete("autocomplete.php?mode=sagsagsnr", {
 		width: 500,
+		separator: "\t",
 		selectFirst: true,
 		matchContains: true,
 		formatItem: formatItemNr,
@@ -50,6 +53,7 @@ $(document).ready(function(){
 							
 	$(".sagfirmanavn").autocomplete("autocomplete.php?mode=sagfirmanavn", {
 			width: 500,
+			separator: "\t",
 			selectFirst: true,
 			matchContains: true,
 			formatItem: formatItemNavn,
@@ -63,6 +67,7 @@ $(document).ready(function(){
 	
 	$(".sagadresse").autocomplete("autocomplete.php?mode=sagadresse", {
 			width: 475,
+			separator: "\t",
 			selectFirst: true,
 			matchContains: true,
 			formatItem: formatItemAddr,

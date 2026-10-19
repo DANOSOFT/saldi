@@ -1,3 +1,28 @@
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- javascript/jquery.loen.js.php --- lap 5.0.0 --- 2026-07-31 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+//
+// Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20260731 PHR - Warn when a former employee is selected in ret_loen autocomplete.
+
 $(document).ready(function() {
 	$('.contentB .left, .contentB input, .contentB textarea, .contentB select').focus(function(){
 		$(this).parents('.contentB').addClass("over");
@@ -10,6 +35,13 @@ $(document).ready(function() {
 		$(this).parents('.row').removeClass("over");
 	});
 });
+
+function advarHvisFratraadtMedarbejder(data, navn) {
+	if (data && data[2] === "fratraadt") {
+		var slutdato = data[3] ? data[3].split("-").reverse().join("-") : "ukendt";
+		alert("Advarsel: " + navn + " er fratrådt pr. " + slutdato + ".");
+	}
+}
 
 // function som tilføjer en ny række i ansatteTable med autocomplete
 (function($) {
@@ -30,6 +62,7 @@ $(document).ready(function() {
 			});
 			$(".medarbejdernr").result(function(event, data, formatted) {
 				$(this).parent().next().find(">:input").val(data[1]);
+				advarHvisFratraadtMedarbejder(data, data[1]);
 			});
 			$(".medarbejdernavn").autocomplete("autocomplete.php?mode=medarbejdernavn", {
 				selectFirst: true,
@@ -38,6 +71,7 @@ $(document).ready(function() {
 			});
 			$(".medarbejdernavn").result(function(event, data, formatted) {
 				$(this).parent().prev().find(">:input").val(data[1]);
+				advarHvisFratraadtMedarbejder(data, data[0]);
 			});
 		});
 		$(".delRow").btnDelRow();		
@@ -82,6 +116,7 @@ $(document).ready(function(){
 	});
 	$(".medarbejdernr").result(function(event, data, formatted) {
 		$(this).parent().next().find(">:input").val(data[1]);
+		advarHvisFratraadtMedarbejder(data, data[1]);
 	});
 			
 	$(".medarbejdernavn").autocomplete("autocomplete.php?mode=medarbejdernavn", {
@@ -91,6 +126,7 @@ $(document).ready(function(){
 	});
 	$(".medarbejdernavn").result(function(event, data, formatted) {
 		$(this).parent().prev().find(">:input").val(data[1]);
+		advarHvisFratraadtMedarbejder(data, data[0]);
 	});
 });
 		

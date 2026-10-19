@@ -6,7 +6,7 @@
 // missing: e2e/smoke.spec.mjs only proves the stack answers HTTP.
 //
 // PREREQUISITES (same stack as tests/characterization, see that README):
-//   docker compose up -d          # installed app + tenant (default saldi_2)
+//   docker compose up -d          # installed app + tenant (SALDI_E2E_TENANT_DB)
 //   npm install && npx playwright install chromium
 //   node e2e/seed-user.mjs        # seeds the e2e login (idempotent)
 //
@@ -20,9 +20,10 @@
 
 import { test, expect } from "@playwright/test";
 
-const ACCOUNT = process.env.SALDI_E2E_ACCOUNT ?? "saldi_chatbot_test";
-const USER = process.env.SALDI_E2E_USER ?? "e2etest";
-const PASSWORD = process.env.SALDI_E2E_PASSWORD ?? "e2etest-local-2026";
+import { e2eConfig, missingE2eConfiguration } from "./config.mjs";
+const missing = missingE2eConfiguration();
+const { account: ACCOUNT, user: USER, password: PASSWORD } = missing.length ? {} : e2eConfig();
+test.skip(missing.length > 0, `Configure ${missing.join(", ")} to run the tenant workflow`);
 
 // Two plain (VAT-free) accounts from the standard chart of accounts.
 const DEBIT_ACCOUNT = "1050";
@@ -89,18 +90,13 @@ test("login, create kassekladde voucher, post it, verify it is posted", async ({
   // The preview lists both accounts and the amount before the final confirm.
   await expect(page.locator("body")).toContainText(DEBIT_ACCOUNT);
   await expect(page.locator("body")).toContainText(CREDIT_ACCOUNT);
+  await expect(page.locator("body")).toContainText("123,45");
   // Final "Bogfør" confirm. Posting + genberegn + the meta-refresh chain can
   // take a while - don't tie the navigation wait to the click itself.
   await page.locator('[name="bogfor"]').click({ noWaitAfter: true });
 
   // After posting the page redirects to the kladde list.
-  //
-  // The generous timeout is not defensive padding: posting calls
-  // genberegn($regnaar) three times (finans/bogfor.php:74, :224, :561) and
-  // each call recomputes every account balance in the chart with one query
-  // per account - about 900 statements per posting. It gets slower as the
-  // ledger grows. See doc/TESTING_FINDINGS.md P1-2.
-  await page.waitForURL(/kladdeliste\.php/, { timeout: 120_000 });
+  await page.waitForURL(/kladdeliste\.php/, { timeout: 45_000 });
 
   // --- 4. Verify via the UI that the voucher is posted ---
   // Re-opening the posting page for the same kladde must refuse: the page

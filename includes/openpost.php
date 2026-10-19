@@ -106,7 +106,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 	print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">Luk</a></td>";
 	print "<td width=\"80%\" $top_bund>Rapport - $rapportart</td>";
 	print "<td width=\"10%\" $top_bund>";
-	if ($skjul_aabenpost=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kotno_fra&konto_til=$konto_til&skjul_aabenpost=off>Vis</a><td></tr>";
+	if ($skjul_aabenpost=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off>Vis</a><td></tr>";
 	else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on>Skjul</a><td></tr>";
 	// <a accesskey=l href=\"rapport.php?rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\"><br></a></td>";
 	print "</tbody></table></td></tr>\n"; #B slut

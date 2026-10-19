@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- systemdata/syssetupIncludes/saveData.php ---patch 4.1.1 ----2025-09-03 ---
+//--- systemdata/syssetupIncludes/saveData.php ---ver 5.0.0 ----2026-10-07 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,10 +22,19 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
 // 20240604 PHR PHP8
 // 20250903 PHR Definition of array $adr_konto_id
+// 20260724 MJ  Propagate VG.box5 og DG/KG.box10 til alle fiscal_year-raekker ved gem.
+// 20260729 CL/NTR - reported by CodeRabbit - whitelist box10 and box5 values when transfering between fiscal_years, and empty them if not on the list of allowed values.
+// 20261001 CDX/PHR Prevent warehouse deletion from moving stock history or renumbering other warehouses.
+// 20261007 MJ SST-829 A new warehouse is stored with fiscal_year 0 instead of the current
+//                  accounting year, and the duplicate check no longer scopes warehouses to
+//                  a year - otherwise it would miss that row and a second save would add
+//                  another one.
+require_once(__DIR__ . '/warehouseDeletion.php');
+
 if ($_POST){
 	$id=if_isset($_POST['id']);
 	$beskrivelse=if_isset($_POST['beskrivelse']);
@@ -213,7 +222,15 @@ if ($_POST){
 			$fejl=tjek ($id [$x],$beskrivelse[$x],$kodenr[$x],$kode[$x],$art[$x],$box1[$x],$box2[$x],$box3[$x],$box4[$x],$box5[$x],$box6[$x],$box7[$x],$box8[$x],$box9[$x]);
 			if (!$fejl && ($id[$x]==0)&&($kode[$x])&&($kodenr[$x])&&($art[$x])) {
 				$qtxt = "SELECT id FROM grupper WHERE ";
-				$qtxt.= "kodenr = '$kodenr[$x]' and kode = '$kode[$x]' and art = '$art[$x]' and fiscal_year = '$regnaar'";
+				$qtxt.= "kodenr = '$kodenr[$x]' and kode = '$kode[$x]' and art = '$art[$x]'";
+				// 20261007 MJ SST-829 A warehouse is stored year-agnostically (fiscal_year 0),
+				// so this check must not scope to the current year: it would miss the row
+				// written below and a second save would add a duplicate. Leaving it unscoped
+				// also catches rows an earlier accounting-year copy left behind on tenants
+				// that already have them.
+				if ($art[$x] != 'LG') {
+					$qtxt.= " and fiscal_year = '$regnaar'";
+				}
 				$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
 					$alerttxt = NULL;
@@ -238,7 +255,10 @@ if ($_POST){
 					$qtxt.= "values ";
 					$qtxt.= "('$beskrivelse[$x]','$kodenr[$x]','$kode[$x]','$art[$x]','$box1[$x]','$box2[$x]','$box3[$x]','$box4[$x]',";
 					$qtxt.= "'$box5[$x]','$box6[$x]','$box7[$x]','$box8[$x]','$box9[$x]','$box10[$x]','$box11[$x]','$box12[$x]',";
-					$qtxt.= "'$box13[$x]','$box14[$x]','$regnaar')";
+					// 20261007 MJ SST-829 Warehouses carry fiscal_year 0: they are not per-year
+					// data, and a row per year is what produced the duplicate warehouse lists.
+					$gruppeAar = ($art[$x] == 'LG') ? '0' : $regnaar;
+					$qtxt.= "'$box13[$x]','$box14[$x]','$gruppeAar')";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					if ($art[$x]=='LG'){
 						if (!db_fetch_array(db_select("SELECT * FROM lagerstatus",__FILE__ . " linje " . __LINE__))) {
@@ -255,8 +275,26 @@ if ($_POST){
 			elseif ((($id[$x]>0)&&($kodenr[$x])&&($kodenr[$x]!='-'))&&($art[$x])) { # &&(($box1[$x])||($box3[$x])||($art[$x]=='VK')))
 			  if ($art[$x]=='PV') {db_modify("update grupper set box1 = '$box1[$x]',box2 = '$box2[$x]',box3 = '$box3[$x]' WHERE id = '$id[$x]'",__FILE__ . " linje " . __LINE__);}
 				else {
+					// TODO - Once ENUM cataloges are made - import from ENUM cataloge.
+					if ($art[$x] === 'VG' && !in_array($box5[$x], array('', 'varer', 'ydelser'), true)) {
+						$box5[$x] = '';
+					}
+					if ($art[$x] === 'KG' && !in_array($box10[$x], array('', 'B2B-EU', 'B2B-UDL'), true)) {
+						$box10[$x] = '';
+					}
+					if ($art[$x] === 'DG' && !in_array($box10[$x], array('', 'B2C-EU', 'B2C-UDL', 'B2B-EU', 'B2B-UDL'), true)) {
+						$box10[$x] = '';
+					}
 					$qtxt = "update grupper set beskrivelse = '$beskrivelse[$x]',kode = '$kode[$x]',box1 = '$box1[$x]',box2 = '$box2[$x]',box3 = '$box3[$x]',box4 = '$box4[$x]',box5 = '$box5[$x]',box6 = '$box6[$x]',box7 = '$box7[$x]',box8 = '$box8[$x]',box9 = '$box9[$x]',box10 = '$box10[$x]',box11 = '$box11[$x]',box12 = '$box12[$x]',box13 = '$box13[$x]',box14 = '$box14[$x]' WHERE id = '$id[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					// 20260724 MJ Propagate year-agnostic fields to all fiscal_years for the same group.
+					// VG box5 (varer/ydelser) and DG/KG box10 (eu-zone) are group-level classifications
+					// that do not vary per accounting year, but grupper has one row per fiscal_year.
+					if ($art[$x] === 'VG') {
+						db_modify("UPDATE grupper SET box5 = '$box5[$x]' WHERE art = 'VG' AND kodenr = '$kodenr[$x]'",__FILE__." linje ".__LINE__);
+					} elseif ($art[$x] === 'DG' || $art[$x] === 'KG') {
+						db_modify("UPDATE grupper SET box10 = '$box10[$x]' WHERE art = '$art[$x]' AND kodenr = '$kodenr[$x]'",__FILE__." linje ".__LINE__);
+					}
 				}
 				if ($art[$x]=='VK') { #ValutaKoder
 				if ($r=db_fetch_array(db_select("select id,kurs from valuta where valdate = '$box3[$x]' and gruppe =	'$kodenr[$x]'",__FILE__ . " linje " . __LINE__))) {
@@ -271,36 +309,9 @@ if ($_POST){
 					if ($box4[$x]) db_modify("update varer set tier_price = $box4[$x] WHERE prisgruppe = '$kodenr[$x]'",__FILE__ . " linje " . __LINE__);
 				}
 				if ($art[$x]=='LG') { #LagerGrupper
-					$r1=db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE id=$id[$x]",__FILE__ . " linje " . __LINE__));
-					$q2=db_select("SELECT beholdning,vare_id FROM lagerstatus WHERE lager =  '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
-					while ($r2=db_fetch_array($q2)) {
-						$b2=$r2['beholdning']*1; # 20170405
-						if ($r3=db_fetch_array(db_select("SELECT * FROM lagerstatus WHERE lager = '0' and vare_id = '$r2[vare_id]'",__FILE__ . " linje " . __LINE__))) {
-							$b3=$r3['beholdning']*1; # 20170405
-							db_modify("update lagerstatus set beholdning = $b3+$b2 WHERE id = $r3[id]",__FILE__ . " linje " . __LINE__);
-						} elseif($b2) {
-						db_modify("insert into lagerstatus (beholdning,vare_id,lager) values ('$b2','$r2[vare_id]','0')",__FILE__ . " linje " . __LINE__);
-						}
-					}
-					db_modify("delete FROM lagerstatus WHERE lager = '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
-					db_modify("update batch_kob set lager = 0 WHERE lager =  '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
-					db_modify("delete FROM grupper WHERE id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
-					$qtxt = "SELECT kodenr FROM grupper WHERE art='LG' and kodenr > '$r1[kodenr]' order by kodenr";
-					$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-					while ($r1=db_fetch_array($q1)) {
-						$qtxt = "update lagerstatus set lager = $r1[kodenr]-1 WHERE lager = '$r1[kodenr]'";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt = "update batch_kob set lager = $r1[kodenr]-1 WHERE lager =  '$r1[kodenr]'";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					}
-					$qtxt = "SELECT kodenr FROM grupper WHERE art='LG'";
-					if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					} else {
-#						db_modify("delete FROM lagerstatus",__FILE__ . " linje " . __LINE__);
-						$qtxt = "update lagerstatus set lager = 0";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt = "update batch_kob set lager = 0";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					$warehouseError = deleteWarehouseDefinition((int) $id[$x]);
+					if ($warehouseError !== '') {
+						print '<script>alert(' . json_encode($warehouseError, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ');</script>';
 					}
 				} elseif ($art[$x]=='SM'||$art[$x]=='KM'||$art[$x]=='YM'||$art[$x]=='EM') {
 					$qtxt = "SELECT kodenr FROM grupper WHERE id=$id[$x]";

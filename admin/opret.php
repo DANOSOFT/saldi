@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------/admin/opret.php-----patch 4.1.1 ----2025-08-04--------------
+// ------------/admin/opret.php-----patch 5.0.0 ----2026-09-18--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 
 // 2013.05.14 Slutmd blev sat til 1 ved oprettelse af regnskabsår
@@ -103,6 +103,17 @@
 // 20250503 LOE Use conditionals to adjust for MySQL vs PostgreSQL
 // 20250510 LOE Optimized to work with mysql database, long and lat now using decimal instead of int
 // 20250804	PHR Corrected error in create  proforma
+// 20260803 CL/SZ Require an authenticated session unconditionally, before any
+//                $_POST handling (SD-615)
+// 20260804 SZ Also terminate on the webservice "Session expired" include return,
+//             instead of relying only on $db != $sqdb (SD-615)
+// 20260818 CL/LH Corrected Stripe table boolean default definitions
+// 20260908 CL/NTR Reject account names over 60 and usernames over 80 characters (is_input_too_long)
+//                  before creating the account, matching login.php and varchar(60) on regnskab.regnskab
+// 20260918 CDX/PHR Add ordrer.performed_by when creating a new account.
+// 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
+//                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
+// 20261012 CL/LH stripe_events gets the webhook lease columns (claim_token, claimed_at, attempts, event_created).
 
 @session_start();
 $s_id=session_id();
@@ -114,14 +125,11 @@ include("../includes/std_func.php");
 
 $modulnr=101;
 
-
-if (!isset($_POST['regnskab'])||!$_POST['brugernavn']||!$_POST['passwd']||!$_POST['passwd2']) {
-	include("../includes/online.php");
-	if ($db != $sqdb) {
-		print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
-		print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
-		exit;
-	}
+$online_result=include("../includes/online.php"); // the only auth check, must run for every request regardless of $_POST content (SD-615)
+if ($online_result === 'Session expired' || $db != $sqdb) {
+	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
+	exit;
 }
 
 # if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 0pt 1px;\" align=\"center\" background=\"../img/knap_bg.gif\";";
@@ -162,12 +170,19 @@ if ($_POST){
 	$brugernavn=db_escape_string(trim($_POST['brugernavn']));
 	$passwd=db_escape_string(trim($_POST['passwd']));
 	$passwd2=db_escape_string(trim($_POST['passwd2']));
-	(isset($_POST['posteringer']))?$posteringer=$_POST['posteringer']:$posteringer=0;
-	(isset($_POST['brugerantal']))?$brugerantal=$_POST['brugerantal']:$brugerantal=0;
+	(isset($_POST['posteringer']))?$posteringer=(int)$_POST['posteringer']:$posteringer=0;
+	(isset($_POST['brugerantal']))?$brugerantal=(int)$_POST['brugerantal']:$brugerantal=0;
 	(isset($_POST['std_kto_plan']))?$std_kto_plan=$_POST['std_kto_plan']:$std_kto_plan=NULL;
-
-	$posteringer*=1;
-	$brugerantal*=1;
+	if (is_input_too_long(trim($_POST['regnskab']), 60)) {
+		print "<BODY onLoad=\"javascript:alert('".findtekst('5150|Regnskabsnavnet må højst være 60 tegn', $sprog_id)."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
+	}
+	if (is_input_too_long(trim($_POST['brugernavn']))) {
+		print "<BODY onLoad=\"javascript:alert('".findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id)."')\">";
+		forside($regnskab,$brugernavn);
+		exit;
+	}
 	if ((($revisorregnskab && $passwd) || !$revisorregnskab)  && $passwd!=$passwd2 ) {
 		print "<BODY onLoad=\"javascript:alert('Adgangskoder er ikke ens')\">";
 		forside($regnskab,$brugernavn);
@@ -237,8 +252,8 @@ function forside($regnskab,$brugernavn) {
 	global $sprog_id;
 
 	print "<form name=debitorkort action=opret.php method=post>";
-	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=regnskab value='$regnskab'></td></tr>";
-	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=brugernavn value='$brugernavn'></td></tr>";
+	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=60 name=regnskab value='$regnskab'></td></tr>";
+	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 maxlength=80 name=brugernavn value='$brugernavn'></td></tr>";
 	print "<tr><td>".findtekst('2687|Administrators adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd></td></tr>";
 	print "<tr><td>".findtekst('2688|Gentag adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd2></td></tr>";
 	print "<tr><td>".findtekst('2689|Opret standardkontoplan', $sprog_id)."</td><td><br></td><td><input type=checkbox name=std_kto_plan checked></td></tr>";
@@ -315,6 +330,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // MySQL-specific adjustments
     $id_column = 'id INT AUTO_INCREMENT NOT NULL';
     $boolean_type = 'TINYINT(1) DEFAULT 0';
+    $stripe_active_type = 'TINYINT(1) NOT NULL DEFAULT 1';
     $decimal_type = 'DECIMAL';
     $text_type = 'TEXT';
 	$longlat = "`long` $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -327,6 +343,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // PostgreSQL-specific adjustments
     $id_column = 'id SERIAL NOT NULL';
     $boolean_type = 'BOOLEAN DEFAULT FALSE';
+    $stripe_active_type = 'BOOLEAN NOT NULL DEFAULT true';
     $decimal_type = 'NUMERIC';
     $text_type = 'TEXT';
 	$longlat = "\"long\" $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -351,7 +368,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "pbs_nr text,pbs_date date,mailfakt varchar(2),udskriv_til varchar(10),felt_1 text,felt_2 text,";
 	$qtxt.= "felt_3 text,felt_4 text,felt_5 text,vis_lev_addr varchar(2),kontotype varchar(15),fornavn varchar(60),";
 	$qtxt.= "efternavn varchar(60),lev_firmanavn varchar(90),lev_fornavn varchar(60),lev_efternavn varchar(60),lev_addr1 varchar(60),"; $qtxt.= "lev_addr2 varchar(60),lev_postnr varchar(15),lev_bynavn varchar(60),lev_land varchar(60),lev_kontakt varchar(60),";
-	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
+	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),stripe_fravalg varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
 	$qtxt.= "invoiced date,mysale varchar(2),hidden varchar(2),medlem text,$longlat,PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -398,14 +415,14 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "institution text,betalingsbet text,betalingsdage integer,kontonr varchar(30),cvrnr text,art varchar(2),";
 	$qtxt.= "valuta text,valutakurs $decimal_type(15,3),sprog text,projekt text,ordredate date,levdate date,fakturadate date,";
 	$qtxt.= "notes text,ordrenr integer,sum $decimal_type(15,3),momssats $decimal_type(15,3),status integer,ref text,fakturanr text,";
-	$qtxt.= "modtagelse integer,kred_ord_id integer,lev_adr text,kostpris $decimal_type(15,3),moms $decimal_type(15,3),hvem text,";
+	$qtxt.= "modtagelse integer,kred_ord_id integer,lev_adr text,kostpris $decimal_type(15,3),moms $decimal_type(15,3),hvem text,performed_by text,";
 	$qtxt.= "tidspkt text,betalt varchar(12),nextfakt date,pbs varchar(2),mail varchar(2),mail_cc text,mail_bcc text,";
 	$qtxt.= "mail_subj text,mail_text text,felt_1 text,felt_2 text,felt_3 text,felt_4 text,felt_5 text,"; 
 	$qtxt.= "vis_lev_addr varchar(2),restordre $decimal_type(2,0), betalings_id text,sag_id integer,tilbudnr $decimal_type(15,0),";
 	$qtxt.= "datotid text,nr $decimal_type(15,0),returside text,sagsnr $decimal_type(15,0),dokument text,";
 	$qtxt.= "procenttillag $decimal_type(15,3),mail_bilag varchar(2),omvbet varchar(2),afd integer,lager integer,";
 	$qtxt.= "kontakt_tlf text,copied boolean,phone varchar(50),report_number int default 0,";
-	$qtxt.= "consignmentid varchar(25),shop_status int,shop_id int,scan_id int,";
+	$qtxt.= "consignmentid varchar(25),shop_status varchar(20),shop_id int,scan_id int,";
 	$qtxt.= "due_date date,settletime $decimal_type(15,0) default 0,digital_status varchar(25), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -639,6 +656,31 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "time_to_complete integer, rush $boolean_type, last_undo $boolean_type, sort_timestamp integer, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+	######## Stripe subscriptions (doc/stripe/INTERFACE_CONTRACT.md; indexes live in includes/betweenUpdates.php) ########
+	$qtxt = "CREATE TABLE stripe_catalog ($id_column, varenr text, stripe_price_id varchar(255), ";
+	$qtxt.= "stripe_product_id varchar(255), unit_ore integer, billing_interval varchar(10) NOT NULL DEFAULT 'month', ";
+	$qtxt.= "interval_count integer NOT NULL DEFAULT 1, currency varchar(3) NOT NULL DEFAULT 'DKK', ";
+	$qtxt.= "active $stripe_active_type, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_events ($id_column, event_id varchar(255) NOT NULL, event_type varchar(100), ";
+	$qtxt.= "payload text, status varchar(30) NOT NULL DEFAULT 'received', saldi_order_id integer, ";
+	$qtxt.= "invoice_number varchar(30), error text, received_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "processed_at timestamp, claim_token varchar(64), claimed_at timestamp, attempts integer NOT NULL DEFAULT 0, ";
+	$qtxt.= "event_created bigint, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_customers ($id_column, stripe_customer_id varchar(255) NOT NULL, ";
+	$qtxt.= "stripe_subscription_id varchar(255), konto_id integer, kontonr varchar(30), order_id integer, ";
+	$qtxt.= "status varchar(30) NOT NULL DEFAULT 'active', created_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "updated_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_import_failures ($id_column, event_id varchar(255), stripe_invoice_id varchar(255), ";
+	$qtxt.= "reason varchar(50), http_code integer, message text, payload_json text, ";
+	$qtxt.= "created_at timestamp DEFAULT CURRENT_TIMESTAMP, resolved_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
 	db_modify("CREATE TABLE notifications ($id_column, msg varchar(255), read_status integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE rentalclosed ($id_column, day integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
@@ -667,7 +709,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	$qtxt = "CREATE TABLE pool_files ($id_column, filename varchar(255), subject text, account varchar(50), ";
 	$qtxt.= "amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
-	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), PRIMARY KEY (id))";
+	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), content_sha256 char(64), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE kontakt_emails ($id_column, konto_id integer NOT NULL, email varchar(255) NOT NULL, email_type varchar(50) DEFAULT '', PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);

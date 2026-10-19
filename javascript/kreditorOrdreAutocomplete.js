@@ -4,13 +4,40 @@
 
     const CONFIG = {
         minSearchLength: 1,
+        // SST-814 The customer field (type=kreditor here) searches adresser with
+        // ILIKE '%term%'. A trigram index cannot match fewer than three characters, so a
+        // shorter term is a full table scan no matter how the table is indexed - measured
+        // at 70-176 ms per keystroke on 200k rows, against 1-20 ms from three characters
+        // up. Three is therefore both where the index starts working and where the result
+        // list is short enough to be worth showing.
+        minAccountSearchLength: 3,
         debounceDelay: 200,
         maxResults: 50
     };
 
+    // SST-814 Only the item field used to have a minimum, so the account field searched on
+    // every keystroke - and on an empty field, which asked adresser for the first 50 of
+    // every creditor on the books.
+    function minLengthFor(type) {
+        // customer searches adresser, which accountSearch.php now refuses below three
+        // characters because a trigram index cannot match a shorter term.
+        if (type === 'customer') return CONFIG.minAccountSearchLength;
+        // item had its own one-character minimum before this ticket; it keeps it.
+        if (type === 'item') return CONFIG.minSearchLength;
+        // Everything else - currency, project, employee - queries a small table and listed
+        // its options when the field was focused empty. Review of #691 caught that sending
+        // these through the customer gate silently took that away, which was never the
+        // intent of the ticket: only the adresser lookup was supposed to change.
+        return 0;
+    }
+
     let activeDropdown = null;
     let activeInput = null;
     let debounceTimer = null;
+    // Bumped on every keystroke, including one that the length gate refuses. A response
+    // that comes back carrying an older number is for a value the field no longer holds,
+    // so it is dropped rather than painted over the current state.
+    let searchSeq = 0;
     let dropdownContainer = null;
     let selectionMade = false;
 
@@ -97,9 +124,9 @@
 
         input.addEventListener('focus', function () {
             if (selectionMade) return;
-            if (this.value.length >= CONFIG.minSearchLength || type !== 'item') {
-                handleInput(this);
-            }
+            // handleInput() is the single length gate now, so focusing an empty field no
+            // longer starts a search of its own.
+            handleInput(this);
         });
 
         input.addEventListener('keydown', function (e) {
@@ -140,9 +167,10 @@
 
     function handleInput(input) {
         clearTimeout(debounceTimer);
+        searchSeq++;
         const value = input.value.trim();
 
-        if (input.autocompleteType === 'item' && value.length < CONFIG.minSearchLength) {
+        if (value.length < minLengthFor(input.autocompleteType)) {
             closeDropdown();
             return;
         }
@@ -159,12 +187,18 @@
         const kassePath = '../finans/kassekladde_includes/';
 
         switch (type) {
-            case 'item':
+            case 'item': {
+                const kontoId = (document.querySelector('input[name="konto_id"]') || {}).value || '0';
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value);
+                if (kontoId && kontoId !== '0') url += '&kreditor_order=1&konto_id=' + encodeURIComponent(kontoId);
                 break;
-            case 'lev_item':
+            }
+            case 'lev_item': {
+                const kontoId = (document.querySelector('input[name="konto_id"]') || {}).value || '0';
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value) + '&search_field=lev_varenr';
+                if (kontoId && kontoId !== '0') url += '&kreditor_order=1&konto_id=' + encodeURIComponent(kontoId);
                 break;
+            }
             case 'customer':
                 url = kassePath + 'accountSearch.php?type=kreditor&search=' + encodeURIComponent(value);
                 break;
@@ -179,12 +213,15 @@
                 break;
         }
 
+        const seq = searchSeq;
         fetch(url)
             .then(response => response.json())
             .then(data => {
+                if (seq !== searchSeq) return;
                 renderDropdown(input, data.results);
             })
             .catch(error => {
+                if (seq !== searchSeq) return;
                 console.error('Search error:', error);
                 closeDropdown();
             });
@@ -212,6 +249,8 @@
             <div class="ordre-autocomplete-results">
         `;
 
+        const hasSupplier = type === 'item' && results && results.some(r => r.lev_id > 0);
+
         if (!results || results.length === 0) {
             html += '<div class="ordre-autocomplete-no-results">Ingen resultater fundet</div>';
         } else {
@@ -220,6 +259,7 @@
             if (type === 'item') {
                 html += '<th style="width: 100px;">Varenr.</th>';
                 html += '<th>Beskrivelse</th>';
+                if (hasSupplier) html += '<th style="width: 140px;">Leverandør</th>';
                 html += '<th style="width: 80px; text-align: right;">Kostpris</th>';
             } else if (type === 'lev_item') {
                 html += '<th style="width: 100px;">Lev. varenr</th>';
@@ -244,6 +284,10 @@
                 if (type === 'item') {
                     html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
                     html += `<td>${escapeHtml(item.beskrivelse)}</td>`;
+                    if (hasSupplier) {
+                        const levLabel = item.lev_id > 0 ? escapeHtml((item.lev_kontonr ? item.lev_kontonr + ':' : '') + item.lev_firmanavn) : '';
+                        html += `<td class="code-cell">${levLabel}</td>`;
+                    }
                     html += `<td style="text-align: right;">${item.kostpris.toFixed(2)}</td>`;
                 } else if (type === 'lev_item') {
                     html += `<td class="code-cell">${escapeHtml(item.lev_varenr)}</td>`;
@@ -330,6 +374,9 @@
 
     function handleSelection(input, selected) {
         selectionMade = true;
+        // Supersede any request already in flight: the dropdown is closing, and a
+        // response that lands afterwards must not reopen it.
+        searchSeq++;
         const type = input.autocompleteType;
         const value = selected.dataset.value;
         const id = selected.dataset.id;

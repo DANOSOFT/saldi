@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026-10-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,16 @@
 // 20251021 LOE Added pagination and static header and footer
 // 20260126 PHR fixed $exitDraft
 // 20260706 MJ Optimized cash journal list entry counts for large databases.
+// 20260904 Sawaneh WP-1.4: pass GET returside (sanitised) to topLineFinans; exitDraft cast to int
+// 20260908 SZ SST-755: exitDraft's release now also requires hvem to still match the
+//                  current user, so it can't clear a lock a different user has since taken.
+// 20260910 SZ SST-755 (CodeRabbit): removed the exitDraft release entirely - it still let a
+//                  stale tab clobber a lock a newer tab had since acquired (no tidspkt check),
+//                  and every real caller now goes through includes/luk.php instead (confirmed
+//                  no remaining ?exitDraft= link generator anywhere in the codebase).
+// 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
+// 20261012 CL/SZ SD-730 Deleting an empty journal also deletes the journal's own documents (journalDocumentsDelete()); if a
+//                 document's file can't be removed, the journal and that document's row stay (CodeRabbit).
 
 @session_start();
 $s_id=session_id();
@@ -65,9 +75,14 @@ if (isset($_GET['delete_kladde'])) {
                 $entry_count = intval($count_row['entry_count']);
                 
                 if ($entry_count == 0) {
-                    db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
-                    header("Location: kladdeliste.php?reset_grid=kladdelst");
-                    exit;
+                    // SD-730: the journal's own documents go with it; if a file can't be removed, the journal stays
+                    require_once __DIR__ . '/kassekladde_includes/journalDocumentsFunc.php';
+                    if (journalDocumentsDelete($db, $kladde_id)) {
+                        db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
+                        header("Location: kladdeliste.php?reset_grid=kladdelst");
+                        exit;
+                    }
+                    $delete_error = "documents_not_deleted";
                 } else {
                     $delete_error = "not_empty:$entry_count";
                 }
@@ -138,6 +153,14 @@ if (isset($_POST['delete_kladde'])) {
                     $entry_count = intval($count_row['entry_count']);
                     
                     if ($entry_count == 0) {
+                        // SD-730: the journal's own documents go with it; if a file can't be removed, the journal stays
+                        require_once __DIR__ . '/kassekladde_includes/journalDocumentsFunc.php';
+                        if (!journalDocumentsDelete($db, $kladde_id)) {
+                            ob_end_clean();
+                            header('Content-Type: application/json');
+                            echo json_encode(['status' => 'error', 'message' => findtekst('5437|Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet', $sprog_id ?? 1)]);
+                            exit;
+                        }
                         db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
                         ob_end_clean();
                         header('Content-Type: application/json');
@@ -199,18 +222,16 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></scr
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
-$exitDraft = isset($_GET['exitDraft']) ? $_GET['exitDraft'] : null;
-if ($exitDraft) {
-	$qtxt = "update kladdeliste set hvem = '', tidspkt = NULL where id = '$exitDraft'";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
 if (strpos(findtekst('639|Kladdeliste', $sprog_id),'undtrykke')) {
 	$qtxt = "update tekster set tekst = '' where tekst_id >= '600'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 
 $valg = "Kladdeliste";
+// 20260904 Sawaneh WP-1.4: hand the incoming returside to the topline — topLineFinans
+// reads $returside, which was never populated here, so the menu's popup Luk
+// (returside=../includes/luk.php) never reached nav_back_url().
+$returside = isset($_GET['returside']) ? nav_sanitize_returside($_GET['returside']) : null;
 include("topLineFinans.php");
 include("../includes/grid.php");
 
@@ -264,12 +285,12 @@ $columns[] = array(
         
         if ($locked) {
             global $sprog_id;
-            $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
+            $url = "kassekladde.php?tjek=$id&kladde_id=$id";
             $bogfort = isset($row['bogfort']) ? htmlspecialchars($row['bogfort']) : '';
             return "<td align='{$column['align']}' data-bogfort='$bogfort' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url' title='" . findtekst('1607|Kladde er låst af', $sprog_id) . " {$row['hvem']}' style='color:#FF0000'>$value</a></td>";
         }
         
-        $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
+        $url = "kassekladde.php?tjek=$id&kladde_id=$id";
         $bogfort = isset($row['bogfort']) ? htmlspecialchars($row['bogfort']) : '';
         return "<td align='{$column['align']}' data-bogfort='$bogfort' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },

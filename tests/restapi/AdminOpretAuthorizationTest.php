@@ -1,71 +1,78 @@
 <?php
 // tests/restapi/AdminOpretAuthorizationTest.php
 //
-// SECURITY: does creating an accounting entity require being logged in?
-//
-// admin/opret.php creates a whole tenant - a new PostgreSQL database with the
-// full ~116-table schema, seeded from importfiler/, plus an administrator
-// account that can log into it. It is reached from the admin panel, so it
-// ought to be behind the same session check as everything else there.
-//
-// It is not. The check is inside the branch taken when the form fields are
-// MISSING (admin/opret.php:118):
-//
-//     if (!isset($_POST['regnskab']) || !$_POST['brugernavn']
-//         || !$_POST['passwd'] || !$_POST['passwd2']) {
-//         include("../includes/online.php");   // <- the only auth check
-//         if ($db != $sqdb) { ...refuse... }
-//     }
-//
-// Supply all four and includes/online.php is never loaded, so no session is
-// ever consulted and the creation below it runs for anyone.
-//
-// This test proves it against the local docker stack and cleans up after
-// itself. It is written as an assertion about the CURRENT behavior; when the
-// authorization check is moved to the top of the file, it will fail, and it
-// should then be rewritten to assert the refusal.
-//
-// See doc/TESTING_FINDINGS.md P1-4.
+// Integration test for admin/opret.php (SD-615): creating an accounting
+// entity (a regnskab row plus a full tenant database) must require an
+// authenticated super-admin session ($db == $sqdb), regardless of which
+// form fields are present in the request. Asserts the refusal: no
+// regnskab row and no database for an anonymous request.
 //
 // History:
-// 20260725 CL/LH Created for the end-to-end coverage push.
+// 20260803 CL/SZ SD-615: created.
+// 20260804 CL/SZ Assert the logout refusal body (not just status != 0) so the
+//                test fails on a 500 instead of passing on any failure.
 
-require_once __DIR__ . '/support/RestApiTestCase.php';
+use PHPUnit\Framework\TestCase;
 
-final class AdminOpretAuthorizationTest extends RestApiTestCase
+require_once __DIR__ . '/support/RestApiEnv.php';
+
+final class AdminOpretAuthorizationTest extends TestCase
 {
-    private const ENTITY = 'chartest_authz_probe';
-
-    protected function tearDown(): void
+    public static function setUpBeforeClass(): void
     {
-        // Always clean up, whether or not the assertions passed: this test
-        // creates a real database.
-        $master = RestApiEnv::connect(RestApiEnv::masterDb());
+        $reason = RestApiEnv::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
+        }
+    }
 
-        $rows = RestApiEnv::rows(
-            $master,
-            'SELECT db FROM regnskab WHERE regnskab = $1',
-            [self::ENTITY]
+    public function test_anonymous_post_with_all_fields_is_refused_and_creates_nothing(): void
+    {
+        $regnskab = 'sd615probe' . bin2hex(random_bytes(4));
+
+        // No cookie jar, no session, no credentials — mirrors the ticket's
+        // verification request exactly.
+        $res = RestApiEnv::httpForm('POST', '/admin/opret.php', [
+            'regnskab' => $regnskab,
+            'brugernavn' => 'probeadmin',
+            'passwd' => 'probe-password-2026',
+            'passwd2' => 'probe-password-2026',
+        ]);
+
+        $this->assertNotSame(0, $res['status'], 'admin/opret.php was not reachable at all');
+        $this->assertStringContainsString(
+            'logud.php',
+            $res['body'],
+            'an anonymous request must reach the logout refusal path'
         );
-        pg_query_params($master, 'DELETE FROM regnskab WHERE regnskab = $1', [self::ENTITY]);
 
+        $master = RestApiEnv::connect(RestApiEnv::masterDb());
+        $rows = RestApiEnv::rows($master, 'SELECT id, db FROM regnskab WHERE regnskab = $1', [$regnskab]);
+
+        // Clean up FIRST, before any assertion — a failing assertion throws,
+        // and we must not leave a stray tenant database behind either way.
+        $createdDb = null;
         foreach ($rows as $row) {
-            $db = (string)$row['db'];
-            if ($db === '' || !preg_match('/^saldi_\d+$/', $db)) {
-                continue; // never touch a name that is not a generated tenant
+            $dbName = $row['db'];
+            if ($dbName !== '' && preg_match('/^[a-z0-9_]+$/', $dbName)) {
+                $exists = RestApiEnv::rows($master, 'SELECT 1 FROM pg_database WHERE datname = $1', [$dbName]);
+                if ($exists !== []) {
+                    $createdDb = $dbName;
+                    pg_query_params(
+                        $master,
+                        'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
+                        [$dbName]
+                    );
+                    pg_query($master, "DROP DATABASE IF EXISTS $dbName");
+                }
             }
-            pg_query_params(
-                $master,
-                'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
-                [$db]
-            );
-            pg_query($master, "DROP DATABASE IF EXISTS $db");
+            pg_query_params($master, 'DELETE FROM regnskab WHERE id = $1', [$row['id']]);
         }
         pg_close($master);
 
-        parent::tearDown();
+        $this->assertSame([], $rows, 'an anonymous request must not create a regnskab row');
+        $this->assertNull($createdDb, 'an anonymous request must not create a tenant database');
     }
-
     /**
      * DEFECT PINNED: an anonymous POST creates a working accounting entity.
      *

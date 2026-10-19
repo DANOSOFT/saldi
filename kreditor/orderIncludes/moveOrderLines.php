@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/moveOrderLines.php --- patch 5.0.0 --- 2026-07-08 ---
+// --- kreditor/orderIncludes/moveOrderLines.php --- patch 5.0.0 --- 2026-08-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,27 @@
 // 20260226 PHR Changed posnr=posnr+1000000 to posnr=posnr+1000 as posnr is smallint
 // 20260602 PHR Definet $mQt as array if empty.
 // 20260708 MJ Guard all POST arrays; fetch antal/leveret from DB to fix index mismatch causing blank page; guard setval for MySQL.
+// 20260807 CL/NTR Use (float) instead of usdecimal() on DB-fetched antal/leveret; usdecimal() strips '.' as a thousands separator (Danish input format) which turned '2.000' into 2000, multiplying split quantities by 1000.
+// 20260828 CL SST-652: parse mQt/mSQt once (comma as decimal separator) instead of using the raw
+//             POST strings in arithmetic - '1,5' in arithmetic is a PHP8 TypeError = blank page;
+//             guard/int-cast $linje_id (count(null) is likewise fatal); cap posnr bump with LEAST()
+//             so repeated splits cannot overflow the smallint posnr column mid-transaction.
+// 20260905 SZ MB-38: splitting to "Opret ny ordre" cloned the source row into temp_table and only
+//             rewrote id before the INSERT, so ordrenr (and every other header field) came along
+//             verbatim - two orders ended up sharing the same number, breaking ordrenr-based
+//             lookups/matching. Now also assign the temp row the next free kreditor ordrenr
+//             (scoped to art IN ('KO','KK'), same scope kreditor/ublimport.php already uses).
+// 20260905 SZ MB-38/CodeRabbit: the MAX(ordrenr)+1 read is a plain snapshot, so two concurrent
+//             splits could still compute the same "next" number. Serialize new-order creation with
+//             an advisory lock (pg_advisory_xact_lock, auto-released on commit; GET_LOCK/RELEASE_LOCK
+//             on MySQL, released explicitly after commit since MySQL locks aren't transaction-scoped).
+// 20260905 SZ MB-38/CodeRabbit: GET_LOCK() returns 0 on timeout / NULL on error, which the earlier
+//             fix ignored - check for a return of 1 and abort the split with an alert instead of
+//             risking a duplicate ordrenr if the lock wasn't actually acquired.
+// 20260910 Sawaneh JOB-128: reverted the MB-38 ordrenr reassignment (and its advisory lock). MEDSHOP
+//                 splits supplier orders so the back-ordered lines can be received later on the
+//                 ORIGINAL order number; a split-off order must therefore keep the source ordrenr,
+//                 exactly as the restordre flow in kreditor/ordre.php already does at partial delivery.
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
@@ -40,12 +61,19 @@ if (!$mQt)    $mQt    = array();
 if (!$mSQt)   $mSQt   = array();
 if (!$maxQt)  $maxQt  = array();
 if (!$maxSQt) $maxSQt = array();
+if (!isset($linje_id) || !is_array($linje_id)) $linje_id = array();
+if (!isset($vare_id)  || !is_array($vare_id))  $vare_id  = array();
 for ($x = 1; $x <= count($mQt); $x++) {
-	if (usdecimal($mQt[$x], 3)  > $maxQt[$x]) {
+	$mQt[$x]    = (float)str_replace(',', '.', (string)$mQt[$x]);
+	$mSQt[$x]   = isset($mSQt[$x])   ? (float)str_replace(',', '.', (string)$mSQt[$x]) : 0;
+	$maxQt[$x]  = isset($maxQt[$x])  ? (float)str_replace(',', '.', (string)$maxQt[$x])  : 0;
+	$maxSQt[$x] = isset($maxSQt[$x]) ? (float)str_replace(',', '.', (string)$maxSQt[$x]) : 0;
+	$linje_id[$x] = isset($linje_id[$x]) ? (int)$linje_id[$x] : 0;
+	if ($mQt[$x] > $maxQt[$x]) {
 		$mQt[$x]  = $maxQt[$x];
 		$submit = 'split';
 	}
-	if ($mSQt[$x] !=	 0 && usdecimal($mSQt[$x], 3) > $maxSQt[$x]) {
+	if ($mSQt[$x] != 0 && $mSQt[$x] > $maxSQt[$x]) {
 		$mSQt[$x] = $maxSQt[$x];
 		$submit = 'split';
 	}
@@ -61,7 +89,7 @@ else {
 		$newId = $r['new_id'] + 1;
 		$qtxt = "CREATE TEMPORARY TABLE temp_table AS SELECT * FROM ordrer WHERE id='$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "UPDATE temp_table SET id='$newId' WHERE id='$id'";
+		$qtxt = "UPDATE temp_table SET id='$newId' WHERE id='$id'";	# JOB-128 - the split-off order keeps the source ordrenr on purpose (same as restordre in ordre.php)
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "INSERT INTO ordrer SELECT * FROM temp_table";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -75,10 +103,10 @@ else {
 	# Loop over each orderline
 	for ($x = 1; $x <= count($linje_id); $x++) {
 		$r = db_fetch_array(db_select("SELECT antal, leveret FROM ordrelinjer WHERE id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__));
-		$antal[$x]   = $r ? usdecimal($r['antal'],   2) : 0;
-		$leveret[$x] = $r ? usdecimal($r['leveret'], 2) : 0;
+		$antal[$x]   = $r ? (float)$r['antal']   : 0;
+		$leveret[$x] = $r ? (float)$r['leveret'] : 0;
 		if ($mQt[$x] && $antal[$x] == $mQt[$x]) {
-			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=posnr+1000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=LEAST(posnr+1000,32000) WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "UPDATE batch_kob SET ordre_id = '$newId' WHERE linje_id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -98,7 +126,7 @@ else {
 			}
 			if (!$antal[$x]) $antal[$x] = 0;
 			if ($mQt[$x]) $antal[$x] = $antal[$x] - $mQt[$x];
-			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=LEAST(posnr+1000,32000) WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "UPDATE ordrelinjer SET antal = '$mQt[$x]', leveret = '0', ordre_id = '$newId' WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -106,7 +134,7 @@ else {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		if ($mSQt[$x] && $antal[$x] == $mSQt[$x]) {
-			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=posnr+1000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=LEAST(posnr+1000,32000) WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "UPDATE batch_kob SET ordre_id = '$newId' WHERE linje_id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -126,7 +154,7 @@ else {
 			}
 			$antal[$x] = $antal[$x] - $mSQt[$x];
 			$leveret[$x] = $leveret[$x] - $mSQt[$x];
-			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], leveret = $leveret[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], leveret = $leveret[$x], posnr=LEAST(posnr+1000,32000) WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "UPDATE ordrelinjer SET antal = '$mSQt[$x]', leveret = '$mSQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);

@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Complete redesign with improved UX/UI and grouped permissions
+// 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
 
 @session_start();
 $s_id=session_id();
@@ -108,6 +109,11 @@ if ($addUser || $updateUser) {
     
     $brugernavn = trim($brugernavn);
     $alerttext = null;
+
+    if (is_input_too_long($brugernavn)) {
+        $alerttext = findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id);
+        $ret_id = $id;
+    }
     
     if ($kode && $kode != $kode2) {
         $alerttext = findtekst('2476|Adgangskoder er ikke ens', $sprog_id);
@@ -819,7 +825,7 @@ if ($ret_id || $add):
                 <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label"><?php echo findtekst('225|Brugernavn', $sprog_id); ?> *</label>
-                        <input type="text" name="<?php echo $tmp; ?>" class="form-input" 
+                        <input type="text" name="<?php echo $tmp; ?>" class="form-input" maxlength="80"
                                value="<?php echo $isEdit ? htmlspecialchars($userData['brugernavn']) : ''; ?>" 
                                placeholder="<?php echo findtekst('2480|Indtast brugernavn', $sprog_id); ?>" required>
                     </div>

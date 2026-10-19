@@ -30,7 +30,24 @@
 // LN 20190310 LN Set the function posbogfor here
 // LN 20190310 LN Include the file cashBoxAccounting/basicData.php
 // LN 20190310 LN Include the file cashBoxAccounting/valuta.php
+// 20260914 CL/SZ SST-744: posbogfor: show bogfor_nu's actual return value on failure instead of a
+//                 hardcoded generic message that referenced undefined variables from another function's
+//                 scope and hid the real (e.g. VAT/account setup) error from the user
+// 20260914 CL/SZ SST-744: posbogfor: CodeRabbit review - embed the alert text via json_encode()
+//                 instead of a manual string-replace, matching index/login.php's existing pattern
+//                 for the same problem.
 
+/**
+ * Legacy duplicate of debitor/pos_ordre.php's posbogfor() - closes out a POS cash-drawer count for
+ * $kasse via bogfor_nu(). Currently unreachable in this app: this file is only included by
+ * pos_ordre_includes/includedFiles.php, and nothing includes includedFiles.php (confirmed during
+ * SST-744). Kept in sync rather than removed since deleting the orphaned include chain is out of
+ * this ticket's scope.
+ *
+ * @param int $kasse Cash register (kasse) number being closed.
+ * @param string $regnstart Start-of-fiscal-year date, used to scope which orders are pending.
+ * @return void
+ */
 function posbogfor ($kasse,$regnstart) {
 	global $afd;
 	global $brugernavn;
@@ -67,13 +84,17 @@ function posbogfor ($kasse,$regnstart) {
 					if ($svar=='OK') {
 						echo '';
 					} else {
+						# 20260914 CL/SZ SST-744: show bogfor_nu's actual return instead of always the
+						# generic uoverensstemmelse text, which masked actionable errors like a missing
+						# VAT code on a posting account (also referenced undefined $ordre_id/$ordrenr/
+						# $d_kontrol/$k_kontrol - those are locals inside bogfor_nu, not this function).
+						# 20260914 CL/SZ CodeRabbit: use json_encode (with HEX flags) instead of a manual
+						# str_replace to embed $svar in the inline script - matches the existing pattern in
+						# index/login.php and safely handles quotes/backslashes/markup in one call.
 						echo "<br>Svar $svar<br>\n";
-						print "Der er konstateret en uoverensstemmelse i posteringssummen, ID $ordre_id ordre $ordrenr, d=$d_kontrol, k=$k_kontrol kontakt saldi.dk p&aring; telefon 4690 2208";
-						print "<BODY onLoad=\"javascript:alert('Der er konstateret en uoverenstemmelse i posteringssummen. \\nKontakt saldi.dk på telefon 4690 2208 eller 2066 9860')\">\n";
+						print "<script>alert(" . json_encode($svar, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
 						exit;
-						print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
-						exit;
-					} 
+					}
 				}
 			} # 20160612 Flyttet fra under nedenstående blok
 		} # 20160612 Flyttet fra under nedenstående blok

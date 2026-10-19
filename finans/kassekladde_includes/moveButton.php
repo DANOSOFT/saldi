@@ -106,7 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = (int)$id;
             db_modify("UPDATE kassekladde SET pos = " . ($pos + 1) . " WHERE id = $id AND kladde_id = $kladde_id", __FILE__ . " linje " . __LINE__);
         }
-        echo json_encode(['success' => true]);
+        while (ob_get_level()) { ob_end_clean(); }
+        http_response_code(204);
         exit;
     }
 }

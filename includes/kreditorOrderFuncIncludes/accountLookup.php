@@ -2,6 +2,9 @@
 // ../includes/kreditorOrderFuncIncludes/accountLookup.php
 // 20260304 LOE Converted to use grid framework (same as debitor/order account lookup)
 // 20260506 sawaneh Added create-new-supplier overlay when looked-up kontonr/firmanavn has no match
+// 20260902 CL/LH  Carry already-typed order/delivery dates along so the new order header
+//                 keeps them (kreditor/ordre.php reads ordredato/levdato from GET before insertAccount()).
+
 function kontoopslag($sort, $fokus, $id, $find){
 
 	global $bgcolor, $bgcolor5;
@@ -278,7 +281,14 @@ TOGGLESCRIPT;
 	echo <<<HTML
 	<script>
 	function selectAccount{$id}(fokus, konto_id) {
-		window.location.href = "ordre.php?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
+		// 20260902
+		var url = "ordre.php?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
+		var dateFields = ["ordredato", "levdato"];
+		for (var i = 0; i < dateFields.length; i++) {
+			var el = document.getElementsByName(dateFields[i]);
+			if (el.length && el[0].value) url += "&" + dateFields[i] + "=" + encodeURIComponent(el[0].value);
+		}
+		window.location.href = url;
 	}
 	</script>
 HTML;
@@ -343,7 +353,7 @@ HTML;
 	$lbl_create = ($sprog_id == 2) ? 'Create new supplier' : 'Opret ny leverandør';
 	$lbl_name = findtekst('360|Navn', $sprog_id);
 	$lbl_address = findtekst('648|Adresse', $sprog_id);
-	$lbl_zipcode = findtekst('549|Postnr', $sprog_id);
+	$lbl_zipcode = findtekst('144|Postnr', $sprog_id);
 	$lbl_city = findtekst('1055|By', $sprog_id);
 	$lbl_telephone = findtekst('37|Telefon', $sprog_id);
 	$lbl_contact = findtekst('632|Kontaktperson', $sprog_id);
@@ -388,10 +398,10 @@ HTML;
   <form name="create_creditor" action="ordre.php" method="post" onsubmit="return validateCreateCreditor()">
     <input type="hidden" name="id" value="$id">
     <table>
-      <tr><td>Kontonr</td><td><input type="text" name="kontonr" value="$kontonr_safe"></td></tr>
-      <tr><td>$lbl_name <span style="color:red">*</span></td><td><input type="text" name="firmanavn" id="create_firmanavn" value="$firmanavn_safe"></td></tr>
+      <tr><td>Kontonr<span style="color:red">*</span></td><td><input type="text" name="kontonr" value="$kontonr_safe"></td></tr>
+      <tr><td>$lbl_name<span style="color:red">*</span></td><td><input type="text" name="firmanavn" id="create_firmanavn" value="$firmanavn_safe"></td></tr>
       <tr><td>$lbl_address</td><td><input type="text" name="addr1" value=""></td></tr>
-      <tr><td>$lbl_address</td><td><input type="text" name="addr2" value=""></td></tr>
+      <tr><td>$lbl_address 2</td><td><input type="text" name="addr2" value=""></td></tr>
       <tr><td>$lbl_zipcode</td><td><input type="text" name="postnr" value=""></td></tr>
       <tr><td>$lbl_city</td><td><input type="text" name="bynavn" value=""></td></tr>
       <tr><td>$lbl_telephone</td><td><input type="text" name="tlf" value=""></td></tr>

@@ -14,8 +14,9 @@ include_once __DIR__ . '/../../../../includes/connect.php';
 
 class VatCodesEndpoint extends BaseEndpoint
 {
-    private $db;
-    
+    // 20260904 CL/NTR: dropped a `private $db` redeclaration - narrowing BaseEndpoint's protected $db
+    // was a PHP fatal error, so every request to this endpoint died as an HTML error page.
+
     public function __construct()
     {
         parent::__construct();

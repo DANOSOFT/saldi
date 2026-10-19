@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/fefo.php --- patch 4.2.0 --- 2026-04-16 ---
+// --- includes/stdFunc/fefo.php --- ver 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // FEFO (First Expired, First Out) helper functions for expiry date handling.
+// 20260923 CL/SZ Validate $vare_id as an integer in item_has_due_date() before interpolating it
+//                 into the query (CodeRabbit, PR #608).
+// 20260930 LOE SST-836 Added batch_expiry_in_use() for the expiry report's menu entry.
 
 if (!function_exists('fefo_order_clause')) {
 	/**
@@ -65,17 +68,20 @@ if (!function_exists('fefo_batch_query')) {
 
 if (!function_exists('item_has_due_date')) {
 	/**
-	 * Checks whether an item's product group has batch/expiry tracking enabled
-	 * (grupper.box9 = 'on' for the item's VG group in the current fiscal year).
+	 * Checks whether an item has expiry date tracking enabled
+	 * (varer.has_due_date, set via the "Varen har udl&oslash;bsdato" checkbox on the item card).
 	 *
 	 * @param int $vare_id  Item ID
-	 * @return bool  True if the group has batch tracking enabled
+	 * @return bool  True if the item has due_date tracking enabled
 	 */
 	function item_has_due_date($vare_id) {
-		global $regnaar;
-		$qtxt = "SELECT g.box9 FROM varer v JOIN grupper g ON g.kodenr = v.gruppe AND g.art = 'VG' AND g.fiscal_year = '$regnaar' WHERE v.id = '$vare_id'";
+		if (!is_scalar($vare_id) || filter_var($vare_id, FILTER_VALIDATE_INT) === false) {
+			return false;
+		}
+		$vare_id = (int) $vare_id;
+		$qtxt = "SELECT has_due_date FROM varer WHERE id = '$vare_id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		return ($r && trim($r['box9']) === 'on');
+		return ($r && ($r['has_due_date'] === 't' || $r['has_due_date'] === true || $r['has_due_date'] == 1));
 	}
 }
 
@@ -139,6 +145,38 @@ if (!function_exists('days_until_expiry')) {
 		$expiry = new DateTime($due_date);
 		$diff = $today->diff($expiry);
 		return $diff->invert ? -$diff->days : $diff->days;
+	}
+}
+
+if (!function_exists('batch_expiry_in_use')) {
+	/**
+	 * Whether this account uses batch and expiry date handling at all, so the expiry report is only
+	 * offered where it can show anything: the company setting is on, or at least one product group of
+	 * the current fiscal year has batch control. Cached for the request - every menu surface calls it.
+	 *
+	 * @return bool True when batch and expiry date handling is in use in this account.
+	 */
+	function batch_expiry_in_use() {
+		static $in_use = NULL;
+		if ($in_use !== NULL) {
+			return $in_use;
+		}
+		if (get_settings_value('batchExpiryEnabled', 'items', 'off') === 'on') {
+			return $in_use = true;
+		}
+		/**
+		 * Fiscal year in use, set by includes/online.php through the entry page before this runs.
+		 * @var string $regnaar
+		 */
+		$regnaar = 0;
+		if (isset($GLOBALS['regnaar'])) {
+			$regnaar = (int)$GLOBALS['regnaar'];
+		}
+		if ($regnaar <= 0) {
+			return $in_use = false;
+		}
+		$qtxt = "SELECT 1 FROM grupper WHERE art = 'VG' AND box9 = 'on' AND fiscal_year = '$regnaar' LIMIT 1";
+		return $in_use = (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	}
 }
 ?>

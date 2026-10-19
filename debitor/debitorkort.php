@@ -56,6 +56,10 @@
 //                widened the clickable area to the whole title (not just the small count text),
 //                and added a hover highlight + tooltip so it reads as a toggle at a glance
 // 20260720 SZ The page's global "a:link{text-decoration:none}" rule was making the toggle look
+// 20260919 CDX/MJ Delivery-address save is one transaction: the upsert loop, the delete of rows
+//                  removed in the UI and the primary sync to adresser.lev_* commit together, so a
+//                  failure part-way can no longer leave the account with no primary address or
+//                  with lev_* fields pointing at a row that was just deleted.
 //                like plain black text, not a link, so the chevron alone wasn't enough of a
 //                hint; styled the whole toggle bar as a colored, underlined link and added an
 //                explicit "Show/Hide" text label next to the chevron on all three sections
@@ -99,6 +103,16 @@
 //                expanded one just before navigating away; toggling still works normally
 //                within the same page view, it just no longer survives a reload
 // 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
+// 20260820 Sawaneh Save no longer rewrites kontakt_emails/adresser.email when the POST lacks the
+//                kontakt_email fields, so partial or stale submits cannot wipe stored email addresses
+// 20260903 LOE SD-525: the card's mobile field now has its own textId (5230) so it reads
+//                "Mobilnummer" without changing textId 378 used by the other cards.
+// 20260905 SZ MB-32: blank Customer no. popped a false "must be integers" alert under PHP 8 - (float)''
+//             compared to '' is now a string comparison ("0" != ""), true, where PHP 7 compared both as
+//             0. Skip the check when the field is blank, matching debitor/debkort_save.php's SD-513 fix
+// 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
+// 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
+// 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
 @session_start();
 $s_id = session_id();
 
@@ -158,11 +172,10 @@ $queryString = $parts['query'] ?? '';
 
 ######################
 
-$backUrl = nav_back_url(isset($_GET['returside']) ? $_GET['returside'] : null);
+$returside = nav_sanitize_returside($_GET['returside'] ?? null);
+$backUrl = nav_back_url($returside);
 
-if ($_GET['returside']) {
-	
-	$returside = $_GET['returside'];
+if ($returside) {
 	$ordre_id = $_GET['ordre_id'];
 	$fokus = $_GET['fokus'];
 	// Only append ordre_id if it's not already in the returside URL
@@ -274,7 +287,11 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$vis_lev_addr = db_escape_string(if_isset($_POST['vis_lev_addr'], NULL));
 		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
+		$auto_lookup_cvr = db_escape_string(if_isset($_POST['auto_lookup_cvr'], NULL));
+		update_settings_value("auto_lookup_cvr", "ordrer", $auto_lookup_cvr, "If CVR-nr. should be looked up automatically when 8 digits are entered", $bruger_id);
+
 		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
+		$stripe_fravalg = db_escape_string(if_isset($_POST['stripe_fravalg'], NULL));
 		$enduser_type = db_escape_string(if_isset($_POST['enduser_type'], ''));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
@@ -489,7 +506,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$tmp2 = $tmp2 . $y;
 		}
 		$tmp2 = (float)$tmp2;
-		if ($tmp2 != $ny_kontonr) {
+		if ($ny_kontonr !== '' && $tmp2 != $ny_kontonr) {	# MB-32 - an empty field is not an error, the number is assigned automatically further down (same fix as debitor/debkort_save.php, SD-513)
 			$alerttekst = findtekst('345|Kontonummer må kun bestå af heltal uden mellemrum', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 345-->";
 		}
@@ -572,14 +589,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$qtxt .= "art,gruppe,kontoansvarlig,oprettet,bank_reg,bank_konto,swift,pbs_nr,pbs,kontotype,";
 			$qtxt .= "fornavn,efternavn,lev_firmanavn,lev_fornavn,lev_efternavn,lev_addr1,lev_addr2,lev_postnr,";
 			$qtxt .= "lev_bynavn,lev_land,lev_kontakt,lev_tlf,lev_email,felt_1,felt_2,felt_3,felt_4,felt_5,";
-			$qtxt .= "vis_lev_addr,lukket,kategori,rabatgruppe,status,productlimit)";
+			$qtxt .= "vis_lev_addr,lukket,stripe_fravalg,kategori,rabatgruppe,status,productlimit)";
 			$qtxt .= " values ";
 			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email',";
 			$qtxt .= "'$mailfakt','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$ean','$institution','$notes','D',";
 			$qtxt .= "'$gruppe','$kontoansvarlig','$oprettet','$bank_reg','$bank_konto','$swift','$pbs_nr','$pbs','$kontotype',";
 			$qtxt .= "'$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr',";
 			$qtxt .= "'$lev_bynavn','$lev_land','$lev_kontakt','$lev_tlf','$lev_email','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5',";
-			$qtxt .= "'$vis_lev_addr','$lukket','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
+			$qtxt .= "'$vis_lev_addr','$lukket','$stripe_fravalg','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array($q);
@@ -697,7 +714,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			if (!$gl_kontotype || ($kontotype == $gl_kontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
 				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
-				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
+				$qtxt .= "mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
 				$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
 				$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
 				$qtxt .= "kontoansvarlig='$kontoansvarlig',bank_reg='$bank_reg',bank_konto='$bank_konto',swift='$swift',";
@@ -706,15 +723,18 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$qtxt .= "lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
 				$qtxt .= "lev_land='$lev_land',lev_kontakt='$lev_kontakt',lev_tlf='$lev_tlf',lev_email='$lev_email',";
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
-				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
+				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',stripe_fravalg='$stripe_fravalg',kategori='$katString',";
 				$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
 				if ($packagingModuleEnabled) $qtxt .= ", enduser_type='$enduser_type' ";
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-				// Process primary email (index 1) from form fields
+				// Only rewrite kontakt_emails and adresser.email when the form actually posted
+				// the email fields; a POST without them (stale tab, partial form) must leave
+				// the stored addresses untouched.
 				if (isset($_POST['kontakt_email_val'][1])) {
+					// Process primary email (index 1) from form fields
 					$ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
 					$ke_val = db_escape_string(trim($_POST['kontakt_email_val'][1]));
 					$ke_type = isset($_POST['kontakt_email_type'][1]) ? db_escape_string(trim($_POST['kontakt_email_type'][1])) : 'hoved';
@@ -727,49 +747,58 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						$r_new_ke = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kontakt_emails', 'id')) AS id", __FILE__ . " linje " . __LINE__));
 						$primary_ke_id = $r_new_ke ? intval($r_new_ke['id']) : 0;
 					}
-				}
 
-				// Process extra emails from JSON hidden field
-				$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : (isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0);
-				$existing_extra_ids = array();
-				$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
-				while ($r_ex = db_fetch_array($q_ex)) {
-					$existing_extra_ids[] = intval($r_ex['id']);
-				}
+					// Process extra emails from JSON hidden field
+					$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : $ke_id;
+					if (isset($_POST['kontakt_emails_json'])) {
+						$existing_extra_ids = array();
+						$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
+						while ($r_ex = db_fetch_array($q_ex)) {
+							$existing_extra_ids[] = intval($r_ex['id']);
+						}
 
-				$posted_ids = array();
-				if (isset($_POST['kontakt_emails_json']) && $_POST['kontakt_emails_json']) {
-					$json_emails = json_decode($_POST['kontakt_emails_json'], true);
-					if (is_array($json_emails)) {
-						foreach ($json_emails as $je) {
-							$je_id = intval($je['id']);
-							$je_val = db_escape_string(trim($je['email']));
-							$je_type = db_escape_string(trim($je['type']));
-							if ($je_id && $je_val) {
-								db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-								$posted_ids[] = $je_id;
-							} elseif (!$je_id && $je_val) {
-								db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+						$posted_ids = array();
+						$json_emails = json_decode($_POST['kontakt_emails_json'], true);
+						if (is_array($json_emails)) {
+							foreach ($json_emails as $je) {
+								$je_id = intval($je['id']);
+								$je_val = db_escape_string(trim($je['email']));
+								$je_type = db_escape_string(trim($je['type']));
+								if ($je_id && $je_val) {
+									db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+									$posted_ids[] = $je_id;
+								} elseif (!$je_id && $je_val) {
+									db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+								}
+							}
+						}
+
+						// Delete extras that were removed
+						foreach ($existing_extra_ids as $old_id) {
+							if (!in_array($old_id, $posted_ids)) {
+								db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 							}
 						}
 					}
-				}
 
-				// Delete extras that were removed
-				foreach ($existing_extra_ids as $old_id) {
-					if (!in_array($old_id, $posted_ids)) {
-						db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-					}
+					// Sync primary email back to adresser.email for backward compatibility
+					$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
+					$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
+					db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 				}
-
-				// Sync primary email back to adresser.email for backward compatibility
-				$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
-				$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
-				db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 
 				
 				//####
 				// ---- Save delivery_addresses ----
+				// 20260919 CDX/MJ One transaction for the whole save. The upsert loop, the delete of
+				//             rows removed in the UI and the primary sync back to adresser.lev_* are
+				//             one unit: a failure part-way through used to leave the account with
+				//             zero primary addresses, or with the adresser lev_* fields describing
+				//             an address that had just been deleted. db_modify() alerts and exits on
+				//             a failed write, so without a transaction those earlier statements were
+				//             already committed; with one, the server discards them when the
+				//             connection closes.
+				transaktion('begin');
 				$da_json  = isset($_POST['delivery_addresses_json']) ? $_POST['delivery_addresses_json'] : '[]';
 				$da_rows  = json_decode($da_json, true);
 				if (!is_array($da_rows)) $da_rows = []; 
@@ -911,6 +940,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 							lev_email     = '$s_em'
 						WHERE id = '$id'
 					", __FILE__ . " linje " . __LINE__);
+				}
+				// $db_modify_fejl is only set on the webservice path, where db_modify() returns
+				// instead of exiting; checking it keeps that path from committing a half-written
+				// save. Everywhere else a failed write has already exited above.
+				if (!empty($db_modify_fejl)) {
+					transaktion('rollback');
+				} else {
+					transaktion('commit');
 				}
 				// ---- END Save delivery_addresses ----
 
@@ -1120,6 +1157,7 @@ if ($id > 0) {
 	$felt_4 = htmlentities(trim($r['felt_4']), ENT_COMPAT, $charset);
 	$felt_5 = htmlentities(trim($r['felt_5']), ENT_COMPAT, $charset);
 	($r['lukket']) ? $lukket = 'checked' : $lukket = '';
+	(isset($r['stripe_fravalg']) && $r['stripe_fravalg']) ? $stripe_fravalg = 'checked' : $stripe_fravalg = '';
 
 	// Load kontakt_emails for this customer
 	$kontakt_email_ids = array();
@@ -1257,6 +1295,15 @@ if (!isset($efternavn)) $efternavn = null;
 if (!isset($firmanavn)) $firmanavn = null;
 if (!isset($lev_fornavn)) $lev_fornavn = null;
 if (!isset($lev_efternavn)) $lev_efternavn = null;
+if (!isset($lev_firmanavn)) $lev_firmanavn = null;
+if (!isset($lev_addr1)) $lev_addr1 = null;
+if (!isset($lev_addr2)) $lev_addr2 = null;
+if (!isset($lev_postnr)) $lev_postnr = null;
+if (!isset($lev_bynavn)) $lev_bynavn = null;
+if (!isset($lev_land)) $lev_land = null;
+if (!isset($lev_tlf)) $lev_tlf = null;
+if (!isset($lev_email)) $lev_email = null;
+if (!isset($lev_kontakt)) $lev_kontakt = null;
 
 if ($kontotype == "privat") {
 	if (!$fornavn && !$efternavn && $firmanavn) {
@@ -1276,6 +1323,12 @@ if (!isset($kontonr)) $kontonr = NULL;
 
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 $backSep = (strpos($returside, '?') !== false) ? '&' : '?';
+$kontokortReturside = "../debitor/debitorkort.php?id=$id";
+if (strpos($returside, 'ordre.php') !== false && $ordre_id) {
+	$kontokortReturside = "../debitor/ordre.php?id=$ordre_id";
+	if ($fokus) $kontokortReturside .= "&fokus=" . rawurlencode($fokus);
+}
+$kontokortRetursideParam = rawurlencode($kontokortReturside);
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
@@ -1289,14 +1342,14 @@ if ($menu == 'T') {
 	}
 	print "</div>";
 	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
+	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=$kontokortRetursideParam' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
 	if (substr($rettigheder, 5, 1) == '1') {
 		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
 	} else {
 		print "";
 	}
 	if ($jobkort) {
-		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=debitorkort.php' title='" . findtekst('38|Opgaveliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
+		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "' title='" . findtekst('38|Opgaveliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
 	} else {
 		print "";
 	}
@@ -1397,6 +1450,8 @@ function validateDebitorkort(form) {
 
 print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
+$auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
+$auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
 if ($vis_addr == "on") {
 	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
 	print "<input type=hidden name=\"felt_2\" value='$felt_2'>\n";
@@ -1446,7 +1501,7 @@ print "</select></td>\n";
 print "<td align=right>" . findtekst('355|Vis leveringsadresse', $sprog_id) . "<!--tekst 355--><input class='inputbox' type=\"checkbox\" name=\"vis_lev_addr\" $vis_lev_addr> <a href=\"labelprint.php?id=$id\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></td></tr>\n";
 print "<tr><td valign=top height=250px><table border=0 width=100%><tbody>"; # TABEL 1.2.1 ->
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td>" . findtekst('357|Kundenr.', $sprog_id) . "<!--tekst 357--></td><td><input class='inputbox' type='text' size='25' name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('357|Kundenr.', $sprog_id) . "<!--tekst 357--></td><td><input class='inputbox' type='text' size='25' name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af *, +, eller / for automatisk opslag, eller marker 'Auto-lookup CVR nr.' for opslag ved 8 cifre (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 
 if (!isset($firmanavn)) $firmanavn = NULL;
 if (!isset($addr1)) $addr1 = NULL;
@@ -1467,14 +1522,7 @@ if (!isset($bank_reg)) $bank_reg = NULL;
 if (!isset($bank_konto)) $bank_konto = NULL;
 if (!isset($swift)) $swift = NULL;
 if (!isset($lukket)) $lukket = NULL;
-if (!isset($lev_firmanavn)) $lev_firmanavn = NULL;
-if (!isset($lev_addr1)) $lev_addr1 = NULL;
-if (!isset($lev_addr2)) $lev_addr2 = NULL;
-if (!isset($lev_postnr)) $lev_postnr = NULL;
-if (!isset($lev_land)) $lev_land = NULL;
-if (!isset($lev_kontakt)) $lev_kontakt = NULL;
-if (!isset($lev_bynavn)) $lev_bynavn = NULL;
-if (!isset($lev_tlf)) $lev_tlf = NULL;
+if (!isset($stripe_fravalg)) $stripe_fravalg = NULL;
 if (!isset($notes)) $notes = NULL;
 
 if ($kontotype == 'privat') {
@@ -1827,12 +1875,14 @@ if ($drg = $x) {
 print "</tbody></table></td>"; # <- TABEL 1.2.1
 print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>Auto-lookup CVR nr.</td><td><input class='inputbox' type=\"checkbox\" name=\"auto_lookup_cvr\" $auto_lookup_cvr_checked onchange=\"javascript:docChange = true;\"></td></tr>\n";
+($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af *, +, eller / for automatisk opslag, eller marker 'Auto-lookup CVR nr.' for opslag ved 8 cifre (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst('378|Mobil', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('5230|Mobilnummer', $sprog_id) . "<!--tekst 5230--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";
@@ -1907,6 +1957,7 @@ if ($new_status) {
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
+print "<tr bgcolor=$bg><td title=\"Tilbyd aldrig kortbetaling til denne debitor: abonnementslinket i fakturamails bliver tomt, og allerede udsendte links parkerer venligt. Stopper IKKE et abonnement der allerede er aktivt.\">Ingen kortbetaling</td><td><input class='inputbox' type=checkbox name=stripe_fravalg $stripe_fravalg></td></tr>\n";
 if ($packagingModuleEnabled) {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	$eu = isset($enduser_type) ? $enduser_type : '';
@@ -1951,13 +2002,8 @@ if ($vis_addr == "on") {
     print "<tr bgcolor=$bg><td height=\"25px\">" . findtekst('502|Kontakt', $sprog_id) . "</td><td height=\"25px\"><input class='inputbox' type='text' size=\"25px\" name=lev_kontakt value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\">\n";
     ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
     print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_tlf value=\"$lev_tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>";
-	$oLibTxt = findtekst('2217|Sæt grænse for, hvor mange varer en kunde kan oprette', $sprog_id);
-	print "<span onmouseover=\"return overlib('$oLibTxt', WIDTH=600);\" onmouseout=\"return nd();\">" . findtekst('2215|Varegrænse', $sprog_id) . "</span>";
-	print "</td><td><input type='text' class='inputbox' name=\"productlimit\" size=\"25\" value=\"" . dkdecimal($productlimit, 0) . "\"></td></tr>\n";
- 
-    
+
+
     // Additional delivery addresses section
    
     ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
@@ -2543,7 +2589,7 @@ $buttons_html = "<div class='sticky-custom-buttons' style='display: flex; justif
 if ($popup) {
     $buttons_html .= "<button type='button' onclick=\"window.open('historikkort.php?id=$id&amp;returside=../includes/luk.php', 'historik')\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
 } elseif ($returside != "historikkort.php") {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id&amp;returside=debitorkort.php'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id&amp;returside=" . urlencode("debitorkort.php?id=$id") . "'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
 } else {
     $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
 }
@@ -2552,11 +2598,7 @@ if ($popup) {
 // Kontokort button
 
 // Kontokort button — preserve order context when coming from ordre.php
-if (strpos($queryString, 'ordre.php') !== false) {
-	$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/$returside'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
-} else {
-	$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
-}
+$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=$kontokortRetursideParam'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
 
 // Fakturaliste button
 if (substr($rettigheder, 5, 1) == '1') {
@@ -2595,14 +2637,14 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 		print "title='$tekst'>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	} elseif ($returside != "historikkort.php") {
 		print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
-		print "<a href=historikkort.php?id=$id&returside=debitorkort.php>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
+		print "<a href=historikkort.php?id=$id&returside=" . urlencode("debitorkort.php?id=$id") . ">" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	} else {
 		print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
 		print "<a href=historikkort.php?id=$id>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	}
 	$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
 	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
-	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
+	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=$kontokortRetursideParam>" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
 	$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
 	if (substr($rettigheder, 5, 1) == '1') {
 		if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../includes/luk.php','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";

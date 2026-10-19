@@ -20,9 +20,12 @@
 // History:
 // 20260723 CL/LH SD-601: created.
 // 20260725 CL/LH Re-sync sequences after the clone; add nextId() for fixtures that mirror the app's MAX(id)+1 allocation.
+// 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 
 final class CharacterizationEnv
 {
+    private static bool $ownsTenant = false;
+
     public const SESSION_ID = 'saldichartestsession000000000001'; // 32 chars, matches online.session_id varchar(32)
 
     public static function pgHost(): string
@@ -37,7 +40,7 @@ final class CharacterizationEnv
 
     public static function pgPass(): string
     {
-        return getenv('SALDI_CHAR_PGPASS') ?: 'password';
+        return getenv('SALDI_CHAR_PGPASS') ?: '';
     }
 
     public static function masterDb(): string
@@ -66,7 +69,11 @@ final class CharacterizationEnv
         if (!extension_loaded('pgsql')) {
             return 'pgsql extension not loaded (run inside the docker web container)';
         }
-        $conn = @pg_connect(self::connString(self::masterDb()), PGSQL_CONNECT_FORCE_NEW);
+        self::assertSafeDatabases();
+        if (self::pgPass() === '') {
+            return 'SALDI_CHAR_PGPASS is required for database characterization tests';
+        }
+        $conn = pg_connect(self::connString(self::masterDb()), PGSQL_CONNECT_FORCE_NEW);
         if ($conn === false) {
             return 'postgres not reachable at host "' . self::pgHost() . '" (is the docker-compose stack up?)';
         }
@@ -80,14 +87,19 @@ final class CharacterizationEnv
         return null;
     }
 
+    private static function quoteConnectionValue(string $value): string
+    {
+        return "'" . str_replace(["\\", "'"], ["\\\\", "\\'"], $value) . "'";
+    }
+
     private static function connString(string $db): string
     {
         return sprintf(
             'host=%s dbname=%s user=%s password=%s connect_timeout=3',
-            self::pgHost(),
-            $db,
-            self::pgUser(),
-            self::pgPass()
+            self::quoteConnectionValue(self::pgHost()),
+            self::quoteConnectionValue($db),
+            self::quoteConnectionValue(self::pgUser()),
+            self::quoteConnectionValue(self::pgPass())
         );
     }
 
@@ -127,12 +139,13 @@ final class CharacterizationEnv
      */
     public static function bootstrapTenant(): void
     {
+        self::assertSafeDatabases();
         $master = self::connect(self::masterDb());
         $test = self::testDb();
         $template = self::templateDb();
 
-        // CREATE DATABASE ... TEMPLATE requires zero connections on both dbs.
-        foreach ([$test, $template] as $dbName) {
+        // Only terminate sessions on the disposable test database; never disconnect template users.
+        foreach ([$test] as $dbName) {
             pg_query_params(
                 $master,
                 'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
@@ -149,6 +162,8 @@ final class CharacterizationEnv
             throw new RuntimeException('could not clone template tenant: ' . pg_last_error($master));
         }
 
+        self::$ownsTenant = true;
+
         // Register the clone in the master registry (mirrors the template's row shape).
         pg_query_params($master, 'DELETE FROM regnskab WHERE db = $1', [$test]);
         pg_query_params(
@@ -161,7 +176,6 @@ final class CharacterizationEnv
 
         // Seed the online-session row the legacy page scripts authenticate by.
         $tenant = self::connect($test);
-        self::resyncSequences($tenant);
         $ra = self::one($tenant, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'");
         $regnaar = (int)($ra['ra'] ?? 1);
         pg_close($tenant);
@@ -269,6 +283,38 @@ final class CharacterizationEnv
         }
         $r = self::one($conn, "SELECT COALESCE(MAX(id), 0) + 1 AS id FROM $table");
         return (int)$r['id'];
+    }
+
+    public static function assertSafeDatabases(): void
+    {
+        $test = self::testDb();
+        foreach ([$test, self::templateDb(), self::masterDb()] as $name) {
+            if (!preg_match('/^[a-z0-9_]+$/', $name)) {
+                throw new RuntimeException('unsafe database name');
+            }
+        }
+        if ($test === self::templateDb() || $test === self::masterDb()) {
+            throw new RuntimeException('SALDI_CHAR_TEST_DB must differ from template and master databases');
+        }
+    }
+
+    public static function teardownTenant(): void
+    {
+        if (!self::$ownsTenant) {
+            return;
+        }
+        self::assertSafeDatabases();
+        $master = self::connect(self::masterDb());
+        try {
+            $test = self::testDb();
+            self::rows($master, 'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()', [$test]);
+            self::rows($master, 'DROP DATABASE IF EXISTS ' . pg_escape_identifier($master, $test));
+            self::rows($master, "DELETE FROM online WHERE db = $1 AND session_id = $2", [$test, self::SESSION_ID]);
+            self::rows($master, "DELETE FROM regnskab WHERE db = $1 AND regnskab = 'chartest'", [$test]);
+            self::$ownsTenant = false;
+        } finally {
+            pg_close($master);
+        }
     }
 
     /**

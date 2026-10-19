@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func_includes/posChoices.php --- lap 4.0.6 -- 2022-04-12 --
+// --- systemdata/sys_div_func_includes/posChoices.php --- lap 4.0.6 -- 2026-09-21 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,8 +23,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2009-2022 saldi.dk ApS
+// Copyright (c) 2009-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
+// 20260921 CL/SZ MB-50: fix dead pos_valg link to posOptions.
 
 function posChoices () {
 	global $sprog_id;
@@ -180,7 +181,7 @@ function posChoices () {
 	}
 #	(isset($_COOKIE['saldi_pfs']))?$pfs=$_COOKIE['saldi_pfs']:$pfs=10; #Pos Font Size
 
-	print "<form name=diverse action=diverse.php?sektion=pos_valg method=post>\n";
+	print "<form name=diverse action=diverse.php?sektion=posOptions method=post>\n";
 	print "<tr><td width='100%'><hr></td></tr>\n";
 	print "<tr><td><table><tbody>";
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst(265,$sprog_id)."</u></b></td></tr>\n";

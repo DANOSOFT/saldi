@@ -24,6 +24,7 @@
 // -----------------------------------------------------------------------------------
 //
 // 20251123 Fixed multiroute/paylist problem
+// 20260612 MJ Guard flatpickr setup when report date fields are not present.
 
 		// next line can be removed in 2026
 		db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
@@ -125,27 +126,29 @@
 				let dateTimeFrom = document.getElementById('fromDate');
 				let dateTimeTo = document.getElementById('toDate');
 				let dateTimeToPicker = null;
-				let dateTimeFromPicker = flatpickr(dateTimeFrom, {
-					altInput: true,
-					altFormat: "j. F Y",
-					dateFormat: "Y-m-d",
-					defaultDate: "today",
-					onChange: function(selectedDates, dateStr, instance) {
-						dateTimeToPicker.set('minDate', selectedDates[0]);
-					},
-					"locale": "da"
-				});
+				if (dateTimeFrom && dateTimeTo) {
+					let dateTimeFromPicker = flatpickr(dateTimeFrom, {
+						altInput: true,
+						altFormat: "j. F Y",
+						dateFormat: "Y-m-d",
+						defaultDate: "today",
+						onChange: function(selectedDates, dateStr, instance) {
+							dateTimeToPicker.set('minDate', selectedDates[0]);
+						},
+						"locale": "da"
+					});
 
-				dateTimeToPicker = flatpickr(dateTimeTo, {
-					altInput: true,
-					altFormat: "j. F Y",
-					dateFormat: "Y-m-d",
-					defaultDate: "today",
-					onChange: function(selectedDates, dateStr, instance) {
-						dateTimeFromPicker.set('maxDate', selectedDates[0]);
-					},
-					"locale": "da"
-				});
+					dateTimeToPicker = flatpickr(dateTimeTo, {
+						altInput: true,
+						altFormat: "j. F Y",
+						dateFormat: "Y-m-d",
+						defaultDate: "today",
+						onChange: function(selectedDates, dateStr, instance) {
+							dateTimeFromPicker.set('maxDate', selectedDates[0]);
+						},
+						"locale": "da"
+					});
+				}
 			</script>
 			<?php
 ?>

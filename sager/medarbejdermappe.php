@@ -1,4 +1,29 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- sager/medarbejdemappe.php --- lap 5.0.0 --- 2026-08-06 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2012-2026 DANOSOFT ApS
+// ----------------------------------------------------------------------
+// 20260806 PHR Return to the employee folder menu if the user has no employee ID.
 @session_start();
 $s_id                  = session_id();
 
@@ -615,6 +640,11 @@ function medarbejdermappe() {
 		$ans_id = $_SESSION['ans_id'];
 		
 		if(!$ans_id) $ans_id=$ansat_id;
+		if (!$ans_id) {
+			print "<script>alert('Fejl i brugeropsætning'); window.location.href='medarbejdermappe.php?funktion=medarbejdermappeliste';</script>";
+			return;
+		}
+		$ans_id = (int)$ans_id;
 		//echo "ansat_id: $ansat_id<br>";echo "ans_id: $ans_id";
 		if ($slet_ansatmappe=if_isset($_GET['slet_ansatmappe'])) { // Hvis mappen indeholder filer skal disse også slettes
 			if ($r=db_fetch_array(db_select("select * from ansatmappebilag where assign_id='$slet_ansatmappe'",__FILE__ . " linje " . __LINE__))) {

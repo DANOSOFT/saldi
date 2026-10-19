@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------lap 5.0.0------2026.02.10---
+// ------includes/genberegn.php-------lap 5.0.1------2026.09.07---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,19 +23,21 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20130210 Break ændret til break 1
 // 20181126 - PHR Definition af div. variabler mm.
 // 20190321 PHR Added function equalizeMatchingRecords.
 // 20260210 PHR PHP8
+// 20260907 CDX/PHR Allow recalculation within the caller's tenant transaction and scope primo resets to one year.
 
 @session_start();
 $s_id=session_id();
 
 if (!function_exists('genberegn')) {
-	function genberegn($regnskabsaar) {
+	function genberegn($regnskabsaar, $updateUsage = true) {
+		$regnskabsaar = (int)$regnskabsaar;
 		$qtxt="select * from grupper where kodenr='$regnskabsaar' and art='RA'";
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
@@ -53,7 +55,7 @@ if (!function_exists('genberegn')) {
 		$regnstart = $startaar. "-" . $startmaaned . "-" . '01';
 		$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 	
-		db_modify("update kontoplan set primo=0 where kontotype!= 'S'",__FILE__ . " linje " . __LINE__);
+		db_modify("update kontoplan set primo=0 where kontotype!= 'S' and regnskabsaar='$regnskabsaar'",__FILE__ . " linje " . __LINE__);
 		db_modify("update kontoplan set saldo=0 where regnskabsaar='$regnskabsaar'",__FILE__ . " linje " . __LINE__);
 		$qtxt="select * from kontoplan where regnskabsaar='$regnskabsaar' and (kontotype='D' or kontotype='S') order by kontonr";
 		$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -111,9 +113,11 @@ if (!function_exists('genberegn')) {
 		$logdate=date("Y-m-d");
 		$logtime=date("H:i:s");
 		db_modify("update grupper set box7='$logdate',box8='$logtime' where art='RA' and kodenr='$regnskabsaar'",__FILE__ . " linje " . __LINE__);
-		include("../includes/connect.php");
-		db_modify("update regnskab set  posteret='$transantal' where id='$db_id'",__FILE__ . " linje " . __LINE__);
-		include("../includes/online.php");
+		if ($updateUsage) {
+			include(__DIR__ . '/connect.php');
+			db_modify("update regnskab set posteret='$transantal' where id='" . (int)$db_id . "'", __FILE__ . ' line ' . __LINE__);
+			include(__DIR__ . '/online.php');
+		}
 	}
 } 
 

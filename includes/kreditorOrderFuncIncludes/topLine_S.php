@@ -19,6 +19,14 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20251203 LOE Created file to standardize top used for managing S menu in kreditor/ordre.php
+// 20260908 SZ SST-755: Luk links now release the lock properly (tidspkt added; the $valg
+//           branch had no tabel/id at all, and a '?' where it needed '&').
+// 20260924 SZ SST-755 (CodeRabbit): this file is include()d from kreditor/ordre.php's
+//           sidehoved() partway through, after that function already computed
+//           $sidehovedTidspktQs (a &lockToken=... query string, stamped via
+//           refresh_lock_token()) - reuse it instead of independently re-querying tidspkt and
+//           building a separate, token-less query string, which let this menu's own Luk links
+//           bypass the whole per-render-token protection sidehoved() otherwise provides.
 
 
 
@@ -41,18 +49,29 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 
+	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
+	// includes/luk.php can confirm this tab still holds the lock before releasing it. Also
+	// fixed the $valg branch below, which had no tabel/id at all (release was a pure no-op)
+	// and built its query string with '?' instead of '&' (returside=$returside?valg=... -
+	// the '?valg=' part was silently dropped by anything parsing returside as a URL).
+	// 20260924 SZ SST-755 (CodeRabbit): reuse sidehoved()'s own $sidehovedTidspktQs (despite
+	// its name, a &lockToken=... string - see the comment there) instead of independently
+	// re-deriving one from a bare tidspkt lookup, which never carried a lock_token at all and
+	// so let this menu's Luk links bypass the per-render-token protection entirely.
+	$topLineSTidspktQs = $sidehovedTidspktQs ?? '';
+
 	if ($kort) print "<td width=\"5%\">$color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
 					  <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
 		  elseif($valg){
-			
+
 			 print "<td width=\"5%\">$color
-					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside?valg=$valg&konto_id=','$alerttekst')\" accesskey=L>
+					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=" . urlencode($returside . "?valg=$valg&konto_id=") . "&tabel=ordrer&id=$id$topLineSTidspktQs','$alerttekst')\" accesskey=L>
 					  <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 					print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 		  }else{
 			 print "<td width=\"5%\">$color
-					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>
+					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$topLineSTidspktQs','$alerttekst')\" accesskey=L>
 					  <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 					 print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 		  }

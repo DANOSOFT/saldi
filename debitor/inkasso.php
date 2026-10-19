@@ -21,6 +21,8 @@
 // Copyright (c) 2017 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // Ikke færdig eller frigivet - måske en anden gang 
+// 20260814 CL/SZ SD-639: int-cast rykker_id before use in SQL; removed debug
+//                echo __line__ output.
 
 @session_start();
 $s_id=session_id();
@@ -33,12 +35,9 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-echo __line__."<br>";
-
-$rykker_id=if_isset($_GET['rykker_id']);
+$rykker_id=(int)if_isset($_GET['rykker_id']);
 $rykkerfil=if_isset($_GET['rykkerfil']);
 
-echo __line__."<br>";
 if (!$rykkerfil) {
 	$qtxt="select * from ordrer where id='$rykker_id'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); #20140903

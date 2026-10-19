@@ -1,4 +1,46 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- includes/_docPoolData.php --- ver 5.0.0 --- 2026-10-07 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2025-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20260914 CDX/LH Expose metadata versions and manual acceptance for document-pool editing.
+// 20260922 CL/LAH Leverandørforslag fra AI-scan: every file now carries a 'vendor' object
+//                  (see poolVendorMatcher.php / kravspec afsnit 5) or null, and files with
+//                  vendor identity but no kreditor are matched again on every open (AI-6).
+// 20260922 CL/LAH Vendor handling wrapped so it can never break the file list; invalid UTF-8
+//                  from legacy rows is substituted instead of blanking the whole response.
+// 20260925 LOE MB-42 Every row whose fakturanr, amount and date match another row's is marked
+//                  duplicateOf, so the pool can show that the same bilag is in the list twice.
+// 20261001 CL/NTR Merged the two history blocks into one and grouped the includes.
+// 20261003 CL/SZ SD-717 Archived documents are left out of the list and the duplicate marking.
+//                With archived=1 ("Vis arkiverede") only archived documents are returned, newest archive first, with their archive time.
+// 20261003 CL/SZ SD-719 With limit: one page of the list as {rows, total, offset, limit, matches, extra, currentIndex}.
+//                Search (q), sort (sort, order) and the match against the journal line (sum, dato) are done here over the full set (poolListQuery.php).
+//                extra holds the open document (current) and the ticked ones (include[]) when they are not on the page; filesOnly=1 lists every file name.
+//                toCurrent=1 extends the page down to the open document.
+//                Without limit the whole list comes back as before.
+// 20261007 CL/SZ SD-719 The list is built by poolListData() (docsIncludes/poolListData.php), which docPool.php also calls to send the first page with the page.
+
 // Start output buffering FIRST to capture any output from includes
 ob_start();
 
@@ -17,6 +59,12 @@ header('Expires: 0');
 // Include database connection and online.php to get $db
 include_once(__DIR__ . "/connect.php");
 include_once(__DIR__ . "/std_func.php");
+include_once(__DIR__ . "/docsIncludes/poolVendorMatcher.php");
+include_once(__DIR__ . "/docsIncludes/poolDuplicateMarker.php");
+require_once __DIR__ . '/docsIncludes/poolMetadata.php';
+require_once __DIR__ . '/docsIncludes/poolArchive.php';
+require_once __DIR__ . '/docsIncludes/poolListQuery.php';
+require_once __DIR__ . '/docsIncludes/poolListData.php';
 
 // Get $db from session/online table
 $qtxt = "select db from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -35,56 +83,13 @@ while (ob_get_level()) {
 }
 ob_start();
 
-$dir = $_GET['dir'] ?? null;
-$params = isset($_GET['params']) ? urldecode($_GET['params']) : '';
-$poolParams = isset($_GET['poolParams']) ? urldecode($_GET['poolParams']) : '';
-
-// Database-only mode: Get all files from pool_files table
-$data = [];
-$fil_nr = 0;
-
-// Query all files from the pool_files table (database is the source of truth)
-$qtxt = "SELECT filename, subject, account, amount, file_date, invoice_number, description, currency
-         FROM pool_files ORDER BY file_date DESC, updated DESC";
-$result = db_select($qtxt, __FILE__ . " line " . __LINE__);
-
-while ($row = db_fetch_array($result)) {
-    $file = $row['filename'];
-    $base = pathinfo($file, PATHINFO_FILENAME);
-    
-    $subject = $row['subject'] ?: $base;
-    $account = $row['account'] ?: '';
-    $amount = $row['amount'] ?: '';
-    $modDate = $row['file_date'] ?: '';
-    $invoiceNumber = $row['invoice_number'] ?: '';
-    $description = $row['description'] ?: '';
-    $currency = $row['currency'] ?: '';
-
-    $fil_nr++;
-    
-    // Build href - remove any existing poolFile from poolParams
-    $cleanPoolParams = preg_replace('/&?poolFile=[^&]*/', '', $poolParams);
-    $cleanPoolParams = ltrim($cleanPoolParams, '&');
-    $hreftxt = "../includes/documents.php?$params&$cleanPoolParams&docFocus=$fil_nr&poolFile=" . urlencode($file);
-    
-    $data[] = [
-        'filename' => $file,
-        'subject' => $subject,
-        'account' => $account,
-        'amount' => $amount,
-        'date' => $modDate,
-        'href' => $hreftxt,
-        'invoiceNumber' => $invoiceNumber,
-        'description' => $description,
-        'currency' => $currency,
-        'fil_nr' => $fil_nr,
-    ];
-}
+// SD-719: the list itself is built by poolListData(), which docPool.php also calls for the first page
+$data = poolListData($_GET);
 
 // Clear any previous output and send proper JSON
 ob_end_clean();
 header('Content-Type: application/json');
 
-echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
 
 exit;

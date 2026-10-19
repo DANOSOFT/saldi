@@ -20,6 +20,7 @@
 //
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260911 Sawaneh Blank quoted "dummyvalue" literals in client SQL (JOB-115)
 ini_set("soap.wsdl_cache_enabled", "1");
 
 function singleupdate($string) {
@@ -30,6 +31,7 @@ function singleupdate($string) {
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
 	include ("../includes/online.php");
+	include_once(__DIR__ . '/../includes/std_func.php');
 
 	$linje=NULL;
 	$tabels=array('grupper','varianter','variant_typer','shop_ordrer','shop_varer','adresser','shop_adresser');
@@ -37,6 +39,7 @@ function singleupdate($string) {
 	$singleupdate=str_replace(chr(9),"",$singleupdate);
 	$singleupdate=str_replace(chr(10),"",$singleupdate);
 	$singleupdate=str_replace(chr(13),"",$singleupdate);
+	$singleupdate=strip_placeholder_sql_literals($singleupdate);
 #	$singleupdate=str_replace(" ","",$singleupdate);
 	$singleupdate=strtolower($singleupdate);
 	list($table,$tmp)=explode("set",$singleupdate,2);

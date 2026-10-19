@@ -26,6 +26,7 @@
 // Copyright (c) 2003-2017 saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260911 Sawaneh Blank the literal "dummyvalue" sent for empty address fields (JOB-115)
 
 @session_start();
 $s_id=session_id();
@@ -189,6 +190,10 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	$tlf=trim($tlf);
 	$cvrnr=trim($cvrnr);
 	$email=trim($email);
+	$firmanavn=strip_placeholder_value($firmanavn);
+	$adresse=strip_placeholder_value($adresse);
+	$postnr=strip_placeholder_value($postnr);
+	$bynavn=strip_placeholder_value($bynavn);
 	if (!$fornavn) $fornavn=$ordre_fornavn;
 	if (!$efternavn) $efternavn=$ordre_efternavn;
 	if (!$email) $email=$ordre_email;
@@ -207,6 +212,10 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	$lev_tlf=trim($lev_tlf);
 	$lev_cvrnr=trim($lev_cvrnr);
 	$lev_email=trim($lev_email);
+	$lev_firmanavn=strip_placeholder_value($lev_firmanavn);
+	$lev_adresse=strip_placeholder_value($lev_adresse);
+	$lev_postnr=strip_placeholder_value($lev_postnr);
+	$lev_bynavn=strip_placeholder_value($lev_bynavn);
 	if (!$lev_firmanavn) $lev_firmanavn=$fornavn." ".$efternavn;
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn=bynavn($lev_postnr);
 	$lev_tlf=str_replace(" ","",$lev_tlf);
@@ -363,7 +372,15 @@ function overfoer_data($shopurl,$shop_ordre_id){
 		db_modify("update varer set publiceret='on' where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
 		if ($samlevare[$x]=='on') {
 
-			opret_saet($ordre_id,$vare_id[$x],$pris[$x]*1.25,25,$antal[$x],on);
+			// 20260920 CDX/MJ SST-794 Same hardcoded 25% as api/rest_api.php had - use the order's
+			//             own momssats (loaded at :288) so an export customer is not stripped of VAT
+			//             it never had. Two further PHP 8 fatals on this line are fixed with it:
+			//             the bare `on` was an undefined constant, and opret_saet() takes seven
+			//             arguments while only six were passed. This file has no lager concept at
+			//             all, so the seventh is passed as 0 - the same value rest_api.php ends up
+			//             with when the shop sends none ($lager*=1 on an empty string).
+			$saet_momssats = $momssats * 1;
+			opret_saet($ordre_id,$vare_id[$x],$pris[$x]*(1+$saet_momssats/100),$saet_momssats,$antal[$x],'on',0);
 		} else opret_ordrelinje($ordre_id,$vare_id[$x],$varenr[$x],$antal[$x],$beskrivelse[$x],$pris[$x],0,100,'DO','',$posnr,'0','','','','0');
 		$ordresum+=$pris[$x]*$antal[$x];
 	}

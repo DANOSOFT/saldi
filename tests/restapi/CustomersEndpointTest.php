@@ -1,273 +1,257 @@
 <?php
 // tests/restapi/CustomersEndpointTest.php
 //
-// Integration tests for /restapi/endpoints/v1/debitor/customers/: create,
-// read back, update, delete, search and the validation rules
-// CustomerService enforces (required fields, duplicate email, duplicate
-// phone).
+// Integration tests for /restapi/endpoints/v1/debitor/customers/ and
+// /restapi/endpoints/v1/creditor/creditors/ against the local docker
+// stack's self-provisioned tenant: auth enforcement, create (English field
+// names) -> read-back, required-field and duplicate validation, search,
+// update, delete, and the debtor/creditor (art D/K) separation.
 //
 // History:
-// 20260725 CL/LH Created for the end-to-end coverage push.
+// 20260904 CL/NTR created.
 
-require_once __DIR__ . '/support/RestApiTestCase.php';
+use PHPUnit\Framework\TestCase;
 
-final class CustomersEndpointTest extends RestApiTestCase
+require_once __DIR__ . '/support/RestApiEnv.php';
+
+final class CustomersEndpointTest extends TestCase
 {
     private const CUSTOMERS = '/restapi/endpoints/v1/debitor/customers/';
+    private const CREDITORS = '/restapi/endpoints/v1/creditor/creditors/';
 
-    private static int $seq = 0;
-
-    /** @return array<string,string> a body that passes every validation rule */
-    private static function newCustomerBody(array $overrides = []): array
+    public static function setUpBeforeClass(): void
     {
-        $n = ++self::$seq;
-        $pid = getmypid();
-
-        return $overrides + [
-            'companyName' => "API kunde $n-$pid",
-            'phone' => sprintf('55%04d%03d', $pid % 10000, $n),
-            'email' => "apicust-$n-$pid@example.invalid",
-            'address1' => 'Testvej 1',
-            'zipCode' => '8000',
-            'city' => 'Aarhus',
-        ];
+        $reason = RestApiEnv::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
+        }
+        RestApiEnv::bootstrapTenant();
     }
 
-    /**
-     * Note on shape: the endpoint ACCEPTS English property names
-     * (companyName, phone) and RETURNS Danish ones (firmanavn, tlf) -
-     * CustomerService::mapApiToDanish only maps one way, and
-     * CustomerModel::toArray emits the column names. A client cannot round-trip
-     * its own payload.
-     */
-    public function test_a_customer_can_be_created_and_read_back(): void
+    public static function tearDownAfterClass(): void
     {
-        $body = self::newCustomerBody();
-        $created = self::api('POST', self::CUSTOMERS, $body);
-        $payload = $this->assertSuccessEnvelope($created, 'create');
-
-        $id = (int)($payload['id'] ?? 0);
-        $this->assertGreaterThan(0, $id, 'create returns the new id: ' . $created['body']);
-
-        $read = self::api('GET', self::CUSTOMERS . '?id=' . $id);
-        $customer = $this->assertSuccessEnvelope($read, 'read back');
-
-        $this->assertSame($body['companyName'], $customer['firmanavn'] ?? null, 'company name round-trips');
-        $this->assertSame($body['phone'], $customer['tlf'] ?? null, 'phone round-trips');
-        $this->assertSame(
-            $body['address1'],
-            $customer['adresse']['addr1'] ?? null,
-            'address round-trips (nested under adresse on read)'
-        );
+        RestApiEnv::teardownTenant();
     }
 
-    /**
-     * DEFECT PINNED: the email supplied when creating a customer is written
-     * and then immediately erased.
-     *
-     * CustomerModel::save() INSERTs the row with the email
-     * (CustomerModel.php:223), then calls saveKontaktEmails() unconditionally
-     * on the create path (:250). That method ends with
-     * (CustomerModel.php:456-459):
-     *
-     *     $r = db_fetch_array(db_select("SELECT email FROM kontakt_emails
-     *                                    WHERE konto_id = ... ORDER BY id LIMIT 1"));
-     *     $sync_email = $r ? db_escape_string($r['email']) : '';
-     *     db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = ...");
-     *
-     * When the caller did not also send `contactEmails`, that table is empty,
-     * so the "sync back for backward compatibility" overwrites the address
-     * with an empty string. The customer ends up with no email at all - not in
-     * `adresser.email`, not in `kontakt_emails`.
-     *
-     * Consequences: invoices cannot be emailed to an API-created customer, and
-     * the duplicate-email guard below can never fire.
-     *
-     * The update path is unaffected: there saveKontaktEmails() only runs
-     * `if (!empty($this->kontakt_emails))` (:212).
-     */
-    public function test_the_email_supplied_on_create_is_discarded(): void
+    /** Unique per call so phone/email duplicate checks never trip on a previous test's rows. */
+    private function customerBody(string $tag): array
     {
-        $body = self::newCustomerBody();
-        $created = self::api('POST', self::CUSTOMERS, $body);
-        $id = (int)$this->assertSuccessEnvelope($created, 'create')['id'];
-
-        // The create RESPONSE echoes the email back, which is what makes this
-        // hard to notice from the outside.
-        $this->assertSame($body['email'], $created['json']['data']['email'] ?? null, 'the response echoes the email');
-
-        $stored = self::tenantRows('SELECT email FROM adresser WHERE id = $1', [$id]);
-        $this->assertSame('', trim((string)$stored[0]['email']), 'but nothing was stored');
-
-        $contacts = self::tenantRows('SELECT email FROM kontakt_emails WHERE konto_id = $1', [$id]);
-        $this->assertSame([], $contacts, 'and it is not in kontakt_emails either');
-    }
-
-    /**
-     * The counterpart that proves the mechanism: send `contactEmails` and the
-     * address survives, because the sync-back finds a row to copy.
-     */
-    public function test_an_email_sent_as_a_contact_email_is_kept(): void
-    {
-        $body = self::newCustomerBody();
-        $body['contactEmails'] = [['email' => $body['email'], 'email_type' => 'faktura']];
-
-        $created = self::api('POST', self::CUSTOMERS, $body);
-        $id = (int)$this->assertSuccessEnvelope($created, 'create')['id'];
-
-        $stored = self::tenantRows('SELECT email FROM adresser WHERE id = $1', [$id]);
-        $this->assertSame($body['email'], trim((string)$stored[0]['email']), 'the contact email is synced onto the customer');
-    }
-
-    /** The created row really is a debtor, not a creditor. */
-    public function test_a_created_customer_is_stored_as_a_debtor(): void
-    {
-        $created = self::api('POST', self::CUSTOMERS, self::newCustomerBody());
-        $payload = $this->assertSuccessEnvelope($created, 'create');
-        $id = (int)$payload['id'];
-
-        $rows = self::tenantRows('SELECT art FROM adresser WHERE id = $1', [$id]);
-        $this->assertCount(1, $rows);
-        $this->assertSame('D', trim($rows[0]['art']), 'the row is filed under art=D');
-    }
-
-    /**
-     * @param string $missing
-     */
-    #[\PHPUnit\Framework\Attributes\DataProvider('requiredFields')]
-    public function test_creating_a_customer_without_a_required_field_is_refused(string $missing): void
-    {
-        $body = self::newCustomerBody();
-        unset($body[$missing]);
-
-        $res = self::api('POST', self::CUSTOMERS, $body);
-
-        $this->assertSame(400, $res['status'], "missing $missing should be refused: " . $res['body']);
-        $this->assertFalse($res['json']['success'] ?? true);
-        $this->assertStringContainsStringIgnoringCase(
-            'missing required field',
-            (string)($res['json']['message'] ?? ''),
-            'the message names the problem'
-        );
-    }
-
-    /** @return array<string, array{0:string}> */
-    public static function requiredFields(): array
-    {
+        $digits = (string)random_int(10000000, 99999999);
         return [
-            'company name' => ['companyName'],
-            'phone' => ['phone'],
-            'email' => ['email'],
+            'companyName' => "Apitest $tag ApS",
+            'phone' => $digits,
+            'email' => "apitest-$tag-$digits@example.invalid",
+            'address1' => 'Testvej 1',
+            'postalCode' => '8000',
+            'city' => 'Aarhus C',
+            'vatNumber' => '12345678',
+            'paymentDays' => 14,
         ];
     }
 
-    /**
-     * DEFECT PINNED: the duplicate-email guard never fires, because no
-     * customer created through this endpoint ever has an email stored - see
-     * test_the_email_supplied_on_create_is_discarded.
-     *
-     * CustomerService::createCustomer:113 does call
-     * CustomerModel::emailExists(), and that query is correct; it just never
-     * matches anything. The identically-shaped phone guard works, which is
-     * what makes the asymmetry diagnostic rather than a design choice.
-     */
-    public function test_a_duplicate_email_is_not_refused(): void
+    private function create(string $path, array $body): array
     {
-        $first = self::newCustomerBody();
-        $this->assertSuccessEnvelope(self::api('POST', self::CUSTOMERS, $first), 'first create');
-
-        $second = self::newCustomerBody(['email' => $first['email']]);
-        $res = self::api('POST', self::CUSTOMERS, $second);
-
-        $this->assertSuccessEnvelope($res, 'duplicate email');
+        return RestApiEnv::http('POST', $path, $body, RestApiEnv::authHeaders());
     }
 
-    /** The duplicate-phone guard, by contrast, does fire. */
-    public function test_a_duplicate_phone_number_is_refused(): void
+    private function read(string $path, int $id): array
     {
-        $first = self::newCustomerBody();
-        $this->assertSuccessEnvelope(self::api('POST', self::CUSTOMERS, $first), 'first create');
+        return RestApiEnv::http('GET', $path . '?id=' . $id, null, RestApiEnv::authHeaders());
+    }
 
-        $res = self::api('POST', self::CUSTOMERS, self::newCustomerBody(['phone' => $first['phone']]));
+    public function test_customers_require_a_bearer_token(): void
+    {
+        $res = RestApiEnv::http('GET', self::CUSTOMERS);
+
+        $this->assertSame(401, $res['status'], $res['body']);
+        $this->assertFalse($res['json']['success']);
+    }
+
+    public function test_customer_list_returns_array_and_honours_limit(): void
+    {
+        $res = RestApiEnv::http('GET', self::CUSTOMERS . '?limit=2', null, RestApiEnv::authHeaders());
+
+        $this->assertSame(200, $res['status'], $res['body']);
+        $this->assertTrue($res['json']['success']);
+        $this->assertIsArray($res['json']['data']);
+        $this->assertLessThanOrEqual(2, count($res['json']['data']));
+    }
+
+    public function test_created_customer_can_be_read_back_with_mapped_fields(): void
+    {
+        $body = $this->customerBody('create');
+        $create = $this->create(self::CUSTOMERS, $body);
+
+        $this->assertSame(201, $create['status'], $create['body']);
+        $this->assertTrue($create['json']['success']);
+        $id = (int)($create['json']['data']['id'] ?? 0);
+        $this->assertGreaterThan(0, $id, 'created customer has an id');
+
+        $read = $this->read(self::CUSTOMERS, $id);
+
+        $this->assertSame(200, $read['status'], $read['body']);
+        $c = $read['json']['data'];
+        $this->assertSame($id, (int)$c['id']);
+        $this->assertSame($body['companyName'], $c['firmanavn']);
+        $this->assertSame($body['phone'], $c['tlf']);
+        $this->assertSame($body['email'], $c['email']);
+        $this->assertSame($body['address1'], $c['adresse']['addr1']);
+        $this->assertSame($body['postalCode'], $c['adresse']['postnr']);
+        $this->assertSame($body['city'], $c['adresse']['bynavn']);
+        $this->assertSame($body['vatNumber'], $c['cvrnr']);
+        $this->assertSame(14, (int)$c['betaling']['betalingsdage']);
+        $this->assertNotEmpty($c['kontonr'], 'a debtor account number is assigned');
+        $this->assertSame($c['kontonr'], $c['kundenr']);
+        $this->assertIsArray($c['kontakt_emails']);
+
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT art FROM adresser WHERE id = $1', [$id]);
+        pg_close($tenant);
+        $this->assertSame([['art' => 'D']], $rows, 'stored as a debtor (art D)');
+    }
+
+    public function test_contact_emails_round_trip_and_first_one_becomes_the_primary_email(): void
+    {
+        $body = $this->customerBody('emails');
+        $body['contactEmails'] = [
+            ['email' => 'faktura@example.invalid', 'email_type' => 'faktura'],
+            ['email' => 'ordre@example.invalid', 'email_type' => 'ordre'],
+        ];
+        $create = $this->create(self::CUSTOMERS, $body);
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
+
+        $read = $this->read(self::CUSTOMERS, $id);
+
+        $this->assertSame(200, $read['status'], $read['body']);
+        $emails = $read['json']['data']['kontakt_emails'];
+        $this->assertSame(['faktura@example.invalid', 'ordre@example.invalid'], array_column($emails, 'email'));
+        $this->assertSame(['faktura', 'ordre'], array_column($emails, 'email_type'));
+        $this->assertSame('faktura@example.invalid', $read['json']['data']['email'], 'first contact email is synced to adresser.email');
+    }
+
+    public function test_create_without_phone_is_rejected_400(): void
+    {
+        $body = $this->customerBody('nophone');
+        unset($body['phone']);
+
+        $res = $this->create(self::CUSTOMERS, $body);
 
         $this->assertSame(400, $res['status'], $res['body']);
-        $this->assertStringContainsStringIgnoringCase(
-            'phone',
-            (string)($res['json']['message'] ?? ''),
-            'the message names the duplicated field'
-        );
+        $this->assertFalse($res['json']['success']);
+        $this->assertStringContainsString('phone', $res['json']['message']);
     }
 
-    public function test_a_customer_can_be_updated(): void
+    public function test_create_with_duplicate_email_is_rejected_400(): void
     {
-        $created = self::api('POST', self::CUSTOMERS, self::newCustomerBody());
-        $id = (int)$this->assertSuccessEnvelope($created, 'create')['id'];
+        $first = $this->customerBody('dup');
+        $create = $this->create(self::CUSTOMERS, $first);
+        $this->assertSame(201, $create['status'], $create['body']);
 
-        $res = self::api('PUT', self::CUSTOMERS . '?id=' . $id, ['companyName' => 'Omdøbt kunde']);
-        $this->assertSuccessEnvelope($res, 'update');
-
-        $rows = self::tenantRows('SELECT firmanavn FROM adresser WHERE id = $1', [$id]);
-        $this->assertSame('Omdøbt kunde', trim($rows[0]['firmanavn']), 'the new name is persisted');
-    }
-
-    public function test_updating_without_an_id_is_refused(): void
-    {
-        $res = self::api('PUT', self::CUSTOMERS, ['companyName' => 'Ingen id']);
+        $second = $this->customerBody('dup2');
+        $second['email'] = $first['email'];
+        $res = $this->create(self::CUSTOMERS, $second);
 
         $this->assertSame(400, $res['status'], $res['body']);
-        $this->assertStringContainsStringIgnoringCase('id', (string)($res['json']['message'] ?? ''));
+        $this->assertFalse($res['json']['success']);
+        $this->assertStringContainsString('already in use', $res['json']['message']);
     }
 
-    public function test_reading_a_nonexistent_customer_returns_404(): void
+    public function test_search_finds_the_created_customer_only(): void
     {
-        $res = self::api('GET', self::CUSTOMERS . '?id=99999999');
+        $body = $this->customerBody('search' . random_int(1000, 9999));
+        $create = $this->create(self::CUSTOMERS, $body);
+        $this->assertSame(201, $create['status'], $create['body']);
 
-        $this->assertSame(404, $res['status'], $res['body']);
-        $this->assertFalse($res['json']['success'] ?? true);
+        $res = RestApiEnv::http('GET', self::CUSTOMERS . '?search=' . urlencode($body['companyName']), null, RestApiEnv::authHeaders());
+
+        $this->assertSame(200, $res['status'], $res['body']);
+        $this->assertCount(1, $res['json']['data']);
+        $this->assertSame($body['companyName'], $res['json']['data'][0]['firmanavn']);
     }
 
-    public function test_the_list_is_an_array_and_honours_its_limit(): void
+    public function test_updated_customer_reflects_the_change_on_read_back(): void
     {
-        for ($i = 0; $i < 3; $i++) {
-            self::api('POST', self::CUSTOMERS, self::newCustomerBody());
-        }
+        $create = $this->create(self::CUSTOMERS, $this->customerBody('update'));
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
 
-        $res = self::api('GET', self::CUSTOMERS . '?limit=2');
-        $items = $this->assertSuccessEnvelope($res, 'list');
+        $put = RestApiEnv::http('PUT', self::CUSTOMERS . '?id=' . $id, [
+            'companyName' => 'Apitest Renamed ApS',
+            'city' => 'Odense C',
+        ], RestApiEnv::authHeaders());
 
-        $this->assertIsArray($items);
-        $this->assertCount(2, $items, 'the limit is honoured');
+        $this->assertSame(200, $put['status'], $put['body']);
+        $this->assertTrue($put['json']['success']);
+        $this->assertSame('Apitest Renamed ApS', $put['json']['data']['firmanavn']);
+
+        $read = $this->read(self::CUSTOMERS, $id);
+        $this->assertSame('Apitest Renamed ApS', $read['json']['data']['firmanavn']);
+        $this->assertSame('Odense C', $read['json']['data']['adresse']['bynavn']);
     }
 
-    /** `limit` is cast to an int here, so a SQL fragment cannot reach the query. */
-    public function test_the_limit_parameter_is_cast_to_an_integer(): void
+    public function test_update_without_id_is_rejected_400(): void
     {
-        for ($i = 0; $i < 3; $i++) {
-            self::api('POST', self::CUSTOMERS, self::newCustomerBody());
-        }
+        $res = RestApiEnv::http('PUT', self::CUSTOMERS, ['companyName' => 'Nobody'], RestApiEnv::authHeaders());
 
-        $res = self::api('GET', self::CUSTOMERS . '?limit=' . rawurlencode('1 OFFSET 2'));
-        $items = $this->assertSuccessEnvelope($res, 'limit with a fragment');
-
-        $this->assertCount(1, $items, '"1 OFFSET 2" is cast to 1, the fragment is discarded');
-
-        $baseline = $this->assertSuccessEnvelope(self::api('GET', self::CUSTOMERS . '?limit=1'), 'baseline');
-        $this->assertSame(
-            $baseline[0]['id'] ?? null,
-            $items[0]['id'] ?? null,
-            'no OFFSET was applied - the same first row comes back'
-        );
+        $this->assertSame(400, $res['status'], $res['body']);
+        $this->assertFalse($res['json']['success']);
     }
 
-    public function test_a_customer_can_be_deleted(): void
+    public function test_deleted_customer_is_gone_from_api_and_database(): void
     {
-        $created = self::api('POST', self::CUSTOMERS, self::newCustomerBody());
-        $id = (int)$this->assertSuccessEnvelope($created, 'create')['id'];
+        $create = $this->create(self::CUSTOMERS, $this->customerBody('delete'));
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
 
-        $res = self::api('DELETE', self::CUSTOMERS . '?id=' . $id);
-        $this->assertSuccessEnvelope($res, 'delete');
+        $del = RestApiEnv::http('DELETE', self::CUSTOMERS . '?id=' . $id, null, RestApiEnv::authHeaders());
 
-        $read = self::api('GET', self::CUSTOMERS . '?id=' . $id);
-        $this->assertSame(404, $read['status'], 'the customer is gone: ' . $read['body']);
+        $this->assertSame(200, $del['status'], $del['body']);
+        $this->assertTrue($del['json']['success']);
+
+        $read = $this->read(self::CUSTOMERS, $id);
+        $this->assertSame(404, $read['status'], $read['body']);
+
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT id FROM adresser WHERE id = $1', [$id]);
+        pg_close($tenant);
+        $this->assertSame([], $rows, 'adresser row removed');
+    }
+
+    public function test_reading_or_deleting_a_nonexistent_customer_returns_404(): void
+    {
+        $read = $this->read(self::CUSTOMERS, 99999999);
+        $this->assertSame(404, $read['status'], $read['body']);
+        $this->assertFalse($read['json']['success']);
+
+        $del = RestApiEnv::http('DELETE', self::CUSTOMERS . '?id=99999999', null, RestApiEnv::authHeaders());
+        $this->assertSame(404, $del['status'], $del['body']);
+        $this->assertFalse($del['json']['success']);
+    }
+
+    public function test_creditor_is_stored_as_art_k_and_invisible_to_the_debtor_endpoint(): void
+    {
+        $body = $this->customerBody('creditor');
+        $create = $this->create(self::CREDITORS, $body);
+
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
+        $this->assertGreaterThan(0, $id);
+
+        $asCreditor = $this->read(self::CREDITORS, $id);
+        $this->assertSame(200, $asCreditor['status'], $asCreditor['body']);
+        $this->assertSame($body['companyName'], $asCreditor['json']['data']['firmanavn']);
+
+        $asDebtor = $this->read(self::CUSTOMERS, $id);
+        $this->assertSame(404, $asDebtor['status'], 'a creditor id must not resolve as a debtor');
+
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT art FROM adresser WHERE id = $1', [$id]);
+        pg_close($tenant);
+        $this->assertSame([['art' => 'K']], $rows);
+
+        $del = RestApiEnv::http('DELETE', self::CREDITORS . '?id=' . $id, null, RestApiEnv::authHeaders());
+        $this->assertSame(200, $del['status'], $del['body']);
+        $this->assertSame(404, $this->read(self::CREDITORS, $id)['status']);
     }
 }

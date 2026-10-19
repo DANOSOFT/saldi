@@ -81,6 +81,13 @@ $status_info = get_user_statuses();
 $vismenu = $_GET['vismenu'] ?? 'all';
 $statuses = $status_info['statuses'] ?? null;
 
+// CRM has nothing to show/act on without at least one employee (ansatte row) —
+// SST-736: tell the user where to add one instead of leaving a blank/inert screen.
+$ansatte_row = db_fetch_array(db_select("SELECT COUNT(*) AS antal FROM ansatte", __FILE__ . " linje " . __LINE__));
+if (!$ansatte_row || $ansatte_row['antal'] == 0) {
+    print tekstboks(findtekst('5056|For at anvende CRM-systemet kræves det, at der er tilføjet ansatte under Stamdata i Indstillinger.<br>Gå til: System → Indstillinger → Stamdata for at tilføje ansatte.', $sprog_id), 'info');
+}
+
 // Use $statuses for filtering in subsequent queries
 display_top_buttons($vismenu);
 print "<br>";
