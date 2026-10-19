@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- systemdata/syssetupIncludes/saveData.php ---patch 5.0.0 ----2026-10-01 ---
+//--- systemdata/syssetupIncludes/saveData.php ---ver 5.0.0 ----2026-10-07 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,10 @@
 // 20260724 MJ  Propagate VG.box5 og DG/KG.box10 til alle fiscal_year-raekker ved gem.
 // 20260729 CL/NTR - reported by CodeRabbit - whitelist box10 and box5 values when transfering between fiscal_years, and empty them if not on the list of allowed values.
 // 20261001 CDX/PHR Prevent warehouse deletion from moving stock history or renumbering other warehouses.
+// 20261007 MJ SST-829 A new warehouse is stored with fiscal_year 0 instead of the current
+//                  accounting year, and the duplicate check no longer scopes warehouses to
+//                  a year - otherwise it would miss that row and a second save would add
+//                  another one.
 require_once(__DIR__ . '/warehouseDeletion.php');
 
 if ($_POST){
@@ -218,7 +222,15 @@ if ($_POST){
 			$fejl=tjek ($id [$x],$beskrivelse[$x],$kodenr[$x],$kode[$x],$art[$x],$box1[$x],$box2[$x],$box3[$x],$box4[$x],$box5[$x],$box6[$x],$box7[$x],$box8[$x],$box9[$x]);
 			if (!$fejl && ($id[$x]==0)&&($kode[$x])&&($kodenr[$x])&&($art[$x])) {
 				$qtxt = "SELECT id FROM grupper WHERE ";
-				$qtxt.= "kodenr = '$kodenr[$x]' and kode = '$kode[$x]' and art = '$art[$x]' and fiscal_year = '$regnaar'";
+				$qtxt.= "kodenr = '$kodenr[$x]' and kode = '$kode[$x]' and art = '$art[$x]'";
+				// 20261007 MJ SST-829 A warehouse is stored year-agnostically (fiscal_year 0),
+				// so this check must not scope to the current year: it would miss the row
+				// written below and a second save would add a duplicate. Leaving it unscoped
+				// also catches rows an earlier accounting-year copy left behind on tenants
+				// that already have them.
+				if ($art[$x] != 'LG') {
+					$qtxt.= " and fiscal_year = '$regnaar'";
+				}
 				$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
 					$alerttxt = NULL;
@@ -243,7 +255,10 @@ if ($_POST){
 					$qtxt.= "values ";
 					$qtxt.= "('$beskrivelse[$x]','$kodenr[$x]','$kode[$x]','$art[$x]','$box1[$x]','$box2[$x]','$box3[$x]','$box4[$x]',";
 					$qtxt.= "'$box5[$x]','$box6[$x]','$box7[$x]','$box8[$x]','$box9[$x]','$box10[$x]','$box11[$x]','$box12[$x]',";
-					$qtxt.= "'$box13[$x]','$box14[$x]','$regnaar')";
+					// 20261007 MJ SST-829 Warehouses carry fiscal_year 0: they are not per-year
+					// data, and a row per year is what produced the duplicate warehouse lists.
+					$gruppeAar = ($art[$x] == 'LG') ? '0' : $regnaar;
+					$qtxt.= "'$box13[$x]','$box14[$x]','$gruppeAar')";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					if ($art[$x]=='LG'){
 						if (!db_fetch_array(db_select("SELECT * FROM lagerstatus",__FILE__ . " linje " . __LINE__))) {
