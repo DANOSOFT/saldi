@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
+//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -147,6 +147,10 @@
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261019 CL/LH MB-73: linjeopdat() adds the delivered quantity to coalesce(leveret,0), as NULL+n stayed NULL and fast invoicing and credit notes never recorded it.
+//                opret_ordrelinje() inserts leveret = 0.
+//                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
+//                Braces added to the brace-less ifs in the edited blocks.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -510,8 +514,9 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 
 	$antal *= 1;
 
-	if (!$levdate)
+	if (!$levdate) {
 		$levdate = date("Y-m-d");
+	}
 
 	$query = db_select("select * from grupper where art='VG' and kodenr='$gruppe' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__); #VG = Varegruppe
 	if ($row = db_fetch_array($query)) {
@@ -728,7 +733,9 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 		}
 	}
 	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
-	$qtxt = "update ordrelinjer set leveret = leveret+$antal,leveres=0 where id='$linje_id'";
+	// 20261019 CL/LH MB-73 leveret has no default and opret_ordrelinje() never set it, so NULL+$antal stayed
+	// NULL and fast invoicing (which never opens debitor/ordre.php's re-sync) left the delivered quantity unrecorded.
+	$qtxt = "update ordrelinjer set leveret = coalesce(leveret,0)+$antal,leveres=0 where id='$linje_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } # endfunc linjeopdat
 
@@ -1076,16 +1083,16 @@ function krediter_pos($id)
 	$projekt = array();
 	while ($r = db_fetch_array($q)) {
 		$y = $x - 1;
-		if ($x && $r['varenr'] == $varenr[$y] && $r['beskrivelse'] == 'rabat')
+		if ($x && $r['varenr'] == $varenr[$y] && $r['beskrivelse'] == 'rabat') {
 			$dontInsert = 1;
-		else {
+		} else {
 			$posnr[$x] = $r['posnr'] * 1;
 			$pris[$x] = $r['pris'] * 1;
 			$rabat[$x] = $r['rabat'] * 1;
 			$vare_id[$x] = $r['vare_id'] * 1;
 			$antal[$x] = $r['antal'] * -1;
 			$leveres[$x] = $r['leveres'] * 1;
-			$leveret[$x] = $r['leveret'] * 1;
+			$leveret[$x] = 0; # 20261019 CL/LH MB-73 nothing is returned yet; the sold line's leveret, now recorded, would cancel the return
 			$bogf_konto[$x] = $r['bogf_konto'] * 1;
 			$kred_linje_id[$x] = $r['kred_linje_id'] * 1;
 			$momsfri[$x] = db_escape_string($r['momsfri']);
@@ -4339,8 +4346,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				#				return ('0');
 				#				exit;
 			}
-			if (($samlevare && !$antal) || $antal == '')
+			if (($samlevare && !$antal) || $antal == '') {
 				$antal = 1;
+			}
 			($omkunde && $omvare) ? $omvbet = 'on' : $omvbet = '';
 			$antal *= 1;
 			$leveres *= 1;
@@ -4357,21 +4365,23 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			// 		// If no stock has it, keep the department stock as-is
 			// 	}
 			// }
-			if ($lager < 1)
+			if ($lager < 1) {
 				$lager = 1;
+			}
 			$posnr = abs($posnr); #20200813
 			#			if ($barcodeNew && !$serienr) $serienr = $barcodeNew;
-			if ($art != 'PO' && $art != 'DK' && !$webservice && $variantText)
+			if ($art != 'PO' && $art != 'DK' && !$webservice && $variantText) {
 				$beskrivelse .= " $variantText"; #20211129
+			}
 			$qtxt = "insert into ordrelinjer ";
 			$qtxt .= "(ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,procent,m_rabat,";
 			$qtxt .= "pris,vat_price,kostpris,momsfri,momssats,posnr,projekt,folgevare,rabatgruppe,";
-			$qtxt .= "bogf_konto,vat_account,kred_linje_id,kdo,serienr,variant_id,leveres,samlevare,";
+			$qtxt .= "bogf_konto,vat_account,kred_linje_id,kdo,serienr,variant_id,leveres,leveret,samlevare,";
 			$qtxt .= "omvbet,saet,fast_db,lev_varenr,tilfravalg,lager,barcode) ";
 			$qtxt .= "values ";
 			$qtxt .= "('$id','$vare_id','$varenr','$enhed','$beskrivelse','$antal','$rabat','$rabatart','$procent','$m_rabat',";
 			$qtxt .= "'$pris','$VatPrice','$kostpris','$momsfri','$varemomssats','$posnr','','$folgevare','$rabatgruppe',";
-			$qtxt .= "'$bogfkto','$vatAccount','$kred_linje_id','$kdo','$serienr','$variant_id','$leveres','$samlevare',";
+			$qtxt .= "'$bogfkto','$vatAccount','$kred_linje_id','$kdo','$serienr','$variant_id','$leveres','0','$samlevare',"; # 20261019 CL/LH MB-73 nothing is delivered yet
 			$qtxt .= "'$omvbet','$saet','$fast_db','$lev_varenr','$tilfravalgNy','$lager','$barcodeNew')";
 			#			fwrite($log, __line__." $qtxt\n");
 			if (abs($antal) < 100000000000) {
@@ -4379,8 +4389,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				if ($kundedisplay) {
 					kundedisplay($beskrivelse, $VatPrice * $antal, 0); #20201206
 				}
-			} else
+			} else {
 				print "<BODY onLoad=\"javascript:alert('Antal (" . dkdecimal($antal) . ") er for stort, reducer antal')\">";
+			}
 			if ($samlevare && !$beholdning) {
 				$r = db_fetch_array(db_select("select max(id) as id from ordrelinjer where vare_id='$vare_id' and ordre_id='$id'", __FILE__ . " linje " . __LINE__));
 				#				samlevare($id,$art,$r['id'],$vare_id,$antal); udkommenteret 20131129

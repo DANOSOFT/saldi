@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.14
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.19
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,8 @@
 // 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
 //                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
 //                  so the one-time build no longer blocks writes to adresser during a login.
+// 20261019 CL/LH MB-73: default 0 for ordrelinjer.leveret.
+//                One-time backfill of NULL leveret on sales, credit note and POS lines from their batch_salg delivery records.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1291,6 +1293,43 @@ if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHE
 		}
 		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
 	}
+}
+
+// 20261019 CL/LH MB-73: ordrelinjer.leveret had no default and opret_ordrelinje() never set it, so
+// linjeopdat()'s leveret+n stayed NULL. debitor/ordre.php re-syncs leveret from the delivery records
+// whenever the order is shown (the sum of batch_salg.antal for the line, order and item), but fast
+// invoicing never shows it, so invoiced and credited lines kept leveret NULL.
+// The default is set only while it is still missing, checked in the current tenant's database/schema
+// like the column checks above. SET DEFAULT is a catalog change only; existing rows are not rewritten.
+$leveretMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'ordrelinjer' AND column_name = 'leveret' AND column_default IS NULL";
+$qtxt .= $leveretMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE ordrelinjer ALTER COLUMN leveret SET DEFAULT 0", __FILE__ . " linje " . __LINE__);
+}
+// One-time backfill, flagged in settings like the pool_files backfills above, as a single set-based
+// UPDATE: leveret becomes the same batch_salg sum ordre.php shows, for sales, credit note and POS lines
+// that have delivery records. Lines without any (not delivered, text lines) are left as they are, as
+// ordre.php leaves them. Purchase lines are excluded: their receipts are in batch_kob and kreditor/ordre.php
+// keeps their leveret. Only NULL rows match, so a second run would change nothing even without the flag.
+$leveretBackfilled = db_fetch_array(db_select(
+	"SELECT var_value FROM settings WHERE var_name = 'ordrelinjer_leveret_backfilled' AND var_grp = 'system'",
+	__FILE__ . " linje " . __LINE__
+));
+if (!$leveretBackfilled) {
+	$qtxt = "UPDATE ordrelinjer SET leveret = COALESCE((SELECT SUM(batch_salg.antal) FROM batch_salg";
+	$qtxt.= " WHERE batch_salg.linje_id = ordrelinjer.id AND batch_salg.ordre_id = ordrelinjer.ordre_id";
+	$qtxt.= " AND batch_salg.vare_id = ordrelinjer.vare_id), 0)";
+	$qtxt.= " WHERE ordrelinjer.leveret IS NULL";
+	$qtxt.= " AND ordrelinjer.ordre_id IN (SELECT ordrer.id FROM ordrer WHERE ordrer.art IN ('DO', 'DK', 'PO'))";
+	$qtxt.= " AND EXISTS (SELECT 1 FROM batch_salg WHERE batch_salg.linje_id = ordrelinjer.id";
+	$qtxt.= " AND batch_salg.ordre_id = ordrelinjer.ordre_id AND batch_salg.vare_id = ordrelinjer.vare_id)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify(
+		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+		VALUES ('ordrelinjer_leveret_backfilled', 'system', 'yes', 'One-time backfill of NULL ordrelinjer.leveret from batch_salg (MB-73)')",
+		__FILE__ . " linje " . __LINE__
+	);
 }
 
 ?>
