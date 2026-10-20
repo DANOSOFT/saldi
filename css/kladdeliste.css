@@ -11,7 +11,8 @@
   margin:0; height:100vh; overflow:hidden; background:var(--surface); color:var(--text); font:14px/1.45 var(--font);
 }
 .kl-page *{box-sizing:border-box}
-.kl-page button,.kl-page input,.kl-page select{font:inherit;color:inherit}
+/* zero specificity, so component colours below always win */
+:where(.kl-page) :where(button,input,select){font:inherit;color:inherit}
 .kl-page [hidden]{display:none!important}
 .kl-page input:focus{outline:none;border-color:var(--focus)!important;box-shadow:0 0 0 3px var(--focus-ring)}
 .kl-page :focus-visible{outline:2px solid var(--focus);outline-offset:2px}

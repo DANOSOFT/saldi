@@ -216,6 +216,7 @@ $title = "kladdeliste";
 $klAction = isset($_POST['kl']) ? (string)$_POST['kl'] : '';
 // JSON/CSV requests and the reset redirect must not get the HTML head that online.php prints
 if ($klAction !== '' || isset($_GET['reset_grid'])) $header = 'nix';
+if ($klAction !== '') ob_start(); // stray output from the includes must not reach the JSON/CSV
 include("../includes/connect.php");
 include("../includes/std_func.php");
 include("../includes/online.php");
@@ -256,6 +257,7 @@ function kl_h($s) {
 	return htmlspecialchars($s, ENT_QUOTES, $db_encode == 'UTF8' ? 'UTF-8' : 'ISO-8859-15');
 }
 function kl_json($data) {
+	while (ob_get_level()) ob_end_clean();
 	header('Content-Type: application/json; charset=utf-8');
 	header('Cache-Control: no-store');
 	echo json_encode($data, JSON_INVALID_UTF8_SUBSTITUTE);
@@ -415,6 +417,7 @@ if ($klAction === 'pref') {
 if ($klAction === 'csv') {
 	$req = $_POST;
 	$rows = kl_rows($req, 50000, 0);
+	while (ob_get_level()) ob_end_clean();
 	$status = array('open' => kl_t('Ikke bogført', 'Not posted'), 'sim' => kl_t('Simuleret', 'Simulated'), 'post' => kl_t('Bogført', 'Posted'));
 	header('Content-Type: text/csv; charset=utf-8');
 	header('Content-Disposition: attachment; filename="kassekladder.csv"');
