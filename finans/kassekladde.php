@@ -155,9 +155,11 @@
 // 20261003 CL/SZ SD-716 The paper-clip on a line without a document saves the journal first and then opens the pool, instead of "Obs - Du har ikke gemt".
 //                The pool opens for the clicked line, or for the line the save just created from the new line, so the document can't land on a duplicate line.
 //                If the save fails validation, the journal stays with its normal error.
+// 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
 // 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
 //                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
 //                and the journal then refused every save.
+// 20261006 CL/SZ SD-720 accountAutocomplete.js?v= bumped again: the invoice-number and amount searches got the same late-answer rule.
 // 20261006 CL/SZ SD-716 With SD-701 from master: the paper icon of a line with a document opens it in its own tab (openBilagTab()); without one it
 //                still saves first and opens the pool (clipSaveThenPool()).
 // 20261006 CL/SZ SD-716 (CodeRabbit) After the paper-clip save, the pool opens on the line this save inserted (kk_new_line_ids) instead of the

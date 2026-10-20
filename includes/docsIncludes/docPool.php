@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-15 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -121,6 +121,11 @@
 //                Lookups by file name (poolAllRows()) also see the open and the ticked documents when they are not on a loaded page.
 //                "Opdatér alle" fetches every file name.
 //                Selecting a document switches in place (docPoolSwitch.js); the entry config moved inside kassebilagTopBar so it switches along.
+// 20261003 CL/SZ SD-720 "Fordeling" adds a row of the same bilag with the remaining amount, with "Bilagsbalance" under the rows (docPoolSplit.js).
+//                The row it copies is rendered once into <template id='poolSplitTemplate'>; the document's captured amount comes in saldiPoolSplit.
+//                Any row id starting with "new" is saved as a new line, and "Gem alle" saves the rows one after another so pos follows the order shown.
+//                chooseMultipleBilag()'s pre-save skips every new* row, not only "new": they are saved by then and would be saved twice as lines without a bilag.
+//                A new row remembers the line it was saved as in _saveRowFetch(), so "Gem" or "Gem alle" again after a refused row updates that line instead of adding a second.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -136,26 +141,28 @@
 //                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
 //                With no pool_files table yet, the full sync runs at once.
 //                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
+// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
+//                That takes it from 7.5 s to under 0.1 s with 500 documents.
+//                Inside the sync window the pool folder is only read when its mtime changed.
+//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
+// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
+//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
+// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
+// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
+//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
+//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
+//                With no pool_files table yet, the full sync runs at once.
+//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
+// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
+// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
+//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
+//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
+//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
-// 20261004 LOE Report skipped duplicates, backfill missing hashes, and serialize folder sync with uploads.
-// 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
-//                That takes it from 7.5 s to under 0.1 s with 500 documents.
-//                Inside the sync window the pool folder is only read when its mtime changed.
-//                An XML invoice is rendered through EasyUBL once and reused until the file changes.
-// 20261003 CL/SZ SD-718 (CodeRabbit) The folder's mtime is read before the folder is listed, and that value is stored.
-//                Reading it afterwards could mark a file added in between as seen until the 10-minute sync.
-// 20261004 CL/SZ SD-718 (CodeRabbit) The folder's mtime is stored only after the listing succeeded and the rows were reconciled; a failed glob() stores nothing.
-//                Whether that mtime is safe to store is decided by the time the listing started, not the time it ended, so a file added during a long scan isn't skipped.
-//                An empty pool folder is a successful full sync too: it is recorded, so the next one waits its 10 minutes instead of running on every request.
-//                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
-// 20261003 CL/SZ SD-718 No folder work on the page load: the page and the list come from pool_files, and poolFolderSync() runs from includes/poolFolderSync.php right after the page is shown.
-//                When that adds or removes documents (email, EasyUBL, UBL import, REST API), the list is fetched again in place.
-//                A row being edited inline is not re-rendered by that refresh, also when the edit is opened while the list is being fetched: it is drawn once the edit is closed.
-//                With no pool_files table yet, the full sync runs at once.
-//                The default document is found in pool_files on Postgres too; the table check used the company's name as schema, so it always fell back to reading the folder.
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
+// 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
 // 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
 // 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
@@ -164,7 +171,6 @@
 //                the browser would have asked for exactly that page (no stored search, more loaded rows, ticked documents or archive view) and not for a page from history.
 // 20261009 CL/SZ SD-719 On a low screen the upload box (#fixedCell) gives way to the list instead of squeezing it to nothing (docpool.css);
 //                #fixedBottom fills the cell (not the left panel's width in px), so the cell's scrollbar doesn't cut off its right edge.
-// 20261003 CL/SZ SD-723 The viewer and the card preview load the document through docFile.php (login and tenant checked) instead of its direct path.
 // 20261006 LOE SST-858 A bilag is deleted, renamed and inventoried by the name it actually has, so a
 //                 file stored as AArsoversigt.PDF is removed from the pulje folder too and does not
 //                 return from the next folder sync; its .info/.xml side files follow whatever their
@@ -185,6 +191,13 @@
 // 20261015 CL/SZ SD-719 (CodeRabbit) A reload overtaken by a newer one stops paging and leaves the scroll position to the newer one,
 //                and a switch on the same line gets the reload still running, so it shows its document after that reload.
 // 20261015 CL/SZ SD-719 (CodeRabbit) A cached XML preview (SD-718) is served through docFileUrl() like a fresh one, so it gets docFile.php's check and the "Åbn i nyt vindue" button.
+// 20261015 CL/SZ SD-720 (CodeRabbit) "Gem alle" on a split bilag ticks only the rows it created; a line that was already there keeps the box as the user left it.
+// 20261015 CL/SZ SD-720 (CodeRabbit) The document total for "Fordeling" is read from the newest pool_files row of that name, so an old duplicate can't give it.
+// 20261016 CL/SZ SD-720 (CodeRabbit) "Gem" and "Gem alle" refuse an amount the save can't read (5090), as "Gem og næste" does; empty and 0 are still saved.
+//                A split row that is saved already is saved again before the attach too, so edits made to it since are not lost.
+// 20261020 CL/SZ SD-720 (CodeRabbit) A new row saved by a "Gem alle" or "Gem og næste" that then failed on a later row gets its line id in its "attach here"
+//                box; attaching the document to it made a second line. "Gem" and "Gem alle" refuse a dot that is not a thousands separator
+//                ("12.50" was saved as 1250) and a space inside the amount.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1929,6 +1942,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<script src=\"../javascript/docPoolArchive.js?v=$v12\"></script>";
 	$v13 = file_exists("../javascript/docPoolSwitch.js") ? filemtime("../javascript/docPoolSwitch.js") : 0;
 	print "<script src=\"../javascript/docPoolSwitch.js?v=$v13\"></script>";
+	$v14 = file_exists("../javascript/docPoolSplit.js") ? filemtime("../javascript/docPoolSplit.js") : 0;
+	print "<script src=\"../javascript/docPoolSplit.js?v=$v14\"></script>";
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
@@ -2219,6 +2234,20 @@ if ($source == 'kassekladde') {
 	// SD-719: the config below is inside kassebilagTopBar, so an in-place document switch (docPoolSwitch.js) brings the new document's config along
 	print "<div id='kassebilagTopBar'>";
 
+	// SD-720: the captured amount of the document is the total "Fordeling" splits; without one, the first row's amount
+	$splitDocAmount = '';
+	if ($poolFile !== '' && $poolFile !== null) {
+		$splitRow = db_fetch_array(db_select("SELECT amount FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "' ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__));
+		$splitDocAmount = $splitRow ? (string)$splitRow['amount'] : '';
+	}
+	print "<script>window.saldiPoolSplit = " . json_encode(array(
+		'docAmount' => $splitDocAmount,
+		'texts'     => array(
+			'remove'    => findtekst('5351|Fjern linjen', $sprog_id),
+			'notBalanced' => findtekst('5350|Bilaget går ikke op: rest', $sprog_id),
+		),
+	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
+
 	// Debet/Kredit lookup (docPoolAccounts.js) and the card button on the panel's lines (accountAutocomplete.js)
 	print "<script>
 	window.saldiPoolAccounts = " . json_encode(array('lookupUrl' => 'docsIncludes/poolAccountLookup.php', 'kladdeId' => $escKladde)) . ";
@@ -2275,6 +2304,8 @@ if ($source == 'kassekladde') {
 		$txt2 = findtekst('3|Gem', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id));  #Gem alle
 		$txt3 = findtekst('3339|Overfør data', $sprog_id);
 		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus $txt1</a>";
+		// SD-720: a row of the same bilag with the remaining amount (docPoolSplit.js)
+		print "<a href='#' id='splitRowBtn' onclick='poolSplit.addRow(); return false;' style=\"$btnStyle\">$svgPlus " . findtekst('5348|Fordeling', $sprog_id) . "</a>";
 		// SD-716: "Gem og næste" is the main action (also on Enter); "Gem alle" saves without leaving the document
 		$txtSaveNext = findtekst('5332|Gem og næste', $sprog_id);
 		$txtSkip = findtekst('5333|Spring over', $sprog_id);
@@ -2338,6 +2369,19 @@ if ($source == 'kassekladde') {
 	}
 
 	print "</div>"; // bilagRowsContainer
+
+	if (!$readOnly) {
+		// SD-720: "Bilagsbalance" under the rows, and the empty row "Fordeling" copies (ids row_tpl_*, renamed per added row)
+		print "<div id='poolSplitBalance' class='pool-split-balance' style='display:none;'>";
+		print "<span class='pool-split-label'>" . findtekst('5349|Bilagsbalance', $sprog_id) . ":</span> <span class='pool-split-value'></span>";
+		print "<span class='pool-split-warning' role='alert'></span>";
+		print "</div>";
+		print "<template id='poolSplitTemplate'>";
+		print "<div class='bilag-row-wrapper'>";
+		$renderBilagRow('tpl', array('d_type' => 'F', 'k_type' => 'K'), false);
+		print "</div>";
+		print "</template>";
+	}
 
 	// Toggle button when more than 1 row
 	if ($collapsible) {
@@ -4167,8 +4211,13 @@ print <<<JS
 		const otherCheckedRowIds = Array.from(targetCheckboxes)
 			.map(cb => cb.closest('.kassebilag-entry'))
 			.filter(Boolean)
-			.map(entry => entry.id.replace('bilagEntry_', ''))
-			.filter(rowId => rowId !== 'new' && rowId !== typedRowId);
+			// Unsaved rows (new, and "Fordeling"'s new2, new3 ...) are not saved lines; "Gem og næste" has saved them just before (SD-720).
+			// A new row that is saved already (savedLineId) is its line, so edits made to it since are saved too.
+			.filter(entry => {
+				const rowId = entry.id.replace('bilagEntry_', '');
+				return rowId !== typedRowId && (!/^new/.test(rowId) || !!entry.dataset.savedLineId);
+			})
+			.map(entry => entry.id.replace('bilagEntry_', ''));
 		const preSave = (otherCheckedRowIds.length > 0 && typeof _saveRowFetch === 'function')
 			? Promise.all(otherCheckedRowIds.map(rowId => _saveRowFetch(rowId, url.searchParams.get('kladde_id') || 0, url.searchParams.get('bilag') || 0)))
 				.then(results => {
@@ -6187,7 +6236,7 @@ HTML;
         fd.append("action", "updateOnly");
         fd.append("ajax", "1");
         fd.append("source", "kassekladde");
-        if (includeSourceId && rowId !== 'new') fd.append("sourceId", rowId);
+        if (includeSourceId && !/^new/.test(String(rowId))) fd.append("sourceId", rowId);
         if (kladdeId) fd.append("kladde_id", kladdeId);
         if (bilag)    fd.append("bilag", bilag);
         // SD-716: a new row "Gem og næste" has already saved (its attach then failed) is that line now, not a new one
@@ -6210,10 +6259,45 @@ HTML;
 
     function _saveRowFetch(rowId, kladdeId, bilag) {
         return fetch(_insertUrl, { method: "POST", body: _buildFormData(rowId, kladdeId, bilag, true) })
-            .then(r => r.json());
+            .then(r => r.json())
+            .then(data => {
+                // A new row is that line once saved, so saving it again ("Gem", "Gem alle" after another row failed) updates it (SD-720)
+                var savedEntry = document.getElementById('bilagEntry_' + rowId);
+                if (data && data.success && /^new/.test(String(rowId)) && data.sourceId && savedEntry) {
+                    savedEntry.dataset.savedLineId = data.sourceId;
+                    // Its "attach here" box is that line too: after a save that failed on a later row, attaching the document to it made a second line
+                    var savedBox = savedEntry.querySelector(".targetLineCheckbox");
+                    if (savedBox) savedBox.value = data.sourceId;
+                }
+                return data;
+            });
+    }
+
+    // "Gem" and "Gem alle" refuse an amount the save can't read; an empty amount or 0 may be saved there. A value usdecimal() can't read ("oops")
+    // stopped insertDoc.php half way, and "12,50oops" was stored as 12,50 (SD-720). usdecimal() drops every dot, so a dot is only a thousands
+    // separator here (1.234,56): "12.50" was stored as 1250 and "1.2345" as 12345, and a space inside the number ("1 234,56") as 0.
+    function _badAmountField(rowIds) {
+        for (var i = 0; i < rowIds.length; i++) {
+            var field = document.getElementById('row_' + rowIds[i] + '_Amount');
+            var value = field ? field.value.trim() : '';
+            if (value === '') continue;
+            if (!/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/.test(value)) return field;
+        }
+        return null;
+    }
+
+    /** Refuses the save when a row's amount can't be read: the message, the cursor in that field, and nothing is sent. */
+    function _refuseBadAmount(rowIds, bilag) {
+        var field = _badAmountField(rowIds);
+        if (!field) return false;
+        alert('"' + field.value.trim() + '" ' + <?php echo json_encode(findtekst('5090|er ikke et gyldigt beløb - brug komma som decimaltegn, fx 1.234,56 (Bilag nr', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> + ' ' + bilag + ')');
+        field.focus();
+        if (typeof field.select === 'function') field.select();
+        return true;
     }
 
     function saveRow(rowId, kladdeId, bilag) {
+        if (_refuseBadAmount([rowId], bilag)) return;
         var entryDiv = document.getElementById('bilagEntry_' + rowId);
         var gemBtn = entryDiv ? entryDiv.querySelector('a[title="<?php echo $txt1.' '.lcfirst($txt14)?>"]') : null;
         if (gemBtn) { gemBtn.innerHTML = '<?php echo $txt49 ?>...'; gemBtn.style.opacity = '0.7'; gemBtn.style.pointerEvents = 'none'; }
@@ -6254,26 +6338,41 @@ HTML;
         var kladdeId = <?php echo !empty($currentKladdeId) ? (int)$currentKladdeId : '0' ?>;
         var bilag    = <?php echo isset($intBilag) ? (int)$intBilag : '0' ?>;
         var entries  = document.querySelectorAll('.kassebilag-entry');
+        var rowIds = Array.from(entries).map(el => el.id.replace('bilagEntry_', ''));
+        if (_refuseBadAmount(rowIds, bilag)) return;
         var gemAlleBtn = document.getElementById('gemAlleBtn');
         if (gemAlleBtn) { gemAlleBtn.innerHTML = '<?php echo $txt49 ?>...'; gemAlleBtn.style.opacity = '0.7'; gemAlleBtn.style.pointerEvents = 'none'; }
 
-        var rowIds = Array.from(entries).map(el => el.id.replace('bilagEntry_', ''));
-        Promise.all(rowIds.map(id => _saveRowFetch(id, kladdeId, bilag)))
-        .then(results => {
+        // One after another in the order shown, so new lines get their pos in that order (SD-720)
+        var results = [];
+        rowIds.reduce((chain, id) => chain.then(() => _saveRowFetch(id, kladdeId, bilag).then(d => { results.push(d); })), Promise.resolve())
+        .then(() => {
             var failed = results.find(d => !d.success);
             var newSourceId = null;
             results.forEach((d, i) => {
-                if (rowIds[i] === 'new' && d.success && d.sourceId) newSourceId = d.sourceId;
+                if (/^new/.test(rowIds[i]) && d.success && d.sourceId && !newSourceId) newSourceId = d.sourceId;
             });
             if (failed) {
                 alert("<?php echo $txt31 ?>: " + (failed.message || "<?php echo $txt38 ?>"));
                 if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt72 ?>"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
-            } else if (newSourceId) {
+            } else if (newSourceId && !(window.poolSplit && window.poolSplit.active())) {
                 savePoolListView();
                 var url = new URL(window.location.href);
                 url.searchParams.set("sourceId", newSourceId);
                 window.location.href = url.href;
             } else {
+                // A split bilag stays on the page: reloaded as its first line, the other rows were folded away and only
+                // that line got the document. The new rows are their lines now (savedLineId) and are ticked for it; a line that was
+                // already there keeps its box as the user left it.
+                if (newSourceId) {
+                    entries.forEach(function(entry, i) {
+                        var box = entry.querySelector('.targetLineCheckbox');
+                        if (box && /^new/.test(rowIds[i]) && results[i] && results[i].success && results[i].sourceId) {
+                            box.value = results[i].sourceId;
+                            box.checked = true;
+                        }
+                    });
+                }
                 if (gemAlleBtn) {
                     gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt73 ?>";
                     setTimeout(() => {
