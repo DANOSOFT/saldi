@@ -1414,4 +1414,8 @@ if ($ansatIdType && in_array(strtolower($ansatIdType['data_type']), ['text', 'ch
 	}
 }
 
+// 20261020 ASR CRM redesign (debitor/crm.php): historik.type + historik.completed and the crm_deals table, see includes/crmFunctions.php.
+include_once(__DIR__ . "/crmFunctions.php");
+crm_ensure_schema();
+
 ?>

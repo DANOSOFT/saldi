@@ -320,7 +320,7 @@ function brightenColor($color, $amount = 0.2) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/crmkalender.php")\'>CRM</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/crm.php")\'>CRM</a></li>';
         }
         ?>
       </ul>
