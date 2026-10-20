@@ -1394,8 +1394,24 @@ initializeFormHtmlLayoutVersion($db_type);
 // adresser (stripe, stripe_customer_id, stripe_pm_id, stripe_date). PostgreSQL only, like the
 // other stripe_* tables above; the same function is called lazily by the payment page.
 if ($db_type != 'mysql' && $db_type != 'mysqli') {
-	include_once(__DIR__ . '/stripeIncludes/stripeInvoice.php');
-	if (function_exists('stripe_payments_ensure')) stripe_payments_ensure();
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_payments' AND column_name='payment_intent_id'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("CREATE TABLE stripe_payments (id SERIAL PRIMARY KEY, ordre_id integer NOT NULL, fakturanr varchar(30),
+			stripe_customer_id varchar(255), payment_intent_id varchar(255) NOT NULL,
+			amount_ore integer NOT NULL, currency varchar(3) NOT NULL DEFAULT 'DKK',
+			status varchar(20) NOT NULL, source varchar(10) NOT NULL DEFAULT 'page',
+			save_card boolean NOT NULL DEFAULT false, pm_id varchar(255), pm_brand varchar(20), pm_last4 varchar(4),
+			attempt smallint NOT NULL DEFAULT 1, last_error text,
+			created_at timestamp DEFAULT CURRENT_TIMESTAMP, succeeded_at timestamp,
+			journal_line_id integer, confirmation_sent_at timestamp, last_event_id varchar(255))", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE UNIQUE INDEX stripe_payments_pi_uidx ON stripe_payments (payment_intent_id)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE UNIQUE INDEX stripe_payments_succeeded_uidx ON stripe_payments (ordre_id) WHERE status = 'succeeded'", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX stripe_payments_ordre_idx ON stripe_payments (ordre_id)", __FILE__ . " linje " . __LINE__);
+	}
+	foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date') as $stripeCol => $stripeType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='$stripeCol'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) db_modify("ALTER TABLE adresser ADD COLUMN $stripeCol $stripeType", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 // 20261006 CL/LH SST-850: rentalsettings.pass used to be stored in clear text. Hash a remaining
