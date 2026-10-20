@@ -175,6 +175,9 @@
 //                a save holds a per-journal lock (kkJournalLock()) from staging to cleanup, opdater() runs in one transaction, and a new
 //                line that kept a proposal another save took meanwhile is saved under the next free number with a notice.
 //                A typed number is kept as it is.
+// 20261020 CL/SZ MB-81 (CodeRabbit) The lock is held until the page has read and cleared tmpkassekl, and a page load takes it for
+//                that part too, so a render no longer deletes the lines another save is staging. A line saved without a number gets
+//                one past the numbers moved proposals got in the same save.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -1024,7 +1027,6 @@ if ($_POST) {
 	#		}
 		// MB-81 Another save of this journal finishes first: tmpkassekl is shared by the journal's saves
 		kkJournalLock($kladde_id);
-		$kkJournalLocked = $kladde_id;
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 		// This request stages the lines itself, so opdater() below may move them into the journal
 		$kkStaged = true;
@@ -1853,7 +1855,6 @@ if (!$fejl && $kladde_id) {
 		print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
 	}
 }
-if (!empty($kkJournalLocked)) kkJournalUnlock($kkJournalLocked);
 /*
 if (strlen($kontrolkonto)==1) {
 	$kontrolkonto=strtoupper($kontrolkonto);
@@ -3197,6 +3198,9 @@ if ($kladde_id) {
 
 		</script>";
 
+	// MB-81 The staged lines are read and cleared below, so no other save of the journal may stage meanwhile;
+	// a save that holds the lock since staging keeps it until here
+	kkJournalLock($kladde_id);
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($q)) {
@@ -3377,8 +3381,10 @@ if ($kladde_id) {
 		$betal_id[$x] = $row['betal_id'];
 		$pos[$x] = $row['pos'] ? $row['pos'] : 0;
 	}
-	if (!$fejl)
+	if (!$fejl) {
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+	}
+	kkJournalUnlock();
 }
 
 
@@ -4563,7 +4569,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
 					# writing the 0 back; a positive number the user entered is kept as it is.
 					if ($bilag <= 0) {
-						$bilag = bilagNextNumberForJournal($kladde_id);
+						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
@@ -4593,7 +4599,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# next one instead of 0, so a balanced line advances the series and no number is
 						# reused while the journal is open.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberForJournal($kladde_id);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 						}
 						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
@@ -4614,7 +4620,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberForJournal($kladde_id);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 						}
 						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.

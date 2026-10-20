@@ -24,6 +24,9 @@
 // the proposal the next free number when another save took it meanwhile. It runs with kkJournalLock()
 // held, so two saves cannot both find the proposal free. A number the user typed is kept
 // as it is: several lines on one voucher stay possible.
+//
+// 20261020 CL/SZ MB-81 (CodeRabbit) A line saved without a number in the same save gets one past the moved proposals
+// (bilagNextNumberReserved()), and an existing line renumbered in that save counts toward the numbers it brings.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -106,10 +109,13 @@ function bilagReplaceTakenProposals($kladde_id, $proposed) {
 	}
 	$kept = array();
 	$staged_max = 0;
-	$q = db_select("SELECT lobenr, bilag FROM tmpkassekl WHERE kladde_id = '$kladde_id' AND (id IS NULL OR id = 0)", __FILE__ . " linje " . __LINE__);
+	$q = db_select("SELECT lobenr, id, bilag FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$bilag = (int)$r['bilag'];
 		$staged_max = max($staged_max, $bilag);
+		if ((int)$r['id'] > 0) {
+			continue;
+		}
 		$lobenr = (int)$r['lobenr'];
 		if ($bilag > 0 && isset($proposed[$lobenr]) && (int)$proposed[$lobenr] === $bilag) {
 			$kept[$bilag] = true;
@@ -123,6 +129,19 @@ function bilagReplaceTakenProposals($kladde_id, $proposed) {
 		}
 	}
 	return $replacements;
+}
+
+/**
+ * bilagNextNumberForJournal() for a line saved without a number in the same save as bilagReplaceTakenProposals():
+ * kept past the numbers the moved proposals get, which are not in the journal until their lines are inserted.
+ *
+ * @param int             $kladde_id    Journal (kladdeliste.id).
+ * @param array<int, int> $replacements What bilagReplaceTakenProposals() returned.
+ * @return int The voucher number to allocate.
+ */
+function bilagNextNumberReserved($kladde_id, $replacements) {
+	$next = bilagNextNumberForJournal($kladde_id);
+	return $replacements ? max($next, max($replacements) + 1) : $next;
 }
 
 /**
