@@ -364,7 +364,7 @@ function renderDrawer() {
 	const nx = openFor(c.id)[0], lc = lastContact(c.id);
 	const deals = DEALS.filter(d => d.cid === c.id);
 	const ret = encodeURIComponent('crm.php');
-	const back = encodeURIComponent('crm.php#drawer=' + c.id); // back from the order to this customer's drawer
+	const back = encodeURIComponent('crm.php#drawer=' + c.id + '-deals'); // back from the order to this customer's drawer
 	$('#drawer').innerHTML = `<div class="dh">
 			<div class="t"><div><h2>${esc(c.n)}</h2><div class="sub2">Kunde ${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}${c.own ? ' · ansvarlig: ' + esc(empName(c.own).toLowerCase() === 'dig' ? 'dig' : empName(c.own)) : ''}</div></div>
 				<span class="x"></span>
@@ -390,9 +390,9 @@ function dealsTab(c, list) {
 		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · forventet lukket ' + fmt(d.close) : ''}` : d.state === 'won' ? `Vundet ${fmtY(d.closed)}` : `Tabt ${fmtY(d.closed)}${d.reason ? ' – ' + esc(d.reason) : ''}`} · ${esc(empName(d.own).toLowerCase() === 'dig' ? 'dig' : empName(d.own))}</small></div>`).join('') || '<div class="empty" style="padding:32px"><b>Ingen handler</b></div>'}</div>
 		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">+ Ny handel</button>` : ''}
 		<h4 class="dsub">Åbne tilbud og ordrer</h4>
-		<div class="deals">${c.docs.map(o => `<a class="d doc" href="ordre.php?id=${o.id}&returside=${encodeURIComponent('crm.php#drawer=' + c.id)}"><b>${o.st === 0 && !DATA.quick ? 'Tilbud' : 'Ordre'} ${o.nr}</b><span class="num">${kr(o.sum)}</span>
+		<div class="deals">${c.docs.map(o => `<a class="d doc" href="ordre.php?id=${o.id}&returside=${encodeURIComponent('crm.php#drawer=' + c.id + '-deals')}"><b>${o.st === 0 && !DATA.quick ? 'Tilbud' : 'Ordre'} ${o.nr}</b><span class="num">${kr(o.sum)}</span>
 			<small>${fmtY(o.date)}${o.st === 2 ? ' · delvist leveret' : ''}</small></a>`).join('') || '<div class="c3" style="padding:8px 0 4px">Ingen åbne tilbud eller ordrer.</div>'}</div>
-		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" href="ordre.php?konto_id=${c.id}&returside=${encodeURIComponent('crm.php#drawer=' + c.id)}">+ Opret tilbud</a>`}<a class="addp" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${encodeURIComponent('crm.php#drawer=' + c.id)}">+ Opret ordre</a></div>` : ''}
+		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" href="ordre.php?konto_id=${c.id}&returside=${encodeURIComponent('crm.php#drawer=' + c.id + '-deals')}">+ Opret tilbud</a>`}<a class="addp" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${encodeURIComponent('crm.php#drawer=' + c.id + '-deals')}">+ Opret ordre</a></div>` : ''}
 		${DATA.quick && DATA.canWrite ? '<div class="c3" style="font-size:12.5px;margin-top:6px">Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).</div>' : ''}`;
 }
 
@@ -724,5 +724,6 @@ const hs = location.hash.slice(1);
 if (/^(pipe|cal|cust|act)$/.test(hs)) S.tab = hs;
 renderGroups();
 renderAll();
-if (hs.startsWith('drawer=')) openDrawer(+hs.split('=')[1]);
+const hm = hs.match(/^drawer=(\d+)(?:-(\w+))?$/); // drawer=<kunde-id>[-deals]
+if (hm) openDrawer(+hm[1], hm[2] || 'tl');
 })();
