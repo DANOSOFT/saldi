@@ -657,8 +657,11 @@ function st_visible(array $def, array $values): bool
 
 /**
  * Text id of the reason a field cannot be changed, or 0.
+ *
+ * $current is the field's form value as stored, $wanted the form value a save or restore would write. Callers that
+ * pass neither get the strict answer (locked whenever the rule applies).
  */
-function st_locked(array $def): int
+function st_locked(array $def, ?string $current = null, ?string $wanted = null): int
 {
 	if (empty($def['locked_if'])) {
 		return 0;
@@ -672,8 +675,12 @@ function st_locked(array $def): int
 		return 0;
 	}
 	if ($def['locked_if'] === 'batch_control') {
-		// Quick invoicing cannot be combined with batch control on an item group.
-		if (db_fetch_array(db_select("select id from grupper where art = 'VG' and box9 = 'on'", __FILE__ . " linje " . __LINE__))) {
+		// Quick invoicing cannot be switched ON while an item group has batch control: it delivers automatically at
+		// invoicing, so there is no delivery step where the batch is chosen. Switching it OFF is always allowed - that
+		// brings the delivery step back - so the lock only applies while the field is off or a save would turn it on.
+		// (Before 20261020 the field was locked in both directions, so a company with both on could not get out.)
+		$turnsOn = ($wanted !== null) ? ($wanted === '1') : ($current !== '1');
+		if ($turnsOn && db_fetch_array(db_select("select id from grupper where art = 'VG' and box9 = 'on'", __FILE__ . " linje " . __LINE__))) {
 			return (int) $def['locked_text'];
 		}
 	}

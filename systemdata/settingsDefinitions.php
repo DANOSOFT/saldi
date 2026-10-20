@@ -767,7 +767,7 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('omsætning', 'skjul omsætning', 'turnover', 'hide revenue', 'kasseoptælling')),
 			'sales.orders.quick_invoice' => array('sub' => 'invoicing', 'type' => 'bool', 'label' => 165, 'help' => 190, 'default' => false,
 				'storage' => array('grupper', 'DIV', 3, 'box4', 'onEmpty', 'row_name' => 'Div_valg (Ordrer)'), 'legacy' => $ordre,
-				'locked_if' => 'batch_control', 'locked_text' => 5736,
+				'locked_if' => 'batch_control', 'locked_text' => 7100,
 				'keywords' => array('hurtigfakturering', 'quick invoicing', 'fast invoicing')),
 			'sales.orders.post_sales_immediately' => array('sub' => 'invoicing', 'type' => 'bool', 'label' => 166, 'help' => 191, 'default' => false,
 				'storage' => array('grupper', 'DIV', 3, 'box5', 'onEmpty', 'join' => ';', 'index' => 0, 'row_name' => 'Div_valg (Ordrer)'), 'legacy' => $ordre,
