@@ -169,68 +169,56 @@ function renderFollow() {
 	$('#v-follow').innerHTML = html;
 }
 
-/* ================= 2. pipeline (kun handler) ================= */
-// Model A (20/10): the board shows deals only. Its columns are the statuses of the status groups marked as pipeline
-// stages under the gear (box5 'pipe'); the customer status itself only says what the customer is to the company.
-function pipeGroups() {
-	const p = GROUPS.filter(g => g.pipe);
-	return p.length ? p : GROUPS.slice(0, 1);
-}
+/* ================= 2. pipeline ================= */
+// One board per status group (Salg, Kunder, Support): the cards are the customers, a drag changes the customer's
+// status. A customer's open deals are shown on the card (amount and count) and are kept in the customer drawer,
+// so there is one board per group and no separate deal board (Adam, 20/10).
 function boardGroup() {
-	const p = pipeGroups();
-	if (!p.length) return {id: 0, n: 'Alle statusser', s: ST_ORDER.slice(), won: '', lost: ''};
-	return p.find(g => String(g.id) === String(S.bgrp)) || p[0];
+	if (!GROUPS.length) return {id: 0, n: 'Alle statusser', s: ST_ORDER.slice(), won: '', lost: ''};
+	return GROUPS.find(g => String(g.id) === String(S.bgrp)) || GROUPS[0];
 }
 const ageDays = k => k ? -diff(k) : 0;
 const ageTxt = a => a < 1 ? 'ny' : a > 365 ? Math.floor(a / 365) + ' år' : a + ' d';
-function dealCard(d) {
-	const c = cust(d.cid) || {n: '?', id: d.cid}, n = d.close ? diff(d.close) : null, age = ageDays(d.since);
-	return `<button class="card" draggable="${DATA.canWrite}" data-card="d${d.id}" data-open="${c.id}" data-deal="${d.id}">
-		<div class="l1"><b>${esc(d.t)}</b><span class="val">${d.v ? Math.round(d.v).toLocaleString('da-DK') : '<span class="c3">–</span>'}</span></div>
-		<div class="l2">${esc(c.n)}</div>
-		<div class="l3"><span class="due ${n !== null && n < 0 ? 'late' : ''}" title="Forventet lukket ${fmtY(d.close)}">${d.close ? 'luk ' + (n < 0 ? 'overskredet' : fmt(d.close)) : '<span class="nofu">ingen lukkedato</span>'}</span>
-			<span>${esc(empFirst(d.own))}</span>
-			<span class="age ${age > 14 ? 'stale' : ''}" title="I stadiet siden ${fmtY(d.since)}">${ageTxt(age)}</span></div>
-	</button>`;
+const openDeals = cid => DEALS.filter(d => d.cid === cid && d.state === 'open');
+function cardSort(a, b) {
+	const da = openFor(a.id)[0], db = openFor(b.id)[0];
+	if (da && db) return da.due.localeCompare(db.due);
+	if (da) return -1; if (db) return 1;
+	return a.n.localeCompare(b.n, 'da');
 }
-// customers whose status is a stage of this board but who have no open deal (the one-off offer)
-function customersWithoutDeal(g) {
-	if (localStorage.getItem('crm-convert-' + g.id) === 'no') return [];
-	return C.filter(c => g.s.includes(c.st) && !DEALS.some(d => d.cid === c.id && d.state === 'open'));
+function custCard(c) {
+	const nx = openFor(c.id)[0], n = nx ? diff(nx.due) : null, age = ageDays(c.stSince);
+	const deals = openDeals(c.id), sum = deals.reduce((a, d) => a + d.v, 0);
+	return `<button class="card" draggable="${DATA.canWrite}" data-card="${c.id}" data-open="${c.id}">
+		<div class="l1"><b>${esc(c.n)}</b>${sum ? `<span class="val" title="${deals.map(d => esc(d.t)).join(', ')}">${Math.round(sum).toLocaleString('da-DK')}</span>` : ''}</div>
+		<div class="l2">${deals.length ? (deals.length === 1 ? esc(deals[0].t) : deals.length + ' åbne handler') : c.ppl.length ? esc(c.ppl[0].n) + (c.ppl.length > 1 ? ` +${c.ppl.length - 1}` : '') : esc(c.by || c.nr)}</div>
+		<div class="l3">${nx ? `<span class="due ${n < 0 ? 'late' : n === 0 ? 'today' : ''}" title="${esc(nx.note)}">${n < -1 ? fmt(nx.due) : rel(nx.due)}</span>` : '<span class="nofu">Ingen opfølgning</span>'}
+			<span>${esc(empFirst(c.own))}</span>
+			<span class="age ${age > 14 ? 'stale' : ''}" title="I ${esc(stName(c.st))} siden ${fmtY(c.stSince)}">${ageTxt(age)}</span></div>
+	</button>`;
 }
 function renderPipe() {
 	const g = boardGroup();
 	if (!g.s.length) {
-		$('#v-pipe').innerHTML = '<div class="empty"><b>Ingen stadier at vise</b>Vælg under tandhjulet, hvilken statusgruppe der er salgsstadier.</div>';
+		$('#v-pipe').innerHTML = '<div class="empty"><b>Ingen statusser at vise</b>Kundestatusser oprettes på debitorkortet (feltet Status). Statusgrupper sættes op under tandhjulet.</div>';
 		return;
 	}
-	const base = DEALS.filter(d => d.state === 'open' && g.s.includes(d.st) && (!S.mine || d.own === ME) && (!S.q || (d.t + ' ' + (cust(d.cid) || {n: ''}).n).toLowerCase().includes(S.q.toLowerCase())));
-	const total = base.reduce((a, d) => a + d.v, 0);
-	const won = DEALS.filter(d => d.state === 'won' && d.closed && fromKey(d.closed).getMonth() === TODAY.getMonth() && fromKey(d.closed).getFullYear() === TODAY.getFullYear());
-	const sum = `Åben pipeline <b>${kr(total)}</b> i <b>${base.length}</b> handler · vundet i ${MOL[TODAY.getMonth()]} <b>${kr(won.reduce((a, d) => a + d.v, 0))}</b>`;
-	const cols = g.s.map(id => { const list = base.filter(d => d.st === id).sort((a, b) => (a.close || '9').localeCompare(b.close || '9'));
-		return `<div class="col" data-col="${esc(id)}"><div class="colh"><span class="dot" style="--c:${stColor(id)}"></span>${esc(stName(id))}<span class="n">${list.length}</span><span class="sum">${list.length ? kr(list.reduce((a, d) => a + d.v, 0)) : ''}</span></div>
-			<div class="cards">${list.map(dealCard).join('')}${DATA.canWrite ? `<button class="addcard" data-adddeal="${esc(id)}">+ Ny handel</button>` : ''}</div></div>`; }).join('');
-	const offer = DATA.canWrite ? customersWithoutDeal(g) : [];
-	const pg = pipeGroups();
+	const base = C.filter(c => g.s.includes(c.st) && (!S.mine || c.own === ME) && custMatch(c));
+	const late = base.filter(c => { const nx = openFor(c.id)[0]; return nx && diff(nx.due) < 0; }).length;
+	const none = base.filter(c => !openFor(c.id).length).length;
+	const dealSum = base.reduce((a, c) => a + openDeals(c.id).reduce((x, d) => x + d.v, 0), 0);
+	const sum = `<b>${base.length}</b> kunder${dealSum ? ` · åbne handler <b>${kr(dealSum)}</b>` : ''}${late ? ` · <span class="late">${late} med forsinket opfølgning</span>` : ''}${none ? ` · ${none} uden opfølgning` : ''}`;
+	const cols = g.s.map(id => {
+		const list = base.filter(c => c.st === id).sort(cardSort);
+		const colSum = list.reduce((a, c) => a + openDeals(c.id).reduce((x, d) => x + d.v, 0), 0);
+		return `<div class="col" data-col="${esc(id)}"><div class="colh"><span class="dot" style="--c:${stColor(id)}"></span>${esc(stName(id))}<span class="n">${list.length}</span><span class="sum">${colSum ? kr(colSum) : ''}</span></div>
+			<div class="cards">${list.map(custCard).join('')}</div></div>`; }).join('');
 	$('#v-pipe').innerHTML = `<div class="pipehead">
-			${pg.length > 1 ? `<div class="seg" role="tablist" aria-label="Pipeline">${pg.map(x => `<button data-bgrp="${x.id}" class="${x.id === g.id ? 'on' : ''}">${esc(x.n)}</button>`).join('')}</div>` : ''}
+			${GROUPS.length ? `<div class="seg" role="tablist" aria-label="Statusgruppe">${GROUPS.map(x => `<button data-bgrp="${x.id}" class="${x.id === g.id ? 'on' : ''}">${esc(x.n)}</button>`).join('')}</div>` : ''}
 			<span class="psum">${sum}</span>
 		</div>
-		${offer.length ? `<div class="offer"><div><b>${offer.length} ${offer.length === 1 ? 'kunde står' : 'kunder står'} i en salgsstatus uden en handel</b>
-			<span>${offer.slice(0, 4).map(c => esc(c.n) + ' (' + esc(stName(c.st)) + ')').join(', ')}${offer.length > 4 ? ` og ${offer.length - 4} mere` : ''}. Saldi kan oprette én handel pr. kunde i det tilsvarende stadie, uden beløb – så kan I udfylde beløb og lukkedato bagefter. Kundens status bliver ikke ændret.</span></div>
-			<div class="oa"><button class="ob primary" id="offerYes">Opret ${offer.length} ${offer.length === 1 ? 'handel' : 'handler'}</button><button class="ob" id="offerNo">Ikke nu</button></div></div>` : ''}
 		<div class="board">${cols}</div>
-		<div class="ends"><div class="end won" data-end="won">Vundet<small>handlen lukkes som vundet</small></div><div class="end lost" data-end="lost">Tabt<small>handlen lukkes som tabt</small></div></div>`;
-	const yes = $('#offerYes');
-	if (yes) {
-		yes.onclick = async () => {
-			yes.disabled = true;
-			const r = await api('deals_from_customers', {stages: g.s});
-			toast(`${r.ids.length} handler oprettet`, () => api('delete_deal', {ids: r.ids}));
-		};
-		$('#offerNo').onclick = () => { localStorage.setItem('crm-convert-' + g.id, 'no'); renderPipe(); };
-	}
+		<div class="ends">${g.won ? `<div class="end won" data-end="won">${esc(g.wonN || 'Vundet')}<small>→ ${esc(stName(g.won))}</small></div>` : ''}${g.lost ? `<div class="end lost" data-end="lost">Tabt<small>→ ${esc(stName(g.lost))}</small></div>` : ''}</div>`;
 }
 
 /* ================= 3. kalender ================= */
@@ -476,8 +464,10 @@ function newFollowUp(dateKey) {
 	});
 }
 
+// Deal stages come from the group holding the deal's stage, else the first status group (Salg).
+const dealGroup = st => GROUPS.find(x => x.s.includes(st)) || GROUPS[0] || boardGroup();
 function dealDialog(deal, cid, stage) {
-	const g = boardGroup();
+	const g = dealGroup(deal ? deal.st : stage);
 	const go = c => {
 		const d = deal || {t: '', v: 0, st: stage || g.s[0] || '', close: key(D(30)), own: c.own || ME || (DATA.emps[0] || {}).id || 0};
 		openDlg(`<h3>${deal ? 'Ret handel' : 'Ny handel'}</h3><div class="pick"><b>${esc(c.n)}</b><span class="c3">${esc(c.nr)}</span>${deal ? '' : '<button id="back">Skift kunde</button>'}</div>
@@ -485,16 +475,19 @@ function dealDialog(deal, cid, stage) {
 				<label class="wide">Titel<input id="dT" value="${esc(d.t)}" placeholder="Fx Saldi Plus, 3 brugere" maxlength="120"></label>
 				<label>Beløb (kr)<input id="dV" inputmode="decimal" value="${d.v ? Math.round(d.v) : ''}" placeholder="0"></label>
 				<label>Forventet lukket<input id="dC" type="date" value="${esc(d.close || '')}"></label>
-				<label>Stadie<select id="dS" ${deal ? 'disabled title="Flyt kortet på tavlen"' : ''}>${g.s.map(id => `<option value="${esc(id)}" ${id === d.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></label>
+				<label>Stadie<select id="dS" ${deal && deal.state !== 'open' ? 'disabled' : ''}>${(deal && !g.s.includes(d.st) ? [d.st] : []).concat(g.s).map(id => `<option value="${esc(id)}" ${id === d.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></label>
 				<label>Ansvarlig<select id="dO">${DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.own ? 'selected' : ''}>${e.id === ME ? 'Mig' : esc(e.n)}</option>`).join('') || '<option value="0">–</option>'}</select></label>
 			</div>
-			<div class="ft">${deal ? '<button class="left" id="dDel">Slet handel</button>' : ''}<button id="dNo">Annullér</button><button class="primary" id="dYes">${deal ? 'Gem' : 'Opret handel'}</button></div>`);
+			<div class="ft">${deal ? '<button class="left" id="dDel">Slet handel</button>' : ''}${deal && deal.state === 'open' ? '<button id="dWon">Vundet</button><button id="dLost">Tabt</button>' : ''}<button id="dNo">Annullér</button><button class="primary" id="dYes">${deal ? 'Gem' : 'Opret handel'}</button></div>`);
 		if ($('#back')) $('#back').onclick = () => dealDialog(null, null, stage);
 		$('#dNo').onclick = closeDlg;
 		if ($('#dDel')) $('#dDel').onclick = async () => { await api('delete_deal', {id: deal.id}); closeDlg(); toast('Handlen er slettet'); };
+		if ($('#dWon')) $('#dWon').onclick = () => { closeDlg(); moveDeal(deal, {state: 'won'}, 'vundet'); };
+		if ($('#dLost')) $('#dLost').onclick = () => lostDialog(deal, reason => moveDeal(deal, {state: 'lost', reason}, 'tabt' + (reason ? ' – ' + reason : '')));
 		$('#dYes').onclick = async () => {
 			const t = $('#dT').value.trim(); if (!t) { $('#dT').focus(); return; }
 			await api('save_deal', {id: deal ? deal.id : 0, cid: c.id, t, v: $('#dV').value, st: $('#dS').value, close: $('#dC').value, own: +$('#dO').value});
+			if (deal && deal.state === 'open' && $('#dS').value !== deal.st) await api('move_deal', {id: deal.id, st: $('#dS').value});
 			closeDlg(); toast(deal ? 'Handlen er gemt' : `Handel oprettet i ${stName($('#dS').value)}`);
 		};
 		setTimeout(() => $('#dT').focus(), 30);
@@ -575,7 +568,7 @@ async function setStatus(c, to, how) {
 }
 async function moveDeal(d, patch, label) {
 	const r = await api('move_deal', Object.assign({id: d.id}, patch));
-	const g = boardGroup(), c = cust(d.cid);
+	const g = dealGroup(d.st), c = cust(d.cid);
 	const suggestWon = patch.state === 'won' && g.won && c && c.st !== g.won;
 	toast(`${d.t}: ${label}`, () => api('restore_deal', {id: d.id, before: r.before, remove: r.hid}),
 		suggestWon ? {label: `Sæt ${c.n} som ${stName(g.won)}`, fn: () => setStatus(c, g.won, 'vundet handel')} : null);
@@ -592,8 +585,7 @@ function renderGroupEditor() {
 	$('#sgList').innerHTML = (ST_ORDER.length ? '' : '<div class="pi">Der er ingen kundestatusser endnu. De oprettes på debitorkortet (feltet Status).</div>') +
 		GDRAFT.map((g, i) => `<div class="sg" data-i="${i}"><input type="text" value="${esc(g.n)}" aria-label="Gruppenavn" data-f="n">${DATA.canWrite ? `<button class="del" data-delg="${i}">Fjern</button>` : ''}
 		<div class="opts">${ST_ORDER.map(id => `<label><input type="checkbox" data-st="${esc(id)}" ${g.s.includes(id) ? 'checked' : ''}>${esc(stName(id))}</label>`).join('')}</div>
-		<label class="pipechk"><input type="checkbox" data-f="pipe" ${g.pipe ? 'checked' : ''}> Bruges som stadier i Pipeline (handler)</label>
-		<div class="wl"><label>Vundet handel → foreslå <select data-f="won">${opts(g.won)}</select></label><label>Tabt → <select data-f="lost">${opts(g.lost)}</select></label></div></div>`).join('');
+		<div class="wl"><label>Vundet → <select data-f="won">${opts(g.won)}</select></label><label>Tabt → <select data-f="lost">${opts(g.lost)}</select></label></div></div>`).join('');
 }
 
 /* ================= fælles ================= */
@@ -711,15 +703,14 @@ document.addEventListener('drop', async e => {
 	if (dragCard === null) return;
 	const z = e.target.closest('[data-col],[data-end]'); if (!z) return; e.preventDefault();
 	const id = dragCard; dragCard = null; document.body.classList.remove('carddrag');
-	const d = DEALS.find(x => x.id === +id.slice(1)); if (!d) return;
-	if (z.dataset.col !== undefined) { if (z.dataset.col !== d.st) moveDeal(d, {st: z.dataset.col}, `${stName(d.st)} → ${stName(z.dataset.col)}`); else renderPipe(); }
-	else if (z.dataset.end === 'won') moveDeal(d, {state: 'won'}, 'vundet');
-	else lostDialog(d, reason => moveDeal(d, {state: 'lost', reason}, 'tabt' + (reason ? ' – ' + reason : '')));
+	const g = boardGroup(), c = cust(+id); if (!c) return;
+	if (z.dataset.col !== undefined) setStatus(c, z.dataset.col);
+	else setStatus(c, z.dataset.end === 'won' ? g.won : g.lost, z.dataset.end === 'won' ? 'vundet' : 'tabt');
 });
 
 /* ================= start ================= */
 load(DATA);
-S.calY = TODAY.getFullYear(); S.calM = TODAY.getMonth(); S.bgrp = boardGroup().id;
+S.calY = TODAY.getFullYear(); S.calM = TODAY.getMonth(); S.bgrp = GROUPS.length ? GROUPS[0].id : 0;
 $('#mine').setAttribute('aria-pressed', S.mine && !!ME);
 if (!ME) S.mine = false;
 // direkte link: crm.php#pipe, #cal, #cust, #act, #drawer=<kunde-id>
