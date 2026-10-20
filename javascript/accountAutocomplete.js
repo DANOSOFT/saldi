@@ -23,11 +23,14 @@
 //                  the panel (Beløb, the type field) kept it closed for the next click into Debet or Kredit too.
 // 20261006 CL/SZ SD-720 The same for the invoice-number (Åbne Poster) and amount searches: a late answer put the cursor back in Fakturanr.
 //                while the user typed the amount, so the rest of the amount landed in the invoice number.
+// 20261006 CL/SZ SD-720 The same for the invoice-number (Åbne Poster) and amount searches: a late answer put the cursor back in Fakturanr.
+//                while the user typed the amount, so the rest of the amount landed in the invoice number.
 // 20261006 CL/SZ SD-714 window.focusAccountQuietly(input) puts the cursor in a field without opening the panel (the pool's new document), and a
 //                  click into a field that already has the cursor opens the panel, as the first click would.
 // 20261005 CL/SZ SD-714 A click in a document viewer (the pool's PDF) closes the panel; the click never reached the page, so the panel stayed open.
 // 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
 // 20261019 CL/SZ SD-721 A kreditor made with "Opret kreditor" advances the search token like any other selection (SST-814).
+// 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
 (function () {
     'use strict'; 
 
