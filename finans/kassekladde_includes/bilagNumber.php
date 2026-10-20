@@ -17,6 +17,13 @@
 //
 // bilagNextNumberAfter() is the rule without any database access, so it can be characterized directly;
 // bilagNextNumberForJournal() is the same rule applied to one journal.
+//
+// 20261020 CL/SZ MB-81 The number is only proposed when the page is drawn, so two users with the same
+// journal open were offered the same number and both lines were saved under it. The page now posts the
+// number it proposed with each line (bilfN), and bilagReplaceTakenProposals() gives a new line that kept
+// the proposal the next free number when another save took it meanwhile. It runs with kkJournalLock()
+// held, so two saves cannot both find the proposal free. A number the user typed is kept
+// as it is: several lines on one voucher stay possible.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -78,6 +85,44 @@ function bilagNextNumberForJournal($kladde_id, $regnstart = null, $regnslut = nu
 		}
 	}
 	return bilagNextNumberAfter($journal_max, $fiscal_year_max);
+}
+
+/**
+ * New numbers for the proposed voucher numbers that another save has taken since the page was drawn.
+ *
+ * Only new lines (no id yet) whose number is still the one the page proposed count; a number the user
+ * typed is never replaced. Must run with kkJournalLock() held, so the check and the insert that
+ * follows it cannot interleave with another save.
+ *
+ * @param int             $kladde_id Journal (kladdeliste.id).
+ * @param array<int, int> $proposed  Line number (tmpkassekl.lobenr) => the number the page proposed on that line.
+ * @return array<int, int> Taken proposal => the number the line is saved under instead; empty when none was taken.
+ */
+function bilagReplaceTakenProposals($kladde_id, $proposed) {
+	$kladde_id = (int)$kladde_id;
+	$replacements = array();
+	if ($kladde_id <= 0 || !$proposed) {
+		return $replacements;
+	}
+	$kept = array();
+	$staged_max = 0;
+	$q = db_select("SELECT lobenr, bilag FROM tmpkassekl WHERE kladde_id = '$kladde_id' AND (id IS NULL OR id = 0)", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$bilag = (int)$r['bilag'];
+		$staged_max = max($staged_max, $bilag);
+		$lobenr = (int)$r['lobenr'];
+		if ($bilag > 0 && isset($proposed[$lobenr]) && (int)$proposed[$lobenr] === $bilag) {
+			$kept[$bilag] = true;
+		}
+	}
+	foreach (array_keys($kept) as $bilag) {
+		$taken = db_fetch_array(db_select("SELECT id FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag' LIMIT 1", __FILE__ . " linje " . __LINE__));
+		if ($taken) {
+			// Past the journal, past every number this save brings, and past a number already handed out here
+			$replacements[$bilag] = max(bilagNextNumberForJournal($kladde_id), $staged_max + 1, $replacements ? max($replacements) + 1 : 0);
+		}
+	}
+	return $replacements;
 }
 
 /**
