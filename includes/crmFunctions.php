@@ -101,6 +101,10 @@ function crm_ensure_schema(): void
 			db_modify("CREATE INDEX crm_deals_konto_idx ON crm_deals (konto_id)", __FILE__ . " linje " . __LINE__);
 		}
 	}
+	// 20261020 ASR the offer/order made from a deal (ordre.php?..&crm_deal=<id> sets it at creation)
+	if (!crm_col_exists('crm_deals', 'ordre_id')) {
+		db_modify("ALTER TABLE crm_deals ADD COLUMN ordre_id integer", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 // ------------------------------------------------------------------ encoding (the JSON is always UTF-8)
@@ -355,13 +359,16 @@ function crm_deals(): array
 {
 	$out = array();
 	$from = date('Y-m-d', strtotime('-1 year'));
-	$q = db_select("select * from crm_deals where state = 'open' or closed >= '$from' order by id", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select d.*, o.ordrenr as doc_nr, o.status as doc_status, o.sum as doc_sum, o.art as doc_art from crm_deals d "
+		. "left join ordrer o on o.id = d.ordre_id where d.state = 'open' or d.closed >= '$from' order by d.id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
+		$doc = ($r['ordre_id'] && $r['doc_nr'] !== null) ? array('id' => (int) $r['ordre_id'], 'nr' => (int) $r['doc_nr'], 'st' => (int) $r['doc_status'], 'sum' => round((float) $r['doc_sum'])) : null;
 		$out[] = array(
 			'id' => (int) $r['id'], 'cid' => (int) $r['konto_id'], 't' => crm_out($r['title']), 'v' => round((float) $r['amount']),
 			'st' => trim((string) $r['stage']), 'state' => (string) $r['state'], 'close' => (string) $r['expected_close'],
 			'own' => (int) $r['ansat_id'], 'since' => (string) ($r['stage_since'] ?: $r['created']), 'closed' => (string) $r['closed'],
 			'reason' => crm_out($r['lost_reason']),
+			'doc' => $doc,
 		);
 	}
 	return $out;

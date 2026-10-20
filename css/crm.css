@@ -386,3 +386,10 @@ body { font: 14px/1.45 var(--font-ui); color: var(--text); }
 .deals a.doc:hover b{text-decoration:underline}
 .docbtns{display:flex;gap:18px}
 .docbtns .addp{text-decoration:none}
+.dealdoc{margin:14px 20px 0;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);font-size:13.5px}
+.dealdoc .dd1{display:flex;align-items:center;gap:12px}
+.dealdoc .dd1 > span:first-child{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.dealdoc svg{width:15px;height:15px;color:var(--text-2);flex:none}
+.dealdoc .ddl{display:flex;gap:14px}
+.dealdoc .ddsug{display:block;margin-top:8px;padding:0;border:0;background:none;color:var(--link);font-size:13px;cursor:pointer;text-align:left}
+.dealdoc .ddsug:hover{text-decoration:underline}

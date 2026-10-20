@@ -418,11 +418,11 @@ function renderDrawer() {
 }
 function dealsTab(c, list) {
 	return `<div class="deals">${list.map(d => `<div class="d" data-editdeal="${d.id}"><b>${esc(d.t)}</b><span class="num">${kr(d.v)}</span>
-		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · forventet lukket ' + fmt(d.close) : ''}` : d.state === 'won' ? `Vundet ${fmtY(d.closed)}` : `Tabt ${fmtY(d.closed)}${d.reason ? ' – ' + esc(d.reason) : ''}`} · ${esc(empName(d.own).toLowerCase() === 'dig' ? 'dig' : empName(d.own))}</small></div>`).join('') || '<div class="empty" style="padding:32px"><b>Ingen handler</b></div>'}</div>
+		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · forventet lukket ' + fmt(d.close) : ''}` : d.state === 'won' ? `Vundet ${fmtY(d.closed)}` : `Tabt ${fmtY(d.closed)}${d.reason ? ' – ' + esc(d.reason) : ''}`} · ${esc(empName(d.own).toLowerCase() === 'dig' ? 'dig' : empName(d.own))}${d.doc ? ` · ${esc(docName(d.doc))} (${docState(d.doc)})` : ''}</small></div>`).join('') || '<div class="empty" style="padding:32px"><b>Ingen handler</b></div>'}</div>
 		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">+ Ny handel</button>` : ''}
 		<h4 class="dsub">Åbne tilbud og ordrer</h4>
 		<div class="deals">${c.docs.map(o => `<a class="d doc" href="ordre.php?id=${o.id}&returside=${backTo(c.id)}"><b>${o.st === 0 && !DATA.quick ? 'Tilbud' : 'Ordre'} ${o.nr}</b><span class="num">${kr(o.sum)}</span>
-			<small>${fmtY(o.date)}${o.st === 2 ? ' · delvist leveret' : ''}</small></a>`).join('') || '<div class="c3" style="padding:8px 0 4px">Ingen åbne tilbud eller ordrer.</div>'}</div>
+			<small>${fmtY(o.date)}${o.st === 2 ? ' · delvist leveret' : ''}${(DEALS.find(d => d.doc && d.doc.id === o.id) || null) ? ' · handel: ' + esc(DEALS.find(d => d.doc && d.doc.id === o.id).t) : ''}</small></a>`).join('') || '<div class="c3" style="padding:8px 0 4px">Ingen åbne tilbud eller ordrer.</div>'}</div>
 		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" href="ordre.php?konto_id=${c.id}&returside=${backTo(c.id)}">+ Opret tilbud</a>`}<a class="addp" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${backTo(c.id)}">+ Opret ordre</a></div>` : ''}
 		${DATA.quick && DATA.canWrite ? '<div class="c3" style="font-size:12.5px;margin-top:6px">Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).</div>' : ''}`;
 }
@@ -501,6 +501,20 @@ function newFollowUp(dateKey) {
 	});
 }
 
+// An offer/order linked to a deal (crm_deals.ordre_id): name, state and the suggestions it gives.
+const docName = o => (o.st >= 3 ? 'Faktura' : o.st === 0 && !DATA.quick ? 'Tilbud' : 'Ordre') + ' ' + o.nr;
+const docState = o => o.st >= 3 ? 'faktureret' : o.st === 2 ? 'delvist leveret' : o.st === 1 ? 'ordre' : DATA.quick ? 'ordre' : 'tilbud';
+function dealDocBox(deal, c) {
+	const back = backTo(c.id), o = deal.doc;
+	if (o) {
+		const diffSum = o.sum && Math.round(o.sum) !== Math.round(deal.v);
+		return `<div class="dealdoc"><div class="dd1"><span>${ICON.note}<b>${esc(docName(o))}</b> · ${kr(o.sum)} · ${docState(o)}</span><a href="ordre.php?id=${o.id}&returside=${back}">Åbn</a></div>
+			${diffSum && deal.state === 'open' ? `<button type="button" class="ddsug" id="dUseSum" data-v="${Math.round(o.sum)}">Brug beløbet fra ${o.st === 0 && !DATA.quick ? 'tilbuddet' : 'ordren'}: ${kr(o.sum)}</button>` : ''}
+			${o.st >= 3 && deal.state === 'open' ? '<button type="button" class="ddsug" id="dWonDoc">Ordren er faktureret – markér handlen som vundet</button>' : ''}</div>`;
+	}
+	if (deal.state !== 'open' || !DATA.canWrite) return '';
+	return `<div class="dealdoc"><div class="dd1"><span class="c3">Intet tilbud eller ordre til handlen endnu</span><span class="ddl">${DATA.quick ? '' : `<a href="ordre.php?konto_id=${c.id}&crm_deal=${deal.id}&returside=${back}">Opret tilbud</a>`}<a href="ordre.php?konto_id=${c.id}&crm_deal=${deal.id}&ordrestatus=1&returside=${back}">Opret ordre</a></span></div></div>`;
+}
 // Deal stages come from the group holding the deal's stage, else the first status group (Salg).
 const dealGroup = st => GROUPS.find(x => x.s.includes(st)) || GROUPS[0] || boardGroup();
 function dealDialog(deal, cid, stage) {
@@ -515,11 +529,14 @@ function dealDialog(deal, cid, stage) {
 				<label>Stadie<select id="dS" ${deal && deal.state !== 'open' ? 'disabled' : ''}>${(deal && !g.s.includes(d.st) ? [d.st] : []).concat(g.s).map(id => `<option value="${esc(id)}" ${id === d.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></label>
 				<label>Ansvarlig<select id="dO">${DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.own ? 'selected' : ''}>${e.id === ME ? 'Mig' : esc(e.n)}</option>`).join('') || '<option value="0">–</option>'}</select></label>
 			</div>
+			${deal ? dealDocBox(deal, c) : ''}
 			<div class="ft">${deal ? '<button class="left" id="dDel">Slet handel</button>' : ''}${deal && deal.state === 'open' ? '<button id="dWon">Vundet</button><button id="dLost">Tabt</button>' : ''}<button id="dNo">Annullér</button><button class="primary" id="dYes">${deal ? 'Gem' : 'Opret handel'}</button></div>`);
 		if ($('#back')) $('#back').onclick = () => dealDialog(null, null, stage);
 		$('#dNo').onclick = closeDlg;
 		if ($('#dDel')) $('#dDel').onclick = async () => { await api('delete_deal', {id: deal.id}); closeDlg(); toast('Handlen er slettet'); };
 		if ($('#dWon')) $('#dWon').onclick = () => { closeDlg(); moveDeal(deal, {state: 'won'}, 'vundet'); };
+		if ($('#dWonDoc')) $('#dWonDoc').onclick = () => { closeDlg(); moveDeal(deal, {state: 'won'}, 'vundet'); };
+		if ($('#dUseSum')) $('#dUseSum').onclick = () => { $('#dV').value = $('#dUseSum').dataset.v; $('#dUseSum').remove(); $('#dV').focus(); };
 		if ($('#dLost')) $('#dLost').onclick = () => lostDialog(deal, reason => moveDeal(deal, {state: 'lost', reason}, 'tabt' + (reason ? ' – ' + reason : '')));
 		$('#dYes').onclick = async () => {
 			const t = $('#dT').value.trim(); if (!t) { $('#dT').focus(); return; }

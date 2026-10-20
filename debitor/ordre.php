@@ -158,6 +158,7 @@
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
 // 20261020 ASR ordrestatus=1 on a new order (from the CRM's Opret ordre) starts it as an order instead of an offer.
 // 20261020 ASR An order created from the CRM stores its crm.php returside, so Back still finds the customer after a save.
+// 20261020 ASR crm_deal=<id> on a new order links it to that CRM deal (crm_deals.ordre_id).
 // 20261011 MJ SST-828 The plukliste buttons now follow the order's own status instead of
 //                  $opValue ($_GET['valg']), which made them disappear entirely whenever
 //                  hurtigfakturering was on. They are shown on anything but a tilbud, so
@@ -885,6 +886,10 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	//              the first request, and after a save the page would otherwise fall back to the nav stack.
 	if ($id && $returside && strpos($returside, 'crm.php?') === 0) {
 		db_modify("update ordrer set returside = '" . db_escape_string($returside) . "' where id = '" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+	}
+	// 20261020 ASR An offer/order started from a CRM deal is linked to it (crm_deals.ordre_id).
+	if ($id && isset($_GET['crm_deal']) && ctype_digit((string) $_GET['crm_deal']) && tbl_exists('crm_deals')) {
+		db_modify("update crm_deals set ordre_id = '" . (int) $id . "' where id = '" . (int) $_GET['crm_deal'] . "' and konto_id = '" . (int) $konto_id . "'", __FILE__ . " linje " . __LINE__);
 	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
