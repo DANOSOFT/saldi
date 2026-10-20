@@ -4,11 +4,12 @@
                 user's own button colours, set on .crm by the page. */
 html, body { margin: 0; padding: 0; height: 100%; background: var(--surface) !important; overflow: hidden; }
 body { font: 14px/1.45 var(--font-ui); color: var(--text); }
-.crm, .crm *, .drawer, .drawer *, .dlg, .dlg *, .menu, .menu *, .toast, .toast * { box-sizing: border-box; }
-.crm button, .crm select, .crm input, .crm textarea, .drawer button, .drawer select, .drawer input, .drawer textarea,
-.dlg button, .dlg select, .dlg input, .dlg textarea, .menu button, .menu input { font: inherit; color: inherit; }
-.crm h1, .crm h2, .crm h3, .crm h4, .crm p, .drawer h2, .drawer p, .dlg h3 { margin: 0; }
-.crm a, .drawer a, .dlg a { color: var(--link); text-decoration: none; } .crm a:hover, .drawer a:hover { text-decoration: underline; }
+/* resets in :where() so they never outweigh a component class */
+:where(.crm, .crm *, .drawer, .drawer *, .dlg, .dlg *, .menu, .menu *, .toast, .toast *) { box-sizing: border-box; }
+:where(.crm, .drawer, .dlg, .menu) :where(button, select, input, textarea) { font: inherit; color: inherit; }
+:where(.crm, .drawer, .dlg) :where(h1, h2, h3, h4, p) { margin: 0; }
+:where(.crm, .drawer, .dlg) :where(a) { color: var(--link); text-decoration: none; }
+:where(.crm, .drawer) :where(a):hover { text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--saldi-blue); outline-offset: 2px; }
 .crm { --focus: var(--saldi-blue); --focus-ring: color-mix(in srgb, var(--saldi-blue) 18%, transparent); --border-field: #c6d2e4;
   --warn: #b45309; --warn-bg: #fff4e0; --st-sale: var(--saldi-blue); --st-cust: var(--good); --st-supp: var(--saldi-amber); --st-off: #b6c0d0;

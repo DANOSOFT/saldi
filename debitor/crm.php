@@ -57,7 +57,7 @@ $data = crm_dataset();
 $data['csrf'] = (string) $_SESSION['csrf_token'];
 $data['api'] = 'crmApi.php';
 ?>
-<link rel="stylesheet" href="../css/crm.css?v=1">
+<link rel="stylesheet" href="../css/crm.css?v=2">
 <style>:root{--btn:<?= htmlspecialchars((string) $buttonColor, ENT_QUOTES) ?>;--btn-text:<?= htmlspecialchars((string) $buttonTxtColor, ENT_QUOTES) ?>}</style>
 <div class="crm" id="crm">
   <div class="head">
