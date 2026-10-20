@@ -157,6 +157,7 @@
 // 20261008 Sawaneh The order heading has no dangling dash when there is nothing after the number (breadcrumb and page head).
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
 // 20261020 ASR ordrestatus=1 on a new order (from the CRM's Opret ordre) starts it as an order instead of an offer.
+// 20261020 ASR An order created from the CRM stores its crm.php returside, so Back still finds the customer after a save.
 // 20261011 MJ SST-828 The plukliste buttons now follow the order's own status instead of
 //                  $opValue ($_GET['valg']), which made them disappear entirely whenever
 //                  hurtigfakturering was on. They are shown on anything but a tilbud, so
@@ -880,6 +881,11 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) $id = $row['id'];
+	// 20261020 ASR An order created from the CRM keeps its way back (the customer's drawer): the returside is only in
+	//              the first request, and after a save the page would otherwise fall back to the nav stack.
+	if ($id && $returside && strpos($returside, 'crm.php?') === 0) {
+		db_modify("update ordrer set returside = '" . db_escape_string($returside) . "' where id = '" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
 	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
