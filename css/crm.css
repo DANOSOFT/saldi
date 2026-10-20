@@ -370,3 +370,5 @@ body { font: 14px/1.45 var(--font-ui); color: var(--text); }
 .deals .d{cursor:pointer}
 .deals .d:hover b{text-decoration:underline}
 .empty a{cursor:pointer}
+.strip.sub{padding:10px 24px 10px 36px;background:var(--surface-2);gap:4px 14px}
+.strip.sub button{font-size:13px}

@@ -287,15 +287,16 @@ function renderCal() {
 const KCOLS = 'minmax(190px,1.4fr) minmax(130px,1fr) 140px 118px 128px 150px 110px';
 function renderCust() {
 	const base = C.filter(c => custOk(c) && (!S.mine || c.own === ME) && custMatch(c));
-	let strip;
-	if (S.grp === 'all') {
-		const rest = base.filter(c => !GROUPS.some(g => g.s.includes(c.st))).length;
-		strip = `<div class="strip"><button class="on" data-stf="all">Alle <span class="n">${base.length}</span></button>` +
-			GROUPS.map(g => `<button data-grp="${g.id}">${esc(g.n)} <span class="n">${base.filter(c => g.s.includes(c.st)).length}</span></button>`).join('') +
-			(rest && GROUPS.length ? `<button class="dot" style="--c:${OFF}" data-stf="rest">Uden gruppe <span class="n">${rest}</span></button>` : '') + '</div>';
-	} else {
+	// Line 1 = the status groups, always shown (the way back to "Alle"). Line 2 = the chosen group's statuses as a funnel.
+	const all = C.filter(c => (!S.mine || c.own === ME) && custMatch(c));
+	const rest = all.filter(c => !GROUPS.some(g => g.s.includes(c.st))).length;
+	let strip = `<div class="strip">` +
+		`<button class="${S.grp === 'all' && S.stF !== 'rest' ? 'on' : ''}" data-grp="all">Alle <span class="n">${all.length}</span></button>` +
+		GROUPS.map(g => `<button class="${String(S.grp) === String(g.id) ? 'on' : ''}" data-grp="${g.id}">${esc(g.n)} <span class="n">${all.filter(c => g.s.includes(c.st)).length}</span></button>`).join('') +
+		(rest && GROUPS.length ? `<button class="dot ${S.grp === 'all' && S.stF === 'rest' ? 'on' : ''}" style="--c:${OFF}" data-grp="all" data-stf="rest">Uden gruppe <span class="n">${rest}</span></button>` : '') + '</div>';
+	if (S.grp !== 'all') {
 		const ids = GROUPS.find(g => String(g.id) === String(S.grp)).s;
-		strip = `<div class="strip"><button class="${S.stF === 'all' ? 'on' : ''}" data-stf="all">Alle <span class="n">${base.length}</span></button>` +
+		strip += `<div class="strip sub"><button class="${S.stF === 'all' ? 'on' : ''}" data-stf="all">Alle i ${esc(GROUPS.find(g => String(g.id) === String(S.grp)).n.toLowerCase())} <span class="n">${base.length}</span></button>` +
 			ids.map((id, i) => (i ? '<span class="arrow">›</span>' : '') + `<button class="dot ${S.stF === id ? 'on' : ''}" style="--c:${stColor(id)}" data-stf="${esc(id)}">${esc(stName(id))} <span class="n">${base.filter(c => c.st === id).length}</span></button>`).join('') + '</div>';
 	}
 	const list = base.filter(c => S.stF === 'all' || (S.stF === 'rest' ? !GROUPS.some(g => g.s.includes(c.st)) : c.st === S.stF)).sort((a, b) => a.n.localeCompare(b.n, 'da'));
@@ -635,8 +636,8 @@ document.addEventListener('click', e => {
 	if ((b = t.closest('[data-snooze]'))) { e.stopPropagation(); snoozeMenu(+b.dataset.snooze, b); return; }
 	if ((b = t.closest('[data-new]'))) { e.stopPropagation(); newFollowUp(b.dataset.new); return; }
 	if ((b = t.closest('[data-week]'))) { S.calMode = 'week'; S.weekStart = mondayOf(b.dataset.week); renderCal(); return; }
+	if ((b = t.closest('[data-grp]'))) { S.grp = b.dataset.grp; S.stF = b.dataset.stf || 'all'; renderGroups(); renderAll(); return; }
 	if ((b = t.closest('[data-stf]'))) { S.stF = b.dataset.stf; renderCust(); return; }
-	if ((b = t.closest('[data-grp]'))) { S.grp = b.dataset.grp; S.stF = 'all'; renderGroups(); renderAll(); return; }
 	if ((b = t.closest('[data-bgrp]'))) { S.bgrp = b.dataset.bgrp; renderPipe(); return; }
 	if ((b = t.closest('[data-board]'))) { S.board = b.dataset.board; localStorage.setItem('crm-board', S.board); renderPipe(); return; }
 	if ((b = t.closest('[data-adddeal]'))) { e.stopPropagation(); dealDialog(null, b.dataset.cid ? +b.dataset.cid : null, b.dataset.adddeal || null); return; }
