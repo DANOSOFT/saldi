@@ -6997,4 +6997,6 @@
 7507	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.	Status groups control the filter, the status line under Customers and the boards under Pipeline (one board per group). Applies to the whole company.	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlene under Pipeline (én tavle per gruppe). Gjelder hele firmaet.
 7508	+ Tilføj statusgruppe	+ Add status group	+ Legg til statusgruppe
 7509	Fortryd	Undo	Angre
+7510	Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.	Showing the %s most recently active customers. Other customers can be found with the search under “New follow-up” and “New deal”.	Viser de %s sist aktive kundene. Andre kunder finnes med søket under «Ny oppfølging» og «Nytt salg».
+7511	Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.	The customer may not be among the %s shown. Search via “New follow-up”.	Kunden er kanskje ikke blant de %s viste. Søk via «Ny oppfølging».
 

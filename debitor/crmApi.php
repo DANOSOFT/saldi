@@ -46,6 +46,15 @@ include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/crmFunctions.php");
 
+// Server-side right for every writing action (the page only hides the controls).
+if ($permission_level === 'write' && !crm_can_write()) {
+	ob_end_clean();
+	http_response_code(403);
+	header('Content-Type: application/json; charset=utf-8');
+	echo json_encode(array('ok' => false, 'error' => 'noaccess'));
+	exit;
+}
+
 function crm_api_answer(array $body, int $code = 200): void
 {
 	ob_end_clean();

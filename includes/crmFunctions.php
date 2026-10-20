@@ -32,10 +32,14 @@
 //   adresser     status (id from grupper art='DebInfo' box3/box4), kontoansvarlig (owner), kontaktet/kontaktes
 //                (kept in step: latest entry / earliest open follow-up, so the old lists still show them)
 //   grupper SKN  status groups: box1 name, box2 status ids (tab separated), kodenr order,
-//                box3 status a customer is offered when a deal is won, box4 when lost (new use, optional),
-//                box5 'pipe' = the group's statuses are the stages of the deal pipeline (new use)
-//   crm_deals    new table: deals per customer; the Pipeline tab shows deals only (model A, 20/10): the customer
-//                status says what the customer is to the company, the deal says how far a sale has come
+//                box3 status a customer is offered when a deal is won, box4 when lost (new use, optional)
+//   crm_deals    new table: deals per customer (title, amount, stage = a status id, expected close, owner, state,
+//                ordre_id = the offer/order made from the deal); shown on the customer's card and in the drawer
+//
+// Which customers the page loads (crm_customer_scope): those with a status in one of the status groups, a CRM entry,
+// an open deal or a next-contact date - at most CRM_MAX_CUSTOMERS, the most recently active first. In most companies
+// every customer has a status, so without the cap the page would load the whole customer file. Customers outside
+// the loaded set are reached through the server-side search (Ny opfølgning / Ny handel).
 //
 // Open follow-up: kontaktes set and completed false. Rows written before this page have completed NULL; such a row
 // only counts as open while no later entry exists for the customer (the old model kept one "next contact" per
@@ -364,8 +368,16 @@ function crm_text_ids(): array
 		7506 => 'Tilpas CRM',
 		7507 => 'Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.',
 		7508 => '+ Tilføj statusgruppe',
-		7509 => 'Fortryd'
+		7509 => 'Fortryd',
+		7510 => 'Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.',
+		7511 => 'Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.'
 	);
+}
+
+/** Write access to the CRM = write on debitor.konti (the Debitor -> Konti right); the page and crmApi.php share it. */
+function crm_can_write(): bool
+{
+	return function_exists('perm_can') ? perm_can('debitor.konti', 'write') : true;
 }
 
 function crm_lang(): int
@@ -465,7 +477,7 @@ function crm_statuses(): array
 function crm_groups(): array
 {
 	$out = array();
-	$q = db_select("select id, box1, box2, box3, box4, box5 from grupper where art = 'SKN' order by kodenr, id", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select id, box1, box2, box3, box4 from grupper where art = 'SKN' order by kodenr, id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$out[] = array(
 			'id'   => (int) $r['id'],
@@ -473,7 +485,6 @@ function crm_groups(): array
 			's'    => array_values(array_filter(array_map('trim', explode(chr(9), (string) $r['box2'])), 'strlen')),
 			'won'  => trim((string) $r['box3']),
 			'lost' => trim((string) $r['box4']),
-			'pipe' => trim((string) $r['box5']) === 'pipe',
 		);
 	}
 	return $out;
@@ -502,11 +513,15 @@ function crm_employees(): array
  * @param string $where extra condition on adresser a
  * @return array<int, array<string, mixed>> keyed by id
  */
-function crm_customers(string $where): array
+function crm_customers(string $where, int $limit = 0, bool $byActivity = false): array
 {
 	$out = array();
+	// most recent entry first when asked (the cap keeps the active customers); otherwise by name
+	$order = $byActivity
+		? "coalesce((select max(h.kontaktet) from historik h where h.konto_id = a.id), '1900-01-01') desc, a.firmanavn"
+		: "a.firmanavn";
 	$qtxt = "select a.id, a.kontonr, a.firmanavn, a.bynavn, a.tlf, a.email, a.status, a.kontoansvarlig, a.oprettet "
-		. "from adresser a where a.art = 'D' and $where order by a.firmanavn";
+		. "from adresser a where a.art = 'D' and $where order by $order" . ($limit > 0 ? " limit $limit" : "");
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$out[(int) $r['id']] = array(
@@ -592,10 +607,22 @@ function crm_nav_place(string $query): bool
 }
 
 /** The customers the CRM shows: with a status, an entry, a deal or a next-contact date. */
+const CRM_MAX_CUSTOMERS = 1000;
+
+/** The customers the CRM shows: a status in a status group, an entry, an open deal or a next-contact date. */
 function crm_customer_scope(): string
 {
-	return "(a.lukket is null or a.lukket != 'on') and ((a.status is not null and a.status != '') or a.kontaktes is not null "
-		. "or exists (select 1 from historik h where h.konto_id = a.id) or exists (select 1 from crm_deals d where d.konto_id = a.id))";
+	$inGroups = array();
+	foreach (crm_groups() as $g) {
+		foreach ($g['s'] as $id) {
+			$inGroups[] = preg_replace('/[^0-9A-Za-z_-]/', '', (string) $id);
+		}
+	}
+	$inGroups = array_values(array_unique(array_filter($inGroups, 'strlen')));
+	return "(a.lukket is null or a.lukket != 'on') and ("
+		. ($inGroups ? "a.status in ('" . implode("','", $inGroups) . "') or " : '')
+		. "a.kontaktes is not null or exists (select 1 from historik h where h.konto_id = a.id) "
+		. "or exists (select 1 from crm_deals d where d.konto_id = a.id and d.state = 'open'))";
 }
 
 function crm_search(string $term): array
@@ -605,8 +632,7 @@ function crm_search(string $term): array
 	if ($t !== '') {
 		$where .= " and (a.firmanavn like '%$t%' or a.kontonr like '$t%' or a.id in (select konto_id from ansatte where navn like '%$t%'))";
 	}
-	$all = crm_customers($where);
-	return array_slice(array_values($all), 0, 10);
+	return array_values(crm_customers($where, 10));
 }
 
 // ------------------------------------------------------------------ entries and deals
@@ -622,14 +648,15 @@ function crm_history(array $custIds): array
 	$q = db_select("select id, konto_id, kontakt_id, ansat_id, notat, kontaktet, kontaktes, completed, type, dokument from historik "
 		. "where konto_id in ($ids) and (kontaktet >= '$from' or (kontaktes is not null and completed is null) or completed = FALSE) "
 		. "order by konto_id, kontaktet, id", __FILE__ . " linje " . __LINE__);
-	$latest = array(); // last real entry per customer, for the legacy rule
 	$rows = array();
 	while ($r = db_fetch_array($q)) {
 		$rows[] = $r;
-		$type = (string) $r['type'];
-		if ($type !== 'status' && $type !== 'deal') {
-			$latest[(int) $r['konto_id']] = (int) $r['id'];
-		}
+	}
+	// last real entry per customer, for the legacy rule - over all rows, not only the ones loaded above
+	$latest = array();
+	$q = db_select("select konto_id, max(id) as id from historik where konto_id in ($ids) and (type is null or type not in ('status', 'deal')) group by konto_id", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$latest[(int) $r['konto_id']] = (int) $r['id'];
 	}
 	foreach ($rows as $r) {
 		$type = trim((string) $r['type']);
@@ -678,7 +705,11 @@ function crm_deals(): array
 function crm_dataset(): array
 {
 	global $ansat_id;
-	$customers = crm_customers(crm_customer_scope());
+	$customers = crm_customers(crm_customer_scope(), CRM_MAX_CUSTOMERS + 1, true);
+	$truncated = count($customers) > CRM_MAX_CUSTOMERS;
+	if ($truncated) {
+		array_pop($customers);
+	}
 	$deals = crm_deals();
 	// customers referenced by deals but outside the scope (closed accounts) are still needed for the cards
 	$missing = array_diff(array_map(function ($d) { return $d['cid']; }, $deals), array_keys($customers));
@@ -689,7 +720,9 @@ function crm_dataset(): array
 	return array(
 		'today'     => date('Y-m-d'),
 		'me'        => (int) $ansat_id,
-		'canWrite'  => function_exists('perm_can') ? perm_can('debitor.konti', 'write') : true,
+		'canWrite'  => crm_can_write(),
+		'truncated' => $truncated,
+		'max'       => CRM_MAX_CUSTOMERS,
 		'jobs'      => $jobs,
 		'lang'      => crm_lang(),
 		'txt'       => crm_texts(),
@@ -870,35 +903,9 @@ function crm_action(string $action, array $in): array
 			return array('id' => $id);
 
 		case 'delete_deal':
-			$ids = isset($in['ids']) ? crm_ids((array) $in['ids']) : (string) (int) $in['id'];
-			db_modify("delete from crm_deals where id in ($ids)", __FILE__ . " linje " . __LINE__);
-			return array('id' => $ids);
-
-		case 'deals_from_customers':
-			// One-off offer on the Pipeline tab: customers whose status is a sales stage but who have no open deal
-			// get one deal each in that stage (title "Salg til <firma>", amount 0), so the sales process moves from
-			// the customer status to deals. The customer status itself is left alone.
-			$stages = array_values(array_filter(array_map(function ($x) { return preg_replace('/[^0-9A-Za-z_-]/', '', (string) $x); }, (array) ($in['stages'] ?? array())), 'strlen'));
-			if (!$stages) return array('error' => 'stages');
-			$list = "'" . implode("','", $stages) . "'";
-			$today = date('Y-m-d');
-			$made = array();
-			$q = db_select("select a.id, a.firmanavn, a.status, a.kontoansvarlig from adresser a where a.art = 'D' and a.status in ($list) "
-				. "and (a.lukket is null or a.lukket != 'on') and not exists (select 1 from crm_deals d where d.konto_id = a.id and d.state = 'open')", __FILE__ . " linje " . __LINE__);
-			$rows = array();
-			while ($r = db_fetch_array($q)) $rows[] = $r;
-			foreach ($rows as $r) {
-				$cid = (int) $r['id'];
-				$since = db_fetch_array(db_select("select max(kontaktet) as d from historik where konto_id = $cid and type = 'status'", __FILE__ . " linje " . __LINE__));
-				$sinceSql = $since && $since['d'] ? "'" . $since['d'] . "'" : "'$today'";
-				$title = crm_t('Salg til %s', crm_out($r['firmanavn']));
-				db_modify("insert into crm_deals (konto_id, title, amount, stage, ansat_id, state, stage_since, created) values "
-					. "($cid, '" . crm_in(mb_substr($title, 0, 120)) . "', 0, '" . db_escape_string(trim((string) $r['status'])) . "', " . (int) $r['kontoansvarlig'] . ", 'open', $sinceSql, '$today')", __FILE__ . " linje " . __LINE__);
-				$d = db_fetch_array(db_select("select max(id) as id from crm_deals where konto_id = $cid", __FILE__ . " linje " . __LINE__));
-				$made[] = (int) $d['id'];
-				crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel oprettet ud fra kundens status: »%s«', $title), null);
-			}
-			return array('ids' => $made);
+			$id = (int) $in['id'];
+			db_modify("delete from crm_deals where id = $id", __FILE__ . " linje " . __LINE__);
+			return array('id' => $id);
 
 		case 'save_groups':
 			$keep = array();
@@ -909,12 +916,11 @@ function crm_action(string $action, array $in): array
 				$s = implode(chr(9), array_map(function ($x) { return preg_replace('/[^0-9A-Za-z_-]/', '', (string) $x); }, (array) ($g['s'] ?? array())));
 				$won = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($g['won'] ?? ''));
 				$lost = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($g['lost'] ?? ''));
-				$pipe = !empty($g['pipe']) ? 'pipe' : '';
 				$gid = (int) ($g['id'] ?? 0);
 				if ($gid > 0) {
-					db_modify("update grupper set box1 = '$name', box2 = '$s', box3 = '$won', box4 = '$lost', box5 = '$pipe', kodenr = '$pos' where id = $gid and art = 'SKN'", __FILE__ . " linje " . __LINE__);
+					db_modify("update grupper set box1 = '$name', box2 = '$s', box3 = '$won', box4 = '$lost', kodenr = '$pos' where id = $gid and art = 'SKN'", __FILE__ . " linje " . __LINE__);
 				} else {
-					db_modify("insert into grupper (art, beskrivelse, box1, box2, box3, box4, box5, kodenr) values ('SKN', 'Status knapper (CRM)', '$name', '$s', '$won', '$lost', '$pipe', '$pos')", __FILE__ . " linje " . __LINE__);
+					db_modify("insert into grupper (art, beskrivelse, box1, box2, box3, box4, kodenr) values ('SKN', 'Status knapper (CRM)', '$name', '$s', '$won', '$lost', '$pos')", __FILE__ . " linje " . __LINE__);
 					$r = db_fetch_array(db_select("select max(id) as id from grupper where art = 'SKN'", __FILE__ . " linje " . __LINE__));
 					$gid = (int) $r['id'];
 				}

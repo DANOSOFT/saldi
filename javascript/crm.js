@@ -38,7 +38,7 @@ const diff = k => Math.round((fromKey(k) - TODAY) / 864e5);
 // Texts: the Danish text is the key; DATA.txt holds the user's language from tekster.csv (ids 7300-, see
 // crm_text_ids() in includes/crmFunctions.php). '%s' is filled in order.
 const T = DATA.txt || {};
-const t = (k, ...a) => { let s = (T[k] != null && T[k] !== '') ? T[k] : k; a.forEach(v => { s = s.replace('%s', v); }); return s; };
+const t = (k, ...a) => { let s = (T[k] != null && T[k] !== '') ? T[k] : k; a.forEach(v => { s = s.replace('%s', () => String(v)); }); return s; };
 // Day and month names from the browser in the user's language (sprog_id 1 da, 2 en, 3 no)
 const LOC = ({1: 'da-DK', 2: 'en-GB', 3: 'nb-NO'})[DATA.lang] || 'da-DK';
 const nm = (o, d) => new Intl.DateTimeFormat(LOC, o).format(d).replace(/\.$/, '');
@@ -338,7 +338,7 @@ function renderCust() {
 			<span class="r num ${c.rev ? '' : 'c3'}">${c.rev ? kr(c.rev) : '–'}</span>
 		</div>`;
 	}).join('');
-	if (!list.length) html += `<div class="empty"><b>${t('Ingen kunder')}</b>` + (C.length ? t('Ingen kunder matcher filtrene.') : t('Kunder kommer med i CRM, når de får en status, en note eller en handel. Brug »Ny opfølgning« for at finde en kunde.')) + '</div>';
+	if (!list.length) html += `<div class="empty"><b>${t('Ingen kunder')}</b>` + (C.length ? t('Ingen kunder matcher filtrene.') + (DATA.truncated && S.q ? ' ' + t('Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.', num(DATA.max)) : '') : t('Kunder kommer med i CRM, når de får en status, en note eller en handel. Brug »Ny opfølgning« for at finde en kunde.')) + '</div>';
 	$('#v-cust').innerHTML = html;
 }
 
@@ -676,6 +676,7 @@ function renderAll() {
 	const nb = $('#noteBar'), notes = [];
 	if (!ME) notes.push(t('Din bruger er ikke knyttet til en medarbejder, så »Kun mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.'));
 	if (!DATA.emps.length) notes.push(t('Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.'));
+	if (DATA.truncated) notes.push(t('Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.', num(DATA.max)));
 	nb.innerHTML = notes.map(n => esc(n)).join('<br>'); nb.hidden = !notes.length;
 	$('#mine').disabled = !ME;
 }
@@ -736,18 +737,17 @@ $('#grpSel').onchange = e => { S.grp = e.target.value; S.stF = 'all'; renderAll(
 $('#mine').onclick = () => { S.mine = !S.mine; localStorage.setItem('crm-mine', S.mine ? '1' : '0'); $('#mine').setAttribute('aria-pressed', S.mine); renderAll(); };
 $('#gearBtn').onclick = e => {
 	e.stopPropagation(); const p = $('#panel'); p.classList.toggle('open'); $('#gearBtn').setAttribute('aria-expanded', p.classList.contains('open'));
-	if (p.classList.contains('open')) { GDRAFT = GROUPS.map(g => ({id: g.id, n: g.n, s: g.s.slice(), won: g.won, lost: g.lost, pipe: !!g.pipe})); renderGroupEditor(); }
+	if (p.classList.contains('open')) { GDRAFT = GROUPS.map(g => ({id: g.id, n: g.n, s: g.s.slice(), won: g.won, lost: g.lost})); renderGroupEditor(); }
 };
 $('#sgList').addEventListener('input', e => {
 	const box = e.target.closest('.sg'); if (!box) return;
 	const g = GDRAFT[+box.dataset.i];
 	if (e.target.dataset.f === 'n') g.n = e.target.value;
-	if (e.target.dataset.f === 'pipe') g.pipe = e.target.checked;
 	if (e.target.dataset.f === 'won' || e.target.dataset.f === 'lost') g[e.target.dataset.f] = e.target.value;
 	if (e.target.dataset.st !== undefined) { const id = e.target.dataset.st; g.s = e.target.checked ? g.s.concat(id) : g.s.filter(x => x !== id); g.s.sort((a, b) => ST_ORDER.indexOf(a) - ST_ORDER.indexOf(b)); }
 });
 $('#sgList').addEventListener('click', e => { const b = e.target.closest('[data-delg]'); if (b) { e.stopPropagation(); GDRAFT.splice(+b.dataset.delg, 1); renderGroupEditor(); } });
-$('#sgAdd').onclick = e => { e.stopPropagation(); GDRAFT.push({id: 0, n: t('Ny gruppe'), s: [], won: '', lost: '', pipe: false}); renderGroupEditor(); };
+$('#sgAdd').onclick = e => { e.stopPropagation(); GDRAFT.push({id: 0, n: t('Ny gruppe'), s: [], won: '', lost: ''}); renderGroupEditor(); };
 $('#sgSave').onclick = async e => { e.stopPropagation(); await api('save_groups', {groups: GDRAFT}); renderGroups(); $('#panel').classList.remove('open'); toast(t('Statusgrupperne er gemt')); };
 $('#sgAdd').hidden = $('#sgSave').hidden = !DATA.canWrite;
 
