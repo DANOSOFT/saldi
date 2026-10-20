@@ -166,7 +166,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-Token': <?php print json_encode($csrf_token); ?>
+        'X-CSRF-Token': <?php print json_encode($csrf_token); ?>,
       },
       body: JSON.stringify(Object.assign({ action: action }, params))
     });
