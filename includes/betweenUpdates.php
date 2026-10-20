@@ -1389,6 +1389,15 @@ if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables W
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);
 
+// 20261019 CL/ASR "Saldi invoices, Stripe collects": stripe_payments (one row per PaymentIntent,
+// partial unique index = at most one succeeded per invoice) and the card-on-file columns on
+// adresser (stripe, stripe_customer_id, stripe_pm_id, stripe_date). PostgreSQL only, like the
+// other stripe_* tables above; the same function is called lazily by the payment page.
+if ($db_type != 'mysql' && $db_type != 'mysqli') {
+	include_once(__DIR__ . '/stripeIncludes/stripeInvoice.php');
+	if (function_exists('stripe_payments_ensure')) stripe_payments_ensure();
+}
+
 // 20261006 CL/LH SST-850: rentalsettings.pass used to be stored in clear text. Hash a remaining
 // clear-text value once; only tenants with the rental module have the table, and a value that is
 // already a password_hash() is left alone, so this is idempotent.

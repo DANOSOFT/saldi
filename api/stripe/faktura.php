@@ -39,8 +39,9 @@ $brand = $inv['brand'];
 $pk = (string)stripe_setting('publishable_key');
 $returned = isset($_GET['redirect_status']) || isset($_GET['payment_intent']);
 if ($returned && in_array($state, array('open', 'open_recurring', 'overdue', 'failed', 'enrolled')) && !empty($_GET['payment_intent'])) {
-	// browser came back from Stripe before the webhook: sync once, then render
-	stripe_payment_sync((string)$_GET['payment_intent']);
+	// browser came back from Stripe before the webhook: sync once (only an intent of THIS invoice), then render
+	$piq = db_fetch_array(db_select("select payment_intent_id from stripe_payments where ordre_id = " . (int)$faktura_o . " and payment_intent_id = '" . db_escape_string(substr((string)$_GET['payment_intent'], 0, 255)) . "'", __FILE__ . " linje " . __LINE__));
+	if ($piq) stripe_payment_sync((string)$piq['payment_intent_id']);
 	$inv = stripe_invoice_load($faktura_o); $state = $inv['state'];
 }
 $totalKr = stripe_fmt_kr($inv['total_ore']) . ' kr.';

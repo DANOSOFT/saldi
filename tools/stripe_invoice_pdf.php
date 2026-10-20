@@ -48,6 +48,8 @@ if ($targetDb === '' || !preg_match('/^[a-z0-9_]{1,40}$/', $targetDb) || $ordreI
 }
 
 // The form engine uses paths relative to debitor/ (../includes, ../temp, ../logolib).
+// Web (www-data), cron and shell users all render here: make everything we create group/world writable.
+umask(0);
 chdir(__DIR__ . '/../debitor');
 if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/tools/stripe_invoice_pdf.php';
 if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
@@ -109,9 +111,11 @@ function stripe_pdf_background($background, $file_type, $department) {
 }
 $background_file = stripe_pdf_background(isset($o['sprog']) ? $o['sprog'] : 'Dansk', 'faktura_bg', (int)$o['afd']);
 
-if (!is_dir("../temp/$db")) @mkdir("../temp/$db", 0775, true);
+foreach (array("../temp/$db", "../temp/$db/" . abs($bruger_id), "../temp/$db/stripe_pdf") as $d) {
+	if (!is_dir($d)) @mkdir($d, 0777, true);
+	@chmod($d, 0777);                       // no-op when another user owns it
+}
 $cacheDir = "../temp/$db/stripe_pdf";
-if (!is_dir($cacheDir)) @mkdir($cacheDir, 0775, true);
 
 ob_start();                                  // the engine prints HTML fragments; keep stdout clean
 $svar = formularprint($ordreId, $formular, 0, $charset, 'inkasso', $background_file);
@@ -125,6 +129,6 @@ if (strncmp((string)file_get_contents($svar, false, null, 0, 4), '%PDF', 4) !== 
 
 $pdf = $outFile !== '' ? $outFile : "$cacheDir/$ordreId.pdf";
 if (!copy($svar, $pdf)) { fwrite(STDERR, "could not write $pdf\n"); exit(2); }
-@chmod($pdf, 0664);
+@chmod($pdf, 0666);
 print realpath($pdf) . "\n";
 exit(0);

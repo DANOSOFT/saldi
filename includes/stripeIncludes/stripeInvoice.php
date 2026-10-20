@@ -401,7 +401,7 @@ if (!function_exists('stripe_payment_create')) {
 		$piId = db_escape_string((string)$pi['id']);
 		$ex = db_fetch_array(db_select("select id from stripe_payments where payment_intent_id = '$piId'", __FILE__ . " linje " . __LINE__));
 		if ($ex) return (int)$ex['id'];
-		$status = ((string)$pi['status'] === 'succeeded') ? 'pending' : 'pending'; // success is applied by the webhook / apply_succeeded
+		$status = 'pending'; // success/failure is applied by the webhook or stripe_payment_sync()
 		db_modify("insert into stripe_payments (ordre_id, fakturanr, stripe_customer_id, payment_intent_id, amount_ore, currency, status, source, save_card, attempt) values ("
 			. (int)$inv['id'] . ", '" . db_escape_string($inv['nr']) . "', '" . db_escape_string((string)($pi['customer'] ?? '')) . "', '$piId', " . (int)$pi['amount'] . ", '"
 			. db_escape_string(strtoupper((string)$pi['currency'])) . "', '$status', '" . db_escape_string($source) . "', " . ($saveCard ? 'true' : 'false') . ", " . (int)$attempt . ")", __FILE__ . " linje " . __LINE__);
@@ -476,6 +476,12 @@ if (!function_exists('stripe_payment_create')) {
 				$l = stripeHttpRequest('GET', '/v1/customers/' . rawurlencode($cusId) . '/payment_methods', array('type' => 'card', 'limit' => 10));
 				if ($l['ok']) foreach ($l['body']['data'] as $b) if (($b['metadata']['saldi_role'] ?? '') === 'backup' && $b['id'] !== $pm) { $mailIt = false; break; }
 			}
+		}
+		if ($row['source'] === 'auto' && (int)$row['attempt'] >= 3) {
+			$inv3 = stripe_invoice_load((int)$row['ordre_id']);
+			stripeAlertMail('Stripe: automatisk træk afvist 3 gange - faktura ' . ($inv3 ? $inv3['nr'] : $row['fakturanr']),
+				"Kunde: " . ($inv3 ? $inv3['o']['firmanavn'] . ' (konto ' . $inv3['o']['kontonr'] . ')' : '?') . "\nFaktura: " . $row['fakturanr'] . "\nSidste fejl: $err\n\nDer trækkes ikke igen. Fakturaen følger den almindelige rykkervej.",
+				'auto3_' . (int)$row['ordre_id'], 86400);
 		}
 		if ($mailIt) {
 			$inv = stripe_invoice_load((int)$row['ordre_id']);

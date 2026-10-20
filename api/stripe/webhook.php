@@ -408,6 +408,9 @@ if (strpos($eventType, 'payment_intent.') === 0) {
 	if (file_exists(__DIR__ . '/../../includes/auditLog.php')) include_once(__DIR__ . '/../../includes/auditLog.php');
 	$piOrder = isset($obj['metadata']['saldi_ordre_id']) ? (int)$obj['metadata']['saldi_ordre_id'] : 0;
 	$piNr = isset($obj['metadata']['saldi_fakturanr']) ? (string)$obj['metadata']['saldi_fakturanr'] : '';
+	// Intents created by Stripe for a Stripe invoice (the subscription customers) are handled by
+	// invoice.paid above - not ours, no alarm.
+	if (!$piOrder && !empty($obj['invoice'])) stripe_wh_finish($rowId, 'ignored', 200, 'ignored_subscription_intent');
 	$res = stripe_webhook_payment_intent($eventType, $obj, $eventId);
 	if ($res === 'unknown') {
 		stripeAlertMail('Stripe-betaling uden Saldi-faktura', "PaymentIntent " . (isset($obj['id']) ? $obj['id'] : '?') . " (" . $eventType . ") kunne ikke knyttes til en faktura.\nMetadata: " . json_encode(isset($obj['metadata']) ? $obj['metadata'] : array()), 'unmapped_pi_' . (string)(isset($obj['id']) ? $obj['id'] : ''), 3600);

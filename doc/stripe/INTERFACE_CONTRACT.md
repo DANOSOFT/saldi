@@ -137,3 +137,55 @@ manual. Import mode is fully built and tested in sandbox but gated behind
 after the P0 atomicity work (bogfor savepoint refactor) is merged, its regression test
 (T-9: forced post-bogfor failure -> zero surviving rows) is green, and the refactor has had
 human review.
+
+## 8. Amendment 2026-10-19 — "Saldi invoices, Stripe collects" (card on file)
+
+Spec: `Requirements_invoice_email_payment_page_EN.md` (owner decision D1, 2026-10-12). New
+customers are NOT given Stripe subscriptions. Saldi keeps issuing invoices (incl. recurring
+invoicing); each invoice is collected by one PaymentIntent. §§1–7 above stay in force for the
+subscriptions that already exist until they are migrated (M1).
+
+**Settings (`var_grp='stripe'`, additions):** `publishable_key` (pk_…, the Payment Element on the
+public page), `charge_on` (`due` | `invoice_date`, when the charge job collects), `auto_post_journal`
+(`on`|`off`, reserved, default off). Written by stripe_valg; read via `stripe_setting()`.
+
+**Tables (DDL in `includes/betweenUpdates.php`, lazily by `stripe_payments_ensure()`):**
+`stripe_payments (ordre_id, fakturanr, stripe_customer_id, payment_intent_id UNIQUE, amount_ore,
+currency, status pending|succeeded|failed|canceled, source page|auto|backup|manual, save_card,
+pm_id, pm_brand, pm_last4, attempt, last_error, created_at, succeeded_at, journal_line_id,
+confirmation_sent_at, last_event_id)` with a partial unique index on `(ordre_id) WHERE status =
+'succeeded'` — the double-payment guard. `adresser` gains `stripe` ('on'), `stripe_customer_id`,
+`stripe_pm_id`, `stripe_date` (mirrors `pbs`, `pbs_nr`, `pbs_date`). `ordrer.udskriv_til = 'Stripe'`
+marks an invoice for the charge job; `genfakturer.php` copies it unchanged.
+
+**Public endpoints** (`api/stripe/faktura.php`, `faktura_pay.php`, `faktura_state.php`,
+`faktura_pdf.php`): signed link `?o=<ordre_id>&s=<hmac>` using the existing `stripe_link_sign()`
+(payload `v1:<order_id>`, §4); no `db` parameter (400); `stripeConfigDb()` pins the ledger;
+rate-limited per IP and per invoice. PaymentIntent metadata: `saldi_ordre_id`, `saldi_fakturanr`,
+`saldi_konto_id`, `saldi_db`, `saldi_source`; idempotency key `pi:<db>:<ordre_id>:<attempt>:<s|n>`
+(`auto:` for off-session charges).
+
+**Webhook:** `payment_intent.succeeded|payment_failed|canceled` are handled in `webhook.php` via
+`stripe_webhook_payment_intent()`. An intent without `saldi_ordre_id` that carries `invoice` is a
+subscription intent → `ignored` (no alarm). Paid is set ONLY by `payment_intent.succeeded` (or the
+same handler through `stripe_payment_sync()` when the page polls before the webhook arrives).
+On success: `stripe_payments.succeeded`, `ordrer.betalt='on'`, one line in the journal
+"Stripe-betalinger" (debit card clearing account DIV/3 box10, credit the debtor, `faktura` =
+invoice number), one confirmation mail. Nothing posts automatically. `ordrer.nextfakt` is still
+never read or written by Stripe code (§3).
+
+**Enrolment** (`includes/stripeIncludes/stripeEnrol.php`): a payment with `setup_future_usage =
+off_session` makes the card the Stripe customer's default PM (`metadata.saldi_role=primary`),
+sets `adresser.stripe='on'` + ids + date and `udskriv_til='Stripe'` on the debtor and on the
+recurring order (`ordrenr` of the invoice, `nextfakt` not null). Un-enrolment reverses it
+(`debitorkort` "Afmeld").
+
+**Charge job** `tools/stripe_charge_due.php` (cron 06:00, pinned ledger or `--db`): off-session
+PaymentIntent per due `Stripe` invoice; attempts day 0, +3, +7 (max 3); a PM with
+`metadata.saldi_role=backup` is tried once after a decline before the customer is mailed; after
+the 3rd decline the bookkeeper is alerted and the invoice follows dunning.
+
+**Delivery hook** in `includes/formfunk.php` (mail step of `formularprint()`): invoice format
+`documents.email.invoice_format` = `link` → fixed link mail, no PDF attached; `Stripe` → no mail.
+The PDF the engine built is cached in `temp/<db>/stripe_pdf/<ordre_id>.pdf` for the page;
+`tools/stripe_invoice_pdf.php` renders it without a session when the cache is cold.
