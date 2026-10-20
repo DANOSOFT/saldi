@@ -92,5 +92,5 @@ $data['api'] = 'crmApi.php';
 <div class="scrim" id="scrim"><div class="dlg" id="dlg" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastX"></button><button id="toastU"><?= crm_h('Fortryd') ?></button></div>
 <script type="application/json" id="crm-data"><?= json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
-<script src="../javascript/crm.js?v=9" charset="utf-8"></script>
+<script src="../javascript/crm.js?v=10" charset="utf-8"></script>
 </body></html>

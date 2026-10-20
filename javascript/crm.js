@@ -47,8 +47,9 @@ const WDL = [0, 1, 2, 3, 4, 5, 6].map(i => nm({weekday: 'long'}, new Date(2026, 
 const MO = [...Array(12).keys()].map(m => nm({month: 'short'}, new Date(2026, m, 1)));
 const MOL = [...Array(12).keys()].map(m => nm({month: 'long'}, new Date(2026, m, 1)));
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
-const fmt = k => { const d = fromKey(k); return `${WD[d.getDay()]} ${d.getDate()}. ${MO[d.getMonth()]}`; };
-const fmtY = k => { if (!k) return ''; const d = fromKey(k); return `${d.getDate()}. ${MO[d.getMonth()]} ${d.getFullYear()}`; };
+const DOT = LOC.indexOf('en') === 0 ? '' : '.';   // 17. okt (da/no) / 17 Oct (en)
+const fmt = k => { const d = fromKey(k); return `${WD[d.getDay()]} ${d.getDate()}${DOT} ${MO[d.getMonth()]}`; };
+const fmtY = k => { if (!k) return ''; const d = fromKey(k); return `${d.getDate()}${DOT} ${MO[d.getMonth()]} ${d.getFullYear()}`; };
 const rel = k => { const n = diff(k); if (n === 0) return t('i dag'); if (n === 1) return t('i morgen'); if (n === -1) return t('i går');
 	if (n < 0) return t('for %s dage siden', -n); return n < 300 ? fmt(k) : fmtY(k); };
 const num = n => Math.round(n).toLocaleString(LOC);
@@ -290,7 +291,7 @@ function renderCal() {
 		body += '</div>';
 	} else {
 		const ws = fromKey(S.weekStart), we = new Date(ws); we.setDate(ws.getDate() + 6);
-		head = t('Uge %s', isoWeek(ws)) + ` · ${ws.getDate()}. ${MO[ws.getMonth()]} – ${we.getDate()}. ${MO[we.getMonth()]}`;
+		head = t('Uge %s', isoWeek(ws)) + ` · ${ws.getDate()}${DOT} ${MO[ws.getMonth()]} – ${we.getDate()}${DOT} ${MO[we.getMonth()]}`;
 		body = '<div class="week">';
 		for (let i = 0; i < 7; i++) {
 			const d = new Date(ws); d.setDate(ws.getDate() + i);
