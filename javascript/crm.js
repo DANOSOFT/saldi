@@ -58,6 +58,22 @@ const isWon = id => GROUPS.some(g => g.won === id);
 const S = {tab: 'follow', mine: localStorage.getItem('crm-mine') === '1', grp: 'all', q: '', stF: 'all', calMode: 'month', calY: 0, calM: 0,
 	weekStart: null, showDone: false, drawer: null, dtab: 'tl', bgrp: null};
 
+/* The page's place (tab, board group, open customer and its tab) lives in the query string, so a back link or the
+   browser's Back button lands where the user was. A returside without '?' would lose to the session's nav stack
+   (nav_back_url() prefers a stacked crm.php?inframe=1), so links back here always carry a query. */
+const QP0 = new URLSearchParams(location.search);
+function placeParams(over) {
+	const p = new URLSearchParams();
+	['inframe', 'popup'].forEach(k => { if (QP0.get(k)) p.set(k, QP0.get(k)); });
+	const st = Object.assign({tab: S.tab, bgrp: S.bgrp, drawer: S.drawer, dtab: S.dtab}, over || {});
+	p.set('tab', st.tab);
+	if (st.tab === 'pipe' && st.bgrp) p.set('bgrp', st.bgrp);
+	if (st.drawer) { p.set('drawer', st.drawer); if (st.dtab && st.dtab !== 'tl') p.set('dtab', st.dtab); }
+	return p.toString();
+}
+function syncUrl() { try { history.replaceState(null, '', 'crm.php?' + placeParams()); } catch (e) { /* file:// test pages */ } }
+const backTo = (cid, dtab) => encodeURIComponent('crm.php?' + placeParams({drawer: cid, dtab: dtab || 'deals'}));
+
 const ICON = {
 	note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',
 	opkald: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',
@@ -339,8 +355,9 @@ function openDrawer(cid, tab) {
 	Object.assign(DR, {type: 'opkald', due: null, owner: (c && c.own) || ME || (DATA.emps[0] || {}).id || 0, closePrev: true});
 	renderDrawer();
 	$('#drawer').classList.add('open'); $('#dscrim').classList.add('open');
+	syncUrl();
 }
-function closeDrawer() { $('#drawer').classList.remove('open'); $('#dscrim').classList.remove('open'); S.drawer = null; }
+function closeDrawer() { $('#drawer').classList.remove('open'); $('#dscrim').classList.remove('open'); S.drawer = null; syncUrl(); }
 
 function composer(c, ctx) {
 	const prev = openFor(c.id)[0];
@@ -364,7 +381,7 @@ function renderDrawer() {
 	const nx = openFor(c.id)[0], lc = lastContact(c.id);
 	const deals = DEALS.filter(d => d.cid === c.id);
 	const ret = encodeURIComponent('crm.php');
-	const back = encodeURIComponent('crm.php#drawer=' + c.id + '-deals'); // back from the order to this customer's drawer
+	const back = backTo(c.id); // back from the order to this customer's drawer, on Handler og ordrer
 	$('#drawer').innerHTML = `<div class="dh">
 			<div class="t"><div><h2>${esc(c.n)}</h2><div class="sub2">Kunde ${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}${c.own ? ' · ansvarlig: ' + esc(empName(c.own).toLowerCase() === 'dig' ? 'dig' : empName(c.own)) : ''}</div></div>
 				<span class="x"></span>
@@ -390,9 +407,9 @@ function dealsTab(c, list) {
 		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · forventet lukket ' + fmt(d.close) : ''}` : d.state === 'won' ? `Vundet ${fmtY(d.closed)}` : `Tabt ${fmtY(d.closed)}${d.reason ? ' – ' + esc(d.reason) : ''}`} · ${esc(empName(d.own).toLowerCase() === 'dig' ? 'dig' : empName(d.own))}</small></div>`).join('') || '<div class="empty" style="padding:32px"><b>Ingen handler</b></div>'}</div>
 		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">+ Ny handel</button>` : ''}
 		<h4 class="dsub">Åbne tilbud og ordrer</h4>
-		<div class="deals">${c.docs.map(o => `<a class="d doc" href="ordre.php?id=${o.id}&returside=${encodeURIComponent('crm.php#drawer=' + c.id + '-deals')}"><b>${o.st === 0 && !DATA.quick ? 'Tilbud' : 'Ordre'} ${o.nr}</b><span class="num">${kr(o.sum)}</span>
+		<div class="deals">${c.docs.map(o => `<a class="d doc" href="ordre.php?id=${o.id}&returside=${backTo(c.id)}"><b>${o.st === 0 && !DATA.quick ? 'Tilbud' : 'Ordre'} ${o.nr}</b><span class="num">${kr(o.sum)}</span>
 			<small>${fmtY(o.date)}${o.st === 2 ? ' · delvist leveret' : ''}</small></a>`).join('') || '<div class="c3" style="padding:8px 0 4px">Ingen åbne tilbud eller ordrer.</div>'}</div>
-		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" href="ordre.php?konto_id=${c.id}&returside=${encodeURIComponent('crm.php#drawer=' + c.id + '-deals')}">+ Opret tilbud</a>`}<a class="addp" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${encodeURIComponent('crm.php#drawer=' + c.id + '-deals')}">+ Opret ordre</a></div>` : ''}
+		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" href="ordre.php?konto_id=${c.id}&returside=${backTo(c.id)}">+ Opret tilbud</a>`}<a class="addp" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${backTo(c.id)}">+ Opret ordre</a></div>` : ''}
 		${DATA.quick && DATA.canWrite ? '<div class="c3" style="font-size:12.5px;margin-top:6px">Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).</div>' : ''}`;
 }
 
@@ -610,6 +627,7 @@ function renderAll() {
 	$('#grpSel').style.visibility = S.tab === 'pipe' ? 'hidden' : '';
 	if (S.tab === 'follow') renderFollow();
 	if (S.tab === 'pipe') renderPipe();
+	syncUrl();
 	if (S.tab === 'cal') renderCal();
 	if (S.tab === 'cust') renderCust();
 	if (S.tab === 'act') renderAct();
@@ -633,11 +651,11 @@ document.addEventListener('click', e => {
 	if ((b = t.closest('[data-week]'))) { S.calMode = 'week'; S.weekStart = mondayOf(b.dataset.week); renderCal(); return; }
 	if ((b = t.closest('[data-grp]'))) { S.grp = b.dataset.grp; S.stF = b.dataset.stf || 'all'; renderGroups(); renderAll(); return; }
 	if ((b = t.closest('[data-stf]'))) { S.stF = b.dataset.stf; renderCust(); return; }
-	if ((b = t.closest('[data-bgrp]'))) { S.bgrp = b.dataset.bgrp; renderPipe(); return; }
+	if ((b = t.closest('[data-bgrp]'))) { S.bgrp = b.dataset.bgrp; renderPipe(); syncUrl(); return; }
 	if ((b = t.closest('[data-adddeal]'))) { e.stopPropagation(); e.preventDefault(); dealDialog(null, b.dataset.cid ? +b.dataset.cid : null, b.dataset.adddeal || null); return; }
 	if ((b = t.closest('[data-editdeal]'))) { if (DATA.canWrite) dealDialog(DEALS.find(d => d.id === +b.dataset.editdeal), DEALS.find(d => d.id === +b.dataset.editdeal).cid); return; }
 	if ((b = t.closest('[data-mode]'))) { S.calMode = b.dataset.mode; if (S.calMode === 'week') S.weekStart = mondayOf(S.calY === TODAY.getFullYear() && S.calM === TODAY.getMonth() ? DATA.today : key(new Date(S.calY, S.calM, 1))); renderCal(); return; }
-	if ((b = t.closest('[data-dtab]'))) { S.dtab = b.dataset.dtab; renderDrawer(); return; }
+	if ((b = t.closest('[data-dtab]'))) { S.dtab = b.dataset.dtab; renderDrawer(); syncUrl(); return; }
 	if ((b = t.closest('[data-call]'))) { S.dtab = 'tl'; renderDrawer(); const sel = $('#cto'); if (sel) sel.value = b.dataset.call; const n = $('#cNote'); if (n) n.focus(); return; }
 	if ((b = t.closest('[data-del]'))) { confirmDel(+b.dataset.del); return; }
 	if ((b = t.closest('[data-edit]'))) { editDialog(+b.dataset.edit); return; }
@@ -719,11 +737,14 @@ load(DATA);
 S.calY = TODAY.getFullYear(); S.calM = TODAY.getMonth(); S.bgrp = GROUPS.length ? GROUPS[0].id : 0;
 $('#mine').setAttribute('aria-pressed', S.mine && !!ME);
 if (!ME) S.mine = false;
-// direkte link: crm.php#pipe, #cal, #cust, #act, #drawer=<kunde-id>
+// place from the query (crm.php?tab=pipe&bgrp=25&drawer=4&dtab=deals); the old #pipe / #drawer=4 links still work
 const hs = location.hash.slice(1);
-if (/^(pipe|cal|cust|act)$/.test(hs)) S.tab = hs;
+const qTab = QP0.get('tab') || hs;
+if (/^(follow|pipe|cal|cust|act)$/.test(qTab)) S.tab = qTab;
+if (QP0.get('bgrp') && GROUPS.some(g => String(g.id) === QP0.get('bgrp'))) S.bgrp = QP0.get('bgrp');
 renderGroups();
 renderAll();
-const hm = hs.match(/^drawer=(\d+)(?:-(\w+))?$/); // drawer=<kunde-id>[-deals]
-if (hm) openDrawer(+hm[1], hm[2] || 'tl');
+const hm = hs.match(/^drawer=(\d+)(?:-(\w+))?$/);
+const qDrawer = +(QP0.get('drawer') || (hm ? hm[1] : 0));
+if (qDrawer && cust(qDrawer)) openDrawer(qDrawer, QP0.get('dtab') || (hm && hm[2]) || 'tl');
 })();
