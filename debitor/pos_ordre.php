@@ -879,7 +879,7 @@ if ($vare_id_ny && !$vare_id) {
 	$vare_id = $vare_id_ny;
 }
 $funktion = if_isset($_GET['funktion']);
-if ($funktion) {
+if (in_array($funktion, ['vareopslag'], true)) {
 	$sort = (int) if_isset($_GET['sort']);
 	$funktion('PO', $sort, $fokus, $id, "", "", "");
 }
