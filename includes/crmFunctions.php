@@ -218,6 +218,7 @@ function crm_customers(string $where): array
 			'rev'   => 0, 'inv' => 0, 'late' => 0,
 			'stSince' => (string) $r['oprettet'],
 			'ppl'   => array(),
+			'docs'  => array(),
 		);
 	}
 	if (!$out) {
@@ -238,6 +239,13 @@ function crm_customers(string $where): array
 	while ($r = db_fetch_array($q)) {
 		$out[(int) $r['konto_id']]['inv'] = (int) $r['n'];
 		$out[(int) $r['konto_id']]['late'] = (int) $r['late'];
+	}
+	// open offers (status 0) and orders (1-2), newest first, for the drawer
+	$q = db_select("select id, konto_id, ordrenr, status, sum, ordredate from ordrer where art = 'DO' and status < 3 and konto_id in ($ids) order by id desc", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (count($out[(int) $r['konto_id']]['docs']) < 10) {
+			$out[(int) $r['konto_id']]['docs'][] = array('id' => (int) $r['id'], 'nr' => (int) $r['ordrenr'], 'st' => (int) $r['status'], 'sum' => round((float) $r['sum']), 'date' => (string) $r['ordredate']);
+		}
 	}
 	$q = db_select("select konto_id, max(kontaktet) as d from historik where type = 'status' and konto_id in ($ids) group by konto_id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -345,6 +353,7 @@ function crm_dataset(): array
 		'me'        => (int) $ansat_id,
 		'canWrite'  => function_exists('perm_can') ? perm_can('debitor.konti', 'write') : true,
 		'jobs'      => $jobs,
+		'quick'     => (bool) db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4 = 'on'", __FILE__ . " linje " . __LINE__)),
 		'emps'      => crm_employees(),
 		'statuses'  => crm_statuses(),
 		'groups'    => crm_groups(),

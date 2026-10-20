@@ -364,14 +364,15 @@ function renderDrawer() {
 	const nx = openFor(c.id)[0], lc = lastContact(c.id);
 	const deals = DEALS.filter(d => d.cid === c.id);
 	const ret = encodeURIComponent('crm.php');
+	const back = encodeURIComponent('crm.php#drawer=' + c.id); // back from the order to this customer's drawer
 	$('#drawer').innerHTML = `<div class="dh">
 			<div class="t"><div><h2>${esc(c.n)}</h2><div class="sub2">Kunde ${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}${c.own ? ' · ansvarlig: ' + esc(empName(c.own).toLowerCase() === 'dig' ? 'dig' : empName(c.own)) : ''}</div></div>
 				<span class="x"></span>
 				<span class="stwrap" style="--c:${stColor(c.st)}"><select class="stsel" id="stSel" aria-label="Status" ${DATA.canWrite ? '' : 'disabled'}>${c.st && !ST[c.st] ? `<option value="${esc(c.st)}" selected>${esc(c.st)}</option>` : ''}<option value="" ${!c.st ? 'selected' : ''}>Ingen status</option>${ST_ORDER.map(id => `<option value="${esc(id)}" ${id === c.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></span>
 				<button class="ibtn" id="dClose" aria-label="Luk (Esc)">${SV.x}</button></div>
-			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}Opret handel</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}Debitorkort</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}Jobkort</a>` : ''}</div>
+			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}Opret handel</a>${DATA.quick ? '' : `<a href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}Opret tilbud</a>`}<a href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}Opret ordre</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}Debitorkort</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}Jobkort</a>` : ''}</div>
 			<div class="kv"><div><span>Kunde siden</span><b>${c.since ? fmtY(c.since) : '–'}</b></div><div><span>Seneste kontakt</span><b>${lc ? rel(lc) : '–'}</b></div><div><span>Omsætning i år</span><b>${kr(c.rev || 0)}</b></div><div><span>Åbne poster</span><b class="${c.late ? 'late' : ''}">${c.inv ? c.inv + (c.late ? ` · ${c.late} forfalden` : '') : '0'}</b></div></div>
-			<div class="dtabs"><button data-dtab="tl" class="${S.dtab === 'tl' ? 'on' : ''}">Historik <span class="c3">${hist.length}</span></button><button data-dtab="deals" class="${S.dtab === 'deals' ? 'on' : ''}">Handler <span class="c3">${deals.length}</span></button><button data-dtab="ppl" class="${S.dtab === 'ppl' ? 'on' : ''}">Kontaktpersoner <span class="c3">${c.ppl.length}</span></button></div>
+			<div class="dtabs"><button data-dtab="tl" class="${S.dtab === 'tl' ? 'on' : ''}">Historik <span class="c3">${hist.length}</span></button><button data-dtab="deals" class="${S.dtab === 'deals' ? 'on' : ''}">Handler og ordrer <span class="c3">${deals.length + c.docs.length}</span></button><button data-dtab="ppl" class="${S.dtab === 'ppl' ? 'on' : ''}">Kontaktpersoner <span class="c3">${c.ppl.length}</span></button></div>
 		</div>
 		<div class="db">${S.dtab === 'deals' ? dealsTab(c, deals) : S.dtab === 'tl' ? `
 			${nx ? `<div class="next ${diff(nx.due) < 0 ? 'late' : ''}"><div><div class="lbl">Næste opfølgning · ${diff(nx.due) < 0 ? 'forsinket, ' : ''}${rel(nx.due)} · ${esc(empName(nx.by).toLowerCase() === 'dig' ? 'dig' : empName(nx.by))}</div><p>${esc(nx.note)}</p></div>
@@ -387,7 +388,12 @@ function renderDrawer() {
 function dealsTab(c, list) {
 	return `<div class="deals">${list.map(d => `<div class="d" data-editdeal="${d.id}"><b>${esc(d.t)}</b><span class="num">${kr(d.v)}</span>
 		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · forventet lukket ' + fmt(d.close) : ''}` : d.state === 'won' ? `Vundet ${fmtY(d.closed)}` : `Tabt ${fmtY(d.closed)}${d.reason ? ' – ' + esc(d.reason) : ''}`} · ${esc(empName(d.own).toLowerCase() === 'dig' ? 'dig' : empName(d.own))}</small></div>`).join('') || '<div class="empty" style="padding:32px"><b>Ingen handler</b></div>'}</div>
-		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">+ Ny handel</button>` : ''}`;
+		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">+ Ny handel</button>` : ''}
+		<h4 class="dsub">Åbne tilbud og ordrer</h4>
+		<div class="deals">${c.docs.map(o => `<a class="d doc" href="ordre.php?id=${o.id}&returside=${encodeURIComponent('crm.php#drawer=' + c.id)}"><b>${o.st === 0 && !DATA.quick ? 'Tilbud' : 'Ordre'} ${o.nr}</b><span class="num">${kr(o.sum)}</span>
+			<small>${fmtY(o.date)}${o.st === 2 ? ' · delvist leveret' : ''}</small></a>`).join('') || '<div class="c3" style="padding:8px 0 4px">Ingen åbne tilbud eller ordrer.</div>'}</div>
+		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" href="ordre.php?konto_id=${c.id}&returside=${encodeURIComponent('crm.php#drawer=' + c.id)}">+ Opret tilbud</a>`}<a class="addp" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${encodeURIComponent('crm.php#drawer=' + c.id)}">+ Opret ordre</a></div>` : ''}
+		${DATA.quick && DATA.canWrite ? '<div class="c3" style="font-size:12.5px;margin-top:6px">Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).</div>' : ''}`;
 }
 
 function wireComposer(ctx, c, onSaved) {

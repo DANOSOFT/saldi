@@ -156,6 +156,7 @@
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
 // 20261008 Sawaneh The order heading has no dangling dash when there is nothing after the number (breadcrumb and page head).
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
+// 20261020 ASR ordrestatus=1 on a new order (from the CRM's Opret ordre) starts it as an order instead of an offer.
 // 20261011 MJ SST-828 The plukliste buttons now follow the order's own status instead of
 //                  $opValue ($_GET['valg']), which made them disappear entirely whenever
 //                  hurtigfakturering was on. They are shown on anything but a tilbud, so
@@ -852,6 +853,9 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$ordredate = date("Y-m-d");
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
+	// 20261020 ASR CRM "Opret ordre" (debitor/crm.php) opens ordre.php?konto_id=..&ordrestatus=1: the new order starts as an
+	//              order (status 1) instead of an offer (status 0). Without the flag nothing changes.
+	$newOrderStatus = (isset($_GET['ordrestatus']) && $_GET['ordrestatus'] === '1') ? '1' : '0';
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
 	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,performed_by,";
 	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
@@ -859,7 +863,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$qtxt .= " values ";
 	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
 	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "',";
-	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
+	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','$newOrderStatus','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
 	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 

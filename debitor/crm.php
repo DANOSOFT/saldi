@@ -57,7 +57,7 @@ $data = crm_dataset();
 $data['csrf'] = (string) $_SESSION['csrf_token'];
 $data['api'] = 'crmApi.php';
 ?>
-<link rel="stylesheet" href="../css/crm.css?v=5">
+<link rel="stylesheet" href="../css/crm.css?v=6">
 <style>:root{--btn:<?= htmlspecialchars((string) $buttonColor, ENT_QUOTES) ?>;--btn-text:<?= htmlspecialchars((string) $buttonTxtColor, ENT_QUOTES) ?>}</style>
 <div class="crm" id="crm">
   <div class="head">
@@ -92,5 +92,5 @@ $data['api'] = 'crmApi.php';
 <div class="scrim" id="scrim"><div class="dlg" id="dlg" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastX"></button><button id="toastU">Fortryd</button></div>
 <script type="application/json" id="crm-data"><?= json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
-<script src="../javascript/crm.js?v=4" charset="utf-8"></script>
+<script src="../javascript/crm.js?v=5" charset="utf-8"></script>
 </body></html>
