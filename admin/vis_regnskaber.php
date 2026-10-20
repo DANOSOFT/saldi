@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- ver 5.1.0 --- 2026.10.08 ---
+// --- admin/vis_regnskaber.php --- ver 5.0.0 --- 2026.10.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,9 @@ $s_id=session_id();
 //                  sorting by it was a fatal error. It now comes from license_features (feature_key
 //                  'booking', see license_manager.php) via a left join, and the sort/sort2 params are
 //                  whitelisted before they reach ORDER BY.
+// 20261020 CL/ASR Review fixes: LATIN9-safe JSON for the page script, the hidden save bar is inert, the table scrolls
+//                  sideways on narrow windows, saving keeps sort and Vis lukkede, sort links and Vis lukkede ask before
+//                  dropping unsaved changes, tall dialogs scroll.
 // 20261008 CL/ASR New page layout aligned with the settings/front-page redesign (one card, search,
 //                  status as dot + text, edit mode with save bar, dialogs instead of confirm()).
 //                  Same features and same GET/POST parameters as before: sort/sort2/desc, showClosed,
@@ -311,7 +314,7 @@ $vr_toggleClosed = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'redig
 $vr_toggleEdit   = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'showClosed'=>$showClosed, 'rediger'=>$rediger ? NULL : 'on']);
 $vr_recalcUrl    = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'showClosed'=>$showClosed, 'beregn'=>1]);
 
-print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=5.1.0\">\n";
+print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=20261020\">\n";
 print "<div class=\"vr\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
 
 // ---------- page head ----------
@@ -343,9 +346,9 @@ print "<div class=\"vr-card\">\n";
 print "<div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"vrQ\" placeholder=\"".vr_t('Søg på navn, database eller e-mail', 'Search by name, database or e-mail')."\" autocomplete=\"off\" aria-label=\"".findtekst('913|Søg', $sprog_id)."\"></label>";
 print "<span class=\"vr-hint\">".($rediger ? vr_t('Ret tallene direkte i listen. Kun ændrede rækker gemmes.', 'Edit the numbers directly in the list. Only changed rows are saved.') : vr_t('Klik på et regnskab for at åbne det', 'Click an account to open it'))."</span></div>\n";
 
-if ($rediger) print "<form name=\"regnskaber\" id=\"vrForm\" action=\"vis_regnskaber.php\" method=\"post\">\n";
+if ($rediger) print "<form name=\"regnskaber\" id=\"vrForm\" action=\"".vr_h(vr_url(array_intersect_key($_GET, array_flip(['sort','sort2','desc','showClosed']))))."\" method=\"post\">\n"; # the same state the page was opened with (sort toggles direction, so the computed values would flip it)
 
-print "<table class=\"vr-t\" id=\"vrTable\">\n<thead><tr>";
+print "<div class=\"vr-table-scroll\">\n<table class=\"vr-t\" id=\"vrTable\">\n<thead><tr>"; # scrolls sideways on narrow windows (the card clips)
 print vr_sort_th('id', 'Id', '', 'vr-r vr-id');
 print vr_sort_th('regnskab', findtekst('2682|Regnskab', $sprog_id));
 print vr_sort_th('brugerantal', findtekst('777|Brugere', $sprog_id), vr_t('Maks. antal brugere', 'Maximum number of users'), 'vr-r');
@@ -391,7 +394,7 @@ for ($x=0;$x<$vr_count;$x++) {
 	}
 	print "</tr>\n";
 }
-print "</tbody>\n</table>\n";
+print "</tbody>\n</table>\n</div>\n";
 print "<div class=\"vr-empty\" id=\"vrEmpty\"".($vr_count ? " hidden" : "")."><b>".vr_t('Ingen regnskaber matcher', 'No accounts match')."</b><span>".vr_t('Prøv et andet søgeord, eller slå Vis lukkede til.', 'Try another search term, or switch on Show closed.')."</span></div>\n";
 print "<div class=\"vr-foot\"><span><span id=\"vrFoot\" data-one=\"".vr_t('regnskab vist', 'account shown')."\" data-many=\"".vr_t('regnskaber vist', 'accounts shown')."\">$vr_count ".($vr_count == 1 ? vr_t('regnskab vist', 'account shown') : vr_t('regnskaber vist', 'accounts shown'))."</span> &middot; ".vr_t('posteringer er talt for de seneste 12 måneder', 'entries are counted for the last 12 months')."</span><span class=\"vr-grow\"></span>";
 if ($admin && !$rediger) print "<button type=\"button\" class=\"vr-btn vr-quiet\" id=\"vrRecalc\">".findtekst('1916|Genberegn posteringer', $sprog_id)."</button>";
@@ -399,7 +402,7 @@ print "</div>\n";
 
 if ($rediger) {
 	print "<input type=\"hidden\" name=\"db_antal\" value=\"$vr_count\">\n";
-	print "<div class=\"vr-save\" id=\"vrSave\"><div><span class=\"vr-msg\"><span class=\"vr-dot vr-warn\"></span><span id=\"vrSaveMsg\" data-one=\"".vr_t('regnskab ændret', 'account changed')."\" data-many=\"".vr_t('regnskaber ændret', 'accounts changed')."\"></span></span><span class=\"vr-grow\"></span><kbd>Ctrl S</kbd><button type=\"button\" class=\"vr-btn vr-quiet\" id=\"vrUndo\">".findtekst('159|Fortryd', $sprog_id)."</button><input type=\"submit\" class=\"vr-btn vr-primary\" name=\"submit\" value=\"".findtekst('898|Opdatér', $sprog_id)."\"></div></div>\n";
+	print "<div class=\"vr-save\" id=\"vrSave\" inert><div><span class=\"vr-msg\"><span class=\"vr-dot vr-warn\"></span><span id=\"vrSaveMsg\" data-one=\"".vr_t('regnskab ændret', 'account changed')."\" data-many=\"".vr_t('regnskaber ændret', 'accounts changed')."\"></span></span><span class=\"vr-grow\"></span><kbd>Ctrl S</kbd><button type=\"button\" class=\"vr-btn vr-quiet\" id=\"vrUndo\">".findtekst('159|Fortryd', $sprog_id)."</button><input type=\"submit\" class=\"vr-btn vr-primary\" name=\"submit\" value=\"".findtekst('898|Opdatér', $sprog_id)."\"></div></div>\n";
 	print "</form>\n";
 }
 print "</div>\n</section>\n";
@@ -420,9 +423,9 @@ $vr_savedMsg = '';
 if ($vr_saved !== NULL) {
 	$vr_savedMsg = $vr_saved ? "$vr_saved ".($vr_saved == 1 ? vr_t('regnskab opdateret', 'account updated') : vr_t('regnskaber opdateret', 'accounts updated')) : vr_t('Ingen ændringer', 'No changes');
 }
-$vr_js_saved = json_encode($vr_savedMsg);
+$vr_js_saved = json_encode(mb_convert_encoding($vr_savedMsg, 'UTF-8', vr_cs())); # vr_t() returns LATIN9 bytes on LATIN9 installs; json_encode needs UTF-8
 $vr_js_warn  = $vr_warnOpen ? 'true' : 'false';
-$vr_js_fail  = json_encode(vr_t('Kunne ikke hente regnskabets oplysninger. Vil du fortsætte alligevel?', 'Could not fetch the account details. Continue anyway?'));
+$vr_js_fail  = json_encode(mb_convert_encoding(vr_t('Kunne ikke hente regnskabets oplysninger. Vil du fortsætte alligevel?', 'Could not fetch the account details. Continue anyway?'), 'UTF-8', vr_cs()));
 print <<<JS
 <script>
 (function () {
@@ -480,6 +483,7 @@ print <<<JS
 			var n = changedRows(), m = document.getElementById('vrSaveMsg');
 			m.textContent = n + ' ' + (n === 1 ? m.getAttribute('data-one') : m.getAttribute('data-many'));
 			saveBar.classList.toggle('vr-on', n > 0);
+			if (n > 0) saveBar.removeAttribute('inert'); else saveBar.setAttribute('inert', ''); /* hidden bar stays out of the Tab order */
 			fields.forEach(function (f) { if (f.type === 'checkbox') { var t = f.parentNode.querySelector('.vr-swtx'); if (t) t.textContent = f.checked ? t.getAttribute('data-on') : t.getAttribute('data-off'); } });
 		}
 		form.addEventListener('input', update);
@@ -489,7 +493,7 @@ print <<<JS
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && saveBar.classList.contains('vr-on')) { e.preventDefault(); form.querySelector('input[name=submit]').click(); }
 		});
 		var lock = document.getElementById('vrLock');
-		if (lock) lock.addEventListener('click', function (e) { if (changedRows() > 0 && !confirm(lock.getAttribute('data-confirm'))) e.preventDefault(); });
+		if (lock) Array.prototype.forEach.call(document.querySelectorAll('#vrLock, .vr-head a.vr-tog, #vrTable thead a'), function (a) { a.addEventListener('click', function (e) { if (changedRows() > 0 && !confirm(lock.getAttribute('data-confirm'))) e.preventDefault(); }); }); /* Lås, sort links and Vis lukkede all ask before dropping unsaved changes */
 		update();
 		var saved = $vr_js_saved; if (saved) toast(saved);
 	}

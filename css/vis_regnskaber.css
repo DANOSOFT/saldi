@@ -100,13 +100,14 @@ html[data-theme="dark"] .vr{
 .vr-empty b{font-size:15px;font-weight:500} .vr-empty span{font-size:13px;color:var(--text-2);max-width:380px}
 
 /* save bar, dialogs, toast */
-.vr-save{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:0 36px 18px;pointer-events:none;transform:translateY(20px);opacity:0;transition:transform .3s var(--e),opacity .2s}
-.vr-save.vr-on{transform:none;opacity:1;pointer-events:auto}
+.vr-save{visibility:hidden;position:fixed;left:0;right:0;bottom:0;z-index:30;padding:0 36px 18px;pointer-events:none;transform:translateY(20px);opacity:0;transition:transform .3s var(--e),opacity .2s,visibility 0s .3s}
+.vr-save.vr-on{transform:none;opacity:1;pointer-events:auto;visibility:visible;transition:transform .3s var(--e),opacity .2s}
+.vr-table-scroll{overflow-x:auto} /* the card clips; narrow windows scroll the table sideways */
 .vr-save>div{max-width:1180px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 36px rgba(11,26,58,.16);display:flex;align-items:center;gap:12px;padding:10px 12px 10px 18px}
 .vr-msg{display:inline-flex;align-items:center;gap:9px;font-size:13.5px}
 .vr-scrim{position:fixed;inset:0;z-index:40;background:var(--scrim);opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s .2s}
 .vr-scrim.vr-on{opacity:1;visibility:visible;transition:opacity .2s}
-.vr-dlg{position:fixed;left:50%;top:50%;z-index:42;width:500px;max-width:92vw;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 64px rgba(14,22,38,.22);padding:26px 26px 22px;opacity:0;visibility:hidden;transform:translate(-50%,-47%);transition:opacity .16s,transform .24s var(--e),visibility 0s .2s;color:var(--text)}
+.vr-dlg{position:fixed;left:50%;top:50%;z-index:42;width:500px;max-width:92vw;max-height:calc(100vh - 32px);overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 64px rgba(14,22,38,.22);padding:26px 26px 22px;opacity:0;visibility:hidden;transform:translate(-50%,-47%);transition:opacity .16s,transform .24s var(--e),visibility 0s .2s;color:var(--text)}
 .vr-dlg.vr-open{opacity:1;visibility:visible;transform:translate(-50%,-50%);transition:opacity .16s,transform .24s var(--e)}
 .vr-dlg h3{font:700 18px/1.25 var(--sans);letter-spacing:-.01em;margin-bottom:10px}
 .vr-dlg p{font-size:14px;color:var(--text-2);line-height:1.6;margin-bottom:18px}
