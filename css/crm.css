@@ -184,13 +184,13 @@ body { font: 14px/1.45 var(--font-ui); color: var(--text); }
   .pmode .seg{margin-left:0}
   .phase{font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:99px;padding:1px 7px;color:var(--text-2);background:var(--surface-2)}
   .board{flex:1;min-height:0;display:flex;gap:12px;padding:14px 24px 12px;overflow-x:auto;align-items:stretch;scrollbar-width:thin}
-  .col{flex:1 0 236px;max-width:340px;display:flex;flex-direction:column;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;transition:border-color .12s,background .12s}
+  .col{flex:1 1 236px;min-width:236px;max-width:340px;display:flex;flex-direction:column;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;transition:border-color .12s,background .12s}
   .col.drop{border-color:var(--saldi-blue);background:color-mix(in srgb,var(--saldi-blue) 7%,var(--surface-2))}
   .colh{flex:none;display:flex;align-items:baseline;gap:7px;padding:11px 12px 9px;font:600 14px var(--font-display)}
   .colh .n{font:500 12.5px var(--font-ui);color:var(--text-3)}
   .colh .sum{margin-left:auto;font:500 12.5px var(--font-ui);color:var(--text-2);font-variant-numeric:tabular-nums}
   .cards{flex:1;min-height:60px;overflow-y:auto;padding:0 8px 8px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin}
-  .card{display:block;width:100%;flex:none;text-align:left;padding:10px 12px 9px;border:1px solid var(--border);border-radius:9px;background:var(--surface);cursor:grab;transition:border-color .12s}
+  .card{display:block;width:100%;min-width:0;overflow:hidden;flex:none;text-align:left;padding:10px 12px 9px;border:1px solid var(--border);border-radius:9px;background:var(--surface);cursor:grab;transition:border-color .12s}
   .card:hover{border-color:var(--border-field)}
   .card.dragging{opacity:.4}
   .card .l1{display:flex;align-items:baseline;gap:8px}
