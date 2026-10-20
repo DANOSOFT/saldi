@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-16 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -196,6 +196,9 @@
 // 20261015 CL/SZ SD-720 (CodeRabbit) The document total for "Fordeling" is read from the newest pool_files row of that name, so an old duplicate can't give it.
 // 20261016 CL/SZ SD-720 (CodeRabbit) "Gem" and "Gem alle" refuse an amount the save can't read (5090), as "Gem og næste" does; empty and 0 are still saved.
 //                A split row that is saved already is saved again before the attach too, so edits made to it since are not lost.
+// 20261020 CL/SZ SD-720 (CodeRabbit) A new row saved by a "Gem alle" or "Gem og næste" that then failed on a later row gets its line id in its "attach here"
+//                box; attaching the document to it made a second line. "Gem" and "Gem alle" refuse a dot that is not a thousands separator
+//                ("12.50" was saved as 1250) and a space inside the amount.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -6265,20 +6268,25 @@ HTML;
             .then(data => {
                 // A new row is that line once saved, so saving it again ("Gem", "Gem alle" after another row failed) updates it (SD-720)
                 var savedEntry = document.getElementById('bilagEntry_' + rowId);
-                if (data && data.success && /^new/.test(String(rowId)) && data.sourceId && savedEntry) savedEntry.dataset.savedLineId = data.sourceId;
+                if (data && data.success && /^new/.test(String(rowId)) && data.sourceId && savedEntry) {
+                    savedEntry.dataset.savedLineId = data.sourceId;
+                    // Its "attach here" box is that line too: after a save that failed on a later row, attaching the document to it made a second line
+                    var savedBox = savedEntry.querySelector(".targetLineCheckbox");
+                    if (savedBox) savedBox.value = data.sourceId;
+                }
                 return data;
             });
     }
 
-    // "Gem" and "Gem alle" check the amounts as "Gem og næste" does (isAmount() in docPoolSaveNext.js), except that an empty amount or 0
-    // may be saved there. A value the save can't read ("oops") stopped insertDoc.php half way, and "12,50oops" was stored as 12,50 (SD-720).
+    // "Gem" and "Gem alle" refuse an amount the save can't read; an empty amount or 0 may be saved there. A value usdecimal() can't read ("oops")
+    // stopped insertDoc.php half way, and "12,50oops" was stored as 12,50 (SD-720). usdecimal() drops every dot, so a dot is only a thousands
+    // separator here (1.234,56): "12.50" was stored as 1250 and "1.2345" as 12345, and a space inside the number ("1 234,56") as 0.
     function _badAmountField(rowIds) {
         for (var i = 0; i < rowIds.length; i++) {
             var field = document.getElementById('row_' + rowIds[i] + '_Amount');
             var value = field ? field.value.trim() : '';
             if (value === '') continue;
-            var number = value.replace(/\s/g, '').replace(/\.(?=\d{3}(?!\d))/g, '').replace(',', '.');
-            if (!/^-?\d+(\.\d+)?$/.test(number)) return field;
+            if (!/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/.test(value)) return field;
         }
         return null;
     }
