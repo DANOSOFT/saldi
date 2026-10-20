@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-08 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -83,6 +83,7 @@
 //             The branch test compared konto_fra with itself, so the range query was dead code and
 //             konto_til was ignored. The revived query also treats a NULL lukket as open.
 // 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
+// 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1722,7 +1723,9 @@ if (!function_exists('formularprint')) {
 				$pfnavn = $mappe . "/" . $printfilnavn;
 				$psfp = fopen("$pfnavn.ps", "w");
 				$htmfp = fopen("$pfnavn.htm", "w");
-				$printBatchDocuments[] = array('name' => $printfilnavn, 'background' => $background_pdf_path ?? '', 'pages' => 1);
+				// A default filename is only a candidate; tenants without letterhead must still print.
+				$printBatchBackground = is_file($background_pdf_path ?? '') ? $background_pdf_path : '';
+				$printBatchDocuments[] = array('name' => $printfilnavn, 'background' => $printBatchBackground, 'pages' => 1);
 				$printBatchIndex = count($printBatchDocuments) - 1;
 				#		} else {
 				#			fclose ($htmfp);
