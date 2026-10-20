@@ -301,18 +301,32 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
             'the row fetched on that route no longer selects varenr, so the warning names nothing');
     }
 
-    /** Does $var get a real value - not just the file's NULL initialiser - before $before? */
+    /**
+     * Does $var get a real value - not just the file's NULL initialiser - before $before?
+     *
+     * Only an assignment operator counts. Searching for "$var =" as text also matched
+     * "$var ==" and "$var ===", so a comparison anywhere earlier in the file satisfied this
+     * and hid the very regression it exists to catch (CodeRabbit, PR #809). The pattern
+     * allows the compound forms, which do assign, and refuses ==, ===, !=, <= and >=. It
+     * also no longer depends on a space before the operator.
+     */
     private static function assignedBefore(string $src, string $var, int $before): bool
     {
-        $offset = 0;
-        while (($at = strpos($src, $var . ' =', $offset)) !== false && $at < $before) {
+        $pattern = '/' . preg_quote($var, '/') . '\s*(?:\.|\+|-|\*|\/|%|\?\?)?=(?!=)/';
+        if (!preg_match_all($pattern, $src, $hits, PREG_OFFSET_CAPTURE)) {
+            return false;
+        }
+        foreach ($hits[0] as $hit) {
+            $at = $hit[1];
+            if ($at >= $before) {
+                continue;
+            }
             $semi = strpos($src, ';', $at);
             $statement = $semi === false ? '' : substr($src, $at, $semi - $at);
             // "$varenr = $variant = $vis_kost = NULL;" assigns nothing usable.
             if ($statement !== '' && !preg_match('/=\s*NULL\s*$/i', $statement)) {
                 return true;
             }
-            $offset = $at + 1;
         }
         return false;
     }
