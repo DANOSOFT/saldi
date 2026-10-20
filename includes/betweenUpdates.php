@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.13
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.20
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -102,6 +102,7 @@
 // 20261007 CL/SZ SST-818: a login that finds an index lock taken skips the build instead of waiting for it.
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
 // 20261013 CL/SZ SST-808 (CodeRabbit): skip the auto-udlign index block on MySQL tenants.
+// 20261020 CL/NTR Convert brugere.ansat_id to integer (nullable, no default) on PostgreSQL and MySQL tenants where it is text/varchar.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1396,6 +1397,20 @@ if (db_fetch_array(db_select("select 1 from information_schema.tables where tabl
 	if ($rentalPass && (string)$rentalPass['pass'] !== '' && password_get_info((string)$rentalPass['pass'])['algoName'] === 'unknown') {
 		$rentalHash = db_escape_string(password_hash((string)$rentalPass['pass'], PASSWORD_DEFAULT));
 		db_modify("update rentalsettings set pass = '$rentalHash'", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+// 20261020 CL/NTR brugere.ansat_id must be integer (it references ansatte.id); older tenants have text/varchar.
+// Blank values become NULL so the conversion cannot fail on them. Idempotent: only runs while the column is still a text type.
+$ansatIdMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$ansatIdSchema = $ansatIdMysql ? " and table_schema = DATABASE()" : "";
+$ansatIdType = db_fetch_array(db_select("select data_type as data_type from information_schema.columns where table_name = 'brugere' and column_name = 'ansat_id'$ansatIdSchema", __FILE__ . " linje " . __LINE__));
+if ($ansatIdType && in_array(strtolower($ansatIdType['data_type']), ['text', 'character varying', 'varchar', 'char', 'tinytext', 'mediumtext', 'longtext'], true)) {
+	if ($ansatIdMysql) {
+		db_modify("UPDATE brugere SET ansat_id = NULL WHERE TRIM(ansat_id) = ''", __FILE__ . " linje " . __LINE__);
+		db_modify("ALTER TABLE brugere MODIFY ansat_id integer NULL DEFAULT NULL", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("ALTER TABLE \"brugere\" ALTER \"ansat_id\" TYPE integer USING NULLIF(trim(ansat_id), '')::integer, ALTER \"ansat_id\" DROP DEFAULT, ALTER \"ansat_id\" DROP NOT NULL", __FILE__ . " linje " . __LINE__);
 	}
 }
 
