@@ -143,6 +143,306 @@ function crm_ids(array $ids): string
 	return $ids ? implode(',', $ids) : '0';
 }
 
+// ------------------------------------------------------------------ texts (tekster.csv 7300-7509)
+
+/**
+ * The CRM's texts: id => Danish text. The Danish text is the key the page and javascript/crm.js use; the user's
+ * language comes from tekster.csv (or the company's own text in the tekster table). New texts: next free id here and
+ * the same id in importfiler/tekster.csv.
+ *
+ * @return array<int, string>
+ */
+function crm_text_ids(): array
+{
+	return array(
+		7300 => 'i dag',
+		7301 => 'i morgen',
+		7302 => 'i går',
+		7303 => 'for %s dage siden',
+		7304 => '%s kr',
+		7305 => 'Ingen status',
+		7306 => 'Dig',
+		7307 => 'dig',
+		7308 => 'Note',
+		7309 => 'Opkald',
+		7310 => 'Mail',
+		7311 => 'Møde',
+		7312 => 'Status',
+		7313 => 'Handel',
+		7314 => 'Kunne ikke gemme (%s). Prøv igen.',
+		7315 => 'Opfølgning',
+		7316 => '%s forsinket',
+		7317 => 'Pipeline',
+		7318 => 'Kalender',
+		7319 => 'Kunder',
+		7320 => 'Aktivitet',
+		7321 => 'Forsinket',
+		7322 => 'I dag',
+		7323 => 'I morgen',
+		7324 => 'Resten af ugen',
+		7325 => 'Næste uge',
+		7326 => 'Senere',
+		7327 => 'Markér som ikke gjort',
+		7328 => 'Markér som gjort',
+		7329 => 'Gjort',
+		7330 => 'Udsæt',
+		7331 => 'Åbn',
+		7332 => 'Kunde · kontakt',
+		7333 => 'Ansvarlig',
+		7334 => 'Dato',
+		7335 => 'Ingen åbne opfølgninger',
+		7336 => 'Prøv at fjerne filtrene.',
+		7337 => 'Opret en med »Ny opfølgning« eller fra en kunde.',
+		7338 => 'Skjul %s gjort de sidste 14 dage',
+		7339 => 'Vis %s gjort de sidste 14 dage',
+		7340 => 'Alle statusser',
+		7341 => 'ny',
+		7342 => '%s år',
+		7343 => '%s d',
+		7344 => '%s åbne handler',
+		7345 => 'Ingen opfølgning',
+		7346 => 'I %s siden %s',
+		7347 => 'Ingen statusser at vise',
+		7348 => 'Kundestatusser oprettes på debitorkortet (feltet Status). Statusgrupper sættes op under tandhjulet.',
+		7349 => '%s kunder',
+		7350 => 'åbne handler %s',
+		7351 => '%s med forsinket opfølgning',
+		7352 => '%s uden opfølgning',
+		7353 => 'Statusgruppe',
+		7354 => 'Vundet',
+		7355 => 'Tabt',
+		7356 => 'Ny opfølgning %s',
+		7357 => '+%s mere',
+		7358 => 'Uge %s',
+		7359 => 'Forrige',
+		7360 => 'Næste',
+		7361 => 'Åben',
+		7362 => 'Træk for at flytte',
+		7363 => 'Måned',
+		7364 => 'Uge',
+		7365 => 'Alle',
+		7366 => 'Uden gruppe',
+		7367 => 'Alle i %s',
+		7368 => 'Kunde',
+		7369 => 'Kontaktperson',
+		7370 => 'Seneste kontakt',
+		7371 => 'Næste opfølgning',
+		7372 => 'Omsætning i år',
+		7373 => 'Ingen',
+		7374 => 'Ingen kunder',
+		7375 => 'Ingen kunder matcher filtrene.',
+		7376 => 'Kunder kommer med i CRM, når de får en status, en note eller en handel. Brug »Ny opfølgning« for at finde en kunde.',
+		7377 => 'Opfølgning %s · gjort',
+		7378 => 'Opfølgning %s',
+		7379 => 'Ukendt',
+		7380 => 'Ret',
+		7381 => 'Slet',
+		7382 => 'I går',
+		7383 => 'Ingen aktivitet',
+		7384 => 'Ingen henvendelser matcher filtrene.',
+		7385 => 'Om 1 uge',
+		7386 => 'Om 2 uger',
+		7387 => 'Om 1 måned',
+		7388 => 'med',
+		7389 => '(ingen)',
+		7390 => 'Hvad blev der talt om?',
+		7391 => 'Vælg dato',
+		7392 => 'til',
+		7393 => 'mig',
+		7394 => 'Markér opfølgningen fra %s som gjort',
+		7395 => 'Gem',
+		7396 => 'Kunde %s',
+		7397 => 'ansvarlig: %s',
+		7398 => 'Luk (Esc)',
+		7399 => 'Opret handel',
+		7400 => 'Opret tilbud',
+		7401 => 'Opret ordre',
+		7402 => 'Debitorkort',
+		7403 => 'Jobkort',
+		7404 => 'Kunde siden',
+		7405 => 'Åbne poster',
+		7406 => '%s forfalden',
+		7407 => 'Historik',
+		7408 => 'Handler og ordrer',
+		7409 => 'Kontaktpersoner',
+		7410 => 'forsinket',
+		7411 => 'Ingen historik endnu',
+		7412 => 'Skriv den første note ovenfor.',
+		7413 => 'Ny note',
+		7414 => 'Ingen kontaktpersoner',
+		7415 => '+ Tilføj kontaktperson på debitorkortet',
+		7416 => 'forventet lukket %s',
+		7417 => 'Vundet %s',
+		7418 => 'Tabt %s',
+		7419 => 'Ingen handler',
+		7420 => '+ Ny handel',
+		7421 => 'Åbne tilbud og ordrer',
+		7422 => 'delvist leveret',
+		7423 => 'handel: %s',
+		7424 => 'Ingen åbne tilbud eller ordrer.',
+		7425 => '+ Opret tilbud',
+		7426 => '+ Opret ordre',
+		7427 => 'Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).',
+		7428 => 'Gemt',
+		7429 => 'opfølgning %s',
+		7430 => 'forrige opfølgning markeret som gjort',
+		7431 => 'Søg kunde, kundenummer eller kontaktperson',
+		7432 => 'Opret kunden under Debitor → Konti.',
+		7433 => 'Ny opfølgning',
+		7434 => 'Vælg kunden – du kan også søge på kontaktperson eller kundenummer.',
+		7435 => 'Skift kunde',
+		7436 => 'Faktura %s',
+		7437 => 'Tilbud %s',
+		7438 => 'Ordre %s',
+		7439 => 'faktureret',
+		7440 => 'ordre',
+		7441 => 'tilbud',
+		7442 => 'Brug beløbet fra tilbuddet: %s',
+		7443 => 'Brug beløbet fra ordren: %s',
+		7444 => 'Ordren er faktureret – markér handlen som vundet',
+		7445 => 'Intet tilbud eller ordre til handlen endnu',
+		7446 => 'Ret handel',
+		7447 => 'Ny handel',
+		7448 => 'Titel',
+		7449 => 'Fx Saldi Plus, 3 brugere',
+		7450 => 'Beløb (kr)',
+		7451 => 'Forventet lukket',
+		7452 => 'Stadie',
+		7453 => 'Mig',
+		7454 => 'Slet handel',
+		7455 => 'Annullér',
+		7456 => 'Handlen er slettet',
+		7457 => 'vundet',
+		7458 => 'tabt',
+		7459 => 'Handlen er gemt',
+		7460 => 'Handel oprettet i %s',
+		7461 => 'Hvilken kunde gælder handlen?',
+		7462 => 'Pris',
+		7463 => 'Valgte en konkurrent',
+		7464 => 'Intet behov',
+		7465 => 'Forkert tidspunkt',
+		7466 => 'Ingen svar',
+		7467 => 'Hvorfor blev »%s« tabt?',
+		7468 => 'Valgfrit. Over tid viser det, hvorfor I taber handler.',
+		7469 => 'Bemærkning',
+		7470 => 'Spring over',
+		7471 => 'Markér som tabt',
+		7472 => 'Ret %s fra %s',
+		7473 => 'Type',
+		7474 => 'Med',
+		7475 => 'Noten er rettet',
+		7476 => 'Slet %s fra %s?',
+		7477 => 'Slettet',
+		7478 => '%s markeret som gjort',
+		7479 => '%s er åben igen',
+		7480 => 'Om 2 dage',
+		7481 => 'Næste mandag',
+		7482 => 'Udsat til %s',
+		7483 => 'ingen status',
+		7484 => 'Opfølgning om 1 uge',
+		7485 => 'Følg op – %s',
+		7486 => 'Opfølgning sat til %s',
+		7487 => 'Sæt %s som %s',
+		7488 => 'vundet handel',
+		7489 => 'Der er ingen kundestatusser endnu. De oprettes på debitorkortet (feltet Status).',
+		7490 => 'Gruppenavn',
+		7491 => 'Fjern',
+		7492 => 'Fortrudt',
+		7493 => 'Din bruger er ikke knyttet til en medarbejder, så »Kun mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.',
+		7494 => 'Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.',
+		7495 => 'Ny gruppe',
+		7496 => 'Statusgrupperne er gemt',
+		7497 => '%s flyttet til %s',
+		7498 => 'Handel oprettet: »%s«',
+		7499 => 'genåbnet',
+		7500 => 'Handel »%s«: %s',
+		7501 => 'Salg til %s',
+		7502 => 'Handel oprettet ud fra kundens status: »%s«',
+		7503 => 'Søg',
+		7504 => 'Kun mine',
+		7505 => 'Ny opfølgning (N)',
+		7506 => 'Tilpas CRM',
+		7507 => 'Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.',
+		7508 => '+ Tilføj statusgruppe',
+		7509 => 'Fortryd'
+	);
+}
+
+function crm_lang(): int
+{
+	global $sprog_id;
+	$l = (int) $sprog_id;
+	return ($l >= 1 && $l <= 3) ? $l : 1;
+}
+
+/**
+ * Danish text => text in the user's language, read once per session (one query + one pass over tekster.csv instead
+ * of a findtekst() call per text).
+ *
+ * @return array<string, string>
+ */
+function crm_texts(): array
+{
+	static $out = null;
+	if ($out !== null) {
+		return $out;
+	}
+	$ids = crm_text_ids();
+	$lang = crm_lang();
+	$cacheKey = 'crm_txt_' . $lang . '_' . count($ids) . '_' . max(array_keys($ids));
+	if (isset($_SESSION[$cacheKey]) && is_array($_SESSION[$cacheKey])) {
+		return $out = $_SESSION[$cacheKey];
+	}
+	$have = array();
+	if (function_exists('tbl_exists') && tbl_exists('tekster')) {
+		$list = "'" . implode("','", array_keys($ids)) . "'";
+		$q = db_select("select tekst_id, tekst from tekster where sprog_id = '$lang' and tekst_id in ($list)", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$txt = trim((string) $r['tekst']);
+			if ($txt !== '' && $txt !== '-' && strpos($txt, 'Tekst nr:') !== 0) {
+				$have[(int) $r['tekst_id']] = crm_out($txt);
+			}
+		}
+	}
+	$file = __DIR__ . '/../importfiler/tekster.csv';
+	if (count($have) < count($ids) && is_file($file)) {
+		foreach (file($file) as $line) {
+			$a = explode("\t", rtrim($line, "\r\n"));
+			$id = (int) $a[0];
+			if (isset($ids[$id]) && !isset($have[$id]) && isset($a[$lang]) && $a[$lang] !== '' && $a[$lang] !== '-') {
+				$have[$id] = $a[$lang];
+			}
+		}
+	}
+	$out = array();
+	foreach ($ids as $id => $da) {
+		$out[$da] = isset($have[$id]) ? $have[$id] : $da;
+	}
+	$_SESSION[$cacheKey] = $out;
+	return $out;
+}
+
+/** Text in the user's language (UTF-8), '%s' filled in order. */
+function crm_t(string $da, ...$args): string
+{
+	$texts = crm_texts();
+	$s = isset($texts[$da]) ? $texts[$da] : $da;
+	foreach ($args as $arg) {
+		$p = strpos($s, '%s');
+		if ($p === false) {
+			break;
+		}
+		$s = substr_replace($s, (string) $arg, $p, 2);
+	}
+	return $s;
+}
+
+/** crm_t() for HTML: escaped, non-ASCII as numeric entities so it is right whatever charset the page has. */
+function crm_h(string $da): string
+{
+	return mb_encode_numericentity(htmlspecialchars(crm_t($da), ENT_QUOTES, 'UTF-8'), array(0x80, 0x10FFFF, 0, 0x10FFFF), 'UTF-8');
+}
+
 // ------------------------------------------------------------------ reference data
 
 function crm_statuses(): array
@@ -391,6 +691,8 @@ function crm_dataset(): array
 		'me'        => (int) $ansat_id,
 		'canWrite'  => function_exists('perm_can') ? perm_can('debitor.konti', 'write') : true,
 		'jobs'      => $jobs,
+		'lang'      => crm_lang(),
+		'txt'       => crm_texts(),
 		'quick'     => (bool) db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4 = 'on'", __FILE__ . " linje " . __LINE__)),
 		'emps'      => crm_employees(),
 		'statuses'  => crm_statuses(),
@@ -508,7 +810,7 @@ function crm_action(string $action, array $in): array
 				db_modify("delete from historik where id = " . (int) $in['remove'] . " and konto_id = $cid and type = 'status'", __FILE__ . " linje " . __LINE__);
 				return array('from' => $from);
 			}
-			$note = ($from !== '' ? crm_status_name($from) : 'Ingen status') . ' → ' . ($to !== '' ? crm_status_name($to) : 'Ingen status');
+			$note = ($from !== '' ? crm_status_name($from) : crm_t('Ingen status')) . ' → ' . ($to !== '' ? crm_status_name($to) : crm_t('Ingen status'));
 			if (!empty($in['how'])) $note .= ' (' . trim((string) $in['how']) . ')';
 			$id = crm_insert_entry($cid, 'status', $me, 0, $note, null);
 			return array('id' => $id, 'from' => $from);
@@ -531,7 +833,7 @@ function crm_action(string $action, array $in): array
 					. "($cid, '$title', $amount, '$stage', $closeSql, $own, 'open', '$today', '$today')", __FILE__ . " linje " . __LINE__);
 				$r = db_fetch_array(db_select("select max(id) as id from crm_deals where konto_id = $cid", __FILE__ . " linje " . __LINE__));
 				$id = (int) $r['id'];
-				crm_insert_entry($cid, 'deal', $me, 0, 'Handel oprettet: »' . trim((string) $in['t']) . '«', null);
+				crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel oprettet: »%s«', trim((string) $in['t'])), null);
 			}
 			return array('id' => $id);
 
@@ -545,13 +847,13 @@ function crm_action(string $action, array $in): array
 				$state = in_array($in['state'], array('won', 'lost', 'open'), true) ? $in['state'] : 'open';
 				$reason = crm_in($in['reason'] ?? '');
 				db_modify("update crm_deals set state = '$state', closed = " . ($state === 'open' ? 'NULL' : "'$today'") . ", lost_reason = '$reason' where id = $id", __FILE__ . " linje " . __LINE__);
-				$label = $state === 'won' ? 'vundet' : ($state === 'lost' ? 'tabt' . (trim((string) ($in['reason'] ?? '')) !== '' ? ' – ' . trim((string) $in['reason']) : '') : 'genåbnet');
+				$label = $state === 'won' ? crm_t('vundet') : ($state === 'lost' ? crm_t('tabt') . (trim((string) ($in['reason'] ?? '')) !== '' ? ' – ' . trim((string) $in['reason']) : '') : crm_t('genåbnet'));
 			} else {
 				$stage = preg_replace('/[^0-9A-Za-z_-]/', '', (string) $in['st']);
 				db_modify("update crm_deals set stage = '$stage', stage_since = '$today' where id = $id", __FILE__ . " linje " . __LINE__);
 				$label = crm_status_name((string) $d['stage']) . ' → ' . crm_status_name($stage);
 			}
-			$hid = crm_insert_entry((int) $d['konto_id'], 'deal', $me, 0, 'Handel »' . crm_out($d['title']) . '«: ' . $label, null);
+			$hid = crm_insert_entry((int) $d['konto_id'], 'deal', $me, 0, crm_t('Handel »%s«: %s', crm_out($d['title']), $label), null);
 			return array('id' => $id, 'hid' => $hid, 'before' => $before);
 
 		case 'restore_deal':
@@ -589,12 +891,12 @@ function crm_action(string $action, array $in): array
 				$cid = (int) $r['id'];
 				$since = db_fetch_array(db_select("select max(kontaktet) as d from historik where konto_id = $cid and type = 'status'", __FILE__ . " linje " . __LINE__));
 				$sinceSql = $since && $since['d'] ? "'" . $since['d'] . "'" : "'$today'";
-				$title = 'Salg til ' . crm_out($r['firmanavn']);
+				$title = crm_t('Salg til %s', crm_out($r['firmanavn']));
 				db_modify("insert into crm_deals (konto_id, title, amount, stage, ansat_id, state, stage_since, created) values "
 					. "($cid, '" . crm_in(mb_substr($title, 0, 120)) . "', 0, '" . db_escape_string(trim((string) $r['status'])) . "', " . (int) $r['kontoansvarlig'] . ", 'open', $sinceSql, '$today')", __FILE__ . " linje " . __LINE__);
 				$d = db_fetch_array(db_select("select max(id) as id from crm_deals where konto_id = $cid", __FILE__ . " linje " . __LINE__));
 				$made[] = (int) $d['id'];
-				crm_insert_entry($cid, 'deal', $me, 0, 'Handel oprettet ud fra kundens status: »' . $title . '«', null);
+				crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel oprettet ud fra kundens status: »%s«', $title), null);
 			}
 			return array('ids' => $made);
 
