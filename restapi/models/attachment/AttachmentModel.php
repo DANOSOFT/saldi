@@ -14,6 +14,7 @@
 //                 seller (metadata['vendorIdentity'] + subject) against kreditorer and store
 //                 pool_files.vendor_*, same as extractInvoiceHandler.php's save action, so app
 //                 uploads get a kreditor suggestion too. Columns added to the fallback schema.
+// 20261003 CL/SZ SD-717: pool_files.archived and archived_by added to the fallback schema.
 // 20261004 LOE Share the pool ingestion lock and retain original-upload hashes before conversion.
 // 20261005 LOE SST-855 getAllFiles() skips dot-files, so the pool's lock file can never be listed as
 //                 an attachment or reached by its name through this endpoint.
@@ -692,6 +693,8 @@ class AttachmentModel
                     vendor_score numeric(4,3),
                     content_sha256 char(64),
                     source_sha256 char(64),
+                    archived timestamp,
+                    archived_by integer,
                     PRIMARY KEY (id),
                     UNIQUE(filename)
                 )";
