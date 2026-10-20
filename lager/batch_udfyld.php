@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/batch_udfyld.php --- ver 5.0.0 --- 2026-10-11 ---
+// --- lager/batch_udfyld.php --- ver 5.0.0 --- 2026-10-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20261011 CL/ASR Created.
 // 20261013 CL/ASR Review: Post/Redirect/Get after saving, no LIKE ESCAPE clause (MySQL), leave guard
 //                 on the filter link and search form, lock only the batch row.
+// 20261020 CL/ASR 'for update of bk' only on Postgres; MariaDB has no OF clause in its locking clause.
 
 @session_start();
 $s_id = session_id();
@@ -123,7 +124,10 @@ if (isset($_POST['gem'])) {
 		}
 		foreach ($ids as $bk_id) {
 			if ($bk_id <= 0) continue;
-			$r = db_fetch_array(db_select("select bk.*, v.varenr from batch_kob bk join varer v on v.id = bk.vare_id where bk.id = '$bk_id' and bk.rest > 0 for update of bk", __FILE__ . " linje " . __LINE__));
+			# 'for update of bk' locks only the batch row on Postgres; MariaDB has no OF clause, so
+			# MySQL/MariaDB get plain 'for update', which also locks the item row for the save.
+			$lock = ($db_type == 'mysql' || $db_type == 'mysqli') ? "for update" : "for update of bk";
+			$r = db_fetch_array(db_select("select bk.*, v.varenr from batch_kob bk join varer v on v.id = bk.vare_id where bk.id = '$bk_id' and bk.rest > 0 $lock", __FILE__ . " linje " . __LINE__));
 			if (!$r) {
 				# Sold out or removed by someone else since the page was loaded
 				$fejl[] = batch_txt('gone') . " (batch $bk_id)";
