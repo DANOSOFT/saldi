@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-15 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-20 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -35,6 +35,7 @@
 // 20261009 CL/SZ SD-716 transfer=1 leaves the address while the script loads, before the page's load event, so the main menu (index/main.php) never
 //                takes an address with it (F5 would transfer again, and two quick address writes made the menu reload the page over and over).
 // 20261015 CL/SZ SD-720 (CodeRabbit) A split bilag ticks only the rows this save created; a line that was already there keeps the box as the user left it.
+// 20261020 CL/SZ SD-720 (CodeRabbit) An amount with a dot that is not a thousands separator ("12.50", saved as 1250) or a space inside it is not an amount.
 (function () {
     'use strict';
 
@@ -184,10 +185,12 @@
         field.addEventListener('input', function () { clearMandatory(field); }, { once: true });
     }
 
-    /** True for an amount other than zero, as "1.234,56", "5,03", "-50" or "12.50"; letters and "0,00" are not. */
+    /** True for an amount other than zero, as "1.234,56", "5,03" or "-50"; letters and "0,00" are not. The save (usdecimal()) drops every dot,
+        so a dot is only a thousands separator: "12.50" (saved as 1250), "1.2345" (12345) and "1 234,56" (0) are not amounts either. */
     function isAmount(value) {
-        var number = value.replace(/\s/g, '').replace(/\.(?=\d{3}(?!\d))/g, '').replace(',', '.');
-        return /^-?\d+(\.\d+)?$/.test(number) && parseFloat(number) !== 0;
+        var trimmed = value.trim();
+        if (!/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/.test(trimmed)) return false;
+        return parseFloat(trimmed.replace(/\./g, '').replace(',', '.')) !== 0;
     }
 
     /** Marks every missing mandatory field and returns the first one, or null when all are filled. */
