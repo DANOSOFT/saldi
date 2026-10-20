@@ -3426,6 +3426,11 @@ function ordreside($id, $regnskab)
 	if ($sag_id) {
 		$returside = "../sager/sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id";
 	}
+	// 20261020 ASR A stored CRM returside (set when the order was created from crm.php) wins over the default below;
+	//              the general stored-returside read further down only runs after this default is set, so it never applies.
+	if (!$returside && !$isPopupRequest && strpos((string) if_isset($r, '', 'returside'), 'crm.php?') === 0) {
+		$returside = nav_sanitize_returside(html_entity_decode((string) $r['returside'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+	}
 	if (!$returside) {
 		if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
 		else $returside = "ordreliste.php";
