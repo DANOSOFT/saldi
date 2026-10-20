@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/betalinger.php --- Patch 4.1.1 --- 20251125 ---
+// --- kreditor/betalinger.php --- Patch 4.1.1 --- 20261020 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,8 @@
 //                Its payment lines get no "Modtager konto" and show "Ubekræftede bankoplysninger" with "Bekræft", which confirms the details and fills the account in.
 // 20261005 CL/SZ SD-721 The "Ubekræftede bankoplysninger" marker gets a light background; it could hardly be read on the line's red "missing account" cell.
 // 20261005 CL/SZ SD-721 "Ubetalte" and a journal's invoices no longer leave out the first invoice (the one due first): the "nothing found" check read it from the result.
+// 20261020 CL/SZ SD-721 (CodeRabbit) The unconfirmed check goes by the kreditor's id; with two kreditorer of the same name, the first one's unconfirmed account was used.
+//                A name two kreditorer share gets the marker without "Bekræft" (confirmed on the kreditor card), so one's account can't fill the other's line.
 
 $dan_liste=$gem=$listenote=$slet_ugyldige=$udskriv=NULL;
 
@@ -124,7 +126,8 @@ else {
 
 // SD-721: bank details read from an invoice are not used for a payment before "Bekræft".
 // A kreditor with unconfirmed details gets its payment lines without "Modtager konto"; the line shows the marker and "Bekræft".
-$bankUnconfirmed = array(); // modt_navn as the lines carry it => adresser.id
+$bankUnconfirmed = array(); // modt_navn as the lines carry it => adresser.id, or 0 when another kreditor has the name too
+$bankUnconfirmedIds = array(); // adresser.id => true: the payment lines are made without its account
 if (kreditorCvrReady()) {
 	$bekraeftId = (int)if_isset($_POST['bekraeft_bank'], 0);
 	if ($bekraeftId && $liste_id) {
@@ -135,14 +138,19 @@ if (kreditorCvrReady()) {
 			$tilKto = trim($rK['bank_reg']) . $tilKto;
 			$names = array_unique(array($rK['firmanavn'], str_replace('&', 'og', $rK['firmanavn'])));
 			foreach ($names as $name) {
+				// A payment line knows its kreditor only by name: one another kreditor shares is left for the user to fill in
+				if (kreditorCvrNameCount($name) !== 1) continue;
 				db_modify("update betalinger set til_kto = '" . db_escape_string($tilKto) . "' where liste_id = '" . (int)$liste_id . "' and (til_kto is null or til_kto = '') and modt_navn = '" . db_escape_string($name) . "'", __FILE__ . " linje " . __LINE__);
 			}
 		}
 	}
 	$q = db_select("select id, firmanavn from adresser where art = 'K' and bank_unconfirmed is not null", __FILE__ . " linje " . __LINE__);
 	while ($rK = db_fetch_array($q)) {
-		$bankUnconfirmed[$rK['firmanavn']] = (int)$rK['id'];
-		$bankUnconfirmed[str_replace('&', 'og', $rK['firmanavn'])] = (int)$rK['id'];
+		$bankUnconfirmedIds[(int)$rK['id']] = true;
+		// The marker by name; "Bekræft" only when no other kreditor has the name, or it could fill the other kreditor's line (it is confirmed on the card then)
+		foreach (array_unique(array($rK['firmanavn'], str_replace('&', 'og', $rK['firmanavn']))) as $name) {
+			$bankUnconfirmed[$name] = kreditorCvrNameCount($name) === 1 ? (int)$rK['id'] : 0;
+		}
 	}
 }
 
@@ -238,7 +246,7 @@ if ($find || isset($_GET["kladde_id"])) {
 				$custBank='0'.$custBank; # kontonumre skal vaere paa 10 cifre
 			}
 			$custBank = $custReg.$custBank;
-			if (in_array((int)$custId, $bankUnconfirmed, true)) $custBank = ''; # SD-721: unconfirmed bank details
+			if (isset($bankUnconfirmedIds[(int)$custId])) $custBank = ''; # SD-721: unconfirmed bank details
 			$myRef="Afr: $custNo - $custName";
 			$custRef="$myName";
 			$qtxt="select sum(amount) as amount from openpost where udlignet = '0' and konto_id='$custId'";
@@ -342,7 +350,7 @@ if ($find || isset($_GET["kladde_id"])) {
 					for($x=strlen($r['modt_konto']);$x<10;$x++) $tmp="0".$tmp;
 				}
 				$modt_konto=$r['modt_reg'].$tmp;
-				if (in_array((int)$r['kreditor_id'], $bankUnconfirmed, true)) $modt_konto = ''; # SD-721: unconfirmed bank details
+				if (isset($bankUnconfirmedIds[(int)$r['kreditor_id']])) $modt_konto = ''; # SD-721: unconfirmed bank details
 				if ($r['erh']) $erh=$r['erh'];
 				elseif ($r['modt_fi']) $erh="ERH351"; # Skal give SDCK020, hvis betalingslister sendes til SDC-bank i stedet for BEC (ERH)
 				else $erh="ERH356";
@@ -537,7 +545,7 @@ $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					// SD-721: the kreditor's bank details are unconfirmed
 					print "<br><span style='color:#7c2d12;background:#fff3cd;padding:1px 4px;border-radius:3px;font-size:11px;' title=\"" . htmlspecialchars(findtekst('5363|Bankoplysningerne er læst fra en faktura og bruges ikke til betaling, før de er bekræftet.', $sprog_id), ENT_QUOTES) . "\">&#9888; " . htmlspecialchars(findtekst('5361|Ubekræftede bankoplysninger', $sprog_id), ENT_QUOTES) . "</span>";
 					// type=button: as a submit button it would be the form's default, and Enter in any field would confirm
-					print " <button type='button' style='font-size:11px;padding:0 6px;' onclick=\"var h=document.createElement('input');h.type='hidden';h.name='bekraeft_bank';h.value='" . $bankUnconfirmed[$r['modt_navn']] . "';this.form.appendChild(h);HTMLFormElement.prototype.submit.call(this.form);\">" . htmlspecialchars(findtekst('5362|Bekræft', $sprog_id), ENT_QUOTES) . "</button>";
+					if ($bankUnconfirmed[$r['modt_navn']]) print " <button type='button' style='font-size:11px;padding:0 6px;' onclick=\"var h=document.createElement('input');h.type='hidden';h.name='bekraeft_bank';h.value='" . $bankUnconfirmed[$r['modt_navn']] . "';this.form.appendChild(h);HTMLFormElement.prototype.submit.call(this.form);\">" . htmlspecialchars(findtekst('5362|Bekræft', $sprog_id), ENT_QUOTES) . "</button>";
 				}
 				print "</td>";
 				if(isset($k4_bg[$x])){

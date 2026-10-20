@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/kreditorFromCvr.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/kreditorFromCvr.php --- ver 5.0.0 --- 2026-10-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,9 @@
 // 20261004 CL/SZ SD-721 audit_log_write() takes strings (SD-724, the roles branch's signature): the id as text, detaljer as audit_log_details_json().
 //                An automatic creation is written with kilde 'api', as the roles branch does for automatic actions; the user's clicks stay 'ui'.
 // 20261006 CL/SZ SD-721 A refused CVR lookup gives reason 'quota' (QUOTA_EXCEEDED) or 'refused' (BANNED, BLOCKED, INVALID_UA) instead of 'lookup_failed'.
+// 20261020 CL/SZ SD-721 (CodeRabbit) kreditorCvrFindByCvr() compares every kreditor's CVR number after normalising (kreditorCvrPickByCvr()); the LIKE on the last
+//                four digits missed a stored "DK 12 34 56 78" or "NL805494595B01", and "Opret kreditor" made a second kreditor with the number.
+// 20261020 CL/SZ SD-721 (CodeRabbit) kreditorCvrNameCount(): betalinger.php confirms bank details by name only when one kreditor has the name.
 
 require_once __DIR__ . '/cvrLookup.php';
 require_once __DIR__ . '/kreditorCreate.php';
@@ -140,16 +143,44 @@ if (!function_exists('kreditorCvrFindByCvr')) {
 	 */
 	function kreditorCvrFindByCvr($cvr, $closed = false) {
 		if ($cvr === null || $cvr === '') return null;
-		$digits = preg_replace('/\D/', '', $cvr);
-		$like = db_escape_string('%' . substr($digits, -4) . '%');
 		$state = $closed ? "lukket = 'on'" : "(lukket IS NULL or lukket != 'on')";
-		$q = db_select("select id, kontonr, firmanavn, cvrnr from adresser where art = 'K' and $state and cvrnr like '$like' order by kontonr", __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
+		// Every kreditor with a CVR number: a LIKE on the stored text missed "DK 12 34 56 78" and "NL805494595B01", and a second kreditor was created
+		$q = db_select("select id, kontonr, firmanavn, cvrnr from adresser where art = 'K' and $state and cvrnr is not null and cvrnr != '' order by kontonr", __FILE__ . " linje " . __LINE__);
+		$rows = array();
+		while ($r = db_fetch_array($q)) $rows[] = $r;
+		return kreditorCvrPickByCvr($rows, $cvr);
+	}
+}
+
+if (!function_exists('kreditorCvrPickByCvr')) {
+	/**
+	 * The first row whose cvrnr is this CVR number once normalised ("DK 12 34 56 78" equals "12345678").
+	 *
+	 * @param array $rows adresser rows (id, kontonr, firmanavn, cvrnr), in kontonr order.
+	 * @param string $cvr Normalised CVR number.
+	 * @return array{id: int, kontonr: string, firmanavn: string}|null
+	 */
+	function kreditorCvrPickByCvr(array $rows, $cvr) {
+		foreach ($rows as $r) {
 			if (normalizePoolVendorCvr($r['cvrnr']) === $cvr) {
 				return array('id' => (int)$r['id'], 'kontonr' => trim((string)$r['kontonr']), 'firmanavn' => (string)$r['firmanavn']);
 			}
 		}
 		return null;
+	}
+}
+
+if (!function_exists('kreditorCvrNameCount')) {
+	/**
+	 * How many kreditorer have this name, as a payment line carries it (firmanavn, or with "&" as "og").
+	 *
+	 * @param string $name
+	 * @return int
+	 */
+	function kreditorCvrNameCount($name) {
+		$n = db_escape_string((string)$name);
+		$r = db_fetch_array(db_select("select count(*) as n from adresser where art = 'K' and (firmanavn = '$n' or replace(firmanavn, '&', 'og') = '$n')", __FILE__ . " linje " . __LINE__));
+		return $r ? (int)$r['n'] : 0;
 	}
 }
 
