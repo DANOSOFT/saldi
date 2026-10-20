@@ -256,6 +256,37 @@ function crm_customers(string $where): array
 	return $out;
 }
 
+/**
+ * Replace the CRM's own entry at the top of the session's navigation stack (includes/stdFunc/navStack.php) with the
+ * page's current place. The stack only records page requests, and the CRM changes tab and drawer without one, so
+ * without this the shell's came-from chip on an order leads to the CRM start instead of the customer.
+ */
+function crm_nav_place(string $query): bool
+{
+	if (!function_exists('_nav_read') || !function_exists('_nav_write')) {
+		return false;
+	}
+	parse_str($query, $in);
+	$clean = array();
+	foreach (array('inframe', 'popup', 'tab', 'bgrp', 'drawer', 'dtab') as $k) {
+		if (isset($in[$k]) && is_string($in[$k]) && preg_match('/^[A-Za-z0-9_-]{1,20}$/', $in[$k])) {
+			$clean[$k] = $in[$k];
+		}
+	}
+	$stack = _nav_read();
+	if (!$stack) {
+		return false;
+	}
+	$top = (string) end($stack);
+	$path = (string) parse_url($top, PHP_URL_PATH);
+	if (basename($path) !== 'crm.php') {
+		return false;
+	}
+	$stack[count($stack) - 1] = $path . ($clean ? '?' . http_build_query($clean) : '');
+	_nav_write($stack);
+	return true;
+}
+
 /** The customers the CRM shows: with a status, an entry, a deal or a next-contact date. */
 function crm_customer_scope(): string
 {

@@ -25,6 +25,7 @@
 // 20261020 ASR JSON actions for debitor/crm.php. POST with a JSON body {action, ...} and the page's CSRF token in
 //              X-CSRF-Token. Answers {ok, result, data}; data is the whole dataset again (small for a CRM), so the
 //              page never drifts from the database. 'search' only reads and answers {ok, result}.
+// 20261020 ASR 'place' updates the CRM's entry in the navigation stack (Back from an order lands in the drawer).
 
 @session_start();
 $s_id = session_id();
@@ -35,7 +36,10 @@ $css = '';
 $header = 'nix';
 $modulnr = 6;
 $permission_key = 'debitor.konti';
-$permission_level = 'write';
+// Reading actions (search, place) only need read access; everything else writes.
+$crmBody = (string) file_get_contents('php://input');
+$crmPeek = json_decode($crmBody, true);
+$permission_level = (is_array($crmPeek) && in_array($crmPeek['action'] ?? '', array('search', 'place'), true)) ? 'read' : 'write';
 
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
@@ -62,11 +66,16 @@ if (empty($_SESSION['csrf_token']) || !hash_equals((string) $_SESSION['csrf_toke
 	}
 	crm_api_answer(array('ok' => false, 'error' => 'csrf'), 403);
 }
-$in = json_decode((string) file_get_contents('php://input'), true);
+$in = $crmPeek;
 if (!is_array($in) || empty($in['action'])) {
 	crm_api_answer(array('ok' => false, 'error' => 'input'), 400);
 }
 
+if ($in['action'] === 'place') {
+	// The page's place (tab, open customer) goes into the session's navigation stack, so the shell's came-from chip
+	// and Alt+L lead back to it from an order or the customer card.
+	crm_api_answer(array('ok' => crm_nav_place((string) ($in['q'] ?? ''))));
+}
 if ($in['action'] === 'search') {
 	crm_api_answer(array('ok' => true, 'result' => crm_search((string) ($in['q'] ?? ''))));
 }

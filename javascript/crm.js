@@ -71,7 +71,21 @@ function placeParams(over) {
 	if (st.drawer) { p.set('drawer', st.drawer); if (st.dtab && st.dtab !== 'tl') p.set('dtab', st.dtab); }
 	return p.toString();
 }
-function syncUrl() { try { history.replaceState(null, '', 'crm.php?' + placeParams()); } catch (e) { /* file:// test pages */ } }
+let placeTimer = null, placeSent = '';
+// Tell the server where the page is (its navigation stack feeds the shell's came-from chip). Debounced; flushed
+// before a link leaves the page (see the click handler on outgoing links).
+function sendPlace() {
+	clearTimeout(placeTimer);
+	const q = placeParams();
+	if (q === placeSent || !DATA.api) return Promise.resolve();
+	placeSent = q;
+	return fetch(DATA.api, {method: 'POST', credentials: 'same-origin', keepalive: true,
+		headers: {'Content-Type': 'application/json', 'X-CSRF-Token': DATA.csrf}, body: JSON.stringify({action: 'place', q})}).catch(() => {});
+}
+function syncUrl() {
+	try { history.replaceState(null, '', 'crm.php?' + placeParams()); } catch (e) { /* file:// test pages */ }
+	clearTimeout(placeTimer); placeTimer = setTimeout(sendPlace, 400);
+}
 const backTo = (cid, dtab) => encodeURIComponent('crm.php?' + placeParams({drawer: cid, dtab: dtab || 'deals'}));
 
 const ICON = {
@@ -641,6 +655,15 @@ function renderAll() {
 /* ================= hændelser ================= */
 document.addEventListener('click', e => {
 	const t = e.target;
+	const out = t.closest('a[href]');
+	if (out && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+		const href = out.getAttribute('href');
+		if (href && href.charAt(0) !== '#' && !/^(tel|mailto):/.test(href) && out.target !== '_blank') {
+			e.preventDefault();
+			sendPlace().finally(() => { location.href = href; });
+			return;
+		}
+	}
 	if (!t.closest('#menu') && !t.closest('[data-snooze]')) $('#menu').classList.remove('open');
 	if (!t.closest('.gear')) { $('#panel').classList.remove('open'); $('#gearBtn').setAttribute('aria-expanded', 'false'); }
 	let b;
