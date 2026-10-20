@@ -24,6 +24,9 @@
 // ----------------------------------------------------------------------
 // 20260914 LOE SST-790: $pris is left blank when the item's price is 0,00.
 // 20260916 LOE SST-790: $dkkpris is blanked on a zero price too (review follow-up).
+// 20261009 CL/NTR $enhedspris reads $r['salgspris'] (the varer price column) instead of the
+//                 non-existent $r['pris']; VAT lookup guards an empty/non-numeric $momskode
+//                 with ctype_digit() and defaults $incl_moms to 25%, matching newlabel.php.
 
 $r=db_fetch_array(db_select("select * from varer where id='$id'",__FILE__ . " linje " . __LINE__));
 $momsfri='on';
@@ -39,10 +42,14 @@ if ($vatOnItemCard && $r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . 
 	$konto = $r2['box4'];
 	$qtxt="select moms from kontoplan where kontonr='$r2[box4]' order by id desc limit 1";
 	$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$momskode=str_replace("S","",$r2['moms']);	
-	$qtxt="select box2 from grupper where art='SM' and kodenr = '$momskode'";
-	$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$incl_moms=$r2['box2']*1;
+	$momskode=str_replace("S","",$r2['moms']);
+	if (ctype_digit($momskode)) {
+		$qtxt="select box2 from grupper where art='SM' and kodenr = '$momskode'";
+		$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	} else {
+		$r2=false;
+	}
+	$incl_moms= $r2 ? floatval($r2['box2']) : 25; // $r2 can be false if not found, default to 25% VAT
 	$salgspris*=(100+$incl_moms)/(100);
 	$special_price*=(100+$incl_moms)/(100);
 } 
@@ -65,15 +72,15 @@ if ($stregkode) {
 }
 if (strpos($txt,'$enhedspris/$enhed')) {
 	if ($r['enhed']  && $r['indhold'] && $r['indhold'] != 0) {
-		$txt=str_replace('$enhedspris',dkdecimal(($r['pris']/$r['indhold']),2),$txt);
+		$txt=str_replace('$enhedspris',dkdecimal(($r['salgspris']/$r['indhold']),2),$txt);
 		$txt=str_replace('$enhed',$r['enhed'],$txt);
 	} else {
 		$txt=str_replace('($enhedspris/$enhed)','',$txt);
 		$txt=str_replace('$enhedspris/$enhed','',$txt);
 	}
 } else {
-	if ($r['indhold'] && $r['indhold'] != 0) $txt=str_replace('$enhedspris',dkdecimal(($r['pris']/$r['indhold']),2),$txt);
-	else $txt=str_replace('$enhedspris',dkdecimal(($r['pris']),2),$txt);
+	if ($r['indhold'] && $r['indhold'] != 0) $txt=str_replace('$enhedspris',dkdecimal(($r['salgspris']/$r['indhold']),2),$txt);
+	else $txt=str_replace('$enhedspris',dkdecimal(($r['salgspris']),2),$txt);
 	$txt=str_replace('$enhed',$r['enhed'],$txt);
 }
 if (strpos($txt,'$lev_varenr[')) { #20170628
