@@ -127,4 +127,20 @@ final class kreditorFromCvr extends TestCase
         $this->assertFalse(kreditorCvrIsDanish('SE556677889901'));
         $this->assertFalse(kreditorCvrIsDanish(null));
     }
+
+    /**
+     * A stored CVR number with spaces or a foreign VAT number is the kreditor's too, so "Opret kreditor" finds it instead of making a second one.
+     */
+    public function testStoredCvrIsComparedAfterNormalising(): void
+    {
+        $rows = [
+            ['id' => 7, 'kontonr' => '81001 ', 'firmanavn' => 'Andet Firma', 'cvrnr' => '87654321'],
+            ['id' => 8, 'kontonr' => '81002', 'firmanavn' => 'Firma ApS', 'cvrnr' => 'DK 12 34 56 78'],
+            ['id' => 9, 'kontonr' => '81003', 'firmanavn' => 'Hollandsk BV', 'cvrnr' => 'NL805494595B01'],
+        ];
+        $this->assertSame(['id' => 8, 'kontonr' => '81002', 'firmanavn' => 'Firma ApS'], kreditorCvrPickByCvr($rows, '12345678'));
+        $this->assertSame(9, kreditorCvrPickByCvr($rows, normalizePoolVendorCvr('NL 805494595 B01'))['id']);
+        $this->assertSame('81001', kreditorCvrPickByCvr($rows, '87654321')['kontonr']);
+        $this->assertNull(kreditorCvrPickByCvr($rows, '11112222'));
+    }
 }
