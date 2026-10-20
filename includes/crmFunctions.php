@@ -607,7 +607,9 @@ function crm_nav_place(string $query): bool
 }
 
 /** The customers the CRM shows: with a status, an entry, a deal or a next-contact date. */
-const CRM_MAX_CUSTOMERS = 1000;
+if (!defined('CRM_MAX_CUSTOMERS')) {
+	define('CRM_MAX_CUSTOMERS', 1000);
+}
 
 /** The customers the CRM shows: a status in a status group, an entry, an open deal or a next-contact date. */
 function crm_customer_scope(): string
