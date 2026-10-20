@@ -53,7 +53,7 @@ include("../includes/std_func.php");
 $sag_id   = if_isset($_GET['sag_id']);
 $konto_id = if_isset($_GET['konto_id']);
 $funktion = if_isset($_GET['funktion']);
-if (!$funktion) $funktion = "kontrolliste";  
+if (!in_array($funktion, ['kontrolliste', 'kontrolskema', 'arbejdsseddel', 'emailKontrolskema', 'emailArbejdsseddel'], true)) $funktion = "kontrolliste";
 
 global $brugernavn;
 global $db;
