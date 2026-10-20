@@ -1,0 +1,148 @@
+/* finans/kladdeliste.php – new journal list layout (20261020 ASR).
+   Colours are the dashboard tokens; --btn/--btn-text are the user's button colour (set inline by the page). */
+.kl-page{
+  --page:#eef3fb; --surface:#ffffff; --surface-2:#f6f9fe; --border:#dde5f1; --grid:#e9eef7; --border-field:#c6d2e4;
+  --text:#0b1a3a; --text-2:#5b6b85; --text-3:#8a97ad; --link:#1b68bd;
+  --bad:#c2410c; --bad-bg:#fdecec; --warn:#b45309; --amber:#D9822B;
+  --focus:#4FA0EE; --focus-ring:rgba(79,160,238,.18);
+  --shadow-up:0 2px 4px rgba(11,26,58,.06),0 12px 28px rgba(11,26,58,.11);
+  --e:cubic-bezier(.2,.8,.2,1);
+  --font:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  margin:0; height:100vh; overflow:hidden; background:var(--surface); color:var(--text); font:14px/1.45 var(--font);
+}
+.kl-page *{box-sizing:border-box}
+.kl-page button,.kl-page input,.kl-page select{font:inherit;color:inherit}
+.kl-page [hidden]{display:none!important}
+.kl-page input:focus{outline:none;border-color:var(--focus)!important;box-shadow:0 0 0 3px var(--focus-ring)}
+.kl-page :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.kl{height:100vh;display:flex;flex-direction:column;background:var(--surface)}
+.kl-num{font-variant-numeric:tabular-nums}
+
+/* head: tabs left, tools right */
+.kl-head{flex:none;display:flex;align-items:flex-end;gap:16px;padding:0 24px;border-bottom:1px solid var(--border);min-height:56px}
+.kl-back{align-self:center;margin-left:-10px}
+.kl-tabs{display:flex;gap:24px;align-self:stretch}
+.kl-tab{position:relative;display:flex;align-items:center;gap:7px;padding:0;border:0;background:none;font-weight:500;font-size:14px;color:var(--text-2);cursor:pointer;white-space:nowrap}
+.kl-tab:hover{color:var(--text)}
+.kl-tab .n{font-size:12.5px;font-weight:500;color:var(--text-3);font-variant-numeric:tabular-nums}
+.kl-tab[aria-selected="true"]{color:var(--text);font-weight:600}
+.kl-tab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px 2px 0 0;background:var(--btn)}
+.kl-tab.zero .n{opacity:.6}
+.kl-tools{margin-left:auto;align-self:center;display:flex;align-items:center;gap:4px}
+.kl-ghost{display:flex;align-items:center;gap:6px;height:32px;padding:0 9px;border:0;border-radius:8px;background:none;color:var(--text-2);font-weight:500;font-size:13.5px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.kl-ghost:hover{background:var(--surface-2);color:var(--text)}
+.kl-ghost svg{width:17px;height:17px;flex:none}
+.kl-icon{width:32px;padding:0;justify-content:center}
+.kl-vsep{width:1px;height:20px;background:var(--border);margin:0 8px}
+.kl-bank:empty{display:none}
+.kl-bank .auth-status-icon{display:inline-flex;align-items:center;gap:4px;padding:6px;color:var(--text-2);font-size:12.5px;text-decoration:none}
+.kl-bank .auth-status-icon img{width:16px;height:16px}
+
+/* Alle | Mine */
+.kl-scope{display:flex;gap:2px;height:32px;padding:3px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border)}
+.kl-scope button{height:100%;padding:0 12px;border:0;border-radius:6px;background:none;color:var(--text-2);font-weight:500;font-size:13.5px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,box-shadow .15s}
+.kl-scope button:hover{color:var(--text)}
+.kl-scope button[aria-checked="true"]{background:var(--surface);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(11,26,58,.12),0 0 0 1px var(--border)}
+.kl-scope button:focus-visible{outline-offset:1px}
+
+/* Ny kassekladde + gear – same components as the cash journal */
+.kl-newbtn{display:flex;align-items:center;gap:6px;height:32px;padding:0 14px 0 11px;border-radius:8px;border:1px solid var(--btn);background:var(--surface);color:var(--btn);font-size:14.5px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none;transition:background .15s,color .15s;flex:none}
+.kl-newbtn:hover{background:var(--btn);color:var(--btn-text)}
+.kl-newbtn svg{width:15px;height:15px}
+.kl-cols{position:relative;flex:none;margin-left:8px}
+.kl-cols-btn{width:34px;height:34px;border-radius:50%;border:0;background:var(--btn);color:var(--btn-text);display:grid;place-items:center;cursor:pointer;transition:filter .15s}
+.kl-cols-btn:hover{filter:brightness(1.15)}
+.kl-cols-btn svg{width:18px;height:18px}
+.kl-panel{position:absolute;right:0;top:calc(100% + 8px);width:320px;max-height:calc(100vh - 80px);overflow:auto;padding:6px 6px 0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-up);z-index:40;display:none}
+.kl-panel.open{display:block}
+.kl-ph{padding:10px 10px 4px;font-weight:700;font-size:14px}
+.kl-pi{padding:0 10px 8px;font-size:12px;color:var(--text-2)}
+.kl-panel h4{margin:4px 0 0;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);padding:12px 10px 4px;border-top:1px solid var(--border)}
+.kl-sw{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:6px 10px;border:0;background:none;border-radius:8px;cursor:pointer;font-size:13px;text-align:left;color:var(--text)}
+.kl-sw:hover{background:var(--surface-2)}
+.kl-sw:disabled{cursor:default;color:var(--text-3)} .kl-sw:disabled:hover{background:none} .kl-sw:disabled i{opacity:.5}
+.kl-swn{display:block;color:var(--text-3);font-size:11.5px;line-height:1.35;margin-top:1px}
+.kl-sw i{flex:none;width:32px;height:18px;border-radius:99px;background:var(--border-field);position:relative;transition:background .2s}
+.kl-sw i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s var(--e)}
+.kl-sw[aria-checked="true"] i{background:var(--focus)}
+.kl-sw[aria-checked="true"] i::after{transform:translateX(14px)}
+.kl-pfoot{position:sticky;bottom:0;display:flex;justify-content:flex-end;padding:8px 10px;margin-top:6px;border-top:1px solid var(--border);background:var(--surface)}
+.kl-pfoot button{border:0;background:none;color:var(--link);font-size:12.5px;cursor:pointer}
+
+/* table */
+.kl-tbl{flex:1;min-height:0;overflow:auto;position:relative;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--border-field) transparent}
+.kl-row{display:grid;grid-template-columns:var(--cols);column-gap:24px;align-items:center;height:40px;padding:0 24px;border-bottom:1px solid var(--grid);background:var(--row-bg,var(--surface))}
+.kl-row > *{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kl-thead{position:sticky;top:0;z-index:5;height:36px;border-bottom-color:var(--border);font-weight:500;font-size:12.5px;color:var(--text-3)}
+.kl-thead .s{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px;max-width:100%}
+.kl-thead .s:hover,.kl-thead .s.on{color:var(--text)}
+.kl-thead .s i{font-style:normal;font-size:10px;opacity:0}
+.kl-thead .s:hover i{opacity:.5} .kl-thead .s.on i{opacity:1}
+.kl-frow{position:sticky;top:36px;z-index:5;height:44px;border-bottom-color:var(--border);--row-bg:var(--surface-2)}
+.kl-fld{width:100%;height:28px;padding:0 7px;border:1px solid var(--border-field);border-radius:6px;background:var(--surface);color:var(--text);font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+.kl-fld::placeholder{color:var(--text-3)}
+.kl-fld.set{border-color:var(--focus)}
+.kl-r{text-align:right}
+#klBody .kl-row{cursor:pointer}
+#klBody .kl-row:hover{--row-bg:var(--surface-2)}
+#klBody .kl-row:focus-visible{outline:none;box-shadow:inset 2px 0 0 var(--focus);--row-bg:var(--surface-2)}
+.c-nr{color:var(--text-3);font-size:13px}
+.c-note{color:var(--text);font-weight:500}
+.c-2{color:var(--text-2)}
+.c-3{color:var(--text-3)}
+.kl-state{display:inline-flex;align-items:center;gap:6px;color:var(--warn)}
+.kl-state svg{width:13px;height:13px;flex:none}
+.kl-page mark{background:rgba(217,130,43,.3);color:inherit;border-radius:2px;padding:0 1px}
+.kl-trash{width:28px;height:28px;margin-left:auto;border:0;border-radius:6px;background:none;color:var(--text-3);display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .12s}
+.kl-trash svg{width:16px;height:16px}
+#klBody .kl-row:hover .kl-trash,#klBody .kl-row:focus .kl-trash,.kl-trash:focus-visible{opacity:1}
+.kl-trash:hover{color:var(--bad);background:var(--bad-bg)}
+.kl-loading #klBody{opacity:.55;transition:opacity .2s .15s}
+
+.kl-empty{padding:72px 24px;text-align:center;color:var(--text-2);line-height:1.6}
+.kl-empty b{display:block;color:var(--text);font-size:15px;font-weight:600;margin-bottom:2px}
+.kl-empty button{margin-top:10px;border:0;background:none;color:var(--link);cursor:pointer;font-weight:500;font-size:14px}
+.kl-empty button:hover{text-decoration:underline}
+
+/* foot */
+.kl-foot{flex:none;display:flex;align-items:center;gap:16px;height:44px;padding:0 24px;border-top:1px solid var(--border);font-size:13px;color:var(--text-3)}
+.kl-foot .kl-grow{flex:1}
+.kl-foot .kl-scopenote{color:var(--text-2)}
+.kl-foot select{height:28px;padding:0 4px;border:0;background:none;color:var(--text-2);font-size:13px;cursor:pointer}
+.kl-foot select:hover{color:var(--text)}
+.kl-pager{display:flex;align-items:center;gap:2px}
+.kl-pager button{min-width:28px;height:28px;padding:0 6px;border:0;border-radius:6px;background:none;color:var(--text-2);font-size:13px;cursor:pointer;font-variant-numeric:tabular-nums}
+.kl-pager button:hover:not(:disabled){background:var(--surface-2);color:var(--text)}
+.kl-pager button.on{color:var(--text);font-weight:600;background:var(--surface-2)}
+.kl-pager button:disabled{opacity:.35;cursor:default}
+.kl-pager span{padding:0 4px}
+
+/* dialog + toast */
+.kl-scrim{position:fixed;inset:0;background:rgba(11,26,58,.4);z-index:95;display:none;place-items:center}
+.kl-scrim.open{display:grid}
+.kl-dlg{width:min(400px,92vw);background:var(--surface);color:var(--text);border-radius:12px;box-shadow:var(--shadow-up);padding:20px}
+.kl-dlg h3{margin:0 0 4px;font-size:15px;font-weight:600}
+.kl-dlg p{margin:0;color:var(--text-2);font-size:13.5px}
+.kl-dlg footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.kl-dlg .b{height:32px;padding:0 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:500;font-size:13.5px;cursor:pointer}
+.kl-dlg .b:hover{background:var(--surface-2)}
+.kl-dlg .b.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.kl-dlg .b.danger:hover{filter:brightness(1.08)}
+.kl-toast{position:fixed;left:50%;bottom:64px;transform:translate(-50%,10px);background:var(--text);color:var(--surface);padding:9px 14px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .25s var(--e);z-index:90;max-width:min(560px,90vw)}
+.kl-toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* narrow (set by JS from the list's own width) */
+.kl[data-size="n"] .kl-lbl,.kl[data-size="n"] .kl-long,.kl[data-size="n"] .kl-back span{display:none}
+.kl[data-size="n"] .kl-tabs{gap:16px}
+.kl[data-size="n"] .kl-head{padding:0 16px;gap:10px}
+.kl[data-size="n"] .kl-row{padding:0 16px;column-gap:14px}
+.kl[data-size="n"] #klPP{display:none}
+
+@media print{
+  .kl-head,.kl-frow,.kl-foot,.kl-trash{display:none!important}
+  .kl-page,.kl{height:auto;overflow:visible}
+  .kl-tbl{overflow:visible}
+  .kl-row{height:auto;padding:4px 0;break-inside:avoid}
+  .kl-thead{position:static}
+}
