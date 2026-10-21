@@ -1004,7 +1004,7 @@ if ($_POST) {
 	elseif (isset($_POST['save']) && $_POST['save'])         $submit = 'save';
 	elseif (isset($_POST['simulate']) && $_POST['simulate']) $submit = 'simulate';
 	elseif (isset($_POST['upload']) && $_POST['upload'])     $submit = 'upload';
-	else $submit   = trim(if_isset($_POST['submit'], ''));
+	else $submit   = trim($_POST['submit'] ?? '');
 	$tidspkt       = if_isset($_POST['tidspkt']);
 	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
 	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool)
