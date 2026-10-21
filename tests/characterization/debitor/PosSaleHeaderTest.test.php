@@ -31,6 +31,8 @@ final class PosSaleHeaderTest extends TestCase
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $GLOBALS['posSaleHeaderDb'] = $this->db;
         $GLOBALS['posSaleHeaderSql'] = [];
+        $GLOBALS['posSaleHeaderAlerts'] = [];
+        $GLOBALS['sprog_id'] = 1;
         $GLOBALS['regnaar'] = self::REGNAAR;
         $GLOBALS['baseCurrency'] = 'DKK';
         $GLOBALS['kasse'] = 1;
@@ -47,6 +49,12 @@ final class PosSaleHeaderTest extends TestCase
             firmanavn TEXT, addr1 TEXT, addr2 TEXT, postnr TEXT, bynavn TEXT, land TEXT, kontakt TEXT,
             email TEXT, tlf TEXT, cvrnr TEXT, ean TEXT, institution TEXT, betalingsbet TEXT,
             betalingsdage INTEGER, lukket TEXT)");
+
+        // A brand has to be an existing form variant, because ordrer.sprog picks the form an
+        // invoice is printed from. formularer is where every other sprog chooser reads its list.
+        $this->db->exec("CREATE TABLE formularer (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            formular INTEGER, art TEXT, beskrivelse TEXT, sprog TEXT)");
+        $this->variants('Dansk', 'havemoebelland', 'udehygge');
 
         // Three terminals: departments 1, 2 and 4; brands only on the first two.
         $tab = chr(9);
@@ -80,7 +88,8 @@ final class PosSaleHeaderTest extends TestCase
             $src .= $file;
         }
         foreach (['pos_terminal_sale_defaults', 'opret_posordre', 'opdater_konto',
-                  'pos_sale_brands', 'pos_save_sale_settings', 'pos_render_sale_brand_field'] as $needed) {
+                  'pos_sale_brands', 'pos_sale_brand_variants', 'pos_save_sale_settings',
+                  'pos_render_sale_brand_field'] as $needed) {
             self::assertStringContainsString('function ' . $needed . '(', $src,
                 $needed . '() is no longer where the lift expects it');
         }
@@ -109,6 +118,15 @@ final class PosSaleHeaderTest extends TestCase
         $from = strpos($src, 'insert into ordrer');
         self::assertNotFalse($from, 'opret_posordre() no longer inserts into ordrer');
         return substr($src, $from, strpos($src, 'db_modify', $from) - $from);
+    }
+
+    /** Form variants: the list a brand has to come from. */
+    private function variants(string ...$names): void
+    {
+        foreach ($names as $name) {
+            $this->db->exec("INSERT INTO formularer (formular,art,sprog)
+                VALUES (1,'3','" . str_replace("'", "''", $name) . "')");
+        }
     }
 
     private function brandsRow(string $list): void
@@ -302,6 +320,7 @@ final class PosSaleHeaderTest extends TestCase
     public function testATerminalLeftBlankKeepsItsPlaceInTheList(): void
     {
         // Terminal 2 has no brand; terminal 3 must not inherit terminal 3's value from a shifted list.
+        $this->variants('tredje');
         pos_save_sale_settings(['kasseantal' => 3, 'brand_navn' => [0 => 'havemoebelland', 2 => 'tredje']], self::REGNAAR);
         self::assertSame('havemoebelland', pos_terminal_sale_defaults(1, self::REGNAAR)['brand']);
         self::assertSame('', pos_terminal_sale_defaults(2, self::REGNAAR)['brand']);
@@ -310,6 +329,7 @@ final class PosSaleHeaderTest extends TestCase
 
     public function testSavingTwiceUpdatesTheSameSettingsRow(): void
     {
+        $this->variants('foerste', 'anden');
         pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'foerste']], self::REGNAAR);
         pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'anden']], self::REGNAAR);
         self::assertSame('1', (string)$this->db->query(
@@ -319,6 +339,7 @@ final class PosSaleHeaderTest extends TestCase
 
     public function testABrandCannotCarryTheListSeparatorIntoAnotherTerminal(): void
     {
+        $this->variants('havemoebelland smuglet');
         pos_save_sale_settings(['kasseantal' => 2,
             'brand_navn' => [0 => "havemoebelland" . chr(9) . "smuglet", 1 => 'udehygge']], self::REGNAAR);
         self::assertSame('havemoebelland smuglet', pos_terminal_sale_defaults(1, self::REGNAAR)['brand']);
@@ -328,6 +349,7 @@ final class PosSaleHeaderTest extends TestCase
 
     public function testABrandCarryingAQuoteIsStoredAsTyped(): void
     {
+        $this->variants("O'Brien & Sons");
         pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => "O'Brien & Sons"]], self::REGNAAR);
         self::assertSame("O'Brien & Sons", pos_terminal_sale_defaults(1, self::REGNAAR)['brand']);
     }
@@ -342,11 +364,101 @@ final class PosSaleHeaderTest extends TestCase
 
     public function testTheBrandFieldIsEscapedForTheBrowser(): void
     {
-        ob_start();
-        pos_render_sale_brand_field(["<script>alert('x')</script>"], 0);
-        $html = ob_get_clean();
+        $html = $this->renderField(["<script>alert('x')</script>"], 0, ["<script>alert('x')</script>"]);
         self::assertStringNotContainsString('<script>', $html);
         self::assertStringContainsString('name=\'brand_navn[0]\'', $html);
+    }
+
+    // ------------------------------------- the brand has to be an existing form variant
+
+    public function testTheBrandFieldOffersTheFormVariantsAndAnEmptyChoice(): void
+    {
+        $html = $this->renderField([], 0, pos_sale_brand_variants());
+        self::assertStringContainsString('<select', $html,
+            'a typed brand can name a form variant that does not exist');
+        self::assertStringNotContainsString("type='text'", $html);
+        self::assertStringContainsString("<option value=''></option>", $html,
+            'no brand has to stay selectable - it is what every install has today');
+        foreach (['Dansk', 'havemoebelland', 'udehygge'] as $variant) {
+            self::assertStringContainsString("<option value='" . $variant . "'>", $html);
+        }
+    }
+
+    public function testTheConfiguredBrandIsTheSelectedOption(): void
+    {
+        $html = $this->renderField(['udehygge'], 0, pos_sale_brand_variants());
+        self::assertStringContainsString("<option value='udehygge' selected>", $html);
+        self::assertSame(1, substr_count($html, 'selected'), 'exactly one option may be selected');
+        self::assertSame(1, substr_count($html, "value='udehygge'"),
+            'the brand has to be selected where it is listed, not listed once and appended again');
+    }
+
+    public function testABrandWhoseVariantWasDeletedStaysSelectedRatherThanClearing(): void
+    {
+        $html = $this->renderField(['forsvundet'], 0, pos_sale_brand_variants());
+        self::assertStringContainsString("<option value='forsvundet' selected>", $html,
+            'drawing the page must not silently change what a terminal sells under');
+    }
+
+    public function testAStaleBrandIsEscapedForTheBrowserToo(): void
+    {
+        // The stored brand reaches the page down its own path when its variant is gone, so it needs
+        // escaping of its own.
+        $html = $this->renderField(["<script>alert('x')</script>"], 0, pos_sale_brand_variants());
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringContainsString('selected', $html);
+    }
+
+    public function testABlankFormVariantIsNotOfferedAsABrand(): void
+    {
+        $this->variants('   ');
+        self::assertSame(['Dansk', 'havemoebelland', 'udehygge'], pos_sale_brand_variants(),
+            'a blank variant would offer a brand that is empty but not the empty choice');
+    }
+
+    public function testVariantsAreReadFromFormularerWithoutDuplicates(): void
+    {
+        $this->variants('havemoebelland');
+        self::assertSame(['Dansk', 'havemoebelland', 'udehygge'], pos_sale_brand_variants());
+    }
+
+    public function testABrandWithNoFormVariantIsRefusedAndTheStoredOneKept(): void
+    {
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'havemoebelland']], self::REGNAAR);
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'ikkeenvariant']], self::REGNAAR);
+        self::assertSame('havemoebelland', pos_terminal_sale_defaults(1, self::REGNAAR)['brand'],
+            'ordrer.sprog would name a form variant that does not exist, and formprintfunc.php would '
+            . 'lay the invoice out from unset variables');
+    }
+
+    public function testARefusedBrandIsReportedRatherThanDroppedSilently(): void
+    {
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'ikkeenvariant']], self::REGNAAR);
+        self::assertCount(1, $GLOBALS['posSaleHeaderAlerts']);
+        self::assertStringContainsString('ikkeenvariant', $GLOBALS['posSaleHeaderAlerts'][0]);
+    }
+
+    public function testClearingABrandIsNotARefusal(): void
+    {
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'havemoebelland']], self::REGNAAR);
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => '']], self::REGNAAR);
+        self::assertSame('', pos_terminal_sale_defaults(1, self::REGNAAR)['brand']);
+        self::assertSame([], $GLOBALS['posSaleHeaderAlerts'], 'emptying a brand is a normal edit');
+    }
+
+    public function testARefusedBrandDoesNotDisturbTheOtherTerminals(): void
+    {
+        pos_save_sale_settings(['kasseantal' => 2,
+            'brand_navn' => [0 => 'ikkeenvariant', 1 => 'udehygge']], self::REGNAAR);
+        self::assertSame('', pos_terminal_sale_defaults(1, self::REGNAAR)['brand']);
+        self::assertSame('udehygge', pos_terminal_sale_defaults(2, self::REGNAAR)['brand']);
+    }
+
+    private function renderField(array $brands, int $index, array $variants): string
+    {
+        ob_start();
+        pos_render_sale_brand_field($brands, $index, $variants);
+        return (string)ob_get_clean();
     }
 
     // --------------------------------------------------- how the page wires it up
@@ -360,6 +472,8 @@ final class PosSaleHeaderTest extends TestCase
         self::assertStringContainsString('pos_render_sale_brand_field(', $options);
         self::assertMatchesRegularExpression('/\$pos_sale_brands\s*=\s*pos_sale_brands\(/', $options,
             'the rendered field needs the stored brands');
+        self::assertStringContainsString('pos_sale_brand_variants()', $options,
+            'without the variant list the field would offer no brands at all');
 
         $diverse = file_get_contents(dirname(__DIR__, 3) . '/systemdata/diverse.php');
         self::assertStringContainsString('pos_save_sale_settings($_POST, $regnaar)', $diverse,

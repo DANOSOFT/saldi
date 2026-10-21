@@ -41,3 +41,8 @@ function ifset($arrayOrVar, $key = null, $default = null) {
 function findtekst($text, $language) {
     return explode('|', (string)$text, 2)[1] ?? (string)$text;
 }
+
+/** includes/std_func.php prints a javascript alert; here it is recorded so a test can read it. */
+function alert($message) {
+    $GLOBALS['posSaleHeaderAlerts'][] = (string)$message;
+}

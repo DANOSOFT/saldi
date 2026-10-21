@@ -28,6 +28,11 @@
 //                  The delivery choices that belong on this page (K33) wait for pos_leveringsvalg,
 //                  which is WP01's table and is not in the schema yet.
 //
+// 20261021 CL/MJ SD-758 The brand is chosen from the form variants in formularer rather than typed,
+//                  and a brand with no variant behind it is refused on save. ordrer.sprog selects
+//                  the form variant an invoice is printed from, and debitor/formprintfunc.php falls
+//                  back to dansk only when it is empty - not when the variant is missing.
+//
 // The brand is kept as a tab separated list indexed by terminal number less one, in
 // grupper art='POS' kodenr='4' box1 - the same shape as every other per-terminal POS setting
 // (kodenr 1, 2 and 3; see posOptions.php). kodenr='4' was unused, and grupper has no box column
@@ -53,6 +58,29 @@ function pos_sale_brands($regnaar) {
 }
 
 /**
+ * The form variants a brand can be - the same list debitor/ordre.php:4054 offers for an order's
+ * sprog, and rykker.php:358 and finans/ordre.php:1359 for theirs.
+ *
+ * A brand is stored in ordrer.sprog, which picks the form variant an invoice is printed from. The
+ * printer falls back to dansk only when sprog is empty (debitor/formprintfunc.php:145), not when the
+ * named variant is missing: the layout read at :179 then returns no rows and the invoice is printed
+ * from unset variables. Offering only existing variants keeps that state unreachable.
+ *
+ * @return array<int,string>
+ */
+function pos_sale_brand_variants() {
+	$variants = array();
+	$q = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$sprog = trim((string) $r['sprog']);
+		if ($sprog !== '') {
+			$variants[] = $sprog;
+		}
+	}
+	return $variants;
+}
+
+/**
  * The column heading for the brand field, printed in the folding per-terminal block.
  *
  * @param int $sprog_id
@@ -65,20 +93,38 @@ function pos_render_sale_brand_header($sprog_id) {
 }
 
 /**
- * The brand field for one terminal.
+ * The brand field for one terminal: the form variants, with an empty choice first.
  *
- * Free text, because the order's sprog is free text everywhere else it is used - it selects a form
- * variant (debitor/formprintfunc.php reads strtolower(ordrer.sprog)). An empty value leaves the
- * sale exactly as it was before SD-758.
+ * Empty is the default and leaves the sale exactly as it was before SD-758. A brand configured
+ * before its form variant was deleted is still shown, and still selected, so merely drawing this
+ * page cannot change what a terminal sells under.
  *
- * @param array<int,string> $brands From pos_sale_brands().
- * @param int               $index  Terminal number less one.
+ * @param array<int,string> $brands   From pos_sale_brands().
+ * @param int               $index    Terminal number less one.
+ * @param array<int,string> $variants From pos_sale_brand_variants(); passed in so the list is read
+ *                                    once per page rather than once per terminal.
  * @return void
  */
-function pos_render_sale_brand_field($brands, $index) {
-	$brand = htmlspecialchars((string) ifset($brands, $index, ''), ENT_QUOTES);
-	print "<td align='center'><input class='inputbox' type='text' style='width:110px;' ";
-	print "name='brand_navn[$index]' value='$brand'></td>\n";
+function pos_render_sale_brand_field($brands, $index, $variants) {
+	$brand = trim((string) ifset($brands, $index, ''));
+	print "<td align='center'><select class='inputbox' style='width:110px;' name='brand_navn[$index]'>\n";
+	print "<option value=''></option>\n";
+	$found = false;
+	foreach ($variants as $variant) {
+		$value = htmlspecialchars((string) $variant, ENT_QUOTES);
+		if (!$found && (string) $variant === $brand) {
+			print "<option value='$value' selected>$value</option>\n";
+			$found = true;
+		} else {
+			print "<option value='$value'>$value</option>\n";
+		}
+	}
+	// A brand whose variant has since been deleted stays selected rather than silently clearing.
+	if ($brand !== '' && !$found) {
+		$value = htmlspecialchars($brand, ENT_QUOTES);
+		print "<option value='$value' selected>$value</option>\n";
+	}
+	print "</select></td>\n";
 }
 
 /**
@@ -106,11 +152,22 @@ function pos_save_sale_settings($post, $regnaar) {
 	if ($kasseantal < 1) {
 		$kasseantal = $submitted ? max(array_keys($submitted)) + 1 : 0;
 	}
+	$variants = pos_sale_brand_variants();
+	$stored = pos_sale_brands($regnaar);
+	$refused = array();
 	$brands = array();
 	for ($x = 0; $x < $kasseantal; $x++) {
 		// A brand is the order's sprog, so it must survive as typed; tabs are the list separator
 		// and a newline would break the row, so both are stripped rather than stored.
-		$brands[$x] = trim(str_replace(array(chr(9), chr(10), chr(13)), ' ', (string) ifset($submitted, $x, '')));
+		$brand = trim(str_replace(array(chr(9), chr(10), chr(13)), ' ', (string) ifset($submitted, $x, '')));
+		// A brand with no form variant behind it would print the terminal's invoices from unset
+		// layout variables, so it is refused and that terminal keeps what it had. The field offers
+		// only existing variants, so this answers a hand-made POST rather than normal use.
+		if ($brand !== '' && !in_array($brand, $variants, true)) {
+			$refused[$brand] = $brand;
+			$brand = trim((string) ifset($stored, $x, ''));
+		}
+		$brands[$x] = $brand;
 	}
 	$box1 = db_escape_string(implode(chr(9), $brands));
 	$qtxt = "select id from grupper where art = 'POS' and kodenr = '" . POS_SALE_SETTINGS_KODENR . "'";
@@ -122,5 +179,9 @@ function pos_save_sale_settings($post, $regnaar) {
 		$qtxt = "insert into grupper (beskrivelse,kode,kodenr,art,box1,fiscal_year) values ";
 		$qtxt.= "('POS salgsopsaetning','','" . POS_SALE_SETTINGS_KODENR . "','POS','$box1','$regnaar')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+	if ($refused) {
+		$txt = findtekst('5441|Ikke gemt, mangler formularvariant', $GLOBALS['sprog_id']);
+		alert($txt . ': ' . implode(', ', $refused));
 	}
 }

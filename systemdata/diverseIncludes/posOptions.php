@@ -62,6 +62,7 @@ function posOptions () {
 		if (!$timeout)     $timeout     = 0;
 	}
 	$pos_sale_brands = pos_sale_brands($regnaar); # 20261021 CL/MJ SD-758
+	$pos_sale_brand_variants = pos_sale_brand_variants(); # 20261021 CL/MJ SD-758
 	$qtxt = "select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$id2=$r['id'];
@@ -410,7 +411,7 @@ function posOptions () {
 
 			# 20261021 CL/MJ SD-758 The brand this terminal sells under, written onto every sale it
 			# creates (debitor/pos_ordre_includes/saleHeaderFunctions.php).
-			pos_render_sale_brand_field($pos_sale_brands, $x);
+			pos_render_sale_brand_field($pos_sale_brands, $x, $pos_sale_brand_variants);
 
 			# Valutakoder
 			for ($y=0;$y<count($ValutaKode);$y++) {
