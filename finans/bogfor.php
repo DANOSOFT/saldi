@@ -1139,10 +1139,10 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 #xit;	
 } #endfunc bogfor
 ######################################################################################################################################
-// 20261021 CL/MJ MB-79 The five functions from here down to openpost() are the pieces openpost() matches
-// with. They are separate so that openpostRateDifference() can ask the same question read-only, for Simuler
-// and for the difference bogfor() books - one matcher, so the measurement and the settlement cannot drift
-// apart.
+// 20261021 CL/MJ MB-79 From here down to openpost(): the first five are the pieces openpost() matches
+// with, split out so openpostRateDifference() can ask the same question read-only - for Simuler, and for
+// the difference bogfor() books - leaving one matcher, so the measurement and the settlement cannot drift
+// apart. The last three are new: the read-only question, the posting text, and the two ledger rows.
 /**
  * Resolves a cash-journal currency code to the letters stored in openpost.valuta.
  *
