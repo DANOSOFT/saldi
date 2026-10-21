@@ -1004,7 +1004,7 @@ function brightenColor($color, $amount = 0.2) {
   }
 
   // Notification center (spec §3): polled from the shell every 60 s, rendered client-side.
-  const topbarNotifIcons = { news: 'bx-news', warning: 'bx-error', suggestion: 'bx-bulb', system: 'bx-plug' };
+  const topbarNotifIcons = { news: 'bx-news', warning: 'bx-error', suggestion: 'bx-bulb', system: 'bx-plug', crm: 'bx-calendar-check' };
   function topbarNotifLoad() {
     fetch('notifications.php', { credentials: 'same-origin' })
       .then((r) => r.ok ? r.json() : null)

@@ -7003,4 +7003,12 @@
 7509	Fortryd	Undo	Angre
 7510	Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.	Showing the %s most recently active customers. Other customers can be found with the search under “New follow-up” and “New deal”.	Viser de %s sist aktive kundene. Andre kunder finnes med søket under «Ny oppfølging» og «Nytt salg».
 7511	Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.	The customer may not be among the %s shown. Search via “New follow-up”.	Kunden er kanskje ikke blant de %s viste. Søk via «Ny oppfølging».
+7512	CRM	CRM	CRM
+7513	Opfølgninger i dag	Follow-ups today	Oppfølginger i dag
+7514	%s opfølgninger i dag · %s forsinkede	%s follow-ups today · %s overdue	%s oppfølginger i dag · %s forsinkede
+7515	Ny opfølgning til dig	New follow-up for you	Ny oppfølging til deg
+7516	Handel tildelt dig	Deal assigned to you	Salg tildelt deg
+7517	Handel vundet	Deal won	Salg vunnet
+7518	Handel tabt	Deal lost	Salg tapt
+7519	fra %s	from %s	fra %s
 

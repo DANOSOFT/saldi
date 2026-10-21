@@ -70,11 +70,13 @@
 [data-theme="dark"] .topbar-notif-warning { background: rgba(232,160,19,.18); }
 [data-theme="dark"] .topbar-notif-system { background: rgba(224,68,44,.18); }
 [data-theme="dark"] .topbar-notif-news { background: rgba(29,158,87,.18); }
+[data-theme="dark"] .topbar-notif-crm { background: rgba(79,160,238,.18); color: #4FA0EE; }
 [data-theme="dark"] .topbar-search-it mark { background: rgba(79,160,238,.35); }
 @media (prefers-color-scheme: dark) {
 	[data-theme="system"] .topbar-notif-warning { background: rgba(232,160,19,.18); }
 	[data-theme="system"] .topbar-notif-system { background: rgba(224,68,44,.18); }
 	[data-theme="system"] .topbar-notif-news { background: rgba(29,158,87,.18); }
+	[data-theme="system"] .topbar-notif-crm { background: rgba(79,160,238,.18); color: #4FA0EE; }
 	[data-theme="system"] .topbar-search-it mark { background: rgba(79,160,238,.35); }
 }
 html.saldi-shell[data-theme="dark"] body, html.saldi-shell[data-theme="dark"] .home-section { background: var(--page); color: var(--text); }

@@ -130,6 +130,14 @@ function crm_in($s): string
 	return db_escape_string($s);
 }
 
+/** crm_in() without the SQL escaping: for values that are not going into a query. */
+function crm_in_raw($s): string
+{
+	global $db_encode;
+	$s = trim((string) $s);
+	return ($db_encode !== 'UTF8') ? mb_convert_encoding($s, 'ISO-8859-15', 'UTF-8') : $s;
+}
+
 function crm_date($v): ?string
 {
 	$v = trim((string) $v);
@@ -370,7 +378,15 @@ function crm_text_ids(): array
 		7508 => '+ Tilføj statusgruppe',
 		7509 => 'Fortryd',
 		7510 => 'Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.',
-		7511 => 'Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.'
+		7511 => 'Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.',
+		// 7512 'CRM' is the bell type label (notif_types(), through findtekst)
+		7513 => 'Opfølgninger i dag',
+		7514 => '%s opfølgninger i dag · %s forsinkede',
+		7515 => 'Ny opfølgning til dig',
+		7516 => 'Handel tildelt dig',
+		7517 => 'Handel vundet',
+		7518 => 'Handel tabt',
+		7519 => 'fra %s'
 	);
 }
 
@@ -393,17 +409,17 @@ function crm_lang(): int
  *
  * @return array<string, string>
  */
-function crm_texts(): array
+function crm_texts(?int $lang = null): array
 {
-	static $out = null;
-	if ($out !== null) {
-		return $out;
+	static $cache = array();
+	$lang = ($lang !== null && $lang >= 1 && $lang <= 3) ? $lang : crm_lang();
+	if (isset($cache[$lang])) {
+		return $cache[$lang];
 	}
 	$ids = crm_text_ids();
-	$lang = crm_lang();
 	$cacheKey = 'crm_txt_' . $lang . '_' . count($ids) . '_' . max(array_keys($ids));
 	if (isset($_SESSION[$cacheKey]) && is_array($_SESSION[$cacheKey])) {
-		return $out = $_SESSION[$cacheKey];
+		return $cache[$lang] = $_SESSION[$cacheKey];
 	}
 	$have = array();
 	if (function_exists('tbl_exists') && tbl_exists('tekster')) {
@@ -431,13 +447,19 @@ function crm_texts(): array
 		$out[$da] = isset($have[$id]) ? $have[$id] : $da;
 	}
 	$_SESSION[$cacheKey] = $out;
-	return $out;
+	return $cache[$lang] = $out;
 }
 
 /** Text in the user's language (UTF-8), '%s' filled in order. */
 function crm_t(string $da, ...$args): string
 {
-	$texts = crm_texts();
+	return crm_tl(crm_lang(), $da, ...$args);
+}
+
+/** crm_t() in a given language - the recipient's, for notifications written for someone else. */
+function crm_tl(int $lang, string $da, ...$args): string
+{
+	$texts = crm_texts($lang);
 	$s = isset($texts[$da]) ? $texts[$da] : $da;
 	foreach ($args as $arg) {
 		$p = strpos($s, '%s');
@@ -453,6 +475,131 @@ function crm_t(string $da, ...$args): string
 function crm_h(string $da): string
 {
 	return mb_encode_numericentity(htmlspecialchars(crm_t($da), ENT_QUOTES, 'UTF-8'), array(0x80, 0x10FFFF, 0, 0x10FFFF), 'UTF-8');
+}
+
+// ------------------------------------------------------------------ notifications (the bell, includes/notifications.php)
+// Type 'crm' (can be switched off per user under Personlige indstillinger -> Notifikationer). The daily summary is
+// generated when the bell polls (crm_notif_refresh() from notif_refresh()); the event items are written by the
+// actions below, only for a user other than the acting one and only when the employee is linked to a user.
+
+/** UTF-8 to the company's charset, unescaped (notif_upsert() escapes). index/notifications.php converts back. */
+function crm_to_db(string $s): string
+{
+	global $db_encode;
+	return ($db_encode === 'UTF8' || $s === '') ? $s : mb_convert_encoding($s, 'ISO-8859-1', 'UTF-8');
+}
+
+function crm_user_for_ansat(int $ansatId): int
+{
+	static $map = array();
+	if ($ansatId <= 0) {
+		return 0;
+	}
+	if (!isset($map[$ansatId])) {
+		$r = db_fetch_array(db_select("select id from brugere where ansat_id = $ansatId order by id limit 1", __FILE__ . " linje " . __LINE__));
+		$map[$ansatId] = $r ? (int) $r['id'] : 0;
+	}
+	return $map[$ansatId];
+}
+
+function crm_ansat_for_user(int $brugerId): int
+{
+	if ($brugerId <= 0) {
+		return 0;
+	}
+	$r = db_fetch_array(db_select("select ansat_id from brugere where id = $brugerId", __FILE__ . " linje " . __LINE__));
+	return $r ? (int) $r['ansat_id'] : 0;
+}
+
+/** The acting user's name for a notification body (UTF-8). */
+function crm_actor_name(): string
+{
+	global $ansat_navn, $brugernavn_raw, $brugernavn;
+	$n = trim((string) $ansat_navn);
+	if ($n === '') {
+		$n = trim((string) (isset($brugernavn_raw) ? $brugernavn_raw : $brugernavn));
+	}
+	return crm_out($n);
+}
+
+/**
+ * A notification in the bell for the user linked to employee $ansatId - not when that is the acting user, and not
+ * when the employee has no user. $key identifies the event: notif_upsert() refreshes instead of duplicating.
+ */
+function crm_notify(int $ansatId, string $key, string $title, string $body, string $link, ?string $expires): void
+{
+	global $bruger_id;
+	include_once(__DIR__ . '/notifications.php');
+	if (!function_exists('notif_ready') || !notif_ready()) {
+		return;
+	}
+	$user = crm_user_for_ansat($ansatId);
+	if ($user <= 0 || $user === (int) $bruger_id) {
+		return;
+	}
+	notif_upsert($key, $user, 'crm', crm_to_db($title), crm_to_db($body), $link, $expires);
+}
+
+/** Remove the notifications of an event that is over (follow-up done or deleted, deal deleted or reopened). */
+function crm_notif_drop(string $keyLike): void
+{
+	include_once(__DIR__ . '/notifications.php');
+	if (!function_exists('notif_ready') || !notif_ready()) {
+		return;
+	}
+	$k = db_escape_string($keyLike);
+	db_modify("delete from notification_read where notification_id in (select id from notifications where source_key like '$k')", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from notifications where source_key like '$k'", __FILE__ . " linje " . __LINE__);
+}
+
+/** "Ny opfølgning til dig": a follow-up whose owner is another employee than the acting user. */
+function crm_notify_followup(int $hid, int $cid, int $owner, string $due, string $note): void
+{
+	$c = db_fetch_array(db_select("select firmanavn from adresser where id = $cid", __FILE__ . " linje " . __LINE__));
+	$body = crm_out($c ? (string) $c['firmanavn'] : '') . ': ' . mb_substr(trim($note), 0, 120)
+		. ' · ' . crm_t('opfølgning %s', date('d-m-Y', strtotime($due))) . ' · ' . crm_t('fra %s', crm_actor_name());
+	crm_notify($owner, 'crm:fu:' . $hid, crm_t('Ny opfølgning til dig'), $body, '/debitor/crm.php?tab=follow&drawer=' . $cid, date('Y-m-d', strtotime($due . ' +30 days')));
+}
+
+/** "Handel tildelt dig" / "Handel vundet" / "Handel tabt" for the deal's owner. */
+function crm_notify_deal(array $d, string $what): void
+{
+	$id = (int) $d['id'];
+	$cid = (int) $d['konto_id'];
+	$c = db_fetch_array(db_select("select firmanavn from adresser where id = $cid", __FILE__ . " linje " . __LINE__));
+	$amount = round((float) $d['amount']);
+	$body = crm_out((string) $d['title']) . ' · ' . crm_out($c ? (string) $c['firmanavn'] : '')
+		. ($amount ? ' · ' . crm_t('%s kr', number_format($amount, 0, ',', '.')) : '') . ' · ' . crm_t('fra %s', crm_actor_name());
+	$title = $what === 'won' ? crm_t('Handel vundet') : ($what === 'lost' ? crm_t('Handel tabt') : crm_t('Handel tildelt dig'));
+	crm_notify((int) $d['ansat_id'], "crm:deal:$id:$what", $title, $body, '/debitor/crm.php?tab=pipe&drawer=' . $cid . '&dtab=deals', date('Y-m-d', strtotime('+30 days')));
+}
+
+/**
+ * The daily "Opfølgninger i dag" item for a user, from notif_refresh() (bell poll, daily digest). One item per day
+ * (key crm:due:<date>), expired the day after; none when nothing is due. Needs the Debitor -> Konti right.
+ */
+function crm_notif_refresh(int $brugerId, string $rettigheder, int $sprogId): void
+{
+	if (substr($rettigheder, 6, 1) < '1' || !function_exists('notif_upsert') || !tbl_exists('crm_deals')) {
+		return;
+	}
+	$ansat = crm_ansat_for_user($brugerId);
+	if ($ansat <= 0) {
+		return;
+	}
+	$today = date('Y-m-d');
+	$key = 'crm:due:' . $today;
+	$r = db_fetch_array(db_select("select count(*) as n, sum(case when h.kontaktes < '$today' then 1 else 0 end) as late from historik h "
+		. "where h.ansat_id = $ansat and h.kontaktes is not null and h.kontaktes <= '$today' and (h.completed = FALSE "
+		. "or (h.completed is null and h.id = (select max(h2.id) from historik h2 where h2.konto_id = h.konto_id and (h2.type is null or h2.type not in ('status', 'deal')))))", __FILE__ . " linje " . __LINE__));
+	$n = $r ? (int) $r['n'] : 0;
+	if ($n <= 0) {
+		db_modify("delete from notification_read where notification_id in (select id from notifications where source_key = '$key' and user_id = $brugerId)", __FILE__ . " linje " . __LINE__);
+		db_modify("delete from notifications where source_key = '$key' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
+		return;
+	}
+	notif_upsert($key, $brugerId, 'crm', crm_to_db(crm_tl($sprogId, 'Opfølgninger i dag')),
+		crm_to_db(crm_tl($sprogId, '%s opfølgninger i dag · %s forsinkede', $n, (int) $r['late'])), '/debitor/crm.php?tab=follow', $today);
 }
 
 // ------------------------------------------------------------------ reference data
@@ -792,6 +939,9 @@ function crm_action(string $action, array $in): array
 			$owner = $due && !empty($in['owner']) ? (int) $in['owner'] : $me;
 			$id = crm_insert_entry($cid, (string) ($in['type'] ?? 'note'), $owner, (int) ($in['to'] ?? 0), (string) ($in['note'] ?? ''), $due);
 			crm_sync_customer($cid);
+			if ($due && $owner !== $me) {
+				crm_notify_followup($id, $cid, $owner, $due, (string) ($in['note'] ?? ''));
+			}
 			return array('id' => $id, 'closed' => $closed);
 
 		case 'update_entry':
@@ -806,6 +956,7 @@ function crm_action(string $action, array $in): array
 			db_modify("update historik set completed = " . ($done ? 'TRUE' : 'FALSE') . " where id = $hid", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select konto_id from historik where id = $hid", __FILE__ . " linje " . __LINE__));
 			if ($r) crm_sync_customer((int) $r['konto_id']);
+			if ($done) crm_notif_drop('crm:fu:' . $hid);
 			return array('id' => $hid);
 
 		case 'set_due':
@@ -813,8 +964,11 @@ function crm_action(string $action, array $in): array
 			$due = crm_date($in['due'] ?? '');
 			if (!$due) return array('error' => 'date');
 			db_modify("update historik set kontaktes = '$due', completed = FALSE where id = $hid", __FILE__ . " linje " . __LINE__);
-			$r = db_fetch_array(db_select("select konto_id from historik where id = $hid", __FILE__ . " linje " . __LINE__));
-			if ($r) crm_sync_customer((int) $r['konto_id']);
+			$r = db_fetch_array(db_select("select konto_id, ansat_id, notat from historik where id = $hid", __FILE__ . " linje " . __LINE__));
+			if ($r) {
+				crm_sync_customer((int) $r['konto_id']);
+				if ((int) $r['ansat_id'] !== $me) crm_notify_followup($hid, (int) $r['konto_id'], (int) $r['ansat_id'], $due, crm_out($r['notat']));
+			}
 			return array('id' => $hid);
 
 		case 'delete_entry':
@@ -823,6 +977,7 @@ function crm_action(string $action, array $in): array
 			if (!$r) return array('error' => 'gone');
 			db_modify("delete from historik where id = $hid", __FILE__ . " linje " . __LINE__);
 			crm_sync_customer((int) $r['konto_id']);
+			crm_notif_drop('crm:fu:' . $hid);
 			return array('row' => array('cid' => (int) $r['konto_id'], 'type' => (string) $r['type'], 'by' => (int) $r['ansat_id'], 'to' => (int) $r['kontakt_id'],
 				'note' => crm_out($r['notat']), 'due' => $r['kontaktes'], 'done' => crm_bool($r['completed']), 'date' => (string) $r['kontaktet']));
 
@@ -861,7 +1016,10 @@ function crm_action(string $action, array $in): array
 			$closeSql = $close ? "'$close'" : 'NULL';
 			$own = (int) ($in['own'] ?? $me);
 			$today = date('Y-m-d');
+			$prevOwn = $me;
 			if ($id) {
+				$p = db_fetch_array(db_select("select ansat_id from crm_deals where id = $id", __FILE__ . " linje " . __LINE__));
+				$prevOwn = $p ? (int) $p['ansat_id'] : $me;
 				db_modify("update crm_deals set konto_id = $cid, title = '$title', amount = $amount, expected_close = $closeSql, ansat_id = $own where id = $id", __FILE__ . " linje " . __LINE__);
 			} else {
 				db_modify("insert into crm_deals (konto_id, title, amount, stage, expected_close, ansat_id, state, stage_since, created) values "
@@ -869,6 +1027,10 @@ function crm_action(string $action, array $in): array
 				$r = db_fetch_array(db_select("select max(id) as id from crm_deals where konto_id = $cid", __FILE__ . " linje " . __LINE__));
 				$id = (int) $r['id'];
 				crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel oprettet: »%s«', trim((string) $in['t'])), null);
+				$prevOwn = 0;
+			}
+			if ($own !== $me && $own !== $prevOwn) {
+				crm_notify_deal(array('id' => $id, 'konto_id' => $cid, 'title' => crm_in_raw($in['t'] ?? ''), 'amount' => $amount, 'ansat_id' => $own), 'owner');
 			}
 			return array('id' => $id);
 
@@ -883,6 +1045,12 @@ function crm_action(string $action, array $in): array
 				$reason = crm_in($in['reason'] ?? '');
 				db_modify("update crm_deals set state = '$state', closed = " . ($state === 'open' ? 'NULL' : "'$today'") . ", lost_reason = '$reason' where id = $id", __FILE__ . " linje " . __LINE__);
 				$label = $state === 'won' ? crm_t('vundet') : ($state === 'lost' ? crm_t('tabt') . (trim((string) ($in['reason'] ?? '')) !== '' ? ' – ' . trim((string) $in['reason']) : '') : crm_t('genåbnet'));
+				if ($state === 'open') {
+					crm_notif_drop("crm:deal:$id:won");
+					crm_notif_drop("crm:deal:$id:lost");
+				} elseif ((int) $d['ansat_id'] !== $me) {
+					crm_notify_deal($d, $state);
+				}
 			} else {
 				$stage = preg_replace('/[^0-9A-Za-z_-]/', '', (string) $in['st']);
 				db_modify("update crm_deals set stage = '$stage', stage_since = '$today' where id = $id", __FILE__ . " linje " . __LINE__);
@@ -902,11 +1070,16 @@ function crm_action(string $action, array $in): array
 			if (!empty($in['remove'])) {
 				db_modify("delete from historik where id = " . (int) $in['remove'] . " and type = 'deal'", __FILE__ . " linje " . __LINE__);
 			}
+			if ($state === 'open') {
+				crm_notif_drop("crm:deal:$id:won");
+				crm_notif_drop("crm:deal:$id:lost");
+			}
 			return array('id' => $id);
 
 		case 'delete_deal':
 			$id = (int) $in['id'];
 			db_modify("delete from crm_deals where id = $id", __FILE__ . " linje " . __LINE__);
+			crm_notif_drop("crm:deal:$id:%");
 			return array('id' => $id);
 
 		case 'save_groups':
