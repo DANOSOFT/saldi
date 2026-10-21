@@ -243,8 +243,8 @@ if (!function_exists('batch_txt')) {
 			'fill_stock'  => array('Udfyld batchoplysninger for varer, der allerede er på lager', 'Fill in batch details for stock already in the warehouse', 'Fyll ut batchopplysninger for varer som allerede er på lager'),
 		);
 		$sprog = isset($GLOBALS['sprog_id']) ? (int)$GLOBALS['sprog_id'] : 1;
-		$i = ($sprog == 2) ? 1 : (($sprog == 3) ? 2 : 0);
-		return isset($t[$key]) ? $t[$key][$i] : $key;
+		$i = $sprog - 1; // dbindex to array index (0-based)
+		return isset($t[$key][$i]) ? $t[$key][$i] : $key;
 	}
 }
 ?>
