@@ -390,7 +390,26 @@ function crm_text_ids(): array
 		7520 => 'Hvis opfølgninger og kunder',
 		7521 => 'Alle opfølgninger og kunder i regnskabet',
 		7522 => 'Kun dem, du er ansvarlig for. Valget huskes til næste gang.',
-		7523 => 'Mine'
+		7523 => 'Mine',
+		7524 => 'Ny',
+		7525 => 'Opret ny opfølgning, handel, tilbud eller ordre',
+		7526 => 'Tilbud',
+		7527 => 'Ordre',
+		7528 => 'Nyt tilbud',
+		7529 => 'Ny ordre',
+		7530 => 'Hvilken kunde gælder det?',
+		7531 => 'Statusser',
+		7532 => 'Statusgrupper',
+		7533 => '+ Tilføj status',
+		7534 => 'Ny status',
+		7535 => 'Statusnavn',
+		7536 => '%s i brug',
+		7537 => 'Bruges af %s kunder og handler – kan ikke slettes',
+		7538 => 'Slet status',
+		7539 => 'Slet gruppe',
+		7540 => 'Der er ingen kundestatusser endnu.',
+		7541 => 'Giv alle statusser et navn.',
+		7542 => 'Statusser og statusgrupper er gemt'
 	);
 }
 
@@ -608,7 +627,7 @@ function crm_notif_refresh(int $brugerId, string $rettigheder, int $sprogId): vo
 
 // ------------------------------------------------------------------ reference data
 
-function crm_statuses(): array
+function crm_statuses(bool $withUse = false): array
 {
 	$out = array();
 	$r = db_fetch_array(db_select("select box3, box4 from grupper where art = 'DebInfo'", __FILE__ . " linje " . __LINE__));
@@ -622,7 +641,77 @@ function crm_statuses(): array
 			}
 		}
 	}
+	if ($withUse && $out) {
+		// customers with the status + open deals in it: such a status cannot be deleted from the gear panel
+		$use = crm_status_use();
+		foreach ($out as $k => $s) {
+			$out[$k]['used'] = isset($use[$s['id']]) ? $use[$s['id']] : 0;
+		}
+	}
 	return $out;
+}
+
+/** @return array<string, int> status id => customers having it + open deals in it */
+function crm_status_use(): array
+{
+	$use = array();
+	$q = db_select("select status, count(*) as n from adresser where art = 'D' and status is not null and status != '' group by status", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$use[trim((string) $r['status'])] = (int) $r['n'];
+	}
+	if (tbl_exists('crm_deals')) {
+		$q = db_select("select stage, count(*) as n from crm_deals where state = 'open' group by stage", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$k = trim((string) $r['stage']);
+			$use[$k] = (isset($use[$k]) ? $use[$k] : 0) + (int) $r['n'];
+		}
+	}
+	return $use;
+}
+
+/**
+ * Save the gear panel's statuses (grupper DebInfo box3 ids / box4 names, the list debitorkort.php also edits).
+ * New ones arrive as 'new:<n>' and get the next free number. A status in use is never removed.
+ *
+ * @return array<string, string>|string map 'new:<n>' => id, or an error code
+ */
+function crm_save_statuses(array $list)
+{
+	$old = array();
+	foreach (crm_statuses() as $s) {
+		$old[$s['id']] = $s['n'];
+	}
+	$max = 0;
+	foreach (array_keys($old) as $id) {
+		if (ctype_digit((string) $id)) $max = max($max, (int) $id);
+	}
+	$ids = $names = $map = array();
+	foreach ($list as $s) {
+		$s = (array) $s;
+		$id = (string) ($s['id'] ?? '');
+		$name = trim(str_replace(array(chr(9), "\r", "\n"), ' ', (string) ($s['n'] ?? '')));
+		if ($name === '') return 'status_name';
+		if (strpos($id, 'new:') === 0) {
+			$map[$id] = (string) (++$max);
+			$id = $map[$id];
+		} elseif (!isset($old[$id])) {
+			continue;
+		}
+		$ids[] = $id;
+		$names[] = crm_in_raw(mb_substr($name, 0, 60));
+	}
+	$use = crm_status_use();
+	foreach (array_keys($old) as $id) {
+		if (!in_array((string) $id, $ids, true) && !empty($use[$id])) return 'status_used';
+	}
+	$box3 = db_escape_string(implode(chr(9), $ids));
+	$box4 = db_escape_string(implode(chr(9), $names));
+	if (db_fetch_array(db_select("select id from grupper where art = 'DebInfo'", __FILE__ . " linje " . __LINE__))) {
+		db_modify("update grupper set box3 = '$box3', box4 = '$box4' where art = 'DebInfo'", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("insert into grupper (art, beskrivelse, kodenr, box3, box4) values ('DebInfo', 'Debitorinfo', '1', '$box3', '$box4')", __FILE__ . " linje " . __LINE__);
+	}
+	return $map;
 }
 
 function crm_groups(): array
@@ -881,7 +970,7 @@ function crm_dataset(): array
 		'txt'       => crm_texts(),
 		'quick'     => (bool) db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4 = 'on'", __FILE__ . " linje " . __LINE__)),
 		'emps'      => crm_employees(),
-		'statuses'  => crm_statuses(),
+		'statuses'  => crm_statuses(true),
 		'groups'    => crm_groups(),
 		'customers' => array_values($customers),
 		'hist'      => crm_history(array_keys($customers)),
@@ -1087,14 +1176,27 @@ function crm_action(string $action, array $in): array
 			return array('id' => $id);
 
 		case 'save_groups':
+			// statuses first (new ones get their number), then the groups that may point at them
+			$map = array();
+			if (isset($in['statuses'])) {
+				$map = crm_save_statuses((array) $in['statuses']);
+				if (is_string($map)) return array('error' => $map);
+			}
+			$valid = array_map(function ($s) { return $s['id']; }, crm_statuses());
+			$fix = function ($x) use ($map, $valid) {
+				$x = (string) $x;
+				if (isset($map[$x])) $x = $map[$x];
+				$x = preg_replace('/[^0-9A-Za-z_-]/', '', $x);
+				return in_array($x, $valid, true) ? $x : '';
+			};
 			$keep = array();
 			$pos = 1;
 			foreach ((array) $in['groups'] as $g) {
 				$g = (array) $g;
 				$name = crm_in($g['n'] ?? '');
-				$s = implode(chr(9), array_map(function ($x) { return preg_replace('/[^0-9A-Za-z_-]/', '', (string) $x); }, (array) ($g['s'] ?? array())));
-				$won = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($g['won'] ?? ''));
-				$lost = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($g['lost'] ?? ''));
+				$s = implode(chr(9), array_values(array_filter(array_map($fix, (array) ($g['s'] ?? array())), 'strlen')));
+				$won = $fix($g['won'] ?? '');
+				$lost = $fix($g['lost'] ?? '');
 				$gid = (int) ($g['id'] ?? 0);
 				if ($gid > 0) {
 					db_modify("update grupper set box1 = '$name', box2 = '$s', box3 = '$won', box4 = '$lost', kodenr = '$pos' where id = $gid and art = 'SKN'", __FILE__ . " linje " . __LINE__);

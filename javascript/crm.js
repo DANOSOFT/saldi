@@ -477,7 +477,7 @@ function openDlg(html, cls) { const d = $('#dlg'); d.className = 'dlg ' + (cls |
 function customerPicker(title, intro, onPick) {
 	openDlg(`<h3>${title}</h3><div class="pi">${intro}</div>
 		<label class="fs">${SV.search}<input id="dq" placeholder="${esc(t('Søg kunde, kundenummer eller kontaktperson'))}" autocomplete="off"></label><div class="res" id="dres"></div>`);
-	const q = $('#dq'); let hl = 0, res = [], seq = 0, t = null;
+	const q = $('#dq'); let hl = 0, res = [], seq = 0, timer = null;
 	const draw = () => {
 		$('#dres').innerHTML = res.map((c, i) => `<button class="${i === hl ? 'hl' : ''}" data-pick="${c.id}"><b>${esc(c.n)}</b><small>${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}</small><span class="ct">${c.ppl.map(p => esc(p.n)).join(', ')}</span></button>`).join('')
 			|| `<div class="empty" style="padding:24px"><b>${t('Ingen kunder')}</b>${t('Opret kunden under Debitor → Konti.')}</div>`;
@@ -490,7 +490,7 @@ function customerPicker(title, intro, onPick) {
 			res = r.ok ? r.result : []; hl = 0; draw();
 		} catch (e) { /* netværk: behold listen */ }
 	};
-	q.oninput = () => { clearTimeout(t); t = setTimeout(search, 180); };
+	q.oninput = () => { clearTimeout(timer); timer = setTimeout(search, 180); };
 	q.onkeydown = e => {
 		if (e.key === 'ArrowDown') { hl = Math.min(hl + 1, res.length - 1); draw(); e.preventDefault(); }
 		if (e.key === 'ArrowUp') { hl = Math.max(hl - 1, 0); draw(); e.preventDefault(); }
@@ -550,8 +550,8 @@ function dealDialog(deal, cid, stage) {
 		if ($('#dUseSum')) $('#dUseSum').onclick = () => { $('#dV').value = $('#dUseSum').dataset.v; $('#dUseSum').remove(); $('#dV').focus(); };
 		if ($('#dLost')) $('#dLost').onclick = () => lostDialog(deal, reason => moveDeal(deal, {state: 'lost', reason}, t('tabt') + (reason ? ' – ' + reason : '')));
 		$('#dYes').onclick = async () => {
-			const t = $('#dT').value.trim(); if (!t) { $('#dT').focus(); return; }
-			await api('save_deal', {id: deal ? deal.id : 0, cid: c.id, t, v: $('#dV').value, st: $('#dS').value, close: $('#dC').value, own: +$('#dO').value});
+			const title = $('#dT').value.trim(); if (!title) { $('#dT').focus(); return; }
+			await api('save_deal', {id: deal ? deal.id : 0, cid: c.id, t: title, v: $('#dV').value, st: $('#dS').value, close: $('#dC').value, own: +$('#dO').value});
 			if (deal && deal.state === 'open' && $('#dS').value !== deal.st) await api('move_deal', {id: deal.id, st: $('#dS').value});
 			closeDlg(); toast(deal ? t('Handlen er gemt') : t('Handel oprettet i %s', stName($('#dS').value)));
 		};
@@ -569,7 +569,7 @@ function lostDialog(d, done) {
 	let pick = '';
 	$('#dlg').querySelectorAll('[data-r]').forEach(b => b.onclick = () => { pick = pick === b.dataset.r ? '' : b.dataset.r; $('#dlg').querySelectorAll('[data-r]').forEach(x => x.classList.toggle('on', x.dataset.r === pick)); });
 	$('#rSkip').onclick = () => { closeDlg(); done(''); };
-	$('#rOk').onclick = () => { const t = $('#rTxt').value.trim(); closeDlg(); done([pick, t].filter(Boolean).join(': ')); };
+	$('#rOk').onclick = () => { const note = $('#rTxt').value.trim(); closeDlg(); done([pick, note].filter(Boolean).join(': ')); };
 }
 
 function editDialog(hid) {
@@ -645,12 +645,23 @@ function renderGroups() {
 	$('#grpSel').innerHTML = `<option value="all">${t('Alle statusser')}</option>` + GROUPS.map(g => `<option value="${g.id}" ${String(S.grp) === String(g.id) ? 'selected' : ''}>${esc(g.n)}</option>`).join('');
 	$('#grpSel').style.display = GROUPS.length ? '' : 'none';
 }
+// Gear panel: the customer statuses (grupper DebInfo box3/box4) and the status groups (SKN), both saved with Gem.
+// SDRAFT: [{id, n, used}] - a new status has the id 'new:<n>' until the server gives it a number.
+let SDRAFT = [], newSeq = 0;
+const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
+const sdName = id => { const s = SDRAFT.find(x => x.id === id); return s ? (s.n || t('Ny status')) : stName(id); };
 function renderGroupEditor() {
-	const opts = sel => '<option value="">–</option>' + ST_ORDER.map(id => `<option value="${esc(id)}" ${id === sel ? 'selected' : ''}>${esc(stName(id))}</option>`).join('');
-	$('#sgList').innerHTML = (ST_ORDER.length ? '' : `<div class="pi">${t('Der er ingen kundestatusser endnu. De oprettes på debitorkortet (feltet Status).')}</div>`) +
-		GDRAFT.map((g, i) => `<div class="sg" data-i="${i}"><input type="text" value="${esc(g.n)}" aria-label="${t('Gruppenavn')}" data-f="n">${DATA.canWrite ? `<button class="del" data-delg="${i}">${t('Fjern')}</button>` : ''}
-		<div class="opts">${ST_ORDER.map(id => `<label><input type="checkbox" data-st="${esc(id)}" ${g.s.includes(id) ? 'checked' : ''}>${esc(stName(id))}</label>`).join('')}</div>
-		<div class="wl"><label>${t('Vundet')} → <select data-f="won">${opts(g.won)}</select></label><label>${t('Tabt')} → <select data-f="lost">${opts(g.lost)}</select></label></div></div>`).join('');
+	const ro = DATA.canWrite ? '' : 'disabled';
+	$('#stList').innerHTML = SDRAFT.map((s, i) => `<div class="strow" data-si="${i}"><input type="text" value="${esc(s.n)}" maxlength="60" aria-label="${t('Statusnavn')}" placeholder="${esc(t('Ny status'))}" data-sf="n" ${ro}>
+		<span class="use">${s.used ? t('%s i brug', s.used) : ''}</span>
+		${DATA.canWrite ? `<button type="button" class="ptrash" data-dels="${i}" ${s.used ? 'disabled' : ''} title="${esc(s.used ? t('Bruges af %s kunder og handler – kan ikke slettes', s.used) : t('Slet status'))}" aria-label="${esc(t('Slet status'))}">${TRASH}</button>` : ''}</div>`).join('')
+		|| `<div class="pi">${t('Der er ingen kundestatusser endnu.')}</div>`;
+	const opts = sel => '<option value="">–</option>' + SDRAFT.map(s => `<option value="${esc(s.id)}" ${s.id === sel ? 'selected' : ''}>${esc(sdName(s.id))}</option>`).join('');
+	$('#sgList').innerHTML = GDRAFT.map((g, i) => `<div class="sg" data-i="${i}"><div class="sgh"><input type="text" value="${esc(g.n)}" aria-label="${t('Gruppenavn')}" data-f="n" ${ro}>
+		${DATA.canWrite ? `<button type="button" class="ptrash" data-delg="${i}" title="${esc(t('Slet gruppe'))}" aria-label="${esc(t('Slet gruppe'))}">${TRASH}</button>` : ''}</div>
+		<div class="opts">${SDRAFT.map(s => `<label><input type="checkbox" data-st="${esc(s.id)}" ${g.s.includes(s.id) ? 'checked' : ''} ${ro}>${esc(sdName(s.id))}</label>`).join('')}</div>
+		<div class="wl"><label>${t('Vundet')} → <select data-f="won" ${ro}>${opts(g.won)}</select></label><label>${t('Tabt')} → <select data-f="lost" ${ro}>${opts(g.lost)}</select></label></div></div>`).join('');
+	$('#stAdd').hidden = $('#sgAdd').hidden = $('#sgSave').hidden = !DATA.canWrite;
 }
 
 /* ================= fælles ================= */
@@ -696,6 +707,7 @@ document.addEventListener('click', e => {
 	}
 	if (!t.closest('#menu') && !t.closest('[data-snooze]')) $('#menu').classList.remove('open');
 	if (!t.closest('.gear')) { $('#panel').classList.remove('open'); $('#gearBtn').setAttribute('aria-expanded', 'false'); }
+	if (!t.closest('.newwrap')) closeNewMenu();
 	let b;
 	if ((b = t.closest('[data-tab]'))) { S.tab = b.dataset.tab; renderAll(); return; }
 	if ((b = t.closest('[data-tick]'))) { e.stopPropagation(); toggleDone(+b.dataset.tick, b.closest('.row')); return; }
@@ -731,8 +743,35 @@ $('#dscrim').onclick = closeDrawer;
 $('#drawer').addEventListener('click', e => { if (e.target.closest('#dClose')) closeDrawer(); });
 $('#drawer').addEventListener('change', e => { if (e.target.id === 'stSel') setStatus(cust(S.drawer), e.target.value); });
 $('#scrim').onclick = e => { if (e.target.id === 'scrim') closeDlg(); };
-$('#newBtn').onclick = () => newFollowUp();
-$('#newBtn').hidden = !DATA.canWrite;
+// Ny: menu with Opfølgning (also key N), Handel, Tilbud (not with quick invoicing) and Ordre
+function closeNewMenu() { $('#newMenu').classList.remove('open'); $('#newBtn').setAttribute('aria-expanded', 'false'); }
+function docFor(kind) {
+	customerPicker(kind === 'offer' ? t('Nyt tilbud') : t('Ny ordre'), t('Hvilken kunde gælder det?'), c => {
+		closeDlg();
+		const href = `ordre.php?konto_id=${c.id}${kind === 'order' ? '&ordrestatus=1' : ''}&returside=${backTo(c.id)}`;
+		sendPlace().finally(() => { location.href = href; });
+	});
+}
+$('#newBtn').onclick = e => {
+	e.stopPropagation();
+	const open = !$('#newMenu').classList.contains('open');
+	$('#newMenu').classList.toggle('open', open); $('#newBtn').setAttribute('aria-expanded', String(open));
+	if (open) $('#newMenu').querySelector('button:not([hidden])').focus();
+};
+$('#newMenu').addEventListener('click', e => {
+	const b = e.target.closest('[data-newkind]'); if (!b) return;
+	e.stopPropagation(); closeNewMenu();
+	const k = b.dataset.newkind;
+	if (k === 'followup') newFollowUp(); else if (k === 'deal') dealDialog(null, null, null); else docFor(k);
+});
+$('#newMenu').addEventListener('keydown', e => {
+	const items = [...$('#newMenu').querySelectorAll('button:not([hidden])')], i = items.indexOf(document.activeElement);
+	if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+	if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+	if (e.key === 'Escape') { closeNewMenu(); $('#newBtn').focus(); }
+});
+$('#newOffer').hidden = !!DATA.quick;
+$('.newwrap').hidden = !DATA.canWrite;
 $('#q').oninput = e => { S.q = e.target.value.trim(); renderAll(); };
 $('#grpSel').onchange = e => { S.grp = e.target.value; S.stF = 'all'; renderAll(); };
 // Alle | Mine - same control as the cash journal list (finans/kladdeliste.php): radio group, arrow keys, remembered.
@@ -747,7 +786,11 @@ $('#scope').addEventListener('keydown', e => {
 });
 $('#gearBtn').onclick = e => {
 	e.stopPropagation(); const p = $('#panel'); p.classList.toggle('open'); $('#gearBtn').setAttribute('aria-expanded', p.classList.contains('open'));
-	if (p.classList.contains('open')) { GDRAFT = GROUPS.map(g => ({id: g.id, n: g.n, s: g.s.slice(), won: g.won, lost: g.lost})); renderGroupEditor(); }
+	if (p.classList.contains('open')) {
+		GDRAFT = GROUPS.map(g => ({id: g.id, n: g.n, s: g.s.slice(), won: g.won, lost: g.lost}));
+		SDRAFT = DATA.statuses.map(s => ({id: s.id, n: s.n, used: s.used || 0}));
+		renderGroupEditor();
+	}
 };
 $('#sgList').addEventListener('input', e => {
 	const box = e.target.closest('.sg'); if (!box) return;
@@ -757,9 +800,30 @@ $('#sgList').addEventListener('input', e => {
 	if (e.target.dataset.st !== undefined) { const id = e.target.dataset.st; g.s = e.target.checked ? g.s.concat(id) : g.s.filter(x => x !== id); g.s.sort((a, b) => ST_ORDER.indexOf(a) - ST_ORDER.indexOf(b)); }
 });
 $('#sgList').addEventListener('click', e => { const b = e.target.closest('[data-delg]'); if (b) { e.stopPropagation(); GDRAFT.splice(+b.dataset.delg, 1); renderGroupEditor(); } });
+$('#stList').addEventListener('input', e => { const r = e.target.closest('.strow'); if (r && e.target.dataset.sf === 'n') SDRAFT[+r.dataset.si].n = e.target.value; });
+// a renamed status shows up in the groups' chips when the field is left
+$('#stList').addEventListener('change', () => renderGroupEditor());
+$('#stList').addEventListener('click', e => {
+	const b = e.target.closest('[data-dels]'); if (!b || b.disabled) return;
+	e.stopPropagation();
+	const id = SDRAFT[+b.dataset.dels].id;
+	SDRAFT.splice(+b.dataset.dels, 1);
+	GDRAFT.forEach(g => { g.s = g.s.filter(x => x !== id); if (g.won === id) g.won = ''; if (g.lost === id) g.lost = ''; });
+	renderGroupEditor();
+});
+$('#stAdd').onclick = e => {
+	e.stopPropagation();
+	SDRAFT.push({id: 'new:' + (++newSeq), n: '', used: 0});
+	renderGroupEditor();
+	const ins = $('#stList').querySelectorAll('input'); if (ins.length) ins[ins.length - 1].focus();
+};
 $('#sgAdd').onclick = e => { e.stopPropagation(); GDRAFT.push({id: 0, n: t('Ny gruppe'), s: [], won: '', lost: ''}); renderGroupEditor(); };
-$('#sgSave').onclick = async e => { e.stopPropagation(); await api('save_groups', {groups: GDRAFT}); renderGroups(); $('#panel').classList.remove('open'); toast(t('Statusgrupperne er gemt')); };
-$('#sgAdd').hidden = $('#sgSave').hidden = !DATA.canWrite;
+$('#sgSave').onclick = async e => {
+	e.stopPropagation();
+	if (SDRAFT.some(s => !s.n.trim())) { toast(t('Giv alle statusser et navn.')); return; }
+	await api('save_groups', {groups: GDRAFT, statuses: SDRAFT.map(s => ({id: s.id, n: s.n.trim()}))});
+	renderGroups(); $('#panel').classList.remove('open'); toast(t('Statusser og statusgrupper er gemt'));
+};
 
 /* træk og slip: kalender (opfølgninger) og tavle (kunder/handler) */
 let dragEv = null, dragCard = null;

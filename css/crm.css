@@ -357,8 +357,25 @@ body { font: 14px/1.45 var(--font-ui); color: var(--text); }
 .sg .wl{display:flex;gap:10px;margin-top:8px;font-size:12px;color:var(--text-3)}
 .sg .wl label{display:flex;align-items:center;gap:4px}
 .sg .wl select{height:26px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-size:12px;max-width:120px}
-.sg .del{float:right;border:0;background:none;color:var(--text-3);font-size:12px;cursor:pointer;margin-top:-24px}
-.sg .del:hover{color:var(--bad)}
+.sg{margin:0 6px 8px;padding:10px;border:1px solid var(--border);border-radius:10px}
+.sg .sgh{display:flex;gap:6px;align-items:center}
+.sg .sgh input{flex:1}
+.ptrash{flex:none;width:30px;height:30px;border:0;border-radius:7px;background:none;color:var(--text-3);display:grid;place-items:center;cursor:pointer}
+.ptrash svg{width:16px;height:16px}
+.ptrash:hover:not(:disabled){color:var(--bad);background:var(--bad-bg)}
+.ptrash:disabled{opacity:.35;cursor:default}
+.strow{display:flex;gap:6px;align-items:center;padding:3px 10px}
+.strow input{flex:1;height:30px;padding:0 8px;border:1px solid var(--border-field);border-radius:7px;font-size:13.5px}
+.strow .use{flex:none;min-width:64px;font-size:12px;color:var(--text-3);text-align:right;font-variant-numeric:tabular-nums}
+.panel .paddl{display:block;margin:4px 10px 8px;padding:0;border:0;background:none;color:var(--link);font-size:12.5px;cursor:pointer}
+.panel{width:420px}
+.newwrap{position:relative}
+.newbtn .chev{width:13px;height:13px;margin-left:2px;opacity:.75}
+.newmenu{position:absolute;right:0;top:calc(100% + 6px);z-index:45;min-width:200px;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-up);display:none}
+.newmenu.open{display:block}
+.newmenu button{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;padding:8px 10px;border:0;background:none;border-radius:8px;font-size:13.5px;text-align:left;cursor:pointer;color:var(--text)}
+.newmenu button:hover,.newmenu button:focus-visible{background:var(--surface-2)}
+.newmenu small{color:var(--text-3);font-size:11.5px}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;padding:4px 20px 0}
 .fgrid label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--text-2)}
 .fgrid label.wide{grid-column:1/-1}

@@ -7015,4 +7015,23 @@
 7521	Alle opfølgninger og kunder i regnskabet	All follow-ups and customers in the accounts	Alle oppfølginger og kunder i regnskapet
 7522	Kun dem, du er ansvarlig for. Valget huskes til næste gang.	Only the ones you are responsible for. The choice is remembered.	Bare de du er ansvarlig for. Valget huskes til neste gang.
 7523	Mine	Mine	Mine
+7524	Ny	New	Ny
+7525	Opret ny opfølgning, handel, tilbud eller ordre	Create a new follow-up, deal, quote or order	Opprett ny oppfølging, salg, tilbud eller ordre
+7526	Tilbud	Quote	Tilbud
+7527	Ordre	Order	Ordre
+7528	Nyt tilbud	New quote	Nytt tilbud
+7529	Ny ordre	New order	Ny ordre
+7530	Hvilken kunde gælder det?	Which customer is it for?	Hvilken kunde gjelder det?
+7531	Statusser	Statuses	Statuser
+7532	Statusgrupper	Status groups	Statusgrupper
+7533	+ Tilføj status	+ Add status	+ Legg til status
+7534	Ny status	New status	Ny status
+7535	Statusnavn	Status name	Statusnavn
+7536	%s i brug	%s in use	%s i bruk
+7537	Bruges af %s kunder og handler – kan ikke slettes	Used by %s customers and deals – cannot be deleted	Brukes av %s kunder og salg – kan ikke slettes
+7538	Slet status	Delete status	Slett status
+7539	Slet gruppe	Delete group	Slett gruppe
+7540	Der er ingen kundestatusser endnu.	There are no customer statuses yet.	Det finnes ingen kundestatuser ennå.
+7541	Giv alle statusser et navn.	Give every status a name.	Gi alle statuser et navn.
+7542	Statusser og statusgrupper er gemt	Statuses and status groups are saved	Statuser og statusgrupper er lagret
 
