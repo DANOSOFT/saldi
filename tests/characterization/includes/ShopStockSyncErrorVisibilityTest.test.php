@@ -246,15 +246,20 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
      * The pages with a user in front of them say so on screen, at every exit.
      *
      * The count is pinned rather than just "mentions it somewhere", because varekort.php
-     * leaves by two different routes - the stock-only adjustment redirects straight away,
-     * the ordinary save carries on rendering - and each has to carry the message itself.
-     * Losing one of them is the whole defect again on that route.
+     * leaves by three different routes and each has to carry the message itself: the
+     * stock-change confirmation redirects straight away, an assembled item hands over to
+     * vareproduktion.php and exits, and the ordinary save carries on rendering. Losing one of
+     * them is the whole defect again on that route.
+     *
+     * The third one was found by CodeRabbit on PR #809: a variant refusal sets the flag while
+     * the variants are saved, and the assembled-item branch then exits before the check at the
+     * end of the block, so the refusal reached the log and nothing else.
      */
     public function testThePagesWithAUserShowTheMessageAtEveryExit(): void
     {
         foreach (array(
             array(self::MODTAG, 'kreditor/modtag.php', 1),
-            array(self::VAREKORT, 'lager/varekort.php', 2),
+            array(self::VAREKORT, 'lager/varekort.php', 3),
         ) as list($path, $label, $expected)) {
             self::assertSame($expected, substr_count(self::source($path), 'shopSyncAlert('),
                 "$label should tell the user at $expected place(s) and does not");
@@ -262,13 +267,43 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
     }
 
     /**
+     * The assembled-item route warns before it hands over, not after.
+     *
+     * That branch prints a meta refresh and exits, so the warning has to be printed above the
+     * refresh: anything after it is never written at all. Verified in a browser against the
+     * real output - the dialog appears and the hand-over to vareproduktion.php follows once it
+     * is dismissed.
+     */
+    public function testTheAssembledItemRouteWarnsBeforeItLeaves(): void
+    {
+        $src = self::source(self::VAREKORT);
+
+        $at = strpos($src, 'URL=vareproduktion.php');
+        self::assertNotFalse($at, 'the assembled-item hand-over is gone from the product card');
+        // The branch starts at the nearest preceding samlevare test.
+        $branchAt = strrpos(substr($src, 0, $at), 'if ($samlevare) {');
+        self::assertNotFalse($branchAt, 'the hand-over no longer sits in an $samlevare branch');
+
+        // Everything between the branch opening and the refresh - so a call moved below the
+        // refresh, where it would never be written, does not satisfy this.
+        $branch = substr($src, $branchAt, $at - $branchAt);
+        self::assertStringContainsString('shopSyncAlert(', $branch,
+            'the assembled-item route exits without telling the user a webshop refused the figure');
+        self::assertStringContainsString('error_log(', $branch,
+            'the assembled-item route leaves no trace of the refusal in the log either');
+        // Still conditional: an assembled item that synced fine must not be warned about.
+        self::assertStringContainsString('$shopSyncFailed', $branch,
+            'the assembled-item route warns on every save, not only when a shop refused');
+    }
+
+    /**
      * Every warning has to name an item.
      *
-     * Found in review. The product card leaves by two routes and both carry the message, but
-     * the stock-change confirmation route passed $varenr, which still holds the NULL from the
-     * top of the file there - it is only read from the post further down - so that one screen
-     * said "...i webshoppen for:" and stopped. The Gem route was fine because by then it has
-     * been read.
+     * Found in review. The product card leaves by three routes and all of them carry the
+     * message, but the stock-change confirmation route passed $varenr, which still holds the
+     * NULL from the top of the file there - it is only read from the post further down - so
+     * that one screen said "...i webshoppen for:" and stopped. The Gem route was fine because
+     * by then it has been read.
      *
      * Rather than pin the two call sites as they are, this checks the property that was
      * violated: whatever each call passes must have been given a value before that point, and
@@ -280,8 +315,8 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
         self::assertNotFalse(preg_match_all(
             '/shopSyncAlert\(\s*(?:\(string\)\s*)?(\$[A-Za-z_][A-Za-z0-9_]*)/',
             $src, $hits, PREG_OFFSET_CAPTURE | PREG_SET_ORDER));
-        self::assertCount(2, $hits,
-            'the product card should warn at both of its exits');
+        self::assertCount(3, $hits,
+            'the product card should warn at all three of its exits');
 
         foreach ($hits as $hit) {
             [$var, ] = $hit[1];
@@ -349,6 +384,26 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
             'the item numbers are not escaped for the JavaScript string');
         self::assertStringContainsString('htmlspecialchars(', $body,
             'the JavaScript literal is not escaped for the HTML attribute it sits in');
+    }
+
+    /**
+     * An item number cannot break out of the markup the warning is printed into.
+     *
+     * It is printed as a BODY onLoad attribute wrapping a JavaScript call, and item numbers
+     * are free text. Checked against the real output in a browser with the item number
+     * DIB038BW"</script><x>&' - it arrived as literal text in the dialog. Two encoders do
+     * that: jsString()'s JSON_HEX_TAG and JSON_HEX_QUOT turn <, > and " into <, >
+     * and ", and htmlspecialchars() then protects the attribute. Both are load-bearing,
+     * and JSON_HEX_TAG is pinned where it lives because it is in a different file.
+     */
+    public function testAnItemNumberCannotBreakOutOfTheWarning(): void
+    {
+        $jsString = file_get_contents(__DIR__ . '/../../../includes/stdFunc/jsString.php');
+        self::assertNotFalse($jsString, 'could not read includes/stdFunc/jsString.php');
+        self::assertStringContainsString('JSON_HEX_TAG', $jsString,
+            'jsString() no longer encodes < and >, so an item number can close the element it sits in');
+        self::assertStringContainsString('JSON_HEX_QUOT', $jsString,
+            'jsString() no longer encodes the double quote the attribute is delimited with');
     }
 
     /** A shop refusing the update must never undo a receipt that is otherwise correct. */

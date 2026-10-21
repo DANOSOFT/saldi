@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-16 ---
+// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -137,6 +137,10 @@
 // 20261019 CL/MJ SST-876 (review) The warning on the stock-change confirmation path names the
 //                  item. It read $varenr, which is only filled from the post further down the
 //                  file, so on that one path the message stopped after "for:".
+// 20261021 CL/MJ SST-876 (review) An assembled item reports a refusal too. That branch hands
+//                  over to vareproduktion.php and exits, so it never reached the check at the
+//                  end of the block and a refusal recorded while the variants were saved only
+//                  reached the log.
 //
 ob_start(); //Starts output buffering
 
@@ -1246,6 +1250,14 @@ if ($stockItem) {
         }
         if ($ny_lagerbeh[$x] != $lagerbeh[$x]) {
             if ($samlevare) {
+                # SST-876: this path leaves for vareproduktion.php and exits, so the check at
+                # the end of the block is never reached. A refusal recorded while the variants
+                # were saved further up would otherwise only reach the log. Printed before the
+                # refresh below, which is what makes the browser run it first.
+                if (!empty($shopSyncFailed)) {
+                    error_log("saldi: shop stock sync failed when saving vare_id $id");
+                    shopSyncAlert((string)$varenr, $sprog_id);
+                }
                 print "<meta http-equiv=\"refresh\" content=\"0;URL=vareproduktion.php?id=$id&antal=1&lager=$x&ny_beholdning=$ny_lagerbeh[$x]&samlevare=$samlevare\">";
                 exit;
             } elseif (!count($variant_vare_id)) { #20210208
