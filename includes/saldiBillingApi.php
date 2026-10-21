@@ -24,16 +24,19 @@ define('SALDI_API_BASE', $saldi_api_base);
 define('SALDI_API_USER', $saldi_api_user);
 define('SALDI_API_PASS', $saldi_api_pass);
 define('SALDI_API_ACCOUNT', $saldi_api_account);
-define('SALDI_API_TOKEN_FILE', '/tmp/saldi_api_token_admin.json');
+define('SALDI_API_TOKEN_FILE', '/tmp/saldi_api_token_admin'.(function_exists('posix_geteuid') ? '_'.posix_geteuid() : '').'.json'); # one 0600 file per system user (web server, cron)
 
 /**
  * Get a cached or fresh JWT token from the Saldi REST API
  */
+// 20261021 CL/ASR The cached token is bound to the whole API identity (base URL, user, password, account), so changed
+//                  credentials never reuse an old token; the cache file is per system user and readable by its owner only.
+function saldi_api_identity() { return hash('sha256', SALDI_API_BASE."\n".SALDI_API_USER."\n".SALDI_API_PASS."\n".SALDI_API_ACCOUNT); }
 function get_saldi_api_token() {
     // Check for cached token
-    if (file_exists(SALDI_API_TOKEN_FILE)) {
+    if (is_readable(SALDI_API_TOKEN_FILE)) {
         $cached = json_decode(file_get_contents(SALDI_API_TOKEN_FILE), true);
-        if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time() && ($cached['base'] ?? '') === SALDI_API_BASE) { # token is bound to the API base it came from
+        if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time() && ($cached['id'] ?? '') === saldi_api_identity()) { # token is bound to the base URL and credentials it came from
             return $cached['token'];
         }
     }
@@ -69,11 +72,12 @@ function get_saldi_api_token() {
     $token = $data['data']['access_token'];
     
     // Cache token (expires in 55 min to be safe)
-    file_put_contents(SALDI_API_TOKEN_FILE, json_encode([
+    @file_put_contents(SALDI_API_TOKEN_FILE, json_encode([
         'token' => $token,
-        'base' => SALDI_API_BASE,
+        'id' => saldi_api_identity(),
         'expires' => time() + 3300
     ]));
+    @chmod(SALDI_API_TOKEN_FILE, 0600);
     
     return $token;
 }

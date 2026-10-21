@@ -247,6 +247,7 @@ function ent_override_error($kind, $reason, $expires) {
 	if (!in_array($kind, array('plan','feature','limit','addon'), true)) return 'Ugyldig type';
 	if (trim((string)$reason) === '') return 'Begrundelse mangler';
 	$hasEx = (bool)preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', (string)$expires, $m);
+	if (!$hasEx && trim((string)$expires) !== '') return 'Ugyldig udløbsdato'; # a malformed date is an error, not "no expiry"
 	if ($hasEx && !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) return 'Ugyldig udløbsdato';
 	if ($hasEx && $expires < date('Y-m-d')) return 'Udløbsdatoen er overskredet – vælg i dag eller senere';
 	if (!$hasEx && !($kind == 'plan' && (stripos($reason, 'grandfather') !== false || stripos($reason, 'overgangsordning') !== false))) return 'Udløbsdato er påkrævet (undtagen overgangsordning)';

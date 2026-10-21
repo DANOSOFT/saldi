@@ -8,7 +8,8 @@ $s_id=session_id();
 // 20261020 CL/ASR Review #785: new ids from INSERT … RETURNING (max(id) could return another session's row); an
 //                  employee's customer scope is explicit (partner_users.scope all|selected, from partnerScope.php), so
 //                  removing or moving the last selected customer leaves the employee with none instead of all; emp_remove
-//                  and emp_scope only act on the partner's own employees and active customer links.
+//                  and emp_scope only act on the partner's own employees and active customer links. 'all' is stored only
+//                  when "Alle" is chosen; an empty selection means no customers (21/10).
 // 20261012 CL/ASR Post/Redirect/Get after every action (vr_prg), so the card is drawn from fresh data.
 // 20261011 CL/ASR Groups and larger customers: per-ledger plan/usage/payment columns on the Kunder tab, group totals,
 //                  billing mode (individual/consolidated) with a billing ledger, per-ledger payer, move to another
@@ -122,11 +123,12 @@ if (isset($_POST['vr_action'])) {
 			if (db_fetch_array(db_select("select 1 from partner_users where bruger_id = '$bid' and partner_id = '$pid'", __FILE__ . " linje " . __LINE__))) {
 				$sel = if_isset($_POST, array(), 'scope'); $sel = is_array($sel) ? array_map('intval', $sel) : array();
 				$linked = array(); $q = db_select("select regnskab_id from regnskab_partners where partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $linked[] = (int)$r['regnskab_id'];
-				$sel = in_array(0, $sel, true) ? array() : array_values(array_intersect(array_unique($sel), $linked)); # "Alle" wins; only the partner's own customers
+				$all = in_array(0, $sel, true); # 'all' only when "Alle" itself is chosen; nothing chosen (or nothing left after the filter) = no customers
+				$sel = $all ? array() : array_values(array_intersect(array_unique($sel), $linked)); # only the partner's own customers
 				db_modify("delete from partner_user_access where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
 				foreach ($sel as $rid) db_modify("insert into partner_user_access (bruger_id, regnskab_id) values ('$bid', '$rid')", __FILE__ . " linje " . __LINE__);
-				db_modify("update partner_users set scope = '".($sel ? 'selected' : 'all')."' where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
-				partner_log('partner.employee_access_changed', null, $pid, "bruger $bid: ".($sel ? implode(',', $sel) : 'alle'));
+				db_modify("update partner_users set scope = '".($all ? 'all' : 'selected')."' where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
+				partner_log('partner.employee_access_changed', null, $pid, "bruger $bid: ".($all ? 'alle' : ($sel ? implode(',', $sel) : 'ingen')));
 				$notes[] = vr_t('Adgang gemt','Access saved');
 			}
 		}
