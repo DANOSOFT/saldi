@@ -24,6 +24,9 @@
       root.setAttribute('data-kk-density', order[i]);
       if (order[i] === 'narrow' || table.scrollWidth <= box.clientWidth + 1) break;
     }
+    // labels are hidden in the narrow density, so the field says what it is
+    var k = $('input[name="kontrolkonto"]');
+    if (k) k.placeholder = root.getAttribute('data-kk-density') === 'narrow' ? t('Kontrolkonto', 'Control account') : '\u2014';
     fitFooter();
   }
 
@@ -72,7 +75,7 @@
     var note = $('.kk-f-note', footRow);
     if (note) note.hidden = false;
     var over = function () { return footRow.scrollWidth > footRow.clientWidth + 1; };
-    if (over() && note) note.hidden = true;
+    if (note && (over() || note.clientWidth < 160)) note.hidden = true;
     for (var i = 0; i < OVERFLOW.length && over(); i++) {
       var td = $('td.' + OVERFLOW[i], footRow);
       if (td) td.classList.add('kk-moved');

@@ -16,13 +16,13 @@ html.kk-redesign {
   --gutter: 16px;
   /* column widths: wide density (compact overrides below) */
   --w-clip: 46px; --w-bilag: 58px; --w-dato: 94px; --w-tekst: 200px; --w-dk: 34px; --w-konto: 78px; --w-vat: 44px;
-  --w-fakt: 80px; --w-belob: 98px; --w-small: 52px; --w-valuta: 52px; --w-bid: 110px; --w-um: 34px; --w-act: 76px;
+  --w-fakt: 80px; --w-belob: 98px; --w-small: 52px; --w-valuta: 52px; --w-bid: 110px; --w-um: 34px; --w-act: 82px; /* 2×26 + 8 gap + 2 + 16 gutter */
   --row-h: 40px; --field-h: 28px; --rb: 26px;
 }
 html.kk-redesign[data-kk-density="compact"],
 html.kk-redesign[data-kk-density="narrow"] {
   --w-clip: 42px; --w-bilag: 52px; --w-dato: 88px; --w-tekst: 150px; --w-dk: 30px; --w-konto: 70px; --w-vat: 40px;
-  --w-fakt: 70px; --w-belob: 90px; --w-small: 46px; --w-valuta: 46px; --w-bid: 100px; --w-um: 30px; --w-act: 66px;
+  --w-fakt: 70px; --w-belob: 90px; --w-small: 46px; --w-valuta: 46px; --w-bid: 100px; --w-um: 30px; --w-act: 74px; /* 2×24 + 6 gap + 2 + 16 */
   --rb: 24px;
 }
 [data-theme="dark"] html.kk-redesign, html.kk-redesign[data-theme="dark"] {
@@ -46,17 +46,17 @@ html.kk-redesign :focus-visible { outline: 2px solid var(--focus); outline-offse
 
 /* ---------- toolbar ---------- */
 html.kk-redesign .kk-toolbar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
   padding: 10px var(--gutter); background: var(--surface-2, #f6f9fe); border-bottom: 1px solid var(--border, #dde5f1);
 }
 html.kk-redesign .kk-tb-field { display: flex; align-items: center; gap: 10px; white-space: nowrap; color: var(--text-2, #5b6b85); font-size: 0.875rem; }
-html.kk-redesign .kk-tb-note { flex: 1 1 300px; min-width: 220px; }
+html.kk-redesign .kk-tb-note { flex: 1 1 180px; min-width: 180px; }
 html.kk-redesign .kk-toolbar input.inputbox[type="text"] {
   height: 32px; padding: 0 10px; border: 1px solid var(--border-field); border-radius: 7px; background: var(--surface, #fff);
   color: var(--text); font: inherit; font-size: 0.875rem; outline: none; transition: border-color .2s, box-shadow .2s;
 }
 html.kk-redesign .kk-tb-note input.inputbox { flex: 1; min-width: 0; width: auto; }
-html.kk-redesign .kk-tb-ktrl input.inputbox { width: 110px; text-align: right; }
+html.kk-redesign .kk-tb-ktrl input.inputbox { width: 92px; text-align: right; }
 html.kk-redesign .kk-toolbar input.inputbox::placeholder { color: var(--text-3, #8a97ad); }
 html.kk-redesign .kk-tb-cells { border-collapse: collapse; }
 html.kk-redesign .kk-tb-cells td { padding: 0 !important; white-space: nowrap; color: var(--text-2); font-size: 0.875rem; }
@@ -134,8 +134,8 @@ html.kk-redesign #kassekladde-tbody tr.kk-line td:not(:has(input,select,button,i
 html.kk-redesign #kassekladde-tbody tr.kk-line { user-select: none; }
 html.kk-redesign #kassekladde-tbody tr.kk-line input[type="text"] { user-select: text; }
 /* first and last column carry the 16px gutter */
-html.kk-redesign .formnavi.dataTableForm tr > td:first-child { padding-left: var(--gutter); }
-html.kk-redesign .formnavi.dataTableForm tr > td.kk-c-act { padding-right: var(--gutter); }
+html.kk-redesign .formnavi.dataTableForm tr > td:first-child, html.kk-redesign #kassekladde-tbody tr > td:first-child { padding-left: var(--gutter); }
+html.kk-redesign .formnavi.dataTableForm tr > td.kk-c-act, html.kk-redesign #kassekladde-tbody tr > td.kk-c-act { padding-right: var(--gutter); }
 
 /* widths are set on the header cells (auto layout); Bilagstekst takes the rest */
 html.kk-redesign .kk-c-clip   { width: var(--w-clip); text-align: center !important; }

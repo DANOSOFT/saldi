@@ -2864,7 +2864,7 @@ if ($bogfort == "-") {
 	$page_display = false;
     if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
     if ($kontrolkonto == "-") $kontrolkonto = "";
-    print "<label class='kk-tb-field kk-tb-ktrl' title='" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><span class='kk-lbl'>" . kk_h(kk_t('Kontrolkonto', 'Control account')) . "</span><input class='inputbox' type='text' name='kontrolkonto' value='$kontrolkonto' placeholder='kontrolkonto' onchange='javascript:docChange = true;'></label>";
+    print "<label class='kk-tb-field kk-tb-ktrl' title='" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><span class='kk-lbl'>" . kk_h(kk_t('Kontrolkonto', 'Control account')) . "</span><input class='inputbox' type='text' name='kontrolkonto' value='$kontrolkonto' placeholder='—' onchange='javascript:docChange = true;'></label>";
 } else {
     print "<span class='kk-tb-field' title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span>";
 }
@@ -3708,7 +3708,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	            print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;'></span></td>\n";
 	        	// print "</tr>";
 			} else {
-				print "<td></td>\n";
+				print "<td class='kk-c-clip'></td>\n";
 			}
 		}
 		// 20260928 LOE SST-817 $next comes from the block above for this same line.
