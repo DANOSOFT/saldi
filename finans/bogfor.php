@@ -68,6 +68,8 @@
 // 20260930 CL/SZ SD-699: Moved get_saved_vat_override(), momsberegning() and gruppeopslag() to
 //                  bogfor_includes/postingRules.php, shared with the "Kontokort med u-bogført" report.
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
+// 20261021 ASR Kassekladde redesign D1: lines are processed in the journal's own order (pos, then bilag, date, id) -
+//                  the order the user arranged by moving lines - instead of by bilag only.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -280,7 +282,7 @@ $valutaposter=0;
 $dkkamount=array();
 if ($kladde_id) {
 	$posteringer=0;
-	$query = db_select("select * from kassekladde where kladde_id = $kladde_id and amount !=0 order by bilag",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from kassekladde where kladde_id = $kladde_id and amount !=0 order by pos, bilag, transdate, id",__FILE__ . " linje " . __LINE__);
 	while ($row =	db_fetch_array($query)){
 		if ($row['debet']||$row['kredit']) {
 			$posteringer++;
@@ -735,7 +737,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 	$y=0;
 	$v_antal=0;
 	$b_diff=$bv_diff=0;
-	$query = db_select("select * from kassekladde where kladde_id = $kladde_id order by bilag",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from kassekladde where kladde_id = $kladde_id order by pos, bilag, transdate, id",__FILE__ . " linje " . __LINE__);
 	while ($row =	db_fetch_array($query)) {
 		if ($row['debet'] || $row['kredit']) {
 			$y++;
