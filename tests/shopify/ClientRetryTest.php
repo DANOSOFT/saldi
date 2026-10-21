@@ -218,6 +218,41 @@ final class ClientRetryTest extends TestCase
 		$this->assertCount(3, $fake->calls);
 	}
 
+	public function test_order_create_with_errors_next_to_its_order_data_is_reconciled_not_failed(): void
+	{
+		// The order was created; only a protected customer field in the selection was refused.
+		$partial = FakeShopify::json([
+			'data' => ['orderCreate' => ['order' => ['id' => 'gid://shopify/Order/5', 'customer' => null], 'userErrors' => []]],
+			'errors' => [['message' => 'Access denied for customer field', 'extensions' => ['code' => 'ACCESS_DENIED']]],
+		]);
+		$fake = new FakeShopify([$partial]);
+		$seen = 0;
+		$reconcile = function () use (&$seen): array {
+			$seen++;
+			return ['state' => 'applied', 'data' => ['orderCreate' => ['order' => ['id' => 'gid://shopify/Order/5']]]];
+		};
+
+		$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+
+		$this->assertSame(1, $seen);
+		$this->assertCount(1, $fake->calls, 'not sent again');
+		$this->assertSame('reconciled', $r['outcome']);
+		$this->assertSame('gid://shopify/Order/5', $r['data']['orderCreate']['order']['id']);
+	}
+
+	public function test_errors_with_only_null_payload_stay_fatal(): void
+	{
+		$denied = FakeShopify::json(['data' => ['orderCreate' => null], 'errors' => [['message' => 'Access denied', 'extensions' => ['code' => 'ACCESS_DENIED']]]]);
+		$fake = new FakeShopify([$denied, $denied]);
+		$reconcile = fn(): array => throw new LogicException('nothing ran, nothing to reconcile');
+
+		$r1 = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+		$r2 = shopify_graphql(FakeShopify::shop(), 'tagsAdd', 'mutation { tagsAdd(id: "x", tags: []) { userErrors { message } } }', [], $fake->opts(['retry_mode' => 'idempotent']));
+
+		$this->assertSame(['failed', 'graphql_errors', 1], [$r1['outcome'], $r1['error'], $r1['attempts']]);
+		$this->assertSame(['failed', 'graphql_errors', 1], [$r2['outcome'], $r2['error'], $r2['attempts']]);
+	}
+
 	public function test_idempotent_mutation_is_resent_after_a_timeout(): void
 	{
 		$fake = new FakeShopify([FakeShopify::timeout(), FakeShopify::ok(['inventorySetQuantities' => ['userErrors' => []]])]);
@@ -248,7 +283,7 @@ final class ClientRetryTest extends TestCase
 		$fake = new FakeShopify([]);
 		foreach (SHOPIFY_RECONCILE_OPS as $op) {
 			try {
-				shopify_graphql(FakeShopify::shop(), $op, "mutation { $op { userErrors { message } } }", [], $fake->opts(['retry_mode' => 'idempotent']));
+				shopify_graphql(FakeShopify::shop(), $op, 'mutation { ' . $op . ' { userErrors { message } } }', [], $fake->opts(['retry_mode' => 'idempotent']));
 				$this->fail("$op accepted retry_mode idempotent");
 			} catch (InvalidArgumentException $e) {
 				$this->assertStringContainsString('reconcile', $e->getMessage());

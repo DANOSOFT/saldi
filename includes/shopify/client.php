@@ -161,6 +161,10 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
 		$result['attempts']++;
 		$parsed = $resp['errno'] === 0 ? shopify_parse_graphql($resp['status'], $resp['body']) : null;
 		$class = shopify_classify_attempt($resp, $parsed);
+		// Errors next to payload data mean the mutation ran, at least in part: read before anything else.
+		if ($class === 'fatal' && $mode === 'reconcile' && $isMutation && shopify_graphql_has_payload($parsed)) {
+			$class = 'uncertain';
+		}
 		if ($parsed !== null) {
 			$result = array_merge($result, array_intersect_key($parsed, array_flip(['data', 'errors', 'user_errors', 'cost'])));
 			shopify_client_remember($shopKey, $op, $parsed['cost'], $clock());
@@ -467,7 +471,8 @@ function shopify_http_download(string $url, $fh, float $connectTimeout, float $t
 /**
  * Sorts one attempt: ok; fatal (do not retry: auth, bad query, userErrors);
  * not_sent (Shopify certainly did not execute it: throttled, 429, no connection);
- * uncertain (it may have executed: 5xx, timeout after connecting, garbled 200).
+ * uncertain (it may have executed: 5xx, timeout after connecting, garbled 200). In reconcile
+ * mode, shopify_graphql() also treats a mutation's errors next to payload data as uncertain.
  */
 function shopify_classify_attempt(array $resp, ?array $parsed): string
 {
@@ -485,6 +490,20 @@ function shopify_classify_attempt(array $resp, ?array $parsed): string
 		return 'uncertain';
 	}
 	return 'fatal';
+}
+
+/** True when a response with top-level errors still carries a non-null root payload. */
+function shopify_graphql_has_payload(?array $parsed): bool
+{
+	if ($parsed === null || !$parsed['errors'] || !is_array($parsed['data'])) {
+		return false;
+	}
+	foreach ($parsed['data'] as $value) {
+		if ($value !== null) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /** Seconds to wait before retry number $retry (1-based). */

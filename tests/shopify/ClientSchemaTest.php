@@ -78,5 +78,13 @@ final class ClientSchemaTest extends TestCase
 			'$: InventorySetQuantitiesInput requires reason',
 		], $schema->validateInput('InventorySetQuantitiesInput!', $bad));
 		$this->assertSame(['$: BULK is not a value of BulkOperationType'], $schema->validateInput('BulkOperationType', 'BULK'));
+		$this->assertSame(['$: expected an enum string for BulkOperationType'], $schema->validateInput('BulkOperationType', ['QUERY']));
+	}
+
+	public function test_a_truncated_type_reference_is_a_parse_error_not_a_hang(): void
+	{
+		$this->expectException(RuntimeException::class);
+		$this->expectExceptionMessage('incomplete type reference');
+		GraphqlSchema::load()->validateDocument('query q($a: [String');
 	}
 }

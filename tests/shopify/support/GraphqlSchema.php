@@ -84,6 +84,9 @@ final class GraphqlSchema
 			return ["$path: unknown type $inner"];
 		}
 		if ($type['kind'] === 'ENUM') {
+			if (!is_string($value)) {
+				return ["$path: expected an enum string for $inner"];
+			}
 			return isset($type['enumValues'][$value]) ? [] : ["$path: $value is not a value of $inner"];
 		}
 		if ($type['kind'] !== 'INPUT_OBJECT') {
@@ -155,6 +158,9 @@ final class GraphqlSchema
 		$out = '';
 		$depth = 0;
 		while (true) {
+			if ($this->peek() === null) {
+				throw new RuntimeException('GraphQL parse error: incomplete type reference');
+			}
 			$t = (string) $this->next();
 			$out .= $t;
 			if ($t === '[') {

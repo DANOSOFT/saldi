@@ -42,9 +42,15 @@ if ($raw === false || $status !== 200) {
 	fwrite(STDERR, "Introspection failed: HTTP $status " . curl_error($ch) . "\n");
 	exit(1);
 }
-$schema = json_decode($raw, true)['data']['__schema'] ?? null;
+try {
+	$response = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+} catch (JsonException $e) {
+	fwrite(STDERR, 'Introspection returned invalid JSON: ' . $e->getMessage() . "\n");
+	exit(1);
+}
+$schema = is_array($response) ? ($response['data']['__schema'] ?? null) : null;
 if (!is_array($schema)) {
-	fwrite(STDERR, "Introspection returned no schema\n");
+	fwrite(STDERR, 'Introspection returned no schema: ' . json_encode($response['errors'] ?? null) . "\n");
 	exit(1);
 }
 
@@ -88,5 +94,8 @@ $out = [
 	'types' => $types,
 ];
 $target = __DIR__ . '/../fixtures/admin-' . $version . '-schema.json.gz';
-file_put_contents($target, gzencode(json_encode($out, JSON_UNESCAPED_SLASHES), 9));
+if (file_put_contents($target, gzencode(json_encode($out, JSON_UNESCAPED_SLASHES), 9)) === false) {
+	fwrite(STDERR, "Could not write $target\n");
+	exit(1);
+}
 echo count($types) . " types written to $target\n";
