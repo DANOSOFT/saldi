@@ -1,5 +1,5 @@
 <?php
-// ------------- kreditor/modtagelse.php ----- (modul nr 6)------ ver 5.0.0----2026-10-19-------
+// ------------- kreditor/modtagelse.php ----- (modul nr 6)------ ver 5.0.0----2026-10-21-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,6 +21,10 @@
 //                All request values in the SQL are now cast or escaped (db_escape_string instead of addslashes).
 //                varenr in the alerts is escaped with jsString().
 //                liste_id/id read with ifset() and cast to int; braces added in the POST block.
+// 20261021 CL/LH MB-75: modtag() books each received part into the warehouse and variant of its purchase order line: batch_kob gets lager and variant_id, the lagerstatus row is increased (or created) and variant stock follows.
+//                Each purchase order line only takes its own outstanding quantity, and receiving more than is open is refused.
+//                An invalid warehouse or variant, duplicate lagerstatus rows or a write that does not add up rolls the whole receipt back with a message (texts 5461-5467).
+//                A list that is already received is not booked again; modtaget_af is escaped and tidspkt uses minutes (H:i:s).
 
 @session_start();
 $s_id = session_id();
@@ -262,55 +266,192 @@ print "</form>";
 print "</tbody></table>";
 print "</td></tr></tbody></table>";
 
+/**
+ * Books a goods receipt list into stock: purchase batches, item stock, warehouse stock and variant stock.
+ *
+ * Each list row is spread over the open purchase order lines (art KO, status 1 or 2) of its item, oldest
+ * order first, and every part is booked into the warehouse and variant of that purchase order line.
+ * Everything runs in one transaction that is rolled back, with a message, when a line is invalid, more is
+ * received than is open, or a write does not add up. A list that is already received is left untouched,
+ * so a resubmitted form cannot book it twice.
+ *
+ * @param int $liste_id The modtageliste id.
+ * @return bool True when the list is received (now or before), false when nothing was booked.
+ */
 function modtag($liste_id)
 {
-	global $brugernavn;
+	global $brugernavn, $db_modify_fejl, $sprog_id;
 
-	transaktion('begin');
-	$date = date("Y-m-d");
-	$q = db_select("select * from modtagelser where liste_id=$liste_id", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$modtaget_antal = $r['antal'];
-		$bestilt_antal = 0;
-		$x = 0;
-		$q2 = db_select("select ordrelinjer.id as id, ordrelinjer.antal as antal, ordrelinjer.ordre_id as ordre_id, ordrelinjer.leveres as leveres from ordrelinjer, ordrer where ordrelinjer.vare_id = '$r[vare_id]' and ordrelinjer.ordre_id = ordrer.id and (ordrer.status='1' or ordrer.status='2') and ordrer.art='KO' order by ordrer.ordredate", __FILE__ . " linje " . __LINE__);
-		while ($r2 = db_fetch_array($q2)) {
-			$x++;
-			$bestilt_antal = $bestilt_antal + $r2['antal'];
-			$q3 = db_select("select * from batch_kob where linje_id=$r2[id]", __FILE__ . " linje " . __LINE__);
-			while ($r3 = db_fetch_array($q3)) {
-				$bestilt_antal = $bestilt_antal - $r3['antal'];
-			}
-			if ($modtaget_antal >= $bestilt_antal) {
-				$tmp = $bestilt_antal;
-				$modtaget_antal = $modtaget_antal - $tmp;
-			} else {
-				$tmp = $modtaget_antal;
-				$modtaget_antal = 0;
-			}
-			if ($tmp) {
-				// Look up expiry data from ordrelinjer if available
-				$_mod_dd = ""; $_mod_bn = "";
-				$_mod_ol = db_fetch_array(db_select("SELECT batch_due_date, batch_batch_no FROM ordrelinjer WHERE id=" . intval($r2['id']), __FILE__ . " linje " . __LINE__));
-				if ($_mod_ol) {
-					if ($_mod_ol['batch_due_date']) $_mod_dd = ",'" . pg_escape_string($_mod_ol['batch_due_date']) . "'"; else $_mod_dd = ",NULL";
-					if ($_mod_ol['batch_batch_no']) $_mod_bn = ",'" . pg_escape_string($_mod_ol['batch_batch_no']) . "'"; else $_mod_bn = ",NULL";
-				} else { $_mod_dd = ",NULL"; $_mod_bn = ",NULL"; }
-				db_modify("insert into batch_kob(kobsdate,vare_id,linje_id,ordre_id,antal,rest,due_date,batch_no)values('$date','$r[vare_id]','$r2[id]','$r2[ordre_id]','$tmp','$tmp'$_mod_dd$_mod_bn)", __FILE__ . " linje " . __LINE__);
-				$r4 = db_fetch_array(db_select("select beholdning from varer where id='$r[vare_id]'", __FILE__ . " linje " . __LINE__));
-				$tmp2 = $r4['beholdning'] + $tmp;
-				db_modify("update varer set beholdning=$tmp2 where id='$r[vare_id]'", __FILE__ . " linje " . __LINE__);
-				$tmp2 = $r2['leveres'] - $tmp;
-				if ($tmp2 < 0)
-					$tmp2 = 0;
-				db_modify("update ordrelinjer set leveres=$tmp2 where id='$r2[id]'", __FILE__ . " linje " . __LINE__);
-			}
-			$mdate = date("Y-m-d");
-			$mtid = date("H:m:s");
+	$liste_id = (int)$liste_id;
+	$fejlVarenr = '';
+	$started = false;
+	try {
+		if ($liste_id < 1) {
+			throw new RuntimeException('Varemodtagelsen er afbrudt: modtagelseslisten findes ikke eller er tom', 5467);
 		}
-		db_modify("update modtageliste set modtaget='V', modtaget_af='$brugernavn', modtagdate='$mdate', tidspkt='$mtid' where id='$liste_id'", __FILE__ . " linje " . __LINE__);
+		transaktion('begin');
+		$started = true;
+		$list = db_fetch_array(db_select("select modtaget from modtageliste where id=$liste_id for update", __FILE__ . " linje " . __LINE__));
+		if (!$list) {
+			throw new RuntimeException('Varemodtagelsen er afbrudt: modtagelseslisten findes ikke eller er tom', 5467);
+		}
+		if ($list['modtaget'] === 'V') {
+			transaktion('commit');
+			$started = false;
+			return !$db_modify_fejl;
+		}
+		$date = date("Y-m-d");
+		$time = date("H:i:s");
+		$warehouses = array(1 => true);
+		$receivedRows = 0;
+		$q = db_select("select * from modtagelser where liste_id=$liste_id order by vare_id, id for update", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$fejlVarenr = (string)$r['varenr'];
+			$vareId = (int)$r['vare_id'];
+			$remaining = round((float)$r['antal'], 3);
+			if ($vareId < 1 || $remaining <= 0) {
+				throw new RuntimeException('Varemodtagelsen er afbrudt: en linje har ugyldigt varenummer eller antal', 5466);
+			}
+			// Locking the item serializes receipts of the same item, including the insert of a missing
+			// lagerstatus row. Rows are read in vare_id order, so items are always locked in the same order.
+			$vare = db_fetch_array(db_select("select beholdning from varer where id=$vareId for update", __FILE__ . " linje " . __LINE__));
+			if (!$vare) {
+				throw new RuntimeException('Varemodtagelsen er afbrudt: en linje har ugyldigt varenummer eller antal', 5466);
+			}
+			$expectedItemStock = (float)$vare['beholdning'] + $remaining;
+			$q2 = db_select("select ordrelinjer.* from ordrelinjer, ordrer where ordrelinjer.vare_id=$vareId and ordrelinjer.ordre_id=ordrer.id and (ordrer.status='1' or ordrer.status='2') and ordrer.art='KO' order by ordrer.ordredate, ordrer.id, ordrelinjer.id for update", __FILE__ . " linje " . __LINE__);
+			while ($remaining > 0 && ($r2 = db_fetch_array($q2))) {
+				$linjeId = (int)$r2['id'];
+				$ordreId = (int)$r2['ordre_id'];
+				$r3 = db_fetch_array(db_select("select coalesce(sum(antal),0) as antal from batch_kob where linje_id=$linjeId", __FILE__ . " linje " . __LINE__));
+				$receivedBefore = (float)$r3['antal'];
+				$quantity = round(min($remaining, max(0, (float)$r2['antal'] - $receivedBefore)), 3);
+				if ($quantity <= 0) {
+					continue;
+				}
+				$lager = (int)$r2['lager'];
+				if (!$lager) {
+					$lager = 1;
+				}
+				if ($lager < 0) {
+					throw new RuntimeException('Varemodtagelsen er afbrudt: lageret på indkøbsordrelinjen findes ikke', 5461);
+				}
+				if (!isset($warehouses[$lager])) {
+					$warehouses[$lager] = (bool)db_fetch_array(db_select("select id from grupper where art='LG' and kodenr='$lager'", __FILE__ . " linje " . __LINE__));
+				}
+				if (!$warehouses[$lager]) {
+					throw new RuntimeException('Varemodtagelsen er afbrudt: lageret på indkøbsordrelinjen findes ikke', 5461);
+				}
+				// ordrelinjer.variant_id is a text column; empty means no variant.
+				$variantTekst = trim((string)$r2['variant_id']);
+				if ($variantTekst === '') {
+					$variantId = 0;
+				} elseif (ctype_digit($variantTekst)) {
+					$variantId = (int)$variantTekst;
+				} else {
+					throw new RuntimeException('Varemodtagelsen er afbrudt: varianten på indkøbsordrelinjen findes ikke', 5462);
+				}
+				$variant = null;
+				if ($variantId) {
+					$variant = db_fetch_array(db_select("select variant_beholdning from variant_varer where id=$variantId and vare_id=$vareId for update", __FILE__ . " linje " . __LINE__));
+					if (!$variant) {
+						throw new RuntimeException('Varemodtagelsen er afbrudt: varianten på indkøbsordrelinjen findes ikke', 5462);
+					}
+				}
+				// Warehouse 0 or no warehouse is warehouse 1, as in kreditor/modtag.php.
+				$lagerBetingelse = ($lager == 1) ? "(lager is null or lager<=1)" : "lager=$lager";
+				$stockWhere = "vare_id=$vareId and coalesce(variant_id,0)=$variantId and $lagerBetingelse";
+				$q4 = db_select("select id, beholdning from lagerstatus where $stockWhere order by id for update", __FILE__ . " linje " . __LINE__);
+				$stock = db_fetch_array($q4);
+				if ($stock && db_fetch_array($q4)) {
+					throw new RuntimeException('Varemodtagelsen er afbrudt: varen har flere lagerstatus-linjer for samme lager', 5463);
+				}
+				$expectedWarehouseStock = ($stock ? (float)$stock['beholdning'] : 0) + $quantity;
+				$qQuantity = "'" . floatval($quantity) . "'";
+				$dueDate = ($r2['batch_due_date'] ?? '') !== '' ? "'" . db_escape_string($r2['batch_due_date']) . "'" : "NULL";
+				$batchNo = ($r2['batch_batch_no'] ?? '') !== '' ? "'" . db_escape_string($r2['batch_batch_no']) . "'" : "NULL";
+				modtagSkriv("insert into batch_kob(kobsdate,vare_id,variant_id,linje_id,ordre_id,antal,rest,lager,due_date,batch_no) values ('$date',$vareId,$variantId,$linjeId,$ordreId,$qQuantity,$qQuantity,$lager,$dueDate,$batchNo)", __FILE__ . " linje " . __LINE__);
+				modtagSkriv("update varer set beholdning=coalesce(beholdning,0)+$qQuantity where id=$vareId", __FILE__ . " linje " . __LINE__);
+				if ($stock) {
+					modtagSkriv("update lagerstatus set beholdning=coalesce(beholdning,0)+$qQuantity where id=" . (int)$stock['id'], __FILE__ . " linje " . __LINE__);
+				} else {
+					modtagSkriv("insert into lagerstatus(vare_id,variant_id,lager,beholdning) values ($vareId,$variantId,$lager,$qQuantity)", __FILE__ . " linje " . __LINE__);
+				}
+				if ($variant) {
+					modtagSkriv("update variant_varer set variant_beholdning=coalesce(variant_beholdning,0)+$qQuantity where id=$variantId", __FILE__ . " linje " . __LINE__);
+					$after = db_fetch_array(db_select("select variant_beholdning from variant_varer where id=$variantId", __FILE__ . " linje " . __LINE__));
+					if (!$after || abs((float)$after['variant_beholdning'] - (float)$variant['variant_beholdning'] - $quantity) > 0.0001) {
+						throw new RuntimeException('Varemodtagelsen er afbrudt: lager og batch kunne ikke gemmes. Intet er bogført', 5465);
+					}
+				}
+				$leveres = max(0, (float)$r2['leveres'] - $quantity);
+				modtagSkriv("update ordrelinjer set leveres='" . floatval($leveres) . "' where id=$linjeId", __FILE__ . " linje " . __LINE__);
+				$afterBatch = db_fetch_array(db_select("select coalesce(sum(antal),0) as antal from batch_kob where linje_id=$linjeId", __FILE__ . " linje " . __LINE__));
+				$afterStock = db_fetch_array(db_select("select coalesce(sum(beholdning),0) as beholdning from lagerstatus where $stockWhere", __FILE__ . " linje " . __LINE__));
+				if (!$afterBatch || !$afterStock || abs((float)$afterBatch['antal'] - $receivedBefore - $quantity) > 0.0001 || abs((float)$afterStock['beholdning'] - $expectedWarehouseStock) > 0.0001) {
+					throw new RuntimeException('Varemodtagelsen er afbrudt: lager og batch kunne ikke gemmes. Intet er bogført', 5465);
+				}
+				$remaining = round($remaining - $quantity, 3);
+			}
+			if ($remaining > 0) {
+				throw new RuntimeException('Varemodtagelsen er afbrudt: der modtages mere, end der er åbent på indkøbsordrerne', 5464);
+			}
+			$after = db_fetch_array(db_select("select beholdning from varer where id=$vareId", __FILE__ . " linje " . __LINE__));
+			if (!$after || abs((float)$after['beholdning'] - $expectedItemStock) > 0.0001) {
+				throw new RuntimeException('Varemodtagelsen er afbrudt: lager og batch kunne ikke gemmes. Intet er bogført', 5465);
+			}
+			$receivedRows++;
+		}
+		$fejlVarenr = '';
+		if (!$receivedRows) {
+			throw new RuntimeException('Varemodtagelsen er afbrudt: modtagelseslisten findes ikke eller er tom', 5467);
+		}
+		$qBruger = db_escape_string($brugernavn);
+		modtagSkriv("update modtageliste set modtaget='V', modtaget_af='$qBruger', modtagdate='$date', tidspkt='$time' where id=$liste_id", __FILE__ . " linje " . __LINE__);
+		$list = db_fetch_array(db_select("select modtaget from modtageliste where id=$liste_id", __FILE__ . " linje " . __LINE__));
+		if (!$list || $list['modtaget'] !== 'V') {
+			throw new RuntimeException('Varemodtagelsen er afbrudt: lager og batch kunne ikke gemmes. Intet er bogført', 5465);
+		}
+		transaktion('commit');
+		$started = false;
+		return !$db_modify_fejl;
+	} catch (Throwable $e) {
+		if ($started) {
+			transaktion('rollback');
+		}
+		// findtekst() reads the database, so the message is looked up after the rollback.
+		$code = $e->getCode();
+		if ($e instanceof RuntimeException && $code >= 5461 && $code <= 5467) {
+			$message = findtekst($code . '|' . $e->getMessage(), $sprog_id);
+		} else {
+			$message = findtekst('5465|Varemodtagelsen er afbrudt: lager og batch kunne ikke gemmes. Intet er bogført', $sprog_id);
+		}
+		if ($fejlVarenr !== '') {
+			$message .= ' (' . findtekst('917|Varenr.', $sprog_id) . ' ' . $fejlVarenr . ')';
+		}
+		print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars(jsString(array($message)), ENT_QUOTES, 'UTF-8') . ")\">";
+		return false;
 	}
-	transaktion('commit');
+}
+
+/**
+ * Runs one write of modtag() and throws when it failed, so the whole receipt is rolled back.
+ *
+ * Outside the webservice db_modify() stops the script on a failed query, which leaves the open
+ * transaction uncommitted; inside it the failure is reported through its return value and $db_modify_fejl.
+ *
+ * @param string $qtxt The query.
+ * @param string $spor File and line of the caller, for the log.
+ * @return void
+ */
+function modtagSkriv($qtxt, $spor)
+{
+	global $db_modify_fejl;
+
+	$result = db_modify($qtxt, $spor);
+	if ($db_modify_fejl || (is_string($result) && substr($result, 0, 2) === "1\t")) {
+		throw new RuntimeException('Varemodtagelsen er afbrudt: lager og batch kunne ikke gemmes. Intet er bogført', 5465);
+	}
 }
 
 /**

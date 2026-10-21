@@ -5220,4 +5220,11 @@
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5460	Antal skal være et tal, f.eks. 2 eller 1,5	Quantity must be a number, e.g. 2 or 1.5	Antall må være et tall, f.eks. 2 eller 1,5
+5461	Varemodtagelsen er afbrudt: lageret på indkøbsordrelinjen findes ikke	Goods receipt cancelled: the warehouse on the purchase order line does not exist	Varemottaket er avbrutt: lageret på innkjøpsordrelinjen finnes ikke
+5462	Varemodtagelsen er afbrudt: varianten på indkøbsordrelinjen findes ikke	Goods receipt cancelled: the variant on the purchase order line does not exist	Varemottaket er avbrutt: varianten på innkjøpsordrelinjen finnes ikke
+5463	Varemodtagelsen er afbrudt: varen har flere lagerstatus-linjer for samme lager	Goods receipt cancelled: the item has more than one stock row for the same warehouse	Varemottaket er avbrutt: varen har flere lagerstatus-linjer for samme lager
+5464	Varemodtagelsen er afbrudt: der modtages mere, end der er åbent på indkøbsordrerne	Goods receipt cancelled: more is received than is open on the purchase orders	Varemottaket er avbrutt: det mottas mer enn det som er åpent på innkjøpsordrene
+5465	Varemodtagelsen er afbrudt: lager og batch kunne ikke gemmes. Intet er bogført	Goods receipt cancelled: stock and batches could not be saved. Nothing was booked	Varemottaket er avbrutt: lager og batch kunne ikke lagres. Ingenting er bokført
+5466	Varemodtagelsen er afbrudt: en linje har ugyldigt varenummer eller antal	Goods receipt cancelled: a line has an invalid item number or quantity	Varemottaket er avbrutt: en linje har ugyldig varenummer eller antall
+5467	Varemodtagelsen er afbrudt: modtagelseslisten findes ikke eller er tom	Goods receipt cancelled: the receipt list does not exist or is empty	Varemottaket er avbrutt: mottakslisten finnes ikke eller er tom
 
