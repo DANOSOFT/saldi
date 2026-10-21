@@ -52,8 +52,9 @@ const SHOPIFY_BULK_START_MUTATION = 'mutation bulkOperationRunQuery($query: Stri
 		userErrors { field message code }
 	}
 }';
+// bulkOperations lists newest first by default; reverse: true would return the oldest.
 const SHOPIFY_BULK_RECENT_QUERY = 'query bulkOperationsRecent {
-	bulkOperations(first: 10, reverse: true, sortKey: CREATED_AT) {
+	bulkOperations(first: 10, sortKey: CREATED_AT) {
 		nodes { id status type query }
 	}
 }';
@@ -546,14 +547,23 @@ function shopify_graphql_is_mutation(string $query): bool
 	return (bool) preg_match('/(?<![$\w])mutation(?!\w)/', $top);
 }
 
-/** The document without string literals and comments, so neither can hide or fake a keyword. */
+/**
+ * The document without string literals and comments, so neither can hide or fake a keyword.
+ * Comments and plain strings end at \r or \n, as in GraphQL. Possessive quantifiers keep long
+ * strings from exhausting the regex stack; if stripping still fails, nothing may be sent,
+ * because the guards would otherwise inspect an empty document.
+ */
 function shopify_graphql_code(string $query): string
 {
-	return (string) preg_replace_callback(
-		'/"""(?:[^"\\\\]|\\\\.|"(?!""))*"""|"(?:[^"\\\\\n]|\\\\.)*"|#[^\n]*/s',
+	$code = preg_replace_callback(
+		'/"""(?:[^"\\\\]++|\\\\.|"(?!""))*+"""|"(?:[^"\\\\\r\n]++|\\\\.)*+"|#[^\r\n]*+/s',
 		fn(array $m): string => $m[0][0] === '#' ? ' ' : '""',
 		$query
 	);
+	if ($code === null) {
+		throw new RuntimeException('GraphQL document could not be checked (' . preg_last_error_msg() . '); not sent');
+	}
+	return $code;
 }
 
 /**

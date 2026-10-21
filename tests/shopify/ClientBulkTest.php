@@ -120,6 +120,36 @@ final class ClientBulkTest extends TestCase
 		$this->assertNull($r['bulk']);
 	}
 
+	/**
+	 * Answers a bulkOperations read the way Shopify 2026-07 does: newest first by default,
+	 * oldest first with reverse: true, cut to first: N.
+	 */
+	private static function shopifyOrdered(array $oldestFirst): callable
+	{
+		return function (FakeShopify $fake) use ($oldestFirst): array {
+			$query = end($fake->calls)['body']['query'];
+			preg_match('/first:\s*(\d+)/', $query, $m);
+			$list = preg_match('/reverse:\s*true/', $query) ? $oldestFirst : array_reverse($oldestFirst);
+			return self::recent(array_slice($list, 0, (int) ($m[1] ?? 10)));
+		};
+	}
+
+	public function test_start_finds_its_operation_behind_more_than_ten_older_ones(): void
+	{
+		$old = [];
+		for ($i = 1; $i <= 12; $i++) {
+			$old[] = ['id' => "gid://shopify/BulkOperation/10$i", 'status' => 'COMPLETED', 'type' => 'QUERY', 'query' => self::INNER];
+		}
+		$mine = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => self::INNER];
+		$fake = new FakeShopify([self::shopifyOrdered($old), FakeShopify::timeout(), self::shopifyOrdered(array_merge($old, [$mine]))]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), self::INNER, $fake->opts());
+
+		$this->assertCount(3, $fake->calls, 'snapshot, start, read: no second start');
+		$this->assertSame('reconciled', $r['outcome']);
+		$this->assertSame(self::OP, $r['bulk']['id']);
+	}
+
 	public function test_no_start_is_sent_when_the_snapshot_read_fails(): void
 	{
 		$fake = new FakeShopify([FakeShopify::json(['errors' => 'Unauthorized'], 401)]);

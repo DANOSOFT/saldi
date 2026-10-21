@@ -306,6 +306,8 @@ final class ClientRetryTest extends TestCase
 			'leading comma' => ['import', ', mutation { orderCreate(order: {}) { order { id } } }', []],
 			'leading BOM' => ['import', "\u{FEFF}mutation { fulfillmentOrderMove(id: \"x\", newLocationId: \"y\") { userErrors { message } } }", []],
 			'named, with variables' => ['x', 'mutation  ,draft($input: DraftOrderInput!) { draftOrderCreate(input: $input) { userErrors { message } } }', []],
+			'comment ended by a lone CR' => ['import', "# header\rmutation { orderCreate(order: {}) { order { id } } }", []],
+			'10,000-character string' => ['importOrder', 'mutation { orderCreate(order: {note: "' . str_repeat('x', 10000) . '"}) { order { id } } }', []],
 		];
 		foreach ($cases as $name => [$op, $doc, $vars]) {
 			try {
@@ -332,6 +334,8 @@ final class ClientRetryTest extends TestCase
 			"\u{FEFF}mutation { tagsAdd(id: \"x\", tags: []) { userErrors { message } } }",
 			"# leading comment\nmutation m { tagsAdd(id: \"x\", tags: []) { userErrors { message } } }",
 			"fragment f on Order { id }\nmutation { tagsAdd(id: \"x\", tags: []) { node { ...f } } }",
+			"# header\rmutation { tagsAdd(id: \"x\", tags: []) { userErrors { message } } }",
+			'mutation { tagsAdd(id: "' . str_repeat('y', 1000000) . '", tags: []) { userErrors { message } } }',
 		];
 		$queries = [
 			'{ shop { name } }',
@@ -346,6 +350,25 @@ final class ClientRetryTest extends TestCase
 		foreach ($queries as $doc) {
 			$this->assertFalse(shopify_graphql_is_mutation($doc), $doc);
 		}
+	}
+
+	public function test_a_document_that_cannot_be_checked_is_not_sent(): void
+	{
+		$fake = new FakeShopify([FakeShopify::ok(['orders' => ['nodes' => []]])]);
+		$jit = ini_get('pcre.jit');
+		$limit = ini_get('pcre.backtrack_limit');
+		ini_set('pcre.jit', '0');
+		ini_set('pcre.backtrack_limit', '5');
+		try {
+			shopify_graphql(FakeShopify::shop(), 'orders', 'query { orders(query: "' . str_repeat('a\\b', 40) . '") { nodes { id } } }', [], $fake->opts());
+			$this->fail('a document the guard could not read was accepted');
+		} catch (RuntimeException $e) {
+			$this->assertStringContainsString('not sent', $e->getMessage());
+		} finally {
+			ini_set('pcre.jit', (string) $jit);
+			ini_set('pcre.backtrack_limit', (string) $limit);
+		}
+		$this->assertSame([], $fake->calls);
 	}
 
 	public function test_a_mutation_word_inside_a_string_does_not_make_a_query_a_mutation(): void
