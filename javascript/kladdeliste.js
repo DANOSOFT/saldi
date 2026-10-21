@@ -42,7 +42,7 @@
 
   /* ---------- helpers ---------- */
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const nf = n => Number(n).toLocaleString(document.documentElement.lang === "en" ? "en-GB" : "da-DK");
+  const nf = n => Number(n).toLocaleString(KL.lang === "en" ? "en-GB" : "da-DK");
   const fmt = (s, ...a) => a.reduce((r, v) => r.replace("%s", v), s);
   const hl = (s, term) => {
     s = esc(s); term = (term || "").trim(); if (!term || term.includes(":")) return s;
@@ -55,7 +55,13 @@
     method: "POST", credentials: "same-origin",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(body).toString()
-  }).then(r => { if (!r.ok) throw new Error(r.status); return asBlob ? r.blob() : r.json(); });
+  }).then(r => {
+    if (!r.ok) throw new Error(r.status);
+    // HTML instead of JSON/CSV means online.php answered itself (session expired): show that page
+    const ct = r.headers.get("content-type") || "";
+    if (ct.indexOf(asBlob ? "text/csv" : "application/json") < 0) { location.reload(); throw new Error("not-json"); }
+    return asBlob ? r.blob() : r.json();
+  });
   const listParams = extra => {
     const p = Object.assign({ tab: S.tab, scope: S.scope, sort: S.sort || "", dir: S.dir, page: S.page, pp: S.pp }, extra || {});
     Object.keys(S.f).forEach(k => { if (S.f[k]) p["f[" + k + "]"] = S.f[k]; });
@@ -227,8 +233,10 @@
       $("klYes").disabled = true;
       post({ delete_kladde: id }).then(r => {
         scrim.classList.remove("open");
-        if (r.status === "deleted") { toast(fmt(T.deleted, id)); load(); }
-        else { toast(r.message || r.status); load(); }
+        const why = { not_empty: T.delNotEmpty, already_posted: T.delPosted, not_found: T.delNotFound };
+        if (r.status === "deleted") toast(fmt(T.deleted, id));
+        else toast(why[r.status] || r.message || T.loadError);
+        load();
       }).catch(() => { scrim.classList.remove("open"); toast(T.loadError); });
     };
   }

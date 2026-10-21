@@ -51,8 +51,10 @@
 //                 loads its rows from this file with POST kl=list (POST, so the navigation stack is not touched).
 //                 The delete endpoints above are unchanged. Preferences live in datatables 'kladdelst2'; the
 //                 Alle/Mine choice is also written to the old 'kladdelst' row so grid.php reads it if reverted.
-// 20261021 ASR - Moved onto the redesign branch: saldi-theme.css tokens (dark mode follows <html data-theme>), saldi-fonts.css,
-//                 the shell's breadcrumb and Assist tour (page_auto_breadcrumb/page_help), list/csv/pref POSTs count as reads.
+// 20261021 ASR - On the redesign branch. Like the other pages, the head, <html data-theme>, the fonts and the shell's
+//                 breadcrumb come from online.php; the list is a .kl-page wrapper styled by css/kladdeliste.css with the
+//                 saldi-theme.css tokens (dark mode follows data-theme). The Assist menu finds the tour through
+//                 #tutorial-help. The list/csv/pref POSTs count as reads in the permission gate.
 
 @session_start();
 $s_id=session_id();
@@ -216,9 +218,9 @@ $css = "../css/standard.css";
 $modulnr = 2;
 $title = "kladdeliste";
 $klAction = isset($_POST['kl']) ? (string)$_POST['kl'] : '';
-// JSON/CSV requests and the reset redirect must not get the HTML head that online.php prints
-if ($klAction !== '' || isset($_GET['reset_grid'])) $header = 'nix';
-if ($klAction !== '') ob_start(); // stray output from the includes must not reach the JSON/CSV
+// JSON/CSV requests and the reset redirect must not get the head, body tag and button style that online.php prints;
+// what the includes still print goes into a buffer that is dropped before the JSON/CSV/redirect
+if ($klAction !== '' || isset($_GET['reset_grid'])) { $header = 'nix'; $bg = 'nix'; ob_start(); }
 // Loading the list, the CSV and the user's own view settings are reads in the permission gate (online.php)
 if (in_array($klAction, array('list', 'csv', 'pref'), true)) $permission_post_read = true;
 include("../includes/connect.php");
@@ -289,12 +291,16 @@ function kl_datewhere($field, $term) {
 	if ($d = kl_isodate($term)) return "$field = '$d'";
 	return "to_char($field, 'DD-MM-YYYY') ILIKE '%" . db_escape_string(kl_dbtxt($term)) . "%'";
 }
+// the user's name as stored (online.php escapes $brugernavn; redesign keeps the raw one in $brugernavn_raw)
+function kl_me() {
+	global $brugernavn, $brugernavn_raw;
+	return isset($brugernavn_raw) ? (string)$brugernavn_raw : (string)$brugernavn;
+}
 function kl_locked($row) {
-	global $brugernavn;
 	$t = isset($row['tidspkt']) ? trim((string)$row['tidspkt']) : '';
 	if ($t === '') return false;
 	$b = strpos($t, ' ') ? explode(' ', $t)[1] : $t;
-	return !((date('U') - (int)trim($b) > 3600) || $row['hvem'] == $brugernavn);
+	return !((date('U') - (int)trim($b) > 3600) || $row['hvem'] == kl_me());
 }
 
 /* ---------- preferences ---------- */
@@ -332,6 +338,7 @@ function kl_save_prefs($p) {
 if (isset($_GET['reset_grid'])) {
 	// the GET delete above lands here; the old grid's saved view was cleared too
 	db_modify("DELETE FROM datatables WHERE user_id = '$bruger_id' AND tabel_id = 'kladdelst'", __FILE__ . " linje " . __LINE__);
+	while (ob_get_level()) ob_end_clean();
 	header("Location: kladdeliste.php");
 	exit;
 }
@@ -339,9 +346,8 @@ if (isset($_GET['reset_grid'])) {
 /* ---------- list query ---------- */
 $klGroupSql = "CASE WHEN k.bogfort IN ('-','!') THEN 'open' WHEN k.bogfort = 'S' THEN 'sim' ELSE 'post' END";
 function kl_where($req) {
-	global $brugernavn;
 	$w = array();
-	if (($req['scope'] ?? '') === 'egne') $w[] = "k.oprettet_af = '" . db_escape_string($brugernavn) . "'";
+	if (($req['scope'] ?? '') === 'egne') $w[] = "k.oprettet_af = '" . db_escape_string(kl_me()) . "'";
 	$f = isset($req['f']) && is_array($req['f']) ? $req['f'] : array();
 	$text = array('nr' => 'k.id::text', 'note' => 'k.kladdenote', 'ejer' => 'k.oprettet_af', 'af' => 'k.bogfort_af');
 	foreach ($text as $k => $field) {
@@ -435,7 +441,6 @@ if ($klAction === 'csv') {
 
 /* ---------- page ---------- */
 $klPrefs = kl_prefs();
-$klPopup = !empty($_GET['popup']);
 $returside = isset($_GET['returside']) ? nav_sanitize_returside($_GET['returside']) : null;
 $klBack = (($menu ?? '') !== 'S') ? htmlspecialchars(nav_back_url($returside), ENT_QUOTES, $charset) : '';
 $klNew = 'kassekladde.php?returside=kladdeliste.php&tjek=-1';
@@ -455,6 +460,9 @@ $klTexts = array(
 	'deleteBody' => kl_t('Kladden er tom. Det kan ikke fortrydes.', 'The journal is empty. This cannot be undone.'),
 	'cancel' => kl_t('Annullér', 'Cancel'), 'delete' => kl_t('Slet', 'Delete'),
 	'deleted' => kl_t('Kassekladde %s er slettet', 'Cash journal %s has been deleted'),
+	'delNotEmpty' => kl_t('Kladden har linjer og kan ikke slettes', 'The journal has lines and cannot be deleted'),
+	'delPosted' => kl_t('Kladden er bogført og kan ikke slettes', 'The journal is posted and cannot be deleted'),
+	'delNotFound' => kl_t('Kladden findes ikke længere', 'The journal no longer exists'),
 	'of' => kl_t('af', 'of'), 'journal' => kl_t('kladde', 'journal'), 'journals' => kl_t('kladder', 'journals'),
 	'onlyMine' => kl_t('kun dine kladder', 'only your journals'),
 	'noMatch' => kl_t('Ingen %s kladder matcher', 'No %s journals match'),
@@ -476,32 +484,15 @@ $klTexts = array(
 );
 $klConfig = array(
 	'texts' => $klTexts,
+	'lang' => $sprog_id == 2 ? 'en' : 'da',
 	'prefs' => $klPrefs,
-	'popup' => $klPopup,
 	'open' => 'kassekladde.php?tjek=%d&kladde_id=%d',
 );
-$charsetAttr = $db_encode == 'UTF8' ? 'UTF-8' : 'ISO-8859-15';
 ?>
-<!DOCTYPE html>
-<html lang="<?= $sprog_id == 2 ? 'en' : 'da' ?>" data-theme="<?= htmlspecialchars(isset($uiTheme) ? (string)$uiTheme : 'light', ENT_QUOTES) ?>"<?= (isset($uiSize) && $uiSize === 'large') ? ' data-size="large"' : '' ?>>
-<head>
-<meta charset="<?= $charsetAttr ?>">
-<title><?= kl_h(kl_t('Kassekladder', 'Cash journals')) ?></title>
-<meta name="google" content="notranslate">
-<link rel="stylesheet" href="../css/saldi-fonts.css?v=2">
 <link rel="stylesheet" href="../css/saldi-theme.css">
 <link rel="stylesheet" href="../css/kladdeliste.css?v=20261021">
-<?php
-// The shell's breadcrumb (Finans / Kladdeliste) and the page's tour for the Assist menu, as online.php prints them
-// for pages that use its head (this page prints its own head)
-include_once(__DIR__ . '/../includes/stdFunc/findTxt.php');
-include_once(__DIR__ . '/../includes/stdFunc/pageChrome.php');
-if (function_exists('page_help')) page_help(array('tour' => '#tutorial-help'));
-if (function_exists('page_auto_breadcrumb')) print page_auto_breadcrumb($title, (int)$sprog_id, $charset) . "\n";
-?>
 <style>.kl-page{--btn:<?= $btn ?>;--btn-text:<?= $btnTxt ?>}</style>
-</head>
-<body class="kl-page">
+<div class="kl-page">
 <section class="kl" id="kl">
 	<div class="kl-head">
 		<?php if ($klBack !== '') { ?>
@@ -549,6 +540,7 @@ if (function_exists('page_auto_breadcrumb')) print page_auto_breadcrumb($title, 
 
 <div class="kl-scrim" id="klScrim"><div class="kl-dlg" role="dialog" aria-modal="true" aria-labelledby="klDlgT" id="klDlg"></div></div>
 <div class="kl-toast" id="klToast" role="status" aria-live="polite"></div>
+</div>
 
 <script>window.KL = <?= json_encode($klConfig, JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>;</script>
 <script src="../javascript/kladdeliste.js?v=20261021"></script>
@@ -561,6 +553,3 @@ $steps[] = array(
 );
 include(__DIR__ . "/../includes/tutorial.php");
 create_tutorial("kladlist", $steps);
-?>
-</body>
-</html>
