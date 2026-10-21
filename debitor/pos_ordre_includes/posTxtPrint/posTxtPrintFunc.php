@@ -100,11 +100,10 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	if (!$bordnr) $bordnr=$_COOKIE['saldi_bordnr'];
 	if (!$kasse) $kasse=find_kasse($kasse);
  	$kasse=trim($kasse); #20150219
-	$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
-	$afdelinger=explode(chr(9),$r['box3']);
-	$tmp=$kasse-1;
-	$afd=$afdelinger[$tmp];
-	if ($afd) db_modify("update ordrer set afd='$afd' where id = $id",__FILE__ . " linje " . __LINE__);
+	# 20261021 CL/MJ SD-758 The terminal's department used to be written onto the order here, at
+	# print time, which is both too late and too often: an unprinted sale had none, and a reprint
+	# re-applied the printing terminal's department over whatever the sale was created with.
+	# opret_posordre() now sets it once, when the sale is created (saleHeaderFunctions.php).
 	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$printer_ip=explode(chr(9),$r['box3']);
 	$tmp=$kasse-1;

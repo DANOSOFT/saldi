@@ -1,0 +1,126 @@
+<?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- systemdata/diverseIncludes/posSaleSettings.php --- ver 5.0.0 ---- 2026-10-21 ----
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+// Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261021 CL/MJ SD-758 [S12] WP12: the sale settings a POS terminal sells under. For now that is
+//                  the default brand per terminal, read by pos_terminal_sale_defaults() in
+//                  debitor/pos_ordre_includes/saleHeaderFunctions.php when a sale is created.
+//                  The delivery choices that belong on this page (K33) wait for pos_leveringsvalg,
+//                  which is WP01's table and is not in the schema yet.
+//
+// The brand is kept as a tab separated list indexed by terminal number less one, in
+// grupper art='POS' kodenr='4' box1 - the same shape as every other per-terminal POS setting
+// (kodenr 1, 2 and 3; see posOptions.php). kodenr='4' was unused, and grupper has no box column
+// left on kodenr='1', so this needs no schema change of its own.
+
+/** The grupper row holding the POS sale settings, created on first use. */
+define('POS_SALE_SETTINGS_KODENR', '4');
+
+/**
+ * The default brand of each terminal, as a list indexed by terminal number less one.
+ *
+ * @param int $regnaar Fiscal year the settings belong to.
+ * @return array<int,string>
+ */
+function pos_sale_brands($regnaar) {
+	$regnaar = (int) $regnaar;
+	$qtxt = "select box1 from grupper where art = 'POS' and kodenr = '" . POS_SALE_SETTINGS_KODENR . "'";
+	$qtxt.= " and fiscal_year = '$regnaar'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		return explode(chr(9), (string) $r['box1']);
+	}
+	return array();
+}
+
+/**
+ * The column heading for the brand field, printed in the folding per-terminal block.
+ *
+ * @param int $sprog_id
+ * @return void
+ */
+function pos_render_sale_brand_header($sprog_id) {
+	$text  = findtekst('5439|Brand', $sprog_id);
+	$title = findtekst('5440|Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant', $sprog_id);
+	print "<td title='$title'><!--Tekst 5440-->$text<!--Tekst 5439--></td>\n";
+}
+
+/**
+ * The brand field for one terminal.
+ *
+ * Free text, because the order's sprog is free text everywhere else it is used - it selects a form
+ * variant (debitor/formprintfunc.php reads strtolower(ordrer.sprog)). An empty value leaves the
+ * sale exactly as it was before SD-758.
+ *
+ * @param array<int,string> $brands From pos_sale_brands().
+ * @param int               $index  Terminal number less one.
+ * @return void
+ */
+function pos_render_sale_brand_field($brands, $index) {
+	$brand = htmlspecialchars((string) ifset($brands, $index, ''), ENT_QUOTES);
+	print "<td align='center'><input class='inputbox' type='text' style='width:110px;' ";
+	print "name='brand_navn[$index]' value='$brand'></td>\n";
+}
+
+/**
+ * Stores the brand of each terminal from a submitted POS settings form.
+ *
+ * Called from systemdata/diverse.php, which owns the posOptions POST. Terminals are numbered from
+ * one and the form posts them keyed by terminal number less one, so the list is rebuilt by index
+ * rather than by iterating the submitted array - a terminal left blank has to keep its place, or
+ * every terminal after it would shift onto the wrong brand.
+ *
+ * @param array $post    The submitted form, normally $_POST.
+ * @param int   $regnaar Fiscal year the settings belong to.
+ * @return void
+ */
+function pos_save_sale_settings($post, $regnaar) {
+	$regnaar = (int) $regnaar;
+	// A form that carries no brand fields at all is not this section's form, and must leave the
+	// stored brands alone - an absent field is not the same as a field submitted empty, which does
+	// clear that terminal's brand.
+	if (!is_array($post) || !array_key_exists('brand_navn', $post) || !is_array($post['brand_navn'])) {
+		return;
+	}
+	$submitted = $post['brand_navn'];
+	$kasseantal = (int) ifset($post, 'kasseantal', 0);
+	if ($kasseantal < 1) {
+		$kasseantal = $submitted ? max(array_keys($submitted)) + 1 : 0;
+	}
+	$brands = array();
+	for ($x = 0; $x < $kasseantal; $x++) {
+		// A brand is the order's sprog, so it must survive as typed; tabs are the list separator
+		// and a newline would break the row, so both are stripped rather than stored.
+		$brands[$x] = trim(str_replace(array(chr(9), chr(10), chr(13)), ' ', (string) ifset($submitted, $x, '')));
+	}
+	$box1 = db_escape_string(implode(chr(9), $brands));
+	$qtxt = "select id from grupper where art = 'POS' and kodenr = '" . POS_SALE_SETTINGS_KODENR . "'";
+	$qtxt.= " and fiscal_year = '$regnaar'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$id = (int) $r['id'];
+		db_modify("update grupper set box1='$box1' where id = '$id'", __FILE__ . " linje " . __LINE__);
+	} else {
+		$qtxt = "insert into grupper (beskrivelse,kode,kodenr,art,box1,fiscal_year) values ";
+		$qtxt.= "('POS salgsopsaetning','','" . POS_SALE_SETTINGS_KODENR . "','POS','$box1','$regnaar')";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+}

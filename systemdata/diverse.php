@@ -1683,6 +1683,11 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$txt = str_replace('XXXXX', $rabatvarenr, findtekst('289|Varenr. XXXXX eksisterer ikke.', $sprog_id));
 			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 		}
+		# 20261021 CL/MJ SD-758 The brand each terminal sells under lives in its own grupper row
+		# (art='POS' kodenr='4'), because kodenr='1' has no box column left. The POST belongs to this
+		# section, so it is saved here; the row itself is owned by diverseIncludes/posSaleSettings.php.
+		include_once(__DIR__ . "/diverseIncludes/posSaleSettings.php");
+		pos_save_sale_settings($_POST, $regnaar);
 		$qtxt = "select id from grupper WHERE art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'";
 		if (($id1 == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
 			$id1 = $r['id'];
