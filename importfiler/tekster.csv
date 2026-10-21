@@ -6787,5 +6787,5 @@
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
-7100	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
+7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 
