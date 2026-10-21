@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolCaptureReport.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/poolCaptureReport.php --- ver 5.0.0 --- 2026-10-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,8 @@
 //                deliver (e-mails the report just stored, so the user never waits for the mail), reject ("×" on a suggestion).
 //                A document is a pool file (poolFile) or a file attached to a journal line (filename + sourceId).
 //                The company and the user come from the session, never from the request (SST-776).
+// 20261021 CL/SZ SD-722 (CodeRabbit) A new report's id is this user's report of this document (poolCaptureReportId()); by the content hash alone,
+//                a document without a hash took the id of another document's report, and "deliver" sent that one.
 
 @session_start();
 $s_id = session_id();
@@ -203,8 +205,8 @@ if ($action === 'report') {
 		'userName' => $userName,
 		'docPath' => $doc['docPath'],
 	));
-	$id = db_fetch_array(db_select("SELECT MAX(id) AS id FROM pool_capture_log WHERE kind = 'report' AND content_hash = '" . db_escape_string($doc['hash']) . "'", __FILE__ . " linje " . __LINE__));
-	poolCaptureAnswer(array('ok' => true, 'id' => $id ? (int)$id['id'] : 0));
+	// This user's report of this document: by the hash alone, a document without one took another document's report
+	poolCaptureAnswer(array('ok' => true, 'id' => poolCaptureReportId($doc['filename'], $doc['hash'], $userId, $userName)));
 }
 
 poolCaptureAnswer(array('error' => 'action'), 400);

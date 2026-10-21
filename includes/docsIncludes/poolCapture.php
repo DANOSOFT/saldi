@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolCapture.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- includes/docsIncludes/poolCapture.php --- ver 5.0.0 --- 2026-10-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 //                The pure functions (snapshot, diff, mail text) have no database access and are unit tested.
 // 20261007 CL/SZ SD-722 Without the company's own SMTP server a saldi.dk server sends the report as <database>@<server>, with the company in Reply-To,
 //                as sendMail.php does: sent from the company's own domain it was dropped by the receiving server (SPF).
+// 20261021 CL/SZ SD-722 (CodeRabbit) poolCaptureReportId(): this user's latest report of a document, used by poolCaptureReported() and for a new report's id.
 
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
@@ -648,10 +649,21 @@ if (!function_exists('poolCaptureReject')) {
 if (!function_exists('poolCaptureReported')) {
 	/** Whether this user has reported this document already (by content, so a renamed or attached copy counts). */
 	function poolCaptureReported($filename, $hash, $userId, $userName) {
-		if (!poolCaptureReady()) return false;
+		return poolCaptureReportId($filename, $hash, $userId, $userName) > 0;
+	}
+}
+
+if (!function_exists('poolCaptureReportId')) {
+	/**
+	 * The id of this user's latest report of this document (by content, or by file name when the content hash isn't known), 0 when none.
+	 * A document without a hash is never matched to another document's report.
+	 */
+	function poolCaptureReportId($filename, $hash, $userId, $userName) {
+		if (!poolCaptureReady()) return 0;
 		$who = $userId !== null && (int)$userId > 0 ? "user_id = '" . (int)$userId . "'" : "user_name = '" . db_escape_string((string)$userName) . "'";
 		$what = $hash !== '' ? "content_hash = '" . db_escape_string($hash) . "'" : "filename = '" . db_escape_string($filename) . "'";
-		return (bool)db_fetch_array(db_select("SELECT id FROM pool_capture_log WHERE kind = 'report' AND $what AND $who LIMIT 1", __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select("SELECT MAX(id) AS id FROM pool_capture_log WHERE kind = 'report' AND $what AND $who", __FILE__ . " linje " . __LINE__));
+		return $r && $r['id'] ? (int)$r['id'] : 0;
 	}
 }
 
