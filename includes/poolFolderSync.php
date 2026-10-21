@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/poolFolderSync.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/poolFolderSync.php --- ver 5.0.0 --- 2026-10-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,8 @@
 //                Runs docPool.php's poolFolderSync() (full sync at most every 10 minutes, otherwise only when the folder's mtime changed).
 //                Answers {"changed": true} when documents were added or removed, and the page then fetches the list again.
 // 20261003 CL/SZ SD-722 After the answer is sent, e-mails the "Rapportér fejl i aflæsning" reports that are due (a failed send is retried here).
+// 20261021 CL/SZ SD-722 (CodeRabbit) ignore_user_abort() before the answer is sent, so a closed connection can't stop the delivery,
+//                and set_time_limit(300) for the sends.
 
 ob_start(); // nothing from the includes may end up in the JSON answer
 
@@ -64,6 +66,9 @@ include_once(__DIR__ . "/docsIncludes/docPool.php");
 $changed = poolFolderSync($docFolder, $db);
 
 while (ob_get_level()) ob_end_clean();
+// SD-722: from here on a browser that closes the connection doesn't end the script, or the report delivery below never ran
+// (mod_php has no fastcgi_finish_request(), and the flush is where PHP notices the closed connection)
+ignore_user_abort(true);
 $answer = json_encode(array('changed' => $changed));
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, no-store, must-revalidate');
@@ -78,7 +83,8 @@ flush();
 if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
 
 // SD-722: reports to support that are due, e.g. after the mail server was down
-ignore_user_abort(true);
+// Up to three SMTP sends (PHPMailer waits 10 s per step) get their own time, still well inside the 600 s claim on a report
+set_time_limit(300);
 try {
 	include_once(__DIR__ . "/docsIncludes/poolCapture.php");
 	ob_start();
