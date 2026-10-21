@@ -48,9 +48,10 @@ try {
 	fwrite(STDERR, 'Introspection returned invalid JSON: ' . $e->getMessage() . "\n");
 	exit(1);
 }
+// Errors next to a schema can mean a partial one (a type without its fields): never write that.
 $schema = is_array($response) ? ($response['data']['__schema'] ?? null) : null;
-if (!is_array($schema)) {
-	fwrite(STDERR, 'Introspection returned no schema: ' . json_encode($response['errors'] ?? null) . "\n");
+if (!empty($response['errors']) || !is_array($schema)) {
+	fwrite(STDERR, 'Introspection failed: ' . json_encode($response['errors'] ?? 'no schema in the response') . "\n");
 	exit(1);
 }
 
