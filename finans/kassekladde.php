@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -178,6 +178,8 @@
 // 20261020 CL/SZ MB-81 (CodeRabbit) The lock is held until the page has read and cleared tmpkassekl, and a page load takes it for
 //                that part too, so a render no longer deletes the lines another save is staging. A line saved without a number gets
 //                one past the numbers moved proposals got in the same save.
+// 20261021 CL/SZ MB-81 (CodeRabbit) The GET coming back from a lookup takes the journal lock before it updates the staged lines,
+//                and a lock that could not be taken stops the request.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -958,6 +960,9 @@ if ($_GET) {
 		$qtxt = "select bogfort from kladdeliste where id = $kladde_id"; #echo __line__." $qtxt<br>";
 		$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($r['bogfort'] == '-' && ($id[$x]) || ($lobenr[$x] || ($x))) {
+			// MB-81 Back from a lookup, this request updates the staged lines and may save them (opdater()), so it takes
+			// the journal lock first; the render below keeps using it
+			kkJournalLock($kladde_id);
 			if ($id[$x]) {
 				$qtxt = "update tmpkassekl set beskrivelse='" . db_escape_string($beskrivelse[$x]) . "',d_type='$d_type[$x]', ";
 				$qtxt.= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
