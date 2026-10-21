@@ -115,6 +115,7 @@
 // 20260918 CDX/PHR Add ordrer.performed_by when creating a new account.
 // 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
 //                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
+// 20261012 CL/LH stripe_events gets the webhook lease columns (claim_token, claimed_at, attempts, event_created).
 
 @session_start();
 $s_id=session_id();
@@ -662,7 +663,8 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt = "CREATE TABLE stripe_events ($id_column, event_id varchar(255) NOT NULL, event_type varchar(100), ";
 	$qtxt.= "payload text, status varchar(30) NOT NULL DEFAULT 'received', saldi_order_id integer, ";
 	$qtxt.= "invoice_number varchar(30), error text, received_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
-	$qtxt.= "processed_at timestamp, PRIMARY KEY (id))";
+	$qtxt.= "processed_at timestamp, claim_token varchar(64), claimed_at timestamp, attempts integer NOT NULL DEFAULT 0, ";
+	$qtxt.= "event_created bigint, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt = "CREATE TABLE stripe_customers ($id_column, stripe_customer_id varchar(255) NOT NULL, ";

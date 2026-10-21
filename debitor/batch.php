@@ -1,5 +1,5 @@
 <?php
-// ------------------debitor/batch.php--------lap 3.2.9----2013.02.10--
+// ------------------debitor/batch.php--------ver 5.0.0----2026.10.13--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,9 +18,21 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2012.09.06 break ændret til break 1
+// 20261008 MJ SST-833 Show Batchnr. and Udløbsdato for each batch, read from the
+//                  batch_kob row this window already selects, so the user can see which
+//                  batch is being sold from. Fixed recucer() -> reducer(), which made the
+//                  unreceived-credit-note row fatal.
+// 20261011 MJ SST-833 Review: the incoming-order rows keep their order type in their own
+//                  array. $art is a string, so $art[$x] wrote a single byte into it - the
+//                  credit-note test never matched, every row warned, and $art itself was
+//                  corrupted before being posted back in a hidden field.
+// 20261013 MJ SST-833 Review: quoted the seven array keys that were written as bare
+//                  identifiers outside a string. On PHP 8 each is an undefined constant and
+//                  throws, and the first one ($row[art], reached on every open of this
+//                  window) made the page a 500 before it printed anything.
 
 @session_start();
 $s_id=session_id();
@@ -113,7 +125,7 @@ if ($row = db_fetch_array($query)) {
 	$row = db_fetch_array($query);
 	$konto_id=$row['konto_id'];
 	$status=$row['status'];
-	$art=$row[art];
+	$art=$row['art'];
 
 	if ($art=="DK") {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=serienummer.php?linje_id=$linje_id\">";
@@ -126,7 +138,7 @@ if ($row = db_fetch_array($query)) {
 
 $query = db_select("select * from batch_salg where linje_id = $linje_id",__FILE__ . " linje " . __LINE__);
 while($row = db_fetch_array($query)) {
-	$leveres=$antal-$row[antal];
+	$leveres=$antal-$row['antal'];
 }
 
 print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"1\" valign = \"top\" align=\"center\"><tbody>";
@@ -134,8 +146,10 @@ print "<tr><td align=center><b>Posnr: $posnr - Varenr: $varenr</td></tr>\n";
 print "<form name=ordre batch.php?linje_id=$linje_id method=post>";
 print "<tr><td><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" valign = \"top\" align=\"center\" width=\"100%\"><tbody>";
 if (($antal>=0)&&($art!="DK")){	
-	print "<tr><td><b>K&oslash;bsordre nr.</td><td align = right><b>Antal</td><td align = right><b>V&aelig;lg</td></tr>\n";
-#	print "<tr><td colspan=3><hr></td></tr>\n";
+	// 20261008 MJ SST-833 Show which batch is being sold from. The window already reads the
+	// whole batch_kob row and printed neither the batch number nor the expiry date, which is
+	// batch_udlobsdato.txt §8 item 3 and why the feature looked inert to the customer.
+	print "<tr><td><b>K&oslash;bsordre nr.</td><td><b>" . findtekst('5005|Batchnr.', $sprog_id) . "</td><td><b>" . findtekst('5001|Udløbsdato', $sprog_id) . "</td><td align = right><b>Antal</td><td align = right><b>V&aelig;lg</td></tr>\n";
 	$x=0;
 	$rest=array();
 	$lev_rest=$leveres;
@@ -145,6 +159,8 @@ if (($antal>=0)&&($art!="DK")){
 		$x++;
 		$batch_kob_id[$x]=$row['id'];
 		$kobsdate[$x]=$row['kobsdate'];
+		$batch_no[$x]=$row['batch_no'];
+		$udlobsdato[$x]=$row['due_date'];
 		$rest[$x]=$row['rest'];
 		$reserveret[$x]=0;
 		$pris[$x]=dkdecimal($row['pris']);
@@ -161,6 +177,10 @@ if (($antal>=0)&&($art!="DK")){
 		}
 		print "<tr>";
 		print "<td><span title= 'kostpris: $pris[$x]'>$ordrenr[$x]</td>";
+		// Stock that predates the feature has neither, so those cells stay empty rather than
+		// showing a placeholder that would read as a value.
+		print "<td>" . htmlspecialchars((string)$batch_no[$x]) . "</td>";
+		print "<td>" . ($udlobsdato[$x] ? dkdato($udlobsdato[$x]) : "") . "</td>";
 		print "<td align = right>".reducer($rest[$x])."</td>";
 		print "<td align = right><input type=text style=\"text-align:right\" size=3 name=valg_$x value=".reducer($valg[$x])."></td>";
 			if (($status>0)&&($valg[$x]>0)&&($serienr)){
@@ -170,17 +190,25 @@ if (($antal>=0)&&($art!="DK")){
 		print "</tr>\n";
 		print "<input type=hidden name=ordrenr_$x value=$ordrenr[$x]><input type=hidden name=batch_kob_id_$x value=$batch_kob_id[$x]><input type=hidden name=rest_$x value=$rest[$x]>";
 	}
-	print "<tr><td colspan=3><hr></td></tr>\n";
-	
+	print "<tr><td colspan=5><hr></td></tr>\n";
+
 	# Soeger efter reservationer i ikke modtagne koebsordrer
 	$query = db_select("select * from reservation where batch_salg_id='0' and vare_id = '$vare_id' and antal > '0'",__FILE__ . " linje " . __LINE__); 
 	if ($row = db_fetch_array($query)) {
-		print "<tr><td colspan=3 align=center> Varer p&aring; vej</tr>\n";
-		print "<tr><td><b>K&oslash;bsordre nr.</td><td align = right><b>Antal</td><td align = right><b>V&aelig;lg</td></tr>\n";
-		print "<tr><td colspan=3><hr></td></tr>\n";
+		// These are reservations against purchase orders that have not been received, so there
+		// is no batch number or expiry date yet - but the rows share the table above, so the
+		// column count has to match.
+		print "<tr><td colspan=5 align=center> Varer p&aring; vej</tr>\n";
+		print "<tr><td><b>K&oslash;bsordre nr.</td><td></td><td></td><td align = right><b>Antal</td><td align = right><b>V&aelig;lg</td></tr>\n";
+		print "<tr><td colspan=5><hr></td></tr>\n";
 	}
 	$temp=$linje_id*-1;
-	$query = db_select("select * from reservation where batch_salg_id=0 and vare_id = $vare_id",__FILE__ . " linje " . __LINE__); 
+	// 20261011 MJ SST-833 The order type of each incoming line needs its own array. $art is a
+	// string - the current order's type, read at line 119 - so writing $art[$x] into it stored
+	// only the first byte, left the "(KN)" test below permanently false, emitted a PHP warning
+	// per row, and corrupted $art itself, which is posted back in a hidden field further down.
+	$incomingArt = array();
+	$query = db_select("select * from reservation where batch_salg_id=0 and vare_id = $vare_id",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$x++;
 		$res_linje_id[$x]=$row['linje_id'];
@@ -192,28 +220,33 @@ if (($antal>=0)&&($art!="DK")){
 		$ordre_id[$x]=$r2['ordre_id'];
 		$q2 = db_select("select art, ordrenr, status from ordrer where id=$ordre_id[$x]",__FILE__ . " linje " . __LINE__); 
 		$r2 = db_fetch_array($q2);
-		if ($r2[status]<3) {
+		if ($r2['status']<3) {
 			$ordrenr[$x]=$r2['ordrenr'];
-			$art[$x]=$r2['art'];
+			$incomingArt[$x]=$r2['art'];
 		}
 		else { #Tilfoejet 200606 PHR 
 			 db_modify("delete from reservation where linje_id=$res_linje_id[$x]",__FILE__ . " linje " . __LINE__);
 			break 1;
 		}
-		if ($row[batch_kob_id]>0) {
+		if ($row['batch_kob_id']>0) {
 			$q2 = db_select("select rest from batch_kob where id=$row[batch_kob_id]",__FILE__ . " linje " . __LINE__); 
 			$r2 = db_fetch_array($q2);
-			$rest[$x]=$rest[$x]+$r2[rest];	
+			$rest[$x]=$rest[$x]+$r2['rest'];
 		}
 		$q2 = db_select("select * from reservation where linje_id=$res_linje_id[$x] and batch_salg_id != 0",__FILE__ . " linje " . __LINE__); 
 		while ($r2 = db_fetch_array($q2)) {
-			if ($r2[batch_salg_id]==$temp) {$valg[$x]=$valg[$x]+$r2['antal'];}
+			if ($r2['batch_salg_id']==$temp) {$valg[$x]=$valg[$x]+$r2['antal'];}
 			else {$rest[$x]=$rest[$x]-$r2['antal'];}
 		}
 		if ($rest[$x]>0) {
 			print "<tr>";
-			if ($art[$x]=='DK') print "<td> $ordrenr[$x] (KN)</td><td align = right>".recucer($rest[$x])."</td>";
-			else print "<td> $ordrenr[$x]</td><td align = right>".reducer($rest[$x])."</td>";
+			// 20261008 MJ SST-833 recucer() does not exist, so this line fatalled - but only in
+			// theory: the test beside it compared a single byte of $art against 'DK' and was
+			// always false, so an unreceived credit note silently lost its "(KN)" label instead
+			// and the broken call was never reached. Both are fixed; the two empty cells keep
+			// the row aligned with the batch columns above.
+			if ($incomingArt[$x]=='DK') print "<td> $ordrenr[$x] (KN)</td><td></td><td></td><td align = right>".reducer($rest[$x])."</td>";
+			else print "<td> $ordrenr[$x]</td><td></td><td></td><td align = right>".reducer($rest[$x])."</td>";
 			print "<td align = right><input type=text style=\"text-align:right\" size=3 name=valg_$x value=$valg[$x]></td>";
 			print "</tr>\n";
 		}
@@ -243,7 +276,7 @@ if (($antal>=0)&&($art!="DK")){
 			print "<tr><td onClick=\"javascript:window.open('ordre.php?id=$kred_ordre_id[$x]','$kred_ordrenr[$x]','width=400,height=400,scrollbars=1,resizable=1,menubar=no,location=no');\";><a href> $kred_ordrenr[$x]</a></td><td></td><td><td align = right>".reducer($row['antal'])."</td>";
 	#		 print "<td align = right><input type=text style=\"text-align:right\" size=3 name=valg_$x value=$valg[$x]></td></tr>\n";
 			print "<td align = center><input type=radio name=valg_1 value=$y";
-			if ($kred_linje_id==$row[id]) print " checked='checked'></td>";
+			if ($kred_linje_id==$row['id']) print " checked='checked'></td>";
 			else print "></td>";
 			if ($serienr){
 				print "<td onClick=\"javascript:batch=window.open('serienummer.php?linje_id=$linje_id&batch_kob_id=$batch_kob_id[$x]','batch','left=60,top=60,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no')\">";
