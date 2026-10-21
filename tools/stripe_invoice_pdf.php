@@ -77,10 +77,14 @@ $exec_path = '';
 $returside = '';
 $locat = '';
 $popup = 0;
-foreach (array('ps2pdf' => '/usr/bin/ps2pdf', 'pdftk' => '', 'weasyprint' => '') as $tool => $fallback) {
-	$q = db_fetch_array(db_select("select var_value from settings where var_name = '$tool'" . ($tool === 'weasyprint' ? " or var_name = 'html2pdf'" : ''), __FILE__ . " linje " . __LINE__));
-	$$tool = ($q && trim((string)$q['var_value']) !== '') ? trim((string)$q['var_value']) : $fallback;
+// Tool paths the engine expects as globals (online.php reads the same settings rows).
+function stripe_pdf_tool_setting($name, $fallback, $alias = '') {
+	$q = db_fetch_array(db_select("select var_value from settings where var_name = '$name'" . ($alias !== '' ? " or var_name = '$alias'" : ''), __FILE__ . " linje " . __LINE__));
+	return ($q && trim((string)$q['var_value']) !== '') ? trim((string)$q['var_value']) : $fallback;
 }
+$ps2pdf = stripe_pdf_tool_setting('ps2pdf', '/usr/bin/ps2pdf');
+$pdftk = stripe_pdf_tool_setting('pdftk', '');
+$weasyprint = stripe_pdf_tool_setting('weasyprint', '', 'html2pdf');
 $saldi_pdf_only = true;                      // includes/formfunk.php: treat the order as "mail to email" so the PDF is built
 $regnaar = function_exists('newest_active_fiscal_year') ? (string)newest_active_fiscal_year() : '';
 if ($regnaar === '') { $ra = db_fetch_array(db_select("select max(fiscal_year) as y from grupper where art = 'RA'", __FILE__ . " linje " . __LINE__)); $regnaar = $ra ? (string)$ra['y'] : date('Y'); }
