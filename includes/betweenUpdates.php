@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.14
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.21
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,7 @@
 // 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
 //                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
 //                  so the one-time build no longer blocks writes to adresser during a login.
+// 20261021 Sawaneh SD-733: Shopify schema manifest v1 (includes/shopify/schema.php) ensured at the end of the file.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1292,5 +1293,11 @@ if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHE
 		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
 	}
 }
+
+// 20261021 Sawaneh SD-733: Shopify schema manifest v1. The catalog lives in includes/shopify/schema.php and is
+// shared with admin/opret.php; ensure_shopify_schema() returns at once when the marker already shows the
+// current version, and does nothing on MySQL tenants (the Shopify module is PostgreSQL only).
+include_once(__DIR__ . '/shopify/schema.php');
+ensure_shopify_schema();
 
 ?>
