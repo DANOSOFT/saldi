@@ -28,6 +28,9 @@
 //                  The delivery choices that belong on this page (K33) wait for pos_leveringsvalg,
 //                  which is WP01's table and is not in the schema yet.
 //
+// 20261021 CL/MJ SD-758 The refused brand names are escaped before alert() puts them in a
+//                  javascript string; includes/std_func.php interpolates the message raw.
+//
 // 20261021 CL/MJ SD-758 The brand is chosen from the form variants in formularer rather than typed,
 //                  and a brand with no variant behind it is refused on save. ordrer.sprog selects
 //                  the form variant an invoice is printed from, and debitor/formprintfunc.php falls
@@ -128,6 +131,24 @@ function pos_render_sale_brand_field($brands, $index, $variants) {
 }
 
 /**
+ * A brand name made safe to sit inside alert()'s single-quoted javascript string.
+ *
+ * includes/std_func.php's alert() echoes "<script ...>alert('$msg');</script>" with the message
+ * interpolated raw, so an apostrophe would end the string and a literal </script> would end the
+ * block. The names reported here come from the submitted form, so they are escaped rather than
+ * trusted. Tabs and line breaks are already gone by this point - they are stripped before a brand
+ * is validated.
+ *
+ * @param string $name
+ * @return string
+ */
+function pos_sale_brand_for_alert($name) {
+	$search  = array('\\', "'", '<');
+	$replace = array('\\\\', "\\'", '\u003C');
+	return str_replace($search, $replace, (string) $name);
+}
+
+/**
  * Stores the brand of each terminal from a submitted POS settings form.
  *
  * Called from systemdata/diverse.php, which owns the posOptions POST. Terminals are numbered from
@@ -182,6 +203,10 @@ function pos_save_sale_settings($post, $regnaar) {
 	}
 	if ($refused) {
 		$txt = findtekst('5441|Ikke gemt, mangler formularvariant', $GLOBALS['sprog_id']);
-		alert($txt . ': ' . implode(', ', $refused));
+		$safe = array();
+		foreach ($refused as $name) {
+			$safe[] = pos_sale_brand_for_alert($name);
+		}
+		alert($txt . ': ' . implode(', ', $safe));
 	}
 }

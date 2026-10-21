@@ -89,7 +89,7 @@ final class PosSaleHeaderTest extends TestCase
         }
         foreach (['pos_terminal_sale_defaults', 'opret_posordre', 'opdater_konto',
                   'pos_sale_brands', 'pos_sale_brand_variants', 'pos_save_sale_settings',
-                  'pos_render_sale_brand_field'] as $needed) {
+                  'pos_render_sale_brand_field', 'pos_sale_brand_for_alert'] as $needed) {
             self::assertStringContainsString('function ' . $needed . '(', $src,
                 $needed . '() is no longer where the lift expects it');
         }
@@ -436,6 +436,28 @@ final class PosSaleHeaderTest extends TestCase
         pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'ikkeenvariant']], self::REGNAAR);
         self::assertCount(1, $GLOBALS['posSaleHeaderAlerts']);
         self::assertStringContainsString('ikkeenvariant', $GLOBALS['posSaleHeaderAlerts'][0]);
+    }
+
+    public function testARefusedBrandCannotBreakOutOfTheAlertsJavascript(): void
+    {
+        // includes/std_func.php's alert() interpolates the message straight into
+        // <script>alert('...')</script>, and the refused name came from the submitted form.
+        $hostile = "O'Brien</script><script>steal()";
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => $hostile]], self::REGNAAR);
+
+        self::assertCount(1, $GLOBALS['posSaleHeaderAlerts']);
+        $message = $GLOBALS['posSaleHeaderAlerts'][0];
+        self::assertStringNotContainsString("O'Brien", $message, 'the apostrophe would end the string');
+        self::assertStringNotContainsString('</script>', $message, 'that would end the script block');
+        self::assertStringContainsString("O\\'Brien", $message);
+        self::assertStringContainsString('\u003C/script>', $message);
+    }
+
+    public function testAnOrdinaryRefusedBrandIsStillReadable(): void
+    {
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'ikkeenvariant']], self::REGNAAR);
+        self::assertStringContainsString('ikkeenvariant', $GLOBALS['posSaleHeaderAlerts'][0],
+            'escaping must not mangle a name that needs none');
     }
 
     public function testClearingABrandIsNotARefusal(): void
