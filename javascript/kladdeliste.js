@@ -261,6 +261,9 @@
   document.addEventListener("click", e => { if (!e.target.closest(".kl-cols")) setPanel(false); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") { setPanel(false); scrim.classList.remove("open"); } });
 
+  /* inside the shell (index/main.php) the tour sits under Assist, so the page's own help icon hides */
+  if (window.parent && window.parent !== window) document.documentElement.classList.add("kl-in-shell");
+
   /* width → density */
   const kl = $("kl");
   const fit = () => {

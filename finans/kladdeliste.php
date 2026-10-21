@@ -51,6 +51,8 @@
 //                 loads its rows from this file with POST kl=list (POST, so the navigation stack is not touched).
 //                 The delete endpoints above are unchanged. Preferences live in datatables 'kladdelst2'; the
 //                 Alle/Mine choice is also written to the old 'kladdelst' row so grid.php reads it if reverted.
+// 20261021 ASR - Moved onto the redesign branch: saldi-theme.css tokens (dark mode follows <html data-theme>), saldi-fonts.css,
+//                 the shell's breadcrumb and Assist tour (page_auto_breadcrumb/page_help), list/csv/pref POSTs count as reads.
 
 @session_start();
 $s_id=session_id();
@@ -217,6 +219,8 @@ $klAction = isset($_POST['kl']) ? (string)$_POST['kl'] : '';
 // JSON/CSV requests and the reset redirect must not get the HTML head that online.php prints
 if ($klAction !== '' || isset($_GET['reset_grid'])) $header = 'nix';
 if ($klAction !== '') ob_start(); // stray output from the includes must not reach the JSON/CSV
+// Loading the list, the CSV and the user's own view settings are reads in the permission gate (online.php)
+if (in_array($klAction, array('list', 'csv', 'pref'), true)) $permission_post_read = true;
 include("../includes/connect.php");
 include("../includes/std_func.php");
 include("../includes/online.php");
@@ -479,12 +483,22 @@ $klConfig = array(
 $charsetAttr = $db_encode == 'UTF8' ? 'UTF-8' : 'ISO-8859-15';
 ?>
 <!DOCTYPE html>
-<html lang="<?= $sprog_id == 2 ? 'en' : 'da' ?>">
+<html lang="<?= $sprog_id == 2 ? 'en' : 'da' ?>" data-theme="<?= htmlspecialchars(isset($uiTheme) ? (string)$uiTheme : 'light', ENT_QUOTES) ?>"<?= (isset($uiSize) && $uiSize === 'large') ? ' data-size="large"' : '' ?>>
 <head>
 <meta charset="<?= $charsetAttr ?>">
 <title><?= kl_h(kl_t('Kassekladder', 'Cash journals')) ?></title>
 <meta name="google" content="notranslate">
-<link rel="stylesheet" href="../css/kladdeliste.css?v=20261020">
+<link rel="stylesheet" href="../css/saldi-fonts.css?v=2">
+<link rel="stylesheet" href="../css/saldi-theme.css">
+<link rel="stylesheet" href="../css/kladdeliste.css?v=20261021">
+<?php
+// The shell's breadcrumb (Finans / Kladdeliste) and the page's tour for the Assist menu, as online.php prints them
+// for pages that use its head (this page prints its own head)
+include_once(__DIR__ . '/../includes/stdFunc/findTxt.php');
+include_once(__DIR__ . '/../includes/stdFunc/pageChrome.php');
+if (function_exists('page_help')) page_help(array('tour' => '#tutorial-help'));
+if (function_exists('page_auto_breadcrumb')) print page_auto_breadcrumb($title, (int)$sprog_id, $charset) . "\n";
+?>
 <style>.kl-page{--btn:<?= $btn ?>;--btn-text:<?= $btnTxt ?>}</style>
 </head>
 <body class="kl-page">
@@ -537,7 +551,7 @@ $charsetAttr = $db_encode == 'UTF8' ? 'UTF-8' : 'ISO-8859-15';
 <div class="kl-toast" id="klToast" role="status" aria-live="polite"></div>
 
 <script>window.KL = <?= json_encode($klConfig, JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG) ?>;</script>
-<script src="../javascript/kladdeliste.js?v=20261020"></script>
+<script src="../javascript/kladdeliste.js?v=20261021"></script>
 <?php
 // Tutorial: same steps as before; the Ny button keeps the id the step points at
 $steps = array();
