@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.0.0 --- 2026-10-19 ---
+// --- debitor/api.php --- ver 5.0.0 --- 2026-10-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,11 @@
 //                     Every failure now logs one fakture-error file, sets ordrer.digital_status
 //                     to SendFailed so the order shows it and a resend asks first, and reports
 //                     through findtekst(); an HTTP 500 with a document is no longer a success.
+// 20261021 CL/MJ SST-873 sendInvoice() leaves the Danish reg.nr./account out of the
+//                  paymentMeans when the invoice is foreign and an IBAN is on file, so
+//                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
+//                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
+//                  without the spaces Stamdata stores them with.
 // 20261019 CL/MJ SST-870 sendInvoice() reads the country code off the invoice's own land field
 //                  (countryCodeIso2()), and only falls back to the prefix in the CVR field and
 //                  then DK. A foreign customer without a prefixed CVR was sent as DK whatever
@@ -660,6 +665,31 @@
                 "countryCode" => ""
             ];
         }
+
+        // 20261021 CL/MJ SST-873 EasyUBL's API has no field for PaymentMeansCode and takes one
+        // paymentMeans object rather than a list, so the code it writes is decided entirely by
+        // which of the fields are filled. Reg.nr. and account number give a Danish 42, which is
+        // the format a foreign recipient's bank cannot act on. Leaving them out when the invoice
+        // is foreign and an IBAN is on file is the only lever Saldi has for asking for 30 or 58,
+        // and it is safe in exactly that case because IBAN and BIC are then left to identify the
+        // account. Without an IBAN nothing changes and the invoice keeps its 42.
+        $invoiceCurrency = strtoupper(trim($r_faktura["valuta"] ?? ""));
+        // An empty currency is this install's own, not a foreign one.
+        $foreignPayment = ($countryCode !== "DK") || ($invoiceCurrency !== "" && $invoiceCurrency !== "DKK");
+
+        // Stamdata stores both exactly as typed and an IBAN is usually written in groups of four.
+        // The legacy OIOUBL generator in includes/oioublfunk.php strips the spaces for the same
+        // reason; EasyUBL is only given the account identifiers, so they have to be usable ones.
+        $paymentIban = preg_replace('/\s+/', '', (string)($adresse["iban"] ?? ""));
+        $paymentBic = preg_replace('/\s+/', '', (string)($adresse["swift"] ?? ""));
+        $paymentRegNo = $adresse["bank_reg"];
+        $paymentAccount = $adresse["bank_konto"];
+
+        if($foreignPayment && $paymentIban !== ""){
+            $paymentRegNo = "";
+            $paymentAccount = "";
+        }
+
         $data = [
             "invoiceCreditnote" => $creditNote,
             "id" => $r_faktura["fakturanr"],
@@ -729,10 +759,10 @@
             "deliverAddress" => $deliverAddress,
             "paymentMeans" => [
                 "bankName" => $adresse["bank_navn"],
-                "bankRegNo" => $adresse["bank_reg"],
-                "bankAccount" => $adresse["bank_konto"],
-                "bic" => $adresse["swift"] ?? "",
-                "iban" => $adresse["iban"] ?? "",
+                "bankRegNo" => $paymentRegNo,
+                "bankAccount" => $paymentAccount,
+                "bic" => $paymentBic,
+                "iban" => $paymentIban,
                 "creditorIdentifier" => "",
                 "paymentID" => ""
             ],
