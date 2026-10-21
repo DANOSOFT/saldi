@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-16 ---
+//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -148,8 +148,14 @@
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
 // 20261016 CL/MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
+// 20261021 CL/MJ SST-883 linjeopdat() and lagerstatus() resolve the warehouse before they write
+//                  a lagerstatus row. An order line keeps the warehouse it was written with, so
+//                  a credit note could post stock to a warehouse that had since been taken out
+//                  of use - where it counts in "i alt" and in the figure sent to the webshops
+//                  but shows in no warehouse column and lagerflyt cannot move it.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
+include_once(__DIR__ . '/stdFunc/warehouse.php'); # warehouseIsDefined() - used when posting stock
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -511,6 +517,14 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 
 	$antal *= 1;
 
+	# 20261021 CL/MJ SST-883 An order line keeps the warehouse it was written with, so a document
+	# posted later can name one that has since been taken out of use - a credit note copies it
+	# from the order it credits, which is how Havemoebelland got stock onto warehouse 10 five
+	# days after it stopped being listed. Stock posted there counts in "i alt" and in the
+	# totalStock sent to the webshops, but appears in no warehouse column, so nobody can find it
+	# or move it. Resolve it to a warehouse that exists before anything is written.
+	$lager = resolvePostingWarehouse($lager, $vare_id, $linje_id);
+
 	if (!$levdate)
 		$levdate = date("Y-m-d");
 
@@ -867,20 +881,19 @@ function batch_salg_lev($id, $levdate, $fakturadate, $beholdning, $vare_id, $ant
 ###############################################################
 function lagerstatus($vare_id, $variant_id, $lager, $antal)
 {
-	global $ref;
+	# 20261021 CL/MJ SST-883 "global $ref" stood here for the department lookup that has moved
+	# into resolvePostingWarehouse(), which declares it itself. Nothing else in this function
+	# reads it.
 
-	# Denne funktion bruges til regulering af lagerbeholdning i tilfælde hvor der er flere lagre 
+	# Denne funktion bruges til regulering af lagerbeholdning i tilfælde hvor der er flere lagre
 	# Kaldes fra funktionen batch_salg_lev... 
 
 	(int) $variant_id;
-	if (!$lager) {
-		if ($row = db_fetch_array(db_select("select afd from ansatte where navn = '$ref'", __FILE__ . " linje " . __LINE__))) {
-			if ($row = db_fetch_array(db_select("select kodenr from grupper where box1='$row[afd]' and art='LG'", __FILE__ . " linje " . __LINE__))) {
-				$lager = $row['kodenr'];
-			}
-		}
-	}
-	$lager = $lager * 1;
+	# 20261021 CL/MJ SST-883 Was "if (!$lager)" with the department lookup inline. It now also
+	# catches a warehouse that is set but no longer exists in grupper art='LG', because the
+	# insert below would otherwise create a stock row on a warehouse no column can show - the
+	# same fallback, one line, shared with linjeopdat() so both agree.
+	$lager = resolvePostingWarehouse($lager, $vare_id, 0);
 
 	$query = db_select("select * from lagerstatus where vare_id='$vare_id' and variant_id='$variant_id' and lager='$lager'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
