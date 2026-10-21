@@ -360,7 +360,7 @@ function crm_text_ids(): array
 		7490 => 'Gruppenavn',
 		7491 => 'Fjern',
 		7492 => 'Fortrudt',
-		7493 => 'Din bruger er ikke knyttet til en medarbejder, så »Kun mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.',
+		7493 => 'Din bruger er ikke knyttet til en medarbejder, så »Mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.',
 		7494 => 'Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.',
 		7495 => 'Ny gruppe',
 		7496 => 'Statusgrupperne er gemt',
@@ -386,7 +386,11 @@ function crm_text_ids(): array
 		7516 => 'Handel tildelt dig',
 		7517 => 'Handel vundet',
 		7518 => 'Handel tabt',
-		7519 => 'fra %s'
+		7519 => 'fra %s',
+		7520 => 'Hvis opfølgninger og kunder',
+		7521 => 'Alle opfølgninger og kunder i regnskabet',
+		7522 => 'Kun dem, du er ansvarlig for. Valget huskes til næste gang.',
+		7523 => 'Mine'
 	);
 }
 

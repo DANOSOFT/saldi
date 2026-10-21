@@ -6984,7 +6984,7 @@
 7490	Gruppenavn	Group name	Gruppenavn
 7491	Fjern	Remove	Fjern
 7492	Fortrudt	Undone	Angret
-7493	Din bruger er ikke knyttet til en medarbejder, så »Kun mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.	Your user is not linked to an employee, so “Only mine” and “You” do not work. Link the user to an employee under Settings → Users.	Brukeren din er ikke knyttet til en ansatt, så «Bare mine» og «Deg» virker ikke. Knytt brukeren til en ansatt under Innstillinger → Brukere.
+7493	Din bruger er ikke knyttet til en medarbejder, så »Mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.	Your user is not linked to an employee, so “Mine” and “You” do not work. Link the user to an employee under Settings → Users.	Brukeren din er ikke knyttet til en ansatt, så «Mine» og «Deg» virker ikke. Knytt brukeren til en ansatt under Innstillinger → Brukere.
 7494	Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.	There are no employees under Settings → Master data, so follow-ups cannot be assigned.	Det finnes ingen ansatte under Innstillinger → Stamdata, så oppfølginger kan ikke fordeles.
 7495	Ny gruppe	New group	Ny gruppe
 7496	Statusgrupperne er gemt	The status groups are saved	Statusgruppene er lagret
@@ -7011,4 +7011,8 @@
 7517	Handel vundet	Deal won	Salg vunnet
 7518	Handel tabt	Deal lost	Salg tapt
 7519	fra %s	from %s	fra %s
+7520	Hvis opfølgninger og kunder	Whose follow-ups and customers	Hvem sine oppfølginger og kunder
+7521	Alle opfølgninger og kunder i regnskabet	All follow-ups and customers in the accounts	Alle oppfølginger og kunder i regnskapet
+7522	Kun dem, du er ansvarlig for. Valget huskes til næste gang.	Only the ones you are responsible for. The choice is remembered.	Bare de du er ansvarlig for. Valget huskes til neste gang.
+7523	Mine	Mine	Mine
 

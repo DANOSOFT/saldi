@@ -57,7 +57,7 @@ $data = crm_dataset();
 $data['csrf'] = (string) $_SESSION['csrf_token'];
 $data['api'] = 'crmApi.php';
 ?>
-<link rel="stylesheet" href="../css/crm.css?v=8">
+<link rel="stylesheet" href="../css/crm.css?v=9">
 <style>:root{--btn:<?= htmlspecialchars((string) $buttonColor, ENT_QUOTES) ?>;--btn-text:<?= htmlspecialchars((string) $buttonTxtColor, ENT_QUOTES) ?>}</style>
 <div class="crm" id="crm">
   <div class="head">
@@ -65,7 +65,10 @@ $data['api'] = 'crmApi.php';
     <div class="tools">
       <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="<?= crm_h('Søg') ?>" aria-label="<?= crm_h('Søg') ?>"></label>
       <select class="ghost" id="grpSel" aria-label="<?= crm_h('Statusgruppe') ?>"></select>
-      <button class="ghost" id="mine" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><?= crm_h('Kun mine') ?></button>
+      <div class="scope" id="scope" role="radiogroup" aria-label="<?= crm_h('Hvis opfølgninger og kunder') ?>">
+        <button type="button" role="radio" data-scope="all" aria-checked="true" title="<?= crm_h('Alle opfølgninger og kunder i regnskabet') ?>"><?= crm_h('Alle') ?></button>
+        <button type="button" role="radio" data-scope="mine" aria-checked="false" title="<?= crm_h('Kun dem, du er ansvarlig for. Valget huskes til næste gang.') ?>"><?= crm_h('Mine') ?></button>
+      </div>
       <span class="vsep"></span>
       <button class="newbtn" id="newBtn" title="<?= crm_h('Ny opfølgning (N)') ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><?= crm_h('Ny opfølgning') ?></button>
       <div class="gear">
@@ -92,5 +95,5 @@ $data['api'] = 'crmApi.php';
 <div class="scrim" id="scrim"><div class="dlg" id="dlg" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastX"></button><button id="toastU"><?= crm_h('Fortryd') ?></button></div>
 <script type="application/json" id="crm-data"><?= json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
-<script src="../javascript/crm.js?v=11" charset="utf-8"></script>
+<script src="../javascript/crm.js?v=12" charset="utf-8"></script>
 </body></html>

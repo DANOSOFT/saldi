@@ -674,11 +674,12 @@ function renderAll() {
 	if (S.tab === 'cust') renderCust();
 	if (S.tab === 'act') renderAct();
 	const nb = $('#noteBar'), notes = [];
-	if (!ME) notes.push(t('Din bruger er ikke knyttet til en medarbejder, så »Kun mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.'));
+	if (!ME) notes.push(t('Din bruger er ikke knyttet til en medarbejder, så »Mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.'));
 	if (!DATA.emps.length) notes.push(t('Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.'));
 	if (DATA.truncated) notes.push(t('Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.', num(DATA.max)));
 	nb.innerHTML = notes.map(n => esc(n)).join('<br>'); nb.hidden = !notes.length;
-	$('#mine').disabled = !ME;
+	$('#scope').querySelector('[data-scope="mine"]').disabled = !ME;
+	drawScope();
 }
 
 /* ================= hændelser ================= */
@@ -734,7 +735,16 @@ $('#newBtn').onclick = () => newFollowUp();
 $('#newBtn').hidden = !DATA.canWrite;
 $('#q').oninput = e => { S.q = e.target.value.trim(); renderAll(); };
 $('#grpSel').onchange = e => { S.grp = e.target.value; S.stF = 'all'; renderAll(); };
-$('#mine').onclick = () => { S.mine = !S.mine; localStorage.setItem('crm-mine', S.mine ? '1' : '0'); $('#mine').setAttribute('aria-pressed', S.mine); renderAll(); };
+// Alle | Mine - same control as the cash journal list (finans/kladdeliste.php): radio group, arrow keys, remembered.
+function drawScope() { $('#scope').querySelectorAll('[data-scope]').forEach(b => b.setAttribute('aria-checked', String((b.dataset.scope === 'mine') === S.mine))); }
+function setScope(mine) {
+	if (mine && !ME) return;
+	S.mine = mine; localStorage.setItem('crm-mine', mine ? '1' : '0'); renderAll();
+}
+$('#scope').addEventListener('click', e => { const b = e.target.closest('[data-scope]'); if (b && !b.disabled) setScope(b.dataset.scope === 'mine'); });
+$('#scope').addEventListener('keydown', e => {
+	if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); setScope(!S.mine); $('#scope').querySelector('[aria-checked="true"]').focus(); }
+});
 $('#gearBtn').onclick = e => {
 	e.stopPropagation(); const p = $('#panel'); p.classList.toggle('open'); $('#gearBtn').setAttribute('aria-expanded', p.classList.contains('open'));
 	if (p.classList.contains('open')) { GDRAFT = GROUPS.map(g => ({id: g.id, n: g.n, s: g.s.slice(), won: g.won, lost: g.lost})); renderGroupEditor(); }
@@ -786,7 +796,6 @@ document.addEventListener('drop', async e => {
 /* ================= start ================= */
 load(DATA);
 S.calY = TODAY.getFullYear(); S.calM = TODAY.getMonth(); S.bgrp = GROUPS.length ? GROUPS[0].id : 0;
-$('#mine').setAttribute('aria-pressed', S.mine && !!ME);
 if (!ME) S.mine = false;
 // place from the query (crm.php?tab=pipe&bgrp=25&drawer=4&dtab=deals); the old #pipe / #drawer=4 links still work
 const hs = location.hash.slice(1);
