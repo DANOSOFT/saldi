@@ -126,6 +126,7 @@
 //                Any row id starting with "new" is saved as a new line, and "Gem alle" saves the rows one after another so pos follows the order shown.
 //                chooseMultipleBilag()'s pre-save skips every new* row, not only "new": they are saved by then and would be saved twice as lines without a bilag.
 //                A new row remembers the line it was saved as in _saveRowFetch(), so "Gem" or "Gem alle" again after a refused row updates that line instead of adding a second.
+// 20261003 CL/SZ SD-721 Loads kreditorFromCvr.js: a supplier that is not a kreditor is created from the CVR register, offered with "Opret kreditor", or entered in the dialog.
 // 20261003 CL/SZ SD-718 The Bilagsmatch combination search (pairs, triplets, quads of documents adding up to the line's amount) compares øre through lookup tables instead of four nested loops.
 //                That takes it from 7.5 s to under 0.1 s with 500 documents.
 //                Inside the sync window the pool folder is only read when its mtime changed.
@@ -205,6 +206,7 @@ require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/docFileFunc.php");
 include_once(__DIR__ . "/poolVendorSuggestion.php");
+include_once(__DIR__ . "/../kreditorFromCvr.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
 /**
@@ -1944,6 +1946,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<script src=\"../javascript/docPoolSwitch.js?v=$v13\"></script>";
 	$v14 = file_exists("../javascript/docPoolSplit.js") ? filemtime("../javascript/docPoolSplit.js") : 0;
 	print "<script src=\"../javascript/docPoolSplit.js?v=$v14\"></script>";
+	// SD-721: kreditor from the CVR register when the supplier is not a kreditor
+	$v15 = file_exists("../javascript/kreditorFromCvr.js") ? filemtime("../javascript/kreditorFromCvr.js") : 0;
+	print kreditorCvrClientScript($sprog_id, (string)$v15);
     print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
