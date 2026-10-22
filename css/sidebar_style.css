@@ -60,24 +60,30 @@
     display: none;
 }
 
-/* 20261022 CL/ASR Collapsed: the Saldi mark stays, stacked above the arrow (as the operator panel's Danosoft mark). */
+/* 20261022 CL/ASR Collapsed: the Saldi mark stays, stacked above a small arrow, in the operator panel's
+   proportions (26 px mark, 16 px arrow, 10 px apart, a little air above). */
 .sidebar .logo .logo-mark {
     display: none;
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     flex: none;
 }
 
 .sidebar.closed .logo.wide {
     flex-direction: column;
-    justify-content: center;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 10px;
     height: auto;
-    padding: 40px 0 1em 0;
+    padding: 22px 0 6px 0;
 }
 
 .sidebar.closed .logo .logo-mark {
     display: block;
+}
+
+.sidebar.closed .logo.wide i {
+    font-size: 18px;
+    opacity: .75;
 }
 
 .sidebar .nav-links {

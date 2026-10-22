@@ -232,7 +232,7 @@ function brightenColor($color, $amount = 0.2) {
 <link rel="icon" href="../img/saldiLogo.png">
 <link href='../css/saldi-fonts.css?v=2' rel='stylesheet'>
 <script>window.SALDI_CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;</script>
-<link href='../css/sidebar_style.css?v=26' rel='stylesheet'>
+<link href='../css/sidebar_style.css?v=27' rel='stylesheet'>
 <link href='../css/topbar.css?v=20' rel='stylesheet'>
 <link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
 <script>document.documentElement.classList.add('saldi-shell');</script>
