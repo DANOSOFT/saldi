@@ -151,6 +151,16 @@ $GLOBALS['answer']['other.shop.test'] = array(200, '{"error":"unknown sku"}', 0)
 shopApiRequestParallel($shops, array('update_stock' => 1), null, array('context' => 'test', 'retries' => 1));
 check(count($GLOBALS['sent']) === 1, 'A refused item is not retried');
 
+// A 4xx is the shop saying this item or these parameters are wrong, not that the shop is
+// unwell, so repeating it is pointless and it must not degrade the endpoint either.
+resetSyncState();
+$GLOBALS['answer']['other.shop.test'] = array(404, 'not found', 0);
+$res = shopApiRequestParallel($shops, array('update_stock' => 1), null, array('context' => 'test', 'retries' => 1));
+check(count($GLOBALS['sent']) === 1, 'An item the shop does not have is not retried');
+check(!$res[2]['ok'] && !$res[2]['skipped'], 'A 404 is reported as a failure of this item');
+$state = &shopApiSyncState();
+check(count($state['degraded']) === 0, 'A 404 does not take the shop out for the rest of the request');
+
 // The fallback for an install without the multi handle is not exercised here - the extension is
 // present wherever these tests run - so it is pinned in the source instead.
 $src = file_get_contents(__DIR__ . '/../includes/stdFunc/shopApiRequest.php');
@@ -189,15 +199,21 @@ shopSyncQueueAdd(123, 0, 4, 'stock');
 check(shopSyncQueueRead($dir . shopSyncQueueKey(123, 0, 4))['mode'] === 'all',
 	'A later stock-only change does not narrow a marker that wanted prices too');
 
-// Oldest first, so yesterday's item is not starved by the ones this request just queued.
-shopSyncQueueWrite($dir . shopSyncQueueKey(123, 0, 4), 'all', 0, time() - 3600);
-shopSyncQueueAdd(3580, 0, 4, 'stock');
+// Oldest first, so yesterday's item is not starved by the ones this request just queued. The
+// older item is deliberately the one whose file name sorts last, because scandir() returns
+// names in alphabetical order and a fixture where the two agree would pass with no sorting at
+// all.
+shopSyncQueueAdd(9900, 0, 4, 'all');
+shopSyncQueueWrite($dir . shopSyncQueueKey(9900, 0, 4), 'all', 0, time() - 3600);
+shopSyncQueueAdd(1100, 0, 4, 'stock');
 $pending = shopSyncQueuePending(0);
-check(count($pending) === 2, 'Both queued items are pending');
-check($pending[0]['vare_id'] === 123, 'The oldest queued item is delivered first');
+check(count($pending) >= 2, 'Both queued items are pending');
+check($pending[0]['vare_id'] === 9900,
+	'The oldest queued item is delivered first, whatever its file name sorts as');
 check(count(shopSyncQueuePending(1)) === 1, 'The pending list honours its limit');
 
-$final = shopSyncQueueRetryLater($pending[0], 3);
+$oldest = $pending[0];
+$final = shopSyncQueueRetryLater($oldest, 3);
 check($final === false, 'One failed attempt is not final');
 check(shopSyncQueueRead($pending[0]['path'])['attempts'] === 1, 'The failed attempt is counted');
 shopSyncQueueRetryLater(shopSyncQueueRead($pending[0]['path']), 3);
@@ -205,9 +221,17 @@ $final = shopSyncQueueRetryLater(shopSyncQueueRead($pending[0]['path']), 3);
 check($final === true, 'Reaching the attempt limit reports a final failure');
 check(is_file($pending[0]['path']), 'A marker past the attempt limit is kept, so the update is not dropped');
 
-shopSyncQueueDone($pending[0]);
-check(!is_file($pending[0]['path']), 'A delivered update removes its marker');
-check(shopSyncQueueCount() === 1, 'The queue count follows the deliveries');
+// The sender queues a failed item and the drainer counts the attempt, in that order, so if
+// queueing an item that is already queued reset the count, the attempt limit would never be
+// reached and an item no shop will ever take would be retried for ever.
+shopSyncQueueAdd($oldest['vare_id'], 0, 4, 'stock');
+check(shopSyncQueueRead($oldest['path'])['attempts'] === 3,
+	'Queueing an item that is already queued keeps the attempts it has cost');
+
+$before = shopSyncQueueCount();
+shopSyncQueueDone($oldest);
+check(!is_file($oldest['path']), 'A delivered update removes its marker');
+check(shopSyncQueueCount() === $before - 1, 'The queue count follows the deliveries');
 
 // A marker name is built from integers, so nothing from a request can reach the path.
 shopSyncQueueAdd('../../escape', 0, 4, 'stock');
