@@ -691,8 +691,14 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
     public function testASetSharedBySeveralLinesIsSentOnce(): void
     {
         $block = self::syncShopVare();
-        self::assertStringContainsString('static $partsSent', $block,
-            'nothing remembers which sets this request has already sent');
+        self::assertStringContainsString('&shopSyncSentSets()', $block,
+            'nothing remembers which sets this document has already sent');
+        // Shared rather than static: ten orders in one mass invoicing request are ten documents
+        // with ten sets of figures, so the guard has to be cleared between them.
+        self::assertStringNotContainsString('static $partsSent', $block,
+            'the guard is a static again, so the second order in a request skips its sets');
+        self::assertStringContainsString('shopSyncFlushRunning()', $block,
+            'a direct sync can inherit the sets a flush in the same request already sent');
         self::assertStringContainsString('isset($partsSent[$partKey])', $block,
             'a set shared by two lines is sent once per line again');
         $guard = strpos($block, 'isset($partsSent[$partKey])');

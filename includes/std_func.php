@@ -2044,9 +2044,16 @@ if (!function_exists('sync_shop_vare')) {
 	 */
 	function sync_shop_vare($vare_id, $variant_id, $lager, $mode = 'all') {
 		global $bruger_id,$db,$regnaar;
-		// Which parent sets this request has already pushed. Static, so it spans the items of
-		// one document and no longer than that.
-		static $partsSent = array();
+		// Which parent sets have already been pushed for the document being posted. Shared
+		// rather than static, because shopSyncFlush() clears it per document: mass invoicing
+		// posts ten orders in one request and each order's figures are its own, so the second
+		// order's sets have to be sent again.
+		$partsSent = &shopSyncSentSets();
+		if (!shopSyncFlushRunning()) {
+			// Called directly rather than from a flush, so this item is its own document and
+			// cannot inherit the sets a flush earlier in the request already sent.
+			$partsSent = array();
+		}
 		$costPrice = 0;
 		$failed = 0;
 		$api_fil =$api_fil2=$api_fil3= NULL;
@@ -2317,6 +2324,57 @@ if (!function_exists('sync_shop_vare')) {
 	}
 } #endfunc sync_shop_vare()
 
+if (!function_exists('shopSyncFlushRunning')) {
+	/**
+	 * Whether a flush is sending right now.
+	 *
+	 * sync_shop_vare() sends a parent set once per document. A flush is what defines a
+	 * document, so a direct call - the product card, api/updateShopCostPrice.php - is one item
+	 * on its own and has to start with a clean slate instead of inheriting what a flush earlier
+	 * in the same request already sent.
+	 *
+	 * @param int $change  1 when a flush starts, -1 when it ends, 0 to ask.
+	 * @return bool
+	 */
+	function shopSyncFlushRunning($change = 0) {
+		static $depth = 0;
+		$depth += (int)$change;
+		if ($depth < 0) {
+			$depth = 0;
+		}
+		return ($depth > 0);
+	}
+}
+
+if (!function_exists('shopSyncSentSets')) {
+	/**
+	 * The parent sets already pushed for the document being posted.
+	 *
+	 * A set several lines belong to is sent once, with the figure it has when the document is
+	 * done. By reference rather than a static inside sync_shop_vare(), so shopSyncFlush() can
+	 * clear it between documents - ten orders in one mass invoicing request are ten documents
+	 * with ten sets of figures, not one.
+	 *
+	 * @return array<string, bool>  Keyed '<set id>:<warehouse>'.
+	 */
+	function &shopSyncSentSets() {
+		static $sets = array();
+		return $sets;
+	}
+}
+
+if (!function_exists('shopSyncResetSentSets')) {
+	/**
+	 * Forgets which sets have been sent, at the start of a document.
+	 *
+	 * @return void
+	 */
+	function shopSyncResetSentSets() {
+		$sets = &shopSyncSentSets();
+		$sets = array();
+	}
+}
+
 if (!function_exists('shopSyncMarkState')) {
 	/**
 	 * The items this request still has to tell the webshops about.
@@ -2385,6 +2443,9 @@ if (!function_exists('shopSyncFlush')) {
 	 * @return string  'no api', 'OK' or 'sync errors: n', as sync_shop_vare() answers.
 	 */
 	function shopSyncFlush($drain = 50) {
+		// A new document, so the sets sent for the last one say nothing about this one.
+		shopSyncResetSentSets();
+		shopSyncFlushRunning(1);
 		$state  = &shopSyncMarkState();
 		$marked = $state['items'];
 		$state['items'] = array();
@@ -2402,9 +2463,12 @@ if (!function_exists('shopSyncFlush')) {
 				$failed++;
 			}
 		}
+		shopSyncFlushRunning(-1);
 		if ($noApi) {
 			return 'no api';
 		}
+		// The backlog is other documents' work, so each queued item is its own document and
+		// the drain runs with the flush already closed.
 		if ($drain > 0) {
 			shopSyncDrainQueue($drain);
 		}
