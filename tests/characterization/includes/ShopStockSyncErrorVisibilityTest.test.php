@@ -271,6 +271,35 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
             "$label sends the document's updates without keeping the answer");
     }
 
+    /**
+     * A caller that flushes has to mark something first.
+     *
+     * Flushing an empty list answers OK, so a caller that stopped marking its lines would sync
+     * nothing at all and report success - the same silence this ticket is about, arrived at from
+     * the other side. A mutation run found this one: removing the mark from the goods receipt
+     * left every test green.
+     */
+    public function testACallerThatFlushesMarksItsLinesFirst(): void
+    {
+        foreach (array(
+            array(self::MODTAG, 'kreditor/modtag.php'),
+            array(self::ORDREFUNC, 'includes/ordrefunc.php'),
+        ) as list($path, $label)) {
+            $src = self::source($path);
+            self::assertStringContainsString('shopSyncFlush(', $src, "$label no longer sends anything");
+            self::assertStringContainsString('shopSyncMark(', $src,
+                "$label flushes an empty list, so it syncs nothing and says it went fine");
+        }
+        // Only the receipt can be checked by position: its mark is in the line loop and its
+        // flush is below it. In ordrefunc.php the order on the page is the other way round -
+        // levering() holds the flush and is declared above linjeopdat(), which does the marking
+        // and is called from inside it - so the order that matters there is pinned by
+        // testTheSaleMarksItsLinesAndSendsOnce() instead.
+        $receipt = self::source(self::MODTAG);
+        self::assertLessThan(strpos($receipt, 'shopSyncFlush('), strpos($receipt, 'shopSyncMark('),
+            'the receipt flushes before it marks, so a line is sent a receipt late');
+    }
+
     /** A refusal has to leave a trace an operator can find afterwards. */
     #[DataProvider('callSites')]
     public function testEveryCallerLeavesATrace(string $path, string $label): void
