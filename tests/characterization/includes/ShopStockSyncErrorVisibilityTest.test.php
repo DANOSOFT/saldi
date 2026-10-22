@@ -118,18 +118,46 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
             'this body denies the update, so it must not count as a successful sync');
     }
 
-    /** shopApiRequest() has to consult the body, not just the status line. */
-    public function testTheRequestPathChecksTheBodyBeforeReportingSuccess(): void
+    /** The source of one of the two senders, from its signature to the end of its wrapper. */
+    private static function senderBody(string $name): string
     {
         $src = self::source(__DIR__ . '/../../../includes/stdFunc/shopApiRequest.php');
-        $at = strpos($src, '$call[\'httpCode\'] < 400) {');
-        self::assertNotFalse($at, 'the success branch of shopApiRequest() has moved');
-        $tail = substr($src, $at, 1200);
-        self::assertStringContainsString('shopApiResponseRejected($call[\'body\'])', $tail,
-            'a 2xx is accepted without looking at the body again');
-        self::assertLessThan(strpos($tail, '$result[\'ok\']    = true;'),
-            strpos($tail, 'shopApiResponseRejected'),
-            'the body is checked only after the call is already called a success');
+        $at = strpos($src, 'function ' . $name . '(');
+        self::assertNotFalse($at, $name . '() is gone');
+        $end = strpos($src, "\nif (!function_exists(", $at);
+        return substr($src, $at, ($end === false ? strlen($src) : $end) - $at);
+    }
+
+    /**
+     * A 2xx is never called a success until the body has been judged.
+     *
+     * The judgement lives in shopApiOutcome() rather than inline, because there are now two
+     * senders - one call at a time and all three shops at once - and two senders judging a
+     * shop's answer by two rules is the defect this ticket is about. So this pins the
+     * classifier itself and then pins that neither sender can report success around it.
+     */
+    public function testA200IsNeverASuccessUntilTheBodyIsJudged(): void
+    {
+        $answer = array('error' => '', 'httpCode' => 200, 'transient' => false, 'unreachable' => false);
+        self::assertSame('ok', shopApiOutcome(array('body' => '5') + $answer)['state'],
+            'the bare figure a working adapter answers no longer counts as success');
+        self::assertSame('refused', shopApiOutcome(array('body' => '{"success":false}') + $answer)['state'],
+            'a 200 that denies the update counts as a success again');
+        self::assertSame('failed', shopApiOutcome(array('body' => '', 'error' => 'curl error 7: refused',
+            'httpCode' => 0, 'transient' => true, 'unreachable' => true))['state'],
+            'a call that never reached the shop is not reported as failed');
+
+        foreach (array('shopApiRequest', 'shopApiRequestParallel') as $sender) {
+            $body = self::senderBody($sender);
+            self::assertStringContainsString('shopApiOutcome(', $body,
+                $sender . '() judges a shop answer on its own again');
+            $guard   = strpos($body, "\$outcome['state'] === 'ok'");
+            $success = strpos($body, "['ok']    = true;");
+            self::assertNotFalse($guard, $sender . '() no longer asks the classifier whether the call succeeded');
+            self::assertNotFalse($success, $sender . '() no longer reports success at all');
+            self::assertLessThan($success, $guard,
+                $sender . '() reports success before the body has been judged');
+        }
     }
 
     /**
