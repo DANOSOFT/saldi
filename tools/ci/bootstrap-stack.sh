@@ -34,6 +34,7 @@
 # History:
 # 20260725 CL/LH Created for the end-to-end coverage push.
 # 20261022 CL/NTR A failing entity check now stops the script instead of counting as zero and dropping the master db.
+#                 The regnskab-table check is assigned before the test, so its failure also stops the script.
 
 set -euo pipefail
 
@@ -66,13 +67,16 @@ existing="$(psql_master "SELECT 1 FROM pg_database WHERE datname='$MASTER_DB'")"
 if [ -n "$existing" ]; then
   # The empty database docker-compose pre-creates has no regnskab table; that
   # is the one case that counts as zero entities. Any other query failure
-  # stops the script (set -e) instead of authorising the DROP below.
+  # stops the script (set -e) instead of authorising the DROP below - which is
+  # why each result is assigned first: set -e ignores a failing command
+  # substitution inside a [ ] test.
   psql_db() {
     docker compose exec -T -e "PGPASSWORD=$PG_PASS" postgres \
       psql -v ON_ERROR_STOP=1 -U "$PG_USER" -d "$MASTER_DB" -tAc "$1"
   }
   entities=0
-  if [ "$(psql_db "SELECT to_regclass('public.regnskab') IS NOT NULL")" = "t" ]; then
+  has_regnskab="$(psql_db "SELECT to_regclass('public.regnskab') IS NOT NULL")"
+  if [ "$has_regnskab" = "t" ]; then
     entities="$(psql_db "SELECT count(*) FROM regnskab WHERE db <> '$MASTER_DB'")"
   fi
   if [ "$entities" -gt 0 ]; then
