@@ -178,6 +178,11 @@ include("pos_ordre_includes/report/reportSetup.php");
 include("pos_ordre_includes/helperMethods/helperFunc.php"); #20190219 
 include("pos_ordre_includes/helperMethods/helperFuncII.php"); #20190219 
 
+# 20261021 CL/MJ SD-758 opret_posordre(), opdater_konto() and pos_terminal_sale_defaults().
+# 20261022 CL/MJ SD-758 Reusing an abandoned sale clears the phone number and re-reads the
+#                  terminal's department and brand; see the 48 hour branch further down.
+include_once(__DIR__ . "/pos_ordre_includes/saleHeaderFunctions.php");
+
 include("pos_ordre_includes/posTxtPrint/posTxtPrintFunc.php"); #20190503
 
 include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510 
@@ -529,12 +534,22 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 	if ($kasse) $qtxt .= " and felt_5 = '$kasse' "; #20210826
 	($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $id = $r['id'] : $id = 0;
 	if ($id && !count($bord)) {
-		$qtxt = "select ordredate from ordrer where id='$id'";
+		$qtxt = "select ordredate,felt_5 from ordrer where id='$id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (strtotime($r['ordredate']) < date('U') - 60 * 60 * 48) {
+			# 20261022 CL/MJ SD-758 Reusing an abandoned sale makes it a new sale, so the header
+			# values opret_posordre() sets have to be set again. The previous customer's phone
+			# number has to go with the rest of their details, and the terminal's department and
+			# brand may have been changed in the settings since this row was created. felt_5 is the
+			# terminal the row belongs to, used when this request does not know its own.
+			$genbrug_kasse = $kasse ? $kasse : (int) ifset($r, 'felt_5', 0);
+			$salgsdefault = pos_terminal_sale_defaults($genbrug_kasse, $regnaar);
+			$genbrug_afd = (int) $salgsdefault['afd'];
+			$genbrug_brand = db_escape_string($salgsdefault['brand']);
 			$qtxt = "update ordrer set konto_id='0',  kontonr='0',firmanavn='',addr1='',addr2='',postnr='',";
 			$qtxt .= "bynavn='',land='',betalingsdage='0',betalingsbet='Kontant',cvrnr='',ean='',institution='',";
 			$qtxt .= "email='',kontakt='',art='PO',valuta='$baseCurrency',valutakurs='100',kundeordnr='',";
+			$qtxt .= "phone='',afd='$genbrug_afd',sprog='$genbrug_brand',";
 			$qtxt .= "ordredate='" . date("Y-m-d") . "',hvem='',ref='',nr=NULL where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
@@ -2180,100 +2195,6 @@ function find_bon($bon) {
 	}
 }
 
-function opret_posordre($konto_id, $kasse) {
-	$posNavigationQuery = nav_popup_query($_GET, $_POST);
-	global $baseCurrency, $bordnr, $bruger_id, $brugernavn;
-	global $db;
-	global $firmanavn;
-	global $kontonr;
-	global $momssats;
-	global $notes, $regnaar;
-	global $varenr_ny;
-
-	if (!$kasse)
-		$kasse = find_kasse(0);
-	if (!$kasse)
-		$kasse = 1;
-
-	if (file_exists("../temp/$db/$kasse.tid") && file_get_contents("../temp/$db/$kasse.tid") >= date("U")) { #20181024
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}\">\n";
-		exit;
-	} else
-		file_put_contents("../temp/$db/$kasse.tid", date("U") + 1);
-
-	hent_shop_ordrer('', '');
-
-	$r = db_fetch_array(db_select("select box4 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
-	$x = $kasse - 1;
-	$tmp = explode(chr(9), $r['box4']);
-	$terminal_ip = trim($tmp[$x]);
-/*
-	if (isset($_COOKIE['salditerm']) && $_COOKIE['salditerm'])
-		$terminal_ip = $_COOKIE['salditerm'];
-	if ($terminal_ip == 'box' || $terminal_ip == 'saldibox') {
-		$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
-		if ($fp = fopen($filnavn, 'r')) {
-			$terminal_ip = trim(fgets($fp));
-			fclose($fp);
-		}
-	}
-*/
-	if ($terminal_ip) {
-		setcookie("salditerm", $terminal_ip, time() + 3600, '/');
-	}
-	if ($kasse && !$_GET['bordnr'] && !isset($_GET['flyt_til'])) {
-		$qtxt = "select box13 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['box13']) {
-			$tmparray = explode(chr(9), $r['box13']);
-			$bordnr = $tmparray[$kasse - 1];
-		}
-	}
-
-	if (!$bordnr && $bordnr != '0')
-		$bordnr = if_isset($_GET['bordnr']);
-	if (!$bordnr && $bordnr != '0')
-		$bordnr = if_isset($_GET['flyt_til']);
-	if (!$varenr_ny && ($bordnr || $bordnr == '0')) {
-		$qtxt = "select id from ordrer where art='PO' and nr = '$bordnr' and felt_5='$kasse' and status < '3'";
-		if ($r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$r[id]\">\n";
-		}
-	}
-		$ordrenr = get_next_order_number('PO');
-	$ordredate = date("Y-m-d");
-	$tidspkt = date("U");
-	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
-	#	$id=$r['id'];
-#	$kasseantal=$r['box1']*1;
-	$moms = explode(chr(9), $r['box7']);
-	$x = $kasse - 1;
-	if ($moms[$x]) {
-		$r = db_fetch_array(db_select("select * from grupper where art = 'SM' and kodenr = '$moms[$x]'", __FILE__ . " linje " . __LINE__));
-		$momssats = $r['box2'];
-	} else
-		$momssats = '0';
-	if (!is_numeric($bordnr))
-		$bordnr = 0;
-	if (!is_numeric($kontonr))
-		$kontonr = 0;
-	# 20141210 Tilføjet felt_5
-	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,";
-	$qtxt .= "betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,";
-	$qtxt .= "ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,pbs,status,nr,felt_5)";
-	$qtxt .= "	values ";
-	$qtxt .= "('$ordrenr','0','$kontonr','$firmanavn','','','','','','0','Kontant','','','','','','$notes','PO',";
-	$qtxt .= "'$ordredate','$momssats','$brugernavn','$tidspkt','$brugernavn','$baseCurrency','','','','0','$bordnr','$kasse')";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	$qtxt = "select id from ordrer where hvem='$brugernavn' and tidspkt='$tidspkt' order by id desc";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$id = $r['id'];
-	$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
-	$qtxt .= "values ";
-	$qtxt .= "('13003','" . date('U') . "','$kasse','$bruger_id','$id','" . __FILE__ . "','" . __LINE__ . "')";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	return ($id);
-} # endfunc opret_posordre()
 
 function find_saldo($konto_id, $sum, $moms)
 { #20160928
@@ -2400,49 +2321,6 @@ function indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling){
 } # function indbetaling
 
 
-function opdater_konto($konto_id, $kontonr, $id, $o_art = 'PO') {
-	#Opdaterer kontoinformation på ordren
-	global $baseCurrency, $db, $kasse;
-	global $kundeordnr;
-
-	if (!$id || $id == 0)
-		$id = opret_posordre(0, $kasse);
-	$konto_id *= 1;
-	$kontonr *= 1;
-	$r = db_fetch_array(db_select("select status from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-	$status = $r['status'];
-	if ($status < 3) {
-		# In supplier lookup mode (KO) only accept creditor accounts
-		if ($konto_id) {
-			$art_filter = ($o_art == 'KO') ? " and art = 'K'" : "";
-			$r = db_fetch_array(db_select("select * from adresser where id = '$konto_id'$art_filter", __FILE__ . " linje " . __LINE__));
-		} else {
-			$adr_art = ($o_art == 'KO') ? 'K' : 'D';
-			$r = db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art = '$adr_art'", __FILE__ . " linje " . __LINE__));
-		}
-		if (!$r || !$r['id']) {
-			return ($id); # unknown or wrong-art account: leave the order untouched
-		}
-		$konto_id = $r['id'];
-		if ($r['lukket']) {
-			$betalingsbet = 'Kontant';
-			$betalingsdage = '0';
-		} else {
-			($r['betalingsbet']) ? $betalingsbet = $r['betalingsbet'] : $betalingsbet = 'Kontant';
-			$betalingsdage = (int) $r['betalingsdage'];
-		}
-		$konto_id *= 1;
-		$qtxt = "update ordrer set konto_id='$konto_id', kontonr='$r[kontonr]',firmanavn='" . db_escape_string($r['firmanavn']) . "',";
-		$qtxt .= "addr1='" . db_escape_string($r['addr1']) . "',addr2='" . db_escape_string($r['addr2']) . "',postnr='" . db_escape_string($r['postnr']) . "',";
-		$qtxt .= "bynavn='" . db_escape_string($r['bynavn']) . "',land='" . db_escape_string($r['land']) . "',";
-		$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',cvrnr='" . db_escape_string($r['cvrnr']) . "',";
-		$qtxt .= "ean='" . db_escape_string($r['ean']) . "',institution='" . db_escape_string($r['institution']) . "',";
-		$qtxt .= "email='" . db_escape_string($r['email']) . "',kontakt='" . db_escape_string($r['kontakt']) . "',art='PO',valuta='$baseCurrency',valutakurs='100' ";
-		$qtxt .= "where id = '$id'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	}
-	return ($id);
-} # endfunc opdater_konto()
 
 
 function find_kasse($kasse)

@@ -27,6 +27,8 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20261008 CDX/NTR pre-fetch terminal_type for all POS terminals before the render loop, as $terminal_type was never populated, throwing errors.
 
+include_once(__DIR__ . "/posSaleSettings.php"); # 20261021 CL/MJ SD-758 brand per terminal
+
 function posOptions () {
 	global $bgcolor,$bgcolor5;
 	global $regnaar;
@@ -56,9 +58,11 @@ function posOptions () {
 		$timeout=$r['box13'];
 		($r['box14'])?$vis_indbetaling='checked':$vis_indbetaling='';
 		if (!$kasseantal)  $kasseantal  = 0;
-		if (!$rabatvareid) $rabatvareid = 0; 
+		if (!$rabatvareid) $rabatvareid = 0;
 		if (!$timeout)     $timeout     = 0;
 	}
+	$pos_sale_brands = pos_sale_brands($regnaar); # 20261021 CL/MJ SD-758
+	$pos_sale_brand_variants = pos_sale_brand_variants(); # 20261021 CL/MJ SD-758
 	$qtxt = "select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$id2=$r['id'];
@@ -382,6 +386,7 @@ function posOptions () {
 			$text=findtekst(2415, $sprog_id);
 			$title=findtekst(2416, $sprog_id);
 			print "<td title='$title'><!--Tekst 2413-->$text<!--Tekst 2414--></td>\n";
+			pos_render_sale_brand_header($sprog_id); # 20261021 CL/MJ SD-758
 			print "</tr>";
 			print "<tr>";
 
@@ -403,6 +408,10 @@ function posOptions () {
 			$omv_menu = get_settings_value("omv_menu", "POS", "off", null, $x+1);
 			$checked = $omv_menu == "on" ? "checked" : "";
 			print "<td align='center'><input type='checkbox' name='omv_menu[$x]' $checked></td>\n";
+
+			# 20261021 CL/MJ SD-758 The brand this terminal sells under, written onto every sale it
+			# creates (debitor/pos_ordre_includes/saleHeaderFunctions.php).
+			pos_render_sale_brand_field($pos_sale_brands, $x, $pos_sale_brand_variants);
 
 			# Valutakoder
 			for ($y=0;$y<count($ValutaKode);$y++) {

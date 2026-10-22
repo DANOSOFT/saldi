@@ -5245,3 +5245,6 @@
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 
+5439	Brand	Brand	Brand
+5440	Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant	Brand a sale is created with on this terminal. Stored as the order's language/form variant	Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant
+5441	Ikke gemt, mangler formularvariant	Not saved, no matching form variant	Ikke lagret, mangler formularvariant
