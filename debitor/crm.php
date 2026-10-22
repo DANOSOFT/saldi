@@ -57,22 +57,22 @@ $data = crm_dataset();
 $data['csrf'] = (string) $_SESSION['csrf_token'];
 $data['api'] = 'crmApi.php';
 ?>
-<link rel="stylesheet" href="../css/crm.css?v=11">
+<link rel="stylesheet" href="../css/crm.css?v=12">
 <style>:root{--btn:<?= htmlspecialchars((string) $buttonColor, ENT_QUOTES) ?>;--btn-text:<?= htmlspecialchars((string) $buttonTxtColor, ENT_QUOTES) ?>}</style>
 <div class="crm" id="crm">
   <div class="head">
     <div class="tabs" role="tablist" id="tabs"></div>
     <div class="tools">
-      <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="<?= crm_h('Søg') ?>" aria-label="<?= crm_h('Søg') ?>"></label>
+      <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="<?= crm_h('Søg') ?>" aria-label="<?= crm_h('Søg') ?>"></label>
       <select class="ghost" id="grpSel" aria-label="<?= crm_h('Statusgruppe') ?>"></select>
       <div class="scope" id="scope" role="radiogroup" aria-label="<?= crm_h('Hvis opfølgninger og kunder') ?>">
         <button type="button" role="radio" data-scope="all" aria-checked="true" title="<?= crm_h('Alle opfølgninger og kunder i regnskabet') ?>"><?= crm_h('Alle') ?></button>
         <button type="button" role="radio" data-scope="mine" aria-checked="false" title="<?= crm_h('Kun dem, du er ansvarlig for. Valget huskes til næste gang.') ?>"><?= crm_h('Mine') ?></button>
       </div>
       <span class="vsep"></span>
-      <button class="newbtn" id="newBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span id="newLbl"><?= crm_h('Ny opfølgning') ?></span></button>
+      <button class="newbtn" id="newBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span id="newLbl"><?= crm_h('Ny opfølgning') ?></span></button>
       <div class="gear">
-        <button class="gear-btn" id="gearBtn" aria-label="<?= crm_h('Tilpas CRM') ?>" title="<?= crm_h('Tilpas CRM') ?>" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+        <button class="gear-btn" id="gearBtn" aria-label="<?= crm_h('Tilpas CRM') ?>" title="<?= crm_h('Tilpas CRM') ?>" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         <div class="panel" id="panel" role="dialog" aria-label="<?= crm_h('Tilpas CRM') ?>">
           <div class="ph"><?= crm_h('Tilpas CRM') ?></div>
           <div class="pi"><?= crm_h('Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.') ?></div>
