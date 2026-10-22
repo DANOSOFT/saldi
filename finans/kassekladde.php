@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-13 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -180,6 +180,9 @@
 // 20261012 CL/SZ SD-730 The paper-clip on a journal that was never saved saves it first even with nothing typed; it opened the pool
 //                with kladde_id=0, where "Indsæt valgte" inserted nothing and came back to an empty journal.
 //                (Reported under SD-730; the fix is here because the save-first clip is SD-716's.)
+// 20261022 CL/NTR The kredit genvej alert built its text from $txt1/$txt2 (only set in the debet branch), so an undefined
+//                 genvej letter in Kredit printed just the account and the bilag number with a space. It now uses this
+//                 branch's own $alert1/$alert2, matching the debet alert.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -4315,7 +4318,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$alert1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$alert2 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
-					$alerttekst = addslashes($kredit . " " . $txt1 . " " . $bilag . $txt2); # 20230306 added spaces
+					$alerttekst = addslashes($kredit . " " . $alert1 . " " . $bilag . $alert2); # 20230306 added spaces
 					alert($alerttekst);
 					$fejl = 1;
 				}

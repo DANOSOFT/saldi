@@ -48,10 +48,26 @@ final class poolVat extends TestCase
 
     public function testShownIsTheSavedCodeElseTheAccounts(): void
     {
-        $this->assertSame('E1', poolVatShown('E1', 'K1', false, self::CODES));
-        $this->assertSame('K1', poolVatShown(null, 'K1', false, self::CODES));
-        $this->assertSame('K1', poolVatShown('', 'K1', false, self::CODES));
-        $this->assertSame('', poolVatShown('', 'K1', true, self::CODES));
-        $this->assertSame('K1', poolVatShown('X9', 'K1', false, self::CODES));
+        $this->assertSame('E1', poolVatShown('E1', 'K1', false, null, self::CODES));
+        $this->assertSame('K1', poolVatShown(null, 'K1', false, null, self::CODES));
+        $this->assertSame('K1', poolVatShown('', 'K1', false, '', self::CODES));
+        $this->assertSame('', poolVatShown('', 'K1', true, null, self::CODES));
+        $this->assertSame('K1', poolVatShown('X9', 'K1', false, null, self::CODES));
+    }
+
+    /** A VAT-free line shows no code, even one saved before (poolVatChoose() saves none for it). */
+    public function testVatFreeLineShowsNoCode(): void
+    {
+        $this->assertSame('', poolVatShown('E1', 'K1', true, null, self::CODES));
+    }
+
+    /** A blank next to a code on the other side was chosen: it stays blank, as in the journal, so the next save keeps it. */
+    public function testChosenBlankStaysBlank(): void
+    {
+        $this->assertSame('', poolVatShown('', 'K1', false, 'S1', self::CODES));
+        $this->assertSame('', poolVatShown(null, 'K1', false, 'S1', self::CODES));
+        $this->assertSame('K1', poolVatShown('', 'K1', false, 'X9', self::CODES));
+        // Shown blank, the next save keeps the blank
+        $this->assertSame('', poolVatChoose(poolVatShown('', 'K1', false, 'S1', self::CODES), 'K1', false, 'S1', self::CODES));
     }
 }

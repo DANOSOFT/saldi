@@ -17,6 +17,8 @@
 // Copyright (c) 2004-2005 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
+// 20260729 LOE Updated to include stdFunc/dkDecimal.php and removed dkdecimal.php which is no longer used.
+
 $kladde_id=$_GET['kladde_id'];
 @session_start();
 $s_id=session_id();
@@ -24,7 +26,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/db_query.php");
 include("../includes/dkdato.php");
-include("../includes/dkdecimal.php");
+include("../includes/stdFunc/dkDecimal.php");
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head><title>SALDI - simuleret bogf&oslash;ring</title><meta http-equiv=\"refresh\" content=\"15;URL=../simuler.php?kladde_id=<?php echo $kladde_id?>\">
 </script>
