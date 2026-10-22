@@ -1252,6 +1252,9 @@ if (!function_exists('formularprint')) {
 					$udskriv_til = $row['udskriv_til'];
 				else
 					$udskriv_til = $udskriv_alle_til;
+				// 20261019 CL/ASR tools/stripe_invoice_pdf.php (no session) runs the engine in inkasso mode
+				// to get a PDF back; force the mail path regardless of the order's print channel.
+				if (!empty($GLOBALS['saldi_pdf_only'])) $udskriv_til = 'email';
 
 				// Check if PBS is set and setting is enabled to automatically send email
 				$pbs = trim($row['pbs']);
@@ -1647,7 +1650,9 @@ if (!function_exists('formularprint')) {
 			}  
 			if ($formular == 3 || $formular == 9)
 				$udskriv_til = 'PDF';
-			if ($mail_fakt && $formular != 3 && $udskriv_til == 'email') {
+			// 20261019 CL/ASR Udskriv til = Stripe (enrolled debtor): same path as e-mail so the delivery hook
+			// below caches the PDF and sends nothing (charged on the due date by tools/stripe_charge_due.php).
+			if (($mail_fakt && $formular != 3 && $udskriv_til == 'email') || ($formular == 4 && $udskriv_til == 'Stripe' && !$inkasso)) {
 				$mailantal++;
 				$filnavne = [
 					1 => "tilbud$ordrenr",
@@ -2392,6 +2397,22 @@ if (!function_exists('formularprint')) {
 					return ("$mappe/$pfliste[$x].pdf");
 					exit;
 				}
+				// 20261019 CL/ASR invoice delivery (Requirements_invoice_email_payment_page_EN.md par. 4/8.1):
+				// 'link' = fixed mail with a button to the invoice & payment page (no PDF attached);
+				// 'stripe' = enrolled debtor, no mail at all (charged on the due date). The PDF the engine
+				// just built is cached for the page in both cases. Anything else = classic mail.
+				$stripeDelivery = 'pdf';
+				if ($form_nr[$x] == 4 && file_exists(__DIR__ . '/stripeIncludes/stripeInvoice.php')) {
+					include_once(__DIR__ . '/stripeIncludes/stripeInvoice.php');
+					$stripeDelivery = stripe_invoice_delivery($ordre_id[$o]);
+				}
+				if ($stripeDelivery === 'link' || $stripeDelivery === 'stripe') {
+					stripe_invoice_pdf_cache($ordre_id[$o], "$mappe/$pfliste[$x].pdf");
+					if ($stripeDelivery === 'link') {
+						$stripeInv = stripe_invoice_load($ordre_id[$o]);
+						$svar = ($stripeInv && stripe_mail_invoice_link($stripeInv)) ? 'OK' : 'Fakturamailen med link kunne ikke sendes';
+					} else $svar = 'OK';
+				} else
 				$svar = send_mails("$ordre_id[$o]", "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], "$mail_subj", "$mail_text", "$mail_bilag", $x);
 			}
 		} elseif ($nomailantal > 0) {

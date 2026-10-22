@@ -6740,6 +6740,13 @@
 7097	Leverede ordrer, der ikke er faktureret	Delivered orders not yet invoiced	Leverte ordrer som ikke er fakturert
 7098	Laver testfaktura …	Making the test invoice …	Lager testfaktura …
 7099	Læseadgang håndhæves kun i "Afvis": i "Log kun" kan en bruger med læseadgang stadig ændre på de sider, der endnu bruger den gamle rettighedskontrol.	Read access is enforced only in "Deny": in "Log only" a user with read access can still change data on pages that still use the old rights check.	Lesetilgang håndheves bare i "Avvis": i "Bare logg" kan en bruker med lesetilgang fortsatt endre på sider som ennå bruker den gamle rettighetskontrollen.
+7100	Fakturaformat	Invoice format	Fakturaformat
+7101	Sådan sendes fakturaer	How invoices are sent	Slik sendes fakturaer
+7102	Gælder kunder med Udskriv til e-mail. Link kræver, at Stripe er sat op. PBS, NemHandel og print berøres ikke.	Applies to customers with Print to e-mail. Link requires Stripe to be set up. PBS, NemHandel and print are not affected.	Gjelder kunder med Skriv ut til e-post. Lenke krever at Stripe er satt opp. PBS, EHF og utskrift berøres ikke.
+7103	Klassisk (PDF vedhæftet)	Classic (PDF attached)	Klassisk (PDF vedlagt)
+7104	Link til faktura og betaling	Link to invoice and payment	Lenke til faktura og betaling
+7105	Tekst i link-mailen	Text in the link e-mail	Tekst i lenke-e-posten
+7106	Resten af mailen er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.	The rest of the e-mail is fixed. [Fornavn] is replaced by the contact person's first name. Empty = the default text.	Resten av e-posten er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.
 6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
 6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
 6932	Adgang nægtet	Access denied	Ingen tilgang
