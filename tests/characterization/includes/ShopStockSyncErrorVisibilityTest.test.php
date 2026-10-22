@@ -503,4 +503,75 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
             self::assertNotSame('', trim($row[$col] ?? ''), "row 5442 has no $lang text");
         }
     }
+
+    // ------------------------------------------------- which endpoint counts as degraded
+
+    /**
+     * Runs a call against an address that refuses the connection at once.
+     *
+     * These two tests execute the real shopApiRequest(), which is the only way to see the
+     * static $degraded map: nothing reads it out. 127.0.0.1 with a closed port answers
+     * ECONNREFUSED immediately, so this costs milliseconds and needs no network. The php
+     * error log is pointed at a temporary file for the duration, because every failure here
+     * is deliberate and would otherwise be printed by the test run.
+     *
+     * @return array{ok: bool, skipped: bool, error: string}
+     */
+    private function callDeadEndpoint(string $url): array
+    {
+        $previous = ini_get('error_log');
+        $sink = tempnam(sys_get_temp_dir(), 'shopsynctest');
+        ini_set('error_log', $sink !== false ? $sink : '/dev/null');
+        try {
+            $res = shopApiRequest($url, array('update_stock' => '1'), null, array(
+                'context'        => 'degradation test',
+                'retries'        => 0,
+                'connectTimeout' => 1,
+                'timeout'        => 1,
+            ));
+        } finally {
+            ini_set('error_log', $previous === false ? '' : $previous);
+            if ($sink !== false) {
+                @unlink($sink);
+            }
+        }
+        return $res;
+    }
+
+    /**
+     * One dead adapter must not stop the shop next to it.
+     *
+     * box4, box5 and box6 are normally three adapter scripts in one hosting account, so they
+     * differ only in the path. Keying the degradation on scheme and host alone meant the first
+     * unreachable adapter skipped the other two for the rest of the request - every remaining
+     * call reported 'endpoint degraded earlier in this request' without being tried once.
+     * That is Havemoebelland's complaint with a different cause.
+     */
+    public function testOneDeadAdapterDoesNotDegradeAnotherOnTheSameHost(): void
+    {
+        $first = $this->callDeadEndpoint('http://127.0.0.1:9/adapter-one.php');
+        self::assertFalse($first['ok'], 'a closed port answered successfully');
+        self::assertFalse($first['skipped'], 'the first call to an endpoint cannot be a skip');
+
+        $second = $this->callDeadEndpoint('http://127.0.0.1:9/adapter-two.php');
+        self::assertFalse($second['skipped'],
+            'the second webshop was skipped because the first one is dead: the degradation key '
+            . 'has lost the path again, so adapters sharing a host share a failure state');
+        self::assertStringNotContainsString('degraded', $second['error'],
+            'the second webshop was refused on the first one\'s failure');
+    }
+
+    /** The same adapter twice still degrades, or the skip saves nobody a timeout. */
+    public function testTheSameDeadAdapterIsSkippedTheSecondTime(): void
+    {
+        $first = $this->callDeadEndpoint('http://127.0.0.1:1/adapter-one.php');
+        self::assertFalse($first['skipped'], 'the first call to an endpoint cannot be a skip');
+
+        $second = $this->callDeadEndpoint('http://127.0.0.1:1/adapter-one.php');
+        self::assertTrue($second['skipped'],
+            'an endpoint that proved unreachable is being called again: every item in the '
+            . 'request now pays its connect timeout');
+        self::assertStringContainsString('degraded', $second['error'],
+            'the skip no longer says why it skipped');
+    }
 }

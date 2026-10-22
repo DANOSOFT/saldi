@@ -30,6 +30,10 @@
 //                  Havemoebelland's stock stopped reaching DirekteImport.dk and Saldi
 //                  reported nothing for days, because the shop adapter answers 200 to
 //                  everything and only the status was looked at.
+// 20261022 CL/MJ SST-876 An endpoint is degraded by scheme, host, port and path, not by host
+//                  alone. Three shop adapters on one hosting account shared one failure
+//                  state, so one dead adapter stopped the other two shops for the rest of
+//                  the request.
 
 if (!function_exists('shopApiUrl')) {
 	/**
@@ -197,7 +201,14 @@ if (!function_exists('shopApiRequest')) {
 		$result['url'] = $url;
 
 		$parts = parse_url($url);
+		// The path is part of the endpoint's identity. An install's webshops are normally
+		// several adapter scripts on one hosting account - box4, box5 and box6 differing only
+		// in the file name - so keying on the host alone let the first unreachable adapter
+		// degrade the other two for the rest of the request, and their calls were skipped
+		// without ever being tried. Scheme and host are case insensitive, so they are
+		// lowercased; a path is not, so it is appended as it stands.
 		$endpointKey = strtolower($parts['scheme'] . '://' . $parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '');
+		$endpointKey .= isset($parts['path']) ? $parts['path'] : '';
 		if (isset($degraded[$endpointKey])) {
 			$result['skipped'] = true;
 			$result['error']   = 'endpoint degraded earlier in this request: ' . $degraded[$endpointKey];
