@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolAccountInfo.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/poolAccountInfo.php --- ver 5.0.0 --- 2026-10-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,8 @@
 // 20261003 CL/SZ SD-714 Created: account type + number for the pool's Debet/Kredit fields, and the name and VAT code shown under them.
 // 20261004 CL/SZ SD-725 The VAT code per side of a pool line: the codes to choose from, the code shown, and the code saved.
 //                The rules are the journal's (kassekladde.php): a blank code means the account's own code, unless the line is VAT-free (u/m) or only the other side has a code.
+// 20261022 CL/SZ SD-725 (CodeRabbit) poolVatShown(): a VAT-free line shows no code, and a blank next to a code on the other side stays blank,
+//                as the journal shows it; the account's code there was saved again on the next "Gem".
 
 if (!function_exists('poolAccountSplit')) {
 	/**
@@ -162,15 +164,20 @@ if (!function_exists('poolVatChoose')) {
 
 if (!function_exists('poolVatShown')) {
 	/**
-	 * The VAT code a pool line shows for one side: the saved code, else the account's own unless the line is VAT-free.
+	 * The VAT code a pool line shows for one side, as the journal shows it (kassekladde.php): the saved code, else the account's own.
 	 * A line saved before the field existed has no code saved and shows the account's, as the journal does.
+	 * A VAT-free line shows none, as poolVatChoose() saves none for it. A blank next to a code on the other side was chosen
+	 * (poolVatChoose() saves it so) and stays blank; showing the account's code there put it back on the next save.
 	 *
-	 * @param string|null $saved kassekladde.debetvat / kreditvat, null when not saved.
+	 * @param string|null $saved      kassekladde.debetvat / kreditvat, null when not saved.
+	 * @param string|null $otherSaved The other side's saved code.
 	 * @return string
 	 */
-	function poolVatShown($saved, $accountCode, $momsfri, array $codes) {
+	function poolVatShown($saved, $accountCode, $momsfri, $otherSaved, array $codes) {
+		if ($momsfri) return '';
 		$saved = trim((string)$saved);
 		if ($saved !== '' && array_key_exists($saved, $codes)) return $saved;
-		return $momsfri ? '' : $accountCode;
+		if (array_key_exists(trim((string)$otherSaved), $codes)) return '';
+		return $accountCode;
 	}
 }
