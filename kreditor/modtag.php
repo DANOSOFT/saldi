@@ -49,6 +49,8 @@
 //             so box9-only items already relied on this validation (MB-36).
 // 20260917 SZ Guard the box9 lookup above against a missing grupper row (CodeRabbit,
 //             PR #608) - degrades to "not tracked" instead of a PHP warning.
+// 20261022 CL/MJ SST-876 The receipt marks its lines and tells the webshops once, after the
+//                 goods are committed, rather than syncing inside the line loop.
 // 20261016 CL/MJ SST-876 A webshop that will not take the stock update is now named on screen
 //                  and in the log instead of passing unnoticed. Havemoebelland received
 //                  supplier orders for days while DirekteImport.dk and havemoebelland.dk
@@ -204,7 +206,6 @@ if ($fejl==0) {
 	}
 	# SST-876: collected per item and reported after the commit - a shop that refuses the
 	# update must not undo a receipt that is otherwise correct.
-	$shopSyncFailed = array();
 	for ($x=1; $x<=$linjeantal; $x++) {
 		$sn_start=0;
 		$qtxt="select id, gruppe, beholdning from varer where id='$vare_id[$x]'";
@@ -297,10 +298,10 @@ if ($fejl==0) {
 				$qtxt.= "('$vare_id[$x]','$userName','$initials','$leveres[$x]','indkøbsordre $ordreNr','".date('U')."')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
-			$shopSync = sync_shop_vare($vare_id[$x],$variant_id[$x],$lager[$x]);
-			if (shopSyncFailed($shopSync)) {
-				$shopSyncFailed[trim((string)$varenr[$x])] = $shopSync;
-			}
+			# SST-876: marked, not sent. The receipt sends once when every line is posted, so a
+			# receipt of thirteen lines is thirteen sends rather than thirteen times eight calls,
+			# and a set several of the lines belong to is sent once.
+			shopSyncMark($vare_id[$x],$variant_id[$x],$lager[$x],'stock');
 /*
 			$qtxt = "select box2 from grupper where art = 'DIV' and kodenr = '5'";
 echo "$qtxt<br>";
@@ -575,12 +576,15 @@ function returnering ($id,$linje_id,$leveres,$vare_id, $variant_id,$pris, $serie
 }
 
 
-# SST-876: the goods are received and committed by now; this only says that a shop did not
-# take the new figure, so the user knows to look rather than assuming the shop is in step.
-if (!empty($shopSyncFailed)) {
-	$shopSyncItems = implode(', ', array_keys($shopSyncFailed));
+# SST-876: the goods are received and committed by now, so this is where the webshops are
+# told, and where a shop that did not take the new figure is reported - the user knows to
+# look rather than assuming the shop is in step. Anything that could not be delivered stays
+# on the queue for the next request.
+$shopSync = shopSyncFlush();
+if (shopSyncFailed($shopSync)) {
+	$shopSyncItems = implode(', ', shopSyncFailedItems());
 	error_log("saldi: shop stock sync failed on receipt of order $id for: $shopSyncItems");
-	shopSyncAlert($shopSyncItems, $sprog_id, 'fejltekst');
+	shopSyncAlertFailedItems($sprog_id, 'fejltekst');
 }
 #	print "<a href=ordre.php?id=$id accesskey=L>Luk</a>";
 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";

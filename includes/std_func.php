@@ -108,6 +108,15 @@
 //                  is_integer() shop_id branch is gone, and shopSyncFailed() lets callers
 //                  tell a real failure from an account with no webshop. shopSyncAlert()
 //                  carries the one sentence the three user-facing call sites share.
+// 20261022 CL/MJ SST-876 sync_shop_vare() takes a mode: 'stock' sends only the stock calls,
+//                  which is all a receipt, a sale or a regulation changes, so eight calls per
+//                  item become three. Every send goes to all three shops in one round, and a
+//                  parent set is sent once per request rather than once per line that belongs
+//                  to it. shopSyncMark()/shopSyncFlush() let a document send each item once
+//                  with its final figure; shopSyncDrainQueue() delivers what an earlier
+//                  request could not, reading the figures again rather than trusting a queued
+//                  one; shopSyncFailedItems() and shopSyncAlertFailedItems() carry the item
+//                  numbers to whichever page has a user to tell after it has committed.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1753,7 +1762,10 @@ if (!function_exists('lagerreguler')) {
 #			include_once('productCardIncludes/updateParentStock.php');
 #			updateParentStock($id, $lager, $diff);
 #	  }
-		$syncResult = sync_shop_vare($vare_id, $variant_id, $lager);
+		# SST-876: a regulation moves stock and nothing else, so the price and sku calls have
+		# nothing to say. Three calls instead of eight, and the product card sends the prices
+		# itself when Gem is what changed them.
+		$syncResult = sync_shop_vare($vare_id, $variant_id, $lager, 'stock');
 		$qtxt = "select sum(beholdning) as beholdning from lagerstatus where vare_id='$vare_id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$beholdning = $r['beholdning'] * 1;
@@ -2522,16 +2534,20 @@ if (!function_exists('shopSyncAlertFailedItems')) {
 	 * with no screen - the rest api, $webservice - do not call this; their failures are in the
 	 * php error log and on the queue.
 	 *
-	 * @param int    $sprogId  Language id for findtekst().
-	 * @param string $handler  JavaScript function to call, as shopSyncAlert() takes it.
+	 * @param int|null $sprogId  Language id for findtekst(). Null takes the page's own, which
+	 *                           includes/online.php:146 sets on every page.
+	 * @param string   $handler  JavaScript function to call, as shopSyncAlert() takes it.
 	 * @return bool  True when something was reported.
 	 */
-	function shopSyncAlertFailedItems($sprogId, $handler = 'alert') {
+	function shopSyncAlertFailedItems($sprogId = null, $handler = 'alert') {
 		$items = shopSyncFailedItems();
 		if (!$items) {
 			return false;
 		}
 		shopSyncClearFailedItems();
+		if ($sprogId === null) {
+			$sprogId = isset($GLOBALS['sprog_id']) ? $GLOBALS['sprog_id'] : 0;
+		}
 		shopSyncAlert(implode(', ', $items), $sprogId, $handler);
 		return true;
 	}

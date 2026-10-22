@@ -29,6 +29,8 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
     private const MODTAG = __DIR__ . '/../../../kreditor/modtag.php';
     private const VAREKORT = __DIR__ . '/../../../lager/varekort.php';
     private const ORDREFUNC = __DIR__ . '/../../../includes/ordrefunc.php';
+    private const LEVERING = __DIR__ . '/../../../debitor/levering.php';
+    private const MASSEFAKT = __DIR__ . '/../../../debitor/massefakt.php';
     private const TEKSTER = __DIR__ . '/../../../importfiler/tekster.csv';
 
     /** @var array<string, string> */
@@ -242,13 +244,17 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
      *
      * This is the defect itself: all four call sites used to invoke sync_shop_vare() as a
      * bare statement, so a shop refusing every update for a week left no trace anywhere.
+     *
+     * A caller may now mark its lines and send once at the end instead of sending per line, so
+     * on those it is shopSyncFlush()'s answer that has to be kept. shopSyncMark() returns
+     * nothing and sends nothing, so it is the one call allowed to stand on its own.
      */
     #[DataProvider('callSites')]
     public function testEveryCallerKeepsTheSyncResult(string $path, string $label): void
     {
         $src = self::source($path);
         self::assertMatchesRegularExpression(
-            '/=\s*(?:sync_shop_vare|lagerreguler)\s*\(/', $src,
+            '/=\s*(?:sync_shop_vare|lagerreguler|shopSyncFlush)\s*\(/', $src,
             "$label does not keep what the sync answered");
         self::assertStringContainsString('shopSyncFailed(', $src,
             "$label never asks whether the sync failed");
@@ -260,6 +266,9 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
         self::assertDoesNotMatchRegularExpression(
             '/^[ \t]*lagerreguler\s*\(/m', $src,
             "$label still calls lagerreguler() as a bare statement");
+        self::assertDoesNotMatchRegularExpression(
+            '/^[ \t]*shopSyncFlush\s*\(/m', $src,
+            "$label sends the document's updates without keeping the answer");
     }
 
     /** A refusal has to leave a trace an operator can find afterwards. */
@@ -288,8 +297,15 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
         foreach (array(
             array(self::MODTAG, 'kreditor/modtag.php', 1),
             array(self::VAREKORT, 'lager/varekort.php', 3),
+            // SST-876 step 4, the sale. levering.php has one exit that has committed by then;
+            // massefakt.php has two, because it invoices ten orders and then hands over to
+            // itself for the next ten, and anything printed after that refresh is never written.
+            array(self::LEVERING, 'debitor/levering.php', 1),
+            array(self::MASSEFAKT, 'debitor/massefakt.php', 2),
         ) as list($path, $label, $expected)) {
-            self::assertSame($expected, substr_count(self::source($path), 'shopSyncAlert('),
+            $src = self::source($path);
+            $says = substr_count($src, 'shopSyncAlert(') + substr_count($src, 'shopSyncAlertFailedItems(');
+            self::assertSame($expected, $says,
                 "$label should tell the user at $expected place(s) and does not");
         }
     }
@@ -697,5 +713,61 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
         self::assertLessThan($queue, $guard, 'the item is queued before anything asks whether that helps');
         self::assertStringContainsString('shopSyncNoteFailedItem(', $block,
             'the item number of a failed send is no longer collected for the screen');
+    }
+
+    // ------------------------------------------------------- the sale, SST-876 step 4
+
+    /**
+     * The sale sends once, when every line is posted.
+     *
+     * linjeopdat() used to sync the line it had just posted, so an order of five lines was five
+     * syncs and every set those lines belong to was sent once per line. It marks now, and
+     * levering() sends when the loop is done - which is also the only moment the figures are
+     * final.
+     */
+    public function testTheSaleMarksItsLinesAndSendsOnce(): void
+    {
+        $src = self::source(self::ORDREFUNC);
+        self::assertStringContainsString('shopSyncMark($vare_id, $variant_id, $lager', $src,
+            'linjeopdat() no longer marks the line it posted');
+        self::assertSame(1, substr_count($src, 'shopSyncFlush('),
+            'the sale sends its updates somewhere other than once at the end of levering()');
+        $mark  = strpos($src, 'shopSyncMark($vare_id');
+        $flush = strpos($src, 'shopSyncFlush(');
+        self::assertNotFalse($mark);
+        self::assertNotFalse($flush);
+        self::assertLessThan($mark, $flush,
+            'levering() sends after linjeopdat() in the file, so the flush is inside the line loop');
+        // The name still appears in the file's history header, so this looks at the function.
+        $body = substr($src, $mark);
+        $end = strpos($body, '# endfunc linjeopdat');
+        self::assertNotFalse($end, 'linjeopdat() no longer ends where it says it does');
+        self::assertStringNotContainsString('sync_shop_vare(', substr($body, 0, $end),
+            'linjeopdat() still sends the line it posted, outside the flush');
+    }
+
+    /**
+     * The paths with nobody watching stay quiet.
+     *
+     * The rest api, the webshop order import and mysale all reach levering(), and a popup in a
+     * machine-to-machine call is at best ignored and at worst breaks the response. Their
+     * failures are in the php error log and on the queue, which is what step 2 is for.
+     */
+    public function testThePathsWithNoUserDoNotTryToAlert(): void
+    {
+        foreach (array(
+            'api/rest_api.php', 'api/hent_ordrer.php', 'mysale/api.php',
+        ) as $path) {
+            $full = __DIR__ . '/../../../' . $path;
+            if (!is_file($full)) {
+                continue;
+            }
+            $src = self::source($full);
+            self::assertStringNotContainsString('shopSyncAlert', $src,
+                "$path would print a javascript alert into a machine-to-machine answer");
+        }
+        // levering() is shared by both kinds of caller, so it must not alert on its own behalf.
+        self::assertStringNotContainsString('shopSyncAlert', self::source(self::ORDREFUNC),
+            'levering() alerts by itself, so the rest api prints a popup too');
     }
 }
