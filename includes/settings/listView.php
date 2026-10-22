@@ -232,7 +232,7 @@ function settings_list_render(array $c): void
 						'original' => isset($c['originals'][$key]) ? $c['originals'][$key] : '',
 						'error'    => isset($state['errors'][$key]) ? $state['errors'][$key] : null,
 						'readonly' => !$canWrite,
-						'locked'   => st_locked($def),
+						'locked'   => st_locked($def, isset($c['values'][$key]) ? (string) $c['values'][$key] : null),
 						'visible'  => st_visible($def, $c['values']),
 						'mine'     => ($state['conflict'] && isset($state['conflict']['mine'][$key])),
 						'set_at'   => isset($setAt[$key]) ? $setAt[$key] : '',
@@ -259,7 +259,7 @@ function settings_list_render(array $c): void
             <div class="st-h">
               <a class="st-h-field" href="#<?= st_h($key) ?>"><?= st_t($def['label']) ?></a>
               <span class="st-h-ch"><?php if ($secret) { ?><?= st_t(5713) ?><?php } else { ?><s><?= st_h(st_display_value($def, (string) $row['old_value'])) ?></s> → <?= st_h(st_display_value($def, (string) $row['new_value'])) ?><?php } ?></span>
-              <span class="st-h-m"><span><?= st_h($row['brugernavn']) ?> · <?= st_h(st_local_time((string) $row['tidspunkt'], 'j/n H:i')) ?></span><?php if (!$secret && $canWrite && st_field_access($def) === 'write' && !st_locked($def)) { ?><button type="button" class="st-tl" data-restore="<?= (int) $row['id'] ?>" data-value="<?= st_h(st_display_value($def, (string) $row['old_value'])) ?>"><?= st_t(5711) ?></button><?php } ?></span>
+              <span class="st-h-m"><span><?= st_h($row['brugernavn']) ?> · <?= st_h(st_local_time((string) $row['tidspunkt'], 'j/n H:i')) ?></span><?php if (!$secret && $canWrite && st_field_access($def) === 'write' && !st_locked($def, null, st_form_value($def, (string) $row['old_value']))) { ?><button type="button" class="st-tl" data-restore="<?= (int) $row['id'] ?>" data-value="<?= st_h(st_display_value($def, (string) $row['old_value'])) ?>"><?= st_t(5711) ?></button><?php } ?></span>
             </div>
 				<?php } ?>
 				<?php if (!$rows) { ?>
