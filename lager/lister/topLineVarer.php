@@ -1,7 +1,8 @@
 <?php
+// 20261019 CDX/LH MB-78: fix PHP warnings
 	include(get_relative()."/includes/oldDesign/header.php");
 	include(get_relative()."/includes/topline_settings.php");
-	$returside = nav_back_url(if_isset($returside, null));
+	$returside = nav_back_url($returside ?? null);
 
 	$border = 'border:1px';
 	$TableBG = "bgcolor=$bgcolor";

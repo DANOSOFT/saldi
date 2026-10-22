@@ -43,6 +43,7 @@
 // 20240729 PHR Various translations
 // 20240909 PHR Added m_rabat to customerDisplay;
 // 20260210 PHR $kasse = (int)$kasse;
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 	print "<!-- ---------- start productLines.php ---------- -->\n";
 	$customerDisplay = NULL;
@@ -60,7 +61,7 @@
 	$dx=0;
 	if (isset($_GET['vare_id']) && $_GET['vare_id']) {
 		$itemIdNew=$_GET['vare_id'];	
-	} elseif ($varenr_ny) {
+	} elseif ($varenr_ny ?? null) {
 		$qtxt = "select id from varer where varenr = '". db_escape_string($varenr_ny) ."'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$itemIdNew=$r['id'];
@@ -89,7 +90,7 @@
 		$s++;
 	}
 	if (!isset($color)) $color = 0;
-	for ($x=1;$x<=$varelinjer;$x++) {
+	for ($x=1;$x<=($varelinjer ?? null);$x++) {
 		if ($vare_id[$x]) {
 			$qtxt="select gruppe,beholdning,min_lager from varer where id = $vare_id[$x]";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
