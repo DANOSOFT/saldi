@@ -407,9 +407,17 @@ functionality; they are missing behaviour, not defects in what exists.
    batch-controlled group.
 2. No validation. Expiry date is never required at goods receipt, and a date in the past is
    accepted (spec §4.3.1 and §4.3.4).
-3. No warnings at point of sale. Nothing warns when an expired or near-expiry batch is sold,
-   and the batch-selection popup shows neither expiry date nor batch number — only purchase
-   order number, quantity and remaining stock (spec §4.4, §5.4).
+3. No warnings at point of sale (partly closed 2026-10-08, SST-833). Nothing warns when an
+   expired or near-expiry batch is sold (spec §4.4, §5.4) — that part is still open.
+   The batch-selection popup used to show neither expiry date nor batch number, only purchase
+   order number, quantity and remaining stock; it now shows Batchnr. and Udløbsdato as well,
+   read from the batch_kob row it already selected. Both columns are blank for stock that
+   predates the feature, which is all existing stock: batch number and expiry date are only
+   recorded on goods received after Batch-kontrol is switched on (§3.1-3.2), so a tenant
+   enabling it sees empty columns until the first new receipt. The control that opens the
+   popup also used the serial-number icon and the alt text "Serienummer" on items that have
+   no serial number, which MEDSHOP read as the feature misbehaving; it now uses the lookup
+   icon and the text 1496 "Vælg fra købsordre" that was already on its title.
 4. No expired-inventory report. The separate "Days since expiry" write-off report of spec
    §6.2 does not exist; Show expired only on the expiry report covers part of it. PDF export
    is not implemented (CSV is).

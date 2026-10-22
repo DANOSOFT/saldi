@@ -80,6 +80,9 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261001 MJ SST-814 Trigram indexes on adresser(firmanavn) and adresser(kontonr) so the
+//                  account lookup during invoice creation stops scanning the whole table on
+//                  every keystroke. Only created where pg_trgm exists.
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
 // 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
 // 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
@@ -87,6 +90,10 @@
 //                  auto-udlign open-post search stops scanning ordrer once per open post.
 // 20261002 CL/SZ SST-808 (CodeRabbit): build those indexes CONCURRENTLY so login does not block
 //                  writes while they build, and rebuild one left INVALID by an interrupted build.
+// 20261002 MJ SST-814 Review: corrected the stated reason for not using CONCURRENTLY. There
+//                  is no enclosing transaction; the reason is that an interrupted
+//                  CONCURRENTLY build leaves an invalid index that IF NOT EXISTS would then
+//                  skip forever. The statements themselves are unchanged.
 // 20261003 CL/SZ SST-818: the kassekladde/documents/adresser indexes are built CONCURRENTLY (PostgreSQL) or with
 //                  LOCK=NONE (MySQL), so the one-time build at login does not block writes; an INVALID one is rebuilt.
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
@@ -101,8 +108,14 @@
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
 // 20261007 CL/SZ SST-818: a login that finds an index lock taken skips the build instead of waiting for it.
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
+// 20261012 CL/LH Add the stripe_events lease columns (claim_token, claimed_at, attempts, event_created)
+//                  ahead of the invoice-payment webhook, which needs them from its first request.
+// 20261013 CL/LH stripe_events columns: schema-scoped check, concurrent-login safe (CodeRabbit on #795).
 // 20261013 CL/SZ SST-808 (CodeRabbit): skip the auto-udlign index block on MySQL tenants.
 // 20261020 CL/NTR Convert brugere.ansat_id to integer (nullable, no default) on PostgreSQL and MySQL tenants where it is text/varchar.
+// 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
+//                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
+//                  so the one-time build no longer blocks writes to adresser during a login.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -654,6 +667,44 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		received_at timestamp DEFAULT CURRENT_TIMESTAMP,
 		processed_at timestamp)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// 20261012 CL/LH Event leases for the Stripe webhook: who holds an event (claim_token/claimed_at),
+//                  how often it was retried (attempts) and Stripe's own event time (event_created).
+//                  Shipped before the webhook change, because a merge to master deploys /master at once.
+// 20261013 CL/LH (CodeRabbit) Scoped to the current schema/database and safe for concurrent logins, like
+//                  the lock_token migration: ADD COLUMN IF NOT EXISTS on PostgreSQL, GET_LOCK + recheck on MySQL.
+$stripeEventMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$stripeEventColumns = array('claim_token' => 'varchar(64)', 'claimed_at' => 'timestamp', 'attempts' => 'integer NOT NULL DEFAULT 0', 'event_created' => 'bigint');
+$stripeEventMissing = array();
+foreach ($stripeEventColumns as $stripeEventColumn => $stripeEventType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn'";
+	$qtxt .= $stripeEventMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$stripeEventMissing[] = $stripeEventColumn;
+	}
+}
+if ($stripeEventMissing) {
+	if ($stripeEventMysql) {
+		$stripeEventLock = "CONCAT('saldi:stripe_events:', MD5(DATABASE()))";
+		$stripeEventLockResult = db_fetch_array(db_select("SELECT GET_LOCK($stripeEventLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($stripeEventLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the stripe_events migration lock.');
+		}
+		try {
+			foreach ($stripeEventMissing as $stripeEventColumn) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE stripe_events ADD COLUMN $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($stripeEventLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($stripeEventMissing as $stripeEventColumn) {
+			db_modify("ALTER TABLE stripe_events ADD COLUMN IF NOT EXISTS $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+		}
+	}
 }
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -1389,6 +1440,31 @@ if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables W
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);
 
+// 20261019 CL/ASR "Saldi invoices, Stripe collects": stripe_payments (one row per PaymentIntent,
+// partial unique index = at most one succeeded per invoice) and the card-on-file columns on
+// adresser (stripe, stripe_customer_id, stripe_pm_id, stripe_date). PostgreSQL only, like the
+// other stripe_* tables above; the same function is called lazily by the payment page.
+if ($db_type != 'mysql' && $db_type != 'mysqli') {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_payments' AND column_name='payment_intent_id'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("CREATE TABLE stripe_payments (id SERIAL PRIMARY KEY, ordre_id integer NOT NULL, fakturanr varchar(30),
+			stripe_customer_id varchar(255), payment_intent_id varchar(255) NOT NULL,
+			amount_ore integer NOT NULL, currency varchar(3) NOT NULL DEFAULT 'DKK',
+			status varchar(20) NOT NULL, source varchar(10) NOT NULL DEFAULT 'page',
+			save_card boolean NOT NULL DEFAULT false, pm_id varchar(255), pm_brand varchar(20), pm_last4 varchar(4),
+			attempt smallint NOT NULL DEFAULT 1, last_error text,
+			created_at timestamp DEFAULT CURRENT_TIMESTAMP, succeeded_at timestamp,
+			journal_line_id integer, confirmation_sent_at timestamp, last_event_id varchar(255))", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE UNIQUE INDEX stripe_payments_pi_uidx ON stripe_payments (payment_intent_id)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE UNIQUE INDEX stripe_payments_succeeded_uidx ON stripe_payments (ordre_id) WHERE status = 'succeeded'", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX stripe_payments_ordre_idx ON stripe_payments (ordre_id)", __FILE__ . " linje " . __LINE__);
+	}
+	foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date') as $stripeCol => $stripeType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='$stripeCol'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) db_modify("ALTER TABLE adresser ADD COLUMN $stripeCol $stripeType", __FILE__ . " linje " . __LINE__);
+	}
+}
+
 // 20261006 CL/LH SST-850: rentalsettings.pass used to be stored in clear text. Hash a remaining
 // clear-text value once; only tenants with the rental module have the table, and a value that is
 // already a password_hash() is left alone, so this is idempotent.
@@ -1411,6 +1487,65 @@ if ($ansatIdType && in_array(strtolower($ansatIdType['data_type']), ['text', 'ch
 		db_modify("ALTER TABLE brugere MODIFY ansat_id integer NULL DEFAULT NULL", __FILE__ . " linje " . __LINE__);
 	} else {
 		db_modify("ALTER TABLE \"brugere\" ALTER \"ansat_id\" TYPE integer USING NULLIF(trim(ansat_id), '')::integer, ALTER \"ansat_id\" DROP DEFAULT, ALTER \"ansat_id\" DROP NOT NULL", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+# 20261001 MJ SST-814 - the account field on debitor/ordre.php (javascript/ordreAutocomplete.js
+# -> finans/kassekladde_includes/accountSearch.php) searches adresser with ILIKE '%term%' on both
+# kontonr and firmanavn. A leading wildcard cannot use a B-tree index, and adresser had no index
+# at all beyond its primary key, so every keystroke scanned the whole table - twice, until the
+# redundant COUNT(*) was made opt-in in the same ticket. At Klunserkongen every rented stand is
+# another art='D' row, so the table grows steadily and the lookup slowed with it, which is why the
+# customer reported it as having "become" slow rather than always having been.
+# Measured on a synthetic 200,000-row adresser: a four-character stand number went from 177 ms to
+# 1.9 ms, and a six-character name from 184 ms to 35 ms.
+# pg_trgm is bootstrapped further up this file, but a tenant on managed hosting without superuser
+# may not have been permitted to create it - and that attempt is only made once, so it may never
+# be retried. Index only where the extension actually exists; everyone else keeps the unindexed
+# but still correct ILIKE path.
+# Built CONCURRENTLY, with the invalid-index recovery that makes it safe here. The first
+# version of this block used a plain CREATE INDEX IF NOT EXISTS and argued against
+# CONCURRENTLY, on the grounds that an interrupted concurrent build leaves an *invalid*
+# index behind which IF NOT EXISTS then matches on every later login, skipping the rebuild
+# forever and leaving an index the planner ignores while writes still maintain it. That trap
+# is real, but avoiding CONCURRENTLY is not how this repo answers it any more: SST-808 and
+# SST-818 both hit the same objection in review and solved it by checking pg_index.indisvalid
+# and dropping and rebuilding an invalid index, rather than by taking the write lock. SST-818
+# builds adresser_kontonr_art_idx on this very table that way. So the same shape is used here,
+# for the reason it was adopted there: a plain build locks out inserts, updates and deletes on
+# adresser for as long as it takes, and on a tenant large enough to need these indexes that is
+# a stall on order and account writes during someone else's login.
+# The advisory lock keeps two simultaneous logins from building the same index; the login that
+# would have to wait skips instead, because waiting deadlocks with CREATE INDEX CONCURRENTLY
+# (it waits in turn for the waiting login's open snapshot) - the failure SST-808 and SST-818
+# each had to fix after the fact.
+# Postgres only, and checked before the probe runs: pg_extension does not exist on MySQL, so
+# querying it there fails on every login. gin_trgm_ops, pg_index and CONCURRENTLY are Postgres
+# syntax regardless, so a MySQL tenant keeps the unindexed but correct ILIKE path, the same as
+# a tenant without the extension. Reported by ZaynSaul on PR #691; the pg_trgm bootstrap further
+# up this file has the same gap and is left alone here because it is not this ticket's code.
+$trgmIndexMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", __FILE__ . " linje " . __LINE__))) {
+	$trgmIndexes = array(
+		'adresser_firmanavn_trgm_idx' => "ON adresser USING gin (firmanavn gin_trgm_ops)",
+		'adresser_kontonr_trgm_idx'   => "ON adresser USING gin (kontonr gin_trgm_ops)",
+	);
+	foreach ($trgmIndexes as $trgmIndexName => $trgmIndexDefinition) {
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$trgmLock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$trgmIndexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$trgmLock || $trgmLock['locked'] !== 't') continue;
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$trgmIndexName' AND pg_namespace.nspname = current_schema()";
+		$trgmExisting = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($trgmExisting && $trgmExisting['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $trgmIndexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$trgmExisting || $trgmExisting['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $trgmIndexName $trgmIndexDefinition", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
 	}
 }
 

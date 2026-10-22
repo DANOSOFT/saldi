@@ -156,6 +156,9 @@
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
 // 20261008 Sawaneh The order heading has no dangling dash when there is nothing after the number (breadcrumb and page head).
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
+// 20261008 MJ SST-833 The batch-selection control on a sales line no longer uses the
+//                  serial-number icon and alt text. It opens batch(), not serienummer(),
+//                  and appeared on items with no serial number at all.
 // 20261011 MJ SST-828 The plukliste buttons now follow the order's own status instead of
 //                  $opValue ($_GET['valg']), which made them disappear entirely whenever
 //                  hurtigfakturering was on. They are shown on anything but a tilbud, so
@@ -4102,6 +4105,11 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
+		// 20261019 CL/ASR Stripe: debtor with card on file (automatic charge on the due date, no invoice mail)
+		if ($udskriv_til != "Stripe" && !empty($konto_id)) {
+			$stripeChk = db_fetch_array(db_select("select column_name from information_schema.columns where table_name='adresser' and column_name='stripe'", __FILE__ . " linje " . __LINE__));
+			if ($stripeChk && ($stripeR = db_fetch_array(db_select("select stripe from adresser where id = '" . (int)$konto_id . "'", __FILE__ . " linje " . __LINE__))) && $stripeR['stripe'] === 'on') print "<option value='Stripe' title='Trækkes automatisk på kundens kort på forfaldsdatoen. Ingen fakturamail.'>Stripe</option>\n";
+		}
 		#		if ($udskriv_til!="ingen") print "<option>ingen</option>\n"; #PHR 20170501
 		if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803
 		if ($udskriv_til != "Digitalt") print "<option value='Digitalt' title='" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "'>" . findtekst('2532|Digitalt', $sprog_id) . "</option>\n"; #PBLM 12/06-2023
@@ -7118,7 +7126,10 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
 				print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
-				if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
+				// 20261008 MJ SST-833 This opens batch(), not serienummer(), so it no longer uses the
+				// serial-number icon and alt text. MEDSHOP read the serial icon on an item with no
+				// serial number as the feature misbehaving. 1496 is the text already on its title.
+				if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\" src=\"../ikoner/opslag.png\"></td>\n";
 				elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"" . findtekst('1501|Vælg serienr', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
 
 				if ($linje_id && $leveret != $tidl_lev) db_modify("update ordrelinjer set leveret=$tidl_lev where id=$linje_id", __FILE__ . " linje " . __LINE__);
