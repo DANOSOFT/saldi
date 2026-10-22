@@ -57,8 +57,27 @@
 }
 
 .sidebar.closed .logo .logo-img {
-    opacity: 0;
-    pointer-events: none;
+    display: none;
+}
+
+/* 20261022 CL/ASR Collapsed: the Saldi mark stays, stacked above the arrow (as the operator panel's Danosoft mark). */
+.sidebar .logo .logo-mark {
+    display: none;
+    width: 34px;
+    height: 34px;
+    flex: none;
+}
+
+.sidebar.closed .logo.wide {
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    height: auto;
+    padding: 40px 0 1em 0;
+}
+
+.sidebar.closed .logo .logo-mark {
+    display: block;
 }
 
 .sidebar .nav-links {

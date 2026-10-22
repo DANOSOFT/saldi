@@ -78,6 +78,8 @@
 // 20261014 Sawaneh Review: the shell's POSTs (top bar forms, theme, bell) carry the session's CSRF token.
 // 20261014 Sawaneh Review: the landing page without Se Oversigt is a page the role's own key allows.
 // 20261016 Sawaneh Tester feedback (PR #803): the sidebar mark follows the page in the frame, not only sidebar clicks.
+// 20261022 CL/ASR The Saldi mark (img/sidebar_mark.png, cut from sidebar_logo.png) stays in the collapsed sidebar above
+//                  the arrow, as the Danosoft mark does in the operator panel; the wordmark is shown only when open.
 // 20261008 Sawaneh Oversigt rebuilt (prototype_dashboard_tema v5): Skjul/Rediger oversigt act on the page in place (drawer).
 // 20261009 Sawaneh topbarSetGear() removed: the gear sits in the page toolbar now (page_bar, decision 22 / addendum 2 §5).
 // 20261009 Sawaneh css/saldi-fonts.css in the shell: Saldi Grotesk + Inter and the text-size base (front-page addendum 3 §3).
@@ -211,6 +213,13 @@ function brightenColor($color, $amount = 0.2) {
     -webkit-mask-size: contain;
     mask-size: contain;
   }
+  .logo-mark {
+    background-color: <?php echo $buttonTxtColor; ?> !important;
+    -webkit-mask: url("../img/sidebar_mark.png") no-repeat center;
+    mask: url("../img/sidebar_mark.png") no-repeat center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
 
   .sidebar:not(.closed) .nav-links li .sub-menu li a::before{
     background: <?php echo $buttonTxtColor; ?> !important;
@@ -223,7 +232,7 @@ function brightenColor($color, $amount = 0.2) {
 <link rel="icon" href="../img/saldiLogo.png">
 <link href='../css/saldi-fonts.css?v=2' rel='stylesheet'>
 <script>window.SALDI_CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;</script>
-<link href='../css/sidebar_style.css?v=25' rel='stylesheet'>
+<link href='../css/sidebar_style.css?v=26' rel='stylesheet'>
 <link href='../css/topbar.css?v=20' rel='stylesheet'>
 <link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
 <script>document.documentElement.classList.add('saldi-shell');</script>
@@ -238,6 +247,7 @@ function brightenColor($color, $amount = 0.2) {
 
   <div class="logo wide">
     <div class="logo-img"></div>
+    <div class="logo-mark"></div>
     <i id="icon-open" class="bx bxs-arrow-from-right"></i>
   </div>
 
