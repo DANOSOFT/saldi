@@ -148,6 +148,15 @@ final class DbAdapterTest extends TestCase
         $this->assertSame(1, $r['usable_after'], 'the connection stays usable after failed statements');
     }
 
+    public function testTwoStatementsInOneStringAreRefused(): void
+    {
+        $r = $this->runMode('stacked');
+        $this->assertNotSame('accepted', $r['stacked'], 'a second statement in the string must not run unchecked');
+        $this->assertSame('42601', $r['sqlstate']);
+        $this->assertSame(0, $r['count'], 'neither statement ran');
+        $this->assertTrue($r['plain_select_ok'], 'a parameterless single statement still works');
+    }
+
     public function testANulByteIsRefusedBeforeAnythingIsSent(): void
     {
         $r = $this->runMode('nul');

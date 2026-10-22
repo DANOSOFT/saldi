@@ -15,13 +15,14 @@
 //   datetime    DateTime parameters land as wall-clock time in PHP's zone
 //   errors      a failed statement reports the primary message and SQLSTATE, not the bound values
 //   nul         a NUL byte in a parameter or in the statement is refused
+//   stacked     two statements in one string are refused, also without parameters
 // Prints JSON on stdout. Errors from the module are reported as {"error": ...} with exit 1.
 //
 // History:
 // 20261022 Sawaneh SD-734: created.
 
 if ($argc < 3) {
-    fwrite(STDERR, "usage: php run_bootstrap.php <cli|web|rows|badparam|tx|tx_fail|tx_aborted|tx_unhandled|tx_early_commit|datetime|errors|nul> <test_db>\n");
+    fwrite(STDERR, "usage: php run_bootstrap.php <cli|web|rows|badparam|tx|tx_fail|tx_aborted|tx_unhandled|tx_early_commit|datetime|errors|nul|stacked> <test_db>\n");
     exit(2);
 }
 $mode = $argv[1];
@@ -208,6 +209,20 @@ try {
                 $out['missing'] = ['message' => $e->getMessage(), 'sqlstate' => $e->sqlstate];
             }
             $out['usable_after'] = (int)shopify_db_rows('SELECT count(*) AS n FROM shopify_shops')[0]['n'];
+            out($out);
+            // no break: out() exits
+        case 'stacked':
+            shopify_bootstrap($testDb);
+            $out = [];
+            try {
+                shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('one', 'one.myshopify.com'); INSERT INTO shopify_shops (shop_key, domain) VALUES ('one', 'two.myshopify.com')");
+                $out['stacked'] = 'accepted';
+            } catch (ShopifyDbError $e) {
+                $out['stacked'] = $e->getMessage();
+                $out['sqlstate'] = $e->sqlstate;
+            }
+            $out['count'] = (int)shopify_db_rows('SELECT count(*) AS n FROM shopify_shops')[0]['n'];
+            $out['plain_select_ok'] = shopify_db_rows('SELECT 1 AS one')[0]['one'] === '1';
             out($out);
             // no break: out() exits
         case 'nul':

@@ -31,6 +31,7 @@
 // 20261022 Sawaneh SD-734 review: commit only a healthy transaction, DateTime bound as local wall-clock time.
 // 20261022 Sawaneh SD-734 review 2: errors carry the primary message and SQLSTATE, never the DETAIL with bound
 //                 values; NUL bytes in a statement or a parameter are refused.
+// 20261022 Sawaneh SD-734 CodeRabbit: every statement goes through the extended protocol, one statement per call.
 
 /**
  * Injected by includes/connect.php and the bootstrap:
@@ -51,8 +52,9 @@ final class ShopifyDbError extends RuntimeException
  * Runs one statement with bound parameters ($1, $2, ...) on the tenant connection and
  * returns every row. Writes return the RETURNING rows, or an empty list. Parameters are
  * scalars, null or DateTimeInterface; anything else, and any NUL byte, is refused before the
- * statement is sent, and a value is never interpolated into the SQL. A failure is reported with
- * the server's primary message and SQLSTATE only, so bound values never appear in the error.
+ * statement is sent, and a value is never interpolated into the SQL. One statement per call; a
+ * second one in the string is refused. A failure is reported with the server's primary message
+ * and SQLSTATE only, so bound values never appear in the error.
  *
  * @param string $sql
  * @param list<scalar|null|DateTimeInterface> $params
@@ -68,15 +70,16 @@ function shopify_db_rows(string $sql, array $params = []): array {
 	foreach (array_values($params) as $i => $value) {
 		$bound[] = shopify_db_param($value, $i + 1);
 	}
-	// The asynchronous API hands back a result on failure too, so the error can be read as
-	// fields: the primary message and SQLSTATE, never the DETAIL line that quotes bound values.
-	$sent = $bound === array() ? @pg_send_query($connection, $sql) : @pg_send_query_params($connection, $sql, $bound);
-	if (!$sent) {
+	// Always the extended protocol, also without parameters: it carries one statement only, so a
+	// second statement in the string is refused instead of run unchecked. The asynchronous API
+	// hands back a result on failure too, so the error can be read as fields: the primary message
+	// and SQLSTATE, never the DETAIL line that quotes bound values.
+	if (!@pg_send_query_params($connection, $sql, $bound)) {
 		throw new ShopifyDbError('statement could not be sent: ' . shopify_db_sql_excerpt($sql));
 	}
 	$result = pg_get_result($connection);
 	while (pg_get_result($connection) !== false) {
-		// one statement was sent; anything further is drained so the connection stays usable
+		// the extended protocol carries one statement, so this only clears the asynchronous state
 	}
 	if ($result === false) {
 		throw new ShopifyDbError('no result for statement: ' . shopify_db_sql_excerpt($sql));
