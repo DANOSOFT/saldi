@@ -129,6 +129,13 @@ final class PosSaleHeaderTest extends TestCase
         }
     }
 
+    /** Removes a form variant, as deleting it in formularkort would. */
+    private function dropVariant(string $name): void
+    {
+        $this->db->exec("DELETE FROM formularer
+            WHERE sprog = '" . str_replace("'", "''", $name) . "'");
+    }
+
     private function brandsRow(string $list): void
     {
         $this->db->exec("INSERT INTO grupper (art,kodenr,box1,fiscal_year)
@@ -466,6 +473,33 @@ final class PosSaleHeaderTest extends TestCase
         pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => '']], self::REGNAAR);
         self::assertSame('', pos_terminal_sale_defaults(1, self::REGNAAR)['brand']);
         self::assertSame([], $GLOBALS['posSaleHeaderAlerts'], 'emptying a brand is a normal edit');
+    }
+
+    public function testResavingABrandWhoseVariantWasDeletedIsNotARefusal(): void
+    {
+        // The field keeps a stale brand selected, so the browser posts it back on every save of the
+        // settings page. Refusing it would alert about a value the administrator never touched.
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'udehygge']], self::REGNAAR);
+        $this->dropVariant('udehygge');
+        pos_save_sale_settings(['kasseantal' => 1, 'brand_navn' => [0 => 'udehygge']], self::REGNAAR);
+
+        self::assertSame([], $GLOBALS['posSaleHeaderAlerts'], 'the brand was not edited');
+        self::assertSame('udehygge', pos_terminal_sale_defaults(1, self::REGNAAR)['brand'],
+            'and it stays stored rather than being cleared behind the administrator');
+    }
+
+    public function testAStaleBrandComingBackDoesNotExcuseANewOneOnAnotherTerminal(): void
+    {
+        pos_save_sale_settings(['kasseantal' => 2,
+            'brand_navn' => [0 => 'udehygge', 1 => 'havemoebelland']], self::REGNAAR);
+        $this->dropVariant('udehygge');
+        pos_save_sale_settings(['kasseantal' => 2,
+            'brand_navn' => [0 => 'udehygge', 1 => 'ikkeenvariant']], self::REGNAAR);
+
+        self::assertCount(1, $GLOBALS['posSaleHeaderAlerts'], 'only the newly typed brand is refused');
+        self::assertStringContainsString('ikkeenvariant', $GLOBALS['posSaleHeaderAlerts'][0]);
+        self::assertSame('udehygge', pos_terminal_sale_defaults(1, self::REGNAAR)['brand']);
+        self::assertSame('havemoebelland', pos_terminal_sale_defaults(2, self::REGNAAR)['brand']);
     }
 
     public function testARefusedBrandDoesNotDisturbTheOtherTerminals(): void

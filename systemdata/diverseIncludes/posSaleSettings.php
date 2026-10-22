@@ -28,6 +28,11 @@
 //                  The delivery choices that belong on this page (K33) wait for pos_leveringsvalg,
 //                  which is WP01's table and is not in the schema yet.
 //
+// 20261022 CL/MJ SD-758 Only a brand that differs from the one the terminal already holds can be
+//                  refused. The field keeps a brand selected after its form variant has been
+//                  deleted, so the page posts it back on every save, and refusing it would report
+//                  an edit the administrator never made.
+//
 // 20261021 CL/MJ SD-758 The refused brand names are escaped before alert() puts them in a
 //                  javascript string; includes/std_func.php interpolates the message raw.
 //
@@ -181,12 +186,16 @@ function pos_save_sale_settings($post, $regnaar) {
 		// A brand is the order's sprog, so it must survive as typed; tabs are the list separator
 		// and a newline would break the row, so both are stripped rather than stored.
 		$brand = trim(str_replace(array(chr(9), chr(10), chr(13)), ' ', (string) ifset($submitted, $x, '')));
+		$current = trim((string) ifset($stored, $x, ''));
 		// A brand with no form variant behind it would print the terminal's invoices from unset
 		// layout variables, so it is refused and that terminal keeps what it had. The field offers
-		// only existing variants, so this answers a hand-made POST rather than normal use.
-		if ($brand !== '' && !in_array($brand, $variants, true)) {
+		// only existing variants, so this answers a hand-made POST rather than normal use. The brand
+		// already stored is never refused: the field keeps it selected after its variant has been
+		// deleted, so the page posts it back on every save, and refusing it would report an edit the
+		// administrator never made.
+		if ($brand !== '' && $brand !== $current && !in_array($brand, $variants, true)) {
 			$refused[$brand] = $brand;
-			$brand = trim((string) ifset($stored, $x, ''));
+			$brand = $current;
 		}
 		$brands[$x] = $brand;
 	}
