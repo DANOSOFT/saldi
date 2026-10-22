@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,6 +130,17 @@
 //                  had been commented out, so on an account with warehouses a location typed
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
+// 20261016 CL/MJ SST-876 Saving the card reports a webshop that refuses the stock update
+//                  instead of discarding the answer. This is the path Havemoebelland found
+//                  did push a figure through, so it is also the path where a refusal has to
+//                  become visible rather than look like success.
+// 20261019 CL/MJ SST-876 (review) The warning on the stock-change confirmation path names the
+//                  item. It read $varenr, which is only filled from the post further down the
+//                  file, so on that one path the message stopped after "for:".
+// 20261021 CL/MJ SST-876 (review) An assembled item reports a refusal too. That branch hands
+//                  over to vareproduktion.php and exits, so it never reached the check at the
+//                  end of the block and a refusal recorded while the variants were saved only
+//                  reached the log.
 //
 ob_start(); //Starts output buffering
 
@@ -313,9 +324,13 @@ if ($acceptStockChange) {
     $beholdning = if_isset($_POST, NULL, 'beholdning');
     $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $stockchange = $ny_beholdning - $beholdning;
-    $qtxt = "select kostpris from varer where id=$id";
+    $qtxt = "select kostpris, varenr from varer where id=$id";
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
     $cost = $r['kostpris'] * 1;
+    // 20261019 CL/MJ SST-876 Read here because $varenr still holds the NULL from the top of the
+    // file on this path - it is only taken from the post further down - so the warning below
+    // named no item at all. This row is already being fetched, so it costs nothing.
+    $stockChangeItemNo = $r ? (string)$r['varenr'] : '';
     $userName = substr($brugernavn, 0, 10);
     $qtxt = "insert into stocklog (item_id,username,initials,reason,correction,logtime) values ";
     $qtxt .= "('$id','" . db_escape_string($userName) . "','" . db_escape_string($initials) . "','" . db_escape_string($reason) . "',";
@@ -328,8 +343,16 @@ if ($acceptStockChange) {
             continue;
         }
         #       if ($ny_lagerbeh[$x]!=$lagerbeh[$x]) {
-        lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
+        $shopSync = lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
+        if (shopSyncFailed($shopSync)) {
+            $shopSyncFailed = true;
+        }
         #       }
+    }
+    # SST-876: said before the redirect, or the page reloads and the refusal is never seen.
+    if (!empty($shopSyncFailed)) {
+        error_log("saldi: shop stock sync failed when adjusting stock for vare_id $id");
+        shopSyncAlert($stockChangeItemNo, $sprog_id);
     }
     print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$id'>";
     exit;
@@ -626,8 +649,13 @@ if ($saveItem || $submit = trim($submit)) {
             $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
             transaktion('begin');
             $lager = $l;
-            lagerreguler($id, $variantVarerQty[$x][$l], $kostpris[0], $lager, date('Y-m-d'), $variant_vare_id[$x]);
+            $shopSync = lagerreguler($id, $variantVarerQty[$x][$l], $kostpris[0], $lager, date('Y-m-d'), $variant_vare_id[$x]);
             transaktion('commit');
+            # SST-876: the variant quantity is saved; this only records that a shop refused it.
+            if (shopSyncFailed($shopSync)) {
+                error_log("saldi: shop stock sync failed for variant $variant_vare_id[$x] of vare_id $id");
+                $shopSyncFailed = true;
+            }
         }
     }
     // When processing the form submission:
@@ -1222,14 +1250,34 @@ if ($stockItem) {
         }
         if ($ny_lagerbeh[$x] != $lagerbeh[$x]) {
             if ($samlevare) {
+                # SST-876: this path leaves for vareproduktion.php and exits, so the check at
+                # the end of the block is never reached. A refusal recorded while the variants
+                # were saved further up would otherwise only reach the log. Printed before the
+                # refresh below, which is what makes the browser run it first.
+                if (!empty($shopSyncFailed)) {
+                    error_log("saldi: shop stock sync failed when saving vare_id $id");
+                    shopSyncAlert((string)$varenr, $sprog_id);
+                }
                 print "<meta http-equiv=\"refresh\" content=\"0;URL=vareproduktion.php?id=$id&antal=1&lager=$x&ny_beholdning=$ny_lagerbeh[$x]&samlevare=$samlevare\">";
                 exit;
             } elseif (!count($variant_vare_id)) { #20210208
-                lagerreguler($id, $ny_lagerbeh[$x], $kostpris[0], $x, date("Y-m-d"), '0');
+                $shopSync = lagerreguler($id, $ny_lagerbeh[$x], $kostpris[0], $x, date("Y-m-d"), '0');
+                if (shopSyncFailed($shopSync)) {
+                    $shopSyncFailed = true;
+                }
             }
         } elseif ($api_fil && !count($variant_vare_id) && $x == array_key_last($warehouseNames)) { #20170210 - fixed typo
-            sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above 
+            $shopSync = sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above
+            if (shopSyncFailed($shopSync)) {
+                $shopSyncFailed = true;
+            }
         }
+    }
+    # SST-876: the item is saved either way - this only reports that a shop would not take the
+    # new figure, so a refusal is not mistaken for a successful publish.
+    if (!empty($shopSyncFailed)) {
+        error_log("saldi: shop stock sync failed when saving vare_id $id");
+        shopSyncAlert((string)$varenr, $sprog_id);
     }
 } else {
     sync_shop_price($id);
