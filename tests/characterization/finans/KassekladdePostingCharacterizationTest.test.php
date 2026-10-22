@@ -14,11 +14,12 @@
 // History:
 // 20260723 CL/LH SD-601: created.
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
+// 20261022 CL/NTR Dropped the no-op `use CharacterizationEnv;` (PHP warning on load) and the unused
+//                 saldiFor(), which called a rows() helper this class does not have.
 
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../support/CharacterizationEnv.php';
-use CharacterizationEnv;
 
 final class KassekladdePostingCharacterizationTest extends TestCase
 {
@@ -249,19 +250,5 @@ final class KassekladdePostingCharacterizationTest extends TestCase
 
         $kladde = CharacterizationEnv::one(self::$tenant, 'SELECT bogfort FROM kladdeliste WHERE id = $1', [$kladdeId]);
         $this->assertNotSame('V', trim((string)$kladde['bogfort']), 'unbalanced kladde is not marked posted');
-    }
-
-    /** @param int[] $konti @return array<int,float> */
-    private function saldiFor(array $konti): array
-    {
-        $rows = self::rows(
-            'SELECT kontonr, saldo FROM kontoplan WHERE regnskabsaar = $1 AND kontonr = ANY($2)',
-            [self::$regnaar, '{' . implode(',', $konti) . '}']
-        );
-        $out = [];
-        foreach ($rows as $r) {
-            $out[(int)$r['kontonr']] = (float)$r['saldo'];
-        }
-        return $out;
     }
 }

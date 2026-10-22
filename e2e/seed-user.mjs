@@ -1,12 +1,14 @@
 // e2e/seed-user.mjs - idempotently seed the local e2e login (SD-603).
 //
 // Requires SALDI_E2E_TENANT_DB, SALDI_E2E_ACCOUNT, SALDI_E2E_PASSWORD
-// and SALDI_CHAR_PGPASS. The account must resolve to the configured tenant.
+// and SALDI_CHAR_PGPASS (or bootstrap-stack.sh's SALDI_PGPASS). The account
+// must resolve to the configured tenant.
 //
 // Usage: node e2e/seed-user.mjs
 //
 // History:
 // 20260724 CL/LH SD-603: created.
+// 20261022 CL/NTR Postgres password comes from e2eConfig(), which also honours the bootstrap-stack.sh variables.
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -17,7 +19,7 @@ if (missing.length) {
   console.log(`Skipping e2e seed: configure ${missing.join(", ")}`);
   process.exit(0);
 }
-const { db, account, user, password, master, pgUser } = e2eConfig();
+const { db, account, user, password, master, pgUser, pgPass } = e2eConfig();
 
 const md5 = createHash("md5").update(password).digest("hex");
 const sql =
@@ -29,7 +31,7 @@ function psql(database, statement) {
   return execFileSync(
     "docker",
     ["compose", "exec", "-T", "-e", "PGPASSWORD", "postgres", "psql", "-X", "-v", "ON_ERROR_STOP=1", "-t", "-A", "-U", pgUser, "-d", database],
-    { input: statement, encoding: "utf8", env: { ...process.env, PGPASSWORD: process.env.SALDI_CHAR_PGPASS } });
+    { input: statement, encoding: "utf8", env: { ...process.env, PGPASSWORD: pgPass } });
 }
 const escapedAccount = account.replaceAll("'", "''");
 const resolved = psql(master, `SELECT db FROM regnskab WHERE regnskab='${escapedAccount}';`).trim();

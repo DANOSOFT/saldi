@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------lager/minmaxstock.php------------patch 3.9.0-------2020.03.13----
+// -----------lager/minmaxstock.php------------ver 5.0.0-------2026.10.22----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260729 LOE Initiated some variables to array, and guarded against unset groups and items to avoid warnings and errors.
+// 20261022 CL/NTR "Luk" link: build the return query with http_build_query() and print the href quoted and HTML-escaped (XSS via vgrp & co.).
+//                 afd is cast to int and vgrp/vnr/vname escaped before they go into SQL; GET reads use ifset().
 
 @session_start();
 $s_id=session_id();
@@ -43,10 +45,10 @@ $vGr = array();
 $stk = array();
 $stock = array();
 
-$afd=if_isset($_GET,0,'afd');
-$vgrp=if_isset($_GET, NULL,'vgrp');
-$vnr=if_isset($_GET, NULL,'vnr');
-$vname=if_isset($_GET, NULL,'vname');
+$afd = (int)ifset($_GET, 'afd', 0);
+$vgrp = ifset($_GET, 'vgrp');
+$vnr = ifset($_GET, 'vnr');
+$vname = ifset($_GET, 'vname');
 
 $itemId = array();
 $itemNo = array();
@@ -55,8 +57,13 @@ $itemMin = array();
 $itemMax = array();
 $itemDescription = array();
 
-if ($popup) $returside="../includes/luk.php";
-else $returside="rapport.php?varenr=$vnr&afd=$afd&varegruppe=$vgrp&varenavn=$vname";
+if ($popup) {
+	$returside = "../includes/luk.php";
+} else {
+	$returside = "rapport.php?" . http_build_query([
+		'varenr' => (string)$vnr, 'afd' => (string)$afd, 'varegruppe' => (string)$vgrp, 'varenavn' => (string)$vname,
+	]);
+}
 
 $lokMinMax=if_isset($_POST,NULL,'lokMinMax');
 
@@ -73,7 +80,7 @@ if ($menu=='T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
 	print "<tr><td width=100%>";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-	print "<td width=\"10%\" $top_bund><a href=$returside accesskey=L>Luk</a></td>";
+	print "<td width=\"10%\" $top_bund><a href=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\" accesskey=L>Luk</a></td>";
 	print "<td width=\"80%\" $top_bund>Varerapport - forside</td>";
 	print "<td width=\"10%\" $top_bund><a href='../temp/$db/minmax$bruger_id.csv'>csv</a></td></tr>";
 	print "</tbody></table></td></tr>"; #B slut
@@ -81,7 +88,7 @@ if ($menu=='T') {
 }
 $x=0;
 $qtxt = "select kodenr,beskrivelse from grupper where art = 'VG' and box8 = 'on' ";
-if ($vgrp) $qtxt.= " and kodenr='$vgrp' ";
+if ($vgrp) $qtxt.= " and kodenr='" . db_escape_string($vgrp) . "' ";
 $qtxt.= "order by kodenr";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
@@ -102,12 +109,12 @@ while ($r = db_fetch_array($q)) {
 $x=0;
 $qtxt = "select id,varenr,beskrivelse,min_lager,max_lager,gruppe from varer where lukket != 'on' and min_lager > '0' ";
 if ($vnr && $vnr != '*') {
-	$vnr=str_replace('*','%',$vnr);
+	$vnr=db_escape_string(str_replace('*','%',$vnr));
 	$qtxt.= "and (varenr like '$vnr' or lower(varenr) like '". strtolower($vnr) ."' ";
 	$qtxt.= "or upper(varenr) like '". strtoupper($vnr) ."') ";
 }
 if ($vname && $vname != '*') {
-	$vname=str_replace('*','%',$vname);
+	$vname=db_escape_string(str_replace('*','%',$vname));
 	$qtxt.= "and (beskrivelse like '$vname' or lower(beskrivelse) like '". strtolower($vname) ."' ";
 	$qtxt.= "or upper(beskrivelse) like '". strtoupper($vname) ."') ";
 }

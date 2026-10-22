@@ -10,6 +10,7 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261022 CL/NTR runChild() fails the test when the child runner crashes (exit 255 / fatal error).
 
 use PHPUnit\Framework\TestCase;
 
@@ -56,14 +57,23 @@ abstract class CharacterizationTestCase extends TestCase
     }
 
     /**
-     * Run one of the support/run_*.php child runners.
+     * Run one of the support/run_*.php child runners, and fail when it
+     * crashed.
+     *
+     * Several suites only assert that rows are absent, which a runner that
+     * dies on a fatal before writing anything would satisfy too. A page's own
+     * early exit() returns 0, so this does not trip on documented branches.
      *
      * @param list<int|string> $args
      * @return array{exit:int, stdout:string, stderr:string}
      */
     protected static function runChild(string $runner, array $args): array
     {
-        return CharacterizationEnv::runChild(__DIR__ . '/' . $runner, $args);
+        $res = CharacterizationEnv::runChild(__DIR__ . '/' . $runner, $args);
+        if ($res['exit'] === 255 || str_contains($res['stderr'] . $res['stdout'], 'Fatal error')) {
+            self::fail("$runner crashed (exit {$res['exit']}).\nstdout: {$res['stdout']}\nstderr: {$res['stderr']}");
+        }
+        return $res;
     }
 
     /**

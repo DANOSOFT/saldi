@@ -119,9 +119,9 @@ grouped query; the call at `:74` looks like it can be dropped entirely.
 
 All three read `SELECT MAX(id) FROM kladdeliste`, add one, and `INSERT` the id
 explicitly. There is no lock and no `RETURNING`. Two users creating a journal
-at the same moment get the same id: one insert fails on `kladdeliste_pkey`, or
-— if the first has not committed — both proceed and their lines end up in the
-same journal, to be posted together by whoever presses the button first.
+at the same moment get the same id. The conflicting insert waits for the other
+transaction; if the first insert commits, the second fails on
+`kladdeliste_pkey` and the failed writer exits before inserting journal lines.
 
 The table has a perfectly good `kladdeliste_id_seq` behind it. Because nothing
 ever uses it, it stays at its initial value forever; any code that *does* rely

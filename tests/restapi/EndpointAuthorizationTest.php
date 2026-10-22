@@ -14,6 +14,8 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261022 CL/NTR dashboard/stats.php and vat-codes/ joined the sweep (fixed in #551; the "dead endpoint" pin is gone).
+//                 Login tests use RestApiEnv::accountOpen()/accountClosed()/password() instead of removed constants.
 
 require_once __DIR__ . '/support/RestApiTestCase.php';
 
@@ -26,9 +28,7 @@ final class EndpointAuthorizationTest extends RestApiTestCase
      *  - auth/login.php and auth/refresh.php issue the tokens and must be
      *    reachable without one;
      *  - inventory/ is a discovery document, not tenant data (covered by
-     *    test_the_inventory_index_is_a_discovery_document_only);
-     *  - dashboard/stats.php and vat-codes/ cannot execute at all (covered by
-     *    test_endpoint_is_dead_for_every_caller).
+     *    test_the_inventory_index_is_a_discovery_document_only).
      *
      * @return array<string, array{0:string, 1:string}>
      */
@@ -42,6 +42,7 @@ final class EndpointAuthorizationTest extends RestApiTestCase
             'creditor order lines' => '/restapi/endpoints/v1/creditor/orderlines/',
             'creditor orders' => '/restapi/endpoints/v1/creditor/orders/',
             'currencies' => '/restapi/endpoints/v1/currencies/',
+            'dashboard stats' => '/restapi/endpoints/v1/dashboard/stats.php',
             'debtor customers' => '/restapi/endpoints/v1/debitor/customers/',
             'debtor groups' => '/restapi/endpoints/v1/debitor/groups/',
             'debtor invoices' => '/restapi/endpoints/v1/debitor/invoices/',
@@ -54,6 +55,7 @@ final class EndpointAuthorizationTest extends RestApiTestCase
             'product groups' => '/restapi/endpoints/v1/products/groups/',
             'user tenants' => '/restapi/endpoints/v1/user/tenants.php',
             'vat' => '/restapi/endpoints/v1/vat/',
+            'vat codes' => '/restapi/endpoints/v1/vat-codes/',
         ];
 
         $cases = [];
@@ -61,50 +63,6 @@ final class EndpointAuthorizationTest extends RestApiTestCase
             $cases[$name] = [$name, $path];
         }
         return $cases;
-    }
-
-    /**
-     * DEFECT PINNED: two endpoints cannot execute at all.
-     *
-     * `dashboard/stats.php:16` and `vat-codes/index.php:15` each declare
-     *
-     *     private $db;
-     *
-     * while `restapi/core/BaseEndpoint.php` declares the same property
-     * `protected`. PHP refuses to compile a subclass that narrows an
-     * inherited property's visibility:
-     *
-     *     PHP Fatal error: Access level to DashboardStatsEndpoint::$db must
-     *     be protected (as in class BaseEndpoint) or weaker
-     *
-     * The fatal happens at class-declaration time, before any routing or auth
-     * runs, so both endpoints answer 500 with an empty body to every caller -
-     * authenticated or not. They have never worked.
-     *
-     * These are not authorization failures, which is why they are pinned here
-     * separately rather than being listed as sweep rows. When the property
-     * declarations are fixed, this test fails and the two paths should move
-     * into endpoints() above.
-     *
-     * @return array<string, array{0:string}>
-     */
-    public static function deadEndpoints(): array
-    {
-        return [
-            'dashboard stats' => ['/restapi/endpoints/v1/dashboard/stats.php'],
-            'vat codes' => ['/restapi/endpoints/v1/vat-codes/'],
-        ];
-    }
-
-    #[\PHPUnit\Framework\Attributes\DataProvider('deadEndpoints')]
-    public function test_endpoint_is_dead_for_every_caller(string $path): void
-    {
-        $anon = self::anon('GET', $path);
-        $authed = self::api('GET', $path);
-
-        $this->assertSame(500, $anon['status'], 'anonymous call: ' . substr($anon['body'], 0, 200));
-        $this->assertSame(500, $authed['status'], 'authenticated call: ' . substr($authed['body'], 0, 200));
-        $this->assertSame('', trim($authed['body']), 'the fatal leaves an empty body, not an error envelope');
     }
 
     /**
@@ -175,7 +133,7 @@ final class EndpointAuthorizationTest extends RestApiTestCase
         $res = self::anon('POST', '/restapi/endpoints/v1/auth/login.php', [
             'username' => 'no-such-user',
             'password' => 'no-such-password',
-            'account_name' => RestApiEnv::ACCOUNT_OPEN,
+            'account_name' => RestApiEnv::accountOpen(),
         ]);
 
         $this->assertNotSame(0, $res['status'], 'login endpoint is not reachable at all');
@@ -189,7 +147,7 @@ final class EndpointAuthorizationTest extends RestApiTestCase
     /** Bad credentials must not mint a token. */
     public function test_login_with_a_wrong_password_issues_no_token(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::USER, 'definitely-not-the-password', RestApiEnv::ACCOUNT_OPEN);
+        $res = RestApiEnv::login(RestApiEnv::USER, 'definitely-not-the-password', RestApiEnv::accountOpen());
 
         $this->assertArrayNotHasKey(
             'access_token',
@@ -201,7 +159,7 @@ final class EndpointAuthorizationTest extends RestApiTestCase
     /** A closed accounting entity must not hand out a working session. */
     public function test_login_against_a_closed_tenant_is_refused(): void
     {
-        $res = RestApiEnv::login(RestApiEnv::USER, RestApiEnv::PASSWORD, RestApiEnv::ACCOUNT_CLOSED);
+        $res = RestApiEnv::login(RestApiEnv::USER, RestApiEnv::password(), RestApiEnv::accountClosed());
 
         $this->assertArrayNotHasKey(
             'access_token',

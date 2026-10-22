@@ -33,6 +33,7 @@
 #
 # History:
 # 20260725 CL/LH Created for the end-to-end coverage push.
+# 20261022 CL/NTR A failing entity check now stops the script instead of counting as zero and dropping the master db.
 
 set -euo pipefail
 
@@ -61,12 +62,20 @@ for _ in $(seq 1 60); do
 done
 
 say "checking the master database is safe to (re)install"
-existing="$(psql_master "SELECT 1 FROM pg_database WHERE datname='$MASTER_DB'" || true)"
+existing="$(psql_master "SELECT 1 FROM pg_database WHERE datname='$MASTER_DB'")"
 if [ -n "$existing" ]; then
-  entities="$(docker compose exec -T -e "PGPASSWORD=$PG_PASS" postgres \
-    psql -U "$PG_USER" -d "$MASTER_DB" -tAc \
-    "SELECT count(*) FROM regnskab WHERE db <> '$MASTER_DB'" 2>/dev/null || echo 0)"
-  if [ "${entities:-0}" -gt 0 ]; then
+  # The empty database docker-compose pre-creates has no regnskab table; that
+  # is the one case that counts as zero entities. Any other query failure
+  # stops the script (set -e) instead of authorising the DROP below.
+  psql_db() {
+    docker compose exec -T -e "PGPASSWORD=$PG_PASS" postgres \
+      psql -v ON_ERROR_STOP=1 -U "$PG_USER" -d "$MASTER_DB" -tAc "$1"
+  }
+  entities=0
+  if [ "$(psql_db "SELECT to_regclass('public.regnskab') IS NOT NULL")" = "t" ]; then
+    entities="$(psql_db "SELECT count(*) FROM regnskab WHERE db <> '$MASTER_DB'")"
+  fi
+  if [ "$entities" -gt 0 ]; then
     echo "refusing to reinstall: $MASTER_DB already has $entities accounting entities." >&2
     echo "This looks like a working stack, not a fresh CI runner." >&2
     exit 1

@@ -13,6 +13,8 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261022 CL/NTR Product groups joined listEndpoints() (fixed in MB-67; the "always empty" pin is gone).
+//                 The tenant-list test follows the registry user the endpoint actually resolves instead of assuming none.
 
 require_once __DIR__ . '/support/RestApiTestCase.php';
 
@@ -30,6 +32,7 @@ final class ReferenceDataEndpointTest extends RestApiTestCase
             'accounts' => ['/restapi/endpoints/v1/accounts/', 'chart of accounts'],
             'vat' => ['/restapi/endpoints/v1/vat/', 'VAT groups'],
             'debtor groups' => ['/restapi/endpoints/v1/debitor/groups/', 'debtor groups'],
+            'product groups' => ['/restapi/endpoints/v1/products/groups/', 'product groups'],
         ];
     }
 
@@ -44,40 +47,6 @@ final class ReferenceDataEndpointTest extends RestApiTestCase
         $items = $this->assertSuccessEnvelope($res, 'currencies');
 
         $this->assertIsArray($items, 'currencies is a list even when none are configured');
-    }
-
-    /**
-     * DEFECT PINNED: the product-groups list is always empty, whatever the
-     * tenant has configured.
-     *
-     * VareGruppeModel::getAllItems (restapi/models/lager/VareGruppeModel.php:233)
-     * filters on a global that the REST request never sets:
-     *
-     *     global $regnaar;
-     *     $qtxt = "SELECT id FROM grupper WHERE art = 'VG'
-     *              AND fiscal_year = '$regnaar' ORDER BY ...";
-     *
-     * `$regnaar` is a page-script global. The neighbouring models learned to
-     * stop trusting it - AccountModel:170 and VatModel:55 both call
-     * `self::getFiscalYear()` instead, which is why /accounts and /vat return
-     * real rows while this one returns none.
-     *
-     * Item groups decide an item's posting accounts and whether it is
-     * stock-tracked, so an API client cannot build a working
-     * create-a-product form without them.
-     *
-     * When getAllItems resolves the fiscal year properly, this test fails;
-     * move the endpoint into listEndpoints() above at that point.
-     */
-    public function test_the_product_groups_list_is_always_empty(): void
-    {
-        $configured = self::tenantRows("SELECT kodenr FROM grupper WHERE art = 'VG'");
-        $this->assertNotEmpty($configured, 'precondition: the tenant does have item groups');
-
-        $res = self::api('GET', '/restapi/endpoints/v1/products/groups/');
-        $items = $this->assertSuccessEnvelope($res, 'product groups');
-
-        $this->assertSame([], $items, 'the endpoint reports none of them');
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('listEndpoints')]
@@ -146,18 +115,29 @@ final class ReferenceDataEndpointTest extends RestApiTestCase
      *    belongs to an account database and must not be used to query a
      *    registry-database user with the same numeric ID."
      *
-     * It authenticates the caller and then fails to resolve them, so it
-     * answers 404 "User not found" for a perfectly valid token. Pinned rather
-     * than reported: the behavior is deliberate, and the test exists so that
-     * whoever implements the identity mapping notices this endpoint.
+     * It looks the token's user_id up in the MASTER `brugere` table, so the
+     * answer is about whichever registry user happens to share that numeric
+     * id - 404 "User not found" when there is none, otherwise that registry
+     * user's tenant list. Pinned against the registry itself, so the test
+     * holds on any install, and so that whoever implements the identity
+     * mapping notices this endpoint.
      */
-    public function test_the_tenant_list_is_unsupported_under_jwt_auth(): void
+    public function test_the_tenant_list_resolves_the_token_user_id_in_the_registry(): void
     {
+        $userId = (int)RestApiEnv::loginData()['user']['id'];
+        $master = RestApiEnv::connect(RestApiEnv::masterDb());
+        $registryUser = RestApiEnv::rows($master, 'SELECT id FROM brugere WHERE id = $1', [$userId]);
+        pg_close($master);
+
         $res = self::api('GET', '/restapi/endpoints/v1/user/tenants.php');
 
-        $this->assertSame(404, $res['status'], $res['body']);
-        $this->assertFalse($res['json']['success'] ?? true);
-        $this->assertSame('User not found', $res['json']['message'] ?? null);
+        if ($registryUser === []) {
+            $this->assertSame(404, $res['status'], $res['body']);
+            $this->assertSame('User not found', $res['json']['message'] ?? null);
+        } else {
+            $this->assertSame(200, $res['status'], 'answered for registry user ' . $userId . ': ' . $res['body']);
+            $this->assertIsArray($res['json']['data'] ?? null, $res['body']);
+        }
     }
 
     public function test_the_warehouses_endpoint_answers_with_a_list(): void

@@ -46,6 +46,9 @@
 //                 regnskab rows by name, so concurrent runs, stale leftovers
 //                 and unrelated accounts are never touched.
 //                 The master db name is validated like the test/template names.
+// 20261022 CL/NTR Removed the bootstrapTenantOnce()/$bootstrapped pair the master merge duplicated (fatal on load);
+//                 bootstrapTenantOnce() now keys on $ownedDb, so a class teardown makes the next class re-provision.
+//                 bootstrapTenant() no longer opens a stray master connection it never closed.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
@@ -202,51 +205,20 @@ final class RestApiEnv
         return $out;
     }
 
-    /** Guards bootstrapTenantOnce(); static state lives for the whole PHPUnit process. */
-    private static bool $bootstrapped = false;
-
-    /** Cached bearer token for the seeded user; dropped whenever the tenant is rebuilt. */
-    private static ?string $token = null;
-
     /**
-     * Provision the tenant the first time any suite asks for it, and reuse it
-     * for the rest of the run.
+     * Provision the tenant unless this process already owns one, and reuse
+     * the one it owns.
      *
-     * Re-cloning per test class is not just slow, it is wrong: dropping and
-     * recreating the database renumbers the master `regnskab` rows, so a
-     * token another suite is still holding points at an account id that no
-     * longer exists and every later request fails with "Account database not
-     * found". Suites keep their rows apart by naming them uniquely instead.
+     * Guarded by $ownedDb rather than a separate flag: teardownTenant() clears
+     * it when it drops the tenant, so the next class clones a fresh one instead
+     * of logging in to a database that no longer exists.
      */
     public static function bootstrapTenantOnce(): void
     {
-        if (self::$bootstrapped) {
+        if (self::$ownedDb !== null) {
             return;
         }
         self::bootstrapTenant();
-        self::$bootstrapped = true;
-    }
-
-    /** Guards bootstrapTenantOnce(); static state lives for the whole PHPUnit process. */
-    private static bool $bootstrapped = false;
-
-    /**
-     * Provision the tenant the first time any suite asks for it, and reuse it
-     * for the rest of the run.
-     *
-     * Re-cloning per test class is not just slow, it is wrong: dropping and
-     * recreating the database renumbers the master `regnskab` rows, so a
-     * token another suite is still holding points at an account id that no
-     * longer exists and every later request fails with "Account database not
-     * found". Suites keep their rows apart by naming them uniquely instead.
-     */
-    public static function bootstrapTenantOnce(): void
-    {
-        if (self::$bootstrapped) {
-            return;
-        }
-        self::bootstrapTenant();
-        self::$bootstrapped = true;
     }
 
     /**
@@ -259,11 +231,10 @@ final class RestApiEnv
      */
     public static function bootstrapTenant(): void
     {
-        self::$loginData = null; // the regnskab ids change below, so any cached 
+        self::$loginData = null; // the regnskab ids change below, so any cached token is stale
         if (self::$ownedDb !== null) {
             self::dropOwned();
         }
-        $master = self::connect(self::masterDb());
         $test = self::testDb();
         $template = self::templateDb();
         $master = self::masterDb();

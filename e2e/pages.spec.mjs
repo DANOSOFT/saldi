@@ -14,6 +14,7 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261022 CL/NTR Removed the stale "six stock pages" defect note; SD-619 fixed them and they are in PAGES.
 
 import { test, expect } from "@playwright/test";
 import { login, logout, captureDialogs, expectNoPhpFailure } from "./support/app.mjs";
@@ -56,7 +57,7 @@ const PAGES = [
 
 test.describe("module pages load", () => {
   // Deliberately NOT serial: a sweep whose first failure skips the remaining
-  // nineteen pages tells you almost nothing. Each page is judged on its own.
+  // pages tells you almost nothing. Each page is judged on its own.
   let page;
 
   test.beforeAll(async ({ browser }) => {
@@ -104,38 +105,6 @@ test.describe("module pages load", () => {
   }
 });
 
-/**
- * DEFECTS PINNED: six stock pages cannot be opened at all.
- *
- * Five of them - including the item list, which is the main way anyone looks
- * at stock - include `../includes/dkdecimal.php`. That file declares
- *
- *     function dkdecimal($tal) { ... }        // includes/dkdecimal.php:21
- *
- * with no `function_exists` guard, while `includes/stdFunc/dkDecimal.php:27`
- * declares a guarded two-argument `dkdecimal($tal, $decimaler)` that
- * `includes/online.php` has already loaded by the time the page gets there:
- *
- *     PHP Fatal error: Cannot redeclare dkdecimal() (previously declared in
- *     .../includes/stdFunc/dkDecimal.php:27) in .../includes/dkdecimal.php on line 21
- *
- * The sixth, minmaxstock.php, dies on its own:
- *
- *     PHP Fatal error: Uncaught TypeError: in_array(): Argument #2
- *     ($haystack) must be of type array, null given in .../minmaxstock.php:140
- *
- * All six answer HTTP 500 to a fully authenticated user. They are pinned here
- * rather than listed above so the sweep stays green on current code; when the
- * duplicate function is removed and the in_array guard added, these tests
- * fail and the pages should move into PAGES.
- *
- * Seven more files include the same unguarded dkdecimal.php
- * (debitor/basis_stykliste.php, debitor/udlign_openpost.php,
- * finans/simuler.php, produktion/ordre.php, produktion/ordreliste.php,
- * produktion/rapport.php, lager/vvsimport.php). Those happen to survive
- * today because of their include order - they are one edit away from the same
- * fatal.
- */
 /**
  * DEFECT PINNED: the stock balance list throws the user back to the login
  * screen the first time it is opened in a session.

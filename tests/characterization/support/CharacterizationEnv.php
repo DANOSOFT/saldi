@@ -21,6 +21,8 @@
 // 20260723 CL/LH SD-601: created.
 // 20260725 CL/LH Re-sync sequences after the clone; add nextId() for fixtures that mirror the app's MAX(id)+1 allocation.
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
+// 20261022 CL/NTR bootstrapTenantOnce() is guarded by $ownsTenant, so a teardown by one suite makes the next one re-clone.
+//                 runChild() collects stderr in a temp file so a chatty child cannot deadlock on a full pipe.
 
 final class CharacterizationEnv
 {
@@ -211,9 +213,6 @@ final class CharacterizationEnv
         pg_close($master);
     }
 
-    /** Guards bootstrapTenantOnce() - static state survives for the whole PHPUnit process. */
-    private static bool $bootstrapped = false;
-
     /**
      * Clone the tenant the first time any suite asks for it, and reuse it for
      * the rest of the run.
@@ -222,14 +221,17 @@ final class CharacterizationEnv
      * fixtures name their rows uniquely (see Fixtures), so suites do not
      * collide. Set SALDI_CHAR_FRESH_TENANT=1 to force a clone per class when
      * a suite genuinely needs virgin ledger state.
+     *
+     * Guarded by $ownsTenant rather than a separate flag, so a suite that
+     * calls teardownTenant() (KassekladdePosting, OrderInvoice) makes the next
+     * shared suite clone a new tenant instead of using the dropped one.
      */
     public static function bootstrapTenantOnce(): void
     {
-        if (self::$bootstrapped && !getenv('SALDI_CHAR_FRESH_TENANT')) {
+        if (self::$ownsTenant && !getenv('SALDI_CHAR_FRESH_TENANT')) {
             return;
         }
         self::bootstrapTenant();
-        self::$bootstrapped = true;
     }
 
     /**
@@ -326,16 +328,22 @@ final class CharacterizationEnv
     public static function runChild(string $script, array $args = []): array
     {
         $cmd = array_merge([PHP_BINARY, $script], array_map('strval', $args));
-        $proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        // stderr goes to a temp file, not a pipe: with SALDI_CHAR_DEBUG the
+        // child writes whole pages to stderr before its stdout is done, and a
+        // full stderr pipe would block it while we wait on stdout.
+        $errFile = tmpfile();
+        $proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => $errFile], $pipes);
         if (!is_resource($proc)) {
+            fclose($errFile);
             throw new RuntimeException('could not start child php');
         }
         fclose($pipes[0]);
         $stdout = stream_get_contents($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
         fclose($pipes[1]);
-        fclose($pipes[2]);
         $exit = proc_close($proc);
+        rewind($errFile);
+        $stderr = stream_get_contents($errFile);
+        fclose($errFile);
         return ['exit' => $exit, 'stdout' => (string)$stdout, 'stderr' => (string)$stderr];
     }
 }

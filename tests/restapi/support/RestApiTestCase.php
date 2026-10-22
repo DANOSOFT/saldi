@@ -9,6 +9,7 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261022 CL/NTR tearDownAfterClass() drops the tenant, matching the per-class lifecycle of the other REST suites.
 
 use PHPUnit\Framework\TestCase;
 
@@ -23,6 +24,12 @@ abstract class RestApiTestCase extends TestCase
             self::markTestSkipped($reason);
         }
         RestApiEnv::bootstrapTenantOnce();
+    }
+
+    /** Drop the tenant again so the seeded login does not outlive the class (see RestApiEnv::teardownTenant()). */
+    public static function tearDownAfterClass(): void
+    {
+        RestApiEnv::teardownTenant();
     }
 
     /** @return list<string> */
