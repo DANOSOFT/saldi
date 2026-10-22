@@ -29,7 +29,7 @@
 //
 // 20261022 Sawaneh SD-734: created (WP02-1).
 // 20261022 Sawaneh SD-734 review: cli shims follow the SAPI, closure date lukkes honoured, deleted RA rows
-//                 ignored, newest open year chosen chronologically.
+//                 ignored, newest open year chosen chronologically; kodenr as the last sort key (review).
 
 /**
  * Injected by includes/connect.php (master connection and credentials):
@@ -166,7 +166,7 @@ function shopify_bootstrap_fiscal_year(): int {
 	$del2 = "(box1 <= '$month' AND box2 <= '$year' AND box3 < '$month' AND box4 > '$year')";
 	$del3 = "(box1 > '$month' AND box2 < '$year' AND box3 >= '$month' AND box4 >= '$year')";
 	$notDeleted = "(box10 IS NULL OR box10 <> 'on')";
-	$qtxt = "SELECT kodenr FROM grupper WHERE art = 'RA' AND $notDeleted AND ($del1 OR $del2 OR $del3) ORDER BY box2, box1";
+	$qtxt = "SELECT kodenr FROM grupper WHERE art = 'RA' AND $notDeleted AND ($del1 OR $del2 OR $del3) ORDER BY box2, box1, kodenr";
 	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$years = array();
 	while ($r = db_fetch_array($query)) {
@@ -178,7 +178,7 @@ function shopify_bootstrap_fiscal_year(): int {
 	if ($years) {
 		return $years[0];
 	}
-	$qtxt = "SELECT kodenr FROM grupper WHERE art = 'RA' AND $notDeleted AND box5 = 'on' ORDER BY box2 DESC, box1 DESC LIMIT 1";
+	$qtxt = "SELECT kodenr FROM grupper WHERE art = 'RA' AND $notDeleted AND box5 = 'on' ORDER BY box2 DESC, box1 DESC, kodenr DESC LIMIT 1";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$r) {
 		throw new ShopifyBootstrapError('no open fiscal year in the ledger');

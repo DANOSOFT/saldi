@@ -169,16 +169,39 @@ try {
             // no break: out() exits
         case 'tx_early_commit':
             shopify_bootstrap($testDb);
+            $out = [];
             try {
                 shopify_db_transaction(function () {
                     shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('early', 'early.myshopify.com')");
                     transaktion('commit');
                     return 'op returned normally';
                 });
-                out(['threw' => false]);
-            } catch (ShopifyDbError $e) {
-                out(['threw' => true, 'message' => $e->getMessage(), 'count' => (int)shopify_db_rows('SELECT count(*) AS n FROM shopify_shops')[0]['n']]);
+                $out['own'] = ['threw' => false];
+            } catch (Throwable $e) {
+                $out['own'] = ['threw' => true, 'class' => get_class($e), 'message' => $e->getMessage(),
+                    'count' => (int)shopify_db_rows('SELECT count(*) AS n FROM shopify_shops')[0]['n'],
+                    'status_idle' => pg_transaction_status($connection) === PGSQL_TRANSACTION_IDLE];
             }
+            // Caller-held transaction: the op's commit commits the caller's uncommitted row as well.
+            try {
+                shopify_db_transaction(function () {
+                    shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('callers', 'callers.myshopify.com')");
+                    shopify_db_transaction(function () {
+                        shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('inner', 'inner.myshopify.com')");
+                        transaktion('commit');
+                    });
+                    return 'outer returned normally';
+                });
+                $out['nested'] = ['threw' => false];
+            } catch (Throwable $e) {
+                $out['nested'] = ['threw' => true, 'class' => get_class($e),
+                    'keys' => array_column(shopify_db_rows('SELECT shop_key FROM shopify_shops ORDER BY shop_key'), 'shop_key'),
+                    'status_idle' => pg_transaction_status($connection) === PGSQL_TRANSACTION_IDLE];
+            }
+            // A second, well-behaved transaction after the misuse still works.
+            shopify_db_transaction(fn() => shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('later', 'later.myshopify.com')"));
+            $out['later_count'] = (int)shopify_db_rows("SELECT count(*) AS n FROM shopify_shops WHERE shop_key = 'later'")[0]['n'];
+            out($out);
             // no break: out() exits
         case 'datetime':
             shopify_bootstrap($testDb);
@@ -204,9 +227,40 @@ try {
                 $out['check'] = ['message' => $e->getMessage(), 'sqlstate' => $e->sqlstate, 'constraint' => $e->constraint];
             }
             try {
+                shopify_db_rows('INSERT INTO shopify_shops (shop_key, domain) VALUES ($1, NULL)', [$secret . '_3']);
+            } catch (ShopifyDbError $e) {
+                $out['notnull'] = ['message' => $e->getMessage(), 'sqlstate' => $e->sqlstate];
+            }
+            try {
                 shopify_db_rows('SELECT * FROM no_such_table WHERE x = $1', [$secret]);
             } catch (ShopifyDbError $e) {
                 $out['missing'] = ['message' => $e->getMessage(), 'sqlstate' => $e->sqlstate];
+            }
+            foreach (['int' => 'SELECT $1::integer AS v', 'date' => 'SELECT $1::date AS v', 'bool' => 'SELECT $1::boolean AS v',
+                'tsquery' => 'SELECT $1::tsquery AS v', 'regclass' => 'SELECT $1::regclass AS v', 'regtype' => 'SELECT $1::regtype AS v',
+                'interval' => 'SELECT $1::interval AS v', 'json' => 'SELECT $1::json AS v'] as $name => $cast) {
+                try {
+                    shopify_db_rows($cast, [$name === 'tsquery' ? "$secret &" : ($name === 'json' ? '{' . $secret : $secret)]);
+                } catch (ShopifyDbError $e) {
+                    $out["cast_$name"] = ['message' => $e->getMessage(), 'sqlstate' => $e->sqlstate];
+                }
+            }
+            try {
+                shopify_db_rows('SELECT $1::integer AS v', ['99999999999999' . $secret]);
+            } catch (ShopifyDbError $e) {
+                $out['cast_range'] = ['message' => $e->getMessage(), 'sqlstate' => $e->sqlstate];
+            }
+            shopify_db_rows('CREATE TABLE shopify_test_deferred (k text, CONSTRAINT shopify_test_deferred_k UNIQUE (k) DEFERRABLE INITIALLY DEFERRED)');
+            try {
+                shopify_db_transaction(function () use ($secret) {
+                    shopify_db_rows('INSERT INTO shopify_test_deferred (k) VALUES ($1), ($1)', [$secret]);
+                    return 'inserted';
+                });
+                $out['deferred'] = ['message' => 'no error'];
+            } catch (ShopifyDbError $e) {
+                $out['deferred'] = ['message' => $e->getMessage(), 'sqlstate' => $e->sqlstate, 'constraint' => $e->constraint,
+                    'rows_left' => (int)shopify_db_rows('SELECT count(*) AS n FROM shopify_test_deferred')[0]['n'],
+                    'status_idle' => pg_transaction_status($connection) === PGSQL_TRANSACTION_IDLE];
             }
             $out['usable_after'] = (int)shopify_db_rows('SELECT count(*) AS n FROM shopify_shops')[0]['n'];
             out($out);

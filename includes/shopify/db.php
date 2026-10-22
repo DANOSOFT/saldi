@@ -32,6 +32,10 @@
 // 20261022 Sawaneh SD-734 review 2: errors carry the primary message and SQLSTATE, never the DETAIL with bound
 //                 values; NUL bytes in a statement or a parameter are refused.
 // 20261022 Sawaneh SD-734 CodeRabbit: every statement goes through the extended protocol, one statement per call.
+// 20261022 Sawaneh SD-734 review (Saul, Codex): an operation that ends the transaction itself is ShopifyDbMisuse
+//                 (work already final, never retried); error messages are built from SQLSTATE and identifier
+//                 fields only, never the server text, which quotes values in many classes; COMMIT failures
+//                 (deferred constraints) are read as fields too; depth counted after BEGIN succeeds.
 
 /**
  * Injected by includes/connect.php and the bootstrap:
@@ -49,12 +53,22 @@ final class ShopifyDbError extends RuntimeException
 }
 
 /**
+ * The operation given to shopify_db_transaction() ended the transaction itself. Its work is
+ * already committed or rolled back by that call, so this is a programming error to fix, never
+ * a failure to retry.
+ */
+final class ShopifyDbMisuse extends LogicException
+{
+}
+
+/**
  * Runs one statement with bound parameters ($1, $2, ...) on the tenant connection and
  * returns every row. Writes return the RETURNING rows, or an empty list. Parameters are
  * scalars, null or DateTimeInterface; anything else, and any NUL byte, is refused before the
  * statement is sent, and a value is never interpolated into the SQL. One statement per call; a
- * second one in the string is refused. A failure is reported with the server's primary message
- * and SQLSTATE only, so bound values never appear in the error.
+ * second one in the string is refused. A failure is reported with the SQLSTATE, the table,
+ * column and constraint names and a statement excerpt, never with the server's message text,
+ * so bound values cannot appear in the error (see shopify_db_error_from_result()).
  *
  * @param string $sql
  * @param list<scalar|null|DateTimeInterface> $params
@@ -84,12 +98,8 @@ function shopify_db_rows(string $sql, array $params = []): array {
 	if ($result === false) {
 		throw new ShopifyDbError('no result for statement: ' . shopify_db_sql_excerpt($sql));
 	}
-	$status = pg_result_status($result);
-	if ($status === PGSQL_FATAL_ERROR || $status === PGSQL_NONFATAL_ERROR || $status === PGSQL_BAD_RESPONSE) {
-		$error = new ShopifyDbError('statement failed: ' . trim((string)pg_result_error_field($result, PGSQL_DIAG_MESSAGE_PRIMARY)) . ' -- ' . shopify_db_sql_excerpt($sql));
-		$error->sqlstate = (string)pg_result_error_field($result, PGSQL_DIAG_SQLSTATE);
-		$error->constraint = (string)pg_result_error_field($result, PGSQL_DIAG_CONSTRAINT_NAME);
-		throw $error;
+	if (shopify_db_result_failed($result)) {
+		throw shopify_db_error_from_result($result, $sql);
 	}
 	$rows = pg_fetch_all($result, PGSQL_ASSOC);
 	return $rows === false ? array() : $rows;
@@ -99,10 +109,15 @@ function shopify_db_rows(string $sql, array $params = []): array {
  * Runs $op inside a transaction: BEGIN when the connection is idle, a SAVEPOINT when the
  * caller already holds one. The work is committed (or the savepoint released) when $op
  * returns, and rolled back to where it started when $op throws; the exception is rethrown.
+ * $op must leave the transaction open: one that commits or rolls back itself (legacy
+ * transaktion('commit') does) has already decided its work's fate, and the call ends with
+ * ShopifyDbMisuse, a programming error that must not be retried.
  *
  * @param callable(): mixed $op
  * @return mixed whatever $op returns
- * @throws ShopifyDbError when the connection is already in an aborted transaction
+ * @throws ShopifyDbError when the connection is already in an aborted transaction, a statement
+ *   inside $op failed unhandled (the work is rolled back), or the commit itself fails
+ * @throws ShopifyDbMisuse when $op ended the transaction itself (its work is already final)
  */
 function shopify_db_transaction(callable $op) {
 	static $depth = 0;
@@ -115,18 +130,24 @@ function shopify_db_transaction(callable $op) {
 		throw new ShopifyDbError('the connection is busy or lost (transaction status ' . $status . ')');
 	}
 	$own = ($status === PGSQL_TRANSACTION_IDLE);
-	$savepoint = 'shopify_tx_' . (++$depth);
+	$savepoint = 'shopify_tx_' . ($depth + 1);
 	shopify_db_exec($connection, $own ? 'BEGIN' : "SAVEPOINT $savepoint");
+	$depth++;
 	try {
 		$value = $op();
-		// COMMIT in an aborted transaction answers ROLLBACK without an error; a transaction
-		// that $op closed itself (legacy transaktion('commit')) would commit nothing. Both are failures.
 		$after = pg_transaction_status($connection);
-		if ($after !== PGSQL_TRANSACTION_INTRANS) {
-			throw new ShopifyDbError($after === PGSQL_TRANSACTION_INERROR
-				? 'a statement inside the transaction failed and was not handled; the work is rolled back'
-				: 'the transaction was ended inside the operation; the work cannot be committed here');
+		if ($after === PGSQL_TRANSACTION_IDLE) {
+			// $op ended the transaction itself (legacy transaktion('commit') or 'rollback'): everything
+			// up to that point, the caller's uncommitted work included, is already final. Nothing to undo.
+			$depth--;
+			throw new ShopifyDbMisuse('the operation ended the transaction itself; its work is already committed or rolled back, fix the operation and do not retry');
 		}
+		if ($after !== PGSQL_TRANSACTION_INTRANS) {
+			// COMMIT in an aborted transaction answers ROLLBACK without an error, so it is refused here.
+			throw new ShopifyDbError('a statement inside the transaction failed and was not handled; the work is rolled back');
+		}
+	} catch (ShopifyDbMisuse $e) {
+		throw $e;
 	} catch (Throwable $e) {
 		$depth--;
 		@pg_query($connection, $own ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT $savepoint");
@@ -183,11 +204,76 @@ function shopify_db_param($value, int $position) {
 	throw new InvalidArgumentException("parameter \$$position must be a scalar, null or DateTimeInterface, " . gettype($value) . ' given');
 }
 
-/** Runs a transaction control statement and throws when it fails. */
+/** Runs a transaction control statement and throws when it fails, e.g. a deferred constraint at COMMIT. */
 function shopify_db_exec($connection, string $sql): void {
-	if (@pg_query($connection, $sql) === false) {
-		throw new ShopifyDbError("$sql failed: " . trim((string)pg_last_error($connection)));
+	if (!@pg_send_query_params($connection, $sql, array())) {
+		throw new ShopifyDbError("$sql could not be sent");
 	}
+	$result = pg_get_result($connection);
+	while (pg_get_result($connection) !== false) {
+		// clears the asynchronous state
+	}
+	if ($result === false || shopify_db_result_failed($result)) {
+		throw $result === false ? new ShopifyDbError("$sql gave no result") : shopify_db_error_from_result($result, $sql);
+	}
+}
+
+/** @param resource|\PgSql\Result $result */
+function shopify_db_result_failed($result): bool {
+	$status = pg_result_status($result);
+	return $status === PGSQL_FATAL_ERROR || $status === PGSQL_NONFATAL_ERROR || $status === PGSQL_BAD_RESPONSE;
+}
+
+/**
+ * Builds the error for a failed result without the server's message text. PostgreSQL quotes
+ * the offending input in its primary message for many classes (invalid input syntax, tsquery
+ * syntax, unknown relation or type named by a cast, ...), so no class of message is safe to copy
+ * when the values can be secrets. The error carries the SQLSTATE with its condition name, the
+ * table, column and constraint names from the diagnostic fields (identifiers, never values),
+ * and the statement excerpt.
+ *
+ * @param resource|\PgSql\Result $result
+ */
+function shopify_db_error_from_result($result, string $sql): ShopifyDbError {
+	$sqlstate = (string)pg_result_error_field($result, PGSQL_DIAG_SQLSTATE);
+	$parts = array(shopify_db_condition_name($sqlstate) . " (SQLSTATE $sqlstate)");
+	foreach (array('table' => PGSQL_DIAG_TABLE_NAME, 'column' => PGSQL_DIAG_COLUMN_NAME, 'constraint' => PGSQL_DIAG_CONSTRAINT_NAME) as $label => $field) {
+		$name = (string)pg_result_error_field($result, $field);
+		if ($name !== '') {
+			$parts[] = "$label $name";
+		}
+	}
+	$error = new ShopifyDbError('statement failed: ' . implode(', ', $parts) . ' -- ' . shopify_db_sql_excerpt($sql));
+	$error->sqlstate = $sqlstate;
+	$error->constraint = (string)pg_result_error_field($result, PGSQL_DIAG_CONSTRAINT_NAME);
+	return $error;
+}
+
+/** PostgreSQL's condition name for the SQLSTATEs the module meets; the bare code otherwise. */
+function shopify_db_condition_name(string $sqlstate): string {
+	$names = array(
+		'23505' => 'unique_violation',
+		'23503' => 'foreign_key_violation',
+		'23502' => 'not_null_violation',
+		'23514' => 'check_violation',
+		'22P02' => 'invalid_text_representation',
+		'22007' => 'invalid_datetime_format',
+		'22003' => 'numeric_value_out_of_range',
+		'22001' => 'string_data_right_truncation',
+		'22012' => 'division_by_zero',
+		'42601' => 'syntax_error',
+		'42703' => 'undefined_column',
+		'42P01' => 'undefined_table',
+		'42704' => 'undefined_object',
+		'42883' => 'undefined_function',
+		'40001' => 'serialization_failure',
+		'40P01' => 'deadlock_detected',
+		'55P03' => 'lock_not_available',
+		'25P02' => 'in_failed_sql_transaction',
+		'57014' => 'query_canceled',
+		'08006' => 'connection_failure',
+	);
+	return $names[$sqlstate] ?? 'error';
 }
 
 /** The first line of a statement, shortened, for error messages; never the bound values. */

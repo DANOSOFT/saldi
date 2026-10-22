@@ -118,11 +118,21 @@ final class DbAdapterTest extends TestCase
         $this->assertTrue($r['status_end_idle']);
     }
 
-    public function testAnOperationThatEndsTheTransactionItselfCannotCommit(): void
+    public function testAnOperationThatEndsTheTransactionItselfIsMisuseWithItsWorkAlreadyFinal(): void
     {
         $r = $this->runMode('tx_early_commit');
-        $this->assertTrue($r['threw']);
-        $this->assertStringContainsString('ended inside the operation', $r['message']);
+        $this->assertTrue($r['own']['threw']);
+        $this->assertSame('ShopifyDbMisuse', $r['own']['class'], 'a programming error, not a retryable failure');
+        $this->assertStringContainsString('already committed', $r['own']['message']);
+        $this->assertStringContainsString('do not retry', $r['own']['message']);
+        $this->assertSame(1, $r['own']['count'], 'the row the operation committed itself is in the table');
+        $this->assertTrue($r['own']['status_idle']);
+
+        $this->assertTrue($r['nested']['threw']);
+        $this->assertSame('ShopifyDbMisuse', $r['nested']['class']);
+        $this->assertSame(['callers', 'early', 'inner'], $r['nested']['keys'], "the caller's own uncommitted row was committed by the inner op too");
+        $this->assertTrue($r['nested']['status_idle']);
+        $this->assertSame(1, $r['later_count'], 'the connection is usable afterwards');
     }
 
     public function testDateTimeParametersLandAsWallClockTimeInPhpsZone(): void
@@ -135,13 +145,31 @@ final class DbAdapterTest extends TestCase
     public function testAFailedStatementNeverExposesBoundValues(): void
     {
         $r = $this->runMode('errors');
-        foreach (['unique', 'check', 'missing'] as $case) {
-            $this->assertStringNotContainsString('SECRET_TOKEN', $r[$case]['message'], "$case error leaks the bound value");
+        $cases = ['unique', 'check', 'notnull', 'missing', 'cast_int', 'cast_date', 'cast_bool', 'cast_tsquery', 'cast_regclass', 'cast_regtype', 'cast_interval', 'cast_json', 'cast_range', 'deferred'];
+        foreach ($cases as $case) {
+            $this->assertArrayHasKey($case, $r, "$case did not fail");
+            $this->assertStringNotContainsString('SECRET', $r[$case]['message'], "$case error leaks the bound value");
             $this->assertStringNotContainsString('DETAIL', $r[$case]['message']);
+            $this->assertStringContainsString('SQLSTATE ' . $r[$case]['sqlstate'], $r[$case]['message']);
         }
+        $this->assertSame('22P02', $r['cast_int']['sqlstate']);
+        $this->assertSame('22007', $r['cast_date']['sqlstate']);
+        $this->assertSame('22P02', $r['cast_bool']['sqlstate']);
+        $this->assertSame('42601', $r['cast_tsquery']['sqlstate'], 'a syntax error that quotes the input in its server message');
+        $this->assertSame('42P01', $r['cast_regclass']['sqlstate'], 'an undefined-table error that quotes the input');
+        $this->assertSame('42704', $r['cast_regtype']['sqlstate']);
+        $this->assertStringStartsWith('22', $r['cast_range']['sqlstate']);
+        $this->assertStringContainsString('not_null_violation', $r['notnull']['message']);
+        $this->assertStringContainsString('column domain', $r['notnull']['message']);
+        $this->assertStringContainsString('table shopify_shops', $r['unique']['message']);
+        $this->assertSame('23505', $r['deferred']['sqlstate'], 'a deferred constraint fails at COMMIT and is reported like any failure');
+        $this->assertSame('shopify_test_deferred_k', $r['deferred']['constraint']);
+        $this->assertSame(0, $r['deferred']['rows_left']);
+        $this->assertTrue($r['deferred']['status_idle']);
         $this->assertSame('23505', $r['unique']['sqlstate']);
         $this->assertSame('shopify_shops_shop_key_key', $r['unique']['constraint']);
-        $this->assertStringContainsString('shopify_shops_shop_key_key', $r['unique']['message']);
+        $this->assertStringContainsString('constraint shopify_shops_shop_key_key', $r['unique']['message']);
+        $this->assertStringContainsString('unique_violation', $r['unique']['message']);
         $this->assertSame('23514', $r['check']['sqlstate']);
         $this->assertSame('shopify_shops_legacy_slot_check', $r['check']['constraint']);
         $this->assertSame('42P01', $r['missing']['sqlstate']);
