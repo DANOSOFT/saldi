@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------/admin/opret.php-----patch 5.0.0 ----2026-09-18--------------
+// ------------/admin/opret.php-----ver 5.0.0 ----2026-10-21--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -114,6 +114,7 @@
 // 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
 //                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
 // 20261012 CL/LH stripe_events gets the webhook lease columns (claim_token, claimed_at, attempts, event_created).
+// 20261021 Sawaneh SD-733: Shopify schema manifest v1 created from includes/shopify/schema.php (PostgreSQL only).
 
 @session_start();
 $s_id=session_id();
@@ -550,6 +551,8 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify("CREATE TABLE shop_adresser ($id_column,saldi_id integer,shop_id integer,afd integer DEFAULT 0,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE shop_varer ($id_column,saldi_id integer,saldi_variant integer,shop_id integer,shop_variant integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE shop_ordrer ($id_column,saldi_id integer,shop_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	include_once(__DIR__ . '/../includes/shopify/schema.php');
+	opret_shopify_schema();
 	db_modify("CREATE TABLE varianter ($id_column,beskrivelse text,shop_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE variant_typer ($id_column,variant_id integer,shop_id integer,beskrivelse text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE variant_varer ($id_column,vare_id integer,variant_type integer,variant_beholdning $decimal_type(15,3),";
