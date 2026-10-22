@@ -501,13 +501,14 @@ function customerPicker(title, intro, onPick) {
 	search(); setTimeout(() => q.focus(), 30);
 }
 
-function newFollowUp(dateKey) {
-	Object.assign(DR, {type: 'opkald', due: dateKey || null, owner: ME || (DATA.emps[0] || {}).id || 0, closePrev: true});
-	customerPicker(t('Ny opfølgning'), (dateKey ? t('Opfølgning %s', fmt(dateKey)) + '. ' : '') + t('Vælg kunden – du kan også søge på kontaktperson eller kundenummer.'), c => {
+function newFollowUp(dateKey, asNote) {
+	const title = asNote ? t('Ny note') : t('Ny opfølgning');
+	Object.assign(DR, {type: asNote ? 'note' : 'opkald', due: dateKey || null, owner: ME || (DATA.emps[0] || {}).id || 0, closePrev: true});
+	customerPicker(title, (dateKey ? t('Opfølgning %s', fmt(dateKey)) + '. ' : '') + t('Vælg kunden – du kan også søge på kontaktperson eller kundenummer.'), c => {
 		DR.owner = c.own || DR.owner;
-		openDlg(`<h3>${t('Ny opfølgning')}</h3><div class="pick"><b>${esc(c.n)}</b><span class="c3">${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}</span><button id="back">${t('Skift kunde')}</button></div><div class="b2">${composer(c, 'n')}</div>`);
+		openDlg(`<h3>${title}</h3><div class="pick"><b>${esc(c.n)}</b><span class="c3">${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}</span><button id="back">${t('Skift kunde')}</button></div><div class="b2">${composer(c, 'n')}</div>`);
 		wireComposer('n', c, closeDlg);
-		$('#back').onclick = () => newFollowUp(dateKey);
+		$('#back').onclick = () => newFollowUp(dateKey, asNote);
 		setTimeout(() => $('#nNote').focus(), 30);
 	});
 }
@@ -677,6 +678,7 @@ $('#toastX').onclick = () => { const f = extraFn; $('#toast').classList.remove('
 function renderAll() {
 	renderTabs();
 	['follow', 'pipe', 'cal', 'cust', 'act'].forEach(t => { $('#v-' + t).hidden = S.tab !== t; });
+	drawNewBtn();
 	$('#grpSel').style.visibility = S.tab === 'pipe' ? 'hidden' : '';
 	if (S.tab === 'follow') renderFollow();
 	if (S.tab === 'pipe') renderPipe();
@@ -707,7 +709,6 @@ document.addEventListener('click', e => {
 	}
 	if (!t.closest('#menu') && !t.closest('[data-snooze]')) $('#menu').classList.remove('open');
 	if (!t.closest('.gear')) { $('#panel').classList.remove('open'); $('#gearBtn').setAttribute('aria-expanded', 'false'); }
-	if (!t.closest('.newwrap')) closeNewMenu();
 	let b;
 	if ((b = t.closest('[data-tab]'))) { S.tab = b.dataset.tab; renderAll(); return; }
 	if ((b = t.closest('[data-tick]'))) { e.stopPropagation(); toggleDone(+b.dataset.tick, b.closest('.row')); return; }
@@ -737,41 +738,28 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
 	if (e.key === 'Escape') { if ($('#scrim').classList.contains('open')) closeDlg(); else if (S.drawer) closeDrawer(); $('#menu').classList.remove('open'); }
 	if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('body-row')) openDrawer(+e.target.dataset.open);
-	if ((e.key === 'n' || e.key === 'N') && DATA.canWrite && !e.ctrlKey && !e.metaKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !$('#scrim').classList.contains('open')) { e.preventDefault(); newFollowUp(); }
+	if ((e.key === 'n' || e.key === 'N') && DATA.canWrite && !e.ctrlKey && !e.metaKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !$('#scrim').classList.contains('open')) { e.preventDefault(); newForTab(); }
 });
 $('#dscrim').onclick = closeDrawer;
 $('#drawer').addEventListener('click', e => { if (e.target.closest('#dClose')) closeDrawer(); });
 $('#drawer').addEventListener('change', e => { if (e.target.id === 'stSel') setStatus(cust(S.drawer), e.target.value); });
 $('#scrim').onclick = e => { if (e.target.id === 'scrim') closeDlg(); };
-// Ny: menu with Opfølgning (also key N), Handel, Tilbud (not with quick invoicing) and Ordre
-function closeNewMenu() { $('#newMenu').classList.remove('open'); $('#newBtn').setAttribute('aria-expanded', 'false'); }
-function docFor(kind) {
-	customerPicker(kind === 'offer' ? t('Nyt tilbud') : t('Ny ordre'), t('Hvilken kunde gælder det?'), c => {
-		closeDlg();
-		const href = `ordre.php?konto_id=${c.id}${kind === 'order' ? '&ordrestatus=1' : ''}&returside=${backTo(c.id)}`;
-		sendPlace().finally(() => { location.href = href; });
-	});
+// The new-button follows the tab (also key N): Opfølgning/Kalender -> follow-up, Pipeline -> deal,
+// Kunder -> new customer card, Aktivitet -> note. Offers and orders are made from the customer's drawer.
+const NEW_FOR = {follow: 'Ny opfølgning', cal: 'Ny opfølgning', pipe: 'Ny handel', cust: 'Ny kunde', act: 'Ny note'};
+function drawNewBtn() {
+	const k = NEW_FOR[S.tab] || 'Ny opfølgning';
+	$('#newLbl').textContent = t(k);
+	$('#newBtn').title = t(k) + ' (N)';
 }
-$('#newBtn').onclick = e => {
-	e.stopPropagation();
-	const open = !$('#newMenu').classList.contains('open');
-	$('#newMenu').classList.toggle('open', open); $('#newBtn').setAttribute('aria-expanded', String(open));
-	if (open) $('#newMenu').querySelector('button:not([hidden])').focus();
-};
-$('#newMenu').addEventListener('click', e => {
-	const b = e.target.closest('[data-newkind]'); if (!b) return;
-	e.stopPropagation(); closeNewMenu();
-	const k = b.dataset.newkind;
-	if (k === 'followup') newFollowUp(); else if (k === 'deal') dealDialog(null, null, null); else docFor(k);
-});
-$('#newMenu').addEventListener('keydown', e => {
-	const items = [...$('#newMenu').querySelectorAll('button:not([hidden])')], i = items.indexOf(document.activeElement);
-	if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
-	if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
-	if (e.key === 'Escape') { closeNewMenu(); $('#newBtn').focus(); }
-});
-$('#newOffer').hidden = !!DATA.quick;
-$('.newwrap').hidden = !DATA.canWrite;
+function newForTab() {
+	if (S.tab === 'pipe') dealDialog(null, null, null);
+	else if (S.tab === 'cust') { const href = 'debitorkort.php?returside=' + encodeURIComponent('crm.php?' + placeParams({drawer: null})); sendPlace().finally(() => { location.href = href; }); }
+	else if (S.tab === 'act') newFollowUp(null, true);
+	else newFollowUp();
+}
+$('#newBtn').onclick = e => { e.stopPropagation(); newForTab(); };
+$('#newBtn').hidden = !DATA.canWrite;
 $('#q').oninput = e => { S.q = e.target.value.trim(); renderAll(); };
 $('#grpSel').onchange = e => { S.grp = e.target.value; S.stF = 'all'; renderAll(); };
 // Alle | Mine - same control as the cash journal list (finans/kladdeliste.php): radio group, arrow keys, remembered.

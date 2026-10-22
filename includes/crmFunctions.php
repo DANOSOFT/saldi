@@ -409,7 +409,8 @@ function crm_text_ids(): array
 		7539 => 'Slet gruppe',
 		7540 => 'Der er ingen kundestatusser endnu.',
 		7541 => 'Giv alle statusser et navn.',
-		7542 => 'Statusser og statusgrupper er gemt'
+		7542 => 'Statusser og statusgrupper er gemt',
+		7543 => 'Ny kunde'
 	);
 }
 
