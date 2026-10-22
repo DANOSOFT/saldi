@@ -187,8 +187,11 @@
 //                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
 // 20261004 CL/SZ SD-725 A VAT code field per side of each row (dvat/kvat + row number, as in the journal), so the lookup panel fills it when an account is chosen.
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
+<<<<<<< HEAD
 // 20261004 CL/SZ SD-726 The user's "Ctrl + pil op/ned" from the journal's gear box comes in window.saldiShortcuts.
 //                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
+=======
+>>>>>>> refs/rewritten/onto
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
@@ -207,6 +210,11 @@
 //                box; attaching the document to it made a second line. "Gem" and "Gem alle" refuse a dot that is not a thousands separator
 //                ("12.50" was saved as 1250) and a space inside the amount.
 // 20261022 CL/SZ SD-725 (CodeRabbit) The VAT field gets the other side's saved code too, so a blank chosen next to it stays blank (poolVatShown()).
+<<<<<<< HEAD
+=======
+// 20261022 CL/SZ MB-91 The list's "Indsæt" refuses the attach while a "Fordeling" row isn't saved (5451), with the cursor in that row; nothing is saved or attached.
+//                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
+>>>>>>> refs/rewritten/onto
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1036,21 +1044,21 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	// $sag         = if_isset($_POST,NULL,'sag');
 	// $sum         = if_isset($_POST,NULL,'sum');
 	##########################################
-	$afd         = if_isset($_POST,NULL,'afd')         ?? if_isset($_GET,NULL,'afd');
-	$bilag       = if_isset($_POST,NULL,'bilag')       ?? if_isset($_GET,NULL,'bilag');
-	$beskrivelse = if_isset($_POST,NULL,'beskrivelse') ?? if_isset($_GET,NULL,'beskrivelse');
-	$dato        = if_isset($_POST,NULL,'dato')        ?? if_isset($_GET,NULL,'dato');
-	$debet       = if_isset($_POST,NULL,'debet')       ?? if_isset($_GET,NULL,'debet');
-	$fakturanr   = if_isset($_POST,NULL,'fakturanr')   ?? if_isset($_GET,NULL,'fakturanr');
-	$kredit      = if_isset($_POST,NULL,'kredit')      ?? if_isset($_GET,NULL,'kredit');
-	$projekt     = if_isset($_POST,NULL,'projekt')     ?? if_isset($_GET,NULL,'projekt');
-	$sag         = if_isset($_POST,NULL,'sag')         ?? if_isset($_GET,NULL,'sag');
-	$sum         = if_isset($_POST,NULL,'sum')         ?? if_isset($_GET,NULL,'sum');
-	$valuta      = if_isset($_POST,NULL,'valuta')      ?? if_isset($_GET,NULL,'valuta');
-	$momsfri     = if_isset($_POST,NULL,'momsfri')     ?? if_isset($_GET,NULL,'momsfri');
-	$forfald     = if_isset($_POST,NULL,'forfald')     ?? if_isset($_GET,NULL,'forfald');
-	$debetvat    = if_isset($_POST,NULL,'debetvat')    ?? if_isset($_GET,NULL,'debetvat');
-	$kreditvat   = if_isset($_POST,NULL,'kreditvat')   ?? if_isset($_GET,NULL,'kreditvat');
+	$afd         = ifset($_POST, 'afd')         ?? ifset($_GET, 'afd');
+	$bilag       = ifset($_POST, 'bilag')       ?? ifset($_GET, 'bilag');
+	$beskrivelse = ifset($_POST, 'beskrivelse') ?? ifset($_GET, 'beskrivelse');
+	$dato        = ifset($_POST, 'dato')        ?? ifset($_GET, 'dato');
+	$debet       = ifset($_POST, 'debet')       ?? ifset($_GET, 'debet');
+	$fakturanr   = ifset($_POST, 'fakturanr')   ?? ifset($_GET, 'fakturanr');
+	$kredit      = ifset($_POST, 'kredit')      ?? ifset($_GET, 'kredit');
+	$projekt     = ifset($_POST, 'projekt')     ?? ifset($_GET, 'projekt');
+	$sag         = ifset($_POST, 'sag')         ?? ifset($_GET, 'sag');
+	$sum         = ifset($_POST, 'sum')         ?? ifset($_GET, 'sum');
+	$valuta      = ifset($_POST, 'valuta')      ?? ifset($_GET, 'valuta');
+	$momsfri     = ifset($_POST, 'momsfri')     ?? ifset($_GET, 'momsfri');
+	$forfald     = ifset($_POST, 'forfald')     ?? ifset($_GET, 'forfald');
+	$debetvat    = ifset($_POST, 'debetvat')    ?? ifset($_GET, 'debetvat');
+	$kreditvat   = ifset($_POST, 'kreditvat')   ?? ifset($_GET, 'kreditvat');
 	#########################################
 
 	if ($insertFile) {
@@ -2681,6 +2689,8 @@ $txt71  = $txt31.". ".$txt32.".";                                               
 $txt72  = $txt1 ." ".lcfirst($txt15);                                                           #Gem alle
 $txt73  = $txt15." ".lcfirst($txt50)."!";                                                       #Alle gemt!
 $txt74  = $txt16." ".lcfirst($txt14);                                                           #Duplikér linje
+$txt75  = findtekst('5451|Rækkerne i fordelingen er ikke gemt. Gem dem først med', $sprog_id)." \"".$txt72."\".";
+$txt75Js = json_encode($txt75, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 $poolSuggestedText = findtekst('5255|Forslag', $sprog_id);
 $poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
 $txtPoolOf   = findtekst('5346|af', $sprog_id);        // SD-719: "50 af 497"
@@ -4104,6 +4114,19 @@ print <<<JS
 			return;
 		}
 		
+		// The list's "Indsæt" saves no rows first, so a "Fordeling" row that isn't saved yet was left out without a word (MB-91).
+		// "Gem og næste" (afterAttach) has saved every row before it gets here.
+		if (typeof afterAttach !== 'function') {
+			const unsavedSplit = Array.from(document.querySelectorAll('.kassebilag-entry[data-split="1"]')).find(entry => !entry.dataset.savedLineId);
+			if (unsavedSplit) {
+				alert({$txt75Js});
+				const rowId = unsavedSplit.id.replace('bilagEntry_', '');
+				const field = document.getElementById('row_' + rowId + '_Debet') || unsavedSplit.querySelector('input[type="text"]');
+				if (field) field.focus();
+				return;
+			}
+		}
+
 		// Debug: log selected files
 		console.log('Selected files to insert:', selectedFiles);
 		
