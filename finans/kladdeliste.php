@@ -55,6 +55,8 @@
 //                 breadcrumb come from online.php; the list is a .kl-page wrapper styled by css/kladdeliste.css with the
 //                 saldi-theme.css tokens (dark mode follows data-theme). The Assist menu finds the tour through
 //                 #tutorial-help. The list/csv/pref POSTs count as reads in the permission gate.
+// 20261022 CL/NTR - css/kladdeliste.css: headings, counts, row numbers, switch notes, footer and the trash icon use
+//                 --text-2 instead of --text-3 (too low contrast); stylesheet bumped to v=20261022b.
 
 @session_start();
 $s_id=session_id();
@@ -490,7 +492,7 @@ $klConfig = array(
 );
 ?>
 <link rel="stylesheet" href="../css/saldi-theme.css">
-<link rel="stylesheet" href="../css/kladdeliste.css?v=20261022">
+<link rel="stylesheet" href="../css/kladdeliste.css?v=20261022b">
 <style>.kl-page{--btn:<?= $btn ?>;--btn-text:<?= $btnTxt ?>}</style>
 <div class="kl-page">
 <section class="kl" id="kl">
