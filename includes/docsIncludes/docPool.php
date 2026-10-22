@@ -1055,21 +1055,21 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	// $sag         = if_isset($_POST,NULL,'sag');
 	// $sum         = if_isset($_POST,NULL,'sum');
 	##########################################
-	$afd         = if_isset($_POST,NULL,'afd')         ?? if_isset($_GET,NULL,'afd');
-	$bilag       = if_isset($_POST,NULL,'bilag')       ?? if_isset($_GET,NULL,'bilag');
-	$beskrivelse = if_isset($_POST,NULL,'beskrivelse') ?? if_isset($_GET,NULL,'beskrivelse');
-	$dato        = if_isset($_POST,NULL,'dato')        ?? if_isset($_GET,NULL,'dato');
-	$debet       = if_isset($_POST,NULL,'debet')       ?? if_isset($_GET,NULL,'debet');
-	$fakturanr   = if_isset($_POST,NULL,'fakturanr')   ?? if_isset($_GET,NULL,'fakturanr');
-	$kredit      = if_isset($_POST,NULL,'kredit')      ?? if_isset($_GET,NULL,'kredit');
-	$projekt     = if_isset($_POST,NULL,'projekt')     ?? if_isset($_GET,NULL,'projekt');
-	$sag         = if_isset($_POST,NULL,'sag')         ?? if_isset($_GET,NULL,'sag');
-	$sum         = if_isset($_POST,NULL,'sum')         ?? if_isset($_GET,NULL,'sum');
-	$valuta      = if_isset($_POST,NULL,'valuta')      ?? if_isset($_GET,NULL,'valuta');
-	$momsfri     = if_isset($_POST,NULL,'momsfri')     ?? if_isset($_GET,NULL,'momsfri');
-	$forfald     = if_isset($_POST,NULL,'forfald')     ?? if_isset($_GET,NULL,'forfald');
-	$debetvat    = if_isset($_POST,NULL,'debetvat')    ?? if_isset($_GET,NULL,'debetvat');
-	$kreditvat   = if_isset($_POST,NULL,'kreditvat')   ?? if_isset($_GET,NULL,'kreditvat');
+	$afd         = ifset($_POST, 'afd')         ?? ifset($_GET, 'afd');
+	$bilag       = ifset($_POST, 'bilag')       ?? ifset($_GET, 'bilag');
+	$beskrivelse = ifset($_POST, 'beskrivelse') ?? ifset($_GET, 'beskrivelse');
+	$dato        = ifset($_POST, 'dato')        ?? ifset($_GET, 'dato');
+	$debet       = ifset($_POST, 'debet')       ?? ifset($_GET, 'debet');
+	$fakturanr   = ifset($_POST, 'fakturanr')   ?? ifset($_GET, 'fakturanr');
+	$kredit      = ifset($_POST, 'kredit')      ?? ifset($_GET, 'kredit');
+	$projekt     = ifset($_POST, 'projekt')     ?? ifset($_GET, 'projekt');
+	$sag         = ifset($_POST, 'sag')         ?? ifset($_GET, 'sag');
+	$sum         = ifset($_POST, 'sum')         ?? ifset($_GET, 'sum');
+	$valuta      = ifset($_POST, 'valuta')      ?? ifset($_GET, 'valuta');
+	$momsfri     = ifset($_POST, 'momsfri')     ?? ifset($_GET, 'momsfri');
+	$forfald     = ifset($_POST, 'forfald')     ?? ifset($_GET, 'forfald');
+	$debetvat    = ifset($_POST, 'debetvat')    ?? ifset($_GET, 'debetvat');
+	$kreditvat   = ifset($_POST, 'kreditvat')   ?? ifset($_GET, 'kreditvat');
 	#########################################
 
 	if ($insertFile) {
