@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -206,6 +206,7 @@
 // 20261020 CL/SZ SD-720 (CodeRabbit) A new row saved by a "Gem alle" or "Gem og næste" that then failed on a later row gets its line id in its "attach here"
 //                box; attaching the document to it made a second line. "Gem" and "Gem alle" refuse a dot that is not a thousands separator
 //                ("12.50" was saved as 1250) and a space inside the amount.
+// 20261022 CL/SZ SD-725 (CodeRabbit) The VAT field gets the other side's saved code too, so a blank chosen next to it stays blank (poolVatShown()).
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2236,7 +2237,7 @@ if ($source == 'kassekladde') {
 			print "<input type='text' id='{$pfx}_{$side}' class='pool-account-no' data-side='$side' value=\"" . htmlspecialchars($no) . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}{$noName}>";
 			// SD-725: the VAT code, named as in the journal (dvat/kvat + row number) so the lookup panel sets it when an account is chosen
 			$accountVat = array_key_exists($info['moms'], $vatCodes) && $type === 'F' ? $info['moms'] : '';
-			$shownVat = poolVatShown($savedVat, $accountVat, !empty($d['momsfri']), $vatCodes);
+			$shownVat = poolVatShown($savedVat, $accountVat, !empty($d['momsfri']), $side === 'Debet' ? ($d['kreditvat'] ?? null) : ($d['debetvat'] ?? null), $vatCodes);
 			$vatName = $readOnly ? '' : " name='" . ($side === 'Debet' ? 'dvat' : 'kvat') . $rowNo . "'";
 			$vatTitle = htmlspecialchars(findtekst('770|Moms', $sprog_id), ENT_QUOTES);
 			print "<select id='{$pfx}_{$side}Vat' class='pool-account-vatcode' data-account-vat='" . htmlspecialchars($accountVat, ENT_QUOTES) . "' title='$vatTitle' tabindex='-1' style='width:52px;{$inStyle}{$roBg}'" . ($readOnly ? ' disabled' : '') . "$vatName>";
