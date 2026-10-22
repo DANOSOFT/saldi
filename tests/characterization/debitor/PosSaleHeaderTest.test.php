@@ -304,6 +304,40 @@ final class PosSaleHeaderTest extends TestCase
         self::assertSame("12 34 '56", $this->db->query("SELECT phone FROM ordrer WHERE id=79")->fetchColumn());
     }
 
+    public function testAnOverlongPhoneNumberIsCutRatherThanLosingTheCustomer(): void
+    {
+        // adresser.tlf is varchar(60), ordrer.phone is varchar(50). Postgresql refuses the whole
+        // update statement on an overlong value, so the customer would not be attached at all.
+        $this->db->exec("INSERT INTO ordrer (id,status,art) VALUES (81,0,'PO')");
+        $long = str_repeat('9', 60);
+        $this->db->exec("INSERT INTO adresser (id,kontonr,art,firmanavn,tlf,betalingsdage,lukket)
+            VALUES (9,'1005','D','Langt nummer','$long',0,'')");
+
+        opdater_konto(9, '1005', 81);
+        $row = $this->db->query("SELECT konto_id,phone FROM ordrer WHERE id=81")
+            ->fetch(\PDO::FETCH_ASSOC);
+        self::assertSame('9', (string)$row['konto_id'],
+            'the customer must still be attached; a phone number cannot cost them the sale');
+        self::assertSame(50, strlen((string)$row['phone']), 'ordrer.phone holds 50 characters');
+        self::assertSame(str_repeat('9', 50), $row['phone']);
+    }
+
+    public function testCuttingAPhoneNumberCannotSplitAMultibyteCharacter(): void
+    {
+        // A cut landing inside a multibyte character leaves invalid utf-8, which postgresql refuses
+        // just as it refuses an overlong value - so the cut has to count characters, not bytes.
+        $this->db->exec("INSERT INTO ordrer (id,status,art) VALUES (82,0,'PO')");
+        $tlf = str_repeat('4', 49) . str_repeat("\u{00e6}", 6);
+        $this->db->exec("INSERT INTO adresser (id,kontonr,art,firmanavn,tlf,betalingsdage,lukket)
+            VALUES (10,'1006','D','Multibyte','" . $tlf . "',0,'')");
+
+        opdater_konto(10, '1006', 82);
+        $phone = (string)$this->db->query("SELECT phone FROM ordrer WHERE id=82")->fetchColumn();
+        self::assertSame(50, mb_strlen($phone, 'UTF-8'), 'fifty characters, not fifty bytes');
+        self::assertNotFalse(mb_detect_encoding($phone, 'UTF-8', true),
+            'a byte-wise cut would have left a half character here');
+    }
+
     public function testASaleAlreadyInvoicedIsNotTouched(): void
     {
         $this->db->exec("INSERT INTO ordrer (id,status,art,phone) VALUES (80,3,'PO','unchanged')");
@@ -543,5 +577,25 @@ final class PosSaleHeaderTest extends TestCase
         self::assertStringNotContainsString('function opdater_konto(', $page);
         self::assertStringContainsString('saleHeaderFunctions.php', $page,
             'pos_ordre.php calls both functions, so it has to include them');
+    }
+
+    /**
+     * The 48-hour recycle is top-level code in the middle of pos_ordre.php, not a function, so it
+     * cannot be lifted and run the way the rest of this suite works. This asserts on the source
+     * instead - weaker than the tests above, and said plainly rather than dressed up.
+     */
+    public function testRecyclingAnAbandonedSaleResetsWhatTheSaleHeaderSets(): void
+    {
+        $page = file_get_contents(dirname(__DIR__, 3) . '/debitor/pos_ordre.php');
+        $from = strpos($page, "60 * 60 * 48");
+        self::assertNotFalse($from, 'the 48-hour recycle branch has moved');
+        $branch = substr($page, $from, strpos($page, 'delete from ordrelinjer', $from) - $from);
+
+        self::assertStringContainsString("phone=''", $branch,
+            'the previous customer\'s phone number would survive a reset that clears their name');
+        self::assertStringContainsString('pos_terminal_sale_defaults(', $branch,
+            'the department and brand have to be re-read; the terminal may have been changed since');
+        self::assertStringContainsString("afd='\$genbrug_afd'", $branch);
+        self::assertStringContainsString("sprog='\$genbrug_brand'", $branch);
     }
 }

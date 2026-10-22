@@ -179,6 +179,8 @@ include("pos_ordre_includes/helperMethods/helperFunc.php"); #20190219
 include("pos_ordre_includes/helperMethods/helperFuncII.php"); #20190219 
 
 # 20261021 CL/MJ SD-758 opret_posordre(), opdater_konto() and pos_terminal_sale_defaults().
+# 20261022 CL/MJ SD-758 Reusing an abandoned sale clears the phone number and re-reads the
+#                  terminal's department and brand; see the 48 hour branch further down.
 include_once(__DIR__ . "/pos_ordre_includes/saleHeaderFunctions.php");
 
 include("pos_ordre_includes/posTxtPrint/posTxtPrintFunc.php"); #20190503
@@ -532,12 +534,22 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 	if ($kasse) $qtxt .= " and felt_5 = '$kasse' "; #20210826
 	($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $id = $r['id'] : $id = 0;
 	if ($id && !count($bord)) {
-		$qtxt = "select ordredate from ordrer where id='$id'";
+		$qtxt = "select ordredate,felt_5 from ordrer where id='$id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (strtotime($r['ordredate']) < date('U') - 60 * 60 * 48) {
+			# 20261022 CL/MJ SD-758 Reusing an abandoned sale makes it a new sale, so the header
+			# values opret_posordre() sets have to be set again. The previous customer's phone
+			# number has to go with the rest of their details, and the terminal's department and
+			# brand may have been changed in the settings since this row was created. felt_5 is the
+			# terminal the row belongs to, used when this request does not know its own.
+			$genbrug_kasse = $kasse ? $kasse : (int) ifset($r, 'felt_5', 0);
+			$salgsdefault = pos_terminal_sale_defaults($genbrug_kasse, $regnaar);
+			$genbrug_afd = (int) $salgsdefault['afd'];
+			$genbrug_brand = db_escape_string($salgsdefault['brand']);
 			$qtxt = "update ordrer set konto_id='0',  kontonr='0',firmanavn='',addr1='',addr2='',postnr='',";
 			$qtxt .= "bynavn='',land='',betalingsdage='0',betalingsbet='Kontant',cvrnr='',ean='',institution='',";
 			$qtxt .= "email='',kontakt='',art='PO',valuta='$baseCurrency',valutakurs='100',kundeordnr='',";
+			$qtxt .= "phone='',afd='$genbrug_afd',sprog='$genbrug_brand',";
 			$qtxt .= "ordredate='" . date("Y-m-d") . "',hvem='',ref='',nr=NULL where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);

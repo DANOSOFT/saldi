@@ -22,6 +22,10 @@
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261022 CL/MJ SD-758 The copied phone number is cut to ordrer.phone's 50 characters.
+//                  adresser.tlf holds 60, and postgresql refuses the whole update on an overlong
+//                  value, which left the customer unattached to the sale over a phone number.
+//
 // 20261021 CL/MJ SD-758 [S12] WP12: opret_posordre() and opdater_konto() moved here from
 //                  debitor/pos_ordre.php, which is the sale header in one place rather than two
 //                  function bodies in the middle of a 4000-line page. Three things are new with the
@@ -211,7 +215,13 @@ function opdater_konto($konto_id, $kontonr, $id, $o_art = 'PO') {
 		// 20261021 CL/MJ SD-758 The customer's phone number comes along with the rest of their details
 		// (legacy core edit 9, POS part). A delivery or pickup sale has to carry a way to reach the
 		// customer, and this is the only place a POS sale learns who they are.
-		$qtxt .= "phone='" . db_escape_string($r['tlf']) . "',";
+		// adresser.tlf is varchar(60) but ordrer.phone is varchar(50), so a longer number is cut to
+		// fit: postgresql refuses the whole statement on an overlong value, which would cost the
+		// customer their attachment to the sale over a phone number. mb_substr, so that a cut
+		// cannot land inside a multibyte character and leave the value invalid utf-8 - which
+		// postgresql would refuse as well.
+		$phone = mb_substr((string) $r['tlf'], 0, 50, 'UTF-8');
+		$qtxt .= "phone='" . db_escape_string($phone) . "',";
 		$qtxt .= "email='" . db_escape_string($r['email']) . "',kontakt='" . db_escape_string($r['kontakt']) . "',art='PO',valuta='$baseCurrency',valutakurs='100' ";
 		$qtxt .= "where id = '$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
