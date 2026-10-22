@@ -212,25 +212,101 @@ check($pending[0]['vare_id'] === 9900,
 	'The oldest queued item is delivered first, whatever its file name sorts as');
 check(count(shopSyncQueuePending(1)) === 1, 'The pending list honours its limit');
 
+// A delivery takes the marker out of the way first, so a change to the same item arriving
+// while it runs queues itself afresh instead of being swept up when the delivery ends.
 $oldest = $pending[0];
-$final = shopSyncQueueRetryLater($oldest, 3);
-check($final === false, 'One failed attempt is not final');
-check(shopSyncQueueRead($pending[0]['path'])['attempts'] === 1, 'The failed attempt is counted');
-shopSyncQueueRetryLater(shopSyncQueueRead($pending[0]['path']), 3);
-$final = shopSyncQueueRetryLater(shopSyncQueueRead($pending[0]['path']), 3);
-check($final === true, 'Reaching the attempt limit reports a final failure');
-check(is_file($pending[0]['path']), 'A marker past the attempt limit is kept, so the update is not dropped');
+$live   = $oldest['path'];
+$claim  = shopSyncQueueClaim($oldest);
+check(is_array($claim), 'An entry can be claimed for the length of a delivery');
+check(!is_file($live), 'The marker is out of the way while the delivery runs');
+check(is_file($claim['claim']), 'The claim is on disk, so a dead request leaves a trace');
+check(shopSyncQueueClaim($oldest) === null, 'Two requests cannot hold the same entry at once');
 
-// The sender queues a failed item and the drainer counts the attempt, in that order, so if
-// queueing an item that is already queued reset the count, the attempt limit would never be
-// reached and an item no shop will ever take would be retried for ever.
+$final = shopSyncQueueRelease($claim, 3);
+check($final === false, 'One failed attempt is not final');
+check(shopSyncQueueRead($live)['attempts'] === 1, 'The failed attempt is counted');
+check(!is_file($claim['claim']), 'Releasing a claim removes the claim file');
+
+$final = shopSyncQueueRelease(shopSyncQueueClaim(shopSyncQueueRead($live)), 3);
+check($final === false, 'Two attempts out of three is not yet final');
+$final = shopSyncQueueRelease(shopSyncQueueClaim(shopSyncQueueRead($live)), 3);
+check($final === true, 'Reaching the attempt limit reports a final failure');
+check(is_file($live), 'A marker past the attempt limit is kept, so the update is not dropped');
+
+// The item is queued again mid-delivery, standing in for another request posting a sale for it.
+// The delivery that is already running must not take that newer marker with it.
+$claim = shopSyncQueueClaim(shopSyncQueueRead($live));
 shopSyncQueueAdd($oldest['vare_id'], 0, 4, 'stock');
-check(shopSyncQueueRead($oldest['path'])['attempts'] === 3,
+shopSyncQueueDone($claim);
+check(is_file($live), 'A change made during a delivery survives that delivery finishing');
+check(!is_file($claim['claim']), 'The finished delivery still drops its own claim');
+
+// An attempt is counted even when a newer change is waiting, or an item that fails during every
+// delivery would never reach the limit and would be retried in silence for ever.
+shopSyncQueueWrite($live, 'stock', 2, time() - 60);
+$claim = shopSyncQueueClaim(shopSyncQueueRead($live));
+shopSyncQueueAdd($oldest['vare_id'], 0, 4, 'stock');
+check(shopSyncQueueRelease($claim, 3) === true, 'An attempt is counted even when a newer change is waiting');
+
+// An unresolved claim is not lost: one older than any delivery could take goes back on the queue.
+unlink($live);
+$claim = shopSyncQueueClaim(shopSyncQueueAdd($oldest['vare_id'], 0, 4, 'stock')
+	? shopSyncQueueRead($live) : null);
+touch($claim['claim'], time() - 3600);
+shopSyncQueuePending(0);
+check(is_file($live), 'A claim whose request died is recovered');
+check(!is_file($claim['claim']), 'The recovered claim file is cleaned up');
+
+// Queueing an item that is already queued keeps the attempts it has cost. The sender queues a
+// failed item outside any delivery, so without this the count would go back to nothing every
+// time and an item no shop will ever take would be retried in silence for ever.
+shopSyncQueueWrite($live, 'stock', 2, time() - 120);
+shopSyncQueueAdd($oldest['vare_id'], 0, 4, 'stock');
+check(shopSyncQueueRead($live)['attempts'] === 2,
 	'Queueing an item that is already queued keeps the attempts it has cost');
 
+// Two processes, because the protection is a rename and one process cannot show that. The child
+// claims the marker and holds it; this one must not be able to claim it as well.
+$child = tempnam(sys_get_temp_dir(), 'sst876child');
+file_put_contents($child, '<?php' . "
+"
+	. '$db = $argv[1];' . "
+"
+	. 'require ' . var_export(__DIR__ . '/../includes/stdFunc/shopSyncQueue.php', true) . ';' . "
+"
+	. '$entry = shopSyncQueueRead($argv[2]);' . "
+"
+	. '$claim = $entry ? shopSyncQueueClaim($entry) : null;' . "
+"
+	. 'echo $claim ? "claimed " . $claim["claim"] : "nothing";' . "
+"
+	. 'fflush(STDOUT);' . "
+"
+	. 'usleep(1500000);' . "
+");
+shopSyncQueueWrite($live, 'stock', 0, time());
+$pipes = array();
+$proc = proc_open('php ' . escapeshellarg($child) . ' ' . escapeshellarg($db) . ' ' . escapeshellarg($live),
+	array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+check(is_resource($proc), 'A second process can be started');
+$said = fread($pipes[1], 200);
+check(strpos($said, 'claimed') === 0, 'The other process claimed the entry: ' . $said);
+$heldBy = trim(substr($said, 8));
+check(is_file($heldBy), 'The other process holds a claim file of its own');
+check(shopSyncQueueClaim(shopSyncQueueRead($live) ?: array('path' => $live, 'attempts' => 0, 'first' => 0, 'mode' => 'stock')) === null,
+	'This process cannot claim an entry another process is already delivering');
+check(shopSyncQueuePending(0) === array() || !is_file($live),
+	'The entry is out of the queue while the other process has it');
+fclose($pipes[1]);
+fclose($pipes[2]);
+proc_close($proc);
+@unlink($heldBy);
+@unlink($child);
+
+shopSyncQueueWrite($live, 'stock', 0, time());
 $before = shopSyncQueueCount();
-shopSyncQueueDone($oldest);
-check(!is_file($oldest['path']), 'A delivered update removes its marker');
+shopSyncQueueDone(shopSyncQueueClaim(shopSyncQueueRead($live)));
+check(!is_file($live), 'A delivered update removes its marker');
 check(shopSyncQueueCount() === $before - 1, 'The queue count follows the deliveries');
 
 // A marker name is built from integers, so nothing from a request can reach the path.

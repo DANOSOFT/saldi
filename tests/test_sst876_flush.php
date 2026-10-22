@@ -13,10 +13,32 @@ $GLOBALS['calls']   = array();   // every (vare_id, variant_id, lager, mode) the
 $GLOBALS['answers'] = array();   // vare_id => answer sync_shop_vare() should give
 $GLOBALS['answer']  = 'OK';      // answer for every item not named above
 
+$GLOBALS['onDeliver'] = null;   // run inside a delivery, to stand in for a second request
+
 function sync_shop_vare($vare_id, $variant_id, $lager, $mode = 'all')
 {
 	$GLOBALS['calls'][] = array((int)$vare_id, (int)$variant_id, (int)$lager, (string)$mode);
+	if ($GLOBALS['onDeliver']) {
+		$hook = $GLOBALS['onDeliver'];
+		$GLOBALS['onDeliver'] = null;   // once, or it recurses
+		$hook();
+	}
 	return isset($GLOBALS['answers'][(int)$vare_id]) ? $GLOBALS['answers'][(int)$vare_id] : $GLOBALS['answer'];
+}
+
+/** A drain as a second request would see it: the in-process guard is what the test is avoiding. */
+function shopSyncDrainQueueNested()
+{
+	$delivered = 0;
+	foreach (shopSyncQueuePending(50) as $entry) {
+		$claim = shopSyncQueueClaim($entry);
+		if (!$claim) {
+			continue;
+		}
+		shopSyncQueueDone($claim);
+		$delivered++;
+	}
+	return $delivered;
 }
 
 $db = 'sst876_test_flush';
@@ -75,6 +97,18 @@ shopSyncMark(123, 0, 4, 'stock');
 shopSyncMark(123, 55, 4, 'stock');
 shopSyncFlush(0);
 check(count($GLOBALS['calls']) === 2, 'A variant is not collapsed into its parent product');
+
+// A mark is durable the moment it is made. If the request died here - a php timeout halfway
+// through a mass invoicing run - the stock movements are committed and this is the only thing
+// left to say the shops were never told.
+reset_flush();
+shopSyncMark(123, 0, 4, 'stock');
+check(shopSyncQueueCount() === 1, 'A marked line is on the queue before anything is sent');
+$queued = shopSyncQueuePending(0)[0];
+check($queued['vare_id'] === 123 && $queued['lager'] === 4 && $queued['mode'] === 'stock',
+	'The queued line carries the item, the warehouse and the mode');
+shopSyncFlush(0);
+check(shopSyncQueueCount() === 0, 'A line the shops have taken leaves the queue');
 
 // ---------------------------------------------------------------- the mode
 reset_flush();
@@ -170,6 +204,35 @@ shopSyncMark(123, 0, 4, 'stock');
 shopSyncFlush(50);
 check(count($GLOBALS['calls']) === 2, 'The flush sends the document and then the backlog');
 check($GLOBALS['calls'][0][0] === 123, 'The document is delivered before the backlog, not after it');
+
+// ---------------------------------------------------------------- two requests at once
+// Delivering a queued item takes seconds of http calls. If another request changes the same
+// item's stock while that is happening, it queues the item again - and the delivery that is
+// already running must not take that newer marker away with it when it finishes. Reported by a
+// second pair of eyes on this branch, and it is the ticket's own "an older worker result must
+// not clear a newer pending change".
+reset_flush();
+shopSyncQueueAdd(3580, 0, 4, 'stock');
+$GLOBALS['onDeliver'] = function () {
+	// stands in for another request posting a sale for the same item mid-delivery
+	shopSyncQueueAdd(3580, 0, 4, 'stock');
+};
+check(shopSyncDrainQueue(50) === 1, 'The queued item is delivered');
+$GLOBALS['onDeliver'] = null;
+check(shopSyncQueueCount() === 1,
+	'A change made while the item was being delivered is still queued afterwards');
+
+// And the item being delivered is not delivered twice over by a second request that starts
+// while the first is still working on it.
+reset_flush();
+shopSyncQueueAdd(3580, 0, 4, 'stock');
+$GLOBALS['onDeliver'] = function () {
+	$GLOBALS['nested'] = shopSyncDrainQueueNested();
+};
+shopSyncDrainQueue(50);
+$GLOBALS['onDeliver'] = null;
+check(isset($GLOBALS['nested']) && $GLOBALS['nested'] === 0,
+	'A second request does not deliver an item the first one is already delivering');
 
 // ---------------------------------------------------------------- what gets reported
 reset_flush();

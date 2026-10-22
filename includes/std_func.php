@@ -2415,6 +2415,13 @@ if (!function_exists('shopSyncMark')) {
 			'lager'      => (int)$lager,
 			'mode'       => ($mode === 'all' ? 'all' : 'stock'),
 		);
+		// Written to the queue now rather than when a send fails. The marks live in memory
+		// until the flush, and a request that dies in between - a php timeout halfway
+		// through a mass invoicing run - would take them with it: the stock movements are
+		// committed and nothing is left to say the shops were never told. The marker costs
+		// one small file per item and the flush removes it as soon as the shops have the
+		// figure.
+		shopSyncQueueAdd($vare_id, $variant_id, $lager, $mode);
 	}
 }
 
@@ -2452,14 +2459,24 @@ if (!function_exists('shopSyncFlush')) {
 
 		$failed = 0;
 		$noApi  = false;
+		$dir    = shopSyncQueueDir(false);
 		foreach ($marked as $item) {
-			$result = sync_shop_vare($item['vare_id'], $item['variant_id'], $item['lager'], $item['mode']);
-			if ($result === 'no api') {
-				// Nothing is configured, so there is nothing to queue and nothing to report.
+			// shopSyncMark() wrote a marker for every one of these, so the delivery goes through
+			// it: claimed, sent, and the marker dropped only once the shops have the figure.
+			$entry = ($dir === '')
+				? null
+				: shopSyncQueueRead($dir . shopSyncQueueKey($item['vare_id'], $item['variant_id'], $item['lager']));
+			if (!$entry) {
+				// No usable temp directory, so there is nothing durable to claim. Send anyway:
+				// not being able to queue is a reason to lose the retry, not the update.
+				$entry = $item + array('attempts' => 0, 'first' => time(), 'path' => '');
+			}
+			$outcome = shopSyncDeliverOne($entry);
+			if ($outcome === 'no api') {
 				$noApi = true;
 				break;
 			}
-			if (shopSyncFailed($result)) {
+			if ($outcome === 'failed' || $outcome === 'final') {
 				$failed++;
 			}
 		}
@@ -2473,6 +2490,55 @@ if (!function_exists('shopSyncFlush')) {
 			shopSyncDrainQueue($drain);
 		}
 		return $failed ? "sync errors: $failed" : 'OK';
+	}
+}
+
+if (!function_exists('shopSyncDeliverOne')) {
+	/**
+	 * Delivers one queued item and resolves its marker.
+	 *
+	 * The marker is claimed first, so a change to the same item arriving while this delivery
+	 * is running queues itself afresh and is not swept away when this one finishes. Exactly
+	 * one request can hold a claim, so two requests cannot deliver the same item at once.
+	 *
+	 * @param array $entry        Entry from shopSyncQueuePending() or shopSyncQueueRead(). An
+	 *                            entry with no path is delivered without a claim, which is
+	 *                            what happens when the account has no usable temp directory.
+	 * @param int   $maxAttempts  Attempts after which the item is reported as a final failure.
+	 * @return string  'delivered', 'failed', 'final', 'busy' or 'no api'.
+	 */
+	function shopSyncDeliverOne(array $entry, $maxAttempts = 5) {
+		$claim = empty($entry['path']) ? null : shopSyncQueueClaim($entry);
+		if ($claim === null && !empty($entry['path'])) {
+			return 'busy';
+		}
+		$subject = $claim ? $claim : $entry;
+		$result  = sync_shop_vare($subject['vare_id'], $subject['variant_id'], $subject['lager'], $subject['mode']);
+
+		if ($result === 'no api') {
+			// Nothing configured any more, which is not this item's fault, so the attempt is
+			// not counted against it.
+			if ($claim) {
+				shopSyncQueueRelease($claim, $maxAttempts, false);
+			}
+			return 'no api';
+		}
+		if (shopSyncFailed($result)) {
+			$final = $claim ? shopSyncQueueRelease($claim, $maxAttempts) : false;
+			if ($final) {
+				error_log('saldi: shop stock sync gave up on vare_id ' . (int)$subject['vare_id']
+					. ' warehouse ' . (int)$subject['lager'] . ' after ' . (int)$maxAttempts
+					. ' attempts - the figure in the webshops is older than the one in Saldi');
+				return 'final';
+			}
+			return 'failed';
+		}
+		// 'no stock' counts as delivered: the item is no longer stock managed, so there is
+		// nothing left to send and keeping the marker would retry it for ever.
+		if ($claim) {
+			shopSyncQueueDone($claim);
+		}
+		return 'delivered';
 	}
 }
 
@@ -2505,23 +2571,14 @@ if (!function_exists('shopSyncDrainQueue')) {
 		$delivered = 0;
 		try {
 			foreach ($pending as $entry) {
-				$result = sync_shop_vare($entry['vare_id'], $entry['variant_id'], $entry['lager'], $entry['mode']);
-				if ($result === 'no api') {
+				$outcome = shopSyncDeliverOne($entry, $maxAttempts);
+				if ($outcome === 'no api') {
 					// Nothing configured any more. Keep the backlog rather than discarding it.
 					break;
 				}
-				if (shopSyncFailed($result)) {
-					if (shopSyncQueueRetryLater($entry, $maxAttempts)) {
-						error_log('saldi: shop stock sync gave up on vare_id ' . (int)$entry['vare_id']
-							. ' warehouse ' . (int)$entry['lager'] . ' after ' . (int)$maxAttempts
-							. ' attempts - the figure in the webshops is older than the one in Saldi');
-					}
-					continue;
+				if ($outcome === 'delivered') {
+					$delivered++;
 				}
-				// 'no stock' counts here too: the item is no longer stock managed, so there is
-				// nothing left to deliver and keeping the marker would retry it for ever.
-				shopSyncQueueDone($entry);
-				$delivered++;
 			}
 		} finally {
 			$draining = false;

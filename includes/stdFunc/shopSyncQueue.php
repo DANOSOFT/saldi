@@ -157,7 +157,8 @@ if (!function_exists('shopSyncQueueRead')) {
 			return null;
 		}
 		$name = basename($path);
-		if (!preg_match('/^v(\d+)-x(\d+)-l(\d+)$/D', $name, $m)) {
+		// A claim keeps the item in its name, with the claiming pid appended.
+		if (!preg_match('/^v(\d+)-x(\d+)-l(\d+)(?:\.[0-9]+\.claim)?$/D', $name, $m)) {
 			return null;
 		}
 		$f = explode(' ', trim($raw));
@@ -194,6 +195,19 @@ if (!function_exists('shopSyncQueuePending')) {
 		}
 		$entries = array();
 		foreach ($names as $name) {
+			// A claim whose request died takes its item with it, so one left lying around for
+			// longer than any delivery could take is put back. The name it goes back to may
+			// already exist, in which case that newer marker wins and the claim is dropped.
+			if (substr($name, -6) === '.claim') {
+				$age = time() - (int)@filemtime($dir . $name);
+				if ($age > 900) {
+					$live = preg_replace('/\.[0-9]+\.claim$/D', '', $dir . $name);
+					if (is_file($live) || !@rename($dir . $name, $live)) {
+						@unlink($dir . $name);
+					}
+				}
+				continue;
+			}
 			if (!preg_match('/^v\d+-x\d+-l\d+$/D', $name)) {
 				continue;
 			}
@@ -227,36 +241,81 @@ if (!function_exists('shopSyncQueueOldestFirst')) {
 	}
 }
 
-if (!function_exists('shopSyncQueueDone')) {
+if (!function_exists('shopSyncQueueClaim')) {
 	/**
-	 * Drops a marker once the shops have taken the figure.
+	 * Takes an entry out of the queue for the length of one delivery.
+	 *
+	 * Delivering an item is seconds of http calls, and another request can change the same
+	 * item's stock while that is happening. If the delivery held on to the marker and deleted
+	 * it at the end, it would delete that newer change with it - an older delivery clearing a
+	 * newer pending update, which is the one thing the ticket says must not happen.
+	 *
+	 * So the marker is renamed out of the way first. rename() is atomic, so exactly one caller
+	 * can claim an entry: a second request finds it gone and leaves it alone. A change arriving
+	 * mid-delivery creates a fresh marker under the original name, and that one survives.
 	 *
 	 * @param array $entry  Entry from shopSyncQueuePending() or shopSyncQueueRead().
+	 * @return array|null  The entry with its claim path, or null when somebody else has it.
+	 */
+	function shopSyncQueueClaim(array $entry) {
+		if (empty($entry['path']) || !is_file($entry['path'])) {
+			return null;
+		}
+		$claim = $entry['path'] . '.' . getmypid() . '.claim';
+		if (!@rename($entry['path'], $claim)) {
+			return null;
+		}
+		$entry['claim'] = $claim;
+		$entry['live']  = $entry['path'];
+		$entry['path']  = $claim;
+		return $entry;
+	}
+}
+
+if (!function_exists('shopSyncQueueDone')) {
+	/**
+	 * Drops a claim once the shops have taken the figure.
+	 *
+	 * Only the claim. A marker that appeared under the original name while this delivery was
+	 * running belongs to a change this delivery did not carry, so it is left where it is.
+	 *
+	 * @param array $entry  Entry from shopSyncQueueClaim().
 	 * @return void
 	 */
 	function shopSyncQueueDone(array $entry) {
-		if (!empty($entry['path'])) {
-			@unlink($entry['path']);
+		$path = !empty($entry['claim']) ? $entry['claim'] : (isset($entry['path']) ? $entry['path'] : '');
+		if ($path !== '') {
+			@unlink($path);
 		}
 	}
 }
 
-if (!function_exists('shopSyncQueueRetryLater')) {
+if (!function_exists('shopSyncQueueRelease')) {
 	/**
-	 * Counts a failed delivery and keeps the marker.
+	 * Puts a claim back on the queue after a delivery that failed.
 	 *
-	 * The marker is kept however often it fails. Deleting it would be dropping a stock update
-	 * again, which is the whole point of this file; what changes is that past the attempt
-	 * limit the item is reported as a failure the user can act on instead of being retried
-	 * quietly for ever.
+	 * The attempt is counted whether or not something re-queued the item in the meantime: a
+	 * newer change does not make the shop any more willing to take the figure, and without
+	 * this an item that fails during every delivery would never reach the attempt limit and
+	 * would be retried in silence for ever. The newer change's own details win otherwise -
+	 * the wider mode, and the earlier of the two first-seen times.
 	 *
-	 * @param array $entry        Entry being retried.
+	 * @param array $entry        Entry from shopSyncQueueClaim().
 	 * @param int   $maxAttempts  Attempts after which it counts as a final failure.
+	 * @param bool  $countAttempt False when the delivery never happened for a reason that
+	 *                            is not the item's: no webshop configured any more.
 	 * @return bool  True when this was the attempt that made it final.
 	 */
-	function shopSyncQueueRetryLater(array $entry, $maxAttempts = 5) {
-		$attempts = (int)$entry['attempts'] + 1;
-		shopSyncQueueWrite($entry['path'], $entry['mode'], $attempts, (int)$entry['first']);
+	function shopSyncQueueRelease(array $entry, $maxAttempts = 5, $countAttempt = true) {
+		$live     = isset($entry['live']) ? $entry['live'] : $entry['path'];
+		$newer    = shopSyncQueueRead($live);
+		$attempts = max($newer ? (int)$newer['attempts'] : 0, (int)$entry['attempts'] + ($countAttempt ? 1 : 0));
+		$mode     = ($entry['mode'] === 'all' || ($newer && $newer['mode'] === 'all')) ? 'all' : 'stock';
+		$first    = $newer ? min((int)$newer['first'], (int)$entry['first']) : (int)$entry['first'];
+		shopSyncQueueWrite($live, $mode, $attempts, $first);
+		if (!empty($entry['claim'])) {
+			@unlink($entry['claim']);
+		}
 		return ($attempts >= (int)$maxAttempts);
 	}
 }
