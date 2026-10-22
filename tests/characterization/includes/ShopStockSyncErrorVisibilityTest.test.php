@@ -602,4 +602,100 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
         self::assertStringContainsString('degraded', $second['error'],
             'the skip no longer says why it skipped');
     }
+
+    // ------------------------------------------------ how many calls one item is worth
+
+    /**
+     * Every shop is called in one round, not one after the other.
+     *
+     * Three shops answered in turn cost three times one shop's latency, and an ordinary item is
+     * three sends, so an item was eight serial calls. That is what used the 30 second budget up:
+     * invoice 230508 made 108 calls on its first line and skipped everything after it.
+     */
+    public function testEveryShopIsCalledInOneRoundRatherThanInTurn(): void
+    {
+        $block = self::syncShopVare();
+        self::assertStringNotContainsString('shopApiRequest($endpoint', $block,
+            'sync_shop_vare() is calling the shops one at a time again');
+        self::assertStringNotContainsString('foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint)', $block,
+            'a per-endpoint send loop is back in sync_shop_vare()');
+        self::assertStringContainsString('shopApiRequestParallel(', $block,
+            'the sends no longer go through the parallel sender');
+    }
+
+    /**
+     * A stock change sends the stock calls only.
+     *
+     * A receipt, a sale and a regulation change the stock and nothing else, so update_price, sku
+     * and the per-set costPrice call have nothing to say. Eight calls become three. The product
+     * card keeps the default, because Gem is where a price actually changes.
+     */
+    public function testAStockChangeDoesNotResendPricesAndSkus(): void
+    {
+        $block = self::syncShopVare();
+        foreach (array('update_price', 'sku vare_id', 'costPrice part') as $send) {
+            $at = strpos($block, '"sync_shop_vare ' . $send);
+            self::assertNotFalse($at, "the $send send has moved");
+            $before = substr($block, 0, $at);
+            $guard = strrpos($before, "if (\$mode !== 'stock')");
+            self::assertNotFalse($guard, "the $send send is made even when only stock changed");
+            // The guard has to be the nearest thing above the send, not one from further up.
+            self::assertLessThan(200, strlen($before) - $guard,
+                "the $send send is no longer the one that guard protects");
+        }
+        $stock = strpos($block, '"sync_shop_vare update_stock vare_id');
+        self::assertNotFalse($stock, 'the stock send has moved');
+        $before = substr($block, 0, $stock);
+        self::assertGreaterThan(200, strlen($before) - (int)strrpos($before, "if (\$mode !== 'stock')"),
+            'the stock send is now skipped on a stock change, which leaves nothing to send at all');
+    }
+
+    /**
+     * The prices are still read in stock mode, because the stock send is built from them.
+     *
+     * Only the sending is skipped. Skipping the query would send the stock call with empty
+     * prices, which is a worse bug than the one being fixed.
+     */
+    public function testTheStockSendStillCarriesThePricesItAlwaysDid(): void
+    {
+        $block = self::syncShopVare();
+        $query = strpos($block, "'update_price' => \$shop_id,");
+        $guard = strpos($block, "if (\$mode !== 'stock')");
+        self::assertNotFalse($query, 'the price parameters are gone');
+        self::assertNotFalse($guard, 'the mode no longer decides anything');
+        self::assertLessThan($guard, $query,
+            'the price query is now inside the mode guard, so a stock change sends empty prices');
+        foreach (array('salesPrice', 'costPrice', 'retailPrice', 'barcode') as $param) {
+            self::assertStringContainsString("'" . $param . "'", $block,
+                "the stock send lost its $param parameter");
+        }
+    }
+
+    /** A set shared by several lines of one document is sent once, with its final figure. */
+    public function testASetSharedBySeveralLinesIsSentOnce(): void
+    {
+        $block = self::syncShopVare();
+        self::assertStringContainsString('static $partsSent', $block,
+            'nothing remembers which sets this request has already sent');
+        self::assertStringContainsString('isset($partsSent[$partKey])', $block,
+            'a set shared by two lines is sent once per line again');
+        $guard = strpos($block, 'isset($partsSent[$partKey])');
+        $send  = strpos($block, '"sync_shop_vare update_stock part');
+        self::assertLessThan($send, $guard, 'the set is sent before anything checks whether it already was');
+    }
+
+    /** A send that never reached the shop leaves the item on the queue for the next request. */
+    public function testAnUndeliveredUpdateIsQueued(): void
+    {
+        $block = self::syncShopVare();
+        self::assertStringContainsString('shopSyncQueueAdd(', $block,
+            'a stock update that could not be delivered is dropped again');
+        self::assertStringContainsString('shopSyncWorthRetrying($res)', $block,
+            'every failure is queued, including the ones no retry can fix');
+        $guard = strpos($block, 'shopSyncWorthRetrying($res)');
+        $queue = strpos($block, 'shopSyncQueueAdd(');
+        self::assertLessThan($queue, $guard, 'the item is queued before anything asks whether that helps');
+        self::assertStringContainsString('shopSyncNoteFailedItem(', $block,
+            'the item number of a failed send is no longer collected for the screen');
+    }
 }

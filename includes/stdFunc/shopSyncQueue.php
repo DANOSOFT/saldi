@@ -271,4 +271,27 @@ if (!function_exists('shopSyncQueueCount')) {
 		return count(shopSyncQueuePending(0));
 	}
 }
+if (!function_exists('shopSyncWorthRetrying')) {
+	/**
+	 * Whether a failed send is worth queueing for another request.
+	 *
+	 * A call that never happened - skipped because the budget ran out, or because the endpoint
+	 * had already proved dead - and a call that got no answer or a 5xx are all worth repeating:
+	 * nothing about the figure was wrong. A shop that answered and refused the item is not,
+	 * and neither is a 4xx: the item is unknown or the parameters are wrong at that shop, and
+	 * sending the same thing again tomorrow will be refused the same way. Those are reported
+	 * instead.
+	 *
+	 * @param array $res  One result from shopApiRequest() or shopApiRequestParallel().
+	 * @return bool
+	 */
+	function shopSyncWorthRetrying(array $res) {
+		if (!empty($res['skipped'])) {
+			return true;
+		}
+		$code = (int) (isset($res['httpCode']) ? $res['httpCode'] : 0);
+		return ($code === 0 || $code >= 500);
+	}
+}
+
 ?>

@@ -117,6 +117,7 @@ include(__DIR__ . '/stdFunc/dkAmountValid.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
+include(__DIR__ . '/stdFunc/shopSyncQueue.php');
 include(__DIR__ . '/stdFunc/jsString.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
@@ -2015,8 +2016,25 @@ if(!function_exists("sync_shop_price")){
   
 
 if (!function_exists('sync_shop_vare')) {
-	function sync_shop_vare($vare_id, $variant_id, $lager) {
+	/**
+	 * Sends an item's figures to every configured webshop.
+	 *
+	 * @param int    $vare_id     varer.id.
+	 * @param int    $variant_id  variant_varer.id, or 0 for a product without variants.
+	 * @param int    $lager       Warehouse number the change belongs to.
+	 * @param string $mode        'all' sends the price and sku calls as well, which is what
+	 *                            Gem on the product card means. 'stock' sends only the stock
+	 *                            calls, which is all a receipt, a sale or a regulation changes:
+	 *                            eight calls per item become three, and with the three shops
+	 *                            answered together it is one round. Default 'all', so a caller
+	 *                            that has not been told about the mode behaves as before.
+	 * @return string  'no api', 'no stock', 'OK' or 'sync errors: n'.
+	 */
+	function sync_shop_vare($vare_id, $variant_id, $lager, $mode = 'all') {
 		global $bruger_id,$db,$regnaar;
+		// Which parent sets this request has already pushed. Static, so it spans the items of
+		// one document and no longer than that.
+		static $partsSent = array();
 		$costPrice = 0;
 		$failed = 0;
 		$api_fil =$api_fil2=$api_fil3= NULL;
@@ -2052,7 +2070,39 @@ if (!function_exists('sync_shop_vare')) {
 		}
 		
 		$userAgent = "Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+		// The configured shops, by slot, so every send below goes to all of them at once.
+		// One after the other, three shops cost three times one shop's latency, and an item is
+		// several sends: that is what used the request's time budget up at Havemoebelland.
+		$endpoints = array();
+		foreach (array($api_fil, $api_fil2, $api_fil3) as $slot => $endpoint) {
+			if ($endpoint) {
+				$endpoints[$slot] = $endpoint;
+			}
+		}
+		// A shop that could not be reached, or that was never called because the budget ran out,
+		// leaves the item on the queue so the next request delivers it. A shop that answered and
+		// refused the item is not queued: the figure is not what it objects to.
+		$send = function (array $targets, array $params, $context, $queueId, $queueVariant, $itemLabel)
+			use ($log, $userAgent, $lager, $mode, &$failed) {
+			if (!$targets) {
+				return;
+			}
+			$results = shopApiRequestParallel($targets, $params, $log, array('context' => $context, 'userAgent' => $userAgent));
+			foreach ($results as $res) {
+				if ($res['ok']) {
+					continue;
+				}
+				$failed++;
+				// The item number, not a count: a sale that could not tell the shops has to be able
+				// to name what it could not tell them about.
+				shopSyncNoteFailedItem($itemLabel !== '' ? $itemLabel : '#' . (int)$queueId);
+				if (shopSyncWorthRetrying($res)) {
+					shopSyncQueueAdd($queueId, $queueVariant, $lager, $mode);
+				}
+			}
+		};
 		if ($variant_id) {
+			$variantItemNo = '';
 			$qtxt = "select shop_variant from shop_varer where saldi_variant='$variant_id'";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			$shop_id = $r['shop_variant'];
@@ -2076,9 +2126,10 @@ if (!function_exists('sync_shop_vare')) {
 				$shop_id = str_replace("EAN", "", $r['variant_stregkode']);
 			}
 			if ($vare_id) {
-				$qtxt = "select kostpris from varer where id='$vare_id'";
+				$qtxt = "select kostpris,varenr from varer where id='$vare_id'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$costPrice = $r['kostpris'];
+				$variantItemNo = (string)$r['varenr'];
 			}
 			# No itemNo here on purpose: a variant must not fall back to the parent sku, or one
 			# variant's quantity overwrites the whole product's stock. sync.php pins the same rule.
@@ -2089,15 +2140,7 @@ if (!function_exists('sync_shop_vare')) {
 				'stockno'      => $lager,
 				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
 			);
-			foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
-				if (!$endpoint) {
-					continue;
-				}
-				$res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_vare update_stock variant_id $variant_id", 'userAgent' => $userAgent));
-				if (!$res['ok']) {
-					$failed++;
-				}
-			}
+			$send($endpoints, $params, "sync_shop_vare update_stock variant_id $variant_id", $vare_id, $variant_id, $variantItemNo);
 		} else {
 			# A product with no lagerstatus row for this warehouse leaves the query below
 			# without a result, so the values are initialised first. Otherwise php 8 warns
@@ -2151,14 +2194,10 @@ if (!function_exists('sync_shop_vare')) {
 					'webFragt'     => $webFragt,
 					'barcode'      => $stregkode,
 				);
-				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
-					if (!$endpoint) {
-						continue;
-					}
-					$res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_vare update_price vare_id $vare_id", 'userAgent' => $userAgent));
-					if (!$res['ok']) {
-						$failed++;
-					}
+				// The query above still runs whatever the mode is: the stock send below is built from
+				// the prices it reads. Only the sending is skipped.
+				if ($mode !== 'stock') {
+					$send($endpoints, $params, "sync_shop_vare update_price vare_id $vare_id", $vare_id, 0, (string)$itemNo);
 				}
 			}
 			# lagerstatus.beholdning is numeric, so keep decimals - totalStock and variant stock
@@ -2175,14 +2214,9 @@ if (!function_exists('sync_shop_vare')) {
 					'rand'      => $rand,
 				);
 				# api_fil3 is left out here as in the original code, this call never went to endpoint 3
-				foreach (array($api_fil, $api_fil2) as $endpoint) {
-					if (!$endpoint) {
-						continue;
-					}
-					$res = shopApiRequest($endpoint, $skuParams, $log, array('context' => "sync_shop_vare sku vare_id $vare_id", 'userAgent' => $userAgent));
-					if (!$res['ok']) {
-						$failed++;
-					}
+				if ($mode !== 'stock') {
+					$send(array_intersect_key($endpoints, array(0 => 1, 1 => 1)), $skuParams,
+						"sync_shop_vare sku vare_id $vare_id", $vare_id, 0, (string)$itemNo);
 				}
 				$stockParams = array(
 					'update_stock' => $shop_id,
@@ -2200,15 +2234,7 @@ if (!function_exists('sync_shop_vare')) {
 					'webFragt'     => $webFragt,
 					'barcode'      => $stregkode,
 				);
-				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
-					if (!$endpoint) {
-						continue;
-					}
-					$res = shopApiRequest($endpoint, $stockParams, $log, array('context' => "sync_shop_vare update_stock vare_id $vare_id", 'userAgent' => $userAgent));
-					if (!$res['ok']) {
-						$failed++;
-					}
-				}
+				$send($endpoints, $stockParams, "sync_shop_vare update_stock vare_id $vare_id", $vare_id, 0, (string)$itemNo);
 				if ($partOfItem) {
 					$x = 0;
 					$partOf = array();
@@ -2228,6 +2254,16 @@ if (!function_exists('sync_shop_vare')) {
 						}
 					}
 					for ($x = 0; $x < count($partOf); $x++) {
+						// A document whose lines share a set used to send that set once per line. Item
+						// 13054 is a component in 33 sets, so its line alone was 198 calls, and the four
+						// lines after it repeated whatever sets they had in common with it. The set's
+						// figure is read from the database, so sending it once with the figure as it
+						// stands at the end is not only cheaper, it is the correct figure.
+						$partKey = (int)$partOf[$x] . ':' . (int)$lager;
+						if (isset($partsSent[$partKey])) {
+							continue;
+						}
+						$partsSent[$partKey] = true;
 						$shop_id = 0;
 						$qtxt = "select varenr,varenr_alias,kostpris from varer where id = '$partOf[$x]'";
 #if ($bruger_id == '-1') echo __line__." $qtxt<br>";
@@ -2256,18 +2292,9 @@ if (!function_exists('sync_shop_vare')) {
 							'sku'       => $productNo,
 							'skuAlias'  => $productNoAlias,
 						);
-						foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
-							if (!$endpoint) {
-								continue;
-							}
-							$res = shopApiRequest($endpoint, $partStockParams, $log, array('context' => "sync_shop_vare update_stock part vare_id $partOf[$x]", 'userAgent' => $userAgent));
-							if (!$res['ok']) {
-								$failed++;
-							}
-							$res = shopApiRequest($endpoint, $partCostParams, $log, array('context' => "sync_shop_vare costPrice part vare_id $partOf[$x]", 'userAgent' => $userAgent));
-							if (!$res['ok']) {
-								$failed++;
-							}
+						$send($endpoints, $partStockParams, "sync_shop_vare update_stock part vare_id $partOf[$x]", $partOf[$x], 0, (string)$productNo);
+						if ($mode !== 'stock') {
+							$send($endpoints, $partCostParams, "sync_shop_vare costPrice part vare_id $partOf[$x]", $partOf[$x], 0, (string)$productNo);
 						}
 					}
 				}
@@ -2277,6 +2304,238 @@ if (!function_exists('sync_shop_vare')) {
 		return ($failed ? "sync errors: $failed" : 'OK');
 	}
 } #endfunc sync_shop_vare()
+
+if (!function_exists('shopSyncMarkState')) {
+	/**
+	 * The items this request still has to tell the webshops about.
+	 *
+	 * By reference, so marking and flushing work on one list. Request scoped: a document marks
+	 * its lines as it posts them and flushes once, which is how an item on two lines becomes
+	 * one send, and how the figure that is sent is the one the document ended with.
+	 *
+	 * @return array{items: array<string, array>}
+	 */
+	function &shopSyncMarkState() {
+		static $state = array('items' => array());
+		return $state;
+	}
+}
+
+if (!function_exists('shopSyncMark')) {
+	/**
+	 * Notes that an item's figures have changed, without sending anything yet.
+	 *
+	 * @param int    $vare_id     varer.id.
+	 * @param int    $variant_id  variant_varer.id, or 0.
+	 * @param int    $lager       Warehouse number.
+	 * @param string $mode        'stock' or 'all', as sync_shop_vare() takes it.
+	 * @return void
+	 */
+	function shopSyncMark($vare_id, $variant_id, $lager, $mode = 'stock') {
+		$state = &shopSyncMarkState();
+		$key   = (int)$vare_id . ':' . (int)$variant_id . ':' . (int)$lager;
+		// 'all' covers 'stock', so a line that only moved stock must not narrow an item that
+		// something else in the same request wanted the prices sent for.
+		if (isset($state['items'][$key]) && $state['items'][$key]['mode'] === 'all') {
+			$mode = 'all';
+		}
+		$state['items'][$key] = array(
+			'vare_id'    => (int)$vare_id,
+			'variant_id' => (int)$variant_id,
+			'lager'      => (int)$lager,
+			'mode'       => ($mode === 'all' ? 'all' : 'stock'),
+		);
+	}
+}
+
+if (!function_exists('shopSyncMarkedCount')) {
+	/**
+	 * How many items are waiting to be flushed.
+	 *
+	 * @return int
+	 */
+	function shopSyncMarkedCount() {
+		$state = &shopSyncMarkState();
+		return count($state['items']);
+	}
+}
+
+if (!function_exists('shopSyncFlush')) {
+	/**
+	 * Sends every marked item once, then works on the backlog with whatever budget is left.
+	 *
+	 * The document's own items go first, because those are the figures somebody is waiting to
+	 * see in the shop. The queue is drained afterwards: if the budget runs out in the middle of
+	 * it, everything left is still on the queue and the next request picks it up, which is the
+	 * difference between late and lost.
+	 *
+	 * @param int $drain  Most queued items to attempt afterwards. 0 does not touch the queue.
+	 * @return string  'no api', 'OK' or 'sync errors: n', as sync_shop_vare() answers.
+	 */
+	function shopSyncFlush($drain = 50) {
+		$state  = &shopSyncMarkState();
+		$marked = $state['items'];
+		$state['items'] = array();
+
+		$failed = 0;
+		$noApi  = false;
+		foreach ($marked as $item) {
+			$result = sync_shop_vare($item['vare_id'], $item['variant_id'], $item['lager'], $item['mode']);
+			if ($result === 'no api') {
+				// Nothing is configured, so there is nothing to queue and nothing to report.
+				$noApi = true;
+				break;
+			}
+			if (shopSyncFailed($result)) {
+				$failed++;
+			}
+		}
+		if ($noApi) {
+			return 'no api';
+		}
+		if ($drain > 0) {
+			shopSyncDrainQueue($drain);
+		}
+		return $failed ? "sync errors: $failed" : 'OK';
+	}
+}
+
+if (!function_exists('shopSyncDrainQueue')) {
+	/**
+	 * Tries to deliver the updates earlier requests could not.
+	 *
+	 * The figures come from the database as they stand now, never from the queue, so a stale
+	 * value cannot overwrite a newer one. A marker is dropped only once the shops have taken
+	 * the figure; past the attempt limit it stays on the queue and is reported, so an update
+	 * that cannot be delivered becomes something a person can act on rather than a retry that
+	 * goes on for ever.
+	 *
+	 * @param int $limit        Most items to attempt in this request.
+	 * @param int $maxAttempts  Attempts after which an item counts as a final failure.
+	 * @return int  Items delivered.
+	 */
+	function shopSyncDrainQueue($limit = 50, $maxAttempts = 5) {
+		static $draining = false;
+		// sync_shop_vare() is what delivers a queued item, and a failure there queues it again,
+		// so without this a drain could call itself.
+		if ($draining) {
+			return 0;
+		}
+		$pending = shopSyncQueuePending($limit);
+		if (!$pending) {
+			return 0;
+		}
+		$draining  = true;
+		$delivered = 0;
+		try {
+			foreach ($pending as $entry) {
+				$result = sync_shop_vare($entry['vare_id'], $entry['variant_id'], $entry['lager'], $entry['mode']);
+				if ($result === 'no api') {
+					// Nothing configured any more. Keep the backlog rather than discarding it.
+					break;
+				}
+				if (shopSyncFailed($result)) {
+					if (shopSyncQueueRetryLater($entry, $maxAttempts)) {
+						error_log('saldi: shop stock sync gave up on vare_id ' . (int)$entry['vare_id']
+							. ' warehouse ' . (int)$entry['lager'] . ' after ' . (int)$maxAttempts
+							. ' attempts - the figure in the webshops is older than the one in Saldi');
+					}
+					continue;
+				}
+				// 'no stock' counts here too: the item is no longer stock managed, so there is
+				// nothing left to deliver and keeping the marker would retry it for ever.
+				shopSyncQueueDone($entry);
+				$delivered++;
+			}
+		} finally {
+			$draining = false;
+		}
+		return $delivered;
+	}
+}
+
+if (!function_exists('shopSyncReportState')) {
+	/**
+	 * The item numbers this request could not tell the webshops about.
+	 *
+	 * By reference and request scoped, so the posting can collect them while it works and the
+	 * page can report them once it has committed.
+	 *
+	 * @return array{failed: array<string, string>}
+	 */
+	function &shopSyncReportState() {
+		static $state = array('failed' => array());
+		return $state;
+	}
+}
+
+if (!function_exists('shopSyncNoteFailedItem')) {
+	/**
+	 * Records one item number that a webshop did not take.
+	 *
+	 * Keyed by the number itself, so an item that failed at three shops, or on both its stock
+	 * and its price call, is named once.
+	 *
+	 * @param string $itemNo  varer.varenr, or '#<id>' when the number is not at hand.
+	 * @return void
+	 */
+	function shopSyncNoteFailedItem($itemNo) {
+		$itemNo = trim((string)$itemNo);
+		if ($itemNo === '') {
+			return;
+		}
+		$state = &shopSyncReportState();
+		$state['failed'][$itemNo] = $itemNo;
+	}
+}
+
+if (!function_exists('shopSyncFailedItems')) {
+	/**
+	 * The item numbers to name on screen, in the order they failed.
+	 *
+	 * @return array<int, string>
+	 */
+	function shopSyncFailedItems() {
+		$state = &shopSyncReportState();
+		return array_values($state['failed']);
+	}
+}
+
+if (!function_exists('shopSyncClearFailedItems')) {
+	/**
+	 * Forgets the collected item numbers, so one page cannot report another page's failures.
+	 *
+	 * @return void
+	 */
+	function shopSyncClearFailedItems() {
+		$state = &shopSyncReportState();
+		$state['failed'] = array();
+	}
+}
+
+if (!function_exists('shopSyncAlertFailedItems')) {
+	/**
+	 * Reports on screen what the webshops did not take, and forgets it.
+	 *
+	 * For the callers with a user in front of them. Called after the posting has committed, so
+	 * a refused stock update cannot be mistaken for a reason the invoicing failed. The paths
+	 * with no screen - the rest api, $webservice - do not call this; their failures are in the
+	 * php error log and on the queue.
+	 *
+	 * @param int    $sprogId  Language id for findtekst().
+	 * @param string $handler  JavaScript function to call, as shopSyncAlert() takes it.
+	 * @return bool  True when something was reported.
+	 */
+	function shopSyncAlertFailedItems($sprogId, $handler = 'alert') {
+		$items = shopSyncFailedItems();
+		if (!$items) {
+			return false;
+		}
+		shopSyncClearFailedItems();
+		shopSyncAlert(implode(', ', $items), $sprogId, $handler);
+		return true;
+	}
+}
 
 if (!function_exists('shopSyncFailed')) {
 	/**
