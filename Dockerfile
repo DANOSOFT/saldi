@@ -15,6 +15,10 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pgsql pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
+# The Shopify integration (includes/shopify/) expects curl and mbstring; the base
+# image ships both, and this fails the build if a future base image does not.
+RUN php -m | grep -qx curl && php -m | grep -qx mbstring
+
 # msmtp config is generated at container startup from env vars (see docker-entrypoint.sh)
 RUN echo 'sendmail_path = "/usr/bin/msmtp -t --read-envelope-from"' \
     > /usr/local/etc/php/conf.d/mail.ini
