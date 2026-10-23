@@ -9,6 +9,7 @@
 // History:
 // 20261021 CL/SZ created (SD-747).
 // 20261023 CDX/LH Verify that the HTTP stub rejects execution outside cli-server.
+// 20261023 CL/SZ X-Request-Id is captured from the response headers.
 
 use PHPUnit\Framework\TestCase;
 
@@ -63,6 +64,12 @@ final class ClientHttpTest extends TestCase
 		$this->assertTrue($r['sent']);
 		$echo = json_decode($r['body'], true);
 		$this->assertSame(['POST', 'abc', '{"query":"{ shop { name } }"}'], [$echo['method'], $echo['token'], $echo['body']]);
+		$this->assertSame('3f2a9c1e-77b4-4a0e-9d1f-0123456789ab', $r['request_id']);
+	}
+
+	public function test_no_request_id_header_gives_null(): void
+	{
+		$this->assertNull(shopify_http_post(self::$base . '/throttled', [], '{}', 2, 5)['request_id']);
 	}
 
 	public function test_stub_refuses_non_server_execution(): void
