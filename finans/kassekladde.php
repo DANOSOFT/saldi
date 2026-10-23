@@ -187,6 +187,9 @@
 // 20261022 CL/NTR The kredit genvej alert built its text from $txt1/$txt2 (only set in the debet branch), so an undefined
 //                 genvej letter in Kredit printed just the account and the bilag number with a space. It now uses this
 //                 branch's own $alert1/$alert2, matching the debet alert.
+// 20261023 CL/LH Texts for the invoice-pick notice in accountAutocomplete.js (tekst_id 7640-7643, plus existing labels), written
+//                with jsString() so a quote in a translation can't break the script and æøå survive on non-UTF8 installs;
+//                accountAutocomplete.js?v= and accountAutocomplete.css?v= bumped: a pick no longer overwrites what the line holds.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -538,6 +541,7 @@ print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" 
 
 
 $langId = !empty($sprog_id) ? intval($sprog_id) : 1;
+// A text from the tekster table as a JavaScript string literal: a quote or </script> in a translation can't break the script
 print '<script>
 	window.saldiLanguage = ' . $langId . ';
 	window.saldiTranslations = {
@@ -571,7 +575,16 @@ print '<script>
     previous: "' . findtekst('2598', $langId) . '",
     next: "' . findtekst('1200', $langId) . '",
     today: "' . findtekst('2773', $langId) . '",
-    week: "' . findtekst('2669', $langId) . '"
+    week: "' . findtekst('2669', $langId) . '",
+    invoice: ' . jsString(array(findtekst('643', $langId))) . ',
+    currency: ' . jsString(array(findtekst('776', $langId))) . ',
+    debit: ' . jsString(array(findtekst('1000', $langId))) . ',
+    credit: ' . jsString(array(findtekst('1001', $langId))) . ',
+    undo: ' . jsString(array(findtekst('159', $langId))) . ',
+    autofillFilled: ' . jsString(array(findtekst('7640|Udfyldt fra faktura', $langId))) . ',
+    autofillDiffers: ' . jsString(array(findtekst('7641|Afviger fra fakturaen', $langId))) . ',
+    autofillUseInvoice: ' . jsString(array(findtekst('7642|Brug fakturaens værdier', $langId))) . ',
+    autofillLine: ' . jsString(array(findtekst('7643|linjen', $langId))) . '
 };
 </script>';
 print '<script src="../javascript/datepickerDa.js"></script>';
@@ -632,8 +645,8 @@ print "<script>
 	}
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
-print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.13" defer></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.6">';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.14" defer></script>';
 // SD-721: "Opret kreditor" in the lookup panel when a kreditor search finds nothing
 include_once("../includes/kreditorFromCvr.php");
 print kreditorCvrClientScript($sprog_id, '1');
