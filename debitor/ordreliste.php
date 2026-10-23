@@ -66,9 +66,9 @@
 //                 forklaring i popup'en, restordrer vises også, Vis lagerstatus/Tilbage
 //                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
+// 20260917 CL/LH Menu entry restores the last used tab instead of forcing Ordrer (Havemoebelland).
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
 // 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
-// 20260917 CL/LH Menu entry restores the last used tab instead of forcing Ordrer (Havemoebelland).
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
 // 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
 // 20261005 LOE SD-687 Department names are escaped where the filter options are built.

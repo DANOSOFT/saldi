@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---patch 4.1.0 ----2026-09-25--------------
+// --- lager/varer.php ---ver 5.0.0 ----2026-10-23--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,7 @@
 //             query above it (status < 3) so drafts are included the same way.
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
+// 20260917 CL/LH Lager -> Varer reopens the goods tab the user last worked in (Havemoebelland).
 // 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
 //                  even when it already carried a wildcard, so "123*" and "*123" both searched
 //                  "contains" and never narrowed the list the price-tag print is built from.
@@ -86,7 +87,7 @@
 //             token to the fingerprint, switched to remembering a bounded set of recent submissions
 //             instead of just the last one, and genbestil() now reports success so only a fully
 //             successful submission is remembered.
-// 20260917 CL/LH Lager -> Varer reopens the goods tab the user last worked in (Havemoebelland).
+// 20261023 CL/LH MB-60: Lager -> Varer also reopens the Styklister tab.
 
 @session_start();
 $s_id=session_id();
@@ -142,6 +143,7 @@ if ($menu == "S") {
 		'ordrestatus'  => substr($rettigheder, 5, 1) ? 'ordrestatus.php' : 'vareliste.php',
 		'indkob'       => substr($rettigheder, 7, 1) ? rawurlencode('indkøb') . '.php' : 'vareliste.php',
 		'serialnumber' => 'serialnumber.php',
+		'styklister'   => 'styklister.php',
 	);
 	$goodsTabPage = isset($goodsTabPages[$goodsTab]) ? $goodsTabPages[$goodsTab] : 'vareliste.php';
 	header('Location: lister/' . $goodsTabPage);
