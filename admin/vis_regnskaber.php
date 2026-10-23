@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- ver 5.0.0 --- 2026.10.20 ---
+// --- admin/vis_regnskaber.php --- ver 5.0.0 --- 2026.10.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,8 @@ $s_id=session_id();
 // 20261020 CL/ASR Review fixes: LATIN9-safe JSON for the page script, the hidden save bar is inert, the table scrolls
 //                  sideways on narrow windows, saving keeps sort and Vis lukkede, sort links and Vis lukkede ask before
 //                  dropping unsaved changes, tall dialogs scroll.
+// 20261023 CL/ASR Ret/Lås, Vis lukkede and Genberegn keep the sort direction the page was opened with (they carried the
+//                  toggled value and flipped the order when sorted on one column); rows lose the pointer cursor in edit mode.
 // 20261008 CL/ASR New page layout aligned with the settings/front-page redesign (one card, search,
 //                  status as dot + text, edit mode with save bar, dialogs instead of confirm()).
 //                  Same features and same GET/POST parameters as before: sort/sort2/desc, showClosed,
@@ -310,9 +312,13 @@ function vr_sort_th($col, $label, $title='', $cls='') {
 
 $vr_count = count($id);
 $vr_closedLabel = vr_t('Vis lukkede', 'Show closed');
-$vr_toggleClosed = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'rediger'=>$rediger, 'showClosed'=>$showClosed ? NULL : 'on']);
-$vr_toggleEdit   = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'showClosed'=>$showClosed, 'rediger'=>$rediger ? NULL : 'on']);
-$vr_recalcUrl    = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$desc, 'showClosed'=>$showClosed, 'beregn'=>1]);
+# The sort block above has already toggled $desc (that is what makes a header clicked twice alternate), so the links
+# that keep the current view take the direction the page was opened with, as the save form does; otherwise Ret/Lås,
+# Vis lukkede and Genberegn would flip the order when the list is sorted on one column.
+$vr_desc0 = if_isset($_GET, NULL, 'desc') ? 'on' : NULL;
+$vr_toggleClosed = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$vr_desc0, 'rediger'=>$rediger, 'showClosed'=>$showClosed ? NULL : 'on']);
+$vr_toggleEdit   = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$vr_desc0, 'showClosed'=>$showClosed, 'rediger'=>$rediger ? NULL : 'on']);
+$vr_recalcUrl    = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$vr_desc0, 'showClosed'=>$showClosed, 'beregn'=>1]);
 
 print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=20261020\">\n";
 print "<div class=\"vr\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
@@ -348,7 +354,7 @@ print "<span class=\"vr-hint\">".($rediger ? vr_t('Ret tallene direkte i listen.
 
 if ($rediger) print "<form name=\"regnskaber\" id=\"vrForm\" action=\"".vr_h(vr_url(array_intersect_key($_GET, array_flip(['sort','sort2','desc','showClosed']))))."\" method=\"post\">\n"; # the same state the page was opened with (sort toggles direction, so the computed values would flip it)
 
-print "<div class=\"vr-table-scroll\">\n<table class=\"vr-t\" id=\"vrTable\">\n<thead><tr>"; # scrolls sideways on narrow windows (the card clips)
+print "<div class=\"vr-table-scroll\">\n<table class=\"vr-t".($rediger ? " vr-edit" : "")."\" id=\"vrTable\">\n<thead><tr>"; # scrolls sideways on narrow windows (the card clips); vr-edit = no pointer cursor on rows, a click opens nothing in edit mode
 print vr_sort_th('id', 'Id', '', 'vr-r vr-id');
 print vr_sort_th('regnskab', findtekst('2682|Regnskab', $sprog_id));
 print vr_sort_th('brugerantal', findtekst('777|Brugere', $sprog_id), vr_t('Maks. antal brugere', 'Maximum number of users'), 'vr-r');
