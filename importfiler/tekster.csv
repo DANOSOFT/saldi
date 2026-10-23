@@ -5233,6 +5233,7 @@
 5404	genåbnet	reopened	gjenåpnet
 5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
 5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
+5407	Findes allerede i puljen	Already in the pool	Finnes allerede i puljen
 5408	cvrapi.dk afviser opslag fra serveren	cvrapi.dk refuses lookups from the server	cvrapi.dk avviser oppslag fra serveren
 5409	cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.	cvrapi.dk refuses lookups from the server. Please fill in the fields manually.	cvrapi.dk avviser oppslag fra serveren. Fyll ut feltene manuelt.
 5371	Aflæst	Read	Lest
@@ -5259,14 +5260,25 @@
 5392	Nu	Now	Nå
 5393	Fejlen kunne ikke rapporteres. Prøv igen.	The error could not be reported. Try again.	Feilen kunne ikke rapporteres. Prøv igjen.
 5394	Ingen aflæste værdier er gemt for dette bilag	No captured values are stored for this document	Ingen avleste verdier er lagret for dette bilaget
+5395	Ctrl + pil op/ned	Ctrl + arrow up/down	Ctrl + pil opp/ned
+5396	Hop mellem linjer	Move between lines	Hopp mellom linjer
+5397	Gem og gå til næste/forrige	Save and go to next/previous	Lagre og gå til neste/forrige
+5398	Slettes	To be deleted	Slettes
+5399	er ikke et kontonummer	is not an account number	er ikke et kontonummer
+5400	er lukket og kan ikke bruges	is closed and cannot be used	er lukket og kan ikke brukes
 5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
 5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5440	Kladden kan ikke bogføres. Følgende bilag har tekst eller beløb, men hverken debet- eller kreditkonto	The journal cannot be posted. The following vouchers have a text or an amount but neither a debit nor a credit account	Kladden kan ikke bokføres. Følgende bilag har tekst eller beløp, men verken debet- eller kreditkonto
+5441	Udfyld kontoen, eller slet linjen ved at skrive - i bilagsfeltet.	Fill in the account, or delete the line by entering - in the voucher field.	Fyll ut kontoen, eller slett linjen ved å skrive - i bilagsfeltet.
 5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
 5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
+5439	Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.	Voucher number %s was used by another user while you were typing. The line was saved as voucher %s.	Bilagsnummer %s ble brukt av en annen bruker mens du skrev. Linjen er lagret som bilag %s.
+5449	Kladden kunne ikke låses, så intet er gemt. Prøv igen.	The journal could not be locked, so nothing was saved. Please try again.	Kladden kunne ikke låses, så ingenting er lagret. Prøv igjen.
 5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
 5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
