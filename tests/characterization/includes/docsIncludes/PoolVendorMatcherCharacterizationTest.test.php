@@ -288,6 +288,21 @@ final class PoolVendorMatcherCharacterizationTest extends TestCase
         self::assertNull($r['iban']);
     }
 
+    public function testNameMatchSkipsAKreditorWithAnotherCvrNumber(): void
+    {
+        // Same name as kreditor 418, but another company: CVR 11112222 belongs to no kreditor
+        $r = poolVendorMatch(['name' => 'Dan Group Alarm', 'cvr' => '11112222'], self::index());
+        self::assertSame('none', $r['match']);
+        // Without a CVR number on the document, the name still finds it
+        $r = poolVendorMatch(['name' => 'Dan Group Alarm', 'cvr' => null], self::index());
+        self::assertSame('name', $r['match']);
+        self::assertSame(418, $r['kontoId']);
+        // A kreditor without a CVR number can still be found by name
+        $r = poolVendorMatch(['name' => 'Byggemarked Nord A/S', 'cvr' => '11112222'], self::index());
+        self::assertSame('name', $r['match']);
+        self::assertSame(600, $r['kontoId']);
+    }
+
     public function testEmptyIndexIsNone(): void
     {
         $r = poolVendorMatch(['name' => 'Dan Group Alarm', 'cvr' => '12345678'], poolVendorBuildIndex([]));
