@@ -30,8 +30,13 @@ export default defineConfig({
   testDir: "e2e",
   testMatch: /.*\.spec\.mjs$/,
   retries: 0,
-  timeout: 60_000,
-  expect: { timeout: 15_000 },
+  timeout: 180_000,
+  // 60s rather than a few seconds because finans/bogfor.php is genuinely that
+  // slow: it calls genberegn() three times per request, and each call
+  // recomputes every account balance in the chart with one query per account
+  // (~480 accounts here, on a book with ten transactions in it). See
+  // doc/TESTING_FINDINGS.md P1-2 - this timeout is a symptom, not a fudge.
+  expect: { timeout: 60_000 },
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],

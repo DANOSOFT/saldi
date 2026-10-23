@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- debitor/api.php --- ver 5.0.0 --- 2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,12 @@
 //                     Every failure now logs one fakture-error file, sets ordrer.digital_status
 //                     to SendFailed so the order shows it and a resend asks first, and reports
 //                     through findtekst(); an HTTP 500 with a document is no longer a success.
+// 20261019 CL/MJ SST-870 sendInvoice() reads the country code off the invoice's own land field
+//                  (countryCodeIso2()), and only falls back to the prefix in the CVR field and
+//                  then DK. A foreign customer without a prefixed CVR was sent as DK whatever
+//                  the address said - 33 of MEDSHOP's invoices in a year, all Swedish or
+//                  Norwegian. lev_land gives the delivery address its own code when it is
+//                  filled. Greenland and the Faroe Islands are still sent as DK.
 // 20261007 MJ SST-860 sendInvoice() no longer sends an empty accountingCustomerParty
 //                  companyId. A customer registered with an EAN/GLN and no CVR took the
 //                  GLN branch, which leaves $cvrnr_with_prefix empty, and the payload
@@ -72,6 +78,7 @@
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
     include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");
+    include_once(__DIR__ . "/../includes/stdFunc/countryCode.php");
 
     /**
      * @param string $address The full street address to split
@@ -553,16 +560,35 @@
                 exit;
             }
         }
-        // country code should be the same as prefix for cvrnr
-        $countryCode = "DK";
+        // 20261019 CL/MJ SST-870 The prefix in the CVR field still decides companyId, including
+        // the Greenland/Faroe rewrite, because that is a statement about the number itself. It is
+        // only the weaker source for the address: a customer can be Swedish and have no CVR on
+        // file at all, which is how 33 of MEDSHOP's invoices went out saying Denmark.
+        $cvrCountry = ($cvrnr_with_prefix !== "") ? strtoupper(substr($cvrnr_with_prefix, 0, 2)) : "";
 
-        if($cvrnr_with_prefix !== ""){
-            $countryCode = substr($cvrnr_with_prefix, 0, 2);
-        }
         // Greenland (GL) and Faroe Islands (FO) should be sent as DK in companyId
-        if($countryCode == "GL" || $countryCode == "FO"){
+        if($cvrCountry == "GL" || $cvrCountry == "FO"){
             $cvrnr_with_prefix = "DK" . substr($cvrnr_with_prefix, 2);
+            $cvrCountry = "DK";
+        }
+
+        // The invoice's own country field decides the address; the CVR prefix is the fallback, and
+        // DK the last resort when the field is empty or holds something unrecognised. Keeping DK
+        // last means an unexpected value behaves exactly as it did before SST-870.
+        $countryCode = countryCodeIso2($r_faktura["land"] ?? "", $cvrCountry);
+        if($countryCode === ""){
             $countryCode = "DK";
+        }
+        // Both are inside the Danish VAT area for e-invoicing, as the companyId rewrite above says.
+        if($countryCode === "GL" || $countryCode === "FO"){
+            $countryCode = "DK";
+        }
+
+        // The delivery address carries its own country when lev_land is filled - goods can go to
+        // one country while the invoice goes to another - and otherwise follows the customer's.
+        $deliveryCountryCode = countryCodeIso2($r_faktura["lev_land"] ?? "", $countryCode);
+        if($deliveryCountryCode === "GL" || $deliveryCountryCode === "FO"){
+            $deliveryCountryCode = "DK";
         }
         // 20260604 - Validate recipient address to prevent E-APS24003 transmission errors
         // Prepare customer address with fallback logic
@@ -606,7 +632,7 @@
                 "postalCode" => $levPostnr,
                 "countrySubentity" => "",
                 "addressLine" => "",
-                "countryCode" => $countryCode
+                "countryCode" => $deliveryCountryCode
             ];
         }else if($customerAddr1 !== "" && $customerBynavn !== "" && $customerPostnr !== ""){
             // 20260604 - Fallback to main address if delivery address is incomplete
