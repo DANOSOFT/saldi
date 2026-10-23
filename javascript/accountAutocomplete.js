@@ -31,6 +31,12 @@
 // 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
 // 20261019 CL/SZ SD-721 A kreditor made with "Opret kreditor" advances the search token like any other selection (SST-814).
 // 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
+// 20261023 CL/LH An Åbne Poster pick under Fakturanr. no longer overwrites what the line already holds. It writes only an empty field,
+//                  or one an earlier pick wrote that nobody has changed since. A filled Beløb, Valuta or debitor/kreditor account that
+//                  differs from the invoice is kept and marked, and a notice above the line offers "Brug fakturaens værdier"; a filled
+//                  Beskrivelse (a bank import's text) is kept as it is. "Fortryd" in the notice puts the line back. The momskode is no
+//                  longer recalculated on both sides after a pick, only on the side whose account the pick wrote (its change event).
+//                  The invoice search ignores an account or amount an earlier pick wrote, so a second pick can find another debitor's invoice.
 (function () {
     'use strict'; 
 
@@ -833,9 +839,10 @@
         let accountNr = '';
         let accountType = '';
 
+        // An account or amount an earlier pick wrote is not the user's: it must not narrow the search for the right invoice
         const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
         const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
-        if (dTypeField && debeField) {
+        if (dTypeField && debeField && !isAutofilled(debeField)) {
             const dType = dTypeField.value.toUpperCase().trim();
             if (dType === 'D' || dType === 'K') {
                 accountType = dType;
@@ -846,7 +853,7 @@
         if (!accountNr) {
             const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
             const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
-            if (kTypeField && kredField) {
+            if (kTypeField && kredField && !isAutofilled(kredField)) {
                 const kType = kTypeField.value.toUpperCase().trim();
                 if (kType === 'D' || kType === 'K') {
                     accountType = kType;
@@ -866,7 +873,7 @@
 
         // Read belo field and convert from Danish format (4.999,00 → 4999.00)
         const beloFieldForSearch = document.querySelector('input[name="belo' + rowNum + '"]');
-        const rawAmount = beloFieldForSearch ? beloFieldForSearch.value.trim() : '';
+        const rawAmount = beloFieldForSearch && !isAutofilled(beloFieldForSearch) ? beloFieldForSearch.value.trim() : '';
         const currentAmount = rawAmount.replace(/\./g, '').replace(',', '.');
        
         const url = basePath + '?search=' +
@@ -1614,6 +1621,323 @@
 
     }
 
+    /*
+     * Invoice autofill: a pick in the Åbne Poster panel under Fakturanr. fills the rest of the line.
+     * The pick only writes a field that is empty, or one an earlier pick wrote that still holds that value.
+     * A value the user typed, or one the line was saved with (a bank import line), is never overwritten:
+     * where it disagrees with the invoice the field is marked, and the notice above the line offers the
+     * invoice's value ("Brug fakturaens værdier"). Every field a pick writes keeps the value it had before
+     * (data-autofill-original) and the value the pick wrote (data-autofill-value), so "Fortryd" and the
+     * next pick on the same line can put the line back to the user's own values.
+     */
+    const AUTOFILL_FIELDS = ['besk', 'd_ty', 'debe', 'k_ty', 'kred', 'fakt', 'belo', 'valu'];
+    let autofillNotice = null;
+    let autofillListenersBound = false;
+    // Per line number: labels of the fields the last pick filled, for the notice shown again later
+    const autofillFilledLabels = {};
+
+    function autofillText(key, fallback) {
+        const trans = getTrans();
+        return trans[key] || fallback;
+    }
+
+    function rowField(prefix, rowNum) {
+        return document.querySelector('input[name="' + prefix + rowNum + '"]');
+    }
+
+    /** A Danish amount as the user types it ("4.950,00", "4950") as a number, or null. */
+    function parseDanishAmount(text) {
+        const clean = String(text || '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+        if (clean === '') return null;
+        const num = parseFloat(clean);
+        return isNaN(num) ? null : num;
+    }
+
+    /** True while the field still holds the value a pick wrote into it (the user has not changed it since). */
+    function isAutofilled(field) {
+        return field.dataset.autofillValue !== undefined && field.value === field.dataset.autofillValue;
+    }
+
+    /** Write a value as the pick's own, remembering what the field held before. */
+    function autofillField(field, value) {
+        if (!field || field.value === value) return;
+        const original = field.dataset.autofillValue !== undefined ? field.dataset.autofillOriginal : field.value;
+        setFieldValue(field, value);
+        field.dataset.autofillOriginal = original;
+        field.dataset.autofillValue = field.value;
+    }
+
+    /** Put back every field the line's picks wrote and nobody has changed since; forget the rest. */
+    function revertAutofill(rowNum) {
+        AUTOFILL_FIELDS.forEach(function (prefix) {
+            const field = rowField(prefix, rowNum);
+            if (!field || field.dataset.autofillValue === undefined) return;
+            if (isAutofilled(field)) {
+                setFieldValue(field, field.dataset.autofillOriginal);
+            }
+            delete field.dataset.autofillValue;
+            delete field.dataset.autofillOriginal;
+        });
+    }
+
+    function hasAutofill(rowNum) {
+        return AUTOFILL_FIELDS.some(function (prefix) {
+            const field = rowField(prefix, rowNum);
+            return field && isAutofilled(field);
+        });
+    }
+
+    /** Mark a field whose value disagrees with the invoice; the notice offers the invoice's value. */
+    function markConflict(field, value, note, pairField) {
+        if (field.dataset.autofillSuggest === undefined) {
+            field.dataset.autofillTitle = field.getAttribute('title') || '';
+        }
+        field.dataset.autofillSuggest = value;
+        if (note) field.dataset.autofillNote = note;
+        if (pairField) field.dataset.autofillPair = pairField.name;
+        field.classList.add('autofill-conflict');
+        field.title = autofillText('invoice', 'Faktura') + ': ' + value;
+        if (!field.autofillConflictBound) {
+            field.autofillConflictBound = true;
+            // The user typing in a marked field settles it; a value a script sets (setFieldValue) does not
+            field.addEventListener('input', function (e) {
+                if (e.isTrusted) clearConflict(field);
+            });
+            field.addEventListener('focus', function () {
+                if (field.dataset.autofillSuggest !== undefined) {
+                    const rowMatch = field.name.match(/\d+$/);
+                    if (rowMatch) showAutofillNotice(rowMatch[0], null);
+                }
+            });
+        }
+    }
+
+    function clearConflict(field) {
+        if (!field || field.dataset.autofillSuggest === undefined) return;
+        const pairName = field.dataset.autofillPair;
+        field.classList.remove('autofill-conflict');
+        if (field.dataset.autofillTitle) field.title = field.dataset.autofillTitle;
+        else field.removeAttribute('title');
+        delete field.dataset.autofillSuggest;
+        delete field.dataset.autofillNote;
+        delete field.dataset.autofillPair;
+        delete field.dataset.autofillTitle;
+        // The type and the account of one side are one value: settling one settles both
+        if (pairName) clearConflict(document.querySelector('input[name="' + pairName + '"]'));
+    }
+
+    function clearConflicts(rowNum) {
+        AUTOFILL_FIELDS.forEach(function (prefix) {
+            clearConflict(rowField(prefix, rowNum));
+        });
+    }
+
+    function conflictFields(rowNum) {
+        return AUTOFILL_FIELDS.map(function (prefix) {
+            return rowField(prefix, rowNum);
+        }).filter(function (field) {
+            return field && field.dataset.autofillSuggest !== undefined;
+        });
+    }
+
+    /** "Brug fakturaens værdier": the marked fields take the invoice's values, which "Fortryd" can take back. */
+    function acceptConflicts(rowNum) {
+        conflictFields(rowNum).forEach(function (field) {
+            const value = field.dataset.autofillSuggest;
+            clearConflict(field);
+            autofillField(field, value);
+        });
+    }
+
+    /**
+     * Offer one value to one field: an empty field takes it, an equal one is left alone, a different one
+     * is kept and marked (or kept silently when options.silent).
+     * @returns {string} 'filled', 'same', 'kept' or 'conflict'; '' when there is nothing to offer.
+     */
+    function offerValue(field, value, options) {
+        if (!field || value === '') return '';
+        const same = options.same || function (a, b) { return a.trim() === b; };
+        if (same(field.value, value)) return 'same';
+        if (field.value.trim() === '') {
+            autofillField(field, value);
+            return 'filled';
+        }
+        if (options.silent) return 'kept';
+        markConflict(field, value, options.note(field.value.trim()));
+        return 'conflict';
+    }
+
+    /** Offer a debitor/kreditor (type + account) to one side of the line. */
+    function offerAccount(typeField, accountField, type, account, label) {
+        if (!accountField || !account) return '';
+        const lineAccount = accountField.value.trim();
+        const lineType = (typeField ? typeField.value.trim().toUpperCase() : '') || 'F';
+        if (lineAccount === account && lineType === type) return 'same';
+        if (lineAccount === '') {
+            if (typeField) autofillField(typeField, type);
+            autofillField(accountField, account);
+            return 'filled';
+        }
+        const note = label + ' ' + type + ' ' + account + ' (' + autofillText('autofillLine', 'linjen') + ': ' + lineType + ' ' + lineAccount + ')';
+        if (typeField) markConflict(typeField, type, '', accountField);
+        markConflict(accountField, account, note, typeField);
+        return 'conflict';
+    }
+
+    function bindAutofillNoticeListeners() {
+        if (autofillListenersBound) return;
+        autofillListenersBound = true;
+        const reposition = function () {
+            if (autofillNotice) positionAutofillNotice();
+        };
+        window.addEventListener('scroll', reposition, true);
+        window.addEventListener('resize', reposition);
+        // Moving on to another line puts the notice away; its marks stay on the fields
+        document.addEventListener('focusin', function (e) {
+            if (!autofillNotice || !e.target || !e.target.name) return;
+            const rowMatch = e.target.name.match(/\d+$/);
+            if (rowMatch && rowMatch[0] !== autofillNotice.rowNum) hideAutofillNotice();
+        });
+    }
+
+    function hideAutofillNotice() {
+        if (!autofillNotice) return;
+        clearTimeout(autofillNotice.timer);
+        autofillNotice.box.remove();
+        autofillNotice = null;
+    }
+
+    function positionAutofillNotice() {
+        const anchor = rowField('fakt', autofillNotice.rowNum) || autofillNotice.anchor;
+        if (!anchor || !anchor.isConnected) {
+            hideAutofillNotice();
+            return;
+        }
+        const rect = anchor.getBoundingClientRect();
+        const box = autofillNotice.box;
+        const width = box.offsetWidth || 400;
+        let left = rect.right - width;
+        if (left + width > window.innerWidth - 10) left = window.innerWidth - width - 10;
+        if (left < 10) left = 10;
+        // Above the line: below it are the next line the user types in and the lookup panels
+        let top = rect.top - box.offsetHeight - 4;
+        if (top < 10) top = rect.bottom + 4;
+        box.style.left = left + 'px';
+        box.style.top = top + 'px';
+    }
+
+    function startAutofillNoticeTimer() {
+        clearTimeout(autofillNotice.timer);
+        autofillNotice.timer = setTimeout(hideAutofillNotice, 12000);
+    }
+
+    /** Run fn with selectionMade set, as a pick does, so the input events setFieldValue sends don't start lookups. */
+    function withoutLookup(fn) {
+        selectionMade = true;
+        try {
+            fn();
+        } finally {
+            setTimeout(function () {
+                selectionMade = false;
+            }, 100);
+        }
+    }
+
+    function noticeAction(text, onClick) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'autofill-notice-action';
+        button.textContent = text;
+        // Keep the cursor where the user is typing; the click is handled on mousedown like the panel's lines
+        button.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick();
+        });
+        button.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+            }
+        });
+        return button;
+    }
+
+    /**
+     * The notice above the line after a pick: what the pick filled in ("Fortryd") and where the line
+     * disagrees with the invoice ("Brug fakturaens værdier"). Shown again when a marked field gets the cursor.
+     * @param {string}     rowNum  The line number in the field names.
+     * @param {Array|null} filled  Labels of the fields this pick filled; null to keep the shown list.
+     */
+    function showAutofillNotice(rowNum, filled) {
+        bindAutofillNoticeListeners();
+        const previous = autofillNotice && autofillNotice.rowNum === rowNum ? autofillNotice : null;
+        const faktField = rowField('fakt', rowNum);
+        const faktnr = faktField && faktField.dataset.autofillValue !== undefined ? faktField.dataset.autofillValue : (faktField ? faktField.value.trim() : '');
+        if (filled === null) filled = previous ? previous.filled : (autofillFilledLabels[rowNum] || []);
+        autofillFilledLabels[rowNum] = filled;
+        hideAutofillNotice();
+
+        const conflicts = conflictFields(rowNum).filter(function (field) {
+            return field.dataset.autofillNote;
+        });
+        const undoable = hasAutofill(rowNum);
+        if (!conflicts.length && !(undoable && filled.length)) return;
+
+        const box = document.createElement('div');
+        box.className = 'autofill-notice' + (conflicts.length ? ' autofill-notice--conflict' : '');
+        box.setAttribute('role', 'status');
+
+        if (undoable && filled.length) {
+            const line = document.createElement('div');
+            line.appendChild(document.createTextNode(autofillText('autofillFilled', 'Udfyldt fra faktura') + ' ' + faktnr + ': ' + filled.join(', ') + ' · '));
+            line.appendChild(noticeAction(autofillText('undo', 'Fortryd'), function () {
+                withoutLookup(function () {
+                    revertAutofill(rowNum);
+                    clearConflicts(rowNum);
+                });
+                autofillFilledLabels[rowNum] = [];
+                hideAutofillNotice();
+                if (faktField) window.focusAccountQuietly(faktField);
+            }));
+            box.appendChild(line);
+        }
+        if (conflicts.length) {
+            const line = document.createElement('div');
+            line.className = 'autofill-notice-conflict';
+            const notes = conflicts.map(function (field) { return field.dataset.autofillNote; });
+            line.appendChild(document.createTextNode(autofillText('autofillDiffers', 'Afviger fra fakturaen') + ': ' + notes.join('; ') + ' · '));
+            line.appendChild(noticeAction(autofillText('autofillUseInvoice', 'Brug fakturaens værdier'), function () {
+                const accepted = conflicts.map(function (field) { return field.dataset.autofillLabel; }).filter(Boolean);
+                withoutLookup(function () {
+                    acceptConflicts(rowNum);
+                });
+                showAutofillNotice(rowNum, filled.concat(accepted));
+            }));
+            box.appendChild(line);
+        }
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'autofill-notice-close';
+        close.setAttribute('aria-label', autofillText('close', 'Luk'));
+        close.textContent = '✕';
+        close.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            hideAutofillNotice();
+        });
+        box.appendChild(close);
+
+        getDropdownContainer().appendChild(box);
+        autofillNotice = { box: box, rowNum: rowNum, anchor: faktField, filled: filled, timer: null };
+        box.addEventListener('mouseenter', function () { clearTimeout(autofillNotice && autofillNotice.timer); });
+        box.addEventListener('mouseleave', function () { if (autofillNotice && autofillNotice.box === box) startAutofillNoticeTimer(); });
+        positionAutofillNotice();
+        startAutofillNoticeTimer();
+    }
+
+
     function selectInvoiceOrAmount(input, item) {
         clearTimeout(debounceTimer);
 
@@ -1626,91 +1950,105 @@
 
         const rowNum = input.rowNumber;
 
-
         const faktnr = item.dataset.faktnr || '';
         const amount = item.dataset.amount || '';
         const accountNr = item.dataset.accountnr || '';
-        const accountType = item.dataset.accounttype || '';
+        const accountType = (item.dataset.accounttype || '').toUpperCase();
         const description = item.dataset.description || '';
-        const currency = item.dataset.currency || '';
+        const currency = (item.dataset.currency || '').toUpperCase();
         const offsetAccount = item.dataset.offsetaccount || '';
 
-
-        const faktField = document.querySelector('input[name="fakt' + rowNum + '"]');
-        const beloField = document.querySelector('input[name="belo' + rowNum + '"]');
-        const beskField = document.querySelector('input[name="besk' + rowNum + '"]');
-
-        const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
-        const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
-        const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
-        const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
+        const faktField = rowField('fakt', rowNum);
+        const beloField = rowField('belo', rowNum);
+        const beskField = rowField('besk', rowNum);
+        const valuField = rowField('valu', rowNum);
+        const dTypeField = rowField('d_ty', rowNum);
+        const debeField = rowField('debe', rowNum);
+        const kTypeField = rowField('k_ty', rowNum);
+        const kredField = rowField('kred', rowNum);
 
         const amountValue = parseFloat(amount) || 0;
+        // A negative amount typed on the line turns the line round (a save swaps its sides), so the pick follows it
+        const lineAmount = parseDanishAmount(beloField ? beloField.value : '');
+        const lineNegative = lineAmount !== null && lineAmount < 0;
+        const lineText = autofillText('autofillLine', 'linjen');
+        const amountLabel = autofillText('amount', 'Beløb');
+        const debitLabel = autofillText('debit', 'Debet');
+        const creditLabel = autofillText('credit', 'Kredit');
+        const filled = [];
 
+        // A second pick on the line starts from the user's own values, not from the first pick's
+        revertAutofill(rowNum);
+        clearConflicts(rowNum);
+
+        // The field the user picked from takes the pick
         if (input.fieldType === 'faktura') {
-            setFieldValue(input, faktnr);
+            autofillField(input, faktnr);
         } else if (input.fieldType === 'amount') {
-            setFieldValue(input, formatNumberForInput(Math.abs(amountValue)));
+            autofillField(input, formatNumberForInput(Math.abs(amountValue)));
         }
 
-        // Fill invoice number
-        if (faktField && faktnr && input.fieldType !== 'faktura') {
-            setFieldValue(faktField, faktnr);
+        if (input.fieldType !== 'faktura') {
+            offerValue(faktField, faktnr, {
+                note: function (line) { return autofillText('invoiceNo', 'Fakturanr.') + ' ' + faktnr + ' (' + lineText + ': ' + line + ')'; }
+            });
         }
 
-        // Fill amount (always positive in the field)
-        if (beloField && amount && input.fieldType !== 'amount') {
-            setFieldValue(beloField, formatNumberForInput(Math.abs(amountValue)));
+        // Amount (always positive in the field): a different amount on the line is a partial payment,
+        // a fee or the wrong invoice - the user decides, the pick never changes it
+        if (amount && input.fieldType !== 'amount') {
+            const invoiceAmount = (lineNegative ? '-' : '') + formatNumberForInput(Math.abs(amountValue));
+            const result = offerValue(beloField, invoiceAmount, {
+                same: function (line) {
+                    const lineAmount = parseDanishAmount(line);
+                    return lineAmount !== null && Math.abs(Math.abs(lineAmount) - Math.abs(amountValue)) < 0.005;
+                },
+                note: function (line) { return amountLabel + ' ' + formatNumber(Math.abs(amountValue)) + ' (' + lineText + ': ' + line + ')'; }
+            });
+            if (result === 'filled') filled.push(amountLabel);
+            if (result === 'conflict') beloField.dataset.autofillLabel = amountLabel;
         }
 
-        // Fill description (attachment text) - "Company name - Invoice number"
-        if (beskField && description) {
-            setFieldValue(beskField, description);
+        // Description - "Company name - Invoice number" - only on a line without its own text (a bank import line has the bank's text)
+        if (offerValue(beskField, description, { silent: true }) === 'filled') {
+            filled.push(autofillText('description', 'Beskrivelse'));
         }
 
-        // Fill currency field
-        const valuField = document.querySelector('input[name="valu' + rowNum + '"]');
-        if (valuField && currency) {
-            setFieldValue(valuField, currency);
-        }
+        // Currency: a saved line shows the base currency, so a different currency is a question for the user, not a fill
+        const currencyLabel = autofillText('currency', 'Valuta');
+        const currencyResult = offerValue(valuField, currency, {
+            same: function (line, value) { return line.trim().toUpperCase() === value; },
+            note: function (line) { return currencyLabel + ' ' + currency + ' (' + lineText + ': ' + line + ')'; }
+        });
+        if (currencyResult === 'filled') filled.push(currencyLabel);
+        if (currencyResult === 'conflict') valuField.dataset.autofillLabel = currencyLabel;
 
-
-        const existingDebet = debeField ? debeField.value.trim() : '';
-        const existingKredit = kredField ? kredField.value.trim() : '';
         if (accountNr && accountType) {
-            if (amountValue < 0) {
-                // Negative amount (e.g., credit note or payment received):
-                // - Put the debtor/creditor account in DEBIT side (d_type=D/K, debet=accountNo)
-                // - Put the offset account (bank) in CREDIT side (if not already filled)
-                if (dTypeField && debeField) {
-                    setFieldValue(dTypeField, accountType);
-                    setFieldValue(debeField, accountNr);
-                }
-                // Fill offset account on CREDIT side only if not already filled
-                if (kredField && !existingKredit && offsetAccount) {
-                    setFieldValue(kredField, offsetAccount);
-                }
-                // Keep existing k_type, don't overwrite with 'F'
-            } else {
-                // Positive amount (e.g., invoice being paid):
-                // - Put the debtor/creditor account in CREDIT side (k_type=D/K, kredit=accountNo)
-                // - Put the offset account (bank) in DEBIT side (if not already filled)
-                if (kTypeField && kredField) {
-                    setFieldValue(kTypeField, accountType);
-                    setFieldValue(kredField, accountNr);
-                }
-                // Fill offset account on DEBIT side only if not already filled
-                if (debeField && !existingDebet && offsetAccount) {
-                    setFieldValue(debeField, offsetAccount);
-                }
-                // Keep existing d_type, don't overwrite with 'F'
+            // A negative open post (a credit note, a kreditor invoice) takes the debitor/kreditor on the debit
+            // side and the offset account (bank) on the credit side; a positive one the other way round.
+            const negative = (amountValue < 0) !== lineNegative;
+            const accountSide = negative
+                ? { type: dTypeField, account: debeField, label: debitLabel }
+                : { type: kTypeField, account: kredField, label: creditLabel };
+            const offsetSide = negative
+                ? { account: kredField, label: creditLabel }
+                : { account: debeField, label: debitLabel };
+
+            const accountResult = offerAccount(accountSide.type, accountSide.account, accountType, accountNr, accountSide.label);
+            if (accountResult === 'filled') filled.push(accountSide.label);
+            if (accountResult === 'conflict') accountSide.account.dataset.autofillLabel = accountSide.label;
+
+            // The offset account only goes into an empty field; its type is left as it is
+            if (offsetAccount && offsetSide.account && offsetSide.account.value.trim() === '') {
+                autofillField(offsetSide.account, offsetAccount);
+                filled.push(offsetSide.label);
             }
         }
+        const columnOrder = [autofillText('description', 'Beskrivelse'), debitLabel, creditLabel, amountLabel, currencyLabel];
+        filled.sort(function (a, b) { return columnOrder.indexOf(a) - columnOrder.indexOf(b); });
 
-        updateVatFieldForRow(rowNum, 'debet');
-        updateVatFieldForRow(rowNum, 'kredit');
-
-        
+        // The momskode follows by itself: setFieldValue's change event reaches the account fields' VAT
+        // listener (bindVatFieldListeners) on the side a pick changed, and the other side keeps its code.
 
         // Ensure docChange is set
         if (typeof window.docChange !== 'undefined') {
@@ -1726,6 +2064,8 @@
                 inputs[currentIndex + 1].focus();
             }
         }
+
+        showAutofillNotice(rowNum, filled);
 
         setTimeout(function () {
             selectionMade = false;
